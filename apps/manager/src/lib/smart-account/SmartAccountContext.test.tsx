@@ -13,8 +13,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import './SmartAccountContext.mocks'
 
-import { useClient, useWallet } from '@getpara/react-sdk-lite'
-import { useWalletClient } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
 import { initializeRhinestoneAccount } from './rhinestone'
 import {
   SmartAccountContextProvider,
@@ -110,9 +109,9 @@ describe('SmartAccountContext', () => {
     })
 
     it('initializes Rhinestone for external wallet', async () => {
-      vi.mocked(useWallet).mockReturnValue({
-        data: { isExternal: true },
-        isPending: false,
+      vi.mocked(useAccount).mockReturnValue({
+        address: '0xExternalWallet12345678901234567890123456',
+        status: 'connected',
       } as any)
       vi.mocked(useWalletClient).mockReturnValue({
         data: {
@@ -131,32 +130,13 @@ describe('SmartAccountContext', () => {
       expect(initializeRhinestoneAccount).toHaveBeenCalled()
       expect(result.current.walletSource).toBe('external-wallet')
     })
-
-    it('initializes Rhinestone for Para embedded wallet', async () => {
-      vi.mocked(useWallet).mockReturnValue({
-        data: { isExternal: false },
-        isPending: false,
-      } as any)
-      vi.mocked(useClient).mockReturnValue({ isConnected: true } as any)
-
-      const { result } = renderHook(() => useSmartAccountContext(), {
-        wrapper: createWrapper(),
-      })
-
-      await waitFor(() => {
-        expect(result.current.isAccountReady).toBe(true)
-      })
-
-      expect(initializeRhinestoneAccount).toHaveBeenCalled()
-      expect(result.current.walletSource).toBe('para-embedded')
-    })
   })
 
   describe('signer creation', () => {
     it('creates signer when client and address are available', async () => {
-      vi.mocked(useWallet).mockReturnValue({
-        data: { isExternal: true },
-        isPending: false,
+      vi.mocked(useAccount).mockReturnValue({
+        address: '0xExternalWallet12345678901234567890123456',
+        status: 'connected',
       } as any)
       vi.mocked(useWalletClient).mockReturnValue({
         data: {

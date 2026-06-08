@@ -3,14 +3,14 @@ import { Suspense } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
-import { isConnectedToPara } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { isWalletConnected } from '@/lib/wallet'
 
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,
   beforeLoad: () => {
     // Cookie based check for wallet connection which allows server side redirects and faster loading times
-    if (!isConnectedToPara()) throw redirect({ to: '/' })
+    if (!isWalletConnected()) throw redirect({ to: '/' })
   },
 })
 

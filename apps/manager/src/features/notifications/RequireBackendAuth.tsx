@@ -1,12 +1,11 @@
-import { useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useMutation } from '@tanstack/react-query'
 import { useAtom, useSelector } from '@xstate/store-react'
 import type { ReactNode } from 'react'
-import { useWalletClient } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
-import { useParaWalletStatus } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 
@@ -23,11 +22,10 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
   )
   const { data: walletClient } = useWalletClient()
   const { ownerAddress } = useSmartAccountContext()
-  const { openModal } = useModal()
+  const { openConnectModal } = useConnectModal()
+  const { isConnected, status } = useAccount()
 
-  const walletStatus = useParaWalletStatus()
-
-  if (walletStatus === 'pending') {
+  if (status === 'connecting' || status === 'reconnecting') {
     return (
       <div className="mx-auto max-w-md px-4 py-6 text-center">
         <p className="text-muted-foreground text-sm">
@@ -64,7 +62,11 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
               <Trans>Account address:</Trans> {ownerAddress}
             </div>
           </div>
-          <Button className="w-full" onClick={() => openModal()} size="lg">
+          <Button
+            className="w-full"
+            onClick={() => openConnectModal?.()}
+            size="lg"
+          >
             <Trans>Reconnect Wallet</Trans>
           </Button>
         </div>
@@ -76,7 +78,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
     return <>{children}</>
   }
 
-  if (walletStatus === 'disconnected') {
+  if (!isConnected) {
     return (
       <div className="mx-auto max-w-md px-4 py-6">
         <div className="space-y-4 text-center">
@@ -89,7 +91,11 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
               activity.
             </Trans>
           </p>
-          <Button className="w-full" onClick={() => openModal()} size="lg">
+          <Button
+            className="w-full"
+            onClick={() => openConnectModal?.()}
+            size="lg"
+          >
             <Trans>Connect Wallet</Trans>
           </Button>
         </div>

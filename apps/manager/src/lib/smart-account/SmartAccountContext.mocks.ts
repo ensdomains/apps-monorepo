@@ -10,21 +10,11 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   Signer: {},
 }))
 
-vi.mock('@getpara/viem-v2-integration', () => ({
-  createParaAccount: vi.fn().mockReturnValue({
-    address: '0xParaAddress123456789012345678901234567890' as const,
-    signMessage: vi.fn(),
-    signTypedData: vi.fn(),
-  }),
-}))
-
-// Mock all external dependencies
-vi.mock('@getpara/react-sdk-lite', () => ({
-  useClient: vi.fn().mockReturnValue(null),
-  useWallet: vi.fn().mockReturnValue({ data: null, isPending: false }),
-}))
-
 vi.mock('wagmi', () => ({
+  useAccount: vi.fn().mockReturnValue({
+    address: undefined,
+    status: 'disconnected',
+  }),
   useWalletClient: vi.fn().mockReturnValue({ data: null }),
 }))
 

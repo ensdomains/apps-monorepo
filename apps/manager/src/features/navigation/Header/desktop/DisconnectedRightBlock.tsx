@@ -1,19 +1,20 @@
-import { useModal, useWallet } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useAccount } from 'wagmi'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { FloatingWrapper } from '../shared/FloatingWrapper'
 
 export const DisconnectedRightBlock = () => {
-  const { openModal } = useModal()
-  const wallet = useWallet()
+  const { openConnectModal } = useConnectModal()
+  const { status } = useAccount()
 
   return (
     <FloatingWrapper>
       <Button
         color="blue"
-        loading={wallet.isLoading}
-        onClick={() => openModal()}
+        loading={status === 'connecting' || status === 'reconnecting'}
+        onClick={() => openConnectModal?.()}
         size="temp-xs"
       >
         <Trans>Connect</Trans>

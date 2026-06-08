@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { useClient as useParaClient } from '@getpara/react-sdk-lite'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { UseMutationResult } from '@tanstack/react-query'
 import type { Address } from 'viem'
@@ -9,12 +8,7 @@ import type { RhinestoneConfig } from './rhinestone'
  * Shared types for smart account hooks
  */
 
-/**
- * Para client type for smart account initialization
- */
-export type ParaClient = ReturnType<typeof useParaClient>
-
-export type WalletSource = 'para-embedded' | 'external-wallet' | null
+export type WalletSource = 'external-wallet' | null
 
 export interface StablecoinBalance {
   address: Address
@@ -78,8 +72,7 @@ export interface RhinestoneAccountState extends BaseAccountState {
 
 /**
  * The manager app only supports the Rhinestone smart-account provider in
- * HCA mode. Para-embedded and external-wallet users flow through the
- * same Rhinestone path.
+ * HCA mode. All connected wallets flow through the same Rhinestone path.
  */
 export type SmartAccountState = RhinestoneAccountState
 

@@ -1,9 +1,8 @@
-import { useLogout, useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import paraColorIcon from '@/assets/icons/para-color.svg'
+import { useDisconnect } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -15,7 +14,7 @@ type WalletSectionProps = {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { walletSource, accountAddress, isLoading } = useSmartAccountContext()
+  const { accountAddress, isLoading } = useSmartAccountContext()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -23,8 +22,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       state.context.authKey === undefined &&
       state.context.modalDismissed === true,
   )
-  const { openModal } = useModal()
-  const logout = useLogout()
+  const { disconnect, isPending: isDisconnectPending } = useDisconnect()
 
   return (
     <div className="mb-3 space-y-4">
@@ -66,26 +64,6 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
           </div>
         ))
         .otherwise(() => null)}
-
-      {match(walletSource)
-        .with('para-embedded', () => (
-          <div className="flex items-center gap-2">
-            <img
-              alt="Para Logo"
-              className="size-6 bg-[#FEF9F8] p-1"
-              src={paraColorIcon}
-            />
-            <button
-              className="text-ens-quartz-900 text-sm"
-              onClick={() => openModal()}
-              type="button"
-            >
-              <Trans>Manage Para Wallet</Trans>
-            </button>
-          </div>
-        ))
-        .otherwise(() => null)}
-
       {shouldShowSiweButton && (
         <button
           className="flex w-full items-center gap-2"
@@ -105,12 +83,12 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       <button
         className="flex w-full items-center gap-2 rounded-lg"
         onClick={() => {
-          logout.logout()
+          disconnect()
           onAction()
         }}
         type="button"
       >
-        {logout.isPending ? (
+        {isDisconnectPending ? (
           <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
         ) : (
           <MSymbol className="ms-opsz-20" symbol="logout" />

@@ -1,4 +1,4 @@
-import { useModal } from '@getpara/react-sdk-lite'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo, useReducer, useState } from 'react'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
@@ -38,7 +38,7 @@ export const usePricing = ({
   | 'onConfirmPayment'
 >) => {
   const { client: smartAccountClient } = useSmartAccountContext()
-  const { openModal } = useModal()
+  const { openConnectModal } = useConnectModal()
   const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
 
   const createInitialState = useMemo(
@@ -242,9 +242,9 @@ export const usePricing = ({
 
   const handleConnect = async () => {
     try {
-      await openModal()
+      openConnectModal?.()
     } catch (error) {
-      console.error('Failed to open Para modal:', error)
+      console.error('Failed to open wallet modal:', error)
     }
   }
 

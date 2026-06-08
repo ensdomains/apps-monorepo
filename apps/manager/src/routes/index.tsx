@@ -9,8 +9,8 @@ import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
 import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
 import { CheckAvailability } from '@/features/register/components/CheckAvailability/CheckAvailability'
-import { getParaConnectionCookie } from '@/lib/para'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { getConnectedWalletCookie } from '@/lib/wallet'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const LandingPage = () => {
@@ -99,7 +99,7 @@ export const Route = createFileRoute('/')({
   }),
   beforeLoad: async ({ context: { queryClient }, search: { landing } }) => {
     // Cookie based check for wallet connection which allows server side redirects and faster loading times
-    const connectedAddress = getParaConnectionCookie()
+    const connectedAddress = getConnectedWalletCookie()
 
     // If the user is connected and has domains, redirect to the dashboard, otherwise let them stay on the landing page
     if (connectedAddress) {

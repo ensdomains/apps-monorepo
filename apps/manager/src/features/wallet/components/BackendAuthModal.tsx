@@ -1,9 +1,8 @@
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useState } from 'react'
-import { useWalletClient } from 'wagmi'
+import { useAccount, useWalletClient } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
@@ -21,7 +20,7 @@ export const BackendAuthModal = () => {
   )
   const signIn = useMutation(signInBackendMutation)
 
-  const { data: wallet, isLoading: walletLoading } = useWallet()
+  const { isConnected, status } = useAccount()
   const { data: walletClient } = useWalletClient()
 
   // Hold this modal until the SCA is live. Hook is null before the
@@ -30,7 +29,7 @@ export const BackendAuthModal = () => {
   const isSmartAccountReady =
     smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
 
-  const isWalletConnected = !!wallet && !walletLoading
+  const isWalletConnected = isConnected && status === 'connected'
   const shouldShowModal =
     isWalletConnected && isNotAuthedOrDismissed && isSmartAccountReady
 

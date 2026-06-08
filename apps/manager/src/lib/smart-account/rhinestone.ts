@@ -4,11 +4,8 @@
  *
  * Responsibilities live here, not in the package:
  *
- *   - Picking between an external `WalletClient` (wagmi) and a Para
- *     embedded wallet.
- *   - Building a viem `Account` from either source. Para's MPC
- *     signatures use 0/1 v-byte and need `wrapParaAccount` to be
- *     usable by the Rhinestone SDK.
+ *   - Building a viem `Account` from the connected wagmi
+ *     `WalletClient`.
  *   - Reading manager-specific env vars (`VITE_RHINESTONE_API_KEY`,
  *     `VITE_RHINESTONE_ENDPOINT_URL`, `VITE_RHINESTONE_CUSTOM_RPC_URLS`).
  *   - Injecting the manager's chain (`customSepolia`).
@@ -27,18 +24,12 @@ import {
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
-import { createParaAccount } from '@getpara/viem-v2-integration'
 import { i18n } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
-import {
-  type RhinestoneAccount,
-  walletClientToAccount,
-  wrapParaAccount,
-} from '@rhinestone/sdk'
+import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
 import { toast } from 'sonner'
 import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
-import type { ParaClient } from './types'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
@@ -47,7 +38,6 @@ export interface RhinestoneConfig {
 
 export interface InitializeRhinestoneParams {
   walletClient?: WalletClient
-  paraClient?: ParaClient
 }
 
 export interface RhinestoneInitResult {
@@ -59,14 +49,14 @@ export interface RhinestoneInitResult {
 
 /**
  * Resolve a viem `Account` + EOA address from whichever wallet
- * provider the user is connected through. Throws if neither is
+ * provider the user is connected through. Throws if it is not
  * available.
  */
-function resolveOwnerAccount(params: {
-  walletClient?: WalletClient
-  paraClient?: ParaClient
-}): { ownerAccount: Account; eoaAddress: Address } {
-  const { walletClient, paraClient } = params
+function resolveOwnerAccount(params: { walletClient?: WalletClient }): {
+  ownerAccount: Account
+  eoaAddress: Address
+} {
+  const { walletClient } = params
 
   if (walletClient?.account?.address) {
     return {
@@ -75,19 +65,7 @@ function resolveOwnerAccount(params: {
     }
   }
 
-  if (paraClient) {
-    const paraAccount = createParaAccount(paraClient)
-    return {
-      // Para's MPC signatures use 0/1 v-byte recovery; Rhinestone /
-      // ERC-4337 modules expect 27/28. `wrapParaAccount` adjusts.
-      ownerAccount: wrapParaAccount(paraAccount),
-      eoaAddress: paraAccount.address as Address,
-    }
-  }
-
-  throw new Error(
-    'Either walletClient or paraClient must be provided for Rhinestone initialization',
-  )
+  throw new Error('walletClient must be provided for Rhinestone initialization')
 }
 
 /**
@@ -144,11 +122,10 @@ function resolveSdkEnv(): {
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneParams,
 ): Promise<RhinestoneInitResult> {
-  const { walletClient, paraClient } = params
+  const { walletClient } = params
 
   const { ownerAccount, eoaAddress } = resolveOwnerAccount({
     walletClient,
-    paraClient,
   })
   const env = resolveSdkEnv()
 

@@ -1,7 +1,6 @@
-import { useAccount } from '@getpara/react-sdk-lite'
 import { Loader2Icon, UserIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import paraIcon from '@/assets/icons/para-color.svg'
+import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
@@ -12,7 +11,7 @@ export const AccountTriggerContent = () => {
   const { ownerAddress } = useSmartAccountContext()
   const reverseNameQuery = useConnectedReverseName()
   const avatar = useConnectedAvatar()
-  const paraAccount = useAccount()
+  const { status } = useAccount()
 
   return (
     <>
@@ -21,7 +20,7 @@ export const AccountTriggerContent = () => {
           {match({
             avatar: avatar.url,
             avatarLoading: avatar.isLoading,
-            connectionType: paraAccount.connectionType,
+            isConnected: status === 'connected',
           })
             .with({ avatar: P.string }, ({ avatar }) => (
               <img
@@ -33,25 +32,17 @@ export const AccountTriggerContent = () => {
             .with({ avatarLoading: true }, () => (
               <Loader2Icon className="size-4 animate-spin rounded-full bg-ens-gray-two md:size-5" />
             ))
-            .with({ connectionType: 'external' }, () => (
+            .with({ isConnected: true }, () => (
               <div className="flex size-full items-center justify-center rounded-full bg-ens-gray-two">
                 <UserIcon className="size-4 text-muted-foreground md:size-5" />
               </div>
-            ))
-            .with({ connectionType: P.union('embedded', 'both') }, () => (
-              <img
-                alt="Para Icon"
-                className="size-full rounded-md bg-[#FEF9F8] object-cover p-2 md:p-2.5"
-                src={paraIcon}
-              />
             ))
             .otherwise(() => null)}
         </div>
 
         <span className="min-w-0 truncate font-normal text-gray-700 text-sm leading-tight tracking-tight md:text-lg md:leading-[0.96] md:tracking-[-0.32px]">
           {getHeaderDisplayName({
-            account: paraAccount,
-            isLoading: paraAccount.isLoading,
+            isLoading: status === 'connecting' || status === 'reconnecting',
             ownerAddress,
             reverseName: reverseNameQuery.data ?? null,
           })}

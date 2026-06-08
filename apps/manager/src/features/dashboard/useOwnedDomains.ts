@@ -3,19 +3,19 @@ import {
   type DomainFragment,
   OrderDirection,
 } from '@ens-apps/indexer'
-import { useWallet } from '@getpara/react-sdk-lite'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
+import { useAccount } from 'wagmi'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { getAllDomainsInfiniteQuery } from './service/queries/getAllDashboardDomains'
 
 export const useOwnedDomains = () => {
-  const { data: wallet } = useWallet()
+  const { address } = useAccount()
   const smartAccount = useSmartAccountContextSafe()
 
   const ownerAddresses = useMemo(() => {
     const candidates = [
-      wallet?.address,
+      address,
       smartAccount?.accountAddress,
       smartAccount?.ownerAddress,
     ]
@@ -24,11 +24,7 @@ export const useOwnedDomains = () => {
       if (addr) unique.add(addr.toLowerCase())
     }
     return Array.from(unique)
-  }, [
-    wallet?.address,
-    smartAccount?.accountAddress,
-    smartAccount?.ownerAddress,
-  ])
+  }, [address, smartAccount?.accountAddress, smartAccount?.ownerAddress])
 
   const hasOwnerAddresses = ownerAddresses.length > 0
 

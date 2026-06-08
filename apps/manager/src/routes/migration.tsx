@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
-import { getParaConnectionCookie } from '@/lib/para'
+import { getConnectedWalletCookie } from '@/lib/wallet'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/migration')({
@@ -11,7 +11,7 @@ export const Route = createFileRoute('/migration')({
     </MigrationUiProvider>
   ),
   beforeLoad: () => {
-    const connectedAddress = getParaConnectionCookie()
+    const connectedAddress = getConnectedWalletCookie()
 
     if (!connectedAddress) throw redirect({ to: '/' })
 

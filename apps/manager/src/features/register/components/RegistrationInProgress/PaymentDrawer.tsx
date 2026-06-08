@@ -1,9 +1,9 @@
 'use client'
 
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useAccount } from 'wagmi'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import {
@@ -159,8 +159,7 @@ export const CryptoPaymentDrawer = ({
   const [step, setStep] = useState<1 | 2>(1)
 
   const isDesktop = useMediaQuery('(min-width: 768px)')
-  const { data: wallet } = useWallet()
-  const isConnected = !!wallet?.address
+  const { isConnected } = useAccount()
   const { stablecoinBalances, isLoadingBalances } = useSmartAccountContext()
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
