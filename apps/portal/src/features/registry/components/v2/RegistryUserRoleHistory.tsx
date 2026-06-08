@@ -4,6 +4,7 @@ import { type Address, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Badge } from '@/components/ui/badge'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -100,9 +101,10 @@ export const RegistryUserRoleHistory = ({
         />
       )}
       {!isLoading && !error && rows.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          No role changes recorded for this user yet.
-        </p>
+        <NoResultsMessage
+          title="No role changes yet"
+          description="This user has no recorded role grants or revokes on this registry."
+        />
       )}
       {!isLoading && !error && rows.length > 0 && (
         <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent">
