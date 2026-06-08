@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import type { SubgraphEvent } from '@/utils/history/groupEventsByTransactionId'
@@ -32,10 +33,11 @@ export const RegistryHistoryByAddress = ({
     return <LoadingSpinner title="Loading registry history..." />
   }
   if (eventsError) {
-    const message = (eventsError as { cause?: { message?: string } }).cause
-      ?.message
     return (
-      <div>Error loading registry history{message ? `: ${message}` : ''}</div>
+      <ErrorMessage
+        title="Error loading registry history"
+        description={eventsError.cause?.message ?? eventsError.message}
+      />
     )
   }
 
@@ -78,10 +80,11 @@ export const RegistryHistory = ({ name }: { name: string }) => {
   }
 
   if (registriesError) {
-    const message = (registriesError as { cause?: { message?: string } }).cause
-      ?.message
     return (
-      <div>Error loading registry history{message ? `: ${message}` : ''}</div>
+      <ErrorMessage
+        title="Error loading registry history"
+        description={registriesError.cause?.message ?? registriesError.message}
+      />
     )
   }
 
