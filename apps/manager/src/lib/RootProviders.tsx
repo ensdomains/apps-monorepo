@@ -16,6 +16,21 @@ import { ConnectionCookieSync } from './ConnectionCookieSync'
 import { wagmiConfig } from './wagmi'
 
 /**
+ * Clear app-local state on disconnect WITHOUT touching wagmi's / RainbowKit's
+ * own connection storage. A blanket `localStorage.clear()` wipes wagmi's
+ * connector store (`wagmi.*`) and the recent-wallet record (`rk-*`), which
+ * corrupts reconnection and can blank the app on the next load. Para could
+ * clear everything safely because it managed its own storage; wagmi keeps the
+ * connection in localStorage, so we must preserve those keys.
+ */
+const clearAppLocalStorage = () => {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith('wagmi') || key.startsWith('rk-')) continue
+    localStorage.removeItem(key)
+  }
+}
+
+/**
  * Reacts to wallet connection lifecycle changes. Replaces the side effects
  * that previously lived in the Para provider callbacks:
  *  - when the active address no longer matches the backend-authed address,
@@ -48,7 +63,7 @@ const WalletLifecycle = () => {
     onDisconnect() {
       transactionManager.clearAllAndPersistence()
       backendAuthStore.trigger.signOut()
-      localStorage.clear()
+      clearAppLocalStorage()
       track('wallet:disconnect')
       posthog.reset()
     },
