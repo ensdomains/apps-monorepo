@@ -1,17 +1,7 @@
-export const PARA_TEST_ACCOUNTS = {
-  EMAILS: [
-    'dev@test.getpara.com',
-    'test1@test.getpara.com',
-    'test2@test.getpara.com',
-  ],
-  PHONES: ['(425)-555-1234', '(206)-555-9876', '(310)-555-0001'],
-} as const
-
 export const BASE_USER_LISTS = {
   TEAM: ['team@example.com', 'dev@example.com'],
   QA: ['qa@example.com'],
   BETA: ['beta@example.com'],
-  PARA_TEST: [...PARA_TEST_ACCOUNTS.EMAILS, ...PARA_TEST_ACCOUNTS.PHONES],
 } as const
 
 export type UserIdentifier = {
