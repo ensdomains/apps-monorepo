@@ -128,7 +128,7 @@ msgid "A scrappy generalist builder with taste. Senior Product Designer and Rese
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:36
-#: src/routes/index.tsx:38
+#: src/routes/index.tsx:39
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
 
@@ -495,7 +495,7 @@ msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
 #: src/features/register/pages/CheckDomainPage.tsx:28
-#: src/routes/index.tsx:30
+#: src/routes/index.tsx:31
 msgid "Claim your"
 msgstr ""
 
@@ -2739,7 +2739,7 @@ msgid "We sent a verification code to your email address."
 msgstr ""
 
 #: src/features/register/pages/CheckDomainPage.tsx:32
-#: src/routes/index.tsx:34
+#: src/routes/index.tsx:35
 msgid "web3 username"
 msgstr ""
 
