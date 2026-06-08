@@ -8,7 +8,7 @@ msgstr ""
 "Language: sv\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-03-12 12:36\n"
+"PO-Revision-Date: 2026-06-08 18:47\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -760,7 +760,7 @@ msgstr ""
 
 #: src/features/navigation/Header/account/NavSection.tsx:23
 msgid "Dashboard"
-msgstr ""
+msgstr "Översikt"
 
 #: src/features/dashboard/components/NamesTable.tsx:89
 #: src/features/dashboard/components/NamesTable.tsx:94
@@ -997,7 +997,7 @@ msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts:189
 msgid "Failed to deploy smart account"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:189
 msgid "Failed to fund wallet"
@@ -1083,7 +1083,7 @@ msgstr "Vanliga frågor"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:196
 msgid "From:"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:160
 msgid "Funding wallet"
@@ -2699,7 +2699,7 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:178
 msgid "Wallet {address} funded successfully"
@@ -2715,7 +2715,7 @@ msgstr ""
 
 #: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:177
 msgid "Wallet funded successfully"
@@ -2926,3 +2926,4 @@ msgstr ""
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""
+
