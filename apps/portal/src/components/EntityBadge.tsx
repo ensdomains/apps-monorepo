@@ -10,6 +10,7 @@ import {
   ChipLinkIcon,
   ChipNameIcon,
   ChipWalletIcon,
+  HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -157,6 +158,8 @@ interface EntityBadgeProps {
   readonly ownerAddress?: Address
   /** Address — enables Address chip (→ /addr/$address) */
   readonly address?: Address
+  /** Mark a contract `address` as a registry — enables Registry chip + primary action (→ /registry/$address) */
+  readonly isRegistry?: boolean
   /** Block explorer URL — enables Etherscan chip */
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
@@ -174,6 +177,7 @@ export const EntityBadge = ({
   ownerName,
   ownerAddress,
   address,
+  isRegistry = false,
   etherscanHref,
   copyValue,
   showAvatar = false,
@@ -217,7 +221,7 @@ export const EntityBadge = ({
   // the primary affordance; no link, no animated bg.
   if (variant === 'default') {
     return (
-      <div className="relative group/entity flex w-full min-w-0">
+      <div className="relative group/entity inline-flex min-w-0">
         {derivedCopyValue && (
           <div
             className={cn(chipOverlayBase, chipOverlayAlwaysOnTouch, 'left-0')}
@@ -282,6 +286,17 @@ export const EntityBadge = ({
         </Link>
       )
     }
+    if (variant === 'contract' && isRegistry && address) {
+      return (
+        <Link
+          to="/registry/$address"
+          params={{ address }}
+          className={primaryWrapperClass}
+        >
+          {pillNode}
+        </Link>
+      )
+    }
     if (variant === 'contract' && isResolver && address) {
       return (
         <Link
@@ -293,7 +308,7 @@ export const EntityBadge = ({
         </Link>
       )
     }
-    if (variant === 'contract' && !isResolver && etherscanHref) {
+    if (variant === 'contract' && !isRegistry && !isResolver && etherscanHref) {
       return (
         <a
           href={etherscanHref}
@@ -456,6 +471,17 @@ export const EntityBadge = ({
             label={contractName}
             showIcon={false}
           />
+        )}
+
+        {variant === 'contract' && isRegistry && address && (
+          <Link
+            to="/registry/$address"
+            params={{ address }}
+            className={chipClass}
+          >
+            <HubIcon className="size-3.25" />
+            Registry
+          </Link>
         )}
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}

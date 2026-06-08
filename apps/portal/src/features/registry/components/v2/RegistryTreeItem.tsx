@@ -7,6 +7,7 @@ import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
@@ -32,8 +33,11 @@ export const RegistryTreeItem = ({
   name,
 }: RegistryTreeItemProps) => {
   const isRoot = index === 0
+  const isEthRegistry = index === 1
   const isLast = index === registriesCount - 1
   const isParent = !isRoot && !isLast
+
+  const isDeployedRegistry = !isRoot && !isEthRegistry
 
   // registries are ordered `[name, ...ancestors, root]`, so this reversed item's
   // full name is the suffix of labels starting at its position.
@@ -58,6 +62,8 @@ export const RegistryTreeItem = ({
 
   // Reverse-resolve the owner so the Created badge can link to their profile.
   const { data: ownerEnsName } = useEnsName({ address: ownerData.owner })
+
+  const explorerHref = useBlockExplorerAddressUrl(address, chainId)
 
   return (
     <div
@@ -93,6 +99,8 @@ export const RegistryTreeItem = ({
               variant="contract"
               className="font-normal"
               address={address}
+              isRegistry={isDeployedRegistry}
+              etherscanHref={isDeployedRegistry ? undefined : explorerHref}
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
@@ -110,7 +118,7 @@ export const RegistryTreeItem = ({
         ) : null}
       </div>
       {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
+        <dl className="grid grid-cols-2 items-center max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
           <dt>Chain ID:</dt>
           <dd>{chainId}</dd>
           <dt>Protocol Version:</dt>

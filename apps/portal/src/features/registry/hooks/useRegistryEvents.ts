@@ -12,8 +12,6 @@ class GetRegistryEventsError extends TaggedError('GetRegistryEventsError')<{
 
 type GetRegistryEventsParameters = {
   address: Address
-  first?: number
-  after?: string
   orderDirection?: 'asc' | 'desc'
 }
 
@@ -30,27 +28,16 @@ export type RegistryEvent = {
   data: string | null
 }
 
-export type RegistryEventsPage = {
-  events: RegistryEvent[]
-  totalCount: number | null
-  pageInfo: {
-    endCursor: string | null
-    hasNextPage: boolean
-  }
-}
+const EVENTS_LIMIT = 50
 
 const getRegistryEvents = ResultFn(async function* ({
   address,
-  first = 20,
-  after,
   orderDirection = 'desc',
 }: GetRegistryEventsParameters) {
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: {
         eventConnection: {
-          totalCount: number | null
-          pageInfo: { endCursor: string | null; hasNextPage: boolean }
           edges: { node: RegistryEvent }[]
         }
       } | null
@@ -59,21 +46,14 @@ const getRegistryEvents = ResultFn(async function* ({
         query getRegistryEvents(
           $address: String!
           $first: Int
-          $after: String
           $orderDirection: OrderDirection
         ) {
           registry(address: $address) {
             eventConnection(
               first: $first
-              after: $after
               orderBy: timestamp
               orderDirection: $orderDirection
             ) {
-              totalCount
-              pageInfo {
-                endCursor
-                hasNextPage
-              }
               edges {
                 node {
                   id
@@ -92,24 +72,16 @@ const getRegistryEvents = ResultFn(async function* ({
           }
         }
       `,
-      { address: address.toLowerCase(), first, after, orderDirection },
+      { address: address.toLowerCase(), first: EVENTS_LIMIT, orderDirection },
     ),
     (e) => new GetRegistryEventsError({ cause: e as ClientError }),
   )
 
-  const page: RegistryEventsPage = registry
-    ? {
-        events: registry.eventConnection.edges.map((e) => e.node),
-        totalCount: registry.eventConnection.totalCount,
-        pageInfo: registry.eventConnection.pageInfo,
-      }
-    : {
-        events: [],
-        totalCount: 0,
-        pageInfo: { endCursor: null, hasNextPage: false },
-      }
+  const events: RegistryEvent[] = registry
+    ? registry.eventConnection.edges.map((e) => e.node)
+    : []
 
-  return ok(page)
+  return ok(events)
 })
 
 const getRegistryEventsQueryKey = createQueryKey<

@@ -1,11 +1,16 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
+import { EntityBadge } from '@/components/EntityBadge'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ProtocolVersion } from '@/utils/types'
 import { useGraceStatus } from '../hooks/useGraceStatus'
 import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
+import { getV2NameHistoryQueryOptions } from '../hooks/useV2NameHistory'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
 import { Timestamp } from './Timestamp'
 
@@ -34,7 +39,7 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="flex items-center gap-4 py-3">
+    <div className="flex items-center gap-4 min-h-13">
       <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
       <span className="text-sm text-muted-foreground w-24 shrink-0">
         Registered
@@ -45,7 +50,7 @@ const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
 }
 
 const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
-  <div className="flex items-center gap-4 py-3">
+  <div className="flex items-center gap-4 min-h-13">
     <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
     <span className="text-sm text-muted-foreground w-24 shrink-0">
       Grace ends
@@ -81,7 +86,7 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex items-center gap-4 py-3">
+        <div className="flex items-center gap-4 min-h-13">
           <ClockIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Expires
@@ -106,6 +111,15 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     getV2RegistrationDataQueryOptions({ name }),
   )
 
+  const { data: earliestEvents } = useQuery(
+    getV2NameHistoryQueryOptions({ name, first: 10, orderDirection: 'asc' }),
+  )
+
+  const registrationTxHash = earliestEvents?.find(
+    (event) => event.type === 'NameRegistered',
+  )?.transactionHash
+  const registrationTxUrl = useBlockExplorerTxUrl(registrationTxHash)
+
   if (error)
     return (
       <div>
@@ -125,7 +139,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         <GraceEndsRow graceEndDate={grace.graceEndDate} />
       ) : (
         data.expiry !== null && (
-          <div className="flex items-center gap-4 py-3">
+          <div className="flex items-center gap-4 min-h-13">
             <ClockIcon className="size-4 text-neutral-7 shrink-0" />
             <span className="text-sm text-muted-foreground w-24 shrink-0">
               Expires
@@ -138,14 +152,25 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
       )}
 
       {data.registeredAt !== null && (
-        <div className="flex items-center gap-4 py-3">
+        <div className="flex items-center gap-4 min-h-13">
           <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
           <span className="text-sm text-muted-foreground w-24 shrink-0">
             Registered
           </span>
-          <span className="font-semi-mono">
-            <Timestamp timestamp={data.registeredAt} />
-          </span>
+          {registrationTxHash ? (
+            <EntityBadge
+              variant="tx"
+              label={formatTimestampDate(data.registeredAt) ?? '—'}
+              etherscanHref={registrationTxUrl}
+              copyValue={registrationTxHash}
+            >
+              {truncateAddress(registrationTxHash, 6, 4)}
+            </EntityBadge>
+          ) : (
+            <span className="font-semi-mono">
+              <Timestamp timestamp={data.registeredAt} />
+            </span>
+          )}
         </div>
       )}
     </>
