@@ -142,6 +142,14 @@ export const SmartAccountContextProvider = ({
   // by Rhinestone, so the SCA itself doesn't need funding.
   const addressToFund = ownerAddress
 
+  // The (address + balance read) we last kicked off a fund for. We fund at most
+  // ONCE per balance read: `balancesUpdatedAt` advances only on a genuine
+  // refetch (every 30s, or the post-success invalidation) — never on render or
+  // mutation-settle churn — so this both retries transient failures on the next
+  // refetch AND can't loop on every render. This is what stops the previous
+  // infinite loop / faucet+Para spam.
+  const lastFundedKeyRef = useRef<string | null>(null)
+
   const autoFundingMutation = useMutation({
     mutationKey: $qk({
       $scope: 'wallet',
@@ -182,44 +190,71 @@ export const SmartAccountContextProvider = ({
         description: t`Failed to fund wallet: ${error.message}`,
         id: `fund-wallet-${address}`,
       })
+      // Intentionally keep the latch set for this snapshot. A failed attempt
+      // is NOT retried until the balances are genuinely re-read (the 30s
+      // refetch produces a new snapshot → new key → one retry). Resetting the
+      // latch here would let the effect re-fire the instant `isPending` flips
+      // back to false, hammering the faucet (and Para) on persistent errors.
     },
   })
 
-  const { isIdle: isFundingIdle, mutate: fundWallet } = autoFundingMutation
+  const { isPending: isFundingPending, mutate: fundWallet } =
+    autoFundingMutation
+
+  // Whether the owner is low on stablecoins. Computed here (not inside the
+  // effect) and reduced to a stable *boolean* so the funding effect doesn't
+  // re-run on the balances array's per-render ref churn — only when the
+  // low/healthy verdict actually flips. Sum in whole-token units with exact
+  // bigint powers (`10n ** decimals`, not `BigInt(10 ** decimals)`) so
+  // 18-decimal DAI never goes through a lossy float.
+  const needsStablecoins = useMemo(() => {
+    const totalBalance = balances.stablecoinBalances.reduce(
+      (acc, balance) =>
+        acc + BigInt(balance.balance) / 10n ** BigInt(balance.decimals),
+      0n,
+    )
+    return totalBalance < 500n
+  }, [balances.stablecoinBalances])
 
   useEffect(() => {
+    // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
+    // Funding tops up the EOA owner's stablecoins, which is independent of HCA
+    // initialization. The machine can flap disconnected→initializing→ready
+    // (Para reconnects, etc.); gating on `isLoading` there meant funding never
+    // got a stable window and the EOA stayed at $0. We only need the owner
+    // address and a loaded balance read.
     if (
       !addressToFund ||
-      isLoading ||
       balances.isLoadingBalances ||
-      balances.isLoadingApprovalGasState ||
-      !isFundingIdle
+      // A fund is already in flight — wait for it to settle before deciding
+      // whether another is needed.
+      isFundingPending
     ) {
       return
     }
 
-    const totalBalance = balances.stablecoinBalances.reduce(
-      (acc, balance) =>
-        acc + BigInt(balance.balance) / BigInt(10 ** balance.decimals),
-      0n,
-    )
+    // Fund when the owner is low on stablecoins. The api-worker faucet mints
+    // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
+    // (HCA gas is Warp-sponsored and the payment approval is a gasless permit,
+    // so the EOA owner never needs native ETH.)
+    if (!needsStablecoins) return
 
-    // Fund when the owner is low on stablecoins OR can't afford the one-time
-    // registrar approve (low ETH + not yet approved — see
-    // useSmartAccountBalances). The api-worker faucet mints tokens and/or drips
-    // approve-gas ETH as needed; both sides are gated so this stays idempotent.
-    const needsStablecoins = totalBalance < 500n
-    if (!needsStablecoins && !balances.needsApprovalGasTopUp) return
+    // Fund at most once per distinct (address, balance read). The key only
+    // changes when the owner address changes or the balances are genuinely
+    // re-read (`balancesUpdatedAt` advances on refetch), so render churn and the
+    // in-flight mutation can't re-fire it — while a persistent low balance still
+    // retries on the next 30s refetch.
+    const fundKey = `${addressToFund}:${balances.balancesUpdatedAt}`
+    if (lastFundedKeyRef.current === fundKey) return
 
+    lastFundedKeyRef.current = fundKey
     fundWallet(addressToFund)
   }, [
     addressToFund,
-    isLoading,
     balances.isLoadingBalances,
-    balances.isLoadingApprovalGasState,
-    balances.stablecoinBalances,
-    balances.needsApprovalGasTopUp,
-    isFundingIdle,
+    balances.balancesUpdatedAt,
+    needsStablecoins,
+    isFundingPending,
     fundWallet,
   ])
 
