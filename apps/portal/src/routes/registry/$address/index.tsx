@@ -18,10 +18,7 @@ import { SoonBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
-import {
-  getRegistryQueryOptions,
-  useRegistryReferencedBy,
-} from '@/features/registry/hooks/useRegistry'
+import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -33,6 +30,11 @@ export const Route = createFileRoute('/registry/$address/')({
 
 const PROTOCOL = 'ENSv2'
 
+const FACTORY_ADDRESS = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
 function RouteComponent() {
   const { address: addressParam } = Route.useParams()
   const address = addressParam as Address
@@ -42,25 +44,19 @@ function RouteComponent() {
     data: registry,
     isLoading,
     error,
-  } = useQuery(getRegistryQueryOptions({ address }))
+  } = useQuery(getRegistryInfoQueryOptions({ address }))
   const {
     data: parent,
     isLoading: isLoadingParent,
     error: parentError,
   } = useQuery({
-    ...getRegistryQueryOptions({
+    ...getRegistryInfoQueryOptions({
       address: registry?.parentRegistry ?? zeroAddress,
     }),
     enabled:
       !!registry?.parentRegistry &&
       !isAddressEqual(registry.parentRegistry, zeroAddress),
   })
-  const {
-    data: referencedBy,
-    isLoading: isLoadingReferencedBy,
-    error: referencedByError,
-  } = useRegistryReferencedBy(registry ?? undefined)
-
   // Owner of this registry's ENS name — used for the Deployed badge so it
   // matches the Created badge on /$name/registry exactly.
   const {
@@ -94,14 +90,13 @@ function RouteComponent() {
       />
     )
 
-  const factoryAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensVerifiableFactory',
-  })
-
   const deployedDate = registry.createdAt
     ? formatTimestampDate(registry.createdAt)
     : null
+
+  const referencedByNames = registry.referencedBy
+    .map((domain) => domain.name)
+    .filter((name): name is string => !!name)
 
   return (
     <div className="flex flex-col gap-8 p-4 sm:p-10 w-full max-w-360 mx-auto">
@@ -166,10 +161,10 @@ function RouteComponent() {
             <EntityBadge
               variant="contract"
               label="registry factory"
-              address={factoryAddress}
+              address={FACTORY_ADDRESS}
               className="font-normal"
             >
-              {truncateAddress(factoryAddress, 6, 4)}
+              {truncateAddress(FACTORY_ADDRESS, 6, 4)}
             </EntityBadge>
           </dd>
 
@@ -200,27 +195,15 @@ function RouteComponent() {
 
           <dt className="text-muted-foreground">Referenced by</dt>
           <dd className="flex flex-wrap items-center gap-2">
-            {match({ isLoadingReferencedBy, referencedByError })
-              .with({ isLoadingReferencedBy: true }, () => (
-                <Skeleton className="h-5 w-32" />
+            {referencedByNames.length > 0 ? (
+              referencedByNames.map((name) => (
+                <EntityBadge key={name} variant="name" name={name} showAvatar>
+                  {name}
+                </EntityBadge>
               ))
-              .with({ referencedByError: P.not(null) }, () => <FailedToLoad />)
-              .otherwise(() =>
-                referencedBy && referencedBy.length > 0 ? (
-                  referencedBy.map((ref) => (
-                    <EntityBadge
-                      key={`${ref.emitter}-${ref.name}`}
-                      variant="name"
-                      name={ref.name}
-                      showAvatar
-                    >
-                      {ref.name}
-                    </EntityBadge>
-                  ))
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                ),
-              )}
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
           </dd>
         </dl>
 

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { RegistryAddUserSheet } from '@/features/registry/components/v2/RegistryAddUserSheet'
 import { RegistryRolesTable } from '@/features/registry/components/v2/RegistryRolesTable'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
-import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/roles')({
@@ -28,7 +28,7 @@ function RouteComponent() {
     data: registry,
     isLoading,
     error,
-  } = useQuery(getRegistryQueryOptions({ address }))
+  } = useQuery(getRegistryInfoQueryOptions({ address }))
 
   const { data: walletClient } = useWalletClient()
 
