@@ -21,6 +21,7 @@ import {
   PERMITTED_SIGN_KINDS,
   signInBackendAuthModal,
 } from '../helpers/manager-auth.js'
+import { testClient } from '../helpers/anvil-client.js'
 import { createIndexerMock, type MockDomain } from '../helpers/mock-indexer.js'
 import type { PortalAccounts } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
@@ -164,6 +165,15 @@ export const test = base.extend<ManagerFixtures>({
   // message-signing is auto-permitted; eth_sendTransaction is authorized
   // explicitly by the specs (see PERMITTED_SIGN_KINDS).
   wallet: async ({ page, accounts }, use) => {
+    // The connected user is Anvil account 0 (0xf39F…2266), a well-known
+    // account that carries leftover contract code on the Sepolia fork. The
+    // UI registration mints an ERC-1155 name to it, and the safe-transfer
+    // receiver check reverts against a non-receiver contract. Clear the code
+    // so it behaves as a plain EOA (mirrors makeV2Name's owner handling).
+    await testClient
+      .setCode({ address: accounts.getAddress('user'), bytecode: '0x' })
+      .catch(() => {})
+
     const wallet = await injectHeadlessWeb3Provider({
       page,
       privateKeys: accounts.getAllPrivateKeys(),
