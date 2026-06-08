@@ -3,10 +3,6 @@
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import {
-  useClient as useParaClient,
-  useWallet as useParaWallet,
-} from '@getpara/react-sdk-lite'
 import { useLingui } from '@lingui/react/macro'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
@@ -20,7 +16,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import type { Address, WalletClient } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
@@ -50,51 +46,29 @@ interface SmartAccountContextProviderProps {
 }
 
 function detectWalletSource(
-  paraWallet: ReturnType<typeof useParaWallet>['data'],
   wagmiWalletClient: WalletClient | undefined,
-  paraClient: ReturnType<typeof useParaClient>,
 ): BaseWalletSource {
-  const wagmiAddress = wagmiWalletClient?.account?.address
-  const hasWagmi = !!wagmiAddress
-  const hasPara = !paraWallet?.isExternal && !!paraWallet && !!paraClient
-
-  if (paraWallet?.isExternal && hasWagmi) {
-    return 'external-wallet'
-  }
-
-  if (hasPara) {
-    return 'para-embedded'
-  }
-
-  return null
+  return wagmiWalletClient?.account?.address ? 'external-wallet' : null
 }
 
 /**
  * Synchronizes wallet connection state with the smart account state machine.
- * Handles transitions between disconnected, external-wallet, and para-embedded states.
+ * Handles transitions between disconnected and external-wallet states.
  */
 function useWalletConnectionSync(
-  paraWallet: ReturnType<typeof useParaWallet>['data'],
   wagmiWalletClient: WalletClient | undefined,
-  paraClient: ReturnType<typeof useParaClient>,
   snapshotValue: string,
   send: (event: EventFromLogic<typeof smartAccountMachine>) => void,
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const walletSource = detectWalletSource(
-      paraWallet,
-      wagmiWalletClient,
-      paraClient,
-    )
+    const walletSource = detectWalletSource(wagmiWalletClient)
 
     const nextKey =
       walletSource === 'external-wallet'
         ? `external-${wagmiWalletClient?.account?.address?.toLowerCase() ?? 'unknown'}`
-        : walletSource === 'para-embedded'
-          ? 'para-embedded'
-          : null
+        : null
 
     if (!walletSource || !nextKey) {
       connectedKeyRef.current = null
@@ -113,29 +87,14 @@ function useWalletConnectionSync(
       return
     }
 
-    if (walletSource === 'external-wallet') {
-      if (!wagmiWalletClient) return
-      send({
-        type: 'WALLET_CONNECTED',
-        walletSource: 'external-wallet',
-        walletClient: wagmiWalletClient,
-      })
-      connectedKeyRef.current = nextKey
-      return
-    }
-
-    if (walletSource === 'para-embedded' && paraClient) {
-      send({
-        type: 'WALLET_CONNECTED',
-        walletSource: 'para-embedded',
-        paraClient,
-      })
-      connectedKeyRef.current = nextKey
-      return
-    }
-
+    if (!wagmiWalletClient) return
+    send({
+      type: 'WALLET_CONNECTED',
+      walletSource: 'external-wallet',
+      walletClient: wagmiWalletClient,
+    })
     connectedKeyRef.current = nextKey
-  }, [paraWallet, wagmiWalletClient, paraClient, snapshotValue, send])
+  }, [wagmiWalletClient, snapshotValue, send])
 }
 
 export const SmartAccountContextProvider = ({
@@ -143,9 +102,12 @@ export const SmartAccountContextProvider = ({
 }: SmartAccountContextProviderProps) => {
   const queryClient = useQueryClient()
   const { t } = useLingui()
-  const paraClient = useParaClient()
-  const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
+  const { isConnecting, isReconnecting } = useConnection()
   const { data: wagmiWalletClient } = useWalletClient()
+
+  // True while the connector is still establishing/restoring a session, so
+  // we don't report the account as "initialized" mid-reconnect.
+  const isWalletPending = isConnecting || isReconnecting
 
   const [snapshot, send, actorRef] = useActor(smartAccountMachine)
 
@@ -157,9 +119,7 @@ export const SmartAccountContextProvider = ({
   // (which would deploy the HCA via Warp etc.).
   const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
-    useEoa ? undefined : paraWallet,
     useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
-    paraClient,
     snapshot.value as string,
     send,
   )
@@ -310,8 +270,8 @@ export const SmartAccountContextProvider = ({
     ? !!wagmiWalletClient && !!eoaAddress
     : !!snapshot.context.walletSource && !!snapshot.context.client
   const hasInitialized = isFeatureEnabled('USE_EOA')
-    ? !isParaWalletPending
-    : !isParaWalletPending && snapshot.value !== 'initializing'
+    ? !isWalletPending
+    : !isWalletPending && snapshot.value !== 'initializing'
   const isAccountReady = isFeatureEnabled('USE_EOA')
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress

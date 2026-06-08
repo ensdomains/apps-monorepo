@@ -55,7 +55,6 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "@getpara/react-sdk-lite": "patches/@getpara__react-sdk-lite.patch",
       "class-variance-authority": "patches/class-variance-authority.patch"
     },
     "overrides": {

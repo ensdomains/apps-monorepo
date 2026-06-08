@@ -1,56 +1,65 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { ParaProvider } from '@getpara/react-sdk-lite'
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { useRouteContext } from '@tanstack/react-router'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
-import '@getpara/react-sdk-lite/styles.css'
+import '@rainbow-me/rainbowkit/styles.css'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
+import { useRef } from 'react'
+import { useConnectionEffect, WagmiProvider } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
-import { tw } from '@/utils/tailwind'
-import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
-import { getParaClient, setParaConnectionCookie } from './para'
-import { sepoliaWithEns } from './wagmi'
+import { ConnectionCookieSync } from './ConnectionCookieSync'
+import { wagmiConfig } from './wagmi'
 
-const onWalletChange = () => {
-  const client = getParaClient()
+/**
+ * Reacts to wallet connection lifecycle changes. Replaces the side effects
+ * that previously lived in the Para provider callbacks:
+ *  - on connect to a *different* address than the one we authed with, drop
+ *    the stale backend session and any in-flight transactions.
+ *  - on disconnect, clear everything (transactions, backend auth, local
+ *    storage, analytics identity).
+ */
+const WalletLifecycle = () => {
+  const previousAuthAddressRef = useRef<string | null>(null)
 
-  if (!client) return
+  useConnectionEffect({
+    onConnect({ address }) {
+      const previousAuthAddress =
+        previousAuthAddressRef.current ??
+        backendAuthStore.get().context.address ??
+        null
+      previousAuthAddressRef.current = address ?? null
 
-  const wallet = client.findWallet(undefined, undefined, {
-    type: ['EVM'],
+      if (
+        !previousAuthAddress ||
+        previousAuthAddress.toLowerCase() === address?.toLowerCase()
+      ) {
+        return
+      }
+
+      // Wallet switched to a different address — clear stale state.
+      transactionManager.clearAllAndPersistence()
+      backendAuthStore.trigger.signOut()
+    },
+    onDisconnect() {
+      previousAuthAddressRef.current = null
+
+      transactionManager.clearAllAndPersistence()
+      backendAuthStore.trigger.signOut()
+      localStorage.clear()
+      track('wallet:disconnect')
+      posthog.reset()
+    },
   })
 
-  setParaConnectionCookie(wallet?.address ?? null)
-
-  if (!wallet) return
-
-  const previousAuthAddress = backendAuthStore.get().context.address
-
-  // If the previous auth address is the same as the current wallet address, do nothing
-  // Or if the previous auth address is not set, do nothing
-  if (
-    !previousAuthAddress ||
-    previousAuthAddress.toLowerCase() === wallet.address?.toLowerCase()
-  )
-    return
-
-  // Clear all transactions when wallet changes
-  transactionManager.clearAllAndPersistence()
-
-  backendAuthStore.trigger.signOut()
+  return null
 }
 
 export const RootProviders = ({ children }: { children: React.ReactNode }) => {
-  const VITE_PARA_API_KEY = import.meta.env.VITE_PARA_API_KEY
-
-  if (!VITE_PARA_API_KEY) {
-    throw new Error('VITE_PARA_API_KEY is not defined in environment variables')
-  }
-
   const queryClient = useRouteContext({
     from: '__root__',
     select: (context) => context.queryClient,
@@ -58,80 +67,19 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <I18nProvider i18n={i18n}>
-      <QueryClientProvider client={queryClient}>
-        <ParaProvider
-          callbacks={{
-            onLogin: onWalletChange,
-            onLogout() {
-              setParaConnectionCookie(null)
-              // Clear all active transactions when wallet disconnects
-              transactionManager.clearAllAndPersistence()
-
-              // Clear the backend auth store
-              backendAuthStore.trigger.signOut()
-
-              // Clear all local storage for the app
-              localStorage.clear()
-
-              // Clear the posthog session
-              track('wallet:disconnect')
-              posthog.reset()
-            },
-            onExternalWalletChange: onWalletChange,
-            onWalletsChange: onWalletChange,
-          }}
-          config={{
-            appName: 'ENS Manager',
-          }}
-          externalWalletConfig={{
-            wallets: ['METAMASK'],
-            // Do not create Para accounts for external wallet connections
-            createLinkedEmbeddedForExternalWallets: [],
-            evmConnector: {
-              config: {
-                chains: [sepoliaWithEns],
-              },
-            },
-            // walletConnect: {
-            //   projectId: '1cb2e088d817de31a39a54154b265f68',
-            // },
-            connectionOnly: true,
-          }}
-          paraClientConfig={{
-            apiKey: VITE_PARA_API_KEY,
-          }}
-          paraModalConfig={{
-            disableEmailLogin: false,
-            disablePhoneLogin: true,
-            onRampTestMode: true,
-            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-            recoverySecretStepEnabled: true,
-
-            theme: {
-              foregroundColor: '#2D3648',
-              backgroundColor: '#FFFFFF',
-              accentColor: '#0066CC',
-              darkForegroundColor: '#E8EBF2',
-              darkBackgroundColor: '#1A1F2B',
-              darkAccentColor: '#4D9FFF',
-              mode: 'light',
-              borderRadius: 'lg',
-              font: 'Inter',
-            },
-            twoFactorAuthEnabled: false,
-            // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
-            className: tw`pointer-events-auto`,
-          }}
-        >
-          <ParaConnectionCookieSync />
-          <PHProvider>
-            <SmartAccountContextProvider>
-              {children}
-            </SmartAccountContextProvider>
-          </PHProvider>
-        </ParaProvider>
-      </QueryClientProvider>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider>
+            <ConnectionCookieSync />
+            <WalletLifecycle />
+            <PHProvider>
+              <SmartAccountContextProvider>
+                {children}
+              </SmartAccountContextProvider>
+            </PHProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
     </I18nProvider>
   )
 }
