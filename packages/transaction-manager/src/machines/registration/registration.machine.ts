@@ -1,10 +1,10 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
-import { maxUint256 } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
+  authorizedPaymentAmount,
   ensureHcaDeployedActor,
   generateCommitmentActor,
   type PermitSignature,
@@ -1027,11 +1027,9 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
           selectedToken: context.selectedToken,
-          // Max-value permit: mirrors the previous one-time max approve so
-          // subsequent registrations skip authorization entirely
-          // (`checkingAllowance` sees allowance >= price) and need no extra
-          // signature.
-          value: maxUint256,
+          // Authorize only what this registration needs — NOT an unlimited
+          // allowance. See `authorizedPaymentAmount` for the headroom rationale.
+          value: authorizedPaymentAmount(context.tokenPrice),
           // The registrar pulls payment from the name owner (the EOA), so the
           // permit MUST be signed by the EOA. Use the dedicated EOA
           // `approvalSigner`; the rhinestone HCA can't produce a permit.

@@ -21,7 +21,6 @@ import {
   getCreate2Address,
   isAddressEqual,
   keccak256,
-  maxUint256,
   pad,
   parseAbi,
   parseSignature,
@@ -223,20 +222,21 @@ function encodeCommitmentData(commitment: Hash): Hash {
 /**
  * Encode token approval transaction data.
  *
- * Infinite approve to the registrar. The ENS registrar pulls the payment
- * token from the name owner (the EOA) on every registration, and on HCA flows
- * that approve is a direct EOA tx (the HCA can't approve on the EOA's behalf
- * and the mock tokens have no EIP-2612 permit, so it can't be gasless). A
- * one-time max approve means the EOA pays approve-gas only once instead of on
- * every registration; subsequent registrations skip the approve entirely
- * (`checkingAllowance` sees `maxUint256 >= price`). The registrar is a trusted
- * ENS contract.
+ * Scoped approve to the registrar — NOT unlimited. The ENS registrar pulls the
+ * payment token from the name owner (the EOA) on registration; on the pure-EOA
+ * fallback path that approve is a direct EOA tx (the HCA path uses a gasless
+ * EIP-2612 permit instead). We approve only this registration's price plus a
+ * small headroom, matching the permit path, so a stale/compromised registrar
+ * approval can never drain more than one registration's worth.
  */
-function encodeTokenApprovalData(registrarAddress: Address): Hash {
+function encodeTokenApprovalData(
+  registrarAddress: Address,
+  value: bigint,
+): Hash {
   return encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
-    args: [registrarAddress, maxUint256],
+    args: [registrarAddress, value],
   })
 }
 
@@ -269,6 +269,21 @@ export type PermitSignature = {
 // cooldown (~60s) plus relayer latency. Permits are single-use (nonce-bound),
 // so a generous deadline is not a replay risk.
 const PERMIT_DEADLINE_SECONDS = 60 * 60
+
+/**
+ * The token amount to authorize (via EIP-2612 permit or ERC-20 approve) for a
+ * single registration at `price`.
+ *
+ * Deliberately NOT unlimited: the registrar pulls the live rent price (there is
+ * no max-price arg on `register`), which can drift slightly from the displayed
+ * `price` between quoting and on-chain execution (~60s+ after commit, computed
+ * live). We add 10% headroom to absorb that drift while keeping the allowance
+ * tightly scoped — a stale/compromised registrar allowance can never pull more
+ * than ~one registration's worth.
+ */
+export function authorizedPaymentAmount(price: bigint): bigint {
+  return price + price / 10n
+}
 
 /**
  * Encode an EIP-2612 `permit` call from a signed permit.
@@ -943,7 +958,11 @@ export function submitApprovalActor(input: {
         `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
       )
 
-      const approvalData = encodeTokenApprovalData(registrarAddress)
+      // Approve only what this registration needs, never an unlimited allowance.
+      const approvalData = encodeTokenApprovalData(
+        registrarAddress,
+        authorizedPaymentAmount(input.tokenPrice),
+      )
 
       const request = createTransactionRequest({
         signer: input.signer,

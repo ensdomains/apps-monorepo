@@ -1,6 +1,10 @@
 import type { Address, PublicClient } from 'viem'
+import { maxUint256, parseUnits } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
-import { predictResolverAddress } from './registration.actors'
+import {
+  authorizedPaymentAmount,
+  predictResolverAddress,
+} from './registration.actors'
 
 // predictResolverAddress only uses the public client for the mocked
 // `proxyLogic()` read (see the viem/actions mock below); everything else is
@@ -47,5 +51,23 @@ describe('predictResolverAddress', () => {
     const a = await predictResolverAddress(args)
     const b = await predictResolverAddress(args)
     expect(a).toBe(b)
+  })
+})
+
+describe('authorizedPaymentAmount', () => {
+  it('authorizes the price plus 10% headroom, not an unlimited allowance', () => {
+    const price = parseUnits('5', 6) // 5 USDC
+    const amount = authorizedPaymentAmount(price)
+
+    expect(amount).toBe(price + price / 10n)
+    // The whole point: scoped, never max.
+    expect(amount).toBeLessThan(maxUint256)
+    // Covers the price with a bounded buffer (well under 2x).
+    expect(amount).toBeGreaterThanOrEqual(price)
+    expect(amount).toBeLessThan(price * 2n)
+  })
+
+  it('handles a zero price', () => {
+    expect(authorizedPaymentAmount(0n)).toBe(0n)
   })
 })
