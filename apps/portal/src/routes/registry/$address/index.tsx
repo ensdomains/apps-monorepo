@@ -18,7 +18,7 @@ import { SoonBadge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
-import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -30,6 +30,11 @@ export const Route = createFileRoute('/registry/$address/')({
 
 const PROTOCOL = 'ENSv2'
 
+const FACTORY_ADDRESS = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
 function RouteComponent() {
   const { address: addressParam } = Route.useParams()
   const address = addressParam as Address
@@ -39,13 +44,13 @@ function RouteComponent() {
     data: registry,
     isLoading,
     error,
-  } = useQuery(getRegistryQueryOptions({ address }))
+  } = useQuery(getRegistryInfoQueryOptions({ address }))
   const {
     data: parent,
     isLoading: isLoadingParent,
     error: parentError,
   } = useQuery({
-    ...getRegistryQueryOptions({
+    ...getRegistryInfoQueryOptions({
       address: registry?.parentRegistry ?? zeroAddress,
     }),
     enabled:
@@ -84,11 +89,6 @@ function RouteComponent() {
         }
       />
     )
-
-  const factoryAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensVerifiableFactory',
-  })
 
   const deployedDate = registry.createdAt
     ? formatTimestampDate(registry.createdAt)
@@ -161,10 +161,10 @@ function RouteComponent() {
             <EntityBadge
               variant="contract"
               label="registry factory"
-              address={factoryAddress}
+              address={FACTORY_ADDRESS}
               className="font-normal"
             >
-              {truncateAddress(factoryAddress, 6, 4)}
+              {truncateAddress(FACTORY_ADDRESS, 6, 4)}
             </EntityBadge>
           </dd>
 

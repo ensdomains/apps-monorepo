@@ -6,15 +6,15 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
-class GetRegistryError extends TaggedError('GetRegistryError')<{
+class GetRegistryInfoError extends TaggedError('GetRegistryInfoError')<{
   cause: ClientError
 }> {}
 
-type GetRegistryParameters = {
+type GetRegistryInfoParameters = {
   address: Address
 }
 
-export type Registry = {
+export type RegistryInfo = {
   address: Address
   /** This registry's own ENS name (e.g. "eth"); empty for the root. */
   name: string
@@ -29,13 +29,13 @@ export type Registry = {
   referencedBy: { name: string | null }[]
 }
 
-const getRegistry = ResultFn(async function* ({
+const getRegistryInfo = ResultFn(async function* ({
   address,
-}: GetRegistryParameters) {
+}: GetRegistryInfoParameters) {
   const { registry } = yield* fromPromise(
-    graphqlIndexerClient.request<{ registry: Registry | null }>(
+    graphqlIndexerClient.request<{ registry: RegistryInfo | null }>(
       gql`
-        query getRegistry($address: String!) {
+        query getRegistryInfo($address: String!) {
           registry(address: $address) {
             address
             name
@@ -54,7 +54,7 @@ const getRegistry = ResultFn(async function* ({
       `,
       { address: address.toLowerCase() },
     ),
-    (e) => new GetRegistryError({ cause: e as ClientError }),
+    (e) => new GetRegistryInfoError({ cause: e as ClientError }),
   )
 
   // null = indexer has no record for this address (not a registry, or not yet
@@ -62,13 +62,15 @@ const getRegistry = ResultFn(async function* ({
   return ok(registry)
 })
 
-const getRegistryQueryKey = createQueryKey<
-  'get-registry',
-  GetRegistryParameters
->('get-registry')
+const getRegistryInfoQueryKey = createQueryKey<
+  'get-registry-info',
+  GetRegistryInfoParameters
+>('get-registry-info')
 
-export const getRegistryQueryOptions = (params: GetRegistryParameters) =>
+export const getRegistryInfoQueryOptions = (
+  params: GetRegistryInfoParameters,
+) =>
   resultQueryOptions({
-    queryKey: getRegistryQueryKey(params),
-    queryFn: ({ queryKey: [, params] }) => getRegistry(params),
+    queryKey: getRegistryInfoQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getRegistryInfo(params),
   })
