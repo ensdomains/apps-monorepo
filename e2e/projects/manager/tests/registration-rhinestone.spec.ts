@@ -25,7 +25,7 @@ const PARA_EOA_ADDRESS = privateKeyToAccount(
 ).address
 
 test.describe('ENS name registration (Rhinestone)', () => {
-  test('registers a name via Para wallet using Rhinestone orchestrator', async ({
+  test('registers a name via connected wallet using Rhinestone orchestrator', async ({
     authenticatedPage: page,
     mockIndexer,
   }) => {
