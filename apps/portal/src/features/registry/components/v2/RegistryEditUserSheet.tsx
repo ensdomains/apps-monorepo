@@ -1,15 +1,13 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useEnsName, useWalletClient } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError } from '@/components/ui/field'
-import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetContent,
@@ -21,10 +19,15 @@ import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRev
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
-import { registryRootPermissions } from '@/lib/roles/permissions'
-import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
+import {
+  computeRoleDiff,
+  getAccountAdminRoles,
+  getRemovableRoles,
+  getSoleAdminRoles,
+} from '../../utils/registryRoleAccess'
+import { RegistryRolePermissionList } from './RegistryRolePermissionList'
 import { RegistryUserRoleHistory } from './RegistryUserRoleHistory'
 
 const GRANT_TX_ID = 'tx-edit-registry-roles-grant'
@@ -62,26 +65,18 @@ export const RegistryEditUserSheet = ({
     enabled: Boolean(callerAddress),
   })
 
-  const callerAdminRoles = new Set<Role>(
-    (
-      rolesData?.find(
-        (row) =>
-          callerAddress &&
-          row.account.toLowerCase() === callerAddress.toLowerCase(),
-      )?.roles ?? []
-    ).filter((r): r is Role => r.endsWith('_ADMIN')),
-  )
+  const callerAdminRoles = getAccountAdminRoles(rolesData, callerAddress)
 
-  const initialRoles = useMemo(
-    () => new Set<Role>(currentRoles),
-    [currentRoles],
-  )
+  const initialRoles = new Set<Role>(currentRoles)
 
   const [selectedRoles, setSelectedRoles] = useState<Set<Role>>(initialRoles)
-  const [pendingTx, setPendingTx] = useState<
-    { kind: 'grant'; roles: Role[] } | { kind: 'revoke'; roles: Role[] } | null
-  >(null)
-  const [queuedRevoke, setQueuedRevoke] = useState<Role[] | null>(null)
+  // The roles to grant/revoke once the user confirms — a single object so the
+  // modal steps derive directly from it (grant step if `toGrant`, revoke step
+  // if `toRevoke`). null while no transaction is in flight.
+  const [pending, setPending] = useState<{
+    toGrant: Role[]
+    toRevoke: Role[]
+  } | null>(null)
   const [submitFeedback, setSubmitFeedback] = useState<string | null>(null)
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
@@ -95,8 +90,7 @@ export const RegistryEditUserSheet = ({
   useEffect(() => {
     if (!open) return
     setSelectedRoles(new Set(currentRoles))
-    setPendingTx(null)
-    setQueuedRevoke(null)
+    setPending(null)
     setSubmitFeedback(null)
   }, [open, currentRoles])
 
@@ -110,17 +104,7 @@ export const RegistryEditUserSheet = ({
     setSubmitFeedback(null)
   }
 
-  const diff = useMemo(() => {
-    const toGrant: Role[] = []
-    const toRevoke: Role[] = []
-    for (const role of selectedRoles) {
-      if (!initialRoles.has(role)) toGrant.push(role)
-    }
-    for (const role of initialRoles) {
-      if (!selectedRoles.has(role)) toRevoke.push(role)
-    }
-    return { toGrant, toRevoke }
-  }, [selectedRoles, initialRoles])
+  const diff = computeRoleDiff(initialRoles, selectedRoles)
 
   const hasChanges = diff.toGrant.length > 0 || diff.toRevoke.length > 0
 
@@ -129,41 +113,21 @@ export const RegistryEditUserSheet = ({
     !!callerAddress &&
     account.toLowerCase() === callerAddress.toLowerCase()
 
-  const selfSoleAdminRoles = useMemo<Set<Role>>(() => {
-    if (!isSelfEdit || !rolesData || !account) return new Set()
-    const accountLower = account.toLowerCase()
-    const userRoles =
-      rolesData.find((r) => r.account.toLowerCase() === accountLower)?.roles ??
-      []
-    const result = new Set<Role>()
-    for (const role of userRoles) {
-      if (!role.endsWith('_ADMIN')) continue
-      const hasOtherHolder = rolesData.some(
-        (r) =>
-          r.account.toLowerCase() !== accountLower && r.roles.includes(role),
-      )
-      if (!hasOtherHolder) result.add(role as Role)
-    }
-    return result
-  }, [isSelfEdit, rolesData, account])
+  // Only relevant for a self-edit: warn when the caller is about to revoke an
+  // admin role no one else holds (locking themselves out).
+  const selfSoleAdminRoles = isSelfEdit
+    ? getSoleAdminRoles(rolesData, account)
+    : new Set<Role>()
 
-  const adminLockoutRoles = useMemo<Role[]>(
-    () => diff.toRevoke.filter((role) => selfSoleAdminRoles.has(role)),
-    [diff.toRevoke, selfSoleAdminRoles],
+  const adminLockoutRoles = diff.toRevoke.filter((role) =>
+    selfSoleAdminRoles.has(role),
   )
   const willLockOutAdmin = adminLockoutRoles.length > 0
 
   const runEdit = (toGrant: Role[], toRevoke: Role[]) => {
     if (!account || !walletClient?.account) return
     if (toGrant.length === 0 && toRevoke.length === 0) return
-
-    if (toGrant.length > 0) {
-      setPendingTx({ kind: 'grant', roles: toGrant })
-      setQueuedRevoke(toRevoke.length > 0 ? toRevoke : null)
-    } else {
-      setPendingTx({ kind: 'revoke', roles: toRevoke })
-      setQueuedRevoke(null)
-    }
+    setPending({ toGrant, toRevoke })
     openModal()
   }
 
@@ -179,10 +143,7 @@ export const RegistryEditUserSheet = ({
     runEdit(diff.toGrant, diff.toRevoke)
   }
 
-  const removableRoles = currentRoles.filter((role) => {
-    const adminRole = role.endsWith('_ADMIN') ? role : (`${role}_ADMIN` as Role)
-    return callerAdminRoles.has(adminRole)
-  })
+  const removableRoles = getRemovableRoles(currentRoles, callerAdminRoles)
 
   const removeAdminLockoutRoles = removableRoles.filter((role) =>
     selfSoleAdminRoles.has(role),
@@ -203,8 +164,7 @@ export const RegistryEditUserSheet = ({
   const handleDone = () => {
     closeModal()
     clearTransaction()
-    setPendingTx(null)
-    setQueuedRevoke(null)
+    setPending(null)
     onOpenChange(false)
   }
 
@@ -212,16 +172,17 @@ export const RegistryEditUserSheet = ({
     clearTransaction()
   }
 
+  // Derive the modal steps straight from `pending`: a grant step when there are
+  // roles to grant, then a revoke step when there are roles to revoke. The grant
+  // step hands off to the revoke step (if any), and the last step finishes.
   const buildModalTransactions = (): Transaction[] => {
-    if (!pendingTx || !account) return []
+    if (!pending || !account) return []
 
-    const revokeRoles =
-      pendingTx.kind === 'revoke' ? pendingTx.roles : queuedRevoke
-    const hasRevokeStep = !!revokeRoles && revokeRoles.length > 0
-
+    const { toGrant, toRevoke } = pending
+    const hasRevokeStep = toRevoke.length > 0
     const steps: Transaction[] = []
 
-    if (pendingTx.kind === 'grant') {
+    if (toGrant.length > 0) {
       steps.push({
         id: GRANT_TX_ID,
         title: 'Grant roles',
@@ -231,7 +192,7 @@ export const RegistryEditUserSheet = ({
           grantRegistryRoles({
             registryAddress,
             account,
-            roles: pendingTx.roles,
+            roles: toGrant,
             id: GRANT_TX_ID,
           }),
         onDone: hasRevokeStep ? handleStepDone : handleDone,
@@ -248,7 +209,7 @@ export const RegistryEditUserSheet = ({
           revokeRegistryRoles({
             registryAddress,
             account,
-            roles: revokeRoles,
+            roles: toRevoke,
             id: REVOKE_TX_ID,
           }),
         onDone: handleDone,
@@ -282,86 +243,13 @@ export const RegistryEditUserSheet = ({
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6">
             <Field>
-              <div
-                className={cn(
-                  'border-t rounded-sm divide-y transition-colors',
-                  {
-                    'opacity-50 pointer-events-none': isPending,
-                  },
-                )}
-              >
-                {registryRootPermissions.map((permission) => {
-                  const callerLacksAdmin = !callerAdminRoles.has(
-                    permission.adminKey,
-                  )
-                  const userKey = permission.key
-                  const adminKey = permission.adminKey
-
-                  return (
-                    <div
-                      key={permission.adminKey}
-                      className={cn(
-                        'flex items-center justify-between p-4 gap-4',
-                        callerLacksAdmin && 'text-muted-foreground',
-                      )}
-                      title={
-                        callerLacksAdmin
-                          ? `Your account does not hold ${permission.adminKey} on this registry and cannot change this role.`
-                          : undefined
-                      }
-                    >
-                      <div className="flex flex-col gap-1 flex-1">
-                        <div className="font-medium">{permission.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {permission.description}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-8">
-                        <div className="flex items-center gap-2 w-24">
-                          <Checkbox
-                            id={`edit-${adminKey}`}
-                            checked={selectedRoles.has(adminKey)}
-                            onCheckedChange={(c) =>
-                              toggleRole(adminKey, c === true)
-                            }
-                            disabled={callerLacksAdmin}
-                          />
-                          <Label
-                            htmlFor={`edit-${adminKey}`}
-                            className="font-normal cursor-pointer text-muted-foreground"
-                          >
-                            Admin
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2 w-24">
-                          {userKey ? (
-                            <>
-                              <Checkbox
-                                id={`edit-${userKey}`}
-                                checked={selectedRoles.has(userKey as Role)}
-                                onCheckedChange={(c) =>
-                                  toggleRole(userKey as Role, c === true)
-                                }
-                                disabled={callerLacksAdmin}
-                              />
-                              <Label
-                                htmlFor={`edit-${userKey}`}
-                                className="font-normal cursor-pointer text-muted-foreground"
-                              >
-                                User
-                              </Label>
-                            </>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">
-                              —
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+              <RegistryRolePermissionList
+                selectedRoles={selectedRoles}
+                callerAdminRoles={callerAdminRoles}
+                onToggle={toggleRole}
+                disabled={isPending}
+                idPrefix="edit-"
+              />
               {submitFeedback && (
                 <FieldError className="mt-1.5">{submitFeedback}</FieldError>
               )}

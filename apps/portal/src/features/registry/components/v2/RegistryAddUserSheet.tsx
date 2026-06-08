@@ -5,10 +5,8 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Sheet,
   SheetContent,
@@ -19,11 +17,11 @@ import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGran
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { registryRootPermissions } from '@/lib/roles/permissions'
-import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
+import { getAccountAdminRoles } from '../../utils/registryRoleAccess'
+import { RegistryRolePermissionList } from './RegistryRolePermissionList'
 
 const GRANT_REGISTRY_ROLES_TX_ID = 'tx-grant-registry-roles'
 // Module-level client for the resolver hook — matches /$name/roles/add-user.tsx
@@ -52,15 +50,7 @@ export const RegistryAddUserSheet = ({
     enabled: Boolean(callerAddress),
   })
 
-  const callerAdminRoles = new Set<Role>(
-    (
-      rolesData?.find(
-        (row) =>
-          callerAddress &&
-          row.account.toLowerCase() === callerAddress.toLowerCase(),
-      )?.roles ?? []
-    ).filter((r): r is Role => r.endsWith('_ADMIN')),
-  )
+  const callerAdminRoles = getAccountAdminRoles(rolesData, callerAddress)
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')
   // Controlled selection so the Save button can disable until at least one
@@ -70,10 +60,12 @@ export const RegistryAddUserSheet = ({
     account: Address
     roles: Role[]
   } | null>(null)
-  const [submitFeedback, setSubmitFeedback] = useState<string | null>(null)
-  const [invalidField, setInvalidField] = useState<'roles' | 'address' | null>(
-    null,
-  )
+  // Single validation-error state — the message and which field it belongs to
+  // are always set/cleared together.
+  const [formError, setFormError] = useState<{
+    field: 'roles' | 'address'
+    message: string
+  } | null>(null)
 
   const {
     data: address,
@@ -97,8 +89,7 @@ export const RegistryAddUserSheet = ({
     setNameOrAddressInput('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
-    setSubmitFeedback(null)
-    setInvalidField(null)
+    setFormError(null)
     reset()
   }, [open, reset])
 
@@ -109,35 +100,35 @@ export const RegistryAddUserSheet = ({
       else next.delete(role)
       return next
     })
-    setSubmitFeedback(null)
-    setInvalidField(null)
+    setFormError(null)
   }
 
   const canSave = !!address && selectedRoles.size > 0 && !isSuccess
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setSubmitFeedback(null)
-    setInvalidField(null)
+    setFormError(null)
 
     const roles = Array.from(selectedRoles)
     if (roles.length === 0) {
-      setSubmitFeedback('Please select at least one role')
-      setInvalidField('roles')
+      setFormError({
+        field: 'roles',
+        message: 'Please select at least one role',
+      })
       return
     }
     if (isResolvingAddress) {
-      setSubmitFeedback(
-        'Resolving address... Please wait a moment and try again.',
-      )
-      setInvalidField('address')
+      setFormError({
+        field: 'address',
+        message: 'Resolving address... Please wait a moment and try again.',
+      })
       return
     }
     if (isResolveError || !address) {
-      setSubmitFeedback(
-        `Could not resolve an address for "${nameOrAddressInput}". ${resolveError ? `Error: ${resolveError instanceof Error ? resolveError.message : String(resolveError)}` : 'Check the name exists and try again.'}`,
-      )
-      setInvalidField('address')
+      setFormError({
+        field: 'address',
+        message: `Could not resolve an address for "${nameOrAddressInput}". ${resolveError ? `Error: ${resolveError instanceof Error ? resolveError.message : String(resolveError)}` : 'Check the name exists and try again.'}`,
+      })
       return
     }
 
@@ -176,18 +167,17 @@ export const RegistryAddUserSheet = ({
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field data-invalid={invalidField === 'address'}>
+            <Field data-invalid={formError?.field === 'address'}>
               <Input
                 id="user"
                 name="user"
                 placeholder="User name or address"
                 required
                 disabled={isPending || isSuccess}
-                aria-invalid={invalidField === 'address'}
+                aria-invalid={formError?.field === 'address'}
                 onChange={(e) => {
                   setNameOrAddressInput(e.currentTarget.value.trim())
-                  setSubmitFeedback(null)
-                  setInvalidField(null)
+                  setFormError(null)
                 }}
                 className="h-12 bg-background border"
               />
@@ -204,89 +194,16 @@ export const RegistryAddUserSheet = ({
               )}
             </Field>
 
-            <Field data-invalid={invalidField === 'roles'}>
-              <div
-                className={cn('border-t divide-y transition-colors', {
-                  'opacity-50 pointer-events-none': isPending || isSuccess,
-                })}
-                aria-invalid={invalidField === 'roles'}
-              >
-                {registryRootPermissions.map((permission) => {
-                  const callerLacksAdmin = !callerAdminRoles.has(
-                    permission.adminKey,
-                  )
-                  const userKey = permission.key
-                  const adminKey = permission.adminKey
-
-                  return (
-                    <div
-                      key={permission.adminKey}
-                      className={cn(
-                        'flex items-center justify-between p-4 gap-4',
-                        callerLacksAdmin && 'text-muted-foreground',
-                      )}
-                      title={
-                        callerLacksAdmin
-                          ? `Your account does not hold ${permission.adminKey} on this registry and cannot grant this role.`
-                          : undefined
-                      }
-                    >
-                      <div className="flex flex-col gap-1 flex-1">
-                        <div className="font-medium">{permission.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {permission.description}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-8">
-                        {/* Admin column (left) */}
-                        <div className="flex items-center gap-2 w-24">
-                          <Checkbox
-                            id={adminKey}
-                            checked={selectedRoles.has(adminKey)}
-                            onCheckedChange={(c) =>
-                              toggleRole(adminKey, c === true)
-                            }
-                            disabled={callerLacksAdmin}
-                          />
-                          <Label
-                            htmlFor={adminKey}
-                            className="font-normal cursor-pointer text-muted-foreground"
-                          >
-                            Admin
-                          </Label>
-                        </div>
-                        {/* User column (right) — admin-only rows render a dash. */}
-                        <div className="flex items-center gap-2 w-24">
-                          {userKey ? (
-                            <>
-                              <Checkbox
-                                id={userKey}
-                                checked={selectedRoles.has(userKey as Role)}
-                                onCheckedChange={(c) =>
-                                  toggleRole(userKey as Role, c === true)
-                                }
-                                disabled={callerLacksAdmin}
-                              />
-                              <Label
-                                htmlFor={userKey}
-                                className="font-normal cursor-pointer text-muted-foreground"
-                              >
-                                User
-                              </Label>
-                            </>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">
-                              —
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {submitFeedback && (
-                <FieldError className="mt-1.5">{submitFeedback}</FieldError>
+            <Field data-invalid={formError?.field === 'roles'}>
+              <RegistryRolePermissionList
+                selectedRoles={selectedRoles}
+                callerAdminRoles={callerAdminRoles}
+                onToggle={toggleRole}
+                disabled={isPending || isSuccess}
+                invalid={formError?.field === 'roles'}
+              />
+              {formError && (
+                <FieldError className="mt-1.5">{formError.message}</FieldError>
               )}
             </Field>
 

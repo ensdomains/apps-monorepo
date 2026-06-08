@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo } from 'react'
-import { type Address, type Hash, zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
@@ -20,6 +19,40 @@ type RegistryUserRoleHistoryProps = {
   /** The user being inspected. When null, the panel renders nothing. */
   account: Address | null
 }
+
+const columns: ColumnDef<EnrichedEntry>[] = [
+  {
+    id: 'date',
+    header: () => <span className="text-muted-foreground">Date</span>,
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground whitespace-nowrap">
+        {formatTimestamp(BigInt(row.original.timestamp))}
+      </span>
+    ),
+  },
+  {
+    id: 'transaction',
+    header: () => <span className="text-muted-foreground">Transaction</span>,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        <Badge variant="secondary" className="text-xs">
+          RolesChanged
+        </Badge>
+        <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
+      </div>
+    ),
+  },
+  {
+    id: 'from',
+    header: () => <span className="text-muted-foreground">From</span>,
+    cell: ({ row }) =>
+      row.original.sender ? (
+        <AddressDisplay address={row.original.sender} />
+      ) : (
+        <span className="text-xs text-muted-foreground">Loading…</span>
+      ),
+  },
+]
 
 /**
  * Per-user role-change history embedded in the Edit User sheet. Lists every
@@ -43,59 +76,13 @@ export const RegistryUserRoleHistory = ({
     enabled: Boolean(account),
   })
 
-  const transactionHashes = useMemo<Hash[]>(
-    () => (data ?? []).map((e) => e.transactionHash),
-    [data],
-  )
+  const transactionHashes = (data ?? []).map((e) => e.transactionHash)
   const { data: sendersMap } = useTransactionSenders({ transactionHashes })
 
-  const rows = useMemo<EnrichedEntry[]>(
-    () =>
-      (data ?? []).map((entry) => ({
-        ...entry,
-        sender: sendersMap?.get(entry.transactionHash) ?? null,
-      })),
-    [data, sendersMap],
-  )
-
-  const columns = useMemo<ColumnDef<EnrichedEntry>[]>(
-    () => [
-      {
-        id: 'date',
-        header: () => <span className="text-muted-foreground">Date</span>,
-        cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
-            {formatTimestamp(BigInt(row.original.timestamp))}
-          </span>
-        ),
-      },
-      {
-        id: 'transaction',
-        header: () => (
-          <span className="text-muted-foreground">Transaction</span>
-        ),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs">
-              RolesChanged
-            </Badge>
-            <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
-          </div>
-        ),
-      },
-      {
-        id: 'from',
-        header: () => <span className="text-muted-foreground">From</span>,
-        cell: ({ row }) =>
-          row.original.sender ? (
-            <AddressDisplay address={row.original.sender} />
-          ) : (
-            <span className="text-xs text-muted-foreground">Loading…</span>
-          ),
-      },
-    ],
-    [],
-  )
+  const rows: EnrichedEntry[] = (data ?? []).map((entry) => ({
+    ...entry,
+    sender: sendersMap?.get(entry.transactionHash) ?? null,
+  }))
 
   if (!account) return null
 

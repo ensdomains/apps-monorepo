@@ -2,7 +2,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Check, PanelRight } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { DataTable } from '@/components/DataTable'
@@ -17,9 +17,8 @@ import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
 } from '../../hooks/useRegistryRoles'
+import { isAdminRole } from '../../utils/registryRoleAccess'
 import { RegistryEditUserSheet } from './RegistryEditUserSheet'
-
-const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
 
 const formatRole = (role: Role) =>
   role
@@ -64,6 +63,63 @@ const UserCell = ({ account }: { account: Address }) => (
   </div>
 )
 
+const baseColumns: ColumnDef<RegistryRoleRow>[] = [
+  {
+    id: 'user',
+    accessorKey: 'account',
+    header: () => <span className="text-muted-foreground">User</span>,
+    cell: ({ row }) => <UserCell account={row.original.account} />,
+  },
+  {
+    id: 'role',
+    header: () => <span className="text-muted-foreground">Role</span>,
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5 text-muted-foreground">
+        {toRoleEntries(row.original.roles).map((entry) => (
+          <span
+            className="font-mono pb-2 leading-5 h-5 box-content"
+            key={entry.label}
+          >
+            {entry.label}
+          </span>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'admin',
+    header: () => <span className="text-muted-foreground">Admin</span>,
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        {toRoleEntries(row.original.roles).map((entry) => (
+          <div
+            className="h-5 pb-2 box-content flex items-center"
+            key={entry.label}
+          >
+            {entry.hasAdmin ? <GreenCheck /> : null}
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'user-level',
+    header: () => <span className="text-muted-foreground">User</span>,
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        {toRoleEntries(row.original.roles).map((entry) => (
+          <div
+            className="h-5 pb-2 box-content flex items-center"
+            key={entry.label}
+          >
+            {entry.hasUser ? <GreenCheck /> : null}
+          </div>
+        ))}
+      </div>
+    ),
+  },
+]
+
 export const RegistryRolesTable = ({ address }: { address: Address }) => {
   const {
     data: roles,
@@ -72,8 +128,6 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   } = useQuery(getRegistryRolesQueryOptions({ address }))
 
   const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
-  // Admin-only actions column (per-row Edit icon) — non-admin viewers see a
-  // read-only table.
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
   const { data: isAdmin = false } = useQuery({
@@ -85,83 +139,25 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
     enabled: !!callerAddress,
   })
 
-  const columns = useMemo<ColumnDef<RegistryRoleRow>[]>(
-    () => [
-      {
-        id: 'user',
-        accessorKey: 'account',
-        header: () => <span className="text-muted-foreground">User</span>,
-        cell: ({ row }) => <UserCell account={row.original.account} />,
-      },
-      {
-        id: 'role',
-        header: () => <span className="text-muted-foreground">Role</span>,
-        cell: ({ row }) => (
-          <div className="flex flex-col gap-0.5 text-muted-foreground">
-            {toRoleEntries(row.original.roles).map((entry) => (
-              <span
-                className="font-mono pb-2 leading-5 h-5 box-content"
-                key={entry.label}
-              >
-                {entry.label}
-              </span>
-            ))}
-          </div>
-        ),
-      },
-      {
-        id: 'admin',
-        header: () => <span className="text-muted-foreground">Admin</span>,
-        cell: ({ row }) => (
-          <div className="flex flex-col gap-0.5">
-            {toRoleEntries(row.original.roles).map((entry) => (
-              <div
-                className="h-5 pb-2 box-content flex items-center"
-                key={entry.label}
-              >
-                {entry.hasAdmin ? <GreenCheck /> : null}
-              </div>
-            ))}
-          </div>
-        ),
-      },
-      {
-        id: 'user-level',
-        header: () => <span className="text-muted-foreground">User</span>,
-        cell: ({ row }) => (
-          <div className="flex flex-col gap-0.5">
-            {toRoleEntries(row.original.roles).map((entry) => (
-              <div
-                className="h-5 pb-2 box-content flex items-center"
-                key={entry.label}
-              >
-                {entry.hasUser ? <GreenCheck /> : null}
-              </div>
-            ))}
-          </div>
-        ),
-      },
-      ...(isAdmin
-        ? [
-            {
-              id: 'actions',
-              header: () => null,
-              cell: ({ row }) => (
-                <Button
-                  onClick={() => setEditingRow(row.original)}
-                  aria-label="Edit user roles"
-                  variant="secondary"
-                  className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
-                >
-                  <PanelRight className="size-4 text-muted-foreground" />
-                </Button>
-              ),
-            } satisfies ColumnDef<RegistryRoleRow>,
-          ]
-        : []),
-    ],
-    [isAdmin],
-  )
+  const columns: ColumnDef<RegistryRoleRow>[] = isAdmin
+    ? [
+        ...baseColumns,
+        {
+          id: 'actions',
+          header: () => null,
+          cell: ({ row }) => (
+            <Button
+              onClick={() => setEditingRow(row.original)}
+              aria-label="Edit user roles"
+              variant="secondary"
+              className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
+            >
+              <PanelRight className="size-4 text-muted-foreground" />
+            </Button>
+          ),
+        },
+      ]
+    : baseColumns
 
   const rows = roles ?? []
 
