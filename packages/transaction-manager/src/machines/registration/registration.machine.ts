@@ -773,20 +773,22 @@ export const registrationMachine = setup({
         onDone: {
           target: 'fetchingCommitmentAge',
         },
+        // Receipt polling can fail (timeout / lost tx actor) even after the
+        // commitment lands on-chain — especially for the sponsored HCA bundle,
+        // where the commit is one call inside `submittingSetupBundle`. Don't
+        // surface a false failure and resubmit a standalone `commit` (the
+        // registrar rejects an already-recorded commitment, stranding the user
+        // in `error`). Instead verify on-chain via `validatingCommitment`: if
+        // `commitmentAt` is set we continue, otherwise that state's retry
+        // resubmits the correct (signer-aware) commit path.
         onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
-            }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Commitment transaction failed:',
-                event.error,
-              )
-            },
-          ],
+          target: 'validatingCommitment',
+          actions: ({ event }) => {
+            console.warn(
+              '⚠️ [REGISTRATION] Commitment receipt polling failed; verifying on-chain before retrying:',
+              event.error,
+            )
+          },
         },
       },
       on: {
@@ -841,7 +843,17 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
+              // The commitment never landed, so resubmit it — but via the path
+              // that originally produced it. The HCA flow commits inside the
+              // sponsored `submittingSetupBundle` (resolver-deploy + commit), so
+              // it must re-run the whole bundle with a fresh commitment; a
+              // standalone `committingTransaction` would be the wrong path (and
+              // is rejected if the prior commitment did land). Pure-EOA commits
+              // standalone, so it retries `committingTransaction`.
+              retryTarget: ({ context }) =>
+                context.signer?.type === 'rhinestone'
+                  ? ('submittingSetupBundle' as const)
+                  : ('committingTransaction' as const),
             }),
             ({ event }) => {
               console.error(
