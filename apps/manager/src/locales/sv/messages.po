@@ -1821,6 +1821,10 @@ msgstr ""
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
+#: src/components/RootErrorBoundary.tsx:74
+msgid "Reload"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx:207
 #: src/features/notifications/settings/contact-methods/email.tsx:243
 #: src/features/notifications/settings/contact-methods/telegram.tsx:170
@@ -2103,7 +2107,7 @@ msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida
 msgid "Set multiple records: ETH, BTC, email"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:110
+#: src/features/dashboard/pages/DashboardPage.tsx:108
 msgid "Set primary name"
 msgstr ""
 
@@ -2232,6 +2236,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:75
 msgid "Something went wrong. Please refresh and try again."
+msgstr ""
+
+#: src/components/RootErrorBoundary.tsx:65
+msgid "Something went wrong. Please reload the page."
 msgstr ""
 
 #: src/features/dashboard/components/SortMenu.tsx:40
@@ -2793,7 +2801,7 @@ msgstr ""
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/dashboard/pages/DashboardPage.tsx:98
+#: src/features/dashboard/pages/DashboardPage.tsx:96
 msgid "You haven't set a primary name yet."
 msgstr ""
 

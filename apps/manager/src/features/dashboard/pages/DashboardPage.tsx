@@ -35,10 +35,8 @@ export const DashboardPage = () => {
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlag('MIGRATION')
 
-  // Non-suspense + non-throwing: the primary-name lookup is display-only, so
-  // an error (or a transient resolver failure for accounts with reverse data)
-  // must not throw into the route's Suspense and crash the dashboard. It
-  // degrades to `undefined` and the UI falls back to `reverseName ?? null`.
+  // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
+  // `reverseName ?? null`) instead of throwing into the route and crashing it.
   const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
     enabled: !!ownerAddress,

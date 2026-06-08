@@ -9,14 +9,9 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Message-signing request kinds the headless wallet should auto-authorize.
- *
- * Only message-signing is auto-permitted (SIWE `personal_sign`, typed-data) so
- * the backend-auth modal can complete without manual handling.
- * `eth_sendTransaction` is deliberately NOT permitted: in EOA mode the
- * registration flow submits several transactions and the specs authorize each
- * one explicitly via `authorizeTransaction` — auto-permitting them would leave
- * nothing pending to authorize and break that handshake.
+ * Auto-authorize message-signing only (SIWE / typed-data). NOT
+ * `eth_sendTransaction` — the specs authorize those explicitly via
+ * `authorizeTransaction`, and auto-permitting would break that handshake.
  */
 export const PERMITTED_SIGN_KINDS = [
   Web3RequestKind.SignMessage,

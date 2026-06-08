@@ -1816,6 +1816,10 @@ msgstr "Registration successful"
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr "Registration successful! You'll receive a confirmation shortly."
 
+#: src/components/RootErrorBoundary.tsx:74
+msgid "Reload"
+msgstr "Reload"
+
 #: src/features/notifications/settings/contact-methods/email.tsx:207
 #: src/features/notifications/settings/contact-methods/email.tsx:243
 #: src/features/notifications/settings/contact-methods/telegram.tsx:170
@@ -2098,7 +2102,7 @@ msgstr "Set it as your primary name. You can do this from your profile page in t
 msgid "Set multiple records: ETH, BTC, email"
 msgstr "Set multiple records: ETH, BTC, email"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:110
+#: src/features/dashboard/pages/DashboardPage.tsx:108
 msgid "Set primary name"
 msgstr "Set primary name"
 
@@ -2228,6 +2232,10 @@ msgstr "Some names could not be loaded"
 #: src/features/migration/pages/MigrationPage.tsx:75
 msgid "Something went wrong. Please refresh and try again."
 msgstr "Something went wrong. Please refresh and try again."
+
+#: src/components/RootErrorBoundary.tsx:65
+msgid "Something went wrong. Please reload the page."
+msgstr "Something went wrong. Please reload the page."
 
 #: src/features/dashboard/components/SortMenu.tsx:40
 msgid "Sort by"
@@ -2788,7 +2796,7 @@ msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr "You have unsaved changes. Are you sure you want to leave?"
 
-#: src/features/dashboard/pages/DashboardPage.tsx:98
+#: src/features/dashboard/pages/DashboardPage.tsx:96
 msgid "You haven't set a primary name yet."
 msgstr "You haven't set a primary name yet."
 

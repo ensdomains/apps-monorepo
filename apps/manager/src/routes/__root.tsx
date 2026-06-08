@@ -8,7 +8,6 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
-import { RootErrorBoundary } from '@/components/RootErrorBoundary'
 import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
@@ -54,14 +53,12 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
-        <RootErrorBoundary>
-          <RootProviders>
-            <Layout>
-              <Outlet />
-            </Layout>
-            <Toaster position="bottom-center" />
-          </RootProviders>
-        </RootErrorBoundary>
+        <RootProviders>
+          <Layout>
+            <Outlet />
+          </Layout>
+          <Toaster position="bottom-center" />
+        </RootProviders>
 
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />

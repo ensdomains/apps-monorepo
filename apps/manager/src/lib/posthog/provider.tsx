@@ -21,11 +21,8 @@ export const PHProvider = ({
   useEffect(() => {
     if (!isHydrated) return
 
-    // Third-party analytics init is non-critical and must never crash the app.
-    // Intercom in particular can throw when its messenger is blocked (e.g. a
-    // domain not in the Intercom allowlist → 403). This runs inside a
-    // commit-phase effect, so an unguarded throw bubbles to the root error
-    // boundary and blanks the page.
+    // Non-critical analytics init; Intercom can throw on blocked domains (403)
+    // and this runs in an effect, so an unguarded throw would crash the app.
     try {
       posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_KEY, {
         api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,

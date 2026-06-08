@@ -9,20 +9,15 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import { useEffect } from 'react'
 import { useConnection, useConnectionEffect, WagmiProvider } from 'wagmi'
+import { RootErrorBoundary } from '@/components/RootErrorBoundary'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
 import { wagmiConfig } from './wagmi'
 
-/**
- * Clear app-local state on disconnect WITHOUT touching wagmi's / RainbowKit's
- * own connection storage. A blanket `localStorage.clear()` wipes wagmi's
- * connector store (`wagmi.*`) and the recent-wallet record (`rk-*`), which
- * corrupts reconnection and can blank the app on the next load. Para could
- * clear everything safely because it managed its own storage; wagmi keeps the
- * connection in localStorage, so we must preserve those keys.
- */
+// Preserve wagmi's/RainbowKit's connection storage (wagmi.* / rk-*) — a blanket
+// localStorage.clear() corrupts reconnection.
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith('wagmi') || key.startsWith('rk-')) continue
@@ -30,22 +25,13 @@ const clearAppLocalStorage = () => {
   }
 }
 
-/**
- * Reacts to wallet connection lifecycle changes. Replaces the side effects
- * that previously lived in the Para provider callbacks:
- *  - when the active address no longer matches the backend-authed address,
- *    drop the stale backend session and any in-flight transactions.
- *  - on disconnect, clear everything (transactions, backend auth, local
- *    storage, analytics identity).
- */
 const WalletLifecycle = () => {
   const { address } = useConnection()
 
-  // Keyed on `address` so it also fires on in-place account switches
-  // (MetaMask/Frame `change` events keep status === 'connected', which
-  // useConnectionEffect.onConnect does NOT fire for). If the connected
-  // address no longer matches the address we authed the backend with, the
-  // session and any transactions tied to the old identity are stale.
+  // Keyed on `address` so in-place account switches fire too
+  // (useConnectionEffect.onConnect doesn't, as status stays "connected"):
+  // drop stale backend auth + transactions when the active address differs
+  // from the one we authed with.
   useEffect(() => {
     if (!address) return
 
@@ -80,19 +66,23 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <I18nProvider i18n={i18n}>
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider>
-            <ConnectionCookieSync />
-            <WalletLifecycle />
-            <PHProvider>
-              <SmartAccountContextProvider>
-                {children}
-              </SmartAccountContextProvider>
-            </PHProvider>
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
+      {/* Inside I18nProvider so the fallback can use <Trans>; still catches
+          the transient router-state race (thrown deep in the tree). */}
+      <RootErrorBoundary>
+        <WagmiProvider config={wagmiConfig}>
+          <QueryClientProvider client={queryClient}>
+            <RainbowKitProvider>
+              <ConnectionCookieSync />
+              <WalletLifecycle />
+              <PHProvider>
+                <SmartAccountContextProvider>
+                  {children}
+                </SmartAccountContextProvider>
+              </PHProvider>
+            </RainbowKitProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </RootErrorBoundary>
     </I18nProvider>
   )
 }

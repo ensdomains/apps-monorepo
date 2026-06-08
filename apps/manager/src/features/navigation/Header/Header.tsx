@@ -15,12 +15,8 @@ export const Header = () => {
   // SSR and the first client render agree — see useHasMounted).
   const connectionSettled = hasMounted && !isConnecting && !isReconnecting
 
-  // `useMediaQuery` can't read the viewport on the server (no `matchMedia`),
-  // so it returns `false` on SSR and the first client render — which would
-  // render the mobile header and flash to desktop after hydration. Default to
-  // the desktop layout until mounted so SSR and the first client render agree
-  // (no hydration mismatch) and desktop users never see the mobile flash; a
-  // real mobile device switches to the mobile header once mounted.
+  // Default to desktop until mounted: useMediaQuery is false on the server /
+  // first client render, which would flash the mobile header before hydration.
   const showMobileHeader = hasMounted && !isDesktop
 
   if (showMobileHeader) {
