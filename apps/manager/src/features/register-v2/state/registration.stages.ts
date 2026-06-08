@@ -9,6 +9,9 @@ export const REGISTRATION_STAGE_PROGRESS = {
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
   ensuringHcaDeployed: 27,
+  // HCA path: resolver-deploy + commit bundled into one Intent. Sits at the
+  // same point as the standalone `committingTransaction` step.
+  submittingSetupBundle: 31,
   committingTransaction: 31,
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,

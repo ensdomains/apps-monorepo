@@ -17,6 +17,7 @@ import {
   submitCommitmentActor,
   submitPermitAndRegistrationActor,
   submitRegistrationActor,
+  submitResolverAndCommitmentActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
   verifyRegistrationActor,
@@ -108,6 +109,7 @@ export type RegistrationContext = {
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
     | 'deployingResolver'
+    | 'submittingSetupBundle'
     | 'ensuringHcaDeployed'
     | 'committingTransaction'
     | 'signingPermit'
@@ -164,6 +166,21 @@ export const registrationMachine = setup({
         id?: string
       }) => {
         return submitResolverDeploymentActor(input)
+      },
+    ),
+    submitResolverAndCommitment: fromResultAsync(
+      (input: {
+        name: string
+        owner: Address
+        resolverOwner: Address
+        duration: bigint
+        selectedToken: 'USDC' | 'DAI'
+        signer: Signer
+        publicClient: PublicClient
+        sponsored?: boolean
+        id?: string
+      }) => {
+        return submitResolverAndCommitmentActor(input)
       },
     ),
     resolveResolverDeployment: fromResultAsync((input: { txId: string }) => {
@@ -471,8 +488,71 @@ export const registrationMachine = setup({
           name: context.name,
         })
       },
-      always: {
-        target: 'deployingResolver',
+      always: [
+        {
+          // Rhinestone/HCA: deploy the resolver and commit in ONE sponsored
+          // Intent (resolver address is predicted, so no need to wait for the
+          // deploy to mine; the HCA deploys inline on this first Intent). This
+          // is the single-signature setup path.
+          guard: 'isRhinestoneSigner',
+          target: 'submittingSetupBundle',
+        },
+        // Pure-EOA: an EOA can't batch, so deploy the resolver, wait for it,
+        // then commit as separate transactions.
+        { target: 'deployingResolver' },
+      ],
+    },
+
+    submittingSetupBundle: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'submitResolverAndCommitment',
+        input: ({ context }) => ({
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress ?? context.accountAddress!,
+          // The resolver's EACL grantee must be the address the resolver sees at
+          // write time (EOA after SCA→EOA unwrap). Mirrors `deployingResolver`.
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          resolverOwner:
+            context.resolverOwnerAddress ??
+            context.ownerAddress ??
+            context.accountAddress!,
+          duration: context.duration,
+          selectedToken: context.selectedToken,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          sponsored: context.sponsored,
+          id: REGISTRATION_TX_IDS.commit,
+        }),
+        onDone: {
+          target: 'waitingForCommitment',
+          actions: assign({
+            resolverAddress: ({ event }) => event.output.resolverAddress,
+            commitment: ({ event }) => event.output.commitment,
+            commitmentTxId: ({ event }) => event.output.txId,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'submittingSetupBundle' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Resolver+commitment bundle failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
       },
     },
 
@@ -1277,6 +1357,24 @@ export const registrationMachine = setup({
               ...context,
               error: undefined,
               retryTarget: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'submittingSetupBundle',
+            target: 'submittingSetupBundle',
+            // Re-run the whole bundle: a fresh resolver salt/address and a new
+            // commitment are generated, so clear any partial setup state.
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              resolverAddress: undefined,
+              resolverTxId: undefined,
+              resolverSalt: undefined,
+              commitment: undefined,
+              commitmentTxId: undefined,
+              registerReadyTimestamp: undefined,
             })),
           },
           {

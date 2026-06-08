@@ -13,12 +13,16 @@ import {
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
+  concatHex,
   decodeEventLog,
+  encodeAbiParameters,
   encodeFunctionData,
   erc20Abi,
+  getCreate2Address,
   isAddressEqual,
   keccak256,
   maxUint256,
+  pad,
   parseAbi,
   parseSignature,
   stringToBytes,
@@ -67,6 +71,64 @@ const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
 const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
+
+const verifiableFactoryProxyLogicSnippet = parseAbi([
+  'function proxyLogic() view returns (address)',
+])
+
+/**
+ * Counterfactually compute the dedicated-resolver proxy address that
+ * `VerifiableFactory.deployProxy(impl, salt, data)` will deploy, WITHOUT waiting
+ * for the deploy transaction to mine. This lets the rhinestone flow batch
+ * resolver-deploy + commit into a single Intent (the commitment needs the
+ * resolver address up front).
+ *
+ * Mirrors the on-chain derivation exactly (verified against live ProxyDeployed
+ * events):
+ *   outerSalt    = keccak256(abi.encode(deployer, userSalt))
+ *   creationCode = 0x3d604d80600a3d3981f3363d3d373d3d3d363d73 ++ proxyLogic(20)
+ *                  ++ 5af43d82803e903d91602b57fd5bf3 ++ outerSalt(32)
+ *   address      = CREATE2(factory, outerSalt, keccak256(creationCode))
+ *
+ * `deployer` is the account that calls `deployProxy` — i.e. the rhinestone HCA
+ * (the `from`/sender of the Intent), NOT the EOA owner.
+ *
+ * See verifiable-factory `VerifiableFactory.sol` / `CloneProxyBytecode.sol`.
+ */
+export async function predictResolverAddress(input: {
+  publicClient: PublicClient
+  deployer: Address
+  salt: bigint
+}): Promise<Address> {
+  const factory = ENS_SEPOLIA_CONTRACTS.VerifiableFactory
+  const proxyLogic = (await readContract(input.publicClient, {
+    address: factory,
+    abi: verifiableFactoryProxyLogicSnippet,
+    functionName: 'proxyLogic',
+  })) as Address
+
+  const outerSalt = keccak256(
+    encodeAbiParameters(
+      [{ type: 'address' }, { type: 'uint256' }],
+      [input.deployer, input.salt],
+    ),
+  )
+
+  // EIP-1167 clone creation code with the salt appended (CREATION_CODE_LENGTH
+  // = 0x57 = 87 bytes): creation stub + runtime + 20-byte logic + 32-byte salt.
+  const creationCode = concatHex([
+    '0x3d604d80600a3d3981f3363d3d373d3d3d363d73',
+    proxyLogic,
+    '0x5af43d82803e903d91602b57fd5bf3',
+    pad(outerSalt, { size: 32 }),
+  ])
+
+  return getCreate2Address({
+    from: factory,
+    salt: outerSalt,
+    bytecodeHash: keccak256(creationCode),
+  })
+}
 
 // ============================================================================
 // Helper Functions (only used in this file)
@@ -511,6 +573,121 @@ export function submitCommitmentActor(input: {
       return txId
     })(),
     (error) => error as Error,
+  )
+}
+
+/**
+ * Rhinestone-only: deploy the dedicated resolver AND submit the ENS commitment
+ * in a SINGLE sponsored Intent.
+ *
+ * The resolver address is counterfactually predicted (see
+ * `predictResolverAddress`) so the commitment — which must bind to the resolver
+ * — can be generated before the resolver is mined. Both calls go in one
+ * `calls[]` bundle; if the HCA isn't deployed yet, the Rhinestone SDK deploys it
+ * inline via the account's factory initCode on this first Intent. This collapses
+ * the old three-Intent setup (resolver-deploy, HCA-deploy, commit) into one
+ * signature.
+ *
+ * Returns the bundle `txId`, the predicted `resolverAddress`, and the generated
+ * `commitment` so the machine can poll the Intent and later submit the matching
+ * register call.
+ */
+export function submitResolverAndCommitmentActor(input: {
+  name: string
+  owner: Address
+  resolverOwner: Address
+  duration: bigint
+  selectedToken: 'USDC' | 'DAI'
+  signer: import('../..').Signer
+  publicClient: PublicClient
+  sponsored?: boolean
+  id?: string
+}): ResultAsync<
+  { txId: string; resolverAddress: Address; commitment: CommitmentData },
+  Error
+> {
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+
+  return fromPromise(
+    (async () => {
+      // The HCA (Intent sender) is the deployer that calls `deployProxy`, so it
+      // must be the CREATE2 `deployer` used to predict the resolver address.
+      const accountAddress = getSignerAddress(input.signer)
+
+      const salt = generateResolverSalt(input.name)
+      const initCalldata = getResolverInitCalldata(input.resolverOwner)
+
+      const resolverAddress = await predictResolverAddress({
+        publicClient: input.publicClient,
+        deployer: accountAddress,
+        salt,
+      })
+
+      const deployCalldata = encodeFunctionData({
+        abi: VERIFIABLE_FACTORY_ABI,
+        functionName: 'deployProxy',
+        args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
+      })
+
+      // Commitment binds to the (predicted) resolver, the owner, and the price
+      // token — exactly what the later `register` call will use.
+      const commitmentResult = await generateCommitment(
+        input.publicClient,
+        input.name,
+        input.owner,
+        input.duration,
+        resolverAddress,
+        registrarAddress,
+      )
+      if (commitmentResult.isErr()) {
+        throw commitmentResult.error
+      }
+      const commitment = commitmentResult.value
+
+      const commitmentData = encodeCommitmentData(commitment.commitment)
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: accountAddress,
+        to: registrarAddress,
+        data: commitmentData,
+        value: 0n,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        // One Intent, two calls: deploy the resolver, then commit. Order matters
+        // only for atomicity here (commit doesn't read the resolver on-chain),
+        // but keeping deploy first mirrors the standalone flow.
+        calls: [
+          {
+            to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+            data: deployCalldata,
+            value: 0n,
+          },
+          {
+            to: registrarAddress,
+            data: commitmentData,
+            value: 0n,
+          },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          id: input.id,
+          description: `Set up registration for ${input.name}.eth`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      )
+
+      return { txId, resolverAddress, commitment }
+    })(),
+    (error) =>
+      error instanceof Error
+        ? error
+        : new Error(`Failed to submit resolver+commitment bundle: ${error}`),
   )
 }
 
