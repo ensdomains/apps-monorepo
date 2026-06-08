@@ -16,9 +16,7 @@ export const useOnDisconnected = (onDisconnect: () => void) => {
 
   // Fallback to event listener to watch for disconnects post load.
   useConnectionEffect({
-    onDisconnect() {
-      onDisconnect()
-    },
+    onDisconnect,
   })
 
   useEffect(() => {
