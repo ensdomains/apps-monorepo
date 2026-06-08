@@ -1,7 +1,6 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
@@ -11,7 +10,7 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress } from 'viem'
-import { useChainId } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Button } from '@/components/ui/button'
@@ -56,7 +55,7 @@ export const ChoosePrimaryNameDialog = ({
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
-  const { data: wallet } = useWallet()
+  const { address } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
   const chainId = useChainId()
@@ -81,7 +80,7 @@ export const ChoosePrimaryNameDialog = ({
   })
 
   // Fetch all owned names
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  const normalizedAddress = address?.toLowerCase()
   const queryVariables = normalizedAddress
     ? {
         where: { owner: normalizedAddress },

@@ -150,12 +150,25 @@ function generateResolverSalt(name: string): bigint {
 
 type MakeV2NameDependencies = {
   time?: Time
+  /**
+   * Signing account for the connected "user" (owner: 'user').
+   * Defaults to PARA_EOA — pass in the headless wallet's account for
+   * non-Para fixtures.
+   */
+  userAccount?: ReturnType<typeof privateKeyToAccount>
+  /**
+   * Signing account used when owner: 'other'. Defaults to ANVIL_FUNDER
+   * (the first Anvil default account).
+   */
+  otherAccount?: ReturnType<typeof privateKeyToAccount>
 }
 
 export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
+  const resolvedUser = deps.userAccount ?? PARA_EOA
+  const resolvedOther = deps.otherAccount ?? ANVIL_FUNDER
+
   /**
-   * Register a V2 .eth name on the anvil fork, owned by the Para EOA,
-   * with a dedicated resolver proxy.
+   * Register a V2 .eth name on the anvil fork with a dedicated resolver proxy.
    *
    * If `duration` is negative the name is registered then anvil time is
    * advanced so the name appears expired by |duration| seconds.
@@ -164,8 +177,8 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     config: V2NameConfig,
   ): Promise<string> {
     const isOther = config.owner === 'other'
-    const ownerAddress = isOther ? ANVIL_FUNDER.address : PARA_EOA.address
-    const ownerAccount = isOther ? ANVIL_FUNDER : PARA_EOA
+    const ownerAddress = isOther ? resolvedOther.address : resolvedUser.address
+    const ownerAccount = isOther ? resolvedOther : resolvedUser
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
 
@@ -184,7 +197,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     const secret = keccak256(toHex(`v2-${uniqueLabel}:${Math.random()}`))
 
     console.log(
-      `[makeV2Name] registering ${uniqueLabel}.eth → ${ownerAddress} (EOA) (duration=${registrationDuration}s, gap=${desiredGapPastExpiry}s)`,
+      `[makeV2Name] registering ${uniqueLabel}.eth → ${ownerAddress} (duration=${registrationDuration}s, gap=${desiredGapPastExpiry}s)`,
     )
 
     // ── 0. Clear any contract code at owner address ───────────────────

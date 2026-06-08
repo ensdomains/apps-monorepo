@@ -10,7 +10,6 @@ import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
-import { ParaWagmiSyncWatcher } from '@/features/wallet/components/ParaWagmiSyncWatcher'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
 
@@ -58,7 +57,6 @@ function RootComponent() {
           <Layout>
             <Outlet />
           </Layout>
-          <ParaWagmiSyncWatcher />
           <Toaster position="bottom-center" />
         </RootProviders>
 

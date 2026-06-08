@@ -1,29 +1,35 @@
 import { useEffect } from 'react'
-import { useParaLogoutEffect } from '@/lib/para'
+import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 
 /**
  * useOnDisconnected
  *
- * Effect that listens for the Para logout event and calls the onDisconnect function.
- * Additionally it waits for the account to finish loading before assuming the wallet is disconnected.
+ * Calls `onDisconnect` once the wallet is genuinely, finally disconnected.
  *
- * If the account is not connected, it will call the onDisconnect function.
+ * The disconnect *signal* is wagmi's connection status — the immediate source
+ * of truth — NOT the smart-account machine's derived `isConnected`, which lags
+ * during the reconnect window (wagmi reconnected, machine not yet synced).
+ * Reading that gap as a disconnect fired a spurious `navigate()` mid-reload
+ * that raced TanStack Router and blanked the page (`Outlet` throwing
+ * `undefined`).
+ *
+ * It is still *gated* on the connection having settled — wagmi not
+ * (re)connecting and the smart-account provider having finished its initial
+ * restoration (`hasInitialized`) — so a session that is still being restored
+ * on load is never bounced to the landing page. `status` alone drives the
+ * single call, so a real disconnect fires `onDisconnect` exactly once.
  *
  * @param onDisconnect Callback to call when the wallet is disconnected.
  */
 export const useOnDisconnected = (onDisconnect: () => void) => {
-  const { isLoading, hasInitialized, isConnected } = useSmartAccountContext()
-
-  // Fallback to event listener to watch for disconnects post load.
-  useParaLogoutEffect(() => {
-    onDisconnect()
-  })
+  const { status, isConnecting, isReconnecting } = useConnection()
+  const { hasInitialized } = useSmartAccountContext()
 
   useEffect(() => {
-    if (!hasInitialized || isLoading) return
-    if (!isConnected) {
+    if (isConnecting || isReconnecting || !hasInitialized) return
+    if (status === 'disconnected') {
       onDisconnect()
     }
-  }, [hasInitialized, isLoading, isConnected, onDisconnect])
+  }, [status, isConnecting, isReconnecting, hasInitialized, onDisconnect])
 }

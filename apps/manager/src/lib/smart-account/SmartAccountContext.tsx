@@ -3,10 +3,6 @@
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import {
-  useClient as useParaClient,
-  useWallet as useParaWallet,
-} from '@getpara/react-sdk-lite'
 import { useLingui } from '@lingui/react/macro'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
@@ -20,7 +16,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import type { Address, WalletClient } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
@@ -50,51 +46,29 @@ interface SmartAccountContextProviderProps {
 }
 
 function detectWalletSource(
-  paraWallet: ReturnType<typeof useParaWallet>['data'],
   wagmiWalletClient: WalletClient | undefined,
-  paraClient: ReturnType<typeof useParaClient>,
 ): BaseWalletSource {
-  const wagmiAddress = wagmiWalletClient?.account?.address
-  const hasWagmi = !!wagmiAddress
-  const hasPara = !paraWallet?.isExternal && !!paraWallet && !!paraClient
-
-  if (paraWallet?.isExternal && hasWagmi) {
-    return 'external-wallet'
-  }
-
-  if (hasPara) {
-    return 'para-embedded'
-  }
-
-  return null
+  return wagmiWalletClient?.account?.address ? 'external-wallet' : null
 }
 
 /**
  * Synchronizes wallet connection state with the smart account state machine.
- * Handles transitions between disconnected, external-wallet, and para-embedded states.
+ * Handles transitions between disconnected and external-wallet states.
  */
 function useWalletConnectionSync(
-  paraWallet: ReturnType<typeof useParaWallet>['data'],
   wagmiWalletClient: WalletClient | undefined,
-  paraClient: ReturnType<typeof useParaClient>,
   snapshotValue: string,
   send: (event: EventFromLogic<typeof smartAccountMachine>) => void,
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const walletSource = detectWalletSource(
-      paraWallet,
-      wagmiWalletClient,
-      paraClient,
-    )
+    const walletSource = detectWalletSource(wagmiWalletClient)
 
     const nextKey =
       walletSource === 'external-wallet'
         ? `external-${wagmiWalletClient?.account?.address?.toLowerCase() ?? 'unknown'}`
-        : walletSource === 'para-embedded'
-          ? 'para-embedded'
-          : null
+        : null
 
     if (!walletSource || !nextKey) {
       connectedKeyRef.current = null
@@ -113,29 +87,14 @@ function useWalletConnectionSync(
       return
     }
 
-    if (walletSource === 'external-wallet') {
-      if (!wagmiWalletClient) return
-      send({
-        type: 'WALLET_CONNECTED',
-        walletSource: 'external-wallet',
-        walletClient: wagmiWalletClient,
-      })
-      connectedKeyRef.current = nextKey
-      return
-    }
-
-    if (walletSource === 'para-embedded' && paraClient) {
-      send({
-        type: 'WALLET_CONNECTED',
-        walletSource: 'para-embedded',
-        paraClient,
-      })
-      connectedKeyRef.current = nextKey
-      return
-    }
-
+    if (!wagmiWalletClient) return
+    send({
+      type: 'WALLET_CONNECTED',
+      walletSource: 'external-wallet',
+      walletClient: wagmiWalletClient,
+    })
     connectedKeyRef.current = nextKey
-  }, [paraWallet, wagmiWalletClient, paraClient, snapshotValue, send])
+  }, [wagmiWalletClient, snapshotValue, send])
 }
 
 export const SmartAccountContextProvider = ({
@@ -143,9 +102,12 @@ export const SmartAccountContextProvider = ({
 }: SmartAccountContextProviderProps) => {
   const queryClient = useQueryClient()
   const { t } = useLingui()
-  const paraClient = useParaClient()
-  const { data: paraWallet, isPending: isParaWalletPending } = useParaWallet()
+  const { isConnecting, isReconnecting } = useConnection()
   const { data: wagmiWalletClient } = useWalletClient()
+
+  // True while the connector is still establishing/restoring a session, so
+  // we don't report the account as "initialized" mid-reconnect.
+  const isWalletPending = isConnecting || isReconnecting
 
   const [snapshot, send, actorRef] = useActor(smartAccountMachine)
 
@@ -157,9 +119,7 @@ export const SmartAccountContextProvider = ({
   // (which would deploy the HCA via Warp etc.).
   const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
-    useEoa ? undefined : paraWallet,
     useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
-    paraClient,
     snapshot.value as string,
     send,
   )
@@ -181,6 +141,14 @@ export const SmartAccountContextProvider = ({
   // stablecoins the smart account spends from). ETH for gas is sponsored
   // by Rhinestone, so the SCA itself doesn't need funding.
   const addressToFund = ownerAddress
+
+  // The (address + balance read) we last kicked off a fund for. We fund at most
+  // ONCE per balance read: `balancesUpdatedAt` advances only on a genuine
+  // refetch (every 30s, or the post-success invalidation) — never on render or
+  // mutation-settle churn — so this both retries transient failures on the next
+  // refetch AND can't loop on every render. This is what stops the previous
+  // infinite loop / faucet+Para spam.
+  const lastFundedKeyRef = useRef<string | null>(null)
 
   const autoFundingMutation = useMutation({
     mutationKey: $qk({
@@ -222,44 +190,71 @@ export const SmartAccountContextProvider = ({
         description: t`Failed to fund wallet: ${error.message}`,
         id: `fund-wallet-${address}`,
       })
+      // Intentionally keep the latch set for this snapshot. A failed attempt
+      // is NOT retried until the balances are genuinely re-read (the 30s
+      // refetch produces a new snapshot → new key → one retry). Resetting the
+      // latch here would let the effect re-fire the instant `isPending` flips
+      // back to false, hammering the faucet (and Para) on persistent errors.
     },
   })
 
-  const { isIdle: isFundingIdle, mutate: fundWallet } = autoFundingMutation
+  const { isPending: isFundingPending, mutate: fundWallet } =
+    autoFundingMutation
+
+  // Whether the owner is low on stablecoins. Computed here (not inside the
+  // effect) and reduced to a stable *boolean* so the funding effect doesn't
+  // re-run on the balances array's per-render ref churn — only when the
+  // low/healthy verdict actually flips. Sum in whole-token units with exact
+  // bigint powers (`10n ** decimals`, not `BigInt(10 ** decimals)`) so
+  // 18-decimal DAI never goes through a lossy float.
+  const needsStablecoins = useMemo(() => {
+    const totalBalance = balances.stablecoinBalances.reduce(
+      (acc, balance) =>
+        acc + BigInt(balance.balance) / 10n ** BigInt(balance.decimals),
+      0n,
+    )
+    return totalBalance < 500n
+  }, [balances.stablecoinBalances])
 
   useEffect(() => {
+    // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
+    // Funding tops up the EOA owner's stablecoins, which is independent of HCA
+    // initialization. The machine can flap disconnected→initializing→ready
+    // (Para reconnects, etc.); gating on `isLoading` there meant funding never
+    // got a stable window and the EOA stayed at $0. We only need the owner
+    // address and a loaded balance read.
     if (
       !addressToFund ||
-      isLoading ||
       balances.isLoadingBalances ||
-      balances.isLoadingApprovalGasState ||
-      !isFundingIdle
+      // A fund is already in flight — wait for it to settle before deciding
+      // whether another is needed.
+      isFundingPending
     ) {
       return
     }
 
-    const totalBalance = balances.stablecoinBalances.reduce(
-      (acc, balance) =>
-        acc + BigInt(balance.balance) / BigInt(10 ** balance.decimals),
-      0n,
-    )
+    // Fund when the owner is low on stablecoins. The api-worker faucet mints
+    // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
+    // (HCA gas is Warp-sponsored and the payment approval is a gasless permit,
+    // so the EOA owner never needs native ETH.)
+    if (!needsStablecoins) return
 
-    // Fund when the owner is low on stablecoins OR can't afford the one-time
-    // registrar approve (low ETH + not yet approved — see
-    // useSmartAccountBalances). The api-worker faucet mints tokens and/or drips
-    // approve-gas ETH as needed; both sides are gated so this stays idempotent.
-    const needsStablecoins = totalBalance < 500n
-    if (!needsStablecoins && !balances.needsApprovalGasTopUp) return
+    // Fund at most once per distinct (address, balance read). The key only
+    // changes when the owner address changes or the balances are genuinely
+    // re-read (`balancesUpdatedAt` advances on refetch), so render churn and the
+    // in-flight mutation can't re-fire it — while a persistent low balance still
+    // retries on the next 30s refetch.
+    const fundKey = `${addressToFund}:${balances.balancesUpdatedAt}`
+    if (lastFundedKeyRef.current === fundKey) return
 
+    lastFundedKeyRef.current = fundKey
     fundWallet(addressToFund)
   }, [
     addressToFund,
-    isLoading,
     balances.isLoadingBalances,
-    balances.isLoadingApprovalGasState,
-    balances.stablecoinBalances,
-    balances.needsApprovalGasTopUp,
-    isFundingIdle,
+    balances.balancesUpdatedAt,
+    needsStablecoins,
+    isFundingPending,
     fundWallet,
   ])
 
@@ -310,62 +305,99 @@ export const SmartAccountContextProvider = ({
     ? !!wagmiWalletClient && !!eoaAddress
     : !!snapshot.context.walletSource && !!snapshot.context.client
   const hasInitialized = isFeatureEnabled('USE_EOA')
-    ? !isParaWalletPending
-    : !isParaWalletPending && snapshot.value !== 'initializing'
+    ? !isWalletPending
+    : !isWalletPending && snapshot.value !== 'initializing'
   const isAccountReady = isFeatureEnabled('USE_EOA')
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress
 
-  const contextValue: SmartAccountContextValue = isFeatureEnabled('USE_EOA')
-    ? {
-        // In EOA-only mode the wagmi wallet client is both the EOA and the
-        // "smart account" address. All smart-account-specific fields are
-        // zeroed out.
-        type: 'rhinestone',
-        client: null,
-        config: null,
-        accountAddress: eoaAddress,
-        isLoading: false,
-        error: null,
-        isConnected,
-        walletSource: eoaAddress ? 'external-wallet' : null,
-        ownerAddress: eoaAddress,
-        stablecoinBalances: balances.stablecoinBalances,
-        isLoadingBalances: balances.isLoadingBalances,
-        smartAccountEthBalance: balances.smartAccountEthBalance,
-        isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
-        autoFundingMutation,
-        signer,
-        isAccountReady,
-        hasInitialized,
-        isReady: isAccountReady,
-        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-        infrastructure: 'warp',
-      }
-    : {
-        type: 'rhinestone',
-        client:
-          (snapshot.context.client as RhinestoneAccountState['client']) ?? null,
-        config:
-          (snapshot.context.config as RhinestoneAccountState['config']) ?? null,
-        accountAddress: snapshot.context.accountAddress,
-        isLoading,
-        error: snapshot.context.error,
-        isConnected,
-        walletSource: snapshot.context.walletSource as BaseWalletSource,
-        ownerAddress,
-        stablecoinBalances: balances.stablecoinBalances,
-        isLoadingBalances: balances.isLoadingBalances,
-        smartAccountEthBalance: balances.smartAccountEthBalance,
-        isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
-        autoFundingMutation,
-        signer,
-        isAccountReady,
-        hasInitialized,
-        isReady,
-        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-        infrastructure,
-      }
+  // Memoized so the provider only emits a new value when something it exposes
+  // actually changes. Without this the object is rebuilt on every render — the
+  // 30s balance polls, the funding mutation and the XState snapshot all churn
+  // it — which re-renders every consumer (including the routed `Outlet`) and
+  // races TanStack Router's match state during navigation (the `MatchInnerImpl`
+  // `throw undefined` that blanks the page). react-query already returns stable
+  // refs for unchanged data, so the deps stay stable across no-op renders.
+  const contextValue = useMemo<SmartAccountContextValue>(
+    () =>
+      useEoa
+        ? {
+            // In EOA-only mode the wagmi wallet client is both the EOA and the
+            // "smart account" address. All smart-account-specific fields are
+            // zeroed out.
+            type: 'rhinestone',
+            client: null,
+            config: null,
+            accountAddress: eoaAddress,
+            isLoading: false,
+            error: null,
+            isConnected,
+            walletSource: eoaAddress ? 'external-wallet' : null,
+            ownerAddress: eoaAddress,
+            stablecoinBalances: balances.stablecoinBalances,
+            isLoadingBalances: balances.isLoadingBalances,
+            smartAccountEthBalance: balances.smartAccountEthBalance,
+            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
+            autoFundingMutation,
+            signer,
+            isAccountReady,
+            hasInitialized,
+            isReady: isAccountReady,
+            walletClient:
+              (wagmiWalletClient as WalletClient | undefined) ?? null,
+            infrastructure: 'warp',
+          }
+        : {
+            type: 'rhinestone',
+            client:
+              (snapshot.context.client as RhinestoneAccountState['client']) ??
+              null,
+            config:
+              (snapshot.context.config as RhinestoneAccountState['config']) ??
+              null,
+            accountAddress: snapshot.context.accountAddress,
+            isLoading,
+            error: snapshot.context.error,
+            isConnected,
+            walletSource: snapshot.context.walletSource as BaseWalletSource,
+            ownerAddress,
+            stablecoinBalances: balances.stablecoinBalances,
+            isLoadingBalances: balances.isLoadingBalances,
+            smartAccountEthBalance: balances.smartAccountEthBalance,
+            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
+            autoFundingMutation,
+            signer,
+            isAccountReady,
+            hasInitialized,
+            isReady,
+            walletClient:
+              (wagmiWalletClient as WalletClient | undefined) ?? null,
+            infrastructure,
+          },
+    [
+      useEoa,
+      eoaAddress,
+      ownerAddress,
+      isConnected,
+      isAccountReady,
+      hasInitialized,
+      isReady,
+      isLoading,
+      signer,
+      autoFundingMutation,
+      wagmiWalletClient,
+      balances.stablecoinBalances,
+      balances.isLoadingBalances,
+      balances.smartAccountEthBalance,
+      balances.isLoadingSmartAccountEth,
+      snapshot.context.client,
+      snapshot.context.config,
+      snapshot.context.accountAddress,
+      snapshot.context.error,
+      snapshot.context.walletSource,
+      infrastructure,
+    ],
+  )
 
   return (
     <SmartAccountContext.Provider value={contextValue}>

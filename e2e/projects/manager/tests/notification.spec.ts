@@ -28,8 +28,6 @@ test.describe('Notifications email flow', () => {
     const inbox = createRandomInbox()
     const email = createEmailAddress(inbox)
 
-    // authenticatedPage fixture already navigates to the app, so we start from there
-
     // Navigate directly to notification settings after sign-in.
     await page.goto('/notifications/settings')
     await expect(page).toHaveURL(/\/notifications\/settings/)
