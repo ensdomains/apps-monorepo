@@ -82,6 +82,33 @@ export function handleStartRegistration(
     ? { type: 'eoa', walletClient: account.walletClient }
     : undefined
 
+  // HCA flows register the name to the EOA owner and the registrar pulls
+  // payment from that owner, so the gasless permit MUST be EOA-signed. Without
+  // an `approvalSigner` there's no EOA wallet to produce the permit signature
+  // (e.g. a Para embedded wallet mid-reconnect exposing no client). Fail fast
+  // with an actionable message here instead of entering the flow, doing
+  // commitment/deployment work, and stalling at the `signingPermit` step where
+  // `signPermitActor` would reject the rhinestone signer fallback. Mirrors the
+  // v2 guard in registrationUi.machine.ts.
+  const isHcaRegistration =
+    account.signer.type === 'rhinestone' &&
+    ownerAddress.toLowerCase() !== account.accountAddress.toLowerCase()
+
+  if (isHcaRegistration && !approvalSigner) {
+    console.error(
+      '❌ HCA registration is missing the EOA wallet client for the payment approval',
+      {
+        accountAddress: account.accountAddress,
+        ownerAddress,
+        type: account.type,
+      },
+    )
+    alert(
+      'Cannot register: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
+    )
+    return
+  }
+
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
     duration: durationInSeconds,
