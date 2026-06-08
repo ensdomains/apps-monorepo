@@ -5,6 +5,7 @@ import {
   authorizeTransaction,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
+import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
@@ -16,8 +17,7 @@ test.describe('ENS name registration', () => {
   }) => {
     await page.goto(MANAGER_APP_URL)
 
-    const searchInput = page.getByPlaceholder('.eth')
-    await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
+    const searchInput = await findSearchInput(page)
     await searchInput.click()
     await searchInput.fill(DISCONNECTED_DOMAIN.replace(/\.eth$/i, ''))
     await page
@@ -38,8 +38,7 @@ test.describe('ENS name registration', () => {
   }) => {
     await page.goto(MANAGER_APP_URL)
 
-    const searchInput = page.getByPlaceholder('.eth')
-    await searchInput.waitFor({ state: 'visible', timeout: 15_000 })
+    const searchInput = await findSearchInput(page)
     await searchInput.click()
     await searchInput.fill(LATE_AUTH_DOMAIN.replace(/\.eth$/i, ''))
     await page
