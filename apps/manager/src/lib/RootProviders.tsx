@@ -7,8 +7,8 @@ import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
-import { useRef } from 'react'
-import { useConnectionEffect, WagmiProvider } from 'wagmi'
+import { useEffect } from 'react'
+import { useConnection, useConnectionEffect, WagmiProvider } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -18,36 +18,34 @@ import { wagmiConfig } from './wagmi'
 /**
  * Reacts to wallet connection lifecycle changes. Replaces the side effects
  * that previously lived in the Para provider callbacks:
- *  - on connect to a *different* address than the one we authed with, drop
- *    the stale backend session and any in-flight transactions.
+ *  - when the active address no longer matches the backend-authed address,
+ *    drop the stale backend session and any in-flight transactions.
  *  - on disconnect, clear everything (transactions, backend auth, local
  *    storage, analytics identity).
  */
 const WalletLifecycle = () => {
-  const previousAuthAddressRef = useRef<string | null>(null)
+  const { address } = useConnection()
 
-  useConnectionEffect({
-    onConnect({ address }) {
-      const previousAuthAddress =
-        previousAuthAddressRef.current ??
-        backendAuthStore.get().context.address ??
-        null
-      previousAuthAddressRef.current = address ?? null
+  // Keyed on `address` so it also fires on in-place account switches
+  // (MetaMask/Frame `change` events keep status === 'connected', which
+  // useConnectionEffect.onConnect does NOT fire for). If the connected
+  // address no longer matches the address we authed the backend with, the
+  // session and any transactions tied to the old identity are stale.
+  useEffect(() => {
+    if (!address) return
 
-      if (
-        !previousAuthAddress ||
-        previousAuthAddress.toLowerCase() === address?.toLowerCase()
-      ) {
-        return
-      }
-
-      // Wallet switched to a different address — clear stale state.
+    const authedAddress = backendAuthStore.get().context.address
+    if (
+      authedAddress &&
+      authedAddress.toLowerCase() !== address.toLowerCase()
+    ) {
       transactionManager.clearAllAndPersistence()
       backendAuthStore.trigger.signOut()
-    },
-    onDisconnect() {
-      previousAuthAddressRef.current = null
+    }
+  }, [address])
 
+  useConnectionEffect({
+    onDisconnect() {
       transactionManager.clearAllAndPersistence()
       backendAuthStore.trigger.signOut()
       localStorage.clear()
