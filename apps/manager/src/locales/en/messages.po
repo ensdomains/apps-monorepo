@@ -123,7 +123,7 @@ msgid "A scrappy generalist builder with taste. Senior Product Designer and Rese
 msgstr "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 
 #: src/features/register/pages/CheckDomainPage.tsx:36
-#: src/routes/index.tsx:38
+#: src/routes/index.tsx:39
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
@@ -486,7 +486,7 @@ msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
 #: src/features/register/pages/CheckDomainPage.tsx:28
-#: src/routes/index.tsx:30
+#: src/routes/index.tsx:31
 msgid "Claim your"
 msgstr "Claim your"
 
@@ -2726,7 +2726,7 @@ msgid "We sent a verification code to your email address."
 msgstr "We sent a verification code to your email address."
 
 #: src/features/register/pages/CheckDomainPage.tsx:32
-#: src/routes/index.tsx:34
+#: src/routes/index.tsx:35
 msgid "web3 username"
 msgstr "web3 username"
 

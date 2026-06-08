@@ -1,28 +1,33 @@
 import { useEffect } from 'react'
-import { useConnectionEffect } from 'wagmi'
-import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { useConnection, useConnectionEffect } from 'wagmi'
 
 /**
  * useOnDisconnected
  *
- * Calls the onDisconnect callback when the wallet disconnects. Listens for the
- * wagmi disconnect event, and additionally waits for the account to finish
- * loading before assuming the wallet is disconnected.
+ * Calls `onDisconnect` only when the wallet is *genuinely* disconnected.
+ *
+ * Source of truth is wagmi's connection status — NOT the smart-account
+ * machine's derived `isConnected`. That value is briefly `false` during the
+ * reconnect window (wagmi already reconnected, but the machine hasn't synced
+ * the wallet client yet). Reading that gap as a disconnect fired a spurious
+ * `navigate()` mid-reload, which raced TanStack Router's match state and
+ * blanked the page (`Outlet` throwing `undefined`).
  *
  * @param onDisconnect Callback to call when the wallet is disconnected.
  */
 export const useOnDisconnected = (onDisconnect: () => void) => {
-  const { isLoading, hasInitialized, isConnected } = useSmartAccountContext()
+  const { status, isConnecting, isReconnecting } = useConnection()
 
-  // Fallback to event listener to watch for disconnects post load.
+  // wagmi's own disconnect transition (covers in-session disconnects).
   useConnectionEffect({
     onDisconnect,
   })
 
   useEffect(() => {
-    if (!hasInitialized || isLoading) return
-    if (!isConnected) {
+    // Never treat the initial connect / reconnect window as a disconnect.
+    if (isConnecting || isReconnecting) return
+    if (status === 'disconnected') {
       onDisconnect()
     }
-  }, [hasInitialized, isLoading, isConnected, onDisconnect])
+  }, [status, isConnecting, isReconnecting, onDisconnect])
 }
