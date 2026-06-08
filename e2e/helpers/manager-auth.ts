@@ -9,14 +9,14 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Signing request kinds the headless wallet should auto-authorize.
+ * Message-signing request kinds the headless wallet should auto-authorize.
  *
- * The manager app routes through a Rhinestone HCA: the connected EOA owner
- * signs each sponsored Intent (personal_sign / eth_signTypedData_v4) rather
- * than sending raw transactions. Para used to auto-sign these silently, so we
- * pass these kinds as `permitted` to `injectHeadlessWeb3Provider` to preserve
- * that behaviour — connection (RequestPermissions/RequestAccounts) is still
- * authorized explicitly below.
+ * Only message-signing is auto-permitted (SIWE `personal_sign`, typed-data) so
+ * the backend-auth modal can complete without manual handling.
+ * `eth_sendTransaction` is deliberately NOT permitted: in EOA mode the
+ * registration flow submits several transactions and the specs authorize each
+ * one explicitly via `authorizeTransaction` — auto-permitting them would leave
+ * nothing pending to authorize and break that handshake.
  */
 export const PERMITTED_SIGN_KINDS = [
   Web3RequestKind.SignMessage,
@@ -24,7 +24,6 @@ export const PERMITTED_SIGN_KINDS = [
   Web3RequestKind.SignTypedDataV1,
   Web3RequestKind.SignTypedDataV3,
   Web3RequestKind.SignTypedDataV4,
-  Web3RequestKind.SendTransaction,
 ] as const
 
 /**
@@ -244,3 +243,14 @@ export async function signInBackendAuthModal(
   const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
   await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
 }
+
+// ---------------------------------------------------------------------------
+// Transaction helpers (re-exported from portal-auth for convenience)
+// ---------------------------------------------------------------------------
+// In EOA mode the manager submits registration transactions through the
+// connected headless wallet just like the portal app, so the same
+// authorize helpers apply.
+export {
+  authorizeTransaction,
+  authorizeTransactions,
+} from './portal-auth.js'
