@@ -11,7 +11,10 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
 
-test.describe('ENS name registration', () => {
+// Skipped for now (per QA): these two overlap with the EOA registration
+// coverage in registration-rhinestone.spec.ts and have been flaky on the
+// search-result interaction. Re-enable once the search flow is stabilised.
+test.describe.skip('ENS name registration', () => {
   test('user is unable to register a name when disconnected', async ({
     page,
   }) => {
