@@ -276,56 +276,93 @@ export const SmartAccountContextProvider = ({
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress
 
-  const contextValue: SmartAccountContextValue = isFeatureEnabled('USE_EOA')
-    ? {
-        // In EOA-only mode the wagmi wallet client is both the EOA and the
-        // "smart account" address. All smart-account-specific fields are
-        // zeroed out.
-        type: 'rhinestone',
-        client: null,
-        config: null,
-        accountAddress: eoaAddress,
-        isLoading: false,
-        error: null,
-        isConnected,
-        walletSource: eoaAddress ? 'external-wallet' : null,
-        ownerAddress: eoaAddress,
-        stablecoinBalances: balances.stablecoinBalances,
-        isLoadingBalances: balances.isLoadingBalances,
-        smartAccountEthBalance: balances.smartAccountEthBalance,
-        isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
-        autoFundingMutation,
-        signer,
-        isAccountReady,
-        hasInitialized,
-        isReady: isAccountReady,
-        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-        infrastructure: 'warp',
-      }
-    : {
-        type: 'rhinestone',
-        client:
-          (snapshot.context.client as RhinestoneAccountState['client']) ?? null,
-        config:
-          (snapshot.context.config as RhinestoneAccountState['config']) ?? null,
-        accountAddress: snapshot.context.accountAddress,
-        isLoading,
-        error: snapshot.context.error,
-        isConnected,
-        walletSource: snapshot.context.walletSource as BaseWalletSource,
-        ownerAddress,
-        stablecoinBalances: balances.stablecoinBalances,
-        isLoadingBalances: balances.isLoadingBalances,
-        smartAccountEthBalance: balances.smartAccountEthBalance,
-        isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
-        autoFundingMutation,
-        signer,
-        isAccountReady,
-        hasInitialized,
-        isReady,
-        walletClient: (wagmiWalletClient as WalletClient | undefined) ?? null,
-        infrastructure,
-      }
+  // Memoized so the provider only emits a new value when something it exposes
+  // actually changes. Without this the object is rebuilt on every render — the
+  // 30s balance polls, the funding mutation and the XState snapshot all churn
+  // it — which re-renders every consumer (including the routed `Outlet`) and
+  // races TanStack Router's match state during navigation (the `MatchInnerImpl`
+  // `throw undefined` that blanks the page). react-query already returns stable
+  // refs for unchanged data, so the deps stay stable across no-op renders.
+  const contextValue = useMemo<SmartAccountContextValue>(
+    () =>
+      useEoa
+        ? {
+            // In EOA-only mode the wagmi wallet client is both the EOA and the
+            // "smart account" address. All smart-account-specific fields are
+            // zeroed out.
+            type: 'rhinestone',
+            client: null,
+            config: null,
+            accountAddress: eoaAddress,
+            isLoading: false,
+            error: null,
+            isConnected,
+            walletSource: eoaAddress ? 'external-wallet' : null,
+            ownerAddress: eoaAddress,
+            stablecoinBalances: balances.stablecoinBalances,
+            isLoadingBalances: balances.isLoadingBalances,
+            smartAccountEthBalance: balances.smartAccountEthBalance,
+            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
+            autoFundingMutation,
+            signer,
+            isAccountReady,
+            hasInitialized,
+            isReady: isAccountReady,
+            walletClient:
+              (wagmiWalletClient as WalletClient | undefined) ?? null,
+            infrastructure: 'warp',
+          }
+        : {
+            type: 'rhinestone',
+            client:
+              (snapshot.context.client as RhinestoneAccountState['client']) ??
+              null,
+            config:
+              (snapshot.context.config as RhinestoneAccountState['config']) ??
+              null,
+            accountAddress: snapshot.context.accountAddress,
+            isLoading,
+            error: snapshot.context.error,
+            isConnected,
+            walletSource: snapshot.context.walletSource as BaseWalletSource,
+            ownerAddress,
+            stablecoinBalances: balances.stablecoinBalances,
+            isLoadingBalances: balances.isLoadingBalances,
+            smartAccountEthBalance: balances.smartAccountEthBalance,
+            isLoadingSmartAccountEth: balances.isLoadingSmartAccountEth,
+            autoFundingMutation,
+            signer,
+            isAccountReady,
+            hasInitialized,
+            isReady,
+            walletClient:
+              (wagmiWalletClient as WalletClient | undefined) ?? null,
+            infrastructure,
+          },
+    [
+      useEoa,
+      eoaAddress,
+      ownerAddress,
+      isConnected,
+      isAccountReady,
+      hasInitialized,
+      isReady,
+      isLoading,
+      signer,
+      autoFundingMutation,
+      wagmiWalletClient,
+      balances.stablecoinBalances,
+      balances.isLoadingBalances,
+      balances.smartAccountEthBalance,
+      balances.isLoadingSmartAccountEth,
+      snapshot.context.client,
+      snapshot.context.config,
+      snapshot.context.accountAddress,
+      snapshot.context.error,
+      snapshot.context.walletSource,
+      infrastructure,
+    ],
+  )
 
   return (
     <SmartAccountContext.Provider value={contextValue}>

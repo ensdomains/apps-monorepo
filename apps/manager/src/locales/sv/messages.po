@@ -1821,10 +1821,6 @@ msgstr ""
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
-#: src/components/RootErrorBoundary.tsx:74
-msgid "Reload"
-msgstr ""
-
 #: src/features/notifications/settings/contact-methods/email.tsx:207
 #: src/features/notifications/settings/contact-methods/email.tsx:243
 #: src/features/notifications/settings/contact-methods/telegram.tsx:170
@@ -2236,10 +2232,6 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:75
 msgid "Something went wrong. Please refresh and try again."
-msgstr ""
-
-#: src/components/RootErrorBoundary.tsx:65
-msgid "Something went wrong. Please reload the page."
 msgstr ""
 
 #: src/features/dashboard/components/SortMenu.tsx:40

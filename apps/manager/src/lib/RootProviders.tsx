@@ -9,7 +9,6 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
 import { useEffect } from 'react'
 import { useConnection, useConnectionEffect, WagmiProvider } from 'wagmi'
-import { RootErrorBoundary } from '@/components/RootErrorBoundary'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -66,23 +65,19 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <I18nProvider i18n={i18n}>
-      {/* Inside I18nProvider so the fallback can use <Trans>; still catches
-          the transient router-state race (thrown deep in the tree). */}
-      <RootErrorBoundary>
-        <WagmiProvider config={wagmiConfig}>
-          <QueryClientProvider client={queryClient}>
-            <RainbowKitProvider>
-              <ConnectionCookieSync />
-              <WalletLifecycle />
-              <PHProvider>
-                <SmartAccountContextProvider>
-                  {children}
-                </SmartAccountContextProvider>
-              </PHProvider>
-            </RainbowKitProvider>
-          </QueryClientProvider>
-        </WagmiProvider>
-      </RootErrorBoundary>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider>
+            <ConnectionCookieSync />
+            <WalletLifecycle />
+            <PHProvider>
+              <SmartAccountContextProvider>
+                {children}
+              </SmartAccountContextProvider>
+            </PHProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
     </I18nProvider>
   )
 }
