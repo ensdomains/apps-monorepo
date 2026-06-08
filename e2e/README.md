@@ -25,11 +25,12 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 e2e/
 ├── playwright.config.base.ts       # Shared config
 ├── fixtures/
-│   ├── playwright.manager.fixture.ts  # Manager app fixture (Para wallet auth)
+│   ├── playwright.manager.fixture.ts  # Manager app fixture (headless web3 wallet)
 │   ├── playwright.portal.fixture.ts   # Portal app fixture (headless web3 wallet)
 │   └── stagehand.fixture.ts           # Optional Stagehand fixture (local dev)
 ├── helpers/
-│   ├── para-auth.ts                # Para wallet auth helpers (pure Playwright)
+│   ├── manager-auth.ts             # Manager RainbowKit connect + SIWE modal helpers
+│   ├── portal-auth.ts              # Portal RainbowKit connect helpers
 │   ├── console-monitor.ts          # Transaction state tracking via console logs
 │   └── wait-helpers.ts             # sleep() utility
 ├── infra/                          # Docker stack (Anvil + Alto + Paymaster)
@@ -49,13 +50,13 @@ e2e/
 
 ---
 
-## Para Authentication
+## Wallet Authentication
 
-Para renders its auth UI inside an iframe (`app.beta.getpara.com`) using web components with Shadow DOM. Playwright handles this natively:
+Both apps connect an injected wallet via RainbowKit using `@ensdomains/headless-web3-provider`:
 
-- **`frameLocator("iframe[src*='app.beta.getpara.com']")`** — targets the Para iframe
-- **Automatic shadow DOM piercing** — Playwright locators like `locator('input[type="email"]')` work through shadow roots without any special handling
-- **`helpers/para-auth.ts`** — provides `authenticateWithPara(page, { email, pin })` for the full login flow
+- **`injectHeadlessWeb3Provider({ page, privateKeys, chains })`** — injects an EIP-1193/EIP-6963 provider that RainbowKit discovers as "Headless Web3 Provider"
+- **`helpers/manager-auth.ts`** — `connectWithHeadlessWallet(page, wallet)` opens the nav connect modal and authorizes the connection; `authorizeHeadlessConnection(page, wallet)` handles an already-open modal. Also provides the SIWE `dismissBackendAuthModal` / `signInBackendAuthModal` helpers. The manager's Rhinestone HCA signs Intents through the wallet, so the fixture passes signing request kinds as `permitted` to auto-authorize them.
+- **`helpers/portal-auth.ts`** — the equivalent `connectWithHeadlessWallet` for the portal app
 
 ---
 

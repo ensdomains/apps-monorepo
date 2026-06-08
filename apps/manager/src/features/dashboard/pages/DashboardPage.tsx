@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
@@ -35,8 +35,11 @@ export const DashboardPage = () => {
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlag('MIGRATION')
 
-  const { data: reverseName } = useSuspenseQuery({
+  // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
+  // `reverseName ?? null`) instead of throwing into the route and crashing it.
+  const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
+    enabled: !!ownerAddress,
   })
 
   const { data: reverseRecords } = useQuery({

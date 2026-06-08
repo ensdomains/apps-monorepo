@@ -2,10 +2,10 @@
  * Rhinestone HCA Account Initialization Tests (manager wrapper)
  *
  * Tests the manager-side `initializeRhinestoneAccount` wrapper: owner
- * resolution (wagmi vs Para), env-derived SDK options (Warp-only, no
- * Pimlico bundler), and the HCA + ENS-owner createAccount shape. The
- * `@rhinestone/sdk` is mocked; the `@ens-apps/smart-account` package
- * runs for real against the mocked SDK.
+ * resolution from the connected external wallet, env-derived SDK options
+ * (Warp-only, no Pimlico bundler), and the HCA + ENS-owner createAccount
+ * shape. The `@rhinestone/sdk` is mocked; the `@ens-apps/smart-account`
+ * package runs for real against the mocked SDK.
  */
 
 // biome-ignore-all lint/suspicious/noExplicitAny: Test mocks require flexible typing
@@ -16,18 +16,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Set up environment before any imports
 vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
 
-const { MOCK_OWNER_ADDRESS, MOCK_SMART_ACCOUNT_ADDRESS, MOCK_PARA_ADDRESS } =
-  vi.hoisted(() => ({
-    MOCK_OWNER_ADDRESS: '0x2222222222222222222222222222222222222222' as const,
-    MOCK_SMART_ACCOUNT_ADDRESS:
-      '0x1111111111111111111111111111111111111111' as const,
-    MOCK_PARA_ADDRESS: '0x4444444444444444444444444444444444444444' as const,
-  }))
+const { MOCK_OWNER_ADDRESS, MOCK_SMART_ACCOUNT_ADDRESS } = vi.hoisted(() => ({
+  MOCK_OWNER_ADDRESS: '0x2222222222222222222222222222222222222222' as const,
+  MOCK_SMART_ACCOUNT_ADDRESS:
+    '0x1111111111111111111111111111111111111111' as const,
+}))
 
 // Mock the Rhinestone SDK. We surface the `RhinestoneSDK` class (used by
 // the package's `initializeRhinestoneAccount`) plus the
-// `walletClientToAccount` / `wrapParaAccount` helpers (used by the
-// manager-side wrapper to build the owner account).
+// `walletClientToAccount` helper (used by the manager-side wrapper to
+// build the owner account).
 vi.mock(import('@rhinestone/sdk'), () => ({
   RhinestoneSDK: vi.fn(function (this: any) {
     this.createAccount = vi.fn().mockResolvedValue({
@@ -50,11 +48,6 @@ vi.mock(import('@rhinestone/sdk'), () => ({
     signMessage: vi.fn(),
     signTypedData: vi.fn(),
   }),
-  wrapParaAccount: vi.fn().mockReturnValue({
-    address: MOCK_PARA_ADDRESS,
-    signMessage: vi.fn(),
-    signTypedData: vi.fn(),
-  }),
 }))
 
 // Mock wagmi
@@ -65,20 +58,7 @@ vi.mock('@/lib/wagmi', () => ({
   },
 }))
 
-// Mock Para viem integration
-vi.mock('@getpara/viem-v2-integration', () => ({
-  createParaAccount: vi.fn().mockReturnValue({
-    address: MOCK_PARA_ADDRESS,
-    signMessage: vi.fn(),
-    signTypedData: vi.fn(),
-  }),
-}))
-
-import {
-  RhinestoneSDK,
-  walletClientToAccount,
-  wrapParaAccount,
-} from '@rhinestone/sdk'
+import { RhinestoneSDK, walletClientToAccount } from '@rhinestone/sdk'
 import {
   initializeRhinestoneAccount,
   type RhinestoneConfig,
@@ -133,10 +113,8 @@ describe('initializeRhinestoneAccount (HCA)', () => {
       walletClient: mockWalletClient,
     })
 
-    // External wallets are converted via walletClientToAccount...
+    // External wallets are converted via walletClientToAccount.
     expect(walletClientToAccount).toHaveBeenCalledWith(mockWalletClient)
-    // ...and NOT wrapped with Para's v-byte adjustment.
-    expect(wrapParaAccount).not.toHaveBeenCalled()
 
     // Warp-only: the SDK is constructed with just the API key — no bundler.
     expect(RhinestoneSDK).toHaveBeenCalledWith({
@@ -144,17 +122,9 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     })
   })
 
-  it('wraps a Para account when only paraClient is provided', async () => {
-    await initializeRhinestoneAccount({
-      paraClient: {} as any,
-    })
-
-    expect(wrapParaAccount).toHaveBeenCalled()
-  })
-
-  it('throws error when neither walletClient nor paraClient provided', async () => {
+  it('throws error when no walletClient is provided', async () => {
     await expect(initializeRhinestoneAccount({})).rejects.toThrow(
-      'Either walletClient or paraClient must be provided',
+      'A walletClient must be provided',
     )
   })
 
@@ -167,7 +137,7 @@ describe('initializeRhinestoneAccount (HCA)', () => {
       initializeRhinestoneAccount({
         walletClient: walletClientNoAccount,
       }),
-    ).rejects.toThrow('Either walletClient or paraClient must be provided')
+    ).rejects.toThrow('A walletClient must be provided')
   })
 
   it('returns correct config shape', async () => {

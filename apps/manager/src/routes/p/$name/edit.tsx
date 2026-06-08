@@ -1,20 +1,20 @@
-import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery } from '@tanstack/react-query'
 import type { ErrorComponentProps } from '@tanstack/react-router'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { Suspense } from 'react'
+import { useConnection, useConnectionEffect } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { ProfileEdit } from '@/features/profile/components/ProfileEdit'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
-import { isConnectedToPara, useParaLogoutEffect } from '@/lib/para'
+import { isWalletConnectedCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/p/$name/edit')({
   component: RouteComponent,
   errorComponent: ProfileEditRouteError,
   beforeLoad: ({ params: { name } }) => {
-    if (!isConnectedToPara()) {
+    if (!isWalletConnectedCookie()) {
       throw redirect({ to: '/$name', params: { name } })
     }
   },
@@ -46,7 +46,7 @@ function ProfileEditLoading() {
 function RouteComponent() {
   const { name } = Route.useParams()
   const navigate = useNavigate()
-  const { data: wallet, isLoading: isWalletLoading } = useWallet()
+  const { address, isConnecting, isReconnecting } = useConnection()
   const { data: ownerData, isLoading: isOwnerLoading } = useQuery({
     ...profileOwnerQuery(name),
   })
@@ -58,20 +58,23 @@ function RouteComponent() {
   } = useSmartAccountContext()
 
   const normalizedOwner = ownerData?.owner?.toLowerCase()
-  const connectedAddresses = [wallet?.address, smartAccountAddress]
-    .filter((addr): addr is string => Boolean(addr))
+  const connectedAddresses = [address, smartAccountAddress]
+    .filter((addr): addr is `0x${string}` => Boolean(addr))
     .map((addr) => addr.toLowerCase())
 
   const isOwner = Boolean(
     normalizedOwner && connectedAddresses.includes(normalizedOwner),
   )
 
-  useParaLogoutEffect(() => {
-    navigate({ to: '/$name', params: { name }, replace: true })
+  useConnectionEffect({
+    onDisconnect() {
+      navigate({ to: '/$name', params: { name }, replace: true })
+    },
   })
 
   const isCheckingOwnership =
-    isWalletLoading ||
+    isConnecting ||
+    isReconnecting ||
     isOwnerLoading ||
     !hasInitialized ||
     isSmartAccountLoading

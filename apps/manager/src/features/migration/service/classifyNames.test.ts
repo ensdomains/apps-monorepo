@@ -72,6 +72,21 @@ describe('classifyName — expired wrap', () => {
   })
 })
 
+describe('classifyName — grace period registrations', () => {
+  it('marks wrapped .eth 2LD in registration grace as ineligible', () => {
+    expect(
+      ineligibleReason(
+        classify({
+          isWrapped: true,
+          registrationExpiry: '100',
+          wrappedExpiry: '99999999999',
+          fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+        }),
+      ),
+    ).toBe('expired-registration')
+  })
+})
+
 describe('classifyName — token type', () => {
   it('unwrapped 2LD: keeps custom v1 resolver, flags manager when registry owner differs', () => {
     const n = classified(classify())

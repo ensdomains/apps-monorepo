@@ -78,7 +78,9 @@ export const parseAvatar = ResultFn(async function* (
     (e) => new ParseError({ cause: e }),
   )
 
-  return ok(url)
+  // Never resolve a query with `undefined` (React Query rejects it); "no
+  // avatar" is `null`.
+  return ok(url ?? null)
 })
 
 export const parseAvatarQuery = (
@@ -190,7 +192,9 @@ export const getNameAvatar = ResultFn(async function* (
   gatewayUrls?: AssetGatewayUrls,
 ) {
   const map = yield* getNamesAvatarsByName([name], gatewayUrls)
-  return ok(map[name])
+  // `map[name]` is `string | undefined`; React Query rejects an `undefined`
+  // query result, so normalize "no avatar" to `null`.
+  return ok(map[name] ?? null)
 })
 
 export const nameAvatarQuery = (
