@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { type Address, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { Badge } from '@/components/ui/badge'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -93,10 +94,10 @@ export const RegistryUserRoleHistory = ({
         <p className="text-sm text-muted-foreground">Loading history…</p>
       )}
       {error && (
-        <p className="text-sm text-danger-text">
-          Failed to load history
-          {error.cause?.message ? `: ${error.cause.message}` : ''}
-        </p>
+        <ErrorMessage
+          title="Failed to load history"
+          description={error.cause?.message ?? error.message}
+        />
       )}
       {!isLoading && !error && rows.length === 0 && (
         <p className="text-sm text-muted-foreground">
