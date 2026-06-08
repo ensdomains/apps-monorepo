@@ -1,20 +1,12 @@
 // e2e/projects/manager/tests/registration.spec.ts
-// import { test, expect } from '@playwright/test'
-import { privateKeyToAccount } from 'viem/accounts'
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import {
+  authorizeHeadlessConnection,
+  clickThroughEnableSessions,
   dismissBackendAuthModal,
-  fillParaOtpInput,
-} from '../../../helpers/para-auth.js'
-import { findSearchInput } from '../../../helpers/search-input.js'
+} from '../../../helpers/manager-auth.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
-const PARA_EOA_ADDRESS = privateKeyToAccount(
-  (process.env.ANVIL_PARA_PRIVATE_KEY ??
-    '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`,
-).address
-const PARA_EMAIL = process.env.PARA_E2E_EMAIL ?? 'test1@test.getpara.com'
-const PARA_PIN = process.env.PARA_E2E_PIN ?? '123456'
 const DOMAIN_TO_REGISTER = `e2e-${Date.now().toString(36)}.eth`
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
@@ -37,7 +29,7 @@ test.describe('ENS name registration', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('registers a name after connecting from the pricing page', async ({ page, mockIndexer }) => {
+  test('registers a name after connecting from the pricing page', async ({ page, wallet }) => {
     await page.goto(MANAGER_APP_URL)
 
     const searchInput = page.getByPlaceholder('.eth')
@@ -50,32 +42,19 @@ test.describe('ENS name registration', () => {
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
     await page.getByRole('button', { name: /connect or sign in to register/i }).click()
 
-    // ===== Para auth flow =====
-    const emailInput = page.locator('input[id="cpsl-input-0"]')
-    await emailInput.waitFor({ state: 'visible', timeout: 15_000 })
-    await emailInput.fill(PARA_EMAIL)
-    await page.locator('cpsl-button[slot="end"]').last().click()
+    // ===== Wallet connect flow (RainbowKit headless web3 provider) =====
+    // The connect button above opens the RainbowKit modal; pick the headless
+    // provider and authorize the connection.
+    await authorizeHeadlessConnection(page, wallet)
 
-    await fillParaOtpInput(page, PARA_PIN)
-
-    // After Para auth, the Rhinestone smart account initialises
+    // After connecting, the Rhinestone smart account initialises
     // asynchronously (on a fresh fork this includes SCA deploy + HCA
     // registration + session enable). Two modals can appear in
     // sequence:
     //   1. EnableSessionModal — must be clicked through.
     //   2. BackendAuthModal — should be dismissed (SIWE / notifications
     //      backend, out of scope for the registration test).
-    const enableBtn = page.getByRole('button', { name: /enable sessions/i })
-    try {
-      await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
-      await enableBtn.click()
-      const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-      await overlay
-        .waitFor({ state: 'hidden', timeout: 30_000 })
-        .catch(() => {})
-    } catch {
-      // Sessions already enabled or feature flag off.
-    }
+    await clickThroughEnableSessions(page)
     await dismissBackendAuthModal(page)
 
     // ===== registration flow =====
