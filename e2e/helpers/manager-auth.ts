@@ -85,7 +85,20 @@ export async function connectWithHeadlessWallet(
     name: /^connect( login)?$/i,
   })
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
-  await connectButton.click()
+
+  // The manager is an SSR app: the server-rendered Connect button can be
+  // clickable before wagmi/RainbowKit hydrate `openConnectModal`, so the
+  // first click is sometimes a no-op and the modal never opens. Retry
+  // opening until the RainbowKit dialog (with the injected-provider entry)
+  // appears — this also absorbs any EIP-6963 discovery delay.
+  const modal = page.getByRole('dialog')
+  const headlessOption = page.getByText('Headless Web3 Provider')
+  await expect(async () => {
+    if (!(await modal.isVisible().catch(() => false))) {
+      await connectButton.click({ timeout: 5_000 }).catch(() => {})
+    }
+    await expect(headlessOption).toBeVisible({ timeout: 3_000 })
+  }).toPass({ timeout: 40_000 })
 
   await authorizeHeadlessConnection(page, wallet)
 
