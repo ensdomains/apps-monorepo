@@ -12,6 +12,7 @@ import {
   type Web3ProviderBackend,
 } from '@ensdomains/headless-web3-provider'
 import {
+  clickThroughEnableSessions,
   connectWithHeadlessWallet,
   dismissBackendAuthModal,
   PERMITTED_SIGN_KINDS,
@@ -159,25 +160,10 @@ async function setupAuthenticatedPage(
 
   await connectWithHeadlessWallet(page, wallet)
 
-  // The smart account initialises asynchronously after connecting.
-  // When Rhinestone sessions are enabled, an "Enable Smart Sessions"
-  // modal appears that CANNOT be dismissed — the user must click
-  // "Enable Sessions". We wait for it to appear, click through it,
-  // and then wait for the overlay to fully close.
-  //
-  // Note: EnableSessionModal uses Radix `Dialog`, so its overlay is
-  // `dialog-overlay`. The matching wait below targets that exact
-  // slot — `alert-dialog-overlay` would belong to the BackendAuth
-  // dialog instead and would never appear at this stage of the flow.
-  const enableBtn = page.getByRole('button', { name: /enable sessions/i })
-  try {
-    await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
-    await enableBtn.click()
-    const overlay = page.locator('[data-slot="dialog-overlay"]')
-    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
-  } catch {
-    // Modal never appeared — sessions already enabled or feature flag off
-  }
+  // The smart account initialises asynchronously after connecting. When
+  // Rhinestone sessions are enabled, a non-dismissable "Enable Smart
+  // Sessions" modal appears that must be clicked through.
+  await clickThroughEnableSessions(page)
 }
 
 /**

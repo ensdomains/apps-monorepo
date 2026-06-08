@@ -2,6 +2,7 @@
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   authorizeHeadlessConnection,
+  clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
 
@@ -53,17 +54,7 @@ test.describe('ENS name registration', () => {
     //   1. EnableSessionModal — must be clicked through.
     //   2. BackendAuthModal — should be dismissed (SIWE / notifications
     //      backend, out of scope for the registration test).
-    const enableBtn = page.getByRole('button', { name: /enable sessions/i })
-    try {
-      await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
-      await enableBtn.click()
-      const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-      await overlay
-        .waitFor({ state: 'hidden', timeout: 30_000 })
-        .catch(() => {})
-    } catch {
-      // Sessions already enabled or feature flag off.
-    }
+    await clickThroughEnableSessions(page)
     await dismissBackendAuthModal(page)
 
     // ===== registration flow =====

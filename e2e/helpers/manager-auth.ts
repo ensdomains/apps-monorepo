@@ -89,6 +89,28 @@ export async function connectWithHeadlessWallet(
   await expect(connectButton).not.toBeVisible({ timeout: 15_000 })
 }
 
+/**
+ * Click through the "Enable Smart Sessions" modal that appears after the
+ * smart account initialises. Idempotent: returns silently if it never shows
+ * (sessions already enabled or feature flag off).
+ *
+ * The modal is a Radix `Dialog`, so its overlay slot is `dialog-overlay` —
+ * NOT `alert-dialog-overlay`, which belongs to the BackendAuth dialog. We
+ * wait for that exact overlay to disappear so the test doesn't race forward
+ * while the session dialog is still closing (and still blocking the page).
+ */
+export async function clickThroughEnableSessions(page: Page): Promise<void> {
+  const enableBtn = page.getByRole('button', { name: /enable sessions/i })
+  try {
+    await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
+    await enableBtn.click()
+    const overlay = page.locator('[data-slot="dialog-overlay"]')
+    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
+  } catch {
+    // Modal never appeared — sessions already enabled or feature flag off.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Backend auth modal (SIWE) — app-level, independent of the connect method
 // ---------------------------------------------------------------------------
