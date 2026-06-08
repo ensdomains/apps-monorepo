@@ -30,6 +30,7 @@ export type MigrationTokenType =
 
 export type IneligibleReason =
   | 'unlocked-subname'
+  | 'expired-registration'
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
@@ -107,6 +108,17 @@ const isWrapActive = (
   return BigInt(wrappedDomain.expiryDate) > nowSeconds
 }
 
+const hasExpiredDotEthRegistration = (
+  domain: V1Domain,
+  parentName: string | null,
+  nowSeconds: bigint,
+): boolean => {
+  if (parentName !== 'eth') return false
+  const expiryDate = domain.registration?.expiryDate
+  if (!expiryDate) return false
+  return BigInt(expiryDate) <= nowSeconds
+}
+
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
@@ -129,6 +141,12 @@ export const classifyName = (
     const registrant = domain.registrant
     if (registrant?.id.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
+    if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+      return {
+        type: 'ineligible',
+        name: { domain, reason: 'expired-registration' },
+      }
+    }
 
     const tokenHolder = toAddress(registrant.id)
     if (!tokenHolder) return null
@@ -165,6 +183,12 @@ export const classifyName = (
   const fuses = effectiveWrappedDomain.fuses
   const wrappedHolder = toAddress(domain.wrappedOwner.id)
   if (!wrappedHolder) return null
+  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+    return {
+      type: 'ineligible',
+      name: { domain, reason: 'expired-registration' },
+    }
+  }
 
   if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
     if (parentName !== 'eth') {
