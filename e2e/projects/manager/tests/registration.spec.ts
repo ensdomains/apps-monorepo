@@ -25,7 +25,7 @@ test.describe('ENS name registration', () => {
 
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
     await expect(
-      page.getByRole('button', { name: /connect or sign in to register/i }),
+      page.getByRole('button', { name: /connect to register/i }),
     ).toBeVisible({ timeout: 15_000 })
   })
 
@@ -40,7 +40,7 @@ test.describe('ENS name registration', () => {
     await page.getByText(LATE_AUTH_DOMAIN).click()
 
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
-    await page.getByRole('button', { name: /connect or sign in to register/i }).click()
+    await page.getByRole('button', { name: /connect to register/i }).click()
 
     // ===== Wallet connect flow (RainbowKit headless web3 provider) =====
     // The connect button above opens the RainbowKit modal; pick the headless

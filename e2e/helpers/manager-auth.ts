@@ -77,9 +77,12 @@ export async function connectWithHeadlessWallet(
   page: Page,
   wallet: Web3ProviderBackend,
 ): Promise<void> {
+  // The desktop nav button renders "Connect" plus an MSymbol "login" icon
+  // whose ligature text folds into the accessible name ("Connect login");
+  // the mobile button is just "Connect". Match either, anchored so it never
+  // catches "Disconnect" / "Connect to register" / "Connect Wallet".
   const connectButton = page.getByRole('button', {
-    name: 'Connect',
-    exact: true,
+    name: /^connect( login)?$/i,
   })
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
   await connectButton.click()
