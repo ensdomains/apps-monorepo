@@ -5,7 +5,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { RegistryLabelsTable } from '@/features/registry/components/v2/RegistryLabelsTable'
-import { getRegistryQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export const Route = createFileRoute('/registry/$address/labels')({
@@ -20,7 +20,7 @@ function RouteComponent() {
     data: registry,
     isLoading,
     error,
-  } = useQuery(getRegistryQueryOptions({ address }))
+  } = useQuery(getRegistryInfoQueryOptions({ address }))
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
 

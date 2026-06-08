@@ -91,29 +91,6 @@ const toLabelRows = (
   return rows
 }
 
-const labelsQuery = gql`
-  query getRegistryLabels($address: String!) {
-    registry(address: $address) {
-      roleConnection(first: ${ROLES_LIMIT}) {
-        edges {
-          node {
-            account
-            resource
-            roleBitmap
-          }
-        }
-      }
-      labels(first: ${LABELS_LIMIT}, orderBy: name, orderDirection: asc) {
-        name
-        labelName
-        labelhash
-        tokenId
-        expiryDate
-      }
-    }
-  }
-`
-
 const getRegistryLabels = ResultFn(async function* ({
   address,
 }: GetRegistryLabelsParameters) {
@@ -123,7 +100,31 @@ const getRegistryLabels = ResultFn(async function* ({
         roleConnection: { edges: { node: IndexerRole }[] }
         labels: IndexerLabel[]
       } | null
-    }>(labelsQuery, { address: address.toLowerCase() }),
+    }>(
+      gql`
+        query getRegistryLabels($address: String!) {
+          registry(address: $address) {
+            roleConnection(first: ${ROLES_LIMIT}) {
+              edges {
+                node {
+                  account
+                  resource
+                  roleBitmap
+                }
+              }
+            }
+            labels(first: ${LABELS_LIMIT}, orderBy: name, orderDirection: asc) {
+              name
+              labelName
+              labelhash
+              tokenId
+              expiryDate
+            }
+          }
+        }
+      `,
+      { address: address.toLowerCase() },
+    ),
     (e) => new GetRegistryLabelsError({ cause: e as ClientError }),
   )
 
