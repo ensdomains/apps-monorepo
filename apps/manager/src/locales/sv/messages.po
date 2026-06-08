@@ -997,14 +997,14 @@ msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts:189
 msgid "Failed to deploy smart account"
-msgstr ""
+msgstr "<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:181
+#: src/lib/smart-account/SmartAccountContext.tsx:189
 msgid "Failed to fund wallet"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:182
+#: src/lib/smart-account/SmartAccountContext.tsx:190
 msgid "Failed to fund wallet: {0}"
 msgstr ""
 
@@ -1083,13 +1083,13 @@ msgstr "Vanliga frågor"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:196
 msgid "From:"
-msgstr ""
+msgstr "<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:152
+#: src/lib/smart-account/SmartAccountContext.tsx:160
 msgid "Funding wallet"
 msgstr ""
 
-#: src/lib/smart-account/SmartAccountContext.tsx:153
+#: src/lib/smart-account/SmartAccountContext.tsx:161
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
@@ -2699,9 +2699,9 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
-msgstr ""
+msgstr "<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:170
+#: src/lib/smart-account/SmartAccountContext.tsx:178
 msgid "Wallet {address} funded successfully"
 msgstr ""
 
@@ -2715,9 +2715,9 @@ msgstr ""
 
 #: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
-msgstr ""
+msgstr "<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:169
+#: src/lib/smart-account/SmartAccountContext.tsx:177
 msgid "Wallet funded successfully"
 msgstr ""
 

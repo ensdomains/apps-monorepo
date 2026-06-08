@@ -992,14 +992,14 @@ msgstr "Failed to authenticate with Telegram"
 
 #: src/lib/smart-account/rhinestone.ts:189
 msgid "Failed to deploy smart account"
-msgstr "Failed to deploy smart account"
+msgstr "Failed to deploy smart account<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:181
+#: src/lib/smart-account/SmartAccountContext.tsx:189
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:182
+#: src/lib/smart-account/SmartAccountContext.tsx:190
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -1078,13 +1078,13 @@ msgstr "Frequently Asked Questions"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:196
 msgid "From:"
-msgstr "From:"
+msgstr "From:<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:152
+#: src/lib/smart-account/SmartAccountContext.tsx:160
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:153
+#: src/lib/smart-account/SmartAccountContext.tsx:161
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -2694,9 +2694,9 @@ msgstr "Waiting for transaction"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
-msgstr "Waiting period"
+msgstr "Waiting period<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:170
+#: src/lib/smart-account/SmartAccountContext.tsx:178
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2710,9 +2710,9 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 
 #: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
-msgstr "Wallet Connected"
+msgstr "Wallet Connected<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:169
+#: src/lib/smart-account/SmartAccountContext.tsx:177
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 

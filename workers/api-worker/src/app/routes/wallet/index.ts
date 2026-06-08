@@ -191,3 +191,25 @@ export default createApp()
       return txHash ? c.json({ txHash }) : c.json({ txHash: null })
     },
   )
+  // Source of truth for which mock stablecoins this worker actually mints.
+  // The manager reads balances against whatever addresses this returns, so the
+  // UI can never drift from the faucet again (e.g. when the deployed worker and
+  // the app are built against different ensjs token-address pins). Derived from
+  // the same `TOKENS` config used by `/fund`, so the two can't disagree.
+  .get('/tokens', (c) =>
+    c.json({
+      chainId: sepolia.id,
+      tokens: {
+        USDC: {
+          address: TOKENS.USDC.address,
+          decimals: TOKENS.USDC.decimals,
+          symbol: 'USDC' as const,
+        },
+        DAI: {
+          address: TOKENS.DAI.address,
+          decimals: TOKENS.DAI.decimals,
+          symbol: 'DAI' as const,
+        },
+      },
+    }),
+  )
