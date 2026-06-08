@@ -1,13 +1,15 @@
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
+import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { useOnDisconnected } from './useOnDisconnected'
 
 vi.mock('wagmi', () => ({
   useConnection: vi.fn(),
-  // The transition-based listener is wagmi's own; stub it out so these tests
-  // isolate the status-derived effect we added.
-  useConnectionEffect: vi.fn(),
+}))
+
+vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
+  useSmartAccountContext: vi.fn(),
 }))
 
 type ConnectionState = {
@@ -21,9 +23,15 @@ const mockConnection = (state: ConnectionState) => {
   vi.mocked(useConnection).mockReturnValue(state as any)
 }
 
+const mockInitialized = (hasInitialized: boolean) => {
+  // biome-ignore lint/suspicious/noExplicitAny: only the fields the hook reads matter
+  vi.mocked(useSmartAccountContext).mockReturnValue({ hasInitialized } as any)
+}
+
 describe('useOnDisconnected', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockInitialized(true)
   })
 
   it('does not fire while reconnecting (the window that caused the blank screen)', () => {
@@ -65,7 +73,21 @@ describe('useOnDisconnected', () => {
     expect(onDisconnect).not.toHaveBeenCalled()
   })
 
-  it('fires once when settled-disconnected', () => {
+  it('does not fire before the smart account has initialized, even if disconnected', () => {
+    mockInitialized(false)
+    mockConnection({
+      status: 'disconnected',
+      isConnecting: false,
+      isReconnecting: false,
+    })
+    const onDisconnect = vi.fn()
+
+    renderHook(() => useOnDisconnected(onDisconnect))
+
+    expect(onDisconnect).not.toHaveBeenCalled()
+  })
+
+  it('fires exactly once when settled-disconnected (no duplicate paths)', () => {
     mockConnection({
       status: 'disconnected',
       isConnecting: false,
@@ -100,7 +122,7 @@ describe('useOnDisconnected', () => {
     expect(onDisconnect).not.toHaveBeenCalled()
   })
 
-  it('fires when a reconnect attempt ultimately fails (genuine disconnect)', () => {
+  it('fires once when a reconnect attempt ultimately fails (genuine disconnect)', () => {
     mockConnection({
       status: 'reconnecting',
       isConnecting: false,
