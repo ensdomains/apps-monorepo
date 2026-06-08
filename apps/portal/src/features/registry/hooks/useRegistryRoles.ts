@@ -35,29 +35,30 @@ const ROLES_LIMIT = 1000
 // registry rather than a single name — i.e. the registry's admins/users.
 const isRootResource = (resource: string) => BigInt(resource) === 0n
 
-const rolesQuery = gql`
-  query getRegistryRoles($address: String!) {
-    registry(address: $address) {
-      roleConnection(first: ${ROLES_LIMIT}) {
-        edges {
-          node {
-            account
-            resource
-            roleBitmap
-          }
-        }
-      }
-    }
-  }
-`
-
 const getRegistryRoles = ResultFn(async function* ({
   address,
 }: GetRegistryRolesParameters) {
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: { roleConnection: { edges: { node: IndexerRole }[] } } | null
-    }>(rolesQuery, { address: address.toLowerCase() }),
+    }>(
+      gql`
+        query getRegistryRoles($address: String!) {
+          registry(address: $address) {
+            roleConnection(first: ${ROLES_LIMIT}) {
+              edges {
+                node {
+                  account
+                  resource
+                  roleBitmap
+                }
+              }
+            }
+          }
+        }
+      `,
+      { address: address.toLowerCase() },
+    ),
     (e) => new GetRegistryRolesError({ cause: e as ClientError }),
   )
 
