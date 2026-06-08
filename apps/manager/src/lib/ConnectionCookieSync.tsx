@@ -10,7 +10,10 @@ import { setConnectionCookie } from './connection-cookie'
  */
 export const ConnectionCookieSync = () => {
   const { address, isReconnecting } = useConnection()
-  const previousAddressRef = useRef<string | null>(null)
+  // `undefined` = not yet synced. Distinguishing it from `null` (no wallet)
+  // ensures the first settled run clears a stale cookie when wagmi restores
+  // no address on load — otherwise SSR guards keep treating it as connected.
+  const previousAddressRef = useRef<string | null | undefined>(undefined)
 
   useEffect(() => {
     // Wait until reconnection settles so we don't clear the cookie during the
