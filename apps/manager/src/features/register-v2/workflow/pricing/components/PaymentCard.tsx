@@ -1,6 +1,6 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
@@ -81,7 +81,7 @@ export const PaymentCardBase = ({
   type: 'register' | 'renew'
 }) => {
   const { isConnected } = useSmartAccountContext()
-  const { openModal, isOpen } = useModal()
+  const { openConnectModal, connectModalOpen } = useConnectModal()
 
   return (
     <div
@@ -165,8 +165,8 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={isOpen}
-            onClick={() => openModal()}
+            disabled={connectModalOpen}
+            onClick={() => openConnectModal?.()}
             size="lg"
           >
             {type === 'register' ? (

@@ -1,10 +1,10 @@
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { LinkButton } from '@/components/ui/button'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
@@ -64,14 +64,14 @@ const useOwnerRedirect = ({
   isOwnerPending,
 }: UseOwnerRedirectParams) => {
   const navigate = useNavigate()
-  const { data: wallet } = useWallet()
+  const { address } = useConnection()
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
   const normalizedOwner = owner?.toLowerCase()
   const isOwner =
     !!normalizedOwner &&
-    [wallet?.address, smartAccountAddress]
-      .filter((addr): addr is string => !!addr)
+    [address, smartAccountAddress]
+      .filter((addr): addr is Address => !!addr)
       .some((addr) => addr.toLowerCase() === normalizedOwner)
 
   const shouldRedirectToEdit = isOwner && isProfileEmpty && !isInGrace

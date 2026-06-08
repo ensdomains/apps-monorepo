@@ -4,10 +4,14 @@ import {
   sepoliaWithEns,
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
-import { injected } from '@wagmi/core'
+import { connectorsForWallets } from '@rainbow-me/rainbowkit'
+import {
+  frameWallet,
+  injectedWallet,
+  metaMaskWallet,
+} from '@rainbow-me/rainbowkit/wallets'
 import { createPublicClient, http } from 'viem'
 import { createConfig } from 'wagmi'
-import { walletConnect } from 'wagmi/connectors'
 
 // Re-export shared chain config so existing imports from `@/lib/wagmi` keep
 // working. New code should prefer importing from `@ens-apps/indexer/chain`.
@@ -34,13 +38,15 @@ export const wagmiConfig = createConfig({
   transports: {
     [sepoliaWithEns.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
-  connectors: [
-    injected(),
-    walletConnect({
-      projectId: WALLETCONNECT_PROJECT_ID,
-      name: 'WalletConnect',
-    }),
-  ],
+  connectors: connectorsForWallets(
+    [
+      {
+        groupName: 'Popular',
+        wallets: [injectedWallet, metaMaskWallet, frameWallet],
+      },
+    ],
+    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
+  ),
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>
