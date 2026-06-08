@@ -43,6 +43,12 @@ vi.mock('@/utils/backend-client', () => ({
       fund: {
         $post: vi.fn().mockResolvedValue({ ok: true, json: () => ({}) }),
       },
+      tokens: {
+        $get: vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => ({ chainId: 11155111, tokens: {} }),
+        }),
+      },
     },
   },
 }))
