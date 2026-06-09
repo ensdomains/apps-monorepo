@@ -11,7 +11,10 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import { isInGracePeriod } from '@/features/grace/utils/gracePeriod'
-import { getNamePricingQueryOptions, getSearchNameQueryOptions } from '@/features/register/services/checkNameAvailabilityService'
+import {
+  getNamePricingQueryOptions,
+  getSearchNameQueryOptions,
+} from '@/features/register/services/checkNameAvailabilityService'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { searchHistoryStore } from './useSearchHistory'
@@ -25,16 +28,16 @@ const LINK_OPTIONS = {
   register: (name: string) =>
     isFeatureEnabled('REGISTRATION_V2')
       ? linkOptions({
-        to: '/register/$name',
-        params: { name },
-      })
+          to: '/register/$name',
+          params: { name },
+        })
       : linkOptions({
-        to: '/register',
-        search: {
-          name,
-        },
-        reloadDocument: location.pathname === '/register',
-      }),
+          to: '/register',
+          search: {
+            name,
+          },
+          reloadDocument: location.pathname === '/register',
+        }),
 } as const
 
 type NameSuggestionItemProps = {
@@ -71,11 +74,11 @@ export const NameSuggestionItem = ({
     ...getDomainsQuery(
       needsSelfCheck && isSubname
         ? {
-          where: { name },
-          first: 1,
-          orderBy: Domain_OrderBy.Name,
-          orderDirection: OrderDirection.Asc,
-        }
+            where: { name },
+            first: 1,
+            orderBy: Domain_OrderBy.Name,
+            orderDirection: OrderDirection.Asc,
+          }
         : undefined,
     ),
     enabled: needsSelfCheck && isSubname,
@@ -99,11 +102,11 @@ export const NameSuggestionItem = ({
     ...getDomainsQuery(
       !isSubname && isRegistered === true
         ? {
-          where: { name },
-          first: 1,
-          orderBy: Domain_OrderBy.Name,
-          orderDirection: OrderDirection.Asc,
-        }
+            where: { name },
+            first: 1,
+            orderBy: Domain_OrderBy.Name,
+            orderDirection: OrderDirection.Asc,
+          }
         : undefined,
     ),
     enabled: !isSubname && isRegistered === true,
