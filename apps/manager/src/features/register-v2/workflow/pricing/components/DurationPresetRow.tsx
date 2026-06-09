@@ -81,13 +81,13 @@ export const DurationPresetRow = ({
             )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">
-            <Trans>total</Trans>
+            <Trans>base price</Trans>
           </span>
         </div>
       </div>
 
       {data.kind === 'mostPopular' && (
-        <div className="absolute -top-2 -left-1 flex h-5 items-center justify-center rounded-full bg-ens-lapis-900 px-2">
+        <div className="-top-2 -left-1 absolute flex h-5 items-center justify-center rounded-full bg-ens-lapis-900 px-2">
           <span className="font-[450] text-white text-xs">
             <Trans>Most popular</Trans>
           </span>

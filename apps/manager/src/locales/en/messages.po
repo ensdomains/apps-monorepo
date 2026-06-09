@@ -366,6 +366,10 @@ msgstr "Back to Settings"
 msgid "Backup Card"
 msgstr "Backup Card"
 
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:84
+msgid "base price"
+msgstr "base price"
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:80
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:106
 msgid "Base price"
@@ -490,10 +494,6 @@ msgstr "Choose a color for your profile"
 msgid "Choose a wallet to connect to the application"
 msgstr "Choose a wallet to connect to the application"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:365
-#~ msgid "Choose an NFT"
-#~ msgstr "Choose an NFT"
-
 #: src/features/payment/components/add.tsx:60
 msgid "Choose how you'd like to pay for your subscription."
 msgstr "Choose how you'd like to pay for your subscription."
@@ -574,10 +574,6 @@ msgstr "Complete your profile"
 msgid "Confirm"
 msgstr "Confirm"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:415
-#~ msgid "Confirm NFT Selection"
-#~ msgstr "Confirm NFT Selection"
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:402
 msgid "Confirm Payment"
 msgstr "Confirm Payment"
@@ -616,14 +612,6 @@ msgstr "Connect a wallet to continue to notification settings and activity."
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx:52
 msgid "Connect or sign in"
 msgstr "Connect or sign in"
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:170
-#~ msgid "Connect or sign in to register"
-#~ msgstr "Connect or sign in to register"
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:172
-#~ msgid "Connect or sign in to renew"
-#~ msgstr "Connect or sign in to renew"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:173
 msgid "Connect to register"
@@ -1083,10 +1071,6 @@ msgstr "Failed to switch language"
 msgid "Failed to update preferences"
 msgstr "Failed to update preferences"
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:69
-#~ msgid "Failed to update resolver"
-#~ msgstr "Failed to update resolver"
-
 #: src/routes/notifications/channels/email/verify.tsx:89
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
@@ -1102,11 +1086,6 @@ msgstr "Favourites"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownFeePills.tsx:99
 msgid "Fee at this moment"
 msgstr "Fee at this moment"
-
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:142
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:214
-#~ msgid "Fee hits $0 on"
-#~ msgstr "Fee hits $0 on"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:105
 msgid "Finalizing registration"
@@ -1340,10 +1319,6 @@ msgstr "Manage notification settings"
 msgid "Manage on explorer"
 msgstr "Manage on explorer"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:83
-#~ msgid "Manage Para Wallet"
-#~ msgstr "Manage Para Wallet"
-
 #: src/routes/auto-renewal/index.tsx:21
 msgid "Manage Renewals"
 msgstr "Manage Renewals"
@@ -1562,10 +1537,6 @@ msgstr "Notifications"
 msgid "Notifications blocked"
 msgstr "Notifications blocked"
 
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx:99
-#~ msgid "now"
-#~ msgstr "now"
-
 #: src/features/dashboard/components/NamesTable.tsx:93
 msgid "Oldest first"
 msgstr "Oldest first"
@@ -1701,10 +1672,6 @@ msgstr "Preferences"
 #: src/features/notifications/settings/preferences.tsx:41
 msgid "Preferences updated"
 msgstr "Preferences updated"
-
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
-#~ msgid "Premium Fee"
-#~ msgstr "Premium Fee"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
@@ -2025,10 +1992,6 @@ msgstr "Resending email verification for {0}"
 msgid "Reset Changes"
 msgstr "Reset Changes"
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:123
-#~ msgid "Resolver address"
-#~ msgstr "Resolver address"
-
 #. placeholder {0}: index + 1
 #: src/features/migration/components/GameStep.tsx:82
 msgid "Restoring records batch {0} of {total}"
@@ -2055,17 +2018,9 @@ msgstr "Retrying will attempt the renewal again from where it left off."
 msgid "Review Changes"
 msgstr "Review Changes"
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
-#~ msgid "Save"
-#~ msgstr "Save"
-
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:134
 msgid "Save <0/>"
 msgstr "Save <0/>"
-
-#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:162
-#~ msgid "Save <0>{0}</0>"
-#~ msgstr "Save <0>{0}</0>"
 
 #. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
 #: src/features/register/components/Pricing/PricingTotalPriceCard.tsx:55
@@ -2116,10 +2071,6 @@ msgstr "Saving managers batch {0} of {total}"
 msgid "Saving..."
 msgstr "Saving..."
 
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:137
-#~ msgid "Saving…"
-#~ msgstr "Saving…"
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:259
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:262
 msgid "Search coins"
@@ -2146,14 +2097,6 @@ msgstr "Search names"
 #: src/routes/notifications/_authenticated/index.tsx:117
 msgid "Search notifications"
 msgstr "Search notifications"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:374
-#~ msgid "Search your NFTs"
-#~ msgstr "Search your NFTs"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:379
-#~ msgid "Search your NFTs..."
-#~ msgstr "Search your NFTs..."
 
 #: src/features/notifications/dropdown/notification-dropdown.tsx:46
 msgid "See all"
@@ -2535,7 +2478,6 @@ msgstr "To:"
 msgid "Too short"
 msgstr "Too short"
 
-#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx:84
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx:184
 msgid "total"
 msgstr "total"
@@ -2592,12 +2534,6 @@ msgstr "Unread only"
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
 msgid "Update failed"
 msgstr "Update failed"
-
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:108
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:149
-#: src/features/profile/components/dialogs/UpdateResolverDialog.tsx:165
-#~ msgid "Update Resolver"
-#~ msgstr "Update Resolver"
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
 msgid "Updating profile"
@@ -2661,10 +2597,6 @@ msgstr "Use Different Email"
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:491
 msgid "Use This Image"
 msgstr "Use This Image"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:435
-#~ msgid "Use This NFT"
-#~ msgstr "Use This NFT"
 
 #: src/features/landing/IntegrationsSection.tsx:92
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
@@ -2900,10 +2832,6 @@ msgstr "What additional fee would you pay?"
 msgid "What is a primary name?"
 msgstr "What is a primary name?"
 
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx:89
-#~ msgid "What price are you willing to pay?"
-#~ msgstr "What price are you willing to pay?"
-
 #: src/features/register-v2/workflow/result/FailureStep.tsx:40
 #: src/features/renew/workflow/result/FailureStep.tsx:43
 msgid "What would you like to do?"
@@ -2946,10 +2874,6 @@ msgstr "You can now receive notifications at this email address."
 #: src/features/wallet/components/BackendAuthModal.tsx:160
 msgid "You can verify later by clicking your profile in the navbar"
 msgstr "You can verify later by clicking your profile in the navbar"
-
-#: src/features/migration/components/MigrationModal.tsx:154
-#~ msgid "You have <0>{0}</0> names that are eligible for upgrade"
-#~ msgstr "You have <0>{0}</0> names that are eligible for upgrade"
 
 #: src/features/migration/components/MigrationModal.tsx:156
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
