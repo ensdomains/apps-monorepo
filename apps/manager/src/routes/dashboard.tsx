@@ -32,16 +32,20 @@ export const Route = createFileRoute('/dashboard')({
 function PrivyStaleSessionGuard() {
   const navigate = useNavigate()
   const { ready, isConnected } = usePrivySession()
-  const { address } = useConnection()
+  const { address, isConnecting, isReconnecting } = useConnection()
 
   useEffect(() => {
-    // ready && !isConnected && !address = Privy restored logged-out and no
-    // external wallet → the cookie was stale, bounce home. (The reload gap is
-    // authenticated-but-address-not-yet-surfaced, which this correctly ignores.)
-    if (ready && !isConnected && !address) {
-      navigate({ to: '/' })
-    }
-  }, [ready, isConnected, address, navigate])
+    // ready && !isConnected && !address = Privy restored logged-out and wagmi
+    // has no wallet → likely a stale cookie. But ExternalWalletReconnect may be
+    // restoring a persisted external wallet (MetaMask) on that same stale token,
+    // so don't race it: skip while wagmi is (re)connecting, and give the fallback
+    // reconnect a short grace. The timer is cancelled if a connection/reconnect
+    // appears (deps change) — so we only bounce once it's genuinely settled.
+    if (!(ready && !isConnected && !address)) return
+    if (isConnecting || isReconnecting) return
+    const t = setTimeout(() => navigate({ to: '/' }), 300)
+    return () => clearTimeout(t)
+  }, [ready, isConnected, address, isConnecting, isReconnecting, navigate])
 
   return null
 }
