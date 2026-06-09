@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useCallback, useMemo, useState } from 'react'
 import { formatPriceForInput } from '../../lib/formatPriceForInput'
 import {
@@ -80,9 +80,9 @@ function TemporaryPremiumDebugPlayground() {
     () =>
       simulation.enabled
         ? {
-            intervalMs: simulation.intervalMs,
-            decayPerTick: simulation.decayPerTick,
-          }
+          intervalMs: simulation.intervalMs,
+          decayPerTick: simulation.decayPerTick,
+        }
         : undefined,
     [simulation.decayPerTick, simulation.enabled, simulation.intervalMs],
   )
