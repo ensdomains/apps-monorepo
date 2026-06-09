@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   newEmptyProfileRecords,
+  normalizeProfileRecords,
+  transformProfileRecords,
   transformToServiceFormat,
 } from './transformRecords'
 
@@ -48,6 +50,12 @@ describe('profile transformRecords utils', () => {
         base: {
           description: 'Test description',
           avatar: 'https://example.com/avatar.png',
+          'primary-contact': 'email',
+          'domains.ens.primary-contacts': JSON.stringify([
+            'email',
+            'com.twitter',
+            'mail',
+          ]),
         },
       }
 
@@ -61,6 +69,33 @@ describe('profile transformRecords utils', () => {
         key: 'avatar',
         value: 'https://example.com/avatar.png',
       })
+      expect(result.texts).toContainEqual({
+        key: 'primary-contact',
+        value: 'email',
+      })
+      expect(result.texts).toContainEqual({
+        key: 'domains.ens.primary-contacts',
+        value: JSON.stringify(['email', 'com.twitter', 'mail']),
+      })
+    })
+
+    it('should transform primary contact text records to base records', () => {
+      const result = transformProfileRecords({
+        texts: [
+          { key: 'primary-contact', value: 'com.twitter' },
+          {
+            key: 'domains.ens.primary-contacts',
+            value: JSON.stringify(['com.twitter', 'email', 'mail']),
+          },
+        ],
+        coins: [],
+      })
+
+      expect(result.base['primary-contact']).toBe('com.twitter')
+      expect(result.base['domains.ens.primary-contacts']).toBe(
+        JSON.stringify(['com.twitter', 'email', 'mail']),
+      )
+      expect(result.unknown).toEqual([])
     })
 
     it('should transform addresses to coins', () => {
@@ -119,10 +154,40 @@ describe('profile transformRecords utils', () => {
       expect(linksText?.value).toBe(JSON.stringify(records.links))
     })
 
+    it('should omit empty links from the JSON string', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [
+          { name: 'Website', url: 'https://example.com' },
+          { name: '', url: '' },
+          { name: '   ', url: '   ' },
+        ],
+      }
+
+      const result = transformToServiceFormat(records)
+
+      const linksText = result.texts.find((t) => t.key === 'links')
+      expect(linksText?.value).toBe(
+        JSON.stringify([{ name: 'Website', url: 'https://example.com' }]),
+      )
+    })
+
     it('should not include links when array is empty', () => {
       const records = {
         ...newEmptyProfileRecords(),
         links: [],
+      }
+
+      const result = transformToServiceFormat(records)
+
+      const linksText = result.texts.find((t) => t.key === 'links')
+      expect(linksText).toBeUndefined()
+    })
+
+    it('should not include links when every link is empty', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [{ name: '', url: '' }],
       }
 
       const result = transformToServiceFormat(records)
@@ -180,6 +245,43 @@ describe('profile transformRecords utils', () => {
       const result = transformToServiceFormat(records)
 
       expect(result.coins).toHaveLength(1)
+    })
+  })
+
+  describe('normalizeProfileRecords', () => {
+    it('should remove fully empty links without changing other records', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        base: { description: 'Test' },
+        links: [
+          { name: 'Website', url: 'https://example.com' },
+          { name: '', url: '' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized).toEqual({
+        ...records,
+        links: [{ name: 'Website', url: 'https://example.com' }],
+      })
+    })
+
+    it('should remove empty address drafts without changing filled addresses', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        addresses: [
+          { coinType: 60, value: '0x1234567890abcdef' },
+          { coinType: 0, value: '' },
+          { coinType: 501, value: '   ' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized.addresses).toEqual([
+        { coinType: 60, value: '0x1234567890abcdef' },
+      ])
     })
   })
 })

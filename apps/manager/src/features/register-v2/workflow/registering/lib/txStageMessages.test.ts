@@ -20,6 +20,18 @@ describe('getRegistrationStageMessages', () => {
     expect(message.stageLabel.message).toBe('Registration complete')
   })
 
+  it('maps the gasless permit-signing stage', () => {
+    const message = getRegistrationStageMessages(
+      { value: 'signingPermit' },
+      undefined,
+    )
+
+    expect(message.stageLabel.message).toBe('Approve payment')
+    expect(message.stageDescription?.message).toBe(
+      'Sign the gasless payment approval in your wallet',
+    )
+  })
+
   it('maps Rhinestone bundle stages', () => {
     const submitting = getRegistrationStageMessages(
       { value: 'submittingRhinestoneBundle' },

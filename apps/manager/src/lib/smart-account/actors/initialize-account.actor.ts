@@ -8,12 +8,11 @@ import type {
 } from '@rhinestone/sdk/errors'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
-import type { TransactionInfra } from '@/utils/feature-flags'
 import {
   initializeRhinestoneAccount,
   type RhinestoneInitResult,
 } from '../rhinestone'
-import type { WalletSource as BaseWalletSource, ParaClient } from '../types'
+import type { WalletSource as BaseWalletSource } from '../types'
 
 type WalletSource = Exclude<BaseWalletSource, null>
 
@@ -37,8 +36,6 @@ export interface AccountInitResult {
 interface InitializeAccountInput {
   readonly walletSource: WalletSource
   readonly walletClient?: WalletClient
-  readonly paraClient?: ParaClient
-  readonly infrastructure?: TransactionInfra
 }
 
 class AccountInitializationError extends TaggedError(
@@ -70,21 +67,19 @@ function mapRhinestoneConfig(
  * Initialize smart account.
  *
  * Rhinestone is the only smart-account provider used by the manager app;
- * it supports both external wallets and Para-embedded accounts. The
- * account is always deployed in HCA (Hybrid Custodial Account) mode.
+ * the connected external wallet is the account owner. The account is
+ * always deployed in HCA (Hybrid Custodial Account) mode.
  */
 export function initializeAccountActor(
   input: InitializeAccountInput,
 ): ResultAsync<AccountInitResult, AccountInitializationError> {
-  const { walletClient, paraClient, infrastructure } = input
+  const { walletClient } = input
 
-  if (!walletClient && !paraClient) {
+  if (!walletClient) {
     return errAsync(
       new AccountInitializationError({
         provider: 'routing',
-        cause: new Error(
-          'Missing wallet client or Para client for Rhinestone initialization',
-        ),
+        cause: new Error('Missing wallet client for Rhinestone initialization'),
       }),
     )
   }
@@ -92,8 +87,6 @@ export function initializeAccountActor(
   return fromPromise(
     initializeRhinestoneAccount({
       walletClient,
-      paraClient,
-      infrastructure,
     }),
     (error) =>
       new AccountInitializationError({

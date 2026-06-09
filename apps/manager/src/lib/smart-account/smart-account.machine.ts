@@ -1,27 +1,15 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Address, WalletClient } from 'viem'
 import { assign, type StateFrom, setup } from 'xstate'
 import type { TransactionInfra } from '@/utils/feature-flags'
-import { getTransactionInfra } from '@/utils/feature-flags'
 import {
   type AccountClient,
   type AccountInitResult,
   initializeAccountActor,
 } from './actors/initialize-account.actor'
-import {
-  type CreateSessionInput,
-  checkExistingSessionActor,
-  createSessionActor,
-  restoreSessionActor,
-  type SessionClient,
-} from './actors/session.actors'
-import { setSkippedStatus } from './sessions/session-storage'
-import type { StoredSession } from './sessions/types'
-import type { ParaClient } from './types'
 
-export type WalletSource = 'external-wallet' | 'para-embedded'
+export type WalletSource = 'external-wallet'
 
 interface SmartAccountContext {
   readonly client: AccountClient | null
@@ -30,34 +18,22 @@ interface SmartAccountContext {
   readonly config: SmartAccountConfig | null
   readonly walletSource: WalletSource | null
   readonly walletClient: WalletClient | null
-  readonly paraClient: ParaClient | null
   readonly infrastructure: TransactionInfra
-  readonly session: StoredSession | null
-  readonly sessionClient: SessionClient | null
   readonly error: string | null
 }
 
-type WalletConnectedEvent =
-  | {
-      type: 'WALLET_CONNECTED'
-      walletSource: 'external-wallet'
-      walletClient: WalletClient
-      paraClient?: never
-    }
-  | {
-      type: 'WALLET_CONNECTED'
-      walletSource: 'para-embedded'
-      paraClient: ParaClient
-      walletClient?: WalletClient
-    }
+type WalletConnectedEvent = {
+  type: 'WALLET_CONNECTED'
+  walletSource: 'external-wallet'
+  walletClient: WalletClient
+}
 
-type SmartAccountEvent =
-  | WalletConnectedEvent
-  | { type: 'WALLET_DISCONNECTED' }
-  | { type: 'PROMPT_SESSION' }
-  | { type: 'ENABLE_SESSION' }
-  | { type: 'DISMISS_SESSION' }
+type SmartAccountEvent = WalletConnectedEvent | { type: 'WALLET_DISCONNECTED' }
 
+// The HCA is session-less; gas sponsorship always routes through the
+// Rhinestone Warp orchestrator (intent-based, relayer-funded). There is
+// no Pimlico/ERC-4337 path for this account, so the infrastructure is a
+// constant rather than a per-wallet feature-flag decision.
 const INITIAL_CONTEXT: SmartAccountContext = {
   client: null,
   accountAddress: null,
@@ -65,21 +41,8 @@ const INITIAL_CONTEXT: SmartAccountContext = {
   config: null,
   walletSource: null,
   walletClient: null,
-  paraClient: null,
-  infrastructure: 'pimlico',
-  session: null,
-  sessionClient: null,
+  infrastructure: 'warp',
   error: null,
-}
-
-function getEventWalletAddress(
-  event: WalletConnectedEvent,
-): Address | undefined {
-  if ('walletClient' in event && event.walletClient?.account?.address) {
-    return event.walletClient.account.address
-  }
-
-  return undefined
 }
 
 function requireWalletSource(context: SmartAccountContext): WalletSource {
@@ -90,52 +53,8 @@ function requireWalletSource(context: SmartAccountContext): WalletSource {
   return context.walletSource
 }
 
-function requireOwnerAddress(context: SmartAccountContext): Address {
-  if (!context.ownerAddress) {
-    throw new Error('Owner address is missing')
-  }
-
-  return context.ownerAddress
-}
-
-function requireSession(context: SmartAccountContext): StoredSession {
-  if (!context.session) {
-    throw new Error('Session is missing')
-  }
-
-  return context.session
-}
-
 const logState = (state: string) =>
   ({ type: 'logTransition' as const, params: { state } }) as const
-
-function requireCreateSessionInput(
-  context: SmartAccountContext,
-): CreateSessionInput {
-  if (!context.ownerAddress) {
-    throw new Error('Owner address is missing')
-  }
-
-  if (!context.accountAddress) {
-    throw new Error('Account address is missing')
-  }
-
-  if (!context.config?.chain?.id) {
-    throw new Error('Missing chain id in account config')
-  }
-
-  if (!context.client) {
-    throw new Error('Missing account client for session enablement')
-  }
-
-  return {
-    ownerAddress: context.ownerAddress,
-    accountAddress: context.accountAddress,
-    chainId: context.config.chain.id,
-    rhinestoneAccount: context.client as unknown as RhinestoneAccount,
-    chain: context.config.chain,
-  }
-}
 
 export const smartAccountMachine = setup({
   types: {
@@ -144,33 +63,14 @@ export const smartAccountMachine = setup({
   },
   actors: {
     initializeAccount: fromResultAsync(initializeAccountActor),
-    checkExistingSession: fromResultAsync(checkExistingSessionActor),
-    createSession: fromResultAsync(createSessionActor),
-    restoreSession: fromResultAsync(restoreSessionActor),
   },
   actions: {
     resetContext: assign(() => INITIAL_CONTEXT),
-    persistSkippedSession: ({ context }) => {
-      if (context.ownerAddress) {
-        setSkippedStatus(context.ownerAddress, true)
-      }
-    },
     logTransition: ({ context }, params: { state: string }) => {
       console.log(`🔧 [SmartAccount] Entering state: ${params.state}`, {
         accountAddress: context.accountAddress,
-        hasSession: !!context.session,
       })
     },
-  },
-  guards: {
-    wasSkipped: ({ event }) => {
-      if (!('output' in event)) return false
-      const output = event.output as { wasSkipped?: boolean } | undefined
-      return output?.wasSkipped ?? false
-    },
-    isParaEmbedded: ({ context }) => context.walletSource === 'para-embedded',
-    isExternalWallet: ({ context }) =>
-      context.walletSource === 'external-wallet',
   },
 }).createMachine({
   id: 'smartAccount',
@@ -183,19 +83,11 @@ export const smartAccountMachine = setup({
       on: {
         WALLET_CONNECTED: {
           target: 'initializing',
-          actions: assign(({ event }) => {
-            const walletAddress = getEventWalletAddress(event)
-
-            return {
-              walletSource: event.walletSource,
-              walletClient: event.walletClient ?? null,
-              paraClient: 'paraClient' in event ? event.paraClient : null,
-              infrastructure: getTransactionInfra(
-                walletAddress ? { walletAddress } : undefined,
-              ),
-              error: null,
-            }
-          }),
+          actions: assign(({ event }) => ({
+            walletSource: event.walletSource,
+            walletClient: event.walletClient ?? null,
+            error: null,
+          })),
         },
       },
     },
@@ -207,11 +99,9 @@ export const smartAccountMachine = setup({
         input: ({ context }) => ({
           walletSource: requireWalletSource(context),
           walletClient: context.walletClient ?? undefined,
-          paraClient: context.paraClient ?? undefined,
-          infrastructure: context.infrastructure,
         }),
         onDone: {
-          target: 'checkingSession',
+          target: 'ready',
           actions: assign(({ event }) => {
             const output = event.output as AccountInitResult
             return {
@@ -235,98 +125,10 @@ export const smartAccountMachine = setup({
       },
     },
 
-    checkingSession: {
-      entry: [logState('checkingSession')],
-      invoke: {
-        src: 'checkExistingSession',
-        input: ({ context }) => ({
-          ownerAddress: requireOwnerAddress(context),
-        }),
-        onDone: [
-          {
-            guard: ({ event }) => !!event.output.session,
-            target: 'restoringSession',
-            actions: assign({
-              session: ({ event }) => event.output.session,
-              error: () => null,
-            }),
-          },
-          {
-            guard: 'wasSkipped',
-            target: 'ready',
-          },
-          { target: 'promptingSession' },
-        ],
-        onError: { target: 'promptingSession' },
-      },
-    },
-
-    restoringSession: {
-      entry: [logState('restoringSession')],
-      invoke: {
-        src: 'restoreSession',
-        input: ({ context }) => ({
-          session: requireSession(context),
-        }),
-        onDone: {
-          target: 'ready',
-          actions: assign({
-            sessionClient: ({ event }) => event.output.sessionClient,
-            error: () => null,
-          }),
-        },
-        onError: {
-          target: 'promptingSession',
-          actions: assign({ session: () => null }),
-        },
-      },
-    },
-
-    promptingSession: {
-      entry: [logState('promptingSession')],
-      on: {
-        ENABLE_SESSION: 'creatingSession',
-        DISMISS_SESSION: {
-          target: 'ready',
-          actions: 'persistSkippedSession',
-        },
-        WALLET_DISCONNECTED: 'disconnected',
-      },
-    },
-
-    creatingSession: {
-      entry: [logState('creatingSession')],
-      invoke: {
-        src: 'createSession',
-        input: ({ context }) => requireCreateSessionInput(context),
-        onDone: {
-          target: 'ready',
-          actions: assign({
-            session: ({ event }) => event.output.session,
-            sessionClient: ({ event }) => event.output.sessionClient,
-            error: () => null,
-          }),
-        },
-        onError: {
-          target: 'promptingSession',
-          actions: assign({
-            error: ({ event }) =>
-              event.error instanceof Error
-                ? event.error.message
-                : String(event.error),
-          }),
-        },
-      },
-    },
-
     ready: {
       entry: [logState('ready')],
       on: {
         WALLET_DISCONNECTED: 'disconnected',
-        PROMPT_SESSION: {
-          guard: 'isExternalWallet',
-          target: 'promptingSession',
-        },
       },
     },
 
@@ -340,17 +142,7 @@ export const smartAccountMachine = setup({
 })
 
 export const selectIsLoading = (state: StateFrom<typeof smartAccountMachine>) =>
-  state.value === 'initializing' ||
-  state.value === 'checkingSession' ||
-  state.value === 'restoringSession'
+  state.value === 'initializing'
 
 export const selectIsReady = (state: StateFrom<typeof smartAccountMachine>) =>
   state.value === 'ready'
-
-export const selectShowSessionModal = (
-  state: StateFrom<typeof smartAccountMachine>,
-) => state.value === 'promptingSession'
-
-export const selectIsCreatingSession = (
-  state: StateFrom<typeof smartAccountMachine>,
-) => state.value === 'creatingSession'

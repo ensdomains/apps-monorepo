@@ -1,6 +1,7 @@
 import {
   type RegistrationEvent,
   registrationMachine,
+  type Signer,
 } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
@@ -194,6 +195,44 @@ const startRegistrationAction = machineSetup.createAction(
     const resolverOwnerAddress =
       event.account.ownerAddress ?? event.account.accountAddress
 
+    // The ENS registrar pulls the payment token from the name owner (the EOA),
+    // so the allowance must be authorized by the EOA. With EIP-2612 the EOA
+    // does this with an OFF-CHAIN permit signature (gasless) — the HCA then
+    // carries that permit inside the sponsored register bundle, so the EOA
+    // never sends a transaction or needs ETH. Hand the registration machine a
+    // dedicated EOA signer (the owner's wallet client) to produce that permit
+    // signature; commit/deploy/register stay on the sponsored rhinestone
+    // signer. For pure-EOA flows this is the same wallet (and that path keeps
+    // using a plain on-chain `approve`).
+    //
+    // `account.walletClient` is the wagmi wallet client for the owner EOA. Para
+    // bridges embedded wallets into wagmi via its connector, so this is
+    // populated for both external and embedded wallets, and the connector's
+    // EIP-1193 provider signs the permit through Para. It can be momentarily
+    // null during a wallet/connector desync — see the fail-fast guard below.
+    const approvalSigner: Signer | undefined = event.account.walletClient
+      ? { type: 'eoa', walletClient: event.account.walletClient }
+      : undefined
+
+    // HCA flows register the name to the EOA owner, and the registrar pulls the
+    // payment from that owner — so the permit MUST be EOA-signed. Without an
+    // `approvalSigner` there's no EOA wallet to produce the permit signature, so
+    // payment can't be authorized. Fail fast with an actionable message (e.g.
+    // when a Para embedded wallet is mid-reconnect and exposes no client)
+    // instead of entering the flow and stalling at the permit step.
+    const isHcaRegistration =
+      event.account.signer.type === 'rhinestone' &&
+      ownerAddress.toLowerCase() !== event.account.accountAddress.toLowerCase()
+
+    if (isHcaRegistration && !approvalSigner) {
+      return enqueue.raise({
+        type: '$error',
+        error: new Error(
+          'Cannot register: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
+        ),
+      })
+    }
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
@@ -214,6 +253,7 @@ const startRegistrationAction = machineSetup.createAction(
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,
+        approvalSigner,
         accountAddress: event.account.accountAddress,
         ownerAddress,
         resolverOwnerAddress,

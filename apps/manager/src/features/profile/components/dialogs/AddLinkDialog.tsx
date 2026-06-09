@@ -1,7 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
-import * as v from 'valibot'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -20,15 +19,10 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { FloatingInput } from '@/components/ui/floating-input'
+import type { LinkItem } from '@/features/profile/types'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { staticTextRecords, textRecords } from '../../data/records'
-
-const reservedTextRecordKeys = new Set<string>([
-  ...staticTextRecords,
-  ...textRecords.map((record) => record.key),
-])
-
-const linkUrlSchema = v.pipe(v.string(), v.trim(), v.url('Enter a valid URL'))
+import { isSafeHttpUrl } from '../../utils/safeUrl'
+import { isReservedTextRecordKey } from './edit-profile/tabs/links/validation'
 
 const validateLinkName = (name: string): string | null => {
   const trimmed = name.trim()
@@ -37,7 +31,7 @@ const validateLinkName = (name: string): string | null => {
     return 'Enter a name'
   }
 
-  if (reservedTextRecordKeys.has(trimmed)) {
+  if (isReservedTextRecordKey(trimmed)) {
     return 'Choose a different name (reserved key)'
   }
 
@@ -51,30 +45,19 @@ const validateLinkUrl = (url: string): string | null => {
     return 'Enter a link'
   }
 
-  const result = v.safeParse(linkUrlSchema, trimmed)
-
-  if (!result.success) {
-    const issue = result.issues[0]
-    return issue?.message ?? 'Enter a valid URL'
+  if (!isSafeHttpUrl(trimmed)) {
+    return 'Enter a valid URL'
   }
 
   return null
 }
 
 interface AddLinkDialogProps {
-  buttonLabel?: string
-  title?: string
-  onAdd: (link: { name: string; url: string }) => void
+  onAdd: (link: LinkItem) => void
 }
 
-export const AddLinkDialog = ({
-  buttonLabel,
-  title,
-  onAdd,
-}: AddLinkDialogProps) => {
+export const AddLinkDialog = ({ onAdd }: AddLinkDialogProps) => {
   const { t } = useLingui()
-  const resolvedButtonLabel = buttonLabel ?? t`Add Link`
-  const resolvedTitle = title ?? t`Add Link`
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
@@ -136,7 +119,7 @@ export const AddLinkDialog = ({
       variant="ghost"
     >
       <Plus className="size-4" />
-      {resolvedButtonLabel}
+      <Trans>Add Link</Trans>
     </Button>
   )
 
@@ -181,7 +164,7 @@ export const AddLinkDialog = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{resolvedTitle}</DialogTitle>
+            <DialogTitle>{t`Add Link`}</DialogTitle>
           </DialogHeader>
           {content}
           <DialogFooter>{addButton}</DialogFooter>
@@ -195,7 +178,7 @@ export const AddLinkDialog = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>{resolvedTitle}</DrawerTitle>
+          <DrawerTitle>{t`Add Link`}</DrawerTitle>
         </DrawerHeader>
         <div className="px-4">{content}</div>
         <DrawerFooter>{addButton}</DrawerFooter>

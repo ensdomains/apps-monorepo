@@ -3,19 +3,19 @@ import {
   type DomainFragment,
   OrderDirection,
 } from '@ens-apps/indexer'
-import { useWallet } from '@getpara/react-sdk-lite'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
+import { useConnection } from 'wagmi'
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { getAllDomainsInfiniteQuery } from './service/queries/getAllDashboardDomains'
 
 export const useOwnedDomains = () => {
-  const { data: wallet } = useWallet()
+  const { address } = useConnection()
   const smartAccount = useSmartAccountContextSafe()
 
   const ownerAddresses = useMemo(() => {
     const candidates = [
-      wallet?.address,
+      address,
       smartAccount?.accountAddress,
       smartAccount?.ownerAddress,
     ]
@@ -24,11 +24,7 @@ export const useOwnedDomains = () => {
       if (addr) unique.add(addr.toLowerCase())
     }
     return Array.from(unique)
-  }, [
-    wallet?.address,
-    smartAccount?.accountAddress,
-    smartAccount?.ownerAddress,
-  ])
+  }, [address, smartAccount?.accountAddress, smartAccount?.ownerAddress])
 
   const hasOwnerAddresses = ownerAddresses.length > 0
 
@@ -58,10 +54,14 @@ export const useOwnedDomains = () => {
 
   const v2Names: DomainFragment[] = data ?? []
 
+  const isAllPagesLoaded =
+    !hasOwnerAddresses || (!isPending && !isFetchingNextPage && !hasNextPage)
+
   return {
     v2Names,
     hasOwnerAddresses,
     isPending: isPending && hasOwnerAddresses,
     isError,
+    isAllPagesLoaded,
   }
 }

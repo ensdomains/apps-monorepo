@@ -10,6 +10,7 @@ import {
   ChipLinkIcon,
   ChipNameIcon,
   ChipWalletIcon,
+  HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -157,6 +158,10 @@ interface EntityBadgeProps {
   readonly ownerAddress?: Address
   /** Address — enables Address chip (→ /addr/$address) */
   readonly address?: Address
+  /** Mark a contract `address` as a registry — enables Registry chip + primary action (→ /registry/$address) */
+  readonly isRegistry?: boolean
+  /** TLD label (e.g. "eth") — for a contract, enables a TLD chip + primary action (→ /tld/$tld) */
+  readonly tld?: string
   /** Block explorer URL — enables Etherscan chip */
   readonly etherscanHref?: string
   /** Value to copy. Defaults: name → name, address/contract → address */
@@ -174,6 +179,8 @@ export const EntityBadge = ({
   ownerName,
   ownerAddress,
   address,
+  isRegistry = false,
+  tld,
   etherscanHref,
   copyValue,
   showAvatar = false,
@@ -217,7 +224,7 @@ export const EntityBadge = ({
   // the primary affordance; no link, no animated bg.
   if (variant === 'default') {
     return (
-      <div className="relative group/entity flex w-full min-w-0">
+      <div className="relative group/entity inline-flex min-w-0">
         {derivedCopyValue && (
           <div
             className={cn(chipOverlayBase, chipOverlayAlwaysOnTouch, 'left-0')}
@@ -245,6 +252,7 @@ export const EntityBadge = ({
     ownerName ||
     ownerAddress ||
     address ||
+    tld ||
     etherscanHref ||
     derivedCopyValue
   )
@@ -282,6 +290,17 @@ export const EntityBadge = ({
         </Link>
       )
     }
+    if (variant === 'contract' && isRegistry && address) {
+      return (
+        <Link
+          to="/registry/$address"
+          params={{ address }}
+          className={primaryWrapperClass}
+        >
+          {pillNode}
+        </Link>
+      )
+    }
     if (variant === 'contract' && isResolver && address) {
       return (
         <Link
@@ -293,7 +312,14 @@ export const EntityBadge = ({
         </Link>
       )
     }
-    if (variant === 'contract' && !isResolver && etherscanHref) {
+    if (variant === 'contract' && tld) {
+      return (
+        <Link to="/tld/$tld" params={{ tld }} className={primaryWrapperClass}>
+          {pillNode}
+        </Link>
+      )
+    }
+    if (variant === 'contract' && !isRegistry && !isResolver && etherscanHref) {
       return (
         <a
           href={etherscanHref}
@@ -450,12 +476,32 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {contractName && (
+        {/* Auto-derived contract-name chip — suppressed when the caller gives an
+            explicit `label` (e.g. "root registry"), which already names the pill. */}
+        {!label && contractName && (
           <CopyChip
             value={contractName}
             label={contractName}
             showIcon={false}
           />
+        )}
+
+        {variant === 'contract' && isRegistry && address && (
+          <Link
+            to="/registry/$address"
+            params={{ address }}
+            className={chipClass}
+          >
+            <HubIcon className="size-3.25" />
+            Registry
+          </Link>
+        )}
+
+        {variant === 'contract' && tld && (
+          <Link to="/tld/$tld" params={{ tld }} className={chipClass}>
+            <ChipNameIcon className="size-3.25" />
+            TLD
+          </Link>
         )}
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}

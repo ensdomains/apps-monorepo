@@ -4,18 +4,20 @@ import { HTTPException } from 'hono/http-exception'
 import * as v from 'valibot'
 import {
   createClient,
+  erc20Abi,
   type Hex,
   http,
   multicall3Abi,
   publicActions,
   walletActions,
 } from 'viem'
-import { type Address, privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { encodeFunctionData, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
 import { SEPOLIA_RPC_URL } from '#core/eth/client.js'
+import { KV_KEY } from '#core/kv/index.js'
 import { logger } from '#utils/logger.js'
 import { ethAddress } from '#utils/validation.js'
 
@@ -32,32 +34,19 @@ const TOKENS = {
   },
 } as const
 
-const ERC20_ABI = [
-  {
-    inputs: [
-      { name: 'to', type: 'address' as const },
-      { name: 'amount', type: 'uint256' as const },
-    ],
-    name: 'mint',
-    outputs: [],
-    stateMutability: 'nonpayable' as const,
-    type: 'function' as const,
-  },
+// Standard ERC-20 reads (balanceOf) use viem's `erc20Abi`. Only
+// `mint` is non-standard (MockERC20 faucet helper, not part of `erc20Abi`),
+// so it stays a local fragment.
+const MINT_ABI = [
   {
     type: 'function',
-    name: 'balanceOf',
-    stateMutability: 'view',
+    name: 'mint',
+    stateMutability: 'nonpayable',
     inputs: [
-      {
-        name: 'account',
-        type: 'address',
-      },
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
     ],
-    outputs: [
-      {
-        type: 'uint256',
-      },
-    ],
+    outputs: [],
   },
 ] as const
 
@@ -75,27 +64,14 @@ const createWalletClient = (privateKey: string | undefined) => {
 
   return createClient({
     chain: sepolia,
-    transport: http(SEPOLIA_RPC_URL),
+    // `batch: true` coalesces concurrent reads (the Promise.all below) into a
+    // single JSON-RPC batch HTTP request — one round-trip without the on-chain
+    // Multicall3 dependency.
+    transport: http(SEPOLIA_RPC_URL, { batch: true }),
     account: walletAccount,
   })
     .extend(publicActions)
     .extend(walletActions)
-}
-
-type WalletClient = ReturnType<typeof createWalletClient>
-
-const getErc20Balance = async (
-  walletClient: WalletClient,
-  address: Address,
-  tokenAddress: Address,
-) => {
-  const balance = await walletClient.readContract({
-    address: tokenAddress,
-    abi: ERC20_ABI,
-    functionName: 'balanceOf',
-    args: [address],
-  })
-  return balance
 }
 
 export default createApp()
@@ -115,72 +91,125 @@ export default createApp()
       // Setup wallet
       const walletClient = createWalletClient(c.env.ETH_PRIVATE_KEY)
 
-      const [usdcBalance, daiBalance] = await Promise.all([
-        getErc20Balance(walletClient, address, TOKENS.USDC.address),
-        getErc20Balance(walletClient, address, TOKENS.DAI.address),
-      ])
-
-      logger.debug('Checked faucet balances', {
-        usdcBalance,
-        daiBalance,
-        address,
-      })
-
-      // Don't send out tokens if they already have enough to prevent abuse
-      if (
-        usdcBalance >= TOKENS.USDC.mintAmount / 10n &&
-        daiBalance >= TOKENS.DAI.mintAmount / 10n
-      ) {
-        logger.debug('Already have enough tokens, skipping', {
-          usdcBalance,
-          daiBalance,
+      // Serialize funding per address. Without this, concurrent /wallet/fund
+      // calls for the same address each read the same (low) balances and each
+      // mint — double-spending faucet funds and racing the funder's nonce. A
+      // short-lived KV lock lets only one in-flight fund per address proceed;
+      // others no-op. KV is best-effort across colos (fine for a testnet
+      // faucet), and the TTL self-heals if a fund crashes mid-flight.
+      const lockKey = KV_KEY.WALLET.FUND_LOCK(address)
+      if (await c.env.KV.get(lockKey)) {
+        logger.debug('Fund already in progress for address, skipping', {
           address,
         })
         return c.json({ txHash: null })
       }
+      await c.env.KV.put(lockKey, 'locked', { expirationTtl: 60 })
 
-      const multicallTxHash = await walletClient.writeContract({
-        address: sepolia.contracts.multicall3.address,
-        abi: multicall3Abi,
-        functionName: 'aggregate3',
-        args: [
-          [
-            {
-              target: TOKENS.USDC.address,
-              allowFailure: false,
-              callData: encodeFunctionData({
-                abi: ERC20_ABI,
-                functionName: 'mint',
-                args: [address, TOKENS.USDC.mintAmount],
-              }),
-            },
-            {
-              target: TOKENS.DAI.address,
-              allowFailure: false,
-              callData: encodeFunctionData({
-                abi: ERC20_ABI,
-                functionName: 'mint',
-                args: [address, TOKENS.DAI.mintAmount],
-              }),
-            },
-          ],
-        ],
-      })
+      let txHash: Hex | null = null
+      try {
+        // Both token balances go out in a single JSON-RPC batch (see
+        // `batch: true` on the transport).
+        const [usdcBalance, daiBalance] = await Promise.all([
+          walletClient.readContract({
+            address: TOKENS.USDC.address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+          walletClient.readContract({
+            address: TOKENS.DAI.address,
+            abi: erc20Abi,
+            functionName: 'balanceOf',
+            args: [address],
+          }),
+        ])
 
-      logger.debug('Multicall transaction sent', {
-        multicall: multicallTxHash,
-        address,
-      })
+        logger.debug('Checked faucet state', {
+          usdcBalance,
+          daiBalance,
+          address,
+        })
 
-      const receipt = await walletClient.waitForTransactionReceipt({
-        hash: multicallTxHash,
-      })
+        // Mint mock USDC/DAI unless the address already has enough (anti-abuse).
+        const hasEnoughTokens =
+          usdcBalance >= TOKENS.USDC.mintAmount / 10n &&
+          daiBalance >= TOKENS.DAI.mintAmount / 10n
+        if (hasEnoughTokens) {
+          logger.debug('Already have enough tokens, skipping mint', {
+            usdcBalance,
+            daiBalance,
+            address,
+          })
+        } else {
+          const multicallTxHash = await walletClient.writeContract({
+            address: sepolia.contracts.multicall3.address,
+            abi: multicall3Abi,
+            functionName: 'aggregate3',
+            args: [
+              [
+                {
+                  target: TOKENS.USDC.address,
+                  allowFailure: false,
+                  callData: encodeFunctionData({
+                    abi: MINT_ABI,
+                    functionName: 'mint',
+                    args: [address, TOKENS.USDC.mintAmount],
+                  }),
+                },
+                {
+                  target: TOKENS.DAI.address,
+                  allowFailure: false,
+                  callData: encodeFunctionData({
+                    abi: MINT_ABI,
+                    functionName: 'mint',
+                    args: [address, TOKENS.DAI.mintAmount],
+                  }),
+                },
+              ],
+            ],
+          })
 
-      logger.debug('Multicall transaction confirmed', {
-        receipt,
-        address,
-      })
+          logger.debug('Mint multicall sent', {
+            multicall: multicallTxHash,
+            address,
+          })
 
-      return c.json({ txHash: receipt.transactionHash })
+          const receipt = await walletClient.waitForTransactionReceipt({
+            hash: multicallTxHash,
+          })
+
+          logger.debug('Mint multicall confirmed', { receipt, address })
+          txHash = receipt.transactionHash
+        }
+      } finally {
+        await c.env.KV.delete(lockKey)
+      }
+
+      // Preserve the two-shape response so the inferred hc type stays
+      // `{ txHash: Hex } | { txHash: null }` (what the manager expects).
+      return txHash ? c.json({ txHash }) : c.json({ txHash: null })
     },
+  )
+  // Source of truth for which mock stablecoins this worker actually mints.
+  // The manager reads balances against whatever addresses this returns, so the
+  // UI can never drift from the faucet again (e.g. when the deployed worker and
+  // the app are built against different ensjs token-address pins). Derived from
+  // the same `TOKENS` config used by `/fund`, so the two can't disagree.
+  .get('/tokens', (c) =>
+    c.json({
+      chainId: sepolia.id,
+      tokens: {
+        USDC: {
+          address: TOKENS.USDC.address,
+          decimals: TOKENS.USDC.decimals,
+          symbol: 'USDC' as const,
+        },
+        DAI: {
+          address: TOKENS.DAI.address,
+          decimals: TOKENS.DAI.decimals,
+          symbol: 'DAI' as const,
+        },
+      },
+    }),
   )

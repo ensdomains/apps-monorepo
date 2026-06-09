@@ -67,7 +67,7 @@ export const getRegistrationStageMessages = (
       stageDescription: msg`Waiting for the commitment confirmation`,
     }))
     .with({ stage: 'fetchingCommitmentAge' }, () => ({
-      stageLabel: msg`Checking commitment cooldown`,
+      stageLabel: msg`Reading commitment window`,
       stageDescription: msg`Reading the commit-reveal window from the registrar`,
     }))
     .with({ stage: 'commitmentCooldown' }, () => ({
@@ -80,11 +80,15 @@ export const getRegistrationStageMessages = (
     }))
     .with({ stage: 'checkingAllowance' }, () => ({
       stageLabel: msg`Checking token allowance`,
-      stageDescription: msg`Checking whether an approval transaction is needed`,
+      stageDescription: msg`Checking whether a payment approval is needed`,
+    }))
+    .with({ stage: 'signingPermit' }, () => ({
+      stageLabel: msg`Approve payment`,
+      stageDescription: msg`Sign the gasless payment approval in your wallet`,
     }))
     .with({ stage: 'submittingRhinestoneBundle' }, () => ({
       stageLabel: msg`Submitting approval and registration`,
-      stageDescription: msg`Approving the token and registering your name`,
+      stageDescription: msg`Authorizing payment and registering your name`,
     }))
     .with(
       { stage: 'waitingForRhinestoneBundle', txState: 'submitting' },

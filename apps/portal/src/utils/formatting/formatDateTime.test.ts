@@ -3,6 +3,7 @@ import {
   formatDateTime,
   formatExpiryDate,
   formatExpiryDateTimeLocal,
+  formatExpiryDuration,
 } from './formatDateTime'
 
 describe('formatDateTime', () => {
@@ -42,6 +43,42 @@ describe('formatExpiryDate', () => {
     const date = Temporal.PlainDate.from('2030-12-25')
     const result = formatExpiryDate(date)
     expect(result).toBe('Dec 25, 2030')
+  })
+})
+
+describe('formatExpiryDuration', () => {
+  const today = Temporal.PlainDate.from('2026-01-01')
+
+  it('should format years and leftover days', () => {
+    const expiry = Temporal.PlainDate.from('2027-05-04')
+    expect(formatExpiryDuration(expiry, today)).toBe('1 year 123 days')
+  })
+
+  it('should pluralize years', () => {
+    const expiry = Temporal.PlainDate.from('2028-01-11')
+    expect(formatExpiryDuration(expiry, today)).toBe('2 years 10 days')
+  })
+
+  it('should omit days for a whole number of years', () => {
+    const expiry = Temporal.PlainDate.from('2029-01-01')
+    expect(formatExpiryDuration(expiry, today)).toBe('3 years')
+  })
+
+  it('should show only days when under a year', () => {
+    const expiry = Temporal.PlainDate.from('2026-02-15')
+    expect(formatExpiryDuration(expiry, today)).toBe('45 days')
+  })
+
+  it('should singularize a single day', () => {
+    const expiry = Temporal.PlainDate.from('2026-01-02')
+    expect(formatExpiryDuration(expiry, today)).toBe('1 day')
+  })
+
+  it('should return "Expired" for past or same-day dates', () => {
+    expect(
+      formatExpiryDuration(Temporal.PlainDate.from('2025-12-31'), today),
+    ).toBe('Expired')
+    expect(formatExpiryDuration(today, today)).toBe('Expired')
   })
 })
 

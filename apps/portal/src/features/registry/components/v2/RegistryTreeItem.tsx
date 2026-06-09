@@ -32,8 +32,11 @@ export const RegistryTreeItem = ({
   name,
 }: RegistryTreeItemProps) => {
   const isRoot = index === 0
+  const isEthRegistry = index === 1
   const isLast = index === registriesCount - 1
   const isParent = !isRoot && !isLast
+
+  const isDeployedRegistry = !isRoot && !isEthRegistry
 
   // registries are ordered `[name, ...ancestors, root]`, so this reversed item's
   // full name is the suffix of labels starting at its position.
@@ -93,6 +96,8 @@ export const RegistryTreeItem = ({
               variant="contract"
               className="font-normal"
               address={address}
+              isRegistry={isDeployedRegistry}
+              tld={isEthRegistry ? levelName : undefined}
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
@@ -110,12 +115,12 @@ export const RegistryTreeItem = ({
         ) : null}
       </div>
       {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
-          <dt>Chain ID:</dt>
+        <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
+          <dt className="py-2">Chain ID:</dt>
           <dd>{chainId}</dd>
-          <dt>Protocol Version:</dt>
+          <dt className="py-2">Protocol Version:</dt>
           <dd>{ownerData.protocolVersion}</dd>
-          <dt>Created:</dt>
+          <dt className="py-2">Created:</dt>
           <dd>
             {match({ isSummaryLoading, summaryError })
               .with({ isSummaryLoading: true }, () => (
@@ -138,7 +143,7 @@ export const RegistryTreeItem = ({
                 ),
               )}
           </dd>
-          <dt>Labels:</dt>
+          <dt className="py-2">Labels:</dt>
           <dd className="flex items-center gap-4">
             {match({ isSummaryLoading, summaryError })
               .with({ isSummaryLoading: true }, () => (

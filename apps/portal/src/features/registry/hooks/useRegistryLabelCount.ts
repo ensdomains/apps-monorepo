@@ -25,9 +25,6 @@ export type RegistryLabel = {
 export type RegistrySummary = {
   labelCount: number
   createdAt: number
-  // A sample of label names belonging to this registry, for inspection /
-  // preview. Capped server-side; use the labelConnection paginated query
-  // when you need to walk the full set.
   labels: RegistryLabel[]
 }
 

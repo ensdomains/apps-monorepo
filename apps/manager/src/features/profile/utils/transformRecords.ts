@@ -6,7 +6,7 @@ import type {
   StaticRecordKey,
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
-import type { ProfileRecords } from '../types'
+import type { LinkItem, ProfileRecords } from '../types'
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
@@ -35,6 +35,42 @@ const LinksSchema = v.array(
   }),
 )
 
+const isEmptyLink = (link: LinkItem) =>
+  link.name.trim() === '' && link.url.trim() === ''
+
+export const normalizeProfileLinks = (links: readonly LinkItem[]): LinkItem[] =>
+  links.filter((link) => !isEmptyLink(link))
+
+const normalizeProfileAddresses = (
+  addresses: ProfileRecords['addresses'],
+): ProfileRecords['addresses'] =>
+  addresses.filter(({ value }) => value && value.trim() !== '')
+
+export const normalizeProfileRecords = (
+  records: ProfileRecords,
+): ProfileRecords => ({
+  ...records,
+  addresses: normalizeProfileAddresses(records.addresses),
+  links: normalizeProfileLinks(records.links),
+})
+
+interface TextRecordInput {
+  readonly key: string
+  readonly value: string
+}
+
+interface AddressRecordInput {
+  readonly coinType: number
+  readonly value: string
+}
+
+interface ServiceProfileRecords {
+  readonly texts: TextRecordInput[]
+  readonly coins: AddressRecordInput[]
+  readonly contentHash?: string
+  readonly abi?: string
+}
+
 /**
  * Transforms mock profile records to the standard ProfileRecords format
  * Used for development and testing with mock data
@@ -48,7 +84,7 @@ export const transformProfileRecords = (
 
   const processTextRecord = (
     acc: ProfileRecords,
-    { key, value }: { key: string; value: string },
+    { key, value }: TextRecordInput,
   ): ProfileRecords => {
     const record = getRecordDef(key)
 
@@ -98,12 +134,7 @@ export const transformProfileRecords = (
  */
 export const transformToServiceFormat = (
   records: ProfileRecords,
-): {
-  texts: Array<{ key: string; value: string }>
-  coins: Array<{ coinType: number; value: string }>
-  contentHash?: string
-  abi?: string
-} => {
+): ServiceProfileRecords => {
   const sectionTexts = allSections.flatMap((section) =>
     records[section].map(({ key, value }) => ({ key, value })),
   )
@@ -118,10 +149,10 @@ export const transformToServiceFormat = (
     value,
   }))
 
+  const links = normalizeProfileLinks(records.links)
+
   const linksText =
-    records.links.length > 0
-      ? [{ key: 'links', value: JSON.stringify(records.links) }]
-      : []
+    links.length > 0 ? [{ key: 'links', value: JSON.stringify(links) }] : []
 
   const texts = [...sectionTexts, ...baseTexts, ...unknownTexts, ...linksText]
 

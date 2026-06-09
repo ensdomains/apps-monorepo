@@ -1,7 +1,6 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
 import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
@@ -11,7 +10,7 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress } from 'viem'
-import { useChainId } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Button } from '@/components/ui/button'
@@ -56,7 +55,7 @@ export const ChoosePrimaryNameDialog = ({
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
-  const { data: wallet } = useWallet()
+  const { address } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
   const chainId = useChainId()
@@ -81,7 +80,7 @@ export const ChoosePrimaryNameDialog = ({
   })
 
   // Fetch all owned names
-  const normalizedAddress = wallet?.address?.toLowerCase()
+  const normalizedAddress = address?.toLowerCase()
   const queryVariables = normalizedAddress
     ? {
         where: { owner: normalizedAddress },
@@ -259,7 +258,7 @@ export const ChoosePrimaryNameDialog = ({
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] max-w-[500px] flex-col overflow-hidden">
+      <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-[24px] text-foreground">
             <Trans>Choose Primary Name</Trans>
@@ -281,11 +280,11 @@ export const ChoosePrimaryNameDialog = ({
                   {Array.from({ length: 3 }, (_, i) => `skeleton-${i}`).map(
                     (skeletonId) => (
                       <div
-                        className="flex items-center gap-3 rounded-[4px] p-3"
+                        className="flex items-center gap-3 rounded-sm p-3"
                         key={skeletonId}
                       >
-                        <div className="size-[40px] shrink-0 animate-pulse rounded-full bg-gray-200" />
-                        <div className="h-[20px] w-[150px] animate-pulse rounded bg-gray-200" />
+                        <div className="size-10 shrink-0 animate-pulse rounded-full bg-gray-200" />
+                        <div className="h-5 w-37.5 animate-pulse rounded bg-gray-200" />
                       </div>
                     ),
                   )}
@@ -306,7 +305,7 @@ export const ChoosePrimaryNameDialog = ({
                     <button
                       aria-label={t`Select ${label} as primary name`}
                       aria-pressed={isSelected}
-                      className={`flex items-center justify-between gap-3 rounded-[4px] border p-3 transition-colors ${
+                      className={`flex items-center justify-between gap-3 rounded-sm border p-3 transition-colors ${
                         isSelected
                           ? 'border-ens-blue bg-ens-lapis-dust'
                           : 'border-ens-gray-two hover:border-ens-blue/50 hover:bg-ens-white'
@@ -317,7 +316,7 @@ export const ChoosePrimaryNameDialog = ({
                       type="button"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative size-[40px] shrink-0 overflow-hidden rounded-full bg-ens-white">
+                        <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-ens-white">
                           <ImageFallback.Root className="contents">
                             <ImageFallback.Image
                               alt={t`${label} avatar`}
@@ -350,13 +349,13 @@ export const ChoosePrimaryNameDialog = ({
 
           {/* Error Message */}
           {isError && (
-            <div className="rounded-[4px] border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
+            <div className="rounded-sm border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
               <Trans>Failed to set primary name. Please try again.</Trans>
             </div>
           )}
           {/* ETH Address Mismatch/Missing Info */}
           {needsEthAddressUpdate && account.ownerAddress && (
-            <div className="flex items-start gap-2 rounded-[4px] border border-amber-200 bg-amber-50 p-3">
+            <div className="flex items-start gap-2 rounded-sm border border-amber-200 bg-amber-50 p-3">
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
               <div className="text-amber-800 text-sm">
                 <p>
@@ -375,7 +374,7 @@ export const ChoosePrimaryNameDialog = ({
           {/* Action Buttons */}
           <div className="flex shrink-0 gap-3">
             <Button
-              className="h-[48px] flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
+              className="h-12 flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={isSubmitting || updateEthAddressMutation.isPending}
               onClick={handleCancel}
               variant="outline"
@@ -383,7 +382,7 @@ export const ChoosePrimaryNameDialog = ({
               <Trans>Cancel</Trans>
             </Button>
             <Button
-              className="h-[48px] flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
+              className="h-12 flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
               disabled={
                 isSubmitting ||
                 updateEthAddressMutation.isPending ||
