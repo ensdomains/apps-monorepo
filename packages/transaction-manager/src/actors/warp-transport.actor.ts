@@ -133,8 +133,8 @@ export function submitWarpTransaction(
       const transaction = await account.sendTransaction(sdkParams)
       const sendLatencyMs = nowMs() - sendStart
 
-      console.log(
-        '📤 [WARP] Intent signed & submitted to orchestrator (ms):',
+      logger.debug(
+        '[WARP] Intent signed & submitted to orchestrator (ms):',
         sendLatencyMs.toFixed(1),
         { intentId: (transaction as { id?: unknown }).id },
       )
