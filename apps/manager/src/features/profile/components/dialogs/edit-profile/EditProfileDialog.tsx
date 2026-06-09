@@ -13,22 +13,22 @@ import type { Actor } from 'xstate'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs } from '@/components/ui/tabs'
+import type { ProfileRecords } from '@/features/profile/types'
+import { createDiff } from '@/features/profile/utils/createDiff'
+import { normalizeProfileRecords } from '@/features/profile/utils/transformRecords'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import type { ProfileRecords } from '../../types'
-import { createDiff } from '../../utils/createDiff'
-import { normalizeProfileRecords } from '../../utils/transformRecords'
-import { useAppForm } from '../form'
+import { useAppForm } from '../../form'
 import {
   RecordsValidationError,
   type SaveRecordsParams,
   saveRecords,
-} from '../ProfileEdit.transactions'
+} from '../../ProfileEdit.transactions'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
-import { getLinkValidationIssues } from './EditProfileLinksTab.validation'
+import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface ProfileEditForm {
   readonly reset: (records: ProfileRecords) => void
@@ -261,6 +261,12 @@ export const EditProfileDialog = ({
                 resetSaveState()
                 form.setFieldValue('base', base)
               }
+              const handleAddressesChange = (
+                addresses: ProfileRecords['addresses'],
+              ) => {
+                resetSaveState()
+                form.setFieldValue('addresses', addresses)
+              }
               const handleContactChange = (
                 contact: ProfileRecords['contact'],
               ) => {
@@ -292,6 +298,7 @@ export const EditProfileDialog = ({
                   />
                   <EditProfileDialogTabs
                     name={name}
+                    onAddressesChange={handleAddressesChange}
                     onBaseChange={handleBaseChange}
                     onContactChange={handleContactChange}
                     onDraftLinkValidationIssuesChange={

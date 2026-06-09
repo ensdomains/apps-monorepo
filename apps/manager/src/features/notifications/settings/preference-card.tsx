@@ -30,7 +30,7 @@ export const PreferenceCard = ({
       className={cn(
         'relative flex h-full w-full items-start gap-4 overflow-hidden rounded-lg border border-solid p-4 text-left transition-colors',
         checked
-          ? 'border-ens-lapis-500 bg-[#dbf0f8]'
+          ? 'border-ens-lapis-500 bg-ens-lapis-100'
           : 'border-[#dededf] bg-[#faf9f7] hover:bg-[#f1efeb]',
         (disabled || isLoading) &&
           'cursor-not-allowed opacity-60 hover:bg-inherit',

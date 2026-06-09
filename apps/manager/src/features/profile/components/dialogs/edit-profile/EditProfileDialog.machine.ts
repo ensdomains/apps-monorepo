@@ -1,13 +1,13 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { Address, Hex, PublicClient } from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
-import type { ProfileRecords } from '../../types'
-import { transformToServiceFormat } from '../../utils/transformRecords'
-import type { SaveRecordsParams } from '../ProfileEdit.transactions'
+import type { ProfileRecords } from '@/features/profile/types'
+import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
+import type { SaveRecordsParams } from '../../ProfileEdit.transactions'
 import {
   type GeneralField,
   getDefaultVisibleFields,
-} from './EditProfileGeneralTab.fields'
+} from './tabs/general/fields'
 
 interface SaveDeps {
   readonly accountAddress?: Address | null
@@ -31,6 +31,10 @@ interface EditProfileDialogContext {
   readonly savedRecords: ProfileRecords
   readonly txHash?: Hex
   readonly visibleFields: ReadonlySet<GeneralField>
+}
+
+interface EditProfileDialogInput {
+  readonly records: ProfileRecords
 }
 
 type EditProfileDialogEvent =
@@ -108,9 +112,7 @@ export const editProfileDialogMachine = setup({
   types: {
     context: {} as EditProfileDialogContext,
     events: {} as EditProfileDialogEvent,
-    input: {} as {
-      records: ProfileRecords
-    },
+    input: {} as EditProfileDialogInput,
   },
   guards: {
     missingOwner: ({ event }) =>

@@ -78,7 +78,7 @@ export const NotificationSettings = ({
                 )}
               </form.Subscribe>
               <Button
-                className="uppercase tracking-[0.12em] max-md:min-h-12 max-md:shrink-0 max-md:rounded-xl max-md:px-4 max-md:py-3 max-md:font-mono max-md:text-ens-blue-dark max-md:text-xs max-md:shadow-none max-md:active:bg-ens-blue-light/60 max-md:hover:bg-ens-blue-light/40 md:bg-[#dbf0f8] md:text-ens-lapis-500 md:active:bg-[#a9d5ed] md:hover:bg-[#c4e7f3]"
+                className="uppercase tracking-[0.12em] max-md:min-h-12 max-md:shrink-0 max-md:rounded-xl max-md:px-4 max-md:py-3 max-md:font-mono max-md:text-ens-blue-dark max-md:text-xs max-md:shadow-none max-md:active:bg-ens-blue-light/60 max-md:hover:bg-ens-blue-light/40 md:bg-ens-lapis-100 md:text-ens-lapis-500 md:active:bg-[#a9d5ed] md:hover:bg-[#c4e7f3]"
                 onClick={onSkip}
                 size="lg"
                 variant="ghost"

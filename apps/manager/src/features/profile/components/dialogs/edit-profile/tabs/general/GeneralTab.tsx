@@ -1,20 +1,20 @@
 import { ChevronDown } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
+import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
-import type { ProfileRecords, TextRecordValue } from '../../types'
 import {
   useEditProfileDialogActions,
   useEditProfileDialogStatus,
   useEditProfileVisibleFields,
-} from './EditProfileDialog.context'
-import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
+} from '../../EditProfileDialog.context'
+import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {
   type GeneralField,
   generalShortcuts,
   getTextRecordValue,
-} from './EditProfileGeneralTab.fields'
-import { ImageSelectionDialog } from './ImageSelectionDialog'
+} from './fields'
 
 type BaseGeneralField =
   | 'avatar'
@@ -96,19 +96,19 @@ const SelectField = ({
   )
 }
 
-interface EditProfileGeneralTabProps {
+interface GeneralTabProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly values: ProfileRecords
 }
 
-export const EditProfileGeneralTab = ({
+export const GeneralTab = ({
   name,
   onBaseChange,
   onContactChange,
   values,
-}: EditProfileGeneralTabProps) => {
+}: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const visibleFields = useEditProfileVisibleFields()
   const { toggleField } = useEditProfileDialogActions()
@@ -126,7 +126,7 @@ export const EditProfileGeneralTab = ({
         {generalShortcuts.map(({ field, symbol, label }) => {
           const active = isVisible(field)
           return (
-            <EditProfileFieldPickerPill
+            <FieldPickerPill
               active={active}
               icon={
                 <MSymbol

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-interface EditProfileFieldPickerPillProps {
+interface FieldPickerPillProps {
   readonly active: boolean
   readonly disabled?: boolean
   readonly icon: ReactNode
@@ -9,13 +9,13 @@ interface EditProfileFieldPickerPillProps {
   readonly onClick: () => void
 }
 
-export const EditProfileFieldPickerPill = ({
+export const FieldPickerPill = ({
   active,
   disabled,
   icon,
   label,
   onClick,
-}: EditProfileFieldPickerPillProps) => (
+}: FieldPickerPillProps) => (
   <button
     className={cn(
       'flex h-6.5 shrink-0 items-center gap-1 rounded-[25px] border-[0.5px] px-2 py-1.5 text-[12px] leading-[1.2] tracking-[0.12px] transition-colors',

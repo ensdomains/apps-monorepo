@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getLinkValidationIssues } from './EditProfileLinksTab.validation'
+import { getLinkValidationIssues } from './validation'
 
 describe('getLinkValidationIssues', () => {
   it('rejects link titles that collide with reserved text record keys', () => {
