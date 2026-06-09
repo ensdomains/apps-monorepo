@@ -48,11 +48,34 @@ initial or SSR/worker bundle. So it's isolated behind a lazily loaded chunk:
   `usePrivySession` via `useSyncExternalStore`, defaulting to logged-out) and a
   load flag (`requestPrivyLoad`).
 - The runtime loads only when `requestPrivyLoad()` fires: on mount if a stored
-  Privy session exists (returning social user → restore), or when the login
-  dialog opens (`LoginModalProvider.openLogin`). **A visitor who never
+  Privy session exists (returning social user → restore), on an **OAuth redirect
+  back** (the URL carries `privy_oauth_code` — the SDK must consume it), or when
+  the login dialog opens (`LoginModalProvider.openLogin`). **A visitor who never
   authenticates — e.g. the landing page, or external-wallet-only users — never
-  downloads the SDK.** Verify in devtools: the Privy chunks load only on
-  dialog-open / session-restore, and the worker startup no longer parses the SDK.
+  downloads the SDK.**
+
+### How much / how it's verified
+
+Measured by stub-and-rebuild (alias `@privy-io/react-auth` to a no-op + build):
+removing Privy drops client JS gzip **2457 → 1263 KiB**, i.e. the SDK (incl. the
+`@walletconnect/*` it pulls) is ~**1.2 MB gzip**. After lazy-loading that is all
+**deferred off the initial load + the worker startup**, confirmed three ways:
+
+1. **Server build manifest** (`dist/server/.vite/manifest.json`): `PrivyRuntime`
+   is reached only via `dynamicImports`, NOT in the entry's static graph — so the
+   Cloudflare worker doesn't parse the SDK at cold start (fixes the +10ms/request).
+2. **Client chunk graph**: the `PrivyRuntime-*.js` chunk is referenced only by a
+   dynamic `import()` (the `lazy()` call); the SDK's own chunks (`usePrivy-*`, the
+   modal screens) are static-imported only within that lazy subtree, never by an
+   eager app/route chunk.
+3. **Empirical** (do this after any change here): landing page, logged-out →
+   devtools **Network**, filter `privy` → **zero** Privy chunks until the login
+   dialog opens or you reload with a session.
+
+> ⚠️ Regression guard: do NOT statically `import` from `@privy-io/react-auth`
+> anywhere except `PrivyRuntime.tsx` / `usePrivySessionRuntime.ts`. Any other
+> static import pulls the SDK back into the initial bundle. Read the session via
+> `usePrivySession()` (the store reader), never the SDK hooks directly.
 
 ## Non-negotiable constraints (enforced)
 
