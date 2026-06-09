@@ -1,5 +1,10 @@
 {
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "./.storybook/**/*.ts",
+    "./.storybook/**/*.tsx"
+  ],
   "compilerOptions": {
     /* Language and Environment */
     "target": "ES2022",

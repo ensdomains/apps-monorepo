@@ -13,3 +13,6 @@ storybook-static
 .wrangler
 .dev.vars
 .env
+
+# Don't commit compiled lingui messages
+src/locales/*/messages.js

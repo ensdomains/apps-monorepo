@@ -26,6 +26,8 @@ beforeEach(() => {
   multicallMock.mockReset()
 })
 
+const futureWrapperExpiry = () => BigInt(Math.floor(Date.now() / 1000) + 3600)
+
 describe('checkOwnership', () => {
   it('returns empty set for empty input', async () => {
     expect((await checkOwnership(publicClient, [], OWNER)).size).toBe(0)
@@ -43,9 +45,10 @@ describe('checkOwnership', () => {
   })
 
   it('marks wrapped names by comparing NameWrapper.getData[0] to migrationOwner', async () => {
+    const expiry = futureWrapperExpiry()
     multicallMock.mockResolvedValueOnce([
-      ok([OWNER, 0, 0n] as const),
-      ok([OTHER, 0, 0n] as const),
+      ok([OWNER, 0, expiry] as const),
+      ok([OTHER, 0, expiry] as const),
     ])
     const ids = await checkOwnership(
       publicClient,
@@ -56,6 +59,16 @@ describe('checkOwnership', () => {
       OWNER,
     )
     expect([...ids]).toEqual(['0xb1'])
+  })
+
+  it('marks wrapped names whose on-chain wrapper expiry is in the past', async () => {
+    multicallMock.mockResolvedValueOnce([ok([OWNER, 0, 100n] as const)])
+    const ids = await checkOwnership(
+      publicClient,
+      [makeClassified({ id: '0xa1', tokenType: 'locked-2ld' })],
+      OWNER,
+    )
+    expect([...ids]).toEqual(['0xa1'])
   })
 
   it('treats a failed multicall entry as already migrated', async () => {
@@ -123,11 +136,12 @@ describe('runEligibilityChecks', () => {
       fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_APPROVE,
     })
     const C = makeClassified({ id: '0xc1', label: 'c', name: 'c.eth' })
+    const expiry = futureWrapperExpiry()
 
     multicallMock
       .mockResolvedValueOnce([
         ok(OTHER),
-        ok([OWNER, 0, 0n] as const),
+        ok([OWNER, 0, expiry] as const),
         ok(OWNER),
       ]) // ownership
       .mockResolvedValueOnce([ok(OTHER)]) // frozen-approval (only B)
