@@ -1025,7 +1025,7 @@ msgstr "Failed to authenticate with Telegram"
 
 #: src/lib/smart-account/rhinestone.ts:189
 msgid "Failed to deploy smart account"
-msgstr "Failed to deploy smart account<<<<<<< HEAD"
+msgstr "Failed to deploy smart account"
 
 #: src/lib/smart-account/SmartAccountContext.tsx:189
 msgid "Failed to fund wallet"
@@ -1116,7 +1116,7 @@ msgstr "Frequently Asked Questions"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:203
 msgid "From:"
-msgstr "From:<<<<<<< HEAD"
+msgstr "From:"
 
 #: src/lib/smart-account/SmartAccountContext.tsx:160
 msgid "Funding wallet"
@@ -2801,7 +2801,7 @@ msgstr "Waiting for transaction"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
-msgstr "Waiting period<<<<<<< HEAD"
+msgstr "Waiting period"
 
 #: src/lib/smart-account/SmartAccountContext.tsx:178
 msgid "Wallet {address} funded successfully"
@@ -2817,7 +2817,7 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 
 #: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
-msgstr "Wallet Connected<<<<<<< HEAD"
+msgstr "Wallet Connected"
 
 #: src/lib/smart-account/SmartAccountContext.tsx:177
 msgid "Wallet funded successfully"
