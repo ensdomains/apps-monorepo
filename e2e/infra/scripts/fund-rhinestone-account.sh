@@ -14,14 +14,15 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-# Contract addresses (USDC & DAI on Sepolia fork — must match SUPPORTED_TOKENS
-# in `@ens-apps/transaction-manager/contracts/ens-sepolia`, sourced from
-# @ensdomains/ensjs chain config commit 2824a87). Both tokens support EIP-2612.
-MOCK_USDC="0xba11ebdb3f9a2c5946d8629517f06364e53a2e10"
-MOCK_DAI="0x2922bcd677af690fcd1ecc699519e4bfabc73ff8"
+# Payment-token addresses, resolved from the ensjs Sepolia chain config — the
+# SAME source the app uses (`@ens-apps/transaction-manager` SUPPORTED_TOKENS),
+# so this script can never drift from the tokens the manager reads/registers
+# with. See print-token-addresses.mjs.
+eval "$(node "$SCRIPT_DIR/print-token-addresses.mjs")"
 
 # Known addresses to fund (add more as needed).
 # HCA accounts read balances from the EOA, so we fund BOTH the smart
