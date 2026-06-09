@@ -5,6 +5,7 @@ import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
@@ -189,23 +190,6 @@ const SummaryRow = ({
   </div>
 )
 
-const PriceBadge = ({
-  children,
-  className,
-}: {
-  readonly children: ReactNode
-  readonly className?: string
-}) => (
-  <span
-    className={cn(
-      'rounded-full px-2 py-0.5 text-xs font-medium leading-none',
-      className,
-    )}
-  >
-    {children}
-  </span>
-)
-
 const PriceBreakdownSkeleton = () => (
   <div className="space-y-2">
     <dl className="space-y-2">
@@ -277,9 +261,9 @@ const PriceBreakdown = ({
             value={
               <span className="flex items-center justify-end gap-2">
                 {savePct > 0 ? (
-                  <PriceBadge className="bg-success-fill text-success-text">
+                  <Badge className="border-transparent bg-success-fill text-success-text">
                     {`Save ${savePct}%`}
-                  </PriceBadge>
+                  </Badge>
                 ) : null}
                 <span>{`${formatUsd(pricePerYear)}/year`}</span>
               </span>
@@ -298,9 +282,9 @@ const PriceBreakdown = ({
               label="Surcharge"
               value={
                 <span className="flex items-center justify-end gap-2">
-                  <PriceBadge className="bg-warning-fill text-warning-text">
+                  <Badge className="border-transparent bg-warning-fill text-warning-text">
                     Premium
-                  </PriceBadge>
+                  </Badge>
                   <span>
                     {formatPriceDisplay(price.premium, price.decimals)}
                   </span>
