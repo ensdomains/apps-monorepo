@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { getRecordDef } from '../../data/records'
-import type { ProfileRecords, TextRecordValue } from '../../types'
-import { IconRenderer } from '../IconRenderer'
-import { EditProfileContactMethodRow } from './EditProfileContactMethodRow'
+import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { getRecordDef } from '@/features/profile/data/records'
+import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
+import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
+import { FieldPickerPill } from '../../shared/FieldPickerPill'
+import { ContactMethodRow } from './ContactMethodRow'
 import {
   type ContactMethod,
   type ContactMethodKey,
@@ -10,7 +12,7 @@ import {
   defaultEnabledContactMethodKeys,
   maxPrimaryContactMethods,
   rowMethods,
-} from './EditProfileContactTab.constants'
+} from './constants'
 import {
   getBaseWithPrimaryContactKeys,
   getRecordsForMethod,
@@ -19,23 +21,21 @@ import {
   parsePrimaryContactKeys,
   removeRecord,
   upsertRecordValue,
-} from './EditProfileContactTab.records'
-import { useEditProfileDialogStatus } from './EditProfileDialog.context'
-import { EditProfileFieldPickerPill } from './EditProfileFieldPickerPill'
+} from './records'
 
-interface EditProfileContactTabProps {
+interface ContactTabProps {
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly values: ProfileRecords
 }
 
-export const EditProfileContactTab = ({
+export const ContactTab = ({
   onBaseChange,
   onContactChange,
   onSocialChange,
   values,
-}: EditProfileContactTabProps) => {
+}: ContactTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const [disabledDefaultMethodKeys, setDisabledDefaultMethodKeys] = useState<
     ReadonlySet<ContactMethodKey>
@@ -149,7 +149,7 @@ export const EditProfileContactTab = ({
           const record = getRecordDef(method.key)
 
           return (
-            <EditProfileFieldPickerPill
+            <FieldPickerPill
               active={active}
               disabled={isSaving}
               icon={
@@ -182,7 +182,7 @@ export const EditProfileContactTab = ({
 
             return (
               <div className="flex flex-col gap-3" key={method.key}>
-                <EditProfileContactMethodRow
+                <ContactMethodRow
                   disabled={isSaving}
                   method={method}
                   onPrimaryChange={handlePrimaryChange}

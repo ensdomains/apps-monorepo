@@ -1,10 +1,10 @@
 import { Switch } from '@/components/ui/switch'
+import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { getRecordDef } from '@/features/profile/data/records'
 import { cn } from '@/lib/utils'
-import { getRecordDef } from '../../data/records'
-import { IconRenderer } from '../IconRenderer'
-import type { ContactMethod } from './EditProfileContactTab.constants'
+import type { ContactMethod } from './constants'
 
-interface EditProfileContactMethodRowProps {
+interface ContactMethodRowProps {
   readonly disabled: boolean
   readonly method: ContactMethod
   readonly onPrimaryChange: (method: ContactMethod, checked: boolean) => void
@@ -14,7 +14,7 @@ interface EditProfileContactMethodRowProps {
   readonly value: string
 }
 
-export const EditProfileContactMethodRow = ({
+export const ContactMethodRow = ({
   disabled,
   method,
   onPrimaryChange,
@@ -22,7 +22,7 @@ export const EditProfileContactMethodRow = ({
   primary,
   primaryDisabled,
   value,
-}: EditProfileContactMethodRowProps) => {
+}: ContactMethodRowProps) => {
   const record = getRecordDef(method.key)
 
   return (

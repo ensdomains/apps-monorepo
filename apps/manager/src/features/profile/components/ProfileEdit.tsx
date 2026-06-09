@@ -25,6 +25,7 @@ import {
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { useAppForm } from './form'
+import { getSaveRecordsErrorMessage } from './ProfileEdit.errors'
 import {
   handleProfileFormSubmit,
   handleProfileReset,
@@ -193,7 +194,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               }
             </form.Subscribe>
             <SaveChanges
-              errorMessage={saveRecordsMutation.error?.message}
               form={form}
               isSaving={saveRecordsMutation.isPending}
               isSuccess={saveRecordsMutation.isSuccess}
@@ -201,7 +201,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               onReset={saveRecordsMutation.reset}
               onSave={handleSave}
               originalData={defaultValues}
-              txHash={saveRecordsMutation.data?.hash}
+              saveErrorMessage={getSaveRecordsErrorMessage(
+                saveRecordsMutation.error,
+              )}
               validationIssues={
                 saveRecordsMutation.error instanceof RecordsValidationError
                   ? saveRecordsMutation.error.issues
