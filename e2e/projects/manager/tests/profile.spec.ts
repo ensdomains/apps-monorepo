@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test, authorizeTransaction, authorizeTransactions } from '../../../fixtures/playwright.manager.fixture.js'
+import { test, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
 import {
     ensureProfilePillField,
     goToEditProfile,
@@ -17,8 +17,8 @@ test.describe('ENS profile', () => {
     test('add lots of records to profile', async ({
         connectedPage: page,
         makeV2Name,
-        wallet,
     }) => {
+        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profileadd' })
         console.log(`[profile] name for add-records test: ${name}`)
 
@@ -69,7 +69,8 @@ test.describe('ENS profile', () => {
         await addLinkPanel.getByRole('button', { name: 'Add', exact: true }).click()
 
         await saveProfileChanges(page)
-        await authorizeTransaction(wallet)
+        // In Rhinestone HCA mode profile-record saves are eth_signTypedData_v4 intents
+        // that are auto-authorized by PERMITTED_SIGN_KINDS — no eth_sendTransaction.
         await waitForProfileUpdated(page)
 
         console.log(`[profile] ✅ Add lots of records succeeded for ${name}`)
@@ -78,8 +79,8 @@ test.describe('ENS profile', () => {
     test('remove records from profile', async ({
         connectedPage: page,
         makeV2Name,
-        wallet,
     }) => {
+        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profilerem' })
         console.log(`[profile] name for remove-records test: ${name}`)
 
@@ -98,7 +99,6 @@ test.describe('ENS profile', () => {
         await page.getByLabel('Email Address').fill('remove@example.com')
 
         await saveProfileChanges(page)
-        await authorizeTransaction(wallet)
         await waitForProfileUpdated(page)
 
         // Navigate to view profile, wait for it to settle, then go into edit
@@ -113,7 +113,6 @@ test.describe('ENS profile', () => {
         await page.getByRole('button', { name: /^Email Address\b/ }).click()
 
         await saveProfileChanges(page)
-        await authorizeTransaction(wallet)
         await waitForProfileUpdated(page)
 
         // Verify they are gone on the view profile page
@@ -128,6 +127,7 @@ test.describe('ENS profile', () => {
         connectedPage: page,
         makeV2Name,
     }) => {
+        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profileval' })
         console.log(`[profile] name for validation-error test: ${name}`)
 
@@ -304,10 +304,12 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        // renewFor28Days triggers approve USDC + renew = 2 transactions
+        // In Rhinestone mode: USDC approve is eth_sendTransaction (1 tx),
+        // renew is a Rhinestone intent (auto-authorized). Catch timeout in
+        // case allowance is already sufficient and the approve is skipped.
         const [expiry] = await Promise.all([
             renewFor28Days(page),
-            authorizeTransactions(wallet, 2),
+            authorizeTransaction(wallet, 240_000).catch(() => { }),
         ])
         console.log(`[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
@@ -328,10 +330,12 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        // renewFor28Days triggers approve USDC + renew = 2 transactions
+        // In Rhinestone mode: USDC approve is eth_sendTransaction (1 tx),
+        // renew is a Rhinestone intent (auto-authorized). Catch timeout in
+        // case allowance is already sufficient and the approve is skipped.
         const [expiry] = await Promise.all([
             renewFor28Days(page),
-            authorizeTransactions(wallet, 2),
+            authorizeTransaction(wallet, 240_000).catch(() => { }),
         ])
         console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })

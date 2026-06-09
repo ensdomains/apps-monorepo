@@ -1,3 +1,4 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
@@ -48,10 +49,18 @@ export const ConfirmPurchase = () => {
           return
         }
 
+        // The registrar resolves the HCA to its EOA owner, then calls
+        // transferFrom(EOA, feeCollector, price) — so the USDC approve must
+        // be signed by the EOA wallet, not the HCA.
+        const approvalSigner: Signer | undefined = account.walletClient
+          ? { type: 'eoa', walletClient: account.walletClient }
+          : undefined
+
         uiActor.send({
           type: 'renewal.start',
           label,
           signer: account.signer,
+          approvalSigner,
           duration: BigInt(Math.ceil(duration)),
           token: selectedToken,
           priceRaw: pricingQuery.data.rawPrice,

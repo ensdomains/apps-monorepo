@@ -38,6 +38,14 @@ type SubmissionData = {
   priceNumber: number
 
   signer: Signer
+
+  /**
+   * EOA signer used ONLY for the ERC-20 token `approve`. The ENS registrar
+   * resolves the HCA to its EOA owner via the HCA Factory, then calls
+   * `transferFrom(EOA_owner, feeCollector, price)` — so the allowance must be
+   * set by the EOA, not the HCA.
+   */
+  approvalSigner?: Signer
 }
 
 const startRenewalTransaction = async ({
@@ -143,6 +151,7 @@ export const renewalUiMachine = setup({
           /** Price in token units */
           priceRaw: bigint
           signer: Signer
+          approvalSigner?: Signer
 
           /** Formatted base price */
           priceNumber: number
@@ -202,6 +211,7 @@ export const renewalUiMachine = setup({
               label: event.label,
               duration: event.duration,
               signer: event.signer,
+              approvalSigner: event.approvalSigner,
               token: event.token,
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
@@ -311,7 +321,10 @@ export const renewalUiMachine = setup({
           return {
             tokenPrice: context.submissionData.priceRaw,
             selectedToken: context.submissionData.token,
-            signer: context.submissionData.signer,
+            // The registrar resolves the HCA to its EOA owner via the HCA
+            // Factory, then calls transferFrom(EOA, feeCollector, price).
+            // The approval must therefore be signed by the EOA, not the HCA.
+            signer: context.submissionData.approvalSigner ?? context.submissionData.signer,
             publicClient,
             sponsored: true,
           }

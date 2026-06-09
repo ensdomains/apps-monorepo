@@ -133,20 +133,25 @@ export function submitWarpTransaction(
       const transaction = await account.sendTransaction(sdkParams)
       const sendLatencyMs = nowMs() - sendStart
 
-      logger.debug(
-        '📤 [WARP] sendTransaction latency (ms):',
+      console.log(
+        '📤 [WARP] Intent signed & submitted to orchestrator (ms):',
         sendLatencyMs.toFixed(1),
+        { intentId: (transaction as { id?: unknown }).id },
       )
 
-      // Wait for a relayer to fill the intent
+      // Wait for the orchestrator/relayer to fill the intent on-chain.
+      // The SDK polls until status reaches FILLED, COMPLETED, or FAILED
+      // (acceptsPreconfirmations=false).  Built-in timeout: 210 s.
+      console.log('⏳ [WARP] Waiting for orchestrator fill...')
       const waitStart = nowMs()
       const receipt = await account.waitForExecution(transaction, false)
       const waitLatencyMs = nowMs() - waitStart
       const totalLatencyMs = nowMs() - overallStart
 
-      logger.debug(
-        '📥 [WARP] waitForExecution latency (ms):',
+      console.log(
+        '📥 [WARP] Intent filled by orchestrator (ms):',
         waitLatencyMs.toFixed(1),
+        { fillHash: receipt.fill.hash },
       )
       logger.debug(
         '✅ [WARP] Total submission latency (ms):',
