@@ -3,6 +3,7 @@ import { SirenIcon } from 'lucide-react'
 import { Fragment, type ReactNode, useState } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
+import { formatUnits } from 'viem'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -25,6 +26,7 @@ import {
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
 import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -38,6 +40,26 @@ type RegisterNameCheckoutSummaryProps = {
 /** ENS docs explaining premium pricing for short names */
 const ENS_PREMIUM_PRICING_DOCS_URL =
   'https://docs.ens.domains/registry/eth/#3-4-and-5-letter-names'
+
+/**
+ * Whole-percent saving of the effective per-year price against the
+ * undiscounted 1-year rack rate (`baseRate × secondsPerYear`). Returns 0 when
+ * there's no saving or the inputs aren't available yet.
+ */
+const getRegistrationSavePct = (
+  pricePerYear: number,
+  baseRate: bigint,
+): number => {
+  if (pricePerYear <= 0 || baseRate <= 0n) return 0
+  const rackRatePerYear = Number(
+    formatUnits(
+      baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR),
+      ORACLE_PRICE_DECIMALS,
+    ),
+  )
+  if (rackRatePerYear <= 0) return 0
+  return Math.round((1 - pricePerYear / rackRatePerYear) * 100)
+}
 
 export const RegisterNameCheckoutSummary = ({
   name,
@@ -158,7 +180,7 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between', className)}>
-    <dt className={cn('font-normal text-foreground', labelClassName)}>
+    <dt className={cn('font-normal text-muted-foreground', labelClassName)}>
       {label}
     </dt>
     <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
@@ -167,29 +189,39 @@ const SummaryRow = ({
   </div>
 )
 
+const PriceBadge = ({
+  children,
+  className,
+}: {
+  readonly children: ReactNode
+  readonly className?: string
+}) => (
+  <span
+    className={cn(
+      'rounded-full px-2 py-0.5 text-xs font-medium leading-none',
+      className,
+    )}
+  >
+    {children}
+  </span>
+)
+
 const PriceBreakdownSkeleton = () => (
   <div className="space-y-2">
     <dl className="space-y-2">
+      <SummaryRow label="Expires" value={<Skeleton className="h-5 w-24" />} />
       <SummaryRow
-        label="Registration:"
+        label="Registration"
         value={<Skeleton className="h-5 w-16" />}
       />
-      <SummaryRow label="Expires:" value={<Skeleton className="h-5 w-24" />} />
-
-      <hr className="border-border" />
-
-      <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
+      <SummaryRow label="Price" value={<Skeleton className="h-5 w-20" />} />
 
       <SummaryRow
-        label="Total:"
-        value={
-          <span className="flex items-center gap-1">
-            <Skeleton className="h-7 w-14" />
-          </span>
-        }
+        label="Total"
+        value={<Skeleton className="h-8 w-20" />}
         className="pt-3 border-t border-border"
-        labelClassName="text-xl text-primary font-medium"
-        valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+        labelClassName="text-2xl text-primary font-medium"
+        valueClassName="m-0 text-primary font-semibold text-2xl"
       />
     </dl>
   </div>
@@ -208,39 +240,27 @@ const PriceBreakdown = ({
   duration,
   baseRate,
 }: PriceBreakdownProps) => {
-  const { registrationPeriod, expiresFormatted } =
-    getRegistrationDisplayDates(duration)
+  const { expiresFormatted } = getRegistrationDisplayDates(duration)
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
+  const yearsLabel = `${years.toFixed(2)} ${years === 1 ? 'year' : 'years'}`
   const pricePerYear = getEffectivePricePerYearUsd({
     priceBase: price.base,
     priceDecimals: price.decimals,
     durationSeconds: duration,
     baseRate,
   })
+  const savePct = getRegistrationSavePct(pricePerYear, baseRate)
   const premiumLabel = getPremiumLabel(name)
-  const roundedYears = Math.round(years)
-  const discountSublabel =
-    roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  const showPriceRow = pricePerYear > 0 && Math.round(years * 12) >= 12
 
   return (
     <div className="space-y-2">
       <dl className="space-y-2">
-        <SummaryRow label="Registration:" value={registrationPeriod} />
-        <SummaryRow label="Expires:" value={expiresFormatted} />
+        <SummaryRow label="Expires" value={expiresFormatted} />
+        <SummaryRow label="Registration" value={yearsLabel} />
 
-        <hr className="border-border my-3" />
-
-        {price.hasPremium && (
-          <SummaryRow
-            label={'Temp premium:'}
-            value={formatPriceDisplay(price.premium, price.decimals)}
-            labelClassName="font-medium text-foreground"
-            valueClassName="font-medium text-foreground"
-          />
-        )}
-
-        {pricePerYear > 0 && Math.round(years * 12) >= 12 && (
+        {showPriceRow && (
           <SummaryRow
             label={
               premiumLabel ? (
@@ -248,35 +268,58 @@ const PriceBreakdown = ({
                   href={ENS_PREMIUM_PRICING_DOCS_URL}
                   className="underline decoration-dotted underline-offset-2"
                 >
-                  {premiumLabel.label}:
+                  {premiumLabel.label}
                 </ExternalLink>
               ) : (
-                'Price:'
+                'Price'
               )
             }
             value={
-              <span className="flex flex-col items-end m-0">
-                <span>{`${formatUsd(pricePerYear)}/year`}</span>
-                {discountSublabel ? (
-                  <span className="text-xs text-success-text">
-                    {discountSublabel}
-                  </span>
+              <span className="flex items-center justify-end gap-2">
+                {savePct > 0 ? (
+                  <PriceBadge className="bg-success-fill text-success-text">
+                    {`Save ${savePct}%`}
+                  </PriceBadge>
                 ) : null}
+                <span>{`${formatUsd(pricePerYear)}/year`}</span>
               </span>
             }
           />
         )}
 
+        {price.hasPremium ? (
+          <>
+            <hr className="border-border my-3" />
+            <SummaryRow
+              label="Subtotal"
+              value={formatPriceDisplay(price.base, price.decimals)}
+            />
+            <SummaryRow
+              label="Surcharge"
+              value={
+                <span className="flex items-center justify-end gap-2">
+                  <PriceBadge className="bg-warning-fill text-warning-text">
+                    Premium
+                  </PriceBadge>
+                  <span>
+                    {formatPriceDisplay(price.premium, price.decimals)}
+                  </span>
+                </span>
+              }
+            />
+          </>
+        ) : null}
+
         <SummaryRow
-          label="Total:"
+          label="Total"
           value={formatRegistrationTotal(
             price.base,
             price.premium,
             price.decimals,
           )}
           className="pt-3 border-t border-border"
-          labelClassName="text-xl text-primary font-medium"
-          valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+          labelClassName="text-2xl text-primary font-medium"
+          valueClassName="m-0 text-primary font-semibold text-2xl"
         />
       </dl>
     </div>
