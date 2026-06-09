@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useCallback, useMemo, useState } from 'react'
 import { formatPriceForInput } from '../../lib/formatPriceForInput'
 import {

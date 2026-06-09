@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
 import { DOMAIN_RESULT_STATUSES } from './domainResultStatus'
