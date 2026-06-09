@@ -133,9 +133,13 @@ export const classifyName = (
   const addr = ownerAddress.toLowerCase()
   const v1ResolverAddress = domain.resolver?.address ?? null
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-  const effectiveWrappedDomain = isWrapActive(domain.wrappedDomain, nowSeconds)
-    ? domain.wrappedDomain
-    : null
+  const wrappedOwner = domain.wrappedOwner
+  const wrappedOwnerMatches = wrappedOwner?.id.toLowerCase() === addr
+  const effectiveWrappedDomain =
+    domain.wrappedDomain &&
+    (isWrapActive(domain.wrappedDomain, nowSeconds) || wrappedOwnerMatches)
+      ? domain.wrappedDomain
+      : null
 
   if (!effectiveWrappedDomain) {
     const registrant = domain.registrant
@@ -178,10 +182,10 @@ export const classifyName = (
     }
   }
 
-  if (domain.wrappedOwner?.id.toLowerCase() !== addr) return null
+  if (!wrappedOwner || !wrappedOwnerMatches) return null
 
   const fuses = effectiveWrappedDomain.fuses
-  const wrappedHolder = toAddress(domain.wrappedOwner.id)
+  const wrappedHolder = toAddress(wrappedOwner.id)
   if (!wrappedHolder) return null
   if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
     return {
