@@ -2,10 +2,11 @@ import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import { useConnections, useDisconnect } from 'wagmi'
+import { useConnections } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { usePrivySession } from '@/lib/privy/usePrivySession'
+import { useSignOut } from '@/lib/privy/useSignOut'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
 import { backendAuthStore } from '@/utils/backend-client'
@@ -23,15 +24,12 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       state.context.authKey === undefined &&
       state.context.modalDismissed === true,
   )
-  const { logout, exportWallet, busy } = usePrivySession()
-  const { mutate: disconnect, isPending: isDisconnecting } = useDisconnect()
+  const { exportWallet } = usePrivySession()
+  const { signOut, isSigningOut } = useSignOut()
   const connections = useConnections()
 
-  // A Privy (social) session vs an external wallet need different teardown:
-  //  - Privy: call `logout()`. The bridge mirrors it to wagmi (clearing the
-  //    connector) → the existing onDisconnect cleanup fires. A bare wagmi
-  //    disconnect would be re-established by the bridge while the session lives.
-  //  - External wallet: wagmi `disconnect()`.
+  // Key export only applies to the Privy embedded wallet (an external wallet is
+  // already self-custodial). Sign-out itself flushes both stores regardless.
   const isPrivySession = connections.some((c) => c.connector.id === 'privy')
 
   return (
@@ -91,8 +89,6 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
         </button>
       )}
 
-      {/* Key export only applies to the Privy embedded wallet; an external
-          wallet is already self-custodial. */}
       {isPrivySession && (
         <button
           className="flex w-full items-center gap-2 rounded-lg"
@@ -112,16 +108,12 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       <button
         className="flex w-full items-center gap-2 rounded-lg"
         onClick={() => {
-          if (isPrivySession) {
-            void logout()
-          } else {
-            disconnect()
-          }
+          void signOut()
           onAction()
         }}
         type="button"
       >
-        {busy || isDisconnecting ? (
+        {isSigningOut ? (
           <div className="size-4 animate-spin rounded-full border-2 border-ens-blue border-t-transparent" />
         ) : (
           <MSymbol className="ms-opsz-20" symbol="logout" />

@@ -224,8 +224,8 @@ msgstr ""
 msgid "Adding telegram..."
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:48
-#: src/features/navigation/Header/account/WalletSection.tsx:68
+#: src/features/navigation/Header/account/WalletSection.tsx:46
+#: src/features/navigation/Header/account/WalletSection.tsx:66
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr ""
@@ -678,7 +678,7 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:52
+#: src/features/navigation/Header/account/WalletSection.tsx:50
 msgid "Copied!"
 msgstr ""
 
@@ -801,7 +801,7 @@ msgstr ""
 msgid "Deploying resolver"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:72
+#: src/features/navigation/Header/account/WalletSection.tsx:70
 msgid "Deploying smart account…"
 msgstr ""
 
@@ -813,7 +813,7 @@ msgstr ""
 msgid "Did You Know?"
 msgstr "Visste du att?"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:130
+#: src/features/navigation/Header/account/WalletSection.tsx:122
 msgid "Disconnect"
 msgstr ""
 
@@ -992,7 +992,7 @@ msgstr ""
 msgid "Expiry (Soonest)"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:107
+#: src/features/navigation/Header/account/WalletSection.tsx:103
 msgid "Export private key"
 msgstr ""
 
@@ -2593,7 +2593,7 @@ msgstr ""
 msgid "Verify Wallet"
 msgstr ""
 
-#: src/features/navigation/Header/account/WalletSection.tsx:89
+#: src/features/navigation/Header/account/WalletSection.tsx:87
 #: src/features/notifications/RequireBackendAuth.tsx:119
 msgid "Verify wallet ownership"
 msgstr ""

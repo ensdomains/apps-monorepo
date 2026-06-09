@@ -219,8 +219,8 @@ msgstr "Added"
 msgid "Adding telegram..."
 msgstr "Adding telegram..."
 
-#: src/features/navigation/Header/account/WalletSection.tsx:48
-#: src/features/navigation/Header/account/WalletSection.tsx:68
+#: src/features/navigation/Header/account/WalletSection.tsx:46
+#: src/features/navigation/Header/account/WalletSection.tsx:66
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr "Address"
@@ -673,7 +673,7 @@ msgstr "Continue with X"
 msgid "Copied"
 msgstr "Copied"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:52
+#: src/features/navigation/Header/account/WalletSection.tsx:50
 msgid "Copied!"
 msgstr "Copied!"
 
@@ -796,7 +796,7 @@ msgstr "Deploying on-chain…"
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:72
+#: src/features/navigation/Header/account/WalletSection.tsx:70
 msgid "Deploying smart account…"
 msgstr "Deploying smart account…"
 
@@ -808,7 +808,7 @@ msgstr "Deploying the resolver"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:130
+#: src/features/navigation/Header/account/WalletSection.tsx:122
 msgid "Disconnect"
 msgstr "Disconnect"
 
@@ -987,7 +987,7 @@ msgstr "Expiry (Latest)"
 msgid "Expiry (Soonest)"
 msgstr "Expiry (Soonest)"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:107
+#: src/features/navigation/Header/account/WalletSection.tsx:103
 msgid "Export private key"
 msgstr "Export private key"
 
@@ -2588,7 +2588,7 @@ msgstr "Verify Email Address"
 msgid "Verify Wallet"
 msgstr "Verify Wallet"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:89
+#: src/features/navigation/Header/account/WalletSection.tsx:87
 #: src/features/notifications/RequireBackendAuth.tsx:119
 msgid "Verify wallet ownership"
 msgstr "Verify wallet ownership"
