@@ -80,9 +80,9 @@ function TemporaryPremiumDebugPlayground() {
     () =>
       simulation.enabled
         ? {
-          intervalMs: simulation.intervalMs,
-          decayPerTick: simulation.decayPerTick,
-        }
+            intervalMs: simulation.intervalMs,
+            decayPerTick: simulation.decayPerTick,
+          }
         : undefined,
     [simulation.decayPerTick, simulation.enabled, simulation.intervalMs],
   )
