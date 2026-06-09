@@ -5,8 +5,7 @@ import {
   useWallets,
 } from '@privy-io/react-auth'
 import { useCallback, useMemo, useState } from 'react'
-import type { Address, EIP1193Provider, LocalAccount } from 'viem'
-import { privyAccountFromProvider } from './privy-signer'
+import type { Address, EIP1193Provider } from 'viem'
 
 /**
  * Thin wrapper around Privy's headless hooks. Social login only — Google and
@@ -139,10 +138,16 @@ export function usePrivySession() {
   const isConnected = privy.ready && privy.authenticated
 
   /**
-   * Build a viem LocalAccount that signs through Privy's embedded wallet
-   * provider (origin-isolated iframe; the key shard never leaves it).
+   * Resolve Privy's embedded-wallet EIP-1193 provider + address. The bridge
+   * installs these on our wagmi connector (privy-connector.ts), which hands the
+   * provider straight to wagmi — no LocalAccount adapter, full signing fidelity.
+   * The provider runs in Privy's origin-isolated iframe; the key shard never
+   * leaves it.
    */
-  const getSigner = useCallback(async (): Promise<LocalAccount> => {
+  const getProvider = useCallback(async (): Promise<{
+    provider: EIP1193Provider
+    address: Address
+  }> => {
     if (!privy.authenticated) {
       throw new Error('No Privy session. Sign in first.')
     }
@@ -155,7 +160,7 @@ export function usePrivySession() {
     }
     const provider =
       (await embeddedWallet.getEthereumProvider()) as EIP1193Provider
-    return privyAccountFromProvider(provider, embeddedWallet.address as Address)
+    return { provider, address: embeddedWallet.address as Address }
   }, [embeddedWallet, privy.authenticated])
 
   return useMemo(
@@ -171,7 +176,7 @@ export function usePrivySession() {
       createDefaultWallet,
       exportWallet,
       logout,
-      getSigner,
+      getProvider,
     }),
     [
       isConnected,
@@ -185,7 +190,7 @@ export function usePrivySession() {
       createDefaultWallet,
       exportWallet,
       logout,
-      getSigner,
+      getProvider,
     ],
   )
 }

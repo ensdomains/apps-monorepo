@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useConnect, useConnections, useConnectors, useDisconnect } from 'wagmi'
-import { setActivePrivySigner } from './privy-connector'
+import { setActivePrivyProvider } from './privy-connector'
 import { usePrivySession } from './usePrivySession'
 
 /**
@@ -110,16 +110,16 @@ export function usePrivyWagmiBridge() {
         ) {
           return
         }
-        // Resolve and install the signer for the CURRENT Privy address. This
+        // Resolve and install the provider for the CURRENT Privy address. This
         // runs even when wagmi already has the privy connector: otherwise the
-        // module-level signer in privy-connector.ts could be left stale after
+        // module-level binding in privy-connector.ts could be left stale after
         // an embedded-wallet switch, and later signing would use the wrong key.
-        const signer = await privy.getSigner()
+        const binding = await privy.getProvider()
         if (cancelled) return
-        setActivePrivySigner(signer)
+        setActivePrivyProvider(binding)
         if (alreadyConnected) {
           // Connector already live — just refresh the bound account so wagmi
-          // re-reads the new address from the now-updated signer.
+          // re-reads the new address from the now-updated binding.
           privyConnector.onAccountsChanged?.([privy.address])
         } else {
           await connectAsync({ connector: privyConnector })
@@ -143,7 +143,7 @@ export function usePrivyWagmiBridge() {
     if (privy.isConnected) return
     if (!privy.ready) return // don't tear down during SDK boot
 
-    setActivePrivySigner(null)
+    setActivePrivyProvider(null)
     lastAttemptedAddress.current = null
     void disconnectAsync({ connector: privyConn.connector })
   }, [connections, disconnectAsync, privy.isConnected, privy.ready])

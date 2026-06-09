@@ -1,19 +1,8 @@
-import {
-  type Address,
-  type Chain,
-  createWalletClient,
-  custom,
-  type EIP1193Provider,
-  type Hex,
-  hexToBytes,
-  http,
-  type LocalAccount,
-  type TypedDataDefinition,
-} from 'viem'
+import type { Address, Chain, EIP1193Provider } from 'viem'
 import { createConnector } from 'wagmi'
 
 /**
- * A wagmi connector for a Privy-backed viem `LocalAccount`.
+ * A wagmi connector for the Privy embedded wallet.
  *
  * This is the `@privy-io/wagmi` bypass (Constraint #1). Privy's documented
  * wagmi integration replaces wagmi's own `createConfig`/`WagmiProvider`; we do
@@ -24,21 +13,41 @@ import { createConnector } from 'wagmi'
  * header, the disconnect hook, the cookie sync) reads one canonical address
  * regardless of how the user authenticated.
  *
+ * What we hand wagmi is Privy's OWN EIP-1193 provider
+ * (`wallet.getEthereumProvider()`), unchanged — the same approach
+ * `@privy-io/wagmi` uses internally. We deliberately do NOT wrap it in a viem
+ * `LocalAccount` and re-synthesize a provider on top (the old approach): that
+ * round-trip silently dropped any method we didn't hand-reimplement. Passing
+ * the provider straight through gives full signing fidelity
+ * (`personal_sign` / `eth_signTypedData_v4` / …) directly from Privy's
+ * origin-isolated iframe, where the key shard never leaves.
+ *
  * Lifecycle:
- *   1. App boots. Connector registered, no signer. `isAuthorized()` is false.
- *   2. User signs in via Privy (Google / X redirect). The bridge hook resolves
- *      a `LocalAccount` (privy-signer.ts), calls `setActivePrivySigner(signer)`,
- *      then `connectAsync({ connector })`.
- *   3. wagmi calls `connector.connect()` → returns the signer address. From
- *      here `useConnection()` reads the Privy address.
- *   4. User logs out → `setActivePrivySigner(null)` + wagmi disconnect.
+ *   1. App boots. Connector registered, no provider. `isAuthorized()` is false.
+ *   2. User signs in via Privy (Google / X redirect). The bridge resolves the
+ *      embedded wallet's provider + address (usePrivySession.getProvider),
+ *      calls `setActivePrivyProvider({ provider, address })`, then
+ *      `connectAsync({ connector })`.
+ *   3. wagmi calls `connector.connect()` → returns the address. From here
+ *      `useConnection()` reads the Privy address and `getProvider()` returns
+ *      Privy's provider for signing.
+ *   4. User logs out → `setActivePrivyProvider(null)` + wagmi disconnect.
  */
 
-let activeSigner: LocalAccount | null = null
+let activeProvider: EIP1193Provider | null = null
+let activeAddress: Address | null = null
 let activeChainId: number | null = null
 
-export function setActivePrivySigner(signer: LocalAccount | null) {
-  activeSigner = signer
+/**
+ * Install (or clear) the Privy embedded-wallet binding the connector serves.
+ * Called by usePrivyWagmiBridge once a Privy session resolves, and with `null`
+ * on logout.
+ */
+export function setActivePrivyProvider(
+  binding: { provider: EIP1193Provider; address: Address } | null,
+) {
+  activeProvider = binding?.provider ?? null
+  activeAddress = binding?.address ?? null
 }
 
 // The wagmi `connect` overload is generic over a `withCapabilities` flag whose
@@ -52,21 +61,17 @@ export function privyConnector() {
   return (createConnector as (fn: ConnectorFactoryArg) => unknown)((config) => {
     const defaultChain = config.chains[0]
 
-    const ensureSigner = (): LocalAccount => {
-      if (!activeSigner) {
+    const ensureBinding = (): {
+      provider: EIP1193Provider
+      address: Address
+    } => {
+      if (!activeProvider || !activeAddress) {
         throw new Error(
-          'Privy connector: no active signer. Call setActivePrivySigner(signer) before connecting.',
+          'Privy connector: no active provider. Call ' +
+            'setActivePrivyProvider({ provider, address }) before connecting.',
         )
       }
-      return activeSigner
-    }
-
-    const currentChain = (): Chain => {
-      const id = activeChainId ?? defaultChain.id
-      return (
-        (config.chains as readonly Chain[]).find((c) => c.id === id) ??
-        defaultChain
-      )
+      return { provider: activeProvider, address: activeAddress }
     }
 
     return {
@@ -77,11 +82,11 @@ export function privyConnector() {
       async setup() {},
 
       async connect(params: { chainId?: number } = {}) {
-        const signer = ensureSigner()
+        const { address } = ensureBinding()
         const target = params.chainId ?? activeChainId ?? defaultChain.id
         activeChainId = target
         return {
-          accounts: [signer.address] as readonly Address[],
+          accounts: [address] as readonly Address[],
           chainId: target,
         } as unknown as {
           accounts: readonly Address[]
@@ -92,13 +97,13 @@ export function privyConnector() {
       async disconnect() {
         // Don't tear down the Privy session here — that's the app's job (it
         // calls privy.logout()). This just clears the wagmi-side binding so the
-        // connector goes back to "available but not active." The signer
-        // reference is cleared by setActivePrivySigner(null) on logout.
+        // connector goes back to "available but not active." The provider
+        // reference is cleared by setActivePrivyProvider(null) on logout.
         activeChainId = null
       },
 
       async getAccounts() {
-        return activeSigner ? [activeSigner.address] : []
+        return activeAddress ? [activeAddress] : []
       },
 
       async getChainId() {
@@ -106,7 +111,7 @@ export function privyConnector() {
       },
 
       async isAuthorized() {
-        return Boolean(activeSigner)
+        return Boolean(activeProvider && activeAddress)
       },
 
       async switchChain({ chainId }: { chainId: number }) {
@@ -124,110 +129,8 @@ export function privyConnector() {
       },
 
       async getProvider() {
-        // EIP-1193 shim. wagmi's hooks call `provider.request({ method, params })`
-        // for personal_sign / typed-data / sendTransaction; route each to the
-        // equivalent viem operation on the Privy LocalAccount. (The LocalAccount
-        // itself forwards to Privy's iframe provider — see privy-signer.ts.)
-        const chain = currentChain()
-        const transport = http()
-        const walletClient = createWalletClient({
-          chain,
-          transport,
-          account: ensureSigner(),
-        })
-
-        const provider: EIP1193Provider = {
-          request: (async ({ method, params }) => {
-            const signer = ensureSigner()
-            switch (method) {
-              case 'eth_accounts':
-              case 'eth_requestAccounts':
-                return [signer.address] as Address[]
-
-              case 'eth_chainId':
-                return `0x${currentChain().id.toString(16)}` as Hex
-
-              case 'personal_sign': {
-                const [data] = params as [Hex, Address]
-                return signer.signMessage({
-                  message: { raw: hexToBytes(data) },
-                })
-              }
-
-              case 'eth_sign': {
-                const [, data] = params as [Address, Hex]
-                return signer.signMessage({
-                  message: { raw: hexToBytes(data) },
-                })
-              }
-
-              case 'eth_signTypedData':
-              case 'eth_signTypedData_v4': {
-                const [, payload] = params as [Address, string | object]
-                const typed: TypedDataDefinition =
-                  typeof payload === 'string'
-                    ? (JSON.parse(payload) as TypedDataDefinition)
-                    : (payload as TypedDataDefinition)
-                return signer.signTypedData(typed)
-              }
-
-              case 'eth_sendTransaction': {
-                const [tx] = params as [
-                  {
-                    to: Address
-                    value?: Hex
-                    data?: Hex
-                    gas?: Hex
-                  },
-                ]
-                // walletClient prepares the tx (nonce, fees) over OUR public
-                // RPC, signs through the Privy LocalAccount, and broadcasts over
-                // OUR RPC. Privy is signer-only on this path.
-                return walletClient.sendTransaction({
-                  to: tx.to,
-                  value: tx.value ? BigInt(tx.value) : undefined,
-                  data: tx.data,
-                  gas: tx.gas ? BigInt(tx.gas) : undefined,
-                })
-              }
-
-              case 'wallet_switchEthereumChain': {
-                const [{ chainId }] = params as [{ chainId: Hex }]
-                const id = Number.parseInt(chainId, 16)
-                // Reject chains we don't configure (mirrors switchChain() above).
-                // Otherwise wagmi emits an unsupported chainId while
-                // currentChain() silently falls back to the default for
-                // RPC/signing — the displayed chain and the execution chain
-                // would diverge.
-                if (
-                  !(config.chains as readonly Chain[]).some((c) => c.id === id)
-                ) {
-                  throw new Error(
-                    `Privy connector: chain ${id} is not in the wagmi config.`,
-                  )
-                }
-                activeChainId = id
-                config.emitter.emit('change', { chainId: id })
-                return null
-              }
-
-              default:
-                // Fall through to JSON-RPC over the configured transport for
-                // plain reads (eth_getBalance, etc.).
-                return walletClient.request({
-                  method,
-                  params,
-                } as Parameters<EIP1193Provider['request']>[0])
-            }
-          }) as EIP1193Provider['request'],
-
-          on: () => provider,
-          removeListener: () => provider,
-        } as unknown as EIP1193Provider
-
-        custom(provider)
-
-        return provider
+        // Privy's OWN provider, straight through (see the file header for why).
+        return ensureBinding().provider
       },
 
       onAccountsChanged(accounts: string[]) {

@@ -2,7 +2,7 @@
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnect, useConnections, useConnectors, useDisconnect } from 'wagmi'
-import { setActivePrivySigner } from './privy-connector'
+import { setActivePrivyProvider } from './privy-connector'
 import { usePrivySession } from './usePrivySession'
 import { usePrivyWagmiBridge } from './usePrivyWagmiBridge'
 
@@ -13,11 +13,13 @@ vi.mock('wagmi', () => ({
   useDisconnect: vi.fn(),
 }))
 vi.mock('./usePrivySession', () => ({ usePrivySession: vi.fn() }))
-vi.mock('./privy-connector', () => ({ setActivePrivySigner: vi.fn() }))
+vi.mock('./privy-connector', () => ({ setActivePrivyProvider: vi.fn() }))
 
 const PRIVY_CONNECTOR = { id: 'privy', onAccountsChanged: vi.fn() } as any
 const ADDRESS = '0x1234567890123456789012345678901234567890'
-const SIGNER = { address: ADDRESS } as any
+// What usePrivySession.getProvider() resolves to: the raw EIP-1193 provider +
+// address the connector serves to wagmi.
+const BINDING = { provider: {}, address: ADDRESS } as any
 
 const connectAsync = vi.fn().mockResolvedValue(undefined)
 const disconnectAsync = vi.fn().mockResolvedValue(undefined)
@@ -31,7 +33,7 @@ const mockSession = (overrides: SessionOverrides = {}) => {
     address: ADDRESS,
     hasEmbeddedWallet: false,
     busy: false,
-    getSigner: vi.fn().mockResolvedValue(SIGNER),
+    getProvider: vi.fn().mockResolvedValue(BINDING),
     createDefaultWallet: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as any)
@@ -62,7 +64,7 @@ describe('usePrivyWagmiBridge', () => {
     await waitFor(() =>
       expect(connectAsync).toHaveBeenCalledWith({ connector: PRIVY_CONNECTOR }),
     )
-    expect(setActivePrivySigner).toHaveBeenCalledWith(SIGNER)
+    expect(setActivePrivyProvider).toHaveBeenCalledWith(BINDING)
   })
 
   it('does nothing when there is no Privy session (external wallets are free)', async () => {
@@ -156,24 +158,25 @@ describe('usePrivyWagmiBridge', () => {
     expect(connectAsync).not.toHaveBeenCalled()
   })
 
-  it('rebinds the signer (without reconnecting) when the address changes while already connected', async () => {
+  it('rebinds the provider (without reconnecting) when the address changes while already connected', async () => {
     const ADDRESS_2 = '0x000000000000000000000000000000000000beef'
-    const getSigner = vi.fn().mockResolvedValue(SIGNER)
+    const BINDING_2 = { provider: {}, address: ADDRESS_2 } as any
+    const getProvider = vi.fn().mockResolvedValue(BINDING_2)
     // Already connected to the privy connector, bound to a DIFFERENT address.
-    mockSession({ address: ADDRESS_2, getSigner })
+    mockSession({ address: ADDRESS_2, getProvider })
     mockWagmi([{ connector: { id: 'privy' } }])
 
     renderHook(() => usePrivyWagmiBridge())
 
-    // The module-level signer must be refreshed for the new address, and wagmi
+    // The module-level binding must be refreshed for the new address, and wagmi
     // told the account changed — but we must NOT spin up a second connection.
     await waitFor(() =>
       expect(PRIVY_CONNECTOR.onAccountsChanged).toHaveBeenCalledWith([
         ADDRESS_2,
       ]),
     )
-    expect(getSigner).toHaveBeenCalled()
-    expect(setActivePrivySigner).toHaveBeenCalledWith(SIGNER)
+    expect(getProvider).toHaveBeenCalled()
+    expect(setActivePrivyProvider).toHaveBeenCalledWith(BINDING_2)
     expect(connectAsync).not.toHaveBeenCalled()
   })
 
@@ -188,6 +191,6 @@ describe('usePrivyWagmiBridge', () => {
         connector: { id: 'privy' },
       }),
     )
-    expect(setActivePrivySigner).toHaveBeenCalledWith(null)
+    expect(setActivePrivyProvider).toHaveBeenCalledWith(null)
   })
 })
