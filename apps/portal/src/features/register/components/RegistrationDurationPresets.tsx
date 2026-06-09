@@ -1,6 +1,5 @@
 import { useQueries } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
-import { Badge } from '@/components/ui/badge'
 import { getAppliedDiscountQueryOptions } from '@/features/register/hooks/useAppliedDiscount'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
@@ -56,44 +55,81 @@ export const RegistrationDurationPresets = ({
     ),
   })
 
+  const effectivePerYear = PRESET_YEARS.map((years, idx) =>
+    computeEffectivePerYear(discountQueries[idx]?.data ?? 0n, years),
+  )
+  // The 1-year term is the baseline we measure each longer term's saving
+  // against (PRESET_YEARS[0] === 1).
+  const baselinePerYear = effectivePerYear[0]
+
   return (
-    <div className="flex gap-2 items-center flex-wrap">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {PRESET_YEARS.map((years, idx) => {
         const isSelected = selectedYears === years
-        const discountedBase = discountQueries[idx]?.data ?? 0n
-        const effective = computeEffectivePerYear(discountedBase, years)
+        const effective = effectivePerYear[idx]
+        const discountPct =
+          baselinePerYear > 0 && effective > 0
+            ? Math.round((1 - effective / baselinePerYear) * 100)
+            : 0
 
         return (
-          <Badge
+          <button
             key={years}
-            variant={isSelected ? 'secondary' : 'outline'}
-            role="button"
-            tabIndex={0}
+            type="button"
             onClick={() => onSelect(years)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onSelect(years)
-              }
-            }}
+            aria-pressed={isSelected}
             className={cn(
-              'cursor-pointer rounded-xs justify-center text-center px-2.5',
-              'border',
-              isSelected && 'border-transparent',
+              'relative flex flex-col items-start gap-0.5 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
+              isSelected
+                ? 'border-success bg-success-fill'
+                : 'border-border hover:border-foreground/30',
             )}
           >
-            {`${years} years`}{' '}
-            {effective > 0 ? (
+            {discountPct > 0 ? (
               <span
                 className={cn(
-                  'font-normal',
-                  isSelected ? 'text-primary' : 'text-success-text',
+                  'absolute -top-2 right-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                  isSelected
+                    ? 'bg-signal-success-600 text-white'
+                    : 'bg-muted text-muted-foreground',
                 )}
               >
-                {`${formatUsd(effective)}/yr`}
+                {`-${discountPct}%`}
               </span>
             ) : null}
-          </Badge>
+            <span
+              className={cn(
+                'text-sm',
+                isSelected ? 'text-success-text' : 'text-muted-foreground',
+              )}
+            >
+              {years === 1 ? '1 year' : `${years} years`}
+            </span>
+            <span
+              className={cn(
+                'text-base font-medium',
+                isSelected && 'text-success-text',
+              )}
+            >
+              {effective > 0 ? (
+                <>
+                  {formatUsd(effective)}
+                  <span
+                    className={cn(
+                      'font-normal',
+                      isSelected
+                        ? 'text-success-text'
+                        : 'text-muted-foreground',
+                    )}
+                  >
+                    /yr
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </span>
+          </button>
         )
       })}
     </div>
