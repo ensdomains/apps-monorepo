@@ -33,6 +33,10 @@ interface EditProfileDialogContext {
   readonly visibleFields: ReadonlySet<GeneralField>
 }
 
+interface EditProfileDialogInput {
+  readonly records: ProfileRecords
+}
+
 type EditProfileDialogEvent =
   | { type: 'OPEN'; records: ProfileRecords }
   | { type: 'CLOSE' }
@@ -108,9 +112,7 @@ export const editProfileDialogMachine = setup({
   types: {
     context: {} as EditProfileDialogContext,
     events: {} as EditProfileDialogEvent,
-    input: {} as {
-      records: ProfileRecords
-    },
+    input: {} as EditProfileDialogInput,
   },
   guards: {
     missingOwner: ({ event }) =>

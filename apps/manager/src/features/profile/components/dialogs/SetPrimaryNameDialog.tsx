@@ -46,14 +46,18 @@ interface SetPrimaryNameDialogProps {
   onUpdated?: () => void
 }
 
-const usePrimaryNameSuccessRedirect = (params: {
-  isSuccess: boolean
-  name: string
-  onUpdated?: () => void
-  navigate: ReturnType<typeof useNavigate>
-  setOpen: (open: boolean) => void
-  queryClient: ReturnType<typeof useQueryClient>
-}) => {
+interface UsePrimaryNameSuccessRedirectParams {
+  readonly isSuccess: boolean
+  readonly name: string
+  readonly onUpdated?: () => void
+  readonly navigate: ReturnType<typeof useNavigate>
+  readonly setOpen: (open: boolean) => void
+  readonly queryClient: ReturnType<typeof useQueryClient>
+}
+
+const usePrimaryNameSuccessRedirect = (
+  params: UsePrimaryNameSuccessRedirectParams,
+) => {
   const { t } = useLingui()
   const { isSuccess, name, navigate, onUpdated, setOpen, queryClient } = params
 

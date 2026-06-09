@@ -17,6 +17,15 @@ interface ChainPickerOptionButtonProps {
   readonly option: AddressOption
 }
 
+interface ChainPickerDialogProps {
+  readonly disabled?: boolean
+  readonly mode: PickerMode
+  readonly onAdd: (coinTypes: readonly number[]) => void
+  readonly onOpenChange: (open: boolean) => void
+  readonly open: boolean
+  readonly unavailableCoinTypes: ReadonlySet<number>
+}
+
 const ChainPickerOptionButton = ({
   active,
   disabled,
@@ -48,14 +57,7 @@ export const ChainPickerDialog = ({
   onOpenChange,
   open,
   unavailableCoinTypes,
-}: {
-  readonly disabled?: boolean
-  readonly mode: PickerMode
-  readonly onAdd: (coinTypes: readonly number[]) => void
-  readonly onOpenChange: (open: boolean) => void
-  readonly open: boolean
-  readonly unavailableCoinTypes: ReadonlySet<number>
-}) => {
+}: ChainPickerDialogProps) => {
   const [selectedCoinTypes, setSelectedCoinTypes] = useState<number[]>([])
   const [searchValue, setSearchValue] = useState('')
   const normalizedSearchValue = searchValue.trim().toLowerCase()

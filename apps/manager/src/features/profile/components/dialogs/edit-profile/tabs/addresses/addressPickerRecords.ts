@@ -31,15 +31,17 @@ export const otherNetworkOptions: readonly AddressOption[] = [
 export const isEvmCoinType = (coinType: number) =>
   coinType >= EVM_COIN_TYPE_OFFSET
 
+interface GetPickerRecordsParams {
+  readonly mode: PickerMode
+  readonly normalizedSearchValue: string
+  readonly unavailableCoinTypes: ReadonlySet<number>
+}
+
 export const getPickerRecords = ({
   mode,
   normalizedSearchValue,
   unavailableCoinTypes,
-}: {
-  readonly mode: PickerMode
-  readonly normalizedSearchValue: string
-  readonly unavailableCoinTypes: ReadonlySet<number>
-}): readonly AddressRecordDef[] => {
+}: GetPickerRecordsParams): readonly AddressRecordDef[] => {
   return addressRecords.filter((record) => {
     if (unavailableCoinTypes.has(record.coinType)) return false
     if (mode === 'evm' && !isEvmCoinType(record.coinType)) return false

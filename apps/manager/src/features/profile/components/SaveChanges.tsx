@@ -1,6 +1,9 @@
 import type { ProfileRecords } from '@/features/profile/types'
 import { defaultProfileRecords } from '../utils/transformRecords'
-import { DiffDialog } from './dialogs/DiffDialog'
+import {
+  DiffDialog,
+  type DiffDialogValidationIssue,
+} from './dialogs/DiffDialog'
 import { sharedOptions, withForm } from './form'
 
 interface SaveChangesProps {
@@ -11,11 +14,7 @@ interface SaveChangesProps {
   isSaving?: boolean
   isSuccess?: boolean
   saveErrorMessage?: string
-  validationIssues?: Array<{
-    sectionKey?: string
-    fieldKey?: string
-    message: string
-  }>
+  validationIssues?: DiffDialogValidationIssue[]
 }
 
 export const SaveChanges = withForm({

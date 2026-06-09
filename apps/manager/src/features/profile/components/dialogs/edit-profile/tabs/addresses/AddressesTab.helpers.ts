@@ -95,15 +95,21 @@ export const getRecordIcon = (coinType: number) => {
   return undefined
 }
 
+interface GetVisibleAddressOptionsParams {
+  readonly addresses: readonly AddressRecordValue[]
+  readonly extraEvmCoinTypes: readonly number[]
+  readonly extraOtherCoinTypes: readonly number[]
+}
+
+interface GetAddressDisplayStateParams extends GetVisibleAddressOptionsParams {
+  readonly ethAddress: string
+}
+
 const getVisibleAddressOptions = ({
   addresses,
   extraEvmCoinTypes,
   extraOtherCoinTypes,
-}: {
-  readonly addresses: readonly AddressRecordValue[]
-  readonly extraEvmCoinTypes: readonly number[]
-  readonly extraOtherCoinTypes: readonly number[]
-}) => {
+}: GetVisibleAddressOptionsParams) => {
   const addressCoinTypes = addresses
     .filter(({ value }) => value.trim() !== '')
     .map(({ coinType }) => coinType)
@@ -131,12 +137,7 @@ export const getAddressDisplayState = ({
   ethAddress,
   extraEvmCoinTypes,
   extraOtherCoinTypes,
-}: {
-  readonly addresses: readonly AddressRecordValue[]
-  readonly ethAddress: string
-  readonly extraEvmCoinTypes: readonly number[]
-  readonly extraOtherCoinTypes: readonly number[]
-}) => {
+}: GetAddressDisplayStateParams) => {
   const { evmOptions, otherOptions } = getVisibleAddressOptions({
     addresses,
     extraEvmCoinTypes,

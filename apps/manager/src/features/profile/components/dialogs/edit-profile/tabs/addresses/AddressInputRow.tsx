@@ -2,6 +2,16 @@ import { X } from 'lucide-react'
 import { useId } from 'react'
 import { AddressIcon } from './AddressIcon'
 
+interface AddressInputRowProps {
+  readonly disabled?: boolean
+  readonly label: string
+  readonly onChange: (value: string) => void
+  readonly onRemove?: () => void
+  readonly placeholder?: string
+  readonly value: string
+  readonly coinType: number
+}
+
 export const AddressInputRow = ({
   disabled,
   label,
@@ -10,15 +20,7 @@ export const AddressInputRow = ({
   placeholder = 'Enter wallet address',
   value,
   coinType,
-}: {
-  readonly disabled?: boolean
-  readonly label: string
-  readonly onChange: (value: string) => void
-  readonly onRemove?: () => void
-  readonly placeholder?: string
-  readonly value: string
-  readonly coinType: number
-}) => {
+}: AddressInputRowProps) => {
   const inputId = useId()
 
   return (

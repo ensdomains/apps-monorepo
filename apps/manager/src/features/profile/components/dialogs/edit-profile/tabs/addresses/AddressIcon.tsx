@@ -1,15 +1,17 @@
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import { getRecordIcon } from './AddressesTab.helpers'
 
+interface AddressIconProps {
+  readonly coinType: number
+  readonly label: string
+  readonly size?: 'sm' | 'md'
+}
+
 export const AddressIcon = ({
   coinType,
   label,
   size = 'sm',
-}: {
-  readonly coinType: number
-  readonly label: string
-  readonly size?: 'sm' | 'md'
-}) => {
+}: AddressIconProps) => {
   const icon = getRecordIcon(coinType)
   const sizeClassName =
     size === 'md' ? 'size-6 text-[11px]' : 'size-4 text-[9px]'

@@ -19,6 +19,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { FloatingInput } from '@/components/ui/floating-input'
+import type { LinkItem } from '@/features/profile/types'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { isSafeHttpUrl } from '../../utils/safeUrl'
 import { isReservedTextRecordKey } from './edit-profile/tabs/links/validation'
@@ -52,7 +53,7 @@ const validateLinkUrl = (url: string): string | null => {
 }
 
 interface AddLinkDialogProps {
-  onAdd: (link: { name: string; url: string }) => void
+  onAdd: (link: LinkItem) => void
 }
 
 export const AddLinkDialog = ({ onAdd }: AddLinkDialogProps) => {

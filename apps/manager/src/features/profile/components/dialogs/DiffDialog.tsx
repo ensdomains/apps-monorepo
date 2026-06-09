@@ -36,7 +36,11 @@ const useChangeLabels = () => {
   } as const
 }
 
-const DiffValue = ({ value }: { value: string | undefined }): ReactNode => {
+interface DiffValueProps {
+  readonly value: string | undefined
+}
+
+const DiffValue = ({ value }: DiffValueProps): ReactNode => {
   const display = value || <Trans>(empty)</Trans>
   if (value && HEX_COLOR_REGEX.test(value)) {
     return (
@@ -52,6 +56,12 @@ const DiffValue = ({ value }: { value: string | undefined }): ReactNode => {
   return display
 }
 
+export interface DiffDialogValidationIssue {
+  readonly sectionKey?: string
+  readonly fieldKey?: string
+  readonly message: string
+}
+
 interface DiffDialogProps {
   name: string
   originalData: ProfileRecords
@@ -62,11 +72,7 @@ interface DiffDialogProps {
   isSaving?: boolean
   isSuccess?: boolean
   saveErrorMessage?: string
-  validationIssues?: Array<{
-    sectionKey?: string
-    fieldKey?: string
-    message: string
-  }>
+  validationIssues?: DiffDialogValidationIssue[]
 }
 
 export const DiffDialog = ({

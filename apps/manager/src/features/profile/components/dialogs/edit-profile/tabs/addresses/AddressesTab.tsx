@@ -45,24 +45,40 @@ export const AddressesTab = ({
     extraOtherCoinTypes,
   })
 
-  const updateAddresses = (addresses: readonly AddressRecordValue[]) => {
-    onAddressesChange(normalizeAddressRows(addresses))
+  const updateAddresses = (
+    getNextAddresses: (
+      addresses: readonly AddressRecordValue[],
+    ) => readonly AddressRecordValue[],
+  ) => {
+    onAddressesChange(normalizeAddressRows(getNextAddresses(values.addresses)))
   }
 
   const handleEthAddressChange = (value: string) => {
-    updateAddresses(applyEthAddressChange(values.addresses, ethAddress, value))
-  }
-
-  const setChainToEthAddress = (coinType: number) => {
-    updateAddresses(upsertAddress(values.addresses, coinType, ethAddress))
+    updateAddresses((addresses) =>
+      applyEthAddressChange(addresses, ethAddress, value),
+    )
   }
 
   const setAddressValue = (coinType: number, value: string) => {
-    updateAddresses(upsertAddress(values.addresses, coinType, value))
+    updateAddresses((addresses) => upsertAddress(addresses, coinType, value))
+  }
+
+  const setChainToEthAddress = (coinType: number) => {
+    setAddressValue(coinType, ethAddress)
   }
 
   const removeAddressValue = (coinType: number) => {
-    updateAddresses(removeAddress(values.addresses, coinType))
+    updateAddresses((addresses) => removeAddress(addresses, coinType))
+  }
+
+  const addAddressRows = (coinTypes: readonly number[], value: string) => {
+    updateAddresses((addresses) =>
+      coinTypes.reduce(
+        (nextAddresses, coinType) =>
+          upsertAddress(nextAddresses, coinType, value),
+        addresses,
+      ),
+    )
   }
 
   const handlePickerAdd = (coinTypes: readonly number[]) => {
@@ -70,25 +86,14 @@ export const AddressesTab = ({
       setExtraEvmCoinTypes((current) => [
         ...new Set([...current, ...coinTypes]),
       ])
-      updateAddresses(
-        coinTypes.reduce(
-          (nextAddresses, coinType) =>
-            upsertAddress(nextAddresses, coinType, ethAddress),
-          values.addresses,
-        ),
-      )
+      addAddressRows(coinTypes, ethAddress)
       return
     }
 
     setExtraOtherCoinTypes((current) => [
       ...new Set([...current, ...coinTypes]),
     ])
-    updateAddresses(
-      coinTypes.reduce(
-        (nextAddresses, coinType) => upsertAddress(nextAddresses, coinType, ''),
-        values.addresses,
-      ),
-    )
+    addAddressRows(coinTypes, '')
   }
 
   return (

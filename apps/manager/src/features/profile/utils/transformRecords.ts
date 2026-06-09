@@ -54,6 +54,23 @@ export const normalizeProfileRecords = (
   links: normalizeProfileLinks(records.links),
 })
 
+interface TextRecordInput {
+  readonly key: string
+  readonly value: string
+}
+
+interface AddressRecordInput {
+  readonly coinType: number
+  readonly value: string
+}
+
+interface ServiceProfileRecords {
+  readonly texts: TextRecordInput[]
+  readonly coins: AddressRecordInput[]
+  readonly contentHash?: string
+  readonly abi?: string
+}
+
 /**
  * Transforms mock profile records to the standard ProfileRecords format
  * Used for development and testing with mock data
@@ -67,7 +84,7 @@ export const transformProfileRecords = (
 
   const processTextRecord = (
     acc: ProfileRecords,
-    { key, value }: { key: string; value: string },
+    { key, value }: TextRecordInput,
   ): ProfileRecords => {
     const record = getRecordDef(key)
 
@@ -117,12 +134,7 @@ export const transformProfileRecords = (
  */
 export const transformToServiceFormat = (
   records: ProfileRecords,
-): {
-  texts: Array<{ key: string; value: string }>
-  coins: Array<{ coinType: number; value: string }>
-  contentHash?: string
-  abi?: string
-} => {
+): ServiceProfileRecords => {
   const sectionTexts = allSections.flatMap((section) =>
     records[section].map(({ key, value }) => ({ key, value })),
   )
