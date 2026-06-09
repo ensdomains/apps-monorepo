@@ -32,21 +32,38 @@ export const RenewingStep = () => {
       <div className="mx-auto max-w-6xl pt-3 md:w-full-[32px]">
         <RegistrationProgressBar
           {...match(step)
+            .with('ensuringHcaDeployed', () => ({
+              label: t`Preparing account`,
+              progress: 10,
+            }))
+            .with('checkingAllowance', () => ({
+              label: t`Checking allowance`,
+              progress: 20,
+            }))
+            .with('signingPermit', () => ({
+              label: t`Awaiting approval signature`,
+              progress: 30,
+            }))
             .with('submittingTokenApproval', () => ({
               label: t`Submitting token approval`,
-              progress: 20,
+              progress: 30,
             }))
             .with('waitingForTokenApproval', () => ({
               label: t`Waiting for token approval`,
-              progress: 40,
+              progress: 50,
             }))
-            .with('submittingRenewal', () => ({
-              label: t`Submitting renewal`,
-              progress: 60,
-            }))
+            .with(
+              'submittingRenewal',
+              'submittingRenewalBundle',
+              'submittingPlainRenewal',
+              () => ({
+                label: t`Submitting renewal`,
+                progress: 70,
+              }),
+            )
             .with('waitingForRenewal', () => ({
               label: t`Waiting for renewal`,
-              progress: 80,
+              progress: 90,
             }))
             .otherwise(() => ({
               label: t`Loading...`,
