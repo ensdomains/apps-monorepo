@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useConnection } from 'wagmi'
+import { hasStoredPrivySession } from '@/lib/privy/has-privy-session'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 
 /**
@@ -14,11 +15,14 @@ import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
  * that raced TanStack Router and blanked the page (`Outlet` throwing
  * `undefined`).
  *
- * It is still *gated* on the connection having settled — wagmi not
- * (re)connecting and the smart-account provider having finished its initial
- * restoration (`hasInitialized`) — so a session that is still being restored
- * on load is never bounced to the landing page. `status` alone drives the
- * single call, so a real disconnect fires `onDisconnect` exactly once.
+ * It is gated on the connection having settled — wagmi not (re)connecting and
+ * the smart-account provider having finished its initial restoration
+ * (`hasInitialized`) — AND on there being no persisted Privy session. The
+ * latter matters because the Privy connector's signer is lost on reload, so
+ * wagmi reports `disconnected` for a moment while Privy restores the session
+ * and the bridge reconnects; bouncing then would wrongly kick a logged-in user
+ * to the landing page. A real logout clears the Privy tokens, so this still
+ * fires on genuine disconnects.
  *
  * @param onDisconnect Callback to call when the wallet is disconnected.
  */
@@ -28,6 +32,9 @@ export const useOnDisconnected = (onDisconnect: () => void) => {
 
   useEffect(() => {
     if (isConnecting || isReconnecting || !hasInitialized) return
+    // A persisted Privy session means the bridge will (re)connect wagmi shortly
+    // — don't treat the reload reconnect gap as a disconnect.
+    if (hasStoredPrivySession()) return
     if (status === 'disconnected') {
       onDisconnect()
     }

@@ -18,17 +18,21 @@ import { PHProvider } from '@/lib/posthog/provider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { backendAuthStore } from '@/utils/backend-client'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
+import { hasStoredPrivySession } from './privy/has-privy-session'
 import { usePrivyWagmiBridge } from './privy/usePrivyWagmiBridge'
 import { wagmiConfig } from './wagmi'
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? ''
 
-// Preserve wallet-layer connection storage (wagmi.* / privy:*) — a blanket
-// localStorage.clear() corrupts reconnection. Privy owns its own `privy:*`
-// session keys; let `privy.logout()` clear those, not us.
+// Preserve wallet-layer connection storage — a blanket localStorage.clear()
+// corrupts reconnection. Privy owns its session under BOTH `privy-` (hyphen:
+// privy-token, privy-refresh-token, privy-session, privy-id-token, …) AND
+// `privy:` (colon: privy:connections, …) keys, so we must preserve anything
+// starting with `privy`; `privy.logout()` clears those itself. Deleting the
+// `privy-*` tokens here was wiping the session on every disconnect/reload.
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('wagmi') || key.startsWith('privy:')) continue
+    if (key.startsWith('wagmi') || key.startsWith('privy')) continue
     localStorage.removeItem(key)
   }
 }
@@ -85,6 +89,11 @@ const WalletLifecycle = () => {
 
   useConnectionEffect({
     onDisconnect() {
+      // Skip during the reload reconnect gap: the Privy session is still in
+      // storage and the bridge will reconnect, so this isn't a real disconnect.
+      // A genuine logout clears the Privy tokens first (see useSignOut), so the
+      // cleanup still runs then.
+      if (hasStoredPrivySession()) return
       transactionManager.clearAllAndPersistence()
       backendAuthStore.trigger.signOut()
       clearAppLocalStorage()

@@ -23,7 +23,13 @@ export function useSignOut() {
     useDisconnect()
 
   const signOut = useCallback(async () => {
-    await Promise.allSettled([logout(), disconnectAsync()])
+    // Clear Privy FIRST so its session tokens are gone before the wagmi
+    // disconnect fires onDisconnect — that cleanup skips while a Privy session
+    // persists (to ignore the reload gap), so a genuine logout must clear the
+    // tokens up front for the cleanup to run. logout() is wrapped (never
+    // throws) and is a no-op for external wallets.
+    await logout()
+    await disconnectAsync().catch(() => {})
   }, [logout, disconnectAsync])
 
   return { signOut, isSigningOut: busy || isDisconnecting }
