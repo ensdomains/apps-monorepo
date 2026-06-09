@@ -8,7 +8,7 @@ msgstr ""
 "Language: sv\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-03-12 12:36\n"
+"PO-Revision-Date: 2026-06-09 16:55\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -772,7 +772,7 @@ msgstr ""
 
 #: src/features/navigation/Header/account/NavSection.tsx:23
 msgid "Dashboard"
-msgstr ""
+msgstr "Översikt"
 
 #: src/features/dashboard/components/NamesTable.tsx:89
 #: src/features/dashboard/components/NamesTable.tsx:94
@@ -1009,7 +1009,7 @@ msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts:189
 msgid "Failed to deploy smart account"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:189
 msgid "Failed to fund wallet"
@@ -1048,7 +1048,7 @@ msgstr "Kunde inte ange ETH-adresspost"
 
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
 #~ msgid "Failed to set primary name"
-#~ msgstr ""
+#~ msgstr "Failed to set primary name"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
@@ -1096,7 +1096,7 @@ msgstr "Vanliga frågor"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:203
 msgid "From:"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:160
 msgid "Funding wallet"
@@ -1731,7 +1731,7 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
 #~ msgid "Profile updated"
-#~ msgstr ""
+#~ msgstr "Profile updated"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
 msgid "Profile updated successfully."
@@ -2320,7 +2320,7 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
 #~ msgid "Submitting your ENS profile update. This may take a few moments."
-#~ msgstr ""
+#~ msgstr "Submitting your ENS profile update. This may take a few moments."
 
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
@@ -2466,7 +2466,7 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
 #~ msgid "Transaction:"
-#~ msgstr ""
+#~ msgstr "Transaction:"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
@@ -2493,11 +2493,11 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
 #~ msgid "Update failed"
-#~ msgstr ""
+#~ msgstr "Update failed"
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
 #~ msgid "Updating profile"
-#~ msgstr ""
+#~ msgstr "Updating profile"
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx:61
@@ -2716,7 +2716,7 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
 #~ msgid "Waiting for the transaction to be confirmed…"
-#~ msgstr ""
+#~ msgstr "Waiting for the transaction to be confirmed…"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
@@ -2728,7 +2728,7 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:178
 msgid "Wallet {address} funded successfully"
@@ -2744,7 +2744,7 @@ msgstr ""
 
 #: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
-msgstr "<<<<<<< HEAD"
+msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:177
 msgid "Wallet funded successfully"
@@ -2934,7 +2934,7 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
 #~ msgid "Your profile changes have been confirmed on-chain."
-#~ msgstr ""
+#~ msgstr "Your profile changes have been confirmed on-chain."
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
@@ -2955,3 +2955,4 @@ msgstr ""
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""
+
