@@ -193,7 +193,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               }
             </form.Subscribe>
             <SaveChanges
-              errorMessage={saveRecordsMutation.error?.message}
               form={form}
               isSaving={saveRecordsMutation.isPending}
               isSuccess={saveRecordsMutation.isSuccess}
@@ -201,7 +200,6 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               onReset={saveRecordsMutation.reset}
               onSave={handleSave}
               originalData={defaultValues}
-              txHash={saveRecordsMutation.data?.hash}
               validationIssues={
                 saveRecordsMutation.error instanceof RecordsValidationError
                   ? saveRecordsMutation.error.issues

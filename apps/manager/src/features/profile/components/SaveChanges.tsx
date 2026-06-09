@@ -10,8 +10,6 @@ interface SaveChangesProps {
   onReset?: () => void
   isSaving?: boolean
   isSuccess?: boolean
-  errorMessage?: string
-  txHash?: string
   validationIssues?: Array<{
     sectionKey?: string
     fieldKey?: string
@@ -34,8 +32,6 @@ export const SaveChanges = withForm({
     onReset,
     isSaving,
     isSuccess,
-    errorMessage,
-    txHash,
     validationIssues,
   }) => (
     <form.Subscribe
@@ -48,14 +44,12 @@ export const SaveChanges = withForm({
         <DiffDialog
           canSubmit={canSubmit}
           currentData={currentData}
-          errorMessage={errorMessage}
           isSaving={isSaving}
           isSuccess={isSuccess}
           name={name}
           onReset={onReset}
           onSave={onSave}
           originalData={originalData}
-          txHash={txHash}
           validationIssues={validationIssues}
         />
       )}

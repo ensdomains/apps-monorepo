@@ -21,7 +21,7 @@ import {
 import { FloatingInput } from '@/components/ui/floating-input'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { isSafeHttpUrl } from '../../utils/safeUrl'
-import { isReservedTextRecordKey } from './EditProfileLinksTab.validation'
+import { isReservedTextRecordKey } from './edit-profile/tabs/links/validation'
 
 const validateLinkName = (name: string): string | null => {
   const trimmed = name.trim()

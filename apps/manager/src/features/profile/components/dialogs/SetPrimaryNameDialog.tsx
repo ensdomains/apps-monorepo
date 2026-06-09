@@ -39,7 +39,6 @@ import {
   hasMatchingEthAddress,
 } from '../ProfileEdit.handlers'
 import { saveRecords } from '../ProfileEdit.transactions'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
   name: string
@@ -90,20 +89,12 @@ export const SetPrimaryNameDialog = ({
 
   const primaryNameState = useSelector(primaryNameActor, (state) => state)
 
-  const txHash = primaryNameState.context.txHash
   const isSubmitting =
     primaryNameState.matches('submittingUpdate') ||
     primaryNameState.matches('waitingForUpdate') ||
     primaryNameState.matches('submittingReverse') ||
     primaryNameState.matches('waitingForReverse')
   const isSuccess = primaryNameState.matches('success')
-  const isError = primaryNameState.matches('error')
-  const machineErrorMessage =
-    (isError &&
-      primaryNameState.context.error &&
-      primaryNameState.context.error.message) ||
-    (isError && t`Failed to set primary name`) ||
-    undefined
 
   const { data: records, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(name),
@@ -204,12 +195,6 @@ export const SetPrimaryNameDialog = ({
 
   const content = (
     <>
-      <UpdateStatusPanel
-        errorMessage={machineErrorMessage}
-        isSaving={isSubmitting}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
       <p className="text-muted-foreground text-sm">
         <Trans>
           This will set <span className="font-mono">{name}</span> as your

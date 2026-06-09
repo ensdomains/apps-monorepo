@@ -1,6 +1,6 @@
-import { staticTextRecords, textRecords } from '../../data/records'
-import type { LinkItem } from '../../types'
-import { isSafeHttpUrl } from '../../utils/safeUrl'
+import { staticTextRecords, textRecords } from '../../../../../data/records'
+import type { LinkItem } from '../../../../../types'
+import { isSafeHttpUrl } from '../../../../../utils/safeUrl'
 
 export type LinkValidationField = 'name' | 'url'
 

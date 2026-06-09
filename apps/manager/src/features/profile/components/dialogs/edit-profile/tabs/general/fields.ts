@@ -1,5 +1,5 @@
 import type { MaterialSymbol } from '@/components/ui/material-symbol'
-import type { ProfileRecords, TextRecordValue } from '../../types'
+import type { ProfileRecords, TextRecordValue } from '../../../../../types'
 
 export const generalShortcuts = [
   { field: 'avatar', label: 'Profile picture', symbol: 'face' },

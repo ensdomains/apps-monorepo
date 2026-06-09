@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
-import { parseAvatarQuery } from '../../service/profileAvatar'
+import { parseAvatarQuery } from '../../../service/profileAvatar'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 
 interface EditProfileDialogHeaderProps {

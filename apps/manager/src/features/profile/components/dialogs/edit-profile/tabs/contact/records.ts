@@ -1,4 +1,4 @@
-import type { ProfileRecords, TextRecordValue } from '../../types'
+import type { ProfileRecords, TextRecordValue } from '../../../../../types'
 import {
   type ContactMethod,
   type ContactMethodKey,
@@ -6,7 +6,7 @@ import {
   maxPrimaryContactMethods,
   primaryContactRecordKey,
   primaryContactsRecordKey,
-} from './EditProfileContactTab.constants'
+} from './constants'
 
 export const getRecordsForMethod = (
   values: ProfileRecords,

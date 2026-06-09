@@ -24,7 +24,6 @@ import {
 import type { ProfileRecords } from '@/features/profile/types'
 import { createDiff } from '@/features/profile/utils/createDiff'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 const HEX_COLOR_REGEX = /^#[\da-f]{6}$/i
 
@@ -62,8 +61,6 @@ interface DiffDialogProps {
   canSubmit?: boolean
   isSaving?: boolean
   isSuccess?: boolean
-  errorMessage?: string
-  txHash?: string
   validationIssues?: Array<{
     sectionKey?: string
     fieldKey?: string
@@ -80,8 +77,6 @@ export const DiffDialog = ({
   canSubmit = true,
   isSaving,
   isSuccess,
-  errorMessage,
-  txHash,
   validationIssues,
 }: DiffDialogProps) => {
   const { t } = useLingui()
@@ -145,13 +140,6 @@ export const DiffDialog = ({
 
   const content = (
     <>
-      <UpdateStatusPanel
-        errorMessage={errorMessage}
-        hasValidationIssues={Boolean(validationIssues?.length)}
-        isSaving={isSaving}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
       {!isSuccess && (
         <div className="max-h-96 overflow-y-auto">
           {isSaving ? null : hasChanges ? (

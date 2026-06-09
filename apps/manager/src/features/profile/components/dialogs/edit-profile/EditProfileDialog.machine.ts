@@ -1,13 +1,13 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { Address, Hex, PublicClient } from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
-import type { ProfileRecords } from '../../types'
-import { transformToServiceFormat } from '../../utils/transformRecords'
-import type { SaveRecordsParams } from '../ProfileEdit.transactions'
+import type { ProfileRecords } from '../../../types'
+import { transformToServiceFormat } from '../../../utils/transformRecords'
+import type { SaveRecordsParams } from '../../ProfileEdit.transactions'
 import {
   type GeneralField,
   getDefaultVisibleFields,
-} from './EditProfileGeneralTab.fields'
+} from './tabs/general/fields'
 
 interface SaveDeps {
   readonly accountAddress?: Address | null

@@ -5,7 +5,7 @@ import type {
   EditProfileDialogSnapshot,
   editProfileDialogMachine,
 } from './EditProfileDialog.machine'
-import type { GeneralField } from './EditProfileGeneralTab.fields'
+import type { GeneralField } from './tabs/general/fields'
 
 const EditProfileDialogContext = createContext<{
   dialogActor: Actor<typeof editProfileDialogMachine>

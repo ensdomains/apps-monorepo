@@ -1,13 +1,13 @@
 import { Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import type { LinkItem, ProfileRecords } from '../../types'
-import { useEditProfileDialogStatus } from './EditProfileDialog.context'
+import type { LinkItem, ProfileRecords } from '../../../../../types'
+import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import {
   getLinkValidationIssues,
   type LinkValidationField,
   type LinkValidationIssue,
-} from './EditProfileLinksTab.validation'
+} from './validation'
 
 interface LinkRow {
   readonly index: number
@@ -21,7 +21,7 @@ interface DraftLinkRow {
   readonly link: LinkItem
 }
 
-interface EditProfileLinksTabProps {
+interface LinksTabProps {
   readonly onDraftValidationIssuesChange: (hasValidationIssues: boolean) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
   readonly values: ProfileRecords
@@ -71,11 +71,11 @@ const updateLinkAtIndex = (
     linkIndex === index ? { ...link, ...value } : link,
   )
 
-export const EditProfileLinksTab = ({
+export const LinksTab = ({
   onDraftValidationIssuesChange,
   onLinksChange,
   values,
-}: EditProfileLinksTabProps) => {
+}: LinksTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const nextRowKeyRef = useRef(0)
   const createRowKey = useCallback(() => {
