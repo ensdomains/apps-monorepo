@@ -2,49 +2,28 @@ import { Plus, Search, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import {
-  addressRecords,
-  getAddressRecordDef,
-} from '../../../../../data/records'
+import { getAddressRecordDef } from '../../../../../data/records'
 import type { AddressRecordDef } from '../../../../../data/records/types'
 import type { AddressRecordValue, ProfileRecords } from '../../../../../types'
 import { IconRenderer } from '../../../../IconRenderer'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
-
-interface AddressOption {
-  readonly coinType: number
-  readonly label: string
-}
+import {
+  type AddressOption,
+  BNB_COIN_TYPE,
+  BSC_COIN_TYPE,
+  ETH_COIN_TYPE,
+  evmChainOptions,
+  getPickerRecords,
+  isEvmCoinType,
+  otherNetworkOptions,
+  type PickerMode,
+} from './addressPickerRecords'
 
 interface AddressesTabProps {
   readonly onAddressesChange: (addresses: ProfileRecords['addresses']) => void
   readonly values: ProfileRecords
 }
-
-type PickerMode = 'evm' | 'other'
-
-const ETH_COIN_TYPE = 60
-const EVM_COIN_TYPE_OFFSET = 0x80000000
-const BNB_COIN_TYPE = 714
-const BSC_COIN_TYPE = 2147483704
-
-const evmChainOptions: readonly AddressOption[] = [
-  { coinType: 2147483658, label: 'Optimism' },
-  { coinType: 2147492101, label: 'Base' },
-  { coinType: 2147525809, label: 'Arbitrum' },
-  { coinType: 2147483972, label: 'ZKsync' },
-  { coinType: 2147483785, label: 'Polygon' },
-  { coinType: BSC_COIN_TYPE, label: 'BNB' },
-]
-
-const otherNetworkOptions: readonly AddressOption[] = [
-  { coinType: 0, label: 'Bitcoin' },
-  { coinType: 501, label: 'Solana' },
-  { coinType: BNB_COIN_TYPE, label: 'Binance Chain' },
-]
-
-const isEvmCoinType = (coinType: number) => coinType >= EVM_COIN_TYPE_OFFSET
 
 const getAddressValue = (
   addresses: readonly AddressRecordValue[],
@@ -220,35 +199,13 @@ const ChainPickerDialog = ({
   const [selectedCoinTypes, setSelectedCoinTypes] = useState<number[]>([])
   const [searchValue, setSearchValue] = useState('')
   const normalizedSearchValue = searchValue.trim().toLowerCase()
-  const popularCoinTypes =
-    mode === 'evm'
-      ? evmChainOptions.map(({ coinType }) => coinType)
-      : otherNetworkOptions.map(({ coinType }) => coinType)
   const records = useMemo(() => {
-    const availableRecords = addressRecords.filter((record) => {
-      if (unavailableCoinTypes.has(record.coinType)) return false
-      if (mode === 'evm' && !isEvmCoinType(record.coinType)) return false
-      if (mode === 'other' && isEvmCoinType(record.coinType)) return false
-      if (record.coinType === ETH_COIN_TYPE) return false
-
-      if (!normalizedSearchValue) return true
-
-      return (
-        record.name.toLowerCase().includes(normalizedSearchValue) ||
-        record.notation?.toLowerCase().includes(normalizedSearchValue)
-      )
+    return getPickerRecords({
+      mode,
+      normalizedSearchValue,
+      unavailableCoinTypes,
     })
-
-    if (normalizedSearchValue) return availableRecords
-
-    const popularRecords = availableRecords.filter((record) =>
-      popularCoinTypes.includes(record.coinType),
-    )
-
-    return (
-      popularRecords.length > 0 ? popularRecords : availableRecords
-    ).slice(0, 4)
-  }, [mode, normalizedSearchValue, popularCoinTypes, unavailableCoinTypes])
+  }, [mode, normalizedSearchValue, unavailableCoinTypes])
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -274,34 +231,12 @@ const ChainPickerDialog = ({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent
-        className="w-[min(92vw,368px)] gap-0 overflow-hidden rounded-xl border-0 bg-white p-6 shadow-lg sm:max-w-[368px]"
+        className="flex max-h-[min(88vh,640px)] w-[min(92vw,440px)] flex-col gap-0 overflow-hidden rounded-xl border-0 bg-white p-6 shadow-lg sm:max-w-[440px]"
         overlayClassName="bg-black/90"
       >
         <DialogTitle className="font-bold text-[16px] text-ens-quartz-500 leading-[1.2]">
-          Popular chains
+          Add chains
         </DialogTitle>
-
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {records.map((record) => {
-            const option = getAddressOption(record.coinType)
-            const selected = selectedCoinTypes.includes(record.coinType)
-            return (
-              <FieldPickerPill
-                active={selected}
-                disabled={disabled}
-                icon={
-                  <AddressIcon
-                    coinType={record.coinType}
-                    label={option.label}
-                  />
-                }
-                key={record.coinType}
-                label={option.label}
-                onClick={() => toggleCoinType(record.coinType)}
-              />
-            )
-          })}
-        </div>
 
         <div className="mt-3 flex h-9 items-center gap-2 rounded-full border border-[#d4d4d4] px-3 text-ens-quartz-400">
           <Search className="size-4 shrink-0" />
@@ -315,8 +250,32 @@ const ChainPickerDialog = ({
           />
         </div>
 
+        <div className="mt-3 min-h-0 overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-2">
+            {records.map((record) => {
+              const option = getAddressOption(record.coinType)
+              const selected = selectedCoinTypes.includes(record.coinType)
+              return (
+                <FieldPickerPill
+                  active={selected}
+                  disabled={disabled}
+                  icon={
+                    <AddressIcon
+                      coinType={record.coinType}
+                      label={option.label}
+                    />
+                  }
+                  key={record.coinType}
+                  label={option.label}
+                  onClick={() => toggleCoinType(record.coinType)}
+                />
+              )
+            })}
+          </div>
+        </div>
+
         <Button
-          className="mt-[248px] h-[74px] w-full rounded-sm bg-ens-lapis-core font-bold font-mono text-[14px] text-white tracking-[1.2px] hover:bg-ens-lapis-core/90 disabled:opacity-50"
+          className="mt-4 h-12 w-full rounded-sm bg-ens-lapis-core font-bold font-mono text-[14px] text-white tracking-[1.2px] hover:bg-ens-lapis-core/90 disabled:opacity-50"
           disabled={disabled || selectedCoinTypes.length === 0}
           onClick={handleAdd}
           type="button"
