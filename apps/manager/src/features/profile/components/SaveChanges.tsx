@@ -10,6 +10,7 @@ interface SaveChangesProps {
   onReset?: () => void
   isSaving?: boolean
   isSuccess?: boolean
+  saveErrorMessage?: string
   validationIssues?: Array<{
     sectionKey?: string
     fieldKey?: string
@@ -32,6 +33,7 @@ export const SaveChanges = withForm({
     onReset,
     isSaving,
     isSuccess,
+    saveErrorMessage,
     validationIssues,
   }) => (
     <form.Subscribe
@@ -50,6 +52,7 @@ export const SaveChanges = withForm({
           onReset={onReset}
           onSave={onSave}
           originalData={originalData}
+          saveErrorMessage={saveErrorMessage}
           validationIssues={validationIssues}
         />
       )}

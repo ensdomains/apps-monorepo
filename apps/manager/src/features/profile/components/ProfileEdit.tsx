@@ -25,6 +25,7 @@ import {
 } from '../utils/transformRecords'
 import { SetPrimaryNameDialog } from './dialogs/SetPrimaryNameDialog'
 import { useAppForm } from './form'
+import { getSaveRecordsErrorMessage } from './ProfileEdit.errors'
 import {
   handleProfileFormSubmit,
   handleProfileReset,
@@ -200,6 +201,9 @@ export const ProfileEdit = ({ name }: ProfileEditProps) => {
               onReset={saveRecordsMutation.reset}
               onSave={handleSave}
               originalData={defaultValues}
+              saveErrorMessage={getSaveRecordsErrorMessage(
+                saveRecordsMutation.error,
+              )}
               validationIssues={
                 saveRecordsMutation.error instanceof RecordsValidationError
                   ? saveRecordsMutation.error.issues

@@ -29,6 +29,9 @@ import {
   isSafeHttpUrl,
 } from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
+import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
+
+export { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
 
 // --- Types ---
 
@@ -54,22 +57,6 @@ type RecordChanges = {
   coins: CoinChange[]
   contentHash?: { before?: string; after?: string }
   abi?: { before?: string; after?: string }
-}
-
-export type RecordIssue = {
-  sectionKey: string
-  fieldKey: string
-  message: string
-}
-
-export class RecordsValidationError extends Error {
-  issues: RecordIssue[]
-
-  constructor(issues: RecordIssue[]) {
-    super(issues.map((issue) => issue.message).join('\n'))
-    this.name = 'RecordsValidationError'
-    this.issues = issues
-  }
 }
 
 export interface SaveRecordsParams {

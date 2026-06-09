@@ -61,6 +61,7 @@ interface DiffDialogProps {
   canSubmit?: boolean
   isSaving?: boolean
   isSuccess?: boolean
+  saveErrorMessage?: string
   validationIssues?: Array<{
     sectionKey?: string
     fieldKey?: string
@@ -77,6 +78,7 @@ export const DiffDialog = ({
   canSubmit = true,
   isSaving,
   isSuccess,
+  saveErrorMessage,
   validationIssues,
 }: DiffDialogProps) => {
   const { t } = useLingui()
@@ -141,86 +143,98 @@ export const DiffDialog = ({
   const content = (
     <>
       {!isSuccess && (
-        <div className="max-h-96 overflow-y-auto">
-          {isSaving ? null : hasChanges ? (
-            <div className="space-y-4">
-              {Object.entries(diff).map(([key, change]) => (
-                <div className="rounded-lg border p-4" key={key}>
-                  <div className="mb-2 flex items-center gap-2">
-                    {changeIcons[change.type]}
-                    <span className="flex items-center gap-1 font-medium">
-                      {change.sectionLabel && change.fieldLabel ? (
-                        <>
-                          <span>{change.sectionLabel}</span>
-                          <ArrowRight className="size-3 text-gray-400" />
-                          <span>{change.fieldLabel}</span>
-                        </>
-                      ) : (
-                        key
-                      )}
-                    </span>
-                    <Badge variant="outline">{changeLabels[change.type]}</Badge>
-                  </div>
-                  {change.type === 'added' && (
-                    <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
-                      <strong>
-                        <Trans>New value:</Trans>
-                      </strong>{' '}
-                      <DiffValue value={change.current} />
+        <div className="space-y-4">
+          {!isSaving && saveErrorMessage ? (
+            <div
+              className="whitespace-pre-wrap rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700 text-sm"
+              role="alert"
+            >
+              {saveErrorMessage}
+            </div>
+          ) : null}
+          <div className="max-h-96 overflow-y-auto">
+            {isSaving ? null : hasChanges ? (
+              <div className="space-y-4">
+                {Object.entries(diff).map(([key, change]) => (
+                  <div className="rounded-lg border p-4" key={key}>
+                    <div className="mb-2 flex items-center gap-2">
+                      {changeIcons[change.type]}
+                      <span className="flex items-center gap-1 font-medium">
+                        {change.sectionLabel && change.fieldLabel ? (
+                          <>
+                            <span>{change.sectionLabel}</span>
+                            <ArrowRight className="size-3 text-gray-400" />
+                            <span>{change.fieldLabel}</span>
+                          </>
+                        ) : (
+                          key
+                        )}
+                      </span>
+                      <Badge variant="outline">
+                        {changeLabels[change.type]}
+                      </Badge>
                     </div>
-                  )}
-                  {change.type === 'removed' && (
-                    <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
-                      <strong>
-                        <Trans>Removed:</Trans>
-                      </strong>{' '}
-                      <DiffValue value={change.original} />
-                    </div>
-                  )}
-                  {change.type === 'modified' && (
-                    <div className="space-y-2">
-                      <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
-                        <strong>
-                          <Trans>From:</Trans>
-                        </strong>{' '}
-                        <DiffValue value={change.original} />
-                      </div>
+                    {change.type === 'added' && (
                       <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
                         <strong>
-                          <Trans>To:</Trans>
+                          <Trans>New value:</Trans>
                         </strong>{' '}
                         <DiffValue value={change.current} />
                       </div>
-                    </div>
-                  )}
-                  {change.sectionKey && change.fieldKey
-                    ? (issuesByField[
-                        `${change.sectionKey}:${change.fieldKey}`
-                      ] ??
-                        null) && (
-                        <div className="mt-3 space-y-1">
-                          {issuesByField[
-                            `${change.sectionKey}:${change.fieldKey}`
-                          ]?.map((message, index) => (
-                            <div
-                              className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
-                              // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
-                              key={index}
-                            >
-                              {message}
-                            </div>
-                          ))}
+                    )}
+                    {change.type === 'removed' && (
+                      <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
+                        <strong>
+                          <Trans>Removed:</Trans>
+                        </strong>{' '}
+                        <DiffValue value={change.original} />
+                      </div>
+                    )}
+                    {change.type === 'modified' && (
+                      <div className="space-y-2">
+                        <div className="break-words rounded bg-red-50 p-2 text-red-700 text-sm">
+                          <strong>
+                            <Trans>From:</Trans>
+                          </strong>{' '}
+                          <DiffValue value={change.original} />
                         </div>
-                      )
-                    : null}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">
-              <Trans>No changes to save</Trans>
-            </p>
-          )}
+                        <div className="break-words rounded bg-blue-50 p-2 text-blue-700 text-sm">
+                          <strong>
+                            <Trans>To:</Trans>
+                          </strong>{' '}
+                          <DiffValue value={change.current} />
+                        </div>
+                      </div>
+                    )}
+                    {change.sectionKey && change.fieldKey
+                      ? (issuesByField[
+                          `${change.sectionKey}:${change.fieldKey}`
+                        ] ??
+                          null) && (
+                          <div className="mt-3 space-y-1">
+                            {issuesByField[
+                              `${change.sectionKey}:${change.fieldKey}`
+                            ]?.map((message, index) => (
+                              <div
+                                className="rounded border border-red-200 bg-red-50 px-2 py-1 text-red-700 text-xs"
+                                // biome-ignore lint/suspicious/noArrayIndexKey: error list is stable for this render
+                                key={index}
+                              >
+                                {message}
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-gray-500">
+                <Trans>No changes to save</Trans>
+              </p>
+            )}
+          </div>
         </div>
       )}
     </>
