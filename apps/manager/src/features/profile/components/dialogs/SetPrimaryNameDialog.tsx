@@ -95,6 +95,10 @@ export const SetPrimaryNameDialog = ({
     primaryNameState.matches('submittingReverse') ||
     primaryNameState.matches('waitingForReverse')
   const isSuccess = primaryNameState.matches('success')
+  const primaryNameErrorMessage = primaryNameState.matches('error')
+    ? (primaryNameState.context.error?.message ??
+      t`Failed to set primary name. Please try again.`)
+    : undefined
 
   const { data: records, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(name),
@@ -202,6 +206,15 @@ export const SetPrimaryNameDialog = ({
           display it as your default identity.
         </Trans>
       </p>
+      {primaryNameErrorMessage && (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+          <p className="text-sm">{primaryNameErrorMessage}</p>
+        </div>
+      )}
       {needsEthAddressUpdate && walletAddress && (
         <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />
