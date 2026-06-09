@@ -16,22 +16,23 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ADDRESS="${1:?Usage: fund-account.sh <ADDRESS>}"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 
 # Anvil's first default account private key (has 10 000 ETH on any fork)
 ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-# Contract addresses (MockUSDC & MockDAI deployed on Sepolia — present on fork).
-# These must match the payment tokens whitelisted on the current sepolia
-# `StandardRentPriceOracle` and exposed to the app via
-# `@ens-apps/transaction-manager/contracts/ens-sepolia` (USDC sourced from
-# ensjs chain config, DAI hardcoded there). When the V2 deployment rotates
-# tokens, update both this script and `SUPPORTED_TOKENS.DAI` in that file.
-MOCK_USDC="0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9"
-MOCK_DAI="0xe915cebbc1570a74177b6c589fed1e8f53117559"
+# Payment-token addresses, resolved from the ensjs Sepolia chain config — the
+# SAME source the app uses (`@ens-apps/transaction-manager` SUPPORTED_TOKENS).
+# Resolving them dynamically prevents drift: hardcoding meant a token-address
+# bump in ensjs left this script minting stale tokens, so the funded account
+# had zero balance of the tokens the manager actually reads → the stablecoin
+# payment option stayed disabled and registration E2E timed out picking USDC.
+eval "$(node "$SCRIPT_DIR/print-token-addresses.mjs")"
 
 echo "=== Funding $ADDRESS on fork at $RPC_URL ==="
+echo "    tokens: USDC=$MOCK_USDC DAI=$MOCK_DAI"
 
 # 0. Clear any contract code at the address.
 #    The well-known Anvil account 0xf39F…2266 has an EOF contract deployed
