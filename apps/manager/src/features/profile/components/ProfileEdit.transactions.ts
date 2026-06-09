@@ -131,6 +131,10 @@ interface BuildRecordsUpdateRequestResult {
   readonly description: string
 }
 
+interface UnsupportedSigner {
+  readonly type: string
+}
+
 // --- Internal helpers ---
 
 const computeRecordChanges = (
@@ -307,7 +311,7 @@ function createTransactionRequest(
 
   signer satisfies never
   throw new Error(
-    `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
+    `Unsupported signer type for transaction request: ${(signer as UnsupportedSigner).type}`,
   )
 }
 
