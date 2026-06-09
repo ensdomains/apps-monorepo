@@ -1,5 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { hasStoredPrivySession } from './has-privy-session'
+import {
+  cookieStringHasPrivyToken,
+  hasStoredPrivySession,
+} from './has-privy-session'
+
+describe('cookieStringHasPrivyToken', () => {
+  it('returns false for an empty cookie string', () => {
+    expect(cookieStringHasPrivyToken('')).toBe(false)
+  })
+
+  it('returns true when privy-token has a value', () => {
+    expect(cookieStringHasPrivyToken('a=1; privy-token=abc; b=2')).toBe(true)
+  })
+
+  it('returns false when privy-token is empty', () => {
+    expect(cookieStringHasPrivyToken('privy-token=; b=2')).toBe(false)
+  })
+
+  it('does not match a lookalike cookie name', () => {
+    expect(cookieStringHasPrivyToken('not-privy-token=abc')).toBe(false)
+  })
+})
 
 // happy-dom persists document.cookie across tests in a file, so clear between.
 const clearCookies = () => {

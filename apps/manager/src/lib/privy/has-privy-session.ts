@@ -1,33 +1,60 @@
+import { createIsomorphicFn } from '@tanstack/react-start'
+import { getCookie } from '@tanstack/react-start/server'
+
 const PRIVY_TOKEN_COOKIE = 'privy-token'
 
+const hasValue = (raw: string | null | undefined): boolean =>
+  typeof raw === 'string' && raw.length > 0
+
 /**
- * Client-side check for a persisted Privy session.
+ * Pure: does a `document.cookie`-style string contain a non-empty `privy-token`?
+ * Exported for testing and reuse; matches the exact cookie name (not a
+ * lookalike like `not-privy-token`).
+ */
+export const cookieStringHasPrivyToken = (cookieString: string): boolean => {
+  const row = cookieString
+    .split('; ')
+    .find((entry) => entry.startsWith(`${PRIVY_TOKEN_COOKIE}=`))
+  return hasValue(row?.slice(`${PRIVY_TOKEN_COOKIE}=`.length))
+}
+
+/**
+ * CLIENT-ONLY check for a persisted Privy session, via `document.cookie`.
  *
  * Privy stores its auth token in a COOKIE named `privy-token` (not
- * localStorage). We read it to distinguish a real disconnect from the brief
- * reload window where wagmi has dropped the Privy connector — the connector's
- * in-memory signer doesn't survive a page reload, so wagmi reports
- * "disconnected" until Privy restores the session and the bridge reconnects.
- * A real `privy.logout()` clears the cookie, so genuine disconnects still read
- * as disconnected.
+ * localStorage). Used by the runtime reconnect-gap guards (`useOnDisconnected`,
+ * `ConnectionCookieSync`, `WalletLifecycle`) to tell a real disconnect from the
+ * brief reload window where wagmi has dropped the Privy connector (its
+ * in-memory signer doesn't survive reload) but Privy will restore the session.
  *
- * Provider-independent on purpose — callers like `useOnDisconnected` and
- * `ConnectionCookieSync` also run when no PrivyProvider is mounted (e.g. e2e
- * with VITE_PRIVY_APP_ID unset), where `usePrivy()` would throw.
+ * Deliberately NOT isomorphic: these guards also run in unit tests / e2e
+ * without a server request context, where `getCookie()` would throw.
  *
- * NOTE: reads the cookie via `document.cookie`, which requires Privy's
- * "HttpOnly cookies" setting to be OFF (the current/default). If HttpOnly is
- * enabled for production, this becomes JS-unreadable and needs a
- * server-readable signal instead (e.g. checking the cookie in `beforeLoad`).
+ * ⚠️ Requires Privy's "HttpOnly cookies" setting OFF (current/default). If
+ * enabled for production the cookie becomes JS-unreadable; the client guards
+ * would then need a `usePrivy()`-based signal instead (the SSR guard below
+ * already works either way). See docs/PRIVY.md.
  */
 export function hasStoredPrivySession(): boolean {
   if (typeof document === 'undefined') return false
   try {
-    const row = document.cookie
-      .split('; ')
-      .find((entry) => entry.startsWith(`${PRIVY_TOKEN_COOKIE}=`))
-    return !!row && row.slice(`${PRIVY_TOKEN_COOKIE}=`.length).length > 0
+    return cookieStringHasPrivyToken(document.cookie)
   } catch {
     return false
   }
 }
+
+/**
+ * ISOMORPHIC check for the Privy session cookie, for route `beforeLoad` guards.
+ *
+ * Server-side reads via `getCookie` — which works even with HttpOnly cookies
+ * ON — so the SSR redirect guard stays correct regardless of that setting.
+ * Client-side falls back to `document.cookie`.
+ */
+export const hasPrivySessionCookie = createIsomorphicFn()
+  .server(() => hasValue(getCookie(PRIVY_TOKEN_COOKIE)))
+  .client(() =>
+    typeof document === 'undefined'
+      ? false
+      : cookieStringHasPrivyToken(document.cookie),
+  )

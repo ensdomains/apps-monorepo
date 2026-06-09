@@ -4,13 +4,20 @@ import { DashboardLoading } from '@/features/dashboard/components/DashboardLoadi
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { isWalletConnectedCookie } from '@/lib/connection-cookie'
+import { hasPrivySessionCookie } from '@/lib/privy/has-privy-session'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,
   beforeLoad: () => {
-    // Cookie based check for wallet connection which allows server side redirects and faster loading times
-    if (!isWalletConnectedCookie()) throw redirect({ to: '/' })
+    // Cookie-based guard for server-side redirects / faster loads. Allow access
+    // for either signal: the wallet-address cookie (external wallets) OR a Privy
+    // session cookie. The Privy check is server-readable (works even with
+    // HttpOnly cookies on) and survives the reload window where the wallet
+    // cookie is briefly out of sync while the Privy connector reconnects.
+    if (!isWalletConnectedCookie() && !hasPrivySessionCookie()) {
+      throw redirect({ to: '/' })
+    }
   },
 })
 
