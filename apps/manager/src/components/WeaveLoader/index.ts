@@ -4,6 +4,7 @@
  */
 
 export { NameFill, type NameFillProps } from './NameFill'
+export { HOUNDSTOOTH_SHIMMER_OPTIONS } from './presets'
 export { PATTERNS, type WeavePattern } from './shader/patterns'
 export type { WeaveShaderOptions } from './shader/useWeaveShader'
 export { WEAVE_DEFAULTS } from './shader/weaveConfig'
