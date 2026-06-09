@@ -683,6 +683,10 @@ msgstr "Could not find resolver for {name}"
 msgid "Could not read ETH address record for {name}"
 msgstr "Could not read ETH address record for {name}"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:36
+msgid "Could not save profile"
+msgstr "Could not save profile"
+
 #: src/features/migration/pages/MigrationPage.tsx:82
 msgid "Couldn't upgrade one of your names. Please try again."
 msgstr "Couldn't upgrade one of your names. Please try again."
@@ -1700,6 +1704,14 @@ msgstr "Primary name set successfully"
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
+msgid "Profile saved"
+msgstr "Profile saved"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
+msgid "Profile updated successfully."
+msgstr "Profile updated successfully."
+
 #: src/features/register/components/Autorenewal.tsx:88
 msgid "Protect your name with autorenewal"
 msgstr "Protect your name with autorenewal"
@@ -2418,6 +2430,10 @@ msgstr "Total Paid"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx:109
 msgid "Trademark Guidelines"
 msgstr "Trademark Guidelines"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:55
+msgid "Transaction submitted:"
+msgstr "Transaction submitted:"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"

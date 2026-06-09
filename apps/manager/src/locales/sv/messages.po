@@ -688,6 +688,10 @@ msgstr ""
 msgid "Could not read ETH address record for {name}"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:36
+msgid "Could not save profile"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx:82
 msgid "Couldn't upgrade one of your names. Please try again."
 msgstr ""
@@ -1705,6 +1709,14 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
+msgid "Profile saved"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
+msgid "Profile updated successfully."
+msgstr ""
+
 #: src/features/register/components/Autorenewal.tsx:88
 msgid "Protect your name with autorenewal"
 msgstr ""
@@ -2422,6 +2434,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx:109
 msgid "Trademark Guidelines"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:55
+msgid "Transaction submitted:"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92

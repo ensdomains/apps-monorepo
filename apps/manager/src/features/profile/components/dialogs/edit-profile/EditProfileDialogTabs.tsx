@@ -93,7 +93,7 @@ export const EditProfileDialogTabs = ({
   return (
     <div className="flex min-h-0 flex-1">
       <div className="shrink-0 pb-5 pl-4">
-        <TabsList className="flex h-full w-[118px] flex-col items-stretch justify-start gap-0.5 rounded-none border-ens-quartz-200 border-r bg-white p-2">
+        <TabsList className="flex h-full w-29.5 flex-col items-stretch justify-start gap-0.5 rounded-none border-ens-quartz-200 border-r bg-white p-2">
           {tabs.map(({ label, value }) => (
             <TabsTrigger
               className="h-10 w-full flex-none justify-start whitespace-nowrap rounded-lg p-3 font-normal text-[14px] text-ens-quartz-500 tracking-[0.14px] data-[state=active]:bg-[#f2f2f2] data-[state=active]:text-ens-quartz-500"
