@@ -100,15 +100,30 @@ export function usePrivyWagmiBridge() {
           return
         }
         // (a) — session + embedded wallet ready.
-        if (alreadyConnected) {
-          lastAttemptedAddress.current = privy.address
+        // Nothing to do only when we've ALREADY bound this exact address AND
+        // wagmi is still connected to it. If the address changed (Privy
+        // restored/switched to a different embedded wallet) or the connection
+        // dropped, fall through and (re)install the signer below.
+        if (
+          lastAttemptedAddress.current === privy.address &&
+          alreadyConnected
+        ) {
           return
         }
-        if (lastAttemptedAddress.current === privy.address) return
+        // Resolve and install the signer for the CURRENT Privy address. This
+        // runs even when wagmi already has the privy connector: otherwise the
+        // module-level signer in privy-connector.ts could be left stale after
+        // an embedded-wallet switch, and later signing would use the wrong key.
         const signer = await privy.getSigner()
         if (cancelled) return
         setActivePrivySigner(signer)
-        await connectAsync({ connector: privyConnector })
+        if (alreadyConnected) {
+          // Connector already live — just refresh the bound account so wagmi
+          // re-reads the new address from the now-updated signer.
+          privyConnector.onAccountsChanged?.([privy.address])
+        } else {
+          await connectAsync({ connector: privyConnector })
+        }
         lastAttemptedAddress.current = privy.address
       } catch (err) {
         console.error('[privy-wagmi] bridge step failed:', err)

@@ -18,7 +18,10 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
  * regressions here catch most of what we've been debugging.
  */
 test.describe('Wallet connection + dashboard', () => {
-  test.describe.configure({ timeout: 180_000 })
+  // Match the sibling manager specs (300s): each test registers a name on the
+  // fork, connects the wallet, and may wait for smart-account / backend-auth
+  // setup — 180s can expire before the reload/redirect assertions on CI.
+  test.describe.configure({ timeout: 300_000 })
 
   test('stays connected on the dashboard across a reload', async ({
     page,

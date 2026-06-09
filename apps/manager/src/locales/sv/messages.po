@@ -662,15 +662,15 @@ msgstr ""
 msgid "Continue to Settings"
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:54
+#: src/features/auth/LoginDialog.tsx:76
 msgid "Continue with a social account to create a wallet, or connect an existing one."
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:71
+#: src/features/auth/LoginDialog.tsx:93
 msgid "Continue with Google"
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:82
+#: src/features/auth/LoginDialog.tsx:104
 msgid "Continue with X"
 msgstr ""
 
@@ -1554,7 +1554,7 @@ msgstr ""
 msgid "Open the verification link from your email to finish setup."
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:91
+#: src/features/auth/LoginDialog.tsx:113
 #: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr ""
@@ -2202,7 +2202,7 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:51
+#: src/features/auth/LoginDialog.tsx:73
 msgid "Sign in"
 msgstr ""
 

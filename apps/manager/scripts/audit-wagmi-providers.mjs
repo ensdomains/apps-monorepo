@@ -33,7 +33,21 @@ const WORKSPACE_LOCKFILE = fileURLToPath(
   new URL('../../../pnpm-lock.yaml', import.meta.url),
 )
 
-const NEEDLES = [/from\s+["']wagmi["']/, /WagmiProvider/]
+// Match genuine takeover signals, NOT incidental prose / error strings / docs.
+// A bare /WagmiProvider/ matched any text (comments, bundled examples), so an
+// unrelated vendor update could fail this merge-blocking check. Narrow to real
+// imports, requires, and symbol definitions / (re-)exports.
+const NEEDLES = [
+  // a vendor module importing wagmi (the takeover re-exports wagmi internals)
+  /\bfrom\s+["']wagmi["']/,
+  /\brequire\(\s*["']wagmi["']\s*\)/,
+  // importing the takeover package itself
+  /\bfrom\s+["']@privy-io\/wagmi["']/,
+  // declaring, importing, or (re-)exporting a WagmiProvider symbol — i.e. the
+  // identifier inside an import/export/declaration statement, not free text
+  /\b(?:import|export|const|let|var|function|class)\b[^;\n]*\bWagmiProvider\b/,
+  /\bWagmiProvider\s*[=:]/,
+]
 const VENDOR_PREFIXES = ['@privy-io', '@reown', '@walletconnect']
 
 let problems = 0

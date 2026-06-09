@@ -15,7 +15,7 @@ vi.mock('wagmi', () => ({
 vi.mock('./usePrivySession', () => ({ usePrivySession: vi.fn() }))
 vi.mock('./privy-connector', () => ({ setActivePrivySigner: vi.fn() }))
 
-const PRIVY_CONNECTOR = { id: 'privy' } as any
+const PRIVY_CONNECTOR = { id: 'privy', onAccountsChanged: vi.fn() } as any
 const ADDRESS = '0x1234567890123456789012345678901234567890'
 const SIGNER = { address: ADDRESS } as any
 
@@ -153,6 +153,27 @@ describe('usePrivyWagmiBridge', () => {
     renderHook(() => usePrivyWagmiBridge())
     await flush()
 
+    expect(connectAsync).not.toHaveBeenCalled()
+  })
+
+  it('rebinds the signer (without reconnecting) when the address changes while already connected', async () => {
+    const ADDRESS_2 = '0x000000000000000000000000000000000000beef'
+    const getSigner = vi.fn().mockResolvedValue(SIGNER)
+    // Already connected to the privy connector, bound to a DIFFERENT address.
+    mockSession({ address: ADDRESS_2, getSigner })
+    mockWagmi([{ connector: { id: 'privy' } }])
+
+    renderHook(() => usePrivyWagmiBridge())
+
+    // The module-level signer must be refreshed for the new address, and wagmi
+    // told the account changed — but we must NOT spin up a second connection.
+    await waitFor(() =>
+      expect(PRIVY_CONNECTOR.onAccountsChanged).toHaveBeenCalledWith([
+        ADDRESS_2,
+      ]),
+    )
+    expect(getSigner).toHaveBeenCalled()
+    expect(setActivePrivySigner).toHaveBeenCalledWith(SIGNER)
     expect(connectAsync).not.toHaveBeenCalled()
   })
 

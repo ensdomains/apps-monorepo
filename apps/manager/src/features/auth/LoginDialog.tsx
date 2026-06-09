@@ -1,6 +1,7 @@
 import { SiGoogle, SiX } from '@icons-pack/react-simple-icons'
 import { Trans } from '@lingui/react/macro'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import type { Connector } from 'wagmi'
 import { useConnect, useConnectors } from 'wagmi'
 import {
   Dialog,
@@ -29,7 +30,28 @@ const buttonClass =
 export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const { signInWithGoogle, signInWithX, busy, error } = usePrivySession()
   const connectors = useConnectors()
-  const { connect } = useConnect()
+  const { connectAsync } = useConnect()
+  // Which external connector is mid-connection, and any failure to surface.
+  // We keep the dialog OPEN until a connection succeeds, so a rejected
+  // MetaMask prompt / failed WC pairing leaves the user with a retry + message
+  // instead of a silently-closed dialog and no recovery path.
+  const [connectingUid, setConnectingUid] = useState<string | null>(null)
+  const [connectError, setConnectError] = useState<string | null>(null)
+
+  const connectExternal = async (connector: Connector) => {
+    setConnectError(null)
+    setConnectingUid(connector.uid)
+    try {
+      await connectAsync({ connector })
+      onOpenChange(false)
+    } catch (e) {
+      setConnectError(
+        e instanceof Error ? e.message : 'Failed to connect wallet',
+      )
+    } finally {
+      setConnectingUid(null)
+    }
+  }
 
   // Everything except our Privy connector (social is handled by the buttons
   // above), de-duplicated by name (EIP-6963 discovery can surface dupes).
@@ -96,10 +118,10 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
               {walletConnectors.map((connector) => (
                 <button
                   className={buttonClass}
+                  disabled={connectingUid !== null}
                   key={connector.uid}
                   onClick={() => {
-                    connect({ connector })
-                    onOpenChange(false)
+                    void connectExternal(connector)
                   }}
                   type="button"
                 >
@@ -122,8 +144,10 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
           </>
         )}
 
-        {error ? (
-          <p className="text-center text-red-600 text-sm">{error}</p>
+        {error || connectError ? (
+          <p className="text-center text-red-600 text-sm">
+            {error ?? connectError}
+          </p>
         ) : null}
       </DialogContent>
     </Dialog>

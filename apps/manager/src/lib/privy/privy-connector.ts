@@ -194,6 +194,18 @@ export function privyConnector() {
               case 'wallet_switchEthereumChain': {
                 const [{ chainId }] = params as [{ chainId: Hex }]
                 const id = Number.parseInt(chainId, 16)
+                // Reject chains we don't configure (mirrors switchChain() above).
+                // Otherwise wagmi emits an unsupported chainId while
+                // currentChain() silently falls back to the default for
+                // RPC/signing — the displayed chain and the execution chain
+                // would diverge.
+                if (
+                  !(config.chains as readonly Chain[]).some((c) => c.id === id)
+                ) {
+                  throw new Error(
+                    `Privy connector: chain ${id} is not in the wagmi config.`,
+                  )
+                }
                 activeChainId = id
                 config.emitter.emit('change', { chainId: id })
                 return null
