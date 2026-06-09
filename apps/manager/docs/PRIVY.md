@@ -37,8 +37,9 @@ gives full signing fidelity directly from Privy's origin-isolated iframe.
 ## Lazy loading
 
 The `@privy-io/react-auth` SDK is **~1.2 MB gzip** (≈ half the client bundle —
-and it forces `@walletconnect/*` in transitively). It must NOT sit in the
-initial or SSR/worker bundle. So it's isolated behind a lazily loaded chunk:
+and it forces `@walletconnect/*` in transitively). It must not load on the
+initial client page (achieved) nor initialise at worker startup. So it's
+isolated behind a lazily loaded chunk:
 
 - **`PrivyRuntime.tsx`** is the only module importing the SDK. It's loaded via
   `lazy(() => import('./privy/PrivyRuntime'))` in `RootProviders`. It mounts
@@ -63,7 +64,15 @@ removing Privy drops client JS gzip **2457 → 1263 KiB**, i.e. the SDK (incl. t
 
 1. **Server build manifest** (`dist/server/.vite/manifest.json`): `PrivyRuntime`
    is reached only via `dynamicImports`, NOT in the entry's static graph — so the
-   Cloudflare worker doesn't parse the SDK at cold start (fixes the +10ms/request).
+   worker never *executes/initialises* the SDK during SSR.
+   ⚠️ **But the SDK is still _bundled_ into the worker** (a client-only lazy chunk
+   the SSR build includes regardless — e.g. `w3m-modal`, `wui-ux-by-reown` appear
+   in the worker's module list). Cloudflare's "Worker Startup Time" includes
+   parsing the whole worker script, so cold-start only improved **~27 → ~24 ms**
+   (vs the ~17 ms pre-Privy baseline) — NOT the full +10 ms. Reclaiming the rest
+   needs **excluding the client-only Privy SDK from the server/worker build** (SSR
+   externals / a client-only boundary) — open follow-up. The CLIENT-bundle win is
+   separate and fully real.
 2. **Client chunk graph**: the `PrivyRuntime-*.js` chunk is referenced only by a
    dynamic `import()` (the `lazy()` call); the SDK's own chunks (`usePrivy-*`, the
    modal screens) are static-imported only within that lazy subtree, never by an
