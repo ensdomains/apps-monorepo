@@ -28,7 +28,12 @@ const buttonClass =
  * `login()` modal is never used; this is our UI over the headless hooks.
  */
 export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
-  const { signInWithGoogle, signInWithX, busy, error } = usePrivySession()
+  // `ready` is false until the lazily loaded Privy runtime has mounted (opening
+  // this dialog kicks that off — see LoginModalProvider). The social buttons
+  // stay disabled until then, so the real runtime sign-in callbacks are in
+  // place before they can be clicked.
+  const { signInWithGoogle, signInWithX, ready, busy, error } =
+    usePrivySession()
   const connectors = useConnectors()
   const { connectAsync } = useConnect()
   // Which external connector is mid-connection, and any failure to surface.
@@ -83,7 +88,7 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
         <div className="flex flex-col gap-3">
           <button
             className={buttonClass}
-            disabled={busy}
+            disabled={busy || !ready}
             onClick={() => {
               void signInWithGoogle()
             }}
@@ -94,7 +99,7 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
           </button>
           <button
             className={buttonClass}
-            disabled={busy}
+            disabled={busy || !ready}
             onClick={() => {
               void signInWithX()
             }}

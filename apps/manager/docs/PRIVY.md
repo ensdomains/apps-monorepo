@@ -21,8 +21,11 @@ and re-synthesize a provider (an earlier approach): that round-trip silently
 dropped any RPC method we didn't hand-reimplement. Passing the provider through
 gives full signing fidelity directly from Privy's origin-isolated iframe.
 
-- `usePrivySession` — headless auth hooks (Google/X), `getProvider` (the
-  embedded wallet's EIP-1193 provider + address), `exportWallet`, `logout`.
+- `usePrivySessionRuntime` — the headless auth hooks (Google/X), `getProvider`
+  (the embedded wallet's EIP-1193 provider + address), `exportWallet`, `logout`.
+  The ONLY module that calls the `@privy-io/react-auth` hooks.
+- `usePrivySession` — what the app reads. A thin `useSyncExternalStore` over
+  `privy-session-store`; does **not** import the SDK.
 - `usePrivyWagmiBridge` — installs the Privy provider on our connector
   (`setActivePrivyProvider`) and mirrors logout.
 - `ExternalWalletReconnect` (RootProviders) — WagmiProvider runs with
@@ -30,6 +33,26 @@ gives full signing fidelity directly from Privy's origin-isolated iframe.
   on load, but only when there's no Privy session, so a stale external wallet
   can't race the Privy bridge on reload.
 - `LoginModalProvider` / `useLoginModal` — the app-level "open login" entry point.
+
+## Lazy loading
+
+The `@privy-io/react-auth` SDK is **~1.2 MB gzip** (≈ half the client bundle —
+and it forces `@walletconnect/*` in transitively). It must NOT sit in the
+initial or SSR/worker bundle. So it's isolated behind a lazily loaded chunk:
+
+- **`PrivyRuntime.tsx`** is the only module importing the SDK. It's loaded via
+  `lazy(() => import('./privy/PrivyRuntime'))` in `RootProviders`. It mounts
+  `PrivyProvider`, runs the bridge, and publishes the session into
+  `privy-session-store`.
+- **`privy-session-store.ts`** holds the published session (read by
+  `usePrivySession` via `useSyncExternalStore`, defaulting to logged-out) and a
+  load flag (`requestPrivyLoad`).
+- The runtime loads only when `requestPrivyLoad()` fires: on mount if a stored
+  Privy session exists (returning social user → restore), or when the login
+  dialog opens (`LoginModalProvider.openLogin`). **A visitor who never
+  authenticates — e.g. the landing page, or external-wallet-only users — never
+  downloads the SDK.** Verify in devtools: the Privy chunks load only on
+  dialog-open / session-restore, and the worker startup no longer parses the SDK.
 
 ## Non-negotiable constraints (enforced)
 

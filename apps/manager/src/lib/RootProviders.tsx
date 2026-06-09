@@ -1,11 +1,10 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { PrivyProvider } from '@privy-io/react-auth'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useRouteContext } from '@tanstack/react-router'
 import posthog from 'posthog-js'
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useSyncExternalStore } from 'react'
 import {
   useConfig,
   useConnection,
@@ -20,7 +19,7 @@ import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { backendAuthStore } from '@/utils/backend-client'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
 import { hasStoredPrivySession } from './privy/has-privy-session'
-import { usePrivyWagmiBridge } from './privy/usePrivyWagmiBridge'
+import { privyLoadStore, requestPrivyLoad } from './privy/privy-session-store'
 import { wagmiConfig } from './wagmi'
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? ''
@@ -38,13 +37,49 @@ const clearAppLocalStorage = () => {
   }
 }
 
+// The Privy SDK (~1.2 MB gzip) lives in this lazily loaded chunk so it never
+// enters the initial/SSR bundle. It's the only module importing
+// @privy-io/react-auth; everything else reads the published session from
+// privy-session-store via usePrivySession(). See docs/PRIVY.md.
+const PrivyRuntime = lazy(() => import('./privy/PrivyRuntime'))
+
 /**
- * Drives the Privy session → wagmi connector bridge. Rendered (not a bare hook
- * call in RootProviders) so it only mounts inside PrivyProvider.
+ * True on the page Privy redirects back to after social login — the URL carries
+ * `privy_oauth_code` / `privy_oauth_state` / `privy_oauth_provider`. The SDK
+ * consumes that code on init to finish authentication, so we MUST load it here
+ * even though there's no session cookie yet and the dialog is closed. Without
+ * this the app gets stuck on `/?privy_oauth_code=…`.
  */
-const PrivyBridge = () => {
-  usePrivyWagmiBridge()
-  return null
+const isPrivyOAuthRedirect = () => {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).has('privy_oauth_code')
+}
+
+/**
+ * Decides whether to load + mount the Privy runtime. Mounts it once
+ * `requestPrivyLoad()` has fired — on load if a stored Privy session exists (a
+ * returning social user, so we restore it) OR we're returning from an OAuth
+ * redirect (must consume the code), or when the user opens the login dialog
+ * (LoginModalProvider). A visitor who never authenticates (e.g. the landing
+ * page) never downloads the SDK.
+ */
+const PrivyLoader = () => {
+  const shouldLoad = useSyncExternalStore(
+    privyLoadStore.subscribe,
+    privyLoadStore.getSnapshot,
+    privyLoadStore.getServerSnapshot,
+  )
+
+  useEffect(() => {
+    if (hasStoredPrivySession() || isPrivyOAuthRedirect()) requestPrivyLoad()
+  }, [])
+
+  if (!shouldLoad) return null
+  return (
+    <Suspense fallback={null}>
+      <PrivyRuntime />
+    </Suspense>
+  )
 }
 
 /**
@@ -144,30 +179,6 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
     select: (context) => context.queryClient,
   })
 
-  // LoginModalProvider renders the social-login dialog and must sit inside
-  // PrivyProvider (it uses the headless Privy hooks); when Privy isn't
-  // configured, consumers fall back to useLoginModal's no-op default.
-  const wrappedChildren = privyAppId ? (
-    <LoginModalProvider>{children}</LoginModalProvider>
-  ) : (
-    children
-  )
-
-  const tree = (
-    <WagmiBootAssertion>
-      <ExternalWalletReconnect />
-      <ConnectionCookieSync />
-      <WalletLifecycle />
-      {/* Bridge only mounts when Privy is configured (it needs Privy context). */}
-      {privyAppId ? <PrivyBridge /> : null}
-      <PHProvider>
-        <SmartAccountContextProvider>
-          {wrappedChildren}
-        </SmartAccountContextProvider>
-      </PHProvider>
-    </WagmiBootAssertion>
-  )
-
   return (
     <I18nProvider i18n={i18n}>
       {/* reconnectOnMount disabled: ExternalWalletReconnect drives reconnection
@@ -175,27 +186,20 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           external wallet racing the Privy bridge on reload. */}
       <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
         <QueryClientProvider client={queryClient}>
-          {/* Headless Privy: login() is never called; no smart/global wallets;
-              showWalletUIs:false suppresses vendor confirmation dialogs. Social
-              methods are Google + X only. When VITE_PRIVY_APP_ID is unset the
-              app still boots (auth disabled) so non-auth flows keep working. */}
-          {privyAppId ? (
-            <PrivyProvider
-              appId={privyAppId}
-              config={{
-                loginMethods: ['google', 'twitter'],
-                embeddedWallets: {
-                  ethereum: { createOnLogin: 'users-without-wallets' },
-                  showWalletUIs: false,
-                },
-                appearance: { walletList: [] },
-              }}
-            >
-              {tree}
-            </PrivyProvider>
-          ) : (
-            tree
-          )}
+          <WagmiBootAssertion>
+            <ExternalWalletReconnect />
+            <ConnectionCookieSync />
+            <WalletLifecycle />
+            {/* Privy SDK is lazy-loaded; the runtime publishes its session into
+                privy-session-store, which consumers read via usePrivySession().
+                Only mounted when Privy is configured. */}
+            {privyAppId ? <PrivyLoader /> : null}
+            <PHProvider>
+              <SmartAccountContextProvider>
+                <LoginModalProvider>{children}</LoginModalProvider>
+              </SmartAccountContextProvider>
+            </PHProvider>
+          </WagmiBootAssertion>
         </QueryClientProvider>
       </WagmiProvider>
     </I18nProvider>

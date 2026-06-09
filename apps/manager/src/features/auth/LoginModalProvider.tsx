@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState } from 'react'
+import { requestPrivyLoad } from '@/lib/privy/privy-session-store'
 import { LoginDialog } from './LoginDialog'
 
 type LoginModalContextValue = {
@@ -12,8 +13,7 @@ type LoginModalContextValue = {
 const noop = () => {}
 
 /**
- * Default value (used when no provider is mounted — e.g. when
- * VITE_PRIVY_APP_ID is unset and auth is disabled) is a no-op, so call sites
+ * Default value (used when no provider is mounted) is a no-op, so call sites
  * can always call `openLogin()` without guarding.
  */
 const LoginModalContext = createContext<LoginModalContextValue>({
@@ -30,9 +30,9 @@ export const useLoginModal = () => useContext(LoginModalContext)
 
 /**
  * Owns the login-dialog open state and renders the dialog once at the app root.
- * Must be mounted inside PrivyProvider (the dialog uses the headless Privy
- * hooks). When Privy isn't configured it simply isn't mounted, and consumers
- * fall back to the no-op default above.
+ * The dialog reads the Privy session from privy-session-store (not the SDK
+ * directly), so this no longer needs to sit inside PrivyProvider — opening it
+ * triggers the lazy Privy load (see openLogin).
  */
 export const LoginModalProvider = ({
   children,
@@ -43,7 +43,14 @@ export const LoginModalProvider = ({
 
   const value = useMemo<LoginModalContextValue>(
     () => ({
-      openLogin: () => setIsOpen(true),
+      openLogin: () => {
+        // Kick off loading the Privy SDK chunk as the dialog opens, so the
+        // social buttons are ready by the time the user reaches for them.
+        // (External-wallet login doesn't need Privy; a visitor who never opens
+        // this dialog never downloads the SDK.)
+        requestPrivyLoad()
+        setIsOpen(true)
+      },
       closeLogin: () => setIsOpen(false),
       isOpen,
     }),

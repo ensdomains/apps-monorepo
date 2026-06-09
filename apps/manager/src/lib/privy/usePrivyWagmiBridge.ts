@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useConnect, useConnections, useConnectors, useDisconnect } from 'wagmi'
 import { setActivePrivyProvider } from './privy-connector'
-import { usePrivySession } from './usePrivySession'
+import { usePrivySessionRuntime } from './usePrivySessionRuntime'
 
 /**
  * `createWallet()` throws this for a returning user whose embedded wallet
@@ -31,7 +31,7 @@ const isExistingWalletError = (e: unknown): boolean =>
  *      users, not belt-and-braces (handoff §4.2).
  */
 export function usePrivyWagmiBridge() {
-  const privy = usePrivySession()
+  const privy = usePrivySessionRuntime()
   const connections = useConnections()
   const connectors = useConnectors()
   const { mutateAsync: connectAsync } = useConnect()

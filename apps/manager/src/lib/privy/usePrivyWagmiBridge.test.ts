@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnect, useConnections, useConnectors, useDisconnect } from 'wagmi'
 import { setActivePrivyProvider } from './privy-connector'
-import { usePrivySession } from './usePrivySession'
+import { usePrivySessionRuntime } from './usePrivySessionRuntime'
 import { usePrivyWagmiBridge } from './usePrivyWagmiBridge'
 
 vi.mock('wagmi', () => ({
@@ -12,7 +12,9 @@ vi.mock('wagmi', () => ({
   useConnectors: vi.fn(),
   useDisconnect: vi.fn(),
 }))
-vi.mock('./usePrivySession', () => ({ usePrivySession: vi.fn() }))
+vi.mock('./usePrivySessionRuntime', () => ({
+  usePrivySessionRuntime: vi.fn(),
+}))
 vi.mock('./privy-connector', () => ({ setActivePrivyProvider: vi.fn() }))
 
 const PRIVY_CONNECTOR = { id: 'privy', onAccountsChanged: vi.fn() } as any
@@ -27,7 +29,7 @@ const disconnectAsync = vi.fn().mockResolvedValue(undefined)
 type SessionOverrides = Record<string, unknown>
 
 const mockSession = (overrides: SessionOverrides = {}) => {
-  vi.mocked(usePrivySession).mockReturnValue({
+  vi.mocked(usePrivySessionRuntime).mockReturnValue({
     isConnected: true,
     ready: true,
     address: ADDRESS,
