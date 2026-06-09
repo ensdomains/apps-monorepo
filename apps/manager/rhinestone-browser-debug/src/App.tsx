@@ -1,4 +1,5 @@
 import { customSepolia, SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type RhinestoneAccount,
   RhinestoneSDK,
@@ -25,9 +26,12 @@ import {
 } from 'viem'
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
+// Payment tokens sourced from the ensjs Sepolia chain config so they can't
+// drift from the tokens the app reads.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const SUPPORTED_TOKENS = {
-  USDC: '0x2c3d8dfac22def2947e94432bcd6bb51e1ac55e6' as const,
-  DAI: '0xd030a2465ee661338de1f02d05042bbf20d5d127' as const,
+  USDC: ensjsSepolia.usdc.address,
+  DAI: ensjsSepolia.dai.address,
 }
 
 const ENS_SEPOLIA_CONTRACTS = {

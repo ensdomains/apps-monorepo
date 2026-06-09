@@ -2,7 +2,6 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { AnimateNumber } from 'motion-plus/react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useLoginModal } from '@/features/auth/LoginModalProvider'
@@ -13,6 +12,11 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { AnimatedPrice } from './AnimatedPrice'
+import {
+  PaymentCardBaseLine,
+  PaymentCardPremiumLine,
+} from './PaymentCardLineItems'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -31,6 +35,7 @@ export const PaymentCard = () => {
         TOKENS.USDC.decimals,
       ),
       basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
+      premiumPrice: decimalBigintToNumber(data.premium, TOKENS.USDC.decimals),
     }),
     placeholderData: keepPreviousData,
   })
@@ -44,10 +49,12 @@ export const PaymentCard = () => {
   return (
     <PaymentCardBase
       amount={pricingQuery.data?.totalPrice}
+      basePrice={pricingQuery.data?.basePrice}
       canNext={canNext}
       discountAmount={discountAmount}
       isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+      premiumAmount={pricingQuery.data?.premiumPrice}
       type="register"
     />
   )
@@ -59,12 +66,17 @@ export const PaymentCardBase = ({
   amount,
   isLoading,
   discountAmount,
+  premiumAmount,
+  basePrice,
   type,
 }: {
   canNext: boolean
   onNext: () => void
   amount: number | undefined
   discountAmount?: number
+  premiumAmount?: number
+  /** Base registration cost (excludes the one-time cooldown premium). */
+  basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
 }) => {
@@ -79,6 +91,21 @@ export const PaymentCardBase = ({
       )}
     >
       <div className="w-full max-w-55 space-y-3 text-center">
+        {premiumAmount !== undefined && premiumAmount > 0 && (
+          <div className="space-y-2">
+            {basePrice !== undefined && (
+              <PaymentCardBaseLine
+                basePrice={basePrice}
+                isLoading={isLoading}
+              />
+            )}
+            <PaymentCardPremiumLine
+              isLoading={isLoading}
+              premiumAmount={premiumAmount}
+            />
+          </div>
+        )}
+
         <p className="text-ens-lapis-surface text-xs uppercase">
           <Trans>Total</Trans>
         </p>
@@ -90,16 +117,7 @@ export const PaymentCardBase = ({
               isLoading && 'animate-pulse',
             )}
           >
-            <AnimateNumber
-              format={{
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-              }}
-            >
-              {amount ?? 0}
-            </AnimateNumber>
+            <AnimatedPrice emphasis="soft" value={amount ?? 0} />
           </span>
           <span className="font-normal text-base text-ens-blue-midnight leading-7">
             <Trans>USD</Trans>
@@ -114,17 +132,7 @@ export const PaymentCardBase = ({
         >
           <span className="font-normal text-2xl text-ens-peridot-core leading-ens-none">
             <Trans>
-              Save{' '}
-              <AnimateNumber
-                format={{
-                  style: 'currency',
-                  currency: 'USD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2,
-                }}
-              >
-                {discountAmount ?? 0}
-              </AnimateNumber>
+              Save <AnimatedPrice value={discountAmount ?? 0} />
             </Trans>
           </span>
         </div>

@@ -9,9 +9,14 @@ import {
 // ---------------------------------------------------------------------------
 
 /**
- * Auto-authorize message-signing only (SIWE / typed-data). NOT
- * `eth_sendTransaction` — the specs authorize those explicitly via
- * `authorizeTransaction`, and auto-permitting would break that handshake.
+ * Auto-authorize message-signing and chain-switching. NOT `eth_sendTransaction`
+ * — the specs authorize those explicitly via `authorizeTransaction`, and
+ * auto-permitting would break that handshake.
+ *
+ * `SwitchEthereumChain` is required: the Rhinestone SDK calls
+ * `walletClient.switchChain()` inside `signWithOwners` before each
+ * `eth_signTypedData_v4` call. Without it the authorize middleware queues the
+ * request and the signing loop hangs indefinitely.
  */
 export const PERMITTED_SIGN_KINDS = [
   Web3RequestKind.SignMessage,
@@ -19,6 +24,7 @@ export const PERMITTED_SIGN_KINDS = [
   Web3RequestKind.SignTypedDataV1,
   Web3RequestKind.SignTypedDataV3,
   Web3RequestKind.SignTypedDataV4,
+  Web3RequestKind.SwitchEthereumChain,
 ] as const
 
 /**
@@ -92,7 +98,7 @@ export async function connectWithHeadlessWallet(
   const headlessOption = page.getByText('Headless Web3 Provider')
   await expect(async () => {
     if (!(await modal.isVisible().catch(() => false))) {
-      await connectButton.click({ timeout: 5_000 }).catch(() => {})
+      await connectButton.click({ timeout: 5_000 }).catch(() => { })
     }
     await expect(headlessOption).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 40_000 })
@@ -118,7 +124,7 @@ export async function clickThroughEnableSessions(page: Page): Promise<void> {
     await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
     await enableBtn.click()
     const overlay = page.locator('[data-slot="dialog-overlay"]')
-    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
+    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => { })
   } catch {
     // Modal never appeared — sessions already enabled or feature flag off.
   }
@@ -239,16 +245,53 @@ export async function signInBackendAuthModal(
   })
 
   const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-  await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
+  await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => { })
 }
 
 // ---------------------------------------------------------------------------
-// Transaction helpers (re-exported from portal-auth for convenience)
+// Transaction helpers
 // ---------------------------------------------------------------------------
-// In EOA mode the manager submits registration transactions through the
-// connected headless wallet just like the portal app, so the same
-// authorize helpers apply.
-export {
-  authorizeTransaction,
-  authorizeTransactions,
-} from './portal-auth.js'
+// These live here rather than re-exporting from portal-auth because the
+// manager uses Rhinestone (intent-based signing) while the portal is pure
+// EOA.  In the Rhinestone flow only the USDC approval is a plain
+// eth_sendTransaction; resolver/commit/register are eth_signTypedData_v4
+// intents that are auto-authorized via PERMITTED_SIGN_KINDS.  Owning these
+// helpers directly lets us add Rhinestone-specific overloads without
+// touching portal infrastructure.
+
+/**
+ * Authorize a pending `eth_sendTransaction` in the headless wallet.
+ *
+ * In the Rhinestone registration flow this is only called once — for the
+ * ERC-20 USDC approval.  Intents (resolver deploy, commit, register) are
+ * `eth_signTypedData_v4` and are auto-authorized via `PERMITTED_SIGN_KINDS`.
+ */
+export async function authorizeTransaction(
+  wallet: Web3ProviderBackend,
+  timeoutMs = 60_000,
+): Promise<void> {
+  const result = await Promise.race([
+    wallet.authorize(Web3RequestKind.SendTransaction),
+    new Promise<'timeout'>((resolve) =>
+      setTimeout(() => resolve('timeout'), timeoutMs),
+    ),
+  ])
+
+  if (result === 'timeout') {
+    throw new Error(
+      `authorizeTransaction timed out after ${timeoutMs}ms waiting for SendTransaction`,
+    )
+  }
+}
+
+/**
+ * Wait for and authorize multiple sequential `eth_sendTransaction` requests.
+ */
+export async function authorizeTransactions(
+  wallet: Web3ProviderBackend,
+  count: number,
+): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    await authorizeTransaction(wallet)
+  }
+}

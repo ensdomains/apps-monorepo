@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { ChevronRight, Loader2, Plus, Trash2 } from 'lucide-react'
 
 import { MSymbol } from '@/components/ui/material-symbol'
