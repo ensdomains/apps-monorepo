@@ -1,31 +1,23 @@
-import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
+import type { Signer } from '@ens-apps/transaction-manager'
+import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
-  type SUPPORTED_TOKEN,
-  SUPPORTED_TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { assertPaymentTokenSupported } from '@ens-apps/transaction-manager/contracts/paymentToken'
-import {
-  createTransactionRequest,
+  authorizedPaymentAmount,
   ensureHcaDeployedActor,
-  getSignerAddress,
+  type PermitSignature,
   pollTransactionStatusActor,
+  readPaymentTokenAllowanceActor,
+  signPermitActor,
   submitApprovalActor,
+  submitPermitAndRenewActor,
+  submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import type { Address } from 'viem'
-import { encodeFunctionData } from 'viem'
-import { assign, fromPromise, setup } from 'xstate'
+import { assign, setup } from 'xstate'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
-import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
+import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
-
-const ETH_REGISTRAR = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensEthRegistrar',
-})
 
 type SubmissionData = {
   label: string
@@ -37,91 +29,30 @@ type SubmissionData = {
   /** Formatted base price */
   priceNumber: number
 
+  /**
+   * Signer used to submit the renewal (and, for rhinestone/HCA, carry the
+   * gasless permit). EOA on the pure-EOA path; the HCA on the sponsored path.
+   */
   signer: Signer
 
   /**
-   * EOA signer used ONLY for the ERC-20 token `approve`. The ENS registrar
-   * resolves the HCA to its EOA owner via the HCA Factory, then calls
-   * `transferFrom(EOA_owner, feeCollector, price)` — so the allowance must be
-   * set by the EOA, not the HCA.
+   * EOA that actually pays the rent. `ETHRegistrar.renew` charges
+   * `_msgSender()`, and the registrar's HCA-aware sender resolution unwraps an
+   * HCA caller back to its owner EOA — so the allowance must be authorized by
+   * (and read for) this EOA on every signer path. The permit MUST be signed by
+   * it too (an HCA can't produce an EIP-2612 signature).
+   */
+  ownerAddress: Address
+
+  /**
+   * EOA signer used ONLY to produce the EIP-2612 permit signature on the
+   * rhinestone/HCA path. Absent on the pure-EOA path (which uses a plain
+   * on-chain `approve` with the main `signer`).
    */
   approvalSigner?: Signer
 }
 
-const startRenewalTransaction = async ({
-  label,
-  duration,
-  signer,
-  selectedToken,
-}: {
-  label: string
-  duration: bigint
-  signer: Signer
-  selectedToken: SUPPORTED_TOKEN
-}) => {
-  const accountAddress = getSignerAddress(signer)
-  const paymentToken = SUPPORTED_TOKENS[selectedToken]
-  // Normalize to lowercase to avoid Rhinestone SDK validation issues
-  const normalizedPaymentToken = paymentToken.toLowerCase() as Address
-  console.log(
-    `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
-  )
-
-  // Check if the payment token is supported. The standard `ETHRegistrar`
-  // doesn't expose `isPaymentToken` directly — the helper resolves the
-  // registrar's `rentPriceOracle()` and queries it there. Throws if not
-  // supported.
-  await assertPaymentTokenSupported(
-    publicClient,
-    ETH_REGISTRAR,
-    normalizedPaymentToken,
-  )
-
-  const writeParams = renewNameWriteParameters(
-    publicClient as unknown as Parameters<typeof renewNameWriteParameters>[0],
-    {
-      name: `${label}.eth`,
-      duration,
-      paymentToken: normalizedPaymentToken,
-    },
-  )
-
-  const txData = encodeFunctionData({
-    ...writeParams,
-  })
-
-  const request = createTransactionRequest({
-    signer,
-    from: accountAddress,
-    to: ETH_REGISTRAR,
-    data: txData,
-    value: 0n,
-    chainId: publicClient.chain.id,
-    calls: [
-      {
-        to: ETH_REGISTRAR,
-        data: txData,
-        value: 0n,
-      },
-    ],
-    sponsored: true,
-  })
-
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request,
-    },
-    signer,
-    {
-      chainId: publicClient.chain.id,
-      description: `Renew ${label}.eth`,
-      publicClient,
-    },
-  )
-
-  return txId
-}
+const isRhinestone = (signer: Signer) => signer.type === 'rhinestone'
 
 export const renewalUiMachine = setup({
   types: {
@@ -131,6 +62,7 @@ export const renewalUiMachine = setup({
       selectedToken: SUPPORTED_TOKEN | undefined
       lastErrorMessage?: string
       submissionData?: SubmissionData
+      permit?: PermitSignature
       approvalTxId?: string
       renewalTxId?: string
     },
@@ -151,6 +83,7 @@ export const renewalUiMachine = setup({
           /** Price in token units */
           priceRaw: bigint
           signer: Signer
+          ownerAddress: Address
           approvalSigner?: Signer
 
           /** Formatted base price */
@@ -166,20 +99,37 @@ export const renewalUiMachine = setup({
       (input: Parameters<typeof ensureHcaDeployedActor>[0]) =>
         ensureHcaDeployedActor(input),
     ),
+    readPaymentTokenAllowance: fromResultAsync(
+      (input: Parameters<typeof readPaymentTokenAllowanceActor>[0]) =>
+        readPaymentTokenAllowanceActor(input),
+    ),
+    signPermit: fromResultAsync(
+      (input: Parameters<typeof signPermitActor>[0]) => signPermitActor(input),
+    ),
     submitTokenApproval: fromResultAsync(
       (input: Parameters<typeof submitApprovalActor>[0]) =>
         submitApprovalActor(input),
     ),
-    submitRenewal: fromPromise(
-      async ({
-        input,
-      }: {
-        input: Parameters<typeof startRenewalTransaction>[0]
-      }) => startRenewalTransaction(input),
+    submitPermitAndRenewal: fromResultAsync(
+      (input: Parameters<typeof submitPermitAndRenewActor>[0]) =>
+        submitPermitAndRenewActor(input),
+    ),
+    submitRenewal: fromResultAsync(
+      (input: Parameters<typeof submitRenewActor>[0]) =>
+        submitRenewActor(input),
     ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
+  },
+  guards: {
+    // The registrar already has enough allowance from the paying EOA, so no
+    // permit/approval is needed — go straight to renew.
+    hasSufficientAllowance: ({ context }, params: { allowance: bigint }) =>
+      !!context.submissionData &&
+      params.allowance >= context.submissionData.priceRaw,
+    isRhinestoneSigner: ({ context }) =>
+      !!context.submissionData && isRhinestone(context.submissionData.signer),
   },
   actions: {
     setDuration: assign({
@@ -199,22 +149,27 @@ export const renewalUiMachine = setup({
     }),
     clearSubmission: assign({
       submissionData: () => undefined,
+      permit: () => undefined,
       approvalTxId: () => undefined,
       renewalTxId: () => undefined,
       lastErrorMessage: () => undefined,
     }),
     startRenewal: assign({
       lastErrorMessage: () => undefined,
+      permit: () => undefined,
+      approvalTxId: () => undefined,
+      renewalTxId: () => undefined,
       submissionData: ({ event }) =>
         event.type === 'renewal.start'
           ? {
               label: event.label,
               duration: event.duration,
               signer: event.signer,
-              approvalSigner: event.approvalSigner,
               token: event.token,
               priceRaw: event.priceRaw,
               priceNumber: event.priceNumber,
+              ownerAddress: event.ownerAddress,
+              approvalSigner: event.approvalSigner,
             }
           : undefined,
     }),
@@ -296,7 +251,7 @@ export const renewalUiMachine = setup({
           signer: context.submissionData!.signer,
         }),
         onDone: {
-          target: 'submittingTokenApproval',
+          target: 'checkingAllowance',
         },
         onError: {
           target: 'failure',
@@ -309,24 +264,99 @@ export const renewalUiMachine = setup({
         },
       },
     },
+    // Read the rent payer's (EOA owner's) current allowance to the registrar.
+    // The registrar charges `_msgSender()` and unwraps an HCA caller to its
+    // owner EOA, so payment authorization is always keyed off the EOA — exactly
+    // like the registration flow.
+    checkingAllowance: {
+      tags: 'renewing',
+      invoke: {
+        src: 'readPaymentTokenAllowance',
+        input: ({ context }) => ({
+          owner: context.submissionData!.ownerAddress,
+          selectedToken: context.submissionData!.token,
+          publicClient,
+        }),
+        onDone: [
+          {
+            // Already authorized enough — skip permit/approval entirely.
+            guard: {
+              type: 'hasSufficientAllowance',
+              params: ({ event }) => ({ allowance: event.output }),
+            },
+            target: 'submittingRenewal',
+          },
+          {
+            // Rhinestone/HCA: authorize via a gasless EIP-2612 permit signed by
+            // the EOA and carried into the sponsored renew bundle. No EOA tx.
+            guard: 'isRhinestoneSigner',
+            target: 'signingPermit',
+          },
+          // Pure-EOA fallback: set the allowance with a plain on-chain approve.
+          { target: 'submittingTokenApproval' },
+        ],
+        onError: [
+          {
+            // If the read fails, fall back to authorizing rather than blocking.
+            guard: 'isRhinestoneSigner',
+            target: 'signingPermit',
+          },
+          { target: 'submittingTokenApproval' },
+        ],
+      },
+    },
+    signingPermit: {
+      tags: 'renewing',
+      invoke: {
+        src: 'signPermit',
+        input: ({ context }) => {
+          const submission = context.submissionData!
+          return {
+            owner: submission.ownerAddress,
+            selectedToken: submission.token,
+            // Authorize only what this renewal needs (+ headroom), never an
+            // unlimited allowance. Mirrors registration.
+            value: authorizedPaymentAmount(submission.priceRaw),
+            // The permit MUST be signed by the EOA (an HCA can't). Use the
+            // dedicated EOA approvalSigner; fall back to the main signer for
+            // pure-EOA flows that somehow reach here.
+            approvalSigner: submission.approvalSigner ?? submission.signer,
+            publicClient,
+          }
+        },
+        onDone: {
+          target: 'submittingRenewal',
+          actions: assign({
+            permit: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'failure',
+          actions: assign({
+            lastErrorMessage: ({ event }) =>
+              event.error instanceof Error
+                ? event.error.message
+                : 'Token approval failed',
+          }),
+        },
+      },
+    },
     submittingTokenApproval: {
       tags: 'renewing',
       invoke: {
         id: 'submitTokenApproval',
         src: 'submitTokenApproval',
         input: ({ context }) => {
-          if (!context.submissionData) {
-            throw new Error('submissionData is required')
-          }
+          const submission = context.submissionData!
           return {
-            tokenPrice: context.submissionData.priceRaw,
-            selectedToken: context.submissionData.token,
-            // The registrar resolves the HCA to its EOA owner via the HCA
-            // Factory, then calls transferFrom(EOA, feeCollector, price).
-            // The approval must therefore be signed by the EOA, not the HCA.
-            signer: context.submissionData.approvalSigner ?? context.submissionData.signer,
+            tokenPrice: submission.priceRaw,
+            selectedToken: submission.token,
+            // The registrar pulls payment from the EOA, so the approve must be
+            // signed by the EOA. Pure-EOA flows already sign with the EOA.
+            signer: submission.approvalSigner ?? submission.signer,
             publicClient,
-            sponsored: true,
+            // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
+            sponsored: false,
           }
         },
         onDone: {
@@ -370,20 +400,70 @@ export const renewalUiMachine = setup({
         },
       },
     },
+    // Branch on whether a permit was signed. A signed permit means the
+    // rhinestone path: submit permit+renew as ONE sponsored bundle so the
+    // allowance is set atomically before `renew` pulls payment — this is what
+    // fixes the "insufficient allowance" simulation failure. Otherwise
+    // (sufficient allowance already, or a pure-EOA approve already landed)
+    // submit a standalone renew.
     submittingRenewal: {
+      tags: 'renewing',
+      always: [
+        {
+          guard: ({ context }) => !!context.permit,
+          target: 'submittingRenewalBundle',
+        },
+        { target: 'submittingPlainRenewal' },
+      ],
+    },
+    submittingRenewalBundle: {
+      tags: 'renewing',
+      invoke: {
+        id: 'submitPermitAndRenewal',
+        src: 'submitPermitAndRenewal',
+        input: ({ context }) => {
+          const submission = context.submissionData!
+          return {
+            permit: context.permit!,
+            selectedToken: submission.token,
+            label: submission.label,
+            duration: submission.duration,
+            signer: submission.signer,
+            publicClient,
+            sponsored: true,
+          }
+        },
+        onDone: {
+          target: 'waitingForRenewal',
+          actions: assign({
+            renewalTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'failure',
+          actions: assign({
+            lastErrorMessage: ({ event }) =>
+              event.error instanceof Error
+                ? event.error.message
+                : 'Renewal failed',
+          }),
+        },
+      },
+    },
+    submittingPlainRenewal: {
       tags: 'renewing',
       invoke: {
         id: 'submitRenewal',
         src: 'submitRenewal',
         input: ({ context }) => {
-          if (!context.submissionData) {
-            throw new Error('submissionData is required')
-          }
+          const submission = context.submissionData!
           return {
-            label: context.submissionData.label,
-            duration: context.submissionData.duration,
-            signer: context.submissionData.signer,
-            selectedToken: context.submissionData.token,
+            label: submission.label,
+            duration: submission.duration,
+            selectedToken: submission.token,
+            signer: submission.signer,
+            publicClient,
+            sponsored: isRhinestone(submission.signer),
           }
         },
         onDone: {
@@ -431,9 +511,18 @@ export const renewalUiMachine = setup({
     success: {},
     failure: {
       on: {
+        // Retry from the allowance check: a prior attempt may have landed (skip
+        // to renew) and a fresh permit signature is needed otherwise.
         retry: {
-          target: 'ensuringHcaDeployed',
-          actions: 'clearFailure',
+          target: 'checkingAllowance',
+          actions: [
+            'clearFailure',
+            assign({
+              permit: () => undefined,
+              approvalTxId: () => undefined,
+              renewalTxId: () => undefined,
+            }),
+          ],
         },
         cancel: {
           target: 'pricing',
