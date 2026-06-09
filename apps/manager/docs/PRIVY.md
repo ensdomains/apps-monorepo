@@ -11,12 +11,24 @@ EIP-6963 + WalletConnect). Privy is signer-only — ENS owns the connection laye
 Social login (Privy, headless) ─┐
 External wallet (EIP-6963 / WC) ─┤→ wagmi connector → useConnection() ← single source of truth
                                  │     (Privy: src/lib/privy/privy-connector.ts)
-viem signer (src/lib/privy/privy-signer.ts, for the Privy embedded wallet)
                                  └→ Rhinestone HCA + Warp (gas-sponsored, owner-signed Intents)
 ```
 
-- `usePrivySession` — headless auth hooks (Google/X), `getSigner`, `exportWallet`, `logout`.
-- `usePrivyWagmiBridge` — installs the Privy signer on our connector and mirrors logout.
+The Privy connector hands wagmi the embedded wallet's **own EIP-1193 provider**
+(`wallet.getEthereumProvider()`) straight through — the same approach
+`@privy-io/wagmi` uses internally. We do **not** wrap it in a viem `LocalAccount`
+and re-synthesize a provider (an earlier approach): that round-trip silently
+dropped any RPC method we didn't hand-reimplement. Passing the provider through
+gives full signing fidelity directly from Privy's origin-isolated iframe.
+
+- `usePrivySession` — headless auth hooks (Google/X), `getProvider` (the
+  embedded wallet's EIP-1193 provider + address), `exportWallet`, `logout`.
+- `usePrivyWagmiBridge` — installs the Privy provider on our connector
+  (`setActivePrivyProvider`) and mirrors logout.
+- `ExternalWalletReconnect` (RootProviders) — WagmiProvider runs with
+  `reconnectOnMount={false}`; this reconnects the last external wallet ourselves
+  on load, but only when there's no Privy session, so a stale external wallet
+  can't race the Privy bridge on reload.
 - `LoginModalProvider` / `useLoginModal` — the app-level "open login" entry point.
 
 ## Non-negotiable constraints (enforced)

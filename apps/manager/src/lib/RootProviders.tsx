@@ -5,11 +5,12 @@ import { PrivyProvider } from '@privy-io/react-auth'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useRouteContext } from '@tanstack/react-router'
 import posthog from 'posthog-js'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   useConfig,
   useConnection,
   useConnectionEffect,
+  useReconnect,
   WagmiProvider,
 } from 'wagmi'
 import { LoginModalProvider } from '@/features/auth/LoginModalProvider'
@@ -43,6 +44,38 @@ const clearAppLocalStorage = () => {
  */
 const PrivyBridge = () => {
   usePrivyWagmiBridge()
+  return null
+}
+
+/**
+ * Re-establish the previous wallet connection on load.
+ *
+ * We set `reconnectOnMount={false}` on WagmiProvider so wagmi doesn't blindly
+ * auto-reconnect the last connector on every mount. That blind reconnect was
+ * the source of the "MetaMask address shows instead of the Google address"
+ * fight: a returning social user would have their stale external wallet
+ * reconnected on reload, racing the Privy bridge.
+ *
+ * Instead we reconnect ourselves, ONCE, and ONLY when there's no Privy session:
+ *   - No Privy session  → restore the external wallet (MetaMask / WalletConnect)
+ *     the user last connected, so they stay logged in across reloads.
+ *   - Privy session present → do nothing here; the bridge owns the connection.
+ *     (wagmi's reconnect() skips the privy connector anyway — its isAuthorized()
+ *     is false until the bridge installs a provider — so this only ever restores
+ *     external wallets.)
+ */
+const ExternalWalletReconnect = () => {
+  const { reconnect } = useReconnect()
+  const done = useRef(false)
+
+  useEffect(() => {
+    if (done.current) return
+    done.current = true
+    if (!hasStoredPrivySession()) {
+      reconnect()
+    }
+  }, [reconnect])
+
   return null
 }
 
@@ -122,6 +155,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   const tree = (
     <WagmiBootAssertion>
+      <ExternalWalletReconnect />
       <ConnectionCookieSync />
       <WalletLifecycle />
       {/* Bridge only mounts when Privy is configured (it needs Privy context). */}
@@ -136,7 +170,10 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <I18nProvider i18n={i18n}>
-      <WagmiProvider config={wagmiConfig}>
+      {/* reconnectOnMount disabled: ExternalWalletReconnect drives reconnection
+          ourselves (only when there's no Privy session) to avoid a stale
+          external wallet racing the Privy bridge on reload. */}
+      <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
         <QueryClientProvider client={queryClient}>
           {/* Headless Privy: login() is never called; no smart/global wallets;
               showWalletUIs:false suppresses vendor confirmation dialogs. Social
