@@ -8,9 +8,8 @@ import {
   type AccountInitResult,
   initializeAccountActor,
 } from './actors/initialize-account.actor'
-import type { ParaClient } from './types'
 
-export type WalletSource = 'external-wallet' | 'para-embedded'
+export type WalletSource = 'external-wallet'
 
 interface SmartAccountContext {
   readonly client: AccountClient | null
@@ -19,24 +18,15 @@ interface SmartAccountContext {
   readonly config: SmartAccountConfig | null
   readonly walletSource: WalletSource | null
   readonly walletClient: WalletClient | null
-  readonly paraClient: ParaClient | null
   readonly infrastructure: TransactionInfra
   readonly error: string | null
 }
 
-type WalletConnectedEvent =
-  | {
-      type: 'WALLET_CONNECTED'
-      walletSource: 'external-wallet'
-      walletClient: WalletClient
-      paraClient?: never
-    }
-  | {
-      type: 'WALLET_CONNECTED'
-      walletSource: 'para-embedded'
-      paraClient: ParaClient
-      walletClient?: WalletClient
-    }
+type WalletConnectedEvent = {
+  type: 'WALLET_CONNECTED'
+  walletSource: 'external-wallet'
+  walletClient: WalletClient
+}
 
 type SmartAccountEvent = WalletConnectedEvent | { type: 'WALLET_DISCONNECTED' }
 
@@ -51,7 +41,6 @@ const INITIAL_CONTEXT: SmartAccountContext = {
   config: null,
   walletSource: null,
   walletClient: null,
-  paraClient: null,
   infrastructure: 'warp',
   error: null,
 }
@@ -97,7 +86,6 @@ export const smartAccountMachine = setup({
           actions: assign(({ event }) => ({
             walletSource: event.walletSource,
             walletClient: event.walletClient ?? null,
-            paraClient: 'paraClient' in event ? event.paraClient : null,
             error: null,
           })),
         },
@@ -111,7 +99,6 @@ export const smartAccountMachine = setup({
         input: ({ context }) => ({
           walletSource: requireWalletSource(context),
           walletClient: context.walletClient ?? undefined,
-          paraClient: context.paraClient ?? undefined,
         }),
         onDone: {
           target: 'ready',

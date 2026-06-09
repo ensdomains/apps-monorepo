@@ -15,9 +15,13 @@ import { MobileConnectButton } from './MobileConnectButton'
 
 type MobileHeaderProps = {
   readonly isConnected: boolean
+  readonly connectionSettled: boolean
 }
 
-export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
+export const MobileHeader = ({
+  isConnected,
+  connectionSettled,
+}: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -84,10 +88,17 @@ export const MobileHeader = ({ isConnected }: MobileHeaderProps) => {
                 <MSymbol className="ms-opsz-24" symbol="search" />
               </button>
               <div className="ml-auto flex min-w-0 shrink items-center">
-                {isConnected ? (
-                  <MobileAccountDrawer />
+                {connectionSettled ? (
+                  isConnected ? (
+                    <MobileAccountDrawer />
+                  ) : (
+                    <MobileConnectButton />
+                  )
                 ) : (
-                  <MobileConnectButton />
+                  <div
+                    aria-hidden
+                    className="h-8 w-20 animate-pulse rounded-full bg-ens-gray-two/60"
+                  />
                 )}
               </div>
             </motion.div>

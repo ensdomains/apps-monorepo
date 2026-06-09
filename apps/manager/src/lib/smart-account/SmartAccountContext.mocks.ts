@@ -10,22 +10,16 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   Signer: {},
 }))
 
-vi.mock('@getpara/viem-v2-integration', () => ({
-  createParaAccount: vi.fn().mockReturnValue({
-    address: '0xParaAddress123456789012345678901234567890' as const,
-    signMessage: vi.fn(),
-    signTypedData: vi.fn(),
-  }),
-}))
-
 // Mock all external dependencies
-vi.mock('@getpara/react-sdk-lite', () => ({
-  useClient: vi.fn().mockReturnValue(null),
-  useWallet: vi.fn().mockReturnValue({ data: null, isPending: false }),
-}))
-
 vi.mock('wagmi', () => ({
   useWalletClient: vi.fn().mockReturnValue({ data: null }),
+  useConnection: vi.fn().mockReturnValue({
+    address: undefined,
+    isConnected: false,
+    isConnecting: false,
+    isReconnecting: false,
+    status: 'disconnected',
+  }),
 }))
 
 vi.mock('viem/actions', () => ({
@@ -48,6 +42,12 @@ vi.mock('@/utils/backend-client', () => ({
     wallet: {
       fund: {
         $post: vi.fn().mockResolvedValue({ ok: true, json: () => ({}) }),
+      },
+      tokens: {
+        $get: vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => ({ chainId: 11155111, tokens: {} }),
+        }),
       },
     },
   },
