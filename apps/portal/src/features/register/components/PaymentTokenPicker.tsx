@@ -8,7 +8,10 @@ import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
-import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import {
+  getRegistrationPriceQueryOptions,
+  getRenewalPriceQueryOptions,
+} from '@/features/register/hooks/useRegistrationPrice'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   buildTokenData,
@@ -34,6 +37,7 @@ type PaymentTokenPickerProps = {
   readonly name: string
   readonly duration: number
   readonly isRegistering?: boolean
+  readonly isRenewal?: boolean
   readonly onSelectionChange: (token: TokenWithPriceAndBalance | null) => void
 }
 
@@ -41,6 +45,7 @@ export const PaymentTokenPicker = ({
   name,
   duration,
   isRegistering = false,
+  isRenewal = false,
   onSelectionChange,
 }: PaymentTokenPickerProps) => {
   const config = useConfig()
@@ -57,6 +62,7 @@ export const PaymentTokenPicker = ({
       })),
     }),
     enabled: Boolean(address),
+    staleTime: 0,
   })
 
   const allowancesQuery = useQuery({
@@ -69,11 +75,15 @@ export const PaymentTokenPicker = ({
       })),
     }),
     enabled: Boolean(address),
+    staleTime: 0,
   })
 
+  const getPriceQueryOptions = isRenewal
+    ? getRenewalPriceQueryOptions
+    : getRegistrationPriceQueryOptions
   const priceQueries = useQueries({
     queries: PAYMENT_TOKENS.map((token) =>
-      getRegistrationPriceQueryOptions({
+      getPriceQueryOptions({
         name,
         duration,
         token: token.address,
