@@ -84,6 +84,14 @@ export function privyConnector() {
       async connect(params: { chainId?: number } = {}) {
         const { address } = ensureBinding()
         const target = params.chainId ?? activeChainId ?? defaultChain.id
+        // Reject chains we don't configure (mirrors switchChain): otherwise wagmi
+        // would report a chain that currentChain() can't serve, splitting the
+        // displayed chain from the one used for RPC/signing.
+        if (!(config.chains as readonly Chain[]).some((c) => c.id === target)) {
+          throw new Error(
+            `Privy connector: chain ${target} is not in the wagmi config.`,
+          )
+        }
         activeChainId = target
         return {
           accounts: [address] as readonly Address[],

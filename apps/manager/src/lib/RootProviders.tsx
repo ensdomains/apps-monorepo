@@ -20,6 +20,7 @@ import { backendAuthStore } from '@/utils/backend-client'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
 import { hasStoredPrivySession } from './privy/has-privy-session'
 import { privyLoadStore, requestPrivyLoad } from './privy/privy-session-store'
+import { usePrivySession } from './privy/usePrivySession'
 import { wagmiConfig } from './wagmi'
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? ''
@@ -101,15 +102,35 @@ const PrivyLoader = () => {
  */
 const ExternalWalletReconnect = () => {
   const { reconnect } = useReconnect()
-  const done = useRef(false)
+  const { ready, isConnected } = usePrivySession()
+  const initialDone = useRef(false)
+  const skippedForPrivy = useRef(false)
+  const fallbackDone = useRef(false)
 
+  // On load: with no Privy session, restore the last external wallet now. With
+  // a Privy session present, defer to the bridge (don't race it) and remember
+  // that we skipped.
   useEffect(() => {
-    if (done.current) return
-    done.current = true
-    if (!hasStoredPrivySession()) {
+    if (initialDone.current) return
+    initialDone.current = true
+    if (hasStoredPrivySession()) {
+      skippedForPrivy.current = true
+    } else {
       reconnect()
     }
   }, [reconnect])
+
+  // Fallback: we deferred above because a `privy-token` existed, but the Privy
+  // runtime resolved logged-out (a stale/expired token). The bridge won't
+  // connect, so restore the external wallet we skipped — otherwise a user with
+  // MetaMask + a stale Privy cookie would appear disconnected after reload.
+  useEffect(() => {
+    if (fallbackDone.current) return
+    if (skippedForPrivy.current && ready && !isConnected) {
+      fallbackDone.current = true
+      reconnect()
+    }
+  }, [ready, isConnected, reconnect])
 
   return null
 }

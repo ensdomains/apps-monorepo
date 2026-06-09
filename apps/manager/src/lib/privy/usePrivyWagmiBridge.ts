@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useConnect, useConnections, useConnectors, useDisconnect } from 'wagmi'
 import { setActivePrivyProvider } from './privy-connector'
 import { usePrivySessionRuntime } from './usePrivySessionRuntime'
@@ -10,6 +10,10 @@ import { usePrivySessionRuntime } from './usePrivySessionRuntime'
  */
 const isExistingWalletError = (e: unknown): boolean =>
   e instanceof Error && /already has an embedded wallet/i.test(e.message)
+
+// How many times to retry a non-benign createWallet failure (covers transient
+// network blips) before giving up and signing out to recover.
+const MAX_CREATE_ATTEMPTS = 3
 
 /**
  * Glue between the Privy session and our custom wagmi connector.
@@ -38,9 +42,15 @@ export function usePrivyWagmiBridge() {
   const { mutateAsync: disconnectAsync } = useDisconnect()
   const privyConnector = connectors.find((c) => c.id === 'privy')
   const lastAttemptedAddress = useRef<string | null>(null)
+  // createWallet retry budget. A non-benign failure must not strand the user on
+  // an infinite loading state (the "creating" latch would otherwise short-
+  // circuit every rerender). retryTick re-runs the bind effect for a retry.
+  const createAttempts = useRef(0)
+  const [retryTick, setRetryTick] = useState(0)
 
   // Bind: when the Privy session is live, install the signer on the connector
   // and wagmi-connect to it. At most one connect attempt per address change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retryTick isn't read in the effect — it's an intentional trigger to re-run it for a createWallet retry.
   useEffect(() => {
     if (!privyConnector) return
     if (!privy.isConnected) return
@@ -86,15 +96,34 @@ export function usePrivyWagmiBridge() {
             await privy.createDefaultWallet()
             // Success → wallets list updates → effect re-runs with an address.
             lastAttemptedAddress.current = null
+            createAttempts.current = 0
           } catch (e) {
             if (isExistingWalletError(e)) {
               // Returning user: wallet exists, just not surfaced yet. Wait for
               // the address to appear (effect re-runs → path (a) connects).
               lastAttemptedAddress.current = 'awaiting-existing-wallet'
             } else {
-              // Genuine failure (e.g. embedded wallets disabled in dashboard).
-              // Leave the "creating" latch set so we don't loop.
-              console.error('[privy-wagmi] createWallet failed:', e)
+              // Genuine failure (embedded wallets disabled, transient network…).
+              createAttempts.current += 1
+              if (createAttempts.current < MAX_CREATE_ATTEMPTS) {
+                // Likely transient — clear the latch and re-run to retry.
+                console.warn(
+                  `[privy-wagmi] createWallet failed (attempt ${createAttempts.current}); retrying`,
+                  e,
+                )
+                lastAttemptedAddress.current = null
+                setRetryTick((t) => t + 1)
+              } else {
+                // Out of retries: don't deadlock on infinite loading. Sign out
+                // so the user falls back to a recoverable logged-out state (the
+                // dashboard guard then redirects to '/') and can retry. The
+                // session-end effect resets the latch + counter.
+                console.error(
+                  '[privy-wagmi] createWallet failed after retries; signing out',
+                  e,
+                )
+                await privy.logout()
+              }
             }
           }
           return
@@ -133,7 +162,19 @@ export function usePrivyWagmiBridge() {
     return () => {
       cancelled = true
     }
-  }, [privy, connections, connectAsync, privyConnector])
+  }, [privy, connections, connectAsync, privyConnector, retryTick])
+
+  // Reset per-session bridge state when the Privy session ends, so a fresh
+  // login starts clean. The logout-mirror effect below only resets when wagmi
+  // was actually connected to the privy connector; this also covers the case
+  // where we never connected (e.g. createWallet failed before connecting), so
+  // the "creating" latch doesn't persist into the next login attempt.
+  useEffect(() => {
+    if (privy.ready && !privy.isConnected) {
+      lastAttemptedAddress.current = null
+      createAttempts.current = 0
+    }
+  }, [privy.ready, privy.isConnected])
 
   // Mirror logout. When the Privy session goes away but wagmi still has the
   // privy connector live, tear that down too.

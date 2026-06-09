@@ -37,6 +37,7 @@ const mockSession = (overrides: SessionOverrides = {}) => {
     busy: false,
     getProvider: vi.fn().mockResolvedValue(BINDING),
     createDefaultWallet: vi.fn().mockResolvedValue(undefined),
+    logout: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as any)
 }
@@ -138,6 +139,28 @@ describe('usePrivyWagmiBridge', () => {
       expect(connectAsync).toHaveBeenCalledWith({ connector: PRIVY_CONNECTOR }),
     )
     expect(createDefaultWallet).toHaveBeenCalledTimes(1) // did not loop
+  })
+
+  it('retries a non-benign createWallet failure, then signs out to recover (no deadlock)', async () => {
+    const createDefaultWallet = vi
+      .fn()
+      .mockRejectedValue(new Error('embedded wallets are disabled'))
+    const logout = vi.fn().mockResolvedValue(undefined)
+    mockSession({
+      address: null,
+      hasEmbeddedWallet: false,
+      createDefaultWallet,
+      logout,
+    })
+    mockWagmi([])
+
+    renderHook(() => usePrivyWagmiBridge())
+
+    // Retries up to the cap, then logs out instead of latching "creating"
+    // forever (which would strand the user on infinite /dashboard loading).
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1))
+    expect(createDefaultWallet).toHaveBeenCalledTimes(3) // MAX_CREATE_ATTEMPTS
+    expect(connectAsync).not.toHaveBeenCalled()
   })
 
   it('does not connect Privy while an external wallet is connected', async () => {
