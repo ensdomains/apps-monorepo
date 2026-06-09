@@ -238,11 +238,11 @@ const ChainPickerDialog = ({
           Add chains
         </DialogTitle>
 
-        <div className="mt-3 flex h-9 items-center gap-2 rounded-full border border-[#d4d4d4] px-3 text-ens-quartz-400">
-          <Search className="size-4 shrink-0" />
+        <div className="mt-4 flex min-h-11 shrink-0 items-center gap-3 rounded-full border border-[#d4d4d4] px-4 text-ens-quartz-400">
+          <Search className="size-5 shrink-0" />
           <input
             aria-label="Search chains"
-            className="min-w-0 flex-1 bg-transparent text-[12px] text-ens-quartz-900 outline-none placeholder:text-ens-quartz-300"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-ens-quartz-900 leading-[1.4] outline-none placeholder:text-ens-quartz-300"
             disabled={disabled}
             onChange={(event) => setSearchValue(event.target.value)}
             placeholder="Search chains"
@@ -250,7 +250,7 @@ const ChainPickerDialog = ({
           />
         </div>
 
-        <div className="mt-3 min-h-0 overflow-y-auto pr-1">
+        <div className="mt-4 min-h-0 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-2">
             {records.map((record) => {
               const option = getAddressOption(record.coinType)
