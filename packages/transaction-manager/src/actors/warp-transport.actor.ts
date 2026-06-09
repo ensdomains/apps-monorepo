@@ -65,7 +65,7 @@ export function submitWarpTransaction(
         request,
         new Error(
           'Warp transport requires a RhinestoneAccount but received a different client type. ' +
-          'Check that the Rhinestone HCA provider is active.',
+            'Check that the Rhinestone HCA provider is active.',
         ),
       ),
     )
