@@ -1855,6 +1855,10 @@ msgstr ""
 msgid "Registering for"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx:65
+msgid "Registration"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
 msgid "Registration complete"
@@ -3085,4 +3089,3 @@ msgstr ""
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""
-

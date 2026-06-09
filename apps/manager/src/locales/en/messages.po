@@ -1850,6 +1850,10 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx:65
+msgid "Registration"
+msgstr "Registration"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
 msgid "Registration complete"

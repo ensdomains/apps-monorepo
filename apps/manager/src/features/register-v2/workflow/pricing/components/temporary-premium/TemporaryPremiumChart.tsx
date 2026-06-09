@@ -1,8 +1,8 @@
 import {
   type ChangeEvent,
-  forwardRef,
   type MouseEvent,
   type PointerEvent,
+  type Ref,
   type RefObject,
   useCallback,
   useEffect,
@@ -621,6 +621,7 @@ export type TemporaryPremiumChartProps = {
    * collide with the chart edges. Hover pills are suppressed in this mode.
    */
   selectedLabelBelow?: boolean
+  ref?: Ref<HTMLButtonElement>
 }
 
 type LabelView = {
@@ -695,26 +696,21 @@ function BelowLabel({
   )
 }
 
-export const TemporaryPremiumChart = forwardRef<
-  HTMLButtonElement,
-  TemporaryPremiumChartProps
->(function TemporaryPremiumChart(
-  {
-    startDate,
-    nowPoint,
-    selectedPoint,
-    onSelect,
-    leaderConfig,
-    height = 240,
-    className,
-    debug,
-    tweenNowPrice = true,
-    tweenDurationMs = 800,
-    allowPastSelection = false,
-    selectedLabelBelow = false,
-  },
+export function TemporaryPremiumChart({
+  startDate,
+  nowPoint,
+  selectedPoint,
+  onSelect,
+  leaderConfig,
+  height = 240,
+  className,
+  debug,
+  tweenNowPrice = true,
+  tweenDurationMs = 800,
+  allowPastSelection = false,
+  selectedLabelBelow = false,
   ref,
-) {
+}: TemporaryPremiumChartProps) {
   const containerRef = useRef<HTMLButtonElement>(null)
   const { width } = useElementSize(containerRef)
 
@@ -1237,4 +1233,4 @@ export const TemporaryPremiumChart = forwardRef<
       {belowLabel}
     </div>
   )
-})
+}
