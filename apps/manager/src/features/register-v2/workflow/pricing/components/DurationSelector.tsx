@@ -108,7 +108,7 @@ export const DurationSelector = () => {
                 duration: data.duration,
               })
             }
-            price={query.data?.totalPrice}
+            price={query.data?.basePrice}
           />
         )
       })}

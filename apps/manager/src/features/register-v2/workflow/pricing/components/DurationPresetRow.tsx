@@ -81,7 +81,7 @@ export const DurationPresetRow = ({
             )}
           </span>
           <span className="font-normal text-[#A0A4A6] text-xs leading-none tracking-tight md:text-base">
-            <Trans>total</Trans>
+            <Trans>base price</Trans>
           </span>
         </div>
       </div>
