@@ -8,7 +8,7 @@ msgstr ""
 "Language: sv\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-06-08 18:47\n"
+"PO-Revision-Date: 2026-03-12 12:36\n"
 "Last-Translator: \n"
 "Language-Team: Swedish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -772,7 +772,7 @@ msgstr ""
 
 #: src/features/navigation/Header/account/NavSection.tsx:23
 msgid "Dashboard"
-msgstr "Översikt"
+msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx:89
 #: src/features/dashboard/components/NamesTable.tsx:94
@@ -1045,6 +1045,10 @@ msgstr ""
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:163
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
+
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
+#~ msgid "Failed to set primary name"
+#~ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
@@ -1725,6 +1729,10 @@ msgstr ""
 msgid "Profile saved"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
+#~ msgid "Profile updated"
+#~ msgstr ""
+
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
 msgid "Profile updated successfully."
 msgstr ""
@@ -2310,6 +2318,10 @@ msgstr ""
 msgid "Submitting token approval"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
+#~ msgid "Submitting your ENS profile update. This may take a few moments."
+#~ msgstr ""
+
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
 msgstr ""
@@ -2452,6 +2464,10 @@ msgstr ""
 msgid "Transaction submitted:"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
+#~ msgid "Transaction:"
+#~ msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
 msgstr ""
@@ -2474,6 +2490,14 @@ msgstr ""
 #: src/routes/notifications/_authenticated/index.tsx:97
 msgid "Unread only"
 msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
+#~ msgid "Update failed"
+#~ msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
+#~ msgid "Updating profile"
+#~ msgstr ""
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx:61
@@ -2690,6 +2714,10 @@ msgstr ""
 msgid "Waiting for the resolver deployment"
 msgstr ""
 
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
+#~ msgid "Waiting for the transaction to be confirmed…"
+#~ msgstr ""
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
 msgstr ""
@@ -2903,6 +2931,10 @@ msgstr ""
 #: src/features/dashboard/components/FaqSection.tsx:40
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
+#~ msgid "Your profile changes have been confirmed on-chain."
+#~ msgstr ""
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
