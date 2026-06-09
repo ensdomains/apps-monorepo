@@ -1,22 +1,24 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Check } from 'lucide-react'
-import type { Address } from 'viem'
+import { Check, PanelRight } from 'lucide-react'
+import { useState } from 'react'
+import { type Address, zeroAddress } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
 } from '../../hooks/useRegistryRoles'
-
-const isAdminRole = (role: Role) => role.endsWith('_ADMIN')
-
-const hasAdmin = (roles: Role[]) => roles.some(isAdminRole)
-const hasUser = (roles: Role[]) => roles.some((role) => !isAdminRole(role))
+import { isAdminRole } from '../../utils/registryRoleAccess'
+import { RegistryEditUserSheet } from './RegistryEditUserSheet'
 
 const formatRole = (role: Role) =>
   role
@@ -27,7 +29,27 @@ const formatRole = (role: Role) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 
-const roleLabels = (roles: Role[]) => Array.from(new Set(roles.map(formatRole)))
+type RoleRowEntry = {
+  label: string
+  hasAdmin: boolean
+  hasUser: boolean
+}
+
+const toRoleEntries = (roles: Role[]): RoleRowEntry[] => {
+  const map = new Map<string, RoleRowEntry>()
+  for (const role of roles) {
+    const label = formatRole(role)
+    const existing = map.get(label) ?? {
+      label,
+      hasAdmin: false,
+      hasUser: false,
+    }
+    if (isAdminRole(role)) existing.hasAdmin = true
+    else existing.hasUser = true
+    map.set(label, existing)
+  }
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
+}
 
 const GreenCheck = () => (
   <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
@@ -41,7 +63,7 @@ const UserCell = ({ account }: { account: Address }) => (
   </div>
 )
 
-const columns: ColumnDef<RegistryRoleRow>[] = [
+const baseColumns: ColumnDef<RegistryRoleRow>[] = [
   {
     id: 'user',
     accessorKey: 'account',
@@ -53,9 +75,12 @@ const columns: ColumnDef<RegistryRoleRow>[] = [
     header: () => <span className="text-muted-foreground">Role</span>,
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5 text-muted-foreground">
-        {roleLabels(row.original.roles).map((label) => (
-          <span className="font-mono pb-2" key={label}>
-            {label}
+        {toRoleEntries(row.original.roles).map((entry) => (
+          <span
+            className="font-mono pb-2 leading-5 h-5 box-content"
+            key={entry.label}
+          >
+            {entry.label}
           </span>
         ))}
       </div>
@@ -64,12 +89,34 @@ const columns: ColumnDef<RegistryRoleRow>[] = [
   {
     id: 'admin',
     header: () => <span className="text-muted-foreground">Admin</span>,
-    cell: ({ row }) => (hasAdmin(row.original.roles) ? <GreenCheck /> : null),
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        {toRoleEntries(row.original.roles).map((entry) => (
+          <div
+            className="h-5 pb-2 box-content flex items-center"
+            key={entry.label}
+          >
+            {entry.hasAdmin ? <GreenCheck /> : null}
+          </div>
+        ))}
+      </div>
+    ),
   },
   {
     id: 'user-level',
     header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => (hasUser(row.original.roles) ? <GreenCheck /> : null),
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        {toRoleEntries(row.original.roles).map((entry) => (
+          <div
+            className="h-5 pb-2 box-content flex items-center"
+            key={entry.label}
+          >
+            {entry.hasUser ? <GreenCheck /> : null}
+          </div>
+        ))}
+      </div>
+    ),
   },
 ]
 
@@ -79,6 +126,38 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
     isLoading,
     error,
   } = useQuery(getRegistryRolesQueryOptions({ address }))
+
+  const [editingRow, setEditingRow] = useState<RegistryRoleRow | null>(null)
+  const { data: walletClient } = useWalletClient()
+  const callerAddress = walletClient?.account?.address
+  const { data: isAdmin = false } = useQuery({
+    ...getHasRolesQueryOptions({
+      registryAddress: address,
+      roles: ['ROLE_REGISTRAR_ADMIN'],
+      account: callerAddress ?? zeroAddress,
+    }),
+    enabled: !!callerAddress,
+  })
+
+  const columns: ColumnDef<RegistryRoleRow>[] = isAdmin
+    ? [
+        ...baseColumns,
+        {
+          id: 'actions',
+          header: () => null,
+          cell: ({ row }) => (
+            <Button
+              onClick={() => setEditingRow(row.original)}
+              aria-label="Edit user roles"
+              variant="secondary"
+              className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
+            >
+              <PanelRight className="size-4 text-muted-foreground" />
+            </Button>
+          ),
+        },
+      ]
+    : baseColumns
 
   const rows = roles ?? []
 
@@ -94,8 +173,28 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   }
 
   return (
-    <div className="[&_td]:align-top [&_.overflow-x-auto]:overflow-visible">
+    <div
+      className={cn(
+        '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
+        // Last-cell overrides target the Edit-icon column — only present for
+        // admins. Skipping these for non-admins prevents the table's
+        // last visible column (User-level check) from getting squished.
+        isAdmin &&
+          '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
+      )}
+    >
       <DataTable columns={columns} data={rows} />
+      {isAdmin && (
+        <RegistryEditUserSheet
+          open={!!editingRow}
+          onOpenChange={(open) => {
+            if (!open) setEditingRow(null)
+          }}
+          registryAddress={address}
+          account={editingRow?.account ?? null}
+          currentRoles={editingRow?.roles ?? []}
+        />
+      )}
     </div>
   )
 }
