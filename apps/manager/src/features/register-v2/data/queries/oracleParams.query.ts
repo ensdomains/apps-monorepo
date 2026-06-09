@@ -12,7 +12,7 @@ import type { PremiumDecayConfig } from '../../workflow/pricing/lib/premiumDecay
 
 export class GetOracleParamsError extends TaggedError('GetOracleParamsError')<{
   readonly cause: GetPremiumDecayParamsErrorType
-}> { }
+}> {}
 
 export type OracleParams = {
   readonly premiumDecay: PremiumDecayConfig

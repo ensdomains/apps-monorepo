@@ -29,7 +29,7 @@ export class GetRegisterPriceError extends TaggedError(
   'GetRegisterPriceError',
 )<{
   readonly cause: EnsGetRegisterPriceErrorType
-}> { }
+}> {}
 
 export class MissingTokenError extends TaggedError('MissingTokenError')<
   Record<string, never>
@@ -86,7 +86,7 @@ export const getRegisterPriceQueryOptions = (
 
 export class GetRenewPriceError extends TaggedError('GetRenewPriceError')<{
   readonly cause: EnsGetRenewPriceErrorType
-}> { }
+}> {}
 
 export const getRenewPrice = ResultFn(async function* (
   label: string,
