@@ -1,9 +1,9 @@
 import { ChevronDown } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
+import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
-import type { ProfileRecords, TextRecordValue } from '../../../../../types'
-import { ImageSelectionDialog } from '../../../ImageSelectionDialog'
 import {
   useEditProfileDialogActions,
   useEditProfileDialogStatus,

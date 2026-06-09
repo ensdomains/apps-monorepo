@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressRecords } from '../../../../../data/records'
+import { addressRecords } from '@/features/profile/data/records'
 import {
   ETH_COIN_TYPE,
   getPickerRecords,

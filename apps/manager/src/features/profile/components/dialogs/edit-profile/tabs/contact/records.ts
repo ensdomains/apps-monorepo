@@ -1,4 +1,4 @@
-import type { ProfileRecords, TextRecordValue } from '../../../../../types'
+import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import {
   type ContactMethod,
   type ContactMethodKey,

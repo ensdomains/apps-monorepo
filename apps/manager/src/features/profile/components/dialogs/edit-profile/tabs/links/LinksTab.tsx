@@ -1,7 +1,7 @@
 import { Pencil, Plus, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { LinkItem, ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
-import type { LinkItem, ProfileRecords } from '../../../../../types'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import {
   getLinkValidationIssues,

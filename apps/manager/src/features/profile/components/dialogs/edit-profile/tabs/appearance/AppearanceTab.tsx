@@ -1,10 +1,10 @@
 import type { Address } from 'viem'
-import { cn, truncateAddress } from '@/lib/utils'
 import {
   DEFAULT_THEME_COLOR,
   type THEME_COLORS,
-} from '../../../../../constants'
-import type { ProfileRecords } from '../../../../../types'
+} from '@/features/profile/constants'
+import type { ProfileRecords } from '@/features/profile/types'
+import { cn, truncateAddress } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 
 type ThemeValue = (typeof THEME_COLORS)[number]['value']

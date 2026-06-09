@@ -2,10 +2,13 @@ import { Plus, Search, X } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { getAddressRecordDef } from '../../../../../data/records'
-import type { AddressRecordDef } from '../../../../../data/records/types'
-import type { AddressRecordValue, ProfileRecords } from '../../../../../types'
-import { IconRenderer } from '../../../../IconRenderer'
+import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { getAddressRecordDef } from '@/features/profile/data/records'
+import type { AddressRecordDef } from '@/features/profile/data/records/types'
+import type {
+  AddressRecordValue,
+  ProfileRecords,
+} from '@/features/profile/types'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {

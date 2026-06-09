@@ -1,7 +1,7 @@
 import { Switch } from '@/components/ui/switch'
+import { IconRenderer } from '@/features/profile/components/IconRenderer'
+import { getRecordDef } from '@/features/profile/data/records'
 import { cn } from '@/lib/utils'
-import { getRecordDef } from '../../../../../data/records'
-import { IconRenderer } from '../../../../IconRenderer'
 import type { ContactMethod } from './constants'
 
 interface ContactMethodRowProps {

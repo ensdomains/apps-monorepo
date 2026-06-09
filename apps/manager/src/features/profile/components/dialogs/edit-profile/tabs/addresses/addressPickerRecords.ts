@@ -1,5 +1,5 @@
-import { addressRecords } from '../../../../../data/records'
-import type { AddressRecordDef } from '../../../../../data/records/types'
+import { addressRecords } from '@/features/profile/data/records'
+import type { AddressRecordDef } from '@/features/profile/data/records/types'
 
 export interface AddressOption {
   readonly coinType: number
