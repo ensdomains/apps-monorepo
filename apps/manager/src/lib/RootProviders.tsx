@@ -25,12 +25,9 @@ import { wagmiConfig } from './wagmi'
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? ''
 
-// Preserve wallet-layer connection storage — a blanket localStorage.clear()
-// corrupts reconnection. Privy owns its session under BOTH `privy-` (hyphen:
-// privy-token, privy-refresh-token, privy-session, privy-id-token, …) AND
-// `privy:` (colon: privy:connections, …) keys, so we must preserve anything
-// starting with `privy`; `privy.logout()` clears those itself. Deleting the
-// `privy-*` tokens here was wiping the session on every disconnect/reload.
+// Blanket localStorage.clear() corrupts reconnection: preserve wagmi + privy
+// keys (Privy stores its session under both `privy-` and `privy:` keys, and
+// privy.logout() clears those itself).
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {
     if (key.startsWith('wagmi') || key.startsWith('privy')) continue
@@ -38,32 +35,22 @@ const clearAppLocalStorage = () => {
   }
 }
 
-// The Privy SDK (~1.2 MB gzip) lives in this lazily loaded chunk so it never
-// enters the initial/SSR bundle. It's the only module importing
-// @privy-io/react-auth; everything else reads the published session from
-// privy-session-store via usePrivySession(). See docs/PRIVY.md.
+// The Privy SDK (~1.2 MB gzip) lives in this lazy chunk so it stays off the
+// initial/SSR bundle — the only module importing @privy-io/react-auth (see
+// docs/PRIVY.md). Everything else reads the session from privy-session-store.
 const PrivyRuntime = lazy(() => import('./privy/PrivyRuntime'))
 
-/**
- * True on the page Privy redirects back to after social login — the URL carries
- * `privy_oauth_code` / `privy_oauth_state` / `privy_oauth_provider`. The SDK
- * consumes that code on init to finish authentication, so we MUST load it here
- * even though there's no session cookie yet and the dialog is closed. Without
- * this the app gets stuck on `/?privy_oauth_code=…`.
- */
+// The page Privy redirects back to after social login carries
+// `privy_oauth_code`; the SDK must load to consume it, else the app sticks on
+// `/?privy_oauth_code=…`.
 const isPrivyOAuthRedirect = () => {
   if (typeof window === 'undefined') return false
   return new URLSearchParams(window.location.search).has('privy_oauth_code')
 }
 
-/**
- * Decides whether to load + mount the Privy runtime. Mounts it once
- * `requestPrivyLoad()` has fired — on load if a stored Privy session exists (a
- * returning social user, so we restore it) OR we're returning from an OAuth
- * redirect (must consume the code), or when the user opens the login dialog
- * (LoginModalProvider). A visitor who never authenticates (e.g. the landing
- * page) never downloads the SDK.
- */
+// Loads the Privy runtime once requestPrivyLoad() fires — on a stored session
+// or an OAuth return, or when the login dialog opens. A visitor who never
+// authenticates doesn't download the SDK.
 const PrivyLoader = () => {
   const shouldLoad = useSyncExternalStore(
     privyLoadStore.subscribe,
@@ -84,21 +71,11 @@ const PrivyLoader = () => {
 }
 
 /**
- * Re-establish the previous wallet connection on load.
- *
- * We set `reconnectOnMount={false}` on WagmiProvider so wagmi doesn't blindly
- * auto-reconnect the last connector on every mount. That blind reconnect was
- * the source of the "MetaMask address shows instead of the Google address"
- * fight: a returning social user would have their stale external wallet
- * reconnected on reload, racing the Privy bridge.
- *
- * Instead we reconnect ourselves, ONCE, and ONLY when there's no Privy session:
- *   - No Privy session  → restore the external wallet (MetaMask / WalletConnect)
- *     the user last connected, so they stay logged in across reloads.
- *   - Privy session present → do nothing here; the bridge owns the connection.
- *     (wagmi's reconnect() skips the privy connector anyway — its isAuthorized()
- *     is false until the bridge installs a provider — so this only ever restores
- *     external wallets.)
+ * `reconnectOnMount` is off so wagmi doesn't blindly reconnect a stale external
+ * wallet that races the Privy bridge (the "MetaMask shows instead of Google"
+ * fight). We reconnect external wallets ourselves, only when there's no Privy
+ * session — reconnect() skips the privy connector anyway (isAuthorized() is
+ * false until the bridge installs a provider).
  */
 const ExternalWalletReconnect = () => {
   const { reconnect } = useReconnect()
@@ -107,9 +84,7 @@ const ExternalWalletReconnect = () => {
   const skippedForPrivy = useRef(false)
   const fallbackDone = useRef(false)
 
-  // On load: with no Privy session, restore the last external wallet now. With
-  // a Privy session present, defer to the bridge (don't race it) and remember
-  // that we skipped.
+  // No Privy session → restore the external wallet now; else defer to the bridge.
   useEffect(() => {
     if (initialDone.current) return
     initialDone.current = true
@@ -120,10 +95,8 @@ const ExternalWalletReconnect = () => {
     }
   }, [reconnect])
 
-  // Fallback: we deferred above because a `privy-token` existed, but the Privy
-  // runtime resolved logged-out (a stale/expired token). The bridge won't
-  // connect, so restore the external wallet we skipped — otherwise a user with
-  // MetaMask + a stale Privy cookie would appear disconnected after reload.
+  // The deferred privy-token resolved logged-out (stale) → the bridge won't
+  // connect, so restore the external wallet we skipped.
   useEffect(() => {
     if (fallbackDone.current) return
     if (skippedForPrivy.current && ready && !isConnected) {
@@ -135,14 +108,9 @@ const ExternalWalletReconnect = () => {
   return null
 }
 
-/**
- * Constraint #1, enforced at runtime. `useConfig()` must return the exact
- * `wagmiConfig` instance from src/lib/wagmi.ts. If `@privy-io/wagmi` were ever
- * installed and mounted its own WagmiProvider between ours and the app, that
- * shadow provider would have a different config reference and this throws at
- * boot — before any user data flows through the wrong config. Pairs with the
- * CI audit (scripts/audit-wagmi-providers.mjs).
- */
+// Constraint #1, at runtime: useConfig() must be our wagmiConfig. If
+// @privy-io/wagmi ever shadowed our WagmiProvider it'd return a different config
+// and throw here, before any data flows through it. Pairs with the CI audit.
 const WagmiBootAssertion = ({ children }: { children: React.ReactNode }) => {
   const observed = useConfig()
   if (observed !== wagmiConfig) {
@@ -159,10 +127,8 @@ const WagmiBootAssertion = ({ children }: { children: React.ReactNode }) => {
 const WalletLifecycle = () => {
   const { address } = useConnection()
 
-  // Keyed on `address` so in-place account switches fire too
-  // (useConnectionEffect.onConnect doesn't, as status stays "connected"):
-  // drop stale backend auth + transactions when the active address differs
-  // from the one we authed with.
+  // Keyed on `address` so in-place account switches fire too: drop stale backend
+  // auth + transactions when the active address differs from the authed one.
   useEffect(() => {
     if (!address) return
 
@@ -178,10 +144,9 @@ const WalletLifecycle = () => {
 
   useConnectionEffect({
     onDisconnect() {
-      // Skip during the reload reconnect gap: the Privy session is still in
-      // storage and the bridge will reconnect, so this isn't a real disconnect.
-      // A genuine logout clears the Privy tokens first (see useSignOut), so the
-      // cleanup still runs then.
+      // Skip during the reload gap (Privy session still stored → the bridge
+      // reconnects). A genuine logout clears the Privy tokens first, so cleanup
+      // still runs then.
       if (hasStoredPrivySession()) return
       transactionManager.clearAllAndPersistence()
       backendAuthStore.trigger.signOut()
@@ -202,18 +167,14 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <I18nProvider i18n={i18n}>
-      {/* reconnectOnMount disabled: ExternalWalletReconnect drives reconnection
-          ourselves (only when there's no Privy session) to avoid a stale
-          external wallet racing the Privy bridge on reload. */}
+      {/* reconnectOnMount off — see ExternalWalletReconnect. */}
       <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
         <QueryClientProvider client={queryClient}>
           <WagmiBootAssertion>
             <ExternalWalletReconnect />
             <ConnectionCookieSync />
             <WalletLifecycle />
-            {/* Privy SDK is lazy-loaded; the runtime publishes its session into
-                privy-session-store, which consumers read via usePrivySession().
-                Only mounted when Privy is configured. */}
+            {/* Privy SDK is lazy-loaded; mounted only when configured. */}
             {privyAppId ? <PrivyLoader /> : null}
             <PHProvider>
               <SmartAccountContextProvider>

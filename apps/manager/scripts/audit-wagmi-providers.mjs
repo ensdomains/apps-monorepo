@@ -1,25 +1,13 @@
 #!/usr/bin/env node
 /**
- * Privy wagmi-takeover guardrail (Constraint #1).
- *
- * Privy is usable in our architecture ONLY if it stays signer-only and never
- * owns the wagmi connection layer. The takeover lives in a SEPARATE package,
- * `@privy-io/wagmi`, whose `createConfig`/`WagmiProvider` are drop-in
- * replacements for wagmi's own — and Privy's docs actively recommend it. This
- * script is the tripwire that keeps the omission honest:
- *
- *   - FAILS if `@privy-io/wagmi` is referenced anywhere in the workspace
- *     lockfile (someone added it as a dep), or symlinked into this app's
- *     node_modules.
- *   - FAILS if any installed vendor package (`@privy-io/*`, `@reown/*`,
- *     `@walletconnect/*`) imports `wagmi` or ships a `WagmiProvider`.
- *
- * Must run in CI as a required, merge-blocking check (see
- * .github/workflows/test.yml) and locally via `pnpm audit:wagmi-providers`.
- * Defense-in-depth pairs with the runtime `WagmiBootAssertion` in
- * src/lib/RootProviders.tsx.
- *
- * Exit code: 0 if clean, non-zero on any hit.
+ * Privy wagmi-takeover guardrail (Constraint #1). Privy must stay signer-only
+ * and never own the wagmi layer — but `@privy-io/wagmi` (which Privy's docs
+ * recommend) is a drop-in replacement for wagmi's createConfig/WagmiProvider.
+ * This merge-blocking CI check (test.yml; `pnpm audit:wagmi-providers`) fails if:
+ *   - `@privy-io/wagmi` is in the workspace lockfile or this app's node_modules
+ *   - any installed @privy-io/* / @reown/* / @walletconnect/* package imports
+ *     wagmi or ships a WagmiProvider
+ * Pairs with the runtime WagmiBootAssertion. Exit 0 clean, non-zero on a hit.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -33,10 +21,9 @@ const WORKSPACE_LOCKFILE = fileURLToPath(
   new URL('../../../pnpm-lock.yaml', import.meta.url),
 )
 
-// Match genuine takeover signals, NOT incidental prose / error strings / docs.
-// A bare /WagmiProvider/ matched any text (comments, bundled examples), so an
-// unrelated vendor update could fail this merge-blocking check. Narrow to real
-// imports, requires, and symbol definitions / (re-)exports.
+// Match genuine takeover signals, not incidental prose/strings (a bare
+// /WagmiProvider/ matched comments/examples): real imports, requires, and
+// WagmiProvider symbol definitions / (re-)exports.
 const NEEDLES = [
   // a vendor module importing wagmi (the takeover re-exports wagmi internals)
   /\bfrom\s+["']wagmi["']/,

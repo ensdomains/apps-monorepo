@@ -6,11 +6,7 @@ const PRIVY_TOKEN_COOKIE = 'privy-token'
 const hasValue = (raw: string | null | undefined): boolean =>
   typeof raw === 'string' && raw.length > 0
 
-/**
- * Pure: does a `document.cookie`-style string contain a non-empty `privy-token`?
- * Exported for testing and reuse; matches the exact cookie name (not a
- * lookalike like `not-privy-token`).
- */
+/** Does a `document.cookie` string hold a non-empty `privy-token`? (exact name) */
 export const cookieStringHasPrivyToken = (cookieString: string): boolean => {
   const row = cookieString
     .split('; ')
@@ -19,21 +15,15 @@ export const cookieStringHasPrivyToken = (cookieString: string): boolean => {
 }
 
 /**
- * CLIENT-ONLY check for a persisted Privy session, via `document.cookie`.
+ * CLIENT-ONLY: is a Privy session persisted? Privy stores its token in a cookie
+ * (not localStorage). The reconnect-gap guards (useOnDisconnected,
+ * ConnectionCookieSync, WalletLifecycle) use it to tell a real disconnect from
+ * the brief reload window before the bridge reconnects. Not isomorphic — it also
+ * runs in unit/e2e without a server context (getCookie would throw).
  *
- * Privy stores its auth token in a COOKIE named `privy-token` (not
- * localStorage). Used by the runtime reconnect-gap guards (`useOnDisconnected`,
- * `ConnectionCookieSync`, `WalletLifecycle`) to tell a real disconnect from the
- * brief reload window where wagmi has dropped the Privy connector (its
- * in-memory signer doesn't survive reload) but Privy will restore the session.
- *
- * Deliberately NOT isomorphic: these guards also run in unit tests / e2e
- * without a server request context, where `getCookie()` would throw.
- *
- * ⚠️ Requires Privy's "HttpOnly cookies" setting OFF (current/default). If
- * enabled for production the cookie becomes JS-unreadable; the client guards
- * would then need a `usePrivy()`-based signal instead (the SSR guard below
- * already works either way). See docs/PRIVY.md.
+ * ⚠️ Assumes Privy's "HttpOnly cookies" is OFF (default). If turned on, the
+ * cookie is JS-unreadable and these client guards need a usePrivy() signal
+ * instead (the isomorphic SSR guard below still works). See docs/PRIVY.md.
  */
 export function hasStoredPrivySession(): boolean {
   if (typeof document === 'undefined') return false
@@ -45,11 +35,8 @@ export function hasStoredPrivySession(): boolean {
 }
 
 /**
- * ISOMORPHIC check for the Privy session cookie, for route `beforeLoad` guards.
- *
- * Server-side reads via `getCookie` — which works even with HttpOnly cookies
- * ON — so the SSR redirect guard stays correct regardless of that setting.
- * Client-side falls back to `document.cookie`.
+ * ISOMORPHIC check for route `beforeLoad` guards: server reads via getCookie
+ * (works even with HttpOnly on); client falls back to document.cookie.
  */
 export const hasPrivySessionCookie = createIsomorphicFn()
   .server(() => hasValue(getCookie(PRIVY_TOKEN_COOKIE)))

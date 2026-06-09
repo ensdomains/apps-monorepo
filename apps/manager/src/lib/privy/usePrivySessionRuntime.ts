@@ -10,18 +10,13 @@ import type { Address, EIP1193Provider } from 'viem'
 import type { PrivySessionValue } from './privy-session-store'
 
 /**
- * Thin wrapper around Privy's headless hooks. Social login only — Google and
- * X (Twitter); no email, no other methods (product scope). Privy's hosted
- * modal is never opened (`login()` is never called); every flow runs through
- * these headless hooks against our own UI.
+ * Thin wrapper around Privy's headless hooks (Google, X, email OTP) — Privy's
+ * hosted modal is never opened; flows run against our own UI.
  *
- * This is the ONLY app module that calls the `@privy-io/react-auth` hooks, and
- * it is imported ONLY by PrivyRuntime (the lazily loaded chunk). The rest of
- * the app reads the published value via `usePrivySession()` (the store reader),
- * so the ~1.2 MB SDK never enters the initial/SSR bundle. See docs/PRIVY.md.
- *
- * Nothing here touches wagmi. Privy produces a provider and stops there; the
- * bridge (usePrivyWagmiBridge) installs that provider on our wagmi connector.
+ * This is the ONLY module calling the `@privy-io/react-auth` hooks, imported
+ * ONLY by PrivyRuntime (the lazy chunk); the rest of the app reads the published
+ * value via usePrivySession(), keeping the SDK off the initial/SSR bundle.
+ * Nothing here touches wagmi — the bridge installs the provider on the connector.
  */
 export function usePrivySessionRuntime(): PrivySessionValue {
   const privy = usePrivy()
@@ -34,26 +29,20 @@ export function usePrivySessionRuntime(): PrivySessionValue {
     onError: (err) => setError(String(err)),
   })
 
-  // Email OTP context lives here so the dialog can hand the code back via the
-  // store without threading it through its own state. null = no code in flight.
+  // Email OTP context (null = no code in flight) so the dialog reads it via the
+  // store rather than its own state.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const { sendCode, loginWithCode } = useLoginWithEmail({
     onError: (err) => setError(String(err)),
   })
 
-  /**
-   * OAuth login. REDIRECT-based: the page navigates to the provider and back.
-   * Privy's SDK consumes the `privy_oauth_code` query param on remount — no
-   * popup, no COOP headers. In-flight app state dies at redirect (Privy
-   * restores its own auth state on return); anything else we care about must be
-   * persisted by us before calling this.
-   */
+  // OAuth is REDIRECT-based: the page navigates away and back (Privy consumes
+  // `privy_oauth_code` on return). In-flight app state dies at the redirect.
   const signInWithGoogle = useCallback(async () => {
     setBusy(true)
     setError(null)
     try {
       await initOAuth({ provider: 'google' })
-      // Unreachable in the redirect flow — the page navigates away.
     } catch (e) {
       setError(formatError(e))
       setBusy(false)
@@ -73,11 +62,7 @@ export function usePrivySessionRuntime(): PrivySessionValue {
     }
   }, [initOAuth])
 
-  /**
-   * Email OTP step 1: Privy sends a 6-digit code to the address. Unlike OAuth
-   * this is inline (no redirect) — `completeEmail(code)` finishes it. Signup vs
-   * login is decided server-side when the code verifies.
-   */
+  // Email OTP step 1 (inline, no redirect): send the code; completeEmail() verifies.
   const signInWithEmail = useCallback(
     async (email: string) => {
       setBusy(true)
@@ -95,10 +80,6 @@ export function usePrivySessionRuntime(): PrivySessionValue {
     [sendCode],
   )
 
-  /**
-   * Email OTP step 2: verify the code. On a new email this creates the Privy
-   * user and (via createOnLogin) the embedded wallet in the same step.
-   */
   const completeEmail = useCallback(
     async (code: string) => {
       setBusy(true)
@@ -116,12 +97,8 @@ export function usePrivySessionRuntime(): PrivySessionValue {
     [loginWithCode],
   )
 
-  /**
-   * Embedded-wallet creation. `createOnLogin` does NOT fire for headless
-   * (whitelabel) flows — a documented Privy limitation — so new users land with
-   * a session but no wallet. The bridge calls this client-side as the PRIMARY
-   * path for new users (handoff §4.2), not a fallback.
-   */
+  // Headless `createOnLogin` doesn't fire (Privy limitation), so new users land
+  // with a session but no wallet — the bridge calls this as the primary path.
   const createDefaultWallet = useCallback(async () => {
     setBusy(true)
     setError(null)
@@ -135,13 +112,8 @@ export function usePrivySessionRuntime(): PrivySessionValue {
     }
   }, [createWallet])
 
-  /**
-   * Privy's user-facing key export. Opens Privy's export iframe on a separate
-   * origin; the private key is assembled and displayed there — neither this app
-   * nor Privy's servers see plaintext. This is the "user can permanently leave
-   * the vendor" escape hatch and is the one place Privy's own UI is allowed to
-   * render in our otherwise-headless app.
-   */
+  // Privy's key-export iframe (separate origin; plaintext never touches us) —
+  // the "leave the vendor" escape hatch, the one place Privy's UI renders.
   const exportWallet = useCallback(async () => {
     setBusy(true)
     setError(null)
@@ -166,11 +138,8 @@ export function usePrivySessionRuntime(): PrivySessionValue {
     }
   }, [privy])
 
-  /**
-   * The Privy EMBEDDED wallet. `useWallets()` mixes embedded and external
-   * wallets; a user who linked MetaMask gets a `walletClientType: "metamask"`
-   * entry Privy cannot sign with. Filter on the embedded wallet.
-   */
+  // useWallets() mixes embedded + external; pick the embedded one (Privy can't
+  // sign with a linked external wallet).
   const embeddedWallet = wallets.find(
     (w) =>
       w.walletClientType === 'privy' ||
@@ -178,11 +147,8 @@ export function usePrivySessionRuntime(): PrivySessionValue {
   )
   const address = (embeddedWallet?.address as Address | undefined) ?? null
 
-  // Whether the user ALREADY has an embedded wallet, read from the user object
-  // (available immediately on auth) rather than `useWallets()` (which surfaces
-  // the address asynchronously after login). The bridge uses this to skip
-  // `createWallet()` for returning users — that call would just throw "already
-  // has an embedded wallet" and add a round-trip to the reconnect.
+  // Read from the user object (available immediately, unlike useWallets()) so the
+  // bridge can skip createWallet() for returning users.
   const hasEmbeddedWallet =
     privy.user?.linkedAccounts?.some(
       (account) =>
@@ -190,17 +156,11 @@ export function usePrivySessionRuntime(): PrivySessionValue {
         (account as { walletClientType?: string }).walletClientType === 'privy',
     ) ?? false
 
-  // Connection is "Privy authenticated" — independent of whether the embedded
-  // wallet has materialised yet (created asynchronously right after login).
+  // Authenticated, regardless of whether the wallet address has surfaced yet.
   const isConnected = privy.ready && privy.authenticated
 
-  /**
-   * Resolve Privy's embedded-wallet EIP-1193 provider + address. The bridge
-   * installs these on our wagmi connector (privy-connector.ts), which hands the
-   * provider straight to wagmi — no LocalAccount adapter, full signing fidelity.
-   * The provider runs in Privy's origin-isolated iframe; the key shard never
-   * leaves it.
-   */
+  // The embedded wallet's EIP-1193 provider + address; the connector hands it to
+  // wagmi unchanged (full signing fidelity, key shard stays in Privy's iframe).
   const getProvider = useCallback(async (): Promise<{
     provider: EIP1193Provider
     address: Address

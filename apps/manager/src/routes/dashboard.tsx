@@ -14,11 +14,9 @@ const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? ''
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,
   beforeLoad: () => {
-    // Cookie-based guard for server-side redirects / faster loads. Allow access
-    // for either signal: the wallet-address cookie (external wallets) OR a Privy
-    // session cookie. The Privy check is server-readable (works even with
-    // HttpOnly cookies on) and survives the reload window where the wallet
-    // cookie is briefly out of sync while the Privy connector reconnects.
+    // Cookie-based guard (server-side redirect / fast load). Either signal lets
+    // us in: the wallet-address cookie OR the Privy session cookie (server-
+    // readable, survives the reload window while the connector reconnects).
     if (!isWalletConnectedCookie() && !hasPrivySessionCookie()) {
       throw redirect({ to: '/' })
     }
@@ -26,16 +24,10 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 /**
- * Stale-session escape hatch. The `beforeLoad` cookie guard admits us whenever
- * a `privy-token` cookie is present — but that token can be stale. If Privy
- * finishes restoring (`ready`) in a logged-out state AND no external wallet is
- * connected, the smart account never initialises, so `RouteComponent` would sit
- * on `DashboardLoading` forever (and `useOnDisconnected` stays quiet because the
- * cookie still exists). Bounce back to the landing page in that case.
- *
- * Rendered only when Privy is configured (mirrors RootProviders), and always
- * mounted — independent of the loading branches below — so it can fire while
- * the dashboard is still in its loading state.
+ * Stale-session escape hatch. beforeLoad admits us on a `privy-token` cookie,
+ * but it can be stale: if Privy restores logged-out with no external wallet, the
+ * dashboard would hang on DashboardLoading forever. Always mounted (so it fires
+ * during loading); rendered only when Privy is configured.
  */
 function PrivyStaleSessionGuard() {
   const navigate = useNavigate()
@@ -43,10 +35,9 @@ function PrivyStaleSessionGuard() {
   const { address } = useConnection()
 
   useEffect(() => {
-    // `ready && !isConnected` = Privy tried to restore and the user is logged
-    // out. With no external wallet (`!address`) either, the cookie was stale.
-    // (During the legitimate reload gap Privy is authenticated but `address`
-    // hasn't surfaced yet — that's not this case, so we don't bounce it.)
+    // ready && !isConnected && !address = Privy restored logged-out and no
+    // external wallet → the cookie was stale, bounce home. (The reload gap is
+    // authenticated-but-address-not-yet-surfaced, which this correctly ignores.)
     if (ready && !isConnected && !address) {
       navigate({ to: '/' })
     }

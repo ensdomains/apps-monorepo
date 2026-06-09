@@ -28,10 +28,8 @@ export type PrivySessionValue = {
 }
 
 // ── Load flag ────────────────────────────────────────────────────────────────
-// Whether the Privy SDK chunk should be loaded + mounted. Starts false so a
-// visitor who never authenticates (e.g. the landing page) never downloads the
-// ~1.2 MB SDK. Flipped true by requestPrivyLoad() — on mount if a stored Privy
-// session exists, or when the user opens the login dialog.
+// Whether to load + mount the Privy SDK chunk. Starts false so visitors who
+// never authenticate don't download the ~1.2 MB SDK; requestPrivyLoad() flips it.
 let loadRequested = false
 const loadListeners = new Set<() => void>()
 
@@ -60,10 +58,8 @@ const DEFAULT: PrivySessionValue = {
   hasEmbeddedWallet: false,
   busy: false,
   error: null,
-  // Before the runtime is loaded these are safe stand-ins. The login dialog
-  // disables the social buttons until `ready`, so the real (runtime) callbacks
-  // are in place by the time they can be invoked; calling one early just kicks
-  // off the load.
+  // Safe stand-ins until the runtime loads. The dialog disables social buttons
+  // until `ready`; calling one early just kicks off the load.
   signInWithGoogle: async () => requestPrivyLoad(),
   signInWithX: async () => requestPrivyLoad(),
   awaitingEmailCode: null,
