@@ -39,7 +39,6 @@ import {
   hasMatchingEthAddress,
 } from '../ProfileEdit.handlers'
 import { saveRecords } from '../ProfileEdit.transactions'
-import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface SetPrimaryNameDialogProps {
   name: string
@@ -47,14 +46,18 @@ interface SetPrimaryNameDialogProps {
   onUpdated?: () => void
 }
 
-const usePrimaryNameSuccessRedirect = (params: {
-  isSuccess: boolean
-  name: string
-  onUpdated?: () => void
-  navigate: ReturnType<typeof useNavigate>
-  setOpen: (open: boolean) => void
-  queryClient: ReturnType<typeof useQueryClient>
-}) => {
+interface UsePrimaryNameSuccessRedirectParams {
+  readonly isSuccess: boolean
+  readonly name: string
+  readonly onUpdated?: () => void
+  readonly navigate: ReturnType<typeof useNavigate>
+  readonly setOpen: (open: boolean) => void
+  readonly queryClient: ReturnType<typeof useQueryClient>
+}
+
+const usePrimaryNameSuccessRedirect = (
+  params: UsePrimaryNameSuccessRedirectParams,
+) => {
   const { t } = useLingui()
   const { isSuccess, name, navigate, onUpdated, setOpen, queryClient } = params
 
@@ -90,20 +93,16 @@ export const SetPrimaryNameDialog = ({
 
   const primaryNameState = useSelector(primaryNameActor, (state) => state)
 
-  const txHash = primaryNameState.context.txHash
   const isSubmitting =
     primaryNameState.matches('submittingUpdate') ||
     primaryNameState.matches('waitingForUpdate') ||
     primaryNameState.matches('submittingReverse') ||
     primaryNameState.matches('waitingForReverse')
   const isSuccess = primaryNameState.matches('success')
-  const isError = primaryNameState.matches('error')
-  const machineErrorMessage =
-    (isError &&
-      primaryNameState.context.error &&
-      primaryNameState.context.error.message) ||
-    (isError && t`Failed to set primary name`) ||
-    undefined
+  const primaryNameErrorMessage = primaryNameState.matches('error')
+    ? (primaryNameState.context.error?.message ??
+      t`Failed to set primary name. Please try again.`)
+    : undefined
 
   const { data: records, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(name),
@@ -204,12 +203,6 @@ export const SetPrimaryNameDialog = ({
 
   const content = (
     <>
-      <UpdateStatusPanel
-        errorMessage={machineErrorMessage}
-        isSaving={isSubmitting}
-        isSuccess={isSuccess}
-        txHash={txHash}
-      />
       <p className="text-muted-foreground text-sm">
         <Trans>
           This will set <span className="font-mono">{name}</span> as your
@@ -217,6 +210,15 @@ export const SetPrimaryNameDialog = ({
           display it as your default identity.
         </Trans>
       </p>
+      {primaryNameErrorMessage && (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700"
+          role="alert"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+          <p className="text-sm">{primaryNameErrorMessage}</p>
+        </div>
+      )}
       {needsEthAddressUpdate && walletAddress && (
         <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-amber-600" />

@@ -7,6 +7,7 @@ import { getRegistrationV2AvailabilityQueryOptions } from '../../data/queries/av
 import { useRegistrationV2Context } from '../../state/registrationUi.context'
 import { DurationSelector } from './components/DurationSelector'
 import { PaymentCard } from './components/PaymentCard'
+import { PriceCooldownBannerSection } from './components/PriceCooldownBanner'
 import { PricingDomainHeader } from './components/PricingDomainHeader'
 import { PricingSummaryCard } from './components/PricingSummaryCard'
 import { TokenPickerDialog } from './components/TokenPickerDialog'
@@ -54,6 +55,7 @@ export const PricingStep = () => {
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
       <BackButton />
       <PricingDomainHeader label={label} />
+      <PriceCooldownBannerSection />
 
       <div className="grid grid-cols-1 gap-1.5 md:gap-2 lg:grid-cols-[2fr_420px] lg:items-stretch">
         <DurationSelector />

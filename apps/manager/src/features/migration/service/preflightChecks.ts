@@ -51,6 +51,7 @@ export const checkOwnership = async (
   >(publicClient, contracts)
 
   const expected = migrationOwner.toLowerCase()
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
   for (const [i, name] of names.entries()) {
     const r = results[i]
     if (!r || r.status === 'failure') {
@@ -58,7 +59,12 @@ export const checkOwnership = async (
       continue
     }
     const result = r.result
-    const currentOwner = typeof result === 'string' ? result : result[0]
+    const isWrappedToken = typeof result !== 'string'
+    const currentOwner = isWrappedToken ? result[0] : result
+    if (isWrappedToken && result[2] <= nowSeconds) {
+      ids.add(name.domain.id)
+      continue
+    }
     if (currentOwner.toLowerCase() !== expected) {
       ids.add(name.domain.id)
     }

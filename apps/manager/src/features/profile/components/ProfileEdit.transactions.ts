@@ -29,12 +29,25 @@ import {
   isSafeHttpUrl,
 } from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
+import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
+
+export { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
 
 // --- Types ---
 
+interface ServiceTextRecord {
+  readonly key: string
+  readonly value: string
+}
+
+interface ServiceCoinRecord {
+  readonly coinType: number
+  readonly value: string
+}
+
 export interface ServiceRecordSnapshot {
-  texts: Array<{ key: string; value: string }>
-  coins: Array<{ coinType: number; value: string }>
+  texts: ServiceTextRecord[]
+  coins: ServiceCoinRecord[]
   contentHash?: string
   abi?: string
 }
@@ -49,27 +62,16 @@ type CoinChange = {
   value: string | null
 }
 
+type OptionalRecordChange = {
+  before?: string
+  after?: string
+}
+
 type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
-  contentHash?: { before?: string; after?: string }
-  abi?: { before?: string; after?: string }
-}
-
-export type RecordIssue = {
-  sectionKey: string
-  fieldKey: string
-  message: string
-}
-
-export class RecordsValidationError extends Error {
-  issues: RecordIssue[]
-
-  constructor(issues: RecordIssue[]) {
-    super(issues.map((issue) => issue.message).join('\n'))
-    this.name = 'RecordsValidationError'
-    this.issues = issues
-  }
+  contentHash?: OptionalRecordChange
+  abi?: OptionalRecordChange
 }
 
 export interface SaveRecordsParams {
@@ -85,6 +87,52 @@ export interface SaveRecordsParams {
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
   txId: string
+}
+
+interface FinalTextRecord {
+  readonly key: string
+  readonly value: string | null | undefined
+}
+
+interface ValidationIssueInput {
+  readonly message?: string
+}
+
+interface TransactionCall {
+  readonly to: Address
+  readonly data: Hex
+  readonly value: bigint
+}
+
+interface CreateTransactionRequestParams {
+  readonly signer: Signer
+  readonly from: Address
+  readonly to: Address
+  readonly data: Hex
+  readonly value: bigint
+  readonly chainId: number
+  readonly calls: TransactionCall[]
+  readonly sponsored?: boolean
+}
+
+interface BuildRecordsUpdateRequestParams {
+  readonly name: string
+  readonly before: ServiceRecordSnapshot
+  readonly after: ServiceRecordSnapshot
+  readonly signer: Signer
+  readonly accountAddress: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly resolverAddress: Address
+}
+
+interface BuildRecordsUpdateRequestResult {
+  readonly request: TransactionRequest
+  readonly description: string
+}
+
+interface UnsupportedSigner {
+  readonly type: string
 }
 
 // --- Internal helpers ---
@@ -200,9 +248,7 @@ const validateLinksRecord = (value: string): RecordIssue[] => {
   )
 }
 
-const validateFinalTextRecords = (
-  texts: Array<{ key: string; value: string | null | undefined }>,
-): RecordIssue[] => {
+const validateFinalTextRecords = (texts: FinalTextRecord[]): RecordIssue[] => {
   const issues: RecordIssue[] = []
 
   for (const { key, value } of texts) {
@@ -213,7 +259,7 @@ const validateFinalTextRecords = (
       const result = v.safeParse(bioUrlSchema, trimmed)
       if (!result.success) {
         issues.push(
-          ...result.issues.map((issue: { message?: string }) => ({
+          ...result.issues.map((issue: ValidationIssueInput) => ({
             sectionKey: 'bio',
             fieldKey: 'url',
             message: issue.message ?? 'Invalid Bio URL',
@@ -230,16 +276,9 @@ const validateFinalTextRecords = (
   return issues
 }
 
-function createTransactionRequest(params: {
-  signer: Signer
-  from: Address
-  to: Address
-  data: Hex
-  value: bigint
-  chainId: number
-  calls: Array<{ to: Address; data: Hex; value: bigint }>
-  sponsored?: boolean
-}): TransactionRequest {
+function createTransactionRequest(
+  params: CreateTransactionRequestParams,
+): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
   if (signer.type === 'eoa') {
@@ -272,20 +311,13 @@ function createTransactionRequest(params: {
 
   signer satisfies never
   throw new Error(
-    `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
+    `Unsupported signer type for transaction request: ${(signer as UnsupportedSigner).type}`,
   )
 }
 
-async function buildRecordsUpdateRequest(params: {
-  name: string
-  before: ServiceRecordSnapshot
-  after: ServiceRecordSnapshot
-  signer: Signer
-  accountAddress: Address
-  publicClient: PublicClient
-  chainId: number
-  resolverAddress: Address
-}): Promise<{ request: TransactionRequest; description: string }> {
+async function buildRecordsUpdateRequest(
+  params: BuildRecordsUpdateRequestParams,
+): Promise<BuildRecordsUpdateRequestResult> {
   const {
     name,
     before,

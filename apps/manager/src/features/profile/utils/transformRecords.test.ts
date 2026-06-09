@@ -266,5 +266,22 @@ describe('profile transformRecords utils', () => {
         links: [{ name: 'Website', url: 'https://example.com' }],
       })
     })
+
+    it('should remove empty address drafts without changing filled addresses', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        addresses: [
+          { coinType: 60, value: '0x1234567890abcdef' },
+          { coinType: 0, value: '' },
+          { coinType: 501, value: '   ' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized.addresses).toEqual([
+        { coinType: 60, value: '0x1234567890abcdef' },
+      ])
+    })
   })
 })
