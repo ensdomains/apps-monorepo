@@ -26,8 +26,8 @@
   "dependencies": {
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
-    "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
+    "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
@@ -38,6 +38,7 @@
     "@lingui/core": "6.0.0",
     "@lingui/react": "6.0.0",
     "@posthog/react": "^1.7.1",
+    "@privy-io/react-auth": "^3.29.2",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",

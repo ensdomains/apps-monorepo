@@ -4,14 +4,9 @@ import {
   sepoliaWithEns,
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import {
-  frameWallet,
-  injectedWallet,
-  metaMaskWallet,
-} from '@rainbow-me/rainbowkit/wallets'
 import { createPublicClient, http } from 'viem'
 import { createConfig } from 'wagmi'
+import { privyConnector } from './privy/privy-connector'
 
 // Re-export shared chain config so existing imports from `@/lib/wagmi` keep
 // working. New code should prefer importing from `@ens-apps/indexer/chain`.
@@ -33,20 +28,15 @@ export const publicClient = createPublicClient({
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
-  multiInjectedProviderDiscovery: true,
+  // Social-login only: the sole connector is the Privy embedded wallet, surfaced
+  // through our own connector (NOT @privy-io/wagmi — Constraint #1). No injected
+  // / external-wallet discovery.
+  multiInjectedProviderDiscovery: false,
   chains: [sepoliaWithEns],
   transports: {
     [sepoliaWithEns.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
   },
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [injectedWallet, metaMaskWallet, frameWallet],
-      },
-    ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
-  ),
+  connectors: [privyConnector()],
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>
