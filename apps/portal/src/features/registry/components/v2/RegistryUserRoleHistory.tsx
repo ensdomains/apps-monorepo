@@ -27,20 +27,18 @@ const columns: ColumnDef<EnrichedEntry>[] = [
     id: 'date',
     header: () => <span className="text-muted-foreground">Date</span>,
     cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground whitespace-nowrap">
+      <div className="text-sm text-muted-foreground whitespace-nowrap mt-4">
         {formatTimestamp(BigInt(row.original.timestamp))}
-      </span>
+      </div>
     ),
   },
   {
     id: 'transaction',
     header: () => <span className="text-muted-foreground">Transaction</span>,
     cell: ({ row }) => (
-      <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant="secondary" className="text-xs">
-          RolesChanged
-        </Badge>
+      <div className="space-y-1 flex flex-col">
         <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
+        <span className="text-sm text-muted-foreground">RoleChanged</span>
       </div>
     ),
   },

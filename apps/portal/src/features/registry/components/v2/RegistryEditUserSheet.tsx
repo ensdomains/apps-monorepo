@@ -7,6 +7,14 @@ import type { Address } from 'viem'
 import { useEnsName, useWalletClient } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Field, FieldError } from '@/components/ui/field'
 import {
   Sheet,
@@ -78,6 +86,7 @@ export const RegistryEditUserSheet = ({
     toRevoke: Role[]
   } | null>(null)
   const [submitFeedback, setSubmitFeedback] = useState<string | null>(null)
+  const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false)
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRegistryRoles, isPending: isGrantPending } =
@@ -92,6 +101,7 @@ export const RegistryEditUserSheet = ({
     setSelectedRoles(new Set(currentRoles))
     setPending(null)
     setSubmitFeedback(null)
+    setIsRemoveConfirmOpen(false)
   }, [open, currentRoles])
 
   const toggleRole = (role: Role, checked: boolean) => {
@@ -150,14 +160,21 @@ export const RegistryEditUserSheet = ({
   )
   const removeWillLockOutAdmin = removeAdminLockoutRoles.length > 0
 
-  const showLockoutAlert = willLockOutAdmin || removeWillLockOutAdmin
-  const lockoutCount = new Set([
-    ...adminLockoutRoles,
-    ...removeAdminLockoutRoles,
-  ]).size
+  const showLockoutAlert = willLockOutAdmin
+  const lockoutCount = adminLockoutRoles.length
 
   const handleRemove = () => {
     if (removableRoles.length === 0) return
+    // Removing a sole-admin role is a permanent lockout — confirm first.
+    if (removeWillLockOutAdmin) {
+      setIsRemoveConfirmOpen(true)
+      return
+    }
+    runEdit([], removableRoles)
+  }
+
+  const confirmRemove = () => {
+    setIsRemoveConfirmOpen(false)
     runEdit([], removableRoles)
   }
 
@@ -283,6 +300,37 @@ export const RegistryEditUserSheet = ({
           <TransactionModal transactions={buildModalTransactions()} />
         </div>
       </SheetContent>
+
+      <Dialog open={isRemoveConfirmOpen} onOpenChange={setIsRemoveConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove user?</DialogTitle>
+            <DialogDescription>
+              You're the only Admin for{' '}
+              {removeAdminLockoutRoles.length === 1 ? 'one role' : 'some roles'}{' '}
+              held by this user. Removing them will permanently lock out admin
+              control.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsRemoveConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={confirmRemove}
+              disabled={isPending}
+            >
+              Remove user
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   )
 }
