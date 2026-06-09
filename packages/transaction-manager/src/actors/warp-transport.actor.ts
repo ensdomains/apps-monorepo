@@ -65,7 +65,7 @@ export function submitWarpTransaction(
         request,
         new Error(
           'Warp transport requires a RhinestoneAccount but received a different client type. ' +
-            'Check that the Rhinestone HCA provider is active.',
+          'Check that the Rhinestone HCA provider is active.',
         ),
       ),
     )
@@ -134,24 +134,19 @@ export function submitWarpTransaction(
       const sendLatencyMs = nowMs() - sendStart
 
       logger.debug(
-        '[WARP] Intent signed & submitted to orchestrator (ms):',
+        '📤 [WARP] sendTransaction latency (ms):',
         sendLatencyMs.toFixed(1),
-        { intentId: (transaction as { id?: unknown }).id },
       )
 
-      // Wait for the orchestrator/relayer to fill the intent on-chain.
-      // The SDK polls until status reaches FILLED, COMPLETED, or FAILED
-      // (acceptsPreconfirmations=false).  Built-in timeout: 210 s.
-      console.log('⏳ [WARP] Waiting for orchestrator fill...')
+      // Wait for a relayer to fill the intent
       const waitStart = nowMs()
       const receipt = await account.waitForExecution(transaction, false)
       const waitLatencyMs = nowMs() - waitStart
       const totalLatencyMs = nowMs() - overallStart
 
-      console.log(
-        '📥 [WARP] Intent filled by orchestrator (ms):',
+      logger.debug(
+        '📥 [WARP] waitForExecution latency (ms):',
         waitLatencyMs.toFixed(1),
-        { fillHash: receipt.fill.hash },
       )
       logger.debug(
         '✅ [WARP] Total submission latency (ms):',
