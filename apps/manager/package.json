@@ -20,7 +20,8 @@
     "i18n:push": "crowdin upload sources --config crowdin.yml",
     "i18n:pull": "crowdin download --config crowdin.yml",
     "lint": "biome check",
-    "lint:fix": "biome check --fix"
+    "lint:fix": "biome check --fix",
+    "audit:wagmi-providers": "node scripts/audit-wagmi-providers.mjs"
   },
   "dependencies": {
     "@ens-apps/indexer": "workspace:*",

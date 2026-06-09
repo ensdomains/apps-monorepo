@@ -39,6 +39,13 @@ jobs:
             echo "ref=origin/main" >> $GITHUB_OUTPUT
           fi
 
+      # Privy guardrail (Constraint #1): hard-fail if @privy-io/wagmi is ever
+      # introduced, or if any vendor package ships a WagmiProvider. Runs on
+      # every PR regardless of change detection — the whole point is to catch
+      # an accidental reintroduction. See apps/manager/scripts/audit-wagmi-providers.mjs.
+      - name: Audit wagmi providers (manager — Privy guardrail)
+        run: pnpm --filter manager audit:wagmi-providers
+
       - name: Type check changed packages
         run: |
           echo "🔍 Type checking changed packages and their dependents..."

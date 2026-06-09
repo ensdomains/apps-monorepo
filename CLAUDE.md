@@ -23,6 +23,23 @@ genuinely requires shared code updates (e.g., packages/).
 Run `pnpm typecheck` from the app directory (e.g. `apps/portal/`) to type-check.
 Do **not** use `npx tsc`, `pnpx tsc`, or `./node_modules/.bin/tsc` — they resolve to the wrong binary or skip project-level configuration.
 
+## Wallet / auth layer (manager app) — Privy guardrails
+
+The manager app uses **Privy** as a headless signer/auth vendor (Google + X
+social login). Privy is signer-only; ENS owns the connection layer. These are
+**non-negotiable** — do not "improve" them away:
+
+- **Never install `@privy-io/wagmi`.** It replaces our wagmi config with
+  Privy's (the "vendor owns the connection layer" takeover). Privy's own docs
+  recommend it — ignore that. Use `apps/manager/src/lib/wagmi.ts` +
+  `src/lib/privy/privy-connector.ts`. The CI check
+  `pnpm --filter manager audit:wagmi-providers` (in `test.yml`) blocks merge on
+  its presence, and `WagmiBootAssertion` in `RootProviders.tsx` throws at boot.
+- **Never enable Privy "smart wallets" or "global wallets."** Rhinestone is the
+  account layer; ENS is the identity layer.
+- **Stay headless.** Never call Privy's `login()` modal; use the headless hooks.
+  The one exception is key export (Privy's isolated dialog — correct).
+
 ## Package-Specific Documentation
 
 When working in specific packages, consult these design documents:
