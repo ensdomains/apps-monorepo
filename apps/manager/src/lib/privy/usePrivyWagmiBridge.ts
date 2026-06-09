@@ -46,25 +46,18 @@ export function usePrivyWagmiBridge() {
     if (!privy.isConnected) return
     if (privy.busy) return
 
+    // Respect an explicitly-connected external wallet (MetaMask / WalletConnect):
+    // if one is active, don't override it with the Privy connector.
+    const externalConnected = connections.some(
+      (c) => c.connector.id !== 'privy',
+    )
+    if (externalConnected) return
+
     const alreadyConnected = connections.some((c) => c.connector.id === 'privy')
 
     let cancelled = false
     ;(async () => {
       try {
-        // A Privy (social) session OWNS the connection. If an external connector
-        // auto-reconnected (e.g. a previously-used MetaMask via wagmi's
-        // reconnectOnMount), it would override the social login — disconnect it
-        // so Privy wins. The connect dialog only shows while disconnected, so a
-        // user can't deliberately pick an external wallet while a Privy session
-        // is live; to use one they sign out of Privy first.
-        const externalConn = connections.find((c) => c.connector.id !== 'privy')
-        if (externalConn) {
-          await disconnectAsync({ connector: externalConn.connector }).catch(
-            () => {},
-          )
-          return // connections change → effect re-runs → connect Privy
-        }
-
         // (b) — session live but no address yet. Two sub-cases:
         //   - NEW user: no embedded wallet → create one (headless flows don't
         //     auto-create; handoff §4.2).
@@ -78,6 +71,14 @@ export function usePrivyWagmiBridge() {
             lastAttemptedAddress.current === 'creating' ||
             lastAttemptedAddress.current === 'awaiting-existing-wallet'
           ) {
+            return
+          }
+          // Returning user: the wallet already exists (per the user object) but
+          // useWallets() hasn't surfaced its address yet. Skip createWallet()
+          // entirely — it would only throw "already has an embedded wallet" and
+          // slow the reconnect — and just wait for the address to appear.
+          if (privy.hasEmbeddedWallet) {
+            lastAttemptedAddress.current = 'awaiting-existing-wallet'
             return
           }
           lastAttemptedAddress.current = 'creating'
@@ -117,7 +118,7 @@ export function usePrivyWagmiBridge() {
     return () => {
       cancelled = true
     }
-  }, [privy, connections, connectAsync, disconnectAsync, privyConnector])
+  }, [privy, connections, connectAsync, privyConnector])
 
   // Mirror logout. When the Privy session goes away but wagmi still has the
   // privy connector live, tear that down too.

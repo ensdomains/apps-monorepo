@@ -122,6 +122,18 @@ export function usePrivySession() {
   )
   const address = (embeddedWallet?.address as Address | undefined) ?? null
 
+  // Whether the user ALREADY has an embedded wallet, read from the user object
+  // (available immediately on auth) rather than `useWallets()` (which surfaces
+  // the address asynchronously after login). The bridge uses this to skip
+  // `createWallet()` for returning users — that call would just throw "already
+  // has an embedded wallet" and add a round-trip to the reconnect.
+  const hasEmbeddedWallet =
+    privy.user?.linkedAccounts?.some(
+      (account) =>
+        account.type === 'wallet' &&
+        (account as { walletClientType?: string }).walletClientType === 'privy',
+    ) ?? false
+
   // Connection is "Privy authenticated" — independent of whether the embedded
   // wallet has materialised yet (created asynchronously right after login).
   const isConnected = privy.ready && privy.authenticated
@@ -151,7 +163,7 @@ export function usePrivySession() {
       isConnected,
       ready: privy.ready,
       address,
-      user: privy.user,
+      hasEmbeddedWallet,
       busy,
       error,
       signInWithGoogle,
@@ -164,8 +176,8 @@ export function usePrivySession() {
     [
       isConnected,
       privy.ready,
-      privy.user,
       address,
+      hasEmbeddedWallet,
       busy,
       error,
       signInWithGoogle,
