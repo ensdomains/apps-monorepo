@@ -9,6 +9,7 @@ import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboa
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
 import { IntegrationsSection } from '@/features/landing/IntegrationsSection'
 import { ProfilesShowcase } from '@/features/landing/ProfilesShowcase'
+import { shouldRedirectToDashboard } from '@/features/landing/shouldRedirectToDashboard'
 import { CheckAvailability } from '@/features/register/components/CheckAvailability/CheckAvailability'
 import { getConnectionCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -76,17 +77,15 @@ const useRedirectToDashboard = () => {
   })
 
   useEffect(() => {
-    // Defer the redirect until the wallet connection has settled. Navigating
-    // mid-(re)connect races TanStack Router's match state (a transient pending
-    // match whose `Outlet` throws `undefined` → blank page). The effect
-    // re-runs once `isConnecting`/`isReconnecting` clear, so the redirect still
-    // happens — just from a stable state.
-    if (isConnecting || isReconnecting) return
     if (
-      hasDomains.data &&
-      hasDomains.isSuccess &&
-      !hasDomains.isPaused &&
-      !landing
+      shouldRedirectToDashboard({
+        isConnecting,
+        isReconnecting,
+        hasDomains: hasDomains.data,
+        domainsQuerySucceeded: hasDomains.isSuccess,
+        domainsQueryPaused: hasDomains.isPaused,
+        forceLanding: landing,
+      })
     ) {
       navigate({ to: '/dashboard' })
     }
