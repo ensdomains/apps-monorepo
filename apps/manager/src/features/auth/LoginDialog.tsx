@@ -1,8 +1,9 @@
-import { SiGoogle, SiX } from '@icons-pack/react-simple-icons'
-import { Trans } from '@lingui/react/macro'
-import { useMemo, useState } from 'react'
+import { SiX } from '@icons-pack/react-simple-icons'
+import { Trans, useLingui } from '@lingui/react/macro'
+import { type FormEvent, useMemo, useState } from 'react'
 import type { Connector } from 'wagmi'
 import { useConnect, useConnectors } from 'wagmi'
+import googleIcon from '@/assets/google-icon.svg'
 import {
   Dialog,
   DialogContent,
@@ -18,34 +19,61 @@ type LoginDialogProps = {
   readonly onOpenChange: (open: boolean) => void
 }
 
-const buttonClass =
-  'inline-flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-3 font-medium text-foreground text-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60'
+// Figma tokens: grey #f3f4f6 boxes, 16px radius.
+const box =
+  'flex items-center justify-center rounded-2xl bg-[#f3f4f6] transition-colors hover:bg-[#e9ebee] disabled:cursor-not-allowed disabled:opacity-60'
+const inputBox = 'flex h-12 items-center gap-2 rounded-2xl bg-[#f3f4f6] px-4'
+const inputEl =
+  'h-full flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-[#99a1af]'
 
 /**
- * Sign-in dialog offering both social login (Google + X, via Privy's headless
- * redirect OAuth) and external wallets (MetaMask & other EIP-6963-discovered
- * injected wallets, plus WalletConnect — wagmi's own `useConnect`). Privy's
- * `login()` modal is never used; this is our UI over the headless hooks.
+ * Sign-in dialog over Privy's HEADLESS hooks (Privy's own modal is never used):
+ *   - Google + X — OAuth, redirect-based (icon-only squares)
+ *   - Email — OTP, inline two-step (enter email → enter the 6-digit code)
+ *   - MetaMask — the EIP-6963-discovered injected connector (no "more wallets")
+ *
+ * Styled to the Figma login design. The Privy SDK is lazy-loaded
+ * (RootProviders / privy-session-store): social + email controls stay disabled
+ * until `ready`, so the real runtime callbacks are installed before use.
  */
 export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
-  // `ready` is false until the lazily loaded Privy runtime has mounted (opening
-  // this dialog kicks that off — see LoginModalProvider). The social buttons
-  // stay disabled until then, so the real runtime sign-in callbacks are in
-  // place before they can be clicked.
-  const { signInWithGoogle, signInWithX, ready, busy, error } =
-    usePrivySession()
+  const { t } = useLingui()
+  const {
+    signInWithGoogle,
+    signInWithX,
+    signInWithEmail,
+    completeEmail,
+    awaitingEmailCode,
+    ready,
+    busy,
+    error,
+  } = usePrivySession()
   const connectors = useConnectors()
   const { connectAsync } = useConnect()
-  // Which external connector is mid-connection, and any failure to surface.
-  // We keep the dialog OPEN until a connection succeeds, so a rejected
-  // MetaMask prompt / failed WC pairing leaves the user with a retry + message
-  // instead of a silently-closed dialog and no recovery path.
-  const [connectingUid, setConnectingUid] = useState<string | null>(null)
+
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [reEnterEmail, setReEnterEmail] = useState(false)
+  const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
 
-  const connectExternal = async (connector: Connector) => {
+  // Only MetaMask, via EIP-6963 discovery (skip our own privy connector).
+  const metaMaskConnector = useMemo(
+    () =>
+      connectors.find(
+        (c) => c.id !== 'privy' && /metamask/i.test(`${c.id} ${c.name}`),
+      ),
+    [connectors],
+  )
+
+  // `ready` is false until the lazily loaded Privy runtime mounts (opening this
+  // dialog kicks that off — see LoginModalProvider).
+  const socialDisabled = busy || !ready
+  const showCodeStep = Boolean(awaitingEmailCode) && !reEnterEmail
+
+  const connectMetaMask = async (connector: Connector) => {
     setConnectError(null)
-    setConnectingUid(connector.uid)
+    setConnecting(true)
     try {
       await connectAsync({ connector })
       onOpenChange(false)
@@ -54,100 +82,153 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
         e instanceof Error ? e.message : 'Failed to connect wallet',
       )
     } finally {
-      setConnectingUid(null)
+      setConnecting(false)
     }
   }
 
-  // Everything except our Privy connector (social is handled by the buttons
-  // above), de-duplicated by name (EIP-6963 discovery can surface dupes).
-  const walletConnectors = useMemo(() => {
-    const seen = new Set<string>()
-    return connectors.filter((c) => {
-      if (c.id === 'privy') return false
-      if (seen.has(c.name)) return false
-      seen.add(c.name)
-      return true
-    })
-  }, [connectors])
+  const submitEmail = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!email) return
+    try {
+      await signInWithEmail(email)
+      setReEnterEmail(false) // code sent → show the code step
+    } catch {}
+  }
+
+  const submitCode = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!code) return
+    try {
+      await completeEmail(code)
+      onOpenChange(false) // authenticated → close; the app takes over
+    } catch {}
+  }
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="gap-6 rounded-[4px] p-8 shadow-[0_1px_3px_0_rgba(0,0,0,0.10),0_1px_2px_-1px_rgba(0,0,0,0.10)] sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>
-            <Trans>Sign in</Trans>
+          <DialogTitle className="text-center font-normal text-[32px] text-ens-lapis-dense">
+            <Trans>Sign up or connect</Trans>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="sr-only">
             <Trans>
-              Continue with a social account to create a wallet, or connect an
-              existing one.
+              Sign in to ENS with a social account, email, or wallet.
             </Trans>
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3">
+        {/* Social — Google + X, icon-only squares */}
+        <div className="grid grid-cols-2 gap-3">
           <button
-            className={buttonClass}
-            disabled={busy || !ready}
-            onClick={() => {
-              void signInWithGoogle()
-            }}
+            className={`${box} h-20`}
+            disabled={socialDisabled}
+            onClick={() => void signInWithGoogle()}
             type="button"
           >
-            <SiGoogle className="size-5" />
-            <Trans>Continue with Google</Trans>
+            <img alt="Google" className="size-8" src={googleIcon} />
           </button>
           <button
-            className={buttonClass}
-            disabled={busy || !ready}
-            onClick={() => {
-              void signInWithX()
-            }}
+            className={`${box} h-20`}
+            disabled={socialDisabled}
+            onClick={() => void signInWithX()}
             type="button"
           >
-            <SiX className="size-5" />
-            <Trans>Continue with X</Trans>
+            <SiX className="size-8" />
           </button>
         </div>
 
-        {walletConnectors.length > 0 && (
+        {/* Email OTP — two-step */}
+        {showCodeStep ? (
+          <form className="flex flex-col gap-3" onSubmit={submitCode}>
+            <p className="text-muted-foreground text-sm">
+              <Trans>Enter the code sent to {awaitingEmailCode}</Trans>
+            </p>
+            <div className={inputBox}>
+              <input
+                className={inputEl}
+                disabled={busy}
+                inputMode="numeric"
+                onChange={(e) => setCode(e.target.value)}
+                placeholder={t`6-digit code`}
+                value={code}
+              />
+            </div>
+            <button
+              className={`${box} h-12 font-medium text-foreground text-sm`}
+              disabled={busy || !code}
+              type="submit"
+            >
+              <Trans>Verify</Trans>
+            </button>
+            <button
+              className="text-muted-foreground text-xs underline"
+              onClick={() => {
+                setReEnterEmail(true)
+                setCode('')
+              }}
+              type="button"
+            >
+              <Trans>Use a different email</Trans>
+            </button>
+          </form>
+        ) : (
+          <form className="flex flex-col gap-3" onSubmit={submitEmail}>
+            <div className={inputBox}>
+              <MSymbol className="text-[#99a1af]" symbol="mail" />
+              <input
+                className={inputEl}
+                disabled={socialDisabled}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t`Enter your email`}
+                type="email"
+                value={email}
+              />
+            </div>
+            <button
+              className={`${box} h-12 font-medium text-foreground text-sm`}
+              disabled={socialDisabled || !email}
+              type="submit"
+            >
+              <Trans>Continue with email</Trans>
+            </button>
+          </form>
+        )}
+
+        {/* MetaMask */}
+        {metaMaskConnector ? (
           <>
             <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-border" />
-              <span className="text-muted-foreground text-xs uppercase">
+              <span className="h-px flex-1 bg-black/10" />
+              <span className="text-[#6a7282] text-sm">
                 <Trans>or</Trans>
               </span>
-              <span className="h-px flex-1 bg-border" />
+              <span className="h-px flex-1 bg-black/10" />
             </div>
-            <div className="flex flex-col gap-2">
-              {walletConnectors.map((connector) => (
-                <button
-                  className={buttonClass}
-                  disabled={connectingUid !== null}
-                  key={connector.uid}
-                  onClick={() => {
-                    void connectExternal(connector)
-                  }}
-                  type="button"
-                >
-                  {connector.icon ? (
-                    <img
-                      alt={connector.name}
-                      className="size-5"
-                      src={connector.icon}
-                    />
-                  ) : (
-                    <MSymbol
-                      className="ms-opsz-20"
-                      symbol="account_balance_wallet"
-                    />
-                  )}
-                  {connector.name}
-                </button>
-              ))}
-            </div>
+            <button
+              className={`${box} flex-col gap-3 py-6`}
+              disabled={connecting}
+              onClick={() => void connectMetaMask(metaMaskConnector)}
+              type="button"
+            >
+              {metaMaskConnector.icon ? (
+                <img
+                  alt={metaMaskConnector.name}
+                  className="size-10"
+                  src={metaMaskConnector.icon}
+                />
+              ) : (
+                <MSymbol symbol="account_balance_wallet" />
+              )}
+              <span className="flex items-center gap-1.5">
+                <span className="size-1.5 rounded-full bg-[#00bc7d]" />
+                <span className="text-[#364153] text-sm">
+                  {metaMaskConnector.name}
+                </span>
+              </span>
+            </button>
           </>
-        )}
+        ) : null}
 
         {error || connectError ? (
           <p className="text-center text-red-600 text-sm">

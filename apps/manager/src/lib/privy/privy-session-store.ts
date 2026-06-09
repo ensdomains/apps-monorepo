@@ -15,6 +15,12 @@ export type PrivySessionValue = {
   error: string | null
   signInWithGoogle: () => Promise<void>
   signInWithX: () => Promise<void>
+  // Email OTP (two-step, inline — no redirect). `awaitingEmailCode` is the
+  // address a code was sent to (null = step 1: ask for the email), so the
+  // dialog knows to switch to the code input.
+  awaitingEmailCode: string | null
+  signInWithEmail: (email: string) => Promise<void>
+  completeEmail: (code: string) => Promise<void>
   createDefaultWallet: () => Promise<void>
   exportWallet: () => Promise<void>
   logout: () => Promise<void>
@@ -60,6 +66,9 @@ const DEFAULT: PrivySessionValue = {
   // off the load.
   signInWithGoogle: async () => requestPrivyLoad(),
   signInWithX: async () => requestPrivyLoad(),
+  awaitingEmailCode: null,
+  signInWithEmail: async () => requestPrivyLoad(),
+  completeEmail: async () => {},
   createDefaultWallet: async () => {},
   exportWallet: async () => requestPrivyLoad(),
   logout: async () => {},

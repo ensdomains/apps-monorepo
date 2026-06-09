@@ -1,5 +1,6 @@
 import {
   useCreateWallet,
+  useLoginWithEmail,
   useLoginWithOAuth,
   usePrivy,
   useWallets,
@@ -30,6 +31,13 @@ export function usePrivySessionRuntime(): PrivySessionValue {
   const [busy, setBusy] = useState(false)
 
   const { initOAuth } = useLoginWithOAuth({
+    onError: (err) => setError(String(err)),
+  })
+
+  // Email OTP context lives here so the dialog can hand the code back via the
+  // store without threading it through its own state. null = no code in flight.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const { sendCode, loginWithCode } = useLoginWithEmail({
     onError: (err) => setError(String(err)),
   })
 
@@ -64,6 +72,49 @@ export function usePrivySessionRuntime(): PrivySessionValue {
       throw e
     }
   }, [initOAuth])
+
+  /**
+   * Email OTP step 1: Privy sends a 6-digit code to the address. Unlike OAuth
+   * this is inline (no redirect) — `completeEmail(code)` finishes it. Signup vs
+   * login is decided server-side when the code verifies.
+   */
+  const signInWithEmail = useCallback(
+    async (email: string) => {
+      setBusy(true)
+      setError(null)
+      try {
+        await sendCode({ email })
+        setPendingEmail(email)
+      } catch (e) {
+        setError(formatError(e))
+        throw e
+      } finally {
+        setBusy(false)
+      }
+    },
+    [sendCode],
+  )
+
+  /**
+   * Email OTP step 2: verify the code. On a new email this creates the Privy
+   * user and (via createOnLogin) the embedded wallet in the same step.
+   */
+  const completeEmail = useCallback(
+    async (code: string) => {
+      setBusy(true)
+      setError(null)
+      try {
+        await loginWithCode({ code })
+        setPendingEmail(null)
+      } catch (e) {
+        setError(formatError(e))
+        throw e
+      } finally {
+        setBusy(false)
+      }
+    },
+    [loginWithCode],
+  )
 
   /**
    * Embedded-wallet creation. `createOnLogin` does NOT fire for headless
@@ -179,6 +230,9 @@ export function usePrivySessionRuntime(): PrivySessionValue {
       error,
       signInWithGoogle,
       signInWithX,
+      awaitingEmailCode: pendingEmail,
+      signInWithEmail,
+      completeEmail,
       createDefaultWallet,
       exportWallet,
       logout,
@@ -193,6 +247,9 @@ export function usePrivySessionRuntime(): PrivySessionValue {
       error,
       signInWithGoogle,
       signInWithX,
+      pendingEmail,
+      signInWithEmail,
+      completeEmail,
       createDefaultWallet,
       exportWallet,
       logout,

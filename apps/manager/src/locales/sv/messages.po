@@ -119,6 +119,10 @@ msgstr ""
 msgid "4 character premium name"
 msgstr ""
 
+#: src/features/auth/LoginDialog.tsx:153
+msgid "6-digit code"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:72
 msgid "60-second wait prevents attacks"
 msgstr ""
@@ -662,16 +666,8 @@ msgstr ""
 msgid "Continue to Settings"
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:81
-msgid "Continue with a social account to create a wallet, or connect an existing one."
-msgstr ""
-
-#: src/features/auth/LoginDialog.tsx:98
-msgid "Continue with Google"
-msgstr ""
-
-#: src/features/auth/LoginDialog.tsx:109
-msgid "Continue with X"
+#: src/features/auth/LoginDialog.tsx:193
+msgid "Continue with email"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:140
@@ -923,6 +919,10 @@ msgstr ""
 msgid "Enter Image URL"
 msgstr ""
 
+#: src/features/auth/LoginDialog.tsx:145
+msgid "Enter the code sent to {awaitingEmailCode}"
+msgstr ""
+
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:413
 msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
 msgstr ""
@@ -935,6 +935,7 @@ msgstr ""
 msgid "Enter wallet address"
 msgstr ""
 
+#: src/features/auth/LoginDialog.tsx:183
 #: src/features/notifications/settings/contact-methods/email.tsx:77
 msgid "Enter your email"
 msgstr ""
@@ -1554,7 +1555,7 @@ msgstr ""
 msgid "Open the verification link from your email to finish setup."
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:118
+#: src/features/auth/LoginDialog.tsx:204
 #: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr ""
@@ -2202,12 +2203,12 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
-#: src/features/auth/LoginDialog.tsx:78
-msgid "Sign in"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx:122
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+msgstr ""
+
+#: src/features/auth/LoginDialog.tsx:115
+msgid "Sign in to ENS with a social account, email, or wallet."
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:138
@@ -2225,6 +2226,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
 msgid "Sign the gasless payment approval in your wallet"
+msgstr ""
+
+#: src/features/auth/LoginDialog.tsx:112
+msgid "Sign up or connect"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx:136
@@ -2536,6 +2541,10 @@ msgstr ""
 msgid "USD"
 msgstr ""
 
+#: src/features/auth/LoginDialog.tsx:172
+msgid "Use a different email"
+msgstr ""
+
 #: src/features/notifications/settings/email-verify-step.tsx:151
 msgid "Use Different Email"
 msgstr ""
@@ -2570,6 +2579,10 @@ msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx:191
 msgid "Verified!"
+msgstr ""
+
+#: src/features/auth/LoginDialog.tsx:162
+msgid "Verify"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:187

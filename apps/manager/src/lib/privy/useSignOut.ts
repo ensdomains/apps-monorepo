@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useCallback } from 'react'
 import { useDisconnect } from 'wagmi'
 import { usePrivySession } from './usePrivySession'
@@ -18,6 +19,7 @@ import { usePrivySession } from './usePrivySession'
  * the single canonical "sign out" path.
  */
 export function useSignOut() {
+  const navigate = useNavigate()
   const { logout, busy } = usePrivySession()
   const { mutateAsync: disconnectAsync, isPending: isDisconnecting } =
     useDisconnect()
@@ -30,7 +32,11 @@ export function useSignOut() {
     // throws) and is a no-op for external wallets.
     await logout()
     await disconnectAsync().catch(() => {})
-  }, [logout, disconnectAsync])
+    // Always land back on the landing page after a sign-out, from any route.
+    // (useOnDisconnected only redirects from the dashboard and can be gated by
+    // the smart-account init/reconnect guards; this is the canonical path.)
+    navigate({ to: '/' })
+  }, [logout, disconnectAsync, navigate])
 
   return { signOut, isSigningOut: busy || isDisconnecting }
 }

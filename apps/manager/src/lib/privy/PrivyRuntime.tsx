@@ -41,7 +41,7 @@ export default function PrivyRuntime() {
     <PrivyProvider
       appId={privyAppId}
       config={{
-        loginMethods: ['google', 'twitter'],
+        loginMethods: ['google', 'twitter', 'email'],
         embeddedWallets: {
           ethereum: { createOnLogin: 'users-without-wallets' },
           showWalletUIs: false,
