@@ -10,17 +10,19 @@ import {
   type PickerMode,
 } from './addressPickerRecords'
 
+interface ChainPickerOptionButtonProps {
+  readonly active: boolean
+  readonly disabled?: boolean
+  readonly onClick: () => void
+  readonly option: AddressOption
+}
+
 const ChainPickerOptionButton = ({
   active,
   disabled,
   onClick,
   option,
-}: {
-  readonly active: boolean
-  readonly disabled?: boolean
-  readonly onClick: () => void
-  readonly option: AddressOption
-}) => (
+}: ChainPickerOptionButtonProps) => (
   <button
     className={[
       'flex min-h-12 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
