@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import * as v from 'valibot'
+import { useConnection } from 'wagmi'
 import patternBg from '@/assets/pattern-bg.svg'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { FeaturesCarousel } from '@/features/landing/FeaturesCarousel'
@@ -61,6 +62,7 @@ const useRedirectToDashboard = () => {
   const navigate = useNavigate()
   const { landing } = Route.useSearch()
   const { ownerAddress } = useSmartAccountContext()
+  const { isConnecting, isReconnecting } = useConnection()
 
   const hasDomains = useQuery({
     ...getDomainsQuery({
@@ -74,6 +76,12 @@ const useRedirectToDashboard = () => {
   })
 
   useEffect(() => {
+    // Defer the redirect until the wallet connection has settled. Navigating
+    // mid-(re)connect races TanStack Router's match state (a transient pending
+    // match whose `Outlet` throws `undefined` → blank page). The effect
+    // re-runs once `isConnecting`/`isReconnecting` clear, so the redirect still
+    // happens — just from a stable state.
+    if (isConnecting || isReconnecting) return
     if (
       hasDomains.data &&
       hasDomains.isSuccess &&
@@ -88,6 +96,8 @@ const useRedirectToDashboard = () => {
     hasDomains.isPaused,
     navigate,
     landing,
+    isConnecting,
+    isReconnecting,
   ])
 }
 

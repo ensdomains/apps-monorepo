@@ -4,7 +4,7 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type { registrationMachine } from '@ens-apps/transaction-manager'
+import type { registrationMachine, Signer } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
@@ -74,6 +74,41 @@ export function handleStartRegistration(
   // meaningful SCA/EOA split lives in registrationUi.machine.ts (v2 flow).
   const resolverOwnerAddress = ownerAddress
 
+  // EOA signer used to produce the gasless EIP-2612 permit signature for HCA
+  // flows (the registrar pulls payment from the EOA owner, so the EOA must
+  // authorize the allowance). Carried into the sponsored bundle; the EOA sends
+  // no tx. Pure-EOA flows don't need it (they use a plain on-chain `approve`).
+  const approvalSigner: Signer | undefined = account.walletClient
+    ? { type: 'eoa', walletClient: account.walletClient }
+    : undefined
+
+  // HCA flows register the name to the EOA owner and the registrar pulls
+  // payment from that owner, so the gasless permit MUST be EOA-signed. Without
+  // an `approvalSigner` there's no EOA wallet to produce the permit signature
+  // (e.g. a Para embedded wallet mid-reconnect exposing no client). Fail fast
+  // with an actionable message here instead of entering the flow, doing
+  // commitment/deployment work, and stalling at the `signingPermit` step where
+  // `signPermitActor` would reject the rhinestone signer fallback. Mirrors the
+  // v2 guard in registrationUi.machine.ts.
+  const isHcaRegistration =
+    account.signer.type === 'rhinestone' &&
+    ownerAddress.toLowerCase() !== account.accountAddress.toLowerCase()
+
+  if (isHcaRegistration && !approvalSigner) {
+    console.error(
+      '❌ HCA registration is missing the EOA wallet client for the payment approval',
+      {
+        accountAddress: account.accountAddress,
+        ownerAddress,
+        type: account.type,
+      },
+    )
+    alert(
+      'Cannot register: the wallet that owns this account is unavailable to sign the payment approval. Please reconnect your wallet and try again.',
+    )
+    return
+  }
+
   console.log(`✅ Creating START_REGISTRATION event with ${account.type}:`, {
     name,
     duration: durationInSeconds,
@@ -94,6 +129,7 @@ export function handleStartRegistration(
     token,
     price: tokenPrice,
     signer: account.signer,
+    approvalSigner, // EOA signer for the gasless permit (HCA flows)
     accountAddress: account.accountAddress,
     ownerAddress, // HCA-only: register the ENS name to the EOA
     resolverOwnerAddress, // Always the EOA — resolver EACL grantee

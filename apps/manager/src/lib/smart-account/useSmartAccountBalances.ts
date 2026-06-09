@@ -1,29 +1,47 @@
 'use client'
 
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
-import {
-  type Address,
-  erc20Abi,
-  formatUnits,
-  maxUint256,
-  parseEther,
-} from 'viem'
+import { type Address, erc20Abi, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
 import { SUPPORTED_TOKENS } from '@/features/register/services/nameChainContractService'
 import { publicClient } from '@/lib/wagmi'
+import { backendClient } from '@/utils/backend-client'
 import type { EthBalance, StablecoinBalance } from './types'
 
-// Minimum owner ETH to (reliably) afford the one-time registrar `approve` at
-// elevated Sepolia gas. Mirrors the api-worker faucet drip target
-// (`APPROVAL_GAS_ETH_TARGET`) so the frontend requests a top-up exactly when
-// the worker would drip.
-const MIN_OWNER_ETH_FOR_APPROVE = parseEther('0.005')
-// A manager max-approve sets the allowance to ~uint256 max; treat anything past
-// half of that as "already approved" (matches the worker's gate).
-const REGISTRAR_APPROVED_THRESHOLD = maxUint256 / 2n
+/**
+ * The stablecoins to read balances for, keyed by symbol → address. The api-worker
+ * faucet is the source of truth: it mints whatever `/wallet/tokens` reports, so
+ * reading those same addresses guarantees the UI can never drift from the faucet
+ * (which happens when the deployed worker and the app are built against
+ * different ensjs token-address pins). Falls back to the app's local
+ * `SUPPORTED_TOKENS` if the endpoint is unavailable (e.g. an older worker
+ * deployment that predates `/wallet/tokens`).
+ */
+function useFaucetTokens(): Record<string, Address> {
+  const { data } = useQuery({
+    queryKey: $qk({ $scope: 'wallet', $action: 'faucetTokens' }),
+    queryFn: async () => {
+      const response = await backendClient.wallet.tokens.$get()
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`)
+      }
+      const { tokens } = await response.json()
+      return Object.fromEntries(
+        Object.entries(tokens).map(([symbol, t]) => [symbol, t.address]),
+      ) as Record<string, Address>
+    },
+    // Token addresses are effectively static for a given deployment.
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
+    retry: 1,
+  })
+
+  // Until the faucet token list loads (or if it fails), fall back to the app's
+  // compiled-in addresses so balances still render.
+  return data ?? SUPPORTED_TOKENS
+}
 
 interface UseSmartAccountBalancesParams {
   readonly accountAddress: Address | null
@@ -36,21 +54,20 @@ interface UseSmartAccountBalancesResult {
   readonly stablecoinBalances: StablecoinBalance[]
   readonly isLoadingBalances: boolean
   /**
-   * True when the EOA owner can't afford the one-time registrar `approve` AND
-   * hasn't approved yet. Drives the auto-fund ETH top-up: the HCA flow is
-   * Warp-sponsored except that approve (a non-sponsorable EOA tx — the mock
-   * tokens have no permit), so the owner needs a little ETH for it exactly
-   * once. Gated on "not yet approved" so an already-approved (max) owner that's
-   * low on ETH doesn't trigger endless top-up requests.
+   * Timestamp (ms) of the last successful stablecoin-balance read. Advances
+   * only on a genuine refetch — not on render churn — so consumers can use it
+   * as a stable retry trigger for balance-dependent side effects.
    */
-  readonly needsApprovalGasTopUp: boolean
-  readonly isLoadingApprovalGasState: boolean
+  readonly balancesUpdatedAt: number
 }
 
 export function useSmartAccountBalances(
   params: UseSmartAccountBalancesParams,
 ): UseSmartAccountBalancesResult {
   const { accountAddress, ownerAddress } = params
+
+  // Read balances against the exact tokens the faucet mints (see useFaucetTokens).
+  const faucetTokens = useFaucetTokens()
 
   const { data: smartAccountEthBalance, isLoading: isLoadingSmartAccountEth } =
     useQuery({
@@ -80,92 +97,58 @@ export function useSmartAccountBalances(
   // gas-funding flow sees it.
   const balanceAddress = ownerAddress
 
-  const { data: stablecoinBalances = [], isLoading: isLoadingBalances } =
-    useQuery({
-      queryKey: $qk({
-        $scope: 'wallet',
-        $action: 'stablecoinBalances',
-        address: balanceAddress,
-      }),
-      queryFn: async () => {
-        logger.info('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
-        if (!balanceAddress) return []
-
-        const results = await Promise.allSettled(
-          Object.entries(SUPPORTED_TOKENS).map(
-            async ([tokenName, tokenAddress]): Promise<StablecoinBalance> => {
-              const [balance, decimals] = await Promise.all([
-                readContract(publicClient, {
-                  address: tokenAddress,
-                  abi: erc20Abi,
-                  functionName: 'balanceOf',
-                  args: [balanceAddress],
-                }),
-                readContract(publicClient, {
-                  address: tokenAddress,
-                  abi: erc20Abi,
-                  functionName: 'decimals',
-                }),
-              ])
-
-              return {
-                address: tokenAddress,
-                symbol: tokenName,
-                balance: balance.toString(),
-                decimals,
-                formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
-              } satisfies StablecoinBalance
-            },
-          ),
-        )
-
-        return results
-          .filter(
-            (r): r is PromiseFulfilledResult<StablecoinBalance> =>
-              r.status === 'fulfilled',
-          )
-          .map((r) => r.value)
-      },
-      enabled: !!balanceAddress,
-      refetchInterval: 30000,
-    })
-
-  // EOA approve-gas readiness. Reads the owner's native ETH plus its registrar
-  // allowance for every payment token; needs a top-up only when it can't afford
-  // an approve and hasn't approved yet. Mirrors the api-worker faucet gate.
   const {
-    data: needsApprovalGasTopUp = false,
-    isLoading: isLoadingApprovalGasState,
+    data: stablecoinBalances = [],
+    isLoading: isLoadingBalances,
+    dataUpdatedAt: balancesUpdatedAt,
   } = useQuery({
     queryKey: $qk({
       $scope: 'wallet',
-      $action: 'approvalGasState',
-      address: ownerAddress,
+      $action: 'stablecoinBalances',
+      address: balanceAddress,
+      // Refetch if the faucet token set resolves/changes after the first read.
+      tokens: Object.values(faucetTokens).join(','),
     }),
     queryFn: async () => {
-      if (!ownerAddress) return false
+      logger.info('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
+      if (!balanceAddress) return []
 
-      const [ethBalance, ...allowances] = await Promise.all([
-        getBalance(publicClient, { address: ownerAddress }),
-        ...Object.values(SUPPORTED_TOKENS).map((tokenAddress) =>
-          readContract(publicClient, {
-            address: tokenAddress,
-            abi: erc20Abi,
-            functionName: 'allowance',
-            args: [ownerAddress, ENS_SEPOLIA_CONTRACTS.ETHRegistrar],
-          }),
+      const results = await Promise.allSettled(
+        Object.entries(faucetTokens).map(
+          async ([tokenName, tokenAddress]): Promise<StablecoinBalance> => {
+            const [balance, decimals] = await Promise.all([
+              readContract(publicClient, {
+                address: tokenAddress,
+                abi: erc20Abi,
+                functionName: 'balanceOf',
+                args: [balanceAddress],
+              }),
+              readContract(publicClient, {
+                address: tokenAddress,
+                abi: erc20Abi,
+                functionName: 'decimals',
+              }),
+            ])
+
+            return {
+              address: tokenAddress,
+              symbol: tokenName,
+              balance: balance.toString(),
+              decimals,
+              formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,
+            } satisfies StablecoinBalance
+          },
         ),
-      ])
-
-      // Approvals are per-token, so the registrar is only "approved" once every
-      // payment token has a (max) allowance.
-      const hasApprovedRegistrar = allowances.every(
-        (allowance) => allowance >= REGISTRAR_APPROVED_THRESHOLD,
       )
 
-      return ethBalance < MIN_OWNER_ETH_FOR_APPROVE && !hasApprovedRegistrar
+      return results
+        .filter(
+          (r): r is PromiseFulfilledResult<StablecoinBalance> =>
+            r.status === 'fulfilled',
+        )
+        .map((r) => r.value)
     },
-    enabled: !!ownerAddress,
+    enabled: !!balanceAddress,
     refetchInterval: 30000,
   })
 
@@ -174,7 +157,6 @@ export function useSmartAccountBalances(
     isLoadingSmartAccountEth,
     stablecoinBalances,
     isLoadingBalances,
-    needsApprovalGasTopUp,
-    isLoadingApprovalGasState,
+    balancesUpdatedAt,
   }
 }

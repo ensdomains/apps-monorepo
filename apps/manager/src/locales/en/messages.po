@@ -123,7 +123,7 @@ msgid "A scrappy generalist builder with taste. Senior Product Designer and Rese
 msgstr "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 
 #: src/features/register/pages/CheckDomainPage.tsx:36
-#: src/routes/index.tsx:38
+#: src/routes/index.tsx:39
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
@@ -270,21 +270,21 @@ msgstr "Approval allows registrar to charge"
 msgid "Approve in your wallet"
 msgstr "Approve in your wallet"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+msgid "Approve payment"
+msgstr "Approve payment"
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:81
 msgid "Approving"
 msgstr "Approving"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
 msgid "Approving payment token"
 msgstr "Approving payment token"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
 msgid "Approving the payment token"
 msgstr "Approving the payment token"
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
-msgid "Approving the token and registering your name"
-msgstr "Approving the token and registering your name"
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:286
 msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
@@ -309,6 +309,10 @@ msgstr "Auth address:"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:85
 msgid "Authorizing payment"
 msgstr "Authorizing payment"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:91
+msgid "Authorizing payment and registering your name"
+msgstr "Authorizing payment and registering your name"
 
 #: src/features/auto-renewal/components/index.tsx:81
 msgid "Autorenews on"
@@ -475,8 +479,8 @@ msgid "Checking wallet connection..."
 msgstr "Checking wallet connection..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:83
-msgid "Checking whether an approval transaction is needed"
-msgstr "Checking whether an approval transaction is needed"
+msgid "Checking whether a payment approval is needed"
+msgstr "Checking whether a payment approval is needed"
 
 #: src/features/profile/components/sections/ThemeSection.tsx:25
 msgid "Choose a color for your profile"
@@ -499,7 +503,7 @@ msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
 #: src/features/register/pages/CheckDomainPage.tsx:28
-#: src/routes/index.tsx:30
+#: src/routes/index.tsx:31
 msgid "Claim your"
 msgstr "Claim your"
 
@@ -592,7 +596,7 @@ msgstr "Confirming approval"
 msgid "Confirming commitment"
 msgstr "Confirming commitment"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
 msgid "Confirming the name is now owned by your account"
 msgstr "Confirming the name is now owned by your account"
 
@@ -1021,14 +1025,14 @@ msgstr "Failed to authenticate with Telegram"
 
 #: src/lib/smart-account/rhinestone.ts:189
 msgid "Failed to deploy smart account"
-msgstr "Failed to deploy smart account"
+msgstr "Failed to deploy smart account<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:181
+#: src/lib/smart-account/SmartAccountContext.tsx:189
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
 
 #. placeholder {0}: error.message
-#: src/lib/smart-account/SmartAccountContext.tsx:182
+#: src/lib/smart-account/SmartAccountContext.tsx:190
 msgid "Failed to fund wallet: {0}"
 msgstr "Failed to fund wallet: {0}"
 
@@ -1120,13 +1124,13 @@ msgstr "Frequently Asked Questions"
 
 #: src/features/profile/components/dialogs/DiffDialog.tsx:196
 msgid "From:"
-msgstr "From:"
+msgstr "From:<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:152
+#: src/lib/smart-account/SmartAccountContext.tsx:160
 msgid "Funding wallet"
 msgstr "Funding wallet"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:153
+#: src/lib/smart-account/SmartAccountContext.tsx:161
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
@@ -1846,12 +1850,8 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
-#: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx:65
-msgid "Registration"
-msgstr "Registration"
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:121
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
 msgid "Registration complete"
 msgstr "Registration complete"
 
@@ -1866,8 +1866,8 @@ msgstr "Registration Complete!"
 msgid "Registration Details"
 msgstr "Registration Details"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:124
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:125
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
 msgid "Registration failed"
 msgstr "Registration failed"
 
@@ -1881,8 +1881,8 @@ msgstr "Registration Failed"
 msgid "Registration Fee"
 msgstr "Registration Fee"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:128
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:129
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:132
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:133
 msgid "Registration in progress"
 msgstr "Registration in progress"
 
@@ -2302,6 +2302,10 @@ msgstr "Sign in with your wallet to enable backend features, including notificat
 msgid "Sign Message"
 msgstr "Sign Message"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:87
+msgid "Sign the gasless payment approval in your wallet"
+msgstr "Sign the gasless payment approval in your wallet"
+
 #: src/features/notifications/RequireBackendAuth.tsx:144
 #: src/features/wallet/components/BackendAuthModal.tsx:95
 msgid "Signing in..."
@@ -2363,7 +2367,7 @@ msgstr "Start typing to check if your perfect name is available"
 msgid "Starter"
 msgstr "Starter"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:86
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:90
 msgid "Submitting approval and registration"
 msgstr "Submitting approval and registration"
 
@@ -2371,11 +2375,11 @@ msgstr "Submitting approval and registration"
 msgid "Submitting commitment transaction"
 msgstr "Submitting commitment transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:92
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
 msgid "Submitting registration bundle"
 msgstr "Submitting registration bundle"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
 msgid "Submitting registration transaction"
 msgstr "Submitting registration transaction"
 
@@ -2387,7 +2391,7 @@ msgstr "Submitting renewal"
 msgid "Submitting the commitment transaction"
 msgstr "Submitting the commitment transaction"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
 msgid "Submitting the registration transaction"
 msgstr "Submitting the registration transaction"
 
@@ -2724,7 +2728,7 @@ msgstr "Verify your wallet"
 msgid "Verifying Email..."
 msgstr "Verifying Email..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:120
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
 
@@ -2741,7 +2745,7 @@ msgstr "View profile"
 msgid "Waiting for approval"
 msgstr "Waiting for approval"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:104
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:108
 msgid "Waiting for approval confirmation"
 msgstr "Waiting for approval confirmation"
 
@@ -2769,8 +2773,8 @@ msgstr "Waiting for commitment submission"
 msgid "Waiting for registration"
 msgstr "Waiting for registration"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:96
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:112
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:100
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:116
 msgid "Waiting for registration confirmation"
 msgstr "Waiting for registration confirmation"
 
@@ -2794,7 +2798,7 @@ msgstr "Waiting for signature"
 msgid "Waiting for signature..."
 msgstr "Waiting for signature..."
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:105
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:109
 msgid "Waiting for the approval confirmation"
 msgstr "Waiting for the approval confirmation"
 
@@ -2802,11 +2806,11 @@ msgstr "Waiting for the approval confirmation"
 msgid "Waiting for the commitment confirmation"
 msgstr "Waiting for the commitment confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:113
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:117
 msgid "Waiting for the registration confirmation"
 msgstr "Waiting for the registration confirmation"
 
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:97
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:101
 msgid "Waiting for the registration transaction"
 msgstr "Waiting for the registration transaction"
 
@@ -2828,9 +2832,9 @@ msgstr "Waiting for transaction"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:71
 msgid "Waiting period"
-msgstr "Waiting period"
+msgstr "Waiting period<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:170
+#: src/lib/smart-account/SmartAccountContext.tsx:178
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
 
@@ -2844,9 +2848,9 @@ msgstr "Wallet client missing, please reconnect your wallet and try again."
 
 #: src/routes/wallet.tsx:275
 msgid "Wallet Connected"
-msgstr "Wallet Connected"
+msgstr "Wallet Connected<<<<<<< HEAD"
 
-#: src/lib/smart-account/SmartAccountContext.tsx:169
+#: src/lib/smart-account/SmartAccountContext.tsx:177
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 
@@ -2868,7 +2872,7 @@ msgid "We sent a verification code to your email address."
 msgstr "We sent a verification code to your email address."
 
 #: src/features/register/pages/CheckDomainPage.tsx:32
-#: src/routes/index.tsx:34
+#: src/routes/index.tsx:35
 msgid "web3 username"
 msgstr "web3 username"
 

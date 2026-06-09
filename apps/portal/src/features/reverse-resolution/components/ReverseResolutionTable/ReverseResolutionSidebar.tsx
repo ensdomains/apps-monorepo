@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/sheet'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -296,6 +297,33 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     }
   }
 
+  // Warn — but don't block — when the reverse name being set isn't registered.
+  //
+  // The reverse registrar's `setName(string)` accepts any UTF-8 string, so a
+  // user can point their address at a name that was never registered (see
+  // WEB-382). We surface this as a warning rather than gating the write.
+  //
+  // Existence is checked against the registry token/owner — NOT the connected
+  // account's ownership — because a name can be burned (non-zero burn-address
+  // owner) yet still be registered, and such names are legitimately settable.
+  const warnIfNameNotRegistered = async (name: string): Promise<void> => {
+    // `getEnsOwner` returns the registry owner (V2 token, then V1 registry
+    // fallback) or `null` when neither registry holds a non-zero owner —
+    // i.e. the name is unregistered. Burned names keep a non-zero owner and
+    // so correctly resolve as registered here. On lookup error we stay silent
+    // rather than warn, to avoid false positives.
+    await getEnsOwner({ name }).match(
+      (owner) => {
+        if (!owner) {
+          toast.warning(
+            `${name} is not registered — setting it as your reverse name may not resolve.`,
+          )
+        }
+      },
+      () => {},
+    )
+  }
+
   const handleUpdateL2 = async () => {
     if (!nameInput) return
     if (isL1ReverseRegistrarChainId(reverseRegistrarChainId)) return
@@ -329,6 +357,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     const input = form.querySelector<HTMLInputElement>('input[name="name"]')
     if (!input?.reportValidity()) return
     if (!nameInput) return
+
+    // Non-blocking: warn if the name isn't registered, but still let the
+    // user proceed (WEB-382).
+    void warnIfNameNotRegistered(nameInput)
 
     // Switch first if the wallet is on the wrong chain; only continue with
     // the actual write once the switch is complete. Doing this fire-and-

@@ -70,11 +70,13 @@ function Button({
   className,
   color = 'blue',
   size = 'lg',
+  loading,
   ...props
 }: ButtonProps) {
   return (
     <ButtonPrimitive
       className={cn(buttonVariants({ color, size, className }))}
+      data-loading={loading || undefined}
       data-slot="button"
       {...props}
     />
