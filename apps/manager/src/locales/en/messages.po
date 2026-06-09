@@ -327,6 +327,10 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:44
+msgid "Awaiting approval signature"
+msgstr "Awaiting approval signature"
+
 #: src/features/migration/pages/MigrationPage.tsx:223
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:394
@@ -460,6 +464,10 @@ msgstr "Check Your Email"
 #: src/features/notifications/settings/email-verify-step.tsx:109
 msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
 msgstr "Check your email for the verification code. You can also click the link in the email to verify automatically."
+
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:40
+msgid "Checking allowance"
+msgstr "Checking allowance"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:82
 msgid "Checking token allowance"
@@ -1252,7 +1260,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/dashboard/components/PrimaryNameCard.tsx:90
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:97
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:52
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:69
 msgid "Loading..."
 msgstr "Loading..."
 
@@ -1644,6 +1652,10 @@ msgstr "Preferences updated"
 msgid "Premium Fee"
 msgstr "Premium Fee"
 
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:36
+msgid "Preparing account"
+msgstr "Preparing account"
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:45
 msgid "Preparing commitment"
@@ -1894,7 +1906,7 @@ msgstr "Renew"
 msgid "Renew name"
 msgstr "Renew name"
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:40
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:67
 msgid "Renew Name"
 msgstr "Renew Name"
 
@@ -1922,7 +1934,7 @@ msgstr "Renewal Fee"
 msgid "Renewal Period"
 msgstr "Renewal Period"
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:63
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:94
 msgid "Renewing"
 msgstr "Renewing"
 
@@ -2277,7 +2289,7 @@ msgstr "Submitting registration bundle"
 msgid "Submitting registration transaction"
 msgstr "Submitting registration transaction"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:44
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:60
 msgid "Submitting renewal"
 msgstr "Submitting renewal"
 
@@ -2289,7 +2301,7 @@ msgstr "Submitting the commitment transaction"
 msgid "Submitting the registration transaction"
 msgstr "Submitting the registration transaction"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:36
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:48
 msgid "Submitting token approval"
 msgstr "Submitting token approval"
 
@@ -2633,7 +2645,7 @@ msgstr "Waiting for registration"
 msgid "Waiting for registration confirmation"
 msgstr "Waiting for registration confirmation"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:48
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:65
 msgid "Waiting for renewal"
 msgstr "Waiting for renewal"
 
@@ -2673,7 +2685,7 @@ msgstr "Waiting for the registration transaction"
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:40
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
 msgstr "Waiting for token approval"
 

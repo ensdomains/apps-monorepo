@@ -108,9 +108,13 @@ function PageContent() {
     .with(
       P.union(
         'ensuringHcaDeployed',
+        'checkingAllowance',
+        'signingPermit',
         'submittingTokenApproval',
         'waitingForTokenApproval',
         'submittingRenewal',
+        'submittingRenewalBundle',
+        'submittingPlainRenewal',
         'waitingForRenewal',
       ),
       () => <RenewingStep />,

@@ -24,6 +24,7 @@
  */
 
 import { SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import {
   type Chain,
@@ -55,10 +56,12 @@ const ENS_CONTRACTS = {
     '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as `0x${string}`, // DedicatedResolverImpl
 }
 
-// Supported payment tokens on Sepolia ENS
+// Supported payment tokens on Sepolia ENS, sourced from the ensjs Sepolia
+// chain config so they can't drift from the tokens the app reads.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const SUPPORTED_TOKENS = {
-  USDC: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6' as `0x${string}`, // MockUSDC
-  DAI: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e' as `0x${string}`, // MockDAI
+  USDC: ensjsSepolia.usdc.address, // MockUSDC
+  DAI: ensjsSepolia.dai.address, // MockDAI
 }
 
 const PIMLICO_API_KEY = ''
