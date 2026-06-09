@@ -22,12 +22,14 @@ export const PERMITTED_SIGN_KINDS = [
 ] as const
 
 /**
- * Select "Headless Web3 Provider" in an already-open RainbowKit modal and
+ * Select "Headless Web3 Provider" in an already-open sign-in dialog and
  * authorize the queued permission + account requests.
  *
- * Use this when a connect modal has already been opened (e.g. the pricing
- * page's "Connect or sign in to register" button). For the nav-bar connect
- * flow, use {@link connectWithHeadlessWallet} which opens the modal first.
+ * The app's LoginDialog (Privy social login + wagmi external wallets) lists
+ * EIP-6963-discovered injected wallets; the e2e headless provider announces
+ * itself as "Headless Web3 Provider" and is selected here. Use this when the
+ * dialog is already open (e.g. the pricing page's connect button); for the
+ * nav-bar flow use {@link connectWithHeadlessWallet} which opens it first.
  */
 export async function authorizeHeadlessConnection(
   page: Page,
@@ -37,8 +39,9 @@ export async function authorizeHeadlessConnection(
   await headlessOption.waitFor({ state: 'visible', timeout: 10_000 })
   await headlessOption.click()
 
-  // RainbowKit asks the provider to confirm — authorize programmatically.
-  // The headless provider queues RequestPermissions then RequestAccounts.
+  // Selecting the wallet triggers wagmi's injected connector, which asks the
+  // provider to confirm — authorize programmatically. The headless provider
+  // queues RequestPermissions then RequestAccounts.
   await expect
     .poll(
       () => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions),
@@ -56,11 +59,11 @@ export async function authorizeHeadlessConnection(
 }
 
 /**
- * Connect the headless web3 wallet through the manager's RainbowKit modal.
+ * Connect the headless web3 wallet through the manager's sign-in dialog.
  *
  * Flow:
  *  1. Click the "Connect" button in the nav bar
- *  2. Select "Headless Web3 Provider" from the RainbowKit wallet list
+ *  2. Select "Headless Web3 Provider" from the LoginDialog wallet list
  *  3. Authorize the wallet_requestPermissions + eth_requestAccounts calls
  *
  * After this resolves the wallet is connected and the nav "Connect" button
@@ -81,10 +84,10 @@ export async function connectWithHeadlessWallet(
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
 
   // The manager is an SSR app: the server-rendered Connect button can be
-  // clickable before wagmi/RainbowKit hydrate `openConnectModal`, so the
-  // first click is sometimes a no-op and the modal never opens. Retry
-  // opening until the RainbowKit dialog (with the injected-provider entry)
-  // appears — this also absorbs any EIP-6963 discovery delay.
+  // clickable before the dialog handler hydrates, so the first click is
+  // sometimes a no-op and the dialog never opens. Retry opening until the
+  // dialog (with the injected-provider entry) appears — this also absorbs
+  // any EIP-6963 discovery delay.
   const modal = page.getByRole('dialog')
   const headlessOption = page.getByText('Headless Web3 Provider')
   await expect(async () => {
