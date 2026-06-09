@@ -23,7 +23,7 @@ import {
 } from '../../service/profileRecords'
 import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
-import { EditProfileDialog } from '../dialogs/EditProfileDialog'
+import { EditProfileDialog } from '../dialogs/edit-profile/EditProfileDialog'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'

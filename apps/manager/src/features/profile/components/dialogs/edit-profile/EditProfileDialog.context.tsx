@@ -5,19 +5,24 @@ import type {
   EditProfileDialogSnapshot,
   editProfileDialogMachine,
 } from './EditProfileDialog.machine'
-import type { GeneralField } from './EditProfileGeneralTab.fields'
+import type { GeneralField } from './tabs/general/fields'
 
-const EditProfileDialogContext = createContext<{
-  dialogActor: Actor<typeof editProfileDialogMachine>
-} | null>(null)
+interface EditProfileDialogContextValue {
+  readonly dialogActor: Actor<typeof editProfileDialogMachine>
+}
+
+const EditProfileDialogContext =
+  createContext<EditProfileDialogContextValue | null>(null)
+
+interface EditProfileDialogProviderProps {
+  readonly actor: Actor<typeof editProfileDialogMachine>
+  readonly children: React.ReactNode
+}
 
 export const EditProfileDialogProvider = ({
   actor,
   children,
-}: {
-  readonly actor: Actor<typeof editProfileDialogMachine>
-  readonly children: React.ReactNode
-}) => (
+}: EditProfileDialogProviderProps) => (
   <EditProfileDialogContext.Provider value={{ dialogActor: actor }}>
     {children}
   </EditProfileDialogContext.Provider>
