@@ -41,10 +41,16 @@ const isEmptyLink = (link: LinkItem) =>
 export const normalizeProfileLinks = (links: readonly LinkItem[]): LinkItem[] =>
   links.filter((link) => !isEmptyLink(link))
 
+const normalizeProfileAddresses = (
+  addresses: ProfileRecords['addresses'],
+): ProfileRecords['addresses'] =>
+  addresses.filter(({ value }) => value && value.trim() !== '')
+
 export const normalizeProfileRecords = (
   records: ProfileRecords,
 ): ProfileRecords => ({
   ...records,
+  addresses: normalizeProfileAddresses(records.addresses),
   links: normalizeProfileLinks(records.links),
 })
 
