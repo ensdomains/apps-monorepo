@@ -40,6 +40,7 @@ export const MATERIAL_SYMBOLS = [
   'face',
   'favorite',
   'history',
+  'key',
   'keyboard_arrow_down',
   'language',
   'login',

@@ -1,5 +1,4 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import {
   render as baseRender,
   type RenderOptions,
@@ -62,9 +61,7 @@ interface AllTheProvidersProps {
 const AllTheProviders = ({ children }: AllTheProvidersProps) => (
   <I18nProvider i18n={i18n}>
     <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>{children}</RainbowKitProvider>
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </WagmiProvider>
   </I18nProvider>
 )

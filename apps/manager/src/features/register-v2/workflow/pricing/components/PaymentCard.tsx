@@ -1,11 +1,11 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { AnimateNumber } from 'motion-plus/react'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
+import { useLoginModal } from '@/features/auth/LoginModalProvider'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -69,7 +69,7 @@ export const PaymentCardBase = ({
   type: 'register' | 'renew'
 }) => {
   const { isConnected } = useSmartAccountContext()
-  const { openConnectModal, connectModalOpen } = useConnectModal()
+  const { openLogin, isOpen: loginModalOpen } = useLoginModal()
 
   return (
     <div
@@ -157,8 +157,8 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={connectModalOpen}
-            onClick={() => openConnectModal?.()}
+            disabled={loginModalOpen}
+            onClick={() => openLogin()}
             size="lg"
           >
             {type === 'register' ? (

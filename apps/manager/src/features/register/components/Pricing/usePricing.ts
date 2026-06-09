@@ -1,6 +1,6 @@
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo, useReducer, useState } from 'react'
+import { useLoginModal } from '@/features/auth/LoginModalProvider'
 import type { PricingDuration } from '@/features/register/components/Pricing/types'
 import { getPremiumLabel } from '@/features/register/utils'
 import { useDebounce } from '@/hooks/useDebounce'
@@ -38,7 +38,7 @@ export const usePricing = ({
   | 'onConfirmPayment'
 >) => {
   const { client: smartAccountClient } = useSmartAccountContext()
-  const { openConnectModal } = useConnectModal()
+  const { openLogin } = useLoginModal()
   const discountsEnabled = useFeatureFlag('DISCOUNTS_APPLIED')
 
   const createInitialState = useMemo(
@@ -241,7 +241,7 @@ export const usePricing = ({
   }
 
   const handleConnect = () => {
-    openConnectModal?.()
+    openLogin()
   }
 
   return {

@@ -1,17 +1,17 @@
 import { Trans } from '@lingui/react/macro'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ens-consumer/button/Button'
+import { useLoginModal } from '@/features/auth/LoginModalProvider'
 
 export const MobileConnectButton = () => {
-  const { openConnectModal } = useConnectModal()
+  const { openLogin } = useLoginModal()
   const { isConnecting, isReconnecting } = useConnection()
 
   return (
     <Button
       color="blue"
       loading={isConnecting || isReconnecting}
-      onClick={() => openConnectModal?.()}
+      onClick={() => openLogin()}
       size="temp-xs"
     >
       <Trans>Connect</Trans>

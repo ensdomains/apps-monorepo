@@ -38,6 +38,13 @@ export function usePrivyWagmiBridge() {
     if (!privy.isConnected) return
     if (privy.busy) return
 
+    // Respect an explicitly-connected external wallet (MetaMask / WalletConnect):
+    // if one is active, don't override it with the Privy connector.
+    const externalConnected = connections.some(
+      (c) => c.connector.id !== 'privy',
+    )
+    if (externalConnected) return
+
     const alreadyConnected = connections.some((c) => c.connector.id === 'privy')
 
     let cancelled = false

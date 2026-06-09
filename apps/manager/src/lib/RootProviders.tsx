@@ -12,6 +12,7 @@ import {
   useConnectionEffect,
   WagmiProvider,
 } from 'wagmi'
+import { LoginModalProvider } from '@/features/auth/LoginModalProvider'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
@@ -101,6 +102,15 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
     select: (context) => context.queryClient,
   })
 
+  // LoginModalProvider renders the social-login dialog and must sit inside
+  // PrivyProvider (it uses the headless Privy hooks); when Privy isn't
+  // configured, consumers fall back to useLoginModal's no-op default.
+  const wrappedChildren = privyAppId ? (
+    <LoginModalProvider>{children}</LoginModalProvider>
+  ) : (
+    children
+  )
+
   const tree = (
     <WagmiBootAssertion>
       <ConnectionCookieSync />
@@ -108,7 +118,9 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
       {/* Bridge only mounts when Privy is configured (it needs Privy context). */}
       {privyAppId ? <PrivyBridge /> : null}
       <PHProvider>
-        <SmartAccountContextProvider>{children}</SmartAccountContextProvider>
+        <SmartAccountContextProvider>
+          {wrappedChildren}
+        </SmartAccountContextProvider>
       </PHProvider>
     </WagmiBootAssertion>
   )

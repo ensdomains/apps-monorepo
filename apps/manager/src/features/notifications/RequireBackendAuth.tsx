@@ -1,10 +1,10 @@
 import { Trans } from '@lingui/react/macro'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useMutation } from '@tanstack/react-query'
 import { useAtom, useSelector } from '@xstate/store-react'
 import type { ReactNode } from 'react'
 import { useConnection, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
+import { useLoginModal } from '@/features/auth/LoginModalProvider'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
@@ -22,7 +22,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
   )
   const { data: walletClient } = useWalletClient()
   const { ownerAddress } = useSmartAccountContext()
-  const { openConnectModal } = useConnectModal()
+  const { openLogin } = useLoginModal()
 
   const { status: connectionStatus } = useConnection()
 
@@ -66,11 +66,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
               <Trans>Account address:</Trans> {ownerAddress}
             </div>
           </div>
-          <Button
-            className="w-full"
-            onClick={() => openConnectModal?.()}
-            size="lg"
-          >
+          <Button className="w-full" onClick={() => openLogin()} size="lg">
             <Trans>Reconnect Wallet</Trans>
           </Button>
         </div>
@@ -95,11 +91,7 @@ export const RequireBackendAuth = ({ children }: RequireBackendAuthProps) => {
               activity.
             </Trans>
           </p>
-          <Button
-            className="w-full"
-            onClick={() => openConnectModal?.()}
-            size="lg"
-          >
+          <Button className="w-full" onClick={() => openLogin()} size="lg">
             <Trans>Connect Wallet</Trans>
           </Button>
         </div>

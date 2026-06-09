@@ -219,8 +219,8 @@ msgstr "Added"
 msgid "Adding telegram..."
 msgstr "Adding telegram..."
 
-#: src/features/navigation/Header/account/WalletSection.tsx:38
-#: src/features/navigation/Header/account/WalletSection.tsx:58
+#: src/features/navigation/Header/account/WalletSection.tsx:48
+#: src/features/navigation/Header/account/WalletSection.tsx:68
 #: src/features/profile/components/sections/WalletAddressesSection.tsx:27
 msgid "Address"
 msgstr "Address"
@@ -592,7 +592,7 @@ msgstr "Connect"
 msgid "Connect a Wallet"
 msgstr "Connect a Wallet"
 
-#: src/features/notifications/RequireBackendAuth.tsx:93
+#: src/features/notifications/RequireBackendAuth.tsx:89
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr "Connect a wallet to continue to notification settings and activity."
 
@@ -608,11 +608,12 @@ msgstr "Connect to register"
 msgid "Connect to renew"
 msgstr "Connect to renew"
 
-#: src/features/notifications/RequireBackendAuth.tsx:103
+#: src/components/ConnectWallet.tsx:10
+#: src/features/notifications/RequireBackendAuth.tsx:95
 msgid "Connect Wallet"
 msgstr "Connect Wallet"
 
-#: src/features/notifications/RequireBackendAuth.tsx:90
+#: src/features/notifications/RequireBackendAuth.tsx:86
 msgid "Connect your wallet"
 msgstr "Connect your wallet"
 
@@ -656,11 +657,23 @@ msgstr "Continue to Home"
 msgid "Continue to Settings"
 msgstr "Continue to Settings"
 
+#: src/features/auth/LoginDialog.tsx:54
+msgid "Continue with a social account to create a wallet, or connect an existing one."
+msgstr "Continue with a social account to create a wallet, or connect an existing one."
+
+#: src/features/auth/LoginDialog.tsx:71
+msgid "Continue with Google"
+msgstr "Continue with Google"
+
+#: src/features/auth/LoginDialog.tsx:82
+msgid "Continue with X"
+msgstr "Continue with X"
+
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx:140
 msgid "Copied"
 msgstr "Copied"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:42
+#: src/features/navigation/Header/account/WalletSection.tsx:52
 msgid "Copied!"
 msgstr "Copied!"
 
@@ -783,7 +796,7 @@ msgstr "Deploying on-chain…"
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:62
+#: src/features/navigation/Header/account/WalletSection.tsx:72
 msgid "Deploying smart account…"
 msgstr "Deploying smart account…"
 
@@ -795,7 +808,7 @@ msgstr "Deploying the resolver"
 msgid "Did You Know?"
 msgstr "Did You Know?"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:98
+#: src/features/navigation/Header/account/WalletSection.tsx:130
 msgid "Disconnect"
 msgstr "Disconnect"
 
@@ -974,6 +987,10 @@ msgstr "Expiry (Latest)"
 msgid "Expiry (Soonest)"
 msgstr "Expiry (Soonest)"
 
+#: src/features/navigation/Header/account/WalletSection.tsx:107
+msgid "Export private key"
+msgstr "Export private key"
+
 #: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Extend Name"
 msgstr "Extend Name"
@@ -1038,7 +1055,7 @@ msgstr "Failed to set ETH address record"
 msgid "Failed to set primary name. Please try again."
 msgstr "Failed to set primary name. Please try again."
 
-#: src/features/notifications/RequireBackendAuth.tsx:153
+#: src/features/notifications/RequireBackendAuth.tsx:145
 #: src/features/wallet/components/BackendAuthModal.tsx:104
 msgid "Failed to sign in. Please try again."
 msgstr "Failed to sign in. Please try again."
@@ -1532,6 +1549,7 @@ msgstr "Open navigation"
 msgid "Open the verification link from your email to finish setup."
 msgstr "Open the verification link from your email to finish setup."
 
+#: src/features/auth/LoginDialog.tsx:91
 #: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr "or"
@@ -1744,7 +1762,7 @@ msgstr "Recommended"
 msgid "Reconnect the wallet used for notifications, then sign in again."
 msgstr "Reconnect the wallet used for notifications, then sign in again."
 
-#: src/features/notifications/RequireBackendAuth.tsx:74
+#: src/features/notifications/RequireBackendAuth.tsx:70
 msgid "Reconnect Wallet"
 msgstr "Reconnect Wallet"
 
@@ -2179,11 +2197,15 @@ msgstr "Short Description"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
-#: src/features/notifications/RequireBackendAuth.tsx:130
+#: src/features/auth/LoginDialog.tsx:51
+msgid "Sign in"
+msgstr "Sign in"
+
+#: src/features/notifications/RequireBackendAuth.tsx:122
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
-#: src/features/notifications/RequireBackendAuth.tsx:146
+#: src/features/notifications/RequireBackendAuth.tsx:138
 #: src/features/wallet/components/BackendAuthModal.tsx:97
 msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
@@ -2200,7 +2222,7 @@ msgstr "Sign Message"
 msgid "Sign the gasless payment approval in your wallet"
 msgstr "Sign the gasless payment approval in your wallet"
 
-#: src/features/notifications/RequireBackendAuth.tsx:144
+#: src/features/notifications/RequireBackendAuth.tsx:136
 #: src/features/wallet/components/BackendAuthModal.tsx:95
 msgid "Signing in..."
 msgstr "Signing in..."
@@ -2566,8 +2588,8 @@ msgstr "Verify Email Address"
 msgid "Verify Wallet"
 msgstr "Verify Wallet"
 
-#: src/features/navigation/Header/account/WalletSection.tsx:79
-#: src/features/notifications/RequireBackendAuth.tsx:127
+#: src/features/navigation/Header/account/WalletSection.tsx:89
+#: src/features/notifications/RequireBackendAuth.tsx:119
 msgid "Verify wallet ownership"
 msgstr "Verify wallet ownership"
 
