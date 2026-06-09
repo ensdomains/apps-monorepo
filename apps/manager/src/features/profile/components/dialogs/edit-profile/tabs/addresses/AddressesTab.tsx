@@ -92,15 +92,21 @@ const getRecordIcon = (record: AddressRecordDef | undefined) => {
 const AddressIcon = ({
   coinType,
   label,
+  size = 'sm',
 }: {
   readonly coinType: number
   readonly label: string
+  readonly size?: 'sm' | 'md'
 }) => {
   const record = getAddressRecordDef(coinType)
   const icon = getRecordIcon(record)
+  const sizeClassName =
+    size === 'md' ? 'size-6 text-[11px]' : 'size-4 text-[9px]'
 
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-quartz-100 text-[9px] text-ens-quartz-500 uppercase">
+    <span
+      className={`flex ${sizeClassName} shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-quartz-100 text-ens-quartz-500 uppercase`}
+    >
       {icon ? (
         <IconRenderer className="size-full" icon={icon} />
       ) : (
@@ -109,6 +115,35 @@ const AddressIcon = ({
     </span>
   )
 }
+
+const ChainPickerOptionButton = ({
+  active,
+  disabled,
+  onClick,
+  option,
+}: {
+  readonly active: boolean
+  readonly disabled?: boolean
+  readonly onClick: () => void
+  readonly option: AddressOption
+}) => (
+  <button
+    className={[
+      'flex min-h-12 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+      active
+        ? 'border-ens-lapis-500 bg-ens-lapis-100 text-ens-lapis-core'
+        : 'border-ens-quartz-200 bg-white text-ens-quartz-900 hover:border-ens-quartz-300 hover:bg-ens-quartz-50',
+    ].join(' ')}
+    disabled={disabled}
+    onClick={onClick}
+    type="button"
+  >
+    <AddressIcon coinType={option.coinType} label={option.label} size="md" />
+    <span className="min-w-0 flex-1 truncate font-medium text-[14px] leading-[1.2]">
+      {option.label}
+    </span>
+  </button>
+)
 
 const SectionHeader = ({
   title,
@@ -251,23 +286,17 @@ const ChainPickerDialog = ({
         </div>
 
         <div className="mt-4 min-h-0 overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {records.map((record) => {
               const option = getAddressOption(record.coinType)
               const selected = selectedCoinTypes.includes(record.coinType)
               return (
-                <FieldPickerPill
+                <ChainPickerOptionButton
                   active={selected}
                   disabled={disabled}
-                  icon={
-                    <AddressIcon
-                      coinType={record.coinType}
-                      label={option.label}
-                    />
-                  }
                   key={record.coinType}
-                  label={option.label}
                   onClick={() => toggleCoinType(record.coinType)}
+                  option={option}
                 />
               )
             })}
