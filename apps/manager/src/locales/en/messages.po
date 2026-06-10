@@ -845,7 +845,7 @@ msgid "Drag and drop an image here, or"
 msgstr "Drag and drop an image here, or"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx:238
-#: src/features/profile/components/view/ProfileView.tsx:207
+#: src/features/profile/components/view/ProfileView.tsx:154
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
@@ -1041,7 +1041,7 @@ msgstr "Failed to fund wallet: {0}"
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
-#: src/features/profile/components/view/ProfileView.tsx:135
+#: src/features/profile/components/view/ProfileView.tsx:88
 msgid "Failed to load registration data for this name."
 msgstr "Failed to load registration data for this name."
 
