@@ -7,7 +7,7 @@ import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
-export const PRESET_YEARS = [1, 2, 3, 5] as const
+export const PRESET_YEARS = [1, 2, 3, 6] as const
 
 const PRESET_DURATIONS_SECONDS = PRESET_YEARS.map(
   (years) => years * CONTRACT_SECONDS_PER_YEAR,
@@ -63,7 +63,7 @@ export const RegistrationDurationPresets = ({
   const baselinePerYear = effectivePerYear[0]
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="flex flex-wrap gap-4">
       {PRESET_YEARS.map((years, idx) => {
         const isSelected = selectedYears === years
         const effective = effectivePerYear[idx]
@@ -79,18 +79,18 @@ export const RegistrationDurationPresets = ({
             onClick={() => onSelect(years)}
             aria-pressed={isSelected}
             className={cn(
-              'relative flex flex-col items-start gap-0.5 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
+              'relative group w-24 flex flex-col items-center gap-0.5 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
               isSelected
-                ? 'border-success bg-success-fill'
-                : 'border-border hover:border-foreground/30',
+                ? 'border-signal-success-700 bg-success-fill'
+                : 'border-neutral-6',
             )}
           >
             {discountPct > 0 ? (
               <span
                 className={cn(
-                  'absolute -top-2 right-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                  'absolute -top-2 -right-1 rounded-full px-1.5 py-1.5 text-[10px] font-medium leading-none',
                   isSelected
-                    ? 'bg-signal-success-600 text-white'
+                    ? 'bg-signal-success-700 text-white'
                     : 'bg-muted text-muted-foreground',
                 )}
               >
@@ -100,7 +100,9 @@ export const RegistrationDurationPresets = ({
             <span
               className={cn(
                 'text-sm',
-                isSelected ? 'text-success-text' : 'text-muted-foreground',
+                isSelected
+                  ? 'text-signal-success-700'
+                  : 'text-muted-foreground group-hover:text-foreground',
               )}
             >
               {years === 1 ? '1 year' : `${years} years`}
@@ -108,7 +110,9 @@ export const RegistrationDurationPresets = ({
             <span
               className={cn(
                 'text-base font-medium',
-                isSelected && 'text-success-text',
+                isSelected
+                  ? 'text-signal-success-700'
+                  : 'text-muted-foreground group-hover:text-foreground',
               )}
             >
               {effective > 0 ? (
@@ -119,7 +123,7 @@ export const RegistrationDurationPresets = ({
                       'font-normal',
                       isSelected
                         ? 'text-success-text'
-                        : 'text-muted-foreground',
+                        : 'text-muted-foreground group-hover:text-foreground',
                     )}
                   >
                     /yr

@@ -56,7 +56,7 @@ export const RegistrationDurationOrExpiryPicker = ({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 border border-border rounded-sm px-6 pb-6 pt-4',
+        'flex flex-col gap-4 border border-border rounded-xl px-6 pb-6 pt-4',
         disabled && 'opacity-50 pointer-events-none',
       )}
     >
