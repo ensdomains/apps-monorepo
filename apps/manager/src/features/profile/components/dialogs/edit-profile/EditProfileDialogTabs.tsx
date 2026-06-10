@@ -259,7 +259,7 @@ export const EditProfileDialogTabs = ({
       {mobileNavOpen ? (
         <div className="absolute inset-x-0 top-0 bottom-14 z-10 bg-white px-4 pt-1 md:hidden">
           <EditProfileTabList
-            className="h-full w-full rounded-r-lg border border-ens-quartz-200 shadow-[0px_4px_2px_rgba(200,200,200,0.25)]"
+            className="h-full w-full rounded-lg border border-ens-quartz-200"
             onSelect={() => setMobileNavOpen(false)}
           />
         </div>
