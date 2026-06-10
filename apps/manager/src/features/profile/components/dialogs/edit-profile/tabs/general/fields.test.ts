@@ -16,6 +16,7 @@ describe('general profile fields', () => {
     const fields = generalShortcuts.map(({ field }) => field)
 
     expect(fields).toContain('name')
+    expect(fields.indexOf('name')).toBeLessThan(fields.indexOf('description'))
     expect(generalShortcuts.find(({ field }) => field === 'name')?.label).toBe(
       'Full name',
     )

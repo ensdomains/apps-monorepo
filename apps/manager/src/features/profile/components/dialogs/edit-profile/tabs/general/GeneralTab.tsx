@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Link as LinkIcon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
@@ -124,17 +124,21 @@ export const GeneralTab = ({
       </p>
 
       <div className="flex flex-wrap gap-2">
-        {generalShortcuts.map(({ field, symbol, label }) => {
+        {generalShortcuts.map(({ field, label, ...shortcut }) => {
           const active = isVisible(field)
           return (
             <FieldPickerPill
               active={active}
               icon={
-                <MSymbol
-                  className="shrink-0 text-current"
-                  style={{ fontSize: 14 }}
-                  symbol={symbol}
-                />
+                'icon' in shortcut ? (
+                  <LinkIcon className="size-3.5 shrink-0 text-current" />
+                ) : (
+                  <MSymbol
+                    className="shrink-0 text-current"
+                    style={{ fontSize: 14 }}
+                    symbol={shortcut.symbol}
+                  />
+                )
               }
               key={field}
               label={label}

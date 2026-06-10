@@ -109,7 +109,7 @@ export const EditProfileDialogTabs = ({
       <div className="flex min-w-0 flex-1 flex-col">
         <EditProfileDialogStatusPanel />
 
-        <div className="min-h-0 flex-1 overflow-y-auto pt-4 pr-2 pl-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 [scrollbar-gutter:stable]">
           <TabsContent className="min-h-0 flex-1" value="general">
             <GeneralTab
               name={name}
