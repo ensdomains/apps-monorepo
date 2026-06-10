@@ -114,7 +114,7 @@ msgstr "3 character premium name"
 msgid "4 character premium name"
 msgstr "4 character premium name"
 
-#: src/features/auth/LoginDialog.tsx:153
+#: src/features/auth/LoginDialog.tsx:158
 msgid "6-digit code"
 msgstr "6-digit code"
 
@@ -682,7 +682,7 @@ msgstr "Continue to Home"
 msgid "Continue to Settings"
 msgstr "Continue to Settings"
 
-#: src/features/auth/LoginDialog.tsx:193
+#: src/features/auth/LoginDialog.tsx:198
 msgid "Continue with email"
 msgstr "Continue with email"
 
@@ -943,7 +943,7 @@ msgstr "Enter custom duration"
 msgid "Enter Image URL"
 msgstr "Enter Image URL"
 
-#: src/features/auth/LoginDialog.tsx:145
+#: src/features/auth/LoginDialog.tsx:150
 msgid "Enter the code sent to {awaitingEmailCode}"
 msgstr "Enter the code sent to {awaitingEmailCode}"
 
@@ -959,7 +959,7 @@ msgstr "Enter URL Manually"
 msgid "Enter wallet address"
 msgstr "Enter wallet address"
 
-#: src/features/auth/LoginDialog.tsx:183
+#: src/features/auth/LoginDialog.tsx:188
 #: src/features/notifications/settings/contact-methods/email.tsx:77
 msgid "Enter your email"
 msgstr "Enter your email"
@@ -1588,7 +1588,7 @@ msgstr "Open navigation"
 msgid "Open the verification link from your email to finish setup."
 msgstr "Open the verification link from your email to finish setup."
 
-#: src/features/auth/LoginDialog.tsx:204
+#: src/features/auth/LoginDialog.tsx:209
 #: src/features/payment/components/add.tsx:138
 msgid "or"
 msgstr "or"
@@ -2272,7 +2272,7 @@ msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 
-#: src/features/auth/LoginDialog.tsx:115
+#: src/features/auth/LoginDialog.tsx:120
 msgid "Sign in to ENS with a social account, email, or wallet."
 msgstr "Sign in to ENS with a social account, email, or wallet."
 
@@ -2293,7 +2293,7 @@ msgstr "Sign Message"
 msgid "Sign the gasless payment approval in your wallet"
 msgstr "Sign the gasless payment approval in your wallet"
 
-#: src/features/auth/LoginDialog.tsx:112
+#: src/features/auth/LoginDialog.tsx:117
 msgid "Sign up or connect"
 msgstr "Sign up or connect"
 
@@ -2622,7 +2622,7 @@ msgstr "Uploading…"
 msgid "USD"
 msgstr "USD"
 
-#: src/features/auth/LoginDialog.tsx:172
+#: src/features/auth/LoginDialog.tsx:177
 msgid "Use a different email"
 msgstr "Use a different email"
 
@@ -2662,7 +2662,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/auth/LoginDialog.tsx:162
+#: src/features/auth/LoginDialog.tsx:167
 msgid "Verify"
 msgstr "Verify"
 

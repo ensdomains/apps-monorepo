@@ -30,7 +30,8 @@ const inputEl =
  * Sign-in dialog over Privy's HEADLESS hooks (Privy's own modal is never used):
  *   - Google + X — OAuth, redirect-based (icon-only squares)
  *   - Email — OTP, inline two-step (enter email → enter the 6-digit code)
- *   - MetaMask — the EIP-6963-discovered injected connector (no "more wallets")
+ *   - Injected wallet(s) — EIP-6963-discovered (typically just MetaMask); no
+ *     WalletConnect, no "more wallets" list
  *
  * Styled to the Figma login design. The Privy SDK is lazy-loaded
  * (RootProviders / privy-session-store): social + email controls stay disabled
@@ -57,21 +58,25 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
 
-  // Only MetaMask, via EIP-6963 discovery (skip our own privy connector).
-  const metaMaskConnector = useMemo(
-    () =>
-      connectors.find(
-        (c) => c.id !== 'privy' && /metamask/i.test(`${c.id} ${c.name}`),
-      ),
-    [connectors],
-  )
+  // The EIP-6963-discovered injected wallets (skip our own privy connector),
+  // de-duped by name. Typically just MetaMask; no WalletConnect, no "more
+  // wallets" list. (We don't hard-filter to the name "MetaMask" so the e2e
+  // headless provider — and any other injected wallet — is still surfaced.)
+  const injectedConnectors = useMemo(() => {
+    const seen = new Set<string>()
+    return connectors.filter((c) => {
+      if (c.id === 'privy' || seen.has(c.name)) return false
+      seen.add(c.name)
+      return true
+    })
+  }, [connectors])
 
   // `ready` is false until the lazily loaded Privy runtime mounts (opening this
   // dialog kicks that off — see LoginModalProvider).
   const socialDisabled = busy || !ready
   const showCodeStep = Boolean(awaitingEmailCode) && !reEnterEmail
 
-  const connectMetaMask = async (connector: Connector) => {
+  const connectInjected = async (connector: Connector) => {
     setConnectError(null)
     setConnecting(true)
     try {
@@ -195,8 +200,8 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
           </form>
         )}
 
-        {/* MetaMask */}
-        {metaMaskConnector ? (
+        {/* Injected wallet(s) — typically MetaMask */}
+        {injectedConnectors.length > 0 ? (
           <>
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-black/10" />
@@ -205,28 +210,31 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
               </span>
               <span className="h-px flex-1 bg-black/10" />
             </div>
-            <button
-              className={`${box} flex-col gap-3 py-6`}
-              disabled={connecting}
-              onClick={() => void connectMetaMask(metaMaskConnector)}
-              type="button"
-            >
-              {metaMaskConnector.icon ? (
-                <img
-                  alt={metaMaskConnector.name}
-                  className="size-10"
-                  src={metaMaskConnector.icon}
-                />
-              ) : (
-                <MSymbol symbol="account_balance_wallet" />
-              )}
-              <span className="flex items-center gap-1.5">
-                <span className="size-1.5 rounded-full bg-[#00bc7d]" />
-                <span className="text-[#364153] text-sm">
-                  {metaMaskConnector.name}
+            {injectedConnectors.map((connector) => (
+              <button
+                className={`${box} flex-col gap-3 py-6`}
+                disabled={connecting}
+                key={connector.uid}
+                onClick={() => void connectInjected(connector)}
+                type="button"
+              >
+                {connector.icon ? (
+                  <img
+                    alt={connector.name}
+                    className="size-10"
+                    src={connector.icon}
+                  />
+                ) : (
+                  <MSymbol symbol="account_balance_wallet" />
+                )}
+                <span className="flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-[#00bc7d]" />
+                  <span className="text-[#364153] text-sm">
+                    {connector.name}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+            ))}
           </>
         ) : null}
 
