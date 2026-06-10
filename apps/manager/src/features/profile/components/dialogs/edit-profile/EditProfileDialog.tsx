@@ -241,7 +241,7 @@ export const EditProfileDialog = ({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="h-[min(90dvh,739px)] w-[min(92vw,800px)] max-w-[calc(100vw-2rem)] gap-0 overflow-hidden rounded-xl border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-200"
+        className="top-0 left-0 h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg lg:top-[50%] lg:left-[50%] lg:h-[min(90dvh,739px)] lg:w-[min(92vw,800px)] lg:max-w-200 lg:translate-x-[-50%] lg:translate-y-[-50%] lg:rounded-xl"
         overlayClassName="bg-black/20 backdrop-blur-[2px]"
         showCloseButton={false}
       >
@@ -263,6 +263,12 @@ export const EditProfileDialog = ({
                 hasDraftLinkValidationIssues
               const hasContactValidationIssues =
                 getContactValidationIssues(values).length > 0
+              const canSaveProfile =
+                hasChanges &&
+                canSubmit &&
+                !hasAddressValidationIssues &&
+                !hasLinkValidationIssues &&
+                !hasContactValidationIssues
               const handleBaseChange = (base: ProfileRecords['base']) => {
                 resetSaveState()
                 form.setFieldValue('base', base)
@@ -290,23 +296,18 @@ export const EditProfileDialog = ({
 
               return (
                 <Tabs
-                  className="min-h-0 flex-1 gap-0"
+                  className="h-full min-h-0 flex-1 gap-0 overflow-hidden"
                   defaultValue="general"
                   orientation="vertical"
                 >
                   <EditProfileDialogHeader
                     avatarUrl={values.base.avatar}
-                    canSave={
-                      hasChanges &&
-                      canSubmit &&
-                      !hasAddressValidationIssues &&
-                      !hasLinkValidationIssues &&
-                      !hasContactValidationIssues
-                    }
+                    canSave={canSaveProfile}
                     name={name}
                     onSave={() => handleSave(submittedValues)}
                   />
                   <EditProfileDialogTabs
+                    canSave={canSaveProfile}
                     name={name}
                     onAddressesChange={handleAddressesChange}
                     onBaseChange={handleBaseChange}
@@ -315,6 +316,7 @@ export const EditProfileDialog = ({
                       setHasDraftLinkValidationIssues
                     }
                     onLinksChange={handleLinksChange}
+                    onSave={() => handleSave(submittedValues)}
                     onSocialChange={handleSocialChange}
                     owner={owner}
                     values={values}

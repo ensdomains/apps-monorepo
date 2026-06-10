@@ -29,7 +29,7 @@ export const ContactMethodRow = ({
   const record = getRecordDef(method.key)
 
   return (
-    <div className="flex w-full items-start gap-4 pt-1 pr-4">
+    <div className="flex w-full items-start gap-1.5 pt-1 md:gap-4 md:pr-4">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <label
           className={cn(
@@ -44,7 +44,7 @@ export const ContactMethodRow = ({
           <input
             aria-invalid={Boolean(errorMessage)}
             aria-label={method.label}
-            className="min-w-0 flex-1 bg-transparent text-[16px] leading-[1.2] outline-none placeholder:text-ens-quartz-400 disabled:pointer-events-none"
+            className="min-w-0 flex-1 bg-transparent text-[14px] leading-[1.2] outline-none placeholder:text-ens-quartz-400 disabled:pointer-events-none md:text-[16px]"
             disabled={disabled}
             onChange={(event) => onValueChange(method, event.target.value)}
             placeholder={method.placeholder}

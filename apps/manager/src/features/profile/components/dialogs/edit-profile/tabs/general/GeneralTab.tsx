@@ -150,7 +150,7 @@ export const GeneralTab = ({
 
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
-          <div className="h-42 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+          <div className="h-38 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50 md:h-42">
             <ImageSelectionDialog
               currentImage={values.base.avatar}
               defaultImage=""
@@ -186,7 +186,7 @@ export const GeneralTab = ({
         )}
 
         {isVisible('header') && (
-          <div className="h-42 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+          <div className="h-38 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50 md:h-42">
             <ImageSelectionDialog
               currentImage={values.base.header}
               defaultImage=""
@@ -240,7 +240,7 @@ export const GeneralTab = ({
         )}
 
         {(isVisible('timezone') || isVisible('language')) && (
-          <div className="grid w-full gap-3 md:grid-cols-2">
+          <div className="grid w-full grid-cols-2 gap-3">
             {isVisible('timezone') && (
               <SelectField
                 ariaLabel="Timezone"

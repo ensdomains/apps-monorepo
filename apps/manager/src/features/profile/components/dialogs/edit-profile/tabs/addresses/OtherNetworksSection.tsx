@@ -35,7 +35,7 @@ export const OtherNetworksSection = ({
       title="Receive on other networks"
     />
 
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-wrap items-center gap-2 md:gap-4">
       {otherOptions.map((option) => {
         const active = addresses.some(
           (address) => address.coinType === option.coinType,
