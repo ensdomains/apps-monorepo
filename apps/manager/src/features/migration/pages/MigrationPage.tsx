@@ -12,6 +12,7 @@ import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   decodeMigrationError,
@@ -115,6 +116,11 @@ export const MigrationPage = () => {
     selectedNames,
     v1Names,
   })
+
+  // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
+  // The worker only drips when the address owns v1 names and is low on ETH,
+  // so this is idempotent and a no-op for everyone else.
+  useMigrationGasFunding(ownerAddress)
 
   useEffect(() => {
     if (migrateSubstep === 'succeeding') {
