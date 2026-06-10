@@ -854,7 +854,7 @@ There is no objective maximum number of lines for a file or component — even [
 | --- | --- | --- | --- |
 | **Cognitive complexity** | **15** per function | [SonarSource Cognitive Complexity](https://github.com/SonarSource/eslint-plugin-sonarjs/blob/master/docs/rules/cognitive-complexity.md) | **Biome (`warn`)** — hard signal |
 | **File length** | review at **~500** lines | [ESLint `max-lines`](https://eslint.org/docs/latest/rules/max-lines) (default 300; docs cite a 100–500 range) | Greptile soft signal |
-| **Component/function length** | review at **~150** lines | [ESLint `max-lines-per-function`](https://eslint.org/docs/latest/rules/max-lines-per-function) (default 50); [Sonar S138](https://rules.sonarsource.com/javascript/rspec-138/) (200) | Greptile soft signal |
+| **Component/function length** | review at **~150** lines | [ESLint `max-lines-per-function`](https://eslint.org/docs/latest/rules/max-lines-per-function) (default 50); [Sonar S138](https://rules.sonarsource.com/javascript/rspec-138/) (200) | Manual guideline — a long function's "does too much" smell is caught by the cognitive-complexity gate above, not a separate line count |
 | **One component per file** | **1** (small stateless helpers OK) | [Airbnb React styleguide](https://github.com/airbnb/javascript/tree/master/react) / `react/no-multi-comp` | Greptile soft signal |
 
 > Generated files (`*.gen.ts`, `*.gen.d.ts`, `worker-configuration*`, `routeTree.gen.ts`), test files, and `*.mock.ts` are exempt from the length tripwires.
