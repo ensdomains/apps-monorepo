@@ -1,13 +1,3 @@
-/**
- * useWeaveShader — WebGL shader compilation and render loop for the weave fabric.
- * Ported from the shader sandbox's useShaderSandbox; ENS-mark compositing, PNG/video
- * export, and the recorder were removed. Positional args were replaced with a typed
- * options object so the component (and a future package) is easier to consume.
- *
- * Compiles vertex + fragment shaders, uploads a fullscreen quad, runs an animation loop,
- * and uploads the weave pattern as a texture. Uniform values are held in refs so prop
- * changes update the running loop without tearing down the GL context.
- */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { buildPatternTexture, PATTERNS, type WeavePattern } from './patterns'
 import {
@@ -61,8 +51,6 @@ export interface WeaveShaderOptions {
   onFpsChange?: (fps: number) => void
 }
 
-// Inferred (precise) object type — keys are known, so access is `WebGLUniformLocation | null`
-// (not `| undefined`, which a Record index signature would add under noUncheckedIndexedAccess).
 type UniformLocs = ReturnType<typeof getUniformLocs>
 
 function getUniformLocs(gl: WebGLRenderingContext, program: WebGLProgram) {
@@ -134,7 +122,6 @@ function getUniformLocs(gl: WebGLRenderingContext, program: WebGLProgram) {
     stitchRevealBleedCrossFiber: u('u_stitchRevealBleedCrossFiber'),
     stitchRevealBleedDraftCoupled: u('u_stitchRevealBleedDraftCoupled'),
     stageTranslateX: u('u_stageTranslateX'),
-    // Embed-only hover uniforms (held off here).
     hoverReactive: u('u_hoverReactive'),
     hoverRevealOnly: u('u_hoverRevealOnly'),
     hoverMovementBoost: u('u_hoverMovementBoost'),
@@ -199,8 +186,6 @@ export function useWeaveShader(
   fragmentSource: string,
   options: WeaveShaderOptions = {},
 ): WeaveShaderResult {
-  // Intersection keeps overlapping numeric keys as `number` (not `number | undefined`),
-  // since spreading the optional `options` over defaults would otherwise widen them.
   const o = { ...WEAVE_DEFAULTS, ...options } as typeof WEAVE_DEFAULTS &
     WeaveShaderOptions
 
@@ -446,13 +431,11 @@ export function useWeaveShader(
       if (uniformLocs.colorwayInclude4)
         gl.uniform1f(uniformLocs.colorwayInclude4, cm & 16 ? 1 : 0)
 
-      // Stitch reveal kept fully woven (reveal handled in CSS).
       if (uniformLocs.stitchRevealMode)
         gl.uniform1f(uniformLocs.stitchRevealMode, 0)
       if (uniformLocs.stitchRevealProgress)
         gl.uniform1f(uniformLocs.stitchRevealProgress, 1)
 
-      // Hover uniforms held at neutral values.
       if (uniformLocs.hoverReactive) gl.uniform1f(uniformLocs.hoverReactive, 0)
       if (uniformLocs.hoverRevealOnly)
         gl.uniform1f(uniformLocs.hoverRevealOnly, 0)
@@ -541,8 +524,6 @@ export function useWeaveShader(
       if (positionBuffer) gl.deleteBuffer(positionBuffer)
       if (program) gl.deleteProgram(program)
     }
-    // Rebuild the GL program/texture when shader source or the pattern set changes.
-    // All other uniform values are read live from optsRef during render.
   }, [vertexSource, fragmentSource, patterns])
 
   useEffect(() => {

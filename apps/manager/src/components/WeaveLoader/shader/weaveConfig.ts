@@ -1,13 +1,5 @@
-/**
- * Weave shader configuration: device pixel ratio, default rect aspect, palette colors,
- * and the default uniform values (subset of the sandbox's WEAVING_URL_DEFAULTS).
- * Ported from the shader sandbox; trimmed to what the WeaveLoader render loop drives.
- */
-
-/** Device pixel ratio used for the weaving canvas. */
 export const WEAVING_DPR = 2
 
-/** Default rect aspect 36×40 (warp orientation). */
 export const RECT_ASPECT_DEFAULT = 36 / 40
 
 export interface WeaveGradient {
@@ -17,11 +9,6 @@ export interface WeaveGradient {
   range: [number, number]
 }
 
-/**
- * ENS palette RGBA (0–1), matches the shader's getPaletteColor.
- * [palette][shade] = [r,g,b,a]; shade 0–4 = 950, 500, 100, 400, Transparent.
- * Palette 4 = Quartz neutrals from ENS Core variables.
- */
 export const PALETTE_RGBA: number[][][] = [
   [
     [0.247, 0.114, 0.035, 1],
@@ -71,10 +58,6 @@ export function getPaletteColor(
   return (PALETTE_RGBA[p]?.[s] ?? [0, 0, 0, 1]) as Rgba
 }
 
-/**
- * Default uniform values for the weave fabric. Multi-colorway dye-bleed look on by default
- * (pink + blue mix, matching the registration prototype). Override per-instance via WeaveCanvas props.
- */
 export const WEAVE_DEFAULTS = {
   pattern: 0,
   palette: 0,
@@ -99,7 +82,6 @@ export const WEAVE_DEFAULTS = {
   } as WeaveGradient,
   warpGradientEnabled: true,
   weftGradientEnabled: true,
-  // Shimmer (off by default; enable for a live sweep across the fabric).
   shimmer: false,
   shimmerSpeed: 2,
   shimmerWidth: 2,
@@ -111,7 +93,6 @@ export const WEAVE_DEFAULTS = {
   shimmerNoiseMin: 0.5,
   shimmerNoiseMax: 1.5,
   shimmerBlendMode: 0,
-  // Colorways: multi-palette dye-bleed (the pink/blue woven look).
   useAllColorways: true,
   colorwaySeed: 78.2,
   colorwayNoiseScale: 0.005,
@@ -126,7 +107,6 @@ export const WEAVE_DEFAULTS = {
   colorwayBleedCrossFiber: 0,
   colorwayBleedDraftCoupled: true,
   colorwayIncludeMask: 31,
-  // Stitch-in reveal lives in CSS (WeaveName), so the shader stays fully woven.
   stitchRevealMode: 0,
   stitchRevealProgress: 1,
   stitchRevealSeed: 0,

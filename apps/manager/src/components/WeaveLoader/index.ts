@@ -1,8 +1,3 @@
-/**
- * WeaveLoader — registration loader where the name fills out with a woven jacquard shader.
- * Self-contained POC ported from the shader sandbox; intended to be lifted into a package later.
- */
-
 export { NameFill, type NameFillProps } from './NameFill'
 export { HOUNDSTOOTH_SHIMMER_OPTIONS } from './presets'
 export { PATTERNS, type WeavePattern } from './shader/patterns'
@@ -11,6 +6,10 @@ export { WEAVE_DEFAULTS } from './shader/weaveConfig'
 export { WeaveCanvas, type WeaveCanvasProps } from './WeaveCanvas'
 export { WeaveLoader, type WeaveLoaderProps } from './WeaveLoader'
 export { WeaveName, type WeaveNameProps } from './WeaveName'
+export {
+  WeaveProgressBar,
+  type WeaveProgressBarProps,
+} from './WeaveProgressBar'
 export {
   stepIndexForProgress,
   stepLabelForProgress,

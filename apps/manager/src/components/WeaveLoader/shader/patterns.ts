@@ -1,12 +1,3 @@
-/**
- * Composable weave pattern registry (ported from the shader sandbox).
- * Each pattern is data-only: name, tile size, and a 2D grid (rows[row][col] = 0 warp / 1 weft).
- * The shader samples from a texture built from this data — add or edit patterns here without touching GLSL.
- *
- * Weave draft: 0 = warp (vertical) on top, 1 = weft (horizontal) on top.
- * Rows are weft picks; cols are warp ends. rows[i][j] = cell (j, i).
- */
-
 export const TILE_MAX = 10
 
 export interface WeavePattern {
@@ -17,7 +8,6 @@ export interface WeavePattern {
   rows: number[][]
 }
 
-/** Row as 8-bit number (bit 0 = col 0) → array of 0|1 for cols 0..7 */
 function row8(v: number): number[] {
   const a: number[] = []
   for (let c = 0; c < 8; c++) a.push((v >> c) & 1)
@@ -25,7 +15,6 @@ function row8(v: number): number[] {
 }
 
 export const PATTERNS: WeavePattern[] = [
-  // --- Row 1: basic & matt ---
   {
     id: 'plain',
     name: 'Plain Weave',
@@ -47,7 +36,6 @@ export const PATTERNS: WeavePattern[] = [
     tileH: 1,
     rows: [219, 219, 219, 219, 219, 219, 219, 219].map((v) => row8(v)),
   },
-  // --- Row 2: satin & twill ---
   {
     id: 'satin',
     name: 'Satin Weave',
@@ -60,7 +48,6 @@ export const PATTERNS: WeavePattern[] = [
     name: 'Sateen Weave',
     tileW: 5,
     tileH: 5,
-    // 5-end sateen, step 3: weft at (i*3) mod 5 → rows 1,8,2,16,4
     rows: [17, 136, 34, 80, 4, 17, 136, 34, 80, 4].map((v) => row8(v)),
   },
   {
@@ -77,7 +64,6 @@ export const PATTERNS: WeavePattern[] = [
     tileH: 6,
     rows: [7, 14, 28, 56, 49, 35, 7, 14, 28, 56].map((v) => row8(v)),
   },
-  // --- Row 3: ribs & basket ---
   {
     id: 'weft-rib-irregular',
     name: 'Weft Rib Weave Irregular',
@@ -106,7 +92,6 @@ export const PATTERNS: WeavePattern[] = [
     tileH: 4,
     rows: [3, 3, 12, 12, 3, 3, 12, 12].map((v) => row8(v)),
   },
-  // --- Row 4: point, royal, houndstooth, herringbone ---
   {
     id: 'point-twill',
     name: 'Point Twill Weave',
@@ -135,16 +120,13 @@ export const PATTERNS: WeavePattern[] = [
     tileH: 8,
     rows: [51, 102, 204, 153, 153, 204, 102, 51].map((v) => row8(v)),
   },
-  // --- ENS Figma: diagonal plus + dots (pattern 738) ---
   {
     id: 'pattern-738',
     name: '738 (Diagonal Plus & Dots)',
     tileW: 6,
     tileH: 6,
-    // Diagonal plus shapes (5-cell cross) and single dots; 1 = weft (light). 6×6 repeat.
     rows: [6, 7, 18, 17, 56, 20].map((v) => row8(v)),
   },
-  // --- ENS (legacy) ---
   {
     id: 'ens-vertical-pairs',
     name: 'ENS Vertical Pairs',
@@ -157,8 +139,6 @@ export const PATTERNS: WeavePattern[] = [
     name: 'Curtain',
     tileW: 4,
     tileH: 10,
-    // Reference: 4-st rep, 10 rows. Rows 1 & 10 (bottom/top) = all weft; even rows = outer (9); odd inner = (6).
-    // 1=weft on top. Row order bottom→top: solid, then 9,6,9,6,9,6,9,6, solid.
     rows: [15, 9, 6, 9, 6, 9, 6, 9, 6, 15].map((v) => row8(v)),
   },
 ]
@@ -169,7 +149,6 @@ export interface PatternTexture {
   height: number
 }
 
-/** Build a texture image: width TILE_MAX, height TILE_MAX * patterns.length. Each pixel R = 0 or 255. */
 export function buildPatternTexture(
   patterns: WeavePattern[] = PATTERNS,
 ): PatternTexture {

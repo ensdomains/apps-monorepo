@@ -1,10 +1,3 @@
-/**
- * Shared text-mask helpers for the name reveal components (WeaveName, NameFill).
- * The name is drawn as an SVG glyph shape used both as a CSS mask (so a fill — woven
- * fabric or a solid colour — only shows inside the letters) and as the base layer.
- * Geometry is measured with a canvas so the SVG aligns with on-screen rendering.
- */
-
 export const FALLBACK_FONT =
   'Satoshi, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif'
 
@@ -32,7 +25,6 @@ export interface NameSvgOptions {
   fill: string
 }
 
-/** Build a CSS `url(...)` of the name as filled glyphs, sized to the measured box. */
 export function nameSvgDataUri({
   name,
   box,
@@ -50,7 +42,6 @@ export function nameSvgDataUri({
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 }
 
-/** Measure the name at the given font using a canvas, so SVG geometry matches rendering. */
 export function measureName(
   name: string,
   fontSize: number,

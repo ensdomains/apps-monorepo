@@ -1,11 +1,5 @@
 'use client'
 
-/**
- * WeaveCanvas — fills its parent with the animated woven-fabric shader.
- * Thin wrapper over useWeaveShader; the GLSL lives in ./shader. Pass weave options
- * (palette, colorways, shimmer, grid) through `options`. Used as the fill source that
- * WeaveName clips to a name's glyphs, but renders fine on its own (see stories).
- */
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
 import fragmentSource from './shader/fragment.glsl?raw'
@@ -42,5 +36,4 @@ function WeaveCanvasInner({ options, className }: WeaveCanvasProps) {
   )
 }
 
-/** Memoized so parent re-renders (e.g. progress ticks) don't churn the GL canvas. */
 export const WeaveCanvas = memo(WeaveCanvasInner)
