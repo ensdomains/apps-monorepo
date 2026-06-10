@@ -18,7 +18,10 @@ import { PHProvider } from '@/lib/posthog/provider'
 import { SmartAccountContextProvider } from '@/lib/smart-account'
 import { backendAuthStore } from '@/utils/backend-client'
 import { ConnectionCookieSync } from './ConnectionCookieSync'
-import { hasStoredPrivySession } from './privy/has-privy-session'
+import {
+  hasStoredPrivySession,
+  isPrivyOAuthRedirect,
+} from './privy/has-privy-session'
 import { privyLoadStore, requestPrivyLoad } from './privy/privy-session-store'
 import { usePrivySession } from './privy/usePrivySession'
 import { wagmiConfig } from './wagmi'
@@ -39,14 +42,6 @@ const clearAppLocalStorage = () => {
 // initial/SSR bundle — the only module importing @privy-io/react-auth (see
 // docs/PRIVY.md). Everything else reads the session from privy-session-store.
 const PrivyRuntime = lazy(() => import('./privy/PrivyRuntime'))
-
-// The page Privy redirects back to after social login carries
-// `privy_oauth_code`; the SDK must load to consume it, else the app sticks on
-// `/?privy_oauth_code=…`.
-const isPrivyOAuthRedirect = () => {
-  if (typeof window === 'undefined') return false
-  return new URLSearchParams(window.location.search).has('privy_oauth_code')
-}
 
 // Loads the Privy runtime once requestPrivyLoad() fires — on a stored session
 // or an OAuth return, or when the login dialog opens. A visitor who never

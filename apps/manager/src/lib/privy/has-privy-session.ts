@@ -31,6 +31,12 @@ export function hasStoredPrivySession(): boolean {
   }
 }
 
+/** True on the page Privy redirects back to after social login (URL carries `privy_oauth_code`). */
+export function isPrivyOAuthRedirect(): boolean {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).has('privy_oauth_code')
+}
+
 /**
  * ISOMORPHIC check for route `beforeLoad` guards: server reads via getCookie
  * (works even with HttpOnly on); client falls back to document.cookie.
