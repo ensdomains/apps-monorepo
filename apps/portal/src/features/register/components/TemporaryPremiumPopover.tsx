@@ -12,7 +12,9 @@ import {
 } from '@/components/ui/popover'
 import {
   type ChartGeometry,
+  clamp,
   clientXToFraction,
+  fractionToX,
   nowFraction,
   premiumCurvePoints,
   premiumPointAtFraction,
@@ -28,9 +30,6 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 const GEOMETRY: ChartGeometry = { width: 240, height: 120, padding: 6 }
 const CURVE_SAMPLES = 96
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value))
 
 type TemporaryPremiumPopoverProps = {
   readonly trigger: (open: boolean) => ReactNode
@@ -122,9 +121,7 @@ export const TemporaryPremiumPopover = ({
             onMouseLeave={() => setHoverFraction(null)}
           >
             {Array.from({ length: dayCount - 1 }, (_, i) => {
-              const x =
-                GEOMETRY.padding +
-                ((i + 1) / dayCount) * (GEOMETRY.width - GEOMETRY.padding * 2)
+              const x = fractionToX((i + 1) / dayCount, GEOMETRY)
               return (
                 <line
                   // biome-ignore lint/suspicious/noArrayIndexKey: static gridlines

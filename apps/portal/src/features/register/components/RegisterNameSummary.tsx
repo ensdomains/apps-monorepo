@@ -70,7 +70,7 @@ export const RegisterNameCheckoutSummary = ({
   const isNameValid = !validateNameLength(name)
 
   const {
-    data: realPrice,
+    data: price,
     isLoading,
     isError,
     error,
@@ -85,41 +85,13 @@ export const RegisterNameCheckoutSummary = ({
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
   const baseRate = useBaseRate(name)
 
-  // TODO(premium-ui-mock): TEMPORARY TEST CODE — remove this whole block before
-  // merge. It forces the full Temporary Premium experience (banner + "Learn
-  // more" drawer + premium fee row) on for every priced name so the UI can be
-  // tested end-to-end. To revert, delete this block and restore the originals:
-  //   const { data: price, ... } = useQuery(...)   // rename realPrice → price
-  //   const premiumDecayConfig = oracleData?.premiumDecay
-  //   const premiumRange = hasPrice && price
-  //     ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
-  //     : null
-  const MOCK_PREMIUM = 50_000_000n // $50 at 6 decimals
-  const price =
-    realPrice && isPriceResult(realPrice)
-      ? {
-          ...realPrice,
-          hasPremium: true,
-          premium: MOCK_PREMIUM,
-          total: realPrice.base + MOCK_PREMIUM,
-        }
-      : realPrice
-  const premiumDecayConfig = oracleData?.premiumDecay ?? {
-    startPriceUsd: 100_000_000,
-    halvingPeriodMs: 24 * 60 * 60 * 1000,
-    periodMs: 21 * 24 * 60 * 60 * 1000,
-  }
-  // END premium-ui-mock
+  const premiumDecayConfig = oracleData?.premiumDecay
 
   const hasPrice = price && isPriceResult(price)
-  const premiumRange = (hasPrice && price
-    ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
-    : null) ?? {
-    // premium-ui-mock: started ~14d ago so the countdown reads ~7 days and the
-    // decay-curve dot sits mid-window instead of at the very start.
-    start: Temporal.Now.instant().subtract({ hours: 24 * 14 }),
-    end: Temporal.Now.instant().add({ hours: 24 * 7 }),
-  }
+  const premiumRange =
+    hasPrice && price
+      ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
+      : null
 
   return (
     <Fragment>
@@ -249,10 +221,10 @@ const PriceBreakdown = ({
   duration,
   baseRate,
 }: PriceBreakdownProps) => {
-  const { expiresFormatted } = getRegistrationDisplayDates(duration)
+  const { registrationPeriod, expiresFormatted } =
+    getRegistrationDisplayDates(duration)
 
   const years = duration / CONTRACT_SECONDS_PER_YEAR
-  const yearsLabel = `${years.toFixed(2)} ${years === 1 ? 'year' : 'years'}`
   const pricePerYear = getEffectivePricePerYearUsd({
     priceBase: price.base,
     priceDecimals: price.decimals,
@@ -267,7 +239,7 @@ const PriceBreakdown = ({
     <div className="space-y-2">
       <dl className="space-y-2">
         <SummaryRow label="Expires" value={expiresFormatted} />
-        <SummaryRow label="Registration" value={yearsLabel} />
+        <SummaryRow label="Registration" value={registrationPeriod} />
 
         {showPriceRow && (
           <SummaryRow

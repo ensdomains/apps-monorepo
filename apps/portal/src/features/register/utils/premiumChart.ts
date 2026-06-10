@@ -23,7 +23,7 @@ export type PremiumChartPoint = {
   readonly y: number
 }
 
-const clamp = (value: number, min: number, max: number) =>
+export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
 const innerWidth = (g: ChartGeometry) => g.width - g.padding * 2

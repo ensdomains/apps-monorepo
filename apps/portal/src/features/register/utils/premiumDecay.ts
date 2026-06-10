@@ -109,39 +109,3 @@ export function getPremiumPriceAtInstant(
     0,
   )
 }
-
-/**
- * Calculates the instant when the premium will reach a given target price.
- * Only call this when config is available (e.g. inside the premium calculator UI).
- *
- * Inverts the decay formula:
- *   t = -halvingPeriod * log2((price + offset) / startPrice)
- *
- * @param start       - When the premium period began (= name expiry).
- * @param targetPrice - The desired premium price in USD.
- * @param config      - Oracle-derived decay parameters.
- * @returns The Temporal.Instant when premium reaches that price, clamped to the premium window.
- */
-export function getInstantForPremiumPrice(
-  start: Temporal.Instant,
-  targetPrice: number,
-  config: PremiumDecayConfig,
-): Temporal.Instant {
-  const offset = computeOffset(config)
-  const startMs = start.epochMilliseconds
-  const endMs = startMs + config.periodMs
-
-  if (targetPrice >= config.startPriceUsd - offset) {
-    return Temporal.Instant.fromEpochMilliseconds(startMs)
-  }
-  if (targetPrice <= 0) {
-    return Temporal.Instant.fromEpochMilliseconds(endMs)
-  }
-
-  const elapsedMs =
-    -config.halvingPeriodMs *
-    Math.log2((targetPrice + offset) / config.startPriceUsd)
-  const dateMs = startMs + elapsedMs
-  const clamped = Math.round(Math.max(startMs, Math.min(dateMs, endMs)))
-  return Temporal.Instant.fromEpochMilliseconds(clamped)
-}
