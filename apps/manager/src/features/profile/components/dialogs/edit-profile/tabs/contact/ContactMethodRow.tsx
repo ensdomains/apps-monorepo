@@ -34,7 +34,7 @@ export const ContactMethodRow = ({
         />
         <input
           aria-label={method.label}
-          className="min-w-0 flex-1 bg-transparent text-[16px] text-ens-quartz-400 leading-[1.2] outline-none placeholder:text-ens-quartz-400 disabled:pointer-events-none"
+          className="min-w-0 flex-1 bg-transparent text-[16px] leading-[1.2] outline-none placeholder:text-ens-quartz-400 disabled:pointer-events-none"
           disabled={disabled}
           onChange={(event) => onValueChange(method, event.target.value)}
           placeholder={method.placeholder}

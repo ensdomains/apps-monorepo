@@ -328,7 +328,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:194
+#: src/features/navigation/Header/search/SuggestionItem.tsx:197
 msgid "Available"
 msgstr ""
 
@@ -1067,10 +1067,6 @@ msgstr ""
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
-#~ msgid "Failed to set primary name"
-#~ msgstr "Failed to set primary name"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name. Please try again."
@@ -1528,7 +1524,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:174
+#: src/features/navigation/Header/search/SuggestionItem.tsx:177
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:164
 msgid "Not supported"
 msgstr ""
@@ -1691,10 +1687,6 @@ msgstr ""
 msgid "Preferences updated"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
-msgid "Premium Fee"
-msgstr ""
-
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:36
 msgid "Preparing account"
 msgstr ""
@@ -1746,7 +1738,7 @@ msgstr ""
 msgid "Price cooldown"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:167
+#: src/features/navigation/Header/search/SuggestionItem.tsx:170
 msgid "Price Cooldown"
 msgstr ""
 
@@ -1774,10 +1766,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
 msgid "Profile saved"
 msgstr ""
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
-#~ msgid "Profile updated"
-#~ msgstr "Profile updated"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
 msgid "Profile updated successfully."
@@ -1832,7 +1820,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:186
+#: src/features/navigation/Header/search/SuggestionItem.tsx:189
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -2380,10 +2368,6 @@ msgstr ""
 msgid "Submitting token approval"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
-#~ msgid "Submitting your ENS profile update. This may take a few moments."
-#~ msgstr "Submitting your ENS profile update. This may take a few moments."
-
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
 msgstr ""
@@ -2538,10 +2522,6 @@ msgstr ""
 msgid "Transaction submitted:"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
-#~ msgid "Transaction:"
-#~ msgstr "Transaction:"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
 msgstr ""
@@ -2568,14 +2548,6 @@ msgstr ""
 #: src/routes/notifications/_authenticated/index.tsx:97
 msgid "Unread only"
 msgstr ""
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
-#~ msgid "Update failed"
-#~ msgstr "Update failed"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
-#~ msgid "Updating profile"
-#~ msgstr "Updating profile"
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx:61
@@ -2791,10 +2763,6 @@ msgstr ""
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:48
 msgid "Waiting for the resolver deployment"
 msgstr ""
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
-#~ msgid "Waiting for the transaction to be confirmed…"
-#~ msgstr "Waiting for the transaction to be confirmed…"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
@@ -3023,10 +2991,6 @@ msgstr ""
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
-#~ msgid "Your profile changes have been confirmed on-chain."
-#~ msgstr "Your profile changes have been confirmed on-chain."
-
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
@@ -3046,4 +3010,3 @@ msgstr ""
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""
-
