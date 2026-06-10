@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noDocumentCookie: the test sets cookies via document.cookie (happy-dom); that's the behaviour under test.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   cookieStringHasPrivyToken,
@@ -62,8 +63,6 @@ describe('hasStoredPrivySession', () => {
     expect(hasStoredPrivySession()).toBe(false)
   })
 
-  // Guards the bug class this whole helper exists for: the session lives in a
-  // COOKIE named exactly `privy-token`, not localStorage and not a lookalike.
   it('does not match a cookie that merely contains "privy-token"', () => {
     document.cookie = 'not-privy-token=abc; path=/'
     expect(hasStoredPrivySession()).toBe(false)

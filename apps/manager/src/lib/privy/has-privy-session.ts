@@ -15,15 +15,12 @@ export const cookieStringHasPrivyToken = (cookieString: string): boolean => {
 }
 
 /**
- * CLIENT-ONLY: is a Privy session persisted? Privy stores its token in a cookie
- * (not localStorage). The reconnect-gap guards (useOnDisconnected,
- * ConnectionCookieSync, WalletLifecycle) use it to tell a real disconnect from
- * the brief reload window before the bridge reconnects. Not isomorphic — it also
- * runs in unit/e2e without a server context (getCookie would throw).
+ * CLIENT-ONLY: is a Privy session persisted? (Privy's token is a cookie, not
+ * localStorage.) The reconnect-gap guards use it to distinguish a real
+ * disconnect from the reload window. Not isomorphic — also runs in unit/e2e.
  *
- * ⚠️ Assumes Privy's "HttpOnly cookies" is OFF (default). If turned on, the
- * cookie is JS-unreadable and these client guards need a usePrivy() signal
- * instead (the isomorphic SSR guard below still works). See docs/PRIVY.md.
+ * ⚠️ Assumes Privy "HttpOnly cookies" is OFF (default); if on, these client
+ * guards need a usePrivy() signal instead (the SSR guard below still works).
  */
 export function hasStoredPrivySession(): boolean {
   if (typeof document === 'undefined') return false
