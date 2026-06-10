@@ -85,6 +85,16 @@ export const DurationCustomRow = ({
             return dateToCheck.getTime() < minDate.getTime()
           }}
           endMonth={addMonths(new Date(), 1200)}
+          minimumDate={minSelectableDate}
+          onMinimum={() => {
+            const minDate = new Date(minSelectableDate)
+            minDate.setHours(0, 0, 0, 0)
+            const duration = Math.max(
+              MIN_REGISTER_DURATION_SECONDS,
+              Math.round((minDate.getTime() - referenceDate.getTime()) / 1000),
+            )
+            onDurationSet(duration)
+          }}
           onSelect={(date) => {
             if (!date) {
               return
@@ -96,17 +106,8 @@ export const DurationCustomRow = ({
             )
             onDurationSet(duration)
           }}
-          onToday={() => {
-            const minDate = new Date(minSelectableDate)
-            minDate.setHours(0, 0, 0, 0)
-            const duration = Math.max(
-              MIN_REGISTER_DURATION_SECONDS,
-              Math.round((minDate.getTime() - referenceDate.getTime()) / 1000),
-            )
-            onDurationSet(duration)
-          }}
           selected={expirationDate}
-          showTodayButton
+          showMinimumButton
           startMonth={minSelectableDate}
         />
       </PopoverContent>

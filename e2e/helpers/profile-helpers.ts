@@ -56,7 +56,7 @@ export async function waitForProfileUpdated(page: Page, timeout = 90_000) {
  */
 export async function renewFor28Days(page: Page): Promise<string> {
   await page.getByRole('button', { name: /renew to date/i }).click()
-  await page.getByRole('button', { name: 'Today' }).click()
+  await page.getByRole('button', { name: 'Minimum' }).click()
   await page.locator('body').click({ position: { x: 10, y: 10 } })
   await page.waitForTimeout(500)
 
