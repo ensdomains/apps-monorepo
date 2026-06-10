@@ -1,4 +1,5 @@
 {
+  "ignorePatterns": "**/*.gen.ts\n**/*.gen.d.ts\n**/worker-configuration.d.ts\n**/routeTree.gen.ts\n**/*.po\n**/translations/**\n**/locales/**\n**/dist/**\n**/.wrangler/**",
   "rules": [
     {
       "id": "no-any",

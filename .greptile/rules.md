@@ -34,10 +34,18 @@ comment justifying the deviation.
   Biome's `noExcessiveCognitiveComplexity` (threshold 15). Don't flag
   raw line-count complexity inline; rely on `file-length` only as a
   structural "look here" signal.
-- Length tripwires (`file-length`, `component-prop-count`) never apply
-  to generated files (`**/*.gen.ts`, `**/*.gen.d.ts`,
-  `**/worker-configuration*`, `**/routeTree.gen.ts`), test files
-  (`**/*.test.ts(x)`), or `**/*.mock.ts`.
+- Structural tripwires (`file-length`, `component-prop-count`,
+  `one-component-per-file`) never apply to test files
+  (`**/*.test.ts(x)`), mocks (`**/*.mock.ts`, `**/MOCK.ts`), or
+  Storybook stories (`**/*.stories.tsx`). Story files intentionally
+  export multiple example components and pass many props — that is not
+  a smell. Generated files are excluded globally via `ignorePatterns`
+  in `config.json` and are never reviewed at all.
+  > These per-rule exemptions live here in prose (not in each rule's
+  > `scope`) because Greptile `scope` globs do not support negation,
+  > and a global `ignorePatterns` entry would wrongly suppress *all*
+  > rules (e.g. `no-any`) on test files — we only want the structural
+  > tripwires skipped there, not every check.
 
 ## Comment style
 
