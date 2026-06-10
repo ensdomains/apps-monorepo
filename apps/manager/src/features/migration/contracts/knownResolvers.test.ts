@@ -20,6 +20,11 @@ describe('isKnownPublicResolver', () => {
       '0xC30BA2BD21583605D815826C3807E8224E398E10',
       true,
     ],
+    [
+      'known Sepolia PublicResolver',
+      '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
+      true,
+    ],
     // This actually resolves to 0x640294a2b2d87e7f522db3e3e3e876764bce170d
     // [
     //   'Sepolia V1 PublicResolver',
