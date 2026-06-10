@@ -136,7 +136,7 @@ export const PaymentTokenPicker = ({
 
   return (
     <>
-      <h2 id="payment-heading" className="text-base font-medium">
+      <h2 id="payment-heading" className="text-lg font-medium">
         Select payment method
       </h2>
       {noSupportedTokenHasSufficientBalance ? (
