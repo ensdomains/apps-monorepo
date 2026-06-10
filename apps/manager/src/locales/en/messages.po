@@ -323,7 +323,7 @@ msgstr "Autorenews on"
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:194
+#: src/features/navigation/Header/search/SuggestionItem.tsx:197
 msgid "Available"
 msgstr "Available"
 
@@ -898,7 +898,7 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
-#: src/features/notifications/settings/preferences.tsx:121
+#: src/features/notifications/settings/preferences.tsx:128
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
@@ -1080,7 +1080,7 @@ msgstr "Failed to sign in. Please try again."
 msgid "Failed to switch language"
 msgstr "Failed to switch language"
 
-#: src/features/notifications/settings/preferences.tsx:44
+#: src/features/notifications/settings/preferences.tsx:51
 msgid "Failed to update preferences"
 msgstr "Failed to update preferences"
 
@@ -1092,7 +1092,7 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
-#: src/features/notifications/settings/preferences.tsx:136
+#: src/features/notifications/settings/preferences.tsx:143
 msgid "Favourites"
 msgstr "Favourites"
 
@@ -1134,7 +1134,7 @@ msgstr "Get instant push notifications in your browser"
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
-#: src/features/notifications/settings/preferences.tsx:131
+#: src/features/notifications/settings/preferences.tsx:138
 msgid "Get notified when names you favorited expire."
 msgstr "Get notified when names you favorited expire."
 
@@ -1142,7 +1142,7 @@ msgstr "Get notified when names you favorited expire."
 msgid "Get support"
 msgstr "Get support"
 
-#: src/features/notifications/settings/preferences.tsx:116
+#: src/features/notifications/settings/preferences.tsx:123
 msgid "Get updated on the latest releases and features."
 msgstr "Get updated on the latest releases and features."
 
@@ -1216,7 +1216,7 @@ msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgid "Image not available"
 msgstr "Image not available"
 
-#: src/features/notifications/settings/preferences.tsx:89
+#: src/features/notifications/settings/preferences.tsx:96
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
@@ -1396,7 +1396,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/notifications/settings/preferences.tsx:105
+#: src/features/notifications/settings/preferences.tsx:112
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
@@ -1523,7 +1523,7 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:174
+#: src/features/navigation/Header/search/SuggestionItem.tsx:177
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:164
 msgid "Not supported"
 msgstr "Not supported"
@@ -1678,17 +1678,17 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#: src/features/notifications/settings/preferences.tsx:86
+#: src/features/notifications/settings/preferences.tsx:93
 msgid "Preferences"
 msgstr "Preferences"
 
-#: src/features/notifications/settings/preferences.tsx:41
+#: src/features/notifications/settings/preferences.tsx:48
 msgid "Preferences updated"
 msgstr "Preferences updated"
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
-msgid "Premium Fee"
-msgstr "Premium Fee"
+#~ msgid "Premium Fee"
+#~ msgstr "Premium Fee"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:36
 msgid "Preparing account"
@@ -1741,7 +1741,7 @@ msgstr "Previous slide"
 msgid "Price cooldown"
 msgstr "Price cooldown"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:167
+#: src/features/navigation/Header/search/SuggestionItem.tsx:170
 msgid "Price Cooldown"
 msgstr "Price Cooldown"
 
@@ -1827,7 +1827,7 @@ msgstr "Register to date"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:186
+#: src/features/navigation/Header/search/SuggestionItem.tsx:189
 msgid "Registered"
 msgstr "Registered"
 
@@ -2065,7 +2065,7 @@ msgstr "Save and Continue"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: src/features/notifications/settings/preferences.tsx:180
+#: src/features/notifications/settings/preferences.tsx:187
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
@@ -2094,7 +2094,7 @@ msgstr "Saving manager for {label}.eth"
 msgid "Saving managers batch {0} of {total}"
 msgstr "Saving managers batch {0} of {total}"
 
-#: src/features/notifications/settings/preferences.tsx:178
+#: src/features/notifications/settings/preferences.tsx:185
 #: src/features/profile/components/dialogs/DiffDialog.tsx:270
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:73
 msgid "Saving..."
@@ -2659,7 +2659,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/notifications/settings/preferences.tsx:187
+#: src/features/notifications/settings/preferences.tsx:194
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
 
@@ -2941,7 +2941,7 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
 
-#: src/features/notifications/settings/preferences.tsx:98
+#: src/features/notifications/settings/preferences.tsx:105
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr "You'll be notified 30, 7, and 1 day before expiry."
 
