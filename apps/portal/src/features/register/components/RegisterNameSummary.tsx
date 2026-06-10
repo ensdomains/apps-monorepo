@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PremiumCountdown } from '@/features/register/components/PremiumCountdown'
 import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
@@ -29,7 +30,6 @@ import { getTransactionErrorInfo } from '@/features/registry/utils/transactionEr
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
-import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
@@ -70,7 +70,7 @@ export const RegisterNameCheckoutSummary = ({
   const isNameValid = !validateNameLength(name)
 
   const {
-    data: price,
+    data: realPrice,
     isLoading,
     isError,
     error,
@@ -85,28 +85,59 @@ export const RegisterNameCheckoutSummary = ({
   const { data: oracleData } = useQuery(getOracleParamsQueryOptions)
   const baseRate = useBaseRate(name)
 
-  const premiumDecayConfig = oracleData?.premiumDecay
+  // TODO(premium-ui-mock): TEMPORARY TEST CODE — remove this whole block before
+  // merge. It forces the full Temporary Premium experience (banner + "Learn
+  // more" drawer + premium fee row) on for every priced name so the UI can be
+  // tested end-to-end. To revert, delete this block and restore the originals:
+  //   const { data: price, ... } = useQuery(...)   // rename realPrice → price
+  //   const premiumDecayConfig = oracleData?.premiumDecay
+  //   const premiumRange = hasPrice && price
+  //     ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
+  //     : null
+  const MOCK_PREMIUM = 50_000_000n // $50 at 6 decimals
+  const price =
+    realPrice && isPriceResult(realPrice)
+      ? {
+          ...realPrice,
+          hasPremium: true,
+          premium: MOCK_PREMIUM,
+          total: realPrice.base + MOCK_PREMIUM,
+        }
+      : realPrice
+  const premiumDecayConfig = oracleData?.premiumDecay ?? {
+    startPriceUsd: 100_000_000,
+    halvingPeriodMs: 24 * 60 * 60 * 1000,
+    periodMs: 21 * 24 * 60 * 60 * 1000,
+  }
+  // END premium-ui-mock
 
   const hasPrice = price && isPriceResult(price)
-  const premiumRange =
-    hasPrice && price
-      ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
-      : null
+  const premiumRange = (hasPrice && price
+    ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
+    : null) ?? {
+    start: Temporal.Now.instant(),
+    // premium-ui-mock: ~6d 13h window so the countdown is visibly multi-day.
+    end: Temporal.Now.instant().add({
+      hours: 24 * 6 + 13,
+      minutes: 15,
+      seconds: 38,
+    }),
+  }
 
   return (
     <Fragment>
       {premiumRange && (
-        <Alert variant="default" className="flex p-5 items-center">
+        <Alert variant="warning" className="flex p-5 items-center">
           <AlertDescription className="text-base flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
             <SirenIcon className="size-6 shrink-0" />
             <p className="text-center md:text-left">
-              This name is in Temporary premium until{' '}
-              {formatExpiryDateTimeLocal(premiumRange.end)}.
+              This name is subject to a temporary premium for{' '}
+              <PremiumCountdown end={premiumRange.end} />
             </p>
             <Button
               variant="outline"
               size="sm"
-              className="text-primary text-sm"
+              className="bg-transparent hover:bg-transparent text-sm"
               onClick={() => setPremiumDrawerOpen(true)}
             >
               Learn more
