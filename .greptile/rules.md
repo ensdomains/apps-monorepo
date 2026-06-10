@@ -30,6 +30,14 @@ comment justifying the deviation.
   valid wagmi v3 hooks; never flag this distinction.
 - Stylistic changes already enforced by Biome — don't restate them
   inline.
+- Cognitive complexity / "this function does too much" — enforced by
+  Biome's `noExcessiveCognitiveComplexity` (threshold 15). Don't flag
+  raw line-count complexity inline; rely on `file-length` only as a
+  structural "look here" signal.
+- Length tripwires (`file-length`, `component-prop-count`) never apply
+  to generated files (`**/*.gen.ts`, `**/*.gen.d.ts`,
+  `**/worker-configuration*`, `**/routeTree.gen.ts`), test files
+  (`**/*.test.ts(x)`), or `**/*.mock.ts`.
 
 ## Comment style
 

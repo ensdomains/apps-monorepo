@@ -845,6 +845,20 @@ export const AutoFocusInput = () => {
 
 **Split components based on complexity, not arbitrary line counts.**
 
+There is no objective maximum number of lines for a file or component — even [ESLint's own `max-lines` docs](https://eslint.org/docs/latest/rules/max-lines) concede this, and [Kent C. Dodds](https://kentcdodds.com/blog/when-to-break-up-a-component-into-multiple-components) argues you should split only "when you experience one of the problems above, NOT BEFORE." So we use a **two-tier model**:
+
+- **Soft signals (🟢 "look here" tripwires)** — line and prop counts. Hitting one isn't a violation; it's a prompt to ask "is this file/component doing too much?" Split by responsibility if yes, leave it (or add a justifying comment) if no.
+- **Hard signal (🟡 the real failure condition)** — **cognitive complexity**. This is the metric that actually measures "is the control flow hard to understand," and it's enforced by Biome (`noExcessiveCognitiveComplexity`, threshold 15). A function that trips this almost always needs to be broken up regardless of its line count.
+
+| Dimension | Tripwire | Basis | How it's checked |
+| --- | --- | --- | --- |
+| **Cognitive complexity** | **15** per function | [SonarSource Cognitive Complexity](https://github.com/SonarSource/eslint-plugin-sonarjs/blob/master/docs/rules/cognitive-complexity.md) | **Biome (`warn`)** — hard signal |
+| **File length** | review at **~500** lines | [ESLint `max-lines`](https://eslint.org/docs/latest/rules/max-lines) (default 300; docs cite a 100–500 range) | Greptile soft signal |
+| **Component/function length** | review at **~150** lines | [ESLint `max-lines-per-function`](https://eslint.org/docs/latest/rules/max-lines-per-function) (default 50); [Sonar S138](https://rules.sonarsource.com/javascript/rspec-138/) (200) | Greptile soft signal |
+| **One component per file** | **1** (small stateless helpers OK) | [Airbnb React styleguide](https://github.com/airbnb/javascript/tree/master/react) / `react/no-multi-comp` | Greptile soft signal |
+
+> Generated files (`*.gen.ts`, `*.gen.d.ts`, `worker-configuration*`, `routeTree.gen.ts`), test files, and `*.mock.ts` are exempt from the length tripwires.
+
 **When to split:**
 - ✅ Component has multiple concerns (data fetching + rendering + form logic)
 - ✅ Logic is reusable across multiple parents
@@ -901,6 +915,37 @@ const ProfilePage = ({ name }: ProfilePageProps) => {
 ```
 
 **Rule of thumb**: If finding the split component takes longer than scanning the original, don't split it.
+
+### Number of Props (🟢 Guideline)
+
+**A long prop list is a "long parameter list" code smell — but there is no hard cap.** No React source or linter defines a maximum prop count; the closest convention is [SonarSource's S107](https://rules.sonarsource.com/javascript/rspec-107/) "too many parameters" (default **7**). [Anton Gunnarsson](https://antongunnarsson.com/react-component-code-smells/) notes a component "might have 20 props or more and still do one thing" — so treat **~10 props as the tripwire to review**, not an automatic violation.
+
+When a component crosses the tripwire, the fix is **never** "delete a prop." Reach for, in order:
+
+1. **Group related props into an object.** A `value` / `onChange` / `label` / `onBlur` cluster becomes a single `targetPrice` prop. This usually collapses a 19-prop component back under the line.
+2. **Composition / `children`** instead of configuration props ([Kent C. Dodds on prop drilling](https://kentcdodds.com/blog/prop-drilling)).
+3. **Split the component by responsibility** if the prop list grew because it does several things.
+4. **Context** — last resort, only for genuine prop-drilling pain.
+
+```typescript
+// ❌ Tripwire hit — 6 of these props are really two coupled clusters
+interface PriceCooldownBannerProps {
+  targetPriceInput: string
+  onTargetPriceInputChange: (v: string) => void
+  onTargetPriceInputBlur: () => void
+  selectedPoint: Point
+  onSelectedPointChange: (p: Point) => void
+  targetPriceReachLabel: string
+  // ...13 more
+}
+
+// ✅ Group coupled props into objects — fewer, clearer props
+interface PriceCooldownBannerProps {
+  targetPrice: { value: string; onChange: (v: string) => void; onBlur: () => void; reachLabel: string }
+  selection: { point: Point; onChange: (p: Point) => void }
+  // ...
+}
+```
 
 ## State Management
 
