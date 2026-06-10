@@ -87,6 +87,7 @@ interface ImageSelectionDialogProps {
   readonly type: ImageType
   readonly name?: string // For better alt text and debugging
   readonly triggerClassName?: string
+  readonly imageClassName?: string
   readonly emptyState?: React.ReactNode
 }
 
@@ -100,6 +101,7 @@ export const ImageSelectionDialog = ({
   type,
   name,
   triggerClassName,
+  imageClassName,
   emptyState,
 }: ImageSelectionDialogProps) => {
   const { t } = useLingui()
@@ -541,7 +543,7 @@ export const ImageSelectionDialog = ({
       <ImageFallback.Root>
         <ImageFallback.Image
           alt={`${name || 'Profile'} ${type}`}
-          className="h-full w-full object-cover"
+          className={imageClassName ?? 'h-full w-full object-cover'}
           src={uploadPreviewUrl || displayImage}
         />
         <ImageFallback.Fallback>

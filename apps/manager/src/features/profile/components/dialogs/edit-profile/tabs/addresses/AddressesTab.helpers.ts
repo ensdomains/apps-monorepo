@@ -1,6 +1,7 @@
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { getAddressRecordDef } from '@/features/profile/data/records'
 import type { AddressRecordValue } from '@/features/profile/types'
+import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import {
   type AddressOption,
   BNB_COIN_TYPE,
@@ -66,6 +67,24 @@ export const removeAddress = (
   coinType: number,
 ): AddressRecordValue[] =>
   addresses.filter((address) => address.coinType !== coinType)
+
+export interface AddressValidationIssue {
+  readonly coinType: number
+  readonly message: string
+}
+
+export const getAddressValidationErrorMessage = (
+  coinType: number,
+  value: string,
+): string | undefined => validateAddressRecordValue(coinType, value)
+
+export const getAddressValidationIssues = (
+  addresses: readonly AddressRecordValue[],
+): AddressValidationIssue[] =>
+  normalizeAddressRows(addresses).flatMap(({ coinType, value }) => {
+    const message = getAddressValidationErrorMessage(coinType, value)
+    return message ? [{ coinType, message }] : []
+  })
 
 export const applyEthAddressChange = (
   addresses: readonly AddressRecordValue[],

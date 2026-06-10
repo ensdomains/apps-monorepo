@@ -28,6 +28,7 @@ import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
+import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
 import { getLinkValidationIssues } from './tabs/links/validation'
 
@@ -255,6 +256,8 @@ export const EditProfileDialog = ({
               const submittedValues = normalizeProfileRecords(values)
               const diff = createDiff(savedRecords, submittedValues)
               const hasChanges = Object.keys(diff).length > 0
+              const hasAddressValidationIssues =
+                getAddressValidationIssues(values.addresses).length > 0
               const hasLinkValidationIssues =
                 getLinkValidationIssues(values.links).length > 0 ||
                 hasDraftLinkValidationIssues
@@ -296,6 +299,7 @@ export const EditProfileDialog = ({
                     canSave={
                       hasChanges &&
                       canSubmit &&
+                      !hasAddressValidationIssues &&
                       !hasLinkValidationIssues &&
                       !hasContactValidationIssues
                     }

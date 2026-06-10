@@ -29,6 +29,7 @@ import {
   isSafeHttpUrl,
 } from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
+import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import { validateEmail } from '@/features/profile/utils/validateUrl'
 import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
 
@@ -284,6 +285,14 @@ const validateFinalTextRecords = (texts: FinalTextRecord[]): RecordIssue[] => {
   return issues
 }
 
+const validateFinalCoinRecords = (
+  coins: readonly ServiceCoinRecord[],
+): RecordIssue[] =>
+  coins.flatMap(({ coinType, value }) => {
+    const message = validateAddressRecordValue(coinType, value)
+    return message ? [recordIssue('address', String(coinType), message)] : []
+  })
+
 function createTransactionRequest(
   params: CreateTransactionRequestParams,
 ): TransactionRequest {
@@ -350,7 +359,10 @@ async function buildRecordsUpdateRequest(
   }
 
   // Validate the final records, including unchanged records omitted from the diff.
-  const issues = validateFinalTextRecords(after.texts)
+  const issues = [
+    ...validateFinalTextRecords(after.texts),
+    ...validateFinalCoinRecords(after.coins),
+  ]
   if (issues.length > 0) {
     throw new RecordsValidationError(issues)
   }

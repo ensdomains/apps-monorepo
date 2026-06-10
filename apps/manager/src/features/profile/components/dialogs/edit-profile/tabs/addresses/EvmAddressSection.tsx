@@ -1,7 +1,10 @@
 import { Plus } from 'lucide-react'
 import type { AddressRecordValue } from '@/features/profile/types'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
-import { getAddressValue } from './AddressesTab.helpers'
+import {
+  getAddressValidationErrorMessage,
+  getAddressValue,
+} from './AddressesTab.helpers'
 import { AddressIcon } from './AddressIcon'
 import { AddressInputRow } from './AddressInputRow'
 import { type AddressOption, ETH_COIN_TYPE } from './addressPickerRecords'
@@ -42,6 +45,10 @@ export const EvmAddressSection = ({
       <AddressInputRow
         coinType={ETH_COIN_TYPE}
         disabled={disabled}
+        errorMessage={getAddressValidationErrorMessage(
+          ETH_COIN_TYPE,
+          ethAddress,
+        )}
         label="Your Ethereum Address"
         onChange={onEthAddressChange}
         placeholder="0x0000000000000000000000000000000000000000"
@@ -95,6 +102,10 @@ export const EvmAddressSection = ({
             <AddressInputRow
               coinType={option.coinType}
               disabled={disabled}
+              errorMessage={getAddressValidationErrorMessage(
+                option.coinType,
+                getAddressValue(addresses, option.coinType),
+              )}
               key={option.coinType}
               label={option.label}
               onChange={(value) => onSetAddressValue(option.coinType, value)}

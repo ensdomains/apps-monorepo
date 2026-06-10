@@ -19,6 +19,7 @@ import {
 type BaseGeneralField =
   | 'avatar'
   | 'header'
+  | 'url'
   | 'name'
   | 'description'
   | 'language'
@@ -145,39 +146,38 @@ export const GeneralTab = ({
 
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
-          <div className="flex h-42 w-full items-center justify-center overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50 p-3">
-            <div className="flex flex-col items-center gap-3.5">
-              <div className="size-25 overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
-                <ImageSelectionDialog
-                  currentImage={values.base.avatar}
-                  defaultImage=""
-                  description="Choose a profile picture"
-                  emptyState={
-                    <div className="flex size-full items-center justify-center">
-                      <MSymbol
-                        className="text-ens-quartz-380"
-                        style={{ fontSize: 32 }}
-                        symbol="face"
-                      />
-                    </div>
-                  }
-                  name={name}
-                  onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
-                  onImageRemove={() => setBaseValue('avatar', '')}
-                  title="Change Profile Picture"
-                  triggerClassName="h-full w-full"
-                  type="avatar"
-                />
-              </div>
-              <p className="flex items-center gap-2 text-[14px] text-ens-quartz-400">
-                Add a profile picture
-                <MSymbol
-                  className="ms-fill"
-                  style={{ fontSize: 14 }}
-                  symbol="add"
-                />
-              </p>
-            </div>
+          <div className="h-42 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+            <ImageSelectionDialog
+              currentImage={values.base.avatar}
+              defaultImage=""
+              description="Choose a profile picture"
+              emptyState={
+                <div className="flex h-full w-full flex-col items-center justify-center gap-3.5 p-3">
+                  <div className="flex size-25 items-center justify-center rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+                    <MSymbol
+                      className="text-ens-quartz-380"
+                      style={{ fontSize: 32 }}
+                      symbol="face"
+                    />
+                  </div>
+                  <p className="flex items-center gap-2 text-[14px] text-ens-quartz-400">
+                    Add a profile picture
+                    <MSymbol
+                      className="ms-fill"
+                      style={{ fontSize: 14 }}
+                      symbol="add"
+                    />
+                  </p>
+                </div>
+              }
+              imageClassName="block size-25 rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed object-cover"
+              name={name}
+              onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
+              onImageRemove={() => setBaseValue('avatar', '')}
+              title="Change Profile Picture"
+              triggerClassName="flex h-full w-full items-center justify-center"
+              type="avatar"
+            />
           </div>
         )}
 
@@ -203,13 +203,15 @@ export const GeneralTab = ({
           </div>
         )}
 
-        <input
-          className={fieldClassName}
-          disabled={isSaving}
-          onChange={(event) => setBaseValue('name', event.target.value)}
-          placeholder="Full name"
-          value={values.base.name ?? ''}
-        />
+        {isVisible('name') && (
+          <input
+            className={fieldClassName}
+            disabled={isSaving}
+            onChange={(event) => setBaseValue('name', event.target.value)}
+            placeholder="Full name"
+            value={values.base.name ?? ''}
+          />
+        )}
 
         {isVisible('description') && (
           <textarea
@@ -220,6 +222,16 @@ export const GeneralTab = ({
             }
             placeholder="Description"
             value={values.base.description ?? ''}
+          />
+        )}
+
+        {isVisible('url') && (
+          <input
+            className={fieldClassName}
+            disabled={isSaving}
+            onChange={(event) => setBaseValue('url', event.target.value)}
+            placeholder="www.yourwebsite.com"
+            value={values.base.url ?? ''}
           />
         )}
 

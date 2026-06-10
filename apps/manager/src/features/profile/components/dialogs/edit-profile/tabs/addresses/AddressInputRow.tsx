@@ -1,9 +1,11 @@
-import { X } from 'lucide-react'
+import { CircleAlert, X } from 'lucide-react'
 import { useId } from 'react'
+import { cn } from '@/lib/utils'
 import { AddressIcon } from './AddressIcon'
 
 interface AddressInputRowProps {
   readonly disabled?: boolean
+  readonly errorMessage?: string
   readonly label: string
   readonly onChange: (value: string) => void
   readonly onRemove?: () => void
@@ -14,6 +16,7 @@ interface AddressInputRowProps {
 
 export const AddressInputRow = ({
   disabled,
+  errorMessage,
   label,
   onChange,
   onRemove,
@@ -24,8 +27,8 @@ export const AddressInputRow = ({
   const inputId = useId()
 
   return (
-    <div className="relative flex items-center gap-3 pt-2">
-      <div className="-translate-x-1/2 -translate-y-[calc(50%-4px)] pointer-events-none absolute top-1/2 left-0 z-10">
+    <div className="relative flex items-start gap-3 pt-2">
+      <div className="-translate-x-1/2 pointer-events-none absolute top-7 left-0 z-10">
         <AddressIcon coinType={coinType} label={label} />
       </div>
       <label
@@ -34,19 +37,38 @@ export const AddressInputRow = ({
       >
         {label}
       </label>
-      <input
-        aria-label={label}
-        className="h-11 min-w-0 flex-1 rounded-sm border border-[#d4d4d4] bg-transparent px-4 py-3 text-[12px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50"
-        disabled={disabled}
-        id={inputId}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        value={value}
-      />
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <input
+          aria-invalid={Boolean(errorMessage)}
+          aria-label={label}
+          className={cn(
+            'h-11 w-full min-w-0 rounded-sm border border-[#d4d4d4] bg-transparent px-4 py-3 text-[12px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
+            errorMessage && 'border-red-600 focus-visible:border-red-600',
+          )}
+          disabled={disabled}
+          id={inputId}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          value={value}
+        />
+        {errorMessage ? (
+          <p
+            className="flex items-center gap-1.5 text-[14px] text-red-700 leading-[1.2]"
+            role="alert"
+          >
+            <CircleAlert
+              aria-hidden="true"
+              className="size-4.5 shrink-0 text-red-700"
+              strokeWidth={2}
+            />
+            <span>{errorMessage}</span>
+          </p>
+        ) : null}
+      </div>
       {onRemove ? (
         <button
           aria-label={`Remove ${label}`}
-          className="flex size-6 shrink-0 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
+          className="mt-2.5 flex size-6 shrink-0 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
           disabled={disabled}
           onClick={onRemove}
           type="button"

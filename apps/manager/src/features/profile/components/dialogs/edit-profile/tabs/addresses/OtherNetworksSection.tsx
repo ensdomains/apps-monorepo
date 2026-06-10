@@ -1,7 +1,10 @@
 import { Plus } from 'lucide-react'
 import type { AddressRecordValue } from '@/features/profile/types'
 import { FieldPickerPill } from '../../shared/FieldPickerPill'
-import { getAddressValue } from './AddressesTab.helpers'
+import {
+  getAddressValidationErrorMessage,
+  getAddressValue,
+} from './AddressesTab.helpers'
 import { AddressIcon } from './AddressIcon'
 import { AddressInputRow } from './AddressInputRow'
 import type { AddressOption } from './addressPickerRecords'
@@ -73,6 +76,10 @@ export const OtherNetworksSection = ({
           <AddressInputRow
             coinType={option.coinType}
             disabled={disabled}
+            errorMessage={getAddressValidationErrorMessage(
+              option.coinType,
+              getAddressValue(addresses, option.coinType),
+            )}
             key={option.coinType}
             label={option.label}
             onChange={(value) => onSetAddressValue(option.coinType, value)}

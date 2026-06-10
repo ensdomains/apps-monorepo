@@ -5,6 +5,8 @@ import {
   applyEthAddressChange,
   getAddressDisplayState,
   getAddressOption,
+  getAddressValidationErrorMessage,
+  getAddressValidationIssues,
   getAddressValue,
   normalizeAddressRows,
   removeAddress,
@@ -229,5 +231,55 @@ describe('address row helpers', () => {
       state.visibleEvmChipOptions.map(({ coinType }) => coinType),
     ).not.toContain(baseCoinType)
     expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(true)
+  })
+
+  it('does not return a validation error for empty address values', () => {
+    expect(getAddressValidationErrorMessage(ETH_COIN_TYPE, '')).toBeUndefined()
+  })
+
+  it('validates Ethereum-compatible address values', () => {
+    expect(
+      getAddressValidationErrorMessage(
+        ETH_COIN_TYPE,
+        '0x1111111111111111111111111111111111111111',
+      ),
+    ).toBeUndefined()
+    expect(
+      getAddressValidationErrorMessage(ETH_COIN_TYPE, 'not-an-address'),
+    ).toBe('Enter a valid Ethereum address')
+    expect(
+      getAddressValidationErrorMessage(baseCoinType, 'not-an-address'),
+    ).toBe('Enter a valid Base address')
+  })
+
+  it('validates non-EVM address values with their coin encoder', () => {
+    expect(
+      getAddressValidationErrorMessage(
+        bitcoinCoinType,
+        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      ),
+    ).toBeUndefined()
+    expect(getAddressValidationErrorMessage(bitcoinCoinType, 'not-btc')).toBe(
+      'Enter a valid Bitcoin address',
+    )
+  })
+
+  it('returns validation issues for every invalid address row', () => {
+    expect(
+      getAddressValidationIssues([
+        address(ETH_COIN_TYPE, 'not-an-address'),
+        address(baseCoinType, 'still-not-an-address'),
+        address(bitcoinCoinType, 'not-btc'),
+        address(123_456_789, 'unsupported'),
+      ]),
+    ).toEqual([
+      { coinType: ETH_COIN_TYPE, message: 'Enter a valid Ethereum address' },
+      { coinType: baseCoinType, message: 'Enter a valid Base address' },
+      { coinType: bitcoinCoinType, message: 'Enter a valid Bitcoin address' },
+      {
+        coinType: 123_456_789,
+        message: 'Unsupported address type',
+      },
+    ])
   })
 })
