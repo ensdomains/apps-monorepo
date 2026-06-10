@@ -1,5 +1,6 @@
 #!/usr/bin/env tsx
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type Address,
   createPublicClient,
@@ -18,9 +19,12 @@ const SMART_ACCOUNT: Address =
 const MINT_AMOUNT = parseUnits('1000', 18) // 1000 tokens (DAI has 18 decimals)
 const USDC_MINT_AMOUNT = parseUnits('1000', 6) // 1000 USDC (USDC has 6 decimals)
 
-// Mock token addresses on Sepolia
-const MOCK_USDC_ADDRESS: Address = '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6'
-const MOCK_DAI_ADDRESS: Address = '0xb21412bb6816601dd840b93a5d19a8fe671cb74e'
+// Mock token addresses sourced from the ensjs Sepolia chain config — the same
+// source the app reads payment tokens from. Hardcoding drifts from the app's
+// tokens whenever ensjs bumps the deployment.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const MOCK_USDC_ADDRESS: Address = ensjsSepolia.usdc.address
+const MOCK_DAI_ADDRESS: Address = ensjsSepolia.dai.address
 
 // ERC20 ABI for mint function (assuming these are mock tokens with mint function)
 const ERC20_ABI = [

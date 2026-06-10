@@ -1,17 +1,24 @@
 /**
- * EOA registration E2E test (previously Rhinestone).
+ * Rhinestone HCA registration E2E test.
  *
- * With VITE_FF_USE_EOA=true the registration machine routes all transactions
- * through the connected wagmi EOA (headless wallet). The flow is:
- *   1. deploy-resolver  (eth_sendTransaction)
- *   2. commit           (eth_sendTransaction)
+ * With VITE_FF_USE_EOA=false (default) the registration machine routes
+ * transactions through the Rhinestone Warp orchestrator. The flow is:
+ *   1. deploy-resolver  (eth_signTypedData_v4 — SingleChainOps intent,
+ *                        auto-authorized by PERMITTED_SIGN_KINDS)
+ *   2. commit           (eth_signTypedData_v4 — same, auto-authorized)
  *   3. [commitment age wait — handled by the app]
- *   4. approve USDC     (eth_sendTransaction)
- *   5. register         (eth_sendTransaction)
+ *   4. approve USDC     (eth_sendTransaction — EOA signs the ERC-20 approval,
+ *                        authorized explicitly via authorizeTransaction)
+ *   5. register         (eth_signTypedData_v4 — same, auto-authorized)
+ *
+ * The mockestrator impersonates the HCA on the Anvil fork to fill each intent.
+ * It needs ETH in the HCA address to pay for impersonated gas — the fund script
+ * (`e2e/infra/scripts/fund-rhinestone-account.sh`) must include the HCA for
+ * Anvil account 0 (0xb0663…888b4), which is the E2E headless wallet owner.
  *
  * Prerequisites:
- *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Alto + Paymaster)
- *   - Manager app with VITE_FF_USE_EOA=true
+ *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Alto + Paymaster + Mockestrator)
+ *   - Manager app with VITE_FF_USE_EOA=false and VITE_FF_USE_WARP_INFRA=true
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
@@ -19,8 +26,8 @@ import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 
-test.describe('ENS name registration (EOA)', () => {
-  test('registers a name via headless EOA wallet', async ({
+test.describe('ENS name registration (Rhinestone HCA)', () => {
+  test('registers a name via Rhinestone HCA headless wallet', async ({
     connectedPage: page,
     wallet,
     mockIndexer,
@@ -46,23 +53,17 @@ test.describe('ENS name registration (EOA)', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
-    // Authorize up to 4 EOA transactions concurrently with the UI flow:
-    // deploy-resolver (may be skipped) → commit → [commitment age wait] → approve USDC → register
-    // Each step gets 120s because the commitment age timer sits between commit and approve.
-    // We break early if no further transaction appears (e.g. resolver already deployed = 3 txs).
+    // In the Rhinestone HCA flow all intents are eth_signTypedData_v4 and are
+    // auto-authorized by PERMITTED_SIGN_KINDS. The ONE exception is the USDC
+    // ERC-20 approval: the registrar pulls tokens from the EOA (not the HCA),
+    // so the approval must be a direct EOA eth_sendTransaction signed by the
+    // connected wallet. Authorize that single approval; ignore timeout (the
+    // approval is skipped when the allowance is already sufficient).
     const { authorizeTransaction } = await import('../../../helpers/manager-auth.js')
-    const authorizeAll = (async () => {
-      for (let i = 0; i < 4; i++) {
-        try {
-          await authorizeTransaction(wallet, 120_000)
-        } catch {
-          break
-        }
-      }
-    })()
+    const authorizeApproval = authorizeTransaction(wallet, 240_000).catch(() => {})
     await Promise.all([
-      authorizeAll,
-      expect(successBanner).toContainText('Registration Complete', { timeout: 180_000 }),
+      authorizeApproval,
+      expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 }),
     ])
 
     if (mockIndexer.enabled) {

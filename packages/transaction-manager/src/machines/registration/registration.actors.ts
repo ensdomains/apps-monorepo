@@ -9,6 +9,7 @@ import {
   ethRegistrarCommitSnippet,
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
+  ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
@@ -1395,5 +1396,172 @@ export function ensureHcaDeployedActor(input: {
       console.error('❌ [ENSURE HCA] HCA deployment failed:', error)
       return error instanceof Error ? error : new Error(String(error))
     },
+  )
+}
+
+// ============================================================================
+// Renewal Actor Functions
+// ============================================================================
+//
+// `ETHRegistrar.renew(label, duration, paymentToken, referrer)` pulls the rent
+// from `_msgSender()` (see AbstractETHRegistrar.renew). Crucially, the registrar
+// uses HCA-aware sender resolution: when an HCA calls `renew`, `_msgSender()`
+// unwraps to the HCA's owner EOA (HCAEquivalence). So the registrar always pulls
+// payment from the EOA — never the HCA, which holds no tokens.
+//
+// This is the same payer the `register` flow authorizes, so renewal reuses the
+// exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
+// (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
+// sponsored intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+
+/**
+ * Encode `renew(label, duration, paymentToken, referrer)` calldata.
+ */
+function encodeRenewData(
+  label: string,
+  duration: bigint,
+  paymentToken: Address,
+): Hash {
+  const cleanLabel = label.replace('.eth', '')
+  return encodeFunctionData({
+    abi: ethRegistrarRenewSnippet,
+    functionName: 'renew',
+    args: [cleanLabel, duration, paymentToken, REFERER_ADDRESS],
+  })
+}
+
+/**
+ * Submit a standalone `renew` transaction. Used on the pure-EOA path, where the
+ * allowance is set by a preceding on-chain `approve` (or already sufficient).
+ * The renewal payer is the EOA — both because the EOA is `msg.sender` here and
+ * because the registrar's HCA-aware `_msgSender()` resolves to the EOA anyway.
+ */
+export function submitRenewActor(input: {
+  label: string
+  duration: bigint
+  selectedToken: 'USDC' | 'DAI'
+  signer: import('../..').Signer
+  publicClient: PublicClient
+  sponsored?: boolean
+  id?: string
+}): ResultAsync<string, Error> {
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+
+  return fromPromise(
+    (async () => {
+      const accountAddress = getSignerAddress(input.signer)
+
+      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      // Normalize to lowercase to avoid Rhinestone SDK validation issues.
+      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
+
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
+      )
+
+      const renewData = encodeRenewData(
+        input.label,
+        input.duration,
+        normalizedPaymentToken,
+      )
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: accountAddress,
+        to: registrarAddress,
+        data: renewData,
+        value: 0n,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        calls: [{ to: registrarAddress, data: renewData, value: 0n }],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          id: input.id,
+          description: `Renew ${input.label}.eth`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      )
+
+      return txId
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+/**
+ * Submit `permit` + `renew` as a single batched, Warp-sponsored Rhinestone
+ * intent (rhinestone signers only). The two calls execute atomically in order,
+ * so the allowance set by `permit` is visible to `renew` in the same tx — which
+ * is exactly what prevents the "insufficient allowance" simulation failure that
+ * the previous two-separate-intents approach produced. The EOA pays no gas and
+ * sends no tx; it only signs the off-chain permit.
+ */
+export function submitPermitAndRenewActor(input: {
+  permit: PermitSignature
+  selectedToken: 'USDC' | 'DAI'
+  label: string
+  duration: bigint
+  signer: import('../..').Signer
+  publicClient: PublicClient
+  sponsored?: boolean
+  id?: string
+}): ResultAsync<string, Error> {
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+
+  return fromPromise(
+    (async () => {
+      const accountAddress = getSignerAddress(input.signer)
+
+      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
+
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
+      )
+
+      const permitData = encodePermitData(input.permit)
+      const renewData = encodeRenewData(
+        input.label,
+        input.duration,
+        normalizedPaymentToken,
+      )
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: accountAddress,
+        to: registrarAddress,
+        data: renewData,
+        value: 0n,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        calls: [
+          { to: normalizedPaymentToken, data: permitData, value: 0n },
+          { to: registrarAddress, data: renewData, value: 0n },
+        ],
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          id: input.id,
+          description: `Renew ${input.label}.eth`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      )
+
+      return txId
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
   )
 }

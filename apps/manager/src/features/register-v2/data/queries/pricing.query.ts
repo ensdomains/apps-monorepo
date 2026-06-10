@@ -20,6 +20,11 @@ const ETH_REGISTRAR = getChainContractAddress({
   contract: 'ensEthRegistrar',
 })
 
+// The contract computes the temporary premium from block.timestamp on every
+// call, so cart total / banner pill / chart `nowPoint` need to refetch to
+// stay aligned with the chain. Matches v3's cadence.
+const PRICING_REFETCH_INTERVAL_MS = 60_000
+
 export class GetRegisterPriceError extends TaggedError(
   'GetRegisterPriceError',
 )<{
@@ -42,6 +47,7 @@ export const getRegisterPrice = ResultFn(async function* (
   if (!token) {
     return err(new MissingTokenError({}))
   }
+
   const tokenInfo = TOKENS[token]
   const { base, premium } = yield* fromPromise(
     ensGetRegisterPrice(publicClient, {
@@ -73,6 +79,8 @@ export const getRegisterPriceQueryOptions = (
     }),
     throwOnError: true,
     queryFn: () => getRegisterPrice(name, durationInSeconds, token),
+    refetchInterval: PRICING_REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
   })
 }
 
