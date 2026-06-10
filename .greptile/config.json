@@ -301,19 +301,19 @@
 
     {
       "id": "component-prop-count",
-      "rule": "Components with more than ~10 props are a 'long parameter list' smell. This is a soft tripwire prompting review, not a hard cap. The fix is NEVER to delete a prop — suggest, in order: (1) group related props into a single object (a `value`/`onChange`/`label`/`onBlur` cluster becomes one prop), (2) composition/`children` over configuration props, (3) split the component by responsibility. Only flag when the props interface clearly exceeds ~10 fields and a grouping/composition remedy applies. See STYLEGUIDE.md 'Number of Props'.",
+      "rule": "Many props (~10+) can signal a component doing too much. If it reads that way, suggest a fitting remedy — grouping related props into an object, composition, or splitting — and use judgement; other approaches are fine. See STYLEGUIDE.md 'Number of Props'.",
       "scope": ["apps/**/*.tsx", "packages/**/*.tsx"],
       "severity": "medium"
     },
     {
       "id": "file-length",
-      "rule": "Source files over ~500 lines are a 'look here' signal that the file does too much; suggest splitting by responsibility (extract helpers to `*.handlers.ts`/`*.transactions.ts`, sub-components, or pure functions). Soft signal, not a hard cap — don't flag if the file is cohesive and a split would only scatter it. NEVER flag generated files (`*.gen.ts`, `*.gen.d.ts`, `worker-configuration*`, `routeTree.gen.ts`), test files, or `*.mock.ts`. See STYLEGUIDE.md 'Component Size and Complexity'.",
+      "rule": "Files over ~500 lines are a soft signal the file may do too much; suggest splitting by responsibility, but leave cohesive files alone. See STYLEGUIDE.md 'Component Size and Complexity'.",
       "scope": ["apps/**/*.tsx", "apps/**/*.ts", "packages/**/*.tsx", "packages/**/*.ts"],
       "severity": "medium"
     },
     {
       "id": "one-component-per-file",
-      "rule": "Declare one exported React component per file (Airbnb convention). Small co-located stateless/presentational helper components in the same file are fine. Flag files that export multiple stateful or feature-level components and suggest splitting each into its own file.",
+      "rule": "Prefer one primary component per file. Small co-located helpers are fine, even with a little local state; flag only when several substantial components in one file would clearly be better split out. See STYLEGUIDE.md.",
       "scope": ["apps/**/*.tsx", "packages/**/*.tsx"],
       "severity": "medium"
     }
