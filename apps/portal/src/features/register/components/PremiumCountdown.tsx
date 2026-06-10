@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react'
+import {
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+} from '@/lib/constants/duration'
 
 type PremiumCountdownProps = {
   readonly end: Temporal.Instant
@@ -23,10 +28,12 @@ export const PremiumCountdown = ({ end }: PremiumCountdownProps) => {
     0,
     Math.floor((end.epochMilliseconds - nowMs) / 1000),
   )
-  const days = Math.floor(totalSeconds / 86_400)
-  const hours = Math.floor((totalSeconds % 86_400) / 3_600)
-  const minutes = Math.floor((totalSeconds % 3_600) / 60)
-  const seconds = totalSeconds % 60
+  const days = Math.floor(totalSeconds / SECONDS_PER_DAY)
+  const hours = Math.floor((totalSeconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR)
+  const minutes = Math.floor(
+    (totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE,
+  )
+  const seconds = totalSeconds % SECONDS_PER_MINUTE
 
   return (
     <span className="tabular-nums whitespace-nowrap font-medium">

@@ -58,8 +58,7 @@ export const RegistrationDurationPresets = ({
   const effectivePerYear = PRESET_YEARS.map((years, idx) =>
     computeEffectivePerYear(discountQueries[idx]?.data ?? 0n, years),
   )
-  // The 1-year term is the baseline we measure each longer term's saving
-  // against (PRESET_YEARS[0] === 1).
+
   const baselinePerYear = effectivePerYear[0]
 
   return (
