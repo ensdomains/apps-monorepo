@@ -63,7 +63,7 @@ export const RegistrationDurationPresets = ({
   const baselinePerYear = effectivePerYear[0]
 
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="flex flex-wrap sm:flex-row flex-col gap-4">
       {PRESET_YEARS.map((years, idx) => {
         const isSelected = selectedYears === years
         const effective = effectivePerYear[idx]
@@ -79,7 +79,7 @@ export const RegistrationDurationPresets = ({
             onClick={() => onSelect(years)}
             aria-pressed={isSelected}
             className={cn(
-              'relative group w-24 flex flex-col items-center gap-0.5 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
+              'relative group sm:w-24 w-full flex sm:flex-col items-center justify-center sm:gap-0.5 gap-2 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
               isSelected
                 ? 'border-signal-success-700 bg-success-fill'
                 : 'border-border hover:border-neutral-6',
@@ -88,7 +88,7 @@ export const RegistrationDurationPresets = ({
             {discountPct > 0 ? (
               <span
                 className={cn(
-                  'absolute -top-2 -right-1 rounded-full px-1.5 py-1.5 text-[10px] font-medium leading-none',
+                  'absolute sm:top-0 sm:-right-1 top-1/2 -translate-y-1/2 right-4 rounded-full px-1.5 py-1.5 text-[10px] font-medium leading-none',
                   isSelected
                     ? 'bg-signal-success-700 text-white'
                     : 'bg-muted text-muted-foreground',

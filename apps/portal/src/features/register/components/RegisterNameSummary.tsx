@@ -261,9 +261,7 @@ const PriceBreakdown = ({
             value={
               <span className="flex items-center justify-end gap-2">
                 {savePct > 0 ? (
-                  <Badge className="border-transparent bg-success-fill text-success-text">
-                    {`Save ${savePct}%`}
-                  </Badge>
+                  <Badge variant="success">{`Save ${savePct}%`}</Badge>
                 ) : null}
                 <span>{`${formatUsd(pricePerYear)}/year`}</span>
               </span>
