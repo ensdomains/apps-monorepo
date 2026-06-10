@@ -27,7 +27,7 @@
     "@ensdomains/ensjs": "catalog:",
     "@hono/valibot-validator": "^0.5.3",
     "@neondatabase/serverless": "^1.0.2",
-    "drizzle-orm": "^0.44.5",
+    "drizzle-orm": "^0.45.2",
     "graphql": "^16.11.0",
     "graphql-request": "^7.2.0",
     "hono": "^4.9.1",
