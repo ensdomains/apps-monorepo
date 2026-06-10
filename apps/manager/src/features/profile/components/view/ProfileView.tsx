@@ -1,7 +1,5 @@
 import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
@@ -17,10 +15,7 @@ import {
   profileExpiryQuery,
 } from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
-import {
-  type ProfileRecordsResult,
-  profileRecordsQuery,
-} from '../../service/profileRecords'
+import { profileRecordsQuery } from '../../service/profileRecords'
 import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { EditProfileDialog } from '../dialogs/edit-profile/EditProfileDialog'
@@ -37,33 +32,11 @@ interface ProfileViewProps {
   name: string
 }
 
-const hasConfiguredProfileRecords = ({
-  texts,
-  coins,
-  contentHash,
-  abi,
-}: ProfileRecordsResult): boolean =>
-  texts.length > 0 ||
-  coins.length > 0 ||
-  Boolean(contentHash?.trim()) ||
-  Boolean(abi?.trim())
-
-type UseOwnerRedirectParams = {
-  readonly name: string
-  readonly isProfileEmpty: boolean
-  readonly isInGrace: boolean
+type UseIsOwnerParams = {
   readonly owner: Address | undefined
-  readonly isOwnerPending: boolean
 }
 
-const useOwnerRedirect = ({
-  name,
-  isProfileEmpty,
-  isInGrace,
-  owner,
-  isOwnerPending,
-}: UseOwnerRedirectParams) => {
-  const navigate = useNavigate()
+const useIsOwner = ({ owner }: UseIsOwnerParams) => {
   const { address } = useConnection()
   const { accountAddress: smartAccountAddress } = useSmartAccountContext()
 
@@ -73,19 +46,7 @@ const useOwnerRedirect = ({
     [address, smartAccountAddress]
       .filter((addr): addr is Address => !!addr)
       .some((addr) => addr.toLowerCase() === normalizedOwner)
-
-  const shouldRedirectToEdit = isOwner && isProfileEmpty && !isInGrace
-
-  useEffect(() => {
-    if (shouldRedirectToEdit) {
-      navigate({ to: '/p/$name/edit', params: { name }, replace: true })
-    }
-  }, [shouldRedirectToEdit, navigate, name])
-
-  return {
-    isOwner,
-    shouldHide: (isOwner || isOwnerPending) && isProfileEmpty && !isInGrace,
-  }
+  return isOwner
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
@@ -96,7 +57,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
   })
   const records = transformProfileRecords(profileRecords)
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
-  const isProfileEmpty = !hasConfiguredProfileRecords(profileRecords)
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
@@ -113,12 +73,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
   const owner = ownerData?.owner as Address | undefined
 
-  const { isOwner, shouldHide } = useOwnerRedirect({
-    name,
-    isProfileEmpty,
-    isInGrace: expiry.isInGrace,
+  const isOwner = useIsOwner({
     owner,
-    isOwnerPending,
   })
 
   // Registry ownerOf is zero when expired; expiry distinguishes v2 grace from missing.
@@ -139,10 +95,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         ) : null}
       </div>
     )
-  }
-
-  if (shouldHide) {
-    return null
   }
 
   return (
