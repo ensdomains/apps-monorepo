@@ -192,4 +192,42 @@ describe('address row helpers', () => {
     expect(state.unavailableEvmCoinTypes.has(BSC_COIN_TYPE)).toBe(true)
     expect(state.unavailableOtherCoinTypes.has(123_456_789)).toBe(true)
   })
+
+  it('does not render the chain-specific section when EVM rows mirror the Ethereum address', () => {
+    const state = getAddressDisplayState({
+      addresses: [
+        address(ETH_COIN_TYPE, ethAddress),
+        address(optimismCoinType, ethAddress.toUpperCase()),
+        address(baseCoinType, `  ${ethAddress}  `),
+      ],
+      ethAddress,
+      extraEvmCoinTypes: [],
+      extraOtherCoinTypes: [],
+    })
+
+    expect(state.customEvmOptions).toEqual([])
+    expect(state.visibleEvmChipOptions.map(({ coinType }) => coinType)).toEqual(
+      expect.arrayContaining([optimismCoinType, baseCoinType]),
+    )
+  })
+
+  it('hides preset chain-specific EVM records from popular chips and the add-more picker', () => {
+    const state = getAddressDisplayState({
+      addresses: [
+        address(ETH_COIN_TYPE, ethAddress),
+        address(baseCoinType, customBaseAddress),
+      ],
+      ethAddress,
+      extraEvmCoinTypes: [],
+      extraOtherCoinTypes: [],
+    })
+
+    expect(state.customEvmOptions).toEqual([
+      { coinType: baseCoinType, label: 'Base' },
+    ])
+    expect(
+      state.visibleEvmChipOptions.map(({ coinType }) => coinType),
+    ).not.toContain(baseCoinType)
+    expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(true)
+  })
 })

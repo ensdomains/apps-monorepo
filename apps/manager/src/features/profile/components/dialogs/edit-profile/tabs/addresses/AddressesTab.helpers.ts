@@ -1,3 +1,4 @@
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { getAddressRecordDef } from '@/features/profile/data/records'
 import type { AddressRecordValue } from '@/features/profile/types'
 import {
@@ -95,6 +96,27 @@ export const getRecordIcon = (coinType: number) => {
   return undefined
 }
 
+const getComparableEvmAddress = (value: string): Address | null => {
+  const trimmedValue = value.trim()
+  return isAddress(trimmedValue, { strict: false })
+    ? (trimmedValue as Address)
+    : null
+}
+
+const isChainSpecificEvmAddress = (value: string, ethAddress: string) => {
+  const trimmedValue = value.trim()
+  if (trimmedValue === '') return false
+
+  const addressValue = getComparableEvmAddress(trimmedValue)
+  const defaultAddressValue = getComparableEvmAddress(ethAddress)
+
+  if (addressValue && defaultAddressValue) {
+    return !isAddressEqual(addressValue, defaultAddressValue)
+  }
+
+  return trimmedValue !== ethAddress.trim()
+}
+
 interface GetVisibleAddressOptionsParams {
   readonly addresses: readonly AddressRecordValue[]
   readonly extraEvmCoinTypes: readonly number[]
@@ -145,7 +167,7 @@ export const getAddressDisplayState = ({
   })
   const customEvmOptions = evmOptions.filter((option) => {
     const value = getAddressValue(addresses, option.coinType)
-    return value.trim() !== '' && value !== ethAddress
+    return isChainSpecificEvmAddress(value, ethAddress)
   })
   const visibleEvmChipOptions = evmOptions.filter(
     (option) =>
