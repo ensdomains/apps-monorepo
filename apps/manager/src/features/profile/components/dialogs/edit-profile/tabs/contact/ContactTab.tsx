@@ -15,6 +15,8 @@ import {
 } from './constants'
 import {
   getBaseWithPrimaryContactKeys,
+  getContactMethodErrorMessage,
+  getIsPrimaryContactToggleDisabled,
   getRecordsForMethod,
   getRecordValue,
   hasRecord,
@@ -108,10 +110,6 @@ export const ContactTab = ({
   const handleValueChange = (method: ContactMethod, value: string) => {
     const records = getRecordsForMethod(values, method)
     updateRecords(method, upsertRecordValue(records, method.key, value))
-
-    if (value.trim() === '') {
-      removePrimaryContact(method)
-    }
   }
 
   const handlePrimaryChange = (method: ContactMethod, checked: boolean) => {
@@ -121,7 +119,6 @@ export const ContactTab = ({
     }
 
     if (
-      !getRecordValue(values, method).trim() ||
       primaryContactKeys.includes(method.key) ||
       primaryContactKeys.length >= maxPrimaryContactMethods
     ) {
@@ -184,15 +181,19 @@ export const ContactTab = ({
               <div className="flex flex-col gap-3" key={method.key}>
                 <ContactMethodRow
                   disabled={isSaving}
+                  errorMessage={getContactMethodErrorMessage({
+                    isPrimary: primary,
+                    method,
+                    value,
+                  })}
                   method={method}
                   onPrimaryChange={handlePrimaryChange}
                   onValueChange={handleValueChange}
                   primary={primary}
-                  primaryDisabled={
-                    !primary &&
-                    (value.trim() === '' ||
-                      primaryContactKeys.length >= maxPrimaryContactMethods)
-                  }
+                  primaryDisabled={getIsPrimaryContactToggleDisabled({
+                    isPrimary: primary,
+                    primaryContactCount: primaryContactKeys.length,
+                  })}
                   value={value}
                 />
                 {method.key === 'email' ? (

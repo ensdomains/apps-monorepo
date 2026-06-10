@@ -145,37 +145,39 @@ export const GeneralTab = ({
 
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
-          <div className="flex flex-col items-center gap-3.5 py-3">
-            <div className="size-25 overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
-              <ImageSelectionDialog
-                currentImage={values.base.avatar}
-                defaultImage=""
-                description="Choose a profile picture"
-                emptyState={
-                  <div className="flex size-full items-center justify-center">
-                    <MSymbol
-                      className="text-ens-quartz-380"
-                      style={{ fontSize: 32 }}
-                      symbol="face"
-                    />
-                  </div>
-                }
-                name={name}
-                onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
-                onImageRemove={() => setBaseValue('avatar', '')}
-                title="Change Profile Picture"
-                triggerClassName="h-full w-full"
-                type="avatar"
-              />
+          <div className="flex h-42 w-full items-center justify-center overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50 p-3">
+            <div className="flex flex-col items-center gap-3.5">
+              <div className="size-25 overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+                <ImageSelectionDialog
+                  currentImage={values.base.avatar}
+                  defaultImage=""
+                  description="Choose a profile picture"
+                  emptyState={
+                    <div className="flex size-full items-center justify-center">
+                      <MSymbol
+                        className="text-ens-quartz-380"
+                        style={{ fontSize: 32 }}
+                        symbol="face"
+                      />
+                    </div>
+                  }
+                  name={name}
+                  onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
+                  onImageRemove={() => setBaseValue('avatar', '')}
+                  title="Change Profile Picture"
+                  triggerClassName="h-full w-full"
+                  type="avatar"
+                />
+              </div>
+              <p className="flex items-center gap-2 text-[14px] text-ens-quartz-400">
+                Add a profile picture
+                <MSymbol
+                  className="ms-fill"
+                  style={{ fontSize: 14 }}
+                  symbol="add"
+                />
+              </p>
             </div>
-            <p className="flex items-center gap-2 text-[14px] text-ens-quartz-400">
-              Add a profile picture
-              <MSymbol
-                className="ms-fill"
-                style={{ fontSize: 14 }}
-                symbol="add"
-              />
-            </p>
           </div>
         )}
 

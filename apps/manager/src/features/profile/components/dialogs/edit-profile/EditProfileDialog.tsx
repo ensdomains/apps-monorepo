@@ -28,6 +28,7 @@ import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
+import { getContactValidationIssues } from './tabs/contact/records'
 import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface ProfileEditForm {
@@ -257,6 +258,8 @@ export const EditProfileDialog = ({
               const hasLinkValidationIssues =
                 getLinkValidationIssues(values.links).length > 0 ||
                 hasDraftLinkValidationIssues
+              const hasContactValidationIssues =
+                getContactValidationIssues(values).length > 0
               const handleBaseChange = (base: ProfileRecords['base']) => {
                 resetSaveState()
                 form.setFieldValue('base', base)
@@ -291,7 +294,10 @@ export const EditProfileDialog = ({
                   <EditProfileDialogHeader
                     avatarUrl={values.base.avatar}
                     canSave={
-                      hasChanges && canSubmit && !hasLinkValidationIssues
+                      hasChanges &&
+                      canSubmit &&
+                      !hasLinkValidationIssues &&
+                      !hasContactValidationIssues
                     }
                     name={name}
                     onSave={() => handleSave(submittedValues)}

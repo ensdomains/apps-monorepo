@@ -29,6 +29,7 @@ import {
   isSafeHttpUrl,
 } from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
+import { validateEmail } from '@/features/profile/utils/validateUrl'
 import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
 
 export { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
@@ -265,6 +266,13 @@ const validateFinalTextRecords = (texts: FinalTextRecord[]): RecordIssue[] => {
             message: issue.message ?? 'Invalid Bio URL',
           })),
         )
+      }
+    }
+
+    if (key === 'email') {
+      const message = validateEmail(trimmed)
+      if (message) {
+        issues.push(recordIssue('contact', 'email', message))
       }
     }
 
