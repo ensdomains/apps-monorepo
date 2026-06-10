@@ -82,7 +82,7 @@ export const RegistrationDurationPresets = ({
               'relative group w-24 flex flex-col items-center gap-0.5 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
               isSelected
                 ? 'border-signal-success-700 bg-success-fill'
-                : 'border-neutral-6',
+                : 'border-border hover:border-neutral-6',
             )}
           >
             {discountPct > 0 ? (

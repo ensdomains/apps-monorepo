@@ -1,5 +1,6 @@
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Popover,
@@ -74,15 +75,12 @@ export const RegistrationExpiryDatePicker = ({
             <span className="flex-1 truncate text-2xl font-medium">
               {displayValue}
             </span>
-            <span className="flex rounded-md size-8 shrink-0 items-center justify-center bg-secondary">
+            <Button className="size-8" size="icon" variant="outline">
               <CalendarIcon className="size-3 text-primary" />
-            </span>
+            </Button>
           </button>
         </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 border border-border"
-          align="start"
-        >
+        <PopoverContent className="w-auto p-0 border border-border" align="end">
           <Calendar
             captionLayout="dropdown"
             defaultMonth={selectedDateForCalendar}
