@@ -127,7 +127,7 @@ const MobileProfileActions = ({
   onMenuToggle,
   onSave,
 }: MobileProfileActionsProps) => (
-  <div className="flex shrink-0 items-start gap-1 px-[17px] py-2 lg:hidden">
+  <div className="flex shrink-0 items-start gap-1 px-[17px] py-2 md:hidden">
     <button
       aria-expanded={isMenuOpen}
       aria-label={isMenuOpen ? 'Close edit sections' : 'Open edit sections'}
@@ -199,8 +199,8 @@ export const EditProfileDialogTabs = ({
   }, [])
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
-      <div className="hidden shrink-0 pb-5 pl-4 lg:block">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+      <div className="hidden shrink-0 pb-5 pl-4 md:block">
         <EditProfileTabList className="w-29.5" />
       </div>
 
@@ -257,7 +257,7 @@ export const EditProfileDialogTabs = ({
       </div>
 
       {mobileNavOpen ? (
-        <div className="absolute inset-x-0 top-0 bottom-14 z-10 bg-white px-4 pt-1 lg:hidden">
+        <div className="absolute inset-x-0 top-0 bottom-14 z-10 bg-white px-4 pt-1 md:hidden">
           <EditProfileTabList
             className="h-full w-full rounded-r-lg border border-ens-quartz-200 shadow-[0px_4px_2px_rgba(200,200,200,0.25)]"
             onSelect={() => setMobileNavOpen(false)}

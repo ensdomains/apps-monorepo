@@ -28,7 +28,7 @@ export const EditProfileDialogHeader = ({
   const displayAvatarUrl = resolvedAvatar.data ?? avatarUrl
 
   return (
-    <div className="flex shrink-0 items-center justify-between px-4 pt-6 pb-1 lg:p-6">
+    <div className="flex shrink-0 items-center justify-between px-4 pt-6 pb-1 md:p-6">
       <div className="flex min-w-0 items-center gap-1">
         <div className="size-9.75 shrink-0 overflow-hidden rounded-sm">
           <ImageFallback.Root className="contents">
@@ -47,11 +47,11 @@ export const EditProfileDialogHeader = ({
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </div>
-        <DialogTitle className="max-w-[calc(100vw-7rem)] truncate rounded-sm border border-ens-lapis-500 px-2 py-1.5 font-medium font-semi-mono text-[21.25px] text-ens-lapis-500 leading-[0.96] tracking-[-0.425px] lg:max-w-104 lg:text-[28px] lg:tracking-[-0.595px]">
+        <DialogTitle className="max-w-[calc(100vw-7rem)] truncate rounded-sm border border-ens-lapis-500 px-2 py-1.5 font-medium font-semi-mono text-[21.25px] text-ens-lapis-500 leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
           {name}
         </DialogTitle>
       </div>
-      <div className="hidden items-center gap-3 lg:flex">
+      <div className="hidden items-center gap-3 md:flex">
         <DialogClose asChild>
           <button
             className="rounded-sm px-[15.419px] py-3 font-medium font-mono text-[#404040] text-[12px] uppercase leading-normal tracking-[0.96px] transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50"
