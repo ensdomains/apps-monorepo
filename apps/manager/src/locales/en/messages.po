@@ -898,7 +898,7 @@ msgstr "ENS"
 msgid "ENS app landing page"
 msgstr "ENS app landing page"
 
-#: src/features/notifications/settings/preferences.tsx:128
+#: src/features/notifications/settings/preferences.tsx:127
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
@@ -1062,10 +1062,6 @@ msgstr "Failed to resend email verification"
 msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
-#~ msgid "Failed to set primary name"
-#~ msgstr "Failed to set primary name"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name. Please try again."
@@ -1092,7 +1088,7 @@ msgstr "Failed to verify email"
 msgid "Favorites"
 msgstr "Favorites"
 
-#: src/features/notifications/settings/preferences.tsx:143
+#: src/features/notifications/settings/preferences.tsx:142
 msgid "Favourites"
 msgstr "Favourites"
 
@@ -1134,7 +1130,7 @@ msgstr "Get instant push notifications in your browser"
 msgid "Get instant updates through Telegram for your domains."
 msgstr "Get instant updates through Telegram for your domains."
 
-#: src/features/notifications/settings/preferences.tsx:138
+#: src/features/notifications/settings/preferences.tsx:137
 msgid "Get notified when names you favorited expire."
 msgstr "Get notified when names you favorited expire."
 
@@ -1142,7 +1138,7 @@ msgstr "Get notified when names you favorited expire."
 msgid "Get support"
 msgstr "Get support"
 
-#: src/features/notifications/settings/preferences.tsx:123
+#: src/features/notifications/settings/preferences.tsx:122
 msgid "Get updated on the latest releases and features."
 msgstr "Get updated on the latest releases and features."
 
@@ -1216,7 +1212,7 @@ msgstr "Image must be under {MAX_FILE_SIZE_MB}MB"
 msgid "Image not available"
 msgstr "Image not available"
 
-#: src/features/notifications/settings/preferences.tsx:96
+#: src/features/notifications/settings/preferences.tsx:95
 msgid "In-app notifications are always enabled"
 msgstr "In-app notifications are always enabled"
 
@@ -1396,7 +1392,7 @@ msgstr "Name (A-Z)"
 msgid "Name (Z-A)"
 msgstr "Name (Z-A)"
 
-#: src/features/notifications/settings/preferences.tsx:112
+#: src/features/notifications/settings/preferences.tsx:111
 msgid "Name Expiry"
 msgstr "Name Expiry"
 
@@ -1678,17 +1674,13 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
-#: src/features/notifications/settings/preferences.tsx:93
+#: src/features/notifications/settings/preferences.tsx:92
 msgid "Preferences"
 msgstr "Preferences"
 
 #: src/features/notifications/settings/preferences.tsx:48
 msgid "Preferences updated"
 msgstr "Preferences updated"
-
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
-#~ msgid "Premium Fee"
-#~ msgstr "Premium Fee"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:36
 msgid "Preparing account"
@@ -1769,10 +1761,6 @@ msgstr "Privacy Policy"
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
 msgid "Profile saved"
 msgstr "Profile saved"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
-#~ msgid "Profile updated"
-#~ msgstr "Profile updated"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
 msgid "Profile updated successfully."
@@ -2065,7 +2053,7 @@ msgstr "Save and Continue"
 msgid "Save Changes"
 msgstr "Save Changes"
 
-#: src/features/notifications/settings/preferences.tsx:187
+#: src/features/notifications/settings/preferences.tsx:186
 msgid "Save Preferences"
 msgstr "Save Preferences"
 
@@ -2094,7 +2082,7 @@ msgstr "Saving manager for {label}.eth"
 msgid "Saving managers batch {0} of {total}"
 msgstr "Saving managers batch {0} of {total}"
 
-#: src/features/notifications/settings/preferences.tsx:185
+#: src/features/notifications/settings/preferences.tsx:184
 #: src/features/profile/components/dialogs/DiffDialog.tsx:270
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:73
 msgid "Saving..."
@@ -2375,10 +2363,6 @@ msgstr "Submitting the registration transaction"
 msgid "Submitting token approval"
 msgstr "Submitting token approval"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
-#~ msgid "Submitting your ENS profile update. This may take a few moments."
-#~ msgstr "Submitting your ENS profile update. This may take a few moments."
-
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
 msgstr "Successfully connected! You can now use the application."
@@ -2533,10 +2517,6 @@ msgstr "Trademark Guidelines"
 msgid "Transaction submitted:"
 msgstr "Transaction submitted:"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
-#~ msgid "Transaction:"
-#~ msgstr "Transaction:"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
 msgstr "Transfer your name to any wallet"
@@ -2563,14 +2543,6 @@ msgstr "unique searches in the last 30 days"
 #: src/routes/notifications/_authenticated/index.tsx:97
 msgid "Unread only"
 msgstr "Unread only"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
-#~ msgid "Update failed"
-#~ msgstr "Update failed"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
-#~ msgid "Updating profile"
-#~ msgstr "Updating profile"
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx:61
@@ -2659,7 +2631,7 @@ msgstr "Verified"
 msgid "Verified!"
 msgstr "Verified!"
 
-#: src/features/notifications/settings/preferences.tsx:194
+#: src/features/notifications/settings/preferences.tsx:193
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
 
@@ -2786,10 +2758,6 @@ msgstr "Waiting for the registration transaction"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:48
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
-#~ msgid "Waiting for the transaction to be confirmed…"
-#~ msgstr "Waiting for the transaction to be confirmed…"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
@@ -2941,7 +2909,7 @@ msgstr "You need to verify your wallet ownership to manage your notification pre
 msgid "You'll always see important notifications in the app."
 msgstr "You'll always see important notifications in the app."
 
-#: src/features/notifications/settings/preferences.tsx:105
+#: src/features/notifications/settings/preferences.tsx:104
 msgid "You'll be notified 30, 7, and 1 day before expiry."
 msgstr "You'll be notified 30, 7, and 1 day before expiry."
 
@@ -3017,10 +2985,6 @@ msgstr "Your primary name has expired."
 #: src/features/dashboard/components/FaqSection.tsx:40
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
-#~ msgid "Your profile changes have been confirmed on-chain."
-#~ msgstr "Your profile changes have been confirmed on-chain."
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
