@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { SirenIcon } from 'lucide-react'
-import { Fragment, type ReactNode, useState } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
 import { formatUnits } from 'viem'
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PremiumCountdown } from '@/features/register/components/PremiumCountdown'
-import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { TemporaryPremiumPopover } from '@/features/register/components/TemporaryPremiumPopover'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
@@ -22,6 +22,7 @@ import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premi
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
+  formatPriceExact,
   formatRegistrationTotal,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
@@ -66,7 +67,6 @@ export const RegisterNameCheckoutSummary = ({
   name,
   duration,
 }: RegisterNameCheckoutSummaryProps) => {
-  const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
 
   const {
@@ -115,13 +115,10 @@ export const RegisterNameCheckoutSummary = ({
   const premiumRange = (hasPrice && price
     ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
     : null) ?? {
-    start: Temporal.Now.instant(),
-    // premium-ui-mock: ~6d 13h window so the countdown is visibly multi-day.
-    end: Temporal.Now.instant().add({
-      hours: 24 * 6 + 13,
-      minutes: 15,
-      seconds: 38,
-    }),
+    // premium-ui-mock: started ~14d ago so the countdown reads ~7 days and the
+    // decay-curve dot sits mid-window instead of at the very start.
+    start: Temporal.Now.instant().subtract({ hours: 24 * 14 }),
+    end: Temporal.Now.instant().add({ hours: 24 * 7 }),
   }
 
   return (
@@ -134,14 +131,21 @@ export const RegisterNameCheckoutSummary = ({
               This name is subject to a temporary premium for{' '}
               <PremiumCountdown end={premiumRange.end} />
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-transparent hover:bg-transparent text-sm"
-              onClick={() => setPremiumDrawerOpen(true)}
-            >
-              Learn more
-            </Button>
+            {premiumDecayConfig && (
+              <TemporaryPremiumPopover
+                premiumStart={premiumRange.start}
+                premiumDecayConfig={premiumDecayConfig}
+                trigger={(open) => (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-transparent hover:bg-transparent text-sm"
+                  >
+                    {open ? 'Close' : 'Learn more'}
+                  </Button>
+                )}
+              />
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -181,16 +185,6 @@ export const RegisterNameCheckoutSummary = ({
               </p>
             </div>
           ))}
-
-        {hasPrice && price.hasPremium && premiumDecayConfig && (
-          <TemporaryPremiumDrawer
-            open={premiumDrawerOpen}
-            onOpenChange={setPremiumDrawerOpen}
-            currentPremium={formatPriceDisplay(price.premium, price.decimals)}
-            premiumStart={premiumRange?.start ?? null}
-            premiumDecayConfig={premiumDecayConfig}
-          />
-        )}
       </section>
     </Fragment>
   )
@@ -314,9 +308,7 @@ const PriceBreakdown = ({
                   <Badge className="border-transparent bg-warning-fill text-warning-text">
                     Premium
                   </Badge>
-                  <span>
-                    {formatPriceDisplay(price.premium, price.decimals)}
-                  </span>
+                  <span>{formatPriceExact(price.premium, price.decimals)}</span>
                 </span>
               }
             />

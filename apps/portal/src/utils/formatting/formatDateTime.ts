@@ -38,3 +38,15 @@ export const formatExpiryDateTimeLocal = (instant: Temporal.Instant): string =>
     hour: '2-digit',
     minute: '2-digit',
   })
+
+/**
+ * Formats a Temporal.Instant as a dotted date + 24h local time.
+ * Format: "YYYY.MM.DD at HH:MM" (e.g., "2026.05.08 at 02:44").
+ */
+export const formatDottedDateTimeLocal = (
+  instant: Temporal.Instant,
+): string => {
+  const zoned = instant.toZonedDateTimeISO(Temporal.Now.timeZoneId())
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${zoned.year}.${pad(zoned.month)}.${pad(zoned.day)} at ${pad(zoned.hour)}:${pad(zoned.minute)}`
+}

@@ -11,6 +11,16 @@ export function formatPriceDisplay(raw: bigint, decimals: number): string {
 }
 
 /**
+ * Formats a raw token amount as USD preserving the token's full precision — no
+ * rounding to cents (unlike {@link formatPriceDisplay}, which caps at 2dp).
+ */
+export function formatPriceExact(raw: bigint, decimals: number): string {
+  const [whole, fraction] = formatUnits(raw, decimals).split('.')
+  const grouped = BigInt(whole).toLocaleString('en-US')
+  return fraction ? `$${grouped}.${fraction}` : `$${grouped}`
+}
+
+/**
  * Formats base + premium as USD total without rounding to whole dollars.
  */
 export function formatRegistrationTotal(

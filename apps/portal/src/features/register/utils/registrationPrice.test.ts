@@ -2,9 +2,26 @@ import { describe, expect, it } from 'vitest'
 import { DAI_DECIMALS, USDC_DECIMALS } from '@/lib/constants/tokens'
 import {
   formatPriceDisplay,
+  formatPriceExact,
   formatRegistrationTotal,
   isPriceResult,
 } from './registrationPrice'
+
+describe('formatPriceExact', () => {
+  it('preserves full precision without rounding to cents', () => {
+    expect(formatPriceExact(1_451_913_456n, USDC_DECIMALS)).toBe(
+      '$1,451.913456',
+    )
+  })
+
+  it('groups thousands and omits the fraction when whole', () => {
+    expect(formatPriceExact(50_000_000n, USDC_DECIMALS)).toBe('$50')
+    expect(formatPriceExact(100_000_000_000_000n, USDC_DECIMALS)).toBe(
+      '$100,000,000',
+    )
+    expect(formatPriceExact(0n, USDC_DECIMALS)).toBe('$0')
+  })
+})
 
 const validPriceResult = {
   base: 5_000_000n,
