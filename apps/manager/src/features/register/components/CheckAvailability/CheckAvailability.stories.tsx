@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { motion } from 'motion/react'
 import { DomainResultCard } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'

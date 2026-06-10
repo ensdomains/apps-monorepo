@@ -51,6 +51,7 @@ export const CheckAvailability = ({
     displayState,
     pricing,
     premiumLabel,
+    isInCooldown,
     primaryName,
     selectedName,
     isLoading,
@@ -245,6 +246,7 @@ export const CheckAvailability = ({
                       <DomainResultCard
                         clickable
                         domainName={state.domainName}
+                        isInCooldown={isInCooldown}
                         isLoading={false}
                         premiumLabel={premiumLabel}
                         price={pricing[1]?.price}

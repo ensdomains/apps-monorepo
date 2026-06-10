@@ -8,7 +8,7 @@ msgstr ""
 "Language: es\n"
 "Project-Id-Version: ens-app\n"
 "Report-Msgid-Bugs-To: \n"
-"PO-Revision-Date: 2026-06-08 18:47\n"
+"PO-Revision-Date: 2026-06-09 16:55\n"
 "Last-Translator: \n"
 "Language-Team: Spanish\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
@@ -18,7 +18,7 @@ msgstr ""
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:41
+#: src/features/profile/components/dialogs/DiffDialog.tsx:44
 msgid "(empty)"
 msgstr ""
 
@@ -140,11 +140,11 @@ msgstr ""
 msgid "Account address:"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:104
+#: src/features/profile/components/ProfileEdit.tsx:105
 msgid "Account not ready. Please wait for wallet to connect."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:156
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:157
 msgid "Add"
 msgstr ""
 
@@ -185,9 +185,9 @@ msgstr ""
 msgid "Add favorite"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:121
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:166
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:180
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:122
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:167
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:181
 msgid "Add Link"
 msgstr ""
 
@@ -216,7 +216,7 @@ msgstr ""
 msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:34
+#: src/features/profile/components/dialogs/DiffDialog.tsx:33
 msgid "Added"
 msgstr ""
 
@@ -332,6 +332,10 @@ msgstr ""
 msgid "Available Wallets"
 msgstr ""
 
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:44
+msgid "Awaiting approval signature"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx:223
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:394
@@ -430,18 +434,18 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx:232
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
-#: src/features/profile/components/dialogs/DiffDialog.tsx:253
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:61
+#: src/features/profile/components/dialogs/DiffDialog.tsx:261
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx:61
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:351
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:256
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:258
 msgid "Cancel"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:97
+#: src/features/profile/components/ProfileEdit.tsx:98
 msgid "Cannot save profile - ENS owner is not available."
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:115
+#: src/features/profile/components/ProfileEdit.tsx:116
 msgid "Cannot save profile - resolver address is not available."
 msgstr ""
 
@@ -464,6 +468,10 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx:109
 msgid "Check your email for the verification code. You can also click the link in the email to verify automatically."
+msgstr ""
+
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:40
+msgid "Checking allowance"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:82
@@ -679,13 +687,17 @@ msgid "Copy to clipboard"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:158
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:140
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:139
 msgid "Could not find resolver for {name}"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:152
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:135
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:134
 msgid "Could not read ETH address record for {name}"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:36
+msgid "Could not save profile"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx:82
@@ -820,7 +832,7 @@ msgstr ""
 msgid "Drag and drop an image here, or"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialog.tsx:238
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx:238
 #: src/features/profile/components/view/ProfileView.tsx:207
 msgid "Edit Profile"
 msgstr ""
@@ -1030,15 +1042,16 @@ msgid "Failed to resend email verification"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:182
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:164
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:163
 msgid "Failed to set ETH address record"
 msgstr ""
 
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
-msgid "Failed to set primary name"
-msgstr ""
+#~ msgid "Failed to set primary name"
+#~ msgstr "Failed to set primary name"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name. Please try again."
 msgstr ""
 
@@ -1081,7 +1094,7 @@ msgstr ""
 msgid "Frequently Asked Questions"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:196
+#: src/features/profile/components/dialogs/DiffDialog.tsx:203
 msgid "From:"
 msgstr ""
 
@@ -1137,7 +1150,7 @@ msgstr ""
 msgid "Go to page {page}"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:248
+#: src/features/profile/components/dialogs/DiffDialog.tsx:256
 msgid "Go to Profile"
 msgstr ""
 
@@ -1211,7 +1224,7 @@ msgstr ""
 msgid "Learn more"
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:142
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:143
 msgid "Link"
 msgstr ""
 
@@ -1256,7 +1269,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:90
 #: src/features/notifications/inbox/list.tsx:47
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:97
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:52
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:69
 msgid "Loading..."
 msgstr ""
 
@@ -1318,7 +1331,7 @@ msgstr ""
 msgid "MM/YY"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:36
+#: src/features/profile/components/dialogs/DiffDialog.tsx:35
 msgid "Modified"
 msgstr ""
 
@@ -1344,7 +1357,7 @@ msgstr ""
 #: src/features/dashboard/components/NamesTable.tsx:70
 #: src/features/dashboard/components/NamesTable.tsx:84
 #: src/features/dashboard/components/NamesTable.tsx:85
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:130
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:131
 msgid "Name"
 msgstr ""
 
@@ -1398,7 +1411,7 @@ msgstr ""
 msgid "New Experience"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:179
+#: src/features/profile/components/dialogs/DiffDialog.tsx:186
 msgid "New value:"
 msgstr ""
 
@@ -1415,7 +1428,7 @@ msgstr ""
 msgid "Next slide"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:233
+#: src/features/profile/components/dialogs/DiffDialog.tsx:240
 msgid "No changes to save"
 msgstr ""
 
@@ -1432,7 +1445,7 @@ msgid "No eligible names found for this wallet"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:364
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:232
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr ""
 
@@ -1610,7 +1623,7 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx:132
+#: src/features/profile/components/dialogs/AddLinkDialog.tsx:133
 msgid "Personal Site"
 msgstr ""
 
@@ -1646,6 +1659,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
 msgid "Premium Fee"
+msgstr ""
+
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:36
+msgid "Preparing account"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:52
@@ -1700,7 +1717,7 @@ msgid "Primary Name Profile"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:197
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:69
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:72
 msgid "Primary name set successfully"
 msgstr ""
 
@@ -1708,8 +1725,16 @@ msgstr ""
 msgid "Privacy Policy"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
+msgid "Profile saved"
+msgstr ""
+
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
-msgid "Profile updated"
+#~ msgid "Profile updated"
+#~ msgstr "Profile updated"
+
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
+msgid "Profile updated successfully."
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx:88
@@ -1858,11 +1883,11 @@ msgstr ""
 msgid "Remove Telegram Contact Method?"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:35
+#: src/features/profile/components/dialogs/DiffDialog.tsx:34
 msgid "Removed"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:187
+#: src/features/profile/components/dialogs/DiffDialog.tsx:194
 msgid "Removed:"
 msgstr ""
 
@@ -1894,7 +1919,7 @@ msgstr ""
 msgid "Renew name"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:40
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:67
 msgid "Renew Name"
 msgstr ""
 
@@ -1922,7 +1947,7 @@ msgstr ""
 msgid "Renewal Period"
 msgstr ""
 
-#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:63
+#: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx:94
 msgid "Renewing"
 msgstr ""
 
@@ -1943,7 +1968,7 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx:190
+#: src/features/profile/components/ProfileEdit.tsx:191
 msgid "Reset Changes"
 msgstr ""
 
@@ -1968,8 +1993,8 @@ msgstr ""
 msgid "Retrying will attempt the renewal again from where it left off."
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:281
-#: src/features/profile/components/dialogs/DiffDialog.tsx:297
+#: src/features/profile/components/dialogs/DiffDialog.tsx:289
+#: src/features/profile/components/dialogs/DiffDialog.tsx:305
 msgid "Review Changes"
 msgstr ""
 
@@ -1987,8 +2012,8 @@ msgstr ""
 msgid "Save and Continue"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:142
-#: src/features/profile/components/dialogs/DiffDialog.tsx:267
+#: src/features/profile/components/dialogs/DiffDialog.tsx:145
+#: src/features/profile/components/dialogs/DiffDialog.tsx:275
 msgid "Save Changes"
 msgstr ""
 
@@ -1996,7 +2021,7 @@ msgstr ""
 msgid "Save Preferences"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx:71
 msgid "Save Profile"
 msgstr ""
 
@@ -2004,7 +2029,7 @@ msgstr ""
 msgid "Saved favorites & searches"
 msgstr ""
 
-#: src/features/profile/components/dialogs/EditProfileDialogHeader.tsx:71
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx:71
 msgid "Saving"
 msgstr ""
 
@@ -2022,7 +2047,7 @@ msgid "Saving managers batch {0} of {total}"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:178
-#: src/features/profile/components/dialogs/DiffDialog.tsx:262
+#: src/features/profile/components/dialogs/DiffDialog.tsx:270
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx:73
 msgid "Saving..."
 msgstr ""
@@ -2095,7 +2120,7 @@ msgid "Sending..."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:398
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:266
 msgid "Set as Primary"
 msgstr ""
 
@@ -2111,9 +2136,9 @@ msgstr ""
 msgid "Set primary name"
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:201
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:277
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:293
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:200
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:279
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:295
 msgid "Set Primary Name"
 msgstr ""
 
@@ -2138,7 +2163,7 @@ msgstr ""
 msgid "Setting ETH address..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:260
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:262
 msgid "Setting ETH address…"
 msgstr ""
 
@@ -2158,7 +2183,7 @@ msgstr ""
 msgid "Setting..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:262
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:264
 msgid "Setting…"
 msgstr ""
 
@@ -2277,7 +2302,7 @@ msgstr ""
 msgid "Submitting registration transaction"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:44
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:60
 msgid "Submitting renewal"
 msgstr ""
 
@@ -2289,13 +2314,13 @@ msgstr ""
 msgid "Submitting the registration transaction"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:36
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:48
 msgid "Submitting token approval"
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
-msgid "Submitting your ENS profile update. This may take a few moments."
-msgstr ""
+#~ msgid "Submitting your ENS profile update. This may take a few moments."
+#~ msgstr "Submitting your ENS profile update. This may take a few moments."
 
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
@@ -2338,7 +2363,7 @@ msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:226
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:228
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr ""
 
@@ -2392,7 +2417,7 @@ msgstr ""
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:214
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:207
 msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
 msgstr ""
 
@@ -2404,7 +2429,7 @@ msgstr ""
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:202
+#: src/features/profile/components/dialogs/DiffDialog.tsx:209
 msgid "To:"
 msgstr ""
 
@@ -2435,9 +2460,13 @@ msgstr ""
 msgid "Trademark Guidelines"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
-msgid "Transaction:"
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:55
+msgid "Transaction submitted:"
 msgstr ""
+
+#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
+#~ msgid "Transaction:"
+#~ msgstr "Transaction:"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
@@ -2463,12 +2492,12 @@ msgid "Unread only"
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
-msgid "Update failed"
-msgstr ""
+#~ msgid "Update failed"
+#~ msgstr "Update failed"
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
-msgid "Updating profile"
-msgstr ""
+#~ msgid "Updating profile"
+#~ msgstr "Updating profile"
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx:61
@@ -2645,7 +2674,7 @@ msgstr ""
 msgid "Waiting for registration confirmation"
 msgstr ""
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:48
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:65
 msgid "Waiting for renewal"
 msgstr ""
 
@@ -2686,10 +2715,10 @@ msgid "Waiting for the resolver deployment"
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
-msgid "Waiting for the transaction to be confirmed…"
-msgstr ""
+#~ msgid "Waiting for the transaction to be confirmed…"
+#~ msgstr "Waiting for the transaction to be confirmed…"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx:40
+#: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
 msgstr ""
 
@@ -2722,7 +2751,7 @@ msgid "Wallet funded successfully"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:222
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:173
+#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
 msgid "Wallet signer not available"
 msgstr ""
 
@@ -2797,7 +2826,7 @@ msgstr ""
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx:109
+#: src/features/profile/components/dialogs/DiffDialog.tsx:112
 msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
 
@@ -2904,8 +2933,8 @@ msgid "Your primary name is the .eth name that apps show in place of your wallet
 msgstr ""
 
 #: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
-msgid "Your profile changes have been confirmed on-chain."
-msgstr ""
+#~ msgid "Your profile changes have been confirmed on-chain."
+#~ msgstr "Your profile changes have been confirmed on-chain."
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
