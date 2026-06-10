@@ -31,6 +31,7 @@ KNOWN_ADDRESSES=(
   "0xC9dDA331341ffE42E6377E35EEbaCC5d4fe24e74"  # Smart account (testing-2, no sessions)
   "0x38Baa0d0240d293723dC9C4C9732f1792297A8aF"  # Smart account (ensjs-v2, with sessions)
   "0xc9eec1b174a646d7c282820afe94acfba6c00a12"  # EOA for test1@test.getpara.com
+  "0xb0663cbab410d66b3c5b800d8db6231654e888b4"  # HCA for Anvil account 0 / E2E headless wallet (0xf39F…2266)
 )
 
 fund_address() {
