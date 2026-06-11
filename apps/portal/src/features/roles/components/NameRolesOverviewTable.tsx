@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -94,7 +95,7 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
   const labels = name.split('.')
   const label = labels[0]
 
-  const { data } = useQuery({
+  const { data, isLoading, error } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
@@ -117,8 +118,16 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
     currentAccountRoles?.decoded?.find(isAdminRole),
   )
 
-  // Parent registry roles apply only to ENSv2 names with a registry; this
-  // section hides otherwise (the resolver section renders independently).
+  if (isLoading) return <LoadingSpinner title="Loading name owner" />
+
+  if (error)
+    return (
+      <ErrorMessage
+        title={error.cause?.name}
+        description={error.cause?.message}
+      />
+    )
+
   if (data?.protocolVersion !== 'ENSv2' || !registryAddress) return null
 
   return (
