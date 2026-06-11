@@ -18,13 +18,11 @@ type RolesTableProps = {
   registryAddress: Address
 }
 
-// RolesSidebar (the grant/revoke editor) is generic over this row shape.
 type AccountGroup = {
   account: Address
   items: string[]
 }
 
-/** `ROLE_SET_SUBREGISTRY` / `ROLE_SET_SUBREGISTRY_ADMIN` → `Set Subregistry`. */
 const formatRole = (role: string) =>
   role
     .replace(/^ROLE_/, '')
@@ -155,7 +153,7 @@ export const RolesTable = ({
             <Button
               variant="secondary"
               aria-label="Edit user roles"
-              className="size-8 p-0"
+              className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
               onClick={() => {
                 setEditingRow(row)
                 setOpen(true)
@@ -177,7 +175,13 @@ export const RolesTable = ({
       canManageRoles={canManageRoles}
       registryAddress={registryAddress}
     >
-      <div className={cn('[&_td]:align-top [&_tbody_tr:hover]:bg-transparent')}>
+      <div
+        className={cn(
+          '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
+          canManageRoles &&
+            '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
+        )}
+      >
         {title && <h2 className="text-xl font-medium mb-4">{title}</h2>}
         <DataTable columns={columns} data={data} />
       </div>

@@ -179,10 +179,10 @@ export const RolesSidebar = <
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
+          className="sm:max-w-3xl bg-background overflow-y-auto p-0"
         >
-          <div className="p-6 flex flex-col gap-6 h-screen">
-            <SheetHeader className="p-0">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <SheetHeader className="p-0 pt-4">
               <SheetTitle className="font-sans text-heading font-medium">
                 Role Details
               </SheetTitle>
@@ -253,7 +253,6 @@ export const RolesSidebar = <
                                   checked as boolean,
                                 )
                               }
-                              className="data-[state=checked]:bg-citrine-500 data-[state=checked]:border-citrine-500"
                             />
                             <Label
                               htmlFor={`${permission.key}-manager`}
@@ -272,7 +271,6 @@ export const RolesSidebar = <
                               id={`${permission.key}-admin`}
                               checked={rolePerms.admin}
                               disabled
-                              className="data-[state=checked]:bg-citrine-500 data-[state=checked]:border-citrine-500"
                             />
                             <Label
                               htmlFor={`${permission.key}-admin`}
