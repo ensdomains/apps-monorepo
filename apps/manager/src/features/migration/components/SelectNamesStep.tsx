@@ -11,7 +11,7 @@ import { NameRow } from './NameRow'
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly onNamesChange: (names: string[]) => void
-  readonly onNext: () => void | Promise<void>
+  readonly onNext: () => boolean | Promise<boolean>
 }
 
 export const SelectNamesStep = ({
@@ -45,7 +45,8 @@ export const SelectNamesStep = ({
     if (isUpgradeDisabled) return
     setIsStarting(true)
     try {
-      await onNext()
+      const didStart = await onNext()
+      if (!didStart) setIsStarting(false)
     } catch (error) {
       setIsStarting(false)
       throw error

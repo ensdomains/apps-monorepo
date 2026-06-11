@@ -133,8 +133,8 @@ export const MigrationPage = () => {
   )
 
   const handleBeginUpgrade = useCallback(async () => {
-    if (!ownerAddress || !wagmiWalletClient?.account) return
-    if (gasEstimate.status !== 'ready') return
+    if (!ownerAddress || !wagmiWalletClient?.account) return false
+    if (gasEstimate.status !== 'ready') return false
     const signer: Signer = {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
@@ -147,11 +147,13 @@ export const MigrationPage = () => {
         signer,
         accountAddress: ownerAddress as Address,
       })
+      return true
     } catch (err) {
       uiActor.send({
         type: 'migration.failed',
         error: decodeMigrationError(err),
       })
+      return true
     }
   }, [ownerAddress, wagmiWalletClient, gasEstimate, uiActor])
 

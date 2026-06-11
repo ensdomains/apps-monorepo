@@ -1,5 +1,7 @@
-import { fireEvent } from '@testing-library/react'
+import { fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import { render } from '@/utils/test-utils'
 import type { ClassifiedName } from '../service/classifyNames'
 
@@ -41,12 +43,26 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
 // eslint-disable-next-line import/first
 import { SelectNamesStep } from './SelectNamesStep'
 
-const renderStep = () => {
+const readyGasEstimate: MigrationGasEstimateState = {
+  status: 'ready',
+  plan: {} as MigrationPlan,
+  formattedEth: '0.001',
+  gasUnits: 1n,
+  feeWei: 1n,
+  transactionCount: 1,
+}
+
+const renderStep = ({
+  gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
+  onNext = vi.fn(),
+}: {
+  gasEstimate?: MigrationGasEstimateState
+  onNext?: () => boolean | Promise<boolean>
+} = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
-  const onNext = vi.fn()
   const utils = render(
     <SelectNamesStep
-      gasEstimate={{ status: 'idle' }}
+      gasEstimate={gasEstimate}
       onNamesChange={onNamesChange}
       onNext={onNext}
     />,
@@ -104,5 +120,21 @@ describe('SelectNamesStep', () => {
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(queryByText('sub123.eth')).toBeNull()
+  })
+
+  it('allows retrying when upgrade start exits without transitioning', async () => {
+    const onNext = vi.fn(async () => false)
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      onNext,
+    })
+
+    const button = getByRole('button', { name: 'Upgrade Names' })
+    fireEvent.click(button)
+
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
+    await waitFor(() => {
+      expect(getByRole('button', { name: 'Upgrade Names' })).not.toBeDisabled()
+    })
   })
 })
