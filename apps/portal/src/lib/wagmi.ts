@@ -40,7 +40,7 @@ export const wagmiConfig = createConfig({
         ],
       },
     ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'demo' },
+    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Portal' },
   ),
   client: ({ chain }) =>
     createClient({
