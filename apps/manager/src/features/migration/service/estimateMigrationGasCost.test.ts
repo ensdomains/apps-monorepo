@@ -166,7 +166,7 @@ describe('estimateMigrationGasCost', () => {
     expect(publicClient.estimateGas).not.toHaveBeenCalled()
   })
 
-  it('counts the maximum runtime split transactions for migrate batches', async () => {
+  it('counts planned migrate batch transactions, not worst-case per-name splits', async () => {
     const publicClient = makePublicClient([], 4n)
     const plan = makePlan({
       migrateCalls: [makeCall('0x1111')],
@@ -186,7 +186,7 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.transactionCount).toBe(3)
+    expect(estimate.transactionCount).toBe(1)
     expect(publicClient.estimateGas).not.toHaveBeenCalled()
   })
 

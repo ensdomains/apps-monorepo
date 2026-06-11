@@ -69,13 +69,9 @@ const predictedTransactionCount = (plan: MigrationPlan): number => {
       step.type === 'approve-name-wrapper' ||
       step.type === 'ensure-resolver',
   ).length
-  const maxMigrateTransactions = plan.batches.reduce(
-    (total, batch) => total + Math.max(batch.names.length, 1),
-    0,
-  )
   return (
     setupSteps +
-    maxMigrateTransactions +
+    plan.migrateCalls.length +
     plan.roleGrantCalls.length +
     plan.profileReplayCalls.length
   )
