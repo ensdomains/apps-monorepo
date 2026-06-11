@@ -71,6 +71,7 @@ export default defineConfig({
       'permissionless/accounts',
       'permissionless/clients/pimlico',
       'permissionless/utils',
+      '@walletconnect/ethereum-provider',
     ],
   },
   resolve: {

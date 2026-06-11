@@ -73,6 +73,7 @@ export default defineConfig(({ mode }) => ({
   },
   optimizeDeps: {
     exclude: ['@ens-apps/l2-primary', '@ens-apps/transaction-manager'],
+    include: ['@walletconnect/ethereum-provider'],
   },
   build: {
     rolldownOptions: {

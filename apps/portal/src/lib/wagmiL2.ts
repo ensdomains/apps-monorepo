@@ -27,6 +27,7 @@ import {
   frameWallet,
   injectedWallet,
   metaMaskWallet,
+  walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { createClient, http } from 'viem'
 import {
@@ -58,7 +59,12 @@ const connectors = connectorsForWallets(
   [
     {
       groupName: 'Popular',
-      wallets: [injectedWallet, metaMaskWallet, frameWallet],
+      wallets: [
+        injectedWallet,
+        metaMaskWallet,
+        walletConnectWallet,
+        frameWallet,
+      ],
     },
   ],
   { projectId: WALLETCONNECT_PROJECT_ID, appName: 'demo' },
