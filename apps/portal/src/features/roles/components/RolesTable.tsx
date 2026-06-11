@@ -153,7 +153,7 @@ export const RolesTable = ({
             <Button
               variant="secondary"
               aria-label="Edit user roles"
-              className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
+              className="absolute inset-0 h-auto w-8 rounded-sm p-0 my-4 flex items-center justify-center"
               onClick={() => {
                 setEditingRow(row)
                 setOpen(true)
