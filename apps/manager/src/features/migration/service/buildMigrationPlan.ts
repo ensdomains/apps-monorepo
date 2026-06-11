@@ -193,7 +193,6 @@ export const buildMigrationPlan = async (params: {
       (await predictOwnedPermResAddress({
         eoa: migrationOwner,
         publicClient,
-        skipExistingCheck: true,
       }))
   }
 
