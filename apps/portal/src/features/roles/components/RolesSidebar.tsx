@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { CheckCircle, Clock, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
