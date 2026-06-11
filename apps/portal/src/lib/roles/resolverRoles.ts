@@ -173,12 +173,10 @@ export type AccountRoleGroup<T extends RoleInput = RoleInput> = {
 }
 
 /**
- * Groups resolver role entries by account AND resource, so each result is
- * scoped to a single resource. Roles are NOT merged across resources: an
- * account holding roles on both `foo.eth` and `bar.eth` yields two groups, so
- * edits/removals stay scoped to the right resolver resource.
+ * Groups resolver roles by account, decodes bitmaps, and resolves
+ * resource hashes to human-readable names when possible.
  */
-export const groupRolesByAccountResource = <T extends RoleInput>(
+export const groupRolesByAccount = <T extends RoleInput>(
   roles: readonly T[],
   resourceToName?: Map<string, string>,
 ): AccountRoleGroup<T>[] => {
@@ -195,11 +193,10 @@ export const groupRolesByAccountResource = <T extends RoleInput>(
   for (const role of roles) {
     const account = role.account.toLowerCase()
     const resource = role.resource.toLowerCase()
-    const key = `${account}:${resource}`
     const decoded = decodeResolverRoleBitmap(role.roleBitmap)
     const resolvedName = resourceToName?.get(resource) ?? null
 
-    const existing = grouped.get(key)
+    const existing = grouped.get(account)
 
     if (existing) {
       existing.roles.push(role)
@@ -208,7 +205,7 @@ export const groupRolesByAccountResource = <T extends RoleInput>(
     } else {
       const names = new Set<string>()
       if (resolvedName) names.add(resolvedName)
-      grouped.set(key, {
+      grouped.set(account, {
         account,
         resolvedNames: names,
         roles: [role],
