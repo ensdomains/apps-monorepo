@@ -3,16 +3,19 @@ import { Info, Search } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { match } from 'ts-pattern'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { NameListSkeleton } from './NameListSkeleton'
 import { NameRow } from './NameRow'
 
 type SelectNamesStepProps = {
+  readonly gasEstimate: MigrationGasEstimateState
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => void | Promise<void>
 }
 
 export const SelectNamesStep = ({
+  gasEstimate,
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
@@ -32,8 +35,14 @@ export const SelectNamesStep = ({
     toggleGroup,
   } = useNameSelection({ eligible, isPending, onNamesChange })
 
+  const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
+  const isWaitingForGasEstimate =
+    totalSelected > 0 && gasEstimate.status !== 'ready'
+  const isUpgradeDisabled =
+    totalSelected === 0 || isPending || isStarting || isWaitingForGasEstimate
+
   const handleUpgrade = useCallback(async () => {
-    if (isStarting) return
+    if (isUpgradeDisabled) return
     setIsStarting(true)
     try {
       await onNext()
@@ -41,7 +50,7 @@ export const SelectNamesStep = ({
       setIsStarting(false)
       throw error
     }
-  }, [isStarting, onNext])
+  }, [isUpgradeDisabled, onNext])
 
   return (
     <div className="relative z-10 flex h-full flex-col">
@@ -159,6 +168,30 @@ export const SelectNamesStep = ({
               </Trans>
             </p>
           )}
+          {totalSelected > 0 &&
+            match(gasEstimate)
+              .with({ status: 'loading' }, () => (
+                <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
+                  <Info className="size-3 shrink-0" />
+                  <Trans>Estimating migration gas...</Trans>
+                </p>
+              ))
+              .with({ status: 'ready' }, (estimate) => (
+                <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
+                  <Info className="size-3 shrink-0" />
+                  <Trans>
+                    Estimated network cost: ~{estimate.formattedEth} ETH across{' '}
+                    {estimate.transactionCount} transactions.
+                  </Trans>
+                </p>
+              ))
+              .with({ status: 'error' }, () => (
+                <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
+                  <Info className="size-3 shrink-0" />
+                  <Trans>Gas estimate unavailable</Trans>
+                </p>
+              ))
+              .otherwise(() => null)}
           {totalSelected > 100 && (
             <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
               <Info className="size-3 shrink-0" />
@@ -171,12 +204,14 @@ export const SelectNamesStep = ({
         </div>
         <button
           className="h-[46px] w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
-          disabled={totalSelected === 0 || isPending || isStarting}
+          disabled={isUpgradeDisabled}
           onClick={handleUpgrade}
           type="button"
         >
-          {isStarting ? (
-            <Trans>Preparing...</Trans>
+          {isEstimatingGas ? (
+            <Trans>Estimating...</Trans>
+          ) : isStarting ? (
+            <Trans>Starting...</Trans>
           ) : (
             <Trans>Upgrade Names</Trans>
           )}

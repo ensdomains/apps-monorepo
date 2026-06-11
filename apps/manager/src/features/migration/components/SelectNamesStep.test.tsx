@@ -45,7 +45,11 @@ const renderStep = () => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const onNext = vi.fn()
   const utils = render(
-    <SelectNamesStep onNamesChange={onNamesChange} onNext={onNext} />,
+    <SelectNamesStep
+      gasEstimate={{ status: 'idle' }}
+      onNamesChange={onNamesChange}
+      onNext={onNext}
+    />,
   )
   return { onNamesChange, onNext, ...utils }
 }
