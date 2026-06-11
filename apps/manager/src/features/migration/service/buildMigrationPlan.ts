@@ -1,5 +1,4 @@
 import type { Call } from '@ens-apps/transaction-manager'
-import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 
@@ -24,11 +23,6 @@ import type { MigrationPreflight } from './computeMigrationPreflight'
 import { predictOwnedPermResAddress } from './ensureOwnedPermRes'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import { getV1ProfileKeys, type V1Domain } from './v1SubgraphClient'
-
-export class MigrationPlanError extends TaggedError('MigrationPlanError')<{
-  cause: unknown
-  step?: string
-}> {}
 
 export type MigrationPlan = {
   readonly migrationOwner: Address
@@ -225,7 +219,6 @@ export const buildMigrationPlan = async (params: {
     hasProfileReplay: parts.profileReplayCalls.length > 0,
     migrateBatchCount: parts.migrateCalls.length,
     profileReplayBatchCount: parts.profileReplayCalls.length,
-    roleGrantBatchCount: 0,
   })
 
   return {
@@ -286,7 +279,6 @@ export const adjustPlanForRetry = (
     hasProfileReplay: parts.profileReplayCalls.length > 0,
     migrateBatchCount: parts.migrateCalls.length,
     profileReplayBatchCount: parts.profileReplayCalls.length,
-    roleGrantBatchCount: 0,
   })
 
   return {
