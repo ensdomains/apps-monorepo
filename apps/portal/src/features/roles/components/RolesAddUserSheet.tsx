@@ -2,7 +2,7 @@ import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,6 +20,7 @@ import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNa
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { useDebouncedValue } from '@/hooks/useDebounce'
 import {
   isAdminRole,
   isManagerRoleSettable,
@@ -79,6 +80,12 @@ export const RolesAddUserSheet = ({
     message: string
   } | null>(null)
 
+  const debouncedInput = useDebouncedValue(nameOrAddressInput, 300)
+  const resolveTarget =
+    isAddress(debouncedInput) || debouncedInput.includes('.')
+      ? debouncedInput
+      : ''
+
   const {
     data: address,
     isFetching: isResolvingAddress,
@@ -86,7 +93,7 @@ export const RolesAddUserSheet = ({
     error: resolveError,
   } = useResolvedRoleAccountAddress({
     client,
-    nameOrAddress: nameOrAddressInput,
+    nameOrAddress: resolveTarget,
   })
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
@@ -198,7 +205,7 @@ export const RolesAddUserSheet = ({
                 }}
                 className="h-12 bg-background border"
               />
-              {nameOrAddressInput.length > 0 && (
+              {resolveTarget && (
                 <p className="text-sm mt-1.5 text-muted-foreground">
                   {isResolvingAddress && 'Resolving address...'}
                   {!isResolvingAddress &&
