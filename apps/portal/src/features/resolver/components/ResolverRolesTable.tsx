@@ -1,15 +1,19 @@
 import type { ColumnDef, Row } from '@tanstack/react-table'
-import { Check, PanelRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
-import { Button } from '@/components/ui/button'
 import { ResolverRolesSidebar } from '@/features/resolver/components/ResolverRolesSidebar'
 import type {
   ResolverNode,
   ResolverRole,
 } from '@/features/resolver/hooks/useResolverOverview'
+import {
+  buildEditActionColumn,
+  buildRoleColumns,
+  type RoleRowEntry,
+  rolesTableClassName,
+} from '@/features/roles/components/roleTableColumns'
 import {
   type AccountRoleGroup,
   buildResourceToNameMap,
@@ -17,7 +21,6 @@ import {
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
-import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type ResolverRolesTableProps = {
@@ -27,12 +30,6 @@ type ResolverRolesTableProps = {
   readonly canManageRoles: boolean
   /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
   readonly disableEdit?: boolean
-}
-
-type RoleRowEntry = {
-  label: string
-  hasAdmin: boolean
-  hasUser: boolean
 }
 
 /** One entry per held resolver permission, with its Admin / User (manager) state. */
@@ -53,10 +50,6 @@ const scopeLabel = (resolvedNames: readonly string[]): string => {
   const names = resolvedNames.filter((n) => n !== '(root)')
   return names.length > 0 ? names.join(', ') : '—'
 }
-
-const GreenCheck = () => (
-  <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
-)
 
 const baseColumns: ColumnDef<AccountRoleGroup>[] = [
   {
@@ -83,54 +76,9 @@ const baseColumns: ColumnDef<AccountRoleGroup>[] = [
       </span>
     ),
   },
-  {
-    id: 'role',
-    header: () => <span className="text-muted-foreground">Role</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5 text-muted-foreground">
-        {toRoleEntries(row.original.decodedRoles).map((entry) => (
-          <span
-            className="font-mono pb-2 leading-5 h-5 box-content"
-            key={entry.label}
-          >
-            {entry.label}
-          </span>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'admin',
-    header: () => <span className="text-muted-foreground">Admin</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        {toRoleEntries(row.original.decodedRoles).map((entry) => (
-          <div
-            className="h-5 pb-2 box-content flex items-center"
-            key={entry.label}
-          >
-            {entry.hasAdmin ? <GreenCheck /> : null}
-          </div>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'user-level',
-    header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        {toRoleEntries(row.original.decodedRoles).map((entry) => (
-          <div
-            className="h-5 pb-2 box-content flex items-center"
-            key={entry.label}
-          >
-            {entry.hasUser ? <GreenCheck /> : null}
-          </div>
-        ))}
-      </div>
-    ),
-  },
+  ...buildRoleColumns<AccountRoleGroup>((row) =>
+    toRoleEntries(row.decodedRoles),
+  ),
 ]
 
 export const ResolverRolesTable = ({
@@ -155,34 +103,15 @@ export const ResolverRolesTable = ({
   const columns: ColumnDef<AccountRoleGroup>[] = showActions
     ? [
         ...baseColumns,
-        {
-          id: 'actions',
-          header: () => null,
-          cell: ({ row }) => (
-            <Button
-              variant="secondary"
-              aria-label="Edit user roles"
-              className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
-              onClick={() => {
-                setEditingRow(row)
-                setOpen(true)
-              }}
-            >
-              <PanelRight className="size-4 text-muted-foreground" />
-            </Button>
-          ),
-        },
+        buildEditActionColumn<AccountRoleGroup>((row) => {
+          setEditingRow(row)
+          setOpen(true)
+        }),
       ]
     : baseColumns
 
   const table = (
-    <div
-      className={cn(
-        '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
-        showActions &&
-          '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
-      )}
-    >
+    <div className={rolesTableClassName(showActions)}>
       <DataTable columns={columns} data={data} />
     </div>
   )
