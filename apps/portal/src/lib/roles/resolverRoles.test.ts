@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   decodeResolverRoleBitmap,
-  groupRolesByAccountResource,
+  groupRolesByAccount,
   resolverRoles,
 } from './resolverRoles'
 
@@ -122,10 +122,10 @@ const makeRole = (
   roleBitmap: `0x${bitmap.toString(16)}`,
 })
 
-describe('groupRolesByAccountResource', () => {
+describe('groupRolesByAccount', () => {
   it('should group a single role entry', () => {
     const roles = [makeRole('0xABC', resolverRoles.ROLE_SET_ADDR)]
-    const result = groupRolesByAccountResource(roles)
+    const result = groupRolesByAccount(roles)
 
     expect(result).toHaveLength(1)
     expect(result[0].account).toBe('0xabc')
@@ -138,7 +138,7 @@ describe('groupRolesByAccountResource', () => {
       makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
       makeRole('0xABC', resolverRoles.ROLE_SET_TEXT),
     ]
-    const result = groupRolesByAccountResource(roles)
+    const result = groupRolesByAccount(roles)
 
     expect(result).toHaveLength(1)
     expect(result[0].roles).toHaveLength(2)
@@ -151,7 +151,7 @@ describe('groupRolesByAccountResource', () => {
       makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
       makeRole('0xDEF', resolverRoles.ROLE_SET_TEXT),
     ]
-    const result = groupRolesByAccountResource(roles)
+    const result = groupRolesByAccount(roles)
 
     expect(result).toHaveLength(2)
     expect(result[0].account).toBe('0xabc')
@@ -163,7 +163,7 @@ describe('groupRolesByAccountResource', () => {
       makeRole('0xAbCdEf', resolverRoles.ROLE_SET_ADDR),
       makeRole('0xABCDEF', resolverRoles.ROLE_SET_TEXT),
     ]
-    const result = groupRolesByAccountResource(roles)
+    const result = groupRolesByAccount(roles)
 
     expect(result).toHaveLength(1)
     expect(result[0].account).toBe('0xabcdef')
@@ -175,30 +175,14 @@ describe('groupRolesByAccountResource', () => {
       resolverRoles.ROLE_SET_ALIAS_ADMIN |
       resolverRoles.ROLE_CLEAR
     const roles = [makeRole('0xABC', bitmap)]
-    const result = groupRolesByAccountResource(roles)
+    const result = groupRolesByAccount(roles)
 
     expect(result[0].decodedRoles).toContain('ROLE_SET_ALIAS')
     expect(result[0].decodedRoles).toContain('ROLE_SET_ALIAS_ADMIN')
     expect(result[0].decodedRoles).toContain('ROLE_CLEAR')
   })
 
-  it('should keep the same account separate per resource', () => {
-    const resourceB =
-      '0x1111111111111111111111111111111111111111111111111111111111111111'
-    const roles = [
-      makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
-      makeRole('0xABC', resolverRoles.ROLE_SET_TEXT, resourceB),
-    ]
-    const result = groupRolesByAccountResource(roles)
-
-    expect(result).toHaveLength(2)
-    expect(result[0].roles).toHaveLength(1)
-    expect(result[0].decodedRoles).toEqual(['ROLE_SET_ADDR'])
-    expect(result[1].roles).toHaveLength(1)
-    expect(result[1].decodedRoles).toEqual(['ROLE_SET_TEXT'])
-  })
-
   it('should return empty array for empty input', () => {
-    expect(groupRolesByAccountResource([])).toEqual([])
+    expect(groupRolesByAccount([])).toEqual([])
   })
 })
