@@ -42,7 +42,6 @@ import { Route as AddrAddrNamesRouteImport } from './routes/addr/$addr/names'
 import { Route as AddrAddrHistoryRouteImport } from './routes/addr/$addr/history'
 import { Route as NameFusesBurnRouteImport } from './routes/$name/fuses/burn'
 import { Route as ResolverAddressRolesIndexRouteImport } from './routes/resolver/$address/roles/index'
-import { Route as ResolverAddressRolesAddUserRouteImport } from './routes/resolver/$address/roles/add-user'
 
 const NameRoute = NameRouteImport.update({
   id: '/$name',
@@ -212,12 +211,6 @@ const ResolverAddressRolesIndexRoute =
     path: '/roles/',
     getParentRoute: () => ResolverAddressRoute,
   } as any)
-const ResolverAddressRolesAddUserRoute =
-  ResolverAddressRolesAddUserRouteImport.update({
-    id: '/roles/add-user',
-    path: '/roles/add-user',
-    getParentRoute: () => ResolverAddressRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -252,7 +245,6 @@ export interface FileRoutesByFullPath {
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/resolver/$address/': typeof ResolverAddressIndexRoute
   '/tld/$tld/': typeof TldTldIndexRoute
-  '/resolver/$address/roles/add-user': typeof ResolverAddressRolesAddUserRoute
   '/resolver/$address/roles/': typeof ResolverAddressRolesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -284,7 +276,6 @@ export interface FileRoutesByTo {
   '/addr/$addr': typeof AddrAddrIndexRoute
   '/resolver/$address': typeof ResolverAddressIndexRoute
   '/tld/$tld': typeof TldTldIndexRoute
-  '/resolver/$address/roles/add-user': typeof ResolverAddressRolesAddUserRoute
   '/resolver/$address/roles': typeof ResolverAddressRolesIndexRoute
 }
 export interface FileRoutesById {
@@ -321,7 +312,6 @@ export interface FileRoutesById {
   '/addr/$addr/': typeof AddrAddrIndexRoute
   '/resolver/$address/': typeof ResolverAddressIndexRoute
   '/tld/$tld/': typeof TldTldIndexRoute
-  '/resolver/$address/roles/add-user': typeof ResolverAddressRolesAddUserRoute
   '/resolver/$address/roles/': typeof ResolverAddressRolesIndexRoute
 }
 export interface FileRouteTypes {
@@ -359,7 +349,6 @@ export interface FileRouteTypes {
     | '/addr/$addr/'
     | '/resolver/$address/'
     | '/tld/$tld/'
-    | '/resolver/$address/roles/add-user'
     | '/resolver/$address/roles/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -391,7 +380,6 @@ export interface FileRouteTypes {
     | '/addr/$addr'
     | '/resolver/$address'
     | '/tld/$tld'
-    | '/resolver/$address/roles/add-user'
     | '/resolver/$address/roles'
   id:
     | '__root__'
@@ -427,7 +415,6 @@ export interface FileRouteTypes {
     | '/addr/$addr/'
     | '/resolver/$address/'
     | '/tld/$tld/'
-    | '/resolver/$address/roles/add-user'
     | '/resolver/$address/roles/'
   fileRoutesById: FileRoutesById
 }
@@ -673,13 +660,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResolverAddressRolesIndexRouteImport
       parentRoute: typeof ResolverAddressRoute
     }
-    '/resolver/$address/roles/add-user': {
-      id: '/resolver/$address/roles/add-user'
-      path: '/roles/add-user'
-      fullPath: '/resolver/$address/roles/add-user'
-      preLoaderRoute: typeof ResolverAddressRolesAddUserRouteImport
-      parentRoute: typeof ResolverAddressRoute
-    }
   }
 }
 
@@ -747,7 +727,6 @@ interface ResolverAddressRouteChildren {
   ResolverAddressHistoryRoute: typeof ResolverAddressHistoryRoute
   ResolverAddressNodesRoute: typeof ResolverAddressNodesRoute
   ResolverAddressIndexRoute: typeof ResolverAddressIndexRoute
-  ResolverAddressRolesAddUserRoute: typeof ResolverAddressRolesAddUserRoute
   ResolverAddressRolesIndexRoute: typeof ResolverAddressRolesIndexRoute
 }
 
@@ -757,7 +736,6 @@ const ResolverAddressRouteChildren: ResolverAddressRouteChildren = {
   ResolverAddressHistoryRoute: ResolverAddressHistoryRoute,
   ResolverAddressNodesRoute: ResolverAddressNodesRoute,
   ResolverAddressIndexRoute: ResolverAddressIndexRoute,
-  ResolverAddressRolesAddUserRoute: ResolverAddressRolesAddUserRoute,
   ResolverAddressRolesIndexRoute: ResolverAddressRolesIndexRoute,
 }
 

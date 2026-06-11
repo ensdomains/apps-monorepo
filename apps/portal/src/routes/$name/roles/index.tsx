@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NameRoles } from '@/features/roles/components/NameRoles'
+import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRoles'
+import { NameRolesOverviewTable } from '@/features/roles/components/NameRoles'
 
 export const Route = createFileRoute('/$name/roles/')({
   component: RouteComponent,
@@ -9,5 +10,11 @@ export const Route = createFileRoute('/$name/roles/')({
 
 function RouteComponent() {
   const { name } = Route.useParams()
-  return <NameRoles name={name} />
+
+  return (
+    <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
+      <NameResolverRolesOverviewTable name={name} />
+      <NameRolesOverviewTable name={name} />
+    </div>
+  )
 }
