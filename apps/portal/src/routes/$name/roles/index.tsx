@@ -1,7 +1,8 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
+import { useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RoleHistoryTable } from '@/features/roles/components/RoleHistoryTable'
+import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -79,26 +81,29 @@ const V2NameRoles = ({
 }
 
 const AddUserButton = ({
-  name,
   canManageRoles,
+  onClick,
 }: {
-  name: string
   canManageRoles: boolean
+  onClick: () => void
 }) => {
   if (!canManageRoles) return null
 
   return (
-    <Button variant="default" className="flex items-center gap-2" asChild>
-      <Link to="/$name/roles/add-user" params={{ name }}>
-        <Plus className="size-4" />
-        Add user
-      </Link>
+    <Button
+      variant="default"
+      className="flex items-center gap-2"
+      onClick={onClick}
+    >
+      <Plus className="size-4" />
+      Add user
     </Button>
   )
 }
 
 function RouteComponent() {
   const { name } = Route.useParams()
+  const [addUserOpen, setAddUserOpen] = useState(false)
 
   const { address } = useConnection()
   const labels = name.split('.')
@@ -153,13 +158,22 @@ function RouteComponent() {
         <div className="flex items-center justify-between">
           <h1 className="text-heading font-medium leading-none">Roles</h1>
           {address && (
-            <AddUserButton name={name} canManageRoles={canManageRoles} />
+            <AddUserButton
+              canManageRoles={canManageRoles}
+              onClick={() => setAddUserOpen(true)}
+            />
           )}
         </div>
         <V2NameRoles
           name={name}
           registryAddress={registryAddress}
           canManageRoles={canManageRoles}
+        />
+        <RolesAddUserSheet
+          open={addUserOpen}
+          onOpenChange={setAddUserOpen}
+          name={name}
+          registryAddress={registryAddress}
         />
       </div>
     )
