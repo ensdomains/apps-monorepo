@@ -51,7 +51,7 @@ const TOKENS = {
 //
 // SECURITY NOTE: this hands ETH to v1-name owners that hit the faucet.
 // Acceptable for the testnet faucet only.
-const MIGRATION_GAS_ETH_TARGET = parseEther('0.05')
+const MIGRATION_GAS_ETH_TARGET = parseEther('0.01')
 
 // Standard ERC-20 reads (balanceOf) use viem's `erc20Abi`. Only
 // `mint` is non-standard (MockERC20 faucet helper, not part of `erc20Abi`),
