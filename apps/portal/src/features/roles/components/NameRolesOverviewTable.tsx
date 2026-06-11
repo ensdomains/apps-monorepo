@@ -13,6 +13,7 @@ import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { isAdminRole } from '@/lib/roles/permissions'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 const ensRegistryAddress = getChainContractAddress({
@@ -114,7 +115,7 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
   })
 
   const canManageRoles = Boolean(
-    currentAccountRoles?.decoded?.find((role) => role.endsWith('_ADMIN')),
+    currentAccountRoles?.decoded?.find(isAdminRole),
   )
 
   if (!name.endsWith('.eth') || (labels.length !== 2 && labels.length !== 3))

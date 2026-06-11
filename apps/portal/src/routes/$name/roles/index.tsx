@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRoles'
-import { NameRolesOverviewTable } from '@/features/roles/components/NameRoles'
+import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRolesOverviewTable'
+import { NameRolesOverviewTable } from '@/features/roles/components/NameRolesOverviewTable'
 
 export const Route = createFileRoute('/$name/roles/')({
   component: RouteComponent,

@@ -20,7 +20,11 @@ import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNa
 import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { isManagerRoleSettable, permissions } from '@/lib/roles/permissions'
+import {
+  isAdminRole,
+  isManagerRoleSettable,
+  permissions,
+} from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -60,9 +64,7 @@ export const RolesAddUserSheet = ({
   })
 
   const callerAdminRoles = new Set<Role>(
-    (callerRolesData?.decoded ?? []).filter((r): r is Role =>
-      r.endsWith('_ADMIN'),
-    ),
+    (callerRolesData?.decoded ?? []).filter((r): r is Role => isAdminRole(r)),
   )
 
   const [nameOrAddressInput, setNameOrAddressInput] = useState('')

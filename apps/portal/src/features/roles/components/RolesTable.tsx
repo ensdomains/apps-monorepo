@@ -1,17 +1,20 @@
 import type { GetNameRolesAccountsReturnType } from '@ensdomains/ensjs/public/v2'
 import type { ColumnDef, Row } from '@tanstack/react-table'
-import { Check, PanelRight } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
-import { Button } from '@/components/ui/button'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
-import { cn } from '@/lib/utils'
+import {
+  buildEditActionColumn,
+  buildRoleColumns,
+  type RoleRowEntry,
+  rolesTableClassName,
+} from '@/features/roles/components/roleTableColumns'
+import { isAdminRole } from '@/lib/roles/permissions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RolesTableProps = {
-  title?: string
   name: string
   canManageRoles: boolean
   roles: GetNameRolesAccountsReturnType
@@ -23,6 +26,7 @@ type AccountGroup = {
   items: string[]
 }
 
+/** `ROLE_SET_SUBREGISTRY` / `ROLE_SET_SUBREGISTRY_ADMIN` → `Set Subregistry`. */
 const formatRole = (role: string) =>
   role
     .replace(/^ROLE_/, '')
@@ -31,14 +35,6 @@ const formatRole = (role: string) =>
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
-
-const isAdminRole = (role: string) => role.endsWith('_ADMIN')
-
-type RoleRowEntry = {
-  label: string
-  hasAdmin: boolean
-  hasUser: boolean
-}
 
 /**
  * Collapse an account's raw roles into one entry per permission, tracking
@@ -60,10 +56,6 @@ const toRoleEntries = (roles: string[]): RoleRowEntry[] => {
   return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
 }
 
-const GreenCheck = () => (
-  <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
-)
-
 const UserCell = ({ account }: { account: Address }) => (
   <div className="w-32">
     <EntityBadge variant="address" address={account}>
@@ -79,58 +71,10 @@ const baseColumns: ColumnDef<AccountGroup>[] = [
     header: () => <span className="text-muted-foreground">User</span>,
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
-  {
-    id: 'role',
-    header: () => <span className="text-muted-foreground">Role</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5 text-muted-foreground">
-        {toRoleEntries(row.original.items).map((entry) => (
-          <span
-            className="font-mono pb-2 leading-5 h-5 box-content"
-            key={entry.label}
-          >
-            {entry.label}
-          </span>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'admin',
-    header: () => <span className="text-muted-foreground">Admin</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        {toRoleEntries(row.original.items).map((entry) => (
-          <div
-            className="h-5 pb-2 box-content flex items-center"
-            key={entry.label}
-          >
-            {entry.hasAdmin ? <GreenCheck /> : null}
-          </div>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'user-level',
-    header: () => <span className="text-muted-foreground">User</span>,
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
-        {toRoleEntries(row.original.items).map((entry) => (
-          <div
-            className="h-5 pb-2 box-content flex items-center"
-            key={entry.label}
-          >
-            {entry.hasUser ? <GreenCheck /> : null}
-          </div>
-        ))}
-      </div>
-    ),
-  },
+  ...buildRoleColumns<AccountGroup>((row) => toRoleEntries(row.items)),
 ]
 
 export const RolesTable = ({
-  title,
   roles,
   name,
   canManageRoles,
@@ -146,23 +90,10 @@ export const RolesTable = ({
   const columns: ColumnDef<AccountGroup>[] = canManageRoles
     ? [
         ...baseColumns,
-        {
-          id: 'actions',
-          header: () => null,
-          cell: ({ row }) => (
-            <Button
-              variant="secondary"
-              aria-label="Edit user roles"
-              className="absolute inset-0 h-auto w-8 rounded-sm p-0 my-4 flex items-center justify-center"
-              onClick={() => {
-                setEditingRow(row)
-                setOpen(true)
-              }}
-            >
-              <PanelRight className="size-4 text-muted-foreground" />
-            </Button>
-          ),
-        },
+        buildEditActionColumn<AccountGroup>((row) => {
+          setEditingRow(row)
+          setOpen(true)
+        }),
       ]
     : baseColumns
 
@@ -175,14 +106,7 @@ export const RolesTable = ({
       canManageRoles={canManageRoles}
       registryAddress={registryAddress}
     >
-      <div
-        className={cn(
-          '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
-          canManageRoles &&
-            '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
-        )}
-      >
-        {title && <h2 className="text-xl font-medium mb-4">{title}</h2>}
+      <div className={rolesTableClassName(canManageRoles)}>
         <DataTable columns={columns} data={data} />
       </div>
     </RolesSidebar>
