@@ -99,7 +99,6 @@ export const useMigrationGasEstimate = ({
       const estimate = await estimateMigrationGasCost({
         plan,
         publicClient: publicClient as unknown as PublicClient,
-        account: ownerAddress,
       })
       return { estimate, plan }
     },

@@ -1,8 +1,11 @@
 import type { Call } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient } from 'viem'
+import type { Address, Hex, PublicClient } from 'viem'
+import { namehash } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { MigrationPlan } from './buildMigrationPlan'
+import type { ClassifiedName } from './classifyNames'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
+import { profileMapKey } from './fetchV1Profiles'
 
 const account = '0x0000000000000000000000000000000000000001' as Address
 const callTarget = '0x0000000000000000000000000000000000000002' as Address
@@ -11,6 +14,34 @@ const makeCall = (data: `0x${string}`): Call => ({
   to: callTarget,
   data,
   value: 0n,
+})
+
+const makeClassifiedName = (
+  name: string,
+  overrides: Partial<ClassifiedName> = {},
+): ClassifiedName => ({
+  domain: {
+    id: name,
+    name,
+    labelName: name.split('.')[0] ?? name,
+    labelhash: '0x0',
+    parent: { name: 'eth', wrappedDomain: null },
+    resolver: { address: callTarget },
+    owner: { id: account },
+    registrant: { id: account },
+    wrappedOwner: null,
+    wrappedDomain: null,
+    registration: null,
+  },
+  tokenType: 'unlocked',
+  label: name.split('.')[0] ?? name,
+  parentName: 'eth',
+  fuses: 0,
+  tokenHolder: account,
+  v1ResolverAddress: callTarget,
+  resolverStrategy: 'to-owned-permres',
+  managerAddress: null,
+  ...overrides,
 })
 
 const makePlan = (overrides: Partial<MigrationPlan> = {}): MigrationPlan =>
@@ -66,7 +97,6 @@ describe('estimateMigrationGasCost', () => {
     const estimate = await estimateMigrationGasCost({
       plan,
       publicClient,
-      account,
     })
 
     expect(estimate.status).toBe('ready')
@@ -77,9 +107,24 @@ describe('estimateMigrationGasCost', () => {
     expect(publicClient.estimateGas).not.toHaveBeenCalled()
   })
 
-  it('includes predicted resolver setup and profile replay gas', async () => {
+  it('includes predicted resolver setup and profile replay gas without live estimateGas', async () => {
     const publicClient = makePublicClient([], 2n)
+    const name = makeClassifiedName('name.eth')
+    const node = namehash(name.domain.name) as Hex
     const plan = makePlan({
+      classified: [name],
+      profiles: new Map([
+        [
+          profileMapKey(node),
+          {
+            texts: [
+              { key: 'avatar', value: 'ipfs://avatar' },
+              { key: 'description', value: 'profile' },
+            ],
+            addresses: [{ coinType: 60n, value: account }],
+          },
+        ],
+      ]),
       stepDescriptors: [
         { type: 'ensure-resolver' },
         { type: 'profile-replay-batch', index: 0, total: 1 },
@@ -90,12 +135,11 @@ describe('estimateMigrationGasCost', () => {
     const estimate = await estimateMigrationGasCost({
       plan,
       publicClient,
-      account,
     })
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.gasUnits).toBe(280_000n)
+    expect(estimate.gasUnits).toBe(415_000n)
     expect(estimate.transactionCount).toBe(2)
     expect(publicClient.estimateGas).not.toHaveBeenCalled()
   })
@@ -112,13 +156,36 @@ describe('estimateMigrationGasCost', () => {
     const estimate = await estimateMigrationGasCost({
       plan,
       publicClient,
-      account,
     })
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
     expect(estimate.gasUnits).toBe(140_010n)
     expect(estimate.feeWei).toBe(560_040n)
+    expect(estimate.transactionCount).toBe(3)
+    expect(publicClient.estimateGas).not.toHaveBeenCalled()
+  })
+
+  it('counts the maximum runtime split transactions for migrate batches', async () => {
+    const publicClient = makePublicClient([], 4n)
+    const plan = makePlan({
+      migrateCalls: [makeCall('0x1111')],
+      batches: [
+        {
+          index: 0,
+          names: ['one.eth', 'two.eth', 'three.eth'],
+          estimatedGas: 10n,
+        },
+      ],
+    })
+
+    const estimate = await estimateMigrationGasCost({
+      plan,
+      publicClient,
+    })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
     expect(estimate.transactionCount).toBe(3)
     expect(publicClient.estimateGas).not.toHaveBeenCalled()
   })
@@ -137,7 +204,6 @@ describe('estimateMigrationGasCost', () => {
     const estimate = await estimateMigrationGasCost({
       plan,
       publicClient,
-      account,
     })
 
     expect(estimate.status).toBe('ready')
@@ -160,7 +226,6 @@ describe('estimateMigrationGasCost', () => {
     const estimate = await estimateMigrationGasCost({
       plan,
       publicClient,
-      account,
     })
 
     expect(estimate.status).toBe('ready')
@@ -181,7 +246,6 @@ describe('estimateMigrationGasCost', () => {
     const estimate = await estimateMigrationGasCost({
       plan,
       publicClient,
-      account,
     })
 
     expect(estimate.status).toBe('error')

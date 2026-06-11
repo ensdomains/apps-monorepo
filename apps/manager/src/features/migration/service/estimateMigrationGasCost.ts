@@ -1,4 +1,4 @@
-import { type Address, namehash, type PublicClient } from 'viem'
+import { namehash, type PublicClient } from 'viem'
 import {
   GRANT_ROLES_GAS,
   MULTICALL_OVERHEAD,
@@ -27,7 +27,6 @@ export type MigrationGasEstimate =
 type EstimateMigrationGasCostParams = {
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
-  readonly account: Address
 }
 
 const predictedProfileReplayGas = (plan: MigrationPlan): bigint => {
@@ -70,9 +69,13 @@ const predictedTransactionCount = (plan: MigrationPlan): number => {
       step.type === 'approve-name-wrapper' ||
       step.type === 'ensure-resolver',
   ).length
+  const maxMigrateTransactions = plan.batches.reduce(
+    (total, batch) => total + Math.max(batch.names.length, 1),
+    0,
+  )
   return (
     setupSteps +
-    plan.migrateCalls.length +
+    maxMigrateTransactions +
     plan.roleGrantCalls.length +
     plan.profileReplayCalls.length
   )
