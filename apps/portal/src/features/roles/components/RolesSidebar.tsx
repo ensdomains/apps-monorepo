@@ -6,6 +6,7 @@ import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -182,34 +183,25 @@ export const RolesSidebar = <
           className="sm:max-w-3xl bg-background overflow-y-auto p-0"
         >
           <div className="p-6 flex flex-col gap-6 h-full">
-            <SheetHeader className="p-0 pt-4">
-              <SheetTitle className="font-sans text-heading font-medium">
-                Role Details
+            <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
+              <SheetTitle className="font-sans text-heading font-medium flex items-center gap-1">
+                {name}
+                <CopyButton value={name} />
               </SheetTitle>
+              {canManageRoles && selectedAccount && (
+                <Button
+                  variant="outline"
+                  disabled={!isWalletConnected}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Remove user
+                </Button>
+              )}
             </SheetHeader>
 
             {row ? (
               <div className="flex flex-col gap-6">
-                {/* Header */}
-                <div className="flex flex-wrap justify-between items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <h2 className="text-4xl font-medium leading-snug">
-                      {name}
-                    </h2>
-                    <CopyButton value={name} />
-                  </div>
-                  {canManageRoles && selectedAccount && (
-                    <Button
-                      variant="default"
-                      disabled={!isWalletConnected}
-                      onClick={() => setConfirmOpen(true)}
-                    >
-                      <Trash2 className="size-5" />
-                      Remove user
-                    </Button>
-                  )}
-                </div>
-
                 {/* Permissions Section */}
                 <div className="border border-border rounded-sm overflow-hidden">
                   {permissions.map((permission, index) => {
@@ -288,30 +280,33 @@ export const RolesSidebar = <
                       </div>
                     )
                   })}
+                </div>
 
-                  {/* Save Changes Button */}
-                  <div className="flex justify-end px-6 py-4 border-t border-border">
-                    <Button
-                      variant="default"
-                      disabled={!hasChanges || !isWalletConnected}
-                      onClick={handleSaveChanges}
-                    >
-                      <CheckCircle className="size-5" />
-                      Save changes
-                    </Button>
-                  </div>
+                {isOwnerRole && canManageRoles && (
+                  <Alert variant="warning">
+                    <AlertDescription>
+                      This account is the owner of {name}. Removing or changing
+                      its roles can lock you out of managing the name.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="flex justify-end">
+                  <Button
+                    variant="default"
+                    disabled={!hasChanges || !isWalletConnected}
+                    onClick={handleSaveChanges}
+                  >
+                    Save
+                  </Button>
                 </div>
 
                 {/* History Section */}
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 mt-5">
                   <div className="flex flex-wrap justify-between items-center gap-4">
                     <h3 className="text-2xl font-medium leading-snug">
                       History
                     </h3>
-                    <Button variant="ghost">
-                      <Clock className="size-4" />
-                      Full history
-                    </Button>
                   </div>
 
                   <div className="border border-border rounded-sm overflow-hidden p-0">
@@ -330,7 +325,6 @@ export const RolesSidebar = <
             )}
           </div>
 
-          {/* Remove User Confirmation Dialog */}
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
             <DialogContent>
               <DialogHeader>
