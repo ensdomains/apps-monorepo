@@ -81,12 +81,12 @@ export const useMigrationGasEstimate = ({
       selectionRevisionRef.current.revision,
     ] as const,
     enabled,
-    staleTime: 30_000,
+    staleTime: 0,
     queryFn: async () => {
       if (!ownerAddress || !publicClient) {
         throw new Error('Cannot estimate migration gas without a wallet')
       }
-      const preflight = await ensurePreflight(domains)
+      const preflight = await ensurePreflight(domains, { staleTime: 0 })
       const plan = await buildMigrationPlan({
         domains,
         migrationOwner: ownerAddress,
