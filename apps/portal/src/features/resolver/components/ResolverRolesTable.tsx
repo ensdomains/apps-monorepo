@@ -17,7 +17,7 @@ import {
 import {
   type AccountRoleGroup,
   buildResourceToNameMap,
-  groupRolesByAccount,
+  groupRolesByAccountResource,
   resolverPermissions,
 } from '@/lib/roles/resolverRoles'
 import { roleToPermissions } from '@/lib/roles/rolesToPermissions'
@@ -94,7 +94,7 @@ export const ResolverRolesTable = ({
   const [open, setOpen] = useState(false)
 
   const data = useMemo(
-    () => groupRolesByAccount(roles, buildResourceToNameMap(nodes)),
+    () => groupRolesByAccountResource(roles, buildResourceToNameMap(nodes)),
     [roles, nodes],
   )
 
