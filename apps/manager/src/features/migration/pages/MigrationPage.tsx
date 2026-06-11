@@ -5,15 +5,14 @@ import { useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient, WalletClient } from 'viem'
-import { useConfig, usePublicClient, useWalletClient } from 'wagmi'
+import type { Address, WalletClient } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
-import { useMigrationPreflight } from '@/features/migration/hooks/useMigrationPreflight'
+import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
-import { buildMigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import {
   decodeMigrationError,
   type MigrationError,
@@ -27,10 +26,7 @@ import {
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import {
-  isMigrationQueryKey,
-  selectDomainsFromNames,
-} from './MigrationPage.helpers'
+import { isMigrationQueryKey } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -113,11 +109,11 @@ export const MigrationPage = () => {
   const { data: v1Names = [] } = useV1Names()
   const { ownerAddress } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
-  const wagmiConfig = useConfig()
-  const publicClient = usePublicClient()
   const queryClient = useQueryClient()
-  const { ensure: ensurePreflight } = useMigrationPreflight({
-    eoa: ownerAddress as Address | undefined,
+  const gasEstimate = useMigrationGasEstimate({
+    ownerAddress: ownerAddress as Address | undefined,
+    selectedNames,
+    v1Names,
   })
 
   useEffect(() => {
@@ -137,49 +133,29 @@ export const MigrationPage = () => {
   )
 
   const handleBeginUpgrade = useCallback(async () => {
-    if (!ownerAddress || !wagmiWalletClient?.account) return
-    if (!publicClient) return
+    if (!ownerAddress || !wagmiWalletClient?.account) return false
+    if (gasEstimate.status !== 'ready') return false
     const signer: Signer = {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
     }
-    const domains = selectDomainsFromNames(v1Names, selectedNames)
-    if (domains.length === 0) return
 
     try {
-      const preflight = await ensurePreflight(domains)
-      const plan = await buildMigrationPlan({
-        domains,
-        migrationOwner: ownerAddress as Address,
-        wagmiConfig,
-        publicClient: publicClient as unknown as PublicClient,
-        preflight,
-        hasBaseRegistrarApproval: preflight.baseRegistrarApproved,
-        hasNameWrapperApproval: preflight.nameWrapperApproved,
-      })
-
       uiActor.send({
         type: 'migration.start',
-        plan,
+        plan: gasEstimate.plan,
         signer,
         accountAddress: ownerAddress as Address,
       })
+      return true
     } catch (err) {
       uiActor.send({
         type: 'migration.failed',
         error: decodeMigrationError(err),
       })
+      return true
     }
-  }, [
-    v1Names,
-    ownerAddress,
-    wagmiWalletClient,
-    selectedNames,
-    uiActor,
-    ensurePreflight,
-    wagmiConfig,
-    publicClient,
-  ])
+  }, [ownerAddress, wagmiWalletClient, gasEstimate, uiActor])
 
   return (
     <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
@@ -188,6 +164,7 @@ export const MigrationPage = () => {
       {match(step)
         .with('select', () => (
           <SelectNamesStep
+            gasEstimate={gasEstimate}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
           />

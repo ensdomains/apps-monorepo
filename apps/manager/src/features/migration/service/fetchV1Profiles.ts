@@ -10,7 +10,7 @@ import {
   mergeMulticallResultsIntoProfiles,
   type NameForFetch,
 } from './fetchV1Profiles.helpers'
-import { getV1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
 
 const PROFILE_MULTICALL_CHUNK = 700
 const PROFILE_MULTICALL_CONCURRENCY = 6
@@ -67,18 +67,21 @@ const executeMulticallChunks = async (
 export const fetchV1Profiles = async (params: {
   names: readonly NameForFetch[]
   publicClient: PublicClient
+  profileKeys?: readonly V1ProfileKeys[]
 }): Promise<Map<Hex, Profile>> => {
-  const { names, publicClient } = params
+  const { names, publicClient, profileKeys } = params
   if (names.length === 0) return new Map()
 
   const byNode = indexNamesByNode(names)
 
-  const keyEntries = (await getV1ProfileKeys([...byNode.keys()])).match(
-    (value) => value,
-    (error) => {
-      throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
-    },
-  )
+  const keyEntries =
+    profileKeys ??
+    (await getV1ProfileKeys([...byNode.keys()])).match(
+      (value) => value,
+      (error) => {
+        throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
+      },
+    )
 
   const { calls, contracts } = buildProfileMulticallPlan(keyEntries, byNode)
   const buckets = initEmptyProfileBuckets(byNode)

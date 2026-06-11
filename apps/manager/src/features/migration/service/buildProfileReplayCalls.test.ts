@@ -1,37 +1,27 @@
-import { type Address, decodeFunctionData, type Hex, zeroAddress } from 'viem'
+import { type Address, decodeFunctionData, type Hex } from 'viem'
 import { assert, describe, expect, it } from 'vitest'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
-import { buildProfileReplayCall } from './buildProfileReplayCalls'
+import {
+  flattenProfileInnerCalls,
+  wrapInnerCallsAsMulticall,
+} from './buildProfileReplayCalls'
 import type { Profile } from './fetchV1Profiles'
 
 const RESOLVER: Address = '0x000000000000000000000000000000000000d002'
 const NODE: Hex =
   '0x1111111111111111111111111111111111111111111111111111111111111111'
 
-const emptyProfile = (): Profile => ({ texts: [], addresses: [] })
-
-describe('buildProfileReplayCall', () => {
-  it('returns null when there are no profiles', () => {
+describe('buildProfileReplayCalls helpers', () => {
+  it('flattens no calls for empty profiles', () => {
+    expect(flattenProfileInnerCalls(new Map())).toEqual([])
     expect(
-      buildProfileReplayCall({ resolver: RESOLVER, profiles: new Map() }),
-    ).toBeNull()
+      flattenProfileInnerCalls(
+        new Map<Hex, Profile>([[NODE, { texts: [], addresses: [] }]]),
+      ),
+    ).toEqual([])
   })
 
-  it('returns null when all profiles are empty', () => {
-    const profiles = new Map<Hex, Profile>([[NODE, emptyProfile()]])
-    expect(buildProfileReplayCall({ resolver: RESOLVER, profiles })).toBeNull()
-  })
-
-  it('throws on zero-address resolver', () => {
-    expect(() =>
-      buildProfileReplayCall({
-        resolver: zeroAddress,
-        profiles: new Map(),
-      }),
-    ).toThrow(/zero address/i)
-  })
-
-  it('wraps text + addr inner calls in a resolver.multicall(bytes[])', () => {
+  it('flattens text + addr calls and wraps them in resolver.multicall(bytes[])', () => {
     const profile: Profile = {
       texts: [{ key: 'email', value: 'a@b.c' }],
       addresses: [
@@ -41,11 +31,12 @@ describe('buildProfileReplayCall', () => {
         },
       ],
     }
-    const call = buildProfileReplayCall({
-      resolver: RESOLVER,
-      profiles: new Map<Hex, Profile>([[NODE, profile]]),
-    })
-    assert(call)
+    const innerCalls = flattenProfileInnerCalls(
+      new Map<Hex, Profile>([[NODE, profile]]),
+    )
+    expect(innerCalls).toHaveLength(2)
+
+    const call = wrapInnerCallsAsMulticall(RESOLVER, innerCalls)
     expect(call.to).toBe(RESOLVER)
     expect(call.value).toBe(0n)
 
@@ -54,9 +45,9 @@ describe('buildProfileReplayCall', () => {
       data: call.data,
     })
     expect(functionName).toBe('multicall')
-    const [innerCalls] = args as [readonly Hex[]]
-    expect(innerCalls).toHaveLength(2)
-    const [firstInner, secondInner] = innerCalls
+    const [wrappedInnerCalls] = args as [readonly Hex[]]
+    expect(wrappedInnerCalls).toEqual(innerCalls)
+    const [firstInner, secondInner] = wrappedInnerCalls
     assert(firstInner && secondInner)
 
     const setText = decodeFunctionData({
