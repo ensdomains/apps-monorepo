@@ -37,7 +37,8 @@ const getProfile = ResultFn(async function* ({
             domains: [
               {
                 resolver: {
-                  texts: string[]
+                  texts: string[] | null
+                  addresses: { coinType: number; address: string }[] | null
                 } | null
               },
             ]
@@ -48,6 +49,10 @@ const getProfile = ResultFn(async function* ({
             domains(where: {name: $name}) {
               resolver {
                 texts
+                addresses {
+                  coinType
+                  address
+                }
               }
             }
           }`,
@@ -59,24 +64,34 @@ const getProfile = ResultFn(async function* ({
 
   const subgraphV2Records = subgraphV2Result?.domains[0]?.resolver ?? null
 
-  const coins = mergeCoinTypes(subgraphV1Records?.coins, [
-    // default requested coins
-    // EVM
-    coinNameToTypeMap.eth,
-    coinNameToTypeMap.arb1,
-    coinNameToTypeMap.op,
-    coinNameToTypeMap.base,
+  // Coin types the V2 resolver actually has, per the indexer. Without these,
+  // migrated (ENSv2) names only surface the hardcoded default coins below,
+  // so any other address record is silently dropped from the records tab.
+  const subgraphV2Coins = subgraphV2Records?.addresses?.map(
+    (address) => address.coinType,
+  )
 
-    // Non-EVM
-    coinNameToTypeMap.btc,
-    coinNameToTypeMap.doge,
-    coinNameToTypeMap.sol,
-    coinNameToTypeMap.strk,
-  ])
+  const coins = mergeCoinTypes(
+    [...(subgraphV1Records?.coins ?? []), ...(subgraphV2Coins ?? [])],
+    [
+      // default requested coins
+      // EVM
+      coinNameToTypeMap.eth,
+      coinNameToTypeMap.arb1,
+      coinNameToTypeMap.op,
+      coinNameToTypeMap.base,
+
+      // Non-EVM
+      coinNameToTypeMap.btc,
+      coinNameToTypeMap.doge,
+      coinNameToTypeMap.sol,
+      coinNameToTypeMap.strk,
+    ],
+  )
 
   const texts = mergeTextKeys(
     subgraphV1Records?.texts,
-    subgraphV2Records?.texts,
+    subgraphV2Records?.texts ?? undefined,
     [
       // default requested texts
       'name',
