@@ -251,6 +251,7 @@ export const ResolverAddUserSheet = ({
                 name="user"
                 placeholder="User name or address"
                 required
+                value={nameOrAddressInput}
                 disabled={isPending || isSuccess}
                 aria-invalid={formError?.field === 'address'}
                 onChange={(e) => {

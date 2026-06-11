@@ -4,7 +4,6 @@ import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
-import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -95,7 +94,7 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
   const labels = name.split('.')
   const label = labels[0]
 
-  const { data, isLoading, error } = useQuery({
+  const { data } = useQuery({
     ...getEnsOwnerQueryOptions({ name }),
     enabled: name.endsWith('.eth'),
   })
@@ -118,27 +117,7 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
     currentAccountRoles?.decoded?.find(isAdminRole),
   )
 
-  if (!name.endsWith('.eth') || (labels.length !== 2 && labels.length !== 3))
-    return null
-  if (isLoading) return <LoadingSpinner title="Loading name owner" />
-  if (error)
-    return (
-      <ErrorMessage
-        title={error.cause?.name}
-        description={error.cause?.message}
-      />
-    )
-
-  // Only ENSv2 names have a permissioned registry to manage roles on.
-  if (data?.protocolVersion !== 'ENSv2') return null
-
-  if (!registryAddress)
-    return (
-      <ErrorMessage
-        title="No registry"
-        description="Unable to determine the registry for this name."
-      />
-    )
+  if (!registryAddress) return null
 
   return (
     <Fragment>
