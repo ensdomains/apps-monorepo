@@ -52,8 +52,8 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
-// Shared dedicated resolver for names that don't need custom records
-const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
+// Shared resolver for names that don't need custom records — use the ensjs public resolver.
+const DEDICATED_RESOLVER = ensjsSepolia.ensPublicResolver.address
 const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
 const REFERRER = zeroHash
