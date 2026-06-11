@@ -117,7 +117,9 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
     currentAccountRoles?.decoded?.find(isAdminRole),
   )
 
-  if (!registryAddress) return null
+  // Parent registry roles apply only to ENSv2 names with a registry; this
+  // section hides otherwise (the resolver section renders independently).
+  if (data?.protocolVersion !== 'ENSv2' || !registryAddress) return null
 
   return (
     <Fragment>
