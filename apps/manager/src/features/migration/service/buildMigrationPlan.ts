@@ -63,6 +63,7 @@ const fetchProfilesForNames = async (params: {
         v1ResolverAddress: n.v1ResolverAddress as Address,
       })),
     publicClient,
+    profileKeys: preflight.profileKeys,
   })
 }
 
@@ -195,7 +196,11 @@ export const buildMigrationPlan = async (params: {
   if (namesToOwnedPermRes.length > 0) {
     ownedPermRes =
       preflight.preExistingOwnedPermRes ??
-      (await predictOwnedPermResAddress({ eoa: migrationOwner, publicClient }))
+      (await predictOwnedPermResAddress({
+        eoa: migrationOwner,
+        publicClient,
+        skipExistingCheck: true,
+      }))
   }
 
   const profiles = await fetchProfilesForNames({

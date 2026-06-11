@@ -70,10 +70,13 @@ export const findExistingPermRes = async (params: {
 export const predictOwnedPermResAddress = async (params: {
   eoa: Address
   publicClient: PublicClient
+  skipExistingCheck?: boolean
 }): Promise<Address> => {
-  const { eoa, publicClient } = params
-  const existing = await findExistingPermRes({ eoa, publicClient })
-  if (existing) return existing
+  const { eoa, publicClient, skipExistingCheck = false } = params
+  if (!skipExistingCheck) {
+    const existing = await findExistingPermRes({ eoa, publicClient })
+    if (existing) return existing
+  }
   const salt = computeOwnedResolverSalt(eoa, 0n)
   const { result } = await publicClient.simulateContract({
     address: V2_CONTRACTS.VerifiableFactory,

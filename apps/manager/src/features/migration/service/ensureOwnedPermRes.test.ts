@@ -16,6 +16,7 @@ import {
   ensureOwnedPermRes,
   findExistingPermRes,
   OwnedResolverDeployError,
+  predictOwnedPermResAddress,
 } from './ensureOwnedPermRes'
 
 vi.mock('@wagmi/core', () => ({
@@ -126,6 +127,25 @@ describe('findExistingPermRes', () => {
         args: { sender: EOA },
       }),
     )
+  })
+})
+
+describe('predictOwnedPermResAddress', () => {
+  it('skips the existing resolver log lookup when preflight already checked it', async () => {
+    const getLogs = vi.fn()
+    const simulateContract = vi.fn().mockResolvedValueOnce({ result: PROXY_A })
+    const result = await predictOwnedPermResAddress({
+      eoa: EOA,
+      publicClient: {
+        getLogs,
+        simulateContract,
+      } as unknown as PublicClient,
+      skipExistingCheck: true,
+    })
+
+    expect(result).toBe(PROXY_A)
+    expect(getLogs).not.toHaveBeenCalled()
+    expect(simulateContract).toHaveBeenCalledTimes(1)
   })
 })
 

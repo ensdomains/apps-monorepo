@@ -1,28 +1,15 @@
-import type { Call } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import type { Address, PublicClient } from 'viem'
-import { encodeFunctionData } from 'viem'
-import { sepoliaWithEns } from '@/lib/wagmi'
+import { type Address, namehash, type PublicClient } from 'viem'
 import {
-  BASE_REGISTRAR_ABI,
-  NAME_WRAPPER_ABI,
-  VERIFIABLE_FACTORY_ABI,
-} from '../contracts/abis'
-import { V2_CONTRACTS } from '../contracts/addresses'
-import {
-  computeOwnedResolverSalt,
-  getOwnedPermResInitCalldata,
-} from '../contracts/permissionedResolverAddress'
+  GRANT_ROLES_GAS,
+  MULTICALL_OVERHEAD,
+  SETADDR_GAS,
+  SETTEXT_GAS,
+} from './batchMigrate.constants'
 import type { MigrationPlan } from './buildMigrationPlan'
+import { profileMapKey } from './fetchV1Profiles'
 
-const BASE_REGISTRAR = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensBaseRegistrarImplementation',
-})
-const NAME_WRAPPER = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensNameWrapper',
-})
+const APPROVAL_GAS = 55_000n
+const OWNED_RESOLVER_SETUP_GAS = 220_000n
 
 export type MigrationGasEstimate =
   | {
@@ -43,88 +30,52 @@ type EstimateMigrationGasCostParams = {
   readonly account: Address
 }
 
-type EstimableCall = {
-  readonly call: Call
-  readonly fallbackGas?: bigint
+const predictedProfileReplayGas = (plan: MigrationPlan): bigint => {
+  if (plan.profileReplayCalls.length === 0) return 0n
+
+  let recordGas = 0n
+  for (const name of plan.classified) {
+    if (name.resolverStrategy !== 'to-owned-permres') continue
+    const profile = plan.profiles.get(profileMapKey(namehash(name.domain.name)))
+    if (!profile) continue
+    recordGas += BigInt(profile.texts.length) * SETTEXT_GAS
+    recordGas += BigInt(profile.addresses.length) * SETADDR_GAS
+  }
+  return BigInt(plan.profileReplayCalls.length) * MULTICALL_OVERHEAD + recordGas
 }
 
-const approvalCall = (to: Address): Call => ({
-  to,
-  data: encodeFunctionData({
-    abi: BASE_REGISTRAR_ABI,
-    functionName: 'setApprovalForAll',
-    args: [V2_CONTRACTS.MigrationHelper, true],
-  }),
-  value: 0n,
-})
-
-const nameWrapperApprovalCall = (): Call => ({
-  to: NAME_WRAPPER,
-  data: encodeFunctionData({
-    abi: NAME_WRAPPER_ABI,
-    functionName: 'setApprovalForAll',
-    args: [V2_CONTRACTS.MigrationHelper, true],
-  }),
-  value: 0n,
-})
-
-const resolverSetupCall = (account: Address): Call => ({
-  to: V2_CONTRACTS.VerifiableFactory,
-  data: encodeFunctionData({
-    abi: VERIFIABLE_FACTORY_ABI,
-    functionName: 'deployProxy',
-    args: [
-      V2_CONTRACTS.PermissionedResolverImpl,
-      computeOwnedResolverSalt(account, 0n),
-      getOwnedPermResInitCalldata(account),
-    ],
-  }),
-  value: 0n,
-})
-
-const callsForPlan = (
-  plan: MigrationPlan,
-  account: Address,
-): EstimableCall[] => {
-  const calls: EstimableCall[] = []
+const predictedGasUnits = (plan: MigrationPlan): bigint => {
+  let gas = 0n
   for (const step of plan.stepDescriptors) {
     if (step.type === 'approve-base-registrar') {
-      calls.push({ call: approvalCall(BASE_REGISTRAR) })
+      gas += APPROVAL_GAS
     }
     if (step.type === 'approve-name-wrapper') {
-      calls.push({ call: nameWrapperApprovalCall() })
+      gas += APPROVAL_GAS
     }
     if (step.type === 'ensure-resolver') {
-      calls.push({ call: resolverSetupCall(account) })
+      gas += OWNED_RESOLVER_SETUP_GAS
     }
   }
-  calls.push(
-    ...plan.migrateCalls.map((call, index) => ({
-      call,
-      fallbackGas: plan.batches[index]?.estimatedGas,
-    })),
-    ...plan.roleGrantCalls.map((call) => ({ call })),
-    ...plan.profileReplayCalls.map((call) => ({ call })),
-  )
-  return calls
+  gas += plan.batches.reduce((total, batch) => total + batch.estimatedGas, 0n)
+  gas += BigInt(plan.roleGrantCalls.length) * GRANT_ROLES_GAS
+  gas += predictedProfileReplayGas(plan)
+  return gas
 }
 
-const estimateCallGas = async (
-  publicClient: PublicClient,
-  account: Address,
-  estimable: EstimableCall,
-): Promise<bigint> => {
-  try {
-    return await publicClient.estimateGas({
-      account,
-      to: estimable.call.to,
-      data: estimable.call.data,
-      value: estimable.call.value,
-    })
-  } catch (error) {
-    if (estimable.fallbackGas) return estimable.fallbackGas
-    throw error
-  }
+const predictedTransactionCount = (plan: MigrationPlan): number => {
+  const setupSteps = plan.stepDescriptors.filter(
+    (step) =>
+      step.type === 'approve-base-registrar' ||
+      step.type === 'approve-name-wrapper' ||
+      step.type === 'ensure-resolver',
+  ).length
+  return (
+    setupSteps +
+    plan.migrateCalls.length +
+    plan.roleGrantCalls.length +
+    plan.profileReplayCalls.length
+  )
 }
 
 const estimateFeePerGas = async (
@@ -139,14 +90,9 @@ const estimateFeePerGas = async (
 export const estimateMigrationGasCost = async ({
   plan,
   publicClient,
-  account,
 }: EstimateMigrationGasCostParams): Promise<MigrationGasEstimate> => {
   try {
-    const calls = callsForPlan(plan, account)
-    const estimates = await Promise.all(
-      calls.map((call) => estimateCallGas(publicClient, account, call)),
-    )
-    const gasUnits = estimates.reduce((total, gas) => total + gas, 0n)
+    const gasUnits = predictedGasUnits(plan)
     const feePerGasWei = await estimateFeePerGas(publicClient)
 
     return {
@@ -154,7 +100,7 @@ export const estimateMigrationGasCost = async ({
       gasUnits,
       feeWei: gasUnits * feePerGasWei,
       feePerGasWei,
-      transactionCount: calls.length,
+      transactionCount: predictedTransactionCount(plan),
     }
   } catch (error) {
     return { status: 'error', error }
