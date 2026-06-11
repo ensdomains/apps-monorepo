@@ -87,7 +87,7 @@ const AddUserButton = ({
   )
 }
 
-export const NameRoles = ({ name }: { name: string }) => {
+export const NameRolesOverviewTable = ({ name }: { name: string }) => {
   const [addUserOpen, setAddUserOpen] = useState(false)
 
   const { address } = useConnection()
