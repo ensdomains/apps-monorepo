@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { ArrowUpRight } from 'lucide-react'
 import type { Address } from 'viem'
+import { Button } from '@/components/ui/button'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -21,9 +24,20 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-sm font-medium leading-none uppercase">
-        {name} resolver roles
-      </h1>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium leading-none uppercase">
+          {name} resolver roles
+        </h3>
+        <Button className="text-muted-foreground" variant="ghost" asChild>
+          <Link
+            params={{ address: resolverAddress }}
+            to="/resolver/$address/roles"
+          >
+            <ArrowUpRight className="size-5" />
+            View
+          </Link>
+        </Button>
+      </div>
       <ResolverRolesTable
         roles={roles}
         nodes={overview?.nodes ?? []}

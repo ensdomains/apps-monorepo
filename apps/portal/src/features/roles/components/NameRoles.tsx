@@ -1,7 +1,7 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -140,11 +140,11 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
     )
 
   return (
-    <div className="max-w-360 w-full mx-auto flex flex-col gap-6 m-6 px-4">
+    <Fragment>
       <div className="flex items-center justify-between">
-        <h1 className="text-sm font-medium leading-none uppercase">
+        <h3 className="text-sm font-medium leading-none uppercase">
           parent registry roles
-        </h1>
+        </h3>
         {address && (
           <AddUserButton
             canManageRoles={canManageRoles}
@@ -163,6 +163,6 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
         name={name}
         registryAddress={registryAddress}
       />
-    </div>
+    </Fragment>
   )
 }
