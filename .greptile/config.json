@@ -1,4 +1,5 @@
 {
+  "ignorePatterns": "**/*.gen.ts\n**/*.gen.d.ts\n**/worker-configuration.d.ts\n**/routeTree.gen.ts\n**/*.po\n**/translations/**\n**/locales/**\n**/dist/**\n**/.wrangler/**",
   "rules": [
     {
       "id": "no-any",
@@ -296,6 +297,25 @@
       "rule": "When a value is passed as a dependency to `useEffect`, `useQuery`, or a memoized child, memoize the parent to prevent infinite loops or refetches.",
       "scope": ["apps/**/*.tsx"],
       "severity": "low"
+    },
+
+    {
+      "id": "component-prop-count",
+      "rule": "Many props (~10+) can signal a component doing too much. If it reads that way, suggest a fitting remedy — grouping related props into an object, composition, or splitting — and use judgement; other approaches are fine. See STYLEGUIDE.md 'Number of Props'.",
+      "scope": ["apps/**/*.tsx", "packages/**/*.tsx"],
+      "severity": "medium"
+    },
+    {
+      "id": "file-length",
+      "rule": "Files over ~500 lines are a soft signal the file may do too much; suggest splitting by responsibility, but leave cohesive files alone. See STYLEGUIDE.md 'Component Size and Complexity'.",
+      "scope": ["apps/**/*.tsx", "apps/**/*.ts", "packages/**/*.tsx", "packages/**/*.ts"],
+      "severity": "medium"
+    },
+    {
+      "id": "one-component-per-file",
+      "rule": "Prefer one primary component per file. Small co-located helpers are fine, even with a little local state; flag only when several substantial components in one file would clearly be better split out. See STYLEGUIDE.md.",
+      "scope": ["apps/**/*.tsx", "packages/**/*.tsx"],
+      "severity": "medium"
     }
   ]
 }

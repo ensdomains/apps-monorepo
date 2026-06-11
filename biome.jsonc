@@ -47,7 +47,8 @@
         "useKeyWithClickEvents": "warn"
       },
       "complexity": {
-        "noUselessSwitchCase": "off"
+        "noUselessSwitchCase": "off",
+        "noExcessiveCognitiveComplexity": "warn"
       },
       "correctness": {
         "noNestedComponentDefinitions": "warn"
