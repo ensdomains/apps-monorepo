@@ -26,7 +26,6 @@ type AccountGroup = {
   items: string[]
 }
 
-/** `ROLE_SET_SUBREGISTRY` / `ROLE_SET_SUBREGISTRY_ADMIN` → `Set Subregistry`. */
 const formatRole = (role: string) =>
   role
     .replace(/^ROLE_/, '')
@@ -36,10 +35,6 @@ const formatRole = (role: string) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 
-/**
- * Collapse an account's raw roles into one entry per permission, tracking
- * whether the account holds the Admin and/or User (base) variant of it.
- */
 const toRoleEntries = (roles: string[]): RoleRowEntry[] => {
   const map = new Map<string, RoleRowEntry>()
   for (const role of roles) {
