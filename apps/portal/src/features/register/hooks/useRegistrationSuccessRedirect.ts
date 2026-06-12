@@ -1,0 +1,72 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { useEffect, useRef } from 'react'
+import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
+import {
+  formatPriceDisplay,
+  isPriceResult,
+} from '@/features/register/utils/registrationPrice'
+import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+
+type UseRegistrationSuccessRedirectParams = {
+  readonly name: string
+  readonly durationSeconds: number
+  readonly isSuccess: boolean
+  readonly price: RegistrationPriceResult | undefined
+}
+
+/**
+ * After a successful registration, waits for the indexer to catch up (so the
+ * overview shows the owned name, not "available") and redirects to `/$name`
+ * with the duration + paid amount as search params, which drive the success
+ * banner there. Fires once.
+ */
+export const useRegistrationSuccessRedirect = ({
+  name,
+  durationSeconds,
+  isSuccess,
+  price,
+}: UseRegistrationSuccessRedirectParams) => {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const hasRedirectedRef = useRef(false)
+
+  useEffect(() => {
+    if (hasRedirectedRef.current) return
+    if (!isSuccess || !isPriceResult(price)) return
+    hasRedirectedRef.current = true
+
+    const paid = formatPriceDisplay(price.total, price.decimals)
+
+    void (async () => {
+      await pollForIndexerSync({
+        invalidateQueries: async () => {
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+              refetchType: 'all',
+            }),
+            queryClient.invalidateQueries({
+              queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
+              refetchType: 'all',
+            }),
+            queryClient.invalidateQueries({
+              queryKey: getProfileQueryOptions({ name }).queryKey,
+              refetchType: 'all',
+            }),
+          ])
+        },
+      })
+
+      navigate({
+        to: '/$name',
+        params: { name },
+        search: { registered: true, duration: durationSeconds, paid },
+        replace: true,
+      })
+    })()
+  }, [isSuccess, price, name, durationSeconds, navigate, queryClient])
+}
