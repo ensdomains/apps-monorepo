@@ -20,7 +20,7 @@ export const EducationCarousel = () => {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <h2 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
+        <h2 className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
           <Trans>Did You Know?</Trans>
         </h2>
         <div className="flex items-center gap-2">

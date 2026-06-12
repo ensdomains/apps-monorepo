@@ -78,7 +78,7 @@ msgid "{durationYears} years"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:322
-#: src/features/dashboard/components/NameRow.tsx:221
+#: src/features/dashboard/components/NameRow.tsx:237
 msgid "{label} avatar"
 msgstr ""
 
@@ -181,7 +181,7 @@ msgstr ""
 msgid "Add Crypto Address"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:163
+#: src/features/dashboard/components/NameRow.tsx:176
 msgid "Add favorite"
 msgstr ""
 
@@ -737,6 +737,11 @@ msgstr ""
 msgid "Create unlimited subdomains for free"
 msgstr ""
 
+#: src/features/dashboard/components/NamesTable.tsx:95
+#: src/features/dashboard/components/NamesTable.tsx:101
+msgid "Created"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:97
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:120
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:136
@@ -790,11 +795,6 @@ msgstr ""
 #: src/features/navigation/Header/account/NavSection.tsx:23
 msgid "Dashboard"
 msgstr "Översikt"
-
-#: src/features/dashboard/components/NamesTable.tsx:89
-#: src/features/dashboard/components/NamesTable.tsx:94
-msgid "Date added"
-msgstr ""
 
 #: src/features/payment/components/index.tsx:42
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:319
@@ -995,7 +995,7 @@ msgstr ""
 msgid "Expires in {days} days"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:290
+#: src/features/dashboard/components/NameRow.tsx:306
 msgid "Expires on"
 msgstr ""
 
@@ -1009,17 +1009,8 @@ msgstr ""
 msgid "expiring on"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:74
-#: src/features/dashboard/components/NamesTable.tsx:79
-msgid "Expiry"
-msgstr "Utgång"
-
-#: src/features/dashboard/components/NamesTable.tsx:78
-msgid "Expiry (Latest)"
-msgstr ""
-
-#: src/features/dashboard/components/NamesTable.tsx:73
-msgid "Expiry (Soonest)"
+#: src/features/dashboard/components/NamesTable.tsx:96
+msgid "Expiry Date"
 msgstr ""
 
 #: src/features/renew/components/RenewNameButton.tsx:27
@@ -1103,7 +1094,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:110
+#: src/features/dashboard/components/NamesTable.tsx:115
 msgid "Favorites"
 msgstr "Favoriter"
 
@@ -1317,7 +1308,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/dashboard/components/NameRow.tsx:214
+#: src/features/dashboard/components/NameRow.tsx:230
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
@@ -1346,11 +1337,11 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:273
+#: src/features/dashboard/components/NameRow.tsx:289
 msgid "Manage notifications"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:124
+#: src/features/dashboard/components/NameRow.tsx:125
 msgid "Manage on explorer"
 msgstr ""
 
@@ -1382,7 +1373,7 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:240
+#: src/features/dashboard/components/NameRow.tsx:256
 msgid "More options for {label}"
 msgstr ""
 
@@ -1396,27 +1387,15 @@ msgstr ""
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:124
+#: src/features/dashboard/components/NamesTable.tsx:129
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/dashboard/components/NamesTable.tsx:69
-#: src/features/dashboard/components/NamesTable.tsx:70
-#: src/features/dashboard/components/NamesTable.tsx:84
-#: src/features/dashboard/components/NamesTable.tsx:85
+#: src/features/dashboard/components/NamesTable.tsx:94
+#: src/features/dashboard/components/NamesTable.tsx:100
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx:131
 msgid "Name"
 msgstr "Namn"
-
-#: src/features/dashboard/components/NamesTable.tsx:69
-#: src/features/dashboard/components/NamesTable.tsx:84
-msgid "Name (A-Z)"
-msgstr "Namn (A-Ö)"
-
-#: src/features/dashboard/components/NamesTable.tsx:70
-#: src/features/dashboard/components/NamesTable.tsx:85
-msgid "Name (Z-A)"
-msgstr "Namn (Ö-A)"
 
 #: src/features/notifications/settings/preferences.tsx:105
 msgid "Name Expiry"
@@ -1572,10 +1551,6 @@ msgstr ""
 msgid "Notifications blocked"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:93
-msgid "Oldest first"
-msgstr ""
-
 #: src/features/migration/pages/MigrationPage.tsx:87
 msgid "One of your names can't be upgraded right now."
 msgstr ""
@@ -1608,7 +1583,7 @@ msgstr ""
 msgid "Over 2 million ENS names registered"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:101
+#: src/features/dashboard/components/NamesTable.tsx:107
 msgid "Owned"
 msgstr ""
 
@@ -1808,10 +1783,6 @@ msgstr ""
 msgid "Receive notifications via email for important domain events"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:88
-msgid "Recently added"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx:36
 msgid "Recently expired names have a temporary fee that decreases to $0 over {periodDays} days. It's added only once when you register — renewals are always at the base price."
 msgstr ""
@@ -1909,6 +1880,10 @@ msgstr ""
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx:137
+msgid "Remind me"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx:207
 #: src/features/notifications/settings/contact-methods/email.tsx:243
 #: src/features/notifications/settings/contact-methods/telegram.tsx:170
@@ -1925,7 +1900,7 @@ msgstr ""
 msgid "Remove Email Contact Method?"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:163
+#: src/features/dashboard/components/NameRow.tsx:176
 msgid "Remove favorite"
 msgstr ""
 
@@ -1968,13 +1943,13 @@ msgstr ""
 msgid "Removing telegram for {0}"
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx:149
 #: src/features/grace/components/GracePeriodBanner.tsx:97
 #: src/features/grace/components/GracePeriodBanner.tsx:106
 msgid "Renew"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:136
-#: src/features/dashboard/components/NameRow.tsx:261
+#: src/features/dashboard/components/NameRow.tsx:277
 msgid "Renew name"
 msgstr ""
 
@@ -2110,7 +2085,7 @@ msgstr ""
 msgid "Search for a name or address"
 msgstr ""
 
-#: src/features/dashboard/components/NamesTable.tsx:130
+#: src/features/dashboard/components/NamesTable.tsx:135
 msgid "Search my names"
 msgstr ""
 
@@ -2325,7 +2300,7 @@ msgstr ""
 msgid "Something went wrong. Please refresh and try again."
 msgstr ""
 
-#: src/features/dashboard/components/SortMenu.tsx:51
+#: src/features/dashboard/components/SortMenu.tsx:79
 msgid "Sort by"
 msgstr "Sortera efter"
 
