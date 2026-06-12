@@ -119,8 +119,10 @@ export const MigrationPage = () => {
 
   // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
   // The worker only drips when the address owns v1 names and is low on ETH,
-  // so this is idempotent and a no-op for everyone else.
-  useMigrationGasFunding(ownerAddress)
+  // so this is idempotent and a no-op for everyone else. The request doesn't
+  // resolve until any drip is confirmed on-chain, so we gate the upgrade
+  // button on `gasFundingStatus` to stop owners starting before the ETH lands.
+  const gasFundingStatus = useMigrationGasFunding(ownerAddress)
 
   useEffect(() => {
     if (migrateSubstep === 'succeeding') {
@@ -145,6 +147,8 @@ export const MigrationPage = () => {
   const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !wagmiWalletClient?.account) return false
     if (gasEstimate.status !== 'ready') return false
+    // Don't let the owner start before their gas drip is confirmed on-chain.
+    if (gasFundingStatus === 'funding') return false
     const signer: Signer = {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
@@ -165,7 +169,7 @@ export const MigrationPage = () => {
       })
       return true
     }
-  }, [ownerAddress, wagmiWalletClient, gasEstimate, uiActor])
+  }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
 
   return (
     <div className="relative h-[calc(100dvh-54px)] overflow-hidden md:h-[calc(100dvh-80px)]">
@@ -175,6 +179,7 @@ export const MigrationPage = () => {
         .with('select', () => (
           <SelectNamesStep
             gasEstimate={gasEstimate}
+            gasFundingStatus={gasFundingStatus}
             onBack={handleBack}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}

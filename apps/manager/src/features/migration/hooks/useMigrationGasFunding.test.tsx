@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const fundPostMock = vi.fn()
@@ -17,31 +19,47 @@ import { useMigrationGasFunding } from './useMigrationGasFunding'
 
 const OWNER = '0xAbCdEf0123456789aBcDeF0123456789AbCdEf01'
 
+const makeWrapper = () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  )
+}
+
 beforeEach(() => {
   fundPostMock.mockReset()
   fundPostMock.mockResolvedValue({ ok: true, status: 200, statusText: 'OK' })
 })
 
 describe('useMigrationGasFunding', () => {
-  it('requests funding once for the owner address', async () => {
-    renderHook(() => useMigrationGasFunding(OWNER))
+  it('requests funding once and reports funding then settled', async () => {
+    const { result } = renderHook(() => useMigrationGasFunding(OWNER), {
+      wrapper: makeWrapper(),
+    })
 
-    await waitFor(() => expect(fundPostMock).toHaveBeenCalledTimes(1))
+    expect(result.current).toBe('funding')
+    await waitFor(() => expect(result.current).toBe('settled'))
+    expect(fundPostMock).toHaveBeenCalledTimes(1)
     expect(fundPostMock).toHaveBeenCalledWith({ json: { address: OWNER } })
   })
 
-  it('does not request when there is no owner address', () => {
-    renderHook(() => useMigrationGasFunding(null))
+  it('is idle and does not request when there is no owner address', () => {
+    const { result } = renderHook(() => useMigrationGasFunding(null), {
+      wrapper: makeWrapper(),
+    })
+    expect(result.current).toBe('idle')
     expect(fundPostMock).not.toHaveBeenCalled()
   })
 
   it('does not re-fire on re-renders with the same address', async () => {
-    const { rerender } = renderHook(
+    const { result, rerender } = renderHook(
       ({ address }: { address: string }) => useMigrationGasFunding(address),
-      { initialProps: { address: OWNER } },
+      { initialProps: { address: OWNER }, wrapper: makeWrapper() },
     )
 
-    await waitFor(() => expect(fundPostMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(result.current).toBe('settled'))
     rerender({ address: OWNER })
     rerender({ address: OWNER.toLowerCase() }) // case change is the same owner
     expect(fundPostMock).toHaveBeenCalledTimes(1)
@@ -51,7 +69,7 @@ describe('useMigrationGasFunding', () => {
     const other = '0x1111111111111111111111111111111111111111'
     const { rerender } = renderHook(
       ({ address }: { address: string }) => useMigrationGasFunding(address),
-      { initialProps: { address: OWNER } },
+      { initialProps: { address: OWNER }, wrapper: makeWrapper() },
     )
 
     await waitFor(() => expect(fundPostMock).toHaveBeenCalledTimes(1))
@@ -62,10 +80,12 @@ describe('useMigrationGasFunding', () => {
     })
   })
 
-  it('swallows request failures (best-effort)', async () => {
+  it('settles (does not block) when the request fails (best-effort)', async () => {
     fundPostMock.mockRejectedValueOnce(new Error('network down'))
-    renderHook(() => useMigrationGasFunding(OWNER))
-    await waitFor(() => expect(fundPostMock).toHaveBeenCalledTimes(1))
-    // No throw — the migration flow surfaces any out-of-gas error itself.
+    const { result } = renderHook(() => useMigrationGasFunding(OWNER), {
+      wrapper: makeWrapper(),
+    })
+    await waitFor(() => expect(result.current).toBe('settled'))
+    expect(fundPostMock).toHaveBeenCalledTimes(1)
   })
 })
