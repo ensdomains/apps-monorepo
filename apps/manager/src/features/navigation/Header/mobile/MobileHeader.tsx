@@ -46,9 +46,10 @@ export const MobileHeader = ({
 
   return (
     <header
-      className={tw('sticky top-0 z-20 bg-white', {
-        'bg-transparent': transparentBackground,
-      })}
+      className={tw(
+        'sticky top-0 z-20',
+        transparentBackground ? 'bg-transparent' : 'bg-white',
+      )}
     >
       <nav className="relative flex h-[54px] min-w-0 items-center px-4 py-2">
         <AnimatePresence initial={false} mode="popLayout">
