@@ -72,8 +72,8 @@ msgstr "{duration, plural, one {# year} other {# years}}"
 msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:322
-#: src/features/dashboard/components/NameRow.tsx:235
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:117
+#: src/features/dashboard/components/NameRow.tsx:268
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
@@ -176,7 +176,7 @@ msgstr "Add credit card"
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
 
-#: src/features/dashboard/components/NameRow.tsx:176
+#: src/features/dashboard/components/NameRow.tsx:169
 msgid "Add favorite"
 msgstr "Add favorite"
 
@@ -438,7 +438,7 @@ msgstr "Can I send crypto to a .eth name (instead of an address)?"
 msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:382
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:466
 #: src/features/notifications/settings/contact-methods/email.tsx:232
 #: src/features/notifications/settings/contact-methods/telegram.tsx:158
 #: src/features/notifications/settings/email-verify-step.tsx:163
@@ -506,7 +506,7 @@ msgstr "Choose a wallet to connect to the application"
 msgid "Choose how you'd like to pay for your subscription."
 msgstr "Choose how you'd like to pay for your subscription."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:264
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:400
 msgid "Choose Primary Name"
 msgstr "Choose Primary Name"
 
@@ -698,12 +698,12 @@ msgstr "Copy Link"
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:158
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:173
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:139
 msgid "Could not find resolver for {name}"
 msgstr "Could not find resolver for {name}"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:152
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:167
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:134
 msgid "Could not read ETH address record for {name}"
 msgstr "Could not read ETH address record for {name}"
@@ -954,7 +954,7 @@ msgstr "Enter wallet address"
 msgid "Enter your email"
 msgstr "Enter your email"
 
-#: src/features/dashboard/components/MyNamesList.tsx:131
+#: src/features/dashboard/components/MyNamesList.tsx:200
 msgid "Error loading names"
 msgstr "Error loading names"
 
@@ -994,7 +994,7 @@ msgstr "expires {expiryDateString}"
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
-#: src/features/dashboard/components/NameRow.tsx:304
+#: src/features/dashboard/components/NameRow.tsx:348
 msgid "Expires on"
 msgstr "Expires on"
 
@@ -1062,12 +1062,12 @@ msgstr "Failed to remove Telegram channel"
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:182
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:197
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:163
 msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:437
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name. Please try again."
 msgstr "Failed to set primary name. Please try again."
@@ -1303,7 +1303,7 @@ msgstr "Loading your stablecoin balances..."
 msgid "Loading..."
 msgstr "Loading..."
 
-#: src/features/dashboard/components/NameRow.tsx:228
+#: src/features/dashboard/components/NameRow.tsx:217
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Login to favorite"
@@ -1332,7 +1332,7 @@ msgstr "Makes crypto addresses human-readable"
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
 
-#: src/features/dashboard/components/NameRow.tsx:287
+#: src/features/dashboard/components/NameRow.tsx:323
 msgid "Manage notifications"
 msgstr "Manage notifications"
 
@@ -1368,7 +1368,7 @@ msgstr "MM/YY"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/features/dashboard/components/NameRow.tsx:254
+#: src/features/dashboard/components/NameRow.tsx:290
 msgid "More options for {label}"
 msgstr "More options for {label}"
 
@@ -1465,7 +1465,7 @@ msgstr "No default payment method set."
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:364
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:448
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:234
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
@@ -1479,7 +1479,7 @@ msgstr "No favorites to display"
 msgid "No more records to add"
 msgstr "No more records to add"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:295
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:417
 msgid "No names found"
 msgstr "No names found"
 
@@ -1487,7 +1487,7 @@ msgstr "No names found"
 msgid "No names match your search"
 msgstr "No names match your search"
 
-#: src/features/dashboard/components/MyNamesList.tsx:169
+#: src/features/dashboard/components/MyNamesList.tsx:238
 msgid "No names to display"
 msgstr "No names to display"
 
@@ -1741,7 +1741,7 @@ msgstr "Primary Name"
 msgid "Primary Name Profile"
 msgstr "Primary Name Profile"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:197
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:333
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:72
 msgid "Primary name set successfully"
 msgstr "Primary name set successfully"
@@ -1895,7 +1895,7 @@ msgstr "Remove Avatar"
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
-#: src/features/dashboard/components/NameRow.tsx:176
+#: src/features/dashboard/components/NameRow.tsx:169
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
@@ -1945,7 +1945,7 @@ msgstr "Removing telegram for {0}"
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/dashboard/components/NameRow.tsx:275
+#: src/features/dashboard/components/NameRow.tsx:311
 msgid "Renew name"
 msgstr "Renew name"
 
@@ -2112,7 +2112,7 @@ msgstr "See what's new"
 msgid "Select {0}"
 msgstr "Select {0}"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:306
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:101
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
 
@@ -2139,7 +2139,7 @@ msgstr "Send Verification"
 msgid "Sending..."
 msgstr "Sending..."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:398
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:482
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:266
 msgid "Set as Primary"
 msgstr "Set as Primary"
@@ -2175,11 +2175,11 @@ msgstr "Set the content hash and ABI for your name"
 msgid "Set up later"
 msgstr "Set up later"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:267
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:403
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:395
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:479
 msgid "Setting ETH address..."
 msgstr "Setting ETH address..."
 
@@ -2199,7 +2199,7 @@ msgstr "Setting up resolver"
 msgid "Setting up your smart account"
 msgstr "Setting up your smart account"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:397
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:481
 msgid "Setting..."
 msgstr "Setting..."
 
@@ -2288,7 +2288,7 @@ msgstr "Smart account ready"
 msgid "Social Links"
 msgstr "Social Links"
 
-#: src/features/dashboard/components/MyNamesList.tsx:143
+#: src/features/dashboard/components/MyNamesList.tsx:212
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
@@ -2391,7 +2391,7 @@ msgstr "The backup payment method will be charged if the default payment method 
 msgid "The ENS domain has been successfully renewed."
 msgstr "The ENS domain has been successfully renewed."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:363
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:447
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:228
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
@@ -2774,7 +2774,7 @@ msgstr "Wallet Connected"
 msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:222
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:358
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:172
 msgid "Wallet signer not available"
 msgstr "Wallet signer not available"

@@ -12,11 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 describe('NameRow', () => {
   it('places grace period badge on the right side of the top row', () => {
     const { getByText } = render(
-      <NameRow
-        isInGrace
-        label="expires-in-30-days.eth"
-        nameRole="owner"
-      />,
+      <NameRow isInGrace label="expires-in-30-days.eth" nameRole="owner" />,
     )
 
     const graceBadge = getByText('Grace period').closest('span')

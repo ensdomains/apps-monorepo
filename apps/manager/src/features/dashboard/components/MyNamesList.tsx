@@ -51,6 +51,75 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
   return { field, dir }
 }
 
+type MergedNameItem = ReturnType<typeof buildMergedNamesList>[number]
+
+const AnimatedNameRow = ({
+  item,
+  index,
+  shouldReduceMotion,
+  primaryLabel,
+  avatarUrl,
+  favoriteLabels,
+  onToggleFavorite,
+  isAuthenticated,
+}: {
+  readonly item: MergedNameItem
+  readonly index: number
+  readonly shouldReduceMotion: boolean | null
+  readonly primaryLabel?: string | null
+  readonly avatarUrl?: string
+  readonly favoriteLabels: ReadonlySet<string>
+  readonly onToggleFavorite: (label: string) => void
+  readonly isAuthenticated: boolean
+}) => {
+  const {
+    label,
+    daysUntilExpiry,
+    expiringSoon,
+    formattedExpiryDate,
+    isV1,
+    isPrimary,
+    avatarUrl: fallbackAvatarUrl,
+    isInGrace,
+    expiryCta,
+  } = mergedRowMetadata(item, primaryLabel, avatarUrl)
+
+  return (
+    <motion.div
+      className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
+      key={item.key}
+      {...(shouldReduceMotion
+        ? {}
+        : {
+            initial: { opacity: 0, y: 6 },
+            animate: { opacity: 1, y: 0 },
+            transition: {
+              duration: 0.2,
+              ease: [0.25, 0.46, 0.45, 0.94] as const,
+              delay: index * 0.04,
+            },
+          })}
+    >
+      <NameRow
+        avatarUrl={fallbackAvatarUrl}
+        cta={isV1 ? null : expiryCta}
+        expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
+        expiryLabel={formattedExpiryDate}
+        isAuthenticated={isAuthenticated}
+        isFavorite={favoriteLabels.has(label.toLowerCase())}
+        isInGrace={isInGrace}
+        label={label}
+        nameRole="owner"
+        nameVariant={isPrimary ? 'primary' : 'secondary'}
+        onToggleFavorite={() => onToggleFavorite(label)}
+        showFavoriteButton
+        status={isV1 ? 'eligibleUpgrade' : null}
+        verified={isPrimary}
+      />
+    </motion.div>
+  )
+}
+
 export const MyNamesList = ({
   migrationEnabled = false,
   primaryLabel,
@@ -171,60 +240,19 @@ export const MyNamesList = ({
             </div>
           ))
           .otherwise(({ pageItems }) =>
-            pageItems.map((item, index) => {
-              const {
-                label,
-                daysUntilExpiry,
-                expiringSoon,
-                formattedExpiryDate,
-                isV1,
-                isPrimary,
-                avatarUrl,
-                isInGrace,
-                expiryCta,
-              } = mergedRowMetadata(
-                item,
-                primaryLabel,
-                pageAvatars?.[item.sortName],
-              )
-
-              return (
-                <motion.div
-                  className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
-                  key={item.key}
-                  {...(shouldReduceMotion
-                    ? {}
-                    : {
-                        initial: { opacity: 0, y: 6 },
-                        animate: { opacity: 1, y: 0 },
-                        transition: {
-                          duration: 0.2,
-                          ease: [0.25, 0.46, 0.45, 0.94] as const,
-                          delay: index * 0.04,
-                        },
-                      })}
-                >
-                  <NameRow
-                    avatarUrl={avatarUrl}
-                    cta={!isV1 ? expiryCta : null}
-                    expiringInDays={
-                      !isInGrace && expiringSoon ? daysUntilExpiry : null
-                    }
-                    expiryLabel={formattedExpiryDate}
-                    isAuthenticated={isAuthenticated}
-                    isFavorite={favoriteLabels.has(label.toLowerCase())}
-                    isInGrace={isInGrace}
-                    label={label}
-                    nameRole="owner"
-                    nameVariant={isPrimary ? 'primary' : 'secondary'}
-                    onToggleFavorite={() => onToggleFavorite(label)}
-                    showFavoriteButton
-                    status={isV1 ? 'eligibleUpgrade' : null}
-                    verified={isPrimary}
-                  />
-                </motion.div>
-              )
-            }),
+            pageItems.map((item, index) => (
+              <AnimatedNameRow
+                avatarUrl={pageAvatars?.[item.sortName]}
+                favoriteLabels={favoriteLabels}
+                index={index}
+                isAuthenticated={isAuthenticated}
+                item={item}
+                key={item.key}
+                onToggleFavorite={onToggleFavorite}
+                primaryLabel={primaryLabel}
+                shouldReduceMotion={shouldReduceMotion}
+              />
+            )),
           )}
       </div>
 
