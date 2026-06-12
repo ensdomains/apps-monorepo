@@ -1,5 +1,5 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { readContract, type Config as WagmiConfig } from '@wagmi/core'
+import { readContracts, type Config as WagmiConfig } from '@wagmi/core'
 import { type Address, erc721Abi } from 'viem'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { NAME_WRAPPER_ABI } from '../contracts/abis'
@@ -32,6 +32,12 @@ type HelperApprovalStatus = {
   readonly nameWrapperApproved: boolean
 }
 
+type ApprovalKey = keyof HelperApprovalStatus
+type MutableHelperApprovalStatus = {
+  -readonly [Key in ApprovalKey]: HelperApprovalStatus[Key]
+}
+type ApprovalContract = Parameters<typeof readContracts>[1]['contracts'][number]
+
 export const checkHelperApprovals = async (params: {
   eoa: Address
   helperAddress: Address
@@ -40,24 +46,45 @@ export const checkHelperApprovals = async (params: {
 }): Promise<HelperApprovalStatus> => {
   const { eoa, helperAddress, needs, wagmiConfig } = params
 
-  const [baseRegistrarApproved, nameWrapperApproved] = await Promise.all([
-    needs.hasUnwrapped
-      ? (readContract(wagmiConfig, {
-          address: BASE_REGISTRAR,
-          abi: erc721Abi,
-          functionName: 'isApprovedForAll',
-          args: [eoa, helperAddress],
-        }) as Promise<boolean>)
-      : Promise.resolve(true),
-    needs.hasWrapped
-      ? (readContract(wagmiConfig, {
-          address: NAME_WRAPPER,
-          abi: NAME_WRAPPER_ABI,
-          functionName: 'isApprovedForAll',
-          args: [eoa, helperAddress],
-        }) as Promise<boolean>)
-      : Promise.resolve(true),
-  ])
+  const status: HelperApprovalStatus = {
+    baseRegistrarApproved: true,
+    nameWrapperApproved: true,
+  }
+  const keys: ApprovalKey[] = []
+  const contracts: ApprovalContract[] = []
 
-  return { baseRegistrarApproved, nameWrapperApproved }
+  if (needs.hasUnwrapped) {
+    keys.push('baseRegistrarApproved')
+    contracts.push({
+      address: BASE_REGISTRAR,
+      abi: erc721Abi,
+      functionName: 'isApprovedForAll',
+      args: [eoa, helperAddress],
+    })
+  }
+
+  if (needs.hasWrapped) {
+    keys.push('nameWrapperApproved')
+    contracts.push({
+      address: NAME_WRAPPER,
+      abi: NAME_WRAPPER_ABI,
+      functionName: 'isApprovedForAll',
+      args: [eoa, helperAddress],
+    })
+  }
+
+  if (contracts.length === 0) return status
+
+  const approvals = (await readContracts(wagmiConfig, {
+    contracts,
+    allowFailure: false,
+    batchSize: 0,
+  })) as readonly boolean[]
+
+  const result: MutableHelperApprovalStatus = { ...status }
+  for (const [index, approved] of approvals.entries()) {
+    const key = keys[index]
+    if (key) result[key] = approved
+  }
+  return result
 }

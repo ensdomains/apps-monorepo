@@ -6,7 +6,6 @@ export type MigrationStepDescriptor =
   | { type: 'approve-name-wrapper' }
   | { type: 'ensure-resolver' }
   | { type: 'migrate-batch'; index: number; total: number; count: number }
-  | { type: 'grant-role-batch'; index: number; total: number; count: number }
   | { type: 'grant-role'; label: string }
   | { type: 'profile-replay-batch'; index: number; total: number }
 
@@ -19,7 +18,6 @@ type BuildStepDescriptorsParams = {
   readonly hasProfileReplay: boolean
   readonly migrateBatchCount: number
   readonly profileReplayBatchCount: number
-  readonly roleGrantBatchCount: number
 }
 
 const batchCount = (
@@ -31,6 +29,72 @@ const batchCount = (
   const base = Math.floor(classified.length / total)
   const remainder = classified.length % total
   return base + (i < remainder ? 1 : 0)
+}
+
+const hasWrappedNames = (groups: GroupedNames): boolean =>
+  groups.unlocked.length > 0 ||
+  groups.locked2ld.length > 0 ||
+  groups.childNames.size > 0
+
+const addApprovalDescriptors = (
+  descriptors: MigrationStepDescriptor[],
+  params: Pick<
+    BuildStepDescriptorsParams,
+    | 'groups'
+    | 'hasBaseRegistrarApproval'
+    | 'hasNameWrapperApproval'
+    | 'preflight'
+  >,
+): void => {
+  if (params.preflight.skipApprovalPhase) return
+  if (params.groups.unwrapped.length > 0 && !params.hasBaseRegistrarApproval) {
+    descriptors.push({ type: 'approve-base-registrar' })
+  }
+  if (hasWrappedNames(params.groups) && !params.hasNameWrapperApproval) {
+    descriptors.push({ type: 'approve-name-wrapper' })
+  }
+}
+
+const addMigrateDescriptors = (
+  descriptors: MigrationStepDescriptor[],
+  classified: readonly ClassifiedName[],
+  migrateBatchCount: number,
+): void => {
+  for (let i = 0; i < migrateBatchCount; i++) {
+    descriptors.push({
+      type: 'migrate-batch',
+      index: i,
+      total: migrateBatchCount,
+      count: batchCount(classified, migrateBatchCount, i),
+    })
+  }
+}
+
+const addRoleGrantDescriptors = (
+  descriptors: MigrationStepDescriptor[],
+  classified: readonly ClassifiedName[],
+): void => {
+  for (const n of classified) {
+    if (n.managerAddress) {
+      descriptors.push({ type: 'grant-role', label: n.label })
+    }
+  }
+}
+
+const addProfileReplayDescriptors = (
+  descriptors: MigrationStepDescriptor[],
+  hasProfileReplay: boolean,
+  profileReplayBatchCount: number,
+): void => {
+  if (!hasProfileReplay) return
+  const total = Math.max(1, profileReplayBatchCount)
+  for (let i = 0; i < total; i++) {
+    descriptors.push({
+      type: 'profile-replay-batch',
+      index: i,
+      total,
+    })
+  }
 }
 
 export const buildStepDescriptors = (
@@ -45,22 +109,15 @@ export const buildStepDescriptors = (
     hasProfileReplay,
     migrateBatchCount,
     profileReplayBatchCount,
-    roleGrantBatchCount,
   } = params
   const descriptors: MigrationStepDescriptor[] = []
 
-  if (!preflight.skipApprovalPhase) {
-    if (groups.unwrapped.length > 0 && !hasBaseRegistrarApproval) {
-      descriptors.push({ type: 'approve-base-registrar' })
-    }
-    const hasWrapped =
-      groups.unlocked.length > 0 ||
-      groups.locked2ld.length > 0 ||
-      groups.childNames.size > 0
-    if (hasWrapped && !hasNameWrapperApproval) {
-      descriptors.push({ type: 'approve-name-wrapper' })
-    }
-  }
+  addApprovalDescriptors(descriptors, {
+    groups,
+    hasBaseRegistrarApproval,
+    hasNameWrapperApproval,
+    preflight,
+  })
 
   const needsOwnedPermRes = classified.some(
     (n) => n.resolverStrategy === 'to-owned-permres',
@@ -69,42 +126,13 @@ export const buildStepDescriptors = (
     descriptors.push({ type: 'ensure-resolver' })
   }
 
-  for (let i = 0; i < migrateBatchCount; i++) {
-    descriptors.push({
-      type: 'migrate-batch',
-      index: i,
-      total: migrateBatchCount,
-      count: batchCount(classified, migrateBatchCount, i),
-    })
-  }
-
-  if (roleGrantBatchCount > 0) {
-    const managed = classified.filter((n) => n.managerAddress)
-    for (let i = 0; i < roleGrantBatchCount; i++) {
-      descriptors.push({
-        type: 'grant-role-batch',
-        index: i,
-        total: roleGrantBatchCount,
-        count: batchCount(managed, roleGrantBatchCount, i),
-      })
-    }
-  } else {
-    for (const n of classified) {
-      if (n.managerAddress) {
-        descriptors.push({ type: 'grant-role', label: n.label })
-      }
-    }
-  }
-
-  if (hasProfileReplay) {
-    for (let i = 0; i < Math.max(1, profileReplayBatchCount); i++) {
-      descriptors.push({
-        type: 'profile-replay-batch',
-        index: i,
-        total: Math.max(1, profileReplayBatchCount),
-      })
-    }
-  }
+  addMigrateDescriptors(descriptors, classified, migrateBatchCount)
+  addRoleGrantDescriptors(descriptors, classified)
+  addProfileReplayDescriptors(
+    descriptors,
+    hasProfileReplay,
+    profileReplayBatchCount,
+  )
 
   return descriptors
 }

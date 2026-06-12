@@ -7,6 +7,10 @@ import {
   countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
+  shouldShowBulkSelection,
+  shouldShowNameSearch,
+  shouldUseCompactSelectionLayout,
+  shouldUseSmallSelectionCard,
   toggleGroup,
   toggleName,
 } from './selectNames.helpers'
@@ -120,5 +124,52 @@ describe('countVisibleRows', () => {
 
   it('is zero for no input', () => {
     expect(countVisibleRows([], [])).toBe(0)
+  })
+})
+
+describe('shouldShowBulkSelection', () => {
+  it('hides bulk selection below 15 names', () => {
+    expect(shouldShowBulkSelection(14)).toBe(false)
+  })
+
+  it('shows bulk selection at 15 names and above', () => {
+    expect(shouldShowBulkSelection(15)).toBe(true)
+    expect(shouldShowBulkSelection(16)).toBe(true)
+  })
+})
+
+describe('shouldShowNameSearch', () => {
+  it('hides search for 8 names or fewer', () => {
+    expect(shouldShowNameSearch(8)).toBe(false)
+  })
+
+  it('shows search for 9 names and above', () => {
+    expect(shouldShowNameSearch(9)).toBe(true)
+  })
+})
+
+describe('shouldUseCompactSelectionLayout', () => {
+  it('keeps the roomy layout below 10 names', () => {
+    expect(shouldUseCompactSelectionLayout(9)).toBe(false)
+  })
+
+  it('uses the compact layout for 10 names and above', () => {
+    expect(shouldUseCompactSelectionLayout(10)).toBe(true)
+    expect(shouldUseCompactSelectionLayout(15)).toBe(true)
+  })
+})
+
+describe('shouldUseSmallSelectionCard', () => {
+  it('keeps the card normal for zero names', () => {
+    expect(shouldUseSmallSelectionCard(0)).toBe(false)
+  })
+
+  it('uses a small card for 1-6 names', () => {
+    expect(shouldUseSmallSelectionCard(1)).toBe(true)
+    expect(shouldUseSmallSelectionCard(6)).toBe(true)
+  })
+
+  it('keeps the card normal above 6 names', () => {
+    expect(shouldUseSmallSelectionCard(7)).toBe(false)
   })
 })

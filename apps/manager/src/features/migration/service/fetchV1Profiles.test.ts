@@ -116,6 +116,19 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
+  it('uses supplied profile keys without querying the subgraph again', async () => {
+    const result = await fetchV1Profiles({
+      names: [A],
+      publicClient: clientWith(() => [okCall('a@b.c')]),
+      profileKeys: [{ id: NODE_A, texts: ['email'], coinTypes: [] }],
+    })
+
+    expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
+    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
+      { key: 'email', value: 'a@b.c' },
+    ])
+  })
+
   it('drops empty text values and zero-length addr values', async () => {
     mockKeys([{ id: NODE_A, texts: ['email'], coinTypes: [60] }])
     const result = await run(

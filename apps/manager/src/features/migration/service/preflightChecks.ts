@@ -107,7 +107,7 @@ export const checkFrozenApproval = async (
   return ids
 }
 
-export const frozenApprovalCandidates = (
+const frozenApprovalCandidates = (
   names: readonly ClassifiedName[],
 ): ClassifiedName[] =>
   names.filter(
