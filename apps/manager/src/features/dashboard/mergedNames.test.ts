@@ -54,27 +54,27 @@ const makeV1 = (
 
 const makeMergedV2 = (
   overrides: Partial<Extract<MergedItem, { kind: 'v2' }>> = {},
-): MergedItem =>
-  ({
-    kind: 'v2',
-    key: 'v2-0xid',
-    sortName: 'alice.eth',
-    sortExpiry: 100,
-    domain: makeV2(),
-    ...overrides,
-  }) as MergedItem
+): MergedItem => ({
+  kind: 'v2',
+  key: 'v2-0xid',
+  sortName: 'alice.eth',
+  sortExpiry: 100,
+  sortCreated: 100,
+  domain: makeV2(),
+  ...overrides,
+})
 
 const makeMergedV1 = (
   overrides: Partial<Extract<MergedItem, { kind: 'v1' }>> = {},
-): MergedItem =>
-  ({
-    kind: 'v1',
-    key: 'v1-0xv1',
-    sortName: 'bob.eth',
-    sortExpiry: null,
-    classified: makeV1(),
-    ...overrides,
-  }) as MergedItem
+): MergedItem => ({
+  kind: 'v1',
+  key: 'v1-0xv1',
+  sortName: 'bob.eth',
+  sortExpiry: null,
+  sortCreated: null,
+  classified: makeV1(),
+  ...overrides,
+})
 
 describe('v1ExpirySeconds', () => {
   it('prefers registration expiry over wrapped', () => {
@@ -101,6 +101,20 @@ describe('compareMerged', () => {
   const a = makeMergedV2({ sortName: 'alpha.eth', sortExpiry: 10 })
   const b = makeMergedV2({ sortName: 'beta.eth', sortExpiry: 20 })
   const noExpiry = makeMergedV1({ sortName: 'gamma.eth', sortExpiry: null })
+  const older = makeMergedV2({
+    sortName: 'older.eth',
+    sortExpiry: 20,
+    sortCreated: 10,
+  })
+  const newer = makeMergedV2({
+    sortName: 'newer.eth',
+    sortExpiry: 10,
+    sortCreated: 20,
+  })
+  const noCreated = makeMergedV1({
+    sortName: 'unknown.eth',
+    sortExpiry: 1,
+  })
 
   it('sorts by name asc', () => {
     expect(compareMerged(a, b, 'name', 'asc')).toBeLessThan(0)
@@ -118,6 +132,10 @@ describe('compareMerged', () => {
   it('returns 0 when both expiries are null', () => {
     const c = makeMergedV1({ sortName: 'delta.eth', sortExpiry: null })
     expect(compareMerged(noExpiry, c, 'expiry', 'asc')).toBe(0)
+  })
+  it('sorts by created date and keeps unknown created dates last', () => {
+    expect(compareMerged(older, newer, 'created', 'asc')).toBeLessThan(0)
+    expect(compareMerged(older, noCreated, 'created', 'desc')).toBeLessThan(0)
   })
 })
 
@@ -185,6 +203,24 @@ describe('buildMergedNamesList', () => {
       sortDir: 'asc',
     })
     expect(items.map((i) => i.sortExpiry)).toEqual([50, 100, 200, null])
+  })
+
+  it('sorts by created date desc with unknowns last', () => {
+    const items = buildMergedNamesList({
+      v2Names: [
+        makeV2({ id: '0x1', name: 'alpha.eth', createdAt: 100 }),
+        makeV2({ id: '0x2', name: 'zeta.eth', createdAt: 200 }),
+      ],
+      v1Classified: [makeV1({ id: '0x3', name: 'mike.eth' })],
+      searchQuery: '',
+      sortField: 'created',
+      sortDir: 'desc',
+    })
+    expect(items.map((i) => i.sortName)).toEqual([
+      'zeta.eth',
+      'alpha.eth',
+      'mike.eth',
+    ])
   })
 })
 

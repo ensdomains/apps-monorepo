@@ -31,7 +31,7 @@ const PAGE_SIZE = 5
 const NameRowSkeleton = () => (
   <div className="flex items-center gap-4">
     <div className="size-6.5 shrink-0 animate-pulse rounded bg-gray-200" />
-    <div className="size-10 shrink-0 animate-pulse rounded-full bg-gray-200" />
+    <div className="size-8.5 shrink-0 animate-pulse rounded-sm bg-gray-200" />
     <div className="h-7 w-37.5 animate-pulse rounded-xs bg-gray-200" />
   </div>
 )

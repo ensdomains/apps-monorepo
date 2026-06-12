@@ -283,7 +283,7 @@ export const ChoosePrimaryNameDialog = ({
                         className="flex items-center gap-3 rounded-sm p-3"
                         key={skeletonId}
                       >
-                        <div className="size-10 shrink-0 animate-pulse rounded-full bg-gray-200" />
+                        <div className="size-8.5 shrink-0 animate-pulse rounded-sm bg-gray-200" />
                         <div className="h-5 w-37.5 animate-pulse rounded bg-gray-200" />
                       </div>
                     ),
@@ -316,7 +316,7 @@ export const ChoosePrimaryNameDialog = ({
                       type="button"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-ens-white">
+                        <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-white">
                           <ImageFallback.Root className="contents">
                             <ImageFallback.Image
                               alt={t`${label} avatar`}
@@ -325,7 +325,7 @@ export const ChoosePrimaryNameDialog = ({
                             />
                             <ImageFallback.Fallback>
                               <PatternAvatar
-                                className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                                className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
                                 name={label}
                               />
                             </ImageFallback.Fallback>
@@ -337,7 +337,7 @@ export const ChoosePrimaryNameDialog = ({
                       </div>
                       {isSelected && (
                         <Check
-                          className="size-[20px] shrink-0 text-ens-blue"
+                          className="size-5 shrink-0 text-ens-blue"
                           strokeWidth={2.5}
                         />
                       )}

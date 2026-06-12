@@ -8,11 +8,16 @@ import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isBackendAuthed } from '@/utils/backend-client'
+import type { SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { useOwnedDomains } from '../useOwnedDomains'
-import { FavoritesList, type FavoritesSort } from './FavoritesList'
+import {
+  FavoritesList,
+  type FavoritesSort,
+  type FavoritesSortField,
+} from './FavoritesList'
 import { type FilterChipDef, FilterChips } from './FilterChips'
 import { MyNamesList, type Sort } from './MyNamesList'
 import { SortMenu, type SortOption } from './SortMenu'
@@ -24,6 +29,23 @@ interface NamesTableProps {
   readonly migrationEnabled?: boolean
 }
 
+type DirectionalSort<Field extends string> = `${Field}-${SortDir}`
+
+const parseDirectionalSort = <Field extends string>(
+  sort: DirectionalSort<Field>,
+): { field: Field; dir: SortDir } => {
+  const [field, dir] = sort.split('-') as [Field, SortDir]
+  return { field, dir }
+}
+
+const toDirectionalSort = <Field extends string>(
+  field: Field,
+  dir: SortDir,
+): DirectionalSort<Field> => `${field}-${dir}` as DirectionalSort<Field>
+
+const reverseSortDir = (dir: SortDir): SortDir =>
+  dir === 'asc' ? 'desc' : 'asc'
+
 export const NamesTable = ({
   migrationEnabled = false,
   primaryLabel,
@@ -33,6 +55,9 @@ export const NamesTable = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [ownedSort, setOwnedSort] = useState<Sort>('name-asc')
   const [favoritesSort, setFavoritesSort] = useState<FavoritesSort>('name-asc')
+  const ownedSortState = parseDirectionalSort<SortField>(ownedSort)
+  const favoritesSortState =
+    parseDirectionalSort<FavoritesSortField>(favoritesSort)
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
   const activeFilter = !isAuthed && filter === 'favorites' ? 'owned' : filter
@@ -65,34 +90,15 @@ export const NamesTable = ({
     }
   }
 
-  const ownedSortOptions: SortOption<Sort>[] = [
-    { value: 'name-asc', label: t`Name (A-Z)`, triggerLabel: t`Name` },
-    { value: 'name-desc', label: t`Name (Z-A)`, triggerLabel: t`Name` },
-    {
-      value: 'expiry-asc',
-      label: t`Expiry (Soonest)`,
-      triggerLabel: t`Expiry`,
-    },
-    {
-      value: 'expiry-desc',
-      label: t`Expiry (Latest)`,
-      triggerLabel: t`Expiry`,
-    },
+  const ownedSortOptions: SortOption<SortField>[] = [
+    { value: 'name', label: t`Name` },
+    { value: 'created', label: t`Created` },
+    { value: 'expiry', label: t`Expiry Date` },
   ]
 
-  const favoritesSortOptions: SortOption<FavoritesSort>[] = [
-    { value: 'name-asc', label: t`Name (A-Z)`, triggerLabel: t`Name` },
-    { value: 'name-desc', label: t`Name (Z-A)`, triggerLabel: t`Name` },
-    {
-      value: 'addedAt-desc',
-      label: t`Recently added`,
-      triggerLabel: t`Date added`,
-    },
-    {
-      value: 'addedAt-asc',
-      label: t`Oldest first`,
-      triggerLabel: t`Date added`,
-    },
+  const favoritesSortOptions: SortOption<FavoritesSortField>[] = [
+    { value: 'name', label: t`Name` },
+    { value: 'addedAt', label: t`Created` },
   ]
 
   const chips: FilterChipDef<FilterKey>[] = [
@@ -117,12 +123,12 @@ export const NamesTable = ({
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex w-full max-w-[352px] flex-col items-start gap-5 md:mb-4 md:max-w-none">
+      <div className="mb-5 flex w-full flex-col items-start gap-5 md:mb-4">
         <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <h2 className="font-sans text-[#232222] text-[16px] leading-[0.96] tracking-[0.16px] md:text-[28px] md:tracking-[0.28px]">
             <Trans>My Names</Trans>
           </h2>
-          <div className="w-full md:w-[352px]">
+          <div className="w-full md:w-88">
             <Input
               className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350 focus-visible:ring-0"
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -138,15 +144,37 @@ export const NamesTable = ({
         <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
           {activeFilter === 'owned' ? (
             <SortMenu
-              onChange={setOwnedSort}
+              direction={ownedSortState.dir}
+              onChange={(field) =>
+                setOwnedSort(toDirectionalSort(field, ownedSortState.dir))
+              }
+              onToggleDirection={() =>
+                setOwnedSort((current) => {
+                  const { field, dir } =
+                    parseDirectionalSort<SortField>(current)
+                  return toDirectionalSort(field, reverseSortDir(dir))
+                })
+              }
               options={ownedSortOptions}
-              value={ownedSort}
+              value={ownedSortState.field}
             />
           ) : (
             <SortMenu
-              onChange={setFavoritesSort}
+              direction={favoritesSortState.dir}
+              onChange={(field) =>
+                setFavoritesSort(
+                  toDirectionalSort(field, favoritesSortState.dir),
+                )
+              }
+              onToggleDirection={() =>
+                setFavoritesSort((current) => {
+                  const { field, dir } =
+                    parseDirectionalSort<FavoritesSortField>(current)
+                  return toDirectionalSort(field, reverseSortDir(dir))
+                })
+              }
               options={favoritesSortOptions}
-              value={favoritesSort}
+              value={favoritesSortState.field}
             />
           )}
           <FilterChips

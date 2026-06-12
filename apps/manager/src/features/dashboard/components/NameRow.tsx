@@ -215,7 +215,7 @@ export const NameRow = ({
                 </TooltipContent>
               </Tooltip>
             ))}
-          <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-ens-quartz-50">
+          <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt={t`${label} avatar`}
@@ -224,7 +224,7 @@ export const NameRow = ({
               />
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                  className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
                   name={label}
                 />
               </ImageFallback.Fallback>
@@ -249,7 +249,7 @@ export const NameRow = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-[268px] rounded-xl border-none bg-white p-4 shadow-[0px_4px_4px_rgba(200,200,200,0.25)]"
+            className="w-67 rounded-xl border-none bg-white p-4 shadow-[0px_4px_4px_rgba(200,200,200,0.25)]"
             sideOffset={10}
           >
             <DropdownMenuItem asChild>

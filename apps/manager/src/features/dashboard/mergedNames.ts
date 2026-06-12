@@ -21,6 +21,7 @@ export type MergedItem =
       readonly key: string
       readonly sortName: string
       readonly sortExpiry: number | null
+      readonly sortCreated: number | null
       readonly domain: DomainFragment
     }
   | {
@@ -28,10 +29,11 @@ export type MergedItem =
       readonly key: string
       readonly sortName: string
       readonly sortExpiry: number | null
+      readonly sortCreated: number | null
       readonly classified: ClassifiedName
     }
 
-export type SortField = 'name' | 'expiry'
+export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
 
 export const v1ExpirySeconds = (classified: ClassifiedName): number | null => {
@@ -54,8 +56,8 @@ export const compareMerged = (
   if (field === 'name') {
     return a.sortName.localeCompare(b.sortName) * mul
   }
-  const ax = a.sortExpiry
-  const bx = b.sortExpiry
+  const ax = field === 'created' ? a.sortCreated : a.sortExpiry
+  const bx = field === 'created' ? b.sortCreated : b.sortExpiry
   if (ax === null && bx === null) return 0
   if (ax === null) return 1
   if (bx === null) return -1
@@ -81,6 +83,7 @@ export const buildMergedNamesList = (params: {
       key: `v2-${domain.id}`,
       sortName: label,
       sortExpiry: domain.expiryDate ?? null,
+      sortCreated: domain.createdAt,
       domain,
     })
   }
@@ -99,6 +102,7 @@ export const buildMergedNamesList = (params: {
       key: `v1-${classified.domain.id}`,
       sortName: label,
       sortExpiry: v1ExpirySeconds(classified),
+      sortCreated: null,
       classified,
     })
   }
