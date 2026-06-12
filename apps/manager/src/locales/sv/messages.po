@@ -94,15 +94,19 @@ msgstr ""
 msgid "{migrated} out of {total} names upgraded"
 msgstr ""
 
+#: src/features/migration/components/SelectNamesStep.tsx:100
+msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
+msgstr ""
+
 #: src/features/migration/components/SuccessModal.tsx:126
 msgid "+{overflow} more"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:39
+#: src/features/migration/components/SelectNamesStep.tsx:40
 msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:33
+#: src/features/migration/components/SelectNamesStep.tsx:34
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr ""
 
@@ -344,7 +348,7 @@ msgstr ""
 msgid "Awaiting approval signature"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:103
+#: src/features/migration/components/SelectNamesStep.tsx:165
 #: src/features/migration/pages/MigrationPage.tsx:205
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:394
@@ -826,7 +830,7 @@ msgstr ""
 msgid "Deploying the resolver"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:176
+#: src/features/migration/components/SelectNamesStep.tsx:247
 msgid "Deselect all"
 msgstr ""
 
@@ -970,15 +974,15 @@ msgstr "Fel vid laddning av namn"
 
 #. placeholder {0}: estimate.formattedEth
 #. placeholder {1}: estimate.transactionCount
-#: src/features/migration/components/SelectNamesStep.tsx:266
+#: src/features/migration/components/SelectNamesStep.tsx:65
 msgid "Estimated network fee: <0>~{0} ETH</0> across <1>{1} transactions</1>.<2/>Final fee confirmed in your wallet."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:261
+#: src/features/migration/components/SelectNamesStep.tsx:60
 msgid "Estimating migration gas..."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:305
+#: src/features/migration/components/SelectNamesStep.tsx:97
 msgid "Estimating..."
 msgstr ""
 
@@ -1150,7 +1154,7 @@ msgstr ""
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:283
+#: src/features/migration/components/SelectNamesStep.tsx:82
 msgid "Gas estimate unavailable"
 msgstr ""
 
@@ -1493,7 +1497,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:200
+#: src/features/migration/components/SelectNamesStep.tsx:276
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1515,7 +1519,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:197
+#: src/features/migration/components/SelectNamesStep.tsx:273
 msgid "No names match your search"
 msgstr ""
 
@@ -2124,8 +2128,8 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:117
-#: src/features/migration/components/SelectNamesStep.tsx:121
+#: src/features/migration/components/SelectNamesStep.tsx:184
+#: src/features/migration/components/SelectNamesStep.tsx:188
 msgid "Search names"
 msgstr ""
 
@@ -2151,7 +2155,7 @@ msgstr ""
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
-#: src/features/migration/components/SelectNamesStep.tsx:178
+#: src/features/migration/components/SelectNamesStep.tsx:249
 msgid "Select all"
 msgstr ""
 
@@ -2354,7 +2358,7 @@ msgstr ""
 msgid "Starter"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:307
+#: src/features/migration/components/SelectNamesStep.tsx:98
 msgid "Starting..."
 msgstr ""
 
@@ -2490,7 +2494,7 @@ msgid "This page can only verify your email when opened from the link in the ver
 msgstr ""
 
 #. placeholder {0}: Math.ceil(totalSelected / 100)
-#: src/features/migration/components/SelectNamesStep.tsx:290
+#: src/features/migration/components/SelectNamesStep.tsx:339
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
@@ -2577,10 +2581,10 @@ msgid "Upgrade {0} first."
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx:309
-msgid "Upgrade {totalSelected} names"
-msgstr ""
+#~ msgid "Upgrade {totalSelected} names"
+#~ msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:315
+#: src/features/migration/components/SelectNamesStep.tsx:362
 msgid "Upgrade all names to receive NFT"
 msgstr ""
 
@@ -3004,11 +3008,11 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:109
+#: src/features/migration/components/SelectNamesStep.tsx:176
 msgid "Your names are ready to upgrade"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:142
+#: src/features/migration/components/SelectNamesStep.tsx:220
 msgid "Your names, text records, and addresses will migrate automatically"
 msgstr ""
 

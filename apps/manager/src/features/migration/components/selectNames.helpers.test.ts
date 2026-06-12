@@ -9,6 +9,8 @@ import {
   filterOrphansBySearch,
   shouldShowBulkSelection,
   shouldShowNameSearch,
+  shouldUseCompactSelectionLayout,
+  shouldUseSmallSelectionCard,
   toggleGroup,
   toggleName,
 } from './selectNames.helpers'
@@ -143,5 +145,31 @@ describe('shouldShowNameSearch', () => {
 
   it('shows search for 9 names and above', () => {
     expect(shouldShowNameSearch(9)).toBe(true)
+  })
+})
+
+describe('shouldUseCompactSelectionLayout', () => {
+  it('keeps the roomy layout below 10 names', () => {
+    expect(shouldUseCompactSelectionLayout(9)).toBe(false)
+  })
+
+  it('uses the compact layout for 10 names and above', () => {
+    expect(shouldUseCompactSelectionLayout(10)).toBe(true)
+    expect(shouldUseCompactSelectionLayout(15)).toBe(true)
+  })
+})
+
+describe('shouldUseSmallSelectionCard', () => {
+  it('keeps the card normal for zero names', () => {
+    expect(shouldUseSmallSelectionCard(0)).toBe(false)
+  })
+
+  it('uses a small card for 1-6 names', () => {
+    expect(shouldUseSmallSelectionCard(1)).toBe(true)
+    expect(shouldUseSmallSelectionCard(6)).toBe(true)
+  })
+
+  it('keeps the card normal above 6 names', () => {
+    expect(shouldUseSmallSelectionCard(7)).toBe(false)
   })
 })

@@ -56,7 +56,7 @@ export const NameRow = ({
           />
         </div>
       )}
-      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-ens-garnet-900/10">
+      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-sm bg-ens-garnet-900/10">
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>
@@ -64,7 +64,7 @@ export const NameRow = ({
           <img
             alt=""
             aria-hidden
-            className="absolute inset-0 size-full rounded-[4px] object-cover"
+            className="absolute inset-0 size-full rounded-sm object-cover"
             onError={() => setFailedAvatarUrl(avatarUrl)}
             src={avatarUrl}
           />
@@ -72,7 +72,7 @@ export const NameRow = ({
       </div>
       <div
         className={cn(
-          'flex h-[37px] items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
+          'flex h-9.25 items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
           isSelected
             ? 'border-ens-quartz-500/40 text-ens-quartz-500'
             : 'border-ens-lapis-500 text-ens-lapis-500',
@@ -84,8 +84,8 @@ export const NameRow = ({
   )
 
   const rowClass = cn(
-    'relative flex items-center gap-3',
-    isSubname && 'pl-[88px]',
+    'relative flex items-center gap-3 outline-none focus-visible:[&>div:first-child]:ring-2 focus-visible:[&>div:first-child]:ring-ens-lapis-500/40 focus-visible:[&>div:first-child]:ring-offset-2',
+    isSubname && 'pl-22',
     interactive ? 'cursor-pointer' : 'cursor-default',
   )
 

@@ -3,12 +3,21 @@ import type { NameGroup } from '../service/groupByParent'
 
 export const BULK_SELECTION_THRESHOLD = 15
 export const NAME_SEARCH_THRESHOLD = 9
+export const SMALL_SELECTION_LAYOUT_THRESHOLD = 6
+export const COMPACT_SELECTION_LAYOUT_THRESHOLD = 10
 
 export const shouldShowBulkSelection = (eligibleCount: number): boolean =>
   eligibleCount >= BULK_SELECTION_THRESHOLD
 
 export const shouldShowNameSearch = (eligibleCount: number): boolean =>
   eligibleCount >= NAME_SEARCH_THRESHOLD
+
+export const shouldUseCompactSelectionLayout = (
+  eligibleCount: number,
+): boolean => eligibleCount >= COMPACT_SELECTION_LAYOUT_THRESHOLD
+
+export const shouldUseSmallSelectionCard = (eligibleCount: number): boolean =>
+  eligibleCount > 0 && eligibleCount <= SMALL_SELECTION_LAYOUT_THRESHOLD
 
 export const collectAllSelectable = (
   groups: readonly NameGroup[],
