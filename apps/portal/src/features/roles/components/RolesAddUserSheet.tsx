@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
-import { useWalletClient } from 'wagmi'
+import { usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldError } from '@/components/ui/field'
@@ -27,13 +27,9 @@ import {
   permissions,
 } from '@/lib/roles/permissions'
 import { cn } from '@/lib/utils'
-import { wagmiConfig } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const GRANT_ROLES_TX_ID = 'tx-grant-roles'
-// Module-level client for the resolver hook — matches the original add-user
-// form which used the wagmi config client outside any hook.
-const client = wagmiConfig.getClient()
 
 type RolesAddUserSheetProps = {
   open: boolean
@@ -48,6 +44,7 @@ export const RolesAddUserSheet = ({
   name,
   registryAddress,
 }: RolesAddUserSheetProps) => {
+  const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
 
@@ -92,7 +89,7 @@ export const RolesAddUserSheet = ({
     isError: isResolveError,
     error: resolveError,
   } = useResolvedRoleAccountAddress({
-    client,
+    client: publicClient,
     nameOrAddress: resolveTarget,
   })
 

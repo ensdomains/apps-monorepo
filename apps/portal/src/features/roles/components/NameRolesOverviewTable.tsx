@@ -6,6 +6,7 @@ import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
@@ -50,12 +51,13 @@ const V2NameRoles = ({
 
   if (nameRolesQuery.error)
     return (
-      <div>
-        Failed to fetch role accounts: {nameRolesQuery.error.cause?.message}
-      </div>
+      <ErrorMessage
+        title="Failed to fetch role accounts"
+        description={nameRolesQuery.error.cause?.message}
+      />
     )
 
-  if (!nameRolesQuery.data) return 'No data'
+  if (!nameRolesQuery.data) return <NoResultsMessage title="No role accounts" />
 
   return (
     <RolesTable
@@ -128,7 +130,7 @@ export const NameRolesOverviewTable = ({ name }: { name: string }) => {
       />
     )
 
-  if (data?.protocolVersion !== 'ENSv2' || !registryAddress) return null
+  if (!registryAddress) return null
 
   return (
     <Fragment>

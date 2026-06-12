@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 
 type UseResolvedRoleAccountAddressParams = {
-  client: Parameters<typeof resolveAddressOrName>[0]['client']
+  client: Parameters<typeof resolveAddressOrName>[0]['client'] | undefined
   nameOrAddress: string
   enabled?: boolean
 }
@@ -14,7 +14,7 @@ export const useResolvedRoleAccountAddress = ({
 }: UseResolvedRoleAccountAddressParams) =>
   useQuery({
     queryKey: ['resolve-role-account-address', nameOrAddress] as const,
-    queryFn: () => resolveAddressOrName({ client, nameOrAddress }),
-    enabled: enabled && !!nameOrAddress,
+    queryFn: () => resolveAddressOrName({ client: client!, nameOrAddress }),
+    enabled: enabled && !!nameOrAddress && !!client,
     retry: false,
   })
