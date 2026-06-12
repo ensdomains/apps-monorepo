@@ -67,11 +67,6 @@ export const GameStep = () => {
         ? `${t`Upgrading ${count} name(s)`}...`
         : `${t`Upgrading batch ${index + 1} of ${total} (${count} name(s))`}...`,
     )
-    .with({ kind: 'grant-role-batch' }, ({ index, total, count }) =>
-      total === 1
-        ? `${t`Saving ${count} manager(s)`}...`
-        : `${t`Saving managers batch ${index + 1} of ${total}`}...`,
-    )
     .with(
       { kind: 'grant-role' },
       ({ label }) => `${t`Saving manager for ${label}.eth`}...`,

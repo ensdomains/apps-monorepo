@@ -49,10 +49,17 @@ export const L2_CHAINS = [
 export type L2ChainId = (typeof L2_CHAINS)[number]['id']
 
 /**
- * The same wallet list as the global config — fresh connector instances bound
- * to this config. For injected wallets the underlying EIP-1193 provider is
- * shared with the global config's connectors, so the user does not need to
- * approve a second connection (re-`connect()` on this config is silent).
+ * Fresh connector instances bound to this config. For injected wallets the
+ * underlying EIP-1193 provider is shared with the global config's connectors,
+ * so the user does not need to approve a second connection (re-`connect()` on
+ * this config is silent).
+ *
+ * WalletConnect is intentionally omitted here, even though the global config
+ * offers it: WC connections are per-config (a separate session per connector
+ * instance), so re-attaching via `useEnsureL2Connection` would force a second
+ * pairing rather than silently reuse the existing session. Until that flow is
+ * supported, a WC-connected user hitting an L2 reverse-name write fails fast in
+ * `useEnsureL2Connection` ("No matching L2 connector") instead of double-pairing.
  */
 const connectors = connectorsForWallets(
   [
@@ -61,7 +68,7 @@ const connectors = connectorsForWallets(
       wallets: [injectedWallet, metaMaskWallet, frameWallet],
     },
   ],
-  { projectId: WALLETCONNECT_PROJECT_ID, appName: 'demo' },
+  { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Portal' },
 )
 
 export const l2WagmiConfig = createConfig({

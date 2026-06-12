@@ -9,6 +9,7 @@ import {
   frameWallet,
   injectedWallet,
   metaMaskWallet,
+  walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { createClient, http } from 'viem'
 import { createConfig } from 'wagmi'
@@ -31,10 +32,15 @@ export const wagmiConfig = createConfig({
     [
       {
         groupName: 'Popular',
-        wallets: [injectedWallet, metaMaskWallet, frameWallet],
+        wallets: [
+          injectedWallet,
+          metaMaskWallet,
+          walletConnectWallet,
+          frameWallet,
+        ],
       },
     ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'demo' },
+    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Portal' },
   ),
   client: ({ chain }) =>
     createClient({

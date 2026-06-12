@@ -1,6 +1,8 @@
 import { Check } from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
+import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
 type NameRowProps = {
   readonly item: ClassifiedName
@@ -20,6 +22,9 @@ export const NameRow = ({
   onClick,
 }: NameRowProps) => {
   const isSubname = indent && !interactive
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
+  const avatarUrl = getMigrationAvatarUrl(item.domain.name)
+  const showAvatar = failedAvatarUrl !== avatarUrl
 
   const content = (
     <>
@@ -55,6 +60,15 @@ export const NameRow = ({
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>
+        {showAvatar && (
+          <img
+            alt=""
+            aria-hidden
+            className="absolute inset-0 size-full object-cover"
+            onError={() => setFailedAvatarUrl(avatarUrl)}
+            src={avatarUrl}
+          />
+        )}
       </div>
       <div className="rounded-xs border border-ens-quartz-500/40 bg-white px-2 py-1 font-medium font-semi-mono text-base text-ens-quartz-500 leading-[0.96] tracking-[-0.32px]">
         {item.domain.name}
