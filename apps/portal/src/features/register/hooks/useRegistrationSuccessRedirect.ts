@@ -42,24 +42,30 @@ export const useRegistrationSuccessRedirect = ({
     const paid = formatPriceDisplay(price.total, price.decimals)
 
     void (async () => {
-      await pollForIndexerSync({
-        invalidateQueries: async () => {
-          await Promise.all([
-            queryClient.invalidateQueries({
-              queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
-              refetchType: 'all',
-            }),
-            queryClient.invalidateQueries({
-              queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
-              refetchType: 'all',
-            }),
-            queryClient.invalidateQueries({
-              queryKey: getProfileQueryOptions({ name }).queryKey,
-              refetchType: 'all',
-            }),
-          ])
-        },
-      })
+      try {
+        await pollForIndexerSync({
+          invalidateQueries: async () => {
+            await Promise.all([
+              queryClient.invalidateQueries({
+                queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+                refetchType: 'all',
+              }),
+              queryClient.invalidateQueries({
+                queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
+                refetchType: 'all',
+              }),
+              queryClient.invalidateQueries({
+                queryKey: getProfileQueryOptions({ name }).queryKey,
+                refetchType: 'all',
+              }),
+            ])
+          },
+        })
+      } catch (error) {
+        // Don't strand the user on the spinner if the indexer poll fails —
+        // the overview's own queries will fetch fresh data on arrival.
+        console.error('Indexer sync failed after registration:', error)
+      }
 
       navigate({
         to: '/$name',
