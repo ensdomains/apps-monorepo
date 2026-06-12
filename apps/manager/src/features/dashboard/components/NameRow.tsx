@@ -44,7 +44,6 @@ interface NameRowProps {
   readonly showFavoriteButton?: boolean
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
-  readonly useWireframeNameplate?: boolean
   readonly isInGrace?: boolean
 }
 
@@ -169,7 +168,6 @@ export const NameRow = ({
   showFavoriteButton = false,
   onToggleFavorite,
   isAuthenticated = true,
-  useWireframeNameplate = false,
   isInGrace = false,
 }: NameRowProps) => {
   const { t } = useLingui()
@@ -200,7 +198,7 @@ export const NameRow = ({
 
   const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
 
-  const namePillVariant = useWireframeNameplate ? 'wireframe' : nameVariant
+  const namePillVariant = isInGrace ? 'wireframe' : nameVariant
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">

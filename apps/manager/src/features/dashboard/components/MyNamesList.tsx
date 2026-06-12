@@ -182,7 +182,6 @@ export const MyNamesList = ({
                 avatarUrl,
                 isInGrace,
                 expiryCta,
-                useWireframeNameplate,
               } = mergedRowMetadata(
                 item,
                 primaryLabel,
@@ -221,7 +220,6 @@ export const MyNamesList = ({
                     onToggleFavorite={() => onToggleFavorite(label)}
                     showFavoriteButton
                     status={isV1 ? 'eligibleUpgrade' : null}
-                    useWireframeNameplate={useWireframeNameplate}
                     verified={isPrimary}
                   />
                 </motion.div>

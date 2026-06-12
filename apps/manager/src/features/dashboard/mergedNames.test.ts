@@ -308,7 +308,6 @@ describe('mergedRowMetadata', () => {
     const meta = mergedRowMetadata(item, null)
     expect(meta.isInGrace).toBe(true)
     expect(meta.useDefaultAvatar).toBe(true)
-    expect(meta.useWireframeNameplate).toBe(true)
     expect(meta.showProminentRenew).toBe(true)
     expect(meta.expiryCta).toBe('renew')
     expect(meta.displayExpiryDate?.getTime()).toBeGreaterThan(

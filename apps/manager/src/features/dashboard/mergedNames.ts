@@ -128,7 +128,6 @@ export type MergedRowMetadata = {
   readonly showProminentRenew: boolean
   readonly expiryCta: ExpiryCta | null
   readonly useDefaultAvatar: boolean
-  readonly useWireframeNameplate: boolean
   readonly avatarUrl: string | undefined
 }
 
@@ -179,7 +178,6 @@ export const mergedRowMetadata = (
     showProminentRenew: expiryCta === 'renew',
     expiryCta,
     useDefaultAvatar: isInGrace,
-    useWireframeNameplate: isInGrace,
     avatarUrl,
   }
 }
