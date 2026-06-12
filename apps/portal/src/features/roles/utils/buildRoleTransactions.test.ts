@@ -47,7 +47,7 @@ describe('buildRoleTransactions', () => {
     expect(result[0]).toMatchObject({
       id: 'tx-grant-roles',
       title: 'Grant roles',
-      transactionName: 'Grant roles for test.eth',
+      transactionName: 'Grant roles for 0x1234…7890',
       estimatedGasCost: 0.0001,
     })
     expect(typeof result[0].onStart).toBe('function')
@@ -108,7 +108,7 @@ describe('buildRoleTransactions', () => {
     expect(result[0]).toMatchObject({
       id: 'tx-revoke-roles',
       title: 'Remove user',
-      transactionName: 'Remove user from parent.eth',
+      transactionName: 'Remove 0xabcd…abcd from parent.eth',
     })
 
     result[0].onStart()
