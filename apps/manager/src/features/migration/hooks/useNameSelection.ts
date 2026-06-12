@@ -70,13 +70,22 @@ export const useNameSelection = ({
   const toggleAll = useCallback(() => {
     setSelected((prev) => {
       const all = collectAllSelectable(groups, orphans)
-      const next = prev.size === all.size ? new Set<string>() : all
+      const isAllSelected =
+        all.size > 0 && [...all].every((name) => prev.has(name))
+      const next = isAllSelected ? new Set<string>() : all
       onNamesChange([...next])
       return next
     })
   }, [groups, orphans, onNamesChange])
 
   const allSelectableCount = countVisibleRows(groups, orphans)
+  const allSelectable = useMemo(
+    () => collectAllSelectable(groups, orphans),
+    [groups, orphans],
+  )
+  const allSelected =
+    allSelectable.size > 0 &&
+    [...allSelectable].every((name) => selected.has(name))
 
   return {
     search,
@@ -84,7 +93,7 @@ export const useNameSelection = ({
     selected,
     totalSelected: selected.size,
     visibleCount: allSelectableCount,
-    allSelected: allSelectableCount > 0 && selected.size === allSelectableCount,
+    allSelected,
     filteredGroups,
     filteredOrphans,
     toggleName,
