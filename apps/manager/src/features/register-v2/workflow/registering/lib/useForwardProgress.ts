@@ -25,9 +25,9 @@ function remapToDisplay(machineProgress: number): number {
   )
 }
 
-const MILESTONES = [...new Set(Object.values(REGISTRATION_STAGE_PROGRESS))].sort(
-  (a, b) => a - b,
-)
+const MILESTONES = [
+  ...new Set(Object.values(REGISTRATION_STAGE_PROGRESS)),
+].sort((a, b) => a - b)
 
 function nextMilestone(machineProgress: number): number {
   for (const m of MILESTONES) {

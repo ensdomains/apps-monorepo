@@ -279,7 +279,12 @@ export function useWeaveShader(
 
       gl.uniform1f(uniformLocs.time, time)
       if (uniformLocs.shimmerTime) gl.uniform1f(uniformLocs.shimmerTime, time)
-      if (uniformLocs.shimmerPhase) gl.uniform1f(uniformLocs.shimmerPhase, 0)
+      if (uniformLocs.shimmerPhase) {
+        const phase = s.shimmer
+          ? (((time * s.shimmerSpeed + s.shimmerPosition) % 1) + 1) % 1
+          : s.shimmerPosition
+        gl.uniform1f(uniformLocs.shimmerPhase, phase)
+      }
       gl.uniform2f(uniformLocs.resolution, canvas.width, canvas.height)
       if (uniformLocs.stageTranslateX)
         gl.uniform1f(uniformLocs.stageTranslateX, 0)

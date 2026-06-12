@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { HOUNDSTOOTH_SHIMMER_OPTIONS } from './presets'
+import { WEAVE_PROGRESS_BAR_OPTIONS } from './presets'
 import type { WeaveShaderOptions } from './shader/useWeaveShader'
 import { WeaveCanvas } from './WeaveCanvas'
 
@@ -9,19 +9,19 @@ export interface WeaveProgressBarProps {
   progress: number
   options?: WeaveShaderOptions
   height?: number
+  /** Animate the fill width (weave pattern is static). */
   animate?: boolean
   className?: string
 }
 
 export function WeaveProgressBar({
   progress,
-  options = HOUNDSTOOTH_SHIMMER_OPTIONS,
+  options = WEAVE_PROGRESS_BAR_OPTIONS,
   height = 12,
   animate = true,
   className,
 }: WeaveProgressBarProps) {
   const p = Math.max(0, Math.min(1, progress))
-  const insetRight = (1 - p) * 100
 
   return (
     <div
@@ -31,15 +31,20 @@ export function WeaveProgressBar({
       )}
       style={{ height }}
     >
-      <div
-        className="absolute inset-0"
-        style={{
-          clipPath: `inset(0 ${insetRight}% 0 0)`,
-          transition: animate ? 'clip-path 0.5s ease-out' : 'none',
-        }}
-      >
-        <WeaveCanvas className="h-full w-full" options={options} />
-      </div>
+      {p > 0 ? (
+        <div
+          className="absolute inset-y-0 left-0 overflow-hidden"
+          style={{
+            width: `${p * 100}%`,
+            transition: animate ? 'width 0.5s ease-out' : 'none',
+          }}
+        >
+          {/* Keep weave at full track width so pattern scale stays constant. */}
+          <div className="h-full" style={{ width: `${100 / p}%` }}>
+            <WeaveCanvas className="h-full w-full" options={options} />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

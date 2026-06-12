@@ -15,10 +15,9 @@ square rendered with a WebGL shader. Matches the Figma design (ENS App Beta, nod
 
 ## User-facing flow
 
-1. **Registration starts (notification settings visible).** The header shows only the
-   filling name (`NameFill`), centered, with a "Registering name" label above it whose
-   trailing dots cycle through a `Calligraph` transition. There is no progress bar — the
-   name fill *is* the progress indicator.
+1. **Registration starts (notification settings visible).** The header shows a woven
+   progress bar (`WeaveProgressBar`), centered, with a "Registering name" label above it
+   whose trailing dots cycle through a `Calligraph` transition.
 2. **"Set up later" / confirm dismissed the notifications step.** The page switches to
    the full-screen `WeaveRegistration` loader: woven houndstooth-shimmer square on the
    left, a changing playful step label (animated by `Calligraph`) and the filling name
@@ -133,7 +132,9 @@ code):
   held at neutral values.
 
 `presets.ts` exposes `HOUNDSTOOTH_SHIMMER_OPTIONS` (pattern 13 = Houndstooth, all
-colorways, shimmer sweep) — the fabric used in the registration square.
+colorways, shimmer sweep) — the fabric used in the registration square — and
+`WEAVE_PROGRESS_BAR_OPTIONS` (same pattern, smaller grid, shimmer off, transparent bg)
+for `WeaveProgressBar`.
 
 ### `WeaveName` / `WeaveLoader` (shader-filled name variant)
 
@@ -147,9 +148,11 @@ of animating). Not currently used in the live registration flow, which uses the 
 
 ### `WeaveProgressBar`
 
-A thin rounded progress bar whose fill is the woven fabric, revealed by clip-path so the
-weave keeps its scale rather than stretching. Not used in the live flow (the name fill
-replaced it) but kept for reuse.
+A thin rounded progress bar whose fill is the woven fabric (`WEAVE_PROGRESS_BAR_OPTIONS`:
+static houndstooth, no shimmer, transparent bg). The fill wrapper animates its width
+while an inner layer keeps the canvas at full track width, so the weave keeps its scale
+rather than stretching. Used in the live flow as the notifications-header progress
+indicator in `RegisteringStep`.
 
 ## Step copy
 

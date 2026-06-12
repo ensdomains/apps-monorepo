@@ -6,7 +6,7 @@ import { Calligraph } from 'calligraph'
 import { useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
-import { NameFill } from '@/components/WeaveLoader'
+import { WeaveProgressBar } from '@/components/WeaveLoader'
 import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
@@ -156,7 +156,7 @@ export const RegisteringStep = () => {
         ) : (
           match(uiStage?.transaction)
             .with('pending', () => (
-              <div className="flex flex-col items-center gap-2 text-center max-md:px-3">
+              <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
                 <Calligraph
                   animation="smooth"
                   as="p"
@@ -165,16 +165,9 @@ export const RegisteringStep = () => {
                 >
                   {`${_(msg`Registering name`)}${registeringDots}`}
                 </Calligraph>
-                <NameFill
+                <WeaveProgressBar
                   animate={false}
-                  baseColor="var(--color-ens-gray-two)"
-                  className="whitespace-normal break-all"
-                  fill="#000"
-                  fontFamily="var(--font-mono)"
-                  fontSize={28}
-                  fontWeight={500}
-                  letterSpacing="-1px"
-                  name={fullName}
+                  className="w-full max-w-2xl"
                   progress={fillProgress / 100}
                 />
               </div>
