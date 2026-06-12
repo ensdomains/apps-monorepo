@@ -154,25 +154,27 @@ export const RolesSidebar = <
 
   const isWalletConnected = Boolean(walletClient?.account)
 
-  const transactions = buildRoleTransactions(
-    pendingSave,
-    pendingRemove,
-    name,
-    {
-      grantRoles: (params) =>
-        grantRoles({
-          ...params,
-          roles: [...params.roles],
-        }),
-      revokeRoles: (params) =>
-        revokeRoles({
-          ...params,
-          roles: [...params.roles],
-        }),
-      handleDone,
-    },
-    registryAddress,
-  )
+  const transactions = selectedAccount
+    ? buildRoleTransactions(
+        pendingSave,
+        pendingRemove,
+        name,
+        {
+          grantRoles: (params) =>
+            grantRoles({
+              ...params,
+              roles: [...params.roles],
+            }),
+          revokeRoles: (params) =>
+            revokeRoles({
+              ...params,
+              roles: [...params.roles],
+            }),
+          handleDone,
+        },
+        registryAddress,
+      )
+    : []
 
   return (
     <>

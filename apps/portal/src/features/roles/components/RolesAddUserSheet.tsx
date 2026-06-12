@@ -1,12 +1,13 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useQuery } from '@tanstack/react-query'
-import { type FormEvent, useEffect, useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
+import { normalize } from 'viem/ens'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldError } from '@/components/ui/field'
+import { Field } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -15,12 +16,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
-import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { useDebouncedValue } from '@/hooks/useDebounce'
 import {
   isAdminRole,
   isManagerRoleSettable,
@@ -30,12 +30,13 @@ import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const GRANT_ROLES_TX_ID = 'tx-grant-roles'
+const RESOLVE_DEBOUNCE_MS = 300
 
 type RolesAddUserSheetProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  name: string
-  registryAddress: Address
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly name: string
+  readonly registryAddress: Address
 }
 
 export const RolesAddUserSheet = ({
@@ -51,7 +52,6 @@ export const RolesAddUserSheet = ({
   const labels = name.split('.')
   const is2LD = labels.length === 2
 
-  // The caller can only grant a role they hold the `_ADMIN` variant of.
   const { data: callerRolesData } = useQuery({
     ...getNameRolesForAccountQueryOptions({
       registryAddress,
@@ -65,47 +65,67 @@ export const RolesAddUserSheet = ({
     (callerRolesData?.decoded ?? []).filter((r): r is Role => isAdminRole(r)),
   )
 
-  const [nameOrAddressInput, setNameOrAddressInput] = useState('')
-  // Controlled selection so the Save button can disable until a role is picked.
+  const [userInput, setUserInput] = useState('')
   const [selectedRoles, setSelectedRoles] = useState<Set<Role>>(new Set())
   const [pendingGrant, setPendingGrant] = useState<{
-    account: Address
-    roles: Role[]
-  } | null>(null)
-  const [formError, setFormError] = useState<{
-    field: 'roles' | 'address'
-    message: string
+    readonly account: Address
+    readonly roles: Role[]
   } | null>(null)
 
-  const debouncedInput = useDebouncedValue(nameOrAddressInput, 300)
-  const resolveTarget =
-    isAddress(debouncedInput) || debouncedInput.includes('.')
-      ? debouncedInput
-      : ''
-
+  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const {
-    data: address,
-    isFetching: isResolvingAddress,
-    isError: isResolveError,
+    mutate: resolveAddress,
+    reset: resetResolve,
+    data: resolvedAddress,
+    isPending: isResolving,
     error: resolveError,
-  } = useResolvedRoleAccountAddress({
-    client: publicClient,
-    nameOrAddress: resolveTarget,
+  } = useMutation({
+    mutationFn: async (nameOrAddress: string) => {
+      if (!publicClient) throw new Error('Public client not available')
+      const resolved = await resolveAddressOrName({
+        client: publicClient,
+        nameOrAddress: normalize(nameOrAddress),
+      })
+      if (!resolved)
+        throw new Error(`Could not resolve an address for "${nameOrAddress}"`)
+      return resolved
+    },
   })
+
+  const address: Address | null = isAddress(userInput, { strict: false })
+    ? userInput
+    : (resolvedAddress ?? null)
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRoles, isPending, isSuccess, reset } = useGrantRoles()
 
-  // Reset form + mutation when the sheet closes, otherwise `isSuccess` sticks
-  // across re-opens and leaves the input disabled / Save permanently gated.
+  // Reset form + both mutations when the sheet closes, otherwise `isSuccess`
+  // sticks across re-opens and leaves the input disabled / Save permanently
+  // gated. Also clears any in-flight resolve debounce so it can't fire late.
   useEffect(() => {
     if (open) return
-    setNameOrAddressInput('')
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
+    setUserInput('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
-    setFormError(null)
+    resetResolve()
     reset()
-  }, [open, reset])
+  }, [open, reset, resetResolve])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value.trim()
+    setUserInput(value)
+    resetResolve()
+
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
+    if (!value || isAddress(value, { strict: false }) || !value.includes('.'))
+      return
+
+    resolveTimeoutRef.current = setTimeout(
+      () => resolveAddress(value),
+      RESOLVE_DEBOUNCE_MS,
+    )
+  }
 
   const toggleRole = (role: Role, checked: boolean) => {
     setSelectedRoles((prev) => {
@@ -114,47 +134,16 @@ export const RolesAddUserSheet = ({
       else next.delete(role)
       return next
     })
-    setFormError(null)
   }
 
-  const isResolutionCurrent = nameOrAddressInput === debouncedInput
-
   const canSave =
-    !!address &&
-    !isResolvingAddress &&
-    isResolutionCurrent &&
-    !isResolveError &&
-    selectedRoles.size > 0 &&
-    !isSuccess
+    !!address && !isResolving && selectedRoles.size > 0 && !isSuccess
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setFormError(null)
-
-    const roles = Array.from(selectedRoles)
-    if (roles.length === 0) {
-      setFormError({
-        field: 'roles',
-        message: 'Please select at least one role',
-      })
-      return
-    }
-    if (isResolvingAddress || !isResolutionCurrent) {
-      setFormError({
-        field: 'address',
-        message: 'Resolving address... Please wait a moment and try again.',
-      })
-      return
-    }
-    if (isResolveError || !address) {
-      setFormError({
-        field: 'address',
-        message: `Could not resolve an address for "${nameOrAddressInput}". ${resolveError ? `Error: ${resolveError instanceof Error ? resolveError.message : String(resolveError)}` : 'Check the name exists and try again.'}`,
-      })
-      return
-    }
-
-    setPendingGrant({ account: address, roles })
+    if (!address || selectedRoles.size === 0) return
+    reset()
+    setPendingGrant({ account: address, roles: Array.from(selectedRoles) })
     openModal()
   }
 
@@ -190,49 +179,51 @@ export const RolesAddUserSheet = ({
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field data-invalid={formError?.field === 'address'}>
+            <Field>
               <Input
                 id="user"
                 name="user"
+                aria-label="User name or address"
                 placeholder="User name or address"
                 required
-                value={nameOrAddressInput}
+                value={userInput}
                 disabled={isPending || isSuccess}
-                aria-invalid={formError?.field === 'address'}
-                onChange={(e) => {
-                  setNameOrAddressInput(e.currentTarget.value.trim())
-                  setFormError(null)
-                }}
+                onChange={handleInputChange}
                 className="h-12 bg-background border"
               />
-              {resolveTarget && (
+              {isResolving && (
                 <p className="text-sm mt-1.5 text-muted-foreground">
-                  {isResolvingAddress && 'Resolving address...'}
-                  {!isResolvingAddress &&
-                    address &&
-                    `Resolved: ${truncateAddress(address, 6, 4)}`}
-                  {!isResolvingAddress &&
-                    !address &&
-                    'Could not resolve address. Check the name exists.'}
+                  Resolving address...
+                </p>
+              )}
+              {!isResolving && address && (
+                <p className="text-sm mt-1.5 text-muted-foreground">
+                  {isAddress(userInput, { strict: false })
+                    ? `Using address: ${truncateAddress(address, 6, 4)}`
+                    : `Resolved: ${truncateAddress(address, 6, 4)}`}
+                </p>
+              )}
+              {resolveError && (
+                <p className="text-sm mt-1.5 text-danger">
+                  {resolveError.message}
                 </p>
               )}
             </Field>
 
-            <Field data-invalid={formError?.field === 'roles'}>
+            <Field>
               <div
                 className={cn(
                   'border border-border rounded-sm overflow-hidden transition-colors',
                   (isPending || isSuccess) && 'opacity-50 pointer-events-none',
                 )}
-                aria-invalid={formError?.field === 'roles'}
               >
                 {permissions.map((permission, index) => {
                   const managerRole = permission.key as Role
                   const adminRole = `${permission.key}_ADMIN` as Role
-                  const callerLacksAdmin = !callerAdminRoles.has(adminRole)
+                  const callerHasAdminRole = callerAdminRoles.has(adminRole)
                   const isManagerRoleDisabled =
                     !isManagerRoleSettable(permission.key, { is2LD }) ||
-                    callerLacksAdmin
+                    !callerHasAdminRole
 
                   return (
                     <div
@@ -243,9 +234,9 @@ export const RolesAddUserSheet = ({
                         isManagerRoleDisabled && 'text-muted-foreground',
                       )}
                       title={
-                        callerLacksAdmin
-                          ? `Your account does not hold ${adminRole} on this name and cannot grant this role.`
-                          : undefined
+                        callerHasAdminRole
+                          ? undefined
+                          : `Your account does not hold ${adminRole} on this name and cannot grant this role.`
                       }
                     >
                       <div className="flex flex-col gap-1 flex-1 min-w-64">
@@ -289,9 +280,6 @@ export const RolesAddUserSheet = ({
                   )
                 })}
               </div>
-              {formError && (
-                <FieldError className="mt-1.5">{formError.message}</FieldError>
-              )}
             </Field>
 
             <div className="flex justify-end">
@@ -309,7 +297,9 @@ export const RolesAddUserSheet = ({
               {
                 id: GRANT_ROLES_TX_ID,
                 title: 'Grant roles',
-                transactionName: `Grant roles for ${name}`,
+                transactionName: address
+                  ? `Grant roles for ${truncateAddress(address, 6, 4)}`
+                  : 'Grant roles',
                 estimatedGasCost: 0.0001,
                 onStart: handleStartTransaction,
                 onDone: handleDone,
