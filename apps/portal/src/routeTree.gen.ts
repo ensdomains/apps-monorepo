@@ -40,7 +40,6 @@ import { Route as AddrAddrReverseResolutionRouteImport } from './routes/addr/$ad
 import { Route as AddrAddrResolutionRouteImport } from './routes/addr/$addr/resolution'
 import { Route as AddrAddrNamesRouteImport } from './routes/addr/$addr/names'
 import { Route as AddrAddrHistoryRouteImport } from './routes/addr/$addr/history'
-import { Route as NameRolesAddUserRouteImport } from './routes/$name/roles/add-user'
 import { Route as NameFusesBurnRouteImport } from './routes/$name/fuses/burn'
 import { Route as ResolverAddressRolesIndexRouteImport } from './routes/resolver/$address/roles/index'
 import { Route as ResolverAddressRolesAddUserRouteImport } from './routes/resolver/$address/roles/add-user'
@@ -202,11 +201,6 @@ const AddrAddrHistoryRoute = AddrAddrHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => AddrAddrRoute,
 } as any)
-const NameRolesAddUserRoute = NameRolesAddUserRouteImport.update({
-  id: '/roles/add-user',
-  path: '/roles/add-user',
-  getParentRoute: () => NameRoute,
-} as any)
 const NameFusesBurnRoute = NameFusesBurnRouteImport.update({
   id: '/fuses/burn',
   path: '/fuses/burn',
@@ -245,7 +239,6 @@ export interface FileRoutesByFullPath {
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
-  '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
@@ -278,7 +271,6 @@ export interface FileRoutesByTo {
   '/$name': typeof NameIndexRoute
   '/register': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
-  '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
@@ -316,7 +308,6 @@ export interface FileRoutesById {
   '/$name/': typeof NameIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/$name/fuses/burn': typeof NameFusesBurnRoute
-  '/$name/roles/add-user': typeof NameRolesAddUserRoute
   '/addr/$addr/history': typeof AddrAddrHistoryRoute
   '/addr/$addr/names': typeof AddrAddrNamesRoute
   '/addr/$addr/resolution': typeof AddrAddrResolutionRoute
@@ -355,7 +346,6 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
-    | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
@@ -388,7 +378,6 @@ export interface FileRouteTypes {
     | '/$name'
     | '/register'
     | '/$name/fuses/burn'
-    | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
@@ -425,7 +414,6 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/register/'
     | '/$name/fuses/burn'
-    | '/$name/roles/add-user'
     | '/addr/$addr/history'
     | '/addr/$addr/names'
     | '/addr/$addr/resolution'
@@ -671,13 +659,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AddrAddrHistoryRouteImport
       parentRoute: typeof AddrAddrRoute
     }
-    '/$name/roles/add-user': {
-      id: '/$name/roles/add-user'
-      path: '/roles/add-user'
-      fullPath: '/$name/roles/add-user'
-      preLoaderRoute: typeof NameRolesAddUserRouteImport
-      parentRoute: typeof NameRoute
-    }
     '/$name/fuses/burn': {
       id: '/$name/fuses/burn'
       path: '/fuses/burn'
@@ -716,7 +697,6 @@ interface NameRouteChildren {
   NameTokenRoute: typeof NameTokenRoute
   NameIndexRoute: typeof NameIndexRoute
   NameFusesBurnRoute: typeof NameFusesBurnRoute
-  NameRolesAddUserRoute: typeof NameRolesAddUserRoute
   NameFusesIndexRoute: typeof NameFusesIndexRoute
   NameRolesIndexRoute: typeof NameRolesIndexRoute
 }
@@ -735,7 +715,6 @@ const NameRouteChildren: NameRouteChildren = {
   NameTokenRoute: NameTokenRoute,
   NameIndexRoute: NameIndexRoute,
   NameFusesBurnRoute: NameFusesBurnRoute,
-  NameRolesAddUserRoute: NameRolesAddUserRoute,
   NameFusesIndexRoute: NameFusesIndexRoute,
   NameRolesIndexRoute: NameRolesIndexRoute,
 }

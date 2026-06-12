@@ -33,7 +33,6 @@ const build = (
     hasProfileReplay?: boolean
     migrateBatchCount?: number
     profileReplayBatchCount?: number
-    roleGrantBatchCount?: number
   } = {},
 ) =>
   buildStepDescriptors({
@@ -46,7 +45,6 @@ const build = (
     migrateBatchCount:
       approvals.migrateBatchCount ?? (classified.length > 0 ? 1 : 0),
     profileReplayBatchCount: approvals.profileReplayBatchCount ?? 1,
-    roleGrantBatchCount: approvals.roleGrantBatchCount ?? 0,
   })
 
 describe('buildStepDescriptors', () => {
@@ -148,7 +146,6 @@ describe('buildStepDescriptors', () => {
       hasProfileReplay: false,
       migrateBatchCount: 1,
       profileReplayBatchCount: 0,
-      roleGrantBatchCount: 0,
     })
     const roles = d.filter((x) => x.type === 'grant-role')
     expect(roles).toEqual([{ type: 'grant-role', label: 'alice' }])
@@ -168,7 +165,6 @@ describe('buildStepDescriptors', () => {
       hasProfileReplay: true,
       migrateBatchCount: 1,
       profileReplayBatchCount: 1,
-      roleGrantBatchCount: 0,
     })
     const replays = d.filter((x) => x.type === 'profile-replay-batch')
     expect(replays).toEqual([
@@ -189,7 +185,6 @@ describe('buildStepDescriptors', () => {
       hasProfileReplay: false,
       migrateBatchCount: 1,
       profileReplayBatchCount: 0,
-      roleGrantBatchCount: 0,
     })
     expect(d.filter((x) => x.type === 'profile-replay-batch')).toEqual([])
   })
@@ -212,7 +207,6 @@ describe('buildStepDescriptors', () => {
         hasProfileReplay: true,
         migrateBatchCount: 1,
         profileReplayBatchCount: 1,
-        roleGrantBatchCount: 0,
       }).map((d) => d.type),
     ).toEqual([
       'approve-base-registrar',
@@ -234,7 +228,6 @@ describe('buildStepDescriptors', () => {
         hasProfileReplay: false,
         migrateBatchCount: 0,
         profileReplayBatchCount: 0,
-        roleGrantBatchCount: 0,
       }),
     ).toEqual([])
   })
@@ -272,7 +265,6 @@ describe('buildStepDescriptors (batched)', () => {
       hasProfileReplay: false,
       migrateBatchCount: 3,
       profileReplayBatchCount: 0,
-      roleGrantBatchCount: 0,
     })
     const batchDescs = descriptors.filter((d) => d.type === 'migrate-batch')
     expect(batchDescs).toHaveLength(3)
@@ -300,13 +292,12 @@ describe('buildStepDescriptors (batched)', () => {
       hasProfileReplay: true,
       migrateBatchCount: 1,
       profileReplayBatchCount: 2,
-      roleGrantBatchCount: 0,
     })
     const replays = descriptors.filter((d) => d.type === 'profile-replay-batch')
     expect(replays).toHaveLength(2)
   })
 
-  it('falls back to per-name grant-role when roleGrantBatchCount is 0', () => {
+  it('emits per-name grant-role descriptors for managed names', () => {
     const classified = [c('a', true), c('b', true), c('c')].map(makeClassified)
     const descriptors = buildStepDescriptors({
       classified,
@@ -326,7 +317,6 @@ describe('buildStepDescriptors (batched)', () => {
       hasProfileReplay: false,
       migrateBatchCount: 1,
       profileReplayBatchCount: 0,
-      roleGrantBatchCount: 0,
     })
     const grants = descriptors.filter((d) => d.type === 'grant-role')
     expect(grants).toHaveLength(2)

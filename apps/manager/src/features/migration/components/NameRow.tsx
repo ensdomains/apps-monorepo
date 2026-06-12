@@ -1,6 +1,8 @@
 import { Check } from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
+import { getMigrationAvatarUrl } from './nameAvatar.helpers'
 
 type NameRowProps = {
   readonly item: ClassifiedName
@@ -20,6 +22,9 @@ export const NameRow = ({
   onClick,
 }: NameRowProps) => {
   const isSubname = indent && !interactive
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
+  const avatarUrl = getMigrationAvatarUrl(item.domain.name)
+  const showAvatar = failedAvatarUrl !== avatarUrl
 
   const content = (
     <>
@@ -34,7 +39,7 @@ export const NameRow = ({
       ) : (
         <div
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-sm border p-1 transition-colors',
+            'flex size-7 shrink-0 items-center justify-center rounded-full border p-1 transition-colors',
             isSelected
               ? 'border-ens-garnet-900 bg-ens-garnet-900'
               : 'border-ens-garnet-900/30 bg-transparent',
@@ -51,20 +56,36 @@ export const NameRow = ({
           />
         </div>
       )}
-      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+      <div className="relative z-10 flex size-9.25 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-ens-garnet-900/10">
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>
+        {showAvatar && (
+          <img
+            alt=""
+            aria-hidden
+            className="absolute inset-0 size-full rounded-sm object-cover"
+            onError={() => setFailedAvatarUrl(avatarUrl)}
+            src={avatarUrl}
+          />
+        )}
       </div>
-      <div className="rounded-xs border border-ens-quartz-500/40 bg-white px-2 py-1 font-medium font-semi-mono text-base text-ens-quartz-500 leading-[0.96] tracking-[-0.32px]">
+      <div
+        className={cn(
+          'flex h-9.25 items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
+          isSelected
+            ? 'border-ens-quartz-500/40 text-ens-quartz-500'
+            : 'border-ens-lapis-500 text-ens-lapis-500',
+        )}
+      >
         {item.domain.name}
       </div>
     </>
   )
 
   const rowClass = cn(
-    'relative flex items-center gap-3',
-    isSubname && 'pl-[88px]',
+    'relative flex items-center gap-3 outline-none focus-visible:[&>div:first-child]:ring-2 focus-visible:[&>div:first-child]:ring-ens-lapis-500/40 focus-visible:[&>div:first-child]:ring-offset-2',
+    isSubname && 'pl-22',
     interactive ? 'cursor-pointer' : 'cursor-default',
   )
 
