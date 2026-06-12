@@ -95,7 +95,7 @@ const VerifiedCheck = () => (
 )
 
 const ctaVariants = cva(
-  'flex items-center gap-1.5 font-medium font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
+  'flex items-center gap-1.5 font-normal font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
   {
     variants: {
       kind: {
@@ -135,7 +135,10 @@ const RowCta = ({
         to="/notifications/settings"
       >
         <Trans>Remind me</Trans>
-        <MSymbol className="ms-opsz-20 text-xl" symbol="notification_settings" />
+        <MSymbol
+          className="ms-opsz-20 text-xl"
+          symbol="notification_settings"
+        />
       </Link>
     )
   }

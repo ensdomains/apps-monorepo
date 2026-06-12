@@ -73,7 +73,7 @@ msgid "{durationYears} years"
 msgstr "{durationYears} years"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:322
-#: src/features/dashboard/components/NameRow.tsx:237
+#: src/features/dashboard/components/NameRow.tsx:240
 msgid "{label} avatar"
 msgstr "{label} avatar"
 
@@ -127,7 +127,7 @@ msgstr "A scrappy generalist builder with taste. Senior Product Designer and Res
 msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
-#: src/features/landing/FeaturesCarousel.tsx:120
+#: src/features/landing/FeaturesCarousel.tsx:115
 msgid "A simpler way to<0/><1>get paid.</1>"
 msgstr "A simpler way to<0/><1>get paid.</1>"
 
@@ -176,7 +176,7 @@ msgstr "Add credit card"
 msgid "Add Crypto Address"
 msgstr "Add Crypto Address"
 
-#: src/features/dashboard/components/NameRow.tsx:176
+#: src/features/dashboard/components/NameRow.tsx:179
 msgid "Add favorite"
 msgstr "Add favorite"
 
@@ -434,7 +434,7 @@ msgstr "Can I change my primary name later?"
 msgid "Can I send crypto to a .eth name (instead of an address)?"
 msgstr "Can I send crypto to a .eth name (instead of an address)?"
 
-#: src/features/landing/FeaturesCarousel.tsx:92
+#: src/features/landing/FeaturesCarousel.tsx:87
 msgid "Can you share your order number?"
 msgstr "Can you share your order number?"
 
@@ -561,7 +561,7 @@ msgstr "Committed"
 msgid "Committing"
 msgstr "Committing"
 
-#: src/features/landing/FeaturesCarousel.tsx:69
+#: src/features/landing/FeaturesCarousel.tsx:64
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 
@@ -990,7 +990,7 @@ msgstr "expires {expiryDateString}"
 msgid "Expires in {days} days"
 msgstr "Expires in {days} days"
 
-#: src/features/dashboard/components/NameRow.tsx:306
+#: src/features/dashboard/components/NameRow.tsx:309
 msgid "Expires on"
 msgstr "Expires on"
 
@@ -1007,10 +1007,6 @@ msgstr "expiring on"
 #: src/features/dashboard/components/NamesTable.tsx:96
 msgid "Expiry Date"
 msgstr "Expiry Date"
-
-#: src/features/renew/components/RenewNameButton.tsx:27
-msgid "Extend Name"
-msgstr "Extend Name"
 
 #: src/features/notifications/settings/contact-methods/email.tsx:50
 msgid "Failed to add email"
@@ -1180,7 +1176,7 @@ msgid "Go to Profile"
 msgstr "Go to Profile"
 
 #. placeholder {0}: index + 1
-#: src/features/landing/FeaturesCarousel.tsx:301
+#: src/features/landing/FeaturesCarousel.tsx:296
 msgid "Go to slide {0}"
 msgstr "Go to slide {0}"
 
@@ -1303,7 +1299,7 @@ msgstr "Loading your stablecoin balances..."
 msgid "Loading..."
 msgstr "Loading..."
 
-#: src/features/dashboard/components/NameRow.tsx:230
+#: src/features/dashboard/components/NameRow.tsx:233
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Login to favorite"
@@ -1332,7 +1328,7 @@ msgstr "Makes crypto addresses human-readable"
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
 
-#: src/features/dashboard/components/NameRow.tsx:289
+#: src/features/dashboard/components/NameRow.tsx:292
 msgid "Manage notifications"
 msgstr "Manage notifications"
 
@@ -1368,7 +1364,7 @@ msgstr "MM/YY"
 msgid "Modified"
 msgstr "Modified"
 
-#: src/features/dashboard/components/NameRow.tsx:256
+#: src/features/dashboard/components/NameRow.tsx:259
 msgid "More options for {label}"
 msgstr "More options for {label}"
 
@@ -1445,7 +1441,7 @@ msgstr "Next card"
 msgid "Next page"
 msgstr "Next page"
 
-#: src/features/landing/FeaturesCarousel.tsx:316
+#: src/features/landing/FeaturesCarousel.tsx:311
 msgid "Next slide"
 msgstr "Next slide"
 
@@ -1495,7 +1491,7 @@ msgstr "No names to display"
 msgid "No payment methods found."
 msgstr "No payment methods found."
 
-#: src/features/landing/FeaturesCarousel.tsx:105
+#: src/features/landing/FeaturesCarousel.tsx:100
 msgid "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY ☺️"
 
@@ -1554,9 +1550,9 @@ msgstr "One of your names can't be upgraded right now."
 msgid "One of your names expired."
 msgstr "One of your names expired."
 
-#: src/features/landing/FeaturesCarousel.tsx:27
-msgid "One username <0/><1>everywhere</1>"
-msgstr "One username <0/><1>everywhere</1>"
+#: src/features/landing/FeaturesCarousel.tsx:26
+msgid "One username everywhere"
+msgstr "One username everywhere"
 
 #: src/features/navigation/Header/navigation/MobileNavigationDrawer.tsx:19
 msgid "Open navigation"
@@ -1717,7 +1713,7 @@ msgstr "Previous owner"
 msgid "Previous page"
 msgstr "Previous page"
 
-#: src/features/landing/FeaturesCarousel.tsx:291
+#: src/features/landing/FeaturesCarousel.tsx:286
 msgid "Previous slide"
 msgstr "Previous slide"
 
@@ -1895,7 +1891,7 @@ msgstr "Remove Avatar"
 msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
-#: src/features/dashboard/components/NameRow.tsx:176
+#: src/features/dashboard/components/NameRow.tsx:179
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
@@ -1938,13 +1934,14 @@ msgstr "Removing telegram channel"
 msgid "Removing telegram for {0}"
 msgstr "Removing telegram for {0}"
 
-#: src/features/dashboard/components/NameRow.tsx:149
+#: src/features/dashboard/components/NameRow.tsx:152
 #: src/features/grace/components/GracePeriodBanner.tsx:97
 #: src/features/grace/components/GracePeriodBanner.tsx:106
+#: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Renew"
 msgstr "Renew"
 
-#: src/features/dashboard/components/NameRow.tsx:277
+#: src/features/dashboard/components/NameRow.tsx:280
 msgid "Renew name"
 msgstr "Renew name"
 
@@ -2622,7 +2619,7 @@ msgstr "Verified!"
 msgid "Verify at least one contact method to save preferences"
 msgstr "Verify at least one contact method to save preferences"
 
-#: src/features/landing/FeaturesCarousel.tsx:67
+#: src/features/landing/FeaturesCarousel.tsx:62
 msgid "Verify authenticity and stay safe."
 msgstr "Verify authenticity and stay safe."
 
@@ -2936,7 +2933,7 @@ msgstr "Your ENS name"
 msgid "Your ENS name is your onchain identity. Personalize it with an avatar, a banner, and the links that matter most. Showcase your work, connect your socials, and make it easy for anyone to verify and follow you across the web."
 msgstr "Your ENS name is your onchain identity. Personalize it with an avatar, a banner, and the links that matter most. Showcase your work, connect your socials, and make it easy for anyone to verify and follow you across the web."
 
-#: src/features/landing/FeaturesCarousel.tsx:127
+#: src/features/landing/FeaturesCarousel.tsx:122
 msgid "Your ENS name replaces your wallet addresses so friends and clients can send money to <0>friend.eth</0> instead of a confusing jumble of letters and numbers."
 msgstr "Your ENS name replaces your wallet addresses so friends and clients can send money to <0>friend.eth</0> instead of a confusing jumble of letters and numbers."
 
@@ -2952,7 +2949,7 @@ msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by {
 msgid "Your name is in grace period"
 msgstr "Your name is in grace period"
 
-#: src/features/landing/FeaturesCarousel.tsx:33
+#: src/features/landing/FeaturesCarousel.tsx:28
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
