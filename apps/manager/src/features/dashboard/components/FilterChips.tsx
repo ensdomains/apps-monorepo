@@ -1,11 +1,14 @@
 import { cva } from 'class-variance-authority'
 import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
 export interface FilterChipDef<T extends string> {
   readonly value: T
   readonly label: ReactNode
   readonly count?: number
   readonly disabled?: boolean
+  readonly activeClassName?: string
+  readonly activeCountClassName?: string
 }
 
 interface FilterChipsProps<T extends string> {
@@ -50,7 +53,10 @@ export const FilterChips = <T extends string>({
       return (
         <button
           aria-pressed={isActive}
-          className={chipVariants({ active: isActive })}
+          className={cn(
+            chipVariants({ active: isActive }),
+            isActive && chip.activeClassName,
+          )}
           disabled={chip.disabled}
           key={chip.value}
           onClick={() => onChange(chip.value)}
@@ -58,7 +64,12 @@ export const FilterChips = <T extends string>({
         >
           <span>{chip.label}</span>
           {chip.count !== undefined && chip.count > 0 && (
-            <span className={chipCountVariants({ active: isActive })}>
+            <span
+              className={cn(
+                chipCountVariants({ active: isActive }),
+                isActive && chip.activeCountClassName,
+              )}
+            >
               {chip.count}
             </span>
           )}

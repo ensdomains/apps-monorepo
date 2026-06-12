@@ -102,6 +102,8 @@ export const NamesTable = ({
       label: t`Favorites`,
       count: favoritesCount,
       disabled: !isAuthed,
+      activeClassName: 'bg-ens-garnet-100 text-ens-garnet-500',
+      activeCountClassName: 'bg-ens-white text-ens-garnet-500',
     },
   ]
 
