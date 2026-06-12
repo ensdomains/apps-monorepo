@@ -56,7 +56,7 @@ export const NameRow = ({
           />
         </div>
       )}
-      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-sm bg-ens-garnet-900/10">
+      <div className="relative z-10 flex size-9.25 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-ens-garnet-900/10">
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>

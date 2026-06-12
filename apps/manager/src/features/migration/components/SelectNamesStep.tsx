@@ -261,7 +261,7 @@ const SelectionOptions = ({
       )}
     >
       {showNameSearch && (
-        <div className="flex h-8 shrink-0 items-center gap-3.25 rounded-[30px] bg-white/80 px-[6.5px] py-1.5 md:h-[42px] md:gap-3 md:rounded-[20px] md:bg-white/40 md:px-4">
+        <div className="flex h-8 shrink-0 items-center gap-3.25 rounded-[30px] bg-white/80 px-[6.5px] py-1.5 md:h-10.5 md:gap-3 md:rounded-[20px] md:bg-white/40 md:px-4">
           <Search className="size-4 shrink-0 text-ens-garnet-900/40" />
           <input
             aria-label={t`Search names`}
@@ -404,7 +404,7 @@ export const SelectNamesStep = ({
   return (
     <div className="relative z-10 flex h-full flex-col">
       <button
-        className="relative mt-4 ml-5 flex shrink-0 items-center gap-1 self-start font-normal text-ens-lapis-900 text-sm uppercase leading-[18px] tracking-[1.68px] transition-opacity hover:opacity-70 md:absolute md:top-6 md:left-8 md:mt-0 md:ml-0 md:text-base md:tracking-[1.92px]"
+        className="relative mt-4 ml-5 flex shrink-0 items-center gap-1 self-start font-normal text-ens-lapis-900 text-sm uppercase leading-4.5 tracking-[1.68px] transition-opacity hover:opacity-70 md:absolute md:top-6 md:left-8 md:mt-0 md:ml-0 md:text-base md:tracking-[1.92px]"
         onClick={onBack}
         type="button"
       >
@@ -453,8 +453,8 @@ export const SelectNamesStep = ({
         </div>
       </div>
 
-      <div className="flex min-h-[144px] shrink-0 flex-col items-stretch justify-start gap-4 bg-[rgba(251,249,250,0.3)] px-5 pt-4 pb-14 sm:min-h-[115px] sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-[150px]">
-        <div className="flex max-w-[430px] flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
+      <div className="flex min-h-36 shrink-0 flex-col items-stretch justify-start gap-4 bg-[rgba(251,249,250,0.3)] px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-[150px]">
+        <div className="flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
           <GasEstimateMessage
             gasEstimate={gasEstimate}
             totalSelected={totalSelected}
@@ -470,7 +470,7 @@ export const SelectNamesStep = ({
         </div>
         <div className="flex w-full flex-col gap-1 sm:w-auto">
           <button
-            className="h-[46px] w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
+            className="h-11.5 w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
             disabled={isUpgradeDisabled}
             onClick={handleUpgrade}
             type="button"
