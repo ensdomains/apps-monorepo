@@ -1,25 +1,33 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { Info, Search } from 'lucide-react'
-import { useCallback, useState } from 'react'
-import { match } from 'ts-pattern'
+import { Trans } from '@lingui/react/macro'
+import { ChevronLeft } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
-import { NameListSkeleton } from './NameListSkeleton'
-import { NameRow } from './NameRow'
+import { cn } from '@/lib/utils'
+import { startUpgrade } from './SelectNamesStep.handlers'
+import { SelectNamesStepFooter } from './SelectNamesStepFooter'
+import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
+import {
+  shouldShowBulkSelection,
+  shouldShowNameSearch,
+  shouldUseCompactSelectionLayout,
+  shouldUseSmallSelectionCard,
+} from './selectNames.helpers'
 
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly onBack: () => void
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
 }
 
 export const SelectNamesStep = ({
   gasEstimate,
+  onBack,
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
-  const { t } = useLingui()
   const { eligible, isPending } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
 
@@ -29,10 +37,12 @@ export const SelectNamesStep = ({
     selected,
     totalSelected,
     visibleCount,
+    allSelected,
     filteredGroups,
     filteredOrphans,
     toggleName,
     toggleGroup,
+    toggleAll,
   } = useNameSelection({ eligible, isPending, onNamesChange })
 
   const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
@@ -40,184 +50,85 @@ export const SelectNamesStep = ({
     totalSelected > 0 && gasEstimate.status !== 'ready'
   const isUpgradeDisabled =
     totalSelected === 0 || isPending || isStarting || isWaitingForGasEstimate
+  const showBulkSelection = shouldShowBulkSelection(visibleCount)
+  const showNameSearch = shouldShowNameSearch(visibleCount)
+  const isCompactLayout = shouldUseCompactSelectionLayout(visibleCount)
+  const isSmallSelectionCard =
+    !isPending && shouldUseSmallSelectionCard(visibleCount)
+  const isContentHeightCard = isPending || isSmallSelectionCard
+  const isCompactOuterSpacing =
+    isCompactLayout || isPending || visibleCount === 0
 
-  const handleUpgrade = useCallback(async () => {
-    if (isUpgradeDisabled) return
-    setIsStarting(true)
-    try {
-      const didStart = await onNext()
-      if (!didStart) setIsStarting(false)
-    } catch (error) {
-      setIsStarting(false)
-      throw error
-    }
-  }, [isUpgradeDisabled, onNext])
+  useEffect(() => {
+    if (!showNameSearch && search !== '') setSearch('')
+  }, [search, setSearch, showNameSearch])
+
+  const handleUpgrade = useCallback(
+    () => startUpgrade({ isUpgradeDisabled, onNext, setIsStarting }),
+    [isUpgradeDisabled, onNext],
+  )
 
   return (
     <div className="relative z-10 flex h-full flex-col">
-      <div className="flex min-h-0 flex-1 flex-col items-center px-5 pt-8 pb-4">
-        <div className="flex min-h-0 w-full max-w-[860px] flex-1 flex-col items-center gap-8">
-          <h1 className="w-full shrink-0 text-center text-[36px] text-ens-garnet-900 leading-[1.1] tracking-[-0.72px]">
+      <button
+        className="relative mt-4 ml-5 flex shrink-0 items-center gap-1 self-start font-normal text-ens-lapis-900 text-sm uppercase leading-4.5 tracking-[1.68px] transition-opacity hover:opacity-70 md:absolute md:top-6 md:left-8 md:mt-0 md:ml-0 md:text-base md:tracking-[1.92px]"
+        onClick={onBack}
+        type="button"
+      >
+        <ChevronLeft className="size-5" strokeWidth={1.5} />
+        <Trans>Back</Trans>
+      </button>
+
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
+          isContentHeightCard
+            ? 'md:justify-center md:pt-0 md:pb-0'
+            : isCompactOuterSpacing
+              ? 'md:pt-6'
+              : 'md:pt-16',
+        )}
+      >
+        <div
+          className={cn(
+            'flex min-h-0 w-full max-w-215 flex-1 flex-col items-center gap-6 md:gap-7',
+            isContentHeightCard && 'md:flex-none',
+          )}
+        >
+          <h1 className="w-full shrink-0 text-left text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px] md:text-center md:text-[36px] md:tracking-[-0.72px]">
             <Trans>Your names are ready to upgrade</Trans>
           </h1>
 
-          <div className="flex min-h-0 w-full max-w-[756px] flex-1 flex-col gap-4">
-            <div className="flex h-[42px] shrink-0 items-center gap-3 rounded-[20px] bg-white/40 px-4 py-1.5">
-              <Search className="size-5 shrink-0 text-ens-garnet-900/40" />
-              <input
-                aria-label={t`Search names`}
-                className="flex-1 bg-transparent text-base text-ens-garnet-900 leading-[0.96] tracking-[-0.32px] placeholder:text-ens-garnet-900/40 focus:outline-none"
-                disabled={isPending}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t`Search names`}
-                type="text"
-                value={search}
-              />
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-hidden rounded-[20px] bg-white/40">
-              <div className="h-full overflow-y-auto p-6 md:p-[42px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-ens-garnet-dust [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[rgba(250,249,247,0.6)] [&::-webkit-scrollbar]:w-2">
-                <div className="flex flex-col gap-4">
-                  {match({
-                    isPending,
-                    hasResults:
-                      filteredGroups.length > 0 || filteredOrphans.length > 0,
-                  })
-                    .with({ isPending: true }, () => <NameListSkeleton />)
-                    .with({ hasResults: false }, () => (
-                      <div className="flex flex-col items-center gap-3 py-8">
-                        <p className="text-ens-garnet-900/40 text-sm">
-                          {match(search)
-                            .when(
-                              (s) => s.length > 0,
-                              () => <Trans>No names match your search</Trans>,
-                            )
-                            .otherwise(() => (
-                              <Trans>
-                                No eligible names found for this wallet
-                              </Trans>
-                            ))}
-                        </p>
-                      </div>
-                    ))
-                    .otherwise(() => [
-                      ...filteredGroups.flatMap((group) => {
-                        const parentName = group.parent.domain.name
-                        const parentSelected = selected.has(parentName)
-                        const subnameNames = group.subnames.map(
-                          (s) => s.domain.name,
-                        )
-                        return [
-                          <NameRow
-                            indent={false}
-                            interactive={true}
-                            isSelected={parentSelected}
-                            item={group.parent}
-                            key={group.parent.domain.id}
-                            onClick={() =>
-                              toggleGroup(parentName, subnameNames)
-                            }
-                          />,
-                          ...group.subnames.map((sub, idx) => (
-                            <NameRow
-                              firstSubname={idx === 0}
-                              indent={true}
-                              interactive={false}
-                              isSelected={parentSelected}
-                              item={sub}
-                              key={sub.domain.id}
-                            />
-                          )),
-                        ]
-                      }),
-                      ...filteredOrphans.map((orphan) => (
-                        <NameRow
-                          indent={false}
-                          interactive={true}
-                          isSelected={selected.has(orphan.domain.name)}
-                          item={orphan}
-                          key={orphan.domain.id}
-                          onClick={() => toggleName(orphan.domain.name)}
-                        />
-                      )),
-                    ])}
-                </div>
-              </div>
-            </div>
-          </div>
+          <SelectNamesStepSelectionOptions
+            allSelected={allSelected}
+            filteredGroups={filteredGroups}
+            filteredOrphans={filteredOrphans}
+            isCompactLayout={isCompactLayout}
+            isContentHeightCard={isContentHeightCard}
+            isPending={isPending}
+            search={search}
+            selected={selected}
+            setSearch={setSearch}
+            showBulkSelection={showBulkSelection}
+            showNameSearch={showNameSearch}
+            toggleAll={toggleAll}
+            toggleGroup={toggleGroup}
+            toggleName={toggleName}
+            totalSelected={totalSelected}
+            visibleCount={visibleCount}
+          />
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-col items-center justify-between gap-4 bg-[rgba(251,249,250,0.3)] px-8 py-8 sm:flex-row lg:px-[150px]">
-        <div className="flex flex-col gap-1">
-          <p className="text-base text-ens-garnet-900 uppercase leading-[1.2] tracking-[0.16px]">
-            <Trans>
-              <span>{totalSelected}</span>
-              <span className="font-semi-mono"> of </span>
-              <span>{visibleCount}</span>
-              <span className="font-semi-mono">
-                {' '}
-                total eligible names selected
-              </span>
-            </Trans>
-          </p>
-          {totalSelected > 0 && (
-            <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
-              <Info className="size-3 shrink-0" />
-              <Trans>
-                Your text records and addresses will be migrated automatically.
-              </Trans>
-            </p>
-          )}
-          {totalSelected > 0 &&
-            match(gasEstimate)
-              .with({ status: 'loading' }, () => (
-                <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
-                  <Info className="size-3 shrink-0" />
-                  <Trans>Estimating migration gas...</Trans>
-                </p>
-              ))
-              .with({ status: 'ready' }, (estimate) => (
-                <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
-                  <Info className="size-3 shrink-0" />
-                  <Trans>
-                    Estimated network cost: ~{estimate.formattedEth} ETH across{' '}
-                    {estimate.transactionCount} transactions.
-                  </Trans>
-                </p>
-              ))
-              .with({ status: 'error' }, () => (
-                <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
-                  <Info className="size-3 shrink-0" />
-                  <Trans>Gas estimate unavailable</Trans>
-                </p>
-              ))
-              .otherwise(() => null)}
-          {totalSelected > 100 && (
-            <p className="flex items-center gap-1 text-ens-garnet-900/50 text-xs">
-              <Info className="size-3 shrink-0" />
-              <Trans>
-                This will be split into {Math.ceil(totalSelected / 100)} batches
-                — expect that many wallet signatures (plus approvals).
-              </Trans>
-            </p>
-          )}
-        </div>
-        <button
-          className="h-[46px] w-full min-w-40 overflow-hidden rounded-sm bg-ens-garnet-900 px-4 py-2.5 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] disabled:opacity-50 sm:w-[320px]"
-          disabled={isUpgradeDisabled}
-          onClick={handleUpgrade}
-          type="button"
-        >
-          {isEstimatingGas ? (
-            <Trans>Estimating...</Trans>
-          ) : isStarting ? (
-            <Trans>Starting...</Trans>
-          ) : (
-            <Trans>Upgrade Names</Trans>
-          )}
-        </button>
-      </div>
+      <SelectNamesStepFooter
+        gasEstimate={gasEstimate}
+        isEstimatingGas={isEstimatingGas}
+        isStarting={isStarting}
+        isUpgradeDisabled={isUpgradeDisabled}
+        onUpgrade={handleUpgrade}
+        totalSelected={totalSelected}
+        visibleCount={visibleCount}
+      />
     </div>
   )
 }
