@@ -101,9 +101,8 @@ export const NamesTable = ({
       label: t`Owned`,
       count: ownedCount,
       activeClassName:
-        'bg-[linear-gradient(160.82deg,#e7f5fb_0.69%,#badeed_324.18%)] text-ens-lapis-900 shadow-[inset_0_0_1px_0_#98ddfe] md:bg-ens-quartz-75 md:text-ens-quartz-400 md:shadow-none',
-      activeCountClassName:
-        'bg-[#f6fcff] text-ens-lapis-500 md:bg-ens-quartz-150 md:text-ens-quartz-400',
+        'bg-ens-lapis-100 text-ens-lapis-500 shadow-[inset_0px_0px_1px_0px_rgba(0,130,187,0.25)]',
+      activeCountClassName: 'bg-ens-lapis-tint text-ens-lapis-900',
     },
     {
       value: 'favorites',
@@ -111,7 +110,7 @@ export const NamesTable = ({
       count: favoritesCount,
       disabled: !isAuthed,
       activeClassName:
-        'bg-ens-garnet-100 px-2 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
+        'bg-ens-garnet-100 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
       activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
     },
   ]
