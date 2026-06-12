@@ -33,20 +33,14 @@ const SelectedCountLabel = ({
     <Trans>
       <span>All </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase">
-        {' '}
-        eligible names selected
-      </span>
+      <span className="font-semi-mono uppercase"> eligible names selected</span>
     </Trans>
   ) : (
     <Trans>
       <span>{totalSelected}</span>
       <span> out of </span>
       <span>{visibleCount}</span>
-      <span className="font-semi-mono uppercase">
-        {' '}
-        eligible names selected
-      </span>
+      <span className="font-semi-mono uppercase"> eligible names selected</span>
     </Trans>
   )
 
@@ -131,7 +125,7 @@ export const SelectNamesStep = ({
               </div>
             )}
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-white/40 p-8">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-[rgba(254,234,240,0.72)] p-8">
               <div className="flex shrink-0 flex-col gap-2">
                 <p className="text-base text-ens-garnet-900 leading-[1.2] tracking-[0.16px]">
                   <SelectedCountLabel
@@ -267,9 +261,17 @@ export const SelectNamesStep = ({
                 .with({ status: 'ready' }, (estimate) => (
                   <p>
                     <Trans>
-                      Estimated network fee: ~{estimate.formattedEth} ETH across{' '}
-                      {estimate.transactionCount} transactions. Final fee
-                      confirmed in your wallet.
+                      Estimated network fee:{' '}
+                      <strong className="font-semibold">
+                        ~{estimate.formattedEth} ETH
+                      </strong>{' '}
+                      across{' '}
+                      <strong className="font-semibold">
+                        {estimate.transactionCount} transactions
+                      </strong>
+                      .
+                      <br />
+                      Final fee confirmed in your wallet.
                     </Trans>
                   </p>
                 ))
