@@ -120,9 +120,12 @@ export const RolesAddUserSheet = ({
     setFormError(null)
   }
 
+  const isResolutionCurrent = nameOrAddressInput === debouncedInput
+
   const canSave =
     !!address &&
     !isResolvingAddress &&
+    isResolutionCurrent &&
     !isResolveError &&
     selectedRoles.size > 0 &&
     !isSuccess
@@ -139,7 +142,7 @@ export const RolesAddUserSheet = ({
       })
       return
     }
-    if (isResolvingAddress) {
+    if (isResolvingAddress || !isResolutionCurrent) {
       setFormError({
         field: 'address',
         message: 'Resolving address... Please wait a moment and try again.',
