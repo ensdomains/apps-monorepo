@@ -1,5 +1,5 @@
 import type { Call } from '@ens-apps/transaction-manager'
-import { type Address, encodeFunctionData, type Hex, zeroAddress } from 'viem'
+import { type Address, encodeFunctionData, type Hex } from 'viem'
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import type { Profile } from './fetchV1Profiles'
 
@@ -42,17 +42,3 @@ export const wrapInnerCallsAsMulticall = (
   }),
   value: 0n,
 })
-
-export const buildProfileReplayCall = (params: {
-  resolver: Address
-  profiles: Map<Hex, Profile>
-}): Call | null => {
-  if (params.resolver === zeroAddress) {
-    throw new Error(
-      'buildProfileReplayCall: resolver must not be the zero address',
-    )
-  }
-  const inner = flattenProfileInnerCalls(params.profiles)
-  if (inner.length === 0) return null
-  return wrapInnerCallsAsMulticall(params.resolver, inner)
-}

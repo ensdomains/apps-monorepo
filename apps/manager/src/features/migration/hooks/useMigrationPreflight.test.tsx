@@ -138,4 +138,21 @@ describe('useMigrationPreflight', () => {
     await result.current.ensure([domain('bob'), domain('alice')])
     expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(1)
   })
+
+  it('recomputes cached preflight when requested with staleTime 0', async () => {
+    computeMigrationPreflightMock.mockResolvedValue({
+      preExistingOwnedPermRes: null,
+      skipApprovalPhase: false,
+      skipFetchProfilesPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
+    })
+    const { result } = renderHook(() => useMigrationPreflight({ eoa: EOA }), {
+      wrapper,
+    })
+    const domains = [domain('alice')]
+    await result.current.ensure(domains)
+    await result.current.ensure(domains, { staleTime: 0 })
+    expect(computeMigrationPreflightMock).toHaveBeenCalledTimes(2)
+  })
 })

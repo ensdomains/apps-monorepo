@@ -98,7 +98,7 @@ msgstr ""
 msgid "+{overflow} more"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:144
+#: src/features/migration/components/SelectNamesStep.tsx:154
 msgid "<0>{totalSelected}</0><1> of </1><2>{visibleCount}</2><3> total eligible names selected</3>"
 msgstr ""
 
@@ -328,7 +328,7 @@ msgstr ""
 msgid "available"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:194
+#: src/features/navigation/Header/search/SuggestionItem.tsx:197
 msgid "Available"
 msgstr ""
 
@@ -340,7 +340,7 @@ msgstr ""
 msgid "Awaiting approval signature"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:223
+#: src/features/migration/pages/MigrationPage.tsx:200
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:394
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:488
@@ -717,7 +717,7 @@ msgstr ""
 msgid "Could not save profile"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:82
+#: src/features/migration/pages/MigrationPage.tsx:78
 msgid "Couldn't upgrade one of your names. Please try again."
 msgstr ""
 
@@ -959,6 +959,20 @@ msgstr ""
 msgid "Error loading names"
 msgstr "Fel vid laddning av namn"
 
+#. placeholder {0}: estimate.formattedEth
+#. placeholder {1}: estimate.transactionCount
+#: src/features/migration/components/SelectNamesStep.tsx:183
+msgid "Estimated network cost: ~{0} ETH across {1} transactions."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:177
+msgid "Estimating migration gas..."
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:213
+msgid "Estimating..."
+msgstr ""
+
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx:99
 #: src/features/dashboard/components/PrimaryNameCard.tsx:175
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx:91
@@ -1067,10 +1081,6 @@ msgstr ""
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
-#~ msgid "Failed to set primary name"
-#~ msgstr "Failed to set primary name"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name. Please try again."
@@ -1129,6 +1139,10 @@ msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx:161
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:192
+msgid "Gas estimate unavailable"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx:102
@@ -1353,7 +1367,7 @@ msgstr ""
 msgid "Marking..."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:199
+#: src/features/migration/pages/MigrationPage.tsx:176
 msgid "Migration failed"
 msgstr ""
 
@@ -1470,7 +1484,7 @@ msgstr ""
 msgid "No default payment method set."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:86
+#: src/features/migration/components/SelectNamesStep.tsx:96
 msgid "No eligible names found for this wallet"
 msgstr ""
 
@@ -1492,7 +1506,7 @@ msgstr ""
 msgid "No names found"
 msgstr "Inga namn hittades"
 
-#: src/features/migration/components/SelectNamesStep.tsx:83
+#: src/features/migration/components/SelectNamesStep.tsx:93
 msgid "No names match your search"
 msgstr ""
 
@@ -1528,7 +1542,7 @@ msgstr ""
 msgid "Not set"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:174
+#: src/features/navigation/Header/search/SuggestionItem.tsx:177
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:164
 msgid "Not supported"
 msgstr ""
@@ -1559,7 +1573,7 @@ msgstr ""
 msgid "Oldest first"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:91
+#: src/features/migration/pages/MigrationPage.tsx:87
 msgid "One of your names can't be upgraded right now."
 msgstr ""
 
@@ -1653,7 +1667,7 @@ msgstr ""
 msgid "people have favorited this name"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:67
+#: src/features/migration/pages/MigrationPage.tsx:63
 msgid "Permission missing. Please try again."
 msgstr ""
 
@@ -1691,10 +1705,6 @@ msgstr ""
 msgid "Preferences updated"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
-msgid "Premium Fee"
-msgstr ""
-
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:36
 msgid "Preparing account"
 msgstr ""
@@ -1710,10 +1720,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:32
 msgid "Preparing your registration"
-msgstr ""
-
-#: src/features/migration/components/SelectNamesStep.tsx:179
-msgid "Preparing..."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:450
@@ -1746,7 +1752,7 @@ msgstr ""
 msgid "Price cooldown"
 msgstr ""
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:167
+#: src/features/navigation/Header/search/SuggestionItem.tsx:170
 msgid "Price Cooldown"
 msgstr ""
 
@@ -1774,10 +1780,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
 msgid "Profile saved"
 msgstr ""
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
-#~ msgid "Profile updated"
-#~ msgstr "Profile updated"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
 msgid "Profile updated successfully."
@@ -1832,7 +1834,7 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:186
+#: src/features/navigation/Header/search/SuggestionItem.tsx:189
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -2035,7 +2037,7 @@ msgstr ""
 msgid "Restoring your records"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:230
+#: src/features/migration/pages/MigrationPage.tsx:207
 msgid "Retry"
 msgstr ""
 
@@ -2122,8 +2124,8 @@ msgstr ""
 msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:58
-#: src/features/migration/components/SelectNamesStep.tsx:62
+#: src/features/migration/components/SelectNamesStep.tsx:68
+#: src/features/migration/components/SelectNamesStep.tsx:72
 msgid "Search names"
 msgstr ""
 
@@ -2325,7 +2327,7 @@ msgstr ""
 msgid "Some names could not be loaded"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx:75
+#: src/features/migration/pages/MigrationPage.tsx:71
 msgid "Something went wrong. Please refresh and try again."
 msgstr ""
 
@@ -2346,6 +2348,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx:20
 msgid "Starter"
+msgstr ""
+
+#: src/features/migration/components/SelectNamesStep.tsx:215
+msgid "Starting..."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:90
@@ -2379,10 +2385,6 @@ msgstr ""
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:48
 msgid "Submitting token approval"
 msgstr ""
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
-#~ msgid "Submitting your ENS profile update. This may take a few moments."
-#~ msgstr "Submitting your ENS profile update. This may take a few moments."
 
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
@@ -2484,7 +2486,7 @@ msgid "This page can only verify your email when opened from the link in the ver
 msgstr ""
 
 #. placeholder {0}: Math.ceil(totalSelected / 100)
-#: src/features/migration/components/SelectNamesStep.tsx:165
+#: src/features/migration/components/SelectNamesStep.tsx:199
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
@@ -2538,10 +2540,6 @@ msgstr ""
 msgid "Transaction submitted:"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
-#~ msgid "Transaction:"
-#~ msgstr "Transaction:"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
 msgstr ""
@@ -2569,20 +2567,12 @@ msgstr ""
 msgid "Unread only"
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
-#~ msgid "Update failed"
-#~ msgstr "Update failed"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
-#~ msgid "Updating profile"
-#~ msgstr "Updating profile"
-
 #. placeholder {0}: error.parentName
-#: src/features/migration/pages/MigrationPage.tsx:61
+#: src/features/migration/pages/MigrationPage.tsx:57
 msgid "Upgrade {0} first."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:181
+#: src/features/migration/components/SelectNamesStep.tsx:217
 #: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
 msgstr ""
@@ -2791,10 +2781,6 @@ msgstr ""
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts:48
 msgid "Waiting for the resolver deployment"
 msgstr ""
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
-#~ msgid "Waiting for the transaction to be confirmed…"
-#~ msgstr "Waiting for the transaction to be confirmed…"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
@@ -3007,7 +2993,7 @@ msgstr ""
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:51
+#: src/features/migration/components/SelectNamesStep.tsx:61
 msgid "Your names are ready to upgrade"
 msgstr ""
 
@@ -3023,10 +3009,6 @@ msgstr ""
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr ""
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
-#~ msgid "Your profile changes have been confirmed on-chain."
-#~ msgstr "Your profile changes have been confirmed on-chain."
-
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
@@ -3035,7 +3017,7 @@ msgstr ""
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx:157
+#: src/features/migration/components/SelectNamesStep.tsx:167
 msgid "Your text records and addresses will be migrated automatically."
 msgstr ""
 
@@ -3046,4 +3028,3 @@ msgstr ""
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""
-

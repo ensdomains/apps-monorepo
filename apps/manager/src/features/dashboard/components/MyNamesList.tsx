@@ -216,7 +216,6 @@ export const MyNamesList = ({
                     isFavorite={favoriteLabels.has(label.toLowerCase())}
                     isInGrace={isInGrace}
                     label={label}
-                    linkToMigration={migrationEnabled && isV1}
                     nameRole="owner"
                     nameVariant={isPrimary ? 'primary' : 'secondary'}
                     onToggleFavorite={() => onToggleFavorite(label)}

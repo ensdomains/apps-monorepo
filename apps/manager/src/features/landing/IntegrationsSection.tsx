@@ -72,7 +72,7 @@ const INTEGRATIONS: {
     icon: consensysIcon,
   },
   {
-    name: 'Metamask',
+    name: 'MetaMask',
     icon: metamaskIcon,
   },
   {

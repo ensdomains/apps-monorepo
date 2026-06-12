@@ -44,7 +44,6 @@ interface NameRowProps {
   readonly showFavoriteButton?: boolean
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
-  readonly linkToMigration?: boolean
   readonly useWireframeNameplate?: boolean
   readonly isInGrace?: boolean
 }
@@ -67,11 +66,9 @@ const namePillVariants = cva(
 const NamePill = ({
   label,
   variant,
-  linkToMigration,
 }: {
   readonly label: string
   readonly variant: 'primary' | 'secondary' | 'wireframe'
-  readonly linkToMigration: boolean
 }) => {
   const className = namePillVariants({ variant })
   const textClassName =
@@ -84,11 +81,7 @@ const NamePill = ({
     </>
   )
 
-  return linkToMigration ? (
-    <Link className={className} to="/migration">
-      {inner}
-    </Link>
-  ) : (
+  return (
     <Link className={className} params={{ name: label }} to="/$name">
       {inner}
     </Link>
@@ -160,7 +153,6 @@ export const NameRow = ({
   showFavoriteButton = false,
   onToggleFavorite,
   isAuthenticated = true,
-  linkToMigration = false,
   useWireframeNameplate = false,
   isInGrace = false,
 }: NameRowProps) => {
@@ -238,11 +230,7 @@ export const NameRow = ({
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>
-          <NamePill
-            label={label}
-            linkToMigration={linkToMigration}
-            variant={namePillVariant}
-          />
+          <NamePill label={label} variant={namePillVariant} />
           {verified && <VerifiedCheck />}
         </div>
 

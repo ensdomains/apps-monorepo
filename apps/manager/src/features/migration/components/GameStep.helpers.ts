@@ -80,12 +80,6 @@ export type StepDescription =
       readonly total: number
       readonly count: number
     }
-  | {
-      readonly kind: 'grant-role-batch'
-      readonly index: number
-      readonly total: number
-      readonly count: number
-    }
   | { readonly kind: 'grant-role'; readonly label: string }
   | {
       readonly kind: 'profile-replay-batch'
@@ -117,12 +111,6 @@ export const describeNextStep = (params: {
     }))
     .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) => ({
       kind: 'migrate-batch' as const,
-      index: descriptor.index,
-      total: descriptor.total,
-      count: descriptor.count,
-    }))
-    .with({ descriptor: { type: 'grant-role-batch' } }, ({ descriptor }) => ({
-      kind: 'grant-role-batch' as const,
       index: descriptor.index,
       total: descriptor.total,
       count: descriptor.count,

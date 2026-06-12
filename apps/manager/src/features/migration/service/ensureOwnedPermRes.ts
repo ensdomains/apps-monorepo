@@ -74,6 +74,7 @@ export const predictOwnedPermResAddress = async (params: {
   const { eoa, publicClient } = params
   const existing = await findExistingPermRes({ eoa, publicClient })
   if (existing) return existing
+
   const salt = computeOwnedResolverSalt(eoa, 0n)
   const { result } = await publicClient.simulateContract({
     address: V2_CONTRACTS.VerifiableFactory,
