@@ -242,7 +242,7 @@ export const NameRow = ({
               type="button"
             >
               <MSymbol
-                className="ms-opsz-20 text-[26px] leading-none md:text-[28px]"
+                className="ms-opsz-20 ms-wght-300 text-[26px] leading-none md:text-[28px]"
                 symbol="more_horiz"
               />
             </button>
