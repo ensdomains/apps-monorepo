@@ -26,31 +26,7 @@ export type RegistryLabelRow = {
   roleHoldersCount: number
 }
 
-type IndexerLabel = {
-  name: string | null
-  labelName: string | null
-  labelhash: string | null
-  expiryDate: number | null
-  /** Distinct label-scoped role holders, counted by the indexer. */
-  roleHolderCount: number | null
-}
-
 const LABELS_LIMIT = 100
-
-const toLabelRows = (labels: IndexerLabel[]): RegistryLabelRow[] => {
-  const rows: RegistryLabelRow[] = []
-  for (const label of labels) {
-    if (!label.labelhash) continue
-    rows.push({
-      name: label.name,
-      labelName: label.labelName,
-      labelhash: label.labelhash,
-      expiryDate: label.expiryDate,
-      roleHoldersCount: label.roleHolderCount ?? 0,
-    })
-  }
-  return rows
-}
 
 const getRegistryLabels = ResultFn(async function* ({
   address,
@@ -58,7 +34,7 @@ const getRegistryLabels = ResultFn(async function* ({
   const { registry } = yield* fromPromise(
     graphqlIndexerClient.request<{
       registry: {
-        labels: IndexerLabel[]
+        labels: RegistryLabelRow[]
       } | null
     }>(
       gql`
@@ -69,7 +45,7 @@ const getRegistryLabels = ResultFn(async function* ({
               labelName
               labelhash
               expiryDate
-              roleHolderCount
+              roleHoldersCount: roleHolderCount
             }
           }
         }
@@ -81,7 +57,7 @@ const getRegistryLabels = ResultFn(async function* ({
 
   if (!registry) return ok([])
 
-  return ok(toLabelRows(registry.labels))
+  return ok(registry.labels)
 })
 
 const getRegistryLabelsQueryKey = createQueryKey<

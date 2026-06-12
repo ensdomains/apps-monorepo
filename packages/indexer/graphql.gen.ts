@@ -87,7 +87,7 @@ export type Domain = {
   isReachable: Scalars['Boolean']['output'];
   isWrapped: Scalars['Boolean']['output'];
   labelName?: Maybe<Scalars['String']['output']>;
-  labelhash?: Maybe<Scalars['String']['output']>;
+  labelhash: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
   normalizedName?: Maybe<Scalars['String']['output']>;
   owner: Account;
@@ -97,6 +97,7 @@ export type Domain = {
   registrationDate?: Maybe<Scalars['Int']['output']>;
   resolvedAddress?: Maybe<Account>;
   resolver?: Maybe<Resolver>;
+  roleHolderCount: Scalars['Int']['output'];
   subdomainCount: Scalars['Int']['output'];
   subdomains: Array<Domain>;
   subdomainsCount: Scalars['Int']['output'];

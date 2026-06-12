@@ -19,7 +19,7 @@ type GetRegistryLabelCountParameters = {
 export type RegistryLabel = {
   name: string | null
   labelName: string | null
-  labelhash: string | null
+  labelhash: string
 }
 
 export type RegistrySummary = {
