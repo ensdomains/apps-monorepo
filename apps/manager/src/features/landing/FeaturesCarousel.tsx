@@ -23,12 +23,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
   {
     className: tw`bg-ens-peridot-dust text-ens-peridot-core`,
     indicatorClass: tw`border-ens-peridot-core data-active:bg-ens-peridot-core`,
-    title: (
-      <Trans>
-        One username <br />
-        <span className="font-normal font-serif italic">everywhere</span>
-      </Trans>
-    ),
+    title: <Trans>One username everywhere</Trans>,
     description: (
       <Trans>
         Your name lives onchain - you own it, not a platform. Sign in to web3
@@ -50,7 +45,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
         />
         <img
           alt="card-1-1"
-          className="-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-[22px] md:top-[22px] lg:w-64"
+          className="-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-5.5 md:top-5.5 lg:w-64"
           src={card_1_1}
         />
         <img
@@ -138,7 +133,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
         </div>
 
         <div className="absolute top-10 left-10 w-1/3 max-w-3xs">
-          <div className="relative rounded-[6px] bg-ens-blue-midnight/50 p-3 md:p-4">
+          <div className="relative rounded-md bg-ens-blue-midnight/50 p-3 md:p-4">
             <span className="block w-full bg-linear-90 from-white to-transparent bg-clip-text font-medium font-semi-mono text-transparent text-xs md:text-sm">
               0x0b08dA7068b73A579Bd5E8a8290f
             </span>
@@ -152,7 +147,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
         </div>
 
         <div className="-translate-1/2 absolute top-[55%] left-1/2">
-          <div className="relative rounded-[6px] bg-linear-90 from-ens-blue to-[#21B8FF] p-3 md:p-5">
+          <div className="relative rounded-md bg-linear-90 from-ens-blue to-[#21B8FF] p-3 md:p-5">
             {/* Five randomly placed sparkles */}
             <Sparkle className="-top-8 -left-13 md:-left-20 absolute max-md:h-8" />
             <Sparkle className="-bottom-7 -left-8 md:-left-12 md:-bottom-12 absolute max-md:h-8" />
@@ -196,7 +191,7 @@ const CarouselCard = ({
   return (
     <motion.div
       className={cn(
-        'flex flex-none flex-col justify-between overflow-hidden rounded-[8px] p-4 lg:p-[22px]',
+        'flex flex-none flex-col justify-between overflow-hidden rounded-lg p-4 lg:p-5.5',
         className,
       )}
       style={{
@@ -211,12 +206,12 @@ const CarouselCard = ({
         <h2 className="font-bold text-2xl leading-ens-none lg:text-temp-32px">
           {title}
         </h2>
-        <p className="max-w-[350px] font-normal font-serif text-sm leading-none lg:text-base">
+        <p className="max-w-87.5 font-normal font-serif text-sm leading-none lg:text-base">
           {description}
         </p>
       </div>
 
-      <div className="relative isolate mt-10 h-[320px] select-none justify-self-end lg:mt-4">
+      <div className="relative isolate mt-10 h-80 select-none justify-self-end lg:mt-4">
         {children}
       </div>
     </motion.div>

@@ -192,7 +192,7 @@ export const AddressProfileView = ({
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pt-6 pb-12 md:space-y-8 md:pt-10">
-      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
+      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:p-6">
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 space-y-3">
             <div className="flex items-center gap-2">
@@ -237,7 +237,7 @@ export const AddressProfileView = ({
         </div>
       </Card>
 
-      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:px-6 md:py-8">
+      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:px-6 md:py-8">
         <div className="mb-[20px] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
