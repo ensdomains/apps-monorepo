@@ -2,6 +2,7 @@ import { useQueries } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
 import { getAppliedDiscountQueryOptions } from '@/features/register/hooks/useAppliedDiscount'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
+import { getSavingsPct } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
@@ -66,10 +67,7 @@ export const RegistrationDurationPresets = ({
       {PRESET_YEARS.map((years, idx) => {
         const isSelected = selectedYears === years
         const effective = effectivePerYear[idx]
-        const discountPct =
-          baselinePerYear > 0 && effective > 0
-            ? Math.round((1 - effective / baselinePerYear) * 100)
-            : 0
+        const discountPct = getSavingsPct(effective, baselinePerYear)
 
         return (
           <button

@@ -24,6 +24,7 @@ import {
   formatPriceDisplay,
   formatPriceExact,
   formatRegistrationTotal,
+  getSavingsPct,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
@@ -42,26 +43,6 @@ type RegisterNameCheckoutSummaryProps = {
 /** ENS docs explaining premium pricing for short names */
 const ENS_PREMIUM_PRICING_DOCS_URL =
   'https://docs.ens.domains/registry/eth/#3-4-and-5-letter-names'
-
-/**
- * Whole-percent saving of the effective per-year price against the
- * undiscounted 1-year rack rate (`baseRate × secondsPerYear`). Returns 0 when
- * there's no saving or the inputs aren't available yet.
- */
-const getRegistrationSavePct = (
-  pricePerYear: number,
-  baseRate: bigint,
-): number => {
-  if (pricePerYear <= 0 || baseRate <= 0n) return 0
-  const rackRatePerYear = Number(
-    formatUnits(
-      baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR),
-      ORACLE_PRICE_DECIMALS,
-    ),
-  )
-  if (rackRatePerYear <= 0) return 0
-  return Math.round((1 - pricePerYear / rackRatePerYear) * 100)
-}
 
 export const RegisterNameCheckoutSummary = ({
   name,
@@ -231,7 +212,14 @@ const PriceBreakdown = ({
     durationSeconds: duration,
     baseRate,
   })
-  const savePct = getRegistrationSavePct(pricePerYear, baseRate)
+  // Undiscounted 1-year rack rate (baseRate × secondsPerYear) as the baseline.
+  const rackRatePerYear = Number(
+    formatUnits(
+      baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR),
+      ORACLE_PRICE_DECIMALS,
+    ),
+  )
+  const savePct = getSavingsPct(pricePerYear, rackRatePerYear)
   const premiumLabel = getPremiumLabel(name)
   const showPriceRow = pricePerYear > 0 && Math.round(years * 12) >= 12
 

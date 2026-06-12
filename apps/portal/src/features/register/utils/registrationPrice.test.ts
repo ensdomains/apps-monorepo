@@ -4,6 +4,7 @@ import {
   formatPriceDisplay,
   formatPriceExact,
   formatRegistrationTotal,
+  getSavingsPct,
   isPriceResult,
 } from './registrationPrice'
 
@@ -150,5 +151,33 @@ describe('formatPriceDisplay', () => {
   it('formats raw amount with given decimals', () => {
     expect(formatPriceDisplay(5_000_000n, 6)).toBe('$5.00')
     expect(formatPriceDisplay(5_000_000_000_000_000_000n, 18)).toBe('$5.00')
+  })
+})
+
+describe('getSavingsPct', () => {
+  it('returns the whole-percent saving vs the baseline', () => {
+    expect(getSavingsPct(5.5, 8)).toBe(31) // round((1 - 5.5/8) * 100)
+    expect(getSavingsPct(7, 8)).toBe(13)
+    expect(getSavingsPct(4, 8)).toBe(50)
+  })
+
+  it('returns 0 at the baseline and a negative when above it', () => {
+    // Both call sites only render the value when > 0, so a "more expensive
+    // than baseline" case passes through negative rather than clamping.
+    expect(getSavingsPct(8, 8)).toBe(0)
+    expect(getSavingsPct(10, 8)).toBe(-25)
+  })
+
+  it('returns 0 when inputs are missing/zero', () => {
+    expect(getSavingsPct(0, 8)).toBe(0)
+    expect(getSavingsPct(5, 0)).toBe(0)
+    expect(getSavingsPct(-1, 8)).toBe(0)
+  })
+
+  it('rounds to the nearest whole percent', () => {
+    // 1 - 6.7/8 = 0.1625 -> 16.25% -> 16
+    expect(getSavingsPct(6.7, 8)).toBe(16)
+    // 1 - 6.6/8 = 0.175 -> 17.5% -> 18
+    expect(getSavingsPct(6.6, 8)).toBe(18)
   })
 })

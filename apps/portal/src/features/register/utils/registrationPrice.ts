@@ -10,6 +10,14 @@ export function formatPriceDisplay(raw: bigint, decimals: number): string {
   return formatUsd(Number(formatUnits(raw, decimals)))
 }
 
+export function getSavingsPct(
+  effectivePerYear: number,
+  baselinePerYear: number,
+): number {
+  if (effectivePerYear <= 0 || baselinePerYear <= 0) return 0
+  return Math.round((1 - effectivePerYear / baselinePerYear) * 100)
+}
+
 /**
  * Formats a raw token amount as USD preserving the token's full precision — no
  * rounding to cents (unlike {@link formatPriceDisplay}, which caps at 2dp).
