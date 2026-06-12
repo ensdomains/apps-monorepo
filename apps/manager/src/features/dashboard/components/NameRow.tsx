@@ -50,13 +50,12 @@ interface NameRowProps {
 const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
 
 const namePillVariants = cva(
-  'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1',
+  'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',
   {
     variants: {
       variant: {
         primary: 'bg-ens-lapis-core text-ens-lapis-bg',
         secondary: 'bg-ens-quartz-200 text-ens-quartz-450',
-        wireframe: 'border border-border bg-transparent text-foreground',
       },
     },
   },
@@ -67,7 +66,7 @@ const NamePill = ({
   variant,
 }: {
   readonly label: string
-  readonly variant: 'primary' | 'secondary' | 'wireframe'
+  readonly variant: 'primary' | 'secondary'
 }) => {
   const className = namePillVariants({ variant })
   const textClassName =
@@ -198,8 +197,6 @@ export const NameRow = ({
 
   const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
 
-  const namePillVariant = isInGrace ? 'wireframe' : nameVariant
-
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       {hasTopRow && (
@@ -247,7 +244,7 @@ export const NameRow = ({
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>
-          <NamePill label={label} variant={namePillVariant} />
+          <NamePill label={label} variant={nameVariant} />
           {verified && <VerifiedCheck />}
         </div>
 

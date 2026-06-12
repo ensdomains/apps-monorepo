@@ -78,7 +78,7 @@ msgid "{durationYears} years"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:322
-#: src/features/dashboard/components/NameRow.tsx:238
+#: src/features/dashboard/components/NameRow.tsx:235
 msgid "{label} avatar"
 msgstr ""
 
@@ -181,7 +181,7 @@ msgstr ""
 msgid "Add Crypto Address"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:177
+#: src/features/dashboard/components/NameRow.tsx:176
 msgid "Add favorite"
 msgstr ""
 
@@ -999,7 +999,7 @@ msgstr ""
 msgid "Expires in {days} days"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:307
+#: src/features/dashboard/components/NameRow.tsx:304
 msgid "Expires on"
 msgstr ""
 
@@ -1308,7 +1308,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/dashboard/components/NameRow.tsx:231
+#: src/features/dashboard/components/NameRow.tsx:228
 #: src/features/profile/components/view/FavoriteButton.tsx:72
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
@@ -1337,11 +1337,11 @@ msgstr ""
 msgid "Manage notification settings"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:290
+#: src/features/dashboard/components/NameRow.tsx:287
 msgid "Manage notifications"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:124
+#: src/features/dashboard/components/NameRow.tsx:123
 msgid "Manage on explorer"
 msgstr ""
 
@@ -1373,7 +1373,7 @@ msgstr ""
 msgid "Modified"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:257
+#: src/features/dashboard/components/NameRow.tsx:254
 msgid "More options for {label}"
 msgstr ""
 
@@ -1880,7 +1880,7 @@ msgstr ""
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:136
+#: src/features/dashboard/components/NameRow.tsx:135
 msgid "Remind me"
 msgstr ""
 
@@ -1900,7 +1900,7 @@ msgstr ""
 msgid "Remove Email Contact Method?"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:177
+#: src/features/dashboard/components/NameRow.tsx:176
 msgid "Remove favorite"
 msgstr ""
 
@@ -1943,14 +1943,14 @@ msgstr ""
 msgid "Removing telegram for {0}"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:151
+#: src/features/dashboard/components/NameRow.tsx:150
 #: src/features/grace/components/GracePeriodBanner.tsx:97
 #: src/features/grace/components/GracePeriodBanner.tsx:106
 #: src/features/renew/components/RenewNameButton.tsx:27
 msgid "Renew"
 msgstr ""
 
-#: src/features/dashboard/components/NameRow.tsx:278
+#: src/features/dashboard/components/NameRow.tsx:275
 msgid "Renew name"
 msgstr ""
 
