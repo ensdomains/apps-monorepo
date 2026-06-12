@@ -18,7 +18,7 @@ interface FilterChipsProps<T extends string> {
 }
 
 const chipVariants = cva(
-  'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 font-sans text-sm uppercase tracking-[0.28px] disabled:cursor-not-allowed disabled:opacity-50',
+  'flex h-8 shrink-0 items-center gap-1 rounded-sm px-1.5 py-1 font-semi-mono text-sm uppercase leading-[1.05] tracking-[0.28px] disabled:cursor-not-allowed disabled:opacity-50',
   {
     variants: {
       active: {
@@ -30,7 +30,7 @@ const chipVariants = cva(
 )
 
 const chipCountVariants = cva(
-  'inline-flex items-center justify-center rounded-sm px-1.5 py-0.5 font-sans text-[11.5px] leading-none',
+  'inline-flex h-[19.68px] items-center justify-center rounded-sm px-[6.56px] py-[1.64px] font-sans text-[11.48px] leading-[1.05] tracking-[0.2296px]',
   {
     variants: {
       active: {
@@ -46,7 +46,7 @@ export const FilterChips = <T extends string>({
   chips,
   onChange,
 }: FilterChipsProps<T>) => (
-  <div className="flex flex-wrap items-center gap-2">
+  <div className="flex flex-wrap items-center gap-3">
     {chips.map((chip) => {
       const isActive = chip.value === value
 

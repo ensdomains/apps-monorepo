@@ -140,7 +140,7 @@ export const FavoritesList = ({
           .otherwise(({ paginatedFavorites }) =>
             paginatedFavorites.map((fav, index) => (
               <motion.div
-                className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none"
+                className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
                 key={fav.label}
                 {...(shouldReduceMotion
                   ? {}

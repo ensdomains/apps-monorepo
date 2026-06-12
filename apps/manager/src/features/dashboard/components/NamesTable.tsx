@@ -96,36 +96,47 @@ export const NamesTable = ({
   ]
 
   const chips: FilterChipDef<FilterKey>[] = [
-    { value: 'owned', label: t`Owned`, count: ownedCount },
+    {
+      value: 'owned',
+      label: t`Owned`,
+      count: ownedCount,
+      activeClassName:
+        'bg-[linear-gradient(160.82deg,#e7f5fb_0.69%,#badeed_324.18%)] text-ens-lapis-900 shadow-[inset_0_0_1px_0_#98ddfe] md:bg-ens-quartz-75 md:text-ens-quartz-400 md:shadow-none',
+      activeCountClassName:
+        'bg-[#f6fcff] text-ens-lapis-500 md:bg-ens-quartz-150 md:text-ens-quartz-400',
+    },
     {
       value: 'favorites',
       label: t`Favorites`,
       count: favoritesCount,
       disabled: !isAuthed,
-      activeClassName: 'bg-ens-garnet-100 text-ens-garnet-500',
-      activeCountClassName: 'bg-ens-white text-ens-garnet-500',
+      activeClassName:
+        'bg-ens-garnet-100 px-2 text-ens-garnet-500 shadow-[inset_0px_0px_1px_0px_rgba(255,110,158,0.25)]',
+      activeCountClassName: 'bg-[#fffafc] text-ens-garnet-900',
     },
   ]
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex flex-col gap-5">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="font-sans text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
+      <div className="mb-5 flex w-full max-w-[352px] flex-col items-start gap-5 md:mb-4 md:max-w-none">
+        <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <h2 className="font-sans text-[#232222] text-[16px] leading-[0.96] tracking-[0.16px] md:text-[28px] md:tracking-[0.28px]">
             <Trans>My Names</Trans>
           </h2>
           <div className="w-full md:w-[352px]">
             <Input
-              className="h-10 rounded-full border-none bg-ens-white text-base text-foreground tracking-[-0.32px] placeholder:text-ens-quartz-350"
+              className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350 focus-visible:ring-0"
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder={t`Search my names`}
-              startIcon={<Search className="size-4.5 text-ens-quartz-350" />}
+              startIcon={
+                <Search className="-ml-1 size-4.5 text-ens-quartz-350" />
+              }
               value={searchQuery}
             />
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-5">
+        <div className="flex flex-col items-start gap-5 md:flex-row md:items-center">
           {activeFilter === 'owned' ? (
             <SortMenu
               onChange={setOwnedSort}

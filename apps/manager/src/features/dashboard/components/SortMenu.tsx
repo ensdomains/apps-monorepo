@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import type { ReactNode } from 'react'
 import {
   DropdownMenu,
@@ -8,6 +8,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MSymbol } from '@/components/ui/material-symbol'
 
 export interface SortOption<T extends string> {
   readonly value: T
@@ -32,17 +33,28 @@ export const SortMenu = <T extends string>({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex h-8 shrink-0 items-center gap-1 rounded-full bg-ens-white px-3 font-sans text-foreground text-xs tracking-[0.24px] outline-none"
+          className="flex h-8 w-[174px] shrink-0 items-center justify-between rounded-full px-2 font-sans text-[#232222] text-sm leading-[1.05] tracking-[0.28px] outline-none md:text-base md:tracking-[0.32px]"
           type="button"
         >
-          <ChevronsUpDown className="size-3 text-ens-quartz-400" />
-          <span className="text-ens-quartz-400">
-            <Trans>Sort by</Trans>
+          <span className="flex items-center gap-1">
+            <span className="flex size-6 flex-col items-center justify-center px-[6.15px]">
+              <ChevronDown
+                className="size-[12.3px] rotate-180 text-ens-quartz-400"
+                strokeWidth={2.5}
+              />
+              <ChevronDown
+                className="size-[12.3px] text-ens-quartz-400"
+                strokeWidth={2.5}
+              />
+            </span>
+            <span className="leading-[1.05]">
+              <Trans>Sort by</Trans> {active?.triggerLabel ?? active?.label}
+            </span>
           </span>
-          <span className="font-medium">
-            {active?.triggerLabel ?? active?.label}
-          </span>
-          <ChevronDown className="size-4 text-ens-quartz-400" />
+          <MSymbol
+            className="ms-opsz-24 ms-wght-300 text-2xl text-[#232222] leading-none"
+            symbol="keyboard_arrow_down"
+          />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[12rem]">

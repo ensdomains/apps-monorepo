@@ -191,7 +191,7 @@ export const MyNamesList = ({
 
               return (
                 <motion.div
-                  className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none"
+                  className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
                   key={item.key}
                   {...(shouldReduceMotion
                     ? {}

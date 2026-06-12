@@ -238,36 +238,45 @@ export const NameRow = ({
           <DropdownMenuTrigger asChild>
             <button
               aria-label={t`More options for ${label}`}
-              className="flex shrink-0 items-center justify-center text-ens-quartz-400 outline-none hover:text-foreground"
+              className="flex shrink-0 items-center justify-center text-ens-quartz-700 outline-none"
               type="button"
             >
-              <MSymbol className="ms-opsz-20 text-xl" symbol="more_horiz" />
+              <MSymbol
+                className="ms-opsz-20 text-[26px] leading-none md:text-[28px]"
+                symbol="more_horiz"
+              />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent
+            align="end"
+            className="w-[268px] rounded-xl border-none bg-white p-4 shadow-[0px_4px_4px_rgba(200,200,200,0.25)]"
+            sideOffset={10}
+          >
             <DropdownMenuItem asChild>
-              <Link params={{ name: label }} to="/$name">
-                <Trans>View profile</Trans>
+              <Link
+                className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
+                params={{ name: label }}
+                to="/renew/$name"
+              >
+                <Trans>Renew name</Trans>
+                <MSymbol
+                  className="ms-opsz-20 text-xl leading-none"
+                  symbol="double_arrow"
+                />
               </Link>
             </DropdownMenuItem>
-            {cta === 'renew' && (
-              <DropdownMenuItem asChild>
-                <Link params={{ name: label }} to="/renew/$name">
-                  <Trans>Renew name</Trans>
-                </Link>
-              </DropdownMenuItem>
-            )}
-            {cta === 'manageExplorer' && (
-              <DropdownMenuItem asChild>
-                <a
-                  href={explorerUrl(label)}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Trans>Manage on explorer</Trans>
-                </a>
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem asChild>
+              <Link
+                className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
+                to="/notifications/settings"
+              >
+                <Trans>Manage notifications</Trans>
+                <MSymbol
+                  className="ms-opsz-20 text-ens-quartz-900 text-xl leading-none"
+                  symbol="notification_settings"
+                />
+              </Link>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
