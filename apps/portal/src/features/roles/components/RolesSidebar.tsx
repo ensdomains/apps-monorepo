@@ -50,12 +50,12 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
-    row: Row<TData> | null
-    open: boolean
-    setOpen: React.Dispatch<React.SetStateAction<boolean>>
-    name: string
-    canManageRoles: boolean
-    registryAddress: Address
+    readonly row: Row<TData> | null
+    readonly open: boolean
+    readonly setOpen: React.Dispatch<React.SetStateAction<boolean>>
+    readonly name: string
+    readonly canManageRoles: boolean
+    readonly registryAddress: Address
   }>
 
 export const RolesSidebar = <
@@ -154,6 +154,7 @@ export const RolesSidebar = <
   }
 
   const isWalletConnected = Boolean(walletClient?.account)
+  const is2LD = name.split('.').length === 2
 
   const transactions = selectedAccount
     ? buildRoleTransactions(
@@ -213,7 +214,7 @@ export const RolesSidebar = <
                     const roleKey = permission.key
                     const isManagerRoleDisabled = !isManagerRoleSettable(
                       permission.key,
-                      { is2LD: name.split('.').length === 2 },
+                      { is2LD },
                     )
                     const rolePerms = editedPermissions.get(roleKey) || {
                       admin: false,

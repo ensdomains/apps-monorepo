@@ -22,6 +22,8 @@ const ensRegistryAddress = getChainContractAddress({
   contract: 'ensRegistry',
 })
 
+const ROLES_FROM_BLOCK = 9783977n
+
 const V2NameRoles = ({
   name,
   registryAddress,
@@ -39,7 +41,7 @@ const V2NameRoles = ({
         ...getNameRolesAccountsQueryOptions({
           label: currentLabel,
           registryAddress,
-          fromBlock: 9783977n,
+          fromBlock: ROLES_FROM_BLOCK,
         }),
         enabled: labels.length >= 2,
       },

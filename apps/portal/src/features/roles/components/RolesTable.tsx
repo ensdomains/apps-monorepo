@@ -15,10 +15,10 @@ import { isAdminRole } from '@/lib/roles/permissions'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RolesTableProps = {
-  name: string
-  canManageRoles: boolean
-  roles: GetNameRolesAccountsReturnType
-  registryAddress: Address
+  readonly name: string
+  readonly canManageRoles: boolean
+  readonly roles: GetNameRolesAccountsReturnType
+  readonly registryAddress: Address
 }
 
 type AccountGroup = {
