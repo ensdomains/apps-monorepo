@@ -1,3 +1,6 @@
+// Dev-only: install the Anvil-tracking browser clock before hydration
+// (no-op unless DEV + VITE_TIME_TRAVEL).
+import './dev/timeTravel'
 import { StartClient } from '@tanstack/react-start/client'
 import { StrictMode } from 'react'
 import { hydrateRoot } from 'react-dom/client'

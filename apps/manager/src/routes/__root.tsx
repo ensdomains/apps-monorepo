@@ -9,6 +9,8 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
+import { TimeTravelPanel } from '@/dev/TimeTravelPanel'
+import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
@@ -92,6 +94,7 @@ function RootComponent() {
         </RootProviders>
 
         <TanStackRouterDevtools position="bottom-right" />
+        {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
         <Scripts />
       </body>
     </html>

@@ -4,6 +4,10 @@
 
 The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** as both the test runner and browser automation tool. Tests are organized per-project under `e2e/projects/`.
 
+> **Manual testing?** To exercise time-based states (grace period, temporary
+> premium, expiry) by hand — advancing Anvil **and** the browser clock yourself
+> as many times as you like — see [`docs/manual-time-travel.md`](docs/manual-time-travel.md).
+
 ---
 
 ## Stack

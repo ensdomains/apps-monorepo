@@ -1,3 +1,6 @@
+// Dev-only: install the Anvil-tracking browser clock before any app module
+// captures `Date` (no-op unless DEV + VITE_TIME_TRAVEL).
+import './dev/timeTravel'
 import './lib/temporal-shim'
 
 import { createRouter, RouterProvider } from '@tanstack/react-router'
