@@ -47,7 +47,7 @@ export const RolePill = ({ role }: { readonly role: NameRole }) => (
 export const ExpiringPill = ({ days }: { readonly days: number }) => (
   <span className={pillVariants({ tone: 'expiring' })}>
     <CircleAlert
-      className="size-4 shrink-0 text-ens-citrine-500"
+      className="size-3 shrink-0 text-ens-citrine-500"
       strokeWidth={2}
     />
     <Trans>Expires in {days} days</Trans>

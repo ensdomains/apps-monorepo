@@ -31,7 +31,7 @@ const PAGE_SIZE = 5
 const NameRowSkeleton = () => (
   <div className="flex items-center gap-4">
     <div className="size-6.5 shrink-0 animate-pulse rounded bg-gray-200" />
-    <div className="size-10 shrink-0 animate-pulse rounded-full bg-gray-200" />
+    <div className="size-8.5 shrink-0 animate-pulse rounded-sm bg-gray-200" />
     <div className="h-7 w-37.5 animate-pulse rounded-xs bg-gray-200" />
   </div>
 )
@@ -140,7 +140,7 @@ export const FavoritesList = ({
           .otherwise(({ paginatedFavorites }) =>
             paginatedFavorites.map((fav, index) => (
               <motion.div
-                className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none"
+                className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
                 key={fav.label}
                 {...(shouldReduceMotion
                   ? {}
