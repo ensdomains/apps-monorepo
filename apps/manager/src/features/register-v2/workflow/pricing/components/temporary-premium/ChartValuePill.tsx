@@ -54,7 +54,7 @@ export const ChartValuePill = ({
   >
     <span
       className={cn(
-        'text-center font-normal font-sans text-[12px] leading-[1.5] tracking-[-0.132px]',
+        'text-center font-normal font-sans text-[12px] leading-normal tracking-[-0.132px]',
         isPast && 'italic',
         LABEL_COLOR_BY_VARIANT[variant],
       )}

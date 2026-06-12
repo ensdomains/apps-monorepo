@@ -3,9 +3,9 @@ import { Trans } from '@lingui/react/macro'
 import { ArrowUpRight, Calendar, Copy, Mail } from 'lucide-react'
 
 export const ProfileCardPreview = () => (
-  <div className="flex h-[320px] w-[228px] flex-col overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] bg-white shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
+  <div className="flex h-80 w-57 flex-col overflow-hidden rounded-2xl border-[0.1px] border-[rgba(25,87,128,0.2)] bg-white shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.3)]">
     <div
-      className="relative h-[72px] shrink-0"
+      className="relative h-18 shrink-0"
       style={{
         background: [
           'radial-gradient(ellipse at 20% 50%, #6b2d7b 0%, transparent 60%)',
@@ -59,7 +59,7 @@ export const ProfileCardPreview = () => (
         </p>
       </div>
 
-      <p className="text-[11px] text-ens-garnet-900/45 leading-[1.5]">
+      <p className="text-[11px] text-ens-garnet-900/45 leading-normal">
         <Trans>
           A scrappy generalist builder with taste. Senior Product Designer and
           Researcher at ENS Labs, dedicated to making web3 feel straightforward
@@ -73,18 +73,18 @@ export const ProfileCardPreview = () => (
         <Trans>links</Trans>
       </p>
       <div className="flex flex-wrap gap-1">
-        <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">
+        <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/6 px-1 py-px text-[9px] text-ens-garnet-500">
           <SiX className="mr-1 size-2" />
           @erni_eth
           <ArrowUpRight className="size-2 opacity-50" />
         </span>
-        <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">
+        <span className="inline-flex items-center gap-px rounded-full bg-ens-garnet-500/6 px-1 py-px text-[9px] text-ens-garnet-500">
           <SiFarcaster className="mr-1 size-2" />
           @ernieth
           <ArrowUpRight className="size-2 opacity-50" />
         </span>
       </div>
-      <span className="inline-flex w-fit items-center gap-px rounded-full bg-ens-garnet-500/[0.06] px-1 py-px text-[9px] text-ens-garnet-500">
+      <span className="inline-flex w-fit items-center gap-px rounded-full bg-ens-garnet-500/6 px-1 py-px text-[9px] text-ens-garnet-500">
         <Mail className="mr-1 size-2" strokeWidth={1.5} />
         asmallrelish@gmail.com
         <Copy className="size-2 opacity-40" strokeWidth={1.5} />
