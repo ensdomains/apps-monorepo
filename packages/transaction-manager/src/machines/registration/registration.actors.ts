@@ -769,12 +769,12 @@ export function verifyRegistrationActor(input: {
   const cleanName = input.name.replace('.eth', '')
   return fromPromise(
     (async () => {
-      // ETHRegistrar.REGISTRY() points at the IPermissionedRegistry where
+      // ETHRegistrar.ETH_REGISTRY() points at the IPermissionedRegistry where
       // entries are stored. Read the registry, then look up the resolver.
       const registryAddress = (await readContract(input.publicClient, {
         address: registrarAddress,
-        abi: parseAbi(['function REGISTRY() view returns (address)']),
-        functionName: 'REGISTRY',
+        abi: parseAbi(['function ETH_REGISTRY() view returns (address)']),
+        functionName: 'ETH_REGISTRY',
       })) as Address
 
       const registryAbi = parseAbi([
