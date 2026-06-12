@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 /**
  * Shared building blocks for the flat roles tables (name registry + resolver).
  * Each table supplies its own `getEntries` mapping from its row to the common
- * `RoleRowEntry[]`; the Role / Admin / User columns and the edit action are
+ * `RoleRowEntry[]`; the Role / Admin / Manager columns and the edit action are
  * identical across both, so they live here.
  */
 
@@ -58,7 +58,7 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'user-level',
-    header: () => <span className="text-muted-foreground">User</span>,
+    header: () => <span className="text-muted-foreground">Manager</span>,
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5">
         {getEntries(row.original).map((entry) => (
