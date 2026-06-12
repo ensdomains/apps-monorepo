@@ -46,6 +46,7 @@ import {
   roleToPermissions,
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RolesSidebarProps<TData extends { items: string[]; account: Address }> =
   PropsWithChildren<{
@@ -186,10 +187,12 @@ export const RolesSidebar = <
         >
           <div className="p-6 flex flex-col gap-6 h-full">
             <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
-              <SheetTitle className="font-sans text-heading font-medium flex items-center gap-1">
-                {name}
-                <CopyButton value={name} />
-              </SheetTitle>
+              {selectedAccount ? (
+                <SheetTitle className="font-sans text-heading font-medium flex items-center gap-1">
+                  {truncateAddress(selectedAccount, 6, 4)}
+                  <CopyButton value={selectedAccount} />
+                </SheetTitle>
+              ) : null}
               {canManageRoles && selectedAccount && (
                 <Button
                   variant="outline"
