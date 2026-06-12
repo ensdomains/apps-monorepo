@@ -4,7 +4,6 @@ import {
   getDisplayExpiryDate,
   getGraceEndDate,
   isInGracePeriod,
-  shouldShowProminentRenew,
 } from '@/features/grace/utils/gracePeriod'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
@@ -35,6 +34,9 @@ export type MergedItem =
 
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
+export type ExpiryCta = 'renew' | 'remindMe'
+
+const RENEW_CTA_THRESHOLD_DAYS = 7
 
 export const v1ExpirySeconds = (classified: ClassifiedName): number | null => {
   const raw =
@@ -124,6 +126,7 @@ export type MergedRowMetadata = {
   readonly isPrimary: boolean
   readonly isInGrace: boolean
   readonly showProminentRenew: boolean
+  readonly expiryCta: ExpiryCta | null
   readonly useDefaultAvatar: boolean
   readonly useWireframeNameplate: boolean
   readonly avatarUrl: string | undefined
@@ -146,6 +149,15 @@ export const mergedRowMetadata = (
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry =
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
+  const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
+  const expiryCta =
+    isV2 && isInGrace
+      ? 'renew'
+      : isV2 && expiringSoon && daysUntilExpiry !== null
+        ? daysUntilExpiry <= RENEW_CTA_THRESHOLD_DAYS
+          ? 'renew'
+          : 'remindMe'
+        : null
   const isPrimary =
     !isV1 &&
     !!primaryLabel &&
@@ -159,12 +171,13 @@ export const mergedRowMetadata = (
     graceEndDate,
     daysUntilExpiry,
     daysSinceExpiry,
-    expiringSoon: isExpiringSoon(expiryDate, 30, daysUntilExpiry),
+    expiringSoon,
     formattedExpiryDate: formatDashboardDate(displayExpiryDate),
     isV1,
     isPrimary,
     isInGrace,
-    showProminentRenew: shouldShowProminentRenew(expiryDate, isV2, now),
+    showProminentRenew: expiryCta === 'renew',
+    expiryCta,
     useDefaultAvatar: isInGrace,
     useWireframeNameplate: isInGrace,
     avatarUrl,

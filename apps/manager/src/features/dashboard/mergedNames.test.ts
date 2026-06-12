@@ -276,6 +276,30 @@ describe('mergedRowMetadata', () => {
     expect(meta.daysUntilExpiry).toBe(10)
   })
 
+  it('uses reminder CTA for names expiring more than 7 days out', () => {
+    const tenDaysFromNow = Math.floor(
+      new Date('2024-01-11T00:00:00Z').getTime() / 1000,
+    )
+    const item = makeMergedV2({
+      sortName: 'remind.eth',
+      sortExpiry: tenDaysFromNow,
+    })
+    const meta = mergedRowMetadata(item, null)
+    expect(meta.expiryCta).toBe('remindMe')
+  })
+
+  it('uses renew CTA for names expiring within 7 days', () => {
+    const sevenDaysFromNow = Math.floor(
+      new Date('2024-01-08T00:00:00Z').getTime() / 1000,
+    )
+    const item = makeMergedV2({
+      sortName: 'renew.eth',
+      sortExpiry: sevenDaysFromNow,
+    })
+    const meta = mergedRowMetadata(item, null)
+    expect(meta.expiryCta).toBe('renew')
+  })
+
   it('flags grace period metadata for expired v2 names', () => {
     const expired = Math.floor(
       new Date('2023-12-20T00:00:00Z').getTime() / 1000,
@@ -286,6 +310,7 @@ describe('mergedRowMetadata', () => {
     expect(meta.useDefaultAvatar).toBe(true)
     expect(meta.useWireframeNameplate).toBe(true)
     expect(meta.showProminentRenew).toBe(true)
+    expect(meta.expiryCta).toBe('renew')
     expect(meta.displayExpiryDate?.getTime()).toBeGreaterThan(
       meta.expiryDate?.getTime() ?? 0,
     )

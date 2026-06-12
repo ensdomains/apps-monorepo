@@ -28,7 +28,7 @@ import {
 } from './DashboardPills'
 
 export type NameStatus = 'eligibleUpgrade' | 'ensv1Only'
-export type NameRowCta = 'renew' | 'manageExplorer'
+export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
 
 interface NameRowProps {
   readonly label: string
@@ -100,6 +100,7 @@ const ctaVariants = cva(
     variants: {
       kind: {
         renew: 'text-ens-lapis-core',
+        remindMe: 'text-ens-lapis-900',
         manageExplorer: 'text-ens-garnet-500',
       },
     },
@@ -127,13 +128,25 @@ const RowCta = ({
     )
   }
 
+  if (cta === 'remindMe') {
+    return (
+      <Link
+        className={ctaVariants({ kind: 'remindMe' })}
+        to="/notifications/settings"
+      >
+        <Trans>Remind me</Trans>
+        <MSymbol className="ms-opsz-20 text-xl" symbol="notification_settings" />
+      </Link>
+    )
+  }
+
   return (
     <Link
       className={ctaVariants({ kind: 'renew' })}
       params={{ name: label }}
       to="/renew/$name"
     >
-      <Trans>Renew name</Trans>
+      <Trans>Renew</Trans>
       <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
     </Link>
   )
@@ -191,13 +204,16 @@ export const NameRow = ({
       {hasTopRow && (
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            {isInGrace && <GracePeriodBadge />}
             {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
             {status === 'ensv1Only' && <Ensv1OnlyPill />}
             {nameRole && <RolePill role={nameRole} />}
           </div>
-          {expiringInDays !== null && expiringInDays > 0 && (
+          {isInGrace ? (
+            <GracePeriodBadge />
+          ) : expiringInDays !== null && expiringInDays > 0 ? (
             <ExpiringPill days={expiringInDays} />
+          ) : (
+            <span />
           )}
         </div>
       )}

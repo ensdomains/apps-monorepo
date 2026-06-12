@@ -181,7 +181,7 @@ export const MyNamesList = ({
                 isPrimary,
                 avatarUrl,
                 isInGrace,
-                showProminentRenew,
+                expiryCta,
                 useWireframeNameplate,
               } = mergedRowMetadata(
                 item,
@@ -207,7 +207,7 @@ export const MyNamesList = ({
                 >
                   <NameRow
                     avatarUrl={avatarUrl}
-                    cta={!isV1 && showProminentRenew ? 'renew' : null}
+                    cta={!isV1 ? expiryCta : null}
                     expiringInDays={
                       !isInGrace && expiringSoon ? daysUntilExpiry : null
                     }
