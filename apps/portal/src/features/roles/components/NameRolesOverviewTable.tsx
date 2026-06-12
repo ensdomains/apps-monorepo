@@ -1,5 +1,5 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
@@ -35,17 +35,13 @@ const V2NameRoles = ({
 }) => {
   const { currentLabel, labels } = getNameLabels(name)
 
-  const [nameRolesQuery] = useQueries({
-    queries: [
-      {
-        ...getNameRolesAccountsQueryOptions({
-          label: currentLabel,
-          registryAddress,
-          fromBlock: ROLES_FROM_BLOCK,
-        }),
-        enabled: labels.length >= 2,
-      },
-    ],
+  const nameRolesQuery = useQuery({
+    ...getNameRolesAccountsQueryOptions({
+      label: currentLabel,
+      registryAddress,
+      fromBlock: ROLES_FROM_BLOCK,
+    }),
+    enabled: labels.length >= 2,
   })
 
   if (nameRolesQuery.isLoading)
