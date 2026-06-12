@@ -191,7 +191,7 @@ export const PrimaryNameCard = ({
           variant="link"
         >
           <span className="font-mono text-base leading-normal underline-offset-4 group-hover:underline">
-            <Trans>View profile</Trans>
+            <Trans>Go to profile</Trans>
           </span>
           <MSymbol className="ms-opsz-20 text-base" symbol="arrow_forward" />
         </LinkButton>

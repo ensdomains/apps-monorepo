@@ -2662,8 +2662,8 @@ msgid "Verifying..."
 msgstr "Verifying..."
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx:194
-msgid "View profile"
-msgstr "View profile"
+msgid "Go to profile"
+msgstr "Go to profile"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:91
 msgid "Waiting for approval"
