@@ -881,8 +881,8 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
       drizzle-orm:
-        specifier: ^0.44.5
-        version: 0.44.7(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(pg@8.16.3)
+        specifier: ^0.45.2
+        version: 0.45.2(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(pg@8.16.3)
       graphql:
         specifier: ^16.11.0
         version: 16.12.0
@@ -1411,7 +1411,7 @@ packages:
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@7e034012943ded48b43dccb59f8f7545d76095bd':
-    resolution: {integrity: sha512-W7XCD/wj82a9/mStss3QXbnvD4ukGfEtmpa/wOej/irj8doXgHspektXacVYetfBvSccCQRluv2RwZFxR9Ropw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@7e034012943ded48b43dccb59f8f7545d76095bd}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@7e034012943ded48b43dccb59f8f7545d76095bd}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
@@ -6014,8 +6014,8 @@ packages:
     resolution: {integrity: sha512-O9EC/miwdnRDY10qRxM8P3Pg8hXe3LyU4ZipReKOgTwn4OqANmftj8XJz1UPUAS6NMHf0E2htjsbQujUTkncCg==}
     hasBin: true
 
-  drizzle-orm@0.44.7:
-    resolution: {integrity: sha512-quIpnYznjU9lHshEOAYLoZ9s3jweleHlZIAWR/jX9gAWNg/JhQ1wj0KGRf7/Zm+obRrYd9GjPVJg790QY9N5AQ==}
+  drizzle-orm@0.45.2:
+    resolution: {integrity: sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -14324,7 +14324,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.44.7(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(pg@8.16.3):
+  drizzle-orm@0.45.2(@neondatabase/serverless@1.0.2)(@opentelemetry/api@1.9.0)(@types/pg@8.15.6)(pg@8.16.3):
     optionalDependencies:
       '@neondatabase/serverless': 1.0.2
       '@opentelemetry/api': 1.9.0
