@@ -50,7 +50,7 @@ interface NameRowProps {
 const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
 
 const namePillVariants = cva(
-  'inline-flex max-w-full items-center gap-2 rounded-xs px-2 py-1',
+  'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1',
   {
     variants: {
       variant: {

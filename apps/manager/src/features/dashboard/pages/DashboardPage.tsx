@@ -89,7 +89,7 @@ export const DashboardPage = () => {
           </motion.div>
         ) : (
           <motion.div
-            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:px-6 md:py-8"
+            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
             {...stagger(2, shouldReduceMotion)}
           >
             <span className="font-sans text-[16px] text-foreground">
@@ -112,7 +112,7 @@ export const DashboardPage = () => {
           </motion.div>
         )}
         <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
+          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
           {...stagger(3, shouldReduceMotion)}
         >
           <NamesTable
@@ -122,7 +122,7 @@ export const DashboardPage = () => {
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
         <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
+          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
           {...stagger(4, shouldReduceMotion)}
         >
           <EducationCarousel />

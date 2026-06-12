@@ -14,6 +14,7 @@ import {
 } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
+import { cn } from '@/lib/utils'
 import { ChoosePrimaryNameDialog } from './ChoosePrimaryNameDialog'
 import { PrimaryBadge } from './PrimaryBadge'
 
@@ -95,11 +96,10 @@ export const PrimaryNameCard = ({
 
   return (
     <Card
-      className={
-        isInGrace
-          ? 'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 opacity-70 shadow-none md:rounded-lg md:p-6'
-          : 'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6'
-      }
+      className={cn(
+        'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:p-6',
+        isInGrace && 'opacity-70',
+      )}
       style={isInGrace ? undefined : themeVars}
     >
       <PrimaryBadge className="self-start bg-ens-lapis-tint" />
