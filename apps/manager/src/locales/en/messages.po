@@ -89,13 +89,21 @@ msgstr "{label} theme (selected)"
 msgid "{migrated} out of {total} names upgraded"
 msgstr "{migrated} out of {total} names upgraded"
 
+#: src/features/migration/components/SelectNamesStep.tsx:100
+msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
+msgstr "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
+
 #: src/features/migration/components/SuccessModal.tsx:126
 msgid "+{overflow} more"
 msgstr "+{overflow} more"
 
-#: src/features/migration/components/SelectNamesStep.tsx:154
-msgid "<0>{totalSelected}</0><1> of </1><2>{visibleCount}</2><3> total eligible names selected</3>"
-msgstr "<0>{totalSelected}</0><1> of </1><2>{visibleCount}</2><3> total eligible names selected</3>"
+#: src/features/migration/components/SelectNamesStep.tsx:40
+msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
+msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
+
+#: src/features/migration/components/SelectNamesStep.tsx:34
+msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
+msgstr "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 
 #. placeholder {0}: getErrorMessage(error)
 #: src/routes/wallet.tsx:193
@@ -335,7 +343,8 @@ msgstr "Available Wallets"
 msgid "Awaiting approval signature"
 msgstr "Awaiting approval signature"
 
-#: src/features/migration/pages/MigrationPage.tsx:200
+#: src/features/migration/components/SelectNamesStep.tsx:165
+#: src/features/migration/pages/MigrationPage.tsx:205
 #: src/features/notifications/settings/email-verify-step.tsx:125
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:394
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx:488
@@ -816,6 +825,10 @@ msgstr "Deploying smart account…"
 msgid "Deploying the resolver"
 msgstr "Deploying the resolver"
 
+#: src/features/migration/components/SelectNamesStep.tsx:247
+msgid "Deselect all"
+msgstr "Deselect all"
+
 #: src/features/dashboard/components/EducationCarousel.tsx:24
 msgid "Did You Know?"
 msgstr "Did You Know?"
@@ -960,15 +973,15 @@ msgstr "Error loading names"
 
 #. placeholder {0}: estimate.formattedEth
 #. placeholder {1}: estimate.transactionCount
-#: src/features/migration/components/SelectNamesStep.tsx:183
-msgid "Estimated network cost: ~{0} ETH across {1} transactions."
-msgstr "Estimated network cost: ~{0} ETH across {1} transactions."
+#: src/features/migration/components/SelectNamesStep.tsx:65
+msgid "Estimated network fee: <0>~{0} ETH</0> across <1>{1} transactions</1>.<2/>Final fee confirmed in your wallet."
+msgstr "Estimated network fee: <0>~{0} ETH</0> across <1>{1} transactions</1>.<2/>Final fee confirmed in your wallet."
 
-#: src/features/migration/components/SelectNamesStep.tsx:177
+#: src/features/migration/components/SelectNamesStep.tsx:60
 msgid "Estimating migration gas..."
 msgstr "Estimating migration gas..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:213
+#: src/features/migration/components/SelectNamesStep.tsx:97
 msgid "Estimating..."
 msgstr "Estimating..."
 
@@ -1127,7 +1140,7 @@ msgstr "Funding wallet"
 msgid "Funding wallet {address} with mock USDC & DAI tokens"
 msgstr "Funding wallet {address} with mock USDC & DAI tokens"
 
-#: src/features/migration/components/SelectNamesStep.tsx:192
+#: src/features/migration/components/SelectNamesStep.tsx:82
 msgid "Gas estimate unavailable"
 msgstr "Gas estimate unavailable"
 
@@ -1356,7 +1369,7 @@ msgstr "Mark all as read"
 msgid "Marking..."
 msgstr "Marking..."
 
-#: src/features/migration/pages/MigrationPage.tsx:176
+#: src/features/migration/pages/MigrationPage.tsx:181
 msgid "Migration failed"
 msgstr "Migration failed"
 
@@ -1461,7 +1474,7 @@ msgstr "No coins found"
 msgid "No default payment method set."
 msgstr "No default payment method set."
 
-#: src/features/migration/components/SelectNamesStep.tsx:96
+#: src/features/migration/components/SelectNamesStep.tsx:276
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
@@ -1483,7 +1496,7 @@ msgstr "No more records to add"
 msgid "No names found"
 msgstr "No names found"
 
-#: src/features/migration/components/SelectNamesStep.tsx:93
+#: src/features/migration/components/SelectNamesStep.tsx:273
 msgid "No names match your search"
 msgstr "No names match your search"
 
@@ -2011,7 +2024,7 @@ msgstr "Restoring records batch {0} of {total}"
 msgid "Restoring your records"
 msgstr "Restoring your records"
 
-#: src/features/migration/pages/MigrationPage.tsx:207
+#: src/features/migration/pages/MigrationPage.tsx:212
 msgid "Retry"
 msgstr "Retry"
 
@@ -2089,8 +2102,8 @@ msgstr "Search my names"
 msgid "Search name, address..."
 msgstr "Search name, address..."
 
-#: src/features/migration/components/SelectNamesStep.tsx:68
-#: src/features/migration/components/SelectNamesStep.tsx:72
+#: src/features/migration/components/SelectNamesStep.tsx:184
+#: src/features/migration/components/SelectNamesStep.tsx:188
 msgid "Search names"
 msgstr "Search names"
 
@@ -2115,6 +2128,10 @@ msgstr "Select {0}"
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:101
 msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
+
+#: src/features/migration/components/SelectNamesStep.tsx:249
+msgid "Select all"
+msgstr "Select all"
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:241
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:438
@@ -2315,7 +2332,7 @@ msgstr "Start typing to check if your perfect name is available"
 msgid "Starter"
 msgstr "Starter"
 
-#: src/features/migration/components/SelectNamesStep.tsx:215
+#: src/features/migration/components/SelectNamesStep.tsx:98
 msgid "Starting..."
 msgstr "Starting..."
 
@@ -2451,7 +2468,7 @@ msgid "This page can only verify your email when opened from the link in the ver
 msgstr "This page can only verify your email when opened from the link in the verification email."
 
 #. placeholder {0}: Math.ceil(totalSelected / 100)
-#: src/features/migration/components/SelectNamesStep.tsx:199
+#: src/features/migration/components/SelectNamesStep.tsx:339
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 
@@ -2537,7 +2554,14 @@ msgstr "Unread only"
 msgid "Upgrade {0} first."
 msgstr "Upgrade {0} first."
 
-#: src/features/migration/components/SelectNamesStep.tsx:217
+#: src/features/migration/components/SelectNamesStep.tsx:309
+#~ msgid "Upgrade {totalSelected} names"
+#~ msgstr "Upgrade {totalSelected} names"
+
+#: src/features/migration/components/SelectNamesStep.tsx:362
+msgid "Upgrade all names to receive NFT"
+msgstr "Upgrade all names to receive NFT"
+
 #: src/features/migration/components/UpgradeNamesButton.tsx:26
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
@@ -2953,9 +2977,13 @@ msgstr "Your name is in grace period"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
-#: src/features/migration/components/SelectNamesStep.tsx:61
+#: src/features/migration/components/SelectNamesStep.tsx:176
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
+
+#: src/features/migration/components/SelectNamesStep.tsx:220
+msgid "Your names, text records, and addresses will migrate automatically"
+msgstr "Your names, text records, and addresses will migrate automatically"
 
 #: src/features/grace/components/GracePeriodBanner.tsx:51
 msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
@@ -2976,10 +3004,6 @@ msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:23
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
-
-#: src/features/migration/components/SelectNamesStep.tsx:167
-msgid "Your text records and addresses will be migrated automatically."
-msgstr "Your text records and addresses will be migrated automatically."
 
 #: src/routes/wallet.tsx:285
 msgid "Your wallet is successfully connected to the application"
