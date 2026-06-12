@@ -122,7 +122,7 @@ export const RegisterNameCheckoutSummary = ({
         </Alert>
       )}
       <section
-        className="border border-border rounded-xl p-5"
+        className="border border-border rounded-xl p-6"
         aria-label="Checkout summary"
       >
         {match({ isLoading, isError, hasPrice })
