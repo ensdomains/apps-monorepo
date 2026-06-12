@@ -431,11 +431,11 @@ msgstr ""
 msgid "Buy Name"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:58
+#: src/features/dashboard/components/FaqSection.tsx:59
 msgid "Can I change my primary name later?"
 msgstr "Kan jag byta mitt primära namn senare?"
 
-#: src/features/dashboard/components/FaqSection.tsx:27
+#: src/features/dashboard/components/FaqSection.tsx:28
 msgid "Can I send crypto to a .eth name (instead of an address)?"
 msgstr "Kan jag skicka krypto till ett .eth-namn (i stället för en adress)?"
 
@@ -833,7 +833,7 @@ msgstr ""
 msgid "Disconnect Wallet"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:14
+#: src/features/dashboard/components/FaqSection.tsx:15
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr ""
 
@@ -914,6 +914,10 @@ msgstr ""
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:56
 msgid "ENS names can be up to 255 characters"
 msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx:96
+msgid "ENS Support Docs"
+msgstr "ENS Support Docs"
 
 #: src/features/migration/components/MigrationModal.tsx:45
 msgid "ENS v2 Names"
@@ -1112,7 +1116,7 @@ msgstr ""
 msgid "for"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:83
+#: src/features/dashboard/components/FaqSection.tsx:84
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
 
@@ -1143,10 +1147,6 @@ msgstr ""
 #: src/features/notifications/settings/preferences.tsx:131
 msgid "Get notified when names you favorited expire."
 msgstr ""
-
-#: src/features/dashboard/components/FaqSection.tsx:92
-msgid "Get support"
-msgstr "Få support"
 
 #: src/features/notifications/settings/preferences.tsx:116
 msgid "Get updated on the latest releases and features."
@@ -1193,11 +1193,11 @@ msgstr ""
 msgid "Grace period"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:68
+#: src/features/dashboard/components/FaqSection.tsx:69
 msgid "How can I secure my ENS name?"
 msgstr "Hur kan jag säkra mitt ENS-namn?"
 
-#: src/features/dashboard/components/FaqSection.tsx:48
+#: src/features/dashboard/components/FaqSection.tsx:49
 msgid "How do I show my .eth name instead of my address?"
 msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 
@@ -1246,7 +1246,7 @@ msgstr ""
 msgid "Join the community"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:70
+#: src/features/dashboard/components/FaqSection.tsx:71
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
 
@@ -2149,7 +2149,7 @@ msgstr ""
 msgid "Set as Primary"
 msgstr "Ange som primärt"
 
-#: src/features/dashboard/components/FaqSection.tsx:50
+#: src/features/dashboard/components/FaqSection.tsx:51
 msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
 msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida i ENS-appen."
 
@@ -2564,7 +2564,7 @@ msgstr ""
 msgid "Upgrading batch {0} of {total} ({count} name(s))"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:17
+#: src/features/dashboard/components/FaqSection.tsx:18
 msgid "Upgrading is optional. Your existing names keep working as they do today. Upgrading unlocks the latest features and lower fees, and you can do it whenever you're ready."
 msgstr ""
 
@@ -2817,7 +2817,7 @@ msgstr ""
 msgid "What additional fee would you pay?"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:38
+#: src/features/dashboard/components/FaqSection.tsx:39
 msgid "What is a primary name?"
 msgstr ""
 
@@ -2843,11 +2843,11 @@ msgstr ""
 msgid "years"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:30
+#: src/features/dashboard/components/FaqSection.tsx:31
 msgid "Yes. Type alice.eth in the 'send to' field instead of 0x74...2d35 - the app looks up the address automatically."
 msgstr "Ja. Skriv alice.eth i fältet 'skicka till' i stället för 0x74...2d35 – appen slår upp adressen automatiskt."
 
-#: src/features/dashboard/components/FaqSection.tsx:60
+#: src/features/dashboard/components/FaqSection.tsx:61
 msgid "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
@@ -2970,7 +2970,7 @@ msgstr ""
 msgid "Your primary name has expired."
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:40
+#: src/features/dashboard/components/FaqSection.tsx:41
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr ""
 

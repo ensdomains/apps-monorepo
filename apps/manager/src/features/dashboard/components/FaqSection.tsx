@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { ArrowRight, CircleArrowDown } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Collapsible,
   CollapsibleContent,
@@ -82,17 +83,20 @@ export const FaqSection = () => (
       <h2 className="text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
         <Trans>Frequently Asked Questions</Trans>
       </h2>
-      <a
-        className="flex items-center gap-[4.92px] text-ens-blue hover:text-ens-blue-hover"
-        href="https://support.ens.domains"
-        rel="noopener noreferrer"
-        target="_blank"
+      <Button
+        asChild
+        className="h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue uppercase leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover md:text-sm md:leading-[1.8]"
+        variant="link"
       >
-        <span className="font-sans text-[13px] leading-[1.6] md:text-sm md:leading-[1.8]">
-          <Trans>Get support</Trans>
-        </span>
-        <ArrowRight className="size-[7px] md:size-2" strokeWidth={2} />
-      </a>
+        <a
+          href="https://support.ens.domains"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <Trans>ENS Support Docs</Trans>
+          <ArrowRight className="size-[7px] md:size-2" strokeWidth={2} />
+        </a>
+      </Button>
     </div>
     <div className="flex flex-col">
       {faqItems.map(({ id, question, answer }) => (
