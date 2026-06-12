@@ -132,6 +132,10 @@ export const MigrationPage = () => {
     [uiActor],
   )
 
+  const handleBack = useCallback(() => {
+    navigate({ to: '/dashboard' })
+  }, [navigate])
+
   const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !wagmiWalletClient?.account) return false
     if (gasEstimate.status !== 'ready') return false
@@ -158,13 +162,14 @@ export const MigrationPage = () => {
   }, [ownerAddress, wagmiWalletClient, gasEstimate, uiActor])
 
   return (
-    <div className="relative h-[calc(100dvh-80px)] overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200">
+    <div className="relative h-[calc(100dvh-80px)] overflow-hidden">
       <GrainOverlay />
 
       {match(step)
         .with('select', () => (
           <SelectNamesStep
             gasEstimate={gasEstimate}
+            onBack={handleBack}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
           />

@@ -1,6 +1,15 @@
 import type { ClassifiedName } from '../service/classifyNames'
 import type { NameGroup } from '../service/groupByParent'
 
+export const BULK_SELECTION_THRESHOLD = 15
+export const NAME_SEARCH_THRESHOLD = 9
+
+export const shouldShowBulkSelection = (eligibleCount: number): boolean =>
+  eligibleCount >= BULK_SELECTION_THRESHOLD
+
+export const shouldShowNameSearch = (eligibleCount: number): boolean =>
+  eligibleCount >= NAME_SEARCH_THRESHOLD
+
 export const collectAllSelectable = (
   groups: readonly NameGroup[],
   orphans: readonly ClassifiedName[],

@@ -7,6 +7,8 @@ import {
   countVisibleRows,
   filterGroupsBySearch,
   filterOrphansBySearch,
+  shouldShowBulkSelection,
+  shouldShowNameSearch,
   toggleGroup,
   toggleName,
 } from './selectNames.helpers'
@@ -120,5 +122,26 @@ describe('countVisibleRows', () => {
 
   it('is zero for no input', () => {
     expect(countVisibleRows([], [])).toBe(0)
+  })
+})
+
+describe('shouldShowBulkSelection', () => {
+  it('hides bulk selection below 15 names', () => {
+    expect(shouldShowBulkSelection(14)).toBe(false)
+  })
+
+  it('shows bulk selection at 15 names and above', () => {
+    expect(shouldShowBulkSelection(15)).toBe(true)
+    expect(shouldShowBulkSelection(16)).toBe(true)
+  })
+})
+
+describe('shouldShowNameSearch', () => {
+  it('hides search for 8 names or fewer', () => {
+    expect(shouldShowNameSearch(8)).toBe(false)
+  })
+
+  it('shows search for 9 names and above', () => {
+    expect(shouldShowNameSearch(9)).toBe(true)
   })
 })

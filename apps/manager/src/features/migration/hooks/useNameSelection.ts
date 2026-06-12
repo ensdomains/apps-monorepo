@@ -67,15 +67,28 @@ export const useNameSelection = ({
     [onNamesChange],
   )
 
+  const toggleAll = useCallback(() => {
+    setSelected((prev) => {
+      const all = collectAllSelectable(groups, orphans)
+      const next = prev.size === all.size ? new Set<string>() : all
+      onNamesChange([...next])
+      return next
+    })
+  }, [groups, orphans, onNamesChange])
+
+  const allSelectableCount = countVisibleRows(groups, orphans)
+
   return {
     search,
     setSearch,
     selected,
     totalSelected: selected.size,
-    visibleCount: countVisibleRows(groups, orphans),
+    visibleCount: allSelectableCount,
+    allSelected: allSelectableCount > 0 && selected.size === allSelectableCount,
     filteredGroups,
     filteredOrphans,
     toggleName,
     toggleGroup,
+    toggleAll,
   }
 }

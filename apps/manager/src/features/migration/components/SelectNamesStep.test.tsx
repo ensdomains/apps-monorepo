@@ -34,6 +34,12 @@ const eligibleFixture: readonly ClassifiedName[] = [
   makeName('sub1234.eth', 'unwrapped'),
   makeName('gm.sub1234.eth', 'locked-child'),
   makeName('sub123.eth', 'unwrapped'),
+  makeName('one.eth', 'unwrapped'),
+  makeName('two.eth', 'unwrapped'),
+  makeName('three.eth', 'unwrapped'),
+  makeName('four.eth', 'unwrapped'),
+  makeName('five.eth', 'unwrapped'),
+  makeName('six.eth', 'unwrapped'),
 ]
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
@@ -63,6 +69,7 @@ const renderStep = ({
   const utils = render(
     <SelectNamesStep
       gasEstimate={gasEstimate}
+      onBack={vi.fn()}
       onNamesChange={onNamesChange}
       onNext={onNext}
     />,
@@ -78,7 +85,7 @@ describe('SelectNamesStep', () => {
     expect(getByText('sub123.eth')).toBeInTheDocument()
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect([...lastCall].sort()).toEqual(
-      ['gm.sub1234.eth', 'sub123.eth', 'sub1234.eth'].sort(),
+      eligibleFixture.map((item) => item.domain.name).sort(),
     )
   })
 
@@ -129,12 +136,14 @@ describe('SelectNamesStep', () => {
       onNext,
     })
 
-    const button = getByRole('button', { name: 'Upgrade Names' })
+    const button = getByRole('button', { name: 'Upgrade 9 names' })
     fireEvent.click(button)
 
     await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
     await waitFor(() => {
-      expect(getByRole('button', { name: 'Upgrade Names' })).not.toBeDisabled()
+      expect(
+        getByRole('button', { name: 'Upgrade 9 names' }),
+      ).not.toBeDisabled()
     })
   })
 })

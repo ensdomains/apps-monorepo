@@ -39,7 +39,7 @@ export const NameRow = ({
       ) : (
         <div
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-sm border p-1 transition-colors',
+            'flex size-7 shrink-0 items-center justify-center rounded-full border p-1 transition-colors',
             isSelected
               ? 'border-ens-garnet-900 bg-ens-garnet-900'
               : 'border-ens-garnet-900/30 bg-transparent',
@@ -56,7 +56,7 @@ export const NameRow = ({
           />
         </div>
       )}
-      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-ens-garnet-900/10">
+      <div className="relative z-10 flex size-[37px] shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-ens-garnet-900/10">
         <span className="font-semi-mono text-ens-garnet-900 text-xs">
           {item.domain.labelName?.[0]?.toUpperCase() ?? '?'}
         </span>
@@ -64,13 +64,20 @@ export const NameRow = ({
           <img
             alt=""
             aria-hidden
-            className="absolute inset-0 size-full object-cover"
+            className="absolute inset-0 size-full rounded-[4px] object-cover"
             onError={() => setFailedAvatarUrl(avatarUrl)}
             src={avatarUrl}
           />
         )}
       </div>
-      <div className="rounded-xs border border-ens-quartz-500/40 bg-white px-2 py-1 font-medium font-semi-mono text-base text-ens-quartz-500 leading-[0.96] tracking-[-0.32px]">
+      <div
+        className={cn(
+          'flex h-[37px] items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
+          isSelected
+            ? 'border-ens-quartz-500/40 text-ens-quartz-500'
+            : 'border-ens-lapis-500 text-ens-lapis-500',
+        )}
+      >
         {item.domain.name}
       </div>
     </>
