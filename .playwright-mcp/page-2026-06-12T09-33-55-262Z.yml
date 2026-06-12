@@ -1,0 +1,220 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - navigation [ref=e4]:
+        - generic [ref=e5]:
+          - button "Open navigation" [ref=e6] [cursor=pointer]:
+            - link "ENS Logo" [ref=e7]:
+              - /url: /
+              - img "ENS Logo" [ref=e8]
+            - generic [ref=e10]: arrow_drop_down
+          - button [ref=e11] [cursor=pointer]:
+            - group [ref=e12]:
+              - generic [ref=e13]: search
+            - textbox "Search for a name or address" [ref=e14]:
+              - /placeholder: Search name, address...
+        - button "Connect login" [ref=e16] [cursor=pointer]:
+          - text: Connect
+          - generic: login
+      - main [ref=e17]:
+        - alert [ref=e19]:
+          - generic [ref=e20]: "Notice: ENS v2 is in active development. Registered names on Sepolia and state data may be reset periodically due to routine contract deployments. The most recent deployment was on May 26, 2026."
+        - generic [ref=e21]:
+          - generic [ref=e22]:
+            - heading "Claim your web3 username" [level=1] [ref=e23]:
+              - text: Claim your
+              - text: web3 username
+            - paragraph [ref=e24]: A simple, portable identity that you control
+            - generic [ref=e26]:
+              - generic [ref=e28]:
+                - textbox ".eth" [ref=e29]
+                - img [ref=e30]
+              - paragraph [ref=e33]: Start typing to check if your perfect name is available 🕵️‍♀️
+          - generic [ref=e35]:
+            - generic [ref=e36]:
+              - generic [ref=e37]:
+                - generic [ref=e38]:
+                  - heading "One username everywhere" [level=2] [ref=e39]:
+                    - text: One username
+                    - text: everywhere
+                  - paragraph [ref=e40]: Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your .eth name and your ENS profile will load automatically.
+                - generic [ref=e41]:
+                  - img "card-1-2"
+                  - img "card-1-1"
+                  - img "card-1-3"
+              - generic [ref=e45]:
+                - generic [ref=e46]:
+                  - heading "Verify authenticity and stay safe." [level=2] [ref=e47]
+                  - paragraph [ref=e48]: Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3.
+                - generic [ref=e53]:
+                  - generic [ref=e54]:
+                    - generic [ref=e57]: support.company.eth
+                    - generic [ref=e58]:
+                      - generic [ref=e59]: Can you share your order number?
+                      - img [ref=e60]
+                  - generic [ref=e62]:
+                    - generic [ref=e65]: you.eth
+                    - generic [ref=e66]:
+                      - generic [ref=e67]:
+                        - text: No problem. I just checked your
+                        - text: ENS profile, you're legit! It's HGJLY ☺️
+                      - img [ref=e68]
+              - generic [ref=e70]:
+                - generic [ref=e71]:
+                  - heading "A simpler way to get paid." [level=2] [ref=e72]:
+                    - text: A simpler way to
+                    - text: get paid.
+                  - paragraph [ref=e73]: Your ENS name replaces your wallet addresses so friends and clients can send money to friend.eth instead of a confusing jumble of letters and numbers.
+                - generic [ref=e74]:
+                  - generic [ref=e79]:
+                    - generic [ref=e80]: "0x0b08dA7068b73A579Bd5E8a8290f"
+                    - generic [ref=e81]: 🫣
+                    - generic [ref=e82]: 🫷
+                  - generic [ref=e84]:
+                    - generic [ref=e90]: friend.eth
+                    - generic [ref=e91]: 😌
+                    - generic [ref=e92]: 🫶
+            - generic [ref=e93]:
+              - button "Previous slide" [ref=e94] [cursor=pointer]:
+                - img [ref=e95]
+              - generic [ref=e97]:
+                - button "Go to slide 1" [ref=e98] [cursor=pointer]
+                - button "Go to slide 2" [ref=e99] [cursor=pointer]
+                - button "Go to slide 3" [ref=e100] [cursor=pointer]
+              - button "Next slide" [ref=e101] [cursor=pointer]:
+                - img [ref=e102]
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - heading "Customize your profile to share what matters" [level=2] [ref=e107]
+              - paragraph [ref=e108]: Your ENS name is your onchain identity. Personalize it with an avatar, a banner, and the links that matter most. Showcase your work, connect your socials, and make it easy for anyone to verify and follow you across the web.
+            - generic [ref=e109]:
+              - generic [ref=e110]:
+                - img "vitalik.eth" [ref=e112]
+                - generic [ref=e113]:
+                  - paragraph [ref=e114]: vitalik.eth
+                  - paragraph [ref=e115]:
+                    - generic [ref=e116]:
+                      - img [ref=e117]
+                      - text: Registered
+                    - generic [ref=e119]: February 6, 2020
+                  - paragraph [ref=e120]: mi pinxe lo crino tcati
+                  - paragraph [ref=e122]: links
+                  - generic [ref=e123]:
+                    - link "@VitalikButerin" [ref=e124] [cursor=pointer]:
+                      - /url: https://x.com/vitalikbuterin
+                      - img [ref=e126]
+                      - generic [ref=e128]: "@VitalikButerin"
+                    - link "vButerin" [ref=e129] [cursor=pointer]:
+                      - /url: https://github.com/vbuterin
+                      - img [ref=e131]
+                      - generic [ref=e134]: vButerin
+                    - link "vitalik.eth.limo" [ref=e135] [cursor=pointer]:
+                      - /url: https://vitalik.eth.limo
+                      - img [ref=e137]
+                      - generic [ref=e140]: vitalik.eth.limo
+              - generic [ref=e141]:
+                - img "nick.eth" [ref=e143]
+                - generic [ref=e144]:
+                  - paragraph [ref=e145]: nick.eth
+                  - paragraph [ref=e146]:
+                    - generic [ref=e147]:
+                      - img [ref=e148]
+                      - text: Registered
+                    - generic [ref=e150]: February 4, 2020
+                  - paragraph [ref=e151]: Lead developer of ENS & Ethereum Foundation alum. Certified rat tickler. he/him.
+                  - paragraph [ref=e153]: links
+                  - generic [ref=e154]:
+                    - link "@nicksdjohnson" [ref=e155] [cursor=pointer]:
+                      - /url: https://x.com/nicksdjohnson
+                      - img [ref=e157]
+                      - generic [ref=e159]: "@nicksdjohnson"
+                    - link "arachnid" [ref=e160] [cursor=pointer]:
+                      - /url: https://github.com/arachnid
+                      - img [ref=e162]
+                      - generic [ref=e165]: arachnid
+                    - link "arachnied@notdot" [ref=e166] [cursor=pointer]:
+                      - /url: mailto:arachnied@notdot
+                      - img [ref=e168]
+                      - generic [ref=e171]: arachnied@notdot
+              - generic [ref=e172]:
+                - img "erni.eth" [ref=e174]
+                - generic [ref=e175]:
+                  - paragraph [ref=e176]: erni.eth
+                  - paragraph [ref=e177]:
+                    - generic [ref=e178]:
+                      - img [ref=e179]
+                      - text: Registered
+                    - generic [ref=e181]: August 28, 2024
+                  - paragraph [ref=e182]: A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers.
+                  - paragraph [ref=e184]: links
+                  - generic [ref=e185]:
+                    - link "@erni_eth" [ref=e186] [cursor=pointer]:
+                      - /url: https://x.com/erni_eth
+                      - img [ref=e188]
+                      - generic [ref=e190]: "@erni_eth"
+                    - link "myemail.me.com" [ref=e191] [cursor=pointer]:
+                      - /url: mailto:myemail.me.com
+                      - img [ref=e193]
+                      - generic [ref=e196]: myemail.me.com
+          - generic [ref=e198]:
+            - generic [ref=e199]:
+              - heading "Your ENS name works across web3" [level=2] [ref=e200]
+              - paragraph [ref=e201]: Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required.
+            - generic [ref=e202]:
+              - generic [ref=e203]:
+                - img "Base" [ref=e204]
+                - generic [ref=e205]: Base
+              - generic [ref=e206]:
+                - img "Optimism" [ref=e207]
+                - generic [ref=e208]: Optimism
+              - generic [ref=e209]:
+                - img "GoDaddy" [ref=e210]
+                - generic [ref=e211]: GoDaddy
+              - generic [ref=e212]:
+                - img "Farcaster" [ref=e213]
+                - generic [ref=e214]: Farcaster
+              - generic [ref=e215]:
+                - img "Uniswap" [ref=e216]
+                - generic [ref=e217]: Uniswap
+              - generic [ref=e218]:
+                - img "Brave" [ref=e219]
+                - generic [ref=e220]: Brave
+              - generic [ref=e221]:
+                - img "Phantom" [ref=e222]
+                - generic [ref=e223]: Phantom
+              - generic [ref=e224]:
+                - img "Ethereum" [ref=e225]
+                - generic [ref=e226]: Ethereum
+              - generic [ref=e227]:
+                - img "Etherscan" [ref=e228]
+                - generic [ref=e229]: Etherscan
+              - generic [ref=e230]:
+                - img "Arbitrum" [ref=e231]
+                - generic [ref=e232]: Arbitrum
+              - generic [ref=e233]:
+                - img "ZKSync" [ref=e234]
+                - generic [ref=e235]: ZKSync
+              - generic [ref=e236]:
+                - img "Bitcoin" [ref=e237]
+                - generic [ref=e238]: Bitcoin
+              - generic [ref=e239]:
+                - img "Consensys" [ref=e240]
+                - generic [ref=e241]: Consensys
+              - generic [ref=e242]:
+                - img "MetaMask" [ref=e243]
+                - generic [ref=e244]: MetaMask
+              - generic [ref=e245]:
+                - img "Rainbow" [ref=e246]
+                - generic [ref=e247]: Rainbow
+    - region "Notifications alt+T"
+  - generic:
+    - contentinfo:
+      - button "Open TanStack Router Devtools" [ref=e248] [cursor=pointer]:
+        - generic [ref=e249]:
+          - img [ref=e251]
+          - img [ref=e286]
+        - generic [ref=e320]: "-"
+        - generic [ref=e321]: TanStack Router
+  - iframe [ref=e322]:
+    
+  - button "Feedback" [ref=e323] [cursor=pointer]
