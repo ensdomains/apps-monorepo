@@ -300,7 +300,7 @@ test.describe('ENS profile', () => {
         console.log(`[profile] name for extend-owned test: ${name}`)
 
         await goToProfile(page, name)
-        await page.getByRole('link', { name: /Renew/i }).click()
+        await page.getByRole('link', { name: /renew/i }).click()
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
@@ -326,7 +326,7 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(3_000)
 
-        await page.getByRole('link', { name: /Renew/i }).click()
+        await page.getByRole('link', { name: /renew/i }).click()
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
