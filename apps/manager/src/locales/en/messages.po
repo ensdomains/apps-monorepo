@@ -2509,10 +2509,6 @@ msgstr "Unread only"
 msgid "Upgrade {0} first."
 msgstr "Upgrade {0} first."
 
-#: src/features/migration/components/SelectNamesStep.tsx
-#~ msgid "Upgrade {totalSelected} names"
-#~ msgstr "Upgrade {totalSelected} names"
-
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Upgrade all names to receive NFT"
 msgstr "Upgrade all names to receive NFT"

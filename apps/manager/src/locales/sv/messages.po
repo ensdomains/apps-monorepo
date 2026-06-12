@@ -2514,10 +2514,6 @@ msgstr ""
 msgid "Upgrade {0} first."
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx
-#~ msgid "Upgrade {totalSelected} names"
-#~ msgstr ""
-
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Upgrade all names to receive NFT"
 msgstr ""
