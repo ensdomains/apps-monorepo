@@ -52,7 +52,7 @@ export const RegistrationDurationPicker = ({
     onChange(capped)
   }
 
-  const label = value === 1 ? '1 year' : `${value} years`
+  const label = value === 1 ? '1.00 year' : `${value.toFixed(2)} years`
 
   return (
     <div className="space-y-5">
