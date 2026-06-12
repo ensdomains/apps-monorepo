@@ -4,11 +4,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
-type HeaderProps = {
-  readonly transparentBackground?: boolean
-}
-
-export const Header = ({ transparentBackground = false }: HeaderProps) => {
+export const Header = () => {
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
@@ -28,7 +24,6 @@ export const Header = ({ transparentBackground = false }: HeaderProps) => {
       <MobileHeader
         connectionSettled={connectionSettled}
         isConnected={isConnected}
-        transparentBackground={transparentBackground}
       />
     )
   }

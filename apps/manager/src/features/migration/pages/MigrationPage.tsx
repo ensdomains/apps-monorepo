@@ -162,7 +162,7 @@ export const MigrationPage = () => {
   }, [ownerAddress, wagmiWalletClient, gasEstimate, uiActor])
 
   return (
-    <div className="relative h-[calc(100dvh-80px)] overflow-hidden">
+    <div className="relative h-[calc(100dvh-54px)] overflow-hidden md:h-[calc(100dvh-80px)]">
       <GrainOverlay />
 
       {match(step)

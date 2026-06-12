@@ -95,7 +95,7 @@ export const SelectNamesStep = ({
   return (
     <div className="relative z-10 flex h-full flex-col">
       <button
-        className="absolute top-6 left-4 flex items-center gap-1 font-normal text-base text-ens-lapis-900 uppercase leading-[18px] tracking-[1.92px] transition-opacity hover:opacity-70 md:left-8"
+        className="relative mt-4 ml-5 flex shrink-0 items-center gap-1 self-start font-normal text-ens-lapis-900 text-sm uppercase leading-[18px] tracking-[1.68px] transition-opacity hover:opacity-70 md:absolute md:top-6 md:left-8 md:mt-0 md:ml-0 md:text-base md:tracking-[1.92px]"
         onClick={onBack}
         type="button"
       >
@@ -103,19 +103,19 @@ export const SelectNamesStep = ({
         <Trans>Back</Trans>
       </button>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center px-5 pt-11 pb-5">
-        <div className="flex min-h-0 w-full max-w-[860px] flex-1 flex-col items-center gap-7">
-          <h1 className="w-full shrink-0 text-center text-[36px] text-ens-garnet-900 leading-[1.1] tracking-[-0.72px]">
+      <div className="flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pt-11 md:pb-5">
+        <div className="flex min-h-0 w-full max-w-[860px] flex-1 flex-col items-center gap-6 md:gap-7">
+          <h1 className="w-full shrink-0 text-left text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px] md:text-center md:text-[36px] md:tracking-[-0.72px]">
             <Trans>Your names are ready to upgrade</Trans>
           </h1>
 
           <div className="flex min-h-0 w-full max-w-[756px] flex-1 flex-col gap-4">
             {showNameSearch && (
-              <div className="flex h-[42px] shrink-0 items-center gap-3 rounded-[20px] bg-white/40 px-4 py-1.5">
+              <div className="flex h-8 shrink-0 items-center gap-[13px] rounded-[30px] bg-white/80 px-[6.5px] py-1.5 md:h-[42px] md:gap-3 md:rounded-[20px] md:bg-white/40 md:px-4">
                 <Search className="size-5 shrink-0 text-ens-garnet-900/40" />
                 <input
                   aria-label={t`Search names`}
-                  className="flex-1 bg-transparent text-base text-ens-garnet-900 leading-[0.96] tracking-[-0.32px] placeholder:text-ens-garnet-900/40 focus:outline-none"
+                  className="flex-1 bg-transparent text-ens-garnet-900 text-sm leading-[0.96] tracking-[-0.28px] placeholder:text-ens-garnet-900/40 focus:outline-none md:text-base md:tracking-[-0.32px]"
                   disabled={isPending}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t`Search names`}
@@ -125,17 +125,26 @@ export const SelectNamesStep = ({
               </div>
             )}
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] bg-[rgba(254,234,240,0.72)] p-8">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-none bg-transparent p-0 md:rounded-[20px] md:bg-[rgba(254,234,240,0.72)] md:p-8">
               <div className="flex shrink-0 flex-col gap-2">
-                <p className="text-base text-ens-garnet-900 leading-[1.2] tracking-[0.16px]">
-                  <SelectedCountLabel
-                    allSelected={allSelected}
-                    totalSelected={totalSelected}
-                    visibleCount={visibleCount}
+                <div className="flex items-center gap-2 text-ens-garnet-900 text-sm leading-[1.2] tracking-[0.14px] md:text-base md:tracking-[0.16px]">
+                  <Check
+                    className="size-5 shrink-0 md:hidden"
+                    strokeWidth={1.8}
                   />
-                </p>
-                <p className="flex items-center gap-1 text-ens-garnet-900/75 text-sm leading-[0.96] tracking-[-0.28px]">
-                  <Info className="size-3.5 shrink-0" strokeWidth={1.8} />
+                  <p>
+                    <SelectedCountLabel
+                      allSelected={allSelected}
+                      totalSelected={totalSelected}
+                      visibleCount={visibleCount}
+                    />
+                  </p>
+                </div>
+                <p className="flex items-start gap-1 text-ens-garnet-900/70 text-xs leading-normal tracking-[-0.24px] md:items-center md:text-sm md:leading-[0.96] md:tracking-[-0.28px]">
+                  <Info
+                    className="mt-0.5 size-3.5 shrink-0 md:mt-0"
+                    strokeWidth={1.8}
+                  />
                   <Trans>
                     Your names, text records, and addresses will migrate
                     automatically
@@ -146,7 +155,7 @@ export const SelectNamesStep = ({
               {showBulkSelection && (
                 <button
                   aria-pressed={allSelected}
-                  className="mt-3 flex shrink-0 items-center gap-2 self-start text-base text-ens-garnet-900 leading-[1.2] tracking-[0.16px]"
+                  className="mt-4 flex shrink-0 items-center gap-2 self-start text-ens-garnet-900 text-sm leading-[1.2] tracking-[0.14px] md:mt-3 md:text-base md:tracking-[0.16px]"
                   disabled={isPending}
                   onClick={toggleAll}
                   type="button"
@@ -177,7 +186,7 @@ export const SelectNamesStep = ({
                 </button>
               )}
 
-              <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-3 [scrollbar-color:#f2b9d0_rgba(250,249,247,0.6)] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#f2b9d0] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[rgba(250,249,247,0.6)] [&::-webkit-scrollbar]:w-2">
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-3 [scrollbar-color:#f2b9d0_rgba(250,249,247,0.45)] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#f2b9d0] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-[rgba(250,249,247,0.45)] [&::-webkit-scrollbar]:w-2">
                 <div className="flex flex-col gap-4">
                   {match({
                     isPending,
@@ -249,8 +258,8 @@ export const SelectNamesStep = ({
         </div>
       </div>
 
-      <div className="flex min-h-[115px] shrink-0 flex-col items-center justify-between gap-4 bg-[rgba(251,249,250,0.3)] px-8 py-8 sm:flex-row lg:px-[150px]">
-        <div className="flex max-w-[430px] flex-col gap-1 text-ens-garnet-900/75 text-sm leading-[1.2] tracking-[-0.28px]">
+      <div className="flex min-h-[144px] shrink-0 flex-col items-stretch justify-start gap-4 bg-[rgba(251,249,250,0.3)] px-5 pt-4 pb-14 sm:min-h-[115px] sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-[150px]">
+        <div className="flex max-w-[430px] flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
           {totalSelected > 0
             ? match(gasEstimate)
                 .with({ status: 'loading' }, () => (

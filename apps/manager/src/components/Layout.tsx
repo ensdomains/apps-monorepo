@@ -22,7 +22,7 @@ export const Layout = ({ children }: LayoutProps) => {
           'bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200',
       )}
     >
-      <Header transparentBackground={isMigrationPage} />
+      <Header />
 
       <main className="relative isolate flex flex-1 flex-col">
         {showSepoliaBanner && <SepoliaNoticeBanner />}
