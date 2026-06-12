@@ -163,7 +163,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   }
 
   return (
-    <main className="flex-1 mx-auto w-full max-w-xl px-4 py-8 flex flex-col gap-8">
+    <main className="flex-1 mx-auto w-full max-w-xl px-4 py-8 flex flex-col gap-4">
       {isSuccess && isPriceResult(price) ? (
         <RegistrationSuccess
           domainName={name}
