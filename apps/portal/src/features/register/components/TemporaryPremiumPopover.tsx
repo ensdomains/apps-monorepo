@@ -31,6 +31,31 @@ import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 const GEOMETRY: ChartGeometry = { width: 240, height: 120, padding: 6 }
 const CURVE_SAMPLES = 96
 
+/**
+ * Returns refs for the label row and its labels, and synchronously positions
+ * each label horizontally centred under the dot at `dotX` (in chart units),
+ * clamped to the row's bounds. Runs in a layout effect so the labels never
+ * flash in the wrong place.
+ */
+const useCenterLabelsUnderDot = (dotX: number) => {
+  const labelRowRef = useRef<HTMLDivElement>(null)
+  const dateRef = useRef<HTMLSpanElement>(null)
+  const priceRef = useRef<HTMLSpanElement>(null)
+
+  useLayoutEffect(() => {
+    const row = labelRowRef.current
+    if (!row) return
+    const dotPx = (dotX / GEOMETRY.width) * row.clientWidth
+    for (const ref of [dateRef, priceRef]) {
+      const el = ref.current
+      if (!el) continue
+      el.style.left = `${clamp(dotPx - el.offsetWidth / 2, 0, row.clientWidth - el.offsetWidth)}px`
+    }
+  }, [dotX])
+
+  return { labelRowRef, dateRef, priceRef }
+}
+
 type TemporaryPremiumPopoverProps = {
   readonly trigger: (open: boolean) => ReactNode
   readonly premiumStart: Temporal.Instant
@@ -71,20 +96,7 @@ export const TemporaryPremiumPopover = ({
     GEOMETRY,
   )
 
-  const labelRowRef = useRef<HTMLDivElement>(null)
-  const dateRef = useRef<HTMLSpanElement>(null)
-  const priceRef = useRef<HTMLSpanElement>(null)
-
-  useLayoutEffect(() => {
-    const row = labelRowRef.current
-    if (!row) return
-    const dotPx = (active.x / GEOMETRY.width) * row.clientWidth
-    for (const ref of [dateRef, priceRef]) {
-      const el = ref.current
-      if (!el) continue
-      el.style.left = `${clamp(dotPx - el.offsetWidth / 2, 0, row.clientWidth - el.offsetWidth)}px`
-    }
-  }, [active.x])
+  const { labelRowRef, dateRef, priceRef } = useCenterLabelsUnderDot(active.x)
 
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect()

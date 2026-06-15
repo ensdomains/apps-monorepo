@@ -11,7 +11,8 @@ type PremiumCountdownProps = {
 
 const pad = (value: number) => String(value).padStart(2, '0')
 
-export const PremiumCountdown = ({ end }: PremiumCountdownProps) => {
+/** Tracks the current time in epoch ms, re-rendering once per `intervalMs`. */
+const useNowMs = (intervalMs: number) => {
   const [nowMs, setNowMs] = useState(
     () => Temporal.Now.instant().epochMilliseconds,
   )
@@ -19,10 +20,16 @@ export const PremiumCountdown = ({ end }: PremiumCountdownProps) => {
   useEffect(() => {
     const id = setInterval(
       () => setNowMs(Temporal.Now.instant().epochMilliseconds),
-      1000,
+      intervalMs,
     )
     return () => clearInterval(id)
-  }, [])
+  }, [intervalMs])
+
+  return nowMs
+}
+
+export const PremiumCountdown = ({ end }: PremiumCountdownProps) => {
+  const nowMs = useNowMs(1000)
 
   const totalSeconds = Math.max(
     0,

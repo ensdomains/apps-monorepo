@@ -42,6 +42,14 @@ export const useRegistrationSuccessRedirect = ({
 
     const paid = formatPriceDisplay(price.total, price.decimals)
 
+    const redirectToProfile = () =>
+      navigate({
+        to: '/$name',
+        params: { name },
+        search: { registered: true, duration: durationSeconds, paid },
+        replace: true,
+      })
+
     void fromPromise(
       pollForIndexerSync({
         invalidateQueries: () =>
@@ -61,13 +69,12 @@ export const useRegistrationSuccessRedirect = ({
           ]).then(() => undefined),
       }),
       (error) => error,
-    ).then(() =>
-      navigate({
-        to: '/$name',
-        params: { name },
-        search: { registered: true, duration: durationSeconds, paid },
-        replace: true,
-      }),
+    ).match(
+      // Indexer has (likely) caught up — redirect to the profile.
+      redirectToProfile,
+      // A polling failure shouldn't trap the user on the registration screen;
+      // redirect anyway and let the overview refetch on its own.
+      redirectToProfile,
     )
   }, [isSuccess, price, name, durationSeconds, navigate, queryClient])
 }
