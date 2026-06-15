@@ -103,7 +103,7 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-normal leading-none">
           Registry Contract
         </h1>
-        <div className="flex flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
+        <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
           <EntityBadge variant="default" label="type" className="font-normal">
             PermissionedRegistry
           </EntityBadge>

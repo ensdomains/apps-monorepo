@@ -213,7 +213,7 @@ export const EntityBadge = ({
 
   if (!hasChips) {
     return (
-      <span className={pillClass(variant, className)}>
+      <span className={cn(pillClass(variant, className), 'h-6 rounded')}>
         {labelContent}
         {children}
       </span>
@@ -225,6 +225,7 @@ export const EntityBadge = ({
   // which work with a button + navigate() pattern.
   const primaryWrapperClass =
     'inline-flex items-center gap-2 py-4 px-2 rounded cursor-pointer text-left no-underline'
+
   const renderPrimary = () => {
     if (variant === 'name' && name) {
       return (
