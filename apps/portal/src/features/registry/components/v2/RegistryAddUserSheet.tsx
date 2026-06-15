@@ -1,8 +1,14 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
-import { type FormEvent, useEffect, useState } from 'react'
+import {
+  type ChangeEvent,
+  type FormEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
+import { type Address, isAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError } from '@/components/ui/field'
@@ -14,7 +20,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
-import { useResolvedRoleAccountAddress } from '@/features/roles/hooks/useResolvedRoleAccountAddress'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { wagmiConfig } from '@/lib/wagmi'
@@ -24,7 +30,8 @@ import { getAccountAdminRoles } from '../../utils/registryRoleAccess'
 import { RegistryRolePermissionList } from './RegistryRolePermissionList'
 
 const GRANT_REGISTRY_ROLES_TX_ID = 'tx-grant-registry-roles'
-// Module-level client for the resolver hook — matches /$name/roles/add-user.tsx
+const RESOLVE_DEBOUNCE_MS = 500
+// Module-level client for resolution — matches /$name/roles/add-user.tsx
 // which uses the same wagmi config client outside any hook.
 const client = wagmiConfig.getClient()
 
@@ -63,19 +70,14 @@ export const RegistryAddUserSheet = ({
   // Single validation-error state — the message and which field it belongs to
   // are always set/cleared together.
   const [formError, setFormError] = useState<{
-    field: 'roles' | 'address'
+    field: 'roles'
     message: string
   } | null>(null)
 
-  const {
-    data: address,
-    isFetching: isResolvingAddress,
-    isError: isResolveError,
-    error: resolveError,
-  } = useResolvedRoleAccountAddress({
-    client,
-    nameOrAddress: nameOrAddressInput,
-  })
+  const [address, setAddress] = useState<Address | null>(null)
+  const [isResolvingAddress, setIsResolvingAddress] = useState(false)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRegistryRoles, isPending, isSuccess, reset } =
@@ -86,12 +88,57 @@ export const RegistryAddUserSheet = ({
   // and Save permanently gated.
   useEffect(() => {
     if (open) return
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
     setNameOrAddressInput('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
     setFormError(null)
+    setAddress(null)
+    setIsResolvingAddress(false)
+    setResolveError(null)
     reset()
   }, [open, reset])
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value.trim()
+    setNameOrAddressInput(value)
+    setFormError(null)
+    setResolveError(null)
+
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
+
+    if (isAddress(value)) {
+      setAddress(value)
+      setIsResolvingAddress(false)
+      return
+    }
+
+    if (!value.includes('.')) {
+      setAddress(null)
+      setIsResolvingAddress(false)
+      return
+    }
+
+    setAddress(null)
+    setIsResolvingAddress(true)
+    resolveTimeoutRef.current = setTimeout(async () => {
+      try {
+        const resolved = await resolveAddressOrName({
+          client,
+          nameOrAddress: value,
+        })
+        setAddress(resolved)
+        setIsResolvingAddress(false)
+        if (!resolved) setResolveError(`Could not resolve address for ${value}`)
+      } catch (error) {
+        setAddress(null)
+        setIsResolvingAddress(false)
+        setResolveError(
+          error instanceof Error ? error.message : 'Failed to resolve ENS name',
+        )
+      }
+    }, RESOLVE_DEBOUNCE_MS)
+  }
 
   const toggleRole = (role: Role, checked: boolean) => {
     setSelectedRoles((prev) => {
@@ -104,11 +151,7 @@ export const RegistryAddUserSheet = ({
   }
 
   const canSave =
-    !!address &&
-    !isResolvingAddress &&
-    !isResolveError &&
-    selectedRoles.size > 0 &&
-    !isSuccess
+    !!address && !isResolvingAddress && selectedRoles.size > 0 && !isSuccess
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -122,20 +165,8 @@ export const RegistryAddUserSheet = ({
       })
       return
     }
-    if (isResolvingAddress) {
-      setFormError({
-        field: 'address',
-        message: 'Resolving address... Please wait a moment and try again.',
-      })
-      return
-    }
-    if (isResolveError || !address) {
-      setFormError({
-        field: 'address',
-        message: `Could not resolve an address for "${nameOrAddressInput}". ${resolveError ? `Error: ${resolveError instanceof Error ? resolveError.message : String(resolveError)}` : 'Check the name exists and try again.'}`,
-      })
-      return
-    }
+
+    if (isResolvingAddress || !address) return
 
     setPendingGrant({ account: address, roles })
     openModal()
@@ -172,30 +203,37 @@ export const RegistryAddUserSheet = ({
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field data-invalid={formError?.field === 'address'}>
+            <Field
+              data-invalid={
+                nameOrAddressInput.length > 0 && !isResolvingAddress && !address
+              }
+            >
               <Input
                 id="user"
                 name="user"
                 placeholder="User name or address"
                 required
                 disabled={isPending || isSuccess}
-                aria-invalid={formError?.field === 'address'}
-                onChange={(e) => {
-                  setNameOrAddressInput(e.currentTarget.value.trim())
-                  setFormError(null)
-                }}
+                aria-invalid={
+                  nameOrAddressInput.length > 0 &&
+                  !isResolvingAddress &&
+                  !address
+                }
+                onChange={handleInputChange}
                 className="h-12 bg-background border"
               />
-              {nameOrAddressInput.length > 0 && (
+              {isResolvingAddress && (
                 <p className="text-sm mt-1.5 text-muted-foreground">
-                  {isResolvingAddress && 'Resolving address...'}
-                  {!isResolvingAddress &&
-                    address &&
-                    `Resolved: ${truncateAddress(address, 6, 4)}`}
-                  {!isResolvingAddress &&
-                    !address &&
-                    'Could not resolve address. Check the name exists.'}
+                  Resolving address...
                 </p>
+              )}
+              {!isResolvingAddress && address && (
+                <p className="text-sm mt-1.5 text-muted-foreground">
+                  Resolved: {truncateAddress(address, 6, 4)}
+                </p>
+              )}
+              {!isResolvingAddress && resolveError && (
+                <p className="text-sm mt-1.5 text-danger">{resolveError}</p>
               )}
             </Field>
 
@@ -207,7 +245,7 @@ export const RegistryAddUserSheet = ({
                 disabled={isPending || isSuccess}
                 invalid={formError?.field === 'roles'}
               />
-              {formError && (
+              {formError?.field === 'roles' && (
                 <FieldError className="mt-1.5">{formError.message}</FieldError>
               )}
             </Field>
