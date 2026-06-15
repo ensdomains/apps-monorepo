@@ -19,6 +19,7 @@ import { normalizeProfileRecords } from '@/features/profile/utils/transformRecor
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { useAppForm } from '../../form'
+import { getRecordsValidationErrorMessage } from '../../ProfileEdit.errors'
 import {
   RecordsValidationError,
   type SaveRecordsParams,
@@ -102,7 +103,7 @@ const useCloseProfileDialogOnSuccessfulSave = ({
 
 const getMutationErrorMessage = (error: unknown) => {
   if (error instanceof RecordsValidationError) {
-    return error.issues.map((issue) => issue.message).join('\n')
+    return getRecordsValidationErrorMessage(error)
   }
 
   return error instanceof Error ? error.message : String(error)

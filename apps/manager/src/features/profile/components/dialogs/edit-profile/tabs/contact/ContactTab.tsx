@@ -137,7 +137,7 @@ export const ContactTab = ({
         </p>
         <p className="text-[16px] text-ens-quartz-400 leading-[1.2]">
           Add the places people can find or reach you. Toggle up to 3 as your
-          primary contact methods - these get pinned to the top of your profile.
+          primary contact methods — these get pinned to the top of your profile.
         </p>
       </div>
 

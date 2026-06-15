@@ -13,6 +13,7 @@ import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {
   type GeneralField,
   generalShortcuts,
+  getGeneralUrlErrorMessage,
   getTextRecordValue,
 } from './fields'
 
@@ -47,6 +48,51 @@ const setTextRecordValue = (
 
 const fieldClassName =
   'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
+
+const urlErrorMessageId = 'general-url-error-message'
+
+interface UrlFieldProps {
+  readonly disabled: boolean
+  readonly errorMessage?: string
+  readonly onChange: (value: string) => void
+  readonly value: string
+}
+
+const UrlField = ({
+  disabled,
+  errorMessage,
+  onChange,
+  value,
+}: UrlFieldProps) => (
+  <div className="flex w-full flex-col gap-1.5">
+    <input
+      aria-describedby={errorMessage ? urlErrorMessageId : undefined}
+      aria-invalid={Boolean(errorMessage)}
+      className={cn(
+        fieldClassName,
+        errorMessage && 'border-destructive focus-visible:border-destructive',
+      )}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder="https://yourwebsite.com"
+      value={value}
+    />
+    {errorMessage ? (
+      <p
+        className="flex items-start gap-1 text-[12px] text-ens-signal-danger-600 leading-[1.2]"
+        id={urlErrorMessageId}
+        role="alert"
+      >
+        <MSymbol
+          aria-hidden="true"
+          className="ms-opsz-12 ms-wght-400 mt-px shrink-0"
+          symbol="warning"
+        />
+        <span>{errorMessage}</span>
+      </p>
+    ) : null}
+  </div>
+)
 
 interface SelectFieldProps {
   readonly ariaLabel: string
@@ -116,6 +162,7 @@ export const GeneralTab = ({
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
+  const urlErrorMessage = getGeneralUrlErrorMessage(values.base.url)
 
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -230,11 +277,10 @@ export const GeneralTab = ({
         )}
 
         {isVisible('url') && (
-          <input
-            className={fieldClassName}
+          <UrlField
             disabled={isSaving}
-            onChange={(event) => setBaseValue('url', event.target.value)}
-            placeholder="www.yourwebsite.com"
+            errorMessage={urlErrorMessage}
+            onChange={(value) => setBaseValue('url', value)}
             value={values.base.url ?? ''}
           />
         )}

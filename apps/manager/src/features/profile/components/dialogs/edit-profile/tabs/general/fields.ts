@@ -1,5 +1,6 @@
 import type { MaterialSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
+import { validateUrl } from '@/features/profile/utils/validateUrl'
 
 type ShortcutIcon =
   | {
@@ -33,6 +34,9 @@ export const getTextRecordValue = (
   records: readonly TextRecordValue[],
   key: string,
 ) => records.find((record) => record.key === key)?.value ?? ''
+
+export const getGeneralUrlErrorMessage = (value: string | undefined) =>
+  validateUrl(value)
 
 export const getDefaultVisibleFields = (
   records: ProfileRecords,
