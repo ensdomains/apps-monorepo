@@ -3,7 +3,7 @@
  *
  * Tests the manager-side `initializeRhinestoneAccount` wrapper: owner
  * resolution from the connected external wallet, env-derived SDK options
- * (Warp-only, no Pimlico bundler), and the HCA + ENS-owner createAccount
+ * (Warp-only, no ERC-4337 bundler), and the HCA + ENS-owner createAccount
  * shape. The `@rhinestone/sdk` is mocked; the `@ens-apps/smart-account`
  * package runs for real against the mocked SDK.
  */

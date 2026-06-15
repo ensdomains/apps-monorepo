@@ -108,7 +108,7 @@ export interface TransactionOptions {
   id?: string
   publicClient?: PublicClient
   walletClient?: WalletClient
-  /** Override the infrastructure for this transaction (warp or pimlico) */
+  /** Override the infrastructure for this transaction (Warp-only today) */
   infrastructure?: TransactionInfra
 }
 

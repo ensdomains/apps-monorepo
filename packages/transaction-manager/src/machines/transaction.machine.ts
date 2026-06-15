@@ -4,7 +4,6 @@ import type { Hash, PublicClient, TransactionReceipt } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
-import { submitRhinestoneTransaction } from '../actors/rhinestone-transport.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
   EthCallFallbackError,
@@ -115,18 +114,16 @@ export const transactionMachine = setup({
     /**
      * Submit Transaction Actor
      *
-     * Routes to the appropriate transport actor based on signer type
-     * and resolved infrastructure:
+     * Routes to the appropriate transport actor based on signer type:
      * - eoa → submitEOATransaction
-     * - rhinestone + warp → submitWarpTransaction
-     * - rhinestone + pimlico → submitRhinestoneTransaction
+     * - rhinestone → submitWarpTransaction (Warp orchestrator, the only
+     *   supported smart-account infrastructure)
      */
     submitTransaction: fromResultAsync(
       ({
         request,
         signer,
         options,
-        publicClient,
       }: {
         request?: TransactionRequest
         signer?: Signer
@@ -162,9 +159,7 @@ export const transactionMachine = setup({
 
         const resolvedInfrastructure =
           signer.type === 'rhinestone'
-            ? (options?.infrastructure ??
-              signer.config.defaultInfra ??
-              'pimlico')
+            ? (options?.infrastructure ?? signer.config.defaultInfra ?? 'warp')
             : undefined
 
         const submitStart = nowMs()
@@ -184,21 +179,10 @@ export const transactionMachine = setup({
             case 'eoa':
               return submitEOATransaction({ request, signer })
 
-            case 'rhinestone': {
-              const infra =
-                resolvedInfrastructure ??
-                signer.config.defaultInfra ??
-                'pimlico'
-
-              if (infra === 'warp') {
-                return submitWarpTransaction({ request, signer })
-              }
-              return submitRhinestoneTransaction({
-                request,
-                signer,
-                publicClient,
-              })
-            }
+            case 'rhinestone':
+              // Rhinestone HCA operations always route through the Warp
+              // orchestrator (intent-based, relayer-sponsored).
+              return submitWarpTransaction({ request, signer })
 
             default:
               signer satisfies never
