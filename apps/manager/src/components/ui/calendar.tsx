@@ -19,9 +19,10 @@ type CalendarProps = Omit<
 > & {
   buttonVariant?: React.ComponentProps<typeof Button>['variant']
   showClearButton?: boolean
-  showTodayButton?: boolean
+  showMinimumButton?: boolean
   onClear?: () => void
-  onToday?: () => void
+  onMinimum?: () => void
+  minimumDate?: Date
   selected?: Date
   onSelect?: (date: Date | undefined) => void
 }
@@ -35,9 +36,10 @@ function Calendar({
   formatters,
   components,
   showClearButton = false,
-  showTodayButton = false,
+  showMinimumButton = false,
   onClear,
-  onToday,
+  onMinimum,
+  minimumDate,
   selected,
   onSelect,
   ...props
@@ -47,11 +49,24 @@ function Calendar({
   const [internalSelected, setInternalSelected] = React.useState<
     Date | undefined
   >(selected instanceof Date ? selected : undefined)
+  const [month, setMonth] = React.useState<Date | undefined>(() => {
+    if (selected instanceof Date) return new Date(selected)
+    const dm = (props as { defaultMonth?: Date }).defaultMonth
+    if (dm instanceof Date) return new Date(dm)
+    return undefined
+  })
 
   // Sync internal state when controlled prop changes
   React.useEffect(() => {
     if (isControlled) {
       setInternalSelected(selected instanceof Date ? selected : undefined)
+    }
+  }, [selected, isControlled])
+
+  // Keep visible month in sync with externally controlled selected
+  React.useEffect(() => {
+    if (isControlled && selected instanceof Date) {
+      setMonth(new Date(selected))
     }
   }, [selected, isControlled])
 
@@ -75,15 +90,17 @@ function Calendar({
     }
   }
 
-  const handleToday = () => {
-    const today = new Date()
+  const handleMinimum = () => {
+    const target =
+      minimumDate instanceof Date ? new Date(minimumDate) : new Date()
     if (!isControlled) {
-      setInternalSelected(today)
+      setInternalSelected(target)
     }
-    if (onToday) {
-      onToday()
+    setMonth(new Date(target))
+    if (onMinimum) {
+      onMinimum()
     } else if (onSelect) {
-      onSelect(today)
+      onSelect(target)
     }
   }
 
@@ -235,12 +252,14 @@ function Calendar({
           ...formatters,
         }}
         mode="single"
+        month={month}
+        onMonthChange={setMonth}
         onSelect={handleSelect}
         selected={selectedDate}
         showOutsideDays={showOutsideDays}
         {...props}
       />
-      {(showClearButton || showTodayButton) && (
+      {(showClearButton || showMinimumButton) && (
         <div className="mt-4 flex items-center justify-between border-gray-200 border-t pt-4">
           {showClearButton && (
             <button
@@ -251,13 +270,13 @@ function Calendar({
               Clear
             </button>
           )}
-          {showTodayButton && (
+          {showMinimumButton && (
             <button
               className="ml-auto font-normal text-[#101828] text-sm transition-colors hover:text-[#6a7282]"
-              onClick={handleToday}
+              onClick={handleMinimum}
               type="button"
             >
-              Today
+              Minimum
             </button>
           )}
         </div>

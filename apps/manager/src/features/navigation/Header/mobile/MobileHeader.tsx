@@ -5,6 +5,7 @@ import ensMobileLogo from '@/assets/icons/ens-mobile.svg'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { useDebounce } from '@/hooks/useDebounce'
+import { tw } from '@/utils/tailwind'
 import { MobileAccountDrawer } from '../account/MobileAccountDrawer'
 import { MobileNavigationDrawer } from '../navigation/MobileNavigationDrawer'
 import {
@@ -16,11 +17,13 @@ import { MobileConnectButton } from './MobileConnectButton'
 type MobileHeaderProps = {
   readonly isConnected: boolean
   readonly connectionSettled: boolean
+  readonly transparentBackground?: boolean
 }
 
 export const MobileHeader = ({
   isConnected,
   connectionSettled,
+  transparentBackground = false,
 }: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchValue, setSearchValue] = useState('')
@@ -42,7 +45,12 @@ export const MobileHeader = ({
   })
 
   return (
-    <header className="sticky top-0 z-20 bg-white">
+    <header
+      className={tw(
+        'sticky top-0 z-20',
+        transparentBackground ? 'bg-transparent' : 'bg-white',
+      )}
+    >
       <nav className="relative flex h-[54px] min-w-0 items-center px-4 py-2">
         <AnimatePresence initial={false} mode="popLayout">
           {searchOpen ? (

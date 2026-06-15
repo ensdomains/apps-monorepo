@@ -63,7 +63,7 @@ flowchart TB
 **Function:** `initializeRhinestoneAccount(params: InitializeRhinestoneParams)`
 
 - Builds owner `Account` from `walletClientToAccount(walletClient)` or `wrapParaAccount(createParaAccount(paraClient))`.
-- Instantiates `RhinestoneSDK` (with **optional** Pimlico bundler if `VITE_PIMLICO_API_KEY` is set).
+- Instantiates `RhinestoneSDK` (no ERC-4337 bundler — gas is sponsored via the Warp orchestrator).
 - Calls:
 
 ```ts
@@ -224,12 +224,12 @@ flowchart LR
 
 ---
 
-## 8. Infrastructure notes (Warp vs Pimlico)
+## 8. Infrastructure notes (Warp)
 
-- **`initializeRhinestoneAccount`** still configures **Pimlico** on the `RhinestoneSDK` when `VITE_PIMLICO_API_KEY` is available (see comments in `rhinestone.ts` about bundler/session-related flows).
-- **`defaultInfra`** on the signer (`warp` | `pimlico`) comes from smart-account context and steers which transport the app uses for subsequent txs.
+- **`initializeRhinestoneAccount`** configures the `RhinestoneSDK` with no ERC-4337 bundler — HCA operations route through sponsored Intents.
+- **`defaultInfra`** on the signer is always `warp`; gas sponsorship routes through the Rhinestone Warp orchestrator (intent-based, relayer-funded).
 
-If session-signed `sendTransaction` fails at runtime for a given infra, treat it as an **SDK + infra compatibility** issue and confirm with Rhinestone (Warp vs ERC-4337).
+If session-signed `sendTransaction` fails at runtime, treat it as an **SDK + Warp compatibility** issue and confirm with Rhinestone.
 
 ---
 

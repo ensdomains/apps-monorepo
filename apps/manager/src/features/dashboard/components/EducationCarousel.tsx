@@ -20,7 +20,7 @@ export const EducationCarousel = () => {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <h2 className="font-serif text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
+        <h2 className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px]">
           <Trans>Did You Know?</Trans>
         </h2>
         <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export const EducationCarousel = () => {
         {visibleCards.map((card, index) => (
           <div
             className={cn(
-              'flex w-full flex-col gap-8 overflow-hidden rounded-[6px] p-5 md:max-w-[428px] md:basis-1/2',
+              'flex w-full flex-col gap-8 overflow-hidden rounded-md p-5 md:max-w-[428px] md:basis-1/2',
               card.className,
             )}
             // biome-ignore lint/suspicious/noArrayIndexKey: Hardcoded list
@@ -71,12 +71,12 @@ export const EducationCarousel = () => {
             <h3 className="font-medium text-[25px] leading-[0.96] tracking-[-0.5px]">
               {card.title}
             </h3>
-            <p className="font-serif text-sm leading-none tracking-[-0.28px]">
+            <p className="text-sm leading-none tracking-[-0.28px]">
               {card.description}
             </p>
-            <div className="relative isolate mt-auto h-[164px] w-full overflow-hidden rounded-sm shadow-[0px_10px_14px_0px_rgba(14,61,104,0.06)]">
+            <div className="relative isolate mt-auto h-41 w-full overflow-hidden rounded-sm shadow-[0px_10px_14px_0px_rgba(14,61,104,0.06)]">
               <div
-                className="relative h-[320px] origin-top-left scale-50 select-none"
+                className="relative h-80 origin-top-left scale-50 select-none"
                 style={{ width: '200%' }}
               >
                 {card.children}

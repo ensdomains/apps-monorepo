@@ -2,7 +2,7 @@
  * Tests for initializeRhinestoneAccount (HCA).
  *
  * Covers the package-level concerns: SDK option construction (Warp-only,
- * no Pimlico bundler), the HCA + ENS-owner createAccount call, the
+ * no ERC-4337 bundler), the HCA + ENS-owner createAccount call, the
  * deploy-via-Intent path (prepare → sign → submit → wait), and the
  * onProgress/onError sequencing. App-side concerns (Para wrapping,
  * env-var resolution, toast wiring) are tested separately in
@@ -309,7 +309,7 @@ describe('initializeRhinestoneAccount (backward-compatible wrapper)', () => {
     )
   })
 
-  it('never configures an ERC-4337 (Pimlico) bundler — Warp only', async () => {
+  it('never configures an ERC-4337 bundler — Warp only', async () => {
     await initializeRhinestoneAccount({
       ownerAccount: makeOwnerAccount(),
       eoaAddress: MOCK_OWNER_ADDRESS,

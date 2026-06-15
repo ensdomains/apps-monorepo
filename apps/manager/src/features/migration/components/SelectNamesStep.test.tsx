@@ -1,6 +1,7 @@
 import { fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import { render } from '@/utils/test-utils'
 import type { ClassifiedName } from '../service/classifyNames'
@@ -34,6 +35,12 @@ const eligibleFixture: readonly ClassifiedName[] = [
   makeName('sub1234.eth', 'unwrapped'),
   makeName('gm.sub1234.eth', 'locked-child'),
   makeName('sub123.eth', 'unwrapped'),
+  makeName('one.eth', 'unwrapped'),
+  makeName('two.eth', 'unwrapped'),
+  makeName('three.eth', 'unwrapped'),
+  makeName('four.eth', 'unwrapped'),
+  makeName('five.eth', 'unwrapped'),
+  makeName('six.eth', 'unwrapped'),
 ]
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
@@ -54,15 +61,19 @@ const readyGasEstimate: MigrationGasEstimateState = {
 
 const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
+  gasFundingStatus = 'settled',
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
+  gasFundingStatus?: MigrationGasFundingStatus
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const utils = render(
     <SelectNamesStep
       gasEstimate={gasEstimate}
+      gasFundingStatus={gasFundingStatus}
+      onBack={vi.fn()}
       onNamesChange={onNamesChange}
       onNext={onNext}
     />,
@@ -78,7 +89,7 @@ describe('SelectNamesStep', () => {
     expect(getByText('sub123.eth')).toBeInTheDocument()
     const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
     expect([...lastCall].sort()).toEqual(
-      ['gm.sub1234.eth', 'sub123.eth', 'sub1234.eth'].sort(),
+      eligibleFixture.map((item) => item.domain.name).sort(),
     )
   })
 
@@ -122,6 +133,28 @@ describe('SelectNamesStep', () => {
     expect(queryByText('sub123.eth')).toBeNull()
   })
 
+  it('blocks upgrade while gas funding is still in flight', () => {
+    const onNext = vi.fn(async () => true)
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      gasFundingStatus: 'funding',
+      onNext,
+    })
+
+    const button = getByRole('button', { name: 'Preparing wallet...' })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(onNext).not.toHaveBeenCalled()
+  })
+
+  it('enables upgrade once gas funding has settled', () => {
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      gasFundingStatus: 'settled',
+    })
+    expect(getByRole('button', { name: 'Upgrade 9 names' })).not.toBeDisabled()
+  })
+
   it('allows retrying when upgrade start exits without transitioning', async () => {
     const onNext = vi.fn(async () => false)
     const { getByRole } = renderStep({
@@ -129,12 +162,14 @@ describe('SelectNamesStep', () => {
       onNext,
     })
 
-    const button = getByRole('button', { name: 'Upgrade Names' })
+    const button = getByRole('button', { name: 'Upgrade 9 names' })
     fireEvent.click(button)
 
     await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1))
     await waitFor(() => {
-      expect(getByRole('button', { name: 'Upgrade Names' })).not.toBeDisabled()
+      expect(
+        getByRole('button', { name: 'Upgrade 9 names' }),
+      ).not.toBeDisabled()
     })
   })
 })
