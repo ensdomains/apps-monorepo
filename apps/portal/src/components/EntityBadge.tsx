@@ -80,24 +80,6 @@ const chipClass = cn(
   'text-[11px] font-normal no-underline',
 )
 
-// Chip overlay reveal — opacity + pointer-events (not display:none) so chips
-// stay in the tab order and a11y tree. Reveals on mouse hover and on
-// keyboard focus-within the badge group.
-const chipOverlayBase = cn(
-  'absolute bottom-full pb-2 flex flex-row gap-1 z-50',
-  'opacity-0 pointer-events-none transition-opacity',
-  'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
-  'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
-)
-
-// Default variant only: also show on touch devices, since copy is the
-// primary affordance for read-only fields and there's no badge-level tap
-// fallback the way other variants have a link.
-const chipOverlayAlwaysOnTouch = cn(
-  '[@media(hover:none)]:opacity-100',
-  '[@media(hover:none)]:pointer-events-auto',
-)
-
 const CopyChip = ({
   value,
   label = 'Copy',
@@ -218,34 +200,6 @@ export const EntityBadge = ({
         rounded="rounded-[2px]"
       />
     ) : null
-
-  // Default variant: plain truncatable text with a floating Copy chip above
-  // it on hover/focus. Used for read-only key-value displays where copy is
-  // the primary affordance; no link, no animated bg.
-  if (variant === 'default') {
-    return (
-      <div className="relative group/entity inline-flex min-w-0">
-        {derivedCopyValue && (
-          <div
-            className={cn(chipOverlayBase, chipOverlayAlwaysOnTouch, 'left-0')}
-          >
-            <CopyChip value={derivedCopyValue} />
-          </div>
-        )}
-        <span
-          className={cn(
-            'block min-w-0 truncate font-mono text-sm font-medium tracking-tight',
-            'px-1 rounded border-[0.5px] border-entity-border',
-            variantClass[variant],
-            className,
-          )}
-        >
-          {labelContent}
-          {children}
-        </span>
-      </div>
-    )
-  }
 
   const hasChips = !!(
     name ||
