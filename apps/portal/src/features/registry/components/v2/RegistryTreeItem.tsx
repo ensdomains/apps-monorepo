@@ -69,7 +69,7 @@ export const RegistryTreeItem = ({
         paddingLeft: `${50 * Math.max(index - 1, 0)}px`,
       }}
     >
-      <div className="flex flex-col xl:flex-row xl:items-center justify-start gap-2">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-start gap-2">
         <div className="flex flex-row items-center justify-start gap-2">
           {!isRoot ? (
             <>
@@ -115,7 +115,7 @@ export const RegistryTreeItem = ({
         ) : null}
       </div>
       {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 xl:pl-14 gap-4 text-sm text-muted-foreground xl:-mt-2">
+        <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 gap-4 text-sm text-muted-foreground lg:-mt-2">
           <dt className="py-2">Chain ID:</dt>
           <dd>{chainId}</dd>
           <dt className="py-2">Protocol Version:</dt>
@@ -184,7 +184,7 @@ const RegistryTreePathIcon = () => {
       viewBox="0 0 45 52"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0 xl:ml-0 -ml-4"
+      className="shrink-0 lg:ml-0 -ml-4"
     >
       <title>Registry tree path</title>
       <path
