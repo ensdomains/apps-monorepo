@@ -5,10 +5,9 @@ import type { SmartAccountConfig } from './transaction.types'
 
 /**
  * Transaction infrastructure options
- * - warp: Intent-based via Rhinestone Warp (non-ERC-4337 path)
- * - pimlico: ERC-4337 via Pimlico bundler
+ * - warp: Intent-based via Rhinestone Warp (relayer-sponsored)
  */
-export type TransactionInfra = 'warp' | 'pimlico'
+export type TransactionInfra = 'warp'
 
 /**
  * Signer Types

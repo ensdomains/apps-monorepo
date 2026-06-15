@@ -67,10 +67,6 @@ export default defineConfig({
       '@rhinestone/sdk',
       '@rhinestone/sdk/actions/smart-sessions',
       '@rhinestone/sdk/errors',
-      'permissionless',
-      'permissionless/accounts',
-      'permissionless/clients/pimlico',
-      'permissionless/utils',
     ],
   },
   resolve: {
