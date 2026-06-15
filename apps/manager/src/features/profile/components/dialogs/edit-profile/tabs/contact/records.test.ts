@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { defaultEnabledContactMethodKeys } from './constants'
+import { contactMethods, defaultEnabledContactMethodKeys } from './constants'
+import * as contactRecordHelpers from './records'
 import {
   getContactMethodErrorMessage,
+  getContactMethodNoticeMessage,
   getContactValidationIssues,
   getIsPrimaryContactToggleDisabled,
   getPrimaryContactErrorMessage,
@@ -9,12 +11,56 @@ import {
 } from './records'
 
 describe('contact record helpers', () => {
+  const getContactMethod = (key: string) => {
+    const method = contactMethods.find(
+      (contactMethod) => contactMethod.key === key,
+    )
+
+    if (!method) {
+      throw new Error(`Unknown contact method key: ${key}`)
+    }
+
+    return method
+  }
+
   describe('defaultEnabledContactMethodKeys', () => {
     it('preselects only X and Telegram by default', () => {
       expect([...defaultEnabledContactMethodKeys]).toEqual([
         'com.twitter',
         'org.telegram',
       ])
+    })
+  })
+
+  describe('contact error message presentation', () => {
+    it('uses the 12px warning icon treatment from the edit profile design', () => {
+      expect(contactRecordHelpers.contactErrorMessageIconSymbol).toBe('warning')
+      expect(contactRecordHelpers.contactErrorMessageClassName).toContain(
+        'text-[12px]',
+      )
+      expect(contactRecordHelpers.contactErrorMessageClassName).toContain(
+        'text-ens-signal-danger-600',
+      )
+    })
+  })
+
+  describe('getContactMethodNoticeMessage', () => {
+    it('shows the public profile visibility notice for email, address, and phone', () => {
+      expect(
+        ['email', 'mail', 'phone'].map((key) =>
+          getContactMethodNoticeMessage(getContactMethod(key)),
+        ),
+      ).toEqual([
+        'Your contact information is publicly viewable on your profile.',
+        'Your contact information is publicly viewable on your profile.',
+        'Your contact information is publicly viewable on your profile.',
+      ])
+    })
+
+    it('does not show the public profile visibility notice for social methods', () => {
+      expect(
+        getContactMethodNoticeMessage(getContactMethod('com.twitter')),
+      ).toBeUndefined()
     })
   })
 

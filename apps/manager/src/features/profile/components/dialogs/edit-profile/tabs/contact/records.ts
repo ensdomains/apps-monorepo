@@ -88,6 +88,28 @@ export interface ContactValidationIssue {
   readonly message: string
 }
 
+export const contactErrorMessageIconSymbol = 'warning'
+export const contactErrorMessageClassName =
+  'flex items-start gap-1 text-[12px] text-ens-signal-danger-600 leading-[1.2]'
+export const contactErrorMessageIconClassName =
+  'ms-opsz-12 ms-wght-400 mt-px shrink-0'
+
+const publicContactNoticeMethodKeys: ReadonlySet<ContactMethodKey> = new Set([
+  'email',
+  'mail',
+  'phone',
+])
+
+export const publicContactNoticeMessage =
+  'Your contact information is publicly viewable on your profile.'
+
+export const getContactMethodNoticeMessage = (
+  method: ContactMethod,
+): string | undefined =>
+  publicContactNoticeMethodKeys.has(method.key)
+    ? publicContactNoticeMessage
+    : undefined
+
 export const getPrimaryContactValidationIssues = (
   values: ProfileRecords,
 ): ContactValidationIssue[] =>

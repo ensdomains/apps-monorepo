@@ -1,14 +1,20 @@
-import { CircleAlert } from 'lucide-react'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { Switch } from '@/components/ui/switch'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import { getRecordDef } from '@/features/profile/data/records'
 import { cn } from '@/lib/utils'
 import type { ContactMethod } from './constants'
+import {
+  contactErrorMessageClassName,
+  contactErrorMessageIconClassName,
+  contactErrorMessageIconSymbol,
+} from './records'
 
 interface ContactMethodRowProps {
   readonly disabled: boolean
   readonly errorMessage?: string
   readonly method: ContactMethod
+  readonly noticeMessage?: string
   readonly onPrimaryChange: (method: ContactMethod, checked: boolean) => void
   readonly onValueChange: (method: ContactMethod, value: string) => void
   readonly primary: boolean
@@ -20,6 +26,7 @@ export const ContactMethodRow = ({
   disabled,
   errorMessage,
   method,
+  noticeMessage,
   onPrimaryChange,
   onValueChange,
   primary,
@@ -53,16 +60,23 @@ export const ContactMethodRow = ({
           />
         </label>
         {errorMessage ? (
-          <p
-            className="flex items-center gap-1.5 text-[14px] text-red-700 leading-[1.2]"
-            role="alert"
-          >
-            <CircleAlert
+          <p className={contactErrorMessageClassName} role="alert">
+            <MSymbol
               aria-hidden="true"
-              className="size-4.5 shrink-0 text-red-700"
-              strokeWidth={2}
+              className={contactErrorMessageIconClassName}
+              symbol={contactErrorMessageIconSymbol}
             />
             <span>{errorMessage}</span>
+          </p>
+        ) : null}
+        {noticeMessage ? (
+          <p className="flex items-start gap-1 text-[12px] text-ens-signal-warning-700 leading-[1.2]">
+            <MSymbol
+              aria-hidden="true"
+              className="ms-opsz-12 ms-wght-400 mt-px shrink-0"
+              symbol="info"
+            />
+            <span>{noticeMessage}</span>
           </p>
         ) : null}
       </div>

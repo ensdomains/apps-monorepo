@@ -16,6 +16,7 @@ import {
 import {
   getBaseWithPrimaryContactKeys,
   getContactMethodErrorMessage,
+  getContactMethodNoticeMessage,
   getIsPrimaryContactToggleDisabled,
   getRecordsForMethod,
   getRecordValue,
@@ -187,6 +188,7 @@ export const ContactTab = ({
                     value,
                   })}
                   method={method}
+                  noticeMessage={getContactMethodNoticeMessage(method)}
                   onPrimaryChange={handlePrimaryChange}
                   onValueChange={handleValueChange}
                   primary={primary}
@@ -196,12 +198,6 @@ export const ContactTab = ({
                   })}
                   value={value}
                 />
-                {method.key === 'email' ? (
-                  <p className="text-[16px] text-black leading-[1.2]">
-                    Your contact information is publicly viewable on your
-                    profile.
-                  </p>
-                ) : null}
               </div>
             )
           })
