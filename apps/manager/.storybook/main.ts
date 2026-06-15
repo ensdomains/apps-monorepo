@@ -25,9 +25,17 @@ export default defineMain({
     <link rel="stylesheet" href="${MATERIAL_SYMBOLS_URL}" />
   `,
   async viteFinal(config) {
+    const filterCloudflarePlugins = (plugins: PluginOption[]): PluginOption[] =>
+      plugins
+        .map((plugin) =>
+          Array.isArray(plugin) ? filterCloudflarePlugins(plugin) : plugin,
+        )
+        .filter((plugin) => !isCloudflarePlugin(plugin))
     return {
       ...config,
-      plugins: config.plugins?.filter((plugin) => !isCloudflarePlugin(plugin)),
+      plugins: config.plugins
+        ? filterCloudflarePlugins(config.plugins)
+        : config.plugins,
     }
   },
 })

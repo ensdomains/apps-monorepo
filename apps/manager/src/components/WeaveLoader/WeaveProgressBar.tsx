@@ -31,20 +31,18 @@ export function WeaveProgressBar({
       )}
       style={{ height }}
     >
-      {p > 0 ? (
-        <div
-          className="absolute inset-y-0 left-0 overflow-hidden"
-          style={{
-            width: `${p * 100}%`,
-            transition: animate ? 'width 0.5s ease-out' : 'none',
-          }}
-        >
-          {/* Keep weave at full track width so pattern scale stays constant. */}
-          <div className="h-full" style={{ width: `${100 / p}%` }}>
-            <WeaveCanvas className="h-full w-full" options={options} />
-          </div>
+      <div
+        className="absolute inset-y-0 left-0 overflow-hidden"
+        style={{
+          width: `${p * 100}%`,
+          transition: animate ? 'width 0.5s ease-out' : 'none',
+        }}
+      >
+        {/* Keep weave at full track width so pattern scale stays constant. */}
+        <div className="h-full" style={{ width: `${p > 0 ? 100 / p : 100}%` }}>
+          <WeaveCanvas className="h-full w-full" options={options} />
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }
