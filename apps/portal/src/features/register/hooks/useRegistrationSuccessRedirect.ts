@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { fromPromise } from 'neverthrow'
 import { useEffect, useRef } from 'react'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
@@ -41,38 +42,32 @@ export const useRegistrationSuccessRedirect = ({
 
     const paid = formatPriceDisplay(price.total, price.decimals)
 
-    void (async () => {
-      try {
-        await pollForIndexerSync({
-          invalidateQueries: async () => {
-            await Promise.all([
-              queryClient.invalidateQueries({
-                queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
-                refetchType: 'all',
-              }),
-              queryClient.invalidateQueries({
-                queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
-                refetchType: 'all',
-              }),
-              queryClient.invalidateQueries({
-                queryKey: getProfileQueryOptions({ name }).queryKey,
-                refetchType: 'all',
-              }),
-            ])
-          },
-        })
-      } catch (error) {
-        // Don't strand the user on the spinner if the indexer poll fails —
-        // the overview's own queries will fetch fresh data on arrival.
-        console.error('Indexer sync failed after registration:', error)
-      }
-
+    void fromPromise(
+      pollForIndexerSync({
+        invalidateQueries: () =>
+          Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+              refetchType: 'all',
+            }),
+            queryClient.invalidateQueries({
+              queryKey: getNameAvailabilityQueryOptions({ name }).queryKey,
+              refetchType: 'all',
+            }),
+            queryClient.invalidateQueries({
+              queryKey: getProfileQueryOptions({ name }).queryKey,
+              refetchType: 'all',
+            }),
+          ]).then(() => undefined),
+      }),
+      (error) => error,
+    ).then(() =>
       navigate({
         to: '/$name',
         params: { name },
         search: { registered: true, duration: durationSeconds, paid },
         replace: true,
-      })
-    })()
+      }),
+    )
   }, [isSuccess, price, name, durationSeconds, navigate, queryClient])
 }
