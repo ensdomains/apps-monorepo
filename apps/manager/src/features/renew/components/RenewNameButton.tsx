@@ -24,7 +24,7 @@ export const RenewNameButton = ({ name }: RenewNameButtonProps) => {
 
   return (
     <LinkButton params={{ name }} size="sm" to="/renew/$name" variant="outline">
-      <Trans>Extend Name</Trans>
+      <Trans>Renew</Trans>
       <MSymbol className="ms-opsz-16 ms-wght-300" symbol="double_arrow" />
     </LinkButton>
   )

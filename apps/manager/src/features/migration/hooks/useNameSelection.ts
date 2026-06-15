@@ -25,15 +25,28 @@ export const useNameSelection = ({
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { groups, orphans } = useMemo(() => groupByParent(eligible), [eligible])
+  const allSelectable = useMemo(
+    () => collectAllSelectable(groups, orphans),
+    [groups, orphans],
+  )
 
   const didSeed = useRef(false)
   useEffect(() => {
     if (didSeed.current || isPending || eligible.length === 0) return
     didSeed.current = true
-    const ready = collectAllSelectable(groups, orphans)
-    setSelected(ready)
-    onNamesChange([...ready])
-  }, [isPending, eligible, groups, orphans, onNamesChange])
+    setSelected(allSelectable)
+    onNamesChange([...allSelectable])
+  }, [isPending, eligible.length, allSelectable, onNamesChange])
+
+  useEffect(() => {
+    if (!didSeed.current || isPending) return
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((name) => allSelectable.has(name)))
+      if (next.size === prev.size) return prev
+      onNamesChange([...next])
+      return next
+    })
+  }, [allSelectable, isPending, onNamesChange])
 
   const searchLower = search.toLowerCase()
   const filteredGroups = useMemo(
@@ -67,15 +80,37 @@ export const useNameSelection = ({
     [onNamesChange],
   )
 
+  const toggleAll = useCallback(() => {
+    setSelected((prev) => {
+      const isAllSelected =
+        allSelectable.size > 0 &&
+        [...allSelectable].every((name) => prev.has(name))
+      const next = isAllSelected ? new Set<string>() : allSelectable
+      onNamesChange([...next])
+      return next
+    })
+  }, [allSelectable, onNamesChange])
+
+  const allSelectableCount = countVisibleRows(groups, orphans)
+  const currentSelected = useMemo(
+    () => new Set([...selected].filter((name) => allSelectable.has(name))),
+    [allSelectable, selected],
+  )
+  const allSelected =
+    allSelectable.size > 0 &&
+    [...allSelectable].every((name) => currentSelected.has(name))
+
   return {
     search,
     setSearch,
-    selected,
-    totalSelected: selected.size,
-    visibleCount: countVisibleRows(groups, orphans),
+    selected: currentSelected,
+    totalSelected: currentSelected.size,
+    visibleCount: allSelectableCount,
+    allSelected,
     filteredGroups,
     filteredOrphans,
     toggleName,
     toggleGroup,
+    toggleAll,
   }
 }
