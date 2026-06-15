@@ -1118,8 +1118,8 @@ msgstr ""
 msgid "Get notified when names you favorited expire."
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx:92
-msgid "Get support"
+#: src/features/dashboard/components/FaqSection.tsx:96
+msgid "ENS Support Docs"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx:116
@@ -2955,4 +2955,3 @@ msgstr ""
 #: src/features/payment/components/add.tsx:43
 msgid "Zip code"
 msgstr ""
-

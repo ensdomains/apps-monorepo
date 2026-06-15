@@ -47,6 +47,7 @@ export const ExtendNameConfirmation = ({
         name={selectedName.name}
         duration={durationSeconds}
         isRegistering={isRegistering}
+        isRenewal
         onSelectionChange={setSelectedTokenData}
       />
       <div className="flex gap-2">

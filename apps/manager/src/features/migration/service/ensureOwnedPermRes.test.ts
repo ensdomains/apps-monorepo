@@ -16,6 +16,7 @@ import {
   ensureOwnedPermRes,
   findExistingPermRes,
   OwnedResolverDeployError,
+  predictOwnedPermResAddress,
 } from './ensureOwnedPermRes'
 
 vi.mock('@wagmi/core', () => ({
@@ -126,6 +127,36 @@ describe('findExistingPermRes', () => {
         args: { sender: EOA },
       }),
     )
+  })
+})
+
+describe('predictOwnedPermResAddress', () => {
+  it('returns an existing resolver without simulating deployProxy', async () => {
+    const simulateContract = vi.fn().mockResolvedValueOnce({ result: PROXY_A })
+    const result = await predictOwnedPermResAddress({
+      eoa: EOA,
+      publicClient: {
+        getLogs: vi.fn(() => [decodedLog(matchingLog(PROXY_A))]),
+        simulateContract,
+      } as unknown as PublicClient,
+    })
+
+    expect(result).toBe(PROXY_A)
+    expect(simulateContract).not.toHaveBeenCalled()
+  })
+
+  it('simulates deployProxy only when no existing resolver is found', async () => {
+    const simulateContract = vi.fn().mockResolvedValueOnce({ result: PROXY_A })
+    const result = await predictOwnedPermResAddress({
+      eoa: EOA,
+      publicClient: {
+        getLogs: vi.fn(() => []),
+        simulateContract,
+      } as unknown as PublicClient,
+    })
+
+    expect(result).toBe(PROXY_A)
+    expect(simulateContract).toHaveBeenCalledTimes(1)
   })
 })
 

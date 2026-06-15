@@ -19,6 +19,7 @@ import { profileRecordsQuery } from '../../service/profileRecords'
 import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { EditProfileDialog } from '../dialogs/edit-profile/EditProfileDialog'
+import { isConnectedProfileOwner } from './ProfileView.helpers'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
@@ -35,15 +36,15 @@ type UseIsOwnerParams = {
 
 const useIsOwner = ({ owner }: UseIsOwnerParams) => {
   const { address } = useConnection()
-  const { accountAddress: smartAccountAddress } = useSmartAccountContext()
+  const { accountAddress: smartAccountAddress, ownerAddress } =
+    useSmartAccountContext()
 
-  const normalizedOwner = owner?.toLowerCase()
-  const isOwner =
-    !!normalizedOwner &&
-    [address, smartAccountAddress]
-      .filter((addr): addr is Address => !!addr)
-      .some((addr) => addr.toLowerCase() === normalizedOwner)
-  return isOwner
+  return isConnectedProfileOwner({
+    owner,
+    walletAddress: address,
+    accountAddress: smartAccountAddress,
+    ownerAddress,
+  })
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
@@ -99,7 +100,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
       style={expiry.isInGrace ? undefined : themeVars}
     >
-      {migrationEnabled && isOwner && <UpgradeBanner />}
+      {migrationEnabled && <UpgradeBanner profileName={name} />}
       {match(expiry)
         .with(
           { isInGrace: true, graceEndDate: P.not(P.nullish) },
