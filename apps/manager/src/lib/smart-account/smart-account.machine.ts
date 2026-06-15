@@ -31,9 +31,9 @@ type WalletConnectedEvent = {
 type SmartAccountEvent = WalletConnectedEvent | { type: 'WALLET_DISCONNECTED' }
 
 // The HCA is session-less; gas sponsorship always routes through the
-// Rhinestone Warp orchestrator (intent-based, relayer-funded). There is
-// no Pimlico/ERC-4337 path for this account, so the infrastructure is a
-// constant rather than a per-wallet feature-flag decision.
+// Rhinestone Warp orchestrator (intent-based, relayer-funded). Warp is the
+// only supported infrastructure, so it is a constant rather than a
+// per-wallet feature-flag decision.
 const INITIAL_CONTEXT: SmartAccountContext = {
   client: null,
   accountAddress: null,
