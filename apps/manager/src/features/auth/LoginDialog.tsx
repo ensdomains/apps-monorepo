@@ -58,10 +58,10 @@ export const LoginDialog = ({ open, onOpenChange }: LoginDialogProps) => {
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
 
-  // The EIP-6963-discovered injected wallets (skip our own privy connector),
-  // de-duped by name. Typically just MetaMask; no WalletConnect, no "more
-  // wallets" list. (We don't hard-filter to the name "MetaMask" so the e2e
-  // headless provider — and any other injected wallet — is still surfaced.)
+  // External wallet connectors (everything except our own Privy connector),
+  // de-duped by name: EIP-6963-discovered injected wallets (MetaMask, …) plus
+  // WalletConnect for QR / mobile pairing. We don't hard-filter to a name so the
+  // e2e headless provider — and any other wallet — is still surfaced.
   const injectedConnectors = useMemo(() => {
     const seen = new Set<string>()
     return connectors.filter((c) => {
