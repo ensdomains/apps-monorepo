@@ -40,7 +40,7 @@ describe('buildRoleTransactionDescriptors', () => {
     expect(result[0]).toEqual({
       id: 'tx-grant-roles',
       title: 'Grant roles',
-      transactionName: 'Grant roles for test.eth',
+      transactionName: 'Grant roles for 0x1234…7890',
       estimatedGasCost: 0.0001,
       type: 'grant',
       account: TEST_ACCOUNT,
@@ -64,7 +64,7 @@ describe('buildRoleTransactionDescriptors', () => {
     expect(result[0]).toEqual({
       id: 'tx-revoke-roles',
       title: 'Revoke roles',
-      transactionName: 'Revoke roles for myname.eth',
+      transactionName: 'Revoke roles for 0x1234…7890',
       estimatedGasCost: 0.0001,
       type: 'revoke',
       account: TEST_ACCOUNT,
@@ -89,7 +89,7 @@ describe('buildRoleTransactionDescriptors', () => {
     expect(result[0]).toEqual({
       id: 'tx-grant-roles',
       title: 'Grant roles',
-      transactionName: 'Grant roles for example.eth',
+      transactionName: 'Grant roles for 0x1234…7890',
       estimatedGasCost: 0.0001,
       type: 'grant',
       account: TEST_ACCOUNT,
@@ -98,7 +98,7 @@ describe('buildRoleTransactionDescriptors', () => {
     expect(result[1]).toEqual({
       id: 'tx-revoke-roles',
       title: 'Revoke roles',
-      transactionName: 'Revoke roles for example.eth',
+      transactionName: 'Revoke roles for 0x1234…7890',
       estimatedGasCost: 0.0001,
       type: 'revoke',
       account: TEST_ACCOUNT,
@@ -121,7 +121,7 @@ describe('buildRoleTransactionDescriptors', () => {
     expect(result[0]).toEqual({
       id: 'tx-revoke-roles',
       title: 'Remove user',
-      transactionName: 'Remove user from parent.eth',
+      transactionName: 'Remove 0xabcd…abcd from parent.eth',
       estimatedGasCost: 0.0001,
       type: 'revoke',
       account: TEST_ACCOUNT_2,

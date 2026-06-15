@@ -12,6 +12,10 @@ type HookParams = {
   eoa: Address | undefined
 }
 
+type EnsureOptions = {
+  readonly staleTime?: number
+}
+
 export const useMigrationPreflight = ({ eoa }: HookParams) => {
   const publicClient = usePublicClient()
   const wagmiConfig = useConfig()
@@ -19,6 +23,7 @@ export const useMigrationPreflight = ({ eoa }: HookParams) => {
 
   const ensure = (
     domains: readonly V1Domain[],
+    options: EnsureOptions = {},
   ): Promise<MigrationPreflight> => {
     if (!eoa || !publicClient) {
       return Promise.resolve(EMPTY_PREFLIGHT)
@@ -27,7 +32,7 @@ export const useMigrationPreflight = ({ eoa }: HookParams) => {
       .map((d) => d.id)
       .sort()
       .join(',')
-    return queryClient.ensureQueryData({
+    return queryClient.fetchQuery({
       queryKey: ['migration-preflight', eoa.toLowerCase(), ids] as const,
       queryFn: () =>
         computeMigrationPreflight({
@@ -36,7 +41,7 @@ export const useMigrationPreflight = ({ eoa }: HookParams) => {
           wagmiConfig,
           publicClient: publicClient as unknown as PublicClient,
         }),
-      staleTime: 60_000,
+      staleTime: options.staleTime ?? 60_000,
     })
   }
 

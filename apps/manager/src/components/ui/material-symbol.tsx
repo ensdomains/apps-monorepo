@@ -49,6 +49,7 @@ export const MATERIAL_SYMBOLS = [
   'mail',
   'message',
   'more_horiz',
+  'notification_settings',
   'notifications',
   'notifications_unread',
   'priority_high',

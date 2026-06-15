@@ -843,7 +843,16 @@ export const AutoFocusInput = () => {
 
 ### Component Size and Complexity (🟢 Guideline)
 
-**Split components based on complexity, not arbitrary line counts.**
+**Split by responsibility, not line counts.** There's no objective maximum — line and prop counts are just "look here" prompts to ask "is this doing too much?" The real gate is **cognitive complexity** (how hard the control flow is to follow), enforced by Biome's `noExcessiveCognitiveComplexity` (threshold 15).
+
+| Dimension | Tripwire | How it's checked |
+| --- | --- | --- |
+| Cognitive complexity | 15 per function | Biome (`warn`) — hard signal |
+| File length | ~500 lines | Greptile soft signal |
+| Component/function length | ~150 lines | Manual — covered by the complexity gate above |
+| One primary component per file | 1 primary (small helpers OK, even with minor state) | Greptile soft signal |
+
+> Exempt: generated files, tests, mocks, and Storybook stories (which intentionally pass many props and export several components).
 
 **When to split:**
 - ✅ Component has multiple concerns (data fetching + rendering + form logic)
@@ -901,6 +910,35 @@ const ProfilePage = ({ name }: ProfilePageProps) => {
 ```
 
 **Rule of thumb**: If finding the split component takes longer than scanning the original, don't split it.
+
+### Number of Props (🟢 Guideline)
+
+**A long prop list is a "long parameter list" smell — but there's no hard cap.** Treat **~10 props as a prompt to review**, not a violation (a component can have more and still do one thing). The fix is never "delete a prop" — reach for, roughly in order:
+
+1. **Group related props into an object** — a `value` / `onChange` / `label` cluster becomes one prop. Usually collapses the count on its own.
+2. **Composition / `children`** instead of configuration props.
+3. **Split by responsibility** if the list grew because the component does several things.
+4. **Context** — last resort, for genuine prop-drilling pain.
+
+```typescript
+// ❌ Tripwire hit — 6 of these props are really two coupled clusters
+interface PriceCooldownBannerProps {
+  targetPriceInput: string
+  onTargetPriceInputChange: (v: string) => void
+  onTargetPriceInputBlur: () => void
+  selectedPoint: Point
+  onSelectedPointChange: (p: Point) => void
+  targetPriceReachLabel: string
+  // ...13 more
+}
+
+// ✅ Group coupled props into objects — fewer, clearer props
+interface PriceCooldownBannerProps {
+  targetPrice: { value: string; onChange: (v: string) => void; onBlur: () => void; reachLabel: string }
+  selection: { point: Point; onChange: (p: Point) => void }
+  // ...
+}
+```
 
 ## State Management
 

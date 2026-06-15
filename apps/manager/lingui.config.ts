@@ -1,4 +1,5 @@
 import { defineConfig } from '@lingui/cli'
+import { formatter } from '@lingui/format-po'
 import { LOCALES, SOURCE_LOCALE } from './src/lib/locales.config'
 
 export default defineConfig({
@@ -10,4 +11,7 @@ export default defineConfig({
       include: ['src'],
     },
   ],
+  format: formatter({
+    lineNumbers: false,
+  }),
 })

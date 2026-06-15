@@ -7,6 +7,7 @@
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const GRANT_ROLES_TX_ID = 'tx-grant-roles'
 const REVOKE_ROLES_TX_ID = 'tx-revoke-roles'
@@ -59,7 +60,7 @@ export function buildRoleTransactionDescriptors(
       descriptors.push({
         id: GRANT_ROLES_TX_ID,
         title: 'Grant roles',
-        transactionName: `Grant roles for ${name}`,
+        transactionName: `Grant roles for ${truncateAddress(account, 6, 4)}`,
         estimatedGasCost: 0.0001,
         type: 'grant',
         account,
@@ -71,7 +72,7 @@ export function buildRoleTransactionDescriptors(
       descriptors.push({
         id: REVOKE_ROLES_TX_ID,
         title: 'Revoke roles',
-        transactionName: `Revoke roles for ${name}`,
+        transactionName: `Revoke roles for ${truncateAddress(account, 6, 4)}`,
         estimatedGasCost: 0.0001,
         type: 'revoke',
         account,
@@ -88,7 +89,7 @@ export function buildRoleTransactionDescriptors(
       {
         id: REVOKE_ROLES_TX_ID,
         title: 'Remove user',
-        transactionName: `Remove user from ${name}`,
+        transactionName: `Remove ${truncateAddress(account, 6, 4)} from ${name}`,
         estimatedGasCost: 0.0001,
         type: 'revoke',
         account,
