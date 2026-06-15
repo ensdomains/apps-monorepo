@@ -9,16 +9,17 @@ import {
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
-import { useChainId, useEnsName } from 'wagmi'
+import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -56,17 +57,22 @@ function RouteComponent() {
       !!registry?.parentRegistry &&
       !isAddressEqual(registry.parentRegistry, zeroAddress),
   })
-  // Owner of this registry's ENS name — used for the Deployed badge so it
-  // matches the Created badge on /$name/registry exactly.
+  // Deployment transaction — the SubregistryUpdated event (on the parent
+  // registry) that created this registry. Powers the "Deployed" badge (tx
+  // entity with copy + Etherscan actions).
   const {
-    data: ownerData,
-    isLoading: isOwnerLoading,
-    error: ownerError,
+    data: deployment,
+    isLoading: isDeploymentLoading,
+    error: deploymentError,
   } = useQuery({
-    ...getEnsOwnerQueryOptions({ name: registry?.name }),
-    enabled: !!registry?.name,
+    ...getRegistryDeploymentQueryOptions({
+      namehash: registry?.namehash ?? '',
+      createdBlock: registry?.createdBlock ?? 0,
+    }),
+    enabled: !!registry?.namehash && !!registry?.createdBlock,
   })
-  const { data: ownerEnsName } = useEnsName({ address: ownerData?.owner })
+  const deploymentTxHash = deployment?.transactionHash
+  const deploymentTxUrl = useBlockExplorerTxUrl(deploymentTxHash)
 
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
@@ -130,32 +136,27 @@ function RouteComponent() {
           </dt>
           <dd className="flex items-center h-9">
             {match({
-              hasName: !!registry.name,
-              isOwnerLoading,
-              ownerError,
-              deployedDate,
+              isDeploymentLoading,
+              deploymentError,
+              deploymentTxHash,
             })
-              .with({ hasName: false }, (m) =>
-                m.deployedDate ? <span>{m.deployedDate}</span> : <span>—</span>,
-              )
-              .with({ isOwnerLoading: true }, () => (
+              .with({ isDeploymentLoading: true }, () => (
                 <Skeleton className="h-5 w-32" />
               ))
-              .with({ ownerError: P.not(null) }, () => <FailedToLoad />)
+              .with({ deploymentError: P.not(null) }, () => <FailedToLoad />)
+              .with({ deploymentTxHash: P.string }, (m) => (
+                <EntityBadge
+                  variant="tx"
+                  className="font-normal"
+                  label={deployedDate ?? undefined}
+                  copyValue={m.deploymentTxHash}
+                  etherscanHref={deploymentTxUrl}
+                >
+                  {truncateAddress(m.deploymentTxHash, 6, 4)}
+                </EntityBadge>
+              ))
               .otherwise(() =>
-                deployedDate && ownerData?.owner ? (
-                  <EntityBadge
-                    variant={ownerEnsName ? 'name' : 'address'}
-                    className="font-normal"
-                    label={deployedDate}
-                    name={ownerEnsName ?? undefined}
-                    address={ownerData.owner}
-                  >
-                    {ownerEnsName ?? truncateAddress(ownerData.owner, 6, 4)}
-                  </EntityBadge>
-                ) : (
-                  <span>—</span>
-                ),
+                deployedDate ? <span>{deployedDate}</span> : <span>—</span>,
               )}
           </dd>
 
