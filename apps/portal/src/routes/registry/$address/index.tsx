@@ -98,7 +98,7 @@ function RouteComponent() {
     .filter((name): name is string => !!name)
 
   return (
-    <div className="flex flex-col gap-8 p-4 sm:p-10 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-9 p-4 sm:p-9 w-full max-w-360 mx-auto">
       <div className="flex flex-col gap-6">
         <h1 className="text-2xl md:text-heading font-normal leading-none">
           Registry Contract
