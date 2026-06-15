@@ -116,15 +116,19 @@ function RouteComponent() {
 
       <div className="flex flex-col gap-10 lg:gap-6 lg:flex-row lg:items-start">
         <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8 text-sm">
-          <dt className="text-muted-foreground">Address</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Address
+          </dt>
+          <dd className="flex items-center h-9">
             <EntityBadge variant="contract" address={address}>
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground">Deployed</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Deployed
+          </dt>
+          <dd className="flex items-center h-9">
             {match({
               hasName: !!registry.name,
               isOwnerLoading,
@@ -155,8 +159,10 @@ function RouteComponent() {
               )}
           </dd>
 
-          <dt className="text-muted-foreground">Factory</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Factory
+          </dt>
+          <dd className="flex items-center h-9">
             <EntityBadge
               variant="contract"
               label="registry factory"
@@ -167,8 +173,10 @@ function RouteComponent() {
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground">Parent</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Parent
+          </dt>
+          <dd className="flex items-center h-9">
             {match({
               isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
               isLoadingParent,
@@ -192,8 +200,10 @@ function RouteComponent() {
               ))}
           </dd>
 
-          <dt className="text-muted-foreground">Referenced by</dt>
-          <dd className="flex flex-wrap items-center gap-2">
+          <dt className="text-muted-foreground flex items-center h-9">
+            Referenced by
+          </dt>
+          <dd className="flex flex-wrap items-center -mt-3.5 gap-2 h-9">
             {referencedByNames.length > 0 ? (
               referencedByNames.map((name) => (
                 <EntityBadge key={name} variant="name" name={name} showAvatar>
