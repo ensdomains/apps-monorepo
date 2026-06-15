@@ -5,7 +5,7 @@
  *
  * Flow: User → Orchestrator → Relayer Market → Intent Router → Account
  *
- * Key differences from the Pimlico (ERC-4337) path:
+ * Unlike an ERC-4337 bundler path:
  * - No bundler/paymaster needed — relayers handle this
  * - Intent-based execution rather than UserOps
  * - Built-in cross-chain support
@@ -57,7 +57,7 @@ export function submitWarpTransaction(
     )
   }
 
-  // Runtime guard: ensure we have a RhinestoneAccount, not a permissionless SmartAccountClient.
+  // Runtime guard: ensure we have a RhinestoneAccount.
   // The waitForExecution method only exists on RhinestoneAccount.
   if (typeof account.waitForExecution !== 'function') {
     return errAsync(
