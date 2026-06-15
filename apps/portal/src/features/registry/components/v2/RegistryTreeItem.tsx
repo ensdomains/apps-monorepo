@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { TriangleAlert } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ArrowUpRight, TriangleAlert } from 'lucide-react'
 import { Fragment } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -101,7 +103,7 @@ export const RegistryTreeItem = ({
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
-            {isLastWithoutRegistryConfigured ? (
+            {!isLastWithoutRegistryConfigured ? (
               <div className="flex flex-row items-center justify-start gap-2">
                 <span className="text-sm text-muted-foreground font-mono">
                   Chain ID: {chainId}
@@ -115,13 +117,13 @@ export const RegistryTreeItem = ({
         ) : null}
       </div>
       {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 gap-4 text-sm text-muted-foreground lg:-mt-2">
-          <dt className="py-2">Chain ID:</dt>
-          <dd>{chainId}</dd>
-          <dt className="py-2">Protocol Version:</dt>
-          <dd>{ownerData.protocolVersion}</dd>
-          <dt className="py-2">Created:</dt>
-          <dd>
+        <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
+          <dt className="py-2 h-9">Chain ID:</dt>
+          <dd className="flex items-center h-9">{chainId}</dd>
+          <dt className="py-2 h-9">Protocol Version:</dt>
+          <dd className="flex items-center h-9">{ownerData.protocolVersion}</dd>
+          <dt className="py-2 h-9">Created:</dt>
+          <dd className="flex items-center h-9">
             {match({ isSummaryLoading, summaryError })
               .with({ isSummaryLoading: true }, () => (
                 <Skeleton className="h-5 w-32" />
@@ -143,8 +145,8 @@ export const RegistryTreeItem = ({
                 ),
               )}
           </dd>
-          <dt className="py-2">Labels:</dt>
-          <dd className="flex items-center gap-4">
+          <dt className="py-2 h-9">Labels:</dt>
+          <dd className="flex items-center gap-4 h-9">
             {match({ isSummaryLoading, summaryError })
               .with({ isSummaryLoading: true }, () => (
                 <Skeleton className="h-5 w-8" />
@@ -155,10 +157,11 @@ export const RegistryTreeItem = ({
                   {summary?.labelCount ?? '—'}
                 </span>
               ))}
-            {/* TODO: Add this button back when the new labels page is ready */}
-            {/* <Button variant="outline" size="xs">
-              View subnames <ArrowUpRight className="size-4" />
-            </Button> */}
+            <Button variant="outline" size="xs" asChild>
+              <Link to="/registry/$address/labels" params={{ address }}>
+                View subnames <ArrowUpRight className="size-4" />
+              </Link>
+            </Button>
           </dd>
         </dl>
       ) : null}
