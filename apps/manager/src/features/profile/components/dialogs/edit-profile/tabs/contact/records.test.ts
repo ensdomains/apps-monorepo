@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { defaultEnabledContactMethodKeys } from './constants'
 import {
   getContactMethodErrorMessage,
   getContactValidationIssues,
@@ -8,6 +9,15 @@ import {
 } from './records'
 
 describe('contact record helpers', () => {
+  describe('defaultEnabledContactMethodKeys', () => {
+    it('preselects only X and Telegram by default', () => {
+      expect([...defaultEnabledContactMethodKeys]).toEqual([
+        'com.twitter',
+        'org.telegram',
+      ])
+    })
+  })
+
   describe('getIsPrimaryContactToggleDisabled', () => {
     it('keeps unselected empty contact methods enabled while there are primary slots available', () => {
       expect(
