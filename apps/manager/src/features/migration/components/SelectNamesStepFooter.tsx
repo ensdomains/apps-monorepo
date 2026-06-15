@@ -5,14 +5,26 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
 }
 
 const GasEstimateMessage = ({
   gasEstimate,
+  isWaitingForGasFunding,
   totalSelected,
 }: GasEstimateMessageProps) => {
   if (totalSelected === 0) return null
+
+  // The gas drip request only resolves once any sepETH top-up is confirmed
+  // on-chain. Surface it so the owner knows why the button is briefly blocked.
+  if (isWaitingForGasFunding) {
+    return (
+      <p>
+        <Trans>Preparing your wallet with gas for the upgrade...</Trans>
+      </p>
+    )
+  }
 
   return match(gasEstimate)
     .with({ status: 'loading' }, () => (
@@ -48,16 +60,19 @@ const GasEstimateMessage = ({
 type UpgradeButtonLabelProps = {
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
+  readonly isWaitingForGasFunding: boolean
   readonly totalSelected: number
 }
 
 const UpgradeButtonLabel = ({
   isEstimatingGas,
   isStarting,
+  isWaitingForGasFunding,
   totalSelected,
 }: UpgradeButtonLabelProps) => {
-  if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isStarting) return <Trans>Starting...</Trans>
+  if (isEstimatingGas) return <Trans>Estimating...</Trans>
+  if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
   return (
     <Plural
       one="Upgrade # name"
@@ -72,6 +87,7 @@ type SelectNamesStepFooterProps = {
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isUpgradeDisabled: boolean
+  readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
   readonly totalSelected: number
   readonly visibleCount: number
@@ -82,6 +98,7 @@ export const SelectNamesStepFooter = ({
   isEstimatingGas,
   isStarting,
   isUpgradeDisabled,
+  isWaitingForGasFunding,
   onUpgrade,
   totalSelected,
   visibleCount,
@@ -90,6 +107,7 @@ export const SelectNamesStepFooter = ({
     <div className="flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
       <GasEstimateMessage
         gasEstimate={gasEstimate}
+        isWaitingForGasFunding={isWaitingForGasFunding}
         totalSelected={totalSelected}
       />
       {totalSelected > 100 && (
@@ -111,6 +129,7 @@ export const SelectNamesStepFooter = ({
         <UpgradeButtonLabel
           isEstimatingGas={isEstimatingGas}
           isStarting={isStarting}
+          isWaitingForGasFunding={isWaitingForGasFunding}
           totalSelected={totalSelected}
         />
       </button>

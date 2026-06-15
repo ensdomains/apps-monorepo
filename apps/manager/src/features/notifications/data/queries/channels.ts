@@ -21,6 +21,15 @@ export const channelsQueryOptions = queryOptions({
     }
     return response.json()
   },
+  refetchOnWindowFocus: true,
+  staleTime: 0,
+  refetchInterval: (query) => {
+    const hasPendingChannel = query.state.data?.some(
+      (channel) => channel.status === 'pending',
+    )
+
+    return hasPendingChannel ? 5_000 : false
+  },
   meta: {
     dependsOn: ['backend'],
   },

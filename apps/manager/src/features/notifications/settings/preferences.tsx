@@ -12,6 +12,7 @@ import {
 } from '@/features/notifications/data/queries/preferences'
 import { PreferenceCard } from '@/features/notifications/settings/preference-card'
 import { isBackendAuthed } from '@/utils/backend-client'
+import { channelsQueryOptions } from '../data/queries/channels'
 
 export type UseNotificationPreferencesFormOptions = {
   /**
@@ -32,6 +33,12 @@ export const useNotificationPreferencesForm = ({
 
   const preferences = useQuery({
     ...preferencesQueryOptions,
+    enabled: isAuthed,
+  })
+
+  const verifiedChannels = useQuery({
+    ...channelsQueryOptions,
+    select: (data) => data.filter((c) => c.status === 'verified'),
     enabled: isAuthed,
   })
 
@@ -64,8 +71,7 @@ export const useNotificationPreferencesForm = ({
     },
   })
 
-  const hasVerifiedChannels =
-    (preferences.data?.verifiedChannels?.length ?? 0) > 0
+  const hasVerifiedChannels = (verifiedChannels.data?.length ?? 0) > 0
 
   return { form, preferences, hasVerifiedChannels }
 }

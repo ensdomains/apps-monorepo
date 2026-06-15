@@ -3,6 +3,7 @@ import { ChevronLeft } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
 import { startUpgrade } from './SelectNamesStep.handlers'
@@ -17,6 +18,7 @@ import {
 
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
+  readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onBack: () => void
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
@@ -24,6 +26,7 @@ type SelectNamesStepProps = {
 
 export const SelectNamesStep = ({
   gasEstimate,
+  gasFundingStatus,
   onBack,
   onNamesChange,
   onNext,
@@ -48,8 +51,17 @@ export const SelectNamesStep = ({
   const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
     totalSelected > 0 && gasEstimate.status !== 'ready'
+  // The gas drip request only resolves once any sepETH top-up is confirmed
+  // on-chain, so block "Upgrade" until then — otherwise the owner can start a
+  // migration that fails for lack of gas before the ETH has landed.
+  const isWaitingForGasFunding =
+    totalSelected > 0 && gasFundingStatus === 'funding'
   const isUpgradeDisabled =
-    totalSelected === 0 || isPending || isStarting || isWaitingForGasEstimate
+    totalSelected === 0 ||
+    isPending ||
+    isStarting ||
+    isWaitingForGasEstimate ||
+    isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
   const showNameSearch = shouldShowNameSearch(visibleCount)
   const isCompactLayout = shouldUseCompactSelectionLayout(visibleCount)
@@ -125,6 +137,7 @@ export const SelectNamesStep = ({
         isEstimatingGas={isEstimatingGas}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
+        isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
         totalSelected={totalSelected}
         visibleCount={visibleCount}
