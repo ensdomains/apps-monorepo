@@ -62,11 +62,14 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 // (see src/styles/index.css @layer base).
 const pillBase =
   'inline-flex items-center h-5 px-1 rounded w-fit ' +
-  'font-mono text-sm font-medium leading-none whitespace-nowrap no-underline'
+  'font-mono text-sm leading-none whitespace-nowrap no-underline'
+
+const pillWeight = (variant: EntityVariant) =>
+  variant === 'name' ? 'font-medium' : 'font-normal'
 
 // Standalone pill: self-contained bg + text (used when there are no chips).
 const pillClass = (variant: EntityVariant, className?: string) =>
-  cn(pillBase, variantClass[variant], className)
+  cn(pillBase, pillWeight(variant), variantClass[variant], className)
 
 const chipClass = cn(
   'inline-flex items-center cursor-pointer transition-colors',
@@ -343,6 +346,7 @@ export const EntityBadge = ({
       <span
         className={cn(
           pillBase,
+          pillWeight(variant),
           'relative z-10',
           variantTextClass[variant],
           // Avatar sits flush against the left edge — remove left padding
