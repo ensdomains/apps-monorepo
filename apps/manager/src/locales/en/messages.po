@@ -1681,9 +1681,17 @@ msgstr "Preparing commitment"
 msgid "Preparing the commitment"
 msgstr "Preparing the commitment"
 
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing wallet..."
+msgstr "Preparing wallet..."
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your registration"
 msgstr "Preparing your registration"
+
+#: src/features/migration/components/SelectNamesStepFooter.tsx
+msgid "Preparing your wallet with gas for the upgrade..."
+msgstr "Preparing your wallet with gas for the upgrade..."
 
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 msgid "Preview Image"
