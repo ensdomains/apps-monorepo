@@ -5,6 +5,9 @@
 
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 
+/** A role is an "admin" variant when it carries the `_ADMIN` suffix. */
+export const isAdminRole = (role: string): boolean => role.endsWith('_ADMIN')
+
 type PermissionKey = Exclude<Role, `${string}_ADMIN`>
 
 type Permission = {

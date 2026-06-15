@@ -1,0 +1,313 @@
+import type { Role } from '@ensdomains/ensjs/utils/v2'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { match } from 'ts-pattern'
+import { type Address, isAddress, zeroAddress } from 'viem'
+import { normalize } from 'viem/ens'
+import { usePublicClient, useWalletClient } from 'wagmi'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Field } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
+import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import {
+  isAdminRole,
+  isManagerRoleSettable,
+  permissions,
+} from '@/lib/roles/permissions'
+import { cn } from '@/lib/utils'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+
+const GRANT_ROLES_TX_ID = 'tx-grant-roles'
+const RESOLVE_DEBOUNCE_MS = 300
+
+type RolesAddUserSheetProps = {
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly name: string
+  readonly registryAddress: Address
+}
+
+export const RolesAddUserSheet = ({
+  open,
+  onOpenChange,
+  name,
+  registryAddress,
+}: RolesAddUserSheetProps) => {
+  const publicClient = usePublicClient()
+  const { data: walletClient } = useWalletClient()
+  const callerAddress = walletClient?.account?.address
+
+  const labels = name.split('.')
+  const is2LD = labels.length === 2
+
+  const { data: callerRolesData } = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress,
+      label: labels[0],
+      account: callerAddress ?? zeroAddress,
+    }),
+    enabled: Boolean(callerAddress),
+  })
+
+  const callerAdminRoles = new Set<Role>(
+    (callerRolesData?.decoded ?? []).filter((r): r is Role => isAdminRole(r)),
+  )
+
+  const [userInput, setUserInput] = useState('')
+  const [selectedRoles, setSelectedRoles] = useState<Set<Role>>(new Set())
+  const [pendingGrant, setPendingGrant] = useState<{
+    readonly account: Address
+    readonly roles: Role[]
+  } | null>(null)
+
+  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const {
+    mutate: resolveAddress,
+    reset: resetResolve,
+    data: resolvedAddress,
+    isPending: isResolving,
+    error: resolveError,
+  } = useMutation({
+    mutationFn: async (nameOrAddress: string) => {
+      if (!publicClient) throw new Error('Public client not available')
+      const resolved = await resolveAddressOrName({
+        client: publicClient,
+        nameOrAddress: normalize(nameOrAddress),
+      })
+      if (!resolved)
+        throw new Error(`Could not resolve an address for "${nameOrAddress}"`)
+      return resolved
+    },
+  })
+
+  const address: Address | null = isAddress(userInput, { strict: false })
+    ? userInput
+    : (resolvedAddress ?? null)
+
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
+  const { grantRoles, isPending, isSuccess, reset } = useGrantRoles()
+
+  // Reset form + both mutations when the sheet closes, otherwise `isSuccess`
+  // sticks across re-opens and leaves the input disabled / Save permanently
+  // gated. Also clears any in-flight resolve debounce so it can't fire late.
+  useEffect(() => {
+    if (open) return
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
+    setUserInput('')
+    setSelectedRoles(new Set())
+    setPendingGrant(null)
+    resetResolve()
+    reset()
+  }, [open, reset, resetResolve])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value.trim()
+    setUserInput(value)
+    resetResolve()
+
+    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
+    if (!value || isAddress(value, { strict: false }) || !value.includes('.'))
+      return
+
+    resolveTimeoutRef.current = setTimeout(
+      () => resolveAddress(value),
+      RESOLVE_DEBOUNCE_MS,
+    )
+  }
+
+  const toggleRole = (role: Role, checked: boolean) => {
+    setSelectedRoles((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(role)
+      else next.delete(role)
+      return next
+    })
+  }
+
+  const canSave =
+    !!address && !isResolving && selectedRoles.size > 0 && !isSuccess
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!address || selectedRoles.size === 0) return
+    reset()
+    setPendingGrant({ account: address, roles: Array.from(selectedRoles) })
+    openModal()
+  }
+
+  const handleStartTransaction = () => {
+    if (!pendingGrant || !walletClient?.account) return
+    grantRoles({
+      name,
+      account: pendingGrant.account,
+      roles: pendingGrant.roles,
+      id: GRANT_ROLES_TX_ID,
+      registryAddress,
+    })
+  }
+
+  const handleDone = () => {
+    closeModal()
+    clearTransaction()
+    setPendingGrant(null)
+    onOpenChange(false)
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="right"
+        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
+      >
+        <div className="p-6 flex flex-col gap-6 h-full">
+          <SheetHeader className="p-0 pt-4">
+            <SheetTitle className="font-sans text-heading font-medium">
+              Add user
+            </SheetTitle>
+          </SheetHeader>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
+            <Field>
+              <Input
+                id="user"
+                name="user"
+                aria-label="User name or address"
+                placeholder="User name or address"
+                required
+                value={userInput}
+                disabled={isPending || isSuccess}
+                onChange={handleInputChange}
+                className="h-12 bg-background border"
+              />
+              {isResolving && (
+                <p className="text-sm mt-1.5 text-muted-foreground">
+                  Resolving address...
+                </p>
+              )}
+              {!isResolving && address && (
+                <p className="text-sm mt-1.5 text-muted-foreground">
+                  {isAddress(userInput, { strict: false })
+                    ? `Using address: ${truncateAddress(address, 6, 4)}`
+                    : `Resolved: ${truncateAddress(address, 6, 4)}`}
+                </p>
+              )}
+              {resolveError && (
+                <p className="text-sm mt-1.5 text-danger">
+                  {resolveError.message}
+                </p>
+              )}
+            </Field>
+
+            <Field>
+              <div
+                className={cn(
+                  'border border-border rounded-sm overflow-hidden transition-colors',
+                  (isPending || isSuccess) && 'opacity-50 pointer-events-none',
+                )}
+              >
+                {permissions.map((permission, index) => {
+                  const managerRole = permission.key as Role
+                  const adminRole = `${permission.key}_ADMIN` as Role
+                  const callerHasAdminRole = callerAdminRoles.has(adminRole)
+                  const isManagerRoleDisabled =
+                    !isManagerRoleSettable(permission.key, { is2LD }) ||
+                    !callerHasAdminRole
+
+                  return (
+                    <div
+                      key={permission.key}
+                      className={cn(
+                        'flex items-center justify-between px-6 py-4 gap-4',
+                        index !== 0 && 'border-t border-border',
+                        isManagerRoleDisabled && 'text-muted-foreground',
+                      )}
+                      title={
+                        callerHasAdminRole
+                          ? undefined
+                          : `Your account does not hold ${adminRole} on this name and cannot grant this role.`
+                      }
+                    >
+                      <div className="flex flex-col gap-1 flex-1 min-w-64">
+                        <div className="font-medium">{permission.title}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {permission.description}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+                        <div className="flex items-center gap-2 min-w-24">
+                          <Checkbox
+                            id={`add-${permission.key}-manager`}
+                            checked={selectedRoles.has(managerRole)}
+                            disabled={isManagerRoleDisabled}
+                            onCheckedChange={(checked) =>
+                              toggleRole(managerRole, checked as boolean)
+                            }
+                          />
+                          <Label
+                            htmlFor={`add-${permission.key}-manager`}
+                            className="font-medium cursor-pointer"
+                          >
+                            Manager
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2 min-w-24">
+                          <Checkbox
+                            id={`add-${permission.key}-admin`}
+                            checked={selectedRoles.has(adminRole)}
+                            disabled
+                          />
+                          <Label
+                            htmlFor={`add-${permission.key}-admin`}
+                            className="font-medium cursor-pointer"
+                          >
+                            Admin
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </Field>
+
+            <div className="flex justify-end">
+              <Button type="submit" variant="default" disabled={!canSave}>
+                {match({ isPending, isSuccess })
+                  .with({ isSuccess: true }, () => 'Transaction Complete')
+                  .with({ isPending: true }, () => 'Saving...')
+                  .otherwise(() => 'Save')}
+              </Button>
+            </div>
+          </form>
+
+          <TransactionModal
+            transactions={[
+              {
+                id: GRANT_ROLES_TX_ID,
+                title: 'Grant roles',
+                transactionName: address
+                  ? `Grant roles for ${truncateAddress(address, 6, 4)}`
+                  : 'Grant roles',
+                estimatedGasCost: 0.0001,
+                onStart: handleStartTransaction,
+                onDone: handleDone,
+              },
+            ]}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}

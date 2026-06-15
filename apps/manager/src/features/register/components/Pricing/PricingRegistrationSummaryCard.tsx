@@ -150,10 +150,11 @@ export const PricingRegistrationSummaryCard = ({
                     return dateToCheck.getTime() < minDate.getTime()
                   }}
                   endMonth={addMonths(new Date(), 1200)}
+                  minimumDate={minSelectableDate}
                   onSelect={handleDateSelect}
                   selected={expirationDate}
                   showClearButton
-                  showTodayButton
+                  showMinimumButton
                   startMonth={minSelectableDate}
                 />
               </PopoverContent>
