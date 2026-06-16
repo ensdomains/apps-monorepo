@@ -1,9 +1,10 @@
 import type { Address } from 'viem'
 import type { SignedProfileImageUpload } from '@/features/profile/service/profileImageCache'
 import type { ProfileRecords } from '@/features/profile/types'
-import type { useAppForm } from '../../form'
 
-export type EditProfileForm = ReturnType<typeof useAppForm>
+export interface EditProfileForm {
+  readonly reset: (records: ProfileRecords) => void
+}
 
 export interface EditProfileDialogProps {
   readonly name: string
