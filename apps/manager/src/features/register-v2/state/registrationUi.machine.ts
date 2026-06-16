@@ -17,6 +17,7 @@ import {
   setup,
 } from 'xstate'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
+import { getPaymentSourceById } from '@/lib/payment/crossChainSources'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -37,6 +38,13 @@ type Context = {
    */
   duration: number
   selectedToken: SUPPORTED_TOKEN | undefined
+  /**
+   * Id of the selected payment source (token × chain). Determines whether the
+   * payment is same-chain (L1) or cross-chain (L2 stable bridged to L1).
+   * `selectedToken` still drives pricing — both Sepolia and Base USDC price in
+   * the same USDC units.
+   */
+  selectedPaymentSourceId: string | undefined
   lastErrorMessage?: string
 
   /**
@@ -64,12 +72,19 @@ type Events =
   | { type: 'pricing.step.previous' }
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
-  | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | {
+      type: 'pricing.token.select'
+      token: SUPPORTED_TOKEN | undefined
+      /** Selected payment source id (token × chain). */
+      paymentSourceId?: string
+    }
   | {
       type: 'registration.start'
       label: string
       duration: bigint
       token: SUPPORTED_TOKEN
+      /** Selected payment source id (token × chain). */
+      paymentSourceId?: string
       /** Price in token units */
       totalPrice: bigint
       account: SmartAccountContextValue
@@ -119,6 +134,10 @@ const machineSetup = setup({
         event.type === 'pricing.token.select'
           ? event.token
           : context.selectedToken,
+      selectedPaymentSourceId: ({ event, context }) =>
+        event.type === 'pricing.token.select'
+          ? event.paymentSourceId
+          : context.selectedPaymentSourceId,
     }),
     clearError: assign({
       lastErrorMessage: () => undefined,
@@ -245,6 +264,22 @@ const startRegistrationAction = machineSetup.createAction(
       },
     })
 
+    // Resolve the selected payment source. Only cross-chain (L2) sources need
+    // to be forwarded to the registration flow — same-chain (L1) sources use
+    // today's symbol-derived token, so `paymentSource` stays undefined for
+    // them (the registration machine treats undefined as same-chain).
+    const selectedSource = event.paymentSourceId
+      ? getPaymentSourceById(event.paymentSourceId)
+      : undefined
+    const paymentSource =
+      selectedSource && selectedSource.isCrossChain
+        ? {
+            destinationPaymentToken: selectedSource.destinationPaymentToken,
+            sourceChainId: selectedSource.sourceChainId,
+            sourceTokenAddress: selectedSource.sourceTokenAddress,
+          }
+        : undefined
+
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
@@ -258,6 +293,7 @@ const startRegistrationAction = machineSetup.createAction(
         ownerAddress,
         resolverOwnerAddress,
         publicClient: defaultPublicClient,
+        paymentSource,
         sponsored:
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
@@ -315,6 +351,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     chainId: input.chainId,
     duration: SECONDS_IN_YEAR * 3,
     selectedToken: undefined,
+    selectedPaymentSourceId: undefined,
     lastErrorMessage: undefined,
     maxProgressReached: undefined,
   }),

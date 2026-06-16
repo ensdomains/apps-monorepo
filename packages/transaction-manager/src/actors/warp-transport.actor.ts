@@ -15,14 +15,95 @@
 import { logger } from '@ens-apps/utils/logger'
 import type { TokenRequest, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Hash } from 'viem'
-import { sepolia } from 'viem/chains'
+import type { Chain, Hash } from 'viem'
+import { baseSepolia, sepolia } from 'viem/chains'
 import {
   extractOrchestratorErrorContext,
   TransactionSubmissionError,
 } from '../errors/transaction.errors'
 import type { RhinestoneSigner } from '../types/signer.types'
-import type { TransactionRequest } from '../types/transaction.types'
+import type {
+  CrossChainSourceAsset,
+  TransactionRequest,
+} from '../types/transaction.types'
+
+/**
+ * Chains a cross-chain intent may source funds from. Keep in sync with the
+ * manager's payment-source registry. The orchestrator validates the actual
+ * chain/token support; this map only resolves chainId → viem Chain for the
+ * SDK call.
+ */
+const SOURCE_CHAINS_BY_ID: Record<number, Chain> = {
+  [sepolia.id]: sepolia,
+  [baseSepolia.id]: baseSepolia,
+}
+
+function resolveSourceChains(
+  chainIds: readonly number[] | undefined,
+  fallback: Chain,
+): Chain[] {
+  if (!chainIds || chainIds.length === 0) {
+    return [fallback]
+  }
+  return chainIds.map((id) => {
+    const chain = SOURCE_CHAINS_BY_ID[id]
+    if (!chain) {
+      throw new Error(
+        `Unsupported source chain id for cross-chain payment: ${id}`,
+      )
+    }
+    return chain
+  })
+}
+
+function resolveSourceAssets(
+  sourceAssets: readonly CrossChainSourceAsset[] | undefined,
+): Transaction['sourceAssets'] | undefined {
+  if (!sourceAssets || sourceAssets.length === 0) {
+    return undefined
+  }
+
+  // If an explicit amount is given for any asset, use the SDK's exact-input
+  // form (`ExactInputConfig[]`). Otherwise use the chain→token map form so the
+  // orchestrator sizes the source input itself from the destination
+  // `tokenRequests`. Passing the exact-input form with `amount: undefined`
+  // over-constrains routing (the orchestrator can't form a plan), which is
+  // what produced NO_PLAN_AVAILABLE — see GET /quotes behaviour: the bare
+  // `{ chainIds, tokens }` access list routes fine, the amount-less exact
+  // config does not.
+  const hasExplicitAmount = sourceAssets.some(
+    (asset) => asset.amount !== undefined,
+  )
+
+  for (const asset of sourceAssets) {
+    if (!SOURCE_CHAINS_BY_ID[asset.chainId]) {
+      throw new Error(
+        `Unsupported source asset chain id for cross-chain payment: ${asset.chainId}`,
+      )
+    }
+  }
+
+  if (hasExplicitAmount) {
+    return sourceAssets.map((asset) => ({
+      chain: SOURCE_CHAINS_BY_ID[asset.chainId],
+      address: asset.address,
+      ...(asset.amount !== undefined ? { amount: asset.amount } : {}),
+    })) as Transaction['sourceAssets']
+  }
+
+  // Chain → token-list map (`ChainTokenMap`). Tokens identified by address.
+  const chainTokens: Record<
+    number,
+    (typeof sourceAssets)[number]['address'][]
+  > = {}
+  for (const asset of sourceAssets) {
+    if (!asset.address) continue
+    const list = chainTokens[asset.chainId] ?? []
+    list.push(asset.address)
+    chainTokens[asset.chainId] = list
+  }
+  return chainTokens as unknown as Transaction['sourceAssets']
+}
 
 export interface SubmitWarpTransactionInput {
   readonly request: TransactionRequest
@@ -46,7 +127,14 @@ export function submitWarpTransaction(
     )
   }
 
-  const { calls, sponsored, tokenRequests } = request.rhinestoneParams
+  const {
+    calls,
+    sponsored,
+    tokenRequests,
+    sourceChains,
+    sourceAssets,
+    recipient,
+  } = request.rhinestoneParams
 
   if (!calls || calls.length === 0) {
     return errAsync(
@@ -110,8 +198,36 @@ export function submitWarpTransaction(
           } satisfies NonNullable<Transaction['signers']>)
         : undefined
 
+      // `targetChain` is always the local chain (where the ENS calls execute).
+      // `sourceChains` defaults to the same chain (same-chain intent); for
+      // cross-chain stable payments the caller supplies the L2 source chain
+      // and matching `sourceAssets`, and Warp bridges the funds to the EOA on
+      // the target chain before the batched permit+register runs.
+      const resolvedSourceChains = resolveSourceChains(sourceChains, chain)
+      const resolvedSourceAssets = resolveSourceAssets(sourceAssets)
+
+      // Full, untruncated dump of the cross-chain routing inputs so a failed
+      // intent (e.g. NO_PLAN_AVAILABLE) is debuggable from the console.
+      logger.debug(
+        '🌉 [WARP] cross-chain routing inputs:',
+        JSON.stringify(
+          {
+            targetChainId: chain.id,
+            sourceChainIds: resolvedSourceChains.map((c) => c.id),
+            sourceChainsRaw: sourceChains,
+            sourceAssetsRaw: sourceAssets,
+            resolvedSourceAssets,
+            tokenRequests,
+            recipient,
+            accountAddress: account.getAddress?.(),
+          },
+          (_, v) => (typeof v === 'bigint' ? v.toString() : v),
+          2,
+        ),
+      )
+
       const sdkParams = {
-        sourceChains: [chain],
+        sourceChains: resolvedSourceChains,
         targetChain: chain,
         // Spread into a fresh mutable array: the SDK's CallInput[] is mutable
         // while rhinestoneParams.calls is readonly.
@@ -124,6 +240,11 @@ export function submitWarpTransaction(
         tokenRequests: (tokenRequests ?? []) as TokenRequest[] &
           Transaction['tokenRequests'],
         ...(sessionSigners ? { signers: sessionSigners } : {}),
+        ...(resolvedSourceAssets ? { sourceAssets: resolvedSourceAssets } : {}),
+        // For cross-chain ENS payments the registrar pulls from the EOA owner,
+        // so the bridged funds are delivered to the EOA via `recipient` rather
+        // than the default (the account). Same-chain intents omit this.
+        ...(recipient ? { recipient } : {}),
       } satisfies Transaction
 
       logger.debug(

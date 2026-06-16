@@ -55,6 +55,15 @@ const FEATURE_FLAGS_INTERNAL = {
   USE_EOA: {
     enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
   },
+  /**
+   * Enable paying ENS registration rent from L2 stables (Base Sepolia USDC)
+   * via Rhinestone cross-chain intents. When off, only L1 (Sepolia)
+   * USDC/DAI payment sources are offered. The rent is always charged in the
+   * L1 destination token; the L2 stable is bridged to satisfy it.
+   */
+  L2_STABLES: {
+    enabled: import.meta.env.VITE_FF_L2_STABLES === 'true',
+  },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 
 export type TransactionInfra = 'warp'

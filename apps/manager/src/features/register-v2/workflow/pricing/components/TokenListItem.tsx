@@ -1,57 +1,55 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { STABLECOINS } from '@/features/register/utils'
-import type { StablecoinBalance } from '@/lib/smart-account'
+import { getChainBadge, getTokenIcon } from '@/lib/payment/paymentSourceIcons'
+import type { PaymentSourceBalance } from '@/lib/payment/usePaymentSourceBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { hasInsufficientBalance } from '@/utils/payment'
 
 export const TokenListItem = ({
-  stablecoin,
-  selectedCoin,
+  source,
+  selectedSourceId,
   priceUSD,
-  onSelectCoin,
+  onSelectSource,
 }: {
-  stablecoin: StablecoinBalance
-  selectedCoin: SUPPORTED_TOKEN | undefined
+  source: PaymentSourceBalance
+  selectedSourceId: string | undefined
   priceUSD: number
-  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  onSelectSource: (source: PaymentSourceBalance) => void
 }) => {
   const { t } = useLingui()
-  const isSelected = selectedCoin === stablecoin.symbol
-  const coinConfig = STABLECOINS[stablecoin.symbol as keyof typeof STABLECOINS]
-  const IconComponent = coinConfig?.icon || USDCIcon
+  const isSelected = selectedSourceId === source.id
+  const Icon = getTokenIcon(source)
+  const ChainBadge = getChainBadge(source)
 
   const coinBalanceUSD = decimalBigintToNumber(
-    BigInt(stablecoin.balance),
-    stablecoin.decimals,
+    BigInt(source.balance),
+    source.decimals,
   )
   const hasInsufficientBalanceForCoin =
     priceUSD > 0 && hasInsufficientBalance(coinBalanceUSD, priceUSD)
 
   return (
     <button
-      aria-label={t`Select ${stablecoin.symbol}`}
+      aria-label={t`Select ${source.label}`}
       className={cn(
         'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
         isSelected ? 'bg-ens-blue-light' : 'hover:bg-ens-gray-two/50',
         hasInsufficientBalanceForCoin && 'cursor-not-allowed opacity-50',
       )}
       disabled={hasInsufficientBalanceForCoin}
-      onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+      onClick={() => onSelectSource(source)}
       type="button"
     >
       <div className="flex items-center gap-2">
         <div className="relative h-8 w-8">
-          <IconComponent className="h-8 w-8" />
-          <div className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
-            <span className="text-[0.5rem] text-white leading-none">S</span>
+          <Icon className="h-8 w-8" />
+          <div className="absolute -right-0.5 -bottom-0.5 h-3.5 w-3.5">
+            <ChainBadge className="h-3.5 w-3.5" />
           </div>
         </div>
         <p className="text-ens-gray-dark text-sm tracking-wide">
-          {stablecoin.symbol}
+          {source.label}
         </p>
       </div>
       <div className="flex flex-col items-end">

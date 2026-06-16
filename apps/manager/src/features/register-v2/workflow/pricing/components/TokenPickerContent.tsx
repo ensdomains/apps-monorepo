@@ -1,7 +1,4 @@
-import {
-  type SUPPORTED_TOKEN,
-  TOKENS,
-} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
@@ -11,7 +8,10 @@ import { match, P } from 'ts-pattern'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
-import type { StablecoinBalance } from '@/lib/smart-account'
+import {
+  type PaymentSourceBalance,
+  usePaymentSourceBalances,
+} from '@/lib/payment/usePaymentSourceBalances'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -39,9 +39,14 @@ export const TokenPickerContent = () => {
   const account = useSmartAccountContext()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [duration, selectedToken] = useSelector(
+  const [duration, selectedToken, selectedPaymentSourceId] = useSelector(
     uiActor,
-    (state) => [state.context.duration, state.context.selectedToken] as const,
+    (state) =>
+      [
+        state.context.duration,
+        state.context.selectedToken,
+        state.context.selectedPaymentSourceId,
+      ] as const,
   )
   const pricingQuery = useQuery({
     ...getRegisterPriceQueryOptions(
@@ -67,8 +72,12 @@ export const TokenPickerContent = () => {
     }),
   })
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
-    uiActor.send({ type: 'pricing.token.select', token: coin })
+  const onSelectSource = (source: PaymentSourceBalance) => {
+    uiActor.send({
+      type: 'pricing.token.select',
+      token: source.symbol,
+      paymentSourceId: source.id,
+    })
   }
 
   // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
@@ -82,6 +91,7 @@ export const TokenPickerContent = () => {
       label,
       duration: BigInt(Math.ceil(duration)),
       token: selectedToken,
+      paymentSourceId: selectedPaymentSourceId,
       totalPrice: pricingQuery.data.rawPrice,
       account,
       basePriceNumber: pricingQuery.data.basePriceNumber,
@@ -112,8 +122,9 @@ export const TokenPickerContent = () => {
     },
   })
 
-  const { stablecoinBalances, isLoadingBalances, isConnected } =
-    useSmartAccountContext()
+  const { ownerAddress, isConnected } = account
+  const { paymentSources, isLoading: isLoadingBalances } =
+    usePaymentSourceBalances(ownerAddress)
 
   return (
     <TokenPickerContentBase
@@ -127,11 +138,11 @@ export const TokenPickerContent = () => {
       isLoadingBalances={isLoadingBalances}
       label={label}
       onNext={() => availabilityMutation.mutate()}
-      onSelectCoin={onSelectCoin}
+      onSelectSource={onSelectSource}
+      paymentSources={paymentSources}
       pricingData={pricingQuery.data?.totalPriceNumber}
       pricingLoading={pricingQuery.isLoading}
-      selectedToken={selectedToken}
-      stablecoinBalances={stablecoinBalances}
+      selectedSourceId={selectedPaymentSourceId}
     />
   )
 }
@@ -141,11 +152,11 @@ export const TokenPickerContentBase = ({
   pricingLoading,
   pricingData,
   isInPriceCooldown = false,
-  selectedToken,
+  selectedSourceId,
   errorMessage,
-  onSelectCoin,
+  onSelectSource,
   onNext,
-  stablecoinBalances,
+  paymentSources,
   isLoadingBalances,
   isConnected,
   nextMessage = <Trans>Buy Name</Trans>,
@@ -154,11 +165,11 @@ export const TokenPickerContentBase = ({
   pricingLoading: boolean
   pricingData: number | undefined
   isInPriceCooldown?: boolean
-  selectedToken: SUPPORTED_TOKEN | undefined
+  selectedSourceId: string | undefined
   errorMessage?: string | null
-  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  onSelectSource: (source: PaymentSourceBalance) => void
   onNext: () => void
-  stablecoinBalances: StablecoinBalance[]
+  paymentSources: PaymentSourceBalance[]
   isLoadingBalances: boolean
   isConnected: boolean
   nextMessage?: ReactNode
@@ -167,23 +178,23 @@ export const TokenPickerContentBase = ({
   const domainName = `${label}.eth`
   const premiumLabel = getPremiumLabel(label.length)
 
-  const hasBalances = (stablecoinBalances?.length || 0) > 0
+  const hasBalances = (paymentSources?.length || 0) > 0
 
-  const selectedCoinBalance = stablecoinBalances?.find(
-    (coin) => coin.symbol === selectedToken,
+  const selectedSource = paymentSources?.find(
+    (source) => source.id === selectedSourceId,
   )
 
   const hasSufficientBalanceForSelectedCoin =
-    selectedCoinBalance &&
+    selectedSource &&
     pricingData &&
     decimalBigintToNumber(
-      BigInt(selectedCoinBalance.balance),
-      selectedCoinBalance.decimals,
+      BigInt(selectedSource.balance),
+      selectedSource.decimals,
     ) >= pricingData
 
   const canNext =
     isConnected &&
-    !!selectedToken &&
+    !!selectedSourceId &&
     !pricingLoading &&
     hasBalances &&
     !!hasSufficientBalanceForSelectedCoin
@@ -235,7 +246,7 @@ export const TokenPickerContentBase = ({
           {match({
             isLoadingBalances,
             hasBalances,
-            stablecoinsCount: stablecoinBalances?.length ?? 0,
+            sourcesCount: paymentSources?.length ?? 0,
             isConnected,
             pricingLoading,
           })
@@ -265,22 +276,22 @@ export const TokenPickerContentBase = ({
                 </div>
               </div>
             ))
-            .with({ stablecoinsCount: 0 }, () => (
+            .with({ sourcesCount: 0 }, () => (
               <div className="flex items-center justify-center py-8">
                 <div className="text-ens-gray-two text-sm">
                   <Trans>No stablecoins available</Trans>
                 </div>
               </div>
             ))
-            .with({ stablecoinsCount: P.number.gt(0) }, () => (
+            .with({ sourcesCount: P.number.gt(0) }, () => (
               <div className="flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
-                {stablecoinBalances.map((stablecoin) => (
+                {paymentSources.map((source) => (
                   <TokenListItem
-                    key={stablecoin.address}
-                    onSelectCoin={onSelectCoin}
+                    key={source.id}
+                    onSelectSource={onSelectSource}
                     priceUSD={pricingData ?? 0}
-                    selectedCoin={selectedToken}
-                    stablecoin={stablecoin}
+                    selectedSourceId={selectedSourceId}
+                    source={source}
                   />
                 ))}
               </div>

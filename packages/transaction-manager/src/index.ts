@@ -81,6 +81,7 @@ export type {
 } from './types/signer.types'
 export type {
   Call,
+  CrossChainSourceAsset,
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
   EOATransactionRequest,

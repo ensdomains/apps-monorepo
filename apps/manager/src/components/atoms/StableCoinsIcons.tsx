@@ -83,3 +83,41 @@ export const DAI = ({ className }: { className?: string } = {}) => {
     </svg>
   )
 }
+
+// Small chain badge overlaid on a token logo in the payment picker.
+// Indicates which chain a given stable balance lives on.
+export const SepoliaChainBadge = ({
+  className,
+}: {
+  className?: string
+} = {}) => {
+  return (
+    <span
+      aria-hidden="true"
+      className={
+        className ||
+        'flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core'
+      }
+    >
+      <span className="text-[0.5rem] text-white leading-none">S</span>
+    </span>
+  )
+}
+
+export const BaseChainBadge = ({ className }: { className?: string } = {}) => {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className || 'h-3.5 w-3.5'}
+      fill="none"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="12" cy="12" fill="#0052FF" r="12" />
+      <path
+        d="M11.97 19.2c3.98 0 7.2-3.22 7.2-7.2s-3.22-7.2-7.2-7.2c-3.77 0-6.87 2.9-7.17 6.6h9.53v1.2H4.8c.3 3.7 3.4 6.6 7.17 6.6Z"
+        fill="#fff"
+      />
+    </svg>
+  )
+}

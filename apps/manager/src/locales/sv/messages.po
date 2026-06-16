@@ -1923,7 +1923,7 @@ msgstr ""
 msgid "See what's new"
 msgstr ""
 
-#. placeholder {0}: stablecoin.symbol
+#. placeholder {0}: source.label
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr ""
