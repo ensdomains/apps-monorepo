@@ -67,12 +67,12 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
   {
     id: 'user',
     accessorKey: 'account',
-    header: () => <span className="text-muted-foreground">User</span>,
+    header: 'User',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
   {
     id: 'role',
-    header: () => <span className="text-muted-foreground">Role</span>,
+    header: 'Role',
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5 text-muted-foreground">
         {toRoleEntries(row.original.roles).map((entry) => (
@@ -88,9 +88,9 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
   },
   {
     id: 'admin',
-    header: () => <span className="text-muted-foreground">Admin</span>,
+    header: () => <div className="text-center">Admin</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-center gap-0.5">
         {toRoleEntries(row.original.roles).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
@@ -104,9 +104,9 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
   },
   {
     id: 'user-level',
-    header: () => <span className="text-muted-foreground">User</span>,
+    header: () => <div className="text-center">User</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-center gap-0.5">
         {toRoleEntries(row.original.roles).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
