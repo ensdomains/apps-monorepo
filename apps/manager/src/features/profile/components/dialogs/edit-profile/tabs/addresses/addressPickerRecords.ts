@@ -6,6 +6,11 @@ export interface AddressOption {
   readonly label: string
 }
 
+export interface PickerRecordGroups {
+  readonly otherRecords: readonly AddressRecordDef[]
+  readonly popularRecords: readonly AddressRecordDef[]
+}
+
 export type PickerMode = 'evm' | 'other'
 
 export const ETH_COIN_TYPE = 60
@@ -27,6 +32,10 @@ export const otherNetworkOptions: readonly AddressOption[] = [
   { coinType: 501, label: 'Solana' },
   { coinType: BNB_COIN_TYPE, label: 'Binance Chain' },
 ]
+
+const popularEvmChainIndex = new Map(
+  evmChainOptions.map(({ coinType }, index) => [coinType, index]),
+)
 
 export const isEvmCoinType = (coinType: number) =>
   coinType >= EVM_COIN_TYPE_OFFSET
@@ -55,4 +64,33 @@ export const getPickerRecords = ({
       record.notation?.toLowerCase().includes(normalizedSearchValue)
     )
   })
+}
+
+export const getPickerRecordGroups = (
+  params: GetPickerRecordsParams,
+): PickerRecordGroups => {
+  const records = getPickerRecords(params)
+  if (params.mode !== 'evm') {
+    return { otherRecords: records, popularRecords: [] }
+  }
+
+  const popularRecords: AddressRecordDef[] = []
+  const otherRecords: AddressRecordDef[] = []
+
+  for (const record of records) {
+    if (popularEvmChainIndex.has(record.coinType)) {
+      popularRecords.push(record)
+      continue
+    }
+
+    otherRecords.push(record)
+  }
+
+  popularRecords.sort(
+    (a, b) =>
+      (popularEvmChainIndex.get(a.coinType) ?? Infinity) -
+      (popularEvmChainIndex.get(b.coinType) ?? Infinity),
+  )
+
+  return { otherRecords, popularRecords }
 }

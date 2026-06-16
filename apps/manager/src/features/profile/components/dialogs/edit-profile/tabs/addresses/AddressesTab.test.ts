@@ -16,6 +16,8 @@ import {
   BNB_COIN_TYPE,
   BSC_COIN_TYPE,
   ETH_COIN_TYPE,
+  evmChainOptions,
+  getPickerRecordGroups,
   getPickerRecords,
   isEvmCoinType,
 } from './addressPickerRecords'
@@ -39,6 +41,25 @@ describe('getPickerRecords', () => {
       expectedRecords.map(({ coinType }) => coinType),
     )
     expect(records.length).toBeGreaterThan(4)
+  })
+
+  it('groups available popular EVM chains before all remaining EVM chains', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'evm',
+      normalizedSearchValue: '',
+      unavailableCoinTypes: new Set([ETH_COIN_TYPE, BSC_COIN_TYPE]),
+    })
+    const expectedPopularCoinTypes = evmChainOptions
+      .map(({ coinType }) => coinType)
+      .filter((coinType) => coinType !== BSC_COIN_TYPE)
+
+    expect(popularRecords.map(({ coinType }) => coinType)).toEqual(
+      expectedPopularCoinTypes,
+    )
+    expect(otherRecords.map(({ coinType }) => coinType)).not.toEqual(
+      expect.arrayContaining(expectedPopularCoinTypes),
+    )
+    expect(otherRecords.length).toBeGreaterThan(4)
   })
 })
 
@@ -211,6 +232,21 @@ describe('address row helpers', () => {
     expect(state.visibleEvmChipOptions.map(({ coinType }) => coinType)).toEqual(
       expect.arrayContaining([optimismCoinType, baseCoinType]),
     )
+  })
+
+  it('keeps inactive preset EVM chains available for the popular picker', () => {
+    const state = getAddressDisplayState({
+      addresses: [address(ETH_COIN_TYPE, ethAddress)],
+      ethAddress,
+      extraEvmCoinTypes: [],
+      extraOtherCoinTypes: [],
+    })
+
+    expect(state.visibleEvmChipOptions.map(({ coinType }) => coinType)).toEqual(
+      expect.arrayContaining([optimismCoinType, baseCoinType]),
+    )
+    expect(state.unavailableEvmCoinTypes.has(optimismCoinType)).toBe(false)
+    expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(false)
   })
 
   it('hides preset chain-specific EVM records from popular chips and the add-more picker', () => {

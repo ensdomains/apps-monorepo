@@ -109,12 +109,12 @@ function TemporaryPremiumDebugPlayground() {
       </header>
 
       <section className="grid gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="flex flex-col gap-3 rounded-xl border border-[#e5e5e5] bg-white p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-ens-gray-two bg-white p-4">
           <h2 className="font-medium text-[#353535] text-sm">
             Target price (black dot)
           </h2>
-          <div className="flex h-12 items-stretch overflow-hidden rounded-md border border-[#e5e5e5]">
-            <span className="flex items-center border-[#e5e5e5] border-r bg-[#f6f6f6] px-4 text-[#64748B]">
+          <div className="flex h-12 items-stretch overflow-hidden rounded-md border border-ens-gray-two">
+            <span className="flex items-center border-ens-gray-two border-r bg-ens-white px-4 text-[#64748B]">
               $
             </span>
             <input
@@ -129,7 +129,7 @@ function TemporaryPremiumDebugPlayground() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-ens-gray-two bg-[#fafafa] p-4">
           <h2 className="font-medium text-[#353535] text-sm">Simulation</h2>
           <label className="flex cursor-pointer items-center gap-2 text-[#353535] text-sm">
             <input

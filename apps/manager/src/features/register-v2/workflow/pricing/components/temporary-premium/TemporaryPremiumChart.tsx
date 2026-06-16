@@ -610,7 +610,7 @@ export function TemporaryPremiumChart({
       {nowView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[3] size-3 rounded-full"
+            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-3 size-3 rounded-full"
             style={{
               left: nowView.pos.x,
               top: nowView.pos.y,
@@ -620,7 +620,7 @@ export function TemporaryPremiumChart({
             }}
           />
           <div
-            className="pointer-events-none absolute z-[4]"
+            className="pointer-events-none absolute z-4"
             style={{
               left: nowView.leader.labelAnchor.x,
               top: nowView.leader.labelAnchor.y,
@@ -640,7 +640,7 @@ export function TemporaryPremiumChart({
         <>
           <div
             className={cn(
-              '-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[5] h-3 w-3 rounded-full',
+              '-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-5 h-3 w-3 rounded-full',
               selectedView.isPast && 'border-2 bg-transparent',
             )}
             style={{
@@ -656,7 +656,7 @@ export function TemporaryPremiumChart({
           />
           {!selectedLabelBelow && (
             <div
-              className="pointer-events-none absolute z-[6]"
+              className="pointer-events-none absolute z-6"
               style={{
                 left: selectedView.leader.labelAnchor.x,
                 top: selectedView.leader.labelAnchor.y,

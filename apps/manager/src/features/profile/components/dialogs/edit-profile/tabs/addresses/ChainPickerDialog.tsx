@@ -7,7 +7,7 @@ import { AddressIcon } from './AddressIcon'
 import { AddressPickerPill } from './AddressPickerPill'
 import {
   type AddressOption,
-  getPickerRecords,
+  getPickerRecordGroups,
   type PickerMode,
 } from './addressPickerRecords'
 
@@ -55,8 +55,8 @@ export const ChainPickerDialog = ({
   const [selectedCoinTypes, setSelectedCoinTypes] = useState<number[]>([])
   const [searchValue, setSearchValue] = useState('')
   const normalizedSearchValue = searchValue.trim().toLowerCase()
-  const records = useMemo(() => {
-    return getPickerRecords({
+  const { otherRecords, popularRecords } = useMemo(() => {
+    return getPickerRecordGroups({
       mode,
       normalizedSearchValue,
       unavailableCoinTypes,
@@ -84,6 +84,21 @@ export const ChainPickerDialog = ({
     handleOpenChange(false)
   }
 
+  const renderRecord = (coinType: number) => {
+    const option = getAddressOption(coinType)
+    const selected = selectedCoinTypes.includes(coinType)
+
+    return (
+      <ChainPickerOptionButton
+        active={selected}
+        disabled={disabled}
+        key={coinType}
+        onClick={() => toggleCoinType(coinType)}
+        option={option}
+      />
+    )
+  }
+
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent
@@ -91,7 +106,7 @@ export const ChainPickerDialog = ({
         overlayClassName="bg-black/90"
       >
         <DialogTitle className="font-bold text-[16px] text-ens-quartz-500 leading-[1.2]">
-          Add chains
+          Popular chains
         </DialogTitle>
 
         <div className="mt-4 flex min-h-11 shrink-0 items-center gap-3 rounded-full border border-[#d4d4d4] px-4 text-ens-quartz-400">
@@ -107,21 +122,23 @@ export const ChainPickerDialog = ({
         </div>
 
         <div className="mt-4 min-h-0 overflow-y-auto pr-1">
-          <div className="flex flex-wrap gap-2">
-            {records.map((record) => {
-              const option = getAddressOption(record.coinType)
-              const selected = selectedCoinTypes.includes(record.coinType)
-              return (
-                <ChainPickerOptionButton
-                  active={selected}
-                  disabled={disabled}
-                  key={record.coinType}
-                  onClick={() => toggleCoinType(record.coinType)}
-                  option={option}
-                />
-              )
-            })}
-          </div>
+          {popularRecords.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {popularRecords.map((record) => renderRecord(record.coinType))}
+            </div>
+          ) : null}
+
+          {otherRecords.length > 0 ? (
+            <div
+              className={
+                popularRecords.length > 0
+                  ? 'mt-4 flex flex-wrap gap-2 border-ens-quartz-100 border-t pt-4'
+                  : 'flex flex-wrap gap-2'
+              }
+            >
+              {otherRecords.map((record) => renderRecord(record.coinType))}
+            </div>
+          ) : null}
         </div>
 
         <Button
