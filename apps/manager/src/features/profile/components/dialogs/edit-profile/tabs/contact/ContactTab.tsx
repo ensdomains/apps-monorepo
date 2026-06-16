@@ -165,7 +165,7 @@ export const ContactTab = ({
       </div>
 
       <div className="flex flex-col gap-3 overflow-hidden">
-        <p className="w-full text-right text-xs text-ens-signal-success-700 leading-[1.2]">
+        <p className="w-full text-right text-ens-signal-success-700 text-xs leading-[1.2]">
           {selectedPrimaryContactCount}/{maxPrimaryContactMethods} selected
         </p>
 
