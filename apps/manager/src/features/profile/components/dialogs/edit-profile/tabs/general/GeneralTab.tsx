@@ -142,6 +142,10 @@ interface GeneralTabProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
+  readonly onImageUploadComplete?: (
+    kind: ProfileImageKind,
+    imageUrl: string,
+  ) => void
   readonly values: ProfileRecords
 }
 
@@ -149,6 +153,7 @@ export const GeneralTab = ({
   name,
   onBaseChange,
   onContactChange,
+  onImageUploadComplete,
   values,
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
@@ -209,6 +214,7 @@ export const GeneralTab = ({
             onCancel={() => setActiveImageField(null)}
             onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
             onImageRemove={() => setBaseValue('avatar', '')}
+            onImageUploadComplete={onImageUploadComplete}
           />
         )}
 
@@ -223,6 +229,7 @@ export const GeneralTab = ({
             onCancel={() => setActiveImageField(null)}
             onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
             onImageRemove={() => setBaseValue('header', '')}
+            onImageUploadComplete={onImageUploadComplete}
           />
         )}
 

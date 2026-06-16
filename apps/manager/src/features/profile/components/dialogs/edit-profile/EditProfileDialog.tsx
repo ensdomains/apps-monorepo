@@ -31,6 +31,7 @@ import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
+import type { ProfileImageKind } from './tabs/general/ProfileImageField'
 import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface ProfileEditForm {
@@ -294,6 +295,20 @@ export const EditProfileDialog = ({
                 resetSaveState()
                 form.setFieldValue('links', links)
               }
+              const handleSignedImageUploadComplete = (
+                kind: ProfileImageKind,
+                imageUrl: string,
+              ) => {
+                if (
+                  hasChanges ||
+                  (savedRecords.base[kind] ?? '').trim() !== imageUrl.trim()
+                ) {
+                  return
+                }
+
+                void onUpdated?.()
+                dialogActor.send({ type: 'CLOSE' })
+              }
 
               return (
                 <Tabs
@@ -317,6 +332,7 @@ export const EditProfileDialog = ({
                     onDraftLinkValidationIssuesChange={
                       setHasDraftLinkValidationIssues
                     }
+                    onImageUploadComplete={handleSignedImageUploadComplete}
                     onLinksChange={handleLinksChange}
                     onSave={() => handleSave(submittedValues)}
                     onSocialChange={handleSocialChange}

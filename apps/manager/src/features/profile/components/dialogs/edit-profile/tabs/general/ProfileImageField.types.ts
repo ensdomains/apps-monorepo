@@ -12,6 +12,10 @@ export interface ProfileImageFieldProps {
   readonly onCancel: () => void
   readonly onImageChange: (imageUrl: string) => void
   readonly onImageRemove: () => void
+  readonly onImageUploadComplete?: (
+    kind: ProfileImageKind,
+    imageUrl: string,
+  ) => void
 }
 
 export interface ProfileImageSize {

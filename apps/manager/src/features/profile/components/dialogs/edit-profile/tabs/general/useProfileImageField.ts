@@ -32,6 +32,7 @@ export const useProfileImageField = ({
   onCancel,
   onImageChange,
   onImageRemove,
+  onImageUploadComplete,
 }: ProfileImageFieldProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
@@ -97,6 +98,8 @@ export const useProfileImageField = ({
       chainId,
       signTypedDataAsync,
       onImageChange,
+      onImageUploadComplete: (imageUrl) =>
+        onImageUploadComplete?.(kind, imageUrl),
       setOpen: (open) => {
         if (!open) {
           resetEditor()
