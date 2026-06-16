@@ -13,7 +13,7 @@ import {
 } from '@ens-apps/utils/neverthrow'
 import { and, eq, inArray } from 'drizzle-orm'
 import { ok } from 'neverthrow'
-import { v7 as uuidv7 } from 'uuid'
+
 import { getQueueForChannel } from '#config/queues.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
@@ -271,14 +271,9 @@ export const createBatchNotifications = ResultFn(async function* <
     })
   }
 
-  // Generate IDs for all notifications using sequential UUIDs
-  // This ensures deterministic IDs and allows for better tracking
-  let notificationCounter = 0
   const notificationsWithIds = ctx.notifications.map((notification) => ({
     ...notification,
-    id: uuidv7({
-      seq: notificationCounter++,
-    }),
+    id: crypto.randomUUID(),
     kind: ctx.kind,
   }))
 
@@ -348,9 +343,6 @@ export const createBatchNotifications = ResultFn(async function* <
   // This allows us to add new channels without modifying switch statements
   const jobsByChannel = new Map<ChannelType, BaseDeliveryJob[]>()
 
-  // Counter for sequential delivery IDs
-  let deliveryCounter = 0
-
   // Process each notification and build delivery records
   for (const notification of notificationsWithIds) {
     const channels = channelsByUserId.get(notification.userId)
@@ -400,10 +392,7 @@ export const createBatchNotifications = ResultFn(async function* <
         continue
       }
 
-      // Generate delivery ID
-      const deliveryId = uuidv7({
-        seq: deliveryCounter++,
-      })
+      const deliveryId = crypto.randomUUID()
 
       // Add delivery record to batch
       deliveriesToCreate.push({

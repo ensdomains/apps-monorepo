@@ -2,7 +2,7 @@ import { channelSupportsNotification } from '@ens-apps/shared-schema/notificatio
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { and, eq, inArray } from 'drizzle-orm'
 import { fromPromise, ok } from 'neverthrow'
-import { v7 as uuidv7 } from 'uuid'
+
 import * as v from 'valibot'
 import { getDatabase, intoDbResult, TABLE } from '#core/database/index.js'
 import type { BaseDeliveryJob } from '#types/delivery.js'
@@ -321,7 +321,6 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
   const deliveriesToInsert: (typeof TABLE.notificationDeliveries.$inferInsert)[] =
     []
   const jobsByQueue = new Map<keyof CloudflareBindings, BaseDeliveryJob[]>()
-  let deliveryCounter = 0
   let suppressedBySettingsCount = 0
   let unsupportedChannelCount = 0
   let missingTargetCount = 0
@@ -366,7 +365,7 @@ const processExpiryEvents = ResultFn(async function* (ctx: {
         continue
       }
 
-      const deliveryId = uuidv7({ seq: deliveryCounter++ })
+      const deliveryId = crypto.randomUUID()
       deliveriesToInsert.push({
         id: deliveryId,
         notification_id: notification.id,
