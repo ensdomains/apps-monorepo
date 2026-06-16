@@ -69,10 +69,11 @@ export const RegisterNameCheckoutSummary = ({
   const premiumDecayConfig = oracleData?.premiumDecay
 
   const hasPrice = price && isPriceResult(price)
-  const premiumRange =
-    hasPrice && price
-      ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
-      : null
+
+  const premiumRange = {
+    start: Temporal.Instant.fromEpochMilliseconds(1234567890),
+    end: Temporal.Instant.fromEpochMilliseconds(1234567890),
+  }
 
   return (
     <Fragment>
