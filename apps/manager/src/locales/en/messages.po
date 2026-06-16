@@ -446,6 +446,7 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/DiffDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Cancel"
@@ -2038,6 +2039,7 @@ msgid "Save Preferences"
 msgstr "Save Preferences"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Save Profile"
 msgstr "Save Profile"
 
@@ -2046,6 +2048,7 @@ msgid "Saved favorites & searches"
 msgstr "Saved favorites & searches"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Saving"
 msgstr "Saving"
 

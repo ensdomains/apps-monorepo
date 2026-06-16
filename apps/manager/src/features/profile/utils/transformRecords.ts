@@ -1,12 +1,17 @@
 import * as v from 'valibot'
-import { allSections, getRecordDef, staticTextRecords } from '../data/records'
+import {
+  allSections,
+  getRecordDef,
+  getRecordDisplayValue,
+  staticTextRecords,
+} from '../data/records'
 import type {
   Section,
   SpecialSection,
   StaticRecordKey,
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
-import type { LinkItem, ProfileRecords } from '../types'
+import type { LinkItem, ProfileRecords, TextRecordValue } from '../types'
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
@@ -46,12 +51,21 @@ const normalizeProfileAddresses = (
 ): ProfileRecords['addresses'] =>
   addresses.filter(({ value }) => value && value.trim() !== '')
 
+const normalizeProfileTextRecords = (
+  records: readonly TextRecordValue[],
+): TextRecordValue[] =>
+  records.map(({ key, value }) => ({
+    key,
+    value: getRecordDisplayValue(getRecordDef(key), value),
+  }))
+
 export const normalizeProfileRecords = (
   records: ProfileRecords,
 ): ProfileRecords => ({
   ...records,
   addresses: normalizeProfileAddresses(records.addresses),
   links: normalizeProfileLinks(records.links),
+  social: normalizeProfileTextRecords(records.social),
 })
 
 interface TextRecordInput {

@@ -244,7 +244,7 @@ export const LinksTab = ({
                   aria-invalid={Boolean(urlError)}
                   aria-label={`Link ${row.index + 1} URL`}
                   className={cn(
-                    'h-11 w-full rounded-sm border border-[#d4d4d4] bg-transparent py-4 pr-10 pl-4 text-[12px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
+                    'h-11 w-full rounded-sm border border-[#d4d4d4] bg-transparent py-4 pr-10 pl-4 text-ens-quartz-900 text-xs outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
                     urlError &&
                       'border-destructive focus-visible:border-destructive',
                   )}
@@ -283,7 +283,7 @@ export const LinksTab = ({
         })}
 
         <button
-          className="flex h-6 min-w-75 items-center gap-[11px] rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
+          className="flex h-6 min-w-0 items-center gap-2.75 rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50 md:min-w-75"
           disabled={isSaving}
           onClick={() =>
             setDraftRows((current) => [...current, createDraftRow()])
