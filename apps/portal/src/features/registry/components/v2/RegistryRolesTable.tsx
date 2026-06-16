@@ -1,7 +1,7 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Check, PanelRight } from 'lucide-react'
+import { PanelRight } from 'lucide-react'
 import { useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
@@ -10,6 +10,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { Button } from '@/components/ui/button'
+import { PermissionMark } from '@/features/roles/components/roleTableColumns'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
@@ -50,10 +51,6 @@ const toRoleEntries = (roles: Role[]): RoleRowEntry[] => {
   }
   return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
 }
-
-const GreenCheck = () => (
-  <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
-)
 
 const UserCell = ({ account }: { account: Address }) => (
   <div className="w-32">
@@ -96,7 +93,7 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            {entry.hasAdmin ? <GreenCheck /> : null}
+            <PermissionMark held={entry.hasAdmin} />
           </div>
         ))}
       </div>
@@ -112,7 +109,7 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            {entry.hasUser ? <GreenCheck /> : null}
+            <PermissionMark held={entry.hasUser} />
           </div>
         ))}
       </div>
