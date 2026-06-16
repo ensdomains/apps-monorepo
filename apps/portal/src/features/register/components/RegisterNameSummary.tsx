@@ -18,6 +18,7 @@ import {
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
 import { getPremiumLabel } from '@/features/register/utils/premium'
+import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
@@ -69,10 +70,10 @@ export const RegisterNameCheckoutSummary = ({
 
   const hasPrice = price && isPriceResult(price)
 
-  const premiumRange = {
-    start: Temporal.Instant.fromEpochMilliseconds(1234567890),
-    end: Temporal.Instant.fromEpochMilliseconds(1234567890),
-  }
+  const premiumRange =
+    hasPrice && price
+      ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)
+      : null
 
   return (
     <Fragment>
