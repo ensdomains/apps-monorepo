@@ -465,7 +465,7 @@ export const EntityBadge = ({
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
 
-        {etherscanHref && (
+        {variant !== 'default' && etherscanHref && (
           <a
             href={etherscanHref}
             target="_blank"
