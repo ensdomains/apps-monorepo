@@ -201,12 +201,7 @@ export const getAddressDisplayState = ({
   )
   const unavailableEvmCoinTypes = new Set([
     ETH_COIN_TYPE,
-    ...extraEvmCoinTypes,
-    ...addresses
-      .filter(
-        ({ coinType, value }) => isEvmCoinType(coinType) && value.trim() !== '',
-      )
-      .map(({ coinType }) => coinType),
+    ...evmOptions.map(({ coinType }) => coinType),
   ])
   const unavailableOtherCoinTypes = new Set([
     ETH_COIN_TYPE,

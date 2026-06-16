@@ -109,6 +109,12 @@ export const ChainPickerDialog = ({
           Popular chains
         </DialogTitle>
 
+        {popularRecords.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {popularRecords.map((record) => renderRecord(record.coinType))}
+          </div>
+        ) : null}
+
         <div className="mt-4 flex min-h-11 shrink-0 items-center gap-3 rounded-full border border-[#d4d4d4] px-4 text-ens-quartz-400">
           <Search className="size-5 shrink-0" />
           <input
@@ -122,20 +128,8 @@ export const ChainPickerDialog = ({
         </div>
 
         <div className="mt-4 min-h-0 overflow-y-auto pr-1">
-          {popularRecords.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {popularRecords.map((record) => renderRecord(record.coinType))}
-            </div>
-          ) : null}
-
           {otherRecords.length > 0 ? (
-            <div
-              className={
-                popularRecords.length > 0
-                  ? 'mt-4 flex flex-wrap gap-2 border-ens-quartz-100 border-t pt-4'
-                  : 'flex flex-wrap gap-2'
-              }
-            >
+            <div className="flex flex-wrap gap-2">
               {otherRecords.map((record) => renderRecord(record.coinType))}
             </div>
           ) : null}

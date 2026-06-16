@@ -43,23 +43,61 @@ describe('getPickerRecords', () => {
     expect(records.length).toBeGreaterThan(4)
   })
 
-  it('groups available popular EVM chains before all remaining EVM chains', () => {
+  it('groups the top five EVM picker-only records without listing all remaining chains', () => {
     const { otherRecords, popularRecords } = getPickerRecordGroups({
       mode: 'evm',
       normalizedSearchValue: '',
-      unavailableCoinTypes: new Set([ETH_COIN_TYPE, BSC_COIN_TYPE]),
+      unavailableCoinTypes: new Set([
+        ETH_COIN_TYPE,
+        ...evmChainOptions.map(({ coinType }) => coinType),
+      ]),
     })
-    const expectedPopularCoinTypes = evmChainOptions
-      .map(({ coinType }) => coinType)
-      .filter((coinType) => coinType !== BSC_COIN_TYPE)
 
-    expect(popularRecords.map(({ coinType }) => coinType)).toEqual(
-      expectedPopularCoinTypes,
-    )
-    expect(otherRecords.map(({ coinType }) => coinType)).not.toEqual(
-      expect.arrayContaining(expectedPopularCoinTypes),
-    )
-    expect(otherRecords.length).toBeGreaterThan(4)
+    expect(popularRecords.map(({ name }) => name)).toEqual([
+      'Zora',
+      'Scroll',
+      'Linea',
+      'Celo',
+      'Gnosis',
+    ])
+    expect(otherRecords).toEqual([])
+  })
+
+  it('keeps popular picker-only EVM chains visible while filtering remaining chains', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'evm',
+      normalizedSearchValue: 'metis',
+      unavailableCoinTypes: new Set([
+        ETH_COIN_TYPE,
+        ...evmChainOptions.map(({ coinType }) => coinType),
+      ]),
+    })
+
+    expect(popularRecords.map(({ name }) => name)).toEqual([
+      'Zora',
+      'Scroll',
+      'Linea',
+      'Celo',
+      'Gnosis',
+    ])
+    expect(otherRecords.map(({ name }) => name)).toEqual(['Metis'])
+  })
+
+  it('keeps popular picker-only other-network chains visible while filtering remaining chains', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'other',
+      normalizedSearchValue: 'monero',
+      unavailableCoinTypes: new Set([ETH_COIN_TYPE, 0, 501, BNB_COIN_TYPE]),
+    })
+
+    expect(popularRecords.map(({ name }) => name)).toEqual([
+      'Litecoin',
+      'Dogecoin',
+      'Reddcoin',
+      'Dash',
+      'Peercoin',
+    ])
+    expect(otherRecords.map(({ name }) => name)).toEqual(['Monero'])
   })
 })
 
@@ -234,7 +272,7 @@ describe('address row helpers', () => {
     )
   })
 
-  it('keeps inactive preset EVM chains available for the popular picker', () => {
+  it('keeps inactive preset EVM chains outside of the picker because they are already visible as quick chips', () => {
     const state = getAddressDisplayState({
       addresses: [address(ETH_COIN_TYPE, ethAddress)],
       ethAddress,
@@ -245,8 +283,8 @@ describe('address row helpers', () => {
     expect(state.visibleEvmChipOptions.map(({ coinType }) => coinType)).toEqual(
       expect.arrayContaining([optimismCoinType, baseCoinType]),
     )
-    expect(state.unavailableEvmCoinTypes.has(optimismCoinType)).toBe(false)
-    expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(false)
+    expect(state.unavailableEvmCoinTypes.has(optimismCoinType)).toBe(true)
+    expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(true)
   })
 
   it('hides preset chain-specific EVM records from popular chips and the add-more picker', () => {

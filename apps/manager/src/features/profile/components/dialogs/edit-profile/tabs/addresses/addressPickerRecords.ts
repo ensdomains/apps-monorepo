@@ -33,9 +33,14 @@ export const otherNetworkOptions: readonly AddressOption[] = [
   { coinType: BNB_COIN_TYPE, label: 'Binance Chain' },
 ]
 
-const popularEvmChainIndex = new Map(
-  evmChainOptions.map(({ coinType }, index) => [coinType, index]),
-)
+const POPULAR_PICKER_RECORD_COUNT = 5
+const EVM_PICKER_POPULAR_COIN_TYPES = [
+  2155261425, // Zora
+  2148018000, // Scroll
+  2147542792, // Linea
+  2147525868, // Celo
+  2147483748, // Gnosis
+] as const
 
 export const isEvmCoinType = (coinType: number) =>
   coinType >= EVM_COIN_TYPE_OFFSET
@@ -69,27 +74,32 @@ export const getPickerRecords = ({
 export const getPickerRecordGroups = (
   params: GetPickerRecordsParams,
 ): PickerRecordGroups => {
-  const records = getPickerRecords(params)
-  if (params.mode !== 'evm') {
-    return { otherRecords: records, popularRecords: [] }
-  }
-
-  const popularRecords: AddressRecordDef[] = []
-  const otherRecords: AddressRecordDef[] = []
-
-  for (const record of records) {
-    if (popularEvmChainIndex.has(record.coinType)) {
-      popularRecords.push(record)
-      continue
-    }
-
-    otherRecords.push(record)
-  }
-
-  popularRecords.sort(
-    (a, b) =>
-      (popularEvmChainIndex.get(a.coinType) ?? Infinity) -
-      (popularEvmChainIndex.get(b.coinType) ?? Infinity),
+  const records = params.normalizedSearchValue ? getPickerRecords(params) : []
+  const allAvailableRecords = getPickerRecords({
+    ...params,
+    normalizedSearchValue: '',
+  })
+  const preferredPopularCoinTypes =
+    params.mode === 'evm' ? EVM_PICKER_POPULAR_COIN_TYPES : []
+  const preferredPopularRecords = preferredPopularCoinTypes
+    .map((coinType) =>
+      allAvailableRecords.find((record) => record.coinType === coinType),
+    )
+    .filter((record): record is AddressRecordDef => Boolean(record))
+  const popularRecords = [
+    ...preferredPopularRecords,
+    ...allAvailableRecords.filter(
+      (record) =>
+        !preferredPopularCoinTypes.some(
+          (coinType) => coinType === record.coinType,
+        ),
+    ),
+  ].slice(0, POPULAR_PICKER_RECORD_COUNT)
+  const popularCoinTypes = new Set(
+    popularRecords.map(({ coinType }) => coinType),
+  )
+  const otherRecords = records.filter(
+    (record) => !popularCoinTypes.has(record.coinType),
   )
 
   return { otherRecords, popularRecords }
