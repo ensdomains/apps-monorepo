@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { fromPromise } from 'neverthrow'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
@@ -17,7 +17,10 @@ type UseRegistrationSuccessRedirectParams = {
   readonly durationSeconds: number
   readonly isSuccess: boolean
   readonly price: RegistrationPriceResult | undefined
+  readonly isPriceError: boolean
 }
+
+const PRICE_SETTLE_TIMEOUT_MS = 10_000
 
 /**
  * After a successful registration, waits for the indexer to catch up (so the
@@ -30,17 +33,31 @@ export const useRegistrationSuccessRedirect = ({
   durationSeconds,
   isSuccess,
   price,
+  isPriceError,
 }: UseRegistrationSuccessRedirectParams) => {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const hasRedirectedRef = useRef(false)
+  const [didTimeout, setDidTimeout] = useState(false)
+
+  useEffect(() => {
+    if (!isSuccess) return
+    const timer = setTimeout(() => setDidTimeout(true), PRICE_SETTLE_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [isSuccess])
 
   useEffect(() => {
     if (hasRedirectedRef.current) return
-    if (!isSuccess || !isPriceResult(price)) return
+    if (!isSuccess) return
+
+    const hasPrice = isPriceResult(price)
+    if (!hasPrice && !isPriceError && !didTimeout) return
+
     hasRedirectedRef.current = true
 
-    const paid = formatPriceDisplay(price.total, price.decimals)
+    const paid = hasPrice
+      ? formatPriceDisplay(price.total, price.decimals)
+      : undefined
 
     const redirectToProfile = () =>
       navigate({
@@ -76,5 +93,14 @@ export const useRegistrationSuccessRedirect = ({
       // redirect anyway and let the overview refetch on its own.
       redirectToProfile,
     )
-  }, [isSuccess, price, name, durationSeconds, navigate, queryClient])
+  }, [
+    isSuccess,
+    price,
+    isPriceError,
+    didTimeout,
+    name,
+    durationSeconds,
+    navigate,
+    queryClient,
+  ])
 }

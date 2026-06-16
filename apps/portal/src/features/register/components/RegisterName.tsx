@@ -57,7 +57,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   })
 
   // Fetch the final price so we can pass the paid amount to the overview.
-  const { data: price } = useQuery({
+  const { data: price, isError: isPriceError } = useQuery({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
@@ -71,6 +71,7 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     durationSeconds: duration,
     isSuccess,
     price,
+    isPriceError,
   })
 
   const isNameTaken =
