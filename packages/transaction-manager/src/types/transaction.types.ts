@@ -44,6 +44,18 @@ export interface Call {
   value: bigint
 }
 
+/**
+ * A source asset for a cross-chain intent: the token (and optional exact
+ * amount) on a given source chain that funds the intent. The orchestrator
+ * resolves the token by `address` (or `symbol` shorthand) on `chainId`.
+ */
+export interface CrossChainSourceAsset {
+  chainId: number
+  address?: Address
+  symbol?: string
+  amount?: bigint
+}
+
 export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   type: 'rhinestone-intent'
   rhinestoneParams: {
@@ -51,6 +63,21 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
     sponsored?: boolean
     /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
     tokenRequests?: TokenRequest[]
+    /**
+     * Source chains to fund a cross-chain intent from. Defaults to the
+     * target chain (same-chain intent). Chain IDs are mapped to viem chains
+     * by the warp transport actor.
+     */
+    sourceChains?: number[]
+    /** Specific source assets (token + chain) to fund the intent from. */
+    sourceAssets?: CrossChainSourceAsset[]
+    /**
+     * Recipient of the bridged destination funds. Defaults to the account
+     * (HCA). For ENS registration the registrar pulls rent from the EOA owner
+     * (`_msgSender()` HCA→EOA unwrap), so cross-chain payments must deliver the
+     * bridged token to the EOA — set this to the EOA owner address.
+     */
+    recipient?: Address
   }
 }
 

@@ -266,6 +266,28 @@ export type PermitSignature = {
   s: Hex
 }
 
+/**
+ * Describes a cross-chain funding source for a registration intent.
+ *
+ * The registrar always charges `destinationPaymentToken` on the local
+ * (target) chain — that's the token the EOA permit is signed against and the
+ * `paymentToken` arg of `register`. When the user funds from another chain,
+ * `sourceChainId`/`sourceTokenAddress` tell the orchestrator where to source
+ * the funds, and Warp bridges them to the EOA on the target chain before the
+ * batched permit+register runs.
+ *
+ * For same-chain (L1) payments this is simply omitted — the actor falls back
+ * to the symbol-derived mock token, preserving today's behavior.
+ */
+export interface CrossChainPaymentSource {
+  /** L1 token the registrar is charged with (and the permit is signed for). */
+  destinationPaymentToken: Address
+  /** Source chain to fund from (omit/equal-to-target for same-chain). */
+  sourceChainId: number
+  /** Source token address on the source chain. */
+  sourceTokenAddress: Address
+}
+
 // Validity window for a permit signature. Comfortably covers the commitment
 // cooldown (~60s) plus relayer latency. Permits are single-use (nonce-bound),
 // so a generous deadline is not a replay risk.
@@ -376,8 +398,26 @@ export function createTransactionRequest(params: {
   chainId: number
   calls: Array<{ to: Address; data: Hex; value: bigint }>
   sponsored?: boolean
+  /** Cross-chain funding for rhinestone intents (ignored for EOA). */
+  tokenRequests?: RhinestoneTransactionRequest['rhinestoneParams']['tokenRequests']
+  sourceChains?: number[]
+  sourceAssets?: RhinestoneTransactionRequest['rhinestoneParams']['sourceAssets']
+  recipient?: Address
 }): TransactionRequest {
-  const { signer, from, to, data, value, chainId, calls, sponsored } = params
+  const {
+    signer,
+    from,
+    to,
+    data,
+    value,
+    chainId,
+    calls,
+    sponsored,
+    tokenRequests,
+    sourceChains,
+    sourceAssets,
+    recipient,
+  } = params
 
   if (signer.type === 'eoa') {
     return {
@@ -401,6 +441,10 @@ export function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
+        ...(tokenRequests ? { tokenRequests } : {}),
+        ...(sourceChains ? { sourceChains } : {}),
+        ...(sourceAssets ? { sourceAssets } : {}),
+        ...(recipient ? { recipient } : {}),
       },
     } as RhinestoneTransactionRequest
   }
@@ -740,9 +784,12 @@ export function readPaymentTokenAllowanceActor(input: {
   owner: Address
   selectedToken: 'USDC' | 'DAI'
   publicClient: PublicClient
+  /** For cross-chain payments, the destination L1 token actually charged. */
+  paymentTokenOverride?: Address
 }): ResultAsync<bigint, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+  const tokenAddress =
+    input.paymentTokenOverride ?? getPaymentTokenAddress(input.selectedToken)
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
@@ -1102,9 +1149,16 @@ export function signPermitActor(input: {
   value: bigint
   approvalSigner: import('../..').Signer
   publicClient: PublicClient
+  /**
+   * When paying cross-chain, the registrar is charged the destination L1
+   * token (e.g. real Sepolia USDC), not the symbol-derived mock token — so
+   * the permit must be signed against this address. Omitted for same-chain.
+   */
+  paymentTokenOverride?: Address
 }): ResultAsync<PermitSignature, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+  const tokenAddress =
+    input.paymentTokenOverride ?? getPaymentTokenAddress(input.selectedToken)
 
   // Permit signatures are an EOA capability — the rhinestone HCA can't produce
   // one. The name owner is always the EOA, so an EOA `approvalSigner` is
@@ -1237,6 +1291,13 @@ export function submitPermitAndRegistrationActor(input: {
   sponsored?: boolean
   resolverAddress: Address
   id?: string
+  /**
+   * Optional cross-chain funding source. When present, the registrar is
+   * charged `paymentSource.destinationPaymentToken` and Warp bridges the
+   * source token to the EOA on the target chain. When omitted, the actor
+   * uses the symbol-derived (mock) L1 token — today's same-chain behavior.
+   */
+  paymentSource?: CrossChainPaymentSource
 }): ResultAsync<string, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
@@ -1244,7 +1305,14 @@ export function submitPermitAndRegistrationActor(input: {
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      // The registrar is charged with the destination token. For cross-chain
+      // sources that's the bridged L1 token (e.g. real Sepolia USDC); for
+      // same-chain it's the symbol-derived mock token. Either way the permit
+      // is signed against this exact token (see signPermitActor / the UI
+      // machine), so they must agree.
+      const paymentToken =
+        input.paymentSource?.destinationPaymentToken ??
+        getPaymentTokenAddress(input.selectedToken)
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
       await assertPaymentTokenSupported(
@@ -1264,18 +1332,57 @@ export function submitPermitAndRegistrationActor(input: {
         input.resolverAddress,
       )
 
+      const targetChainId = input.publicClient.chain?.id ?? sepolia.id
+
+      // Cross-chain payment: when the selected source lives on another chain,
+      // fund the registration intent from that L2 stable. Warp bridges the
+      // source token to the EOA on the target chain (the registrar pulls rent
+      // from the EOA via `_msgSender()` HCA→EOA unwrap, and the EIP-2612 permit
+      // sets `allowance[EOA][registrar]`), then runs the batched permit+register.
+      // The permit's signed `value` already includes the standard headroom
+      // (authorizedPaymentAmount), so reuse it as the tokenRequest amount.
+      const isCrossChain =
+        input.paymentSource !== undefined &&
+        input.paymentSource.sourceChainId !== targetChainId
+
+      const crossChainParams = isCrossChain
+        ? {
+            tokenRequests: [
+              {
+                address: normalizedPaymentToken,
+                amount: input.permit.value,
+              },
+            ] as RhinestoneTransactionRequest['rhinestoneParams']['tokenRequests'],
+            sourceChains: [
+              (input.paymentSource as CrossChainPaymentSource).sourceChainId,
+            ],
+            sourceAssets: [
+              {
+                chainId: (input.paymentSource as CrossChainPaymentSource)
+                  .sourceChainId,
+                address: (input.paymentSource as CrossChainPaymentSource)
+                  .sourceTokenAddress,
+              },
+            ],
+            // Deliver bridged funds to the EOA (where rent is pulled from and
+            // the permit allowance lives), not the default account recipient.
+            recipient: input.owner,
+          }
+        : {}
+
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
         to: registrarAddress,
         data: registrationData,
         value: 0n,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId: targetChainId,
         calls: [
           { to: normalizedPaymentToken, data: permitData, value: 0n },
           { to: registrarAddress, data: registrationData, value: 0n },
         ],
         sponsored: input.sponsored ?? true,
+        ...crossChainParams,
       })
 
       const txId = transactionManager.startTransaction(

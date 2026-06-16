@@ -1,7 +1,6 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
-import type { StablecoinBalance } from '@/lib/smart-account'
+import type { PaymentSourceBalance } from '@/lib/payment/usePaymentSourceBalances'
 import { TokenPickerContentBase } from './TokenPickerContent'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
@@ -24,39 +23,50 @@ import { PaymentDialogBase } from './TokenPickerDialog'
 // Mock balances
 // ---------------------------------------------------------------------------
 
-const MOCK_BALANCES: StablecoinBalance[] = [
+const MOCK_BALANCES: PaymentSourceBalance[] = [
   {
-    address: '0x0000000000000000000000000000000000000001',
+    id: 'usdc-sepolia',
+    label: 'USDC',
     symbol: 'USDC',
-    balance: '1000000000', // 1,000 USDC
     decimals: 6,
-    formattedBalance: '1000.00',
+    sourceChainId: 11155111,
+    sourceTokenAddress: '0x0000000000000000000000000000000000000001',
+    destinationPaymentToken: '0x0000000000000000000000000000000000000001',
+    isCrossChain: false,
+    balance: '1000000000', // 1,000 USDC
+    formattedBalance: '1000.00 USDC',
   },
   {
-    address: '0x0000000000000000000000000000000000000002',
+    id: 'dai-sepolia',
+    label: 'DAI',
     symbol: 'DAI',
-    balance: '500000000000000000000', // 500 DAI
     decimals: 18,
-    formattedBalance: '500.00',
+    sourceChainId: 11155111,
+    sourceTokenAddress: '0x0000000000000000000000000000000000000002',
+    destinationPaymentToken: '0x0000000000000000000000000000000000000002',
+    isCrossChain: false,
+    balance: '500000000000000000000', // 500 DAI
+    formattedBalance: '500.00 DAI',
+  },
+  {
+    id: 'usdc-base-sepolia',
+    label: 'USDC (Base)',
+    symbol: 'USDC',
+    decimals: 6,
+    sourceChainId: 84532,
+    sourceTokenAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    destinationPaymentToken: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    isCrossChain: true,
+    balance: '750000000', // 750 USDC on Base
+    formattedBalance: '750.00 USDC',
   },
 ]
 
-const LOW_BALANCES: StablecoinBalance[] = [
-  {
-    address: '0x0000000000000000000000000000000000000001',
-    symbol: 'USDC',
-    balance: '10000000', // 10 USDC
-    decimals: 6,
-    formattedBalance: '10.00',
-  },
-  {
-    address: '0x0000000000000000000000000000000000000002',
-    symbol: 'DAI',
-    balance: '5000000000000000000', // 5 DAI
-    decimals: 18,
-    formattedBalance: '5.00',
-  },
-]
+const LOW_BALANCES: PaymentSourceBalance[] = MOCK_BALANCES.map((source) => ({
+  ...source,
+  balance: source.decimals === 6 ? '10000000' : '5000000000000000000',
+  formattedBalance: source.decimals === 6 ? '10.00 USDC' : '5.00 DAI',
+}))
 
 // ---------------------------------------------------------------------------
 // Shell component — stands in for TokenPickerDialog without providers
@@ -70,9 +80,9 @@ interface TokenPickerDialogShellProps {
   isInPriceCooldown?: boolean
   isConnected?: boolean
   isLoadingBalances?: boolean
-  stablecoinBalances?: StablecoinBalance[]
+  paymentSources?: PaymentSourceBalance[]
   errorMessage?: string | null
-  initialSelectedToken?: SUPPORTED_TOKEN
+  initialSelectedSourceId?: string
 }
 
 const TokenPickerDialogShell = ({
@@ -83,14 +93,14 @@ const TokenPickerDialogShell = ({
   isInPriceCooldown = false,
   isConnected = true,
   isLoadingBalances = false,
-  stablecoinBalances = MOCK_BALANCES,
+  paymentSources = MOCK_BALANCES,
   errorMessage = null,
-  initialSelectedToken,
+  initialSelectedSourceId,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
-  const [selectedToken, setSelectedToken] = useState<
-    SUPPORTED_TOKEN | undefined
-  >(initialSelectedToken)
+  const [selectedSourceId, setSelectedSourceId] = useState<string | undefined>(
+    initialSelectedSourceId,
+  )
 
   return (
     <PaymentDialogBase
@@ -105,13 +115,17 @@ const TokenPickerDialogShell = ({
         isLoadingBalances={isLoadingBalances}
         label={label}
         onNext={() => {
-          console.log('Buy Name clicked', { label, selectedToken, pricingData })
+          console.log('Buy Name clicked', {
+            label,
+            selectedSourceId,
+            pricingData,
+          })
         }}
-        onSelectCoin={setSelectedToken}
+        onSelectSource={(source) => setSelectedSourceId(source.id)}
+        paymentSources={paymentSources}
         pricingData={pricingData}
         pricingLoading={pricingLoading}
-        selectedToken={selectedToken}
-        stablecoinBalances={stablecoinBalances}
+        selectedSourceId={selectedSourceId}
       />
     </PaymentDialogBase>
   )
@@ -135,14 +149,14 @@ const meta = {
     pricingLoading: false,
     isConnected: true,
     isLoadingBalances: false,
-    stablecoinBalances: MOCK_BALANCES,
+    paymentSources: MOCK_BALANCES,
     errorMessage: null,
   },
   argTypes: {
-    stablecoinBalances: { control: false },
-    initialSelectedToken: {
+    paymentSources: { control: false },
+    initialSelectedSourceId: {
       control: 'inline-radio',
-      options: [undefined, 'USDC', 'DAI'],
+      options: [undefined, 'usdc-sepolia', 'dai-sepolia', 'usdc-base-sepolia'],
     },
   },
 } satisfies Meta<typeof TokenPickerDialogShell>
@@ -160,7 +174,7 @@ export const Default: Story = {}
  */
 export const WithTokenSelected: Story = {
   args: {
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -171,7 +185,7 @@ export const PremiumDomain: Story = {
   args: {
     label: 'erni', // 4 chars → 4-char premium pill
     pricingData: 640,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -183,7 +197,7 @@ export const PremiumDomainWithCooldown: Story = {
     label: 'erni',
     pricingData: 48_292.56,
     isInPriceCooldown: true,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -195,7 +209,7 @@ export const PremiumDomainWithCooldownMobile: Story = {
     label: 'erni',
     pricingData: 48_292.56,
     isInPriceCooldown: true,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
   parameters: {
     viewport: {
@@ -212,7 +226,7 @@ export const PriceCooldownOnly: Story = {
     label: 'expiredname',
     pricingData: 47_800,
     isInPriceCooldown: true,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -223,7 +237,7 @@ export const ShortPremiumDomain: Story = {
   args: {
     label: 'eni',
     pricingData: 2800,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -234,7 +248,7 @@ export const LongDomain: Story = {
   args: {
     label: 'averyverylongensdomainname',
     pricingData: 70,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -247,7 +261,7 @@ export const MaxLengthDomainMobile: Story = {
   args: {
     label: 'a'.repeat(251),
     pricingData: 5,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
   parameters: {
     viewport: {
@@ -262,7 +276,7 @@ export const MaxLengthDomainMobile: Story = {
 export const LoadingBalances: Story = {
   args: {
     isLoadingBalances: true,
-    stablecoinBalances: [],
+    paymentSources: [],
   },
 }
 
@@ -272,7 +286,7 @@ export const LoadingBalances: Story = {
 export const LoadingPricing: Story = {
   args: {
     pricingLoading: true,
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -282,7 +296,7 @@ export const LoadingPricing: Story = {
 export const WalletDisconnected: Story = {
   args: {
     isConnected: false,
-    stablecoinBalances: [],
+    paymentSources: [],
   },
 }
 
@@ -291,7 +305,7 @@ export const WalletDisconnected: Story = {
  */
 export const NoStablecoins: Story = {
   args: {
-    stablecoinBalances: [],
+    paymentSources: [],
   },
 }
 
@@ -302,8 +316,8 @@ export const NoStablecoins: Story = {
 export const InsufficientBalance: Story = {
   args: {
     pricingData: 352,
-    stablecoinBalances: LOW_BALANCES,
-    initialSelectedToken: 'USDC',
+    paymentSources: LOW_BALANCES,
+    initialSelectedSourceId: 'usdc-sepolia',
   },
 }
 
@@ -312,7 +326,7 @@ export const InsufficientBalance: Story = {
  */
 export const AvailabilityError: Story = {
   args: {
-    initialSelectedToken: 'USDC',
+    initialSelectedSourceId: 'usdc-sepolia',
     errorMessage:
       "We couldn't confirm that erni.eth is still available. Please try again.",
   },

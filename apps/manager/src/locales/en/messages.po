@@ -318,12 +318,12 @@ msgstr "Authorizing payment and registering your name"
 msgid "Autorenews on"
 msgstr "Autorenews on"
 
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:70
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:68
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:374
 msgid "available"
 msgstr "available"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:194
+#: src/features/navigation/Header/search/SuggestionItem.tsx:197
 msgid "Available"
 msgstr "Available"
 
@@ -420,8 +420,8 @@ msgstr "Browser notifications enabled"
 msgid "Bug bounty"
 msgstr "Bug bounty"
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:105
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:304
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:111
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:315
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:94
 msgid "Buy Name"
 msgstr "Buy Name"
@@ -1062,10 +1062,6 @@ msgstr "Failed to resend email verification"
 msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:105
-#~ msgid "Failed to set primary name"
-#~ msgstr "Failed to set primary name"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx:353
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx:104
 msgid "Failed to set primary name. Please try again."
@@ -1104,8 +1100,8 @@ msgstr "Fee at this moment"
 msgid "Finalizing registration"
 msgstr "Finalizing registration"
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:169
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:208
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:175
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:219
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:76
 msgid "for"
 msgstr "for"
@@ -1280,11 +1276,11 @@ msgstr "Loading dashboard..."
 msgid "Loading prices..."
 msgstr "Loading prices..."
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:252
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:263
 msgid "Loading pricing..."
 msgstr "Loading pricing..."
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:245
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:256
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:275
 msgid "Loading your stablecoin balances..."
 msgstr "Loading your stablecoin balances..."
@@ -1415,7 +1411,7 @@ msgid "Names are permanent, only expire if not renewed"
 msgstr "Names are permanent, only expire if not renewed"
 
 #. placeholder {0}: formatUsd(priceUSD)
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:75
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:73
 msgid "Need {0}"
 msgstr "Need {0}"
 
@@ -1507,7 +1503,7 @@ msgstr "No problem. I just checked your<0/>ENS profile, you're legit! It's HGJLY
 msgid "No recent searches"
 msgstr "No recent searches"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:259
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:270
 msgid "No stablecoins available"
 msgstr "No stablecoins available"
 
@@ -1523,7 +1519,7 @@ msgstr "Not a valid name format"
 msgid "Not set"
 msgstr "Not set"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:174
+#: src/features/navigation/Header/search/SuggestionItem.tsx:177
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx:164
 msgid "Not supported"
 msgstr "Not supported"
@@ -1656,7 +1652,7 @@ msgstr "Permission missing. Please try again."
 msgid "Personal Site"
 msgstr "Personal Site"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:233
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:244
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:283
 msgid "Please connect your wallet first"
 msgstr "Please connect your wallet first"
@@ -1685,10 +1681,6 @@ msgstr "Preferences"
 #: src/features/notifications/settings/preferences.tsx:41
 msgid "Preferences updated"
 msgstr "Preferences updated"
-
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx:97
-msgid "Premium Fee"
-msgstr "Premium Fee"
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:36
 msgid "Preparing account"
@@ -1741,7 +1733,7 @@ msgstr "Previous slide"
 msgid "Price cooldown"
 msgstr "Price cooldown"
 
-#: src/features/navigation/Header/search/SuggestionItem.tsx:167
+#: src/features/navigation/Header/search/SuggestionItem.tsx:170
 msgid "Price Cooldown"
 msgstr "Price Cooldown"
 
@@ -1769,10 +1761,6 @@ msgstr "Privacy Policy"
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:50
 msgid "Profile saved"
 msgstr "Profile saved"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:84
-#~ msgid "Profile updated"
-#~ msgstr "Profile updated"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx:59
 msgid "Profile updated successfully."
@@ -1827,7 +1815,7 @@ msgstr "Register to date"
 #: src/features/dashboard/components/PrimaryNameCard.tsx:161
 #: src/features/landing/components/ProfileCard.tsx:123
 #: src/features/migration/components/ProfileCardPreview.tsx:54
-#: src/features/navigation/Header/search/SuggestionItem.tsx:186
+#: src/features/navigation/Header/search/SuggestionItem.tsx:189
 msgid "Registered"
 msgstr "Registered"
 
@@ -1835,7 +1823,7 @@ msgstr "Registered"
 msgid "Registered ENS names"
 msgstr "Registered ENS names"
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:109
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:115
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx:51
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:101
 msgid "Registering"
@@ -2135,8 +2123,8 @@ msgstr "See all"
 msgid "See what's new"
 msgstr "See what's new"
 
-#. placeholder {0}: stablecoin.symbol
-#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:36
+#. placeholder {0}: source.label
+#: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx:34
 msgid "Select {0}"
 msgstr "Select {0}"
 
@@ -2151,7 +2139,7 @@ msgstr "Select {label} as primary name"
 msgid "Select coin"
 msgstr "Select coin"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:221
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:232
 msgid "Select payment"
 msgstr "Select payment"
 
@@ -2329,7 +2317,7 @@ msgid "Sort by"
 msgstr "Sort by"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx:144
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:284
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:295
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:245
 msgid "Stables accepted"
 msgstr "Stables accepted"
@@ -2374,10 +2362,6 @@ msgstr "Submitting the registration transaction"
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:48
 msgid "Submitting token approval"
 msgstr "Submitting token approval"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:49
-#~ msgid "Submitting your ENS profile update. This may take a few moments."
-#~ msgstr "Submitting your ENS profile update. This may take a few moments."
 
 #: src/routes/wallet.tsx:172
 msgid "Successfully connected! You can now use the application."
@@ -2533,10 +2517,6 @@ msgstr "Trademark Guidelines"
 msgid "Transaction submitted:"
 msgstr "Transaction submitted:"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:31
-#~ msgid "Transaction:"
-#~ msgstr "Transaction:"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx:92
 msgid "Transfer your name to any wallet"
 msgstr "Transfer your name to any wallet"
@@ -2563,14 +2543,6 @@ msgstr "unique searches in the last 30 days"
 #: src/routes/notifications/_authenticated/index.tsx:97
 msgid "Unread only"
 msgstr "Unread only"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:70
-#~ msgid "Update failed"
-#~ msgstr "Update failed"
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:50
-#~ msgid "Updating profile"
-#~ msgstr "Updating profile"
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx:61
@@ -2787,10 +2759,6 @@ msgstr "Waiting for the registration transaction"
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
 
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:56
-#~ msgid "Waiting for the transaction to be confirmed…"
-#~ msgstr "Waiting for the transaction to be confirmed…"
-
 #: src/features/renew/workflow/renewing/RenewingStep.tsx:52
 msgid "Waiting for token approval"
 msgstr "Waiting for token approval"
@@ -2828,11 +2796,11 @@ msgstr "Wallet funded successfully"
 msgid "Wallet signer not available"
 msgstr "Wallet signer not available"
 
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:93
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx:99
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
 msgstr "We couldn't confirm that {domainName} is still available. Please try again."
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:112
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:123
 msgid "We couldn't confirm that {label}.eth is still available. Please try again."
 msgstr "We couldn't confirm that {label}.eth is still available. Please try again."
 
@@ -2928,7 +2896,7 @@ msgstr "You may miss important alerts if you remove this contact method. Are you
 msgid "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 msgstr "You may miss important notifications if you remove this contact method. Are you sure you want to continue?"
 
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:236
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx:247
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx:286
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr "You need to connect a wallet to see your stablecoin balances"
@@ -3017,10 +2985,6 @@ msgstr "Your primary name has expired."
 #: src/features/dashboard/components/FaqSection.tsx:40
 msgid "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
 msgstr "Your primary name is the .eth name that apps show in place of your wallet address, so people see alice.eth instead of 0x74...2d35."
-
-#: src/features/profile/components/dialogs/UpdateStatusPanel.tsx:83
-#~ msgid "Your profile changes have been confirmed on-chain."
-#~ msgstr "Your profile changes have been confirmed on-chain."
 
 #: src/features/register-v2/workflow/registering/RegisteringStep.tsx:72
 msgid "Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?"

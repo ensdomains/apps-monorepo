@@ -29,9 +29,14 @@ export const ConfirmPurchase = () => {
   const queryClient = useQueryClient()
   const { label, uiActor } = useRegistrationV2Context()
   const account = useSmartAccountContext()
-  const [duration, selectedToken] = useSelector(
+  const [duration, selectedToken, selectedPaymentSourceId] = useSelector(
     uiActor,
-    (state) => [state.context.duration, state.context.selectedToken] as const,
+    (state) =>
+      [
+        state.context.duration,
+        state.context.selectedToken,
+        state.context.selectedPaymentSourceId,
+      ] as const,
   )
 
   const pricingQuery = useQuery({
@@ -81,6 +86,7 @@ export const ConfirmPurchase = () => {
         label,
         duration: BigInt(Math.ceil(duration)),
         token: selectedToken,
+        paymentSourceId: selectedPaymentSourceId,
         totalPrice: pricingQuery.data.rawPrice,
         account,
         basePriceNumber: pricingQuery.data.basePriceNumber,

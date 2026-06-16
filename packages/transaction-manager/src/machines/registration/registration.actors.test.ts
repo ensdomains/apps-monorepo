@@ -1,8 +1,10 @@
-import type { Address, PublicClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { maxUint256, parseUnits } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
+import type { EOASigner, RhinestoneSigner } from '../../types/signer.types'
 import {
   authorizedPaymentAmount,
+  createTransactionRequest,
   predictResolverAddress,
 } from './registration.actors'
 
@@ -69,5 +71,86 @@ describe('authorizedPaymentAmount', () => {
 
   it('handles a zero price', () => {
     expect(authorizedPaymentAmount(0n)).toBe(0n)
+  })
+})
+
+describe('createTransactionRequest (cross-chain params)', () => {
+  const rhinestoneSigner = {
+    type: 'rhinestone',
+    account: {} as never,
+    config: { rhinestoneApiKey: 'test' },
+  } as unknown as RhinestoneSigner
+
+  const baseParams = {
+    from: '0x1111111111111111111111111111111111111111' as Address,
+    to: '0x2222222222222222222222222222222222222222' as Address,
+    data: '0x' as const,
+    value: 0n,
+    chainId: 11155111,
+    calls: [
+      {
+        to: '0x2222222222222222222222222222222222222222' as Address,
+        data: '0x' as const,
+        value: 0n,
+      },
+    ],
+  }
+
+  it('omits cross-chain fields for a same-chain rhinestone intent', () => {
+    const request = createTransactionRequest({
+      signer: rhinestoneSigner,
+      ...baseParams,
+    })
+
+    expect(request.type).toBe('rhinestone-intent')
+    if (request.type !== 'rhinestone-intent') throw new Error('unreachable')
+    expect(request.rhinestoneParams.tokenRequests).toBeUndefined()
+    expect(request.rhinestoneParams.sourceChains).toBeUndefined()
+    expect(request.rhinestoneParams.sourceAssets).toBeUndefined()
+  })
+
+  it('forwards tokenRequests, sourceChains and sourceAssets when provided', () => {
+    const destToken = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as Address
+    const srcToken = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address
+    const amount = parseUnits('5.5', 6)
+
+    const request = createTransactionRequest({
+      signer: rhinestoneSigner,
+      ...baseParams,
+      tokenRequests: [{ address: destToken, amount }],
+      sourceChains: [84532],
+      sourceAssets: [{ chainId: 84532, address: srcToken }],
+    })
+
+    if (request.type !== 'rhinestone-intent') throw new Error('unreachable')
+    expect(request.rhinestoneParams.tokenRequests).toEqual([
+      { address: destToken, amount },
+    ])
+    expect(request.rhinestoneParams.sourceChains).toEqual([84532])
+    expect(request.rhinestoneParams.sourceAssets).toEqual([
+      { chainId: 84532, address: srcToken },
+    ])
+  })
+
+  it('never attaches cross-chain fields to an EOA request', () => {
+    const eoaSigner: EOASigner = {
+      type: 'eoa',
+      walletClient: {} as WalletClient,
+    }
+
+    const request = createTransactionRequest({
+      signer: eoaSigner,
+      ...baseParams,
+      tokenRequests: [
+        {
+          address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as Address,
+          amount: 1n,
+        },
+      ],
+      sourceChains: [84532],
+    })
+
+    expect(request.type).toBe('eoa')
+    expect('rhinestoneParams' in request).toBe(false)
   })
 })

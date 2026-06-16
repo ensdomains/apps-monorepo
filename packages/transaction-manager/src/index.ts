@@ -157,6 +157,7 @@ export type {
 export { isEOASigner, isRhinestoneSigner } from './types/signer.types'
 export type {
   Call,
+  CrossChainSourceAsset,
   CustomTransactionIntent,
   ENSRenewalTransactionIntent,
   EOATransactionRequest,

@@ -5,6 +5,7 @@ import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
   authorizedPaymentAmount,
+  type CrossChainPaymentSource,
   ensureHcaDeployedActor,
   generateCommitmentActor,
   type PermitSignature,
@@ -85,6 +86,13 @@ export type RegistrationContext = {
   selectedToken: 'USDC' | 'DAI'
   tokenPrice: bigint
   sponsored?: boolean
+  /**
+   * Optional cross-chain funding source. When set (L2 stable payment), the
+   * registrar is charged `paymentSource.destinationPaymentToken` and the
+   * permit is signed against it; Warp bridges the source token to the EOA.
+   * Absent for same-chain (L1) payments.
+   */
+  paymentSource?: CrossChainPaymentSource
 
   // Flow state
   resolverTxId?: string
@@ -137,6 +145,12 @@ export type RegistrationEvent =
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
       sponsored?: boolean
+      /**
+       * Optional cross-chain funding source for L2 stable payments. When set,
+       * the registrar is charged the destination L1 token and Warp bridges the
+       * source token to the EOA. Omit for same-chain (L1) payments.
+       */
+      paymentSource?: CrossChainPaymentSource
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -260,6 +274,7 @@ export const registrationMachine = setup({
         value: bigint
         approvalSigner: Signer
         publicClient: PublicClient
+        paymentTokenOverride?: Address
       }) => {
         return signPermitActor(input)
       },
@@ -277,6 +292,7 @@ export const registrationMachine = setup({
         sponsored?: boolean
         resolverAddress: Address
         id?: string
+        paymentSource?: CrossChainPaymentSource
       }) => {
         return submitPermitAndRegistrationActor(input)
       },
@@ -305,6 +321,7 @@ export const registrationMachine = setup({
         owner: Address
         selectedToken: 'USDC' | 'DAI'
         publicClient: PublicClient
+        paymentTokenOverride?: Address
       }) => {
         return readPaymentTokenAllowanceActor(input)
       },
@@ -466,6 +483,7 @@ export const registrationMachine = setup({
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
             sponsored: ({ event }) => event.sponsored ?? true,
+            paymentSource: ({ event }) => event.paymentSource,
             resolverAddress: () => undefined,
             resolverTxId: () => undefined,
             resolverSalt: () => undefined,
@@ -928,6 +946,7 @@ export const registrationMachine = setup({
           sponsored: context.sponsored,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
+          paymentSource: context.paymentSource,
           id: REGISTRATION_TX_IDS.register,
         }),
         onDone: {
@@ -995,6 +1014,7 @@ export const registrationMachine = setup({
           selectedToken: context.selectedToken,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          paymentTokenOverride: context.paymentSource?.destinationPaymentToken,
         }),
         onDone: [
           {
@@ -1049,6 +1069,9 @@ export const registrationMachine = setup({
           approvalSigner: context.approvalSigner ?? context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          // For cross-chain (L2) payments the registrar is charged the
+          // destination L1 token, so the permit must be signed against it.
+          paymentTokenOverride: context.paymentSource?.destinationPaymentToken,
         }),
         onDone: {
           target: 'commitmentCooldown',
