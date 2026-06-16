@@ -28,7 +28,7 @@ export const PriceCooldownDecayChart = ({
       selectedPoint={selectedPoint}
       startDate={premiumStartDate}
     />
-    <p className="text-[#737373] text-xs leading-5">
+    <p className="text-ens-quartz-400 text-xs leading-5">
       <Trans>Times shown in your local time zone ({timezoneLabel})</Trans>
     </p>
   </div>
