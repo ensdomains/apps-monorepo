@@ -28,7 +28,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     cell: ({ row }) => {
       const { name, labelName, labelhash } = row.original
       return (
-        <span className="bg-foreground font-medium text-background p-1 rounded-sm">
+        <span className="bg-foreground font-medium text-background py-1 px-1.5 rounded-sm">
           {labelName ?? name ?? labelhash}
         </span>
       )
