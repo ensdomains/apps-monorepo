@@ -21,15 +21,15 @@ export const AddressPickerPill = ({
 }: AddressPickerPillProps) => (
   <button
     className={cn(
-      'flex h-7 min-w-0 max-w-full shrink-0 items-center gap-1 rounded-[25px] font-sans text-[12px] leading-[1.2] tracking-[0.12px] transition-colors',
+      'flex h-7 min-w-0 max-w-full shrink-0 items-center gap-1 rounded-[25px] font-sans text-xs leading-[1.2] tracking-[0.12px] transition-colors',
       variant === 'pill' &&
-        'border-[0.5px] pt-1.5 pr-1.5 pb-1.5 pl-2.5 text-[#191919] hover:border-[#d4d4d4] hover:bg-ens-quartz-50',
+        'border-[0.5px] pt-1.5 pr-1.5 pb-1.5 pl-2.5 text-ens-quartz-900 hover:border-[#d4d4d4] hover:bg-ens-quartz-50',
       variant === 'pill' &&
         active &&
-        'border-[#595755] bg-[#595755] text-white hover:bg-[#504e4b]',
-      variant === 'pill' && !active && 'border-[#e1e1e0] bg-white',
+        'border-[#595755] bg-ens-quartz-500 text-white hover:bg-[#504e4b]',
+      variant === 'pill' && !active && 'border-ens-quartz-200 bg-white',
       variant === 'text' &&
-        'border border-transparent bg-transparent pt-1.5 pr-1.5 pb-1.5 pl-2.5 text-[#191919] hover:text-ens-quartz-500',
+        'border border-transparent bg-transparent pt-1.5 pr-1.5 pb-1.5 pl-2.5 text-ens-quartz-900 hover:text-ens-quartz-500',
       disabled && 'cursor-not-allowed opacity-50',
     )}
     disabled={disabled}

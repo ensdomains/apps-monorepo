@@ -36,7 +36,7 @@ describe('contact record helpers', () => {
     it('uses the 12px warning icon treatment from the edit profile design', () => {
       expect(contactRecordHelpers.contactErrorMessageIconSymbol).toBe('warning')
       expect(contactRecordHelpers.contactErrorMessageClassName).toContain(
-        'text-[12px]',
+        'text-xs',
       )
       expect(contactRecordHelpers.contactErrorMessageClassName).toContain(
         'text-ens-signal-danger-600',

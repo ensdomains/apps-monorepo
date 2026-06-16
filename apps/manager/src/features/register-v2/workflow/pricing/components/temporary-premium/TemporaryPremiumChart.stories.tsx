@@ -99,7 +99,7 @@ function TemporaryPremiumDebugPlayground() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
       <header className="flex flex-col gap-2">
-        <h1 className="font-semibold text-2xl text-[#191919]">
+        <h1 className="font-semibold text-2xl text-ens-quartz-900">
           Temporary premium chart
         </h1>
         <p className="text-[#737373] text-sm leading-relaxed">
@@ -118,7 +118,7 @@ function TemporaryPremiumDebugPlayground() {
               $
             </span>
             <input
-              className="min-w-0 flex-1 px-3 text-[#191919] text-sm outline-none"
+              className="min-w-0 flex-1 px-3 text-ens-quartz-900 text-sm outline-none"
               inputMode="decimal"
               onChange={(e) =>
                 handlePriceChange(e.target.value.replace(/[^0-9.,]/g, ''))

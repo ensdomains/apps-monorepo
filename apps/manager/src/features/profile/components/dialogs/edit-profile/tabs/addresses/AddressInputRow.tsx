@@ -28,7 +28,7 @@ export const AddressInputRow = ({
 
   return (
     <div className="relative flex items-start gap-3 pt-2">
-      <div className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute top-[30px] left-0 z-10">
+      <div className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute top-7.5 left-0 z-10">
         <AddressIcon coinType={coinType} label={label} size="md" />
       </div>
       <label
@@ -42,7 +42,7 @@ export const AddressInputRow = ({
           aria-invalid={Boolean(errorMessage)}
           aria-label={label}
           className={cn(
-            'h-11 w-full min-w-0 rounded-sm border border-[#d4d4d4] bg-transparent px-4 py-3 text-[12px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
+            'h-11 w-full min-w-0 rounded-sm border border-[#d4d4d4] bg-transparent px-4 py-3 text-xs text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
             errorMessage && 'border-red-600 focus-visible:border-red-600',
           )}
           disabled={disabled}

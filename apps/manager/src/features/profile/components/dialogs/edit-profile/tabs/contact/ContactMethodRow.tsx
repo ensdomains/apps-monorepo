@@ -70,7 +70,7 @@ export const ContactMethodRow = ({
           </p>
         ) : null}
         {noticeMessage ? (
-          <p className="flex items-start gap-1 text-[12px] text-ens-signal-warning-700 leading-[1.2]">
+          <p className="flex items-start gap-1 text-xs text-ens-signal-warning-700 leading-[1.2]">
             <MSymbol
               aria-hidden="true"
               className="ms-opsz-12 ms-wght-400 mt-px shrink-0"

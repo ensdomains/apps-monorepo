@@ -60,7 +60,7 @@ export const EditProfileDialogHeader = ({
       <div className="hidden items-center gap-3 md:flex">
         <DialogClose asChild>
           <button
-            className="rounded-sm px-[15.419px] py-3 font-medium font-mono text-[#404040] text-[12px] uppercase leading-normal tracking-[0.96px] transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50"
+            className="rounded-sm px-[15.419px] py-3 font-medium font-mono text-[#404040] text-xs uppercase leading-normal tracking-[0.96px] transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50"
             disabled={isSaving}
             type="button"
           >
@@ -68,7 +68,7 @@ export const EditProfileDialogHeader = ({
           </button>
         </DialogClose>
         <button
-          className="flex items-center gap-3 rounded-sm bg-ens-lapis-500 px-[15.419px] py-3 font-medium font-mono text-[12px] text-white uppercase leading-normal tracking-[0.96px] transition-colors hover:bg-ens-lapis-core disabled:pointer-events-none disabled:opacity-50"
+          className="flex items-center gap-3 rounded-sm bg-ens-lapis-500 px-[15.419px] py-3 font-medium font-mono text-white text-xs uppercase leading-normal tracking-[0.96px] transition-colors hover:bg-ens-lapis-core disabled:pointer-events-none disabled:opacity-50"
           disabled={!canSave || isSaving}
           onClick={onSave}
           type="button"

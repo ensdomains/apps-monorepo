@@ -144,7 +144,7 @@ function BelowLabel({
     >
       <div
         className={cn(
-          'whitespace-nowrap text-center font-normal font-sans text-[12px] leading-[1.4] tracking-[-0.132px]',
+          'whitespace-nowrap text-center font-normal font-sans text-xs leading-[1.4] tracking-[-0.132px]',
           view.isPast ? 'text-ens-lapis-surface italic' : 'text-[#737373]',
         )}
       >
@@ -610,7 +610,7 @@ export function TemporaryPremiumChart({
       {nowView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[3] h-3 w-3 rounded-full"
+            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[3] size-3 rounded-full"
             style={{
               left: nowView.pos.x,
               top: nowView.pos.y,

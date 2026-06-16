@@ -73,7 +73,7 @@ const UrlField = ({
     />
     {errorMessage ? (
       <p
-        className="flex items-start gap-1 text-[12px] text-ens-signal-danger-600 leading-[1.2]"
+        className="flex items-start gap-1 text-xs text-ens-signal-danger-600 leading-[1.2]"
         id={urlErrorMessageId}
         role="alert"
       >

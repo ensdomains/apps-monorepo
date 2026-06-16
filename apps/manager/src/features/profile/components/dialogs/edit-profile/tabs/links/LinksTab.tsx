@@ -244,7 +244,7 @@ export const LinksTab = ({
                   aria-invalid={Boolean(urlError)}
                   aria-label={`Link ${row.index + 1} URL`}
                   className={cn(
-                    'h-11 w-full rounded-sm border border-[#d4d4d4] bg-transparent py-4 pr-10 pl-4 text-[12px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
+                    'h-11 w-full rounded-sm border border-[#d4d4d4] bg-transparent py-4 pr-10 pl-4 text-ens-quartz-900 text-xs outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
                     urlError &&
                       'border-destructive focus-visible:border-destructive',
                   )}

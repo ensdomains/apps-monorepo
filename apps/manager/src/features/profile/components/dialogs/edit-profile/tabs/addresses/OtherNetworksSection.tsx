@@ -58,6 +58,7 @@ export const OtherNetworksSection = ({
                 ? onRemoveAddress(option.coinType)
                 : onSetAddressValue(option.coinType, '')
             }
+            variant="text"
           />
         )
       })}

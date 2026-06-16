@@ -90,7 +90,7 @@ export interface ContactValidationIssue {
 
 export const contactErrorMessageIconSymbol = 'warning'
 export const contactErrorMessageClassName =
-  'flex items-start gap-1 text-[12px] text-ens-signal-danger-600 leading-[1.2]'
+  'flex items-start gap-1 text-xs text-ens-signal-danger-600 leading-[1.2]'
 export const contactErrorMessageIconClassName =
   'ms-opsz-12 ms-wght-400 mt-px shrink-0'
 
