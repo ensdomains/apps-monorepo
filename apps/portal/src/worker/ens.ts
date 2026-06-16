@@ -1,10 +1,8 @@
 import { getRecords } from '@ensdomains/ensjs/public'
-import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
-import { getOwner as getOwnerV2 } from '@ensdomains/ensjs/public/v2'
-import { zeroAddress } from 'viem'
 import { parseAvatarRecord } from 'viem/ens'
 
-import { createClient, type EnsClient, v2EthRegistry } from './clients'
+import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
+import { createClient, type EnsClient } from './clients'
 
 export interface EnsData {
   avatar: string | null
@@ -34,25 +32,18 @@ export async function resolveAvatarDataUri(
   }
 }
 
+/**
+ * Resolve the owner of an ENS name (V2 subname-aware, with V1 fallback).
+ *
+ * Thin wrapper over the shared {@link resolveEnsOwner} used by the React app
+ * (useEnsOwner), returning just the owner address (or `null`) for OG rendering.
+ */
 export async function resolveOwner(
   client: EnsClient,
   name: string,
 ): Promise<string | null> {
-  const v1Owner = await getOwnerV1(client, { name }).catch(() => null)
-  if (v1Owner?.owner) return v1Owner.owner
-
-  try {
-    const labels = name.split('.')
-    const v2Owner = await getOwnerV2(client, {
-      label: labels[0],
-      registryAddress: v2EthRegistry,
-    })
-    if (v2Owner && v2Owner !== zeroAddress) return v2Owner
-  } catch {
-    // v2 lookup failed
-  }
-
-  return null
+  const result = await resolveEnsOwner(client, name).catch(() => null)
+  return result ? result.owner : null
 }
 
 export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
