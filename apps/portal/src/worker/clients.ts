@@ -1,16 +1,5 @@
-import {
-  extendChainWithEns,
-  getChainContractAddress,
-} from '@ensdomains/ensjs/chain'
+import { sepoliaWithEns } from '@ens-apps/indexer/chain'
 import { createPublicClient, http } from 'viem'
-import { sepolia } from 'viem/chains'
-
-const sepoliaWithEns = extendChainWithEns(sepolia)
-
-export const v2EthRegistry = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensRegistry',
-})
 
 export function createClient(env: Env) {
   return createPublicClient({
