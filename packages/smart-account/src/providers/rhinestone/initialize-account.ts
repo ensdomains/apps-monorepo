@@ -250,8 +250,8 @@ export async function initializeRhinestoneAccount(
 
   // Gas sponsorship for the HCA is handled by the Rhinestone Warp
   // orchestrator (intent-based, relayer-funded). We deliberately do not
-  // configure an ERC-4337 bundler (Pimlico) here — HCA operations route
-  // through sponsored Intents, not bundled UserOps.
+  // configure an ERC-4337 bundler here — HCA operations route through
+  // sponsored Intents, not bundled UserOps.
   const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
     apiKey: rhinestoneApiKey,
     ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
