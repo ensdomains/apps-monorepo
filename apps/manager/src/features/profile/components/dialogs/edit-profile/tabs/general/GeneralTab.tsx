@@ -2,7 +2,6 @@ import { ChevronDown, Link as LinkIcon } from 'lucide-react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
-import { LOCALES } from '@/lib/locales.config'
 import { cn } from '@/lib/utils'
 import {
   useEditProfileDialogActions,
@@ -16,6 +15,7 @@ import {
   getGeneralUrlErrorMessage,
   getTextRecordValue,
 } from './fields'
+import { profileLanguageOptions } from './profileLanguages'
 
 type BaseGeneralField =
   | 'avatar'
@@ -30,12 +30,6 @@ const timezoneSelectOptions = Array.from({ length: 27 }, (_, index) => {
   const value = `UTC${offset >= 0 ? `+${offset}` : offset}`
   return { label: value, value }
 })
-
-const languageOptions = Object.entries(LOCALES)
-  .map(([value, label]) => ({ label, value }))
-  .sort((languageA, languageB) =>
-    languageA.label.localeCompare(languageB.label),
-  )
 
 const setTextRecordValue = (
   records: readonly TextRecordValue[],
@@ -306,7 +300,7 @@ export const GeneralTab = ({
                 ariaLabel="Language"
                 disabled={isSaving}
                 onChange={(value) => setBaseValue('language', value)}
-                options={languageOptions}
+                options={profileLanguageOptions}
                 placeholder="Language"
                 value={values.base.language ?? ''}
               />
