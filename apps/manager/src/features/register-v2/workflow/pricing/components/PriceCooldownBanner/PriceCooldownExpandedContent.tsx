@@ -151,7 +151,7 @@ export const PriceCooldownExpandedContent = ({
             over {periodDays} days.
           </Trans>
         </p>
-        <p className="text-[#737373] text-sm">
+        <p className="text-ens-quartz-400 text-sm">
           <Trans>The fee hits $0 on</Trans>{' '}
           <span className="text-ens-lapis-900">{premiumEndsAtLabel}</span>
         </p>
@@ -207,7 +207,7 @@ export const PriceCooldownExpandedContent = ({
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3 self-start">
-          <p className="text-[#737373] text-sm leading-normal">
+          <p className="text-ens-quartz-400 text-sm leading-normal">
             <Trans>The fee hits $0 on</Trans>{' '}
             <span className="text-ens-lapis-900">{premiumEndsAtLabel}</span>
           </p>

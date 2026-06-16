@@ -3,10 +3,10 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { PaymentTokenPicker } from '@/features/register/components/PaymentTokenPicker'
-import { RegistrationSummaryCards } from '@/features/register/components/RegistrationSummaryCards'
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
+import { ExtendNameSummaryCards } from './ExtendNameSummaryCards'
 
 type ExtendNameConfirmationProps = {
   readonly selectedName: SelectedName
@@ -36,12 +36,10 @@ export const ExtendNameConfirmation = ({
           {selectedName.name}
         </h2>
       </div>
-      <RegistrationSummaryCards
-        domainName={selectedName.name}
+      <ExtendNameSummaryCards
         durationSeconds={durationSeconds}
         price={price}
         baseDate={selectedName.expiryDate ?? undefined}
-        isExtension
       />
       <PaymentTokenPicker
         name={selectedName.name}

@@ -1,0 +1,188 @@
+import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import type { QueryClient, QueryKey } from '@tanstack/react-query'
+import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
+import type { ProfileRecords } from '@/features/profile/types'
+import type { ImageType } from './profileImageUpload'
+import { profileRecordsQuery } from './profileRecords'
+
+export interface SignedProfileImageUpload {
+  readonly kind: ImageType
+  readonly imageUrl: string
+}
+
+interface RefreshProfileImageCachesParams {
+  readonly images: readonly SignedProfileImageUpload[]
+  readonly name: string
+  readonly queryClient: QueryClient
+}
+
+const getQueryMeta = (queryKey: QueryKey): Record<string, unknown> | null => {
+  const [meta] = queryKey
+
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+    return null
+  }
+
+  return meta as Record<string, unknown>
+}
+
+const getQueryMetaString = (
+  queryKey: QueryKey,
+  key: string,
+): string | undefined => {
+  const value = getQueryMeta(queryKey)?.[key]
+  return typeof value === 'string' ? value : undefined
+}
+
+const normalizeImageUrl = (imageUrl: string) => imageUrl.trim()
+
+const isGaslessProfileImageUrl = (imageUrl: string) =>
+  normalizeImageUrl(imageUrl).startsWith(AVATAR_UPLOAD_BASE_URL)
+
+const getCacheBustedImageUrl = (imageUrl: string, version: number) => {
+  const normalizedImageUrl = normalizeImageUrl(imageUrl)
+
+  if (!isGaslessProfileImageUrl(normalizedImageUrl)) {
+    return imageUrl
+  }
+
+  const url = new URL(normalizedImageUrl)
+  url.searchParams.set('v', String(version))
+  return url.toString()
+}
+
+export const getActiveSignedProfileImageUploads = ({
+  images,
+  records,
+}: {
+  readonly images: readonly SignedProfileImageUpload[]
+  readonly records: ProfileRecords
+}) =>
+  images.filter(
+    ({ imageUrl, kind }) =>
+      normalizeImageUrl(records.base[kind] ?? '') ===
+      normalizeImageUrl(imageUrl),
+  )
+
+const refreshParsedAvatarCaches = ({
+  images,
+  queryClient,
+  version,
+}: {
+  readonly images: readonly SignedProfileImageUpload[]
+  readonly queryClient: QueryClient
+  readonly version: number
+}) => {
+  const imageUrlByRecord = new Map(
+    images.map(({ imageUrl }) => [
+      normalizeImageUrl(imageUrl),
+      getCacheBustedImageUrl(imageUrl, version),
+    ]),
+  )
+
+  for (const query of queryClient.getQueryCache().findAll({
+    queryKey: $qk({ $scope: 'profile', $action: 'parse_avatar' }),
+  })) {
+    const record = getQueryMetaString(query.queryKey, 'record')
+    const imageUrl = record
+      ? imageUrlByRecord.get(normalizeImageUrl(record))
+      : undefined
+
+    if (imageUrl) {
+      queryClient.setQueryData(query.queryKey, imageUrl)
+    }
+  }
+}
+
+const isNameAvatarMap = (
+  data: unknown,
+): data is Record<string, string | undefined> =>
+  !!data && typeof data === 'object' && !Array.isArray(data)
+
+const refreshNameAvatarCaches = ({
+  images,
+  name,
+  queryClient,
+  version,
+}: {
+  readonly images: readonly SignedProfileImageUpload[]
+  readonly name: string
+  readonly queryClient: QueryClient
+  readonly version: number
+}) => {
+  const avatarUpload = images.find(({ kind }) => kind === 'avatar')
+
+  if (!avatarUpload) {
+    return
+  }
+
+  const imageUrl = getCacheBustedImageUrl(avatarUpload.imageUrl, version)
+
+  for (const query of queryClient.getQueryCache().findAll({
+    queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
+  })) {
+    if (getQueryMetaString(query.queryKey, 'name') === name) {
+      queryClient.setQueryData(query.queryKey, imageUrl)
+    }
+  }
+
+  const updateAvatarMap = (data: unknown) => {
+    if (!isNameAvatarMap(data) || !(name in data)) {
+      return data
+    }
+
+    return { ...data, [name]: imageUrl }
+  }
+
+  for (const action of ['names_avatars', 'names_avatars_by_name']) {
+    queryClient.setQueriesData(
+      { queryKey: $qk({ $scope: 'profile', $action: action }) },
+      updateAvatarMap,
+    )
+  }
+}
+
+export const refreshProfileImageCaches = async ({
+  images,
+  name,
+  queryClient,
+}: RefreshProfileImageCachesParams) => {
+  const gaslessImages = images.filter(({ imageUrl }) =>
+    isGaslessProfileImageUrl(imageUrl),
+  )
+
+  if (gaslessImages.length === 0) {
+    return
+  }
+
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: profileRecordsQuery(name).queryKey,
+    }),
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'parse_avatar' }),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'names_avatars' }),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'names_avatars_by_name' }),
+    }),
+  ])
+
+  const version = Date.now()
+  refreshParsedAvatarCaches({
+    images: gaslessImages,
+    queryClient,
+    version,
+  })
+  refreshNameAvatarCaches({
+    images: gaslessImages,
+    name,
+    queryClient,
+    version,
+  })
+}

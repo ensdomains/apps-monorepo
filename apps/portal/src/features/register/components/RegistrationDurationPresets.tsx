@@ -1,14 +1,14 @@
 import { useQueries } from '@tanstack/react-query'
 import { formatUnits } from 'viem'
-import { Badge } from '@/components/ui/badge'
 import { getAppliedDiscountQueryOptions } from '@/features/register/hooks/useAppliedDiscount'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
+import { getSavingsPct } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
-export const PRESET_YEARS = [1, 2, 3, 5] as const
+export const PRESET_YEARS = [1, 2, 3, 6] as const
 
 const PRESET_DURATIONS_SECONDS = PRESET_YEARS.map(
   (years) => years * CONTRACT_SECONDS_PER_YEAR,
@@ -56,44 +56,81 @@ export const RegistrationDurationPresets = ({
     ),
   })
 
+  const effectivePerYear = PRESET_YEARS.map((years, idx) =>
+    computeEffectivePerYear(discountQueries[idx]?.data ?? 0n, years),
+  )
+
+  const baselinePerYear = effectivePerYear[0]
+
   return (
-    <div className="flex gap-2 items-center flex-wrap">
+    <div className="flex flex-wrap sm:flex-row flex-col gap-4">
       {PRESET_YEARS.map((years, idx) => {
         const isSelected = selectedYears === years
-        const discountedBase = discountQueries[idx]?.data ?? 0n
-        const effective = computeEffectivePerYear(discountedBase, years)
+        const effective = effectivePerYear[idx]
+        const discountPct = getSavingsPct(effective, baselinePerYear)
 
         return (
-          <Badge
+          <button
             key={years}
-            variant={isSelected ? 'secondary' : 'outline'}
-            role="button"
-            tabIndex={0}
+            type="button"
             onClick={() => onSelect(years)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault()
-                onSelect(years)
-              }
-            }}
+            aria-pressed={isSelected}
             className={cn(
-              'cursor-pointer rounded-xs justify-center text-center px-2.5',
-              'border',
-              isSelected && 'border-transparent',
+              'relative group sm:w-24 w-full flex sm:flex-col items-center justify-center sm:gap-0.5 gap-2 rounded-sm border px-3 py-2.5 text-left transition-colors cursor-pointer',
+              isSelected
+                ? 'border-signal-success-700 bg-success-fill'
+                : 'border-border hover:border-neutral-6',
             )}
           >
-            {`${years} years`}{' '}
-            {effective > 0 ? (
+            {discountPct > 0 ? (
               <span
                 className={cn(
-                  'font-normal',
-                  isSelected ? 'text-primary' : 'text-success-text',
+                  'absolute sm:top-0 sm:-right-1 top-1/2 -translate-y-1/2 right-4 rounded-full px-1.5 py-1.5 text-[10px] font-medium leading-none',
+                  isSelected
+                    ? 'bg-signal-success-700 text-white'
+                    : 'bg-muted text-muted-foreground',
                 )}
               >
-                {`${formatUsd(effective)}/yr`}
+                {`-${discountPct}%`}
               </span>
             ) : null}
-          </Badge>
+            <span
+              className={cn(
+                'text-sm',
+                isSelected
+                  ? 'text-signal-success-700'
+                  : 'text-muted-foreground group-hover:text-foreground',
+              )}
+            >
+              {years === 1 ? '1 year' : `${years} years`}
+            </span>
+            <span
+              className={cn(
+                'text-base font-medium',
+                isSelected
+                  ? 'text-signal-success-700'
+                  : 'text-muted-foreground group-hover:text-foreground',
+              )}
+            >
+              {effective > 0 ? (
+                <>
+                  {formatUsd(effective)}
+                  <span
+                    className={cn(
+                      'font-normal',
+                      isSelected
+                        ? 'text-success-text'
+                        : 'text-muted-foreground group-hover:text-foreground',
+                    )}
+                  >
+                    /yr
+                  </span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </span>
+          </button>
         )
       })}
     </div>

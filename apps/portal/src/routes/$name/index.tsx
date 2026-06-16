@@ -24,6 +24,7 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { RegistrationSuccessBanner } from '@/features/register/components/RegistrationSuccessBanner'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
@@ -36,9 +37,26 @@ import {
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 
+type NameSearch = {
+  readonly registered?: boolean
+  readonly duration?: number
+  readonly paid?: string
+}
+
+const validateNameSearch = (search: Record<string, unknown>): NameSearch => {
+  if (search.registered !== true && search.registered !== 'true') return {}
+  const duration = Number(search.duration)
+  return {
+    registered: true,
+    duration: Number.isFinite(duration) ? duration : undefined,
+    paid: typeof search.paid === 'string' ? search.paid : undefined,
+  }
+}
+
 export const Route = createFileRoute('/$name/')({
   component: App,
   notFoundComponent: () => <NotFoundMessage />,
+  validateSearch: validateNameSearch,
   loader: ({ params }) => {
     const tld = getTLD(params.name)
     return Promise.all([
@@ -57,6 +75,11 @@ const Profile = ({
   name: string
   resolverAddress?: Address
 }) => {
+  const { registered, duration, paid } = Route.useSearch()
+  const registrationBanner =
+    registered === true && duration !== undefined && paid !== undefined
+      ? { durationSeconds: duration, paid }
+      : null
   const tld = getTLD(name)
   const isEthTld = tld === 'eth'
 
@@ -258,6 +281,10 @@ const Profile = ({
 
   return (
     <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+      {registrationBanner && (
+        <RegistrationSuccessBanner name={name} {...registrationBanner} />
+      )}
+
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
