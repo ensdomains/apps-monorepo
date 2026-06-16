@@ -4,21 +4,23 @@ import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { dateToPlainDate } from '@/utils/temporal'
 
-type RegistrationSummaryCardsProps = {
-  readonly domainName: string
+type ExtendNameSummaryCardsProps = {
   readonly durationSeconds: number
   readonly price: RegistrationPriceResult
-  /** Anchor date for expiry calc; defaults to today. Pass current expiry for extensions. */
+  /** The name's current expiry, used to anchor the new-expiry calc. */
   readonly baseDate?: Date
-  readonly isExtension?: boolean
 }
 
-export const RegistrationSummaryCards = ({
+/**
+ * Extension / new-expiry / total-cost summary cards shown in the extend (renew)
+ * flow. (Formerly the shared RegistrationSummaryCards — registration now uses
+ * the post-success banner instead, so this is extension-only.)
+ */
+export const ExtendNameSummaryCards = ({
   durationSeconds,
   price,
   baseDate,
-  isExtension = false,
-}: RegistrationSummaryCardsProps) => {
+}: ExtendNameSummaryCardsProps) => {
   const {
     registrationPeriod,
     registrationDays,
@@ -29,11 +31,8 @@ export const RegistrationSummaryCards = ({
     baseDate ? dateToPlainDate(baseDate) : undefined,
   )
 
-  // Renewal only charges `base` (ETHRegistrar.renew). Registration charges base + premium.
-  const totalCost = formatPriceDisplay(
-    isExtension ? price.base : price.total,
-    price.decimals,
-  )
+  // Renewal only charges `base` (ETHRegistrar.renew) — no premium.
+  const totalCost = formatPriceDisplay(price.base, price.decimals)
 
   const roundedYears = Math.round(durationSeconds / CONTRACT_SECONDS_PER_YEAR)
   const discountText =
@@ -42,7 +41,7 @@ export const RegistrationSummaryCards = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">{isExtension ? 'Extension' : 'Registration'}</p>
+        <p className="text-sm">Extension</p>
         <p className="text-foreground text-base font-medium mt-1">
           {registrationPeriod}
         </p>
@@ -51,7 +50,7 @@ export const RegistrationSummaryCards = ({
         </p>
       </div>
       <div className="rounded-xl border border-border bg-card p-4 text-center">
-        <p className="text-sm">{isExtension ? 'New expiry' : 'Expires'}</p>
+        <p className="text-sm">New expiry</p>
         <p className="text-foreground text-base font-medium mt-1">
           {expiresFormatted}
         </p>

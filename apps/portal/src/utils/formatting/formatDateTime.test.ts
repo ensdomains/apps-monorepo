@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatDateTime,
+  formatDottedDateTimeLocal,
   formatExpiryDate,
   formatExpiryDateTimeLocal,
   formatExpiryDuration,
 } from './formatDateTime'
+
+describe('formatDottedDateTimeLocal', () => {
+  it('formats an instant as "YYYY.MM.DD at HH:MM"', () => {
+    const instant = Temporal.Instant.from('2026-05-08T02:44:00Z')
+    expect(formatDottedDateTimeLocal(instant)).toMatch(
+      /^\d{4}\.\d{2}\.\d{2} at \d{2}:\d{2}$/,
+    )
+  })
+})
 
 describe('formatDateTime', () => {
   it('should format date with long month name', () => {
