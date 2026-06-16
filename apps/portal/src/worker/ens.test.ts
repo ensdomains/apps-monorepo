@@ -22,6 +22,7 @@ vi.mock('@ensdomains/ensjs/public/v2', () => ({
 const { resolveOwner } = await import('./ens')
 
 const LEDGIT_REGISTRY = '0x00000000000000000000000000000000000ce610'
+const B_REGISTRY = '0x000000000000000000000000000000000000b000'
 const OWNER = '0x1111111111111111111111111111111111111111'
 
 const client = {} as never
@@ -66,8 +67,37 @@ describe('resolveOwner', () => {
     })
   })
 
-  it('returns null for an existing subname that does not report "available"', async () => {
-    // Parent subregistry exists but the label is unowned (zero address)
+  it('resolves a 4LD owner by walking down through two subregistries', async () => {
+    // a.b.ledgit.eth: root -> ledgit's subregistry -> b's subregistry, then read `a`
+    mockGetNameRegistryAddress
+      .mockResolvedValueOnce(LEDGIT_REGISTRY) // getSubregistry('ledgit') under root
+      .mockResolvedValueOnce(B_REGISTRY) // getSubregistry('b') under LEDGIT_REGISTRY
+    mockGetOwnerV2.mockResolvedValueOnce(OWNER)
+
+    const owner = await resolveOwner(client, 'a.b.ledgit.eth')
+
+    expect(owner).toBe(OWNER)
+    expect(mockGetNameRegistryAddress).toHaveBeenCalledTimes(2)
+    // First hop reads `ledgit` from the .eth root registry
+    expect(mockGetNameRegistryAddress).toHaveBeenNthCalledWith(1, client, {
+      registryAddress: expect.any(String),
+      label: 'ledgit',
+    })
+    // Second hop reads `b` from ledgit's subregistry
+    expect(mockGetNameRegistryAddress).toHaveBeenNthCalledWith(2, client, {
+      registryAddress: LEDGIT_REGISTRY,
+      label: 'b',
+    })
+    // Leaf owner is read from the deepest subregistry
+    expect(mockGetOwnerV2).toHaveBeenCalledWith(client, {
+      label: 'a',
+      registryAddress: B_REGISTRY,
+    })
+  })
+
+  it('returns null (available) when the leaf label is unowned in the parent subregistry', async () => {
+    // Parent subregistry exists but the label is unowned (zero address).
+    // A null result is intentional: the OG renderer treats it as "available".
     mockGetNameRegistryAddress.mockResolvedValueOnce(LEDGIT_REGISTRY)
     mockGetOwnerV2.mockResolvedValueOnce(zeroAddress)
 
