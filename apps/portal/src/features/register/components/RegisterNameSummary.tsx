@@ -18,7 +18,6 @@ import {
 } from '@/features/register/hooks/useRegistrationPrice'
 import { getEffectivePricePerYearUsd } from '@/features/register/utils/effectivePricePerYear'
 import { getPremiumLabel } from '@/features/register/utils/premium'
-import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premiumDecay'
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,

@@ -67,24 +67,6 @@ export function getPremiumInstantRange(
 }
 
 /**
- * Derives the premium instant range from a registration price result.
- * Returns null if config is not yet loaded or the price has no premium.
- */
-export function getPremiumInstantRangeFromPrice(
-  price: {
-    premium: bigint
-    decimals: number
-    hasPremium: boolean
-  },
-  config?: PremiumDecayConfig,
-): PremiumInstantRange | null {
-  if (!config || !price.hasPremium) return null
-
-  const premiumUsd = Number(price.premium) / 10 ** price.decimals
-  return getPremiumInstantRange(premiumUsd, undefined, config)
-}
-
-/**
  * Calculates the premium price at a given instant.
  * Returns 0 if config is not yet loaded.
  *

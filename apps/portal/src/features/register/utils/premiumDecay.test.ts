@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   getPremiumInstantRange,
-  getPremiumInstantRangeFromPrice,
   getPremiumPeriodDays,
   getPremiumPriceAtInstant,
   type PremiumDecayConfig,
@@ -140,50 +139,6 @@ describe('premiumDecay', () => {
         periodMs: 28 * MS_PER_DAY,
       }
       expect(getPremiumPeriodDays(config)).toBe(28)
-    })
-  })
-
-  describe('getPremiumInstantRangeFromPrice', () => {
-    it('returns null when hasPremium is false', () => {
-      expect(
-        getPremiumInstantRangeFromPrice(
-          {
-            premium: 1000000n,
-            decimals: 6,
-            hasPremium: false,
-          },
-          TEST_CONFIG,
-        ),
-      ).toBeNull()
-    })
-
-    it('returns null when config is not loaded', () => {
-      expect(
-        getPremiumInstantRangeFromPrice({
-          premium: 50_000_000_000_000n,
-          decimals: 6,
-          hasPremium: true,
-        }),
-      ).toBeNull()
-    })
-
-    it('converts premium from token units to USD and returns instant range', () => {
-      const result = getPremiumInstantRangeFromPrice(
-        {
-          premium: 50_000_000_000_000n,
-          decimals: 6,
-          hasPremium: true,
-        },
-        TEST_CONFIG,
-      )
-      expect(result).not.toBeNull()
-      if (result) {
-        expect(result.start).toBeInstanceOf(Temporal.Instant)
-        expect(result.end).toBeInstanceOf(Temporal.Instant)
-        expect(
-          result.end.epochMilliseconds - result.start.epochMilliseconds,
-        ).toBe(PREMIUM_PERIOD_MS)
-      }
     })
   })
 })
