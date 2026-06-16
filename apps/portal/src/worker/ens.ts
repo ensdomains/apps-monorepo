@@ -1,13 +1,8 @@
 import { getRecords } from '@ensdomains/ensjs/public'
-import { getOwner as getOwnerV1 } from '@ensdomains/ensjs/public/v1'
-import {
-  getNameRegistryAddress,
-  getOwner as getOwnerV2,
-} from '@ensdomains/ensjs/public/v2'
-import { type Address, zeroAddress } from 'viem'
 import { parseAvatarRecord } from 'viem/ens'
 
-import { createClient, type EnsClient, v2EthRegistry } from './clients'
+import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
+import { createClient, type EnsClient } from './clients'
 
 export interface EnsData {
   avatar: string | null
@@ -38,53 +33,17 @@ export async function resolveAvatarDataUri(
 }
 
 /**
- * Resolve the owner of an .eth name (or subname) from the V2 registry.
+ * Resolve the owner of an ENS name (V2 subname-aware, with V1 fallback).
  *
- * Walks down from the .eth root to the immediate parent's subregistry, then
- * reads the leaf label's owner. e.g. for `alice.ledgit.eth` look up the
- * subregistry for `ledgit` under .eth, then read `alice` from it. Returns
- * `null` if any parent subregistry is missing or the leaf label is unowned.
+ * Thin wrapper over the shared {@link resolveEnsOwner} used by the React app
+ * (useEnsOwner), returning just the owner address (or `null`) for OG rendering.
  */
-async function resolveV2EthOwner(
-  client: EnsClient,
-  labels: string[],
-): Promise<string | null> {
-  let registryAddress: Address = v2EthRegistry
-  for (let i = labels.length - 2; i >= 1; i--) {
-    registryAddress = await getNameRegistryAddress(client, {
-      registryAddress,
-      label: labels[i],
-    })
-    if (registryAddress === zeroAddress) return null
-  }
-
-  const v2Owner = await getOwnerV2(client, {
-    label: labels[0],
-    registryAddress,
-  })
-  return v2Owner && v2Owner !== zeroAddress ? v2Owner : null
-}
-
 export async function resolveOwner(
   client: EnsClient,
   name: string,
 ): Promise<string | null> {
-  const labels = name.split('.')
-  const tld = labels[labels.length - 1]
-
-  // Try the V2 registry first — but only for names under the .eth TLD.
-  // The V2 registry is rooted at .eth, so traversing it for a non-.eth name
-  // (e.g. florin.xyz) would incorrectly resolve against the .eth namespace.
-  if (tld === 'eth' && labels.length >= 2) {
-    const v2Owner = await resolveV2EthOwner(client, labels).catch(() => null)
-    if (v2Owner) return v2Owner
-  }
-
-  // Fall back to the V1 registry.
-  const v1Owner = await getOwnerV1(client, { name }).catch(() => null)
-  if (v1Owner?.owner && v1Owner.owner !== zeroAddress) return v1Owner.owner
-
-  return null
+  const result = await resolveEnsOwner(client, name).catch(() => null)
+  return result?.owner ?? null
 }
 
 export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
