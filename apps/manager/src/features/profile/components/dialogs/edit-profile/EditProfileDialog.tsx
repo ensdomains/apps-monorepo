@@ -6,13 +6,18 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor } from 'xstate'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Tabs } from '@/components/ui/tabs'
+import {
+  getActiveSignedProfileImageUploads,
+  refreshProfileImageCaches,
+  type SignedProfileImageUpload,
+} from '@/features/profile/service/profileImageCache'
 import type { ProfileRecords } from '@/features/profile/types'
 import { createDiff } from '@/features/profile/utils/createDiff'
 import { normalizeProfileRecords } from '@/features/profile/utils/transformRecords'
@@ -46,6 +51,9 @@ interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly onUpdated?: () => undefined | Promise<unknown>
   readonly queryClient: QueryClient
   readonly savedRecords: ProfileRecords
+  readonly signedImageUploads: readonly SignedProfileImageUpload[]
+  readonly onSignedImageUploadsSaved: () => void
+  readonly name: string
 }
 
 interface EditProfileDialogProps {
@@ -60,9 +68,12 @@ const useCloseProfileDialogOnSuccessfulSave = ({
   ethAddressChanged,
   form,
   isSuccess,
+  name,
   onUpdated,
+  onSignedImageUploadsSaved,
   queryClient,
   savedRecords,
+  signedImageUploads,
 }: UseCloseProfileDialogOnSuccessfulSaveParams) => {
   useEffect(() => {
     if (!isSuccess) {
@@ -74,6 +85,15 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     const finalizeSave = async () => {
       form.reset(savedRecords)
       await onUpdated?.()
+      await refreshProfileImageCaches({
+        images: getActiveSignedProfileImageUploads({
+          images: signedImageUploads,
+          records: savedRecords,
+        }),
+        name,
+        queryClient,
+      })
+      onSignedImageUploadsSaved()
 
       if (ethAddressChanged) {
         queryClient.invalidateQueries({
@@ -96,9 +116,12 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     ethAddressChanged,
     form,
     isSuccess,
+    name,
     onUpdated,
+    onSignedImageUploadsSaved,
     queryClient,
     savedRecords,
+    signedImageUploads,
   ])
 }
 
@@ -139,6 +162,11 @@ export const EditProfileDialog = ({
   )
   const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
     useState(false)
+  const [signedImageUploads, setSignedImageUploads] = useState<
+    readonly SignedProfileImageUpload[]
+  >([])
+  const [isFinalizingSignedImageSave, setIsFinalizingSignedImageSave] =
+    useState(false)
 
   const form = useAppForm({
     defaultValues: records,
@@ -177,10 +205,15 @@ export const EditProfileDialog = ({
     saveRecordsMutation.reset()
     dialogActor.send({ type: 'RESET_SAVE_STATE' })
   }
+  const handleSignedImageUploadsSaved = useCallback(() => {
+    setSignedImageUploads([])
+  }, [])
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       setHasDraftLinkValidationIssues(false)
+      setSignedImageUploads([])
+      setIsFinalizingSignedImageSave(false)
       form.reset(records)
       dialogActor.send({ type: 'OPEN', records })
       return
@@ -191,11 +224,48 @@ export const EditProfileDialog = ({
     }
 
     setHasDraftLinkValidationIssues(false)
+    setSignedImageUploads([])
+    setIsFinalizingSignedImageSave(false)
     dialogActor.send({ type: 'CLOSE' })
   }
 
-  const handleSave = (currentRecords: ProfileRecords) => {
+  const finalizeSignedImageOnlySave = async (
+    currentRecords: ProfileRecords,
+    images: readonly SignedProfileImageUpload[],
+  ) => {
+    setIsFinalizingSignedImageSave(true)
+
+    try {
+      form.reset(currentRecords)
+      await onUpdated?.()
+      await refreshProfileImageCaches({
+        images,
+        name,
+        queryClient,
+      })
+      setSignedImageUploads([])
+      dialogActor.send({ type: 'CLOSE' })
+    } finally {
+      setIsFinalizingSignedImageSave(false)
+    }
+  }
+
+  const handleSave = (
+    currentRecords: ProfileRecords,
+    options: {
+      readonly hasRecordChanges: boolean
+      readonly signedImageUploads: readonly SignedProfileImageUpload[]
+    },
+  ) => {
     resetSaveState()
+
+    if (!options.hasRecordChanges && options.signedImageUploads.length > 0) {
+      void finalizeSignedImageOnlySave(
+        currentRecords,
+        options.signedImageUploads,
+      )
+      return
+    }
 
     dialogActor.send({
       type: 'SAVE_REQUESTED',
@@ -230,9 +300,12 @@ export const EditProfileDialog = ({
     ethAddressChanged,
     form,
     isSuccess,
+    name,
     onUpdated,
+    onSignedImageUploadsSaved: handleSignedImageUploadsSaved,
     queryClient,
     savedRecords,
+    signedImageUploads,
   })
 
   return (
@@ -258,6 +331,12 @@ export const EditProfileDialog = ({
               const submittedValues = normalizeProfileRecords(values)
               const diff = createDiff(savedRecords, submittedValues)
               const hasChanges = Object.keys(diff).length > 0
+              const activeSignedImageUploads =
+                getActiveSignedProfileImageUploads({
+                  images: signedImageUploads,
+                  records: submittedValues,
+                })
+              const hasSignedImageUpload = activeSignedImageUploads.length > 0
               const hasAddressValidationIssues =
                 getAddressValidationIssues(values.addresses).length > 0
               const hasLinkValidationIssues =
@@ -266,8 +345,9 @@ export const EditProfileDialog = ({
               const hasContactValidationIssues =
                 getContactValidationIssues(values).length > 0
               const canSaveProfile =
-                hasChanges &&
+                (hasChanges || hasSignedImageUpload) &&
                 canSubmit &&
+                !isFinalizingSignedImageSave &&
                 !hasAddressValidationIssues &&
                 !hasLinkValidationIssues &&
                 !hasContactValidationIssues
@@ -299,15 +379,10 @@ export const EditProfileDialog = ({
                 kind: ProfileImageKind,
                 imageUrl: string,
               ) => {
-                if (
-                  hasChanges ||
-                  (savedRecords.base[kind] ?? '').trim() !== imageUrl.trim()
-                ) {
-                  return
-                }
-
-                void onUpdated?.()
-                dialogActor.send({ type: 'CLOSE' })
+                setSignedImageUploads((currentUploads) => [
+                  ...currentUploads.filter((upload) => upload.kind !== kind),
+                  { kind, imageUrl },
+                ])
               }
 
               return (
@@ -320,7 +395,12 @@ export const EditProfileDialog = ({
                     avatarUrl={values.base.avatar}
                     canSave={canSaveProfile}
                     name={name}
-                    onSave={() => handleSave(submittedValues)}
+                    onSave={() =>
+                      handleSave(submittedValues, {
+                        hasRecordChanges: hasChanges,
+                        signedImageUploads: activeSignedImageUploads,
+                      })
+                    }
                     themeColor={values.base.theme}
                   />
                   <EditProfileDialogTabs
@@ -334,7 +414,12 @@ export const EditProfileDialog = ({
                     }
                     onImageUploadComplete={handleSignedImageUploadComplete}
                     onLinksChange={handleLinksChange}
-                    onSave={() => handleSave(submittedValues)}
+                    onSave={() =>
+                      handleSave(submittedValues, {
+                        hasRecordChanges: hasChanges,
+                        signedImageUploads: activeSignedImageUploads,
+                      })
+                    }
                     onSocialChange={handleSocialChange}
                     owner={owner}
                     values={values}
