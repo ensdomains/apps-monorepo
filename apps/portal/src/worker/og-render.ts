@@ -91,7 +91,7 @@ export async function renderOgImage(
   let html: string
   if (available) {
     html = `
-    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
+    <div style="position: relative; width: 100%; height: 100%; background: white; display: flex; align-items: center; justify-content: center; padding: 100px 75px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <img src="data:image/svg+xml;base64,${btoa(ensMarkSvg)}" width="126" height="140" style="width: 126px; height: 140px; flex-shrink: 0;" />
         <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">
