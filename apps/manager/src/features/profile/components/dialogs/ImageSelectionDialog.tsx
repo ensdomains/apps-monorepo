@@ -77,6 +77,15 @@ const StepFooter = ({ children }: StepFooterProps) => (
   <div className="flex justify-end gap-2">{children}</div>
 )
 
+const uploadSelectedImage = (
+  uploadFile: File | null,
+  uploadImage: (file: File) => void,
+) => {
+  if (!uploadFile) return
+
+  uploadImage(uploadFile)
+}
+
 interface ImageSelectionDialogProps {
   readonly currentImage?: string
   readonly defaultImage?: string
@@ -187,7 +196,6 @@ export const ImageSelectionDialog = ({
     uploadImageMutationOptions({
       type,
       name,
-      uploadFile,
       isConnected,
       address,
       chainId,
@@ -395,7 +403,10 @@ export const ImageSelectionDialog = ({
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           <Trans>Back</Trans>
         </Button>
-        <Button disabled={isUploading} onClick={() => uploadImage()}>
+        <Button
+          disabled={isUploading}
+          onClick={() => uploadSelectedImage(uploadFile, uploadImage)}
+        >
           {isUploading ? (
             <Trans>Uploading…</Trans>
           ) : (

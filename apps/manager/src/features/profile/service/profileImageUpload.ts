@@ -180,7 +180,6 @@ const uploadSignedImage = async ({
 export interface UploadImageMutationOptionsArgs {
   type: ImageType
   name?: string
-  uploadFile: File | null
   isConnected: boolean
   address?: string
   chainId: number | undefined
@@ -195,7 +194,6 @@ export interface UploadImageMutationOptionsArgs {
 export const uploadImageMutationOptions = ({
   type,
   name,
-  uploadFile,
   isConnected,
   address,
   chainId,
@@ -207,9 +205,8 @@ export const uploadImageMutationOptions = ({
   send,
 }: UploadImageMutationOptionsArgs) =>
   mutationOptions({
-    mutationFn: async () => {
+    mutationFn: async (uploadFile: File) => {
       if (!name) throw new Error('Name is required to upload an image')
-      if (!uploadFile) throw new Error('No image selected for upload')
       if (!isConnected || !address)
         throw new Error('Please connect your wallet before uploading an image')
 

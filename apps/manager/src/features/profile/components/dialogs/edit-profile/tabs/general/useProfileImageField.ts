@@ -46,8 +46,6 @@ export const useProfileImageField = ({
   })
   const [cropZoom, setCropZoom] = useState(1)
   const [isCropping, setIsCropping] = useState(false)
-  const [shouldUploadSelectedFile, setShouldUploadSelectedFile] =
-    useState(false)
   const hasImage = Boolean(currentImage?.trim())
   const imageQuery = useQuery({
     ...parseAvatarQuery(currentImage),
@@ -80,7 +78,6 @@ export const useProfileImageField = ({
     setCropOffset({ x: 0, y: 0 })
     setCropZoom(1)
     setIsCropping(false)
-    setShouldUploadSelectedFile(false)
   }
 
   const handleCancel = () => {
@@ -92,7 +89,6 @@ export const useProfileImageField = ({
     uploadImageMutationOptions({
       type: kind,
       name,
-      uploadFile,
       isConnected,
       address,
       chainId,
@@ -112,13 +108,6 @@ export const useProfileImageField = ({
   )
 
   useEffect(() => {
-    if (!shouldUploadSelectedFile || !uploadFile) return
-
-    setShouldUploadSelectedFile(false)
-    uploadImage()
-  }, [shouldUploadSelectedFile, uploadFile, uploadImage])
-
-  useEffect(() => {
     if (!active) {
       send({ type: 'RESET' })
       setUploadFile(null)
@@ -127,7 +116,6 @@ export const useProfileImageField = ({
       setCropOffset({ x: 0, y: 0 })
       setCropZoom(1)
       setIsCropping(false)
-      setShouldUploadSelectedFile(false)
     }
   }, [active, send])
 
@@ -262,7 +250,7 @@ export const useProfileImageField = ({
         if (previousUrl) URL.revokeObjectURL(previousUrl)
         return URL.createObjectURL(croppedFile)
       })
-      setShouldUploadSelectedFile(true)
+      uploadImage(croppedFile)
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to crop image'
