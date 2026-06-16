@@ -19,7 +19,7 @@ export const AddressIcon = ({
       : size === 'lg'
         ? 'size-5 text-[10px]'
         : size === 'md'
-          ? 'size-6 text-[11px]'
+          ? 'size-5 text-[11px]'
           : 'size-4 text-[9px]'
 
   return (

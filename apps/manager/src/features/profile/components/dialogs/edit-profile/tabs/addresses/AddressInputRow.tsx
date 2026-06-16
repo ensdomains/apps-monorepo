@@ -29,7 +29,7 @@ export const AddressInputRow = ({
   return (
     <div className="relative flex items-start gap-3 pt-2">
       <div className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute top-[30px] left-0 z-10">
-        <AddressIcon coinType={coinType} label={label} />
+        <AddressIcon coinType={coinType} label={label} size="md" />
       </div>
       <label
         className="absolute top-0 left-4 z-10 bg-white px-1 text-[14px] text-ens-quartz-400 leading-none"

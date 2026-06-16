@@ -37,7 +37,7 @@ const ChainPickerOptionButton = ({
     active={active}
     disabled={disabled}
     icon={
-      <AddressIcon coinType={option.coinType} label={option.label} size="lg" />
+      <AddressIcon coinType={option.coinType} label={option.label} size="xs" />
     }
     label={option.label}
     onClick={onClick}
