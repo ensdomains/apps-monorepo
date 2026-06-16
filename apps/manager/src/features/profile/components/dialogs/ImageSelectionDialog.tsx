@@ -12,7 +12,12 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import {
+  type ComponentPropsWithoutRef,
+  forwardRef,
+  useRef,
+  useState,
+} from 'react'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -121,82 +126,99 @@ interface ImageSelectionDialogProps {
   readonly emptyState?: React.ReactNode
 }
 
-interface ImageSelectionTriggerProps {
+interface ImageSelectionTriggerProps
+  extends Omit<ComponentPropsWithoutRef<'button'>, 'type'> {
   readonly defaultImage?: string
   readonly displayImage?: string
   readonly emptyState?: React.ReactNode
   readonly imageClassName?: string
+  readonly imageType: ImageType
   readonly name?: string
   readonly triggerClassName?: string
-  readonly type: ImageType
   readonly uploadPreviewUrl?: string | null
 }
 
-const ImageSelectionTrigger = ({
-  defaultImage,
-  displayImage,
-  emptyState,
-  imageClassName,
-  name,
-  triggerClassName,
-  type,
-  uploadPreviewUrl,
-}: ImageSelectionTriggerProps) => (
-  <button
-    className={clsx(
-      'group relative block w-full cursor-pointer overflow-hidden',
-      triggerClassName ??
-        (type === 'avatar' ? 'h-full rounded-md' : 'aspect-3/1 md:aspect-5/1'),
-    )}
-    title={`Change ${type}`}
-    type="button"
-  >
-    <div
+const ImageSelectionTrigger = forwardRef<
+  HTMLButtonElement,
+  ImageSelectionTriggerProps
+>(
+  (
+    {
+      className,
+      defaultImage,
+      displayImage,
+      emptyState,
+      imageClassName,
+      imageType,
+      name,
+      triggerClassName,
+      uploadPreviewUrl,
+      ...buttonProps
+    },
+    ref,
+  ) => (
+    <button
+      {...buttonProps}
       className={clsx(
-        'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
-        type === 'avatar' && 'rounded-md',
-        type === 'header' && 'pb-12',
+        'group relative block w-full cursor-pointer overflow-hidden',
+        triggerClassName ??
+          (imageType === 'avatar'
+            ? 'h-full rounded-md'
+            : 'aspect-3/1 md:aspect-5/1'),
+        className,
       )}
+      ref={ref}
+      title={buttonProps.title ?? `Change ${imageType}`}
+      type="button"
     >
-      <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
-        <Image className="size-6 text-white" />
-      </div>
-    </div>
-    <ImageFallback.Root>
-      <ImageFallback.Image
-        alt={`${name || 'Profile'} ${type}`}
-        className={imageClassName ?? 'h-full w-full object-cover'}
-        src={uploadPreviewUrl || displayImage}
-      />
-      <ImageFallback.Fallback>
-        {emptyState ? (
-          emptyState
-        ) : defaultImage ? (
-          <img
-            alt={`Default ${type}`}
-            className="h-full w-full object-cover"
-            src={defaultImage}
-          />
-        ) : type === 'avatar' ? (
-          <PatternAvatar
-            className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
-            name={name || 'avatar'}
-          />
-        ) : (
-          <div
-            className="h-full w-full"
-            style={{
-              backgroundColor: 'var(--color-ens-lapis-dust)',
-              backgroundImage:
-                'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
-              backgroundSize: '8px 8px',
-            }}
-          />
+      <div
+        className={clsx(
+          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
+          imageType === 'avatar' && 'rounded-md',
+          imageType === 'header' && 'pb-12',
         )}
-      </ImageFallback.Fallback>
-    </ImageFallback.Root>
-  </button>
+      >
+        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
+          <Image className="size-6 text-white" />
+        </div>
+      </div>
+      <ImageFallback.Root>
+        <ImageFallback.Image
+          alt={`${name || 'Profile'} ${imageType}`}
+          className={imageClassName ?? 'h-full w-full object-cover'}
+          src={uploadPreviewUrl || displayImage}
+        />
+        <ImageFallback.Fallback>
+          {emptyState ? (
+            emptyState
+          ) : defaultImage ? (
+            <img
+              alt={`Default ${imageType}`}
+              className="h-full w-full object-cover"
+              src={defaultImage}
+            />
+          ) : imageType === 'avatar' ? (
+            <PatternAvatar
+              className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
+              name={name || 'avatar'}
+            />
+          ) : (
+            <div
+              className="h-full w-full"
+              style={{
+                backgroundColor: 'var(--color-ens-lapis-dust)',
+                backgroundImage:
+                  'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
+                backgroundSize: '8px 8px',
+              }}
+            />
+          )}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </button>
+  ),
 )
+ImageSelectionTrigger.displayName = 'ImageSelectionTrigger'
 
 export const ImageSelectionDialog = ({
   currentImage,
@@ -612,9 +634,9 @@ export const ImageSelectionDialog = ({
       displayImage={displayImage}
       emptyState={emptyState}
       imageClassName={imageClassName}
+      imageType={type}
       name={name}
       triggerClassName={triggerClassName}
-      type={type}
       uploadPreviewUrl={uploadPreviewUrl}
     />
   )
