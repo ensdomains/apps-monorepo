@@ -8,60 +8,14 @@ import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/querie
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import {
-  type BuildPriceCooldownBannerResult,
-  buildPriceCooldownBannerProps,
-} from '../../lib/buildPriceCooldownBannerProps'
-import {
-  getPremiumPriceAtInstant,
-  type PremiumInstantRange,
-} from '../../lib/premiumDecay'
+import { buildPriceCooldownBannerProps } from '../../lib/buildPriceCooldownBannerProps'
+import { getPremiumPriceAtInstant } from '../../lib/premiumDecay'
 import {
   PREMIUM_DURATION_MS,
   PREMIUM_RESOLUTION,
 } from '../temporary-premium/TemporaryPremiumChart'
 import { PriceCooldownBanner } from './PriceCooldownBanner'
-import { usePriceCooldownChartSelection } from './usePriceCooldownChartSelection'
 import { useTickingNowMs } from './useTickingNowMs'
-
-type PriceCooldownBannerLoadedProps = {
-  bannerData: BuildPriceCooldownBannerResult
-  premiumStartDate: Date
-  premiumRange: PremiumInstantRange
-  nowPoint: number
-  currentPremiumValue?: number
-}
-
-const PriceCooldownBannerLoaded = ({
-  bannerData,
-  premiumStartDate,
-  nowPoint,
-  currentPremiumValue,
-}: PriceCooldownBannerLoadedProps) => {
-  const {
-    selectedPoint,
-    targetPriceInput,
-    handleSelectedPointChange,
-    handleTargetPriceInputChange,
-    handleTargetPriceInputBlur,
-    targetPriceReachLabel,
-  } = usePriceCooldownChartSelection(premiumStartDate, nowPoint)
-
-  return (
-    <PriceCooldownBanner
-      {...bannerData.props}
-      currentPremiumValue={currentPremiumValue}
-      nowPoint={nowPoint}
-      onSelectedPointChange={handleSelectedPointChange}
-      onTargetPriceInputBlur={handleTargetPriceInputBlur}
-      onTargetPriceInputChange={handleTargetPriceInputChange}
-      premiumStartDate={premiumStartDate}
-      selectedPoint={selectedPoint}
-      targetPriceInput={targetPriceInput}
-      targetPriceReachLabel={targetPriceReachLabel}
-    />
-  )
-}
 
 export const PriceCooldownBannerSection = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -145,24 +99,20 @@ export const PriceCooldownBannerSection = () => {
     return null
   }
 
-  const livePropsBannerData: BuildPriceCooldownBannerResult =
-    liveCurrentPremiumLabel
-      ? {
-          ...bannerData,
-          props: {
-            ...bannerData.props,
-            currentPremiumLabel: liveCurrentPremiumLabel,
-          },
-        }
-      : bannerData
-
   return (
-    <PriceCooldownBannerLoaded
-      bannerData={livePropsBannerData}
-      currentPremiumValue={liveCurrentPremiumUsd}
-      nowPoint={nowPoint}
-      premiumRange={premiumRange}
-      premiumStartDate={premiumStartDate}
+    <PriceCooldownBanner
+      cooldown={{
+        ...bannerData.props.cooldown,
+        premiumStartDate,
+        nowPoint,
+      }}
+      fees={{
+        ...bannerData.props.fees,
+        ...(liveCurrentPremiumLabel
+          ? { currentPremiumLabel: liveCurrentPremiumLabel }
+          : null),
+        currentPremiumValue: liveCurrentPremiumUsd,
+      }}
     />
   )
 }
