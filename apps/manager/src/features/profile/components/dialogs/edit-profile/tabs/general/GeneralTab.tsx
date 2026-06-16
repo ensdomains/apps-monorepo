@@ -205,9 +205,9 @@ export const GeneralTab = ({
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
           <ProfileImageField
-            active={activeImageField === 'avatar'}
             currentImage={values.base.avatar}
             disabled={isSaving}
+            isActive={activeImageField === 'avatar'}
             kind="avatar"
             name={name}
             onActivate={() => setActiveImageField('avatar')}
@@ -220,9 +220,9 @@ export const GeneralTab = ({
 
         {isVisible('header') && (
           <ProfileImageField
-            active={activeImageField === 'header'}
             currentImage={values.base.header}
             disabled={isSaving}
+            isActive={activeImageField === 'header'}
             kind="header"
             name={name}
             onActivate={() => setActiveImageField('header')}

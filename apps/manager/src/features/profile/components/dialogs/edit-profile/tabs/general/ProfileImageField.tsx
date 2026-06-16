@@ -14,7 +14,7 @@ import { useProfileImageField } from './useProfileImageField'
 export type { ProfileImageKind } from './ProfileImageField.types'
 
 export const ProfileImageField = (props: ProfileImageFieldProps) => {
-  const { active, disabled, kind, name, onActivate } = props
+  const { isActive, disabled, kind, name, onActivate } = props
   const editor = useProfileImageField(props)
 
   const renderActiveContent = () => {
@@ -100,7 +100,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
 
   return (
     <>
-      {active ? (
+      {isActive ? (
         renderActiveContent()
       ) : (
         <DefaultImageField

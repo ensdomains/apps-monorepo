@@ -3,7 +3,7 @@ import type { ImageType } from '@/features/profile/service/profileImageUpload'
 export type ProfileImageKind = ImageType
 
 export interface ProfileImageFieldProps {
-  readonly active: boolean
+  readonly isActive: boolean
   readonly currentImage?: string
   readonly disabled?: boolean
   readonly kind: ProfileImageKind

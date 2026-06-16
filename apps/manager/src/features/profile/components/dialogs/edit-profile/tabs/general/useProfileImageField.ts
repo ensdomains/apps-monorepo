@@ -23,7 +23,7 @@ import type {
 } from './ProfileImageField.types'
 
 export const useProfileImageField = ({
-  active,
+  isActive,
   currentImage,
   disabled,
   kind,
@@ -108,7 +108,7 @@ export const useProfileImageField = ({
   )
 
   useEffect(() => {
-    if (!active) {
+    if (!isActive) {
       send({ type: 'RESET' })
       setUploadFile(null)
       setUploadPreviewUrl(null)
@@ -117,7 +117,7 @@ export const useProfileImageField = ({
       setCropZoom(1)
       setIsCropping(false)
     }
-  }, [active, send])
+  }, [isActive, send])
 
   useEffect(() => {
     return () => {
