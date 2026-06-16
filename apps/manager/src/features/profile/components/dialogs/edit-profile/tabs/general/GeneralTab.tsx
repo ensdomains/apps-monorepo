@@ -1,6 +1,6 @@
 import { ChevronDown, Link as LinkIcon } from 'lucide-react'
+import { useState } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { ImageSelectionDialog } from '@/features/profile/components/dialogs/ImageSelectionDialog'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
@@ -15,6 +15,7 @@ import {
   getGeneralUrlErrorMessage,
   getTextRecordValue,
 } from './fields'
+import { ProfileImageField, type ProfileImageKind } from './ProfileImageField'
 import { profileLanguageOptions } from './profileLanguages'
 
 type BaseGeneralField =
@@ -153,6 +154,8 @@ export const GeneralTab = ({
   const { isSaving } = useEditProfileDialogStatus()
   const visibleFields = useEditProfileVisibleFields()
   const { toggleField } = useEditProfileDialogActions()
+  const [activeImageField, setActiveImageField] =
+    useState<ProfileImageKind | null>(null)
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
@@ -183,7 +186,12 @@ export const GeneralTab = ({
               }
               key={field}
               label={label}
-              onClick={() => toggleField(field)}
+              onClick={() => {
+                toggleField(field)
+                if (field === activeImageField) {
+                  setActiveImageField(null)
+                }
+              }}
             />
           )
         })}
@@ -191,61 +199,31 @@ export const GeneralTab = ({
 
       <div className="flex flex-col items-center gap-3">
         {isVisible('avatar') && (
-          <div className="h-38 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50 md:h-42">
-            <ImageSelectionDialog
-              currentImage={values.base.avatar}
-              defaultImage=""
-              description="Choose a profile picture"
-              emptyState={
-                <div className="flex h-full w-full flex-col items-center justify-center gap-3.5 p-3">
-                  <div className="flex size-25 items-center justify-center rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
-                    <MSymbol
-                      className="text-ens-quartz-380"
-                      style={{ fontSize: 32 }}
-                      symbol="face"
-                    />
-                  </div>
-                  <p className="flex items-center gap-2 text-[14px] text-ens-quartz-400">
-                    Add a profile picture
-                    <MSymbol
-                      className="ms-fill"
-                      style={{ fontSize: 14 }}
-                      symbol="add"
-                    />
-                  </p>
-                </div>
-              }
-              imageClassName="block size-25 rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed object-cover"
-              name={name}
-              onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
-              onImageRemove={() => setBaseValue('avatar', '')}
-              title="Change Profile Picture"
-              triggerClassName="flex h-full w-full items-center justify-center"
-              type="avatar"
-            />
-          </div>
+          <ProfileImageField
+            active={activeImageField === 'avatar'}
+            currentImage={values.base.avatar}
+            disabled={isSaving}
+            kind="avatar"
+            name={name}
+            onActivate={() => setActiveImageField('avatar')}
+            onCancel={() => setActiveImageField(null)}
+            onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
+            onImageRemove={() => setBaseValue('avatar', '')}
+          />
         )}
 
         {isVisible('header') && (
-          <div className="h-38 w-full overflow-hidden rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50 md:h-42">
-            <ImageSelectionDialog
-              currentImage={values.base.header}
-              defaultImage=""
-              description="Choose a header image"
-              emptyState={
-                <div className="flex size-full items-center justify-center gap-2 text-[14px] text-ens-quartz-500">
-                  Add a banner image
-                  <MSymbol style={{ fontSize: 14 }} symbol="add" />
-                </div>
-              }
-              name={name}
-              onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
-              onImageRemove={() => setBaseValue('header', '')}
-              title="Change Header Image"
-              triggerClassName="h-full w-full"
-              type="header"
-            />
-          </div>
+          <ProfileImageField
+            active={activeImageField === 'header'}
+            currentImage={values.base.header}
+            disabled={isSaving}
+            kind="header"
+            name={name}
+            onActivate={() => setActiveImageField('header')}
+            onCancel={() => setActiveImageField(null)}
+            onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
+            onImageRemove={() => setBaseValue('header', '')}
+          />
         )}
 
         {isVisible('name') && (
