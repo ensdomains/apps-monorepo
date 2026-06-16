@@ -306,6 +306,7 @@ export const EditProfileDialog = ({
                     canSave={canSaveProfile}
                     name={name}
                     onSave={() => handleSave(submittedValues)}
+                    themeColor={values.base.theme}
                   />
                   <EditProfileDialogTabs
                     canSave={canSaveProfile}

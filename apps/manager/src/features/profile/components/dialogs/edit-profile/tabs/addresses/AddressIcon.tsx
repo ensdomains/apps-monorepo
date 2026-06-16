@@ -4,7 +4,7 @@ import { getRecordIcon } from './AddressesTab.helpers'
 interface AddressIconProps {
   readonly coinType: number
   readonly label: string
-  readonly size?: 'sm' | 'md'
+  readonly size?: 'xs' | 'sm' | 'md' | 'lg'
 }
 
 export const AddressIcon = ({
@@ -14,7 +14,13 @@ export const AddressIcon = ({
 }: AddressIconProps) => {
   const icon = getRecordIcon(coinType)
   const sizeClassName =
-    size === 'md' ? 'size-6 text-[11px]' : 'size-4 text-[9px]'
+    size === 'xs'
+      ? 'size-3 text-[7px]'
+      : size === 'lg'
+        ? 'size-5 text-[10px]'
+        : size === 'md'
+          ? 'size-6 text-[11px]'
+          : 'size-4 text-[9px]'
 
   return (
     <span

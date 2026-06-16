@@ -6,12 +6,14 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
+import { getEditProfileDialogHeaderStyle } from './EditProfileDialogHeaderTheme'
 
 interface EditProfileDialogHeaderProps {
   readonly avatarUrl?: string
   readonly canSave: boolean
   readonly name: string
   readonly onSave: () => void
+  readonly themeColor?: string | null
 }
 
 export const EditProfileDialogHeader = ({
@@ -19,6 +21,7 @@ export const EditProfileDialogHeader = ({
   canSave,
   name,
   onSave,
+  themeColor,
 }: EditProfileDialogHeaderProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const resolvedAvatar = useQuery({
@@ -28,7 +31,10 @@ export const EditProfileDialogHeader = ({
   const displayAvatarUrl = resolvedAvatar.data ?? avatarUrl
 
   return (
-    <div className="flex shrink-0 items-center justify-between px-4 pt-6 pb-1 md:p-6">
+    <div
+      className="flex shrink-0 items-center justify-between px-4 pt-6 pb-1 md:p-6"
+      style={getEditProfileDialogHeaderStyle(themeColor)}
+    >
       <div className="flex min-w-0 items-center gap-1">
         <div className="size-9.75 shrink-0 overflow-hidden rounded-sm">
           <ImageFallback.Root className="contents">
@@ -47,7 +53,7 @@ export const EditProfileDialogHeader = ({
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </div>
-        <DialogTitle className="max-w-[calc(100vw-7rem)] truncate rounded-sm border border-ens-lapis-500 px-2 py-1.5 font-medium font-semi-mono text-[21.25px] text-ens-lapis-500 leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
+        <DialogTitle className="max-w-[calc(100vw-7rem)] truncate rounded-sm border border-(--theme-color) px-2 py-1.5 font-medium font-semi-mono text-(--theme-color) text-[21.25px] leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
           {name}
         </DialogTitle>
       </div>

@@ -1,12 +1,11 @@
-import { Plus } from 'lucide-react'
 import type { AddressRecordValue } from '@/features/profile/types'
-import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {
   getAddressValidationErrorMessage,
   getAddressValue,
 } from './AddressesTab.helpers'
 import { AddressIcon } from './AddressIcon'
 import { AddressInputRow } from './AddressInputRow'
+import { AddressPickerPill } from './AddressPickerPill'
 import { type AddressOption, ETH_COIN_TYPE } from './addressPickerRecords'
 import { SectionHeader } from './SectionHeader'
 
@@ -61,11 +60,15 @@ export const EvmAddressSection = ({
           const active = ethAddress.trim() !== '' && value === ethAddress
 
           return (
-            <FieldPickerPill
+            <AddressPickerPill
               active={active}
               disabled={disabled || (!active && ethAddress.trim() === '')}
               icon={
-                <AddressIcon coinType={option.coinType} label={option.label} />
+                <AddressIcon
+                  coinType={option.coinType}
+                  label={option.label}
+                  size="xs"
+                />
               }
               key={option.coinType}
               label={option.label}
@@ -78,15 +81,13 @@ export const EvmAddressSection = ({
           )
         })}
 
-        <button
-          className="flex h-6.5 shrink-0 items-center gap-1 rounded-[25px] px-2 py-1.5 text-[12px] text-ens-quartz-900 leading-[1.2] tracking-[0.12px] transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50"
+        <AddressPickerPill
+          active={false}
           disabled={disabled || ethAddress.trim() === ''}
+          label="Add More"
           onClick={onAddMore}
-          type="button"
-        >
-          Add More
-          <Plus className="size-3.5" />
-        </button>
+          variant="text"
+        />
       </div>
     </section>
 

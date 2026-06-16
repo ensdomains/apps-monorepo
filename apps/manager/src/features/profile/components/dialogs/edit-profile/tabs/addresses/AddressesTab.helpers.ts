@@ -117,8 +117,10 @@ export const getRecordIcon = (coinType: number) => {
 
 const getComparableEvmAddress = (value: string): Address | null => {
   const trimmedValue = value.trim()
-  return isAddress(trimmedValue, { strict: false })
-    ? (trimmedValue as Address)
+  const normalizedValue = trimmedValue.replace(/^0X/, '0x')
+
+  return isAddress(normalizedValue, { strict: false })
+    ? (normalizedValue as Address)
     : null
 }
 

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { getAddressOption } from './AddressesTab.helpers'
 import { AddressIcon } from './AddressIcon'
+import { AddressPickerPill } from './AddressPickerPill'
 import {
   type AddressOption,
   getPickerRecords,
@@ -32,22 +33,15 @@ const ChainPickerOptionButton = ({
   onClick,
   option,
 }: ChainPickerOptionButtonProps) => (
-  <button
-    className={[
-      'flex min-h-12 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-      active
-        ? 'border-ens-lapis-500 bg-ens-lapis-100 text-ens-lapis-core'
-        : 'border-ens-quartz-200 bg-white text-ens-quartz-900 hover:border-ens-quartz-300 hover:bg-ens-quartz-50',
-    ].join(' ')}
+  <AddressPickerPill
+    active={active}
     disabled={disabled}
+    icon={
+      <AddressIcon coinType={option.coinType} label={option.label} size="lg" />
+    }
+    label={option.label}
     onClick={onClick}
-    type="button"
-  >
-    <AddressIcon coinType={option.coinType} label={option.label} size="md" />
-    <span className="min-w-0 flex-1 truncate font-medium text-[14px] leading-[1.2]">
-      {option.label}
-    </span>
-  </button>
+  />
 )
 
 export const ChainPickerDialog = ({
@@ -113,7 +107,7 @@ export const ChainPickerDialog = ({
         </div>
 
         <div className="mt-4 min-h-0 overflow-y-auto pr-1">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-wrap gap-2">
             {records.map((record) => {
               const option = getAddressOption(record.coinType)
               const selected = selectedCoinTypes.includes(record.coinType)

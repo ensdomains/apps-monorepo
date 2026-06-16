@@ -1,12 +1,11 @@
-import { Plus } from 'lucide-react'
 import type { AddressRecordValue } from '@/features/profile/types'
-import { FieldPickerPill } from '../../shared/FieldPickerPill'
 import {
   getAddressValidationErrorMessage,
   getAddressValue,
 } from './AddressesTab.helpers'
 import { AddressIcon } from './AddressIcon'
 import { AddressInputRow } from './AddressInputRow'
+import { AddressPickerPill } from './AddressPickerPill'
 import type { AddressOption } from './addressPickerRecords'
 import { SectionHeader } from './SectionHeader'
 
@@ -42,11 +41,15 @@ export const OtherNetworksSection = ({
         )
 
         return (
-          <FieldPickerPill
+          <AddressPickerPill
             active={active}
             disabled={disabled}
             icon={
-              <AddressIcon coinType={option.coinType} label={option.label} />
+              <AddressIcon
+                coinType={option.coinType}
+                label={option.label}
+                size="xs"
+              />
             }
             key={option.coinType}
             label={option.label}
@@ -59,15 +62,13 @@ export const OtherNetworksSection = ({
         )
       })}
 
-      <button
-        className="flex h-6.5 shrink-0 items-center gap-1 rounded-[25px] px-2 py-1.5 text-[12px] text-ens-quartz-900 leading-[1.2] tracking-[0.12px] transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50"
+      <AddressPickerPill
+        active={false}
         disabled={disabled}
+        label="Add More"
         onClick={onAddMore}
-        type="button"
-      >
-        Add More
-        <Plus className="size-3.5" />
-      </button>
+        variant="text"
+      />
     </div>
 
     {visibleOtherRows.length > 0 ? (
