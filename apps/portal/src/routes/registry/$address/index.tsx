@@ -57,23 +57,6 @@ function RouteComponent() {
       !!registry?.parentRegistry &&
       !isAddressEqual(registry.parentRegistry, zeroAddress),
   })
-  // Deployment transaction — the SubregistryUpdated event (on the parent
-  // registry) that created this registry. Powers the "Deployed" badge (tx
-  // entity with copy + Etherscan actions).
-  const {
-    data: deployment,
-    isLoading: isDeploymentLoading,
-    error: deploymentError,
-  } = useQuery({
-    ...getRegistryDeploymentQueryOptions({
-      namehash: registry?.namehash ?? '',
-      createdBlock: registry?.createdBlock ?? 0,
-    }),
-    enabled: !!registry?.namehash && !!registry?.createdBlock,
-  })
-  const deploymentTxHash = deployment?.transactionHash
-  const deploymentTxUrl = useBlockExplorerTxUrl(deploymentTxHash)
-
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
     return (
@@ -135,29 +118,11 @@ function RouteComponent() {
             Deployed
           </dt>
           <dd className="flex items-center h-9">
-            {match({
-              isDeploymentLoading,
-              deploymentError,
-              deploymentTxHash,
-            })
-              .with({ isDeploymentLoading: true }, () => (
-                <Skeleton className="h-5 w-32" />
-              ))
-              .with({ deploymentError: P.not(null) }, () => <FailedToLoad />)
-              .with({ deploymentTxHash: P.string }, (m) => (
-                <EntityBadge
-                  variant="tx"
-                  className="font-normal"
-                  label={deployedDate ?? undefined}
-                  copyValue={m.deploymentTxHash}
-                  etherscanHref={deploymentTxUrl}
-                >
-                  {truncateAddress(m.deploymentTxHash, 6, 4)}
-                </EntityBadge>
-              ))
-              .otherwise(() =>
-                deployedDate ? <span>{deployedDate}</span> : <span>—</span>,
-              )}
+            <DeployedBadge
+              namehash={registry.namehash}
+              createdBlock={registry.createdBlock}
+              deployedDate={deployedDate}
+            />
           </dd>
 
           <dt className="text-muted-foreground flex items-center h-9">
@@ -279,3 +244,39 @@ const FailedToLoad = () => (
     Failed to load
   </span>
 )
+
+const DeployedBadge = ({
+  namehash,
+  createdBlock,
+  deployedDate,
+}: {
+  readonly namehash: string
+  readonly createdBlock: number
+  readonly deployedDate: string | null
+}) => {
+  const {
+    data: deployment,
+    isLoading,
+    error,
+  } = useQuery(getRegistryDeploymentQueryOptions({ namehash, createdBlock }))
+  const deploymentTxHash = deployment?.transactionHash
+  const deploymentTxUrl = useBlockExplorerTxUrl(deploymentTxHash)
+
+  return match({ isLoading, error, deploymentTxHash })
+    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
+    .with({ error: P.not(null) }, () => <FailedToLoad />)
+    .with({ deploymentTxHash: P.string }, (m) => (
+      <EntityBadge
+        variant="tx"
+        className="font-normal"
+        label={deployedDate ?? undefined}
+        copyValue={m.deploymentTxHash}
+        etherscanHref={deploymentTxUrl}
+      >
+        {truncateAddress(m.deploymentTxHash, 6, 4)}
+      </EntityBadge>
+    ))
+    .otherwise(() =>
+      deployedDate ? <span>{deployedDate}</span> : <span>—</span>,
+    )
+}

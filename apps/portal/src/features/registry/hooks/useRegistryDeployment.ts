@@ -14,15 +14,15 @@ class GetRegistryDeploymentError extends TaggedError(
 
 type GetRegistryDeploymentParameters = {
   /** Namehash of the registry's name (e.g. namehash of "fox.eth"). */
-  namehash: string
+  readonly namehash: string
   /** Block the registry was created at — disambiguates the creating event. */
-  createdBlock: number
+  readonly createdBlock: number
 }
 
 export type RegistryDeployment = {
-  transactionHash: Hash
-  blockNumber: number
-  timestamp: number
+  readonly transactionHash: Hash
+  readonly blockNumber: number
+  readonly timestamp: number
 }
 
 /**
