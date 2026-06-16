@@ -321,8 +321,13 @@ export const ImageSelectionDialog = ({
       chainId,
       signTypedDataAsync,
       onImageChange,
-      setOpen,
-      setUploadFile,
+      setOpen: (isOpen) => {
+        if (!isOpen) {
+          send({ type: 'RESET' })
+          setUploadFile(null)
+        }
+        setOpen(isOpen)
+      },
       send,
     }),
   )

@@ -21,7 +21,6 @@ describe('uploadImageMutationOptions', () => {
     const onImageUploadComplete = vi.fn()
     const send = vi.fn()
     const setOpen = vi.fn()
-    const setUploadFile = vi.fn()
     const signTypedDataAsync = vi
       .fn()
       .mockResolvedValue(
@@ -41,7 +40,6 @@ describe('uploadImageMutationOptions', () => {
       onImageChange,
       onImageUploadComplete,
       setOpen,
-      setUploadFile,
       send,
     })
 
@@ -66,7 +64,6 @@ describe('uploadImageMutationOptions', () => {
     expect(onImageChange).toHaveBeenCalledWith(endpoint)
     expect(onImageUploadComplete).toHaveBeenCalledWith(endpoint)
     expect(setOpen).toHaveBeenCalledWith(false)
-    expect(setUploadFile).toHaveBeenCalledWith(null)
-    expect(send).toHaveBeenCalledWith({ type: 'RESET' })
+    expect(send).not.toHaveBeenCalled()
   })
 })

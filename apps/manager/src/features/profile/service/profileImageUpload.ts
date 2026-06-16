@@ -187,7 +187,6 @@ export interface UploadImageMutationOptionsArgs {
   readonly onImageChange: (imageUrl: string) => void
   readonly onImageUploadComplete?: (imageUrl: string) => void
   readonly setOpen: (open: boolean) => void
-  readonly setUploadFile: (file: File | null) => void
   readonly send: (event: ImageSelectionEvent) => void
 }
 
@@ -201,7 +200,6 @@ export const uploadImageMutationOptions = ({
   onImageChange,
   onImageUploadComplete,
   setOpen,
-  setUploadFile,
   send,
 }: UploadImageMutationOptionsArgs) =>
   mutationOptions({
@@ -233,8 +231,6 @@ export const uploadImageMutationOptions = ({
       // Save Avup endpoint as the text record value
       onImageChange(endpoint)
       setOpen(false)
-      setUploadFile(null)
-      send({ type: 'RESET' })
       onImageUploadComplete?.(endpoint)
     },
     onError: (error: unknown) => {

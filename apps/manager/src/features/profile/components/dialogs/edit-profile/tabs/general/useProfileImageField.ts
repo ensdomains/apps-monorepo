@@ -102,7 +102,6 @@ export const useProfileImageField = ({
           onCancel()
         }
       },
-      setUploadFile,
       send,
     }),
   )
