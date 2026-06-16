@@ -28,10 +28,10 @@ export const DisplayImage = ({
 )
 
 export const AvatarFallback = () => (
-  <div className="flex size-[100px] items-center justify-center rounded-sm border-[#d4d4d4] border-[0.5px] border-dashed bg-ens-quartz-50">
+  <div className="flex size-25 items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed bg-ens-quartz-50">
     <MSymbol
       aria-hidden="true"
-      className="text-[#7d7d7d]"
+      className="text-ens-quartz-380"
       style={{ fontSize: 32 }}
       symbol="face"
     />
@@ -55,7 +55,7 @@ export const ProfileImagePreview = ({
     return hasImage ? (
       <DisplayImage
         alt={`${name} avatar`}
-        className="block size-[100px] rounded-[12px] object-cover"
+        className="block size-25 rounded-xl object-cover"
         fallback={<AvatarFallback />}
         src={displayImage}
       />
@@ -76,7 +76,7 @@ export const ProfileImagePreview = ({
       src={displayImage}
     />
   ) : (
-    <span className="flex items-center gap-2 text-[14px] text-ens-quartz-500 tracking-[0.14px]">
+    <span className="flex items-center gap-2 text-ens-quartz-500 text-sm">
       {getEmptyLabel(kind)}
       <MSymbol aria-hidden="true" style={{ fontSize: 14 }} symbol="add" />
     </span>

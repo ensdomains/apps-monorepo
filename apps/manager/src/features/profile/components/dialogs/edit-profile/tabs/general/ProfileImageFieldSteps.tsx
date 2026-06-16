@@ -32,12 +32,12 @@ interface StepPanelProps {
 const StepPanel = ({ backDisabled, children, onBack }: StepPanelProps) => (
   <div
     className={cn(
-      'relative flex min-h-[240px] w-full items-start justify-center p-4',
+      'relative flex min-h-60 w-full items-start justify-center p-4',
       fieldShellClassName,
     )}
   >
     <BackButton disabled={backDisabled} onBack={onBack} />
-    <div className="flex w-full max-w-[380px] flex-col items-center gap-4 pt-2">
+    <div className="flex w-full max-w-95 flex-col items-center gap-4 pt-2">
       {children}
     </div>
   </div>
@@ -45,9 +45,7 @@ const StepPanel = ({ backDisabled, children, onBack }: StepPanelProps) => (
 
 const editPreviewClassName = (kind: ProfileImageKind) =>
   cn(
-    kind === 'avatar'
-      ? 'size-[160px] rounded-[12px]'
-      : 'h-[126px] w-full rounded-sm',
+    kind === 'avatar' ? 'size-40 rounded-xl' : 'h-31.5 w-full rounded-sm',
     'object-cover',
   )
 
@@ -69,14 +67,14 @@ export const ManualInputStep = ({
   onPreviewManualUrl,
 }: ManualInputStepProps) => (
   <StepPanel backDisabled={disabled} onBack={onBack}>
-    <p className="text-[16px] text-ens-quartz-500 leading-[1.2]">
+    <p className="text-base text-ens-quartz-500 leading-ens-normal">
       Enter manually
     </p>
-    <p className="max-w-[290px] text-center text-[12px] text-ens-quartz-400 leading-[1.2]">
+    <p className="max-w-72.5 text-center text-ens-quartz-400 text-xs leading-ens-normal">
       Paste an image URL. Supported formats include JPG, PNG, GIF, and WebP.
     </p>
     <input
-      className="h-10 w-full rounded-sm border border-[#d4d4d4] bg-transparent px-3 text-[12px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-350 focus-visible:border-ens-lapis-500"
+      className="h-10 w-full rounded-sm border border-ens-quartz-250 bg-transparent px-3 text-ens-quartz-900 text-xs outline-none transition-colors placeholder:text-ens-quartz-350 focus-visible:border-ens-lapis-500"
       disabled={disabled}
       onChange={(event) => onManualUrlChange(event.target.value)}
       onKeyDown={(event) => {
@@ -88,7 +86,7 @@ export const ManualInputStep = ({
       value={manualUrl}
     />
     <button
-      className="flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-[11px] text-ens-lapis-500 uppercase tracking-[1.32px] transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+      className="flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
       disabled={disabled || manualUrl.trim() === ''}
       onClick={onPreviewManualUrl}
       type="button"
@@ -119,7 +117,7 @@ export const ManualPreviewStep = ({
   onUseImage,
 }: ManualPreviewStepProps) => (
   <StepPanel backDisabled={disabled} onBack={onBack}>
-    <p className="text-[16px] text-ens-quartz-500 leading-[1.2]">
+    <p className="text-base text-ens-quartz-500 leading-ens-normal">
       Preview image
     </p>
     <img
@@ -129,7 +127,7 @@ export const ManualPreviewStep = ({
       src={manualUrl}
     />
     <button
-      className="flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-[11px] text-ens-lapis-500 uppercase tracking-[1.32px] transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+      className="flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
       disabled={disabled}
       onClick={onUseImage}
       type="button"
@@ -156,7 +154,7 @@ export const RemoveConfirmationStep = ({
   onConfirm,
 }: RemoveConfirmationStepProps) => (
   <StepPanel backDisabled={disabled} onBack={onBack}>
-    <p className="max-w-[320px] text-center text-[12px] text-ens-quartz-400 leading-[1.2]">
+    <p className="max-w-80 text-center text-ens-quartz-400 text-xs leading-ens-normal">
       Remove current {getTitle(kind)} and replace it with your generated profile
       default.
     </p>
@@ -164,13 +162,11 @@ export const RemoveConfirmationStep = ({
       <DisplayImage
         alt={`Current ${getTitle(kind)}`}
         className={cn(
-          kind === 'avatar'
-            ? 'size-[100px] rounded-[12px]'
-            : 'h-[84px] w-[150px] rounded-sm',
+          kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
           'object-cover',
         )}
         fallback={
-          <div className="flex size-[100px] items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
+          <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
             <MSymbol
               aria-hidden="true"
               style={{ fontSize: 28 }}
@@ -188,16 +184,14 @@ export const RemoveConfirmationStep = ({
       />
       <div
         className={cn(
-          kind === 'avatar'
-            ? 'size-[100px] rounded-[12px]'
-            : 'h-[84px] w-[150px] rounded-sm',
+          kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
           'bg-ens-quartz-100',
         )}
       />
     </div>
     <div className="flex items-center gap-3">
       <button
-        className="h-10 rounded-sm px-5 font-mono text-[11px] text-ens-quartz-700 uppercase tracking-[1.32px] transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50"
+        className="h-10 rounded-sm px-5 font-mono text-ens-quartz-700 text-xs uppercase tracking-widest transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50"
         disabled={disabled}
         onClick={onBack}
         type="button"
@@ -205,7 +199,7 @@ export const RemoveConfirmationStep = ({
         Cancel
       </button>
       <button
-        className="h-10 rounded-sm bg-ens-lapis-100 px-5 font-mono text-[11px] text-ens-lapis-500 uppercase tracking-[1.32px] transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+        className="h-10 rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
         disabled={disabled}
         onClick={onConfirm}
         type="button"

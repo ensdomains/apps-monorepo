@@ -102,17 +102,17 @@ export const UploadCropStep = ({
   return (
     <div
       className={cn(
-        'relative flex min-h-[330px] w-full items-start justify-center p-4',
+        'relative flex min-h-82.5 w-full items-start justify-center p-4',
         fieldShellClassName,
       )}
     >
       <BackButton disabled={disabled || isProcessing} onBack={onBack} />
-      <div className="flex w-full max-w-[380px] flex-col items-center gap-2.5">
-        <p className="text-[16px] text-ens-quartz-500 leading-[1.2]">
+      <div className="flex w-full max-w-95 flex-col items-center gap-2.5">
+        <p className="text-base text-ens-quartz-500 leading-ens-normal">
           Edit image
         </p>
         <div
-          className="relative flex touch-none select-none items-center justify-center overflow-hidden rounded-[12px] border border-[#ababab] bg-ens-quartz-50"
+          className="relative flex touch-none select-none items-center justify-center overflow-hidden rounded-xl border border-ens-quartz-350 bg-ens-quartz-50"
           onPointerCancel={handlePointerEnd}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -147,7 +147,7 @@ export const UploadCropStep = ({
           />
           <input
             aria-label="Zoom image"
-            className="h-7 w-[132px] cursor-pointer accent-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50"
+            className="h-7 w-33 cursor-pointer accent-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50"
             disabled={disabled || isProcessing || !cropImageSize}
             max={MAX_CROP_ZOOM}
             min={MIN_CROP_ZOOM}
@@ -164,7 +164,7 @@ export const UploadCropStep = ({
           />
         </div>
         <button
-          className="flex h-[50px] items-center justify-center rounded-sm bg-ens-lapis-100 px-6 font-mono text-[13px] text-ens-lapis-500 uppercase tracking-[1.56px] transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+          className="flex h-12.5 items-center justify-center rounded-sm bg-ens-lapis-100 px-6 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
           disabled={disabled || isProcessing || !uploadFile || !cropImageSize}
           onClick={onConfirm}
           type="button"

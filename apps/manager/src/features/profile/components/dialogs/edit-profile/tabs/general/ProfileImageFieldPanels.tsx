@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 import {
   dropZoneClassName,
   fieldShellClassName,
+  getChangeLabel,
   getEmptyLabel,
-  getRemoveLabel,
   getTitle,
 } from './ProfileImageField.helpers'
 import type { ProfileImageKind } from './ProfileImageField.types'
@@ -20,7 +20,7 @@ export const ErrorMessage = ({ error }: ErrorMessageProps) => {
 
   return (
     <p
-      className="text-center text-ens-signal-danger-600 text-xs leading-[1.2]"
+      className="text-center text-ens-signal-danger-600 text-xs leading-ens-normal"
       role="alert"
     >
       {error}
@@ -36,7 +36,7 @@ interface ProfileImageActionProps {
 }
 
 const actionTextClassName =
-  'font-mono text-[10px] text-ens-lapis-500 uppercase leading-none tracking-[1.2px]'
+  'font-mono text-ens-lapis-500 text-xs uppercase leading-none tracking-widest'
 
 const ProfileImageAction = ({
   disabled,
@@ -86,7 +86,7 @@ export const DefaultImageField = ({
 }: DefaultImageFieldProps) => (
   <button
     className={cn(
-      'flex h-[168px] w-full items-center justify-center overflow-hidden p-3 transition-colors hover:border-ens-quartz-350 focus-visible:border-ens-lapis-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+      'flex h-42 w-full items-center justify-center overflow-hidden p-3 transition-colors hover:border-ens-quartz-350 focus-visible:border-ens-lapis-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
       dropZoneClassName,
     )}
     disabled={disabled}
@@ -97,20 +97,20 @@ export const DefaultImageField = ({
     type="button"
   >
     {kind === 'avatar' ? (
-      <div className="flex h-full w-[174px] flex-col items-center justify-center gap-3.5 py-3">
+      <div className="flex h-full w-43.5 flex-col items-center justify-center gap-3.5 py-3">
         <ProfileImagePreview
           displayImage={displayImage}
           hasImage={hasImage}
           kind={kind}
           name={name}
         />
-        <span className="flex items-center gap-2 text-[14px] text-ens-quartz-400 tracking-[0.14px]">
-          {hasImage ? getRemoveLabel(kind) : getEmptyLabel(kind)}
+        <span className="flex items-center gap-2 text-ens-quartz-400 text-sm">
+          {hasImage ? getChangeLabel(kind) : getEmptyLabel(kind)}
           <MSymbol
             aria-hidden="true"
             className={cn(!hasImage && 'ms-fill')}
             style={{ fontSize: 14 }}
-            symbol={hasImage ? 'remove' : 'add'}
+            symbol={hasImage ? 'edit' : 'add'}
           />
         </span>
       </div>
@@ -145,7 +145,7 @@ const CancelPreviewButton = ({
   if (kind === 'avatar') {
     return (
       <button
-        className="flex h-[168px] w-[174px] shrink-0 flex-col items-center justify-center gap-3.5 py-3 text-ens-quartz-400 disabled:pointer-events-none disabled:opacity-50"
+        className="flex h-42 w-43.5 shrink-0 flex-col items-center justify-center gap-3.5 py-3 text-ens-quartz-400 disabled:pointer-events-none disabled:opacity-50"
         disabled={disabled}
         onClick={onCancel}
         type="button"
@@ -156,7 +156,7 @@ const CancelPreviewButton = ({
           kind={kind}
           name={name}
         />
-        <span className="flex items-center gap-2 text-[14px] tracking-[0.14px]">
+        <span className="flex items-center gap-2 text-sm">
           Cancel
           <MSymbol aria-hidden="true" style={{ fontSize: 14 }} symbol="close" />
         </span>
@@ -167,7 +167,7 @@ const CancelPreviewButton = ({
   return (
     <button
       className={cn(
-        'flex h-[168px] min-w-0 flex-1 items-center justify-center overflow-hidden p-3 text-ens-quartz-500 disabled:pointer-events-none disabled:opacity-50',
+        'flex h-42 min-w-0 flex-1 items-center justify-center overflow-hidden p-3 text-ens-quartz-500 disabled:pointer-events-none disabled:opacity-50',
         dropZoneClassName,
       )}
       disabled={disabled}
@@ -184,7 +184,7 @@ const CancelPreviewButton = ({
           name={name}
         />
       ) : (
-        <span className="flex items-center gap-2 text-[14px] tracking-[0.14px]">
+        <span className="flex items-center gap-2 text-sm">
           Cancel
           <MSymbol aria-hidden="true" style={{ fontSize: 14 }} symbol="close" />
         </span>
@@ -210,7 +210,7 @@ const ImageActionPanel = ({
 }: ImageActionPanelProps) => (
   <div
     className={cn(
-      'flex h-[168px] min-w-0 flex-1 items-center justify-center p-4',
+      'flex h-42 min-w-0 flex-1 items-center justify-center p-4',
       fieldShellClassName,
     )}
   >
