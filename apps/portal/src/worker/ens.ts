@@ -43,7 +43,7 @@ export async function resolveOwner(
   name: string,
 ): Promise<string | null> {
   const result = await resolveEnsOwner(client, name).catch(() => null)
-  return result?.owner ?? null
+  return result ? result.owner : null
 }
 
 export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
