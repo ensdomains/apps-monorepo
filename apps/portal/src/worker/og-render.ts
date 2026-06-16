@@ -7,13 +7,46 @@ import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
 import { buildOgFontList, loadOgFonts, type OgFonts } from './fonts'
 import { truncate, truncateAddress } from './routing'
 
+const matchHtmlRegExp = /["'&<>]/
+
 export function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+  const match = matchHtmlRegExp.exec(str)
+
+  if (!match) return String(str)
+
+  let escapeChar: string
+  let html = ''
+  let index = 0
+  let lastIndex = 0
+
+  for (index = match.index; index < str.length; index++) {
+    switch (str.charCodeAt(index)) {
+      case 34: // "
+        escapeChar = '&quot;'
+        break
+      case 38: // &
+        escapeChar = '&amp;'
+        break
+      case 39: // '
+        escapeChar = '&#39;'
+        break
+      case 60: // <
+        escapeChar = '&lt;'
+        break
+      case 62: // >
+        escapeChar = '&gt;'
+        break
+      default:
+        continue
+    }
+
+    if (lastIndex !== index) html += str.substring(lastIndex, index)
+
+    lastIndex = index + 1
+    html += escapeChar
+  }
+
+  return lastIndex !== index ? html + str.substring(lastIndex, index) : html
 }
 
 const NAME_SUBPAGE_LABELS: Record<string, string> = {
