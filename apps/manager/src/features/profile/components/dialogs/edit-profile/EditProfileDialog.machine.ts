@@ -232,6 +232,10 @@ export const editProfileDialogMachine = setup({
           target: '.idle',
           actions: 'clearSaveState',
         },
+        SAVE_FAILED: {
+          target: '.error',
+          actions: 'failEventSave',
+        },
         TOGGLE_GENERAL_FIELD: {
           actions: 'toggleGeneralField',
         },
@@ -247,10 +251,6 @@ export const editProfileDialogMachine = setup({
             SAVE_SUCCEEDED: {
               target: 'success',
               actions: 'completeEventSave',
-            },
-            SAVE_FAILED: {
-              target: 'error',
-              actions: 'failEventSave',
             },
           },
         },

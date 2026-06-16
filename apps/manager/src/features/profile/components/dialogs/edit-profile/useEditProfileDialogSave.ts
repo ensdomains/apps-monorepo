@@ -215,6 +215,11 @@ export const useEditProfileDialogSave = ({
         })
         setSignedImageUploads([])
         dialogActor.send({ type: 'CLOSE' })
+      } catch (error) {
+        dialogActor.send({
+          type: 'SAVE_FAILED',
+          errorMessage: getMutationErrorMessage(error),
+        })
       } finally {
         setIsFinalizingSignedImageSave(false)
       }
