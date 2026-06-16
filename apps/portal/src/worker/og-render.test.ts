@@ -22,9 +22,9 @@ describe('escapeHtml', () => {
   })
 
   it('does not double-escape ampersands in its own output', () => {
-    // & is replaced first, so the &# entities it emits are not re-escaped
-    expect(escapeHtml('a&b')).toBe('a&amp;b')
-    expect(escapeHtml("'")).toBe('&#39;')
+    // a combined input confirms neither replacement double-escapes the
+    // other's output — notably the & inside the &#39; emitted for '
+    expect(escapeHtml("a&'b")).toBe('a&amp;&#39;b')
   })
 
   it('leaves slashes untouched so base64 data: URIs survive intact', () => {
