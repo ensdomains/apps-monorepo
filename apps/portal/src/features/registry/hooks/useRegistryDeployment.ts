@@ -25,12 +25,6 @@ export type RegistryDeployment = {
   timestamp: number
 }
 
-type EventNode = {
-  transactionHash: Hash
-  blockNumber: number
-  timestamp: number
-}
-
 /**
  * Resolves a registry's deployment transaction.
  *
@@ -46,7 +40,7 @@ const getRegistryDeployment = ResultFn(async function* ({
   createdBlock,
 }: GetRegistryDeploymentParameters) {
   const { events } = yield* fromPromise(
-    graphqlIndexerClient.request<{ events: EventNode[] }>(
+    graphqlIndexerClient.request<{ events: RegistryDeployment[] }>(
       gql`
         query getRegistryDeployment($namehash: String!, $createdBlock: Int!) {
           events(
@@ -69,7 +63,7 @@ const getRegistryDeployment = ResultFn(async function* ({
     (e) => new GetRegistryDeploymentError({ cause: e as ClientError }),
   )
 
-  return ok((events[0] as RegistryDeployment | undefined) ?? null)
+  return ok(events[0] ?? null)
 })
 
 const getRegistryDeploymentQueryKey = createQueryKey<
