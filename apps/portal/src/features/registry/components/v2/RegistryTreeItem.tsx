@@ -103,7 +103,7 @@ export const RegistryTreeItem = ({
             >
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
-            {!isLastWithoutRegistryConfigured ? (
+            {!isLastWithRegistryConfigured ? (
               <div className="flex flex-row items-center justify-start gap-2">
                 <span className="text-sm text-muted-foreground font-mono">
                   Chain ID: {chainId}

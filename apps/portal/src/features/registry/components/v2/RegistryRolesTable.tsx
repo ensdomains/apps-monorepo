@@ -93,7 +93,7 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            <PermissionMark held={entry.hasAdmin} />
+            <PermissionMark isHeld={entry.hasAdmin} />
           </div>
         ))}
       </div>
@@ -109,7 +109,7 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            <PermissionMark held={entry.hasUser} />
+            <PermissionMark isHeld={entry.hasUser} />
           </div>
         ))}
       </div>
