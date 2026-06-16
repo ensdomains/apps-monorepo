@@ -74,6 +74,7 @@ export const ManualInputStep = ({
       Paste an image URL. Supported formats include JPG, PNG, GIF, and WebP.
     </p>
     <input
+      aria-label="Image URL"
       className="h-10 w-full rounded-sm border border-ens-quartz-250 bg-transparent px-3 text-ens-quartz-900 text-xs outline-none transition-colors placeholder:text-ens-quartz-350 focus-visible:border-ens-lapis-500"
       disabled={disabled}
       onChange={(event) => onManualUrlChange(event.target.value)}
