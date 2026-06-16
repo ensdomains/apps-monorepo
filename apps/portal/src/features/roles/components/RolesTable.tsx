@@ -63,7 +63,7 @@ const baseColumns: ColumnDef<AccountGroup>[] = [
   {
     id: 'user',
     accessorKey: 'account',
-    header: () => <span className="text-muted-foreground">User</span>,
+    header: 'User',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
   ...buildRoleColumns<AccountGroup>((row) => toRoleEntries(row.items)),

@@ -26,7 +26,7 @@ export const buildRoleColumns = <T,>(
 ): ColumnDef<T>[] => [
   {
     id: 'role',
-    header: () => <span className="text-muted-foreground">Role</span>,
+    header: 'Role',
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5 text-muted-foreground">
         {getEntries(row.original).map((entry) => (
@@ -42,9 +42,9 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'admin',
-    header: () => <span className="text-muted-foreground">Admin</span>,
+    header: () => <div className="text-center">Admin</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-center gap-0.5">
         {getEntries(row.original).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
@@ -58,9 +58,9 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'user-level',
-    header: () => <span className="text-muted-foreground">Manager</span>,
+    header: () => <div className="text-center">Manager</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-center gap-0.5">
         {getEntries(row.original).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
