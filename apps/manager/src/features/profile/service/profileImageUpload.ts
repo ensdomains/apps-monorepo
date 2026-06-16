@@ -178,17 +178,17 @@ const uploadSignedImage = async ({
 }
 
 export interface UploadImageMutationOptionsArgs {
-  type: ImageType
-  name?: string
-  isConnected: boolean
-  address?: string
-  chainId: number | undefined
-  signTypedDataAsync: SignTypedDataMutateAsync<unknown>
-  onImageChange: (imageUrl: string) => void
-  onImageUploadComplete?: (imageUrl: string) => void
-  setOpen: (open: boolean) => void
-  setUploadFile: (file: File | null) => void
-  send: (event: ImageSelectionEvent) => void
+  readonly type: ImageType
+  readonly name?: string
+  readonly isConnected: boolean
+  readonly address?: string
+  readonly chainId: number | undefined
+  readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
+  readonly onImageChange: (imageUrl: string) => void
+  readonly onImageUploadComplete?: (imageUrl: string) => void
+  readonly setOpen: (open: boolean) => void
+  readonly setUploadFile: (file: File | null) => void
+  readonly send: (event: ImageSelectionEvent) => void
 }
 
 export const uploadImageMutationOptions = ({
