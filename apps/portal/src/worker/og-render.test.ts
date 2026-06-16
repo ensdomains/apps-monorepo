@@ -7,13 +7,12 @@ vi.mock('workers-og', () => ({ ImageResponse: class {} }))
 const { escapeHtml } = await import('./og-render')
 
 describe('escapeHtml', () => {
-  it('escapes the five HTML-sensitive characters plus slash', () => {
+  it('escapes the five HTML-sensitive characters', () => {
     expect(escapeHtml('&')).toBe('&amp;')
     expect(escapeHtml('<')).toBe('&lt;')
     expect(escapeHtml('>')).toBe('&gt;')
     expect(escapeHtml('"')).toBe('&quot;')
     expect(escapeHtml("'")).toBe('&#39;')
-    expect(escapeHtml('/')).toBe('&#x2F;')
   })
 
   it('neutralizes a single-quote attribute breakout', () => {
@@ -24,21 +23,12 @@ describe('escapeHtml', () => {
 
   it('does not double-escape ampersands in its own output', () => {
     // & is replaced first, so the &# entities it emits are not re-escaped
-    expect(escapeHtml('/')).not.toContain('&amp;')
     expect(escapeHtml('a&b')).toBe('a&amp;b')
+    expect(escapeHtml("'")).toBe('&#39;')
   })
 
-  it('round-trips an avatar URL through HTML entity decoding', () => {
-    const url = 'https://example.com/avatar.png?x=1&y=2'
-    const escaped = escapeHtml(url)
-    // mimic what an HTML parser (browser / workers-og) does on read-back
-    const decoded = escaped
-      .replace(/&#x2F;/g, '/')
-      .replace(/&#39;/g, "'")
-      .replace(/&quot;/g, '"')
-      .replace(/&gt;/g, '>')
-      .replace(/&lt;/g, '<')
-      .replace(/&amp;/g, '&')
-    expect(decoded).toBe(url)
+  it('leaves slashes untouched so base64 data: URIs survive intact', () => {
+    const url = 'data:image/png;base64,iVBOR/w0KGgo+AAAA=='
+    expect(escapeHtml(url)).toBe(url)
   })
 })

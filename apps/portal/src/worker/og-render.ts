@@ -14,7 +14,6 @@ export function escapeHtml(str: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
-    .replace(/\//g, '&#x2F;')
 }
 
 const NAME_SUBPAGE_LABELS: Record<string, string> = {
