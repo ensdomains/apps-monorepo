@@ -4,7 +4,10 @@ import { useRef } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import { getCropBaseScale, getCropViewportSize } from './ProfileImageField.crop'
-import { fieldShellClassName } from './ProfileImageField.helpers'
+import {
+  fieldShellClassName,
+  focusVisibleRingClassName,
+} from './ProfileImageField.helpers'
 import type {
   ProfileImageCropOffset,
   ProfileImageKind,
@@ -164,7 +167,10 @@ export const UploadCropStep = ({
           />
         </div>
         <button
-          className="flex h-12.5 items-center justify-center rounded-sm bg-ens-lapis-100 px-6 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+          className={cn(
+            'flex h-12.5 items-center justify-center rounded-sm bg-ens-lapis-100 px-6 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+            focusVisibleRingClassName,
+          )}
           disabled={disabled || isProcessing || !uploadFile || !cropImageSize}
           onClick={onConfirm}
           type="button"

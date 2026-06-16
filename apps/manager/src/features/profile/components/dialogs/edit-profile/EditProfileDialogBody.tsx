@@ -62,12 +62,8 @@ export const EditProfileDialogBody = withForm({
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: reset draft link validation whenever the dialog open state changes
     useEffect(() => {
-      if (!open) {
-        setHasDraftLinkValidationIssues(false)
-        return
-      }
-
       setHasDraftLinkValidationIssues(false)
     }, [open])
 

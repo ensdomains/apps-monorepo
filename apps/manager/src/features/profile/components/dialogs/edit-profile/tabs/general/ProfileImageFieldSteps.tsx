@@ -1,7 +1,11 @@
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
-import { fieldShellClassName, getTitle } from './ProfileImageField.helpers'
+import {
+  fieldShellClassName,
+  focusVisibleRingClassName,
+  getTitle,
+} from './ProfileImageField.helpers'
 import type { ProfileImageKind } from './ProfileImageField.types'
 import { ErrorMessage } from './ProfileImageFieldPanels'
 import { DisplayImage } from './ProfileImagePreview'
@@ -14,7 +18,10 @@ interface BackButtonProps {
 export const BackButton = ({ disabled, onBack }: BackButtonProps) => (
   <button
     aria-label="Back to image options"
-    className="absolute top-1.5 left-1.5 flex size-12 items-center justify-center rounded-sm border border-ens-quartz-200 bg-ens-quartz-50 text-ens-quartz-500 transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50"
+    className={cn(
+      'absolute top-1.5 left-1.5 flex size-12 items-center justify-center rounded-sm border border-ens-quartz-200 bg-ens-quartz-50 text-ens-quartz-500 transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50',
+      focusVisibleRingClassName,
+    )}
     disabled={disabled}
     onClick={onBack}
     type="button"
@@ -75,7 +82,10 @@ export const ManualInputStep = ({
     </p>
     <input
       aria-label="Image URL"
-      className="h-10 w-full rounded-sm border border-ens-quartz-250 bg-transparent px-3 text-ens-quartz-900 text-xs outline-none transition-colors placeholder:text-ens-quartz-350 focus-visible:border-ens-lapis-500"
+      className={cn(
+        'h-10 w-full rounded-sm border border-ens-quartz-250 bg-transparent px-3 text-ens-quartz-900 text-xs outline-none transition-colors placeholder:text-ens-quartz-350 focus-visible:border-ens-lapis-500',
+        focusVisibleRingClassName,
+      )}
       disabled={disabled}
       onChange={(event) => onManualUrlChange(event.target.value)}
       onKeyDown={(event) => {
@@ -87,7 +97,10 @@ export const ManualInputStep = ({
       value={manualUrl}
     />
     <button
-      className="flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+      className={cn(
+        'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+        focusVisibleRingClassName,
+      )}
       disabled={disabled || manualUrl.trim() === ''}
       onClick={onPreviewManualUrl}
       type="button"
@@ -128,7 +141,10 @@ export const ManualPreviewStep = ({
       src={manualUrl}
     />
     <button
-      className="flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+      className={cn(
+        'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+        focusVisibleRingClassName,
+      )}
       disabled={disabled}
       onClick={onUseImage}
       type="button"
@@ -192,7 +208,10 @@ export const RemoveConfirmationStep = ({
     </div>
     <div className="flex items-center gap-3">
       <button
-        className="h-10 rounded-sm px-5 font-mono text-ens-quartz-700 text-xs uppercase tracking-widest transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50"
+        className={cn(
+          'h-10 rounded-sm px-5 font-mono text-ens-quartz-700 text-xs uppercase tracking-widest transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50',
+          focusVisibleRingClassName,
+        )}
         disabled={disabled}
         onClick={onBack}
         type="button"
@@ -200,7 +219,10 @@ export const RemoveConfirmationStep = ({
         Cancel
       </button>
       <button
-        className="h-10 rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50"
+        className={cn(
+          'h-10 rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+          focusVisibleRingClassName,
+        )}
         disabled={disabled}
         onClick={onConfirm}
         type="button"

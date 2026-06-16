@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import {
   dropZoneClassName,
   fieldShellClassName,
+  focusVisibleRingClassName,
   getChangeLabel,
   getEmptyLabel,
   getTitle,
@@ -45,7 +46,10 @@ const ProfileImageAction = ({
   onClick,
 }: ProfileImageActionProps) => (
   <button
-    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-ens-lapis-100/50 disabled:pointer-events-none disabled:opacity-45"
+    className={cn(
+      'flex items-center gap-2 rounded-lg px-3 py-2 text-left transition-colors hover:bg-ens-lapis-100/50 disabled:pointer-events-none disabled:opacity-45',
+      focusVisibleRingClassName,
+    )}
     disabled={disabled}
     onClick={onClick}
     type="button"
@@ -86,8 +90,9 @@ export const DefaultImageField = ({
 }: DefaultImageFieldProps) => (
   <button
     className={cn(
-      'flex h-42 w-full items-center justify-center overflow-hidden p-3 transition-colors hover:border-ens-quartz-350 focus-visible:border-ens-lapis-500 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+      'flex h-42 w-full items-center justify-center overflow-hidden p-3 transition-colors hover:border-ens-quartz-350 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
       dropZoneClassName,
+      focusVisibleRingClassName,
     )}
     disabled={disabled}
     onClick={onActivate}
