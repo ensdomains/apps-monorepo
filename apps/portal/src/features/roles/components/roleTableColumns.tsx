@@ -24,8 +24,8 @@ export const GrayDot = () => (
   <div className="size-5 rounded-full bg-neutral-2" />
 )
 
-export const PermissionMark = ({ held }: { held: boolean }) =>
-  held ? <GreenCheck /> : <GrayDot />
+export const PermissionMark = ({ isHeld }: { isHeld: boolean }) =>
+  isHeld ? <GreenCheck /> : <GrayDot />
 
 /** Role label + Admin/User check columns, vertically aligned per permission. */
 export const buildRoleColumns = <T,>(
@@ -57,7 +57,7 @@ export const buildRoleColumns = <T,>(
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            <PermissionMark held={entry.hasAdmin} />
+            <PermissionMark isHeld={entry.hasAdmin} />
           </div>
         ))}
       </div>
@@ -73,7 +73,7 @@ export const buildRoleColumns = <T,>(
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            <PermissionMark held={entry.hasUser} />
+            <PermissionMark isHeld={entry.hasUser} />
           </div>
         ))}
       </div>
