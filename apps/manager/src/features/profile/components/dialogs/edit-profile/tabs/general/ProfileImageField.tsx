@@ -26,7 +26,8 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
           cropZoom={editor.cropZoom}
           disabled={disabled}
           error={editor.state.context.error}
-          isProcessing={editor.isUploading || editor.isCropping}
+          isCropping={editor.isCropping}
+          isUploading={editor.isUploading}
           kind={kind}
           onBack={() => editor.send({ type: 'BACK' })}
           onConfirm={editor.handleConfirmCrop}

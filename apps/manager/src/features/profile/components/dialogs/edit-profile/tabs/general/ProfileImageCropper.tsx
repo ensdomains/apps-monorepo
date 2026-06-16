@@ -26,7 +26,8 @@ interface UploadCropStepProps {
   readonly cropZoom: number
   readonly disabled?: boolean
   readonly error: string | null
-  readonly isProcessing: boolean
+  readonly isCropping: boolean
+  readonly isUploading: boolean
   readonly kind: ProfileImageKind
   readonly onBack: () => void
   readonly onConfirm: () => void
@@ -50,7 +51,8 @@ export const UploadCropStep = ({
   cropZoom,
   disabled,
   error,
-  isProcessing,
+  isCropping,
+  isUploading,
   kind,
   onBack,
   onConfirm,
@@ -61,6 +63,8 @@ export const UploadCropStep = ({
   uploadPreviewUrl,
 }: UploadCropStepProps) => {
   const dragStateRef = useRef<DragState | null>(null)
+  const isProcessing = isCropping || isUploading
+  const processingLabel = isUploading ? 'Uploading' : 'Processing'
   const viewportSize = getCropViewportSize(kind)
   const baseScale = cropImageSize
     ? getCropBaseScale({ imageSize: cropImageSize, viewportSize })
@@ -178,7 +182,7 @@ export const UploadCropStep = ({
           {isProcessing ? (
             <span className="flex items-center gap-2">
               <Loader2 className="size-4 animate-spin" />
-              Uploading
+              {processingLabel}
             </span>
           ) : (
             'Confirm edit'
