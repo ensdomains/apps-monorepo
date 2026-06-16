@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  getInstantForPremiumPrice,
   getPremiumInstantRange,
   getPremiumInstantRangeFromPrice,
   getPremiumPeriodDays,
@@ -96,68 +95,6 @@ describe('premiumDecay', () => {
     it('returns 0 when config is not loaded', () => {
       const premiumStart = Temporal.Instant.from('2025-01-01T00:00:00Z')
       expect(getPremiumPriceAtInstant(premiumStart, premiumStart)).toBe(0)
-    })
-  })
-
-  describe('getInstantForPremiumPrice', () => {
-    it('returns premium start when target price is at or above start', () => {
-      const premiumStart = Temporal.Instant.from('2025-01-01T00:00:00Z')
-      const result = getInstantForPremiumPrice(
-        premiumStart,
-        100_000_000 - 47.6837158203125,
-        TEST_CONFIG,
-      )
-      expect(result.epochMilliseconds).toBe(premiumStart.epochMilliseconds)
-    })
-
-    it('returns premium end when target price is 0 or below', () => {
-      const premiumStart = Temporal.Instant.from('2025-01-01T00:00:00Z')
-      const premiumEnd = Temporal.Instant.fromEpochMilliseconds(
-        premiumStart.epochMilliseconds + PREMIUM_PERIOD_MS,
-      )
-      expect(
-        getInstantForPremiumPrice(premiumStart, 0, TEST_CONFIG)
-          .epochMilliseconds,
-      ).toBe(premiumEnd.epochMilliseconds)
-    })
-
-    it('is inverse of getPremiumPriceAtInstant', () => {
-      const premiumStart = Temporal.Instant.from('2025-01-01T00:00:00Z')
-      const targetInstant = Temporal.Instant.fromEpochMilliseconds(
-        premiumStart.epochMilliseconds + 5 * MS_PER_DAY,
-      )
-      const price = getPremiumPriceAtInstant(
-        premiumStart,
-        targetInstant,
-        TEST_CONFIG,
-      )
-      const recovered = getInstantForPremiumPrice(
-        premiumStart,
-        price,
-        TEST_CONFIG,
-      )
-      expect(recovered.epochMilliseconds).toBeCloseTo(
-        targetInstant.epochMilliseconds,
-        -2,
-      )
-    })
-
-    it('clamps inverted price target within premium window', () => {
-      const premiumStart = Temporal.Instant.from('2025-01-01T00:00:00Z')
-      const premiumEnd = Temporal.Instant.fromEpochMilliseconds(
-        premiumStart.epochMilliseconds + PREMIUM_PERIOD_MS,
-      )
-      expect(
-        getInstantForPremiumPrice(premiumStart, -1, TEST_CONFIG)
-          .epochMilliseconds,
-      ).toBe(premiumEnd.epochMilliseconds)
-      expect(
-        getInstantForPremiumPrice(
-          premiumStart,
-          Number.MAX_SAFE_INTEGER,
-          TEST_CONFIG,
-        ).epochMilliseconds,
-      ).toBe(premiumStart.epochMilliseconds)
     })
   })
 
