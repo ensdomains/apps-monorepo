@@ -54,14 +54,19 @@ export const MATERIAL_SYMBOLS = [
   'notifications_unread',
   'priority_high',
   'receipt_long',
+  'remove',
   'schedule',
   'search',
   'sentiment_calm',
   'settings',
   'text_ad',
+  'text_fields_alt',
+  'upload',
   'wall_art',
   'warning',
   'waving_hand',
+  'zoom_in',
+  'zoom_out',
 ] as const satisfies readonly string[]
 
 export type MaterialSymbol = (typeof MATERIAL_SYMBOLS)[number]

@@ -13,6 +13,7 @@ import { AddressesTab } from './tabs/addresses/AddressesTab'
 import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
 import { GeneralTab } from './tabs/general/GeneralTab'
+import type { ProfileImageKind } from './tabs/general/ProfileImageField'
 import { LinksTab } from './tabs/links/LinksTab'
 
 const tabs = [
@@ -78,6 +79,10 @@ interface EditProfileDialogTabsProps {
     hasValidationIssues: boolean,
   ) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
+  readonly onImageUploadComplete?: (
+    kind: ProfileImageKind,
+    imageUrl: string,
+  ) => void
   readonly onSave: () => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
@@ -165,6 +170,7 @@ export const EditProfileDialogTabs = ({
   onBaseChange,
   onContactChange,
   onDraftLinkValidationIssuesChange,
+  onImageUploadComplete,
   onLinksChange,
   onSave,
   onSocialChange,
@@ -217,6 +223,7 @@ export const EditProfileDialogTabs = ({
               name={name}
               onBaseChange={onBaseChange}
               onContactChange={onContactChange}
+              onImageUploadComplete={onImageUploadComplete}
               values={values}
             />
           </TabsContent>

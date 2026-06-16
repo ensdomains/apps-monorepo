@@ -12,7 +12,12 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import {
+  type ComponentPropsWithoutRef,
+  forwardRef,
+  useRef,
+  useState,
+} from 'react'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -77,6 +82,36 @@ const StepFooter = ({ children }: StepFooterProps) => (
   <div className="flex justify-end gap-2">{children}</div>
 )
 
+const uploadSelectedImage = (
+  uploadFile: File | null,
+  uploadImage: (file: File) => void,
+) => {
+  if (!uploadFile) return
+
+  uploadImage(uploadFile)
+}
+
+type ImagePreviewSize = 'small' | 'medium' | 'large'
+
+const getImageStyles = (type: ImageType, size: ImagePreviewSize = 'medium') => {
+  const baseClasses = 'mx-auto rounded-md object-cover'
+
+  if (type === 'avatar') {
+    const sizeClasses = {
+      small: 'size-20',
+      medium: 'size-32',
+      large: 'size-40',
+    }
+    return clsx(baseClasses, sizeClasses[size])
+  }
+  const sizeClasses = {
+    small: 'h-20 w-full',
+    medium: 'h-32 w-full',
+    large: 'h-40 w-full',
+  }
+  return clsx(baseClasses, sizeClasses[size])
+}
+
 interface ImageSelectionDialogProps {
   readonly currentImage?: string
   readonly defaultImage?: string
@@ -90,6 +125,100 @@ interface ImageSelectionDialogProps {
   readonly imageClassName?: string
   readonly emptyState?: React.ReactNode
 }
+
+interface ImageSelectionTriggerProps
+  extends Omit<ComponentPropsWithoutRef<'button'>, 'type'> {
+  readonly defaultImage?: string
+  readonly displayImage?: string
+  readonly emptyState?: React.ReactNode
+  readonly imageClassName?: string
+  readonly imageType: ImageType
+  readonly name?: string
+  readonly triggerClassName?: string
+  readonly uploadPreviewUrl?: string | null
+}
+
+const ImageSelectionTrigger = forwardRef<
+  HTMLButtonElement,
+  ImageSelectionTriggerProps
+>(
+  (
+    {
+      className,
+      defaultImage,
+      displayImage,
+      emptyState,
+      imageClassName,
+      imageType,
+      name,
+      triggerClassName,
+      uploadPreviewUrl,
+      ...buttonProps
+    },
+    ref,
+  ) => (
+    <button
+      {...buttonProps}
+      className={clsx(
+        'group relative block w-full cursor-pointer overflow-hidden',
+        triggerClassName ??
+          (imageType === 'avatar'
+            ? 'h-full rounded-md'
+            : 'aspect-3/1 md:aspect-5/1'),
+        className,
+      )}
+      ref={ref}
+      title={buttonProps.title ?? `Change ${imageType}`}
+      type="button"
+    >
+      <div
+        className={clsx(
+          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
+          imageType === 'avatar' && 'rounded-md',
+          imageType === 'header' && 'pb-12',
+        )}
+      >
+        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
+          <Image className="size-6 text-white" />
+        </div>
+      </div>
+      <ImageFallback.Root>
+        <ImageFallback.Image
+          alt={`${name || 'Profile'} ${imageType}`}
+          className={imageClassName ?? 'h-full w-full object-cover'}
+          src={uploadPreviewUrl || displayImage}
+        />
+        <ImageFallback.Fallback>
+          {emptyState ? (
+            emptyState
+          ) : defaultImage ? (
+            <img
+              alt={`Default ${imageType}`}
+              className="h-full w-full object-cover"
+              src={defaultImage}
+            />
+          ) : imageType === 'avatar' ? (
+            <PatternAvatar
+              className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
+              name={name || 'avatar'}
+            />
+          ) : (
+            <div
+              className="h-full w-full"
+              style={{
+                backgroundColor: 'var(--color-ens-lapis-dust)',
+                backgroundImage:
+                  'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
+                backgroundSize: '8px 8px',
+              }}
+            />
+          )}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </button>
+  ),
+)
+ImageSelectionTrigger.displayName = 'ImageSelectionTrigger'
 
 export const ImageSelectionDialog = ({
   currentImage,
@@ -187,37 +316,21 @@ export const ImageSelectionDialog = ({
     uploadImageMutationOptions({
       type,
       name,
-      uploadFile,
       isConnected,
       address,
       chainId,
       signTypedDataAsync,
       onImageChange,
-      setOpen,
-      setUploadFile,
+      setOpen: (isOpen) => {
+        if (!isOpen) {
+          send({ type: 'RESET' })
+          setUploadFile(null)
+        }
+        setOpen(isOpen)
+      },
       send,
     }),
   )
-
-  // Get appropriate dimensions and styling based on type
-  const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
-    const baseClasses = 'mx-auto rounded-md object-cover'
-
-    if (type === 'avatar') {
-      const sizeClasses = {
-        small: 'size-20',
-        medium: 'size-32',
-        large: 'size-40',
-      }
-      return clsx(baseClasses, sizeClasses[size])
-    }
-    const sizeClasses = {
-      small: 'h-20 w-full',
-      medium: 'h-32 w-full',
-      large: 'h-40 w-full',
-    }
-    return clsx(baseClasses, sizeClasses[size])
-  }
 
   // Main step - shows all options
   const renderMainStep = () => (
@@ -301,13 +414,13 @@ export const ImageSelectionDialog = ({
             <ImageFallback.Root>
               <ImageFallback.Image
                 alt={`Current ${type}`}
-                className={getImageStyles('small')}
+                className={getImageStyles(type, 'small')}
                 src={displayImage}
               />
               <ImageFallback.Fallback>
                 <div
                   className={cn(
-                    getImageStyles('small'),
+                    getImageStyles(type, 'small'),
                     'flex items-center justify-center bg-gray-200',
                   )}
                 >
@@ -323,13 +436,13 @@ export const ImageSelectionDialog = ({
             {defaultImage ? (
               <img
                 alt={`Default ${type}`}
-                className={getImageStyles('small')}
+                className={getImageStyles(type, 'small')}
                 src={defaultImage}
               />
             ) : type === 'avatar' ? (
               <PatternAvatar
                 className={cn(
-                  getImageStyles('small'),
+                  getImageStyles(type, 'small'),
                   'border-none bg-transparent p-0 shadow-none',
                 )}
                 name={name || 'avatar'}
@@ -337,7 +450,7 @@ export const ImageSelectionDialog = ({
             ) : (
               <div
                 className={cn(
-                  getImageStyles('small'),
+                  getImageStyles(type, 'small'),
                   'flex items-center justify-center bg-gray-200',
                 )}
               >
@@ -381,7 +494,7 @@ export const ImageSelectionDialog = ({
         <div className="text-center">
           <img
             alt="Uploaded"
-            className={getImageStyles('large')}
+            className={getImageStyles(type, 'large')}
             src={uploadPreviewUrl || ''}
           />
           <p className="mt-2 text-gray-500 text-sm">
@@ -395,7 +508,10 @@ export const ImageSelectionDialog = ({
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           <Trans>Back</Trans>
         </Button>
-        <Button disabled={isUploading} onClick={() => uploadImage()}>
+        <Button
+          disabled={isUploading}
+          onClick={() => uploadSelectedImage(uploadFile, uploadImage)}
+        >
           {isUploading ? (
             <Trans>Uploading…</Trans>
           ) : (
@@ -467,7 +583,7 @@ export const ImageSelectionDialog = ({
         <div className="text-center">
           <img
             alt="Preview"
-            className={getImageStyles('large')}
+            className={getImageStyles(type, 'large')}
             onError={(e) => {
               e.currentTarget.style.display = 'none'
               send({
@@ -518,62 +634,16 @@ export const ImageSelectionDialog = ({
   }
 
   const trigger = (
-    <button
-      className={clsx(
-        'group relative block w-full cursor-pointer overflow-hidden',
-        triggerClassName ??
-          (type === 'avatar'
-            ? 'h-full rounded-md'
-            : 'aspect-3/1 md:aspect-5/1'),
-      )}
-      title={`Change ${type}`}
-      type="button"
-    >
-      <div
-        className={clsx(
-          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
-          type === 'avatar' && 'rounded-md',
-          type === 'header' && 'pb-12',
-        )}
-      >
-        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
-          <Image className="size-6 text-white" />
-        </div>
-      </div>
-      <ImageFallback.Root>
-        <ImageFallback.Image
-          alt={`${name || 'Profile'} ${type}`}
-          className={imageClassName ?? 'h-full w-full object-cover'}
-          src={uploadPreviewUrl || displayImage}
-        />
-        <ImageFallback.Fallback>
-          {emptyState ? (
-            emptyState
-          ) : defaultImage ? (
-            <img
-              alt={`Default ${type}`}
-              className="h-full w-full object-cover"
-              src={defaultImage}
-            />
-          ) : type === 'avatar' ? (
-            <PatternAvatar
-              className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
-              name={name || 'avatar'}
-            />
-          ) : (
-            <div
-              className="h-full w-full"
-              style={{
-                backgroundColor: 'var(--color-ens-lapis-dust)',
-                backgroundImage:
-                  'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
-                backgroundSize: '8px 8px',
-              }}
-            />
-          )}
-        </ImageFallback.Fallback>
-      </ImageFallback.Root>
-    </button>
+    <ImageSelectionTrigger
+      defaultImage={defaultImage}
+      displayImage={displayImage}
+      emptyState={emptyState}
+      imageClassName={imageClassName}
+      imageType={type}
+      name={name}
+      triggerClassName={triggerClassName}
+      uploadPreviewUrl={uploadPreviewUrl}
+    />
   )
 
   const fileInput = (

@@ -1,113 +1,13 @@
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans } from '@lingui/react/macro'
-import {
-  type QueryClient,
-  useMutation,
-  useQueryClient,
-} from '@tanstack/react-query'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useEffect, useState } from 'react'
-import type { Address, PublicClient } from 'viem'
-import { useChainId } from 'wagmi'
-import type { Actor } from 'xstate'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { Tabs } from '@/components/ui/tabs'
-import type { ProfileRecords } from '@/features/profile/types'
-import { createDiff } from '@/features/profile/utils/createDiff'
-import { normalizeProfileRecords } from '@/features/profile/utils/transformRecords'
-import { useSmartAccountContext } from '@/lib/smart-account'
-import { publicClient } from '@/lib/wagmi'
 import { useAppForm } from '../../form'
-import { getRecordsValidationErrorMessage } from '../../ProfileEdit.errors'
-import {
-  RecordsValidationError,
-  type SaveRecordsParams,
-  saveRecords,
-} from '../../ProfileEdit.transactions'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
-import { EditProfileDialogHeader } from './EditProfileDialogHeader'
-import { EditProfileDialogTabs } from './EditProfileDialogTabs'
-import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
-import { getContactValidationIssues } from './tabs/contact/records'
-import { getLinkValidationIssues } from './tabs/links/validation'
-
-interface ProfileEditForm {
-  readonly reset: (records: ProfileRecords) => void
-}
-
-interface UseCloseProfileDialogOnSuccessfulSaveParams {
-  readonly dialogActor: Actor<typeof editProfileDialogMachine>
-  readonly ethAddressChanged: boolean
-  readonly form: ProfileEditForm
-  readonly isSuccess: boolean
-  readonly onUpdated?: () => undefined | Promise<unknown>
-  readonly queryClient: QueryClient
-  readonly savedRecords: ProfileRecords
-}
-
-interface EditProfileDialogProps {
-  readonly name: string
-  readonly records: ProfileRecords
-  readonly owner?: Address
-  readonly onUpdated?: () => undefined | Promise<unknown>
-}
-
-const useCloseProfileDialogOnSuccessfulSave = ({
-  dialogActor,
-  ethAddressChanged,
-  form,
-  isSuccess,
-  onUpdated,
-  queryClient,
-  savedRecords,
-}: UseCloseProfileDialogOnSuccessfulSaveParams) => {
-  useEffect(() => {
-    if (!isSuccess) {
-      return
-    }
-
-    let cancelled = false
-
-    const finalizeSave = async () => {
-      form.reset(savedRecords)
-      await onUpdated?.()
-
-      if (ethAddressChanged) {
-        queryClient.invalidateQueries({
-          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
-        })
-      }
-
-      if (!cancelled) {
-        dialogActor.send({ type: 'CLOSE' })
-      }
-    }
-
-    void finalizeSave()
-
-    return () => {
-      cancelled = true
-    }
-  }, [
-    dialogActor,
-    ethAddressChanged,
-    form,
-    isSuccess,
-    onUpdated,
-    queryClient,
-    savedRecords,
-  ])
-}
-
-const getMutationErrorMessage = (error: unknown) => {
-  if (error instanceof RecordsValidationError) {
-    return getRecordsValidationErrorMessage(error)
-  }
-
-  return error instanceof Error ? error.message : String(error)
-}
+import type { EditProfileDialogProps } from './EditProfileDialog.types'
+import { EditProfileDialogBody } from './EditProfileDialogBody'
+import { useEditProfileDialogSave } from './useEditProfileDialogSave'
 
 export const EditProfileDialog = ({
   name,
@@ -115,9 +15,6 @@ export const EditProfileDialog = ({
   owner,
   onUpdated,
 }: EditProfileDialogProps) => {
-  const account = useSmartAccountContext()
-  const chainId = useChainId()
-  const queryClient = useQueryClient()
   const dialogActor = useActorRef(editProfileDialogMachine, {
     input: { records },
   })
@@ -136,50 +33,32 @@ export const EditProfileDialog = ({
     dialogActor,
     (state) => state.context.ethAddressChanged,
   )
-  const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
-    useState(false)
 
   const form = useAppForm({
     defaultValues: records,
   })
 
-  const saveRecordsMutation = useMutation({
-    mutationFn: ({
-      currentRecords: _currentRecords,
-      ...params
-    }: SaveRecordsParams & { currentRecords: ProfileRecords }) =>
-      saveRecords(params),
-    onSuccess: (data, variables) => {
-      const ethBefore = variables.before.coins.find(
-        ({ coinType }) => coinType === 60,
-      )
-      const ethAfter = variables.after.coins.find(
-        ({ coinType }) => coinType === 60,
-      )
-
-      dialogActor.send({
-        type: 'SAVE_SUCCEEDED',
-        currentRecords: variables.currentRecords,
-        ethAddressChanged: ethBefore?.value !== ethAfter?.value,
-        txHash: data.hash,
-      })
-    },
-    onError: (error) => {
-      dialogActor.send({
-        type: 'SAVE_FAILED',
-        errorMessage: getMutationErrorMessage(error),
-      })
-    },
+  const {
+    handleSave,
+    handleSignedImageUploadComplete,
+    isFinalizingSignedImageSave,
+    resetSaveState,
+    resetSignedImageSaveState,
+    signedImageUploads,
+  } = useEditProfileDialogSave({
+    dialogActor,
+    ethAddressChanged,
+    form,
+    isSuccess,
+    name,
+    onUpdated,
+    owner,
+    savedRecords,
   })
-
-  const resetSaveState = () => {
-    saveRecordsMutation.reset()
-    dialogActor.send({ type: 'RESET_SAVE_STATE' })
-  }
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
-      setHasDraftLinkValidationIssues(false)
+      resetSignedImageSaveState()
       form.reset(records)
       dialogActor.send({ type: 'OPEN', records })
       return
@@ -189,50 +68,9 @@ export const EditProfileDialog = ({
       return
     }
 
-    setHasDraftLinkValidationIssues(false)
+    resetSignedImageSaveState()
     dialogActor.send({ type: 'CLOSE' })
   }
-
-  const handleSave = (currentRecords: ProfileRecords) => {
-    resetSaveState()
-
-    dialogActor.send({
-      type: 'SAVE_REQUESTED',
-      values: currentRecords,
-      deps: {
-        accountAddress: account.accountAddress as Address | null,
-        chainId,
-        name,
-        owner,
-        ownerAddress: account.ownerAddress as Address | null,
-        publicClient: publicClient as PublicClient,
-        signer: account.signer,
-      },
-    })
-
-    const snapshot = dialogActor.getSnapshot()
-    if (
-      !snapshot.matches({ editing: 'saving' }) ||
-      !snapshot.context.pendingSave
-    ) {
-      return
-    }
-
-    saveRecordsMutation.mutate({
-      ...snapshot.context.pendingSave.params,
-      currentRecords: snapshot.context.pendingSave.currentRecords,
-    })
-  }
-
-  useCloseProfileDialogOnSuccessfulSave({
-    dialogActor,
-    ethAddressChanged,
-    form,
-    isSuccess,
-    onUpdated,
-    queryClient,
-    savedRecords,
-  })
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
@@ -247,86 +85,18 @@ export const EditProfileDialog = ({
         showCloseButton={false}
       >
         <EditProfileDialogProvider actor={dialogActor}>
-          <form.Subscribe
-            selector={(state) => ({
-              canSubmit: state.canSubmit && state.isValid,
-              values: state.values,
-            })}
-          >
-            {({ canSubmit, values }) => {
-              const submittedValues = normalizeProfileRecords(values)
-              const diff = createDiff(savedRecords, submittedValues)
-              const hasChanges = Object.keys(diff).length > 0
-              const hasAddressValidationIssues =
-                getAddressValidationIssues(values.addresses).length > 0
-              const hasLinkValidationIssues =
-                getLinkValidationIssues(values.links).length > 0 ||
-                hasDraftLinkValidationIssues
-              const hasContactValidationIssues =
-                getContactValidationIssues(values).length > 0
-              const canSaveProfile =
-                hasChanges &&
-                canSubmit &&
-                !hasAddressValidationIssues &&
-                !hasLinkValidationIssues &&
-                !hasContactValidationIssues
-              const handleBaseChange = (base: ProfileRecords['base']) => {
-                resetSaveState()
-                form.setFieldValue('base', base)
-              }
-              const handleAddressesChange = (
-                addresses: ProfileRecords['addresses'],
-              ) => {
-                resetSaveState()
-                form.setFieldValue('addresses', addresses)
-              }
-              const handleContactChange = (
-                contact: ProfileRecords['contact'],
-              ) => {
-                resetSaveState()
-                form.setFieldValue('contact', contact)
-              }
-              const handleSocialChange = (social: ProfileRecords['social']) => {
-                resetSaveState()
-                form.setFieldValue('social', social)
-              }
-              const handleLinksChange = (links: ProfileRecords['links']) => {
-                resetSaveState()
-                form.setFieldValue('links', links)
-              }
-
-              return (
-                <Tabs
-                  className="h-full min-h-0 flex-1 gap-0 overflow-hidden"
-                  defaultValue="general"
-                  orientation="vertical"
-                >
-                  <EditProfileDialogHeader
-                    avatarUrl={values.base.avatar}
-                    canSave={canSaveProfile}
-                    name={name}
-                    onSave={() => handleSave(submittedValues)}
-                    themeColor={values.base.theme}
-                  />
-                  <EditProfileDialogTabs
-                    canSave={canSaveProfile}
-                    name={name}
-                    onAddressesChange={handleAddressesChange}
-                    onBaseChange={handleBaseChange}
-                    onContactChange={handleContactChange}
-                    onDraftLinkValidationIssuesChange={
-                      setHasDraftLinkValidationIssues
-                    }
-                    onLinksChange={handleLinksChange}
-                    onSave={() => handleSave(submittedValues)}
-                    onSocialChange={handleSocialChange}
-                    owner={owner}
-                    values={values}
-                  />
-                </Tabs>
-              )
-            }}
-          </form.Subscribe>
+          <EditProfileDialogBody
+            form={form}
+            isFinalizingSignedImageSave={isFinalizingSignedImageSave}
+            name={name}
+            onResetSaveState={resetSaveState}
+            onSave={handleSave}
+            onSignedImageUploadComplete={handleSignedImageUploadComplete}
+            open={open}
+            owner={owner}
+            savedRecords={savedRecords}
+            signedImageUploads={signedImageUploads}
+          />
         </EditProfileDialogProvider>
       </DialogContent>
     </Dialog>
