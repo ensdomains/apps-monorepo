@@ -26,7 +26,7 @@ export const AddressPickerPill = ({
         'border-[0.5px] pt-1.5 pr-1.5 pb-1.5 pl-2.5 text-ens-quartz-900 hover:border-[#d4d4d4] hover:bg-ens-quartz-50',
       variant === 'pill' &&
         active &&
-        'border-[#595755] bg-ens-quartz-500 text-white hover:bg-[#504e4b]',
+        'border-ens-quartz-500 bg-ens-quartz-500 text-white hover:bg-[#504e4b]',
       variant === 'pill' && !active && 'border-ens-quartz-200 bg-white',
       variant === 'text' &&
         'border border-transparent bg-transparent pt-1.5 pr-1.5 pb-1.5 pl-2.5 text-ens-quartz-900 hover:text-ens-quartz-500',

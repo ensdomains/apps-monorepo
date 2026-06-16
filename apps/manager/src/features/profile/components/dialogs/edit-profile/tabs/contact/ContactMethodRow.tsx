@@ -84,7 +84,7 @@ export const ContactMethodRow = ({
         aria-label={`Pin ${method.label} as a primary contact method`}
         checked={primary}
         className={cn(
-          'mt-3 h-5 w-10 shrink-0 border border-transparent bg-ens-quartz-300 data-[state=checked]:bg-ens-signal-success-600 [&>span]:size-[17px] [&>span]:data-[state=checked]:translate-x-5',
+          'mt-3 h-5 w-10 shrink-0 border border-transparent bg-ens-quartz-300 data-[state=checked]:bg-ens-signal-success-600 [&>span]:size-4.25 [&>span]:data-[state=checked]:translate-x-5',
           (disabled || primaryDisabled) && 'cursor-not-allowed opacity-60',
         )}
         disabled={disabled || primaryDisabled}

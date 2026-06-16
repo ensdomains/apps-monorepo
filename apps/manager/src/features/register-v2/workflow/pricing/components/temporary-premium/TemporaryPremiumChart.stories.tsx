@@ -102,7 +102,7 @@ function TemporaryPremiumDebugPlayground() {
         <h1 className="font-semibold text-2xl text-ens-quartz-900">
           Temporary premium chart
         </h1>
-        <p className="text-[#737373] text-sm leading-relaxed">
+        <p className="text-ens-quartz-400 text-sm leading-relaxed">
           Same as the HTML reference: polling advances the now target every 2s,
           and the blue dot glides down the curve while the price label tweens.
         </p>

@@ -283,7 +283,7 @@ export const LinksTab = ({
         })}
 
         <button
-          className="flex h-6 min-w-0 items-center gap-[11px] rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50 md:min-w-75"
+          className="flex h-6 min-w-0 items-center gap-2.75 rounded-[15px] p-1 text-[14px] text-ens-quartz-500 leading-[0.96] tracking-[0.07px] transition-colors hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50 md:min-w-75"
           disabled={isSaving}
           onClick={() =>
             setDraftRows((current) => [...current, createDraftRow()])

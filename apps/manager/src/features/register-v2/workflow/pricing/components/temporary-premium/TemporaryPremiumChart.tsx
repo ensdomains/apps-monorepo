@@ -145,7 +145,7 @@ function BelowLabel({
       <div
         className={cn(
           'whitespace-nowrap text-center font-normal font-sans text-xs leading-[1.4] tracking-[-0.132px]',
-          view.isPast ? 'text-ens-lapis-surface italic' : 'text-[#737373]',
+          view.isPast ? 'text-ens-lapis-surface italic' : 'text-ens-quartz-400',
         )}
       >
         {view.isPast ? `was — ${view.topLine}` : view.topLine}
@@ -590,7 +590,7 @@ export function TemporaryPremiumChart({
           />
           {!selectedLabelBelow && (
             <div
-              className="pointer-events-none absolute z-[2]"
+              className="pointer-events-none absolute z-2"
               style={{
                 left: hoverView.leader.labelAnchor.x,
                 top: hoverView.leader.labelAnchor.y,
