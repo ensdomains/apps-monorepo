@@ -11,6 +11,7 @@ import type {
   ProfileImageSize,
 } from './ProfileImageField.types'
 import { ErrorMessage } from './ProfileImageFieldPanels'
+import { BackButton } from './ProfileImageFieldSteps'
 
 const MIN_CROP_ZOOM = 1
 const MAX_CROP_ZOOM = 3
@@ -39,24 +40,6 @@ interface DragState {
   readonly startX: number
   readonly startY: number
 }
-
-const BackButton = ({
-  disabled,
-  onBack,
-}: {
-  readonly disabled?: boolean
-  readonly onBack: () => void
-}) => (
-  <button
-    aria-label="Back to image options"
-    className="absolute top-1.5 left-1.5 flex size-12 items-center justify-center rounded-sm border border-ens-quartz-200 bg-ens-quartz-50 text-ens-quartz-500 transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50"
-    disabled={disabled}
-    onClick={onBack}
-    type="button"
-  >
-    <MSymbol aria-hidden="true" style={{ fontSize: 20 }} symbol="arrow_back" />
-  </button>
-)
 
 export const UploadCropStep = ({
   cropImageSize,
