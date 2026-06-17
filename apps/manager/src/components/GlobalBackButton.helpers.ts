@@ -16,6 +16,19 @@ const isProfileRoute = (pathname: string) =>
   /^\/[^/]+\.[^/]+\/?$/.test(pathname) ||
   /^\/0x[a-fA-F0-9]{40}\/?$/.test(pathname)
 
+const globalBackButtonStaticRoutes: readonly string[] = [
+  '/payment/add',
+  '/payment/list',
+  '/notifications',
+  '/notifications/',
+  '/notifications/settings',
+  '/notifications/settings/',
+  '/auto-renewal',
+  '/auto-renewal/',
+  '/wallet',
+  '/wallet/',
+]
+
 export const getDefaultGlobalBackButtonConfig = (
   pathname: string,
 ): GlobalBackButtonConfig | null => {
@@ -27,17 +40,7 @@ export const getDefaultGlobalBackButtonConfig = (
     return DEFAULT_GLOBAL_BACK_BUTTON_CONFIG
   }
 
-  if (
-    pathname === '/payment/add' ||
-    pathname === '/payment/list' ||
-    pathname === '/notifications' ||
-    pathname === '/notifications/' ||
-    pathname === '/notifications/settings' ||
-    pathname === '/notifications/settings/' ||
-    pathname === '/auto-renewal' ||
-    pathname === '/auto-renewal/' ||
-    pathname === '/wallet'
-  ) {
+  if (globalBackButtonStaticRoutes.includes(pathname)) {
     return DEFAULT_GLOBAL_BACK_BUTTON_CONFIG
   }
 

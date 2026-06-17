@@ -21,6 +21,7 @@ describe('getDefaultGlobalBackButtonConfig', () => {
       '/auto-renewal',
       '/auto-renewal/',
       '/wallet',
+      '/wallet/',
     ]
 
     for (const route of visibleRoutes) {
