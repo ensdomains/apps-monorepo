@@ -11,6 +11,14 @@ const JPEG_QUALITY = 0.9
 
 export type ImageType = 'avatar' | 'header'
 
+export interface PreparedProfileImageUpload {
+  readonly dataURL: string
+  readonly hash: string
+  readonly imageUrl: string
+  readonly kind: ImageType
+  readonly name: string
+}
+
 const fileToDataURL = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -190,6 +198,63 @@ export interface UploadImageMutationOptionsArgs {
   readonly send: (event: ImageSelectionEvent) => void
 }
 
+export const prepareProfileImageUpload = async ({
+  type,
+  name,
+  chainId,
+  file,
+}: {
+  readonly type: ImageType
+  readonly name: string
+  readonly chainId: number | undefined
+  readonly file: File
+}): Promise<PreparedProfileImageUpload> => {
+  const dataURL = await fileToJpegDataURL(file)
+  const imageUrl = getUploadEndpoint({ chainId, name, type })
+
+  return {
+    dataURL,
+    hash: getUploadHash(dataURL),
+    imageUrl,
+    kind: type,
+    name,
+  }
+}
+
+export const submitPreparedProfileImageUpload = async ({
+  upload,
+  address,
+  signTypedDataAsync,
+}: {
+  readonly upload: PreparedProfileImageUpload
+  readonly address: string
+  readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
+}) => {
+  const expiry = `${Date.now() + ONE_WEEK_MS}`
+  const sig = await signImageUpload({
+    expiry,
+    hash: upload.hash,
+    name: upload.name,
+    signTypedDataAsync,
+    type: upload.kind,
+  })
+
+  try {
+    await uploadSignedImage({
+      address,
+      dataURL: upload.dataURL,
+      endpoint: upload.imageUrl,
+      expiry,
+      sig,
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Upload timed out. Please try again.')
+    }
+    throw err
+  }
+}
+
 export const uploadImageMutationOptions = ({
   type,
   name,
@@ -208,30 +273,22 @@ export const uploadImageMutationOptions = ({
       if (!isConnected || !address)
         throw new Error('Please connect your wallet before uploading an image')
 
-      const dataURL = await fileToJpegDataURL(uploadFile)
-      const endpoint = getUploadEndpoint({ chainId, name, type })
-      const expiry = `${Date.now() + ONE_WEEK_MS}`
-      const sig = await signImageUpload({
-        expiry,
-        hash: getUploadHash(dataURL),
+      const upload = await prepareProfileImageUpload({
+        chainId,
+        file: uploadFile,
         name,
-        signTypedDataAsync,
         type,
       })
-
-      try {
-        await uploadSignedImage({ address, dataURL, endpoint, expiry, sig })
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          throw new Error('Upload timed out. Please try again.')
-        }
-        throw err
-      }
+      await submitPreparedProfileImageUpload({
+        address,
+        signTypedDataAsync,
+        upload,
+      })
 
       // Save Avup endpoint as the text record value
-      onImageChange(endpoint)
+      onImageChange(upload.imageUrl)
       setOpen(false)
-      onImageUploadComplete?.(endpoint)
+      onImageUploadComplete?.(upload.imageUrl)
     },
     onError: (error: unknown) => {
       const message =

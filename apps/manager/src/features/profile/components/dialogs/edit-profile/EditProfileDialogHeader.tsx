@@ -9,6 +9,7 @@ import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { getEditProfileDialogHeaderStyle } from './EditProfileDialogHeaderTheme'
 
 interface EditProfileDialogHeaderProps {
+  readonly avatarPreviewUrl?: string
   readonly avatarUrl?: string
   readonly canSave: boolean
   readonly name: string
@@ -17,6 +18,7 @@ interface EditProfileDialogHeaderProps {
 }
 
 export const EditProfileDialogHeader = ({
+  avatarPreviewUrl,
   avatarUrl,
   canSave,
   name,
@@ -26,9 +28,9 @@ export const EditProfileDialogHeader = ({
   const { isSaving } = useEditProfileDialogStatus()
   const resolvedAvatar = useQuery({
     ...parseAvatarQuery(avatarUrl),
-    enabled: !!avatarUrl,
+    enabled: !!avatarUrl && !avatarPreviewUrl,
   })
-  const displayAvatarUrl = resolvedAvatar.data ?? avatarUrl
+  const displayAvatarUrl = avatarPreviewUrl ?? resolvedAvatar.data ?? avatarUrl
 
   return (
     <div
