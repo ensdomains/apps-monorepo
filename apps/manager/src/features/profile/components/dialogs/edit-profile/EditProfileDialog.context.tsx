@@ -28,7 +28,7 @@ export const EditProfileDialogProvider = ({
   </EditProfileDialogContext.Provider>
 )
 
-export const useEditProfileDialogContext = () => {
+const useEditProfileDialogContext = () => {
   const context = use(EditProfileDialogContext)
   if (!context) {
     throw new Error('You used a hook outside of the EditProfileDialogProvider')
@@ -36,7 +36,7 @@ export const useEditProfileDialogContext = () => {
   return context
 }
 
-export const useEditProfileDialogSelector = <T,>(
+const useEditProfileDialogSelector = <T,>(
   selector: (snapshot: EditProfileDialogSnapshot) => T,
   compare?: (a: T, b: T) => boolean,
 ) => {
@@ -47,10 +47,7 @@ export const useEditProfileDialogSelector = <T,>(
 export const useEditProfileDialogStatus = () =>
   useEditProfileDialogSelector(
     (snapshot) => ({
-      errorMessage: snapshot.context.localSaveError,
       isSaving: snapshot.matches({ editing: 'saving' }),
-      isSuccess: snapshot.matches({ editing: 'success' }),
-      txHash: snapshot.context.txHash,
     }),
     shallowEqual,
   )
@@ -63,6 +60,8 @@ export const useEditProfileDialogActions = () => {
 
   return useMemo(
     () => ({
+      showField: (field: GeneralField) =>
+        dialogActor.send({ type: 'SHOW_GENERAL_FIELD', field }),
       toggleField: (field: GeneralField) =>
         dialogActor.send({ type: 'TOGGLE_GENERAL_FIELD', field }),
     }),

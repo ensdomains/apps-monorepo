@@ -1,4 +1,8 @@
-import type { ImageType } from '@/features/profile/service/profileImageUpload'
+import type { Address } from 'viem'
+import type {
+  ImageType,
+  PreparedProfileImageUpload,
+} from '@/features/profile/service/profileImageUpload'
 
 export type ProfileImageKind = ImageType
 
@@ -12,10 +16,9 @@ export interface ProfileImageFieldProps {
   readonly onCancel: () => void
   readonly onImageChange: (imageUrl: string) => void
   readonly onImageRemove: () => void
-  readonly onImageUploadComplete?: (
-    kind: ProfileImageKind,
-    imageUrl: string,
-  ) => void
+  readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
+  readonly owner?: Address
+  readonly preparedImagePreviewUrl?: string
 }
 
 export interface ProfileImageSize {

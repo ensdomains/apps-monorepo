@@ -55,7 +55,7 @@ export const getIsPrimaryContactToggleDisabled = ({
   readonly primaryContactCount: number
 }): boolean => !isPrimary && primaryContactCount >= maxPrimaryContactMethods
 
-export const getPrimaryContactErrorMessage = ({
+const getPrimaryContactErrorMessage = ({
   isPrimary,
   label,
   value,
@@ -83,7 +83,7 @@ export const getContactMethodErrorMessage = ({
     value,
   }) ?? (method.key === 'email' ? validateEmail(value) : undefined)
 
-export interface ContactValidationIssue {
+interface ContactValidationIssue {
   readonly key: ContactMethodKey
   readonly message: string
 }
@@ -100,7 +100,7 @@ const publicContactNoticeMethodKeys: ReadonlySet<ContactMethodKey> = new Set([
   'phone',
 ])
 
-export const publicContactNoticeMessage =
+const publicContactNoticeMessage =
   'Your contact information is publicly viewable on your profile.'
 
 export const getContactMethodNoticeMessage = (
@@ -109,27 +109,6 @@ export const getContactMethodNoticeMessage = (
   publicContactNoticeMethodKeys.has(method.key)
     ? publicContactNoticeMessage
     : undefined
-
-export const getPrimaryContactValidationIssues = (
-  values: ProfileRecords,
-): ContactValidationIssue[] =>
-  parsePrimaryContactKeys(values.base).flatMap((key) => {
-    const method = contactMethods.find(
-      (contactMethod) => contactMethod.key === key,
-    )
-
-    if (!method) {
-      return []
-    }
-
-    const message = getPrimaryContactErrorMessage({
-      isPrimary: true,
-      label: method.label,
-      value: getRecordValue(values, method),
-    })
-
-    return message ? [{ key, message }] : []
-  })
 
 export const getContactValidationIssues = (
   values: ProfileRecords,
@@ -157,7 +136,7 @@ export const getContactValidationIssues = (
 const isContactMethodKey = (key: string): key is ContactMethodKey =>
   contactMethodKeys.has(key as ContactMethodKey)
 
-export const normalizePrimaryContactKeys = (
+const normalizePrimaryContactKeys = (
   keys: readonly string[],
 ): ContactMethodKey[] => {
   const validKeys = keys.filter(isContactMethodKey)

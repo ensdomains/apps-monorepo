@@ -85,6 +85,7 @@ export interface SaveRecordsParams {
   publicClient: PublicClient
   chainId: number
   resolverAddress: Address
+  retryCount?: number
 }
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
@@ -493,7 +494,7 @@ async function buildRecordsUpdateRequest(
 export async function saveRecords(
   params: SaveRecordsParams,
 ): Promise<SaveRecordsResult> {
-  const { publicClient, chainId, ...requestParams } = params
+  const { publicClient, chainId, retryCount, ...requestParams } = params
 
   // Build the transaction request (validates and computes diff)
   const { request, description } = await buildRecordsUpdateRequest({
@@ -519,6 +520,7 @@ export async function saveRecords(
       description,
       publicClient,
       chainId,
+      retryCount,
     },
   )
 

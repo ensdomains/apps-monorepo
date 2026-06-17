@@ -6,8 +6,6 @@ import {
   getContactMethodNoticeMessage,
   getContactValidationIssues,
   getIsPrimaryContactToggleDisabled,
-  getPrimaryContactErrorMessage,
-  getPrimaryContactValidationIssues,
 } from './records'
 
 describe('contact record helpers', () => {
@@ -93,12 +91,12 @@ describe('contact record helpers', () => {
     })
   })
 
-  describe('getPrimaryContactErrorMessage', () => {
+  describe('primary contact error message', () => {
     it('requires a value when a contact method is pinned as primary', () => {
       expect(
-        getPrimaryContactErrorMessage({
+        getContactMethodErrorMessage({
           isPrimary: true,
-          label: 'Twitter',
+          method: getContactMethod('com.twitter'),
           value: '',
         }),
       ).toBe('Add Twitter before pinning it as a primary contact method.')
@@ -106,9 +104,9 @@ describe('contact record helpers', () => {
 
     it('does not return an error for unpinned empty contact methods', () => {
       expect(
-        getPrimaryContactErrorMessage({
+        getContactMethodErrorMessage({
           isPrimary: false,
-          label: 'Twitter',
+          method: getContactMethod('com.twitter'),
           value: '',
         }),
       ).toBeUndefined()
@@ -116,9 +114,9 @@ describe('contact record helpers', () => {
 
     it('does not return an error for pinned contact methods with a value', () => {
       expect(
-        getPrimaryContactErrorMessage({
+        getContactMethodErrorMessage({
           isPrimary: true,
-          label: 'Twitter',
+          method: getContactMethod('com.twitter'),
           value: 'ens',
         }),
       ).toBeUndefined()
@@ -159,10 +157,10 @@ describe('contact record helpers', () => {
     })
   })
 
-  describe('getPrimaryContactValidationIssues', () => {
+  describe('primary contact validation', () => {
     it('returns validation issues for pinned empty primary contact methods', () => {
       expect(
-        getPrimaryContactValidationIssues({
+        getContactValidationIssues({
           addresses: [],
           base: {
             'domains.ens.primary-contacts': JSON.stringify([
@@ -186,7 +184,7 @@ describe('contact record helpers', () => {
 
     it('returns no validation issues when every pinned primary contact has a value', () => {
       expect(
-        getPrimaryContactValidationIssues({
+        getContactValidationIssues({
           addresses: [],
           base: {
             'domains.ens.primary-contacts': JSON.stringify(['com.twitter']),
