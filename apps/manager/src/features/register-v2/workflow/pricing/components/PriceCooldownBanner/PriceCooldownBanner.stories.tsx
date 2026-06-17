@@ -1,83 +1,107 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import { useState } from 'react'
+import { SECONDS_IN_YEAR } from '../../../../utils/time'
+import { buildPriceCooldownBannerProps } from '../../lib/buildPriceCooldownBannerProps'
+import { ORACLE_PRICE_DECIMALS } from '../../lib/oracle'
+import {
+  getPremiumPriceAtInstant,
+  type PremiumDecayConfig,
+} from '../../lib/premiumDecay'
 import {
   PREMIUM_DURATION_MS,
-  pointAtDate,
+  PREMIUM_RESOLUTION,
 } from '../temporary-premium/TemporaryPremiumChart'
 import { PriceCooldownBanner } from './PriceCooldownBanner'
-import type { PriceCooldownBannerProps } from './types'
-import { usePriceCooldownChartSelection } from './usePriceCooldownChartSelection'
+import type { PriceCooldownDemand } from './types'
+import { useTickingNowMs } from './useTickingNowMs'
 
-const mockWindowProgress = 0.22
+// Mirrors the on-chain StandardRentPriceOracle params the app fetches via
+// getOracleParamsQueryOptions, matching the chart's hardcoded curve:
+// $100M start price, daily halving, 21-day window.
+const MS_PER_DAY = 24 * 60 * 60 * 1000
+const MOCK_PREMIUM_DECAY: PremiumDecayConfig = {
+  halvingPeriodMs: MS_PER_DAY,
+  periodMs: PREMIUM_DURATION_MS,
+  startPriceUsd: 100_000_000,
+}
 
-const mockPremiumStartDate = (() => {
-  const nowMs = Date.now()
-  const startMs = Math.round(nowMs - mockWindowProgress * PREMIUM_DURATION_MS)
-  return new Date(startMs)
-})()
+// $8/year base price, expressed as the oracle's USD-per-second rate.
+const MOCK_BASE_RATE_PER_SECOND = BigInt(
+  Math.round((8 * 10 ** ORACLE_PRICE_DECIMALS) / SECONDS_IN_YEAR),
+)
 
-const mockNowPoint = pointAtDate(new Date(), mockPremiumStartDate)
+// How far into the 21-day window the story starts.
+const MOCK_WINDOW_PROGRESS = 0.22
 
-const staticProps = {
-  basePricePerYearLabel: '$8/year',
-  currentPremiumLabel: '$4,720',
-  premiumEndsAtLabel: 'August 28, 2026 at 2:30 PM',
-  periodDays: 21,
-  timezoneLabel: 'UTC-07:00',
-  premiumStartDate: mockPremiumStartDate,
-  nowPoint: mockNowPoint,
-  favoriteCount: 425,
-  searchCount30d: 40,
-} satisfies Omit<
-  PriceCooldownBannerProps,
-  | 'selectedPoint'
-  | 'onSelectedPointChange'
-  | 'targetPriceInput'
-  | 'onTargetPriceInputChange'
-  | 'onTargetPriceInputBlur'
-  | 'targetPriceReachLabel'
->
+type LivePriceCooldownBannerProps = {
+  demand?: PriceCooldownDemand
+  defaultExpanded?: boolean
+}
 
-function InteractivePriceCooldownBanner(
-  props: Omit<
-    PriceCooldownBannerProps,
-    | 'selectedPoint'
-    | 'onSelectedPointChange'
-    | 'targetPriceInput'
-    | 'onTargetPriceInputChange'
-    | 'onTargetPriceInputBlur'
-    | 'targetPriceReachLabel'
-  >,
-) {
-  const {
-    selectedPoint,
-    targetPriceInput,
-    handleSelectedPointChange,
-    handleTargetPriceInputChange,
-    handleTargetPriceInputBlur,
-    targetPriceReachLabel,
-  } = usePriceCooldownChartSelection(props.premiumStartDate, props.nowPoint)
+/**
+ * Live harness copied from `PriceCooldownBannerSection`, minus the
+ * react-query/xstate data layer: same props builder, ticking clock,
+ * fractional `nowPoint`, and per-second premium recomputation — so the
+ * story exercises exactly the temp-premium code paths the app uses.
+ */
+const LivePriceCooldownBanner = ({
+  demand,
+  defaultExpanded,
+}: LivePriceCooldownBannerProps) => {
+  // Anchor the cooldown window once on mount (the section anchors per
+  // label+duration); the chart's x-axis must not crawl between renders.
+  const [premiumStartDate] = useState(
+    () =>
+      new Date(
+        Math.round(Date.now() - MOCK_WINDOW_PROGRESS * PREMIUM_DURATION_MS),
+      ),
+  )
+
+  const nowMs = useTickingNowMs(1_000)
+
+  // Fractional point — integer rounding would freeze the dot for ~28s.
+  const elapsedMs = nowMs - premiumStartDate.getTime()
+  const nowPoint = (elapsedMs / PREMIUM_DURATION_MS) * PREMIUM_RESOLUTION
+
+  const liveCurrentPremiumUsd = getPremiumPriceAtInstant(
+    premiumStartDate.getTime(),
+    nowMs,
+    MOCK_PREMIUM_DECAY,
+  )
+
+  const bannerData = buildPriceCooldownBannerProps({
+    baseRatePerSecond: MOCK_BASE_RATE_PER_SECOND,
+    premiumDecay: MOCK_PREMIUM_DECAY,
+    premiumUsd: liveCurrentPremiumUsd,
+  })
+  if (!bannerData?.show) return null
 
   return (
     <PriceCooldownBanner
-      {...props}
-      onSelectedPointChange={handleSelectedPointChange}
-      onTargetPriceInputBlur={handleTargetPriceInputBlur}
-      onTargetPriceInputChange={handleTargetPriceInputChange}
-      selectedPoint={selectedPoint}
-      targetPriceInput={targetPriceInput}
-      targetPriceReachLabel={targetPriceReachLabel}
+      cooldown={{ ...bannerData.props.cooldown, nowPoint, premiumStartDate }}
+      defaultExpanded={defaultExpanded}
+      demand={demand}
+      fees={{
+        ...bannerData.props.fees,
+        currentPremiumValue: liveCurrentPremiumUsd,
+      }}
     />
   )
 }
 
 const meta = {
   title: 'Register v2/Pricing/Price cooldown/Banner',
-  component: InteractivePriceCooldownBanner,
+  component: LivePriceCooldownBanner,
   parameters: {
     layout: 'padded',
   },
-  args: staticProps,
-} satisfies Meta<typeof InteractivePriceCooldownBanner>
+  args: {
+    demand: {
+      favoriteCount: 425,
+      searchCount30d: 40,
+    },
+  },
+} satisfies Meta<typeof LivePriceCooldownBanner>
 
 export default meta
 

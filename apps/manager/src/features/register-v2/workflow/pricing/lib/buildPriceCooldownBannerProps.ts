@@ -1,7 +1,10 @@
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { SECONDS_IN_YEAR } from '../../../utils/time'
-import type { PriceCooldownBannerProps } from '../components/PriceCooldownBanner/types'
+import type {
+  PriceCooldownFees,
+  PriceCooldownInfo,
+} from '../components/PriceCooldownBanner/types'
 import { formatPremiumDateTimeLocal } from './formatPremiumDateTime'
 import { ORACLE_PRICE_DECIMALS } from './oracle'
 import {
@@ -19,17 +22,12 @@ export type BuildPriceCooldownBannerInput = {
 
 export type BuildPriceCooldownBannerResult = {
   show: boolean
-  props: Omit<
-    PriceCooldownBannerProps,
-    | 'premiumStartDate'
-    | 'nowPoint'
-    | 'selectedPoint'
-    | 'onSelectedPointChange'
-    | 'targetPriceInput'
-    | 'onTargetPriceInputChange'
-    | 'onTargetPriceInputBlur'
-    | 'targetPriceReachLabel'
-  >
+  props: {
+    /** Label-only fees; the live currentPremiumValue is layered on by the section. */
+    fees: Omit<PriceCooldownFees, 'currentPremiumValue'>
+    /** Label-only cooldown copy; premiumStartDate/nowPoint are runtime values. */
+    cooldown: Omit<PriceCooldownInfo, 'premiumStartDate' | 'nowPoint'>
+  }
   premiumRange: PremiumInstantRange | null
   premiumDecay: PremiumDecayConfig
 }
@@ -60,11 +58,15 @@ export function buildPriceCooldownBannerProps({
     premiumRange,
     premiumDecay,
     props: {
-      basePricePerYearLabel: `${formatUsd(Math.ceil(basePricePerYearUsd))}/year`,
-      currentPremiumLabel: formatUsd(premiumUsd),
-      premiumEndsAtLabel: formatPremiumDateTimeLocal(premiumRange.endMs),
-      periodDays,
-      timezoneLabel: getLocalTimezoneLabel(),
+      fees: {
+        basePricePerYearLabel: `${formatUsd(Math.ceil(basePricePerYearUsd))}/year`,
+        currentPremiumLabel: formatUsd(premiumUsd),
+      },
+      cooldown: {
+        premiumEndsAtLabel: formatPremiumDateTimeLocal(premiumRange.endMs),
+        periodDays,
+        timezoneLabel: getLocalTimezoneLabel(),
+      },
     },
   }
 }
