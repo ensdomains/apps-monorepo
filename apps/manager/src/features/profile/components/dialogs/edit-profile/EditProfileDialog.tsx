@@ -40,11 +40,11 @@ export const EditProfileDialog = ({
 
   const {
     handleSave,
-    handleSignedImageUploadComplete,
-    isFinalizingSignedImageSave,
+    handleImageUploadPrepared,
+    isFinalizingImageSave,
     resetSaveState,
-    resetSignedImageSaveState,
-    signedImageUploads,
+    resetPreparedImageSaveState,
+    preparedImageUploads,
   } = useEditProfileDialogSave({
     dialogActor,
     ethAddressChanged,
@@ -58,7 +58,7 @@ export const EditProfileDialog = ({
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
-      resetSignedImageSaveState()
+      resetPreparedImageSaveState()
       form.reset(records)
       dialogActor.send({ type: 'OPEN', records })
       return
@@ -68,7 +68,7 @@ export const EditProfileDialog = ({
       return
     }
 
-    resetSignedImageSaveState()
+    resetPreparedImageSaveState()
     dialogActor.send({ type: 'CLOSE' })
   }
 
@@ -87,15 +87,15 @@ export const EditProfileDialog = ({
         <EditProfileDialogProvider actor={dialogActor}>
           <EditProfileDialogBody
             form={form}
-            isFinalizingSignedImageSave={isFinalizingSignedImageSave}
+            isFinalizingImageSave={isFinalizingImageSave}
             name={name}
+            onImageUploadPrepared={handleImageUploadPrepared}
             onResetSaveState={resetSaveState}
             onSave={handleSave}
-            onSignedImageUploadComplete={handleSignedImageUploadComplete}
             open={open}
             owner={owner}
+            preparedImageUploads={preparedImageUploads}
             savedRecords={savedRecords}
-            signedImageUploads={signedImageUploads}
           />
         </EditProfileDialogProvider>
       </DialogContent>

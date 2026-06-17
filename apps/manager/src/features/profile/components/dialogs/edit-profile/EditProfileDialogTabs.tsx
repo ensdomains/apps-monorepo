@@ -1,10 +1,11 @@
 import { Trans } from '@lingui/react/macro'
-import { AlertCircle, CheckCircle2, Loader2, Menu } from 'lucide-react'
+import { AlertCircle, Loader2, Menu } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { DialogClose } from '@/components/ui/dialog'
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
@@ -13,7 +14,6 @@ import { AddressesTab } from './tabs/addresses/AddressesTab'
 import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
 import { GeneralTab } from './tabs/general/GeneralTab'
-import type { ProfileImageKind } from './tabs/general/ProfileImageField'
 import { LinksTab } from './tabs/links/LinksTab'
 
 const tabs = [
@@ -33,38 +33,15 @@ const EditProfileDialogStatusPanel = () => {
 
   return (
     <div className="px-4 pt-4">
-      {status.kind === 'error' ? (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>
-            <Trans>Could not save profile</Trans>
-          </AlertTitle>
-          <AlertDescription className="whitespace-pre-wrap break-words">
-            {status.message}
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <Alert
-          aria-live="polite"
-          className="border-green-200 bg-green-50 text-green-800 *:data-[slot=alert-description]:text-green-800/90"
-          role="status"
-        >
-          <CheckCircle2 className="size-4" />
-          <AlertTitle>
-            <Trans>Profile saved</Trans>
-          </AlertTitle>
-          <AlertDescription>
-            {status.txHash ? (
-              <p className="break-all">
-                <Trans>Transaction submitted:</Trans>{' '}
-                <span className="font-mono">{status.txHash}</span>
-              </p>
-            ) : (
-              <Trans>Profile updated successfully.</Trans>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert variant="destructive">
+        <AlertCircle className="size-4" />
+        <AlertTitle>
+          <Trans>Could not save profile</Trans>
+        </AlertTitle>
+        <AlertDescription className="whitespace-pre-wrap break-words">
+          {status.message}
+        </AlertDescription>
+      </Alert>
     </div>
   )
 }
@@ -79,10 +56,7 @@ interface EditProfileDialogTabsProps {
     hasValidationIssues: boolean,
   ) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
-  readonly onImageUploadComplete?: (
-    kind: ProfileImageKind,
-    imageUrl: string,
-  ) => void
+  readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly onSave: () => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
@@ -170,7 +144,7 @@ export const EditProfileDialogTabs = ({
   onBaseChange,
   onContactChange,
   onDraftLinkValidationIssuesChange,
-  onImageUploadComplete,
+  onImageUploadPrepared,
   onLinksChange,
   onSave,
   onSocialChange,
@@ -223,7 +197,7 @@ export const EditProfileDialogTabs = ({
               name={name}
               onBaseChange={onBaseChange}
               onContactChange={onContactChange}
-              onImageUploadComplete={onImageUploadComplete}
+              onImageUploadPrepared={onImageUploadPrepared}
               owner={owner}
               values={values}
             />

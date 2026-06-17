@@ -6,7 +6,6 @@ describe('getEditProfileDialogStatus', () => {
     expect(
       getEditProfileDialogStatus({
         errorMessage: 'User rejected the transaction',
-        isSuccess: false,
       }),
     ).toEqual({
       kind: 'error',
@@ -14,15 +13,7 @@ describe('getEditProfileDialogStatus', () => {
     })
   })
 
-  it('keeps the transaction hash available after a successful save', () => {
-    expect(
-      getEditProfileDialogStatus({
-        isSuccess: true,
-        txHash: '0x123',
-      }),
-    ).toEqual({
-      kind: 'success',
-      txHash: '0x123',
-    })
+  it('does not show a status panel after a successful save', () => {
+    expect(getEditProfileDialogStatus({})).toBeUndefined()
   })
 })

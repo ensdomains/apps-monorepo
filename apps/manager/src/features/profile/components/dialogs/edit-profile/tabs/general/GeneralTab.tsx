@@ -2,6 +2,7 @@ import { ChevronDown, Link as LinkIcon } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
+import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
@@ -147,10 +148,7 @@ interface GeneralTabProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
-  readonly onImageUploadComplete?: (
-    kind: ProfileImageKind,
-    imageUrl: string,
-  ) => void
+  readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly owner?: Address
   readonly values: ProfileRecords
 }
@@ -159,7 +157,7 @@ export const GeneralTab = ({
   name,
   onBaseChange,
   onContactChange,
-  onImageUploadComplete,
+  onImageUploadPrepared,
   owner,
   values,
 }: GeneralTabProps) => {
@@ -245,7 +243,7 @@ export const GeneralTab = ({
             onCancel={() => setActiveImageField(null)}
             onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
             onImageRemove={() => setBaseValue('avatar', '')}
-            onImageUploadComplete={onImageUploadComplete}
+            onImageUploadPrepared={onImageUploadPrepared}
             owner={owner}
           />
         )}
@@ -261,7 +259,7 @@ export const GeneralTab = ({
             onCancel={() => setActiveImageField(null)}
             onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
             onImageRemove={() => setBaseValue('header', '')}
-            onImageUploadComplete={onImageUploadComplete}
+            onImageUploadPrepared={onImageUploadPrepared}
           />
         )}
 

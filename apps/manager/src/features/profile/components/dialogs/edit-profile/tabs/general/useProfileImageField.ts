@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { useAccount, useChainId, useSignTypedData } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { uploadImageMutationOptions } from '@/features/profile/service/profileImageUpload'
+import { prepareProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import { profileNftsQuery } from '@/features/profile/service/profileNfts'
 import { inspect } from '@/utils/xstate'
 import {
@@ -23,6 +23,12 @@ import type {
   ProfileImageSize,
 } from './ProfileImageField.types'
 
+const revokeBlobUrl = (url: string | null) => {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+}
+
 export const useProfileImageField = ({
   isActive,
   currentImage,
@@ -33,7 +39,7 @@ export const useProfileImageField = ({
   onCancel,
   onImageChange,
   onImageRemove,
-  onImageUploadComplete,
+  onImageUploadPrepared,
   owner,
 }: ProfileImageFieldProps) => {
   const queryClient = useQueryClient()
@@ -55,10 +61,8 @@ export const useProfileImageField = ({
     enabled: hasImage,
   })
   const displayImage = uploadPreviewUrl || imageQuery.data || currentImage
-  const { address, isConnected } = useAccount()
+  const { address } = useAccount()
   const chainId = useChainId()
-  const { signTypedDataAsync } = useSignTypedData()
-
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
       onImageChange: (url: string, resolvedImage?: string) => {
@@ -109,27 +113,6 @@ export const useProfileImageField = ({
     onCancel()
   }
 
-  const { mutate: uploadImage, isPending: isUploading } = useMutation(
-    uploadImageMutationOptions({
-      type: kind,
-      name,
-      isConnected,
-      address,
-      chainId,
-      signTypedDataAsync,
-      onImageChange,
-      onImageUploadComplete: (imageUrl) =>
-        onImageUploadComplete?.(kind, imageUrl),
-      setOpen: (open) => {
-        if (!open) {
-          resetEditor()
-          onCancel()
-        }
-      },
-      send,
-    }),
-  )
-
   useEffect(() => {
     if (!isActive) {
       send({ type: 'RESET' })
@@ -144,9 +127,7 @@ export const useProfileImageField = ({
 
   useEffect(() => {
     return () => {
-      if (uploadPreviewUrl) {
-        URL.revokeObjectURL(uploadPreviewUrl)
-      }
+      revokeBlobUrl(uploadPreviewUrl)
     }
   }, [uploadPreviewUrl])
 
@@ -172,7 +153,7 @@ export const useProfileImageField = ({
     setCropOffset({ x: 0, y: 0 })
     setCropZoom(1)
     setUploadPreviewUrl((previousUrl) => {
-      if (previousUrl) URL.revokeObjectURL(previousUrl)
+      revokeBlobUrl(previousUrl)
       return URL.createObjectURL(file)
     })
     onActivate()
@@ -274,12 +255,24 @@ export const useProfileImageField = ({
         offset: cropOffset,
         zoom: cropZoom,
       })
+      const upload = await prepareProfileImageUpload({
+        chainId,
+        file: croppedFile,
+        name,
+        type: kind,
+      })
       setUploadFile(croppedFile)
       setUploadPreviewUrl((previousUrl) => {
-        if (previousUrl) URL.revokeObjectURL(previousUrl)
-        return URL.createObjectURL(croppedFile)
+        revokeBlobUrl(previousUrl)
+        return upload.dataURL
       })
-      uploadImage(croppedFile)
+      queryClient.setQueryData(
+        parseAvatarQuery(upload.imageUrl).queryKey,
+        upload.dataURL,
+      )
+      onImageUploadPrepared?.(upload)
+      onImageChange(upload.imageUrl)
+      onCancel()
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to crop image'
@@ -319,13 +312,12 @@ export const useProfileImageField = ({
     hasImage,
     isCropping,
     isLoadingNfts: nftQuery.isFetching,
-    isUploading,
+    isUploading: false,
     nftErrorMessage,
     nftOwnerAddress,
     send,
     state,
     uploadFile,
-    uploadImage,
     uploadPreviewUrl,
   }
 }

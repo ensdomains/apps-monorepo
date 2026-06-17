@@ -49,8 +49,6 @@ export const useEditProfileDialogStatus = () =>
     (snapshot) => ({
       errorMessage: snapshot.context.localSaveError,
       isSaving: snapshot.matches({ editing: 'saving' }),
-      isSuccess: snapshot.matches({ editing: 'success' }),
-      txHash: snapshot.context.txHash,
     }),
     shallowEqual,
   )
