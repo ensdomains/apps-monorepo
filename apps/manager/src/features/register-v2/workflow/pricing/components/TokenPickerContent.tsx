@@ -99,18 +99,6 @@ export const TokenPickerContent = () => {
         return
       }
 
-      console.log(
-        'getManagerRegistrationPostRegistrationSetup',
-        getManagerRegistrationPostRegistrationSetup({
-          ownerAddress: account.ownerAddress,
-          existingPrimaryName,
-        }),
-        {
-          ownerAddress: account.ownerAddress,
-          existingPrimaryName,
-        },
-      )
-
       uiActor.send({
         type: 'registration.start',
         label,
