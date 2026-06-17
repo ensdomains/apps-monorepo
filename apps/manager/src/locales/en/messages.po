@@ -105,7 +105,7 @@ msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible n
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 
-#. placeholder {0}: getErrorMessage(error)
+#. placeholder {0}: errorDisplay.message
 #: src/routes/wallet.tsx
 msgid "<0>Connection failed:</0> {0}"
 msgstr "<0>Connection failed:</0> {0}"

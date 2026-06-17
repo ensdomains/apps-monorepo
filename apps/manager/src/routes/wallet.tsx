@@ -19,6 +19,127 @@ export const Route = createFileRoute('/wallet')({
   ssr: false,
 })
 
+type ErrorTone = 'destructive' | 'secondary' | 'default'
+
+const TONE_STYLES: Record<
+  ErrorTone,
+  { alert: string; text: string; icon: string }
+> = {
+  destructive: {
+    alert: 'border-red-200 bg-red-50',
+    text: 'text-red-800',
+    icon: 'text-red-600',
+  },
+  secondary: {
+    alert: 'border-blue-200 bg-blue-50',
+    text: 'text-blue-800',
+    icon: 'text-blue-600',
+  },
+  default: {
+    alert: 'border-orange-200 bg-orange-50',
+    text: 'text-orange-800',
+    icon: 'text-orange-600',
+  },
+}
+
+// Per wagmi error name: user-facing message + alert tone. Single source of truth
+const CONNECT_ERROR_BY_NAME: Record<
+  string,
+  { message: string; tone: ErrorTone }
+> = {
+  ConnectorAlreadyConnectedError: {
+    message:
+      'This wallet is already connected. Please disconnect first or try a different wallet.',
+    tone: 'secondary',
+  },
+  UserRejectedRequestError: {
+    message:
+      'Connection was rejected. Please approve the connection request in your wallet.',
+    tone: 'default',
+  },
+  ResourceUnavailableRpcError: {
+    message:
+      'Network error. Please check your internet connection and try again.',
+    tone: 'default',
+  },
+  SwitchChainError: {
+    message:
+      'Failed to switch network. Please try switching networks manually in your wallet.',
+    tone: 'destructive',
+  },
+  ChainMismatchError: {
+    message:
+      'Network mismatch. Please ensure your wallet is connected to the correct network.',
+    tone: 'destructive',
+  },
+  InsufficientFundsError: {
+    message:
+      'Insufficient funds for transaction fees. Please add more funds to your wallet.',
+    tone: 'destructive',
+  },
+}
+
+// Fallback matching on the (lowercased) error text when the name isn't known.
+const CONNECT_ERROR_BY_TEXT: ReadonlyArray<{
+  needles: string[]
+  message: string
+}> = [
+  {
+    needles: ['user rejected', 'user denied'],
+    message:
+      'Connection was rejected. Please approve the connection request in your wallet.',
+  },
+  {
+    needles: ['network', 'rpc'],
+    message: 'Network error. Please check your connection and try again.',
+  },
+  {
+    needles: ['timeout', 'timed out'],
+    message: 'Connection timed out. Please try again.',
+  },
+  {
+    needles: ['already connected'],
+    message: 'This wallet is already connected. Please try a different wallet.',
+  },
+  {
+    needles: ['no provider', 'no wallet'],
+    message:
+      'No wallet detected. Please install a wallet extension and refresh the page.',
+  },
+  {
+    needles: ['unsupported chain'],
+    message:
+      'Unsupported network. Please switch to a supported network in your wallet.',
+  },
+]
+
+const describeConnectError = (
+  error: Error | null,
+): { message: string; tone: ErrorTone } => {
+  if (!error) {
+    return {
+      message: 'An unknown error occurred while connecting',
+      tone: 'destructive',
+    }
+  }
+
+  const byName = CONNECT_ERROR_BY_NAME[error.name]
+  if (byName) return byName
+
+  const text = error.message?.toLowerCase() ?? ''
+  const byText = CONNECT_ERROR_BY_TEXT.find(({ needles }) =>
+    needles.some((needle) => text.includes(needle)),
+  )
+  if (byText) return { message: byText.message, tone: 'destructive' }
+
+  return {
+    message:
+      error.message ||
+      'An unexpected error occurred while connecting to your wallet',
+    tone: 'destructive',
+  }
+}
+
 const ConnectMenu = () => {
   const { connect, connectors, error, status, variables } = useConnect()
   const { openConnectModal } = useConnectModal()
@@ -34,111 +155,7 @@ const ConnectMenu = () => {
     connect({ connector })
   }
 
-  // Enhanced error message handling
-  const getErrorMessage = (error: Error | null) => {
-    if (!error) return 'An unknown error occurred while connecting'
-
-    // Handle specific wagmi error types
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return 'This wallet is already connected. Please disconnect first or try a different wallet.'
-    }
-
-    if (error.name === 'UserRejectedRequestError') {
-      return 'Connection was rejected. Please approve the connection request in your wallet.'
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return 'Network error. Please check your internet connection and try again.'
-    }
-
-    if (error.name === 'SwitchChainError') {
-      return 'Failed to switch network. Please try switching networks manually in your wallet.'
-    }
-
-    if (error.name === 'ChainMismatchError') {
-      return 'Network mismatch. Please ensure your wallet is connected to the correct network.'
-    }
-
-    if (error.name === 'InsufficientFundsError') {
-      return 'Insufficient funds for transaction fees. Please add more funds to your wallet.'
-    }
-
-    // Handle common error messages
-    if (error.message) {
-      const message = error.message.toLowerCase()
-
-      if (
-        message.includes('user rejected') ||
-        message.includes('user denied')
-      ) {
-        return 'Connection was rejected. Please approve the connection request in your wallet.'
-      }
-
-      if (message.includes('network') || message.includes('rpc')) {
-        return 'Network error. Please check your connection and try again.'
-      }
-
-      if (message.includes('timeout') || message.includes('timed out')) {
-        return 'Connection timed out. Please try again.'
-      }
-
-      if (message.includes('already connected')) {
-        return 'This wallet is already connected. Please try a different wallet.'
-      }
-
-      if (message.includes('no provider') || message.includes('no wallet')) {
-        return 'No wallet detected. Please install a wallet extension and refresh the page.'
-      }
-
-      if (message.includes('unsupported chain')) {
-        return 'Unsupported network. Please switch to a supported network in your wallet.'
-      }
-    }
-
-    // Fallback to original error message or generic message
-    return (
-      error.message ||
-      'An unexpected error occurred while connecting to your wallet'
-    )
-  }
-
-  const getErrorIcon = (error: Error | null) => {
-    if (!error) return <XCircle className="h-4 w-4 text-red-600" />
-
-    // Different icons for different error types
-    if (error.name === 'UserRejectedRequestError') {
-      return <XCircle className="h-4 w-4 text-orange-600" />
-    }
-
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return <XCircle className="h-4 w-4 text-blue-600" />
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return <XCircle className="h-4 w-4 text-yellow-600" />
-    }
-
-    return <XCircle className="h-4 w-4 text-red-600" />
-  }
-
-  const getErrorVariant = (error: Error | null) => {
-    if (!error) return 'destructive'
-
-    // Different alert variants for different error types
-    if (error.name === 'UserRejectedRequestError') {
-      return 'default' // Less severe - user action
-    }
-
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return 'secondary' // Informational
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return 'default' // Network issues
-    }
-
-    return 'destructive' // Default for other errors
-  }
+  const errorDisplay = error ? describeConnectError(error) : null
 
   return (
     <>
@@ -170,22 +187,14 @@ const ConnectMenu = () => {
         </Alert>
       )}
 
-      {hasError && error && (
-        <Alert
-          className={`mb-6 ${getErrorVariant(error) === 'destructive' ? 'border-red-200 bg-red-50' : getErrorVariant(error) === 'secondary' ? 'border-blue-200 bg-blue-50' : 'border-orange-200 bg-orange-50'}`}
-        >
-          {getErrorIcon(error)}
-          <AlertDescription
-            className={
-              getErrorVariant(error) === 'destructive'
-                ? 'text-red-800'
-                : getErrorVariant(error) === 'secondary'
-                  ? 'text-blue-800'
-                  : 'text-orange-800'
-            }
-          >
+      {hasError && errorDisplay && (
+        <Alert className={`mb-6 ${TONE_STYLES[errorDisplay.tone].alert}`}>
+          <XCircle
+            className={`h-4 w-4 ${TONE_STYLES[errorDisplay.tone].icon}`}
+          />
+          <AlertDescription className={TONE_STYLES[errorDisplay.tone].text}>
             <Trans>
-              <strong>Connection failed:</strong> {getErrorMessage(error)}
+              <strong>Connection failed:</strong> {errorDisplay.message}
             </Trans>
           </AlertDescription>
         </Alert>
