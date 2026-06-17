@@ -84,6 +84,7 @@ export type {
   RegistrationContext,
   RegistrationEvent,
   RegistrationInput,
+  RegistrationPostRegistrationSetup,
 } from './machines/registration/registration.machine'
 export {
   REGISTRATION_TX_IDS,

@@ -4,6 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
+import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
@@ -52,12 +53,20 @@ import {
   SUPPORTED_TOKENS,
 } from '../../contracts/ens-sepolia'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
+import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
+import { waitForTransaction } from '../../helpers/waitForTransaction'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
   RhinestoneTransactionRequest,
   TransactionRequest,
 } from '../../types/transaction.types'
+import {
+  requestEOASignatureActor,
+  submitPrimaryNameUpdateActor,
+  submitPrimaryNameWithSignatureActor,
+  submitReverseUpdateActor,
+} from '../primary-name/primaryName.actors'
 
 type CommitmentData = {
   commitment: Hash
@@ -407,6 +416,146 @@ export function createTransactionRequest(params: {
 
   signer satisfies never
   throw new Error('Unsupported signer type for transaction request')
+}
+
+/**
+ * Set the default ETH address record on the dedicated resolver that was
+ * deployed during registration.
+ *
+ * Future L2 support should add chain-specific coin records alongside coin 60
+ * here, keyed from registration setup config rather than manager-specific
+ * assumptions.
+ */
+export function syncEthAddressRecordActor(input: {
+  name: string
+  ownerAddress: Address
+  resolverAddress: Address
+  signer: Signer
+  accountAddress: Address
+  publicClient: PublicClient
+  chainId: number
+}): ResultAsync<string, Error> {
+  return ResultAsync.fromSafePromise(
+    Promise.resolve().then(async () => {
+      const client = input.publicClient as unknown as Parameters<
+        typeof setRecordsWriteParameters
+      >[0]
+
+      const writeParams = await setRecordsWriteParameters(client, {
+        name: input.name,
+        resolverAddress: input.resolverAddress,
+        coins: [{ coin: 60, value: input.ownerAddress }],
+      })
+
+      const data = encodeFunctionData({
+        abi: writeParams.abi,
+        functionName: writeParams.functionName,
+        args: writeParams.args,
+      } as Parameters<typeof encodeFunctionData>[0])
+
+      const from =
+        input.signer.type === 'eoa'
+          ? input.accountAddress
+          : getSmartAccountAddress(input.signer)
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from,
+        to: input.resolverAddress,
+        data,
+        value: 0n,
+        chainId: input.chainId,
+        calls: [{ to: input.resolverAddress, data, value: 0n }],
+      })
+
+      return transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          description: `Set ETH address record for ${input.name}`,
+          publicClient: input.publicClient,
+          chainId: input.chainId,
+        },
+      )
+    }),
+  ).mapErr((error) => new Error(`Failed to sync ETH address record: ${error}`))
+}
+
+/**
+ * Set the registered name as the owner's primary name.
+ *
+ * For rhinestone flows the owner is the EOA, so we reuse the existing
+ * signature-based primary-name path. Future L2 primary-name support should
+ * branch from here using explicit setup config instead of inferring from
+ * payment method inside transaction-manager.
+ */
+export function submitPrimaryNameSetupActor(input: {
+  name: string
+  signer: Signer
+  approvalSigner?: Signer
+  ownerAddress: Address
+  accountAddress: Address
+  publicClient: PublicClient
+  chainId: number
+}): ResultAsync<string, Error> {
+  const needsSignatureFlow =
+    input.signer.type === 'rhinestone' &&
+    input.ownerAddress.toLowerCase() !== input.accountAddress.toLowerCase()
+
+  if (!needsSignatureFlow) {
+    return submitPrimaryNameUpdateActor({
+      name: input.name,
+      signer: input.signer,
+      accountAddress: input.ownerAddress,
+      publicClient: input.publicClient,
+      chainId: input.chainId,
+    }).andThen((primaryNameTxId) =>
+      fromPromise(
+        waitForTransaction(primaryNameTxId),
+        (error) =>
+          new Error(
+            `Failed while waiting for direct primary-name update: ${error}`,
+          ),
+      ).andThen(() =>
+        submitReverseUpdateActor({
+          name: input.name,
+          signer: input.signer,
+          accountAddress: input.ownerAddress,
+          publicClient: input.publicClient,
+          chainId: input.chainId,
+        }),
+      ),
+    )
+  }
+
+  const approvalSigner = input.approvalSigner
+  if (!approvalSigner || approvalSigner.type !== 'eoa') {
+    return errAsync(
+      new Error(
+        'Primary-name setup requires an EOA approval signer for signature flow',
+      ),
+    )
+  }
+
+  return requestEOASignatureActor({
+    name: input.name,
+    eoaAddress: input.ownerAddress,
+    signatureExpiry: BigInt(Math.floor(Date.now() / 1000) + 60 * 60),
+    coinTypes: [60n],
+    walletClient: approvalSigner.walletClient,
+    registrarAddress: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+  }).andThen(({ signature, signatureExpiry }) =>
+    submitPrimaryNameWithSignatureActor({
+      name: input.name,
+      eoaAddress: input.ownerAddress,
+      signature,
+      signatureExpiry,
+      coinTypes: [60n],
+      signer: input.signer,
+      publicClient: input.publicClient,
+      chainId: input.chainId,
+    }),
+  )
 }
 
 // ============================================================================

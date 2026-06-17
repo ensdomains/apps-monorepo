@@ -3,6 +3,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { inspect } from '@/utils/xstate'
 import {
   getRegistrationV2ChildActor,
   registrationV2UiMachine,
@@ -32,6 +33,7 @@ export const RegistrationV2UiProvider = ({
   const chainId = useChainId()
   const registrationV2UiActor = useActorRef(registrationV2UiMachine, {
     input: { chainId },
+    inspect,
   })
   const registrationActor = useSelector(
     registrationV2UiActor,

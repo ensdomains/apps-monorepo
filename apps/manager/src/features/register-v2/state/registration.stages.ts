@@ -26,6 +26,11 @@ export const REGISTRATION_STAGE_PROGRESS = {
   submittingRhinestoneBundle: 55,
   waitingForRhinestoneBundle: 85,
   verifyingRegistration: 95,
+  postRegistrationSetup: 96,
+  syncingEthRecord: 97,
+  waitingForEthRecordSync: 98,
+  settingPrimaryName: 99,
+  waitingForPrimaryName: 99,
   success: 100,
   error: 0,
 } as const satisfies Record<RegistrationStage, number>

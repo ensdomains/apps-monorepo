@@ -12,6 +12,7 @@ import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { STABLECOINS } from '@/features/register/utils'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
@@ -19,6 +20,7 @@ import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
+import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { truncateName } from '../../../utils/truncate-name'
 import { getPremiumLabel } from '../lib/premiumLabel'
@@ -57,12 +59,20 @@ export const ConfirmPurchase = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async () => {
-      return queryClient.fetchQuery({
-        ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
-        staleTime: 0,
-      })
+      const [existingPrimaryName, availability] = await Promise.all([
+        queryClient.fetchQuery({
+          ...profileReverseNameQuery(account.ownerAddress ?? undefined),
+          staleTime: 0,
+        }),
+        queryClient.fetchQuery({
+          ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
+          staleTime: 0,
+        }),
+      ])
+
+      return { availability, existingPrimaryName }
     },
-    onSuccess: (availability) => {
+    onSuccess: ({ availability, existingPrimaryName }) => {
       if (!pricingQuery.data || !selectedToken) {
         return
       }
@@ -76,6 +86,18 @@ export const ConfirmPurchase = () => {
         return
       }
 
+      console.log(
+        'getManagerRegistrationPostRegistrationSetup',
+        getManagerRegistrationPostRegistrationSetup({
+          ownerAddress: account.ownerAddress,
+          existingPrimaryName,
+        }),
+        {
+          ownerAddress: account.ownerAddress,
+          existingPrimaryName,
+        },
+      )
+
       uiActor.send({
         type: 'registration.start',
         label,
@@ -85,6 +107,10 @@ export const ConfirmPurchase = () => {
         account,
         basePriceNumber: pricingQuery.data.basePriceNumber,
         premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+        postRegistrationSetup: getManagerRegistrationPostRegistrationSetup({
+          ownerAddress: account.ownerAddress,
+          existingPrimaryName,
+        }),
       })
     },
   })
@@ -185,6 +211,14 @@ export const ConfirmPurchaseBase = ({
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         )}
+
+        <p className="text-center text-ens-gray-three text-sm">
+          <Trans>
+            If you don&apos;t already have a primary name, ENS may set this name
+            as your primary name and link it to your connected wallet
+            automatically.
+          </Trans>
+        </p>
       </div>
 
       <Button

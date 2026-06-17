@@ -8,6 +8,8 @@ export type RegisteringTxSnapshot = {
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  ethRecordSyncTxId?: string
+  primaryNameTxId?: string
 }
 
 export type TransactionState = string | undefined
@@ -119,6 +121,32 @@ export const getRegistrationStageMessages = (
     .with({ stage: 'verifyingRegistration' }, () => ({
       stageLabel: msg`Verifying registration on-chain`,
       stageDescription: msg`Confirming the name is now owned by your account`,
+    }))
+    .with({ stage: 'postRegistrationSetup' }, () => ({
+      stageLabel: msg`Finishing setup`,
+      stageDescription: msg`Preparing your newly registered name`,
+    }))
+    .with({ stage: 'syncingEthRecord' }, () => ({
+      stageLabel: msg`Setting ETH address record`,
+      stageDescription: msg`Setting the default wallet address on your name`,
+    }))
+    .with({ stage: 'waitingForEthRecordSync', txState: 'submitting' }, () => ({
+      stageLabel: msg`Submitting ETH address record update`,
+    }))
+    .with({ stage: 'waitingForEthRecordSync' }, () => ({
+      stageLabel: msg`Waiting for ETH address record confirmation`,
+      stageDescription: msg`Waiting for the ETH address record update`,
+    }))
+    .with({ stage: 'settingPrimaryName' }, () => ({
+      stageLabel: msg`Setting primary name`,
+      stageDescription: msg`Setting this name as your primary name`,
+    }))
+    .with({ stage: 'waitingForPrimaryName', txState: 'submitting' }, () => ({
+      stageLabel: msg`Submitting primary name update`,
+    }))
+    .with({ stage: 'waitingForPrimaryName' }, () => ({
+      stageLabel: msg`Waiting for primary name confirmation`,
+      stageDescription: msg`Waiting for the primary name update`,
     }))
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,

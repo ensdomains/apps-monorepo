@@ -10,6 +10,8 @@ import { match, P } from 'ts-pattern'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getManagerRegistrationPostRegistrationSetup } from '@/features/register-v2/state/registrationAutoSetup'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
@@ -72,12 +74,20 @@ export const TokenPickerContent = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async () => {
-      return queryClient.fetchQuery({
-        ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
-        staleTime: 0,
-      })
+      const [existingPrimaryName, availability] = await Promise.all([
+        queryClient.fetchQuery({
+          ...profileReverseNameQuery(account.ownerAddress ?? undefined),
+          staleTime: 0,
+        }),
+        queryClient.fetchQuery({
+          ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
+          staleTime: 0,
+        }),
+      ])
+
+      return { availability, existingPrimaryName }
     },
-    onSuccess: (availability) => {
+    onSuccess: ({ availability, existingPrimaryName }) => {
       if (!pricingQuery.data || !selectedToken) return
 
       if (!availability.isAvailable) {
@@ -89,6 +99,18 @@ export const TokenPickerContent = () => {
         return
       }
 
+      console.log(
+        'getManagerRegistrationPostRegistrationSetup',
+        getManagerRegistrationPostRegistrationSetup({
+          ownerAddress: account.ownerAddress,
+          existingPrimaryName,
+        }),
+        {
+          ownerAddress: account.ownerAddress,
+          existingPrimaryName,
+        },
+      )
+
       uiActor.send({
         type: 'registration.start',
         label,
@@ -98,6 +120,10 @@ export const TokenPickerContent = () => {
         account,
         basePriceNumber: pricingQuery.data.basePriceNumber,
         premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+        postRegistrationSetup: getManagerRegistrationPostRegistrationSetup({
+          ownerAddress: account.ownerAddress,
+          existingPrimaryName,
+        }),
       })
     },
   })

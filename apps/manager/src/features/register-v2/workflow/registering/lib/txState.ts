@@ -11,6 +11,8 @@ const getRegistrationTxHash = (tx: RegisteringTxSnapshot) =>
     .with('waitingForRegistration', () => tx.registrationTxId)
     .with('submittingRhinestoneBundle', () => tx.registrationTxId)
     .with('waitingForRhinestoneBundle', () => tx.registrationTxId)
+    .with('waitingForEthRecordSync', () => tx.ethRecordSyncTxId)
+    .with('waitingForPrimaryName', () => tx.primaryNameTxId)
     .otherwise(() => undefined)
 
 export const useRegistrationTxState = (

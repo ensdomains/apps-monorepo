@@ -16,9 +16,11 @@ import {
   submitApprovalActor,
   submitCommitmentActor,
   submitPermitAndRegistrationActor,
+  submitPrimaryNameSetupActor,
   submitRegistrationActor,
   submitResolverAndCommitmentActor,
   submitResolverDeploymentActor,
+  syncEthAddressRecordActor,
   validateCommitmentActor,
   verifyRegistrationActor,
 } from './registration.actors'
@@ -58,7 +60,24 @@ export const REGISTRATION_TX_IDS = {
   commit: 'tx-reg-commit',
   approve: 'tx-reg-approve',
   register: 'tx-reg-register',
+  syncEthRecord: 'tx-reg-sync-eth-record',
+  setPrimaryName: 'tx-reg-set-primary-name',
 } as const
+
+export type RegistrationPostRegistrationSetup = {
+  primaryName?: {
+    enabled: boolean
+    /**
+     * When true, sync the name's ETH record even if primary-name setup is
+     * disabled. If primary-name setup is enabled, ETH-record sync always runs
+     * first regardless of this flag because forward resolution must match
+     * before reverse resolution can be set safely.
+     */
+    syncEthRecord?: boolean
+    // Future L2 support should extend this shape with the target reverse
+    // registrar chain and coin type rather than inferring from payment path.
+  }
+}
 
 export type RegistrationContext = {
   // Account & client
@@ -103,6 +122,9 @@ export type RegistrationContext = {
   registrationTxId?: string
   registerReadyTimestamp?: number
   registrationStartedAt?: number
+  postRegistrationSetup?: RegistrationPostRegistrationSetup
+  ethRecordSyncTxId?: string
+  primaryNameTxId?: string
 
   // Error state
   error?: Error
@@ -115,6 +137,8 @@ export type RegistrationContext = {
     | 'signingPermit'
     | 'approvingToken'
     | 'registeringDomain'
+    | 'syncingEthRecord'
+    | 'settingPrimaryName'
 }
 
 export type RegistrationEvent =
@@ -137,6 +161,7 @@ export type RegistrationEvent =
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
       sponsored?: boolean
+      postRegistrationSetup?: RegistrationPostRegistrationSetup
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -253,6 +278,32 @@ export const registrationMachine = setup({
         return submitRegistrationActor(input)
       },
     ),
+    syncEthAddressRecord: fromResultAsync(
+      (input: {
+        name: string
+        ownerAddress: Address
+        resolverAddress: Address
+        signer: Signer
+        accountAddress: Address
+        publicClient: PublicClient
+        chainId: number
+      }) => {
+        return syncEthAddressRecordActor(input)
+      },
+    ),
+    submitPrimaryNameSetup: fromResultAsync(
+      (input: {
+        name: string
+        signer: Signer
+        approvalSigner?: Signer
+        ownerAddress: Address
+        accountAddress: Address
+        publicClient: PublicClient
+        chainId: number
+      }) => {
+        return submitPrimaryNameSetupActor(input)
+      },
+    ),
     signPermit: fromResultAsync(
       (input: {
         owner: Address
@@ -323,6 +374,11 @@ export const registrationMachine = setup({
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    needsPrimaryNameSetup: ({ context }) =>
+      context.postRegistrationSetup?.primaryName?.enabled === true,
+    needsEthRecordSync: ({ context }) =>
+      context.postRegistrationSetup?.primaryName?.enabled === true ||
+      context.postRegistrationSetup?.primaryName?.syncEthRecord === true,
   },
 
   actions: {
@@ -354,6 +410,8 @@ export const registrationMachine = setup({
             commitmentTxId: context.commitmentTxId,
             approvalTxId: context.approvalTxId,
             registrationTxId: context.registrationTxId,
+            ethRecordSyncTxId: context.ethRecordSyncTxId,
+            primaryNameTxId: context.primaryNameTxId,
           },
           metadata: {
             chainId: context.chainId,
@@ -440,6 +498,9 @@ export const registrationMachine = setup({
     resolverAddress: undefined,
     resolverTxId: undefined,
     resolverSalt: undefined,
+    postRegistrationSetup: undefined,
+    ethRecordSyncTxId: undefined,
+    primaryNameTxId: undefined,
   }),
 
   states: {
@@ -464,6 +525,7 @@ export const registrationMachine = setup({
               event.ownerAddress ??
               event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
             publicClient: ({ event }) => event.publicClient,
+            postRegistrationSetup: ({ event }) => event.postRegistrationSetup,
             registerReadyTimestamp: () => undefined,
             sponsored: ({ event }) => event.sponsored ?? true,
             resolverAddress: () => undefined,
@@ -474,6 +536,8 @@ export const registrationMachine = setup({
             permit: () => undefined,
             approvalTxId: () => undefined,
             registrationTxId: () => undefined,
+            ethRecordSyncTxId: () => undefined,
+            primaryNameTxId: () => undefined,
           }),
         },
       },
@@ -963,7 +1027,7 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
-        onDone: 'success',
+        onDone: 'postRegistrationSetup',
         onError: {
           target: 'error',
           actions: [
@@ -1205,7 +1269,7 @@ export const registrationMachine = setup({
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
-        onDone: 'success',
+        onDone: 'postRegistrationSetup',
         // If the poll fails (wallet flake, retry storm, persistence loss…)
         // fall back to a fresh on-chain check before declaring the flow
         // failed. The user may have already paid for and received the name.
@@ -1237,7 +1301,7 @@ export const registrationMachine = setup({
         onDone: [
           {
             guard: ({ event }) => event.output.verified,
-            target: 'success',
+            target: 'postRegistrationSetup',
             actions: assign({
               error: () => undefined,
             }),
@@ -1266,6 +1330,175 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Registration transaction failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    postRegistrationSetup: {
+      entry: ['logTransition', 'recordTransition'],
+      always: [
+        {
+          // Future L2 support belongs here by branching into chain-specific
+          // forward/reverse setup, while preserving the invariant that any
+          // primary-name setup must wait for the required forward record write.
+          guard: 'needsEthRecordSync',
+          target: 'syncingEthRecord',
+        },
+        {
+          guard: 'needsPrimaryNameSetup',
+          target: 'settingPrimaryName',
+        },
+        { target: 'success' },
+      ],
+    },
+
+    syncingEthRecord: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'syncEthAddressRecord',
+        input: ({ context }) => ({
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          ownerAddress: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          resolverAddress: context.resolverAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          accountAddress: context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          chainId: context.chainId,
+        }),
+        onDone: {
+          target: 'waitingForEthRecordSync',
+          actions: assign({
+            ethRecordSyncTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'syncingEthRecord' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] ETH record sync submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForEthRecordSync: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+        input: ({ context }) => ({ txId: context.ethRecordSyncTxId! }),
+        onDone: [
+          {
+            guard: 'needsPrimaryNameSetup',
+            target: 'settingPrimaryName',
+          },
+          { target: 'success' },
+        ],
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'syncingEthRecord' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] ETH record sync transaction failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    settingPrimaryName: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'submitPrimaryNameSetup',
+        input: ({ context }) => ({
+          name: context.name,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
+          approvalSigner: context.approvalSigner,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          ownerAddress: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          accountAddress: context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          chainId: context.chainId,
+        }),
+        onDone: {
+          target: 'waitingForPrimaryName',
+          actions: assign({
+            primaryNameTxId: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'settingPrimaryName' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Primary-name setup submission failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForPrimaryName: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'pollTransactionStatus',
+        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+        input: ({ context }) => ({ txId: context.primaryNameTxId! }),
+        onDone: 'success',
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'settingPrimaryName' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Primary-name setup transaction failed:',
                 event.error,
               )
             },
@@ -1311,6 +1544,27 @@ export const registrationMachine = setup({
       ],
       on: {
         RETRY: [
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'settingPrimaryName',
+            target: 'settingPrimaryName',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              primaryNameTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'syncingEthRecord',
+            target: 'syncingEthRecord',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              ethRecordSyncTxId: undefined,
+            })),
+          },
           {
             guard: ({ context }) => context.retryTarget === 'registeringDomain',
             target: 'registeringDomain',

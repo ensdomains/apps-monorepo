@@ -18,6 +18,8 @@ const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
   commitmentTxId: state?.context.commitmentTxId,
   approvalTxId: state?.context.approvalTxId,
   registrationTxId: state?.context.registrationTxId,
+  ethRecordSyncTxId: state?.context.ethRecordSyncTxId,
+  primaryNameTxId: state?.context.primaryNameTxId,
   registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
 }))
 

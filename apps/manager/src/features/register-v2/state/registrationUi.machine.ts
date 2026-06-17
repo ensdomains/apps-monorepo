@@ -1,5 +1,6 @@
 import {
   type RegistrationEvent,
+  type RegistrationPostRegistrationSetup,
   registrationMachine,
   type Signer,
 } from '@ens-apps/transaction-manager'
@@ -78,6 +79,7 @@ type Events =
       basePriceNumber: number
       /** Formatted premium price */
       premiumPriceNumber: number
+      postRegistrationSetup?: RegistrationPostRegistrationSetup
     }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
@@ -248,7 +250,7 @@ const startRegistrationAction = machineSetup.createAction(
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
-        name: event.label,
+        name: `${event.label}.eth`,
         duration: event.duration,
         token: event.token,
         price: event.totalPrice,
@@ -262,6 +264,7 @@ const startRegistrationAction = machineSetup.createAction(
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
             : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true',
+        postRegistrationSetup: event.postRegistrationSetup,
       } satisfies RegistrationEvent),
     )
   }),

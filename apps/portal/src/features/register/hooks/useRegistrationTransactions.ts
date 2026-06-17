@@ -143,6 +143,8 @@ export const useRegistrationTransactions = ({
       accountAddress: connection.address,
       publicClient,
       sponsored: false,
+      // Portal intentionally leaves post-registration setup disabled; manager
+      // opts into auto primary-name setup explicitly via registration config.
     })
   }, [actor, name, duration, publicClient, connection, config, savedParams])
 
