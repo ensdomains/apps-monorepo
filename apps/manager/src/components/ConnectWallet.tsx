@@ -1,9 +1,8 @@
 import { useConnection } from 'wagmi'
 import { useConnectModal } from '@/lib/wallet'
 
-// Disconnected-only connect trigger. The connected-state UI (address, balance,
-// chain) is owned by the Header/account components, not here — `openConnectModal`
-// is undefined once connected, so this renders nothing in that state.
+// Disconnected-only: openConnectModal is undefined once connected, and the
+// connected-state UI lives in the Header.
 export const ConnectWallet = () => {
   const { openConnectModal } = useConnectModal()
   const { isConnected } = useConnection()

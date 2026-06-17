@@ -1,12 +1,8 @@
 import type { QueryClientProvider } from '@tanstack/react-query'
 import { RainbowKitStack } from './stacks/RainbowKitStack'
 
-/**
- * The wallet layer. Mounts the wallet stack (RainbowKit) and renders `children`
- * inside it. The stack exposes a wagmi context + fills WalletUiContext, so the
- * rest of the app reads the wallet through the vendor-agnostic seam
- * (useConnectModal / useWalletUi) without knowing the vendor.
- */
+// Thin entry for the wallet layer — mounts the vendor stack (RainbowKit today)
+// so a second vendor can slot in here without touching RootProviders.
 export const WalletProvider = ({
   queryClient,
   children,

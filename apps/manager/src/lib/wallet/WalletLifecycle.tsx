@@ -14,11 +14,8 @@ const clearAppLocalStorage = () => {
   }
 }
 
-/**
- * Cross-cutting wallet lifecycle: drop stale backend auth + transactions on an
- * account switch, and tear everything down on disconnect. Vendor-agnostic —
- * keyed off wagmi's connection. Renders nothing.
- */
+// Drops stale backend auth + transactions on an account switch, and tears
+// everything down on disconnect. Renders nothing.
 export const WalletLifecycle = () => {
   const { address } = useConnection()
 

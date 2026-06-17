@@ -13,9 +13,8 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
   })
 
   return (
-    // WalletProvider owns wagmi + the wallet vendor (RainbowKit); everything
-    // inside it reads the wallet through the vendor-agnostic seam. PHProvider
-    // (inside the stack) owns PostHog + analytics.
+    // WalletProvider owns wagmi + the vendor; everything inside reads the
+    // wallet through the seam.
     <I18nProvider i18n={i18n}>
       <WalletProvider queryClient={queryClient}>
         <ConnectionCookieSync />

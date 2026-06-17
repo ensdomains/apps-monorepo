@@ -9,14 +9,13 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { WalletUiProvider, type WalletUiValue } from '../WalletUiContext'
 import '@rainbow-me/rainbowkit/styles.css'
 
-// Fills WalletUiContext for the RainbowKit stack: RainbowKit's own modal drives
-// connect; there's no embedded-wallet sync gap, so ready=true / syncing=false.
+// RainbowKit's own modal drives connect, and there's no async vendor init, so
+// ready/syncing are constant.
 const RainbowKitWalletUi = ({ children }: { children: React.ReactNode }) => {
   const { openConnectModal, connectModalOpen } = useRainbowConnectModal()
   const { mutateAsync: disconnectAsync } = useDisconnect()
 
-  // Memoized so the context value is referentially stable across unrelated
-  // re-renders (the Provider re-renders all consumers on identity change).
+  // Memoized: the Provider re-renders all consumers when this value's identity changes.
   const value = useMemo<WalletUiValue>(
     () => ({
       openConnectModal,
@@ -33,7 +32,6 @@ const RainbowKitWalletUi = ({ children }: { children: React.ReactNode }) => {
   return <WalletUiProvider value={value}>{children}</WalletUiProvider>
 }
 
-/** Default wallet stack: wagmi + RainbowKit (external EOA wallets). */
 export const RainbowKitStack = ({
   queryClient,
   children,

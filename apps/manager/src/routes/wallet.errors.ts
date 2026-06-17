@@ -5,7 +5,7 @@ export type ConnectErrorDisplay = {
   tone: ErrorTone
 }
 
-// Per wagmi error name: user-facing message + alert tone. Single source of truth
+// Per wagmi error name → message + alert tone.
 const CONNECT_ERROR_BY_NAME: Record<string, ConnectErrorDisplay> = {
   ConnectorAlreadyConnectedError: {
     message:
