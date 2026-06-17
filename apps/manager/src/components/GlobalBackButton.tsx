@@ -14,7 +14,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { twm } from '@/utils/tailwind'
 import {
   type GlobalBackButtonConfig,
-  getDefaultGlobalBackButtonConfig,
+  resolveGlobalBackButtonConfig,
 } from './GlobalBackButton.helpers'
 
 interface GlobalBackButtonContextValue {
@@ -64,11 +64,19 @@ export const GlobalBackButtonProvider = ({
 
 export const useGlobalBackButton = (config: GlobalBackButtonConfig | null) => {
   const { setBackButtonConfig } = useGlobalBackButtonContext()
+  const hasConfig = config !== null
   const className = config?.className
   const fallbackPath = config?.fallbackPath ?? '/'
   const isVisible = config?.isVisible ?? false
 
   useEffect(() => {
+    const clearBackButtonConfig = () => setBackButtonConfig(null)
+
+    if (!hasConfig) {
+      clearBackButtonConfig()
+      return clearBackButtonConfig
+    }
+
     setBackButtonConfig(
       isVisible
         ? {
@@ -76,21 +84,18 @@ export const useGlobalBackButton = (config: GlobalBackButtonConfig | null) => {
             fallbackPath,
             isVisible: true,
           }
-        : null,
+        : { isVisible: false },
     )
 
-    return () => {
-      setBackButtonConfig(null)
-    }
-  }, [className, fallbackPath, isVisible, setBackButtonConfig])
+    return clearBackButtonConfig
+  }, [className, fallbackPath, hasConfig, isVisible, setBackButtonConfig])
 }
 
 export const useResolvedGlobalBackButtonConfig = () => {
   const { backButtonConfig } = useGlobalBackButtonContext()
   const { pathname } = useLocation()
-  const defaultConfig = getDefaultGlobalBackButtonConfig(pathname)
 
-  return backButtonConfig ?? defaultConfig
+  return resolveGlobalBackButtonConfig({ config: backButtonConfig, pathname })
 }
 
 export const GlobalBackButton = () => {

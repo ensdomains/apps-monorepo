@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getDefaultGlobalBackButtonConfig } from './GlobalBackButton.helpers'
+import {
+  getDefaultGlobalBackButtonConfig,
+  resolveGlobalBackButtonConfig,
+} from './GlobalBackButton.helpers'
 
 describe('getDefaultGlobalBackButtonConfig', () => {
   it('enables global back on static detail routes', () => {
@@ -49,5 +52,16 @@ describe('getDefaultGlobalBackButtonConfig', () => {
     for (const route of hiddenRoutes) {
       expect(getDefaultGlobalBackButtonConfig(route)).toBeNull()
     }
+  })
+})
+
+describe('resolveGlobalBackButtonConfig', () => {
+  it('uses an explicit hidden config instead of a route default', () => {
+    expect(
+      resolveGlobalBackButtonConfig({
+        config: { isVisible: false },
+        pathname: '/example.eth',
+      }),
+    ).toEqual({ isVisible: false })
   })
 })

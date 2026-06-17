@@ -46,3 +46,12 @@ export const getDefaultGlobalBackButtonConfig = (
 
   return null
 }
+
+export const resolveGlobalBackButtonConfig = ({
+  config,
+  pathname,
+}: {
+  readonly config: GlobalBackButtonConfig | null
+  readonly pathname: string
+}): GlobalBackButtonConfig | null =>
+  config ?? getDefaultGlobalBackButtonConfig(pathname)
