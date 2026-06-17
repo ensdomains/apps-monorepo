@@ -8,7 +8,7 @@ const DEFAULT_LIMIT = 40
 const DEFAULT_CHAIN_ID = 11155111
 const DEV_ALCHEMY_API_KEY = 'demo'
 const IPFS_HTTP_GATEWAY = 'https://ipfs.euc.li/ipfs/'
-const SUPPORTED_NFT_CHAIN_IDS = [1, 11155111] as const
+const SUPPORTED_NFT_CHAIN_IDS = [11155111] as const
 
 type SupportedNftChainId = (typeof SUPPORTED_NFT_CHAIN_IDS)[number]
 type TokenStandard = 'erc721' | 'erc1155'
@@ -70,8 +70,7 @@ const getAlchemyApiKey = () => {
   return DEV_ALCHEMY_API_KEY
 }
 
-const resolveAlchemyNetwork = (chainId: SupportedNftChainId) =>
-  chainId === 1 ? 'eth-mainnet' : 'eth-sepolia'
+const resolveAlchemyNetwork = (_chainId: SupportedNftChainId) => 'eth-sepolia'
 
 const getTokenStandard = (
   tokenType: string | null | undefined,
@@ -136,11 +135,9 @@ export const buildAlchemyNftsEndpoint = ({
 }
 
 export const getNftChainPriority = (
-  chainId: number | undefined,
+  _chainId: number | undefined,
 ): readonly SupportedNftChainId[] => {
-  if (chainId === 1) return [1, 11155111]
-  if (chainId === 11155111) return [11155111, 1]
-  return [11155111, 1]
+  return [11155111]
 }
 
 export const mapAlchemyNftsToAvatarNfts = ({

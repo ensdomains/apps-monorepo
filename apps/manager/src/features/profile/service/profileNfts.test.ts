@@ -24,10 +24,10 @@ describe('profile NFT helpers', () => {
     )
   })
 
-  it('prioritizes the connected supported chain before the fallback chain', () => {
-    expect(getNftChainPriority(1)).toEqual([1, 11155111])
-    expect(getNftChainPriority(11155111)).toEqual([11155111, 1])
-    expect(getNftChainPriority(8453)).toEqual([11155111, 1])
+  it('uses Sepolia only for NFT lookup', () => {
+    expect(getNftChainPriority(1)).toEqual([11155111])
+    expect(getNftChainPriority(11155111)).toEqual([11155111])
+    expect(getNftChainPriority(8453)).toEqual([11155111])
   })
 
   it('maps supported Alchemy NFTs to ENS avatar records and filters unusable NFTs', () => {
