@@ -41,6 +41,7 @@ type EditProfileDialogEvent =
   | { type: 'OPEN'; records: ProfileRecords }
   | { type: 'CLOSE' }
   | { type: 'RESET_SAVE_STATE' }
+  | { type: 'SHOW_GENERAL_FIELD'; field: GeneralField }
   | { type: 'TOGGLE_GENERAL_FIELD'; field: GeneralField }
   | { type: 'SAVE_REQUESTED'; values: ProfileRecords; deps: SaveDeps }
   | {
@@ -139,6 +140,18 @@ export const editProfileDialogMachine = setup({
       pendingSave: () => undefined,
       txHash: () => undefined,
     }),
+    showGeneralField: assign({
+      visibleFields: ({ context, event }) => {
+        if (
+          event.type !== 'SHOW_GENERAL_FIELD' ||
+          context.visibleFields.has(event.field)
+        ) {
+          return context.visibleFields
+        }
+
+        return new Set(context.visibleFields).add(event.field)
+      },
+    }),
     toggleGeneralField: assign({
       visibleFields: ({ context, event }) => {
         if (event.type !== 'TOGGLE_GENERAL_FIELD') {
@@ -231,6 +244,9 @@ export const editProfileDialogMachine = setup({
         RESET_SAVE_STATE: {
           target: '.idle',
           actions: 'clearSaveState',
+        },
+        SHOW_GENERAL_FIELD: {
+          actions: 'showGeneralField',
         },
         SAVE_FAILED: {
           target: '.error',

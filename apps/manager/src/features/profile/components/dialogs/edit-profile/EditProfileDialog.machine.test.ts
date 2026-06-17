@@ -20,4 +20,17 @@ describe('editProfileDialogMachine', () => {
     expect(snapshot.matches({ editing: 'error' })).toBe(true)
     expect(snapshot.context.localSaveError).toBe('Image cache refresh failed')
   })
+
+  it('can show a general field without toggling it back off', () => {
+    const actor = createActor(editProfileDialogMachine, {
+      input: { records: defaultProfileRecords },
+    })
+    actor.start()
+    actor.send({ type: 'OPEN', records: defaultProfileRecords })
+
+    actor.send({ type: 'SHOW_GENERAL_FIELD', field: 'name' })
+    actor.send({ type: 'SHOW_GENERAL_FIELD', field: 'name' })
+
+    expect(actor.getSnapshot().context.visibleFields.has('name')).toBe(true)
+  })
 })

@@ -162,7 +162,7 @@ export const GeneralTab = ({
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const visibleFields = useEditProfileVisibleFields()
-  const { toggleField } = useEditProfileDialogActions()
+  const { showField, toggleField } = useEditProfileDialogActions()
   const [activeImageField, setActiveImageField] =
     useState<ProfileImageKind | null>(null)
   const isVisible = (field: GeneralField) => visibleFields.has(field)
@@ -264,7 +264,10 @@ export const GeneralTab = ({
         <input
           className={cn(fieldClassName, !isVisible('name') && 'md:hidden')}
           disabled={isSaving}
-          onChange={(event) => setBaseValue('name', event.target.value)}
+          onChange={(event) => {
+            showField('name')
+            setBaseValue('name', event.target.value)
+          }}
           placeholder="Full name"
           value={values.base.name ?? ''}
         />

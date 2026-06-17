@@ -63,6 +63,8 @@ export const useEditProfileDialogActions = () => {
 
   return useMemo(
     () => ({
+      showField: (field: GeneralField) =>
+        dialogActor.send({ type: 'SHOW_GENERAL_FIELD', field }),
       toggleField: (field: GeneralField) =>
         dialogActor.send({ type: 'TOGGLE_GENERAL_FIELD', field }),
     }),
