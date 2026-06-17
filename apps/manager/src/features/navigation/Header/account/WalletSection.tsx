@@ -1,7 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
-import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
@@ -23,17 +22,11 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       state.context.authKey === undefined &&
       state.context.modalDismissed === true,
   )
-  const disconnect = useWalletDisconnect()
-  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const { disconnect, isDisconnecting } = useWalletDisconnect()
 
   const handleDisconnect = async () => {
-    setIsDisconnecting(true)
-    try {
-      await disconnect()
-    } finally {
-      setIsDisconnecting(false)
-      onAction()
-    }
+    await disconnect()
+    onAction()
   }
 
   return (

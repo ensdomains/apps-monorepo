@@ -178,7 +178,7 @@ const ConnectMenu = () => {
 }
 
 const DisconnectMenu = () => {
-  const disconnect = useWalletDisconnect()
+  const { disconnect } = useWalletDisconnect()
   const { address, connector } = useConnection()
 
   const formatAddress = (addr: string) => {
