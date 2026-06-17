@@ -13,7 +13,7 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const { pathname } = useLocation()
   const isMigrationPage = pathname === '/migration'
-  const showSepoliaBanner = !isMigrationPage
+  const isSepoliaBannerVisible = !isMigrationPage
 
   return (
     <div
@@ -27,7 +27,9 @@ export const Layout = ({ children }: LayoutProps) => {
 
       <GlobalBackButtonProvider>
         <main className="relative isolate flex flex-1 flex-col">
-          <LayoutBackAndNoticeRow showSepoliaBanner={showSepoliaBanner} />
+          <LayoutBackAndNoticeRow
+            isSepoliaBannerVisible={isSepoliaBannerVisible}
+          />
           {children}
         </main>
       </GlobalBackButtonProvider>

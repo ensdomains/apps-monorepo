@@ -6,14 +6,14 @@ import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { tw } from '@/utils/tailwind'
 
 export const LayoutBackAndNoticeRow = ({
-  showSepoliaBanner,
+  isSepoliaBannerVisible,
 }: {
-  readonly showSepoliaBanner: boolean
+  readonly isSepoliaBannerVisible: boolean
 }) => {
   const backButtonConfig = useResolvedGlobalBackButtonConfig()
-  const showBackButton = Boolean(backButtonConfig?.isVisible)
+  const isBackButtonVisible = Boolean(backButtonConfig?.isVisible)
 
-  if (!showBackButton && !showSepoliaBanner) {
+  if (!isBackButtonVisible && !isSepoliaBannerVisible) {
     return null
   }
 
@@ -22,14 +22,14 @@ export const LayoutBackAndNoticeRow = ({
       <div
         className={tw(
           'flex justify-start md:pl-3',
-          !showBackButton && 'hidden md:block',
+          !isBackButtonVisible && 'hidden md:block',
         )}
       >
         <GlobalBackButton />
       </div>
-      {showSepoliaBanner && (
+      {isSepoliaBannerVisible && (
         <SepoliaNoticeBanner
-          className={tw(!showBackButton && 'col-span-2 md:col-span-1')}
+          className={tw(!isBackButtonVisible && 'col-span-2 md:col-span-1')}
         />
       )}
       <div aria-hidden className="hidden md:block" />
