@@ -35,6 +35,10 @@ function parseTargetPriceInput(raw: string): number | null {
 // "no user selection yet" — only `now` is shown on first load.
 const NO_SELECTION = -1
 
+export type PriceCooldownChartSelection = ReturnType<
+  typeof usePriceCooldownChartSelection
+>
+
 export function usePriceCooldownChartSelection(
   premiumStartDate: Date,
   nowPoint: number,

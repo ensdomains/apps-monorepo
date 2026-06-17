@@ -1,5 +1,7 @@
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { getAddressRecordDef } from '@/features/profile/data/records'
 import type { AddressRecordValue } from '@/features/profile/types'
+import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import {
   type AddressOption,
   BNB_COIN_TYPE,
@@ -66,6 +68,24 @@ export const removeAddress = (
 ): AddressRecordValue[] =>
   addresses.filter((address) => address.coinType !== coinType)
 
+export interface AddressValidationIssue {
+  readonly coinType: number
+  readonly message: string
+}
+
+export const getAddressValidationErrorMessage = (
+  coinType: number,
+  value: string,
+): string | undefined => validateAddressRecordValue(coinType, value)
+
+export const getAddressValidationIssues = (
+  addresses: readonly AddressRecordValue[],
+): AddressValidationIssue[] =>
+  normalizeAddressRows(addresses).flatMap(({ coinType, value }) => {
+    const message = getAddressValidationErrorMessage(coinType, value)
+    return message ? [{ coinType, message }] : []
+  })
+
 export const applyEthAddressChange = (
   addresses: readonly AddressRecordValue[],
   currentEthAddress: string,
@@ -93,6 +113,29 @@ export const getRecordIcon = (coinType: number) => {
     return getAddressRecordDef(BNB_COIN_TYPE)?.icon
   }
   return undefined
+}
+
+const getComparableEvmAddress = (value: string): Address | null => {
+  const trimmedValue = value.trim()
+  const normalizedValue = trimmedValue.replace(/^0X/, '0x')
+
+  return isAddress(normalizedValue, { strict: false })
+    ? (normalizedValue as Address)
+    : null
+}
+
+const isChainSpecificEvmAddress = (value: string, ethAddress: string) => {
+  const trimmedValue = value.trim()
+  if (trimmedValue === '') return false
+
+  const addressValue = getComparableEvmAddress(trimmedValue)
+  const defaultAddressValue = getComparableEvmAddress(ethAddress)
+
+  if (addressValue && defaultAddressValue) {
+    return !isAddressEqual(addressValue, defaultAddressValue)
+  }
+
+  return trimmedValue !== ethAddress.trim()
 }
 
 interface GetVisibleAddressOptionsParams {
@@ -145,7 +188,7 @@ export const getAddressDisplayState = ({
   })
   const customEvmOptions = evmOptions.filter((option) => {
     const value = getAddressValue(addresses, option.coinType)
-    return value.trim() !== '' && value !== ethAddress
+    return isChainSpecificEvmAddress(value, ethAddress)
   })
   const visibleEvmChipOptions = evmOptions.filter(
     (option) =>

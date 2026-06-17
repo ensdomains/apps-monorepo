@@ -46,15 +46,15 @@ export const ChartValuePill = ({
 }: ChartValuePillProps) => (
   <div
     className={cn(
-      'inline-flex min-w-[71px] flex-col items-center justify-center gap-0.5',
-      'rounded-[12px] border-[0.4px] border-ens-lapis-100 bg-white p-1.5',
+      'inline-flex min-w-17.75 flex-col items-center justify-center gap-0.5',
+      'rounded-xl border-[0.4px] border-ens-lapis-100 bg-white p-1.5',
       variant === 'hover' && 'opacity-75',
       className,
     )}
   >
     <span
       className={cn(
-        'text-center font-normal font-sans text-[12px] leading-normal tracking-[-0.132px]',
+        'text-center font-normal font-sans text-xs leading-normal tracking-[-0.132px]',
         isPast && 'italic',
         LABEL_COLOR_BY_VARIANT[variant],
       )}

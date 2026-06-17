@@ -7,12 +7,46 @@ import walletIconSvg from '../assets/fonts/og/wallet-icon.svg?raw'
 import { buildOgFontList, loadOgFonts, type OgFonts } from './fonts'
 import { truncate, truncateAddress } from './routing'
 
+const matchHtmlRegExp = /["'&<>]/
+
 export function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
+  const match = matchHtmlRegExp.exec(str)
+
+  if (!match) return String(str)
+
+  let escapeChar: string
+  let html = ''
+  let index = 0
+  let lastIndex = 0
+
+  for (index = match.index; index < str.length; index++) {
+    switch (str.charCodeAt(index)) {
+      case 34: // "
+        escapeChar = '&quot;'
+        break
+      case 38: // &
+        escapeChar = '&amp;'
+        break
+      case 39: // '
+        escapeChar = '&#39;'
+        break
+      case 60: // <
+        escapeChar = '&lt;'
+        break
+      case 62: // >
+        escapeChar = '&gt;'
+        break
+      default:
+        continue
+    }
+
+    if (lastIndex !== index) html += str.substring(lastIndex, index)
+
+    lastIndex = index + 1
+    html += escapeChar
+  }
+
+  return lastIndex !== index ? html + str.substring(lastIndex, index) : html
 }
 
 const NAME_SUBPAGE_LABELS: Record<string, string> = {
@@ -113,7 +147,7 @@ export async function renderOgImage(
       : `<div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; display: flex; align-items: center; justify-content: center; color: white; font-size: 48px; font-weight: 500; font-family: 'OgSemiMono', ui-monospace, monospace;">${escapeHtml(name.charAt(0).toUpperCase())}</div>`
 
     html = `
-    <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px; box-sizing: border-box;">
+    <div style="position: relative; width: 100%; height: 100%; background: #ECECEC; display: flex; align-items: center; justify-content: center; padding: 100px 75px; box-sizing: border-box;">
       <div style="display: flex; align-items: center; gap: 48px; width: 100%;">
         <div style="width: 140px; height: 140px; border-radius: 8px; background: #0082BB; overflow: hidden; flex-shrink: 0; display: flex;">${avatarHtml}</div>
         <div style="display: flex; flex-direction: column; gap: 20px; color: #191919; min-width: 0; flex: 1;">

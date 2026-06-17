@@ -15,6 +15,9 @@ import {
 } from './constants'
 import {
   getBaseWithPrimaryContactKeys,
+  getContactMethodErrorMessage,
+  getContactMethodNoticeMessage,
+  getIsPrimaryContactToggleDisabled,
   getRecordsForMethod,
   getRecordValue,
   hasRecord,
@@ -108,10 +111,6 @@ export const ContactTab = ({
   const handleValueChange = (method: ContactMethod, value: string) => {
     const records = getRecordsForMethod(values, method)
     updateRecords(method, upsertRecordValue(records, method.key, value))
-
-    if (value.trim() === '') {
-      removePrimaryContact(method)
-    }
   }
 
   const handlePrimaryChange = (method: ContactMethod, checked: boolean) => {
@@ -121,7 +120,6 @@ export const ContactTab = ({
     }
 
     if (
-      !getRecordValue(values, method).trim() ||
       primaryContactKeys.includes(method.key) ||
       primaryContactKeys.length >= maxPrimaryContactMethods
     ) {
@@ -139,7 +137,7 @@ export const ContactTab = ({
         </p>
         <p className="text-[16px] text-ens-quartz-400 leading-[1.2]">
           Add the places people can find or reach you. Toggle up to 3 as your
-          primary contact methods - these get pinned to the top of your profile.
+          primary contact methods — these get pinned to the top of your profile.
         </p>
       </div>
 
@@ -167,7 +165,7 @@ export const ContactTab = ({
       </div>
 
       <div className="flex flex-col gap-3 overflow-hidden">
-        <p className="w-full text-right text-[12px] text-ens-signal-success-700 leading-[1.2]">
+        <p className="w-full text-right text-ens-signal-success-700 text-xs leading-[1.2]">
           {selectedPrimaryContactCount}/{maxPrimaryContactMethods} selected
         </p>
 
@@ -184,23 +182,22 @@ export const ContactTab = ({
               <div className="flex flex-col gap-3" key={method.key}>
                 <ContactMethodRow
                   disabled={isSaving}
+                  errorMessage={getContactMethodErrorMessage({
+                    isPrimary: primary,
+                    method,
+                    value,
+                  })}
                   method={method}
+                  noticeMessage={getContactMethodNoticeMessage(method)}
                   onPrimaryChange={handlePrimaryChange}
                   onValueChange={handleValueChange}
                   primary={primary}
-                  primaryDisabled={
-                    !primary &&
-                    (value.trim() === '' ||
-                      primaryContactKeys.length >= maxPrimaryContactMethods)
-                  }
+                  primaryDisabled={getIsPrimaryContactToggleDisabled({
+                    isPrimary: primary,
+                    primaryContactCount: primaryContactKeys.length,
+                  })}
                   value={value}
                 />
-                {method.key === 'email' ? (
-                  <p className="text-[16px] text-black leading-[1.2]">
-                    Your contact information is publicly viewable on your
-                    profile.
-                  </p>
-                ) : null}
               </div>
             )
           })

@@ -19,6 +19,7 @@ import {
   PhoneIcon,
 } from 'lucide-react'
 import { LinkedInIcon } from '../../components/icons/LinkedInIcon'
+import { createSocialProfileValueNormalizer } from './social'
 import type { SectionData, TextRecordDef } from './types'
 
 export const specialSections = ['contact'] as const
@@ -49,6 +50,9 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://x.com/',
     kind: 'link',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['x.com', 'twitter.com'],
+    }),
     icon: SiX,
   },
   {
@@ -59,6 +63,9 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://t.me/',
     kind: 'link',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['t.me', 'telegram.me'],
+    }),
     icon: SiTelegram,
   },
   {
@@ -69,6 +76,9 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://farcaster.xyz/',
     kind: 'link',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['farcaster.xyz'],
+    }),
     icon: SiFarcaster,
   },
   {
@@ -78,6 +88,9 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     kind: 'link',
     href: 'https://instagram.com/',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['instagram.com'],
+    }),
     icon: SiInstagram,
   },
   {
@@ -95,6 +108,9 @@ export const textRecords: TextRecordDef[] = [
     kind: 'link',
     href: 'https://github.com/',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['github.com'],
+    }),
     icon: SiGithub,
   },
   {
@@ -103,6 +119,10 @@ export const textRecords: TextRecordDef[] = [
     name: 'LinkedIn',
     href: 'https://www.linkedin.com/in/',
     kind: 'link',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['linkedin.com'],
+      pathPrefixes: ['in'],
+    }),
     icon: LinkedInIcon,
   },
   {
@@ -120,6 +140,10 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: 'u/',
     kind: 'link',
     href: 'https://reddit.com/user/',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['reddit.com'],
+      pathPrefixes: ['user'],
+    }),
     icon: SiReddit,
   },
   {
@@ -129,6 +153,9 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     kind: 'link',
     href: 'https://www.tiktok.com/@',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['tiktok.com'],
+    }),
     icon: SiTiktok,
   },
   {
@@ -137,6 +164,9 @@ export const textRecords: TextRecordDef[] = [
     name: 'Twitch',
     kind: 'link',
     href: 'https://twitch.tv/',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['twitch.tv'],
+    }),
     icon: SiTwitch,
   },
   {
