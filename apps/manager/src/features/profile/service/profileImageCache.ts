@@ -51,11 +51,13 @@ const getCacheBustedImageUrl = (imageUrl: string, version: number) => {
   return url.toString()
 }
 
-export const getActiveSignedProfileImageUploads = ({
+export const getActiveSignedProfileImageUploads = <
+  TImage extends SignedProfileImageUpload,
+>({
   images,
   records,
 }: {
-  readonly images: readonly SignedProfileImageUpload[]
+  readonly images: readonly TImage[]
   readonly records: ProfileRecords
 }) =>
   images.filter(

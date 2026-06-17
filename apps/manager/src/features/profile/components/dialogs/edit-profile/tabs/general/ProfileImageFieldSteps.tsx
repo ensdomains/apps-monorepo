@@ -1,5 +1,6 @@
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
+import type { AvatarNft } from '@/features/profile/service/profileNfts'
 import { cn } from '@/lib/utils'
 import {
   fieldShellClassName,
@@ -15,11 +16,11 @@ interface BackButtonProps {
   readonly onBack: () => void
 }
 
-export const BackButton = ({ disabled, onBack }: BackButtonProps) => (
+const BackButton = ({ disabled, onBack }: BackButtonProps) => (
   <button
     aria-label="Back to image options"
     className={cn(
-      'absolute top-1.5 left-1.5 flex size-12 items-center justify-center rounded-sm border border-ens-quartz-200 bg-ens-quartz-50 text-ens-quartz-500 transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50',
+      'absolute top-1.5 left-1.5 flex size-12 items-center justify-center rounded-sm border border-ens-quartz-200 bg-white text-ens-quartz-500 transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50',
       focusVisibleRingClassName,
     )}
     disabled={disabled}
@@ -30,24 +31,63 @@ export const BackButton = ({ disabled, onBack }: BackButtonProps) => (
   </button>
 )
 
-interface StepPanelProps {
+interface ImagePickerPanelProps {
   readonly backDisabled?: boolean
   readonly children: React.ReactNode
+  readonly className?: string
+  readonly contentClassName?: string
   readonly onBack: () => void
 }
 
-const StepPanel = ({ backDisabled, children, onBack }: StepPanelProps) => (
+export const ImagePickerPanel = ({
+  backDisabled,
+  children,
+  className,
+  contentClassName,
+  onBack,
+}: ImagePickerPanelProps) => (
   <div
     className={cn(
-      'relative flex min-h-60 w-full items-start justify-center p-4',
+      'relative flex w-full items-start justify-center',
       fieldShellClassName,
+      className,
     )}
   >
     <BackButton disabled={backDisabled} onBack={onBack} />
-    <div className="flex w-full max-w-95 flex-col items-center gap-4 pt-2">
+    <div className={cn('flex w-full flex-col items-center', contentClassName)}>
       {children}
     </div>
   </div>
+)
+
+const StepPanel = ({
+  backDisabled,
+  children,
+  onBack,
+}: Pick<ImagePickerPanelProps, 'backDisabled' | 'children' | 'onBack'>) => (
+  <ImagePickerPanel
+    backDisabled={backDisabled}
+    className="min-h-60 p-4"
+    contentClassName="max-w-95 gap-4 pt-2"
+    onBack={onBack}
+  >
+    {children}
+  </ImagePickerPanel>
+)
+
+const NftStepPanel = ({
+  backDisabled,
+  children,
+  onBack,
+}: Pick<ImagePickerPanelProps, 'backDisabled' | 'children' | 'onBack'>) => (
+  <ImagePickerPanel
+    backDisabled={backDisabled}
+    className="min-h-[340px] overflow-hidden p-1.5"
+    contentClassName="gap-3 pt-4"
+    onBack={onBack}
+  >
+    {children}
+  </ImagePickerPanel>
 )
 
 const editPreviewClassName = (kind: ProfileImageKind) =>
@@ -154,6 +194,171 @@ export const ManualPreviewStep = ({
     <ErrorMessage error={error} />
   </StepPanel>
 )
+
+interface NftSelectionStepProps {
+  readonly disabled?: boolean
+  readonly error: string | null
+  readonly isLoading: boolean
+  readonly nfts: readonly AvatarNft[]
+  readonly nftOwnerAddress?: string
+  readonly onBack: () => void
+  readonly onSearchChange: (query: string) => void
+  readonly onSelectNft: (nft: AvatarNft) => void
+  readonly searchQuery: string
+}
+
+export const NftSelectionStep = ({
+  disabled,
+  error,
+  isLoading,
+  nfts,
+  nftOwnerAddress,
+  onBack,
+  onSearchChange,
+  onSelectNft,
+  searchQuery,
+}: NftSelectionStepProps) => {
+  const emptyMessage = searchQuery.trim()
+    ? 'No NFTs match your search.'
+    : 'No NFTs found for this wallet on this network.'
+  const nftStatusClassName =
+    'flex min-h-32 w-full max-w-[540px] items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed p-4 text-center text-ens-quartz-400 text-xs leading-ens-normal'
+  const renderNftContent = () => {
+    if (!nftOwnerAddress) {
+      return (
+        <p className={nftStatusClassName}>
+          Unable to determine wallet address for NFT lookup.
+        </p>
+      )
+    }
+
+    if (isLoading) {
+      return <p className={nftStatusClassName}>Loading NFTs...</p>
+    }
+
+    if (nfts.length === 0) {
+      return <p className={nftStatusClassName}>{emptyMessage}</p>
+    }
+
+    return (
+      <div className="flex max-h-[232px] w-full max-w-[540px] flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
+        {nfts.map((nft) => (
+          <button
+            className={cn(
+              'w-[74px] rounded-sm text-center transition-opacity hover:opacity-80 disabled:pointer-events-none disabled:opacity-50',
+              focusVisibleRingClassName,
+            )}
+            disabled={disabled}
+            key={nft.id}
+            onClick={() => onSelectNft(nft)}
+            type="button"
+          >
+            <DisplayImage
+              alt={nft.name}
+              className="mx-auto size-[74px] rounded-md object-cover"
+              fallback={
+                <div className="mx-auto flex size-[74px] items-center justify-center rounded-md bg-ens-quartz-100 text-ens-quartz-400">
+                  <MSymbol
+                    aria-hidden="true"
+                    style={{ fontSize: 24 }}
+                    symbol="face"
+                  />
+                </div>
+              }
+              src={nft.image}
+            />
+            <p className="mt-1 truncate text-center text-ens-quartz-500 text-xs leading-ens-normal">
+              {nft.name}
+            </p>
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <NftStepPanel backDisabled={disabled} onBack={onBack}>
+      <p className="text-center text-ens-quartz-500 text-sm leading-ens-normal">
+        Choose an NFT
+      </p>
+      <div
+        className={cn(
+          'flex h-9 w-full max-w-[368px] items-center gap-2 rounded-full bg-ens-quartz-50 px-3 text-ens-quartz-400 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-ens-lapis-500',
+          focusVisibleRingClassName,
+        )}
+      >
+        <MSymbol aria-hidden="true" style={{ fontSize: 20 }} symbol="search" />
+        <input
+          aria-label="Search NFTs"
+          className="h-full min-w-0 flex-1 bg-transparent text-ens-quartz-900 text-xs outline-none placeholder:text-ens-quartz-350"
+          disabled={disabled || !nftOwnerAddress}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search my NFTS"
+          value={searchQuery}
+        />
+      </div>
+      <ErrorMessage error={error} />
+      {renderNftContent()}
+    </NftStepPanel>
+  )
+}
+
+interface NftConfirmationStepProps {
+  readonly disabled?: boolean
+  readonly nft: AvatarNft | null
+  readonly onBack: () => void
+  readonly onUseNft: () => void
+}
+
+export const NftConfirmationStep = ({
+  disabled,
+  nft,
+  onBack,
+  onUseNft,
+}: NftConfirmationStepProps) => {
+  if (!nft) return null
+
+  return (
+    <NftStepPanel backDisabled={disabled} onBack={onBack}>
+      <p className="text-center text-ens-quartz-500 text-sm leading-ens-normal">
+        Use this NFT?
+      </p>
+      <DisplayImage
+        alt={nft.name}
+        className="size-50 rounded-md object-cover"
+        fallback={
+          <div className="flex size-50 items-center justify-center rounded-md bg-ens-quartz-100 text-ens-quartz-400">
+            <MSymbol
+              aria-hidden="true"
+              style={{ fontSize: 36 }}
+              symbol="face"
+            />
+          </div>
+        }
+        src={nft.image}
+      />
+      <div className="max-w-[320px] text-center">
+        <p className="truncate text-ens-quartz-700 text-sm leading-ens-normal">
+          {nft.name}
+        </p>
+        <p className="truncate text-ens-quartz-400 text-xs leading-ens-normal">
+          {nft.collection}
+        </p>
+      </div>
+      <button
+        className={cn(
+          'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+          focusVisibleRingClassName,
+        )}
+        disabled={disabled}
+        onClick={onUseNft}
+        type="button"
+      >
+        Use NFT
+      </button>
+    </NftStepPanel>
+  )
+}
 
 interface RemoveConfirmationStepProps {
   readonly disabled?: boolean

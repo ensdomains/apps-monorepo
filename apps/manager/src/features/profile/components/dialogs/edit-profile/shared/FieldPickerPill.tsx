@@ -3,14 +3,16 @@ import { cn } from '@/lib/utils'
 
 interface FieldPickerPillProps {
   readonly active: boolean
+  readonly className?: string
   readonly disabled?: boolean
   readonly icon: ReactNode
-  readonly label: string
+  readonly label: ReactNode
   readonly onClick: () => void
 }
 
 export const FieldPickerPill = ({
   active,
+  className,
   disabled,
   icon,
   label,
@@ -23,6 +25,7 @@ export const FieldPickerPill = ({
         ? 'border-ens-quartz-350 bg-ens-quartz-100 text-ens-quartz-500'
         : 'border-ens-quartz-200 bg-white text-ens-quartz-900 hover:bg-ens-quartz-50',
       disabled && 'cursor-not-allowed opacity-50',
+      className,
     )}
     disabled={disabled}
     onClick={onClick}
