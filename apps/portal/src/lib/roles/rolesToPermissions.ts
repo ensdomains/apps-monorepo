@@ -1,7 +1,7 @@
-export type Permission = { admin: boolean; manager: boolean }
-
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
 import type { ResolverRoleKey } from './resolverRoles'
+
+export type Permission = { readonly admin: boolean; readonly manager: boolean }
 
 export type RoleChanges = {
   rolesToGrant: ResolverRole[]

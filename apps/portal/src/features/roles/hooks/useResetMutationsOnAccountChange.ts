@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 
 type MutationState = {
-  isPending: boolean
-  reset: () => void
+  readonly isPending: boolean
+  readonly reset: () => void
 }
 
 export const useResetMutationsOnAccountChange = (

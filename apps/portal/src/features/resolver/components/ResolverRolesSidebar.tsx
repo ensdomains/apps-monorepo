@@ -1,7 +1,7 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { Save, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
@@ -45,6 +45,7 @@ import {
 } from '@/lib/roles/rolesToPermissions'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 
 type ResolverRolesSidebarProps = PropsWithChildren<{
@@ -57,6 +58,85 @@ type ResolverRolesSidebarProps = PropsWithChildren<{
 
 const SAVE_RESOLVER_ROLES_TX_ID = 'tx-save-resolver-roles'
 const REMOVE_RESOLVER_USER_TX_ID = 'tx-remove-resolver-user'
+
+const EditPermissionList = ({
+  editedPermissions,
+  onChange,
+  canManageRoles,
+  disabled,
+}: {
+  readonly editedPermissions: Map<string, Permission>
+  readonly onChange: (
+    roleKey: string,
+    type: 'admin' | 'manager',
+    checked: boolean,
+  ) => void
+  readonly canManageRoles: boolean
+  readonly disabled: boolean
+}) => (
+  <div className="border border-border rounded-sm overflow-hidden">
+    {resolverPermissions.map((permission, index) => {
+      const rolePerms = editedPermissions.get(permission.key) || {
+        admin: false,
+        manager: false,
+      }
+
+      return (
+        <div
+          key={permission.key}
+          className={cn(
+            'flex items-center justify-between px-6 py-4 gap-4',
+            index !== 0 && 'border-t border-border',
+          )}
+        >
+          <div className="flex flex-col gap-1 flex-1 min-w-64">
+            <div className="font-medium">{permission.title}</div>
+            <div className="text-sm text-muted-foreground">
+              {permission.description}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+            <div className="flex items-center gap-2 min-w-24">
+              <Checkbox
+                id={`${permission.key}-manager`}
+                checked={rolePerms.manager}
+                disabled={!canManageRoles || disabled}
+                onCheckedChange={(checked) =>
+                  onChange(permission.key, 'manager', checked as boolean)
+                }
+              />
+              <Label
+                htmlFor={`${permission.key}-manager`}
+                className={cn(
+                  'font-medium cursor-pointer',
+                  canManageRoles ? 'text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                Manager
+              </Label>
+            </div>
+            <div className="flex items-center gap-2 min-w-24">
+              <Checkbox
+                id={`${permission.key}-admin`}
+                checked={rolePerms.admin}
+                disabled
+              />
+              <Label
+                htmlFor={`${permission.key}-admin`}
+                className={cn(
+                  'font-medium cursor-pointer',
+                  canManageRoles ? 'text-foreground' : 'text-muted-foreground',
+                )}
+              >
+                Admin
+              </Label>
+            </div>
+          </div>
+        </div>
+      )
+    })}
+  </div>
+)
 
 export const ResolverRolesSidebar = ({
   children,
@@ -265,67 +345,53 @@ export const ResolverRolesSidebar = ({
   }
 
   const isWalletConnected = Boolean(walletClient?.account)
+  const isRemoveAction = pendingAction?.type === 'remove'
+
+  const connectedAddress = walletClient?.account?.address
+
+  const isSelf = Boolean(
+    selectedAccount &&
+      connectedAddress &&
+      selectedAccount.toLowerCase() === connectedAddress.toLowerCase(),
+  )
+
+  const canEdit = canManageRoles && !isSelf
 
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-background overflow-y-auto p-8"
+        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
       >
-        <div className="p-6 flex flex-col gap-6 h-screen">
-          <SheetHeader className="p-0">
-            <div className="flex flex-wrap justify-between items-center gap-4">
-              <SheetTitle className="font-sans text-heading font-medium">
-                Role Details
-              </SheetTitle>
-              {canManageRoles && selectedAccount && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="default"
-                    disabled={
-                      !hasChanges ||
-                      saveMutation.isPending ||
-                      !isWalletConnected
-                    }
-                    onClick={handleSaveChanges}
-                  >
-                    <Save className="size-4" />
-                    {saveMutation.isPending ? 'Saving...' : 'Save changes'}
-                  </Button>
-                  <Button
-                    variant="default"
-                    disabled={
-                      removeUserMutation.isPending || !isWalletConnected
-                    }
-                    onClick={() => setConfirmOpen(true)}
-                  >
-                    <Trash2 className="size-4" />
-                    Remove user
-                  </Button>
-                </div>
-              )}
-            </div>
+        <div className="p-6 flex flex-col gap-6 h-full">
+          <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
+            <SheetTitle className="font-sans text-heading font-medium flex items-center gap-1">
+              {selectedAccount
+                ? truncateAddress(selectedAccount, 6, 4)
+                : 'Role Details'}
+              {selectedAccount && <CopyButton value={selectedAccount} />}
+            </SheetTitle>
+            {canEdit && selectedAccount && (
+              <Button
+                variant="outline"
+                disabled={removeUserMutation.isPending || !isWalletConnected}
+                onClick={() => setConfirmOpen(true)}
+              >
+                <Trash2 className="size-4" />
+                Remove user
+              </Button>
+            )}
           </SheetHeader>
 
           {row ? (
             <div className="flex flex-col gap-6">
-              {selectedAccount && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-1">
-                    <h2 className="text-xl font-medium leading-snug break-all">
-                      {selectedAccount}
-                    </h2>
-                    <CopyButton value={selectedAccount} />
-                  </div>
-                  {resolvedNames.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      {resolvedNames.includes('(root)')
-                        ? 'Global roles (all names)'
-                        : `Roles scoped to ${resolvedNames.filter((n) => n !== '(root)').join(', ')}`}
-                    </p>
-                  )}
-                </div>
+              {selectedAccount && resolvedNames.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {resolvedNames.includes('(root)')
+                    ? 'Global roles (all names)'
+                    : `Roles scoped to ${resolvedNames.filter((n) => n !== '(root)').join(', ')}`}
+                </p>
               )}
 
               {(saveMutation.error || removeUserMutation.error) && (
@@ -337,79 +403,30 @@ export const ResolverRolesSidebar = ({
                 </Alert>
               )}
 
-              <div className="border border-border rounded-sm overflow-hidden">
-                {resolverPermissions.map((permission, index) => {
-                  const roleKey = permission.key
-                  const rolePerms = editedPermissions.get(roleKey) || {
-                    admin: false,
-                    manager: false,
-                  }
-
-                  return (
-                    <div
-                      key={permission.key}
-                      className={cn(
-                        'flex items-center justify-between px-6 py-4 gap-4',
-                        index !== 0 && 'border-t border-border',
-                      )}
-                    >
-                      <div className="flex flex-col gap-1 flex-1 min-w-64">
-                        <div className="font-medium">{permission.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {permission.description}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
-                        <div className="flex items-center gap-2 min-w-24">
-                          <Checkbox
-                            id={`${permission.key}-manager`}
-                            checked={rolePerms.manager}
-                            disabled={!canManageRoles || saveMutation.isPending}
-                            onCheckedChange={(checked) =>
-                              handlePermissionChange(
-                                roleKey,
-                                'manager',
-                                checked as boolean,
-                              )
-                            }
-                            className="data-[state=checked]:bg-citrine-500 data-[state=checked]:border-citrine-500"
-                          />
-                          <Label
-                            htmlFor={`${permission.key}-manager`}
-                            className={cn(
-                              'font-medium cursor-pointer',
-                              canManageRoles
-                                ? 'text-foreground'
-                                : 'text-muted-foreground',
-                            )}
-                          >
-                            Manager
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-24">
-                          <Checkbox
-                            id={`${permission.key}-admin`}
-                            checked={rolePerms.admin}
-                            disabled
-                            className="data-[state=checked]:bg-citrine-500 data-[state=checked]:border-citrine-500"
-                          />
-                          <Label
-                            htmlFor={`${permission.key}-admin`}
-                            className={cn(
-                              'font-medium cursor-pointer',
-                              canManageRoles
-                                ? 'text-foreground'
-                                : 'text-muted-foreground',
-                            )}
-                          >
-                            Admin
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className={cn(isSelf && 'opacity-50 pointer-events-none')}>
+                <EditPermissionList
+                  editedPermissions={editedPermissions}
+                  onChange={handlePermissionChange}
+                  canManageRoles={canEdit}
+                  disabled={saveMutation.isPending}
+                />
               </div>
+
+              {canEdit && selectedAccount && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="default"
+                    disabled={
+                      !hasChanges ||
+                      saveMutation.isPending ||
+                      !isWalletConnected
+                    }
+                    onClick={handleSaveChanges}
+                  >
+                    {saveMutation.isPending ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-muted-foreground text-center py-12">
@@ -447,18 +464,15 @@ export const ResolverRolesSidebar = ({
         <TransactionModal
           transactions={[
             {
-              id:
-                pendingAction?.type === 'remove'
-                  ? REMOVE_RESOLVER_USER_TX_ID
-                  : SAVE_RESOLVER_ROLES_TX_ID,
-              title:
-                pendingAction?.type === 'remove'
-                  ? 'Remove resolver user'
-                  : 'Save resolver role changes',
-              transactionName:
-                pendingAction?.type === 'remove'
-                  ? `Remove user ${pendingAction.account}`
-                  : `Update roles for ${pendingAction?.account ?? ''}`,
+              id: isRemoveAction
+                ? REMOVE_RESOLVER_USER_TX_ID
+                : SAVE_RESOLVER_ROLES_TX_ID,
+              title: isRemoveAction
+                ? 'Remove resolver user'
+                : 'Save resolver role changes',
+              transactionName: isRemoveAction
+                ? `Remove user ${pendingAction?.account ?? ''}`
+                : `Update roles for ${pendingAction?.account ?? ''}`,
               estimatedGasCost: 0.0001,
               onStart: () => {
                 if (!pendingAction) return
