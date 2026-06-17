@@ -9,11 +9,15 @@ import {
   Eye,
   Image,
   Keyboard,
-  Search,
   Trash2,
   Upload,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import {
+  type ComponentPropsWithoutRef,
+  forwardRef,
+  useRef,
+  useState,
+} from 'react'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -78,16 +82,143 @@ const StepFooter = ({ children }: StepFooterProps) => (
   <div className="flex justify-end gap-2">{children}</div>
 )
 
-interface ImageSelectionDialogProps {
-  currentImage?: string
-  defaultImage?: string
-  onImageChange: (imageUrl: string) => void
-  onImageRemove: () => void
-  title: string
-  description?: string
-  type: ImageType
-  name?: string // For better alt text and debugging
+const uploadSelectedImage = (
+  uploadFile: File | null,
+  uploadImage: (file: File) => void,
+) => {
+  if (!uploadFile) return
+
+  uploadImage(uploadFile)
 }
+
+type ImagePreviewSize = 'small' | 'medium' | 'large'
+
+const getImageStyles = (type: ImageType, size: ImagePreviewSize = 'medium') => {
+  const baseClasses = 'mx-auto rounded-md object-cover'
+
+  if (type === 'avatar') {
+    const sizeClasses = {
+      small: 'size-20',
+      medium: 'size-32',
+      large: 'size-40',
+    }
+    return clsx(baseClasses, sizeClasses[size])
+  }
+  const sizeClasses = {
+    small: 'h-20 w-full',
+    medium: 'h-32 w-full',
+    large: 'h-40 w-full',
+  }
+  return clsx(baseClasses, sizeClasses[size])
+}
+
+interface ImageSelectionDialogProps {
+  readonly currentImage?: string
+  readonly defaultImage?: string
+  readonly onImageChange: (imageUrl: string) => void
+  readonly onImageRemove: () => void
+  readonly title: string
+  readonly description?: string
+  readonly type: ImageType
+  readonly name?: string // For better alt text and debugging
+  readonly triggerClassName?: string
+  readonly imageClassName?: string
+  readonly emptyState?: React.ReactNode
+}
+
+interface ImageSelectionTriggerProps
+  extends Omit<ComponentPropsWithoutRef<'button'>, 'type'> {
+  readonly defaultImage?: string
+  readonly displayImage?: string
+  readonly emptyState?: React.ReactNode
+  readonly imageClassName?: string
+  readonly imageType: ImageType
+  readonly name?: string
+  readonly triggerClassName?: string
+  readonly uploadPreviewUrl?: string | null
+}
+
+const ImageSelectionTrigger = forwardRef<
+  HTMLButtonElement,
+  ImageSelectionTriggerProps
+>(
+  (
+    {
+      className,
+      defaultImage,
+      displayImage,
+      emptyState,
+      imageClassName,
+      imageType,
+      name,
+      triggerClassName,
+      uploadPreviewUrl,
+      ...buttonProps
+    },
+    ref,
+  ) => (
+    <button
+      {...buttonProps}
+      className={clsx(
+        'group relative block w-full cursor-pointer overflow-hidden',
+        triggerClassName ??
+          (imageType === 'avatar'
+            ? 'h-full rounded-md'
+            : 'aspect-3/1 md:aspect-5/1'),
+        className,
+      )}
+      ref={ref}
+      title={buttonProps.title ?? `Change ${imageType}`}
+      type="button"
+    >
+      <div
+        className={clsx(
+          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
+          imageType === 'avatar' && 'rounded-md',
+          imageType === 'header' && 'pb-12',
+        )}
+      >
+        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
+          <Image className="size-6 text-white" />
+        </div>
+      </div>
+      <ImageFallback.Root>
+        <ImageFallback.Image
+          alt={`${name || 'Profile'} ${imageType}`}
+          className={imageClassName ?? 'h-full w-full object-cover'}
+          src={uploadPreviewUrl || displayImage}
+        />
+        <ImageFallback.Fallback>
+          {emptyState ? (
+            emptyState
+          ) : defaultImage ? (
+            <img
+              alt={`Default ${imageType}`}
+              className="h-full w-full object-cover"
+              src={defaultImage}
+            />
+          ) : imageType === 'avatar' ? (
+            <PatternAvatar
+              className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
+              name={name || 'avatar'}
+            />
+          ) : (
+            <div
+              className="h-full w-full"
+              style={{
+                backgroundColor: 'var(--color-ens-lapis-dust)',
+                backgroundImage:
+                  'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
+                backgroundSize: '8px 8px',
+              }}
+            />
+          )}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </button>
+  ),
+)
+ImageSelectionTrigger.displayName = 'ImageSelectionTrigger'
 
 export const ImageSelectionDialog = ({
   currentImage,
@@ -98,6 +229,9 @@ export const ImageSelectionDialog = ({
   description,
   type,
   name,
+  triggerClassName,
+  imageClassName,
+  emptyState,
 }: ImageSelectionDialogProps) => {
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
@@ -112,7 +246,7 @@ export const ImageSelectionDialog = ({
   // Resolve the current image if it's an IPFS/NFT URL
   const resolvedImage = useQuery({
     ...parseAvatarQuery(currentImage),
-    enabled: !!currentImage && open, // Only resolve when dialog is open
+    enabled: !!currentImage,
   })
 
   // Use resolved image if available, otherwise fall back to original
@@ -153,7 +287,7 @@ export const ImageSelectionDialog = ({
     const imageUrl = URL.createObjectURL(file)
     setUploadFile(file)
     setUploadPreviewUrl(imageUrl)
-    send({ type: 'OPEN_UPLOAD', imageUrl })
+    send({ type: 'OPEN_UPLOAD' })
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -182,37 +316,21 @@ export const ImageSelectionDialog = ({
     uploadImageMutationOptions({
       type,
       name,
-      uploadFile,
       isConnected,
       address,
       chainId,
       signTypedDataAsync,
       onImageChange,
-      setOpen,
-      setUploadFile,
+      setOpen: (isOpen) => {
+        if (!isOpen) {
+          send({ type: 'RESET' })
+          setUploadFile(null)
+        }
+        setOpen(isOpen)
+      },
       send,
     }),
   )
-
-  // Get appropriate dimensions and styling based on type
-  const getImageStyles = (size: 'small' | 'medium' | 'large' = 'medium') => {
-    const baseClasses = 'mx-auto rounded-md object-cover'
-
-    if (type === 'avatar') {
-      const sizeClasses = {
-        small: 'size-20',
-        medium: 'size-32',
-        large: 'size-40',
-      }
-      return clsx(baseClasses, sizeClasses[size])
-    }
-    const sizeClasses = {
-      small: 'h-20 w-full',
-      medium: 'h-32 w-full',
-      large: 'h-40 w-full',
-    }
-    return clsx(baseClasses, sizeClasses[size])
-  }
 
   // Main step - shows all options
   const renderMainStep = () => (
@@ -296,13 +414,13 @@ export const ImageSelectionDialog = ({
             <ImageFallback.Root>
               <ImageFallback.Image
                 alt={`Current ${type}`}
-                className={getImageStyles('small')}
+                className={getImageStyles(type, 'small')}
                 src={displayImage}
               />
               <ImageFallback.Fallback>
                 <div
                   className={cn(
-                    getImageStyles('small'),
+                    getImageStyles(type, 'small'),
                     'flex items-center justify-center bg-gray-200',
                   )}
                 >
@@ -318,13 +436,13 @@ export const ImageSelectionDialog = ({
             {defaultImage ? (
               <img
                 alt={`Default ${type}`}
-                className={getImageStyles('small')}
+                className={getImageStyles(type, 'small')}
                 src={defaultImage}
               />
             ) : type === 'avatar' ? (
               <PatternAvatar
                 className={cn(
-                  getImageStyles('small'),
+                  getImageStyles(type, 'small'),
                   'border-none bg-transparent p-0 shadow-none',
                 )}
                 name={name || 'avatar'}
@@ -332,7 +450,7 @@ export const ImageSelectionDialog = ({
             ) : (
               <div
                 className={cn(
-                  getImageStyles('small'),
+                  getImageStyles(type, 'small'),
                   'flex items-center justify-center bg-gray-200',
                 )}
               >
@@ -357,88 +475,6 @@ export const ImageSelectionDialog = ({
     </>
   )
 
-  // NFT selection step
-  const renderNFTSelectionStep = () => (
-    <>
-      <StepHeader
-        onBack={() => send({ type: 'BACK' })}
-        title={t`Choose an NFT`}
-      />
-
-      <ErrorDisplay error={state.context.error} />
-
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="-translate-y-1/2 absolute top-1/2 left-3 size-4 text-gray-400" />
-          <Input
-            aria-label={t`Search your NFTs`}
-            className="pl-10"
-            onChange={(e) =>
-              send({ type: 'UPDATE_SEARCH_QUERY', query: e.target.value })
-            }
-            placeholder={t`Search your NFTs...`}
-            value={state.context.searchQuery}
-          />
-        </div>
-
-        <div className="grid max-h-64 grid-cols-2 gap-4 overflow-y-auto">
-          {state.context.filteredNFTs.map((nft) => (
-            <button
-              className="rounded-md p-2 text-left transition-colors hover:bg-gray-50"
-              key={nft.id}
-              onClick={() => send({ type: 'SELECT_NFT', nft })}
-              type="button"
-            >
-              <img
-                alt={nft.name}
-                className="mb-2 h-24 w-full rounded-md object-cover"
-                src={nft.image}
-              />
-              <p className="truncate font-medium text-sm">{nft.name}</p>
-              <p className="truncate text-gray-500 text-xs">{nft.collection}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
-  )
-
-  // NFT confirmation step
-  const renderNFTConfirmationStep = () => {
-    const nft = state.context.selectedNFT
-    if (!nft) return null
-
-    return (
-      <>
-        <StepHeader
-          onBack={() => send({ type: 'BACK' })}
-          title={t`Confirm NFT Selection`}
-        />
-
-        <div className="space-y-4">
-          <div className="text-center">
-            <img
-              alt={nft.name}
-              className={getImageStyles('large')}
-              src={nft.image}
-            />
-            <p className="mt-2 font-medium">{nft.name}</p>
-            <p className="text-gray-500 text-sm">{nft.collection}</p>
-          </div>
-        </div>
-
-        <StepFooter>
-          <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-            <Trans>Back</Trans>
-          </Button>
-          <Button onClick={() => send({ type: 'CONFIRM_NFT' })}>
-            <Trans>Use This NFT</Trans>
-          </Button>
-        </StepFooter>
-      </>
-    )
-  }
-
   // Upload preview step
   const uploadErrorMessage =
     uploadError instanceof Error ? uploadError.message : null
@@ -458,7 +494,7 @@ export const ImageSelectionDialog = ({
         <div className="text-center">
           <img
             alt="Uploaded"
-            className={getImageStyles('large')}
+            className={getImageStyles(type, 'large')}
             src={uploadPreviewUrl || ''}
           />
           <p className="mt-2 text-gray-500 text-sm">
@@ -472,7 +508,10 @@ export const ImageSelectionDialog = ({
         <Button onClick={() => send({ type: 'BACK' })} variant="outline">
           <Trans>Back</Trans>
         </Button>
-        <Button disabled={isUploading} onClick={() => uploadImage()}>
+        <Button
+          disabled={isUploading}
+          onClick={() => uploadSelectedImage(uploadFile, uploadImage)}
+        >
           {isUploading ? (
             <Trans>Uploading…</Trans>
           ) : (
@@ -544,7 +583,7 @@ export const ImageSelectionDialog = ({
         <div className="text-center">
           <img
             alt="Preview"
-            className={getImageStyles('large')}
+            className={getImageStyles(type, 'large')}
             onError={(e) => {
               e.currentTarget.style.display = 'none'
               send({
@@ -578,10 +617,6 @@ export const ImageSelectionDialog = ({
     if (state.matches('main')) return renderMainStep()
     if (state.matches('removeConfirmation'))
       return renderRemoveConfirmationStep()
-    if (state.matches({ nftSelection: 'browsing' }))
-      return renderNFTSelectionStep()
-    if (state.matches({ nftSelection: 'confirming' }))
-      return renderNFTConfirmationStep()
     if (state.matches('uploadPreview')) return renderUploadPreviewStep()
     if (state.matches({ manualInput: 'entering' }))
       return renderManualInputStep()
@@ -599,58 +634,16 @@ export const ImageSelectionDialog = ({
   }
 
   const trigger = (
-    <button
-      className={clsx(
-        'group relative block w-full cursor-pointer overflow-hidden',
-        type === 'avatar' && 'h-full rounded-md',
-        type === 'header' && 'aspect-[3/1] md:aspect-[5/1]',
-      )}
-      title={`Change ${type}`}
-      type="button"
-    >
-      <div
-        className={clsx(
-          'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
-          type === 'avatar' && 'rounded-md',
-          type === 'header' && 'pb-12',
-        )}
-      >
-        <div className="opacity-0 transition-opacity duration-200 group-hover:opacity-100 motion-reduce:transition-none">
-          <Image className="size-6 text-white" />
-        </div>
-      </div>
-      <ImageFallback.Root>
-        <ImageFallback.Image
-          alt={`${name || 'Profile'} ${type}`}
-          className="h-full w-full object-cover"
-          src={uploadPreviewUrl || displayImage}
-        />
-        <ImageFallback.Fallback>
-          {defaultImage ? (
-            <img
-              alt={`Default ${type}`}
-              className="h-full w-full object-cover"
-              src={defaultImage}
-            />
-          ) : type === 'avatar' ? (
-            <PatternAvatar
-              className="h-full w-full rounded-md border-none bg-transparent p-0 shadow-none"
-              name={name || 'avatar'}
-            />
-          ) : (
-            <div
-              className="h-full w-full"
-              style={{
-                backgroundColor: 'var(--color-ens-lapis-dust)',
-                backgroundImage:
-                  'radial-gradient(circle, var(--color-ens-lapis-surface) 1px, transparent 1px)',
-                backgroundSize: '8px 8px',
-              }}
-            />
-          )}
-        </ImageFallback.Fallback>
-      </ImageFallback.Root>
-    </button>
+    <ImageSelectionTrigger
+      defaultImage={defaultImage}
+      displayImage={displayImage}
+      emptyState={emptyState}
+      imageClassName={imageClassName}
+      imageType={type}
+      name={name}
+      triggerClassName={triggerClassName}
+      uploadPreviewUrl={uploadPreviewUrl}
+    />
   )
 
   const fileInput = (

@@ -1,7 +1,7 @@
 // @ts-nocheck - TODO: Rewrite for ENSv2 or remove — renewNames is v1-only (ensEthRegistrarController)
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import { getPrice } from '@ensdomains/ensjs/public/v2'
+import { getRegisterPrice } from '@ensdomains/ensjs/public/v2'
 import { renewNames } from '@ensdomains/ensjs/wallet'
 import { fromPromise, ok } from 'neverthrow'
 import type { TransactionReceipt } from 'viem'
@@ -50,9 +50,11 @@ export const renewMachine = setup({
       }) {
         const client = yield* safeGetClient()
         const price = yield* await fromPromise(
-          // @ts-expect-error - Issue with client types
-          getPrice(client, {
-            nameOrNames: name,
+          // @ts-expect-error - Issue with client types; this file is dead
+          // code pending an ENSv2 rewrite (see top-of-file note). The call
+          // shape below intentionally only satisfies the import resolver.
+          getRegisterPrice(client, {
+            label: name,
             duration,
           }),
           (error) => new PriceResolutionError({ cause: error }),

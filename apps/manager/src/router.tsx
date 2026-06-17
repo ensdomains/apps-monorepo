@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
+import { NotFoundPage } from './features/not-found/pages/NotFoundPage'
 import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
 import { routeTree } from './routeTree.gen'
@@ -60,6 +61,8 @@ export async function getRouter() {
     routeTree,
     scrollRestoration: true,
     defaultPreload: 'intent',
+    // Avoid TanStack's generic "<p>Not Found</p>" when a route throws notFound.
+    defaultNotFoundComponent: NotFoundPage,
     context: {
       queryClient,
     },

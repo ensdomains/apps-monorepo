@@ -10,7 +10,10 @@ import {
   groupClassifiedNames,
 } from '@/features/migration/service/classifyNames'
 import { findExistingPermRes } from '@/features/migration/service/ensureOwnedPermRes'
-import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type {
+  V1Domain,
+  V1ProfileKeys,
+} from '@/features/migration/service/v1SubgraphClient'
 import { getV1ProfileKeys } from '@/features/migration/service/v1SubgraphClient'
 
 export type MigrationPreflight = {
@@ -19,6 +22,7 @@ export type MigrationPreflight = {
   skipFetchProfilesPhase: boolean
   baseRegistrarApproved: boolean
   nameWrapperApproved: boolean
+  profileKeys?: readonly V1ProfileKeys[]
 }
 
 export const EMPTY_PREFLIGHT: MigrationPreflight = {
@@ -63,6 +67,7 @@ export const computeMigrationPreflight = async (params: {
     (!needs.hasWrapped || approvals.nameWrapperApproved)
 
   let skipFetchProfilesPhase = false
+  let profileKeys: readonly V1ProfileKeys[] | undefined
   if (namesToOwnedPermRes.length === 0) {
     skipFetchProfilesPhase = true
   } else {
@@ -70,7 +75,8 @@ export const computeMigrationPreflight = async (params: {
       namesToOwnedPermRes.map((n) => n.domain.id),
     )
     if (keysResult.isOk()) {
-      const anyKeys = keysResult.value.some(
+      profileKeys = keysResult.value
+      const anyKeys = profileKeys.some(
         (k) => k.texts.length > 0 || k.coinTypes.length > 0,
       )
       skipFetchProfilesPhase = !anyKeys
@@ -88,5 +94,6 @@ export const computeMigrationPreflight = async (params: {
     skipFetchProfilesPhase,
     baseRegistrarApproved: approvals.baseRegistrarApproved,
     nameWrapperApproved: approvals.nameWrapperApproved,
+    profileKeys,
   }
 }

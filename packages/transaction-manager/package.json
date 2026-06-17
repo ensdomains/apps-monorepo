@@ -19,7 +19,7 @@
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/module-sdk": "^0.4.0",
-    "@rhinestone/sdk": "1.6.4",
+    "@rhinestone/sdk": "1.7.0",
     "@xstate/react": "^4.0.0-beta.12",
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
@@ -36,6 +36,7 @@
     "@types/react": "^19.0.6",
     "typescript": "catalog:typescript6",
     "vitest": "catalog:",
-    "wagmi": "^3.0.2"
+    "wagmi": "^3.0.2",
+    "react": "^19.2.5"
   }
 }

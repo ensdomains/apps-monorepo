@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { SirenIcon } from 'lucide-react'
-import { Fragment, type ReactNode, useState } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
 import { match } from 'ts-pattern'
-import { useConnection } from 'wagmi'
+import { formatUnits } from 'viem'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TemporaryPremiumDrawer } from '@/features/register/components/TemporaryPremiumDrawer'
+import { PremiumCountdown } from '@/features/register/components/PremiumCountdown'
+import { TemporaryPremiumPopover } from '@/features/register/components/TemporaryPremiumPopover'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
 import { getOracleParamsQueryOptions } from '@/features/register/hooks/useOracleParams'
 import {
@@ -20,14 +22,16 @@ import { getPremiumInstantRangeFromPrice } from '@/features/register/utils/premi
 import { getRegistrationDisplayDates } from '@/features/register/utils/registrationDuration'
 import {
   formatPriceDisplay,
+  formatPriceExact,
   formatRegistrationTotal,
+  getSavingsPct,
   isPriceResult,
 } from '@/features/register/utils/registrationPrice'
 import { TransactionErrorAlert } from '@/features/registry/components/TransactionErrorAlert'
 import { getTransactionErrorInfo } from '@/features/registry/utils/transactionErrorMessage'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
+import { ORACLE_PRICE_DECIMALS } from '@/lib/constants/oracle'
 import { cn } from '@/lib/utils'
-import { formatExpiryDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { validateNameLength } from '@/utils/token/nameValidation'
 
@@ -44,9 +48,7 @@ export const RegisterNameCheckoutSummary = ({
   name,
   duration,
 }: RegisterNameCheckoutSummaryProps) => {
-  const [premiumDrawerOpen, setPremiumDrawerOpen] = useState(false)
   const isNameValid = !validateNameLength(name)
-  const { address } = useConnection()
 
   const {
     data: price,
@@ -57,7 +59,6 @@ export const RegisterNameCheckoutSummary = ({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
-      owner: address,
     }),
     enabled: Boolean(name) && duration > 0 && isNameValid,
   })
@@ -76,26 +77,33 @@ export const RegisterNameCheckoutSummary = ({
   return (
     <Fragment>
       {premiumRange && (
-        <Alert variant="default" className="flex p-5 items-center">
+        <Alert variant="warning" className="flex p-5 items-center">
           <AlertDescription className="text-base flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
             <SirenIcon className="size-6 shrink-0" />
             <p className="text-center md:text-left">
-              This name is in Temporary premium until{' '}
-              {formatExpiryDateTimeLocal(premiumRange.end)}.
+              This name is subject to a temporary premium for{' '}
+              <PremiumCountdown end={premiumRange.end} />
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-primary text-sm"
-              onClick={() => setPremiumDrawerOpen(true)}
-            >
-              Learn more
-            </Button>
+            {premiumDecayConfig && (
+              <TemporaryPremiumPopover
+                premiumStart={premiumRange.start}
+                premiumDecayConfig={premiumDecayConfig}
+                trigger={(open) => (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-transparent hover:bg-transparent text-sm"
+                  >
+                    {open ? 'Close' : 'Learn more'}
+                  </Button>
+                )}
+              />
+            )}
           </AlertDescription>
         </Alert>
       )}
       <section
-        className="border border-border rounded-sm p-5"
+        className="border border-border rounded-xl p-6"
         aria-label="Checkout summary"
       >
         {match({ isLoading, isError, hasPrice })
@@ -130,16 +138,6 @@ export const RegisterNameCheckoutSummary = ({
               </p>
             </div>
           ))}
-
-        {hasPrice && price.hasPremium && premiumDecayConfig && (
-          <TemporaryPremiumDrawer
-            open={premiumDrawerOpen}
-            onOpenChange={setPremiumDrawerOpen}
-            currentPremium={formatPriceDisplay(price.premium, price.decimals)}
-            premiumStart={premiumRange?.start ?? null}
-            premiumDecayConfig={premiumDecayConfig}
-          />
-        )}
       </section>
     </Fragment>
   )
@@ -161,7 +159,7 @@ const SummaryRow = ({
   valueClassName,
 }: SummaryRowProps) => (
   <div className={cn('flex items-center justify-between', className)}>
-    <dt className={cn('font-normal text-foreground', labelClassName)}>
+    <dt className={cn('font-normal text-muted-foreground', labelClassName)}>
       {label}
     </dt>
     <dd className={cn('m-0 font-normal text-foreground', valueClassName)}>
@@ -173,26 +171,19 @@ const SummaryRow = ({
 const PriceBreakdownSkeleton = () => (
   <div className="space-y-2">
     <dl className="space-y-2">
+      <SummaryRow label="Expires" value={<Skeleton className="h-5 w-24" />} />
       <SummaryRow
-        label="Registration:"
+        label="Registration"
         value={<Skeleton className="h-5 w-16" />}
       />
-      <SummaryRow label="Expires:" value={<Skeleton className="h-5 w-24" />} />
-
-      <hr className="border-border" />
-
-      <SummaryRow label="Price:" value={<Skeleton className="h-5 w-20" />} />
+      <SummaryRow label="Price" value={<Skeleton className="h-5 w-20" />} />
 
       <SummaryRow
-        label="Total:"
-        value={
-          <span className="flex items-center gap-1">
-            <Skeleton className="h-7 w-14" />
-          </span>
-        }
+        label="Total"
+        value={<Skeleton className="h-8 w-20" />}
         className="pt-3 border-t border-border"
-        labelClassName="text-xl text-primary font-medium"
-        valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+        labelClassName="text-2xl text-primary font-medium"
+        valueClassName="m-0 text-primary font-semibold text-2xl"
       />
     </dl>
   </div>
@@ -221,29 +212,24 @@ const PriceBreakdown = ({
     durationSeconds: duration,
     baseRate,
   })
+  // Undiscounted 1-year rack rate (baseRate × secondsPerYear) as the baseline.
+  const rackRatePerYear = Number(
+    formatUnits(
+      baseRate * BigInt(CONTRACT_SECONDS_PER_YEAR),
+      ORACLE_PRICE_DECIMALS,
+    ),
+  )
+  const savePct = getSavingsPct(pricePerYear, rackRatePerYear)
   const premiumLabel = getPremiumLabel(name)
-  // const roundedYears = Math.round(years)
-  // const discountSublabel =
-  //   roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
+  const showPriceRow = pricePerYear > 0 && Math.round(years * 12) >= 12
 
   return (
     <div className="space-y-2">
       <dl className="space-y-2">
-        <SummaryRow label="Registration:" value={registrationPeriod} />
-        <SummaryRow label="Expires:" value={expiresFormatted} />
+        <SummaryRow label="Expires" value={expiresFormatted} />
+        <SummaryRow label="Registration" value={registrationPeriod} />
 
-        <hr className="border-border my-3" />
-
-        {price.hasPremium && (
-          <SummaryRow
-            label={'Temp premium:'}
-            value={formatPriceDisplay(price.premium, price.decimals)}
-            labelClassName="font-medium text-foreground"
-            valueClassName="font-medium text-foreground"
-          />
-        )}
-
-        {pricePerYear > 0 && Math.round(years * 12) >= 12 && (
+        {showPriceRow && (
           <SummaryRow
             label={
               premiumLabel ? (
@@ -251,35 +237,54 @@ const PriceBreakdown = ({
                   href={ENS_PREMIUM_PRICING_DOCS_URL}
                   className="underline decoration-dotted underline-offset-2"
                 >
-                  {premiumLabel.label}:
+                  {premiumLabel.label}
                 </ExternalLink>
               ) : (
-                'Price:'
+                'Price'
               )
             }
             value={
-              <span className="flex flex-col items-end m-0">
+              <span className="flex items-center justify-end gap-2">
+                {savePct > 0 ? (
+                  <Badge variant="success">{`Save ${savePct}%`}</Badge>
+                ) : null}
                 <span>{`${formatUsd(pricePerYear)}/year`}</span>
-                {/* {discountSublabel ? (
-                  <span className="text-xs text-success-text">
-                    {discountSublabel}
-                  </span>
-                ) : null} */}
               </span>
             }
           />
         )}
 
+        {price.hasPremium ? (
+          <>
+            <hr className="border-border my-3" />
+            <SummaryRow
+              label="Subtotal"
+              value={formatPriceDisplay(price.base, price.decimals)}
+            />
+            <SummaryRow
+              label="Surcharge"
+              value={
+                <span className="flex items-center justify-end gap-2">
+                  <Badge className="border-transparent bg-warning-fill text-warning-text">
+                    Premium
+                  </Badge>
+                  <span>{formatPriceExact(price.premium, price.decimals)}</span>
+                </span>
+              }
+            />
+          </>
+        ) : null}
+
         <SummaryRow
-          label="Total:"
+          label="Total"
           value={formatRegistrationTotal(
             price.base,
             price.premium,
             price.decimals,
           )}
           className="pt-3 border-t border-border"
-          labelClassName="text-xl text-primary font-medium"
-          valueClassName="flex items-center gap-1 m-0 text-primary font-medium text-xl"
+          labelClassName="text-2xl text-primary font-medium"
+          valueClassName="m-0 text-primary font-semibold text-2xl"
         />
       </dl>
     </div>

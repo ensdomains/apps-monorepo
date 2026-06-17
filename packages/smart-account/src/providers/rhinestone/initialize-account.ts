@@ -1,8 +1,24 @@
 /**
- * Rhinestone smart-account initialization.
+ * Rhinestone HCA smart-account initialization.
  *
- * Pure async function that creates a `RhinestoneAccount` via the SDK,
- * ensures it is deployed on-chain, and returns the live account + config.
+ * Pure async function that creates a Hidden Contract Account (HCA) via
+ * the Rhinestone SDK (`@rhinestone/sdk@1.7.0`), ensures it is deployed
+ * on-chain, and returns the live account + config.
+ *
+ * HCA model (SDK 1.7.0):
+ *   - `account: { type: 'hca' }` selects the audited HCA implementation
+ *     (CREATE3 ERC-1967 proxy behind the ENS HCA factory).
+ *   - `owners: { type: 'ens', … }` installs the ENS ownership validator
+ *     at construction. The owning EOA (the connected wallet / Para
+ *     account) signs every intent — there is **no smart-session path**.
+ *     The SDK throws `AccountConfigurationNotSupportedError` if you pass
+ *     `experimental_sessions`, `recovery`, or extra `modules` for an HCA,
+ *     because the account permanently locks its module set
+ *     (`installModule` reverts `NoModuleChangeAllowed()`).
+ *
+ * Because sessions are impossible, every ENS operation is an
+ * owner-signed, relayer-sponsored Intent (gas is still sponsored — only
+ * the authorization signature comes from the user).
  *
  * The caller is responsible for:
  *   - Producing a viem `Account` from whatever wallet provider it uses
@@ -11,29 +27,24 @@
  *     concern — wrap before passing in.
  *   - Reading env vars / wagmi config and threading them in as named
  *     parameters.
- *   - Surfacing progress and errors to the user. We invoke optional
- *     `onProgress` / `onError` callbacks at well-defined points; the
- *     caller decides whether that becomes a toast, a banner, or
- *     nothing at all.
- *   - Any post-deploy on-chain work (HCA ownership registration,
- *     module installs, etc.) via the `onAccountReady` hook.
- *
- * The `infrastructure` parameter is only used to validate that
- * `pimlicoApiKey` is provided when the caller intends to use the
- * ERC-4337 bundler path. The Rhinestone Warp orchestrator (default,
- * intent-based gas sponsorship) does not need Pimlico.
+ *   - Surfacing progress and errors to the user via the optional
+ *     `onProgress` / `onError` callbacks.
  */
 
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { RhinestoneSDK } from '@rhinestone/sdk'
-import { type Account, type Address, type Chain, zeroAddress } from 'viem'
+import { type Account, type Address, type Chain, maxUint48 } from 'viem'
 
 /**
- * Infrastructure for routing smart-account transactions. Mirrors the
- * type exported by `@ens-apps/transaction-manager` — kept local here so
- * the package doesn't have to take a workspace dep just for one union.
+ * ENS HCA owner expiration sentinel.
+ *
+ * `owners.ownerExpirations[i]` is a `uint48` unix timestamp after which
+ * owner `i` can no longer authorize the account. We pin owners to
+ * `maxUint48` ("never expires") so the account stays usable for the full
+ * lifetime of the connected wallet; ENS-name-tied expiry is enforced
+ * elsewhere, not at the validator level. Matches the reference HCA flow.
  */
-export type SmartAccountInfrastructure = 'warp' | 'pimlico'
+const HCA_OWNER_NEVER_EXPIRES = Number(maxUint48)
 
 export interface RhinestoneInitConfig {
   readonly chain: Chain
@@ -51,80 +62,42 @@ export interface RhinestoneInitResult {
  * Stage labels emitted via `onProgress` / `onError`. Stable contract —
  * callers can switch over these to drive UI copy.
  *
- *   - `deploying` — the SCA is not yet on-chain; we're sending the
- *     bootstrap user-op that deploys it.
- *   - `registering` — handing control to the caller's `onAccountReady`
- *     hook for post-deploy work (e.g. HCA ownership registration).
- *     Only emitted when `onAccountReady` is provided.
+ *   - `deploying` — the HCA is not yet on-chain; we're submitting the
+ *     sponsored Intent that runs the factory `createAccount(initData)`
+ *     deploy.
  *   - `ready` — setup complete (only emitted via `onProgress`, never
  *     `onError`). Useful for closing out a "deploying…" toast.
  */
-export type InitProgressStage = 'deploying' | 'registering' | 'ready'
+export type InitProgressStage = 'deploying' | 'ready'
 
 export interface InitializeRhinestoneAccountParams {
   /**
-   * Pre-built viem `Account` to use as the SCA owner. The caller is
-   * responsible for wrapping vendor-specific accounts (e.g. Para's
-   * MPC signatures need v-byte adjustment) before passing in.
+   * Pre-built viem `Account` to use as the HCA owner (installed via the
+   * ENS ownership validator). The caller is responsible for wrapping
+   * vendor-specific accounts (e.g. Para's MPC signatures need v-byte
+   * adjustment) before passing in.
    */
   readonly ownerAccount: Account
 
   /**
-   * EOA address that owns the SCA. Usually `ownerAccount.address` but
+   * EOA address that owns the HCA. Usually `ownerAccount.address` but
    * accepted explicitly so the caller doesn't have to second-guess
    * (some wrapped accounts expose only the wrapped address, not the
    * underlying EOA).
    */
   readonly eoaAddress: Address
 
-  /** Chain the SCA lives on. */
+  /** Chain the HCA lives on. */
   readonly chain: Chain
 
   /** Rhinestone API key. Required. */
   readonly rhinestoneApiKey: string
-
-  /**
-   * Pimlico API key for the ERC-4337 bundler path. Required when
-   * `infrastructure === 'pimlico'`; optional otherwise (the SDK still
-   * accepts it as a fallback for session-based user-ops).
-   */
-  readonly pimlicoApiKey?: string
 
   /** Override the Rhinestone orchestrator endpoint (e.g. for local dev). */
   readonly rhinestoneEndpointUrl?: string
 
   /** Per-chain RPC overrides for the SDK. */
   readonly rhinestoneCustomRpcUrls?: Record<number, string>
-
-  /**
-   * Hook called after `sdk.createAccount` returns, before we register
-   * HCA ownership or hand control back. The callback receives the
-   * built RhinestoneAccount + its address + the SCA-on-chain status
-   * so the caller can do its own HCA registration (or anything else
-   * that needs the live account).
-   *
-   * Errors thrown from `onAccountReady` propagate out of
-   * `initializeRhinestoneAccount` and cause `onError('registering', ...)`
-   * to be emitted.
-   */
-  readonly onAccountReady?: (input: {
-    rhinestoneAccount: RhinestoneAccount
-    accountAddress: Address
-    /**
-     * Whether the SCA was deployed in this call (true) or was already
-     * deployed before we started (false). Useful for the caller to
-     * decide whether to skip a no-op HCA registration.
-     */
-    wasDeployedInThisCall: boolean
-  }) => Promise<void>
-
-  /**
-   * Caller-declared infrastructure preference. Only used to validate
-   * that `pimlicoApiKey` is present when set to `'pimlico'`; the
-   * actual transport selection happens later, at signer construction
-   * time (see `@ens-apps/transaction-manager`).
-   */
-  readonly infrastructure?: SmartAccountInfrastructure
 
   /** Progress callback for UX wiring. See `InitProgressStage`. */
   readonly onProgress?: (stage: InitProgressStage) => void
@@ -137,10 +110,125 @@ export interface InitializeRhinestoneAccountParams {
 }
 
 /**
- * Initialize a Rhinestone smart account.
+ * Create a Rhinestone HCA smart account in-memory (no on-chain deploy).
  *
- * @throws when the SDK fails, the bootstrap deploy fails, or
- * `onAccountReady` throws.
+ * Returns the live SDK account object, deterministic address, and
+ * config. The HCA is **not** deployed on-chain — call
+ * `deployRhinestoneAccountCore` later to deploy when first needed.
+ *
+ * This split lets callers defer the on-chain deploy to the point of
+ * first use (e.g. the registration commit step), avoiding wasted gas
+ * if the user never registers.
+ */
+export async function initializeRhinestoneAccountCore(
+  params: InitializeRhinestoneAccountParams,
+): Promise<RhinestoneInitResult> {
+  const {
+    ownerAccount,
+    eoaAddress,
+    chain,
+    rhinestoneApiKey,
+    rhinestoneEndpointUrl,
+    rhinestoneCustomRpcUrls,
+  } = params
+
+  if (!rhinestoneApiKey) {
+    throw new Error('rhinestoneApiKey is required')
+  }
+
+  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
+    apiKey: rhinestoneApiKey,
+    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
+    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
+  }
+
+  const sdk = new RhinestoneSDK(sdkOptions)
+
+  const rhinestoneAccount = await sdk.createAccount({
+    account: { type: 'hca' },
+    owners: {
+      type: 'ens',
+      accounts: [ownerAccount],
+      ownerExpirations: [HCA_OWNER_NEVER_EXPIRES],
+    },
+  })
+
+  const accountAddress = rhinestoneAccount.getAddress() as Address
+
+  return {
+    client: rhinestoneAccount,
+    address: accountAddress,
+    ownerAddress: eoaAddress,
+    config: {
+      chain,
+      rhinestoneApiKey,
+    },
+  }
+}
+
+/**
+ * Deploy a Rhinestone HCA on-chain if it is not already deployed.
+ *
+ * Pure async function that takes an already-created `RhinestoneAccount`
+ * (in-memory) and ensures the deterministic CREATE3 proxy is deployed
+ * on-chain via a sponsored Intent. The account itself holds no funds —
+ * gas is paid by the Rhinestone Warp relayer; only the owner signs.
+ *
+ * This is separated from `initializeRhinestoneAccount` so callers can
+ * defer deployment to the point of first use (e.g. the registration
+ * commit step), avoiding wasted gas if the user never registers.
+ */
+export async function deployRhinestoneAccountCore(
+  rhinestoneAccount: RhinestoneAccount,
+  chain: Chain,
+  onProgress?: (stage: 'deploying' | 'ready') => void,
+  onError?: (stage: 'deploying', error: Error) => void,
+): Promise<void> {
+  if (await rhinestoneAccount.isDeployed(chain)) {
+    onProgress?.('ready')
+    return
+  }
+
+  onProgress?.('deploying')
+  try {
+    const { factory, factoryData } = rhinestoneAccount.getInitData()
+
+    const prepared = await rhinestoneAccount.prepareTransaction({
+      chain,
+      sponsored: true,
+      calls: [
+        {
+          to: factory,
+          value: 0n,
+          data: factoryData,
+        },
+      ],
+    })
+    const signed = await rhinestoneAccount.signTransaction(prepared)
+    const result = await rhinestoneAccount.submitTransaction(signed)
+
+    // `submitTransaction` only submits — it does not wait for the fill
+    // to land. Wait for execution so callers can treat a resolved
+    // promise as "the HCA is on-chain".
+    await rhinestoneAccount.waitForExecution(result)
+  } catch (error) {
+    const wrapped = error instanceof Error ? error : new Error(String(error))
+    onError?.('deploying', wrapped)
+    throw wrapped
+  }
+
+  onProgress?.('ready')
+}
+
+/**
+ * Initialize a Rhinestone HCA smart account.
+ *
+ * Creates the in-memory SDK account and deploys it on-chain in a single
+ * call. For lazy deployment (skip deploy at init, deploy later on first
+ * use), call `initializeRhinestoneAccountCore` + `deployRhinestoneAccountCore`
+ * separately.
+ *
+ * @throws when the SDK fails or the bootstrap deploy Intent fails.
  */
 export async function initializeRhinestoneAccount(
   params: InitializeRhinestoneAccountParams,
@@ -150,11 +238,8 @@ export async function initializeRhinestoneAccount(
     eoaAddress,
     chain,
     rhinestoneApiKey,
-    pimlicoApiKey,
     rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls,
-    onAccountReady,
-    infrastructure = 'warp',
     onProgress,
     onError,
   } = params
@@ -162,90 +247,40 @@ export async function initializeRhinestoneAccount(
   if (!rhinestoneApiKey) {
     throw new Error('rhinestoneApiKey is required')
   }
-  if (infrastructure === 'pimlico' && !pimlicoApiKey) {
-    throw new Error(
-      'pimlicoApiKey is required when infrastructure === "pimlico"',
-    )
-  }
 
+  // Gas sponsorship for the HCA is handled by the Rhinestone Warp
+  // orchestrator (intent-based, relayer-funded). We deliberately do not
+  // configure an ERC-4337 bundler here — HCA operations route through
+  // sponsored Intents, not bundled UserOps.
   const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
     apiKey: rhinestoneApiKey,
     ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
     ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
-    // Always include Pimlico when available. Warp (intents) doesn't need
-    // it, but session-based user-ops do — see session.ts.
-    ...(pimlicoApiKey && {
-      bundler: { type: 'pimlico' as const, apiKey: pimlicoApiKey },
-    }),
   }
 
   const sdk = new RhinestoneSDK(sdkOptions)
 
+  // Native HCA account: the ENS ownership validator is installed at
+  // construction by the factory. No `experimental_sessions` — the SDK
+  // rejects it for HCA accounts (the module set is permanently locked).
   const rhinestoneAccount = await sdk.createAccount({
+    account: { type: 'hca' },
     owners: {
-      type: 'ecdsa' as const,
+      type: 'ens',
       accounts: [ownerAccount],
+      ownerExpirations: [HCA_OWNER_NEVER_EXPIRES],
     },
-    experimental_sessions: { enabled: true },
   })
 
   const accountAddress = rhinestoneAccount.getAddress() as Address
 
-  // SCA must be on-chain before routing real txs through it. A bare
-  // `.deploy()` 422s the intents path with ZERO_BALANCE because the
-  // tokenRequests array is empty; deploying via a noop call works
-  // (confirmed with Rhinestone). Per call: keep this in sync with
-  // their guidance.
-  let wasDeployedInThisCall = false
-  const deployed = await rhinestoneAccount.isDeployed(chain)
-  if (!deployed) {
-    onProgress?.('deploying')
-    try {
-      // `sendTransaction` only submits — it does not wait for the fill
-      // to land. Without an explicit `waitForExecution` here, callers'
-      // `onAccountReady` hooks (e.g. HCA ownership registration in
-      // manager) can race the bootstrap deploy and intermittently fail
-      // on fresh wallets. Mirror the Rhinestone SDK examples and wait
-      // for execution before declaring the account deployed.
-      const deployTx = await rhinestoneAccount.sendTransaction({
-        chain,
-        calls: [
-          {
-            to: zeroAddress,
-            value: 0n,
-            data: '0x',
-          },
-        ],
-        sponsored: true,
-      })
-      await rhinestoneAccount.waitForExecution(deployTx)
-      wasDeployedInThisCall = true
-    } catch (error) {
-      const wrapped = error instanceof Error ? error : new Error(String(error))
-      onError?.('deploying', wrapped)
-      throw wrapped
-    }
-  }
-
-  // Hand off to the caller for any post-deploy work (HCA registration,
-  // etc.). The caller decides whether to skip when the SCA was already
-  // deployed.
-  if (onAccountReady) {
-    onProgress?.('registering')
-    try {
-      await onAccountReady({
-        rhinestoneAccount,
-        accountAddress,
-        wasDeployedInThisCall,
-      })
-    } catch (error) {
-      const wrapped = error instanceof Error ? error : new Error(String(error))
-      onError?.('registering', wrapped)
-      throw wrapped
-    }
-  }
-
-  onProgress?.('ready')
+  // Deploy the HCA on-chain.
+  await deployRhinestoneAccountCore(
+    rhinestoneAccount,
+    chain,
+    onProgress,
+    onError,
+  )
 
   return {
     client: rhinestoneAccount,

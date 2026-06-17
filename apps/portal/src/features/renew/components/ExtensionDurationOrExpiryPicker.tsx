@@ -7,7 +7,10 @@ import {
   getMinExpiryDateForPicker,
   plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
-import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import {
+  CONTRACT_SECONDS_PER_YEAR,
+  MAX_REGISTRATION_YEARS,
+} from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
 import {
   getExtensionBaseDate,
@@ -68,7 +71,7 @@ export const ExtensionDurationOrExpiryPicker = ({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-base font-medium">
+          <span className="text-lg font-medium">
             {spanType === 'years' ? 'For' : 'Until'}
           </span>
           <Button
@@ -78,7 +81,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             className="gap-1 text-primary"
           >
             <span className="text-xs font-normal">
-              Choose by {spanType === 'years' ? 'date' : 'years'}
+              {spanType === 'years' ? 'Pick by date' : 'Choose length'}
             </span>
             {spanType === 'years' ? (
               <CalendarIcon className="size-3" />
@@ -101,8 +104,15 @@ export const ExtensionDurationOrExpiryPicker = ({
             onDateChange={(date) =>
               setDuration(plainDateToDate(date).getTime())
             }
+            onYearsPresetSelect={(years) =>
+              setDuration(
+                plainDateToDate(baseDate).getTime() +
+                  years * CONTRACT_SECONDS_PER_YEAR * 1000,
+              )
+            }
             minDate={getMinExpiryDateForPicker(baseDate)}
             maxDate={getMaxExpiryDateForPicker(baseDate)}
+            name={name}
           />
         )}
       </div>

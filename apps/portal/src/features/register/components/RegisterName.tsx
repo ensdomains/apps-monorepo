@@ -10,9 +10,9 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { MessageCard } from '@/components/ui/message-card'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { useRegistrationSuccessRedirect } from '@/features/register/hooks/useRegistrationSuccessRedirect'
 import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
-import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
@@ -24,7 +24,6 @@ import {
 import { PaymentTokenSection } from './PaymentTokenSection'
 import { RegisterNameForm } from './RegisterNameForm'
 import { RegisterNameCheckoutSummary } from './RegisterNameSummary'
-import { RegistrationSuccess } from './RegistrationSuccess'
 
 type RegisterNameProps = {
   readonly name: string
@@ -35,18 +34,12 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     getDurationInSecondsFromYears(1),
   )
 
-  const { isConnected, address } = useConnection()
+  const { isConnected } = useConnection()
   const { openConnectModal } = useConnectModal()
   const { openModal } = useTransactionModal()
 
-  const {
-    transactions,
-    isRegistering,
-    isSuccess,
-    selectedToken,
-    startFlow,
-    resetRegistration,
-  } = useRegistrationTransactions({ name, duration })
+  const { transactions, isRegistering, isSuccess, selectedToken, startFlow } =
+    useRegistrationTransactions({ name, duration })
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
@@ -63,15 +56,22 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     refetchInterval: isSuccess ? false : 5000,
   })
 
-  // Fetch price for success screen
-  const { data: price } = useQuery({
+  // Fetch the final price so we can pass the paid amount to the overview.
+  const { data: price, isError: isPriceError } = useQuery({
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
-      owner: address,
       token: selectedToken ? SUPPORTED_TOKENS[selectedToken] : undefined,
     }),
-    enabled: isSuccess && Boolean(name) && duration > 0 && Boolean(address),
+    enabled: isSuccess && Boolean(name) && duration > 0,
+  })
+
+  useRegistrationSuccessRedirect({
+    name,
+    durationSeconds: duration,
+    isSuccess,
+    price,
+    isPriceError,
   })
 
   const isNameTaken =
@@ -164,14 +164,11 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   }
 
   return (
-    <main className="flex-1 mx-auto w-full max-w-xl px-6 py-8 flex flex-col gap-8">
-      {isSuccess && isPriceResult(price) ? (
-        <RegistrationSuccess
-          domainName={name}
-          durationSeconds={duration}
-          price={price}
-          onRegisterAnother={resetRegistration}
-        />
+    <main className="flex-1 mx-auto w-full max-w-xl px-4 py-8 flex flex-col gap-4">
+      {isSuccess ? (
+        <div className="flex-1 flex items-center justify-center">
+          <LoadingSpinner title="Finishing registration..." />
+        </div>
       ) : (
         <>
           <RegisterNameForm

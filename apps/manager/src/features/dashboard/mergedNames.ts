@@ -1,4 +1,10 @@
 import type { DomainFragment } from '@ens-apps/indexer'
+import {
+  getDaysSinceExpiry,
+  getDisplayExpiryDate,
+  getGraceEndDate,
+  isInGracePeriod,
+} from '@/features/grace/utils/gracePeriod'
 import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
   formatDashboardDate,
@@ -14,6 +20,7 @@ export type MergedItem =
       readonly key: string
       readonly sortName: string
       readonly sortExpiry: number | null
+      readonly sortCreated: number | null
       readonly domain: DomainFragment
     }
   | {
@@ -21,11 +28,15 @@ export type MergedItem =
       readonly key: string
       readonly sortName: string
       readonly sortExpiry: number | null
+      readonly sortCreated: number | null
       readonly classified: ClassifiedName
     }
 
-export type SortField = 'name' | 'expiry'
+export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
+export type ExpiryCta = 'renew' | 'remindMe'
+
+const RENEW_CTA_THRESHOLD_DAYS = 7
 
 export const v1ExpirySeconds = (classified: ClassifiedName): number | null => {
   const raw =
@@ -47,8 +58,8 @@ export const compareMerged = (
   if (field === 'name') {
     return a.sortName.localeCompare(b.sortName) * mul
   }
-  const ax = a.sortExpiry
-  const bx = b.sortExpiry
+  const ax = field === 'created' ? a.sortCreated : a.sortExpiry
+  const bx = field === 'created' ? b.sortCreated : b.sortExpiry
   if (ax === null && bx === null) return 0
   if (ax === null) return 1
   if (bx === null) return -1
@@ -74,6 +85,7 @@ export const buildMergedNamesList = (params: {
       key: `v2-${domain.id}`,
       sortName: label,
       sortExpiry: domain.expiryDate ?? null,
+      sortCreated: domain.createdAt,
       domain,
     })
   }
@@ -92,6 +104,7 @@ export const buildMergedNamesList = (params: {
       key: `v1-${classified.domain.id}`,
       sortName: label,
       sortExpiry: v1ExpirySeconds(classified),
+      sortCreated: null,
       classified,
     })
   }
@@ -103,11 +116,18 @@ export const buildMergedNamesList = (params: {
 export type MergedRowMetadata = {
   readonly label: string
   readonly expiryDate: Date | null
+  readonly displayExpiryDate: Date | null
+  readonly graceEndDate: Date | null
   readonly daysUntilExpiry: number | null
+  readonly daysSinceExpiry: number | null
   readonly expiringSoon: boolean
   readonly formattedExpiryDate: string
   readonly isV1: boolean
   readonly isPrimary: boolean
+  readonly isInGrace: boolean
+  readonly showProminentRenew: boolean
+  readonly expiryCta: ExpiryCta | null
+  readonly useDefaultAvatar: boolean
   readonly avatarUrl: string | undefined
 }
 
@@ -115,25 +135,49 @@ export const mergedRowMetadata = (
   item: MergedItem,
   primaryLabel?: string | null,
   avatarOverride?: string,
+  now: Date = new Date(),
 ): MergedRowMetadata => {
   const label = item.sortName
   const expiryDate = toDateFromSeconds(item.sortExpiry)
-  const daysUntilExpiry = getDaysUntil(expiryDate)
   const isV1 = item.kind === 'v1'
+  const isV2 = !isV1
+  const isInGrace = isInGracePeriod(expiryDate, isV2, now)
+  const graceEndDate =
+    expiryDate && isInGrace ? getGraceEndDate(expiryDate, isV2) : null
+  const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, now)
+  const daysUntilExpiry = getDaysUntil(expiryDate)
+  const daysSinceExpiry =
+    expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
+  const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
+  const expiryCta =
+    isV2 && isInGrace
+      ? 'renew'
+      : isV2 && expiringSoon && daysUntilExpiry !== null
+        ? daysUntilExpiry <= RENEW_CTA_THRESHOLD_DAYS
+          ? 'renew'
+          : 'remindMe'
+        : null
   const isPrimary =
     !isV1 &&
     !!primaryLabel &&
     label.toLowerCase() === primaryLabel.toLowerCase()
-  const avatarUrl = isV1 ? undefined : avatarOverride
+  const avatarUrl = isV1 || isInGrace ? undefined : avatarOverride
 
   return {
     label,
     expiryDate,
+    displayExpiryDate,
+    graceEndDate,
     daysUntilExpiry,
-    expiringSoon: isExpiringSoon(expiryDate, 30, daysUntilExpiry),
-    formattedExpiryDate: formatDashboardDate(expiryDate),
+    daysSinceExpiry,
+    expiringSoon,
+    formattedExpiryDate: formatDashboardDate(displayExpiryDate),
     isV1,
     isPrimary,
+    isInGrace,
+    showProminentRenew: expiryCta === 'renew',
+    expiryCta,
+    useDefaultAvatar: isInGrace,
     avatarUrl,
   }
 }

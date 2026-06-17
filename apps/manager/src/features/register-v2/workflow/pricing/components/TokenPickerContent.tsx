@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { match, P } from 'ts-pattern'
-import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -17,9 +16,10 @@ import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { getPremiumLabel } from '../lib/premiumLabel'
+import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
 
 const MEDIUM_NAME_CHAR_THRESHOLD = 10
@@ -42,12 +42,9 @@ export const TokenPickerContent = () => {
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
   )
-  const ownerAddress = account.ownerAddress ?? zeroAddress
-
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(
+    ...getRegisterPriceQueryOptions(
       label,
-      ownerAddress,
       duration,
       selectedToken ?? TOKENS.USDC.symbol,
     ),
@@ -62,10 +59,10 @@ export const TokenPickerContent = () => {
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
       ),
       totalPriceNumber: decimalBigintToNumber(
-        data.totalPrice,
+        data.basePrice + data.premium,
         selectedToken ? TOKENS[selectedToken].decimals : TOKENS.USDC.decimals,
       ),
-      rawPrice: data.totalPrice,
+      rawPrice: data.basePrice + data.premium,
     }),
   })
 
@@ -116,6 +113,7 @@ export const TokenPickerContent = () => {
           : null
       }
       isConnected={isConnected}
+      isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
       label={label}
       onNext={() => availabilityMutation.mutate()}
@@ -132,6 +130,7 @@ export const TokenPickerContentBase = ({
   label,
   pricingLoading,
   pricingData,
+  isInPriceCooldown = false,
   selectedToken,
   errorMessage,
   onSelectCoin,
@@ -143,6 +142,7 @@ export const TokenPickerContentBase = ({
   label: string
   pricingLoading: boolean
   pricingData: number | undefined
+  isInPriceCooldown?: boolean
   selectedToken: SUPPORTED_TOKEN | undefined
   errorMessage?: string | null
   onSelectCoin: (coin: SUPPORTED_TOKEN) => void
@@ -180,11 +180,16 @@ export const TokenPickerContentBase = ({
     <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
       <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
         <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
-          {premiumLabel && (
-            <DomainAttributePill
-              label={t(premiumLabel.label)}
-              variant={premiumLabel.variant}
-            />
+          {(premiumLabel || isInPriceCooldown) && (
+            <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+              {premiumLabel && (
+                <DomainAttributePill
+                  label={t(premiumLabel.label)}
+                  variant={premiumLabel.variant}
+                />
+              )}
+              {isInPriceCooldown && <PriceCooldownPill />}
+            </div>
           )}
           <span
             className={cn(

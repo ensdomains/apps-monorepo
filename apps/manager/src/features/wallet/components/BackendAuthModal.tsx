@@ -1,9 +1,8 @@
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
 import { useMutation } from '@tanstack/react-query'
 import { useSelector } from '@xstate/store-react'
 import { useState } from 'react'
-import { useWalletClient } from 'wagmi'
+import { useConnection, useWalletClient } from 'wagmi'
 import * as AlertDialog from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
@@ -21,36 +20,16 @@ export const BackendAuthModal = () => {
   )
   const signIn = useMutation(signInBackendMutation)
 
-  const { data: wallet, isLoading: walletLoading } = useWallet()
+  const { isConnected: isWalletConnected } = useConnection()
   const { data: walletClient } = useWalletClient()
 
-  // Hold this modal until the SCA is live (same idea as the session prompt).
-  // Hook is null before the provider mounts; then we don't wait, so EOA-only isn't stuck.
+  // Hold this modal until the SCA is live. Hook is null before the
+  // provider mounts; then we don't wait, so EOA-only isn't stuck.
   const smartAccount = useSmartAccountContextSafe()
   const isSmartAccountReady =
     smartAccount === null || smartAccount.isAccountReady || !!smartAccount.error
-
-  // Don't co-mount with the EnableSessionModal. Two Radix dialogs whose
-  // open states transition in the same React commit hit a known
-  // `pointer-events: none` ref-counting bug in `@radix-ui/react-dismissable-layer`
-  // (the close-side cleanup sees `layersWithOutsidePointerEventsDisabled.size > 1`
-  // and skips restoring the body style; the new layer captures `none` as the
-  // "original" and never restores it on its own unmount). The visible
-  // symptom is a transparent overlay that blocks the whole page after
-  // session enable, only fixable by deleting the node in devtools.
-  //
-  // Mounting BackendAuthModal only when the session prompt is fully
-  // settled (neither open nor mid-create) sidesteps the race entirely.
-  const isSessionPromptSettled =
-    smartAccount === null ||
-    (!smartAccount.showSessionModal && !smartAccount.isCreatingSession)
-
-  const isWalletConnected = !!wallet && !walletLoading
   const shouldShowModal =
-    isWalletConnected &&
-    isNotAuthedOrDismissed &&
-    isSmartAccountReady &&
-    isSessionPromptSettled
+    isWalletConnected && isNotAuthedOrDismissed && isSmartAccountReady
 
   const handleSignIn = async () => {
     if (!walletClient) {

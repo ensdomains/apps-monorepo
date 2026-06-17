@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
+import {
+  CONTRACT_SECONDS_PER_YEAR,
+  MAX_REGISTRATION_YEARS,
+  SECONDS_PER_DAY,
+} from '@/lib/constants/duration'
 import {
   calculateDurationFromDate,
   formatRegistrationDuration,
@@ -17,82 +21,63 @@ describe('registrationDuration', () => {
   const startOfFixedToday = Temporal.PlainDate.from('2025-01-15')
 
   describe('formatRegistrationDuration', () => {
-    it('should throw when expiry is today or in the past', () => {
-      expect(() =>
-        formatRegistrationDuration(
-          startOfFixedToday,
-          Temporal.PlainDate.from('2025-01-15'),
-        ),
-      ).toThrow('Expiry date must be after start date')
-      expect(() =>
-        formatRegistrationDuration(
-          startOfFixedToday,
-          Temporal.PlainDate.from('2024-06-01'),
-        ),
-      ).toThrow('Expiry date must be after start date')
+    // Contract year math: 1 year = CONTRACT_SECONDS_PER_YEAR (365.25 d),
+    // 1 month = year / 12 (~30.4375 d).
+    const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
+
+    it('throws when duration is less than 1 day', () => {
+      expect(() => formatRegistrationDuration(0)).toThrow(
+        'Duration is less than 1 day',
+      )
+      expect(() => formatRegistrationDuration(SECONDS_PER_DAY - 1)).toThrow(
+        'Duration is less than 1 day',
+      )
     })
 
-    it('should return "1 year" for exactly one year from today', () => {
-      const oneYearFromNow = startOfFixedToday.add({ years: 1 })
-      expect(
-        formatRegistrationDuration(startOfFixedToday, oneYearFromNow),
-      ).toBe('1 year')
+    it('returns "1 year" for exactly CONTRACT_SECONDS_PER_YEAR', () => {
+      expect(formatRegistrationDuration(CONTRACT_SECONDS_PER_YEAR)).toBe(
+        '1 year',
+      )
     })
 
-    it('should return "2 years" for two years from today', () => {
-      const twoYearsFromNow = startOfFixedToday.add({ years: 2 })
-      expect(
-        formatRegistrationDuration(startOfFixedToday, twoYearsFromNow),
-      ).toBe('2 years')
+    it('returns "2 years" for 2 × CONTRACT_SECONDS_PER_YEAR', () => {
+      expect(formatRegistrationDuration(2 * CONTRACT_SECONDS_PER_YEAR)).toBe(
+        '2 years',
+      )
     })
 
-    it('should return "1 year 3 months" for 1 year 3 months from today', () => {
-      const target = startOfFixedToday.add({ years: 1, months: 3 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
+    it('returns "1 year 3 months" for 15 contract-months', () => {
+      expect(formatRegistrationDuration(15 * SECONDS_PER_MONTH)).toBe(
         '1 year 3 months',
       )
     })
 
-    it('should return "2 years 6 months" for 2 years 6 months from today', () => {
-      const target = startOfFixedToday.add({ years: 2, months: 6 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
+    it('returns "2 years 6 months" for 30 contract-months', () => {
+      expect(formatRegistrationDuration(30 * SECONDS_PER_MONTH)).toBe(
         '2 years 6 months',
       )
     })
 
-    it('should return "1 month" for one month from today', () => {
-      const target = startOfFixedToday.add({ months: 1 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
-        '1 month',
-      )
+    it('returns "1 month" for exactly 1 contract-month', () => {
+      expect(formatRegistrationDuration(SECONDS_PER_MONTH)).toBe('1 month')
     })
 
-    it('should return "6 months" for six months from today', () => {
-      const target = startOfFixedToday.add({ months: 6 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
-        '6 months',
-      )
+    it('returns "6 months" for exactly 6 contract-months', () => {
+      expect(formatRegistrationDuration(6 * SECONDS_PER_MONTH)).toBe('6 months')
     })
 
-    it('should return "1 day" for one day from today', () => {
-      const target = startOfFixedToday.add({ days: 1 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
-        '1 day',
-      )
+    it('returns "1 day" for exactly 1 day', () => {
+      expect(formatRegistrationDuration(SECONDS_PER_DAY)).toBe('1 day')
     })
 
-    it('should return "15 days" for 15 days from today (no months)', () => {
-      const target = startOfFixedToday.add({ days: 15 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
-        '15 days',
-      )
+    it('returns "15 days" for 15 days (less than 1 contract-month)', () => {
+      expect(formatRegistrationDuration(15 * SECONDS_PER_DAY)).toBe('15 days')
     })
 
-    it('should include days when months and extra days are present', () => {
-      const target = startOfFixedToday.add({ months: 1, days: 5 })
-      expect(formatRegistrationDuration(startOfFixedToday, target)).toBe(
-        '1 month 5 days',
-      )
+    it('includes days when months and extra days are present', () => {
+      expect(
+        formatRegistrationDuration(SECONDS_PER_MONTH + 5 * SECONDS_PER_DAY),
+      ).toBe('1 month 5 days')
     })
   })
 
@@ -198,28 +183,31 @@ describe('registrationDuration', () => {
   })
 
   describe('getDurationInSecondsFromYears', () => {
-    it('should return exact seconds for 1 calendar year', () => {
+    // The function now returns `years × CONTRACT_SECONDS_PER_YEAR` (365.25
+    // days/year) so the duration sent to the contract aligns with the
+    // oracle's annualised list rate. See the JSDoc for the tradeoff.
+    it('should return exactly CONTRACT_SECONDS_PER_YEAR for 1 year', () => {
       expect(getDurationInSecondsFromYears(1, startOfFixedToday)).toBe(
-        31_536_000,
-      ) // 365 days
+        CONTRACT_SECONDS_PER_YEAR,
+      )
     })
 
-    it('should return exact seconds for 3 calendar years', () => {
-      const result = getDurationInSecondsFromYears(3, startOfFixedToday)
-      const expectedExpiry = startOfFixedToday.add({ years: 3 })
-      const expectedDays = startOfFixedToday.until(expectedExpiry, {
-        largestUnit: 'days',
-      }).days
-      expect(result).toBe(expectedDays * 86400)
+    it('should return N × CONTRACT_SECONDS_PER_YEAR for N years', () => {
+      expect(getDurationInSecondsFromYears(3, startOfFixedToday)).toBe(
+        3 * CONTRACT_SECONDS_PER_YEAR,
+      )
     })
 
     it('should return at least 1 year for values less than 1', () => {
       expect(getDurationInSecondsFromYears(0.5, startOfFixedToday)).toBe(
-        31_536_000,
+        CONTRACT_SECONDS_PER_YEAR,
       )
     })
 
-    it('should give Jan 1 2029 for 3 years from Jan 1 2026', () => {
+    it('expiry from 3-year duration lands on the calendar 3-years-later date', () => {
+      // 3y from Jan 1 2026: flat = 1095.75 d, calendar = 1096 d (Feb 29
+      // 2028 inside). max(flat, calendar) picks calendar → 1096 days →
+      // Jan 1 2029 — what the user expects from "3 years".
       const jan1_2026 = Temporal.PlainDate.from('2026-01-01')
       const duration = getDurationInSecondsFromYears(3, jan1_2026)
       const expiry = getRegistrationExpiryDateFromSeconds(jan1_2026, duration)

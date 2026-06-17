@@ -29,8 +29,22 @@ describe('feature-flags', () => {
       expect(typeof result).toBe('boolean')
     })
 
-    it('keeps migration disabled by default', () => {
-      expect(isFeatureEnabled('MIGRATION')).toBe(false)
+    it('gates the new profile editor flag', () => {
+      const original = FEATURE_FLAGS.PROFILE_EDIT_NEW
+      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
+
+      try {
+        mutableFlags.PROFILE_EDIT_NEW = { enabled: false }
+
+        expect(isFeatureEnabled('PROFILE_EDIT_NEW')).toBe(false)
+
+        mutableFlags.PROFILE_EDIT_NEW = { enabled: true }
+
+        expect(isFeatureEnabled('PROFILE_EDIT_NEW')).toBe(true)
+      } finally {
+        mutableFlags.PROFILE_EDIT_NEW =
+          original as unknown as MutableFeatureFlags[string]
+      }
     })
 
     it('should return true when feature is enabled and no user restrictions', () => {
@@ -257,47 +271,22 @@ describe('feature-flags', () => {
   })
 
   describe('provider and infra helpers', () => {
-    it('getTransactionInfra returns pimlico when flag is disabled', () => {
-      const original = FEATURE_FLAGS.USE_WARP_INFRA
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.USE_WARP_INFRA = { enabled: false }
-
-      expect(getTransactionInfra()).toBe('pimlico')
-
-      mutableFlags.USE_WARP_INFRA =
-        original as unknown as MutableFeatureFlags[string]
-    })
-
-    it('getTransactionInfra returns warp when flag is enabled', () => {
-      const original = FEATURE_FLAGS.USE_WARP_INFRA
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.USE_WARP_INFRA = { enabled: true }
-
+    it('getTransactionInfra always returns warp (Warp-only infra)', () => {
       expect(getTransactionInfra()).toBe('warp')
-
-      mutableFlags.USE_WARP_INFRA =
-        original as unknown as MutableFeatureFlags[string]
     })
 
     it('resolveInfrastructure prioritizes explicit override', () => {
-      expect(resolveInfrastructure({ infrastructure: 'warp' }, 'pimlico')).toBe(
+      expect(resolveInfrastructure({ infrastructure: 'warp' }, 'warp')).toBe(
         'warp',
       )
     })
 
-    it('resolveInfrastructure prioritizes signer default over flag', () => {
+    it('resolveInfrastructure prioritizes signer default', () => {
       expect(resolveInfrastructure(undefined, 'warp')).toBe('warp')
     })
 
-    it('resolveInfrastructure falls back to feature flag default', () => {
-      const original = FEATURE_FLAGS.USE_WARP_INFRA
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-      mutableFlags.USE_WARP_INFRA = { enabled: false }
-
-      expect(resolveInfrastructure()).toBe('pimlico')
-
-      mutableFlags.USE_WARP_INFRA =
-        original as unknown as MutableFeatureFlags[string]
+    it('resolveInfrastructure falls back to the Warp-only default', () => {
+      expect(resolveInfrastructure()).toBe('warp')
     })
   })
 })

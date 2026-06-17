@@ -19,20 +19,25 @@ import {
   PhoneIcon,
 } from 'lucide-react'
 import { LinkedInIcon } from '../../components/icons/LinkedInIcon'
+import { createSocialProfileValueNormalizer } from './social'
 import type { SectionData, TextRecordDef } from './types'
 
 export const specialSections = ['contact'] as const
 
 export const sections = {
-  social: { label: 'Connect', description: 'Social media usernames' },
+  social: { label: 'Connect' },
 } as const satisfies Record<string, SectionData>
 
 export const staticTextRecords = [
+  'name',
   'avatar',
   'header',
   'description',
   'url',
   'theme',
+  'language',
+  'primary-contact',
+  'domains.ens.primary-contacts',
 ] as const
 
 export const textRecords: TextRecordDef[] = [
@@ -45,6 +50,9 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://x.com/',
     kind: 'link',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['x.com', 'twitter.com'],
+    }),
     icon: SiX,
   },
   {
@@ -55,6 +63,9 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://t.me/',
     kind: 'link',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['t.me', 'telegram.me'],
+    }),
     icon: SiTelegram,
   },
   {
@@ -65,6 +76,9 @@ export const textRecords: TextRecordDef[] = [
     href: 'https://farcaster.xyz/',
     kind: 'link',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['farcaster.xyz'],
+    }),
     icon: SiFarcaster,
   },
   {
@@ -74,6 +88,9 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     kind: 'link',
     href: 'https://instagram.com/',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['instagram.com'],
+    }),
     icon: SiInstagram,
   },
   {
@@ -91,6 +108,9 @@ export const textRecords: TextRecordDef[] = [
     kind: 'link',
     href: 'https://github.com/',
     forceFetch: 'always',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['github.com'],
+    }),
     icon: SiGithub,
   },
   {
@@ -99,6 +119,10 @@ export const textRecords: TextRecordDef[] = [
     name: 'LinkedIn',
     href: 'https://www.linkedin.com/in/',
     kind: 'link',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['linkedin.com'],
+      pathPrefixes: ['in'],
+    }),
     icon: LinkedInIcon,
   },
   {
@@ -116,6 +140,10 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: 'u/',
     kind: 'link',
     href: 'https://reddit.com/user/',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['reddit.com'],
+      pathPrefixes: ['user'],
+    }),
     icon: SiReddit,
   },
   {
@@ -125,6 +153,9 @@ export const textRecords: TextRecordDef[] = [
     displayPrefix: '@',
     kind: 'link',
     href: 'https://www.tiktok.com/@',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['tiktok.com'],
+    }),
     icon: SiTiktok,
   },
   {
@@ -133,6 +164,9 @@ export const textRecords: TextRecordDef[] = [
     name: 'Twitch',
     kind: 'link',
     href: 'https://twitch.tv/',
+    normalize: createSocialProfileValueNormalizer({
+      hosts: ['twitch.tv'],
+    }),
     icon: SiTwitch,
   },
   {
@@ -148,7 +182,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'email',
     section: 'contact',
     name: 'Email Address',
-    description: 'Your email address',
     kind: 'link',
     href: 'mailto:',
     forceFetch: 'always',
@@ -158,7 +191,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'location',
     section: 'contact',
     name: 'Location',
-    description: 'Your location',
     kind: 'copy',
     icon: MapPinIcon,
   },
@@ -166,7 +198,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'phone',
     section: 'contact',
     name: 'Phone Number',
-    description: 'Your phone number',
     kind: 'link',
     href: 'tel:',
     forceFetch: 'always',
@@ -176,7 +207,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'mail',
     section: 'contact',
     name: 'Mailing Address',
-    description: 'Your mailing address',
     kind: 'copy',
     icon: HouseIcon,
   },
@@ -184,7 +214,6 @@ export const textRecords: TextRecordDef[] = [
     key: 'timezone',
     section: 'contact',
     name: 'Timezone',
-    description: 'Your timezone',
     kind: 'copy',
     icon: ClockIcon,
   },

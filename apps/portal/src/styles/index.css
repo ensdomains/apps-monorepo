@@ -144,6 +144,9 @@
   --message-warning-fill: var(--signal-warning-100);
   --message-warning-text: var(--signal-warning-700);
 
+  --type-entity-fill: var(--accent-fill);
+  --type-entity-text: var(--accent-text);
+
   --avatar-placeholder-gradient: linear-gradient(
     135deg,
     #ef7eb8 0%,

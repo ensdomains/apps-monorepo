@@ -10,13 +10,13 @@ const alertVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-quartz-100/50 text-quartz-900 [&>svg]:text-quartz-500 *:data-[slot=alert-description]:text-quartz-900/90',
+          'bg-type-entity-fill text-type-entity-text [&>svg]:text-current *:data-[slot=alert-description]:text-type-entity-text/90',
         destructive:
-          'text-garnet-900 bg-garnet-100 [&>svg]:text-current *:data-[slot=alert-description]:text-garnet-900/90',
+          'bg-message-danger-fill text-message-danger-text [&>svg]:text-current *:data-[slot=alert-description]:text-message-danger-text/90',
         warning:
-          'bg-citrine-100 text-citrine-900 [&>svg]:text-current *:data-[slot=alert-description]:text-citrine-900/90',
+          'bg-message-warning-fill text-message-warning-text [&>svg]:text-current *:data-[slot=alert-description]:text-message-warning-text/90',
         success:
-          'bg-peridot-100 text-peridot-900 [&>svg]:text-peridot-500 *:data-[slot=alert-description]:text-peridot-900/90',
+          'bg-message-success-fill text-message-success-text [&>svg]:text-current *:data-[slot=alert-description]:text-message-success-text/90',
       },
     },
     defaultVariants: {

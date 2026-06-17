@@ -102,7 +102,7 @@ describe('setPrimaryName', () => {
         type: 'rhinestone-intent',
         from: SMART_ACCOUNT,
         to: DEFAULT_REVERSE,
-        rhinestoneParams: { sponsored: true, useSession: false },
+        rhinestoneParams: { sponsored: true },
       },
     })
     // Batched: setNameForAddrWithSignature on default + setName on reverse

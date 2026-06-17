@@ -14,12 +14,15 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-# Contract addresses (USDC & DAI on Sepolia fork — must match SUPPORTED_TOKENS in the app)
-MOCK_USDC="0x302edecc2b8d1f3f4625b8a825a42f9adc102e65"
-MOCK_DAI="0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4"
+# Payment-token addresses, resolved from the ensjs Sepolia chain config — the
+# SAME source the app uses (`@ens-apps/transaction-manager` SUPPORTED_TOKENS),
+# so this script can never drift from the tokens the manager reads/registers
+# with. See print-token-addresses.mjs.
+eval "$(node "$SCRIPT_DIR/print-token-addresses.mjs")"
 
 # Known addresses to fund (add more as needed).
 # HCA accounts read balances from the EOA, so we fund BOTH the smart
@@ -28,6 +31,7 @@ KNOWN_ADDRESSES=(
   "0xC9dDA331341ffE42E6377E35EEbaCC5d4fe24e74"  # Smart account (testing-2, no sessions)
   "0x38Baa0d0240d293723dC9C4C9732f1792297A8aF"  # Smart account (ensjs-v2, with sessions)
   "0xc9eec1b174a646d7c282820afe94acfba6c00a12"  # EOA for test1@test.getpara.com
+  "0xb0663cbab410d66b3c5b800d8db6231654e888b4"  # HCA for Anvil account 0 / E2E headless wallet (0xf39F…2266)
 )
 
 fund_address() {

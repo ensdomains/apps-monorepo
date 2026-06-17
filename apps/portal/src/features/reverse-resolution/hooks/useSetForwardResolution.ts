@@ -45,7 +45,11 @@ export const useSetForwardResolution = ({
       })
     },
     onSuccess: () => {
+      // Setting a forward resolution (primary name → address) changes which
+      // names resolve back to the connected wallet. Both the reverse table
+      // and the explorer-wide primary-name query need to refetch.
       queryClient.invalidateQueries({ queryKey: ['get-reverse-resolution'] })
+      queryClient.invalidateQueries({ queryKey: ['get-primary-name'] })
     },
   })
 

@@ -1,62 +1,64 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { ParaProvider } from '@getpara/react-sdk-lite'
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { useRouteContext } from '@tanstack/react-router'
-import { EnableSessionModal } from '@/features/wallet/components/EnableSessionModal'
-import {
-  SmartAccountContextProvider,
-  useSmartAccountContext,
-} from '@/lib/smart-account'
-import '@getpara/react-sdk-lite/styles.css'
+import { SmartAccountContextProvider } from '@/lib/smart-account'
+import '@rainbow-me/rainbowkit/styles.css'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import posthog from 'posthog-js'
+import { useEffect } from 'react'
+import { useConnection, useConnectionEffect, WagmiProvider } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { PHProvider } from '@/lib/posthog/provider'
 import { backendAuthStore } from '@/utils/backend-client'
-import { isFeatureEnabled } from '@/utils/feature-flags'
-import { tw } from '@/utils/tailwind'
-import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
-import { getParaClient, setParaConnectionCookie } from './para'
+import { ConnectionCookieSync } from './ConnectionCookieSync'
 import { TransactionHistoryReporter } from './transaction-history/TransactionHistoryReporter'
-import { sepoliaWithEns } from './wagmi'
+import { wagmiConfig } from './wagmi'
 
-const onWalletChange = () => {
-  const client = getParaClient()
+// Preserve wagmi's/RainbowKit's connection storage (wagmi.* / rk-*) — a blanket
+// localStorage.clear() corrupts reconnection.
+const clearAppLocalStorage = () => {
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith('wagmi') || key.startsWith('rk-')) continue
+    localStorage.removeItem(key)
+  }
+}
 
-  if (!client) return
+const WalletLifecycle = () => {
+  const { address } = useConnection()
 
-  const wallet = client.findWallet(undefined, undefined, {
-    type: ['EVM'],
+  // Keyed on `address` so in-place account switches fire too
+  // (useConnectionEffect.onConnect doesn't, as status stays "connected"):
+  // drop stale backend auth + transactions when the active address differs
+  // from the one we authed with.
+  useEffect(() => {
+    if (!address) return
+
+    const authedAddress = backendAuthStore.get().context.address
+    if (
+      authedAddress &&
+      authedAddress.toLowerCase() !== address.toLowerCase()
+    ) {
+      transactionManager.clearAllAndPersistence()
+      backendAuthStore.trigger.signOut()
+    }
+  }, [address])
+
+  useConnectionEffect({
+    onDisconnect() {
+      transactionManager.clearAllAndPersistence()
+      backendAuthStore.trigger.signOut()
+      clearAppLocalStorage()
+      track('wallet:disconnect')
+      posthog.reset()
+    },
   })
 
-  setParaConnectionCookie(wallet?.address ?? null)
-
-  if (!wallet) return
-
-  const previousAuthAddress = backendAuthStore.get().context.address
-
-  // If the previous auth address is the same as the current wallet address, do nothing
-  // Or if the previous auth address is not set, do nothing
-  if (
-    !previousAuthAddress ||
-    previousAuthAddress.toLowerCase() === wallet.address?.toLowerCase()
-  )
-    return
-
-  // Clear all transactions when wallet changes
-  transactionManager.clearAllAndPersistence()
-
-  backendAuthStore.trigger.signOut()
+  return null
 }
 
 export const RootProviders = ({ children }: { children: React.ReactNode }) => {
-  const VITE_PARA_API_KEY = import.meta.env.VITE_PARA_API_KEY
-
-  if (!VITE_PARA_API_KEY) {
-    throw new Error('VITE_PARA_API_KEY is not defined in environment variables')
-  }
-
   const queryClient = useRouteContext({
     from: '__root__',
     select: (context) => context.queryClient,
@@ -64,110 +66,20 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <I18nProvider i18n={i18n}>
-      <QueryClientProvider client={queryClient}>
-        <ParaProvider
-          callbacks={{
-            onLogin: onWalletChange,
-            onLogout() {
-              setParaConnectionCookie(null)
-              // Clear all active transactions when wallet disconnects
-              transactionManager.clearAllAndPersistence()
-
-              // Clear the backend auth store
-              backendAuthStore.trigger.signOut()
-
-              // Clear all local storage for the app
-              localStorage.clear()
-
-              // Clear the posthog session
-              track('wallet:disconnect')
-              posthog.reset()
-            },
-            onExternalWalletChange: onWalletChange,
-            onWalletsChange: onWalletChange,
-          }}
-          config={{
-            appName: 'ENS Manager',
-          }}
-          externalWalletConfig={{
-            wallets: ['METAMASK'],
-            // Do not create Para accounts for external wallet connections
-            createLinkedEmbeddedForExternalWallets: [],
-            evmConnector: {
-              config: {
-                chains: [sepoliaWithEns],
-              },
-            },
-            // walletConnect: {
-            //   projectId: '1cb2e088d817de31a39a54154b265f68',
-            // },
-            connectionOnly: true,
-          }}
-          paraClientConfig={{
-            apiKey: VITE_PARA_API_KEY,
-          }}
-          paraModalConfig={{
-            disableEmailLogin: false,
-            disablePhoneLogin: true,
-            onRampTestMode: true,
-            oAuthMethods: ['GOOGLE', 'TWITTER', 'TELEGRAM'],
-            authLayout: ['AUTH:FULL', 'EXTERNAL:FULL'],
-            recoverySecretStepEnabled: true,
-
-            theme: {
-              foregroundColor: '#2D3648',
-              backgroundColor: '#FFFFFF',
-              accentColor: '#0066CC',
-              darkForegroundColor: '#E8EBF2',
-              darkBackgroundColor: '#1A1F2B',
-              darkAccentColor: '#4D9FFF',
-              mode: 'light',
-              borderRadius: 'lg',
-              font: 'Inter',
-            },
-            twoFactorAuthEnabled: false,
-            // By default, the Para modal uses a high z-index (10011) to render above other elements. However, our dialog/alertdialog components apply `pointer-events-none` to the body, which can unintentionally block interaction with the Para modal when these dialogs are open underneath. To prevent this, we explicitly set `pointer-events-auto` on the Para modal, ensuring it remains interactive even when an underlying dialog/alertdialog is present—mirroring the approach we use for other modals.
-            className: tw`pointer-events-auto`,
-          }}
-        >
-          <ParaConnectionCookieSync />
-          <TransactionHistoryReporter />
-          <PHProvider>
-            <SmartAccountContextProvider>
-              {children}
-              {!isFeatureEnabled('USE_EOA') && <SmartAccountSessionModal />}
-            </SmartAccountContextProvider>
-          </PHProvider>
-        </ParaProvider>
-      </QueryClientProvider>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider>
+            <ConnectionCookieSync />
+            <WalletLifecycle />
+            <TransactionHistoryReporter />
+            <PHProvider>
+              <SmartAccountContextProvider>
+                {children}
+              </SmartAccountContextProvider>
+            </PHProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
     </I18nProvider>
-  )
-}
-
-const SmartAccountSessionModal = () => {
-  const {
-    showSessionModal,
-    enableSession,
-    dismissSession,
-    accountAddress,
-    ownerAddress,
-    isCreatingSession,
-    error,
-  } = useSmartAccountContext()
-
-  return (
-    <EnableSessionModal
-      hasError={!!error}
-      isEnabling={isCreatingSession}
-      onEnableSession={enableSession}
-      onOpenChange={(open) => {
-        if (!open) {
-          dismissSession()
-        }
-      }}
-      open={showSessionModal}
-      smartAccountAddress={accountAddress ?? undefined}
-      walletAddress={ownerAddress ?? undefined}
-    />
   )
 }

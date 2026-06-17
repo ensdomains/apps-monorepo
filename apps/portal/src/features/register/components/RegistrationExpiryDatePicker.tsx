@@ -1,35 +1,38 @@
 import { CalendarIcon } from 'lucide-react'
 import { useState } from 'react'
+import { buttonVariants } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
 import {
-  // getDurationFromPickerDate,
-  // getStartOfToday,
-  // getYearsFromDuration,
+  getDurationFromPickerDate,
+  getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
 
-// import { RegistrationDurationPresets } from '@/features/register/components/RegistrationDurationPresets'
-
 type RegistrationExpiryDatePickerProps = {
   readonly date: Temporal.PlainDate
   readonly onDateChange: (date: Temporal.PlainDate) => void
+  readonly onYearsPresetSelect: (years: number) => void
   readonly minDate: Temporal.PlainDate
   readonly maxDate: Temporal.PlainDate
+  readonly name?: string
 }
 
 export const RegistrationExpiryDatePicker = ({
   date,
   onDateChange,
+  onYearsPresetSelect,
   minDate,
   maxDate,
+  name,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -40,19 +43,19 @@ export const RegistrationExpiryDatePicker = ({
   const maxDateForCalendar = plainDateToDate(maxDate)
 
   const handleSelect = (d: Date | undefined) => {
-    if (d) {
-      onDateChange(dateToPlainDate(d))
+    if (!d) return
+    const picked = dateToPlainDate(d)
+    if (Temporal.PlainDate.compare(picked, date) === 0) {
       setIsOpen(false)
+      return
     }
+    onDateChange(picked)
+    setIsOpen(false)
   }
 
-  // const handlePresetSelect = (spanValue: number) => {
-  //   const startOfToday = getStartOfToday()
-  //   const expiryDate = startOfToday.add({ years: spanValue })
-  //   const cappedDate =
-  //     Temporal.PlainDate.compare(expiryDate, maxDate) > 0 ? maxDate : expiryDate
-  //   onDateChange(cappedDate)
-  // }
+  const handlePresetSelect = (spanValue: number) => {
+    onYearsPresetSelect(spanValue)
+  }
 
   const disabled = (date: Date) => {
     return !isDateWithinCalendarRange(dateToPlainDate(date), minDate, maxDate)
@@ -72,15 +75,17 @@ export const RegistrationExpiryDatePicker = ({
             <span className="flex-1 truncate text-2xl font-medium">
               {displayValue}
             </span>
-            <span className="flex rounded-md size-8 shrink-0 items-center justify-center bg-secondary">
+            <span
+              className={cn(
+                buttonVariants({ size: 'icon', variant: 'outline' }),
+                'size-8',
+              )}
+            >
               <CalendarIcon className="size-3 text-primary" />
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 border border-border"
-          align="start"
-        >
+        <PopoverContent className="w-auto p-0 border border-border" align="end">
           <Calendar
             captionLayout="dropdown"
             defaultMonth={selectedDateForCalendar}
@@ -99,13 +104,15 @@ export const RegistrationExpiryDatePicker = ({
           />
         </PopoverContent>
       </Popover>
-      {/* Discounts disabled on contracts - uncomment once re-enabled */}
-      {/* <RegistrationDurationPresets
-        value={Math.round(
-          getYearsFromDuration(getDurationFromPickerDate(date)),
-        )}
-        onSelect={handlePresetSelect}
-      /> */}
+      {name ? (
+        <RegistrationDurationPresets
+          value={Math.round(
+            getYearsFromDuration(getDurationFromPickerDate(date)),
+          )}
+          onSelect={handlePresetSelect}
+          name={name}
+        />
+      ) : null}
     </div>
   )
 }

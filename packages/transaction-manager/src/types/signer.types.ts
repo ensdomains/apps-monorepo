@@ -1,14 +1,13 @@
-import type { RhinestoneAccount, SignerSet } from '@rhinestone/sdk'
-import type { Address, Hex, WalletClient } from 'viem'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { Address, WalletClient } from 'viem'
 
 import type { SmartAccountConfig } from './transaction.types'
 
 /**
  * Transaction infrastructure options
- * - warp: Intent-based via Rhinestone Warp (non-ERC-4337 path)
- * - pimlico: ERC-4337 via Pimlico bundler
+ * - warp: Intent-based via Rhinestone Warp (relayer-sponsored)
  */
-export type TransactionInfra = 'warp' | 'pimlico'
+export type TransactionInfra = 'warp'
 
 /**
  * Signer Types
@@ -34,20 +33,16 @@ export interface EOASigner {
 
 /**
  * Rhinestone Smart Account Signer
- * Uses Rhinestone SDK account for chain abstraction
+ *
+ * Uses a Rhinestone HCA (Hidden Contract Account) for chain abstraction
+ * and gas sponsorship. The HCA is session-less: every Intent is
+ * authorized by the account's ENS owner (the connected wallet) and
+ * gas-sponsored through the Warp orchestrator.
  */
 export interface RhinestoneSigner {
   type: 'rhinestone'
   account: RhinestoneAccount // RhinestoneAccount from @rhinestone/sdk
   config: SmartAccountConfig & {
-    /** Whether this is a session-based signer */
-    isSessionClient?: boolean
-    /** Session private key for session-based signing */
-    sessionPrivateKey?: Hex
-    /** Parsed session config consumed by Rhinestone experimental session mode */
-    sessionConfig?: {
-      signers: SignerSet
-    }
     /** Default infrastructure preference for this signer */
     defaultInfra?: TransactionInfra
   }

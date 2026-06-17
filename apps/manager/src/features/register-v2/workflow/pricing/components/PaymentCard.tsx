@@ -1,10 +1,8 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { useModal } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { AnimateNumber } from 'motion-plus/react'
-import { zeroAddress } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
@@ -12,13 +10,16 @@ import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
-import { getPricingQueryOptions } from '../../../data/queries/pricing.query'
+import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { AnimatedPrice } from './AnimatedPrice'
+import {
+  PaymentCardBaseLine,
+  PaymentCardPremiumLine,
+} from './PaymentCardLineItems'
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
-  const { ownerAddress } = useSmartAccountContext()
-
   const [duration, canNext] = useSelector(uiActor, (state) => [
     state.context.duration,
     state.can({ type: 'pricing.step.next' }),
@@ -27,15 +28,14 @@ export const PaymentCard = () => {
   const baseRate = useBaseRate(label)
 
   const pricingQuery = useQuery({
-    ...getPricingQueryOptions(
-      label,
-      ownerAddress ?? zeroAddress,
-      duration,
-      TOKENS.USDC.symbol,
-    ),
+    ...getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     select: (data) => ({
-      totalPrice: decimalBigintToNumber(data.totalPrice, TOKENS.USDC.decimals),
+      totalPrice: decimalBigintToNumber(
+        data.basePrice + data.premium,
+        TOKENS.USDC.decimals,
+      ),
       basePrice: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
+      premiumPrice: decimalBigintToNumber(data.premium, TOKENS.USDC.decimals),
     }),
     placeholderData: keepPreviousData,
   })
@@ -49,10 +49,12 @@ export const PaymentCard = () => {
   return (
     <PaymentCardBase
       amount={pricingQuery.data?.totalPrice}
+      basePrice={pricingQuery.data?.basePrice}
       canNext={canNext}
       discountAmount={discountAmount}
       isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+      premiumAmount={pricingQuery.data?.premiumPrice}
       type="register"
     />
   )
@@ -64,17 +66,22 @@ export const PaymentCardBase = ({
   amount,
   isLoading,
   discountAmount,
+  premiumAmount,
+  basePrice,
   type,
 }: {
   canNext: boolean
   onNext: () => void
   amount: number | undefined
   discountAmount?: number
+  premiumAmount?: number
+  /** Base registration cost (excludes the one-time cooldown premium). */
+  basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
 }) => {
   const { isConnected } = useSmartAccountContext()
-  const { openModal, isOpen } = useModal()
+  const { openConnectModal, connectModalOpen } = useConnectModal()
 
   return (
     <div
@@ -84,6 +91,21 @@ export const PaymentCardBase = ({
       )}
     >
       <div className="w-full max-w-55 space-y-3 text-center">
+        {premiumAmount !== undefined && premiumAmount > 0 && (
+          <div className="space-y-2">
+            {basePrice !== undefined && (
+              <PaymentCardBaseLine
+                basePrice={basePrice}
+                isLoading={isLoading}
+              />
+            )}
+            <PaymentCardPremiumLine
+              isLoading={isLoading}
+              premiumAmount={premiumAmount}
+            />
+          </div>
+        )}
+
         <p className="text-ens-lapis-surface text-xs uppercase">
           <Trans>Total</Trans>
         </p>
@@ -95,16 +117,7 @@ export const PaymentCardBase = ({
               isLoading && 'animate-pulse',
             )}
           >
-            <AnimateNumber
-              format={{
-                style: 'currency',
-                currency: 'USD',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-              }}
-            >
-              {amount ?? 0}
-            </AnimateNumber>
+            <AnimatedPrice emphasis="soft" value={amount ?? 0} />
           </span>
           <span className="font-normal text-base text-ens-blue-midnight leading-7">
             <Trans>USD</Trans>
@@ -119,17 +132,7 @@ export const PaymentCardBase = ({
         >
           <span className="font-normal text-2xl text-ens-peridot-core leading-ens-none">
             <Trans>
-              Save{' '}
-              <AnimateNumber
-                format={{
-                  style: 'currency',
-                  currency: 'USD',
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 2,
-                }}
-              >
-                {discountAmount ?? 0}
-              </AnimateNumber>
+              Save <AnimatedPrice value={discountAmount ?? 0} />
             </Trans>
           </span>
         </div>
@@ -162,14 +165,14 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={isOpen}
-            onClick={() => openModal()}
+            disabled={connectModalOpen}
+            onClick={() => openConnectModal?.()}
             size="lg"
           >
             {type === 'register' ? (
-              <Trans>Connect or sign in to register</Trans>
+              <Trans>Connect to register</Trans>
             ) : (
-              <Trans>Connect or sign in to renew</Trans>
+              <Trans>Connect to renew</Trans>
             )}
           </Button>
         )}

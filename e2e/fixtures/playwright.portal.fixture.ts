@@ -17,6 +17,7 @@ import {
   privateKeyToAccount,
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   injectHeadlessWeb3Provider,
   type Web3ProviderBackend,
@@ -54,8 +55,13 @@ loadEnv({ path: path.resolve(__dirname, '..', '.env') })
 // ---------------------------------------------------------------------------
 const DEFAULT_MNEMONIC =
   'test test test test test test test test test test test junk'
-const MOCK_USDC = '0x302edecc2b8d1f3f4625b8a825a42f9adc102e65' as const
-const MOCK_DAI = '0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4' as const
+// Resolve payment-token addresses from the ensjs Sepolia chain config — the
+// SAME source as `@ens-apps/transaction-manager`'s `SUPPORTED_TOKENS` (which
+// the portal's payment-token picker reads) and the other e2e fixtures
+// (see makeName.ts / makeV2Name.ts). Hardcoding drifts from the app's tokens.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const MOCK_USDC = ensjsSepolia.usdc.address
+const MOCK_DAI = ensjsSepolia.dai.address
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
 )

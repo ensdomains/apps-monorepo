@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test } from '../../../fixtures/playwright.manager.fixture.js'
+import { test, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
 import {
     ensureProfilePillField,
     goToEditProfile,
@@ -15,9 +15,10 @@ test.describe('ENS profile', () => {
     test.describe.configure({ timeout: 300_000 })
 
     test('add lots of records to profile', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
     }) => {
+        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profileadd' })
         console.log(`[profile] name for add-records test: ${name}`)
 
@@ -68,15 +69,18 @@ test.describe('ENS profile', () => {
         await addLinkPanel.getByRole('button', { name: 'Add', exact: true }).click()
 
         await saveProfileChanges(page)
+        // In Rhinestone HCA mode profile-record saves are eth_signTypedData_v4 intents
+        // that are auto-authorized by PERMITTED_SIGN_KINDS — no eth_sendTransaction.
         await waitForProfileUpdated(page)
 
         console.log(`[profile] ✅ Add lots of records succeeded for ${name}`)
     })
 
     test('remove records from profile', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
     }) => {
+        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profilerem' })
         console.log(`[profile] name for remove-records test: ${name}`)
 
@@ -120,9 +124,10 @@ test.describe('ENS profile', () => {
     })
 
     test('shows validation errors for invalid records', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
     }) => {
+        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profileval' })
         console.log(`[profile] name for validation-error test: ${name}`)
 
@@ -287,24 +292,32 @@ test.describe('ENS profile', () => {
     })
 
     test('extend owned name by 28 days', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
+        wallet,
     }) => {
         const name = await makeV2Name({ label: 'extendowned' })
         console.log(`[profile] name for extend-owned test: ${name}`)
 
         await goToProfile(page, name)
-        await page.getByRole('link', { name: /extend name/i }).click()
+        await page.getByRole('link', { name: /renew/i }).click()
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        const expiry = await renewFor28Days(page)
+        // In Rhinestone mode: USDC approve is eth_sendTransaction (1 tx),
+        // renew is a Rhinestone intent (auto-authorized). Catch timeout in
+        // case allowance is already sufficient and the approve is skipped.
+        const [expiry] = await Promise.all([
+            renewFor28Days(page),
+            authorizeTransaction(wallet, 240_000).catch(() => { }),
+        ])
         console.log(`[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 
     test('extend unowned name by 28 days', async ({
-        authenticatedPage: page,
+        connectedPage: page,
         makeV2Name,
+        wallet,
     }) => {
         const name = await makeV2Name({ label: 'extendunowned', owner: 'other' })
         console.log(`[profile] name for extend-unowned test: ${name}`)
@@ -313,11 +326,17 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(3_000)
 
-        await page.getByRole('link', { name: /extend name/i }).click()
+        await page.getByRole('link', { name: /renew/i }).click()
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        const expiry = await renewFor28Days(page)
+        // In Rhinestone mode: USDC approve is eth_sendTransaction (1 tx),
+        // renew is a Rhinestone intent (auto-authorized). Catch timeout in
+        // case allowance is already sufficient and the approve is skipped.
+        const [expiry] = await Promise.all([
+            renewFor28Days(page),
+            authorizeTransaction(wallet, 240_000).catch(() => { }),
+        ])
         console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 })

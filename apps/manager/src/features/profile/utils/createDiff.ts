@@ -52,10 +52,14 @@ const getAddressDisplayName = (coinType: number): string =>
 
 const getBioDisplayName = (key: string): string => {
   const displayNames: Record<string, string> = {
+    name: 'Full Name',
     description: 'Bio Description',
     url: 'Bio URL',
     avatar: 'Avatar',
     header: 'Header Image',
+    language: 'Language',
+    'primary-contact': 'Primary Contact',
+    'domains.ens.primary-contacts': 'Primary Contacts',
   }
   return displayNames[key] || key
 }
@@ -157,12 +161,9 @@ const baseToMap = (base: Record<string, unknown>): Map<string, unknown> =>
 
 // Pure function to create links diff
 const createLinksDiff = (
-  originalLinks: unknown[] | undefined,
-  currentLinks: unknown[] | undefined,
+  original: ProfileRecords['links'],
+  current: ProfileRecords['links'],
 ): DiffEntry | null => {
-  const original = originalLinks || []
-  const current = currentLinks || []
-
   if (JSON.stringify(original) === JSON.stringify(current)) {
     return null
   }
@@ -178,15 +179,11 @@ const createLinksDiff = (
     return { original: formatLinkCount(original), type: 'removed' }
   }
 
-  if (original.length > 0 && current.length > 0) {
-    return {
-      original: formatLinkCount(original),
-      current: formatLinkCount(current),
-      type: 'modified',
-    }
+  return {
+    original: formatLinkCount(original),
+    current: formatLinkCount(current),
+    type: 'modified',
   }
-
-  return null
 }
 
 // Main functional createDiff

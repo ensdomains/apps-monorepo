@@ -24,13 +24,32 @@ import {
   type Hex,
   type PublicClient,
 } from 'viem'
+import {
+  createSafeUrlSchema,
+  isSafeHttpUrl,
+} from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
+import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
+import { validateEmail } from '@/features/profile/utils/validateUrl'
+import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
+
+export { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
 
 // --- Types ---
 
+interface ServiceTextRecord {
+  readonly key: string
+  readonly value: string
+}
+
+interface ServiceCoinRecord {
+  readonly coinType: number
+  readonly value: string
+}
+
 export interface ServiceRecordSnapshot {
-  texts: Array<{ key: string; value: string }>
-  coins: Array<{ coinType: number; value: string }>
+  texts: ServiceTextRecord[]
+  coins: ServiceCoinRecord[]
   contentHash?: string
   abi?: string
 }
@@ -41,31 +60,20 @@ type TextChange = {
 }
 
 type CoinChange = {
-  coin: string | number
+  coin: number
   value: string | null
+}
+
+type OptionalRecordChange = {
+  before?: string
+  after?: string
 }
 
 type RecordChanges = {
   texts: TextChange[]
   coins: CoinChange[]
-  contentHash?: { before?: string; after?: string }
-  abi?: { before?: string; after?: string }
-}
-
-export type RecordIssue = {
-  sectionKey: string
-  fieldKey: string
-  message: string
-}
-
-export class RecordsValidationError extends Error {
-  issues: RecordIssue[]
-
-  constructor(issues: RecordIssue[]) {
-    super(issues.map((issue) => issue.message).join('\n'))
-    this.name = 'RecordsValidationError'
-    this.issues = issues
-  }
+  contentHash?: OptionalRecordChange
+  abi?: OptionalRecordChange
 }
 
 export interface SaveRecordsParams {
@@ -81,6 +89,52 @@ export interface SaveRecordsParams {
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
   txId: string
+}
+
+interface FinalTextRecord {
+  readonly key: string
+  readonly value: string | null | undefined
+}
+
+interface ValidationIssueInput {
+  readonly message?: string
+}
+
+interface TransactionCall {
+  readonly to: Address
+  readonly data: Hex
+  readonly value: bigint
+}
+
+interface CreateTransactionRequestParams {
+  readonly signer: Signer
+  readonly from: Address
+  readonly to: Address
+  readonly data: Hex
+  readonly value: bigint
+  readonly chainId: number
+  readonly calls: TransactionCall[]
+  readonly sponsored?: boolean
+}
+
+interface BuildRecordsUpdateRequestParams {
+  readonly name: string
+  readonly before: ServiceRecordSnapshot
+  readonly after: ServiceRecordSnapshot
+  readonly signer: Signer
+  readonly accountAddress: Address
+  readonly publicClient: PublicClient
+  readonly chainId: number
+  readonly resolverAddress: Address
+}
+
+interface BuildRecordsUpdateRequestResult {
+  readonly request: TransactionRequest
+  readonly description: string
+}
+
+interface UnsupportedSigner {
+  readonly type: string
 }
 
 // --- Internal helpers ---
@@ -155,9 +209,48 @@ const computeRecordChanges = (
   return changes
 }
 
-const bioUrlSchema = v.pipe(v.string(), v.trim(), v.url('Invalid Bio URL'))
+const bioUrlSchema = createSafeUrlSchema('Invalid Bio URL')
 
-const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
+const linksSchema = v.array(
+  v.object({
+    name: v.string(),
+    url: v.string(),
+  }),
+)
+
+const recordIssue = (
+  sectionKey: string,
+  fieldKey: string,
+  message: string,
+): RecordIssue => ({
+  sectionKey,
+  fieldKey,
+  message,
+})
+
+const validateLinksRecord = (value: string): RecordIssue[] => {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  const result = v.safeParse(linksSchema, parsed)
+
+  if (!result.success) {
+    return [recordIssue('links', 'links', 'Invalid profile links')]
+  }
+
+  return result.output.flatMap((link, index) =>
+    isSafeHttpUrl(link.url)
+      ? []
+      : [recordIssue('links', `links[${index}].url`, 'Invalid Link URL')],
+  )
+}
+
+const validateFinalTextRecords = (texts: FinalTextRecord[]): RecordIssue[] => {
   const issues: RecordIssue[] = []
 
   for (const { key, value } of texts) {
@@ -168,7 +261,7 @@ const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
       const result = v.safeParse(bioUrlSchema, trimmed)
       if (!result.success) {
         issues.push(
-          ...result.issues.map((issue: { message?: string }) => ({
+          ...result.issues.map((issue: ValidationIssueInput) => ({
             sectionKey: 'bio',
             fieldKey: 'url',
             message: issue.message ?? 'Invalid Bio URL',
@@ -176,21 +269,33 @@ const validateTextChanges = (texts: TextChange[]): RecordIssue[] => {
         )
       }
     }
+
+    if (key === 'email') {
+      const message = validateEmail(trimmed)
+      if (message) {
+        issues.push(recordIssue('contact', 'email', message))
+      }
+    }
+
+    if (key === 'links') {
+      issues.push(...validateLinksRecord(trimmed))
+    }
   }
 
   return issues
 }
 
-function createTransactionRequest(params: {
-  signer: Signer
-  from: Address
-  to: Address
-  data: Hex
-  value: bigint
-  chainId: number
-  calls: Array<{ to: Address; data: Hex; value: bigint }>
-  sponsored?: boolean
-}): TransactionRequest {
+const validateFinalCoinRecords = (
+  coins: readonly ServiceCoinRecord[],
+): RecordIssue[] =>
+  coins.flatMap(({ coinType, value }) => {
+    const message = validateAddressRecordValue(coinType, value)
+    return message ? [recordIssue('address', String(coinType), message)] : []
+  })
+
+function createTransactionRequest(
+  params: CreateTransactionRequestParams,
+): TransactionRequest {
   const { signer, from, to, data, value, chainId, calls, sponsored } = params
 
   if (signer.type === 'eoa') {
@@ -217,34 +322,19 @@ function createTransactionRequest(params: {
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
-        // Resolver record writes (setText / setAddr / multicall) are NOT
-        // in the registration-scoped smart-session allowlist (see
-        // apps/manager/src/lib/smart-account/sessions/build-registration-session.ts),
-        // so signing this UserOp with the session key would fail the
-        // on-chain SmartSession validator → "Bundle simulation failed".
-        // Force the SDK to use the SCA's default validator instead, which
-        // prompts an EOA-owner signature.
-        useSession: false,
       },
     } as RhinestoneTransactionRequest
   }
 
   signer satisfies never
   throw new Error(
-    `Unsupported signer type for transaction request: ${(signer as { type: string }).type}`,
+    `Unsupported signer type for transaction request: ${(signer as UnsupportedSigner).type}`,
   )
 }
 
-async function buildRecordsUpdateRequest(params: {
-  name: string
-  before: ServiceRecordSnapshot
-  after: ServiceRecordSnapshot
-  signer: Signer
-  accountAddress: Address
-  publicClient: PublicClient
-  chainId: number
-  resolverAddress: Address
-}): Promise<{ request: TransactionRequest; description: string }> {
+async function buildRecordsUpdateRequest(
+  params: BuildRecordsUpdateRequestParams,
+): Promise<BuildRecordsUpdateRequestResult> {
   const {
     name,
     before,
@@ -268,8 +358,11 @@ async function buildRecordsUpdateRequest(params: {
     throw new Error('No profile record changes to apply')
   }
 
-  // Validate text changes
-  const issues = validateTextChanges(changes.texts)
+  // Validate the final records, including unchanged records omitted from the diff.
+  const issues = [
+    ...validateFinalTextRecords(after.texts),
+    ...validateFinalCoinRecords(after.coins),
+  ]
   if (issues.length > 0) {
     throw new RecordsValidationError(issues)
   }
@@ -302,7 +395,7 @@ async function buildRecordsUpdateRequest(params: {
 
   if (changes.coins.length > 0) {
     ensParams.coins = changes.coins.map(({ coin, value }) => ({
-      coin: typeof coin === 'number' ? coin : Number.parseInt(String(coin), 10),
+      coin,
       value: value ?? '',
     }))
   }

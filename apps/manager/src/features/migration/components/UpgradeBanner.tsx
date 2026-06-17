@@ -2,27 +2,44 @@ import { Trans } from '@lingui/react/macro'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { shouldShowUpgradeBanner } from '@/features/migration/components/UpgradeBanner.helpers'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
-import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-export const UpgradeBanner = () => {
+type UpgradeBannerProps = {
+  readonly profileName?: string
+}
+
+export const UpgradeBanner = ({ profileName }: UpgradeBannerProps) => {
   const navigate = useNavigate()
   const migrationEnabled = useFeatureFlag('MIGRATION')
+  const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()
-  const { data: v1Names, isPending: isV1NamesPending } = useV1Names({
-    enabled: migrationEnabled,
-  })
+  const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
+    useEligibleV1Names({
+      enabled: migrationEnabled,
+      fallbackToClassified: false,
+    })
   const { data: migratedCount, isPending: isMigratedCountPending } =
-    useMigratedNamesCount({ enabled: migrationEnabled })
+    useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
 
   if (!migrationEnabled) return null
   if (!isConnected) return null
-  if (isV1NamesPending || isMigratedCountPending) return null
-  if (!v1Names?.length) return null
-  if ((migratedCount ?? 0) >= 1) return null
+  if (isV1NamesPending || (!isProfileBanner && isMigratedCountPending)) {
+    return null
+  }
+  if (
+    !shouldShowUpgradeBanner({
+      eligibleV1Names,
+      migratedCount,
+      profileName,
+    })
+  ) {
+    return null
+  }
 
   return (
     <div className="relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8">
@@ -49,7 +66,7 @@ export const UpgradeBanner = () => {
             </button>
           </div>
         </div>
-        <UpgradeNamesButton className="w-full shrink-0 md:w-[300px]" />
+        <UpgradeNamesButton className="w-full shrink-0 md:w-75" />
       </div>
     </div>
   )

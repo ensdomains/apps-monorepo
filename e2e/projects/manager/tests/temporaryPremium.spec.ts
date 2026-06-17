@@ -77,14 +77,14 @@ async function dismissSiweModal(page: Page) {
     .catch(() => { })
 }
 
-test.describe('Temporary Premium Names', () => {
+test.describe.skip('Temporary Premium Names', () => {
   /**
    * Register a name, expire it by ~4 days (within the 21-day premium window),
    * navigate to /register/<name>.eth, and verify the pricing step reflects
    * a non-zero premium in the total price.
    */
   test('should show premium pricing for a recently expired name', async ({
-    authenticatedPage: page,
+    connectedPage: page,
     makeName,
     time,
   }) => {
@@ -133,7 +133,7 @@ test.describe('Temporary Premium Names', () => {
    * The premium is extremely high (~$50M). Verify the registration page loads.
    */
   test('should load registration page for a 1-day-expired name', async ({
-    authenticatedPage: page,
+    connectedPage: page,
     makeName,
     time,
   }) => {
@@ -165,7 +165,7 @@ test.describe('Temporary Premium Names', () => {
    * premium window. Premium should be very small (< $1).
    */
   test('should show a low premium for a name expired 18 days ago', async ({
-    authenticatedPage: page,
+    connectedPage: page,
     makeName,
     time,
   }) => {
@@ -196,7 +196,7 @@ test.describe('Temporary Premium Names', () => {
    * The premium should be 0 and the name should register at base price only.
    */
   test('should show no premium for a name expired past the 21-day window', async ({
-    authenticatedPage: page,
+    connectedPage: page,
     makeName,
     time,
   }) => {

@@ -1,9 +1,9 @@
 'use client'
 
-import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useConnection } from 'wagmi'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import {
@@ -44,11 +44,7 @@ interface PaymentDrawerProps {
   disabled?: boolean
   onPaymentSelect?: (method: PaymentMethod) => void
   onCryptoSelect?: (cryptoId: string) => void
-  onConfirmPayment?: (
-    tokenPrice: bigint,
-    selectedToken: string,
-    options?: { fast?: boolean },
-  ) => void
+  onConfirmPayment?: (tokenPrice: bigint, selectedToken: string) => void
   isUsingAA?: boolean
 }
 
@@ -163,8 +159,7 @@ export const CryptoPaymentDrawer = ({
   const [step, setStep] = useState<1 | 2>(1)
 
   const isDesktop = useMediaQuery('(min-width: 768px)')
-  const { data: wallet } = useWallet()
-  const isConnected = !!wallet?.address
+  const { isConnected } = useConnection()
   const { stablecoinBalances, isLoadingBalances } = useSmartAccountContext()
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
@@ -198,13 +193,13 @@ export const CryptoPaymentDrawer = ({
     !hasBalances ||
     hasInsufficientBalanceCheck
 
-  const handleCryptoContinue = (options?: { fast?: boolean }) => {
+  const handleCryptoContinue = () => {
     if (actionDisabled || !selectedCoinBalance) return
     onPaymentSelect?.('crypto')
     onCryptoSelect?.(selectedCoinBalance.address)
     if (onConfirmPayment) {
       const tokenPrice = BigInt(selectedCoinBalance.balance)
-      onConfirmPayment(tokenPrice, selectedCoinBalance.address, options)
+      onConfirmPayment(tokenPrice, selectedCoinBalance.address)
     }
     setOpen(false)
     // Reset state when closing

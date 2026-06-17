@@ -51,18 +51,6 @@ export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
     sponsored?: boolean
     /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
     tokenRequests?: TokenRequest[]
-    /**
-     * Whether to submit this call through the active smart-session
-     * (when the signer is a session client). Defaults to `true` for
-     * backward compatibility.
-     *
-     * Set to `false` for calls whose (target, selector) is not in the
-     * session's action allowlist (e.g. resolver record writes from the
-     * registration-scoped session). The transport will then omit
-     * `signers` and fall back to the SCA's default validator, which
-     * triggers an EOA-owner signature.
-     */
-    useSession?: boolean
   }
 }
 
@@ -120,7 +108,7 @@ export interface TransactionOptions {
   id?: string
   publicClient?: PublicClient
   walletClient?: WalletClient
-  /** Override the infrastructure for this transaction (warp or pimlico) */
+  /** Override the infrastructure for this transaction (Warp-only today) */
   infrastructure?: TransactionInfra
   /**
    * Operation kind for transaction-history reporting, e.g. 'ens-renewal',

@@ -56,7 +56,9 @@ function mapMachineStateToStep(
     case 'committingTransaction':
     case 'waitingForCommitment':
     case 'commitmentCooldown':
+    case 'validatingCommitment':
       return RegistrationStep.COMMITTING
+    case 'signingPermit':
     case 'approvingToken':
     case 'waitingForApproval':
       return RegistrationStep.APPROVING
@@ -298,7 +300,7 @@ export const Registration = ({
               isLoading={
                 isCommitPending || isApprovePending || isRegisterPending
               }
-              onConfirmPayment={(tokenPrice, selectedToken, options) => {
+              onConfirmPayment={(tokenPrice, selectedToken) => {
                 handleStartRegistration(
                   {
                     name: ui.name,
@@ -310,7 +312,6 @@ export const Registration = ({
                   actor,
                   {
                     publicClient: publicClient as PublicClient,
-                    fast: options?.fast ?? true,
                   },
                 )
               }}

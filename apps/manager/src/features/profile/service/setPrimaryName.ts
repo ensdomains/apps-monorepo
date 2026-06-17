@@ -153,7 +153,6 @@ function submitWithSignature(input: {
         { to: reverseRegistrar, data: reverseData, value: 0n },
       ],
       sponsored: true,
-      useSession: false,
     },
   }
 

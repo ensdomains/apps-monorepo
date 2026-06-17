@@ -21,21 +21,24 @@ export function isDateWithinCalendarRange(
   )
 }
 
-/**
- * Formats the duration from today to an expiry date as a human-readable string.
- * e.g. "1 year", "2 years 3 months", "6 months 15 days"
- */
-export const formatRegistrationDuration = (
-  startDate: Temporal.PlainDate,
-  expiryDate: Temporal.PlainDate,
-): string => {
-  if (Temporal.PlainDate.compare(expiryDate, startDate) <= 0) {
-    throw new Error('Expiry date must be after start date')
-  }
+const SECONDS_PER_MONTH = CONTRACT_SECONDS_PER_YEAR / 12
 
-  const { years, months, days } = startDate.until(expiryDate, {
-    largestUnit: 'years',
-  })
+/**
+ * Formats a duration in seconds as "X years Y months Z days" using the
+ * contract's year definition (1 year = CONTRACT_SECONDS_PER_YEAR = 365.25 d,
+ * 1 month = year / 12). Same `secondsToDuration` pattern manager uses, so
+ * `N × CONTRACT_SECONDS_PER_YEAR` renders cleanly as "N years" instead of
+ * "N-1 years 11 months 30 days" (which the old Temporal calendar diff
+ * produced after the floor in expiry display dropped the 0.25 d/y leap
+ * fraction).
+ */
+export const formatRegistrationDuration = (durationSeconds: number): string => {
+  let remainder = durationSeconds
+  const years = Math.floor(remainder / CONTRACT_SECONDS_PER_YEAR)
+  remainder -= years * CONTRACT_SECONDS_PER_YEAR
+  const months = Math.floor(remainder / SECONDS_PER_MONTH)
+  remainder -= months * SECONDS_PER_MONTH
+  const days = Math.floor(remainder / 86400)
 
   const parts: string[] = []
   if (years > 0) parts.push(years === 1 ? '1 year' : `${years} years`)
@@ -85,35 +88,41 @@ export const getRegistrationDurationInSeconds = (
 }
 
 /**
- * Converts duration in years to seconds using calendar-year addition (same
- * month/day, adjusted for leap years).
- * 3 years from Jan 1 2026 = Jan 1 2029 exactly, including leap years.
+ * Year-picker → seconds: the LARGER of:
+ *   - flat rack rate `N × CONTRACT_SECONDS_PER_YEAR` (365.25 d) — clears
+ *     the contract's discount tier so 1y is always $8, 2y is always tier-
+ *     priced, etc.
+ *   - actual calendar days from today to `today + N calendar years` ×
+ *     86400 — so when the interval contains a leap day, we pay for it and
+ *     the expiry display lands on the calendar N-years-later date instead
+ *     of half a day shy.
+ *
+ * Net: summary expiry matches on-chain expiry. For year spans that cross
+ * Feb 29 you pay 1 cent extra (e.g. 2y from 2026-06-05 → $14.01) — the
+ * honest cost of the extra leap day.
  */
 export const getDurationInSecondsFromYears = (
   years: number,
   startOfToday: Temporal.PlainDate = getStartOfToday(),
 ): number => {
-  const cappedYears = Math.min(
-    Math.max(1, Math.floor(years)),
-    MAX_REGISTRATION_YEARS,
-  )
-  const expiry = startOfToday.add({ years: cappedYears })
-  return startOfToday.until(expiry, { largestUnit: 'days' }).days * 86400
+  const N = Math.min(Math.max(1, Math.floor(years)), MAX_REGISTRATION_YEARS)
+  const flatDuration = N * CONTRACT_SECONDS_PER_YEAR
+  const calendarDuration =
+    startOfToday.until(startOfToday.add({ years: N }), {
+      largestUnit: 'days',
+    }).days * 86400
+  return Math.max(flatDuration, calendarDuration)
 }
 
 /**
- * Returns the calendar years for a duration (for years picker display).
+ * Returns the year count for a duration, rounded to the nearest integer.
+ * Inverse of `getDurationInSecondsFromYears` — round-trips cleanly so the
+ * years picker keeps the user's selection regardless of start date.
  */
 export const getYearsFromDuration = (
   durationInSeconds: number,
-  startOfToday: Temporal.PlainDate = getStartOfToday(),
-): number => {
-  const expiry = getRegistrationExpiryDateFromSeconds(
-    startOfToday,
-    durationInSeconds,
-  )
-  return startOfToday.until(expiry, { largestUnit: 'years' }).years
-}
+  _startOfToday: Temporal.PlainDate = getStartOfToday(),
+): number => Math.round(durationInSeconds / CONTRACT_SECONDS_PER_YEAR)
 
 /**
  * Converts duration in seconds to an expiry PlainDate for display.
@@ -153,7 +162,7 @@ export function getRegistrationDisplayDates(
     largestUnit: 'days',
   }).days
   return {
-    registrationPeriod: formatRegistrationDuration(baseDate, expiryDate),
+    registrationPeriod: formatRegistrationDuration(durationSeconds),
     registrationDays: Math.floor(durationSeconds / 86400),
     daysUntilExpiry,
     expiresFormatted: formatExpiryDate(expiryDate),

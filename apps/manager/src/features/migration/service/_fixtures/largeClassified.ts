@@ -7,17 +7,20 @@ const make = (
   name: string,
   tokenType: MigrationTokenType,
   parentName: string | null,
-): ClassifiedName => ({
-  domain: { name, labelName: name.split('.')[0]!, parent: null } as never,
-  tokenType,
-  label: name.split('.')[0]!,
-  parentName,
-  fuses: 0,
-  tokenHolder: OWNER,
-  v1ResolverAddress: null,
-  resolverStrategy: 'to-owned-permres',
-  managerAddress: null,
-})
+): ClassifiedName => {
+  const label = name.split('.')[0] ?? name
+  return {
+    domain: { name, labelName: label, parent: null } as never,
+    tokenType,
+    label,
+    parentName,
+    fuses: 0,
+    tokenHolder: OWNER,
+    v1ResolverAddress: null,
+    resolverStrategy: 'to-owned-permres',
+    managerAddress: null,
+  }
+}
 
 export const largeClassified: readonly ClassifiedName[] = [
   ...Array.from({ length: 100 }, (_, i) =>

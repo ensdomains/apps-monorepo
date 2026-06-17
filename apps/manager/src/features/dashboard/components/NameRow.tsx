@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
@@ -27,7 +28,7 @@ import {
 } from './DashboardPills'
 
 export type NameStatus = 'eligibleUpgrade' | 'ensv1Only'
-export type NameRowCta = 'renew' | 'manageExplorer'
+export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
 
 interface NameRowProps {
   readonly label: string
@@ -43,13 +44,13 @@ interface NameRowProps {
   readonly showFavoriteButton?: boolean
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
-  readonly linkToMigration?: boolean
+  readonly isInGrace?: boolean
 }
 
 const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
 
 const namePillVariants = cva(
-  'inline-flex max-w-full items-center gap-2 rounded-xs px-2 py-1',
+  'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',
   {
     variants: {
       variant: {
@@ -63,11 +64,9 @@ const namePillVariants = cva(
 const NamePill = ({
   label,
   variant,
-  linkToMigration,
 }: {
   readonly label: string
   readonly variant: 'primary' | 'secondary'
-  readonly linkToMigration: boolean
 }) => {
   const className = namePillVariants({ variant })
   const textClassName =
@@ -80,11 +79,7 @@ const NamePill = ({
     </>
   )
 
-  return linkToMigration ? (
-    <Link className={className} to="/migration">
-      {inner}
-    </Link>
-  ) : (
+  return (
     <Link className={className} params={{ name: label }} to="/$name">
       {inner}
     </Link>
@@ -98,11 +93,12 @@ const VerifiedCheck = () => (
 )
 
 const ctaVariants = cva(
-  'flex items-center gap-1.5 font-medium font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
+  'flex items-center gap-1.5 font-normal font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
   {
     variants: {
       kind: {
         renew: 'text-ens-lapis-core',
+        remindMe: 'text-ens-lapis-900',
         manageExplorer: 'text-ens-garnet-500',
       },
     },
@@ -130,37 +126,45 @@ const RowCta = ({
     )
   }
 
+  if (cta === 'remindMe') {
+    return (
+      <Link
+        className={ctaVariants({ kind: 'remindMe' })}
+        to="/notifications/settings"
+      >
+        <Trans>Remind me</Trans>
+        <MSymbol
+          className="ms-opsz-20 text-xl"
+          symbol="notification_settings"
+        />
+      </Link>
+    )
+  }
+
   return (
     <Link
       className={ctaVariants({ kind: 'renew' })}
       params={{ name: label }}
-      to="/$name"
+      to="/renew/$name"
     >
-      <Trans>Renew name</Trans>
+      <Trans>Renew</Trans>
       <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
     </Link>
   )
 }
 
-export const NameRow = ({
-  label,
-  avatarUrl,
-  nameVariant = 'secondary',
-  verified = false,
-  nameRole = null,
-  status = null,
-  expiringInDays = null,
-  expiryLabel = null,
-  cta = null,
-  isFavorite = false,
-  showFavoriteButton = false,
+const FavoriteButton = ({
+  isFavorite,
+  isAuthenticated,
   onToggleFavorite,
-  isAuthenticated = true,
-  linkToMigration = false,
-}: NameRowProps) => {
+}: {
+  readonly isFavorite: boolean
+  readonly isAuthenticated: boolean
+  readonly onToggleFavorite?: () => void
+}) => {
   const { t } = useLingui()
 
-  const heartButton = showFavoriteButton ? (
+  return (
     <motion.button
       aria-label={isFavorite ? t`Remove favorite` : t`Add favorite`}
       aria-pressed={isFavorite}
@@ -182,117 +186,221 @@ export const NameRow = ({
         strokeWidth={2}
       />
     </motion.button>
-  ) : null
+  )
+}
 
-  const hasTopRow = Boolean(status || nameRole || expiringInDays)
+const FavoriteControl = ({
+  showFavoriteButton,
+  isAuthenticated,
+  isFavorite,
+  onToggleFavorite,
+}: Pick<
+  NameRowProps,
+  'showFavoriteButton' | 'isAuthenticated' | 'isFavorite' | 'onToggleFavorite'
+>) => {
+  if (!showFavoriteButton) return null
+
+  const button = (
+    <FavoriteButton
+      isAuthenticated={isAuthenticated ?? true}
+      isFavorite={isFavorite ?? false}
+      onToggleFavorite={onToggleFavorite}
+    />
+  )
+
+  if (isAuthenticated) return button
 
   return (
-    <div className="flex w-full flex-col gap-4 md:gap-6">
-      {hasTopRow && (
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
-            {status === 'ensv1Only' && <Ensv1OnlyPill />}
-            {nameRole && <RolePill role={nameRole} />}
-          </div>
-          {expiringInDays !== null && expiringInDays > 0 && (
-            <ExpiringPill days={expiringInDays} />
-          )}
-        </div>
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent>
+        <Trans>Login to favorite</Trans>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+const NameRowTop = ({
+  status,
+  nameRole,
+  isInGrace,
+  expiringInDays,
+}: Pick<
+  NameRowProps,
+  'status' | 'nameRole' | 'isInGrace' | 'expiringInDays'
+>) => {
+  const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
+  if (!hasTopRow) return null
+
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
+        {status === 'ensv1Only' && <Ensv1OnlyPill />}
+        {nameRole && <RolePill role={nameRole} />}
+      </div>
+      {isInGrace ? (
+        <GracePeriodBadge />
+      ) : expiringInDays !== null &&
+        expiringInDays !== undefined &&
+        expiringInDays > 0 ? (
+        <ExpiringPill days={expiringInDays} />
+      ) : (
+        <span />
       )}
+    </div>
+  )
+}
+
+const NameAvatar = ({
+  label,
+  avatarUrl,
+}: {
+  readonly label: string
+  readonly avatarUrl?: string
+}) => {
+  const { t } = useLingui()
+
+  return (
+    <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
+      <ImageFallback.Root className="contents">
+        <ImageFallback.Image
+          alt={t`${label} avatar`}
+          className="size-full object-cover"
+          src={avatarUrl}
+        />
+        <ImageFallback.Fallback>
+          <PatternAvatar
+            className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+            name={label}
+          />
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </div>
+  )
+}
+
+const NameOptionsMenu = ({ label }: { readonly label: string }) => {
+  const { t } = useLingui()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          aria-label={t`More options for ${label}`}
+          className="flex shrink-0 items-center justify-center text-ens-quartz-700 outline-none"
+          type="button"
+        >
+          <MSymbol
+            className="ms-opsz-20 ms-wght-300 text-[26px] leading-none md:text-[28px]"
+            symbol="more_horiz"
+          />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        className="w-67 rounded-xl border-none bg-white p-4 shadow-[0px_4px_4px_rgba(200,200,200,0.25)]"
+        sideOffset={10}
+      >
+        <DropdownMenuItem asChild>
+          <Link
+            className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
+            params={{ name: label }}
+            to="/renew/$name"
+          >
+            <Trans>Renew name</Trans>
+            <MSymbol
+              className="ms-opsz-20 text-xl leading-none"
+              symbol="double_arrow"
+            />
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link
+            className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
+            to="/notifications/settings"
+          >
+            <Trans>Manage notifications</Trans>
+            <MSymbol
+              className="ms-opsz-20 text-ens-quartz-900 text-xl leading-none"
+              symbol="notification_settings"
+            />
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const ExpiryDetails = ({
+  expiryLabel,
+  cta,
+  label,
+}: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label'>) => {
+  if (!expiryLabel && !cta) return null
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      {expiryLabel ? (
+        <div className="flex items-center gap-2">
+          <History className="size-4 shrink-0 text-ens-quartz-360" />
+          <span className="font-sans text-ens-quartz-380 text-sm">
+            <Trans>Expires on</Trans>
+          </span>
+          <span className="font-sans text-ens-quartz-550 text-sm">
+            {expiryLabel}
+          </span>
+        </div>
+      ) : (
+        <span />
+      )}
+      {cta && <RowCta cta={cta} label={label} />}
+    </div>
+  )
+}
+
+export const NameRow = ({
+  label,
+  avatarUrl,
+  nameVariant = 'secondary',
+  verified = false,
+  nameRole = null,
+  status = null,
+  expiringInDays = null,
+  expiryLabel = null,
+  cta = null,
+  isFavorite = false,
+  showFavoriteButton = false,
+  onToggleFavorite,
+  isAuthenticated = true,
+  isInGrace = false,
+}: NameRowProps) => {
+  return (
+    <div className="flex w-full flex-col gap-4 md:gap-6">
+      <NameRowTop
+        expiringInDays={expiringInDays}
+        isInGrace={isInGrace}
+        nameRole={nameRole}
+        status={status}
+      />
 
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3 md:gap-4">
-          {showFavoriteButton &&
-            (isAuthenticated ? (
-              heartButton
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>{heartButton}</TooltipTrigger>
-                <TooltipContent>
-                  <Trans>Login to favorite</Trans>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-ens-quartz-50">
-            <ImageFallback.Root className="contents">
-              <ImageFallback.Image
-                alt={t`${label} avatar`}
-                className="size-full object-cover"
-                src={avatarUrl}
-              />
-              <ImageFallback.Fallback>
-                <PatternAvatar
-                  className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
-                  name={label}
-                />
-              </ImageFallback.Fallback>
-            </ImageFallback.Root>
-          </div>
-          <NamePill
-            label={label}
-            linkToMigration={linkToMigration}
-            variant={nameVariant}
+          <FavoriteControl
+            isAuthenticated={isAuthenticated}
+            isFavorite={isFavorite}
+            onToggleFavorite={onToggleFavorite}
+            showFavoriteButton={showFavoriteButton}
           />
+          <NameAvatar avatarUrl={avatarUrl} label={label} />
+          <NamePill label={label} variant={nameVariant} />
           {verified && <VerifiedCheck />}
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              aria-label={t`More options for ${label}`}
-              className="flex shrink-0 items-center justify-center text-ens-quartz-400 outline-none hover:text-foreground"
-              type="button"
-            >
-              <MSymbol className="ms-opsz-20 text-xl" symbol="more_horiz" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link params={{ name: label }} to="/$name">
-                <Trans>View profile</Trans>
-              </Link>
-            </DropdownMenuItem>
-            {cta === 'renew' && (
-              <DropdownMenuItem asChild>
-                <Link params={{ name: label }} to="/$name">
-                  <Trans>Renew name</Trans>
-                </Link>
-              </DropdownMenuItem>
-            )}
-            {cta === 'manageExplorer' && (
-              <DropdownMenuItem asChild>
-                <a
-                  href={explorerUrl(label)}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Trans>Manage on explorer</Trans>
-                </a>
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NameOptionsMenu label={label} />
       </div>
 
-      {(expiryLabel || cta) && (
-        <div className="flex items-center justify-between gap-3">
-          {expiryLabel ? (
-            <div className="flex items-center gap-2">
-              <History className="size-4 shrink-0 text-ens-quartz-360" />
-              <span className="font-sans text-ens-quartz-380 text-sm">
-                <Trans>Expires on</Trans>
-              </span>
-              <span className="font-sans text-ens-quartz-550 text-sm">
-                {expiryLabel}
-              </span>
-            </div>
-          ) : (
-            <span />
-          )}
-          {cta && <RowCta cta={cta} label={label} />}
-        </div>
-      )}
+      <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
-import type { Meta, StoryObj } from '@storybook/react-vite'
+import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { getByteLength } from '@/utils/domain'
 import { DomainResultCard } from './DomainResultCard'
+import { DOMAIN_RESULT_STATUSES } from './domainResultStatus'
 
 const meta = {
   title: 'Molecules/DomainResultCard',
@@ -12,7 +13,7 @@ const meta = {
   argTypes: {
     status: {
       control: 'select',
-      options: ['available', 'premium'],
+      options: [...DOMAIN_RESULT_STATUSES],
     },
     price: {
       control: 'number',
@@ -36,6 +37,20 @@ export const Premium: Story = {
     domainName: 'premium.eth',
     status: 'premium',
     price: 245000,
+  },
+}
+
+export const Registered: Story = {
+  args: {
+    domainName: 'earl.eth',
+    status: 'registered',
+  },
+}
+
+export const RegisteredInGrace: Story = {
+  args: {
+    domainName: 'earl.eth',
+    status: 'grace',
   },
 }
 

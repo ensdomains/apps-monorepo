@@ -18,14 +18,44 @@ export type Scalars = {
 export type Account = {
   __typename?: 'Account';
   domains: Array<Domain>;
+  firstSeenBlock: Scalars['Int']['output'];
+  firstSeenTimestamp: Scalars['Int']['output'];
   id: Scalars['String']['output'];
+  primaryName?: Maybe<Scalars['String']['output']>;
   registrations: Array<Registration>;
+  seenV1: Scalars['Boolean']['output'];
+  seenV2: Scalars['Boolean']['output'];
+  wrappedDomains: Array<WrappedDomain>;
 };
 
 
 export type AccountRegistrationsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   skip?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type AccountWrappedDomainsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type AccountFilter = {
+  id?: InputMaybe<Scalars['String']['input']>;
+  id_in?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export enum Account_OrderBy {
+  FirstSeenBlock = 'firstSeenBlock',
+  Id = 'id'
+}
+
+export type AddressChangedData = {
+  __typename?: 'AddressChangedData';
+  address?: Maybe<Scalars['String']['output']>;
+  coinType?: Maybe<Scalars['Int']['output']>;
+  namehash?: Maybe<Scalars['String']['output']>;
+  resolver?: Maybe<Scalars['String']['output']>;
 };
 
 export type Alias = {
@@ -38,6 +68,7 @@ export type CoinAddress = {
   __typename?: 'CoinAddress';
   address: Scalars['String']['output'];
   coinType: Scalars['Int']['output'];
+  coinTypeBig: Scalars['String']['output'];
 };
 
 export type Domain = {
@@ -47,24 +78,35 @@ export type Domain = {
   events: Array<Event>;
   eventsCount: Scalars['Int']['output'];
   expiryDate?: Maybe<Scalars['Int']['output']>;
+  fuses?: Maybe<Scalars['Int']['output']>;
+  gracePeriodEnd?: Maybe<Scalars['Int']['output']>;
   id: Scalars['String']['output'];
+  isLegacy: Scalars['Boolean']['output'];
   isMigrated: Scalars['Boolean']['output'];
   isNormalized: Scalars['Boolean']['output'];
+  isReachable: Scalars['Boolean']['output'];
+  isWrapped: Scalars['Boolean']['output'];
   labelName?: Maybe<Scalars['String']['output']>;
   labelhash?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   normalizedName?: Maybe<Scalars['String']['output']>;
   owner: Account;
   parent?: Maybe<Domain>;
+  protocol: Scalars['String']['output'];
   registrant?: Maybe<Account>;
   registrationDate?: Maybe<Scalars['Int']['output']>;
   resolvedAddress?: Maybe<Account>;
   resolver?: Maybe<Resolver>;
+  subdomainCount: Scalars['Int']['output'];
   subdomains: Array<Domain>;
   subdomainsCount: Scalars['Int']['output'];
   tokenId?: Maybe<Scalars['String']['output']>;
   tokenVersion?: Maybe<Scalars['Int']['output']>;
   ttl?: Maybe<Scalars['Int']['output']>;
+  unreachableSince?: Maybe<Scalars['Int']['output']>;
+  wrappedDomain?: Maybe<WrappedDomain>;
+  wrappedOwner?: Maybe<Account>;
+  wrapperExpiry?: Maybe<Scalars['Int']['output']>;
 };
 
 
@@ -87,20 +129,44 @@ export type DomainEdge = {
 };
 
 export type DomainFilter = {
+  expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
+  expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
+  expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
+  expiryDate_lte?: InputMaybe<Scalars['Int']['input']>;
   expiry_gt?: InputMaybe<Scalars['Int']['input']>;
   expiry_gte?: InputMaybe<Scalars['Int']['input']>;
   expiry_lt?: InputMaybe<Scalars['Int']['input']>;
   expiry_lte?: InputMaybe<Scalars['Int']['input']>;
   hasSubdomains?: InputMaybe<Scalars['Boolean']['input']>;
+  includeUnreachable?: InputMaybe<Scalars['Boolean']['input']>;
   isMigrated?: InputMaybe<Scalars['Boolean']['input']>;
+  labelName?: InputMaybe<Scalars['String']['input']>;
+  labelName_contains?: InputMaybe<Scalars['String']['input']>;
+  labelName_contains_nocase?: InputMaybe<Scalars['String']['input']>;
+  labelName_ends_with?: InputMaybe<Scalars['String']['input']>;
+  labelName_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  labelName_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  labelName_not?: InputMaybe<Scalars['String']['input']>;
+  labelName_not_contains?: InputMaybe<Scalars['String']['input']>;
+  labelName_not_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  labelName_starts_with?: InputMaybe<Scalars['String']['input']>;
+  labelName_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   name_contains?: InputMaybe<Scalars['String']['input']>;
   name_contains_nocase?: InputMaybe<Scalars['String']['input']>;
   name_ends_with?: InputMaybe<Scalars['String']['input']>;
+  name_ends_with_nocase?: InputMaybe<Scalars['String']['input']>;
   name_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  name_not?: InputMaybe<Scalars['String']['input']>;
+  name_not_contains?: InputMaybe<Scalars['String']['input']>;
+  name_not_in?: InputMaybe<Array<Scalars['String']['input']>>;
   name_starts_with?: InputMaybe<Scalars['String']['input']>;
+  name_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   owner?: InputMaybe<Scalars['String']['input']>;
+  owner_?: InputMaybe<AccountFilter>;
   owner_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  owner_not?: InputMaybe<Scalars['String']['input']>;
+  owner_not_in?: InputMaybe<Array<Scalars['String']['input']>>;
   resolvedAddress?: InputMaybe<Scalars['String']['input']>;
   resolver?: InputMaybe<Scalars['String']['input']>;
   subdomainCount_gt?: InputMaybe<Scalars['Int']['input']>;
@@ -142,17 +208,32 @@ export type EacRoleAssignmentEdge = {
 
 export type Event = {
   __typename?: 'Event';
+  asAddressChanged?: Maybe<AddressChangedData>;
+  asExpiryUpdated?: Maybe<ExpiryUpdatedData>;
+  asFusesSet?: Maybe<FusesSetData>;
+  asLabelRegistered?: Maybe<LabelRegisteredData>;
+  asNameRegistered?: Maybe<NameRegisteredData>;
+  asNameRenewed?: Maybe<NameRenewedData>;
+  asNameUnwrapped?: Maybe<NameUnwrappedData>;
+  asNameWrapped?: Maybe<NameWrappedData>;
+  asRegistryTransfer?: Maybe<RegistryTransferData>;
+  asResolverUpdated?: Maybe<ResolverUpdatedData>;
+  asReverseClaimed?: Maybe<ReverseClaimedData>;
+  asTextChanged?: Maybe<TextChangedData>;
+  asTransfer?: Maybe<TransferData>;
   blockNumber: Scalars['Int']['output'];
-  chain: Scalars['String']['output'];
   contractAddress: Scalars['String']['output'];
   data?: Maybe<Scalars['String']['output']>;
   domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
+  key?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   namehash?: Maybe<Scalars['String']['output']>;
+  protocol: Scalars['String']['output'];
   timestamp: Scalars['Int']['output'];
   transactionHash: Scalars['String']['output'];
   type: Scalars['String']['output'];
+  value?: Maybe<Scalars['String']['output']>;
 };
 
 export type EventConnection = {
@@ -170,14 +251,21 @@ export type EventEdge = {
 
 export type EventFilter = {
   blockNumber_gt?: InputMaybe<Scalars['Int']['input']>;
+  blockNumber_gte?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_lt?: InputMaybe<Scalars['Int']['input']>;
+  blockNumber_lte?: InputMaybe<Scalars['Int']['input']>;
   contractAddress?: InputMaybe<Scalars['String']['input']>;
   domain?: InputMaybe<Scalars['String']['input']>;
   namehash?: InputMaybe<Scalars['String']['input']>;
+  protocol?: InputMaybe<Scalars['String']['input']>;
   timestamp_gt?: InputMaybe<Scalars['Int']['input']>;
+  timestamp_gte?: InputMaybe<Scalars['Int']['input']>;
   timestamp_lt?: InputMaybe<Scalars['Int']['input']>;
+  timestamp_lte?: InputMaybe<Scalars['Int']['input']>;
   type?: InputMaybe<Scalars['String']['input']>;
   type_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  type_not?: InputMaybe<Scalars['String']['input']>;
+  type_not_in?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export enum Event_OrderBy {
@@ -186,10 +274,66 @@ export enum Event_OrderBy {
   Timestamp = 'timestamp'
 }
 
+export type ExpiryUpdatedData = {
+  __typename?: 'ExpiryUpdatedData';
+  expiry?: Maybe<Scalars['Int']['output']>;
+  node?: Maybe<Scalars['String']['output']>;
+  tokenId?: Maybe<Scalars['String']['output']>;
+};
+
+export type FusesSetData = {
+  __typename?: 'FusesSetData';
+  fuses?: Maybe<Scalars['Int']['output']>;
+  node?: Maybe<Scalars['String']['output']>;
+};
+
 export type InterfaceRecord = {
   __typename?: 'InterfaceRecord';
   implementer: Scalars['String']['output'];
   interfaceId: Scalars['String']['output'];
+};
+
+export type LabelRegisteredData = {
+  __typename?: 'LabelRegisteredData';
+  canonicalId?: Maybe<Scalars['String']['output']>;
+  expiry?: Maybe<Scalars['Int']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Scalars['String']['output']>;
+  registry?: Maybe<Scalars['String']['output']>;
+  sender?: Maybe<Scalars['String']['output']>;
+  tokenId?: Maybe<Scalars['String']['output']>;
+};
+
+export type NameRegisteredData = {
+  __typename?: 'NameRegisteredData';
+  baseCost?: Maybe<Scalars['String']['output']>;
+  cost?: Maybe<Scalars['String']['output']>;
+  expires?: Maybe<Scalars['Int']['output']>;
+  label?: Maybe<Scalars['String']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Scalars['String']['output']>;
+  premium?: Maybe<Scalars['String']['output']>;
+  referrer?: Maybe<Scalars['String']['output']>;
+};
+
+export type NameRenewedData = {
+  __typename?: 'NameRenewedData';
+  expires?: Maybe<Scalars['Int']['output']>;
+  id?: Maybe<Scalars['String']['output']>;
+};
+
+export type NameUnwrappedData = {
+  __typename?: 'NameUnwrappedData';
+  node?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Scalars['String']['output']>;
+};
+
+export type NameWrappedData = {
+  __typename?: 'NameWrappedData';
+  expiry?: Maybe<Scalars['Int']['output']>;
+  fuses?: Maybe<Scalars['Int']['output']>;
+  node?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Scalars['String']['output']>;
 };
 
 export enum OrderDirection {
@@ -213,26 +357,62 @@ export type Pubkey = {
 
 export type Query = {
   __typename?: 'Query';
+  _meta: _Meta_;
   account?: Maybe<Account>;
+  accounts: Array<Account>;
+  addressChangeds: Array<Event>;
   approvals: Array<ResolverApproval>;
   domain?: Maybe<Domain>;
   domainConnection: DomainConnection;
   domains: Array<Domain>;
   eventConnection: EventConnection;
   events: Array<Event>;
+  expiryUpdateds: Array<Event>;
+  fusesSets: Array<Event>;
+  labelRegistereds: Array<Event>;
   metadata?: Maybe<ResolverMetadata>;
+  nameRegistereds: Array<Event>;
+  nameReneweds: Array<Event>;
+  nameUnwrappeds: Array<Event>;
+  nameWrappeds: Array<Event>;
   registrationConnection: RegistrationConnection;
   registrations: Array<Registration>;
   registries: Array<RegistryInfo>;
+  registry?: Maybe<RegistryInfo>;
+  registryTransfers: Array<Event>;
   resolver?: Maybe<ResolverDetail>;
-  resolvers: Array<ResolverDetail>;
+  resolverUpdateds: Array<Event>;
+  resolvers: Array<Resolver>;
+  resolversByOwner: Array<ResolverDetail>;
+  reverseClaimeds: Array<Event>;
   roleConnection: EacRoleAssignmentConnection;
   roles: Array<EacRoleAssignment>;
+  textChangeds: Array<Event>;
+  transfers: Array<Event>;
+  wrappedDomains: Array<WrappedDomain>;
 };
 
 
 export type QueryAccountArgs = {
   id: Scalars['String']['input'];
+};
+
+
+export type QueryAccountsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Account_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<AccountFilter>;
+};
+
+
+export type QueryAddressChangedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
 };
 
 
@@ -287,8 +467,71 @@ export type QueryEventsArgs = {
 };
 
 
+export type QueryExpiryUpdatedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryFusesSetsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryLabelRegisteredsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
 export type QueryMetadataArgs = {
   resolver: Scalars['String']['input'];
+};
+
+
+export type QueryNameRegisteredsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryNameRenewedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryNameUnwrappedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryNameWrappedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
 };
 
 
@@ -317,13 +560,55 @@ export type QueryRegistriesArgs = {
 };
 
 
+export type QueryRegistryArgs = {
+  address: Scalars['String']['input'];
+};
+
+
+export type QueryRegistryTransfersArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
 export type QueryResolverArgs = {
   id: Scalars['String']['input'];
 };
 
 
+export type QueryResolverUpdatedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
 export type QueryResolversArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Resolver_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<ResolverFilter>;
+};
+
+
+export type QueryResolversByOwnerArgs = {
   account: Scalars['String']['input'];
+  protocol?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryReverseClaimedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
 };
 
 
@@ -342,13 +627,43 @@ export type QueryRolesArgs = {
   resource?: InputMaybe<Scalars['String']['input']>;
 };
 
+
+export type QueryTextChangedsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryTransfersArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type QueryWrappedDomainsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<WrappedDomainFilter>;
+};
+
 export type Registration = {
   __typename?: 'Registration';
-  chain: Scalars['String']['output'];
+  baseCost?: Maybe<Scalars['String']['output']>;
+  cost?: Maybe<Scalars['String']['output']>;
   domain: Domain;
   expiryDate: Scalars['Int']['output'];
   id: Scalars['String']['output'];
+  labelName?: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
+  premium?: Maybe<Scalars['String']['output']>;
+  protocol: Scalars['String']['output'];
+  referrer?: Maybe<Scalars['String']['output']>;
   registrant: Account;
   registrationDate: Scalars['Int']['output'];
 };
@@ -367,11 +682,11 @@ export type RegistrationEdge = {
 };
 
 export type RegistrationFilter = {
-  chain?: InputMaybe<Scalars['String']['input']>;
   expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lte?: InputMaybe<Scalars['Int']['input']>;
+  protocol?: InputMaybe<Scalars['String']['input']>;
   registrant?: InputMaybe<Scalars['String']['input']>;
   registrant_in?: InputMaybe<Array<Scalars['String']['input']>>;
 };
@@ -388,9 +703,79 @@ export type RegistryInfo = {
   address: Scalars['String']['output'];
   createdAt: Scalars['Int']['output'];
   createdBlock: Scalars['Int']['output'];
+  eventConnection: EventConnection;
+  eventCount: Scalars['Int']['output'];
+  events: Array<Event>;
+  labelConnection: DomainConnection;
+  labelCount: Scalars['Int']['output'];
+  labels: Array<Domain>;
   name: Scalars['String']['output'];
   namehash: Scalars['String']['output'];
+  owner?: Maybe<Account>;
   parentRegistry: Scalars['String']['output'];
+  roleConnection: EacRoleAssignmentConnection;
+  roleCount: Scalars['Int']['output'];
+  roles: Array<EacRoleAssignment>;
+};
+
+
+export type RegistryInfoEventConnectionArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Event_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type RegistryInfoEventsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<EventFilter>;
+};
+
+
+export type RegistryInfoLabelConnectionArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Domain_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  where?: InputMaybe<DomainFilter>;
+};
+
+
+export type RegistryInfoLabelsArgs = {
+  first?: InputMaybe<Scalars['Int']['input']>;
+  orderBy?: InputMaybe<Domain_OrderBy>;
+  orderDirection?: InputMaybe<OrderDirection>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+  where?: InputMaybe<DomainFilter>;
+};
+
+
+export type RegistryInfoRoleConnectionArgs = {
+  account?: InputMaybe<Scalars['String']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  before?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type RegistryInfoRolesArgs = {
+  account?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  skip?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type RegistryTransferData = {
+  __typename?: 'RegistryTransferData';
+  node?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Scalars['String']['output']>;
 };
 
 export type Resolver = {
@@ -400,7 +785,9 @@ export type Resolver = {
   address: Scalars['String']['output'];
   addresses?: Maybe<Array<CoinAddress>>;
   aliases?: Maybe<Array<Alias>>;
+  coinTypes?: Maybe<Array<Scalars['String']['output']>>;
   contentHash?: Maybe<Scalars['String']['output']>;
+  domain?: Maybe<Domain>;
   id: Scalars['String']['output'];
   interfaces?: Maybe<Array<InterfaceRecord>>;
   pubkey?: Maybe<Pubkey>;
@@ -457,6 +844,13 @@ export type ResolverDetailNodesArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type ResolverFilter = {
+  address?: InputMaybe<Scalars['String']['input']>;
+  address_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  namehash?: InputMaybe<Scalars['String']['input']>;
+  protocol?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type ResolverMetadata = {
   __typename?: 'ResolverMetadata';
   blockNumber: Scalars['Int']['output'];
@@ -465,6 +859,72 @@ export type ResolverMetadata = {
   resolver: Scalars['String']['output'];
   timestamp: Scalars['Int']['output'];
   transactionHash: Scalars['String']['output'];
+};
+
+export type ResolverUpdatedData = {
+  __typename?: 'ResolverUpdatedData';
+  resolver?: Maybe<Scalars['String']['output']>;
+  sender?: Maybe<Scalars['String']['output']>;
+  tokenId?: Maybe<Scalars['String']['output']>;
+};
+
+export enum Resolver_OrderBy {
+  Address = 'address',
+  SetBlock = 'setBlock'
+}
+
+export type ReverseClaimedData = {
+  __typename?: 'ReverseClaimedData';
+  address?: Maybe<Scalars['String']['output']>;
+  node?: Maybe<Scalars['String']['output']>;
+};
+
+export type TextChangedData = {
+  __typename?: 'TextChangedData';
+  key?: Maybe<Scalars['String']['output']>;
+  namehash?: Maybe<Scalars['String']['output']>;
+  resolver?: Maybe<Scalars['String']['output']>;
+  value?: Maybe<Scalars['String']['output']>;
+};
+
+export type TransferData = {
+  __typename?: 'TransferData';
+  from?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['String']['output']>;
+  operator?: Maybe<Scalars['String']['output']>;
+  to?: Maybe<Scalars['String']['output']>;
+  value?: Maybe<Scalars['String']['output']>;
+};
+
+export type WrappedDomain = {
+  __typename?: 'WrappedDomain';
+  domain: Domain;
+  expiryDate?: Maybe<Scalars['Int']['output']>;
+  fuses?: Maybe<Scalars['Int']['output']>;
+  id: Scalars['String']['output'];
+  name?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Account>;
+};
+
+export type WrappedDomainFilter = {
+  expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
+  expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  owner?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type _Block_ = {
+  __typename?: '_Block_';
+  hash?: Maybe<Scalars['String']['output']>;
+  number: Scalars['Int']['output'];
+  timestamp?: Maybe<Scalars['Int']['output']>;
+};
+
+export type _Meta_ = {
+  __typename?: '_Meta_';
+  block: _Block_;
+  deployment?: Maybe<Scalars['String']['output']>;
+  hasIndexingErrors: Scalars['Boolean']['output'];
 };
 
 export type AccountFragment = { __typename?: 'Account', id: string };

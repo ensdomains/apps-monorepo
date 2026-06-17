@@ -64,10 +64,6 @@ export function changeResolver(params: ChangeResolverParams): string {
           rhinestoneParams: {
             calls: [{ to, data, value: 0n }],
             sponsored: true,
-            // ETHRegistry.setResolver is not in the registration-scoped
-            // smart-session allowlist; force the SCA's default validator
-            // (EOA-owner signature).
-            useSession: false,
           },
         }
 

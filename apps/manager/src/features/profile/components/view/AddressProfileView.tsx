@@ -48,7 +48,7 @@ const NameAvatar = ({ name }: { name: string }) => {
   const { data: avatarUrl, isLoading } = useAvatarFromName({ name })
 
   return (
-    <div className="relative size-[32px] shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
+    <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
       <ImageFallback.Root className="size-full">
         <ImageFallback.Image
           alt={`${name} avatar`}
@@ -130,20 +130,20 @@ export const AddressProfileView = ({
       <div>
         {Array.from({ length: 4 }).map((_, index) => (
           <div
-            className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+            className="border-[lightgrey] border-b-[0.41px] py-6 last:border-none"
             // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton items
             key={index}
           >
-            <div className="flex items-center gap-3 md:gap-[12px]">
-              <div className="size-[32px] shrink-0 animate-pulse rounded-full bg-ens-white md:size-[36.9px]" />
-              <div className="h-[28px] w-[160px] animate-pulse rounded-[2.8px] bg-ens-white" />
+            <div className="flex items-center gap-3 md:gap-3">
+              <div className="size-8 shrink-0 animate-pulse rounded-full bg-ens-white md:size-[36.9px]" />
+              <div className="h-7 w-40 animate-pulse rounded-[2.8px] bg-ens-white" />
             </div>
           </div>
         ))}
       </div>
     ))
     .with({ isError: true }, () => (
-      <div className="rounded-lg bg-[#fff8f0] px-4 py-3 text-[#c68a1b] text-sm">
+      <div className="rounded-lg bg-ens-citrine-50 px-4 py-3 text-ens-citrine-450 text-sm">
         Unable to load names for this address. Please try again.
       </div>
     ))
@@ -159,14 +159,14 @@ export const AddressProfileView = ({
 
           return (
             <motion.div
-              className="border-[lightgrey] border-b-[0.41px] py-[24px] last:border-none"
+              className="border-[lightgrey] border-b-[0.41px] py-6 last:border-none"
               key={domain.id}
               {...staggerProps(index)}
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-[12px]">
+                <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-3">
                   <NameAvatar name={label} />
-                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 md:px-[8px] md:py-[4px]">
+                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 md:px-2 md:py-[4px]">
                     <Link
                       className="mr-1 min-w-0 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
                       params={{ name: label }}
@@ -192,7 +192,7 @@ export const AddressProfileView = ({
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pt-6 pb-12 md:space-y-8 md:pt-10">
-      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:p-6">
+      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:p-6">
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0 space-y-3">
             <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ export const AddressProfileView = ({
                   Primary name
                 </span>
                 <Link
-                  className="inline-flex items-center gap-1 rounded-[2.8px] bg-[#e5f7ff] px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-[8px] md:py-[4px]"
+                  className="inline-flex items-center gap-1 rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-2 md:py-[4px]"
                   params={{ name: primaryName }}
                   to="/$name"
                 >
@@ -237,7 +237,7 @@ export const AddressProfileView = ({
         </div>
       </Card>
 
-      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-lg md:px-6 md:py-8">
+      <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:px-6 md:py-8">
         <div className="mb-[20px] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
@@ -263,21 +263,21 @@ export const AddressProfileView = ({
             <div className="flex items-center justify-center gap-[12px]">
               <button
                 aria-label={t`Previous page`}
-                className="flex size-[32px] items-center justify-center text-ens-gray-three disabled:text-border"
+                className="flex size-8 items-center justify-center text-ens-gray-three disabled:text-border"
                 disabled={isPending || page === 1}
                 onClick={handlePrev}
                 type="button"
               >
-                <CircleArrowLeft className="size-[32px]" strokeWidth={1} />
+                <CircleArrowLeft className="size-8" strokeWidth={1} />
               </button>
               <button
                 aria-label={t`Next page`}
-                className="flex size-[32px] items-center justify-center text-ens-blue disabled:text-border"
+                className="flex size-8 items-center justify-center text-ens-blue disabled:text-border"
                 disabled={isPending || !hasNextPage}
                 onClick={handleNext}
                 type="button"
               >
-                <CircleArrowRight className="size-[32px]" strokeWidth={1} />
+                <CircleArrowRight className="size-8" strokeWidth={1} />
               </button>
             </div>
             <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">

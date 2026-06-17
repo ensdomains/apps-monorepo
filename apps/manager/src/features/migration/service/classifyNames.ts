@@ -30,6 +30,7 @@ export type MigrationTokenType =
 
 export type IneligibleReason =
   | 'unlocked-subname'
+  | 'expired-registration'
   | 'registry-only'
   | 'not-transferable'
   | 'missing-parent'
@@ -107,6 +108,17 @@ const isWrapActive = (
   return BigInt(wrappedDomain.expiryDate) > nowSeconds
 }
 
+const hasExpiredDotEthRegistration = (
+  domain: V1Domain,
+  parentName: string | null,
+  nowSeconds: bigint,
+): boolean => {
+  if (parentName !== 'eth') return false
+  const expiryDate = domain.registration?.expiryDate
+  if (!expiryDate) return false
+  return BigInt(expiryDate) <= nowSeconds
+}
+
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
@@ -121,14 +133,24 @@ export const classifyName = (
   const addr = ownerAddress.toLowerCase()
   const v1ResolverAddress = domain.resolver?.address ?? null
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-  const effectiveWrappedDomain = isWrapActive(domain.wrappedDomain, nowSeconds)
-    ? domain.wrappedDomain
-    : null
+  const wrappedOwner = domain.wrappedOwner
+  const wrappedOwnerMatches = wrappedOwner?.id.toLowerCase() === addr
+  const effectiveWrappedDomain =
+    domain.wrappedDomain &&
+    (isWrapActive(domain.wrappedDomain, nowSeconds) || wrappedOwnerMatches)
+      ? domain.wrappedDomain
+      : null
 
   if (!effectiveWrappedDomain) {
     const registrant = domain.registrant
     if (registrant?.id.toLowerCase() !== addr) return null
     if (parentName !== 'eth') return null
+    if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+      return {
+        type: 'ineligible',
+        name: { domain, reason: 'expired-registration' },
+      }
+    }
 
     const tokenHolder = toAddress(registrant.id)
     if (!tokenHolder) return null
@@ -160,11 +182,17 @@ export const classifyName = (
     }
   }
 
-  if (domain.wrappedOwner?.id.toLowerCase() !== addr) return null
+  if (!wrappedOwner || !wrappedOwnerMatches) return null
 
   const fuses = effectiveWrappedDomain.fuses
-  const wrappedHolder = toAddress(domain.wrappedOwner.id)
+  const wrappedHolder = toAddress(wrappedOwner.id)
   if (!wrappedHolder) return null
+  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
+    return {
+      type: 'ineligible',
+      name: { domain, reason: 'expired-registration' },
+    }
+  }
 
   if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
     if (parentName !== 'eth') {

@@ -70,6 +70,35 @@ describe('classifyName — expired wrap', () => {
     expect(n.fuses).toBe(0)
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
   })
+
+  it('keeps a wrapped-owner candidate when subgraph wrapper expiry is stale', () => {
+    const n = classified(
+      classify({
+        isWrapped: true,
+        registrantId: OTHER,
+        wrappedExpiry: '100',
+        fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+      }),
+    )
+    expect(n.tokenType).toBe('unlocked')
+    expect(n.fuses).toBe(FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH)
+    expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
+  })
+})
+
+describe('classifyName — grace period registrations', () => {
+  it('marks wrapped .eth 2LD in registration grace as ineligible', () => {
+    expect(
+      ineligibleReason(
+        classify({
+          isWrapped: true,
+          registrationExpiry: '100',
+          wrappedExpiry: '99999999999',
+          fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
+        }),
+      ),
+    ).toBe('expired-registration')
+  })
 })
 
 describe('classifyName — token type', () => {

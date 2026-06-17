@@ -131,7 +131,6 @@ describe('changeResolver', () => {
             },
           ],
           sponsored: true,
-          useSession: false,
         },
       },
     })

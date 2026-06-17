@@ -24,6 +24,7 @@
  */
 
 import { SEPOLIA_RPC_URL } from '@ens-apps/indexer/chain'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import {
   type Chain,
@@ -55,13 +56,14 @@ const ENS_CONTRACTS = {
     '0xa20b41dc7336c4d974e3c9a6ea01b77647559c46' as `0x${string}`, // DedicatedResolverImpl
 }
 
-// Supported payment tokens on Sepolia ENS
+// Supported payment tokens on Sepolia ENS, sourced from the ensjs Sepolia
+// chain config so they can't drift from the tokens the app reads.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const SUPPORTED_TOKENS = {
-  USDC: '0xf2942507cb33422a800ff9aa4cb05522a5e1d9e6' as `0x${string}`, // MockUSDC
-  DAI: '0xb21412bb6816601dd840b93a5d19a8fe671cb74e' as `0x${string}`, // MockDAI
+  USDC: ensjsSepolia.usdc.address, // MockUSDC
+  DAI: ensjsSepolia.dai.address, // MockDAI
 }
 
-const PIMLICO_API_KEY = ''
 const RHINESTONE_API_KEY = ''
 const PRIVATE_KEY = '' as `0x${string}`
 
@@ -368,13 +370,11 @@ async function createRhinestoneAccountAndGetAddress(): Promise<string> {
   try {
     console.log('🔧 Initializing Rhinestone SDK...')
 
-    // Initialize SDK instance with Pimlico bundler
+    // Initialize SDK instance. Gas sponsorship for the HCA is handled by the
+    // Rhinestone Warp orchestrator (intent-based, relayer-funded) — no
+    // ERC-4337 bundler is configured.
     const sdk = new RhinestoneSDK({
       apiKey: RHINESTONE_API_KEY,
-      bundler: {
-        type: 'pimlico',
-        apiKey: PIMLICO_API_KEY,
-      },
     })
 
     console.log('✅ SDK initialized successfully')
@@ -715,7 +715,7 @@ async function registerEnsDomain(
   // Step 6: Create Rhinestone account
   console.log('\n🦏 Creating Rhinestone account...')
 
-  // Initialize SDK instance with Pimlico bundler
+  // Initialize SDK instance (Warp-sponsored Intents, no ERC-4337 bundler).
   const sdk = new RhinestoneSDK({
     apiKey: apiKey,
   })

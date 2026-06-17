@@ -1,8 +1,13 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { type Address, isAddressEqual } from 'viem'
-import { V1_CONTRACTS } from './addresses'
+import { sepoliaWithEns } from '@/lib/wagmi'
 
 const KNOWN_PUBLIC_RESOLVERS: readonly Address[] = [
-  V1_CONTRACTS.PublicResolver,
+  getChainContractAddress({
+    chain: sepoliaWithEns,
+    contract: 'ensPublicResolver',
+  }),
+  '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d',
   '0xc30ba2bd21583605d815826c3807e8224e398e10',
   '0x1da022710dF5002339274AaDEe8D58218e9D6AB5',

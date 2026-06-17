@@ -1,8 +1,9 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
+import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
@@ -34,8 +35,11 @@ export const DashboardPage = () => {
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlag('MIGRATION')
 
-  const { data: reverseName } = useSuspenseQuery({
+  // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
+  // `reverseName ?? null`) instead of throwing into the route and crashing it.
+  const { data: reverseName } = useQuery({
     ...profileReverseNameQuery(ownerAddress ?? undefined),
+    enabled: !!ownerAddress,
   })
 
   const { data: reverseRecords } = useQuery({
@@ -69,8 +73,14 @@ export const DashboardPage = () => {
             <UpgradeBanner />
           </motion.div>
         )}
+        <motion.div
+          className="w-full px-4 md:px-0"
+          {...stagger(1, shouldReduceMotion)}
+        >
+          <DashboardGraceBanner primaryLabel={defaultName} />
+        </motion.div>
         {hasProfile ? (
-          <motion.div {...stagger(1, shouldReduceMotion)}>
+          <motion.div {...stagger(2, shouldReduceMotion)}>
             <PrimaryNameCard
               avatarUrl={avatarUrl}
               primaryName={defaultName}
@@ -79,8 +89,8 @@ export const DashboardPage = () => {
           </motion.div>
         ) : (
           <motion.div
-            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-lg md:px-6 md:py-8"
-            {...stagger(1, shouldReduceMotion)}
+            className="flex flex-col items-start gap-3 border-[0.25px] border-border bg-white px-4 py-6 sm:flex-row sm:items-center sm:justify-between md:rounded-xl md:px-6 md:py-8"
+            {...stagger(2, shouldReduceMotion)}
           >
             <span className="font-sans text-[16px] text-foreground">
               <Trans>You haven't set a primary name yet.</Trans>
@@ -102,8 +112,8 @@ export const DashboardPage = () => {
           </motion.div>
         )}
         <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(2, shouldReduceMotion)}
+          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          {...stagger(3, shouldReduceMotion)}
         >
           <NamesTable
             migrationEnabled={migrationEnabled}
@@ -112,12 +122,12 @@ export const DashboardPage = () => {
         </motion.div>
         {migrationEnabled && <MigrationProgressBanner />}
         <motion.div
-          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-lg md:px-6 md:py-8"
-          {...stagger(3, shouldReduceMotion)}
+          className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8"
+          {...stagger(4, shouldReduceMotion)}
         >
           <EducationCarousel />
         </motion.div>
-        <motion.div {...stagger(4, shouldReduceMotion)}>
+        <motion.div {...stagger(5, shouldReduceMotion)}>
           <FaqSection />
         </motion.div>
       </div>

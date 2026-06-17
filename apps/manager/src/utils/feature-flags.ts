@@ -1,17 +1,7 @@
-export const PARA_TEST_ACCOUNTS = {
-  EMAILS: [
-    'dev@test.getpara.com',
-    'test1@test.getpara.com',
-    'test2@test.getpara.com',
-  ],
-  PHONES: ['(425)-555-1234', '(206)-555-9876', '(310)-555-0001'],
-} as const
-
 export const BASE_USER_LISTS = {
   TEAM: ['team@example.com', 'dev@example.com'],
   QA: ['qa@example.com'],
   BETA: ['beta@example.com'],
-  PARA_TEST: [...PARA_TEST_ACCOUNTS.EMAILS, ...PARA_TEST_ACCOUNTS.PHONES],
 } as const
 
 export type UserIdentifier = {
@@ -46,21 +36,24 @@ const FEATURE_FLAGS_INTERNAL = {
   MIGRATION: {
     enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
   },
+  PROFILE_EDIT_NEW: {
+    enabled: import.meta.env.VITE_FF_PROFILE_EDIT_NEW === 'true',
+  },
   REGISTRATION_V2: {
     enabled: true,
   },
   /**
    * Force the transaction manager to use plain EOA signing only — bypasses
-   * the Rhinestone / Pimlico smart-account flows entirely. Useful for
-   * environments (e.g. the Tenderly virtual sepolia fork) where ERC-4337
-   * bundler infrastructure isn't available.
+   * the Rhinestone smart-account flow entirely. Useful for environments
+   * (e.g. the Tenderly virtual sepolia fork) where the relayer/bundler
+   * infrastructure isn't available.
    */
   USE_EOA: {
     enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
   },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 
-export type TransactionInfra = 'warp' | 'pimlico'
+export type TransactionInfra = 'warp'
 export type FeatureFlag = keyof typeof FEATURE_FLAGS_INTERNAL
 
 // Typescript hack to correctly infer the flag names but keep the config type as generic
@@ -136,9 +129,11 @@ export function isFeatureEnabled(
 }
 
 export function getTransactionInfra(
-  identifier?: UserIdentifier,
+  _identifier?: UserIdentifier,
 ): TransactionInfra {
-  return isFeatureEnabled('USE_WARP_INFRA', identifier) ? 'warp' : 'pimlico'
+  // Rhinestone HCA operations always route through the Warp orchestrator
+  // (intent-based, relayer-sponsored). Warp is the only supported infra.
+  return 'warp'
 }
 
 /**

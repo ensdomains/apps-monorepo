@@ -56,30 +56,32 @@ export const RegistrationDurationOrExpiryPicker = ({
   return (
     <div
       className={cn(
-        'flex flex-col gap-4 border border-border rounded-sm px-6 pb-6 pt-4',
+        'flex flex-col gap-4 border border-border rounded-xl p-6',
         disabled && 'opacity-50 pointer-events-none',
       )}
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-base font-medium">
-            {labelPrefix ? `${labelPrefix} ` : ''}
-            {registrationSpanType === 'years' ? 'For' : 'Until'}
+          <span className="text-lg font-medium">
+            {labelPrefix ?? 'Register'}{' '}
+            {registrationSpanType === 'years' ? 'for' : 'until'}
           </span>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={handleRegistrationSpanTypeChange}
-            className="gap-1 text-primary"
+            className="gap-1.5"
           >
-            <span className="text-xs font-normal">
-              Choose by {registrationSpanType === 'years' ? 'date' : 'years'}
-            </span>
             {registrationSpanType === 'years' ? (
-              <CalendarIcon className="size-3" />
+              <CalendarIcon className="size-3.5" />
             ) : (
-              <HashIcon className="size-3" />
+              <HashIcon className="size-3.5" />
             )}
+            <span className="text-xs font-normal">
+              {registrationSpanType === 'years'
+                ? 'Pick by date'
+                : 'Choose length'}
+            </span>
           </Button>
         </div>
 
@@ -98,8 +100,12 @@ export const RegistrationDurationOrExpiryPicker = ({
             onDateChange={(date) =>
               setDuration(getDurationFromPickerDate(date, anchor))
             }
+            onYearsPresetSelect={(years) =>
+              setDuration(getDurationInSecondsFromYears(years))
+            }
             minDate={getMinExpiryDateForPicker(anchor)}
             maxDate={getMaxExpiryDateForPicker(anchor)}
+            name={name}
           />
         )}
       </div>

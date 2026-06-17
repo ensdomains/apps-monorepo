@@ -1,16 +1,17 @@
-import { useModal, useWallet } from '@getpara/react-sdk-lite'
 import { Trans } from '@lingui/react/macro'
+import { useConnectModal } from '@rainbow-me/rainbowkit'
+import { useConnection } from 'wagmi'
 import { Button } from '@/components/ens-consumer/button/Button'
 
 export const MobileConnectButton = () => {
-  const { openModal } = useModal()
-  const wallet = useWallet()
+  const { openConnectModal } = useConnectModal()
+  const { isConnecting, isReconnecting } = useConnection()
 
   return (
     <Button
       color="blue"
-      loading={wallet.isLoading}
-      onClick={() => openModal()}
+      loading={isConnecting || isReconnecting}
+      onClick={() => openConnectModal?.()}
       size="temp-xs"
     >
       <Trans>Connect</Trans>
