@@ -47,7 +47,6 @@ export const useEditProfileDialogSelector = <T,>(
 export const useEditProfileDialogStatus = () =>
   useEditProfileDialogSelector(
     (snapshot) => ({
-      errorMessage: snapshot.context.localSaveError,
       isSaving: snapshot.matches({ editing: 'saving' }),
     }),
     shallowEqual,

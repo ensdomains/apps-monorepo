@@ -1,10 +1,11 @@
+import type { PublicClient } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { createActor } from 'xstate'
 import { defaultProfileRecords } from '@/features/profile/utils/transformRecords'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 
 describe('editProfileDialogMachine', () => {
-  it('surfaces local-only save failures from the idle editing state', () => {
+  it('stays in idle editing when save prerequisites are missing', () => {
     const actor = createActor(editProfileDialogMachine, {
       input: { records: defaultProfileRecords },
     })
@@ -12,13 +13,22 @@ describe('editProfileDialogMachine', () => {
     actor.send({ type: 'OPEN', records: defaultProfileRecords })
 
     actor.send({
-      type: 'SAVE_FAILED',
-      errorMessage: 'Image cache refresh failed',
+      type: 'SAVE_REQUESTED',
+      values: defaultProfileRecords,
+      deps: {
+        accountAddress: null,
+        chainId: 1,
+        name: 'test.eth',
+        owner: undefined,
+        ownerAddress: null,
+        publicClient: {} as PublicClient,
+        signer: null,
+      },
     })
 
     const snapshot = actor.getSnapshot()
-    expect(snapshot.matches({ editing: 'error' })).toBe(true)
-    expect(snapshot.context.localSaveError).toBe('Image cache refresh failed')
+    expect(snapshot.matches({ editing: 'idle' })).toBe(true)
+    expect(snapshot.context.pendingSave).toBeUndefined()
   })
 
   it('can show a general field without toggling it back off', () => {

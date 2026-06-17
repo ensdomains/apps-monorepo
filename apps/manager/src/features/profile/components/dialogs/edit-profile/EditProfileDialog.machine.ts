@@ -1,5 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { Address, Hex, PublicClient } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
 import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
@@ -16,6 +16,7 @@ interface SaveDeps {
   readonly owner?: Address
   readonly ownerAddress?: Address | null
   readonly publicClient: PublicClient
+  readonly retryCount?: number
   readonly signer?: Signer | null
 }
 
@@ -26,10 +27,8 @@ interface PendingSave {
 
 interface EditProfileDialogContext {
   readonly ethAddressChanged: boolean
-  readonly localSaveError?: string
   readonly pendingSave?: PendingSave
   readonly savedRecords: ProfileRecords
-  readonly txHash?: Hex
   readonly visibleFields: ReadonlySet<GeneralField>
 }
 
@@ -47,10 +46,8 @@ type EditProfileDialogEvent =
   | {
       type: 'SAVE_SUCCEEDED'
       currentRecords: ProfileRecords
-      txHash?: Hex
       ethAddressChanged?: boolean
     }
-  | { type: 'SAVE_FAILED'; errorMessage: string }
 
 const getMissingAccount = (event: EditProfileDialogEvent) =>
   event.type === 'SAVE_REQUESTED' &&
@@ -83,6 +80,7 @@ const getPendingSave = (
       publicClient: deps.publicClient,
       chainId: deps.chainId,
       resolverAddress: savedRecords.resolverAddress,
+      retryCount: deps.retryCount,
     },
   }
 }
@@ -90,18 +88,18 @@ const getPendingSave = (
 const saveRequestedTransitions = [
   {
     guard: 'missingOwner',
-    target: 'error',
-    actions: 'setMissingOwnerError',
+    target: 'idle',
+    actions: 'clearSaveState',
   },
   {
     guard: 'missingAccount',
-    target: 'error',
-    actions: 'setMissingAccountError',
+    target: 'idle',
+    actions: 'clearSaveState',
   },
   {
     guard: 'missingResolver',
-    target: 'error',
-    actions: 'setMissingResolverError',
+    target: 'idle',
+    actions: 'clearSaveState',
   },
   {
     target: 'saving',
@@ -124,11 +122,9 @@ export const editProfileDialogMachine = setup({
   actions: {
     openDialog: assign({
       ethAddressChanged: () => false,
-      localSaveError: () => undefined,
       pendingSave: () => undefined,
       savedRecords: ({ event, context }) =>
         event.type === 'OPEN' ? event.records : context.savedRecords,
-      txHash: () => undefined,
       visibleFields: ({ event, context }) =>
         event.type === 'OPEN'
           ? getDefaultVisibleFields(event.records)
@@ -136,9 +132,7 @@ export const editProfileDialogMachine = setup({
     }),
     clearSaveState: assign({
       ethAddressChanged: () => false,
-      localSaveError: () => undefined,
       pendingSave: () => undefined,
-      txHash: () => undefined,
     }),
     showGeneralField: assign({
       visibleFields: ({ context, event }) => {
@@ -167,55 +161,23 @@ export const editProfileDialogMachine = setup({
         return next
       },
     }),
-    setMissingOwnerError: assign({
-      ethAddressChanged: () => false,
-      localSaveError: () => 'Cannot save profile - ENS owner is not available.',
-      pendingSave: () => undefined,
-      txHash: () => undefined,
-    }),
-    setMissingAccountError: assign({
-      ethAddressChanged: () => false,
-      localSaveError: () =>
-        'Account not ready. Please wait for wallet to connect.',
-      pendingSave: () => undefined,
-      txHash: () => undefined,
-    }),
-    setMissingResolverError: assign({
-      ethAddressChanged: () => false,
-      localSaveError: () =>
-        'Cannot save profile - resolver address is not available.',
-      pendingSave: () => undefined,
-      txHash: () => undefined,
-    }),
     assignPendingSave: assign({
       ethAddressChanged: () => false,
-      localSaveError: () => undefined,
       pendingSave: ({ context, event }) =>
         event.type === 'SAVE_REQUESTED'
           ? getPendingSave(context.savedRecords, event.values, event.deps)
           : undefined,
-      txHash: () => undefined,
     }),
     completeEventSave: assign({
       ethAddressChanged: ({ event }) =>
         event.type === 'SAVE_SUCCEEDED'
           ? (event.ethAddressChanged ?? false)
           : false,
-      localSaveError: () => undefined,
       pendingSave: () => undefined,
       savedRecords: ({ event, context }) =>
         event.type === 'SAVE_SUCCEEDED'
           ? event.currentRecords
           : context.savedRecords,
-      txHash: ({ event }) =>
-        event.type === 'SAVE_SUCCEEDED' ? event.txHash : undefined,
-    }),
-    failEventSave: assign({
-      ethAddressChanged: () => false,
-      localSaveError: ({ event }) =>
-        event.type === 'SAVE_FAILED' ? event.errorMessage : undefined,
-      pendingSave: () => undefined,
-      txHash: () => undefined,
     }),
   },
 }).createMachine({
@@ -248,10 +210,6 @@ export const editProfileDialogMachine = setup({
         SHOW_GENERAL_FIELD: {
           actions: 'showGeneralField',
         },
-        SAVE_FAILED: {
-          target: '.error',
-          actions: 'failEventSave',
-        },
         TOGGLE_GENERAL_FIELD: {
           actions: 'toggleGeneralField',
         },
@@ -271,11 +229,6 @@ export const editProfileDialogMachine = setup({
           },
         },
         success: {
-          on: {
-            SAVE_REQUESTED: saveRequestedTransitions,
-          },
-        },
-        error: {
           on: {
             SAVE_REQUESTED: saveRequestedTransitions,
           },

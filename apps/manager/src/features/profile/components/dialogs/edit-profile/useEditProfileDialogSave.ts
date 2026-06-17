@@ -20,9 +20,7 @@ import {
 import type { ProfileRecords } from '@/features/profile/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import { getRecordsValidationErrorMessage } from '../../ProfileEdit.errors'
 import {
-  RecordsValidationError,
   type SaveRecordsParams,
   saveRecords,
 } from '../../ProfileEdit.transactions'
@@ -58,14 +56,6 @@ interface UseEditProfileDialogSaveParams {
 
 interface SaveRecordsMutationVariables extends SaveRecordsParams {
   readonly currentRecords: ProfileRecords
-}
-
-const getMutationErrorMessage = (error: unknown) => {
-  if (error instanceof RecordsValidationError) {
-    return getRecordsValidationErrorMessage(error)
-  }
-
-  return error instanceof Error ? error.message : String(error)
 }
 
 const useCloseProfileDialogOnSuccessfulSave = ({
@@ -155,7 +145,7 @@ export const useEditProfileDialogSave = ({
       currentRecords: _currentRecords,
       ...params
     }: SaveRecordsMutationVariables) => saveRecords(params),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       const ethBefore = variables.before.coins.find(
         ({ coinType }) => coinType === 60,
       )
@@ -167,14 +157,10 @@ export const useEditProfileDialogSave = ({
         type: 'SAVE_SUCCEEDED',
         currentRecords: variables.currentRecords,
         ethAddressChanged: ethBefore?.value !== ethAfter?.value,
-        txHash: data.hash,
       })
     },
-    onError: (error) => {
-      dialogActor.send({
-        type: 'SAVE_FAILED',
-        errorMessage: getMutationErrorMessage(error),
-      })
+    onError: () => {
+      dialogActor.send({ type: 'RESET_SAVE_STATE' })
     },
   })
 
@@ -212,15 +198,13 @@ export const useEditProfileDialogSave = ({
         throw new Error('Please connect your wallet before uploading an image')
       }
 
-      await Promise.all(
-        uploads.map((upload) =>
-          submitPreparedProfileImageUpload({
-            address,
-            signTypedDataAsync,
-            upload,
-          }),
-        ),
-      )
+      for (const upload of uploads) {
+        await submitPreparedProfileImageUpload({
+          address,
+          signTypedDataAsync,
+          upload,
+        })
+      }
     },
     [address, isConnected, signTypedDataAsync],
   )
@@ -242,11 +226,8 @@ export const useEditProfileDialogSave = ({
         })
         setPreparedImageUploads([])
         dialogActor.send({ type: 'CLOSE' })
-      } catch (error) {
-        dialogActor.send({
-          type: 'SAVE_FAILED',
-          errorMessage: getMutationErrorMessage(error),
-        })
+      } catch {
+        dialogActor.send({ type: 'RESET_SAVE_STATE' })
       } finally {
         setIsFinalizingImageSave(false)
       }
@@ -266,6 +247,7 @@ export const useEditProfileDialogSave = ({
           owner,
           ownerAddress: account.ownerAddress as Address | null,
           publicClient: publicClient as PublicClient,
+          retryCount: 0,
           signer: account.signer,
         },
       })
@@ -300,11 +282,8 @@ export const useEditProfileDialogSave = ({
       try {
         await submitPreparedImageUploads(uploads)
         return true
-      } catch (error) {
-        dialogActor.send({
-          type: 'SAVE_FAILED',
-          errorMessage: getMutationErrorMessage(error),
-        })
+      } catch {
+        dialogActor.send({ type: 'RESET_SAVE_STATE' })
         return false
       } finally {
         setIsFinalizingImageSave(false)

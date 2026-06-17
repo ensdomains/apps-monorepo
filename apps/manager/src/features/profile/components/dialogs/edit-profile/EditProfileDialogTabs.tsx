@@ -1,15 +1,13 @@
 import { Trans } from '@lingui/react/macro'
-import { AlertCircle, Loader2, Menu } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { DialogClose } from '@/components/ui/dialog'
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
-import { getEditProfileDialogStatus } from './EditProfileDialogStatus'
 import { AddressesTab } from './tabs/addresses/AddressesTab'
 import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
@@ -23,28 +21,6 @@ const tabs = [
   { label: 'Links', value: 'links' },
   { label: 'Appearance', value: 'appearance' },
 ] as const
-
-const EditProfileDialogStatusPanel = () => {
-  const status = getEditProfileDialogStatus(useEditProfileDialogStatus())
-
-  if (!status) {
-    return null
-  }
-
-  return (
-    <div className="px-4 pt-4">
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>
-          <Trans>Could not save profile</Trans>
-        </AlertTitle>
-        <AlertDescription className="whitespace-pre-wrap break-words">
-          {status.message}
-        </AlertDescription>
-      </Alert>
-    </div>
-  )
-}
 
 interface EditProfileDialogTabsProps {
   readonly canSave: boolean
@@ -187,8 +163,6 @@ export const EditProfileDialogTabs = ({
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <EditProfileDialogStatusPanel />
-
         <div
           className="scrollbar-scroll-only min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-1.5 pt-4 pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] md:px-4"
           data-scrolling={isScrolling}
