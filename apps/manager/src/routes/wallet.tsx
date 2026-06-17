@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { useConnectModal, useWalletUi } from '@/lib/wallet'
+import { useConnectModal, useWalletDisconnect } from '@/lib/wallet'
 import { describeConnectError, type ErrorTone } from './wallet.errors'
 
 export const Route = createFileRoute('/wallet')({
@@ -178,8 +178,7 @@ const ConnectMenu = () => {
 }
 
 const DisconnectMenu = () => {
-  // Shared disconnect clears the Privy session too, not just wagmi.
-  const { disconnect } = useWalletUi()
+  const disconnect = useWalletDisconnect()
   const { address, connector } = useConnection()
 
   const formatAddress = (addr: string) => {

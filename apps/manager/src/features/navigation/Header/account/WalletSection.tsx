@@ -7,7 +7,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
-import { useWalletUi } from '@/lib/wallet'
+import { useWalletDisconnect } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
 
 type WalletSectionProps = {
@@ -23,12 +23,9 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       state.context.authKey === undefined &&
       state.context.modalDismissed === true,
   )
-  const { disconnect } = useWalletUi()
+  const disconnect = useWalletDisconnect()
   const [isDisconnecting, setIsDisconnecting] = useState(false)
 
-  // Vendor-agnostic sign-out: the active stack's `disconnect` clears wagmi (and,
-  // in the Privy stack, the Privy session too — leaving it authed would make the
-  // next "Connect" hit login()'s "already logged in" path).
   const handleDisconnect = async () => {
     setIsDisconnecting(true)
     try {

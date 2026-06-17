@@ -59,8 +59,8 @@ interface AllTheProvidersProps {
 }
 
 const AllTheProviders = ({ children }: AllTheProvidersProps) => (
-  // No wallet-vendor provider needed: components read WalletUiContext's default
-  // (no-op) and wagmi via the mock connector below.
+  // Just wagmi (mock connector) — the wallet hooks read RainbowKit/wagmi, which
+  // this provides; no RainbowKitProvider needed for the hooks under test.
   <I18nProvider i18n={i18n}>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
