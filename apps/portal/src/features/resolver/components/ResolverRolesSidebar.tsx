@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
 import { Trash2 } from 'lucide-react'
 import { type PropsWithChildren, useMemo, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { CopyButton } from '@/components/CopyButton'
@@ -345,7 +346,17 @@ export const ResolverRolesSidebar = ({
   }
 
   const isWalletConnected = Boolean(walletClient?.account)
-  const isRemoveAction = pendingAction?.type === 'remove'
+  const transactionMeta = match(pendingAction)
+    .with({ type: 'remove' }, ({ account }) => ({
+      id: REMOVE_RESOLVER_USER_TX_ID,
+      title: 'Remove resolver user',
+      transactionName: `Remove user ${account}`,
+    }))
+    .otherwise(() => ({
+      id: SAVE_RESOLVER_ROLES_TX_ID,
+      title: 'Save resolver role changes',
+      transactionName: `Update roles for ${pendingAction?.account ?? ''}`,
+    }))
 
   const connectedAddress = walletClient?.account?.address
 
@@ -464,15 +475,7 @@ export const ResolverRolesSidebar = ({
         <TransactionModal
           transactions={[
             {
-              id: isRemoveAction
-                ? REMOVE_RESOLVER_USER_TX_ID
-                : SAVE_RESOLVER_ROLES_TX_ID,
-              title: isRemoveAction
-                ? 'Remove resolver user'
-                : 'Save resolver role changes',
-              transactionName: isRemoveAction
-                ? `Remove user ${pendingAction?.account ?? ''}`
-                : `Update roles for ${pendingAction?.account ?? ''}`,
+              ...transactionMeta,
               estimatedGasCost: 0.0001,
               onStart: () => {
                 if (!pendingAction) return
