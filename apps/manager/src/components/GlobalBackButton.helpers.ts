@@ -18,7 +18,9 @@ const isProfileRoute = (pathname: string) =>
 
 const globalBackButtonStaticRoutes: readonly string[] = [
   '/payment/add',
+  '/payment/add/',
   '/payment/list',
+  '/payment/list/',
   '/notifications',
   '/notifications/',
   '/notifications/settings',
