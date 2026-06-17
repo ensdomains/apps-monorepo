@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
 import type { Connector } from 'wagmi'
-import { useConnect, useConnection, useDisconnect } from 'wagmi'
+import { useConnect, useConnection } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useConnectModal, useWalletUi } from '@/lib/wallet'
 
 export const Route = createFileRoute('/wallet')({
   component: RouteComponent,
@@ -20,6 +21,7 @@ export const Route = createFileRoute('/wallet')({
 
 const ConnectMenu = () => {
   const { connect, connectors, data, error, status, variables } = useConnect()
+  const { openConnectModal } = useConnectModal()
 
   const connectingConnector =
     typeof variables?.connector === 'object' ? variables?.connector.id : null
@@ -248,11 +250,22 @@ const ConnectMenu = () => {
             <div className="py-8 text-center text-gray-500">
               <WalletIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
               <p>
-                <Trans>No wallet connectors available</Trans>
+                <Trans>No wallet connected yet</Trans>
               </p>
-              <p className="text-sm">
-                <Trans>Make sure you have a wallet extension installed</Trans>
+              <p className="mb-4 text-sm">
+                <Trans>
+                  Sign in with a social account or wallet to get started
+                </Trans>
               </p>
+              {/* Privy builds wagmi connectors from the signed-in wallet, so
+                  there are none pre-login — start the Privy login flow instead. */}
+              <Button
+                disabled={!openConnectModal}
+                onClick={() => openConnectModal?.()}
+                type="button"
+              >
+                <Trans>Sign in</Trans>
+              </Button>
             </div>
           )}
         </CardContent>
@@ -262,7 +275,8 @@ const ConnectMenu = () => {
 }
 
 const DisconnectMenu = () => {
-  const { disconnect } = useDisconnect()
+  // Shared disconnect clears the Privy session too, not just wagmi.
+  const { disconnect } = useWalletUi()
   const { address, connector } = useConnection()
 
   const formatAddress = (addr: string) => {
@@ -308,7 +322,9 @@ const DisconnectMenu = () => {
 
           <Button
             className="w-full"
-            onClick={() => disconnect()}
+            onClick={() => {
+              void disconnect()
+            }}
             variant="destructive"
           >
             <Trans>Disconnect Wallet</Trans>

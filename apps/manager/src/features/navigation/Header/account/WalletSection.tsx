@@ -1,12 +1,13 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
+import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { useDisconnect } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
+import { useWalletUi } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
 
 type WalletSectionProps = {
@@ -22,7 +23,21 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       state.context.authKey === undefined &&
       state.context.modalDismissed === true,
   )
-  const { mutate: disconnect, isPending: isDisconnecting } = useDisconnect()
+  const { disconnect } = useWalletUi()
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
+
+  // Vendor-agnostic sign-out: the active stack's `disconnect` clears wagmi (and,
+  // in the Privy stack, the Privy session too — leaving it authed would make the
+  // next "Connect" hit login()'s "already logged in" path).
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true)
+    try {
+      await disconnect()
+    } finally {
+      setIsDisconnecting(false)
+      onAction()
+    }
+  }
 
   return (
     <div className="mb-3 space-y-4">
@@ -83,10 +98,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
       <button
         className="flex w-full items-center gap-2 rounded-lg"
-        onClick={() => {
-          disconnect()
-          onAction()
-        }}
+        onClick={() => void handleDisconnect()}
         type="button"
       >
         {isDisconnecting ? (

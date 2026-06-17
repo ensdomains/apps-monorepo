@@ -1,5 +1,10 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit'
+import { useConnectModal } from '@/lib/wallet'
 
 export const ConnectWallet = () => {
-  return <ConnectButton />
+  const { openConnectModal } = useConnectModal()
+  return (
+    <button onClick={() => openConnectModal?.()} type="button">
+      Connect Wallet
+    </button>
+  )
 }

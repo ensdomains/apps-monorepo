@@ -1319,10 +1319,6 @@ msgstr ""
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Make sure you have a wallet extension installed"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
 msgstr ""
@@ -1503,7 +1499,7 @@ msgid "No stablecoins available"
 msgstr ""
 
 #: src/routes/wallet.tsx
-msgid "No wallet connectors available"
+msgid "No wallet connected yet"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
@@ -2219,8 +2215,16 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
+#: src/routes/wallet.tsx
+msgid "Sign in"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+msgstr ""
+
+#: src/routes/wallet.tsx
+msgid "Sign in with a social account or wallet to get started"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
