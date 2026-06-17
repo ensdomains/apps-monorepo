@@ -1,8 +1,7 @@
-import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { MSymbol } from '@/components/ui/material-symbol'
+import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../data/queries/availability.query'
 import { useRegistrationV2Context } from '../../state/registrationUi.context'
 import { DurationSelector } from './components/DurationSelector'
@@ -11,20 +10,6 @@ import { PriceCooldownBannerSection } from './components/PriceCooldownBanner'
 import { PricingDomainHeader } from './components/PricingDomainHeader'
 import { PricingSummaryCard } from './components/PricingSummaryCard'
 import { TokenPickerDialog } from './components/TokenPickerDialog'
-
-const BackButton = () => {
-  return (
-    <Link
-      className="absolute top-5 left-10 flex items-center gap-2 text-ens-lapis-core uppercase hover:text-ens-lapis-core/80 xl:top-7"
-      to="/"
-    >
-      <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
-      <span className="font-medium text-sm leading-ens-none max-xl:hidden">
-        <Trans>Back</Trans>
-      </span>
-    </Link>
-  )
-}
 
 const useAvailabilityGuard = () => {
   const navigate = useNavigate()
@@ -50,10 +35,10 @@ const useAvailabilityGuard = () => {
 export const PricingStep = () => {
   const { label } = useRegistrationV2Context()
   useAvailabilityGuard()
+  useGlobalBackButton({ isVisible: true })
 
   return (
     <div className="mx-auto mt-12 mb-4 w-full-[32px] max-w-6xl space-y-6.5">
-      <BackButton />
       <PricingDomainHeader label={label} />
       <PriceCooldownBannerSection />
 

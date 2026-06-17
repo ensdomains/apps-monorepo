@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { ChevronLeft } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
@@ -19,7 +18,6 @@ import {
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasFundingStatus: MigrationGasFundingStatus
-  readonly onBack: () => void
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
 }
@@ -27,7 +25,6 @@ type SelectNamesStepProps = {
 export const SelectNamesStep = ({
   gasEstimate,
   gasFundingStatus,
-  onBack,
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
@@ -82,15 +79,6 @@ export const SelectNamesStep = ({
 
   return (
     <div className="relative z-10 flex h-full flex-col">
-      <button
-        className="relative mt-4 ml-5 flex shrink-0 items-center gap-1 self-start font-normal text-ens-lapis-900 text-sm uppercase leading-4.5 tracking-[1.68px] transition-opacity hover:opacity-70 md:absolute md:top-6 md:left-8 md:mt-0 md:ml-0 md:text-base md:tracking-[1.92px]"
-        onClick={onBack}
-        type="button"
-      >
-        <ChevronLeft className="size-5" strokeWidth={1.5} />
-        <Trans>Back</Trans>
-      </button>
-
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
