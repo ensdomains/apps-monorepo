@@ -137,16 +137,16 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Waiting for ETH address record confirmation`,
       stageDescription: msg`Waiting for the ETH address record update`,
     }))
+    .with({ stage: 'settingPrimaryName', txState: 'submitting' }, () => ({
+      stageLabel: msg`Submitting primary name update`,
+    }))
+    .with({ stage: 'settingPrimaryName', txState: 'pending' }, () => ({
+      stageLabel: msg`Waiting for primary name confirmation`,
+      stageDescription: msg`Waiting for the primary name update`,
+    }))
     .with({ stage: 'settingPrimaryName' }, () => ({
       stageLabel: msg`Setting primary name`,
       stageDescription: msg`Setting this name as your primary name`,
-    }))
-    .with({ stage: 'waitingForPrimaryName', txState: 'submitting' }, () => ({
-      stageLabel: msg`Submitting primary name update`,
-    }))
-    .with({ stage: 'waitingForPrimaryName' }, () => ({
-      stageLabel: msg`Waiting for primary name confirmation`,
-      stageDescription: msg`Waiting for the primary name update`,
     }))
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,

@@ -1341,10 +1341,6 @@ export const registrationMachine = setup({
           guard: 'needsEthRecordSync',
           target: 'syncingEthRecord',
         },
-        {
-          guard: 'needsPrimaryNameSetup',
-          target: 'settingPrimaryName',
-        },
         { target: 'success' },
       ],
     },
