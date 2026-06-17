@@ -144,7 +144,7 @@ export const RegistrationDetails = () => {
             <LinkButton
               params={{ name: `${details.label}.eth` }}
               size="xl"
-              to="/$name"
+              to="/p/$name/edit"
               variant="blue"
             >
               <Trans>Complete your profile</Trans>
