@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { PriceCooldownDecayChart } from './PriceCooldownDecayChart'
 import type { PriceCooldownDemand, PriceCooldownInfo } from './types'
@@ -19,7 +19,7 @@ const hasDemandStatsData = (demand?: PriceCooldownDemand) => {
 }
 
 const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
-  const nameStatsEnabled = useFeatureFlag('TEMP_PREMIUM_NAME_STATS')
+  const nameStatsEnabled = isFeatureEnabled('TEMP_PREMIUM_NAME_STATS')
   if (!nameStatsEnabled || !hasDemandStatsData(demand)) {
     return null
   }
@@ -57,7 +57,7 @@ const BuyNowOrWaitSection = ({
   periodDays: number
   demand?: PriceCooldownDemand
 }) => {
-  const nameStatsEnabled = useFeatureFlag('TEMP_PREMIUM_NAME_STATS')
+  const nameStatsEnabled = isFeatureEnabled('TEMP_PREMIUM_NAME_STATS')
   const showDemandStats = nameStatsEnabled && hasDemandStatsData(demand)
 
   return (
@@ -175,7 +175,7 @@ export const PriceCooldownExpandedContent = ({
 
   return (
     <div className="flex w-full flex-col gap-5 md:gap-10">
-      <div className="flex flex-col gap-3 px-5 md:hidden">
+      <div className="flex flex-col gap-3 md:hidden">
         <p className="font-normal text-[#353535] text-sm">
           <Trans>How it works</Trans>
         </p>
