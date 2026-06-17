@@ -1,13 +1,13 @@
 import { Calligraph } from 'calligraph'
-import { useMemo, useState, type ReactNode } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import {
   HOUNDSTOOTH_SHIMMER_OPTIONS,
   NameFill,
   stepLabelForProgress,
-  weaveRegistrationNameFillFor,
   WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
   WeaveCanvas,
   type WeaveShaderOptions,
+  weaveRegistrationNameFillFor,
 } from '@/components/WeaveLoader'
 import { cn } from '@/lib/utils'
 
@@ -44,7 +44,7 @@ export const WeaveRegistration = ({
           <WeaveCanvas options={weaveOptions} />
         </div>
 
-        <div className="flex min-h-40 h-full w-[333px] min-w-0 flex-col max-md:w-full">
+        <div className="flex h-full min-h-40 w-[333px] min-w-0 flex-col max-md:w-full">
           <Calligraph
             animation="smooth"
             aria-live="polite"
@@ -64,8 +64,7 @@ export const WeaveRegistration = ({
           />
           <NameFill
             animate={animate}
-            className="w-full shrink-0 whitespace-normal break-all mt-[18px]"
-       
+            className="mt-[18px] w-full shrink-0 whitespace-normal break-all"
             name={name}
             onLineCountChange={setNameLineCount}
             progress={p}

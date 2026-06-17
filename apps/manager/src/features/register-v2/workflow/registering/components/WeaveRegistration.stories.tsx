@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useEffect, useRef, useState } from 'react'
-import { JACQUARD_PATTERN6_DYE_BLEED_OPTIONS, WEAVE_REGISTRATION_LONG_NAME } from '@/components/WeaveLoader'
+import {
+  JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
+  WEAVE_REGISTRATION_LONG_NAME,
+} from '@/components/WeaveLoader'
 import { REGISTRATION_STAGE_PROGRESS } from '../../../state/registration.stages'
 import { useForwardProgress } from '../lib/useForwardProgress'
 import { WeaveRegistration } from './WeaveRegistration'
@@ -164,9 +167,7 @@ const LiveForwardProgressDemo = (
     cooldownLeft,
   )
 
-  return (
-    <WeaveRegistration {...args} animate={false} progress={progress} />
-  )
+  return <WeaveRegistration {...args} animate={false} progress={progress} />
 }
 
 /**

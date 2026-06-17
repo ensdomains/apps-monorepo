@@ -136,7 +136,7 @@ export function tickColorwayLoopCycle(
   periodMs: number,
 ): { elapsed: number; startMs: number; didWrap: boolean } {
   const now = Date.now()
-  let elapsed = now - loopStartMs
+  const elapsed = now - loopStartMs
   if (elapsed >= periodMs) {
     return { elapsed: 0, startMs: now, didWrap: true }
   }

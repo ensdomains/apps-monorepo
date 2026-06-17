@@ -1,18 +1,13 @@
 'use client'
 
-import {
-  useLayoutEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react'
+import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { FilledGlyph } from './FilledGlyph'
 import {
   charFillFraction,
+  type GlyphMetrics,
   lineCountFromMetrics,
   measureGlyphMetrics,
-  type GlyphMetrics,
 } from './nameFillLayout'
 
 export interface NameFillProps {
@@ -124,6 +119,7 @@ export function NameFill({
     onLineCountChangeRef.current?.(lineCountFromMetrics(next))
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: remeasure reads the live DOM, so re-run whenever name or any typography value changes the rendered glyphs (the w-full container's ResizeObserver does not fire on font-only changes).
   useLayoutEffect(() => {
     remeasure()
 
@@ -138,7 +134,15 @@ export function NameFill({
     }
 
     return () => observer.disconnect()
-  }, [name, fontSize, fontFamily, fontWeight, letterSpacing, lineHeight, className])
+  }, [
+    name,
+    fontSize,
+    fontFamily,
+    fontWeight,
+    letterSpacing,
+    lineHeight,
+    className,
+  ])
 
   if (gradient && !wraps) {
     return (
@@ -159,18 +163,22 @@ export function NameFill({
 
   return (
     <span
-      ref={containerRef}
       aria-label={name}
-      className={cn('relative inline-block w-full overflow-visible align-bottom', className)}
+      className={cn(
+        'relative inline-block w-full overflow-visible align-bottom',
+        className,
+      )}
+      ref={containerRef}
+      role="img"
       style={typography}
     >
       <span
-        ref={probeRef}
         aria-hidden
         className={cn(
           'pointer-events-none absolute top-0 left-0 w-full whitespace-normal break-all opacity-0',
           className,
         )}
+        ref={probeRef}
         style={typography}
       >
         {name}
@@ -190,6 +198,7 @@ export function NameFill({
               fraction={charFillFraction(fillPosition, index)}
               glyphHeight={glyph.glyphHeight}
               gradient={gradient}
+              // biome-ignore lint/suspicious/noArrayIndexKey: chars is a fixed positional decomposition of name; glyphs never reorder, so index is the stable identity.
               key={index}
             />
           )

@@ -17,12 +17,6 @@ export {
   type WeaveProgressBarProps,
 } from './WeaveProgressBar'
 export {
-  stepIndexForProgress,
-  stepLabelForProgress,
-  WEAVE_STEPS,
-  type WeaveStep,
-} from './weaveSteps'
-export {
   WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
   WEAVE_REGISTRATION_LONG_NAME,
   WEAVE_REGISTRATION_NAME_FILL,
@@ -30,3 +24,9 @@ export {
   WEAVE_REGISTRATION_NAME_FILL_SMALL_FONT_THRESHOLD,
   weaveRegistrationNameFillFor,
 } from './weaveNameFill'
+export {
+  stepIndexForProgress,
+  stepLabelForProgress,
+  WEAVE_STEPS,
+  type WeaveStep,
+} from './weaveSteps'

@@ -233,7 +233,8 @@ export function useWeaveShader(
   })
 
   const allColorwaysEnabled = options.useAllColorways !== false
-  const biasAnimEnabled = allColorwaysEnabled && options.animateColorwayBias === true
+  const biasAnimEnabled =
+    allColorwaysEnabled && options.animateColorwayBias === true
   if (biasAnimEnabled && !colorwayBiasAnimRef.current.enabled) {
     colorwayBiasAnimRef.current = {
       enabled: true,
@@ -480,9 +481,7 @@ export function useWeaveShader(
       if (uniformLocs.colorwaySeed) {
         gl.uniform1f(
           uniformLocs.colorwaySeed,
-          s.colorwayAnimRandomizeOnLoop
-            ? colorwayRuntime.seed
-            : s.colorwaySeed,
+          s.colorwayAnimRandomizeOnLoop ? colorwayRuntime.seed : s.colorwaySeed,
         )
       }
       if (uniformLocs.colorwayNoiseScale) {

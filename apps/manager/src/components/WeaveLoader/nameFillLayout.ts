@@ -40,8 +40,12 @@ export function measureGlyphMetrics(
 ): GlyphMetrics[] {
   const probeBox = probe.getBoundingClientRect()
   const range = document.createRange()
-  const positions: { x: number; width: number; height: number; midY: number }[] =
-    []
+  const positions: {
+    x: number
+    width: number
+    height: number
+    midY: number
+  }[] = []
 
   for (let index = 0; index < textNode.length; index += 1) {
     range.setStart(textNode, index)
@@ -57,7 +61,9 @@ export function measureGlyphMetrics(
 
   if (positions.length === 0) return []
 
-  const lineIndices = groupLineIndices(positions.map((position) => position.midY))
+  const lineIndices = groupLineIndices(
+    positions.map((position) => position.midY),
+  )
 
   return positions.map((position, index) => {
     const next = positions[index + 1]
