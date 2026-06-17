@@ -2,33 +2,18 @@ import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { tw } from '@/utils/tailwind'
 import { PriceCooldownDecayChart } from './PriceCooldownDecayChart'
-import type { PriceCooldownBannerProps } from './types'
+import type { PriceCooldownDemand, PriceCooldownInfo } from './types'
+import type { PriceCooldownChartSelection } from './usePriceCooldownChartSelection'
 
-type PriceCooldownExpandedContentProps = Pick<
-  PriceCooldownBannerProps,
-  | 'basePricePerYearLabel'
-  | 'premiumEndsAtLabel'
-  | 'periodDays'
-  | 'timezoneLabel'
-  | 'premiumStartDate'
-  | 'nowPoint'
-  | 'selectedPoint'
-  | 'onSelectedPointChange'
-  | 'targetPriceInput'
-  | 'onTargetPriceInputChange'
-  | 'onTargetPriceInputBlur'
-  | 'targetPriceReachLabel'
-  | 'favoriteCount'
-  | 'searchCount30d'
->
+type PriceCooldownExpandedContentProps = {
+  basePricePerYearLabel: string
+  cooldown: PriceCooldownInfo
+  demand?: PriceCooldownDemand
+  selection: PriceCooldownChartSelection
+}
 
-const DemandStats = ({
-  favoriteCount,
-  searchCount30d,
-}: {
-  favoriteCount?: number
-  searchCount30d?: number
-}) => {
+const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
+  const { favoriteCount, searchCount30d } = demand ?? {}
   if (favoriteCount === undefined && searchCount30d === undefined) {
     return null
   }
@@ -59,19 +44,17 @@ const DemandStats = ({
 
 const TargetPriceField = ({
   basePricePerYearLabel,
-  targetPriceInput,
-  onTargetPriceInputChange,
-  onTargetPriceInputBlur,
-  targetPriceReachLabel,
-}: Pick<
-  PriceCooldownExpandedContentProps,
-  | 'basePricePerYearLabel'
-  | 'targetPriceInput'
-  | 'onTargetPriceInputChange'
-  | 'onTargetPriceInputBlur'
-  | 'targetPriceReachLabel'
->) => {
-  if (!onTargetPriceInputChange) return null
+  selection,
+}: {
+  basePricePerYearLabel: string
+  selection: PriceCooldownChartSelection
+}) => {
+  const {
+    targetPriceInput,
+    handleTargetPriceInputChange,
+    handleTargetPriceInputBlur,
+    targetPriceReachLabel,
+  } = selection
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -104,14 +87,14 @@ const TargetPriceField = ({
             'placeholder:text-ens-quartz-360',
           )}
           inputMode="decimal"
-          onBlur={onTargetPriceInputBlur}
+          onBlur={handleTargetPriceInputBlur}
           onChange={(e) => {
             const raw = e.target.value.replace(/[^0-9.,]/g, '')
-            onTargetPriceInputChange(raw)
+            handleTargetPriceInputChange(raw)
           }}
           placeholder="0"
           type="text"
-          value={targetPriceInput ?? ''}
+          value={targetPriceInput}
         />
         {basePricePerYearLabel && (
           <span className="select-none text-ens-quartz-400 text-sm">
@@ -130,28 +113,27 @@ const TargetPriceField = ({
 
 export const PriceCooldownExpandedContent = ({
   basePricePerYearLabel,
-  premiumEndsAtLabel,
-  periodDays = 21,
-  timezoneLabel,
-  premiumStartDate,
-  nowPoint,
-  selectedPoint,
-  onSelectedPointChange,
-  targetPriceInput,
-  onTargetPriceInputChange,
-  onTargetPriceInputBlur,
-  targetPriceReachLabel,
-  favoriteCount,
-  searchCount30d,
+  cooldown,
+  demand,
+  selection,
 }: PriceCooldownExpandedContentProps) => {
+  const {
+    premiumEndsAtLabel,
+    periodDays = 21,
+    timezoneLabel,
+    premiumStartDate,
+    nowPoint,
+  } = cooldown
+
   const showDemandSection =
-    favoriteCount !== undefined || searchCount30d !== undefined
+    demand !== undefined &&
+    (demand.favoriteCount !== undefined || demand.searchCount30d !== undefined)
 
   const chartProps = {
     nowPoint,
-    onSelectedPointChange,
+    onSelectedPointChange: selection.handleSelectedPointChange,
     premiumStartDate,
-    selectedPoint,
+    selectedPoint: selection.selectedPoint,
     timezoneLabel,
   }
 
@@ -176,10 +158,7 @@ export const PriceCooldownExpandedContent = ({
         <PriceCooldownDecayChart compact {...chartProps} />
         <TargetPriceField
           basePricePerYearLabel={basePricePerYearLabel}
-          onTargetPriceInputBlur={onTargetPriceInputBlur}
-          onTargetPriceInputChange={onTargetPriceInputChange}
-          targetPriceInput={targetPriceInput}
-          targetPriceReachLabel={targetPriceReachLabel}
+          selection={selection}
         />
       </div>
 
@@ -202,10 +181,7 @@ export const PriceCooldownExpandedContent = ({
                 </Trans>
               </p>
             </div>
-            <DemandStats
-              favoriteCount={favoriteCount}
-              searchCount30d={searchCount30d}
-            />
+            <DemandStats demand={demand} />
           </div>
         </div>
       )}
@@ -223,17 +199,11 @@ export const PriceCooldownExpandedContent = ({
                 below can help you decide whether to act soon or wait.
               </Trans>
             </p>
-            <DemandStats
-              favoriteCount={favoriteCount}
-              searchCount30d={searchCount30d}
-            />
+            <DemandStats demand={demand} />
           </div>
           <TargetPriceField
             basePricePerYearLabel={basePricePerYearLabel}
-            onTargetPriceInputBlur={onTargetPriceInputBlur}
-            onTargetPriceInputChange={onTargetPriceInputChange}
-            targetPriceInput={targetPriceInput}
-            targetPriceReachLabel={targetPriceReachLabel}
+            selection={selection}
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3 self-start">

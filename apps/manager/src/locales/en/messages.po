@@ -338,12 +338,10 @@ msgstr "Available Wallets"
 msgid "Awaiting approval signature"
 msgstr "Awaiting approval signature"
 
-#: src/features/migration/components/SelectNamesStep.tsx
+#: src/components/GlobalBackButton.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-#: src/features/register-v2/workflow/pricing/PricingStep.tsx
-#: src/features/renew/workflow/pricing/PricingStep.tsx
 msgid "Back"
 msgstr "Back"
 
@@ -351,7 +349,6 @@ msgstr "Back"
 msgid "Back to dashboard"
 msgstr "Back to dashboard"
 
-#: src/features/legal/pages/PrivacyPolicyPage.tsx
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Back to Home"
 msgstr "Back to Home"

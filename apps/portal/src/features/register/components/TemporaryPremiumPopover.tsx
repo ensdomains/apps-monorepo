@@ -110,6 +110,8 @@ export const TemporaryPremiumPopover = ({
       <PopoverTrigger asChild>{trigger(open)}</PopoverTrigger>
       <PopoverContent
         align={isMobile ? 'center' : 'start'}
+        side={isMobile ? 'bottom' : 'right'}
+        sideOffset={isMobile ? 0 : 40}
         className="w-[280px] space-y-4"
       >
         <p className="text-sm leading-relaxed text-foreground">
