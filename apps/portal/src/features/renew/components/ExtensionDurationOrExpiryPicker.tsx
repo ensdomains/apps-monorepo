@@ -71,7 +71,7 @@ export const ExtensionDurationOrExpiryPicker = ({
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className="text-base font-medium">
+          <span className="text-lg font-medium">
             {spanType === 'years' ? 'For' : 'Until'}
           </span>
           <Button
@@ -81,7 +81,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             className="gap-1 text-primary"
           >
             <span className="text-xs font-normal">
-              Choose by {spanType === 'years' ? 'date' : 'years'}
+              {spanType === 'years' ? 'Pick by date' : 'Choose length'}
             </span>
             {spanType === 'years' ? (
               <CalendarIcon className="size-3" />

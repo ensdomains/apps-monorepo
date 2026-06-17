@@ -283,5 +283,24 @@ describe('profile transformRecords utils', () => {
         { coinType: 60, value: '0x1234567890abcdef' },
       ])
     })
+
+    it('should normalize social profile URLs before saving records', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        social: [
+          { key: 'com.linkedin', value: 'https://www.linkedin.com/in/ebeau/' },
+          { key: 'com.twitter', value: '@ensdomains' },
+          { key: 'org.telegram', value: 'https://t.me/ensdomains' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized.social).toEqual([
+        { key: 'com.linkedin', value: 'ebeau' },
+        { key: 'com.twitter', value: 'ensdomains' },
+        { key: 'org.telegram', value: 'ensdomains' },
+      ])
+    })
   })
 })

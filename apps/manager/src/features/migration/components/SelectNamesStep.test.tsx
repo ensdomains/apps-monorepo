@@ -1,6 +1,7 @@
 import { fireEvent, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
 import { render } from '@/utils/test-utils'
 import type { ClassifiedName } from '../service/classifyNames'
@@ -60,16 +61,18 @@ const readyGasEstimate: MigrationGasEstimateState = {
 
 const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
+  gasFundingStatus = 'settled',
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
+  gasFundingStatus?: MigrationGasFundingStatus
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
   const utils = render(
     <SelectNamesStep
       gasEstimate={gasEstimate}
-      onBack={vi.fn()}
+      gasFundingStatus={gasFundingStatus}
       onNamesChange={onNamesChange}
       onNext={onNext}
     />,
@@ -127,6 +130,28 @@ describe('SelectNamesStep', () => {
     expect(getByText('gm.sub1234.eth')).toBeInTheDocument()
     expect(getByText('sub1234.eth')).toBeInTheDocument()
     expect(queryByText('sub123.eth')).toBeNull()
+  })
+
+  it('blocks upgrade while gas funding is still in flight', () => {
+    const onNext = vi.fn(async () => true)
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      gasFundingStatus: 'funding',
+      onNext,
+    })
+
+    const button = getByRole('button', { name: 'Preparing wallet...' })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(onNext).not.toHaveBeenCalled()
+  })
+
+  it('enables upgrade once gas funding has settled', () => {
+    const { getByRole } = renderStep({
+      gasEstimate: readyGasEstimate,
+      gasFundingStatus: 'settled',
+    })
+    expect(getByRole('button', { name: 'Upgrade 9 names' })).not.toBeDisabled()
   })
 
   it('allows retrying when upgrade start exits without transitioning', async () => {

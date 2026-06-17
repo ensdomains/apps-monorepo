@@ -99,26 +99,26 @@ function TemporaryPremiumDebugPlayground() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
       <header className="flex flex-col gap-2">
-        <h1 className="font-semibold text-2xl text-[#191919]">
+        <h1 className="font-semibold text-2xl text-ens-quartz-900">
           Temporary premium chart
         </h1>
-        <p className="text-[#737373] text-sm leading-relaxed">
+        <p className="text-ens-quartz-400 text-sm leading-relaxed">
           Same as the HTML reference: polling advances the now target every 2s,
           and the blue dot glides down the curve while the price label tweens.
         </p>
       </header>
 
       <section className="grid gap-6 md:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="flex flex-col gap-3 rounded-xl border border-[#e5e5e5] bg-white p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-ens-gray-two bg-white p-4">
           <h2 className="font-medium text-[#353535] text-sm">
             Target price (black dot)
           </h2>
-          <div className="flex h-12 items-stretch overflow-hidden rounded-md border border-[#e5e5e5]">
-            <span className="flex items-center border-[#e5e5e5] border-r bg-[#f6f6f6] px-4 text-[#64748B]">
+          <div className="flex h-12 items-stretch overflow-hidden rounded-md border border-ens-gray-two">
+            <span className="flex items-center border-ens-gray-two border-r bg-ens-white px-4 text-[#64748B]">
               $
             </span>
             <input
-              className="min-w-0 flex-1 px-3 text-[#191919] text-sm outline-none"
+              className="min-w-0 flex-1 px-3 text-ens-quartz-900 text-sm outline-none"
               inputMode="decimal"
               onChange={(e) =>
                 handlePriceChange(e.target.value.replace(/[^0-9.,]/g, ''))
@@ -129,7 +129,7 @@ function TemporaryPremiumDebugPlayground() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-[#e5e5e5] bg-[#fafafa] p-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-ens-gray-two bg-[#fafafa] p-4">
           <h2 className="font-medium text-[#353535] text-sm">Simulation</h2>
           <label className="flex cursor-pointer items-center gap-2 text-[#353535] text-sm">
             <input

@@ -6,28 +6,24 @@ import { PriceCooldownBannerHeader } from './PriceCooldownBannerHeader'
 import { PriceCooldownExpandedContent } from './PriceCooldownExpandedContent'
 import { PriceCooldownFeePills } from './PriceCooldownFeePills'
 import type { PriceCooldownBannerProps } from './types'
+import { usePriceCooldownChartSelection } from './usePriceCooldownChartSelection'
 
 export const PriceCooldownBanner = ({
-  basePricePerYearLabel,
-  currentPremiumLabel,
-  currentPremiumValue,
-  premiumEndsAtLabel,
-  periodDays = 21,
-  timezoneLabel,
-  premiumStartDate,
-  nowPoint,
-  selectedPoint,
-  onSelectedPointChange,
-  targetPriceInput,
-  onTargetPriceInputChange,
-  onTargetPriceInputBlur,
-  targetPriceReachLabel,
-  favoriteCount,
-  searchCount30d,
+  fees,
+  cooldown,
+  demand,
   className,
   defaultExpanded = false,
 }: PriceCooldownBannerProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded)
+
+  // Lives here (not in PriceCooldownExpandedContent) so chart selection and
+  // the typed target price survive collapse/expand — the expanded content
+  // unmounts on collapse, but the banner itself stays mounted.
+  const selection = usePriceCooldownChartSelection(
+    cooldown.premiumStartDate,
+    cooldown.nowPoint,
+  )
 
   return (
     <section
@@ -37,26 +33,16 @@ export const PriceCooldownBanner = ({
       )}
     >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <PriceCooldownBannerHeader periodDays={periodDays} />
+        <PriceCooldownBannerHeader periodDays={cooldown.periodDays ?? 21} />
         <div className="hidden shrink-0 md:block">
           <div className="flex gap-4">
-            <PriceCooldownFeePills
-              basePricePerYearLabel={basePricePerYearLabel}
-              currentPremiumLabel={currentPremiumLabel}
-              currentPremiumValue={currentPremiumValue}
-              layout="desktop"
-            />
+            <PriceCooldownFeePills {...fees} layout="desktop" />
           </div>
         </div>
       </div>
 
       <div className="md:hidden">
-        <PriceCooldownFeePills
-          basePricePerYearLabel={basePricePerYearLabel}
-          currentPremiumLabel={currentPremiumLabel}
-          currentPremiumValue={currentPremiumValue}
-          layout="mobile"
-        />
+        <PriceCooldownFeePills {...fees} layout="mobile" />
       </div>
 
       <button
@@ -80,20 +66,10 @@ export const PriceCooldownBanner = ({
 
       {expanded && (
         <PriceCooldownExpandedContent
-          basePricePerYearLabel={basePricePerYearLabel}
-          favoriteCount={favoriteCount}
-          nowPoint={nowPoint}
-          onSelectedPointChange={onSelectedPointChange}
-          onTargetPriceInputBlur={onTargetPriceInputBlur}
-          onTargetPriceInputChange={onTargetPriceInputChange}
-          periodDays={periodDays}
-          premiumEndsAtLabel={premiumEndsAtLabel}
-          premiumStartDate={premiumStartDate}
-          searchCount30d={searchCount30d}
-          selectedPoint={selectedPoint}
-          targetPriceInput={targetPriceInput}
-          targetPriceReachLabel={targetPriceReachLabel}
-          timezoneLabel={timezoneLabel}
+          basePricePerYearLabel={fees.basePricePerYearLabel}
+          cooldown={cooldown}
+          demand={demand}
+          selection={selection}
         />
       )}
     </section>

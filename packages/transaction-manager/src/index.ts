@@ -1,6 +1,7 @@
 // Types
 
 // Actors
+export { submitRhinestoneTransaction } from './actors/rhinestone-transport.actor'
 export {
   type SubmitWarpTransactionInput,
   submitWarpTransaction,

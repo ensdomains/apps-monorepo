@@ -1234,7 +1234,7 @@ Wagmi's `useWriteContract` and `useSendTransaction` work well for EOA-only trans
 | Feature | Wagmi | Transaction Manager |
 |---------|-------|---------------------|
 | EOA transactions | ✅ Native | ✅ Via Signer abstraction |
-| Smart accounts (ERC-4337) | ❌ Requires permissionless.js | ✅ Built-in Rhinestone + permissionless support |
+| Smart accounts | ❌ Not supported natively | ✅ Built-in Rhinestone (HCA + Warp) support |
 | Unified API across account types | ❌ Different hooks per account type | ✅ Same `startTransaction()` call |
 | Transaction persistence | ❌ Not built-in | ✅ IndexedDB/localStorage |
 | Receipt polling | ✅ `useWaitForTransactionReceipt` | ✅ `waitForTransaction()` |

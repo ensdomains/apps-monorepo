@@ -1,8 +1,8 @@
 import { Trans } from '@lingui/react/macro'
-import { ChevronLeft } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
 import { startUpgrade } from './SelectNamesStep.handlers'
@@ -17,14 +17,14 @@ import {
 
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
-  readonly onBack: () => void
+  readonly gasFundingStatus: MigrationGasFundingStatus
   readonly onNamesChange: (names: string[]) => void
   readonly onNext: () => boolean | Promise<boolean>
 }
 
 export const SelectNamesStep = ({
   gasEstimate,
-  onBack,
+  gasFundingStatus,
   onNamesChange,
   onNext,
 }: SelectNamesStepProps) => {
@@ -48,8 +48,17 @@ export const SelectNamesStep = ({
   const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
     totalSelected > 0 && gasEstimate.status !== 'ready'
+  // The gas drip request only resolves once any sepETH top-up is confirmed
+  // on-chain, so block "Upgrade" until then — otherwise the owner can start a
+  // migration that fails for lack of gas before the ETH has landed.
+  const isWaitingForGasFunding =
+    totalSelected > 0 && gasFundingStatus === 'funding'
   const isUpgradeDisabled =
-    totalSelected === 0 || isPending || isStarting || isWaitingForGasEstimate
+    totalSelected === 0 ||
+    isPending ||
+    isStarting ||
+    isWaitingForGasEstimate ||
+    isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
   const showNameSearch = shouldShowNameSearch(visibleCount)
   const isCompactLayout = shouldUseCompactSelectionLayout(visibleCount)
@@ -70,15 +79,6 @@ export const SelectNamesStep = ({
 
   return (
     <div className="relative z-10 flex h-full flex-col">
-      <button
-        className="relative mt-4 ml-5 flex shrink-0 items-center gap-1 self-start font-normal text-ens-lapis-900 text-sm uppercase leading-4.5 tracking-[1.68px] transition-opacity hover:opacity-70 md:absolute md:top-6 md:left-8 md:mt-0 md:ml-0 md:text-base md:tracking-[1.92px]"
-        onClick={onBack}
-        type="button"
-      >
-        <ChevronLeft className="size-5" strokeWidth={1.5} />
-        <Trans>Back</Trans>
-      </button>
-
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
@@ -125,6 +125,7 @@ export const SelectNamesStep = ({
         isEstimatingGas={isEstimatingGas}
         isStarting={isStarting}
         isUpgradeDisabled={isUpgradeDisabled}
+        isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
         totalSelected={totalSelected}
         visibleCount={visibleCount}

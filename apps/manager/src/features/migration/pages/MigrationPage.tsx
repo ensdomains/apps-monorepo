@@ -7,11 +7,13 @@ import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
 import { SuccessModal } from '@/features/migration/components/SuccessModal'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   decodeMigrationError,
@@ -116,6 +118,13 @@ export const MigrationPage = () => {
     v1Names,
   })
 
+  // Top up the owner's sepETH on page entry — migration txs are all EOA-paid.
+  // The worker only drips when the address owns v1 names and is low on ETH,
+  // so this is idempotent and a no-op for everyone else. The request doesn't
+  // resolve until any drip is confirmed on-chain, so we gate the upgrade
+  // button on `gasFundingStatus` to stop owners starting before the ETH lands.
+  const gasFundingStatus = useMigrationGasFunding(ownerAddress)
+
   useEffect(() => {
     if (migrateSubstep === 'succeeding') {
       invalidateMigrationQueries(queryClient)
@@ -132,13 +141,17 @@ export const MigrationPage = () => {
     [uiActor],
   )
 
-  const handleBack = useCallback(() => {
-    navigate({ to: '/dashboard' })
-  }, [navigate])
+  useGlobalBackButton({
+    className: 'text-black hover:text-black/70',
+    fallbackPath: '/dashboard',
+    isVisible: step === 'select',
+  })
 
   const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !wagmiWalletClient?.account) return false
     if (gasEstimate.status !== 'ready') return false
+    // Don't let the owner start before their gas drip is confirmed on-chain.
+    if (gasFundingStatus === 'funding') return false
     const signer: Signer = {
       type: 'eoa',
       walletClient: wagmiWalletClient as WalletClient,
@@ -159,17 +172,17 @@ export const MigrationPage = () => {
       })
       return true
     }
-  }, [ownerAddress, wagmiWalletClient, gasEstimate, uiActor])
+  }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
 
   return (
-    <div className="relative h-[calc(100dvh-54px)] overflow-hidden md:h-[calc(100dvh-80px)]">
+    <div className="relative flex min-h-0 flex-1 overflow-hidden">
       <GrainOverlay />
 
       {match(step)
         .with('select', () => (
           <SelectNamesStep
             gasEstimate={gasEstimate}
-            onBack={handleBack}
+            gasFundingStatus={gasFundingStatus}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
           />
@@ -182,7 +195,7 @@ export const MigrationPage = () => {
             </p>
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="max-h-[200px] w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
+              className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
               initial={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, delay: 0.15 }}
             >

@@ -52,7 +52,7 @@ export const RegistrationDurationPicker = ({
     onChange(capped)
   }
 
-  const label = value === 1 ? '1 year' : `${value} years`
+  const label = value === 1 ? '1.00 year' : `${value.toFixed(2)} years`
 
   return (
     <div className="space-y-5">
@@ -95,7 +95,7 @@ export const RegistrationDurationPicker = ({
         <Button
           type="button"
           size="icon"
-          variant="default"
+          variant="outline"
           onClick={handleDecrement}
           disabled={value <= min}
           className="size-8 mr-1"
@@ -105,7 +105,7 @@ export const RegistrationDurationPicker = ({
 
         <Button
           type="button"
-          variant="default"
+          variant="outline"
           size="icon"
           onClick={handleIncrement}
           disabled={value >= max}

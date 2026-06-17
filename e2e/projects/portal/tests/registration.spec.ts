@@ -130,12 +130,13 @@ test.describe('Portal ENS name registration', () => {
     // ── 7. Assert success ──────────────────────────────────────────
     expect(monitor.getLastState()).toBe('success')
 
-    // Also check the UI success screen
+    // Registration redirects to the name overview and shows a success banner
+    // (after the indexer-sync poll), so allow extra time for the redirect.
+    await expect(page.getByText('Congratulations!')).toBeVisible({
+      timeout: 60_000,
+    })
     await expect(
-      page.getByRole('heading', { name: 'Congratulations!' }),
-    ).toBeVisible({ timeout: 30_000 })
-    await expect(
-      page.getByText(new RegExp(`You're now the owner of ${DOMAIN_TO_REGISTER}`)),
+      page.getByText(new RegExp(`You are the owner of ${DOMAIN_TO_REGISTER}`)),
     ).toBeVisible({ timeout: 30_000 })
   })
 })

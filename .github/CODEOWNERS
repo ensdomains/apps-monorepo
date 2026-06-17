@@ -1,13 +1,17 @@
-# Initial CODEOWNERS to be updated
-# ================================
-
-/.github/dependabot.yml @svemat01
-
 # Workflow files
-/.github/workflows/ @svemat01 @LeonmanRolls
+/.github/workflows/ @svemat01 @Malak67
 
-# Manager app specific
-/apps/manager/ @svemat01 @LeonmanRolls @f1lander
+# API Worker
+/workers/api-worker/ @svemat01
 
-# Shared packages
-/packages/ @svemat01 @LeonmanRolls
+# E2E Tests
+/e2e/ @sugh01
+
+# Packages
+/packages/transaction-manager/ @v1rtl @LeonmanRolls
+/packages/indexer/ @v1rtl
+/packages/smart-account/ @v1rtl @f1lander
+/packages/utils/ @svemat01
+/packages/l2-primary/ @v1rtl
+
+/docs/ @Malak67
