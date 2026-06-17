@@ -1,6 +1,7 @@
 import { useLocation } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
+import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
+import { LayoutBackAndNoticeRow } from '@/components/LayoutBackAndNoticeRow'
 import { Header } from '@/features/navigation/Header/Header'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
 import { tw } from '@/utils/tailwind'
@@ -12,7 +13,7 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const { pathname } = useLocation()
   const isMigrationPage = pathname === '/migration'
-  const showSepoliaBanner = !isMigrationPage
+  const isSepoliaBannerVisible = !isMigrationPage
 
   return (
     <div
@@ -24,10 +25,14 @@ export const Layout = ({ children }: LayoutProps) => {
     >
       <Header />
 
-      <main className="relative isolate flex flex-1 flex-col">
-        {showSepoliaBanner && <SepoliaNoticeBanner />}
-        {children}
-      </main>
+      <GlobalBackButtonProvider>
+        <main className="relative isolate flex flex-1 flex-col">
+          <LayoutBackAndNoticeRow
+            isSepoliaBannerVisible={isSepoliaBannerVisible}
+          />
+          {children}
+        </main>
+      </GlobalBackButtonProvider>
       <BackendAuthModal />
     </div>
   )
