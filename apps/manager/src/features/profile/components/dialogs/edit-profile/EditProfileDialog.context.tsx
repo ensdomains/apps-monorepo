@@ -28,7 +28,7 @@ export const EditProfileDialogProvider = ({
   </EditProfileDialogContext.Provider>
 )
 
-export const useEditProfileDialogContext = () => {
+const useEditProfileDialogContext = () => {
   const context = use(EditProfileDialogContext)
   if (!context) {
     throw new Error('You used a hook outside of the EditProfileDialogProvider')
@@ -36,7 +36,7 @@ export const useEditProfileDialogContext = () => {
   return context
 }
 
-export const useEditProfileDialogSelector = <T,>(
+const useEditProfileDialogSelector = <T,>(
   selector: (snapshot: EditProfileDialogSnapshot) => T,
   compare?: (a: T, b: T) => boolean,
 ) => {

@@ -27,7 +27,7 @@ export const DisplayImage = ({
   </ImageFallback.Root>
 )
 
-export const AvatarFallback = () => (
+const AvatarFallback = () => (
   <div className="flex size-25 items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed bg-ens-quartz-50">
     <MSymbol
       aria-hidden="true"

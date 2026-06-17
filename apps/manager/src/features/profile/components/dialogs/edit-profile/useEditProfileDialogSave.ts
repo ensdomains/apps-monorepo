@@ -379,7 +379,6 @@ export const useEditProfileDialogSave = ({
     handleSave,
     handleImageUploadPrepared,
     isFinalizingImageSave,
-    resetSaveState,
     resetPreparedImageSaveState,
     preparedImageUploads,
   }

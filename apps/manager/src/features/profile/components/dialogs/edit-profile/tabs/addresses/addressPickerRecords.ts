@@ -14,7 +14,7 @@ export interface PickerRecordGroups {
 export type PickerMode = 'evm' | 'other'
 
 export const ETH_COIN_TYPE = 60
-export const EVM_COIN_TYPE_OFFSET = 0x80000000
+const EVM_COIN_TYPE_OFFSET = 0x80000000
 export const BNB_COIN_TYPE = 714
 export const BSC_COIN_TYPE = 2147483704
 
@@ -51,7 +51,7 @@ interface GetPickerRecordsParams {
   readonly unavailableCoinTypes: ReadonlySet<number>
 }
 
-export const getPickerRecords = ({
+const getPickerRecords = ({
   mode,
   normalizedSearchValue,
   unavailableCoinTypes,

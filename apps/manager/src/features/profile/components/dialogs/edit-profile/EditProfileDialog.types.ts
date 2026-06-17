@@ -13,7 +13,7 @@ export interface EditProfileDialogProps {
   readonly onUpdated?: () => undefined | Promise<unknown>
 }
 
-export interface EditProfileSaveOptions {
+interface EditProfileSaveOptions {
   readonly hasRecordChanges: boolean
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
 }

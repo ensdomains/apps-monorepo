@@ -42,7 +42,6 @@ export const EditProfileDialog = ({
     handleSave,
     handleImageUploadPrepared,
     isFinalizingImageSave,
-    resetSaveState,
     resetPreparedImageSaveState,
     preparedImageUploads,
   } = useEditProfileDialogSave({
@@ -90,7 +89,6 @@ export const EditProfileDialog = ({
             isFinalizingImageSave={isFinalizingImageSave}
             name={name}
             onImageUploadPrepared={handleImageUploadPrepared}
-            onResetSaveState={resetSaveState}
             onSave={handleSave}
             open={open}
             owner={owner}

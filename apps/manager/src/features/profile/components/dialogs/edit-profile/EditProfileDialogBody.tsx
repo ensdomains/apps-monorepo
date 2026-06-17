@@ -21,7 +21,6 @@ interface EditProfileDialogBodyProps {
   readonly isFinalizingImageSave: boolean
   readonly name: string
   readonly onSave: EditProfileSaveHandler
-  readonly onResetSaveState: () => void
   readonly onImageUploadPrepared: (upload: PreparedProfileImageUpload) => void
   readonly open: boolean
   readonly owner?: Address
@@ -34,7 +33,6 @@ export const EditProfileDialogBody = withForm({
   props: {
     isFinalizingImageSave: false,
     name: '',
-    onResetSaveState: () => {},
     onSave: () => {},
     onImageUploadPrepared: () => {},
     open: false,
@@ -45,7 +43,6 @@ export const EditProfileDialogBody = withForm({
     form,
     isFinalizingImageSave,
     name,
-    onResetSaveState,
     onSave,
     onImageUploadPrepared,
     open,
@@ -98,25 +95,20 @@ export const EditProfileDialogBody = withForm({
             !hasLinkValidationIssues &&
             !hasContactValidationIssues
           const handleBaseChange = (base: ProfileRecords['base']) => {
-            onResetSaveState()
             form.setFieldValue('base', base)
           }
           const handleAddressesChange = (
             addresses: ProfileRecords['addresses'],
           ) => {
-            onResetSaveState()
             form.setFieldValue('addresses', addresses)
           }
           const handleContactChange = (contact: ProfileRecords['contact']) => {
-            onResetSaveState()
             form.setFieldValue('contact', contact)
           }
           const handleSocialChange = (social: ProfileRecords['social']) => {
-            onResetSaveState()
             form.setFieldValue('social', social)
           }
           const handleLinksChange = (links: ProfileRecords['links']) => {
-            onResetSaveState()
             form.setFieldValue('links', links)
           }
           const handleSave = () =>

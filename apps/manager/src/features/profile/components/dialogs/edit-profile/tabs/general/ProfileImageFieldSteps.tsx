@@ -16,7 +16,7 @@ interface BackButtonProps {
   readonly onBack: () => void
 }
 
-export const BackButton = ({ disabled, onBack }: BackButtonProps) => (
+const BackButton = ({ disabled, onBack }: BackButtonProps) => (
   <button
     aria-label="Back to image options"
     className={cn(
