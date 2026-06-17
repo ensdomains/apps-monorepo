@@ -56,18 +56,11 @@ import {
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { getSmartAccountAddress } from '../../helpers/getSmartAccountAddress'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
-import { waitForTransaction } from '../../helpers/waitForTransaction'
 import { transactionManager } from '../../providers/transactionManager'
 import type {
   RhinestoneTransactionRequest,
   TransactionRequest,
 } from '../../types/transaction.types'
-import {
-  requestEOASignatureActor,
-  submitPrimaryNameUpdateActor,
-  submitPrimaryNameWithSignatureActor,
-  submitReverseUpdateActor,
-} from '../primary-name/primaryName.actors'
 
 type CommitmentData = {
   commitment: Hash
