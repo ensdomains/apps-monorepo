@@ -20,7 +20,7 @@ export const Route = createFileRoute('/wallet')({
 })
 
 const ConnectMenu = () => {
-  const { connect, connectors, data, error, status, variables } = useConnect()
+  const { connect, connectors, error, status, variables } = useConnect()
   const { openConnectModal } = useConnectModal()
 
   const connectingConnector =
@@ -30,15 +30,7 @@ const ConnectMenu = () => {
   const isSuccess = status === 'success'
   const hasError = status === 'error'
 
-  console.log('ConnectMenu', {
-    data,
-    error,
-    status,
-    variables,
-  })
-
   const handleConnect = (connector: Connector) => {
-    console.log('Connecting to:', connector)
     connect({ connector })
   }
 
@@ -336,13 +328,7 @@ const DisconnectMenu = () => {
 }
 
 function RouteComponent() {
-  const { isConnected, status, chainId } = useConnection()
-  // console.log(connectors)
-  console.log('RouteComponent', {
-    isConnected,
-    status,
-    chainId,
-  })
+  const { isConnected } = useConnection()
   return (
     <div className="mx-auto max-w-2xl">
       {isConnected ? <DisconnectMenu /> : <ConnectMenu />}
