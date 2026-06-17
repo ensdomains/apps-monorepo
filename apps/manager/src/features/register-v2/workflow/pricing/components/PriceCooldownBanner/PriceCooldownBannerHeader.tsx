@@ -45,12 +45,15 @@ export const PriceCooldownBannerHeader = ({
       <h2
         className={tw(
           'font-normal text-[#353535] leading-[1.1] tracking-tight',
-          'text-base md:text-xl md:whitespace-nowrap',
+          'text-base md:whitespace-nowrap md:text-xl',
         )}
       >
         <Trans>This name is in price cooldown</Trans>
       </h2>
-      <CooldownDescription className="md:max-w-[600px]" periodDays={periodDays} />
+      <CooldownDescription
+        className="md:max-w-[600px]"
+        periodDays={periodDays}
+      />
     </div>
   </div>
 )

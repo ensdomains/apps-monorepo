@@ -62,13 +62,13 @@ const BuyNowOrWaitSection = ({
 
   return (
     <div className="flex flex-col gap-2 md:gap-4">
-      <p className="text-[#353535] text-sm md:text-base leading-normal">
+      <p className="text-[#353535] text-sm leading-normal md:text-base">
         <Trans>Should I buy now or wait?</Trans>
       </p>
       <p className="text-[#3f3f3e] text-xs leading-normal md:text-sm">
         <Trans>
-          You can buy this name at any point during the {periodDays}-day cooldown.
-          Some names are more in-demand than others
+          You can buy this name at any point during the {periodDays}-day
+          cooldown. Some names are more in-demand than others
         </Trans>
         {showDemandStats ? (
           <Trans>
