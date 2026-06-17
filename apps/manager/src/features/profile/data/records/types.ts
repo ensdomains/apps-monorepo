@@ -28,6 +28,7 @@ type TextRecordBase = BaseRecord & {
   key: string
   section: Section | SpecialSection
   displayPrefix?: string
+  normalize?: (value: string) => string
   /**
    * Controls if the record should be fetched from the chain.
    * - 'always': Always fetch the record value regardless of indexing status.

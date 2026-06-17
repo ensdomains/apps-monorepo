@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { tw } from '@/utils/tailwind'
 import { AnimatedPrice } from '../AnimatedPrice'
+import type { PriceCooldownFees } from './types'
 
 const pillShadow =
   'shadow-[inset_0px_0px_4px_0px_rgba(198,223,233,0.3)]' as const
@@ -59,11 +60,7 @@ const FeePill = ({
   </div>
 )
 
-type PriceCooldownFeePillsProps = {
-  basePricePerYearLabel: string
-  currentPremiumLabel: string
-  /** See PriceCooldownBannerProps.currentPremiumValue. */
-  currentPremiumValue?: number
+type PriceCooldownFeePillsProps = PriceCooldownFees & {
   layout: 'desktop' | 'mobile'
 }
 
