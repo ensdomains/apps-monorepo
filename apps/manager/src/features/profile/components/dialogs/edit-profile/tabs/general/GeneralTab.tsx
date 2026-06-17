@@ -45,6 +45,10 @@ const fieldClassName =
   'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
 
 const urlErrorMessageId = 'general-url-error-message'
+const mobileHiddenShortcutFields: ReadonlySet<GeneralField> = new Set([
+  'name',
+  'url',
+])
 
 interface UrlFieldProps {
   readonly disabled: boolean
@@ -165,6 +169,27 @@ export const GeneralTab = ({
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
   const urlErrorMessage = getGeneralUrlErrorMessage(values.base.url)
+  const getShortcutLabel = (field: GeneralField, label: string) => {
+    if (field === 'avatar') {
+      return (
+        <>
+          <span className="md:hidden">Avatar</span>
+          <span className="hidden md:inline">{label}</span>
+        </>
+      )
+    }
+
+    if (field === 'header') {
+      return (
+        <>
+          <span className="md:hidden">Header</span>
+          <span className="hidden md:inline">{label}</span>
+        </>
+      )
+    }
+
+    return label
+  }
 
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -178,6 +203,9 @@ export const GeneralTab = ({
           return (
             <FieldPickerPill
               active={active}
+              className={cn(
+                mobileHiddenShortcutFields.has(field) && 'hidden md:flex',
+              )}
               icon={
                 'icon' in shortcut ? (
                   <LinkIcon className="size-3.5 shrink-0 text-current" />
@@ -190,7 +218,7 @@ export const GeneralTab = ({
                 )
               }
               key={field}
-              label={label}
+              label={getShortcutLabel(field, label)}
               onClick={() => {
                 toggleField(field)
                 if (field === activeImageField) {
@@ -233,15 +261,13 @@ export const GeneralTab = ({
           />
         )}
 
-        {isVisible('name') && (
-          <input
-            className={fieldClassName}
-            disabled={isSaving}
-            onChange={(event) => setBaseValue('name', event.target.value)}
-            placeholder="Full name"
-            value={values.base.name ?? ''}
-          />
-        )}
+        <input
+          className={cn(fieldClassName, !isVisible('name') && 'md:hidden')}
+          disabled={isSaving}
+          onChange={(event) => setBaseValue('name', event.target.value)}
+          placeholder="Full name"
+          value={values.base.name ?? ''}
+        />
 
         {isVisible('description') && (
           <textarea
@@ -256,12 +282,14 @@ export const GeneralTab = ({
         )}
 
         {isVisible('url') && (
-          <UrlField
-            disabled={isSaving}
-            errorMessage={urlErrorMessage}
-            onChange={(value) => setBaseValue('url', value)}
-            value={values.base.url ?? ''}
-          />
+          <div className="hidden w-full md:block">
+            <UrlField
+              disabled={isSaving}
+              errorMessage={urlErrorMessage}
+              onChange={(value) => setBaseValue('url', value)}
+              value={values.base.url ?? ''}
+            />
+          </div>
         )}
 
         {(isVisible('timezone') || isVisible('language')) && (

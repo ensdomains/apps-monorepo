@@ -76,7 +76,7 @@ export const ProfileImagePreview = ({
       src={displayImage}
     />
   ) : (
-    <span className="flex items-center gap-2 text-ens-quartz-500 text-sm">
+    <span className="flex items-center gap-1 text-ens-quartz-500 text-xs md:gap-2 md:text-sm">
       {getEmptyLabel(kind)}
       <MSymbol aria-hidden="true" style={{ fontSize: 14 }} symbol="add" />
     </span>

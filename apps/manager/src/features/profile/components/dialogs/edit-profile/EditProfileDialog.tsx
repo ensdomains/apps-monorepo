@@ -80,7 +80,7 @@ export const EditProfileDialog = ({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="!max-w-none sm:!max-w-none md:!max-w-200 top-0 left-0 h-dvh max-h-dvh w-screen translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg md:top-[50%] md:left-[50%] md:h-[min(90dvh,739px)] md:w-[min(92vw,800px)] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl"
+        className="!max-w-none sm:!max-w-none md:!max-w-200 top-0 left-0 h-dvh max-h-dvh w-screen translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-xl border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg md:top-[50%] md:left-[50%] md:h-[min(90dvh,739px)] md:w-[min(92vw,800px)] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl"
         overlayClassName="bg-black/20 backdrop-blur-[2px]"
         showCloseButton={false}
       >
