@@ -7,7 +7,7 @@ import {
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type Address, erc20Abi } from 'viem'
 import {
   useConfig,
@@ -20,6 +20,7 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
 const ethRegistrar = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -71,6 +72,21 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.selectedToken,
   )
+  // The registration flow deploys a dedicated resolver proxy (step 1). Once its
+  // address is known, ask Etherscan to link it to the already source-verified
+  // implementation (Read/Write-as-Proxy). Fire-and-forget, latched per address.
+  const resolverAddress = useSelector(
+    actor,
+    (state) => state.context.resolverAddress,
+  )
+  const verifiedResolverRef = useRef<Address | null>(null)
+  useEffect(() => {
+    if (!resolverAddress || verifiedResolverRef.current === resolverAddress) {
+      return
+    }
+    verifiedResolverRef.current = resolverAddress
+    void verifyProxyContract(sepoliaWithEns, resolverAddress)
+  }, [resolverAddress])
   const registerReadyTimestamp = useSelector(
     actor,
     (state) => state.context.registerReadyTimestamp,
