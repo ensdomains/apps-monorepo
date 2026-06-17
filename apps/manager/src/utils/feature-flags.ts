@@ -51,6 +51,15 @@ const FEATURE_FLAGS_INTERNAL = {
   USE_EOA: {
     enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
   },
+  /**
+   * Use Privy (social / email login) as the wallet stack instead of the default
+   * RainbowKit (external EOA wallets). Decided at build time — a Vite alias
+   * compiles in only the selected vendor's stack (see vite.config.ts), so this
+   * is a per-deployment choice, not a runtime toggle.
+   */
+  USE_PRIVY: {
+    enabled: import.meta.env.VITE_FF_USE_PRIVY === 'true',
+  },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 
 export type TransactionInfra = 'warp' | 'pimlico'

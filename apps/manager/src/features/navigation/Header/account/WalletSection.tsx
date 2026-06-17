@@ -6,9 +6,9 @@ import { useConnections } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { usePrivySession } from '@/lib/privy/usePrivySession'
-import { useSignOut } from '@/lib/privy/useSignOut'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { truncateAddress } from '@/lib/utils'
+import { useSignOut } from '@/lib/wallet'
 import { backendAuthStore } from '@/utils/backend-client'
 
 type WalletSectionProps = {

@@ -4,9 +4,9 @@ import { useAtom, useSelector } from '@xstate/store-react'
 import type { ReactNode } from 'react'
 import { useConnection, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
-import { useLoginModal } from '@/features/auth/LoginModalProvider'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { useLoginModal } from '@/lib/wallet'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 
 interface RequireBackendAuthProps {

@@ -18,6 +18,8 @@ declare namespace Cloudflare {
 		VITE_FF_RHINESTONE_SESSIONS: string;
 		VITE_FF_USE_WARP_INFRA: string;
 		VITE_FF_USE_EOA: string;
+		VITE_FF_USE_PRIVY: string;
+		VITE_PRIVY_APP_ID: string;
 	}
 }
 interface Env extends Cloudflare.Env {}

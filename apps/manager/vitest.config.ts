@@ -25,6 +25,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // Tests exercise the default (RainbowKit) wallet stack; the real vendor
+      // is chosen at build time in vite.config.ts via VITE_FF_USE_PRIVY.
+      'active-wallet-stack': fileURLToPath(
+        new URL('./src/lib/wallet/stacks/RainbowKitStack.tsx', import.meta.url),
+      ),
     },
   },
   define: {

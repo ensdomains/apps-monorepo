@@ -1,6 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { Button } from '@/components/ens-consumer/button/Button'
-import { useLoginModal } from '@/features/auth/LoginModalProvider'
+import { useLoginModal } from '@/lib/wallet'
 
 export const ConnectWallet = () => {
   const { openLogin } = useLoginModal()

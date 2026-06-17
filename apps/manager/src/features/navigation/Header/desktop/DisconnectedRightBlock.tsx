@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { useLoginModal } from '@/features/auth/LoginModalProvider'
+import { useLoginModal } from '@/lib/wallet'
 import { FloatingWrapper } from '../shared/FloatingWrapper'
 
 export const DisconnectedRightBlock = () => {
