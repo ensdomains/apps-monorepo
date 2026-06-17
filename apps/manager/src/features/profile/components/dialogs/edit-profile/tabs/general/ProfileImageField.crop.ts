@@ -6,11 +6,11 @@ import type {
 
 const CROP_OUTPUT_SCALE = 4
 const CROP_JPEG_QUALITY = 0.92
-export const AVATAR_CROP_VIEWPORT_SIZE = {
+const AVATAR_CROP_VIEWPORT_SIZE = {
   height: 168,
   width: 168,
 } as const satisfies ProfileImageSize
-export const HEADER_CROP_VIEWPORT_SIZE = {
+const HEADER_CROP_VIEWPORT_SIZE = {
   height: 126,
   width: 340,
 } as const satisfies ProfileImageSize

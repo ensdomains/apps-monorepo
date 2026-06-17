@@ -7,6 +7,8 @@ import {
 import {
   ManualInputStep,
   ManualPreviewStep,
+  NftConfirmationStep,
+  NftSelectionStep,
   RemoveConfirmationStep,
 } from './ProfileImageFieldSteps'
 import { useProfileImageField } from './useProfileImageField'
@@ -69,6 +71,35 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
       )
     }
 
+    if (editor.state.matches({ nftSelection: 'browsing' })) {
+      return (
+        <NftSelectionStep
+          disabled={disabled}
+          error={editor.nftErrorMessage ?? editor.state.context.error}
+          isLoading={editor.isLoadingNfts}
+          nftOwnerAddress={editor.nftOwnerAddress}
+          nfts={editor.state.context.filteredNfts}
+          onBack={() => editor.send({ type: 'BACK' })}
+          onSearchChange={(query) =>
+            editor.send({ type: 'UPDATE_NFT_SEARCH', query })
+          }
+          onSelectNft={(nft) => editor.send({ type: 'SELECT_NFT', nft })}
+          searchQuery={editor.state.context.nftSearchQuery}
+        />
+      )
+    }
+
+    if (editor.state.matches({ nftSelection: 'confirming' })) {
+      return (
+        <NftConfirmationStep
+          disabled={disabled}
+          nft={editor.state.context.selectedNft}
+          onBack={() => editor.send({ type: 'BACK' })}
+          onUseNft={() => editor.send({ type: 'CONFIRM_NFT' })}
+        />
+      )
+    }
+
     if (editor.state.matches('removeConfirmation')) {
       return (
         <RemoveConfirmationStep
@@ -93,6 +124,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         onDragOver={editor.handleDragOver}
         onDrop={editor.handleDrop}
         onManual={editor.handleManualClick}
+        onNft={editor.handleNftClick}
         onRemove={editor.handleRemoveClick}
         onUpload={editor.handleUploadClick}
       />

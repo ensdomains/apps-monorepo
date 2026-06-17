@@ -21,6 +21,7 @@ import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
 const DEPLOY_SUBREGISTRY_TX_ID = 'tx-deploy-subregistry'
 const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
@@ -121,6 +122,10 @@ function RouteComponent() {
     ).match(
       (result) => {
         deployedSubregistryAddressRef.current = result.deployedAddress
+        // Fire-and-forget: ask Etherscan to link this proxy to its already
+        // source-verified implementation so Read/Write-as-Proxy works. Never
+        // awaited — must not block or fail the deploy flow.
+        void verifyProxyContract(sepoliaWithEns, result.deployedAddress)
       },
       () => undefined,
     )

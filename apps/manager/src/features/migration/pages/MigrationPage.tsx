@@ -7,6 +7,7 @@ import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
+import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -140,9 +141,11 @@ export const MigrationPage = () => {
     [uiActor],
   )
 
-  const handleBack = useCallback(() => {
-    navigate({ to: '/dashboard' })
-  }, [navigate])
+  useGlobalBackButton({
+    className: 'text-black hover:text-black/70',
+    fallbackPath: '/dashboard',
+    isVisible: step === 'select',
+  })
 
   const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !wagmiWalletClient?.account) return false
@@ -172,7 +175,7 @@ export const MigrationPage = () => {
   }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
 
   return (
-    <div className="relative h-[calc(100dvh-54px)] overflow-hidden md:h-[calc(100dvh-80px)]">
+    <div className="relative flex min-h-0 flex-1 overflow-hidden">
       <GrainOverlay />
 
       {match(step)
@@ -180,7 +183,6 @@ export const MigrationPage = () => {
           <SelectNamesStep
             gasEstimate={gasEstimate}
             gasFundingStatus={gasFundingStatus}
-            onBack={handleBack}
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
           />
@@ -193,7 +195,7 @@ export const MigrationPage = () => {
             </p>
             <motion.div
               animate={{ opacity: 1, y: 0 }}
-              className="max-h-[200px] w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
+              className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3"
               initial={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.4, delay: 0.15 }}
             >

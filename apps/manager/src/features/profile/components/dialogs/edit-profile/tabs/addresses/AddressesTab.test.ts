@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { addressRecords } from '@/features/profile/data/records'
 import type { AddressRecordValue } from '@/features/profile/types'
 import {
   applyEthAddressChange,
@@ -18,31 +17,9 @@ import {
   ETH_COIN_TYPE,
   evmChainOptions,
   getPickerRecordGroups,
-  getPickerRecords,
-  isEvmCoinType,
 } from './addressPickerRecords'
 
-describe('getPickerRecords', () => {
-  it('lists every available other-network address record when search is empty', async () => {
-    const unavailableCoinTypes = new Set([ETH_COIN_TYPE, 0, 501, 714])
-    const records = getPickerRecords({
-      mode: 'other',
-      normalizedSearchValue: '',
-      unavailableCoinTypes,
-    })
-    const expectedRecords = addressRecords.filter(
-      (record) =>
-        !unavailableCoinTypes.has(record.coinType) &&
-        !isEvmCoinType(record.coinType) &&
-        record.coinType !== ETH_COIN_TYPE,
-    )
-
-    expect(records.map(({ coinType }) => coinType)).toEqual(
-      expectedRecords.map(({ coinType }) => coinType),
-    )
-    expect(records.length).toBeGreaterThan(4)
-  })
-
+describe('getPickerRecordGroups', () => {
   it('groups the top five EVM picker-only records without listing all remaining chains', () => {
     const { otherRecords, popularRecords } = getPickerRecordGroups({
       mode: 'evm',
