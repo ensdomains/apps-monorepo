@@ -150,6 +150,7 @@ interface GeneralTabProps {
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly owner?: Address
+  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly values: ProfileRecords
 }
 
@@ -159,6 +160,7 @@ export const GeneralTab = ({
   onContactChange,
   onImageUploadPrepared,
   owner,
+  preparedImageUploads,
   values,
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
@@ -169,6 +171,10 @@ export const GeneralTab = ({
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
+  const getPreparedImagePreviewUrl = (kind: ProfileImageKind) =>
+    preparedImageUploads.find(
+      (upload) => upload.kind === kind && upload.imageUrl === values.base[kind],
+    )?.dataURL
   const urlErrorMessage = getGeneralUrlErrorMessage(values.base.url)
   const getShortcutLabel = (field: GeneralField, label: string) => {
     if (field === 'avatar') {
@@ -245,6 +251,7 @@ export const GeneralTab = ({
             onImageRemove={() => setBaseValue('avatar', '')}
             onImageUploadPrepared={onImageUploadPrepared}
             owner={owner}
+            preparedImagePreviewUrl={getPreparedImagePreviewUrl('avatar')}
           />
         )}
 
@@ -260,6 +267,7 @@ export const GeneralTab = ({
             onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
             onImageRemove={() => setBaseValue('header', '')}
             onImageUploadPrepared={onImageUploadPrepared}
+            preparedImagePreviewUrl={getPreparedImagePreviewUrl('header')}
           />
         )}
 

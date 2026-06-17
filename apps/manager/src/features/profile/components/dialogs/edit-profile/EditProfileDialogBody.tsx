@@ -78,6 +78,10 @@ export const EditProfileDialogBody = withForm({
               records: submittedValues,
             },
           )
+          const activePreparedAvatarPreviewUrl =
+            activePreparedImageUploads.find(
+              ({ kind }) => kind === 'avatar',
+            )?.dataURL
           const hasPreparedImageUpload = activePreparedImageUploads.length > 0
           const hasAddressValidationIssues =
             getAddressValidationIssues(values.addresses).length > 0
@@ -128,6 +132,7 @@ export const EditProfileDialogBody = withForm({
               orientation="vertical"
             >
               <EditProfileDialogHeader
+                avatarPreviewUrl={activePreparedAvatarPreviewUrl}
                 avatarUrl={values.base.avatar}
                 canSave={canSaveProfile}
                 name={name}
@@ -148,6 +153,7 @@ export const EditProfileDialogBody = withForm({
                 onSave={handleSave}
                 onSocialChange={handleSocialChange}
                 owner={owner}
+                preparedImageUploads={activePreparedImageUploads}
                 values={values}
               />
             </Tabs>

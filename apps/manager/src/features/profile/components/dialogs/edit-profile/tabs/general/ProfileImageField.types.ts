@@ -18,6 +18,7 @@ export interface ProfileImageFieldProps {
   readonly onImageRemove: () => void
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly owner?: Address
+  readonly preparedImagePreviewUrl?: string
 }
 
 export interface ProfileImageSize {

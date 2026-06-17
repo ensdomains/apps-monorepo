@@ -41,6 +41,7 @@ export const useProfileImageField = ({
   onImageRemove,
   onImageUploadPrepared,
   owner,
+  preparedImagePreviewUrl,
 }: ProfileImageFieldProps) => {
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -58,9 +59,13 @@ export const useProfileImageField = ({
   const hasImage = Boolean(currentImage?.trim())
   const imageQuery = useQuery({
     ...parseAvatarQuery(currentImage),
-    enabled: hasImage,
+    enabled: hasImage && !preparedImagePreviewUrl,
   })
-  const displayImage = uploadPreviewUrl || imageQuery.data || currentImage
+  const displayImage =
+    uploadPreviewUrl ||
+    preparedImagePreviewUrl ||
+    imageQuery.data ||
+    currentImage
   const { address } = useAccount()
   const chainId = useChainId()
   const [state, send] = useMachine(imageSelectionMachine, {
