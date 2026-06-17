@@ -20,6 +20,7 @@ import {
   encodeAbiParameters,
   encodeFunctionData,
   erc20Abi,
+  getAddress,
   getCreate2Address,
   isAddressEqual,
   keccak256,
@@ -440,11 +441,14 @@ export function syncEthAddressRecordActor(input: {
       const client = input.publicClient as unknown as Parameters<
         typeof setRecordsWriteParameters
       >[0]
+      const normalizedName = input.name.endsWith('.eth')
+        ? input.name
+        : `${input.name}.eth`
 
       const writeParams = await setRecordsWriteParameters(client, {
-        name: input.name,
+        name: normalizedName,
         resolverAddress: input.resolverAddress,
-        coins: [{ coin: 60, value: input.ownerAddress }],
+        coins: [{ coin: 60, value: getAddress(input.ownerAddress) }],
       })
 
       const data = encodeFunctionData({
@@ -472,90 +476,13 @@ export function syncEthAddressRecordActor(input: {
         { type: 'custom', request },
         input.signer,
         {
-          description: `Set ETH address record for ${input.name}`,
+          description: `Set ETH address record for ${normalizedName}`,
           publicClient: input.publicClient,
           chainId: input.chainId,
         },
       )
     }),
   ).mapErr((error) => new Error(`Failed to sync ETH address record: ${error}`))
-}
-
-/**
- * Set the registered name as the owner's primary name.
- *
- * For rhinestone flows the owner is the EOA, so we reuse the existing
- * signature-based primary-name path. Future L2 primary-name support should
- * branch from here using explicit setup config instead of inferring from
- * payment method inside transaction-manager.
- */
-export function submitPrimaryNameSetupActor(input: {
-  name: string
-  signer: Signer
-  approvalSigner?: Signer
-  ownerAddress: Address
-  accountAddress: Address
-  publicClient: PublicClient
-  chainId: number
-}): ResultAsync<string, Error> {
-  const needsSignatureFlow =
-    input.signer.type === 'rhinestone' &&
-    input.ownerAddress.toLowerCase() !== input.accountAddress.toLowerCase()
-
-  if (!needsSignatureFlow) {
-    return submitPrimaryNameUpdateActor({
-      name: input.name,
-      signer: input.signer,
-      accountAddress: input.ownerAddress,
-      publicClient: input.publicClient,
-      chainId: input.chainId,
-    }).andThen((primaryNameTxId) =>
-      fromPromise(
-        waitForTransaction(primaryNameTxId),
-        (error) =>
-          new Error(
-            `Failed while waiting for direct primary-name update: ${error}`,
-          ),
-      ).andThen(() =>
-        submitReverseUpdateActor({
-          name: input.name,
-          signer: input.signer,
-          accountAddress: input.ownerAddress,
-          publicClient: input.publicClient,
-          chainId: input.chainId,
-        }),
-      ),
-    )
-  }
-
-  const approvalSigner = input.approvalSigner
-  if (!approvalSigner || approvalSigner.type !== 'eoa') {
-    return errAsync(
-      new Error(
-        'Primary-name setup requires an EOA approval signer for signature flow',
-      ),
-    )
-  }
-
-  return requestEOASignatureActor({
-    name: input.name,
-    eoaAddress: input.ownerAddress,
-    signatureExpiry: BigInt(Math.floor(Date.now() / 1000) + 60 * 60),
-    coinTypes: [60n],
-    walletClient: approvalSigner.walletClient,
-    registrarAddress: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
-  }).andThen(({ signature, signatureExpiry }) =>
-    submitPrimaryNameWithSignatureActor({
-      name: input.name,
-      eoaAddress: input.ownerAddress,
-      signature,
-      signatureExpiry,
-      coinTypes: [60n],
-      signer: input.signer,
-      publicClient: input.publicClient,
-      chainId: input.chainId,
-    }),
-  )
 }
 
 // ============================================================================

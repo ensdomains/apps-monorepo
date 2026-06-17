@@ -30,7 +30,6 @@ export const REGISTRATION_STAGE_PROGRESS = {
   syncingEthRecord: 97,
   waitingForEthRecordSync: 98,
   settingPrimaryName: 99,
-  waitingForPrimaryName: 99,
   success: 100,
   error: 0,
 } as const satisfies Record<RegistrationStage, number>

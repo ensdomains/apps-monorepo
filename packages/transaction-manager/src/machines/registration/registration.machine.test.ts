@@ -1,7 +1,7 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: synthetic xstate test events
 import type { Address, PublicClient } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { createActor, fromPromise } from 'xstate'
+import { createActor, createMachine, fromPromise } from 'xstate'
 import type { Signer } from '../../types/signer.types'
 import {
   type RegistrationPostRegistrationSetup,
@@ -19,6 +19,26 @@ const signer: Signer = {
 
 const neverSettling = fromPromise(() => new Promise<never>(() => {}))
 
+const primaryNameStubMachine = createMachine({
+  id: 'primaryNameStub',
+  initial: 'idle',
+  states: {
+    idle: {
+      on: {
+        START_UPDATE: 'running',
+      },
+    },
+    running: {
+      on: {
+        SUCCEED: 'success',
+        FAIL: 'error',
+      },
+    },
+    success: {},
+    error: {},
+  },
+})
+
 const stubbedActors = {
   ensureHcaDeployed: neverSettling,
   deployResolver: neverSettling,
@@ -29,7 +49,7 @@ const stubbedActors = {
   submitApproval: neverSettling,
   submitRegistration: neverSettling,
   syncEthAddressRecord: neverSettling,
-  submitPrimaryNameSetup: neverSettling,
+  primaryNameFlow: primaryNameStubMachine,
   signPermit: neverSettling,
   submitPermitAndRegistration: neverSettling,
   pollTransactionStatus: neverSettling,
@@ -112,6 +132,16 @@ const advanceToPostRegistrationSetup = (
     type: 'xstate.done.actor.0.registration.waitingForRegistration',
     output: undefined,
   } as never)
+}
+
+const getPrimaryNameChild = (
+  actor: ReturnType<typeof createRegistrationActor>,
+) => {
+  const child = actor.getSnapshot().children.registrationPrimaryNameSetup
+  if (!child) {
+    throw new Error('registration primary-name child actor not found')
+  }
+  return child
 }
 
 describe('registrationMachine post-registration setup', () => {
@@ -203,10 +233,7 @@ describe('registrationMachine post-registration setup', () => {
     expect(actor.getSnapshot().matches('settingPrimaryName')).toBe(true)
     expect(actor.getSnapshot().context.registrationTxId).toBe('tx-register')
 
-    actor.send({
-      type: 'xstate.error.actor.0.registration.settingPrimaryName',
-      error: new Error('primary-name failed'),
-    } as never)
+    getPrimaryNameChild(actor).send({ type: 'FAIL' } as never)
     expect(actor.getSnapshot().matches('error')).toBe(true)
 
     actor.send({ type: 'RETRY' })

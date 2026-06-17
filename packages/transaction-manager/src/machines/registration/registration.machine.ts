@@ -1,8 +1,9 @@
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
-import { assign, fromPromise, setup } from 'xstate'
+import { assign, fromPromise, sendTo, setup } from 'xstate'
 import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
+import { primaryNameMachine } from '../primary-name/primaryName.machine'
 import {
   authorizedPaymentAmount,
   ensureHcaDeployedActor,
@@ -16,7 +17,6 @@ import {
   submitApprovalActor,
   submitCommitmentActor,
   submitPermitAndRegistrationActor,
-  submitPrimaryNameSetupActor,
   submitRegistrationActor,
   submitResolverAndCommitmentActor,
   submitResolverDeploymentActor,
@@ -63,6 +63,8 @@ export const REGISTRATION_TX_IDS = {
   syncEthRecord: 'tx-reg-sync-eth-record',
   setPrimaryName: 'tx-reg-set-primary-name',
 } as const
+
+const REGISTRATION_PRIMARY_NAME_ACTOR_ID = 'registrationPrimaryNameSetup'
 
 export type RegistrationPostRegistrationSetup = {
   primaryName?: {
@@ -291,19 +293,7 @@ export const registrationMachine = setup({
         return syncEthAddressRecordActor(input)
       },
     ),
-    submitPrimaryNameSetup: fromResultAsync(
-      (input: {
-        name: string
-        signer: Signer
-        approvalSigner?: Signer
-        ownerAddress: Address
-        accountAddress: Address
-        publicClient: PublicClient
-        chainId: number
-      }) => {
-        return submitPrimaryNameSetupActor(input)
-      },
-    ),
+    primaryNameFlow: primaryNameMachine,
     signPermit: fromResultAsync(
       (input: {
         owner: Address
@@ -1439,71 +1429,73 @@ export const registrationMachine = setup({
     },
 
     settingPrimaryName: {
-      entry: ['logTransition', 'recordTransition'],
-      invoke: {
-        src: 'submitPrimaryNameSetup',
-        input: ({ context }) => ({
+      entry: [
+        'logTransition',
+        'recordTransition',
+        sendTo(REGISTRATION_PRIMARY_NAME_ACTOR_ID, ({ context }) => ({
+          type: 'START_UPDATE',
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
-          approvalSigner: context.approvalSigner,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          ownerAddress: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           accountAddress: context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          walletClient:
+            context.approvalSigner?.type === 'eoa'
+              ? context.approvalSigner.walletClient
+              : undefined,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          eoaAddress: context.ownerAddress ?? context.accountAddress!,
+        })),
+      ],
+      invoke: {
+        id: REGISTRATION_PRIMARY_NAME_ACTOR_ID,
+        src: 'primaryNameFlow',
+        input: ({ context }) => ({
           chainId: context.chainId,
         }),
-        onDone: {
-          target: 'waitingForPrimaryName',
-          actions: assign({
-            primaryNameTxId: ({ event }) => event.output,
-          }),
-        },
-        onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'settingPrimaryName' as const,
+        onSnapshot: [
+          {
+            guard: ({ event: { snapshot } }) => snapshot.matches('success'),
+            target: 'success',
+            actions: assign({
+              primaryNameTxId: ({ event: { snapshot } }) =>
+                snapshot.context.reverseTxId ??
+                snapshot.context.updateTxId ??
+                undefined,
             }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Primary-name setup submission failed:',
-                event.error,
-              )
-            },
-          ],
-        },
-      },
-      on: {
-        CANCEL: 'idle',
-      },
-    },
-
-    waitingForPrimaryName: {
-      entry: ['logTransition', 'recordTransition'],
-      invoke: {
-        src: 'pollTransactionStatus',
-        // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-        input: ({ context }) => ({ txId: context.primaryNameTxId! }),
-        onDone: 'success',
-        onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'settingPrimaryName' as const,
+          },
+          {
+            guard: ({ event: { snapshot } }) => snapshot.matches('error'),
+            target: 'error',
+            actions: [
+              assign({
+                error: ({ event: { snapshot } }) =>
+                  snapshot.context.error as Error | undefined,
+                retryTarget: () => 'settingPrimaryName' as const,
+                primaryNameTxId: ({ event: { snapshot } }) =>
+                  snapshot.context.reverseTxId ??
+                  snapshot.context.updateTxId ??
+                  undefined,
+              }),
+              ({ event: { snapshot } }) => {
+                console.error(
+                  '❌ [REGISTRATION] Primary-name submachine failed:',
+                  snapshot.context.error,
+                )
+              },
+            ],
+          },
+          {
+            actions: assign({
+              primaryNameTxId: ({ event: { snapshot } }) =>
+                snapshot.context.reverseTxId ??
+                snapshot.context.updateTxId ??
+                undefined,
             }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Primary-name setup transaction failed:',
-                event.error,
-              )
-            },
-          ],
-        },
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
