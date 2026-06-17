@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { tw } from '@/utils/tailwind'
 import { PriceCooldownDecayChart } from './PriceCooldownDecayChart'
 import type { PriceCooldownDemand, PriceCooldownInfo } from './types'
@@ -12,11 +13,18 @@ type PriceCooldownExpandedContentProps = {
   selection: PriceCooldownChartSelection
 }
 
-const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
+const hasDemandStatsData = (demand?: PriceCooldownDemand) => {
   const { favoriteCount, searchCount30d } = demand ?? {}
-  if (favoriteCount === undefined && searchCount30d === undefined) {
+  return favoriteCount !== undefined || searchCount30d !== undefined
+}
+
+const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
+  const nameStatsEnabled = useFeatureFlag('TEMP_PREMIUM_NAME_STATS')
+  if (!nameStatsEnabled || !hasDemandStatsData(demand)) {
     return null
   }
+
+  const { favoriteCount, searchCount30d } = demand ?? {}
 
   return (
     <div className="flex flex-col gap-2 text-ens-lapis-900 md:flex-row md:flex-wrap md:gap-3">
@@ -38,6 +46,38 @@ const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
           </span>
         </div>
       )}
+    </div>
+  )
+}
+
+const BuyNowOrWaitSection = ({
+  periodDays,
+  demand,
+}: {
+  periodDays: number
+  demand?: PriceCooldownDemand
+}) => {
+  const nameStatsEnabled = useFeatureFlag('TEMP_PREMIUM_NAME_STATS')
+  const showDemandStats = nameStatsEnabled && hasDemandStatsData(demand)
+
+  return (
+    <div className="flex flex-col gap-2 md:gap-4">
+      <p className="text-[#353535] text-sm md:text-base leading-normal">
+        <Trans>Should I buy now or wait?</Trans>
+      </p>
+      <p className="text-[#3f3f3e] text-xs leading-normal md:text-sm">
+        <Trans>
+          You can buy this name at any point during the {periodDays}-day cooldown.
+          Some names are more in-demand than others
+        </Trans>
+        {showDemandStats ? (
+          <Trans>
+            {' '}
+            — the stats below can help you decide whether to act soon or wait.
+          </Trans>
+        ) : null}
+      </p>
+      <DemandStats demand={demand} />
     </div>
   )
 }
@@ -125,10 +165,6 @@ export const PriceCooldownExpandedContent = ({
     nowPoint,
   } = cooldown
 
-  const showDemandSection =
-    demand !== undefined &&
-    (demand.favoriteCount !== undefined || demand.searchCount30d !== undefined)
-
   const chartProps = {
     nowPoint,
     onSelectedPointChange: selection.handleSelectedPointChange,
@@ -160,47 +196,18 @@ export const PriceCooldownExpandedContent = ({
           basePricePerYearLabel={basePricePerYearLabel}
           selection={selection}
         />
-      </div>
-
-      {showDemandSection && (
         <div
           className={tw(
-            'mx-5 rounded-xl border-[#80c4e0] border-[0.5px] bg-[#effafe] p-4 md:mx-0 md:hidden',
+            'rounded-xl border-[#80c4e0] border-[0.5px] bg-[#effafe] p-4',
           )}
         >
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <p className="text-[#353535] text-sm">
-                <Trans>Should I buy now or wait?</Trans>
-              </p>
-              <p className="text-[#3f3f3e] text-xs leading-normal">
-                <Trans>
-                  You can buy this name at any point during the {periodDays}-day
-                  cooldown. Some names are more in-demand than others — the
-                  stats below can help you decide whether to act soon or wait.
-                </Trans>
-              </p>
-            </div>
-            <DemandStats demand={demand} />
-          </div>
+          <BuyNowOrWaitSection demand={demand} periodDays={periodDays} />
         </div>
-      )}
+      </div>
 
       <div className="hidden md:grid md:grid-cols-2 md:items-start md:gap-x-10 md:gap-y-6">
         <div className="flex min-w-0 flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <p className="text-[#353535] text-base leading-normal">
-              <Trans>Should I buy now or wait?</Trans>
-            </p>
-            <p className="text-[#3f3f3e] text-sm leading-normal">
-              <Trans>
-                You can buy this name at any point during the {periodDays}-day
-                cooldown. Some names are more in-demand than others — the stats
-                below can help you decide whether to act soon or wait.
-              </Trans>
-            </p>
-            <DemandStats demand={demand} />
-          </div>
+          <BuyNowOrWaitSection demand={demand} periodDays={periodDays} />
           <TargetPriceField
             basePricePerYearLabel={basePricePerYearLabel}
             selection={selection}
