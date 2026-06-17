@@ -35,8 +35,6 @@ export default defineConfig({
   define: {
     global: 'globalThis',
     'process.env': {},
-    'import.meta.env': {
-      VITE_PIMLICO_API_KEY: 'test-api-key',
-    },
+    'import.meta.env': {},
   },
 })

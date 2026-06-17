@@ -47,7 +47,7 @@ export const PaymentTokenSection = ({
 
   return (
     <section
-      className="border border-border rounded-sm p-5 space-y-4"
+      className="border border-border rounded-xl p-6 space-y-4"
       aria-labelledby="payment-heading"
     >
       <PaymentTokenPicker

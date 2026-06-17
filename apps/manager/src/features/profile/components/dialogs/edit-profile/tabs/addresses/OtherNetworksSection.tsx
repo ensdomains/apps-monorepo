@@ -1,9 +1,11 @@
-import { Plus } from 'lucide-react'
 import type { AddressRecordValue } from '@/features/profile/types'
-import { FieldPickerPill } from '../../shared/FieldPickerPill'
-import { getAddressValue } from './AddressesTab.helpers'
+import {
+  getAddressValidationErrorMessage,
+  getAddressValue,
+} from './AddressesTab.helpers'
 import { AddressIcon } from './AddressIcon'
 import { AddressInputRow } from './AddressInputRow'
+import { AddressPickerPill } from './AddressPickerPill'
 import type { AddressOption } from './addressPickerRecords'
 import { SectionHeader } from './SectionHeader'
 
@@ -32,18 +34,22 @@ export const OtherNetworksSection = ({
       title="Receive on other networks"
     />
 
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-wrap items-center gap-2 md:gap-4">
       {otherOptions.map((option) => {
         const active = addresses.some(
           (address) => address.coinType === option.coinType,
         )
 
         return (
-          <FieldPickerPill
+          <AddressPickerPill
             active={active}
             disabled={disabled}
             icon={
-              <AddressIcon coinType={option.coinType} label={option.label} />
+              <AddressIcon
+                coinType={option.coinType}
+                label={option.label}
+                size="xs"
+              />
             }
             key={option.coinType}
             label={option.label}
@@ -52,19 +58,18 @@ export const OtherNetworksSection = ({
                 ? onRemoveAddress(option.coinType)
                 : onSetAddressValue(option.coinType, '')
             }
+            variant="text"
           />
         )
       })}
 
-      <button
-        className="flex h-6.5 shrink-0 items-center gap-1 rounded-[25px] px-2 py-1.5 text-[12px] text-ens-quartz-900 leading-[1.2] tracking-[0.12px] transition-colors hover:bg-ens-quartz-50 disabled:pointer-events-none disabled:opacity-50"
+      <AddressPickerPill
+        active={false}
         disabled={disabled}
+        label="Add More"
         onClick={onAddMore}
-        type="button"
-      >
-        Add More
-        <Plus className="size-3.5" />
-      </button>
+        variant="text"
+      />
     </div>
 
     {visibleOtherRows.length > 0 ? (
@@ -73,6 +78,10 @@ export const OtherNetworksSection = ({
           <AddressInputRow
             coinType={option.coinType}
             disabled={disabled}
+            errorMessage={getAddressValidationErrorMessage(
+              option.coinType,
+              getAddressValue(addresses, option.coinType),
+            )}
             key={option.coinType}
             label={option.label}
             onChange={(value) => onSetAddressValue(option.coinType, value)}

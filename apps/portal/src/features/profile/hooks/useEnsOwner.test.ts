@@ -8,6 +8,14 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok(mockClient),
 }))
 
+// Mock chain contract address lookup used by the shared resolveEnsOwner
+const V2_ETH_REGISTRY = '0x00000000000000000000000000000000000e2000'
+const V1_ETH_REGISTRY = '0x00000000000000000000000000000000000e1000'
+vi.mock('@ensdomains/ensjs/chain', () => ({
+  getChainContractAddress: ({ contract }: { contract: string }) =>
+    contract === 'ensRegistry' ? V2_ETH_REGISTRY : V1_ETH_REGISTRY,
+}))
+
 // Mock ensjs v1
 const mockV1GetOwner = vi.fn()
 vi.mock('@ensdomains/ensjs/public/v1', () => ({

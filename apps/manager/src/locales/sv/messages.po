@@ -455,6 +455,7 @@ msgstr ""
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/DiffDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Cancel"
@@ -2062,6 +2063,7 @@ msgid "Save Preferences"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Save Profile"
 msgstr ""
 
@@ -2070,6 +2072,7 @@ msgid "Saved favorites & searches"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 msgid "Saving"
 msgstr ""
 

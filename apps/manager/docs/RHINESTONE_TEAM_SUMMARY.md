@@ -53,7 +53,7 @@ const wrappedAccount = wrapParaAccountForRhinestone({
 - Rhinestone SDK: 1.0.2
 - Para: web-sdk + wagmi-v2-connector
 - Chain: Sepolia
-- Bundler: Pimlico
+- Gas sponsorship: Rhinestone Warp orchestrator (no ERC-4337 bundler)
 
 ---
 **Status**: Bundle simulation failing with Para wallet + wagmi-v2-connector, even after adding missing account properties

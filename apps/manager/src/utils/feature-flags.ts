@@ -44,9 +44,9 @@ const FEATURE_FLAGS_INTERNAL = {
   },
   /**
    * Force the transaction manager to use plain EOA signing only — bypasses
-   * the Rhinestone / Pimlico smart-account flows entirely. Useful for
-   * environments (e.g. the Tenderly virtual sepolia fork) where ERC-4337
-   * bundler infrastructure isn't available.
+   * the Rhinestone smart-account flow entirely. Useful for environments
+   * (e.g. the Tenderly virtual sepolia fork) where the relayer/bundler
+   * infrastructure isn't available.
    */
   USE_EOA: {
     enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
@@ -62,7 +62,7 @@ const FEATURE_FLAGS_INTERNAL = {
   },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 
-export type TransactionInfra = 'warp' | 'pimlico'
+export type TransactionInfra = 'warp'
 export type FeatureFlag = keyof typeof FEATURE_FLAGS_INTERNAL
 
 // Typescript hack to correctly infer the flag names but keep the config type as generic
@@ -138,9 +138,11 @@ export function isFeatureEnabled(
 }
 
 export function getTransactionInfra(
-  identifier?: UserIdentifier,
+  _identifier?: UserIdentifier,
 ): TransactionInfra {
-  return isFeatureEnabled('USE_WARP_INFRA', identifier) ? 'warp' : 'pimlico'
+  // Rhinestone HCA operations always route through the Warp orchestrator
+  // (intent-based, relayer-sponsored). Warp is the only supported infra.
+  return 'warp'
 }
 
 /**

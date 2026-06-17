@@ -1,3 +1,5 @@
+import { TelegramAuthSchema } from '@ens-apps/shared-schema/telegram'
+import { safeParse } from 'valibot'
 import type { TelegramAuthData, TelegramLoginOptions } from './types'
 
 const TELEGRAM_ORIGIN = 'https://oauth.telegram.org'
@@ -54,20 +56,30 @@ export async function loginWithTelegramPopup(
       return reject(new Error('Popup blocked'))
     }
 
-    const onMessage = (event: MessageEvent) => {
-      if (event.source !== popup) {
+    const isFromTelegramPopup = (event: MessageEvent): boolean =>
+      event.origin === TELEGRAM_ORIGIN && event.source === popup
+
+    const handleAuthResult = (result: unknown): void => {
+      const parsed = safeParse(TelegramAuthSchema, result)
+      if (!parsed.success) {
+        console.debug(
+          '[TelegramLogin] Invalid auth_result shape:',
+          parsed.issues,
+        )
         return
       }
+      console.info('[TelegramLogin] Authentication successful:', parsed.output)
+      cleanup()
+      resolve(parsed.output)
+    }
+
+    const onMessage = (event: MessageEvent) => {
+      if (!isFromTelegramPopup(event)) return
       try {
         const data = JSON.parse(event.data)
         console.debug('[TelegramLogin] Received message from popup:', data)
         if (data.event === 'auth_result' && data.result) {
-          console.info(
-            '[TelegramLogin] Authentication successful:',
-            data.result,
-          )
-          cleanup()
-          resolve(data.result as TelegramAuthData)
+          handleAuthResult(data.result)
         }
       } catch (err) {
         console.debug(

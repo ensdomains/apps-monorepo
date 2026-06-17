@@ -140,7 +140,7 @@ MANAGER_APP_URL=https://staging.example.com pnpm e2e:manager
 
 **File**: `projects/manager/tests/registration-rhinestone.spec.ts`
 
-Same registration flow as the Pimlico test but exercises the Rhinestone provider path. The smart account is created via the Rhinestone SDK, and transactions go through the local mockestrator orchestrator instead of the Alto bundler.
+Same registration flow as the standard registration test (`registration.spec.ts`) but exercises the Rhinestone provider path. The smart account is created via the Rhinestone SDK, and transactions go through the local mockestrator orchestrator.
 
 ### Additional Infrastructure
 
@@ -150,7 +150,7 @@ The mockestrator (`public.ecr.aws/rhinestone/mockestrator:latest`) is included i
 
 ### Required Environment Variables
 
-Add these to the manager app's `.env` (in addition to the standard Pimlico vars):
+Add these to the manager app's `.env` (in addition to the standard local E2E vars):
 
 ```
 VITE_FF_RHINESTONE_SESSIONS=true

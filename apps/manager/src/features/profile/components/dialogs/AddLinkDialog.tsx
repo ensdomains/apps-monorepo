@@ -114,7 +114,7 @@ export const AddLinkDialog = ({ onAdd }: AddLinkDialogProps) => {
 
   const triggerButton = (
     <Button
-      className="h-auto gap-[11px] py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
+      className="h-auto gap-2.75 py-1 pr-1 pl-0! text-muted-foreground text-sm hover:bg-transparent hover:text-muted-foreground"
       size="sm"
       variant="ghost"
     >
