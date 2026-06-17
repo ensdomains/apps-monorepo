@@ -13,14 +13,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { useConnectModal, useWalletUi } from '@/lib/wallet'
+import { describeConnectError, type ErrorTone } from './wallet.errors'
 
 export const Route = createFileRoute('/wallet')({
   component: RouteComponent,
   ssr: false,
 })
 
-type ErrorTone = 'destructive' | 'secondary' | 'default'
-
+// Alert tone → styling. One place to map severity to colors (border/text/icon).
 const TONE_STYLES: Record<
   ErrorTone,
   { alert: string; text: string; icon: string }
@@ -40,104 +40,6 @@ const TONE_STYLES: Record<
     text: 'text-orange-800',
     icon: 'text-orange-600',
   },
-}
-
-// Per wagmi error name: user-facing message + alert tone. Single source of truth
-const CONNECT_ERROR_BY_NAME: Record<
-  string,
-  { message: string; tone: ErrorTone }
-> = {
-  ConnectorAlreadyConnectedError: {
-    message:
-      'This wallet is already connected. Please disconnect first or try a different wallet.',
-    tone: 'secondary',
-  },
-  UserRejectedRequestError: {
-    message:
-      'Connection was rejected. Please approve the connection request in your wallet.',
-    tone: 'default',
-  },
-  ResourceUnavailableRpcError: {
-    message:
-      'Network error. Please check your internet connection and try again.',
-    tone: 'default',
-  },
-  SwitchChainError: {
-    message:
-      'Failed to switch network. Please try switching networks manually in your wallet.',
-    tone: 'destructive',
-  },
-  ChainMismatchError: {
-    message:
-      'Network mismatch. Please ensure your wallet is connected to the correct network.',
-    tone: 'destructive',
-  },
-  InsufficientFundsError: {
-    message:
-      'Insufficient funds for transaction fees. Please add more funds to your wallet.',
-    tone: 'destructive',
-  },
-}
-
-// Fallback matching on the (lowercased) error text when the name isn't known.
-const CONNECT_ERROR_BY_TEXT: ReadonlyArray<{
-  needles: string[]
-  message: string
-}> = [
-  {
-    needles: ['user rejected', 'user denied'],
-    message:
-      'Connection was rejected. Please approve the connection request in your wallet.',
-  },
-  {
-    needles: ['network', 'rpc'],
-    message: 'Network error. Please check your connection and try again.',
-  },
-  {
-    needles: ['timeout', 'timed out'],
-    message: 'Connection timed out. Please try again.',
-  },
-  {
-    needles: ['already connected'],
-    message: 'This wallet is already connected. Please try a different wallet.',
-  },
-  {
-    needles: ['no provider', 'no wallet'],
-    message:
-      'No wallet detected. Please install a wallet extension and refresh the page.',
-  },
-  {
-    needles: ['unsupported chain'],
-    message:
-      'Unsupported network. Please switch to a supported network in your wallet.',
-  },
-]
-
-const describeConnectError = (
-  error: Error | null,
-): { message: string; tone: ErrorTone } => {
-  if (!error) {
-    return {
-      message: 'An unknown error occurred while connecting',
-      tone: 'destructive',
-    }
-  }
-
-  const byName = CONNECT_ERROR_BY_NAME[error.name]
-  if (byName) return byName
-
-  const text = error.message?.toLowerCase() ?? ''
-  const byText = CONNECT_ERROR_BY_TEXT.find(({ needles }) =>
-    needles.some((needle) => text.includes(needle)),
-  )
-  if (byText) return { message: byText.message, tone: 'destructive' }
-
-  return {
-    message:
-      error.message ||
-      'An unexpected error occurred while connecting to your wallet',
-    tone: 'destructive',
-  }
 }
 
 const ConnectMenu = () => {
