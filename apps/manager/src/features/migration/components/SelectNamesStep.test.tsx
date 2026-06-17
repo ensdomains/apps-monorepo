@@ -73,7 +73,6 @@ const renderStep = ({
     <SelectNamesStep
       gasEstimate={gasEstimate}
       gasFundingStatus={gasFundingStatus}
-      onBack={vi.fn()}
       onNamesChange={onNamesChange}
       onNext={onNext}
     />,
