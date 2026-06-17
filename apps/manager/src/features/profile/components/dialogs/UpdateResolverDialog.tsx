@@ -1,7 +1,8 @@
-import { resolverMachine } from '@ens-apps/transaction-manager'
+import { transactionManager } from '@ens-apps/transaction-manager'
 import { Trans, useLingui } from '@lingui/react/macro'
-import { useActorRef, useSelector } from '@xstate/react'
+import { useSelector } from '@xstate/react'
 import { useEffect, useState } from 'react'
+import { match, P } from 'ts-pattern'
 import type { PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
 import { Button } from '@/components/ui/button'
@@ -25,10 +26,7 @@ import { FloatingInput } from '@/components/ui/floating-input'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import {
-  handleResolverCancel,
-  handleResolverUpdate,
-} from '../ProfileEdit.handlers'
+import { handleResolverUpdate } from '../ProfileEdit.handlers'
 import { UpdateStatusPanel } from './UpdateStatusPanel'
 
 interface UpdateResolverDialogProps {
@@ -49,25 +47,25 @@ export const UpdateResolverDialog = ({
   const account = useSmartAccountContext()
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const chainId = useChainId()
+  const [txId, setTxId] = useState<string | undefined>()
 
-  const resolverActor = useActorRef(resolverMachine, {
-    input: { chainId },
-  })
+  const txActor = txId ? transactionManager.getTransaction(txId) : undefined
 
-  const resolverState = useSelector(resolverActor, (state) => state)
+  const txStatus = useSelector(txActor, (snapshot) =>
+    match(snapshot?.value)
+      .with(P.string, (value) => value)
+      .with({ error: P.any }, () => 'error' as const)
+      .with(undefined, () => undefined)
+      .exhaustive(),
+  )
+  const txHash = useSelector(txActor, (snapshot) => snapshot?.context.hash)
+  const txError = useSelector(txActor, (snapshot) => snapshot?.context.error)
 
-  const txHash = resolverState.context.txHash
-  const isSubmitting =
-    resolverState.matches('submittingUpdate') ||
-    resolverState.matches('waitingForUpdate')
-  const isSuccess = resolverState.matches('success')
-  const isError = resolverState.matches('error')
+  const isSuccess = txStatus === 'success'
+  const isError = txStatus === 'error'
+  const isSubmitting = txStatus !== undefined && !isSuccess && !isError
   const machineErrorMessage =
-    (isError &&
-      resolverState.context.error &&
-      resolverState.context.error.message) ||
-    (isError && t`Failed to update resolver`) ||
-    undefined
+    (isError && (txError?.message || t`Failed to update resolver`)) || undefined
 
   useEffect(() => {
     if (open && currentResolver) {
@@ -82,25 +80,31 @@ export const UpdateResolverDialog = ({
   }, [isSuccess, onUpdated])
 
   const handleSave = () => {
-    const error = handleResolverUpdate(
+    const result = handleResolverUpdate(
       {
         name,
         resolverInput: resolver,
       },
       {
         account,
-        resolverActor,
         publicClient: publicClient as PublicClient,
+        chainId,
       },
     )
 
-    setErrorMessage(error)
+    setErrorMessage(result.error)
+    if (result.txId) {
+      setTxId(result.txId)
+    }
   }
 
   const handleCancel = () => {
+    // The transaction keeps running in the transactionManager singleton,
+    // independent of this dialog — closing only stops observing it. An
+    // app-level global surface (toasts) tracks it through to completion.
     setOpen(false)
     setErrorMessage(undefined)
-    handleResolverCancel(resolverActor)
+    setTxId(undefined)
   }
 
   const triggerButton = (

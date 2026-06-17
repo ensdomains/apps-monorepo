@@ -44,7 +44,6 @@ function mapMachineStateToProgressStage(
     case 'committingTransaction':
     case 'waitingForCommitment':
     case 'commitmentCooldown':
-    case 'validatingCommitment':
       return 'name-registering'
     case 'approvingToken':
     case 'waitingForApproval':

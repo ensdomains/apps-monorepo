@@ -4,15 +4,11 @@
  * Business logic extracted outside React components for testability.
  */
 
-import type {
-  primaryNameMachine,
-  resolverMachine,
-} from '@ens-apps/transaction-manager'
 import type { FormEvent } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { isAddress } from 'viem'
-import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
+import { changeResolver } from '../service/changeResolver'
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { ProfileRecords } from '../types'
 
@@ -54,24 +50,13 @@ export interface ResolverUpdateParams {
 
 export interface ResolverUpdateOptions {
   account: SmartAccountContextValue
-  resolverActor: ActorRefFrom<typeof resolverMachine>
   publicClient: PublicClient
+  chainId: number
 }
 
-export interface PrimaryNameParams {
-  name: string
-  owner?: Address
-}
-
-export interface PrimaryNameOptions {
-  account: {
-    walletClient?: import('viem').WalletClient | null
-    ownerAddress?: Address | null
-    signer?: import('@ens-apps/transaction-manager').Signer | null
-    accountAddress?: Address | null
-  }
-  primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
-  publicClient: PublicClient
+export interface ResolverUpdateResult {
+  txId?: string
+  error?: string
 }
 
 export interface ProfileResetParams {
@@ -90,122 +75,44 @@ export function handleProfileFormSubmit(
 }
 
 /**
- * Validates resolver input and dispatches resolver update to the machine.
+ * Validates resolver input and submits the resolver update through the
+ * transaction manager.
  *
- * Returns an error message when validation fails so the component can display it.
+ * Returns `{ error }` when validation fails (so the component can display it),
+ * or `{ txId }` for the submitted transaction (track it with a selector).
  */
 export function handleResolverUpdate(
   params: ResolverUpdateParams,
   options: ResolverUpdateOptions,
-): string | undefined {
+): ResolverUpdateResult {
   const { name, resolverInput } = params
-  const { account, resolverActor, publicClient } = options
+  const { account, publicClient, chainId } = options
 
   if (!resolverInput) {
-    return 'Resolver address is required.'
+    return { error: 'Resolver address is required.' }
   }
 
   if (!isAddress(resolverInput, { strict: false })) {
-    return 'Please enter a valid resolver contract address.'
+    return { error: 'Please enter a valid resolver contract address.' }
   }
 
   if (!account.signer || !account.accountAddress) {
-    const message = 'Account not ready. Please wait for wallet to connect.'
-    console.error('❌ Smart account not connected or not initialized', {
-      accountAddress: account.accountAddress,
-      hasSigner: !!account.signer,
-      type: account.type,
-    })
-    alert(message)
-    return message
+    return { error: 'Account not ready. Please wait for wallet to connect.' }
   }
 
   const accountAddress = (account.ownerAddress ??
     account.accountAddress) as Address
 
-  console.log('✅ Creating START_UPDATE event for resolver:', {
+  const txId = changeResolver({
     name,
-    resolver: resolverInput,
-    accountAddress,
-    hasSigner: !!account.signer,
-    hasPublicClient: !!publicClient,
-  })
-
-  resolverActor.send({
-    type: 'START_UPDATE',
-    name,
-    resolver: resolverInput as Address,
+    newResolver: resolverInput as Address,
     signer: account.signer,
     accountAddress,
     publicClient,
+    chainId,
   })
 
-  return undefined
-}
-
-export function handleResolverCancel(
-  resolverActor: ActorRefFrom<typeof resolverMachine>,
-): void {
-  resolverActor.send({ type: 'CANCEL' })
-}
-
-/**
- * Starts the primary name update flow.
- *
- * Uses the signature flow when a smart account is available:
- * 1. EOA signs an authorization message (free, no gas)
- * 2. Smart account submits the transaction (gasless via paymaster)
- * 3. Primary name is set for the EOA address
- *
- * Falls back to direct EOA signing if no smart account is available.
- *
- * Returns an error message for missing prerequisites so the caller can surface it.
- */
-export function handleSetPrimaryName(
-  params: PrimaryNameParams,
-  options: PrimaryNameOptions,
-): string | undefined {
-  const { name, owner } = params
-  const { account, primaryNameActor, publicClient } = options
-
-  if (!owner) {
-    const message = 'Cannot set primary name - ENS owner is not available.'
-    console.warn(message)
-    alert(message)
-    return message
-  }
-
-  const walletClient = account.walletClient
-  if (
-    !walletClient ||
-    !account.ownerAddress ||
-    !account.signer ||
-    !account.accountAddress
-  ) {
-    const message =
-      'Cannot set primary name - account not ready. Please wait for wallet to connect.'
-    console.error(message)
-    alert(message)
-    return message
-  }
-
-  primaryNameActor.send({
-    type: 'START_UPDATE',
-    name,
-    signer: account.signer,
-    accountAddress: account.accountAddress as Address,
-    publicClient,
-    walletClient,
-    eoaAddress: account.ownerAddress as Address,
-  })
-
-  return undefined
-}
-
-export function handlePrimaryNameCancel(
-  primaryNameActor: ActorRefFrom<typeof primaryNameMachine>,
-): void {
-  primaryNameActor.send({ type: 'CANCEL' })
+  return { txId }
 }
 
 export function handleProfileReset(params: ProfileResetParams): void {

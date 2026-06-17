@@ -4,6 +4,7 @@
  * Pure functions for ENS registration operations.
  */
 
+import { logger } from '@ens-apps/utils/logger'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
@@ -17,7 +18,7 @@ import {
   toHex,
   zeroAddress,
 } from 'viem'
-import { getBlock, multicall, readContract } from 'viem/actions'
+import { multicall, readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { FAST_TEST_ETH_REGISTRAR_ABI } from '../../contracts/abis/FastTestETHRegistrar.abi'
@@ -120,7 +121,7 @@ function generateCommitment(
       return { commitment: commitment as Hash, secret }
     })(),
     (error) => {
-      console.error('❌ Failed to generate commitment:', error)
+      logger.error('❌ Failed to generate commitment:', error)
       return new Error(`Failed to generate commitment: ${error}`)
     },
   )
@@ -390,7 +391,7 @@ export function submitCommitmentActor(input: {
 
   return fromPromise(
     (async () => {
-      console.log(
+      logger.debug(
         `🔧 [REGISTRATION ACTOR] submitCommitmentActor called with:`,
         {
           hasPublicClient: !!input.publicClient,
@@ -404,7 +405,7 @@ export function submitCommitmentActor(input: {
 
       const commitmentData = encodeCommitmentData(input.commitment.commitment)
 
-      console.log(
+      logger.debug(
         `🔧 [REGISTRATION ACTOR] About to call startTransaction with publicClient:`,
         !!input.publicClient,
       )
@@ -463,7 +464,7 @@ export function readMinCommitmentAgeActor(input: {
       functionName: 'MIN_COMMITMENT_AGE',
     }) as Promise<bigint>,
     (error) => {
-      console.warn(
+      logger.warn(
         '⚠️ [REGISTRATION ACTOR] Failed to read MIN_COMMITMENT_AGE, defaulting to 60s:',
         error,
       )
@@ -560,125 +561,6 @@ export function verifyRegistrationActor(input: {
 }
 
 /**
- * Validate commitment readiness before proceeding to registration
- * Checks commitmentAt timestamp and MIN_COMMITMENT_AGE from contract
- * This ensures the commitment is recorded on-chain before registration
- */
-export function validateCommitmentActor(input: {
-  commitment: CommitmentData
-  publicClient: PublicClient
-  useFastRegistrar: boolean
-}): ResultAsync<void, Error> {
-  const registrarAddress = selectRegistrarAddress(input.useFastRegistrar)
-
-  return fromPromise(
-    (async () => {
-      console.log('🔍 [REGISTRATION ACTOR] Validating commitment readiness...')
-
-      // Helper function to sleep
-      const sleep = (ms: number) =>
-        new Promise<void>((resolve) => setTimeout(resolve, ms))
-
-      // Check MIN_COMMITMENT_AGE from contract
-      let minAge: bigint
-      try {
-        minAge = (await readContract(input.publicClient, {
-          address: registrarAddress,
-          abi: FAST_TEST_ETH_REGISTRAR_ABI,
-          functionName: 'MIN_COMMITMENT_AGE',
-        })) as bigint
-        console.log(
-          `📋 [REGISTRATION ACTOR] MIN_COMMITMENT_AGE: ${minAge.toString()} seconds`,
-        )
-      } catch (error) {
-        console.warn(
-          '⚠️ [REGISTRATION ACTOR] Failed to fetch MIN_COMMITMENT_AGE, assuming 0:',
-          error,
-        )
-        minAge = 0n
-      }
-
-      // Check if commitmentAt is recorded (retry with backoff if not)
-      let committedAt: bigint = 0n
-      let attempts = 0
-      const maxAttempts = 5
-
-      while (committedAt === 0n && attempts < maxAttempts) {
-        try {
-          committedAt = (await readContract(input.publicClient, {
-            address: registrarAddress,
-            abi: FAST_TEST_ETH_REGISTRAR_ABI,
-            functionName: 'commitmentAt',
-            args: [input.commitment.commitment],
-          })) as bigint
-
-          if (committedAt === 0n) {
-            attempts++
-            if (attempts < maxAttempts) {
-              console.log(
-                `⏳ [REGISTRATION ACTOR] Commitment timestamp not yet recorded, waiting 3s (attempt ${attempts}/${maxAttempts})...`,
-              )
-              await sleep(3000)
-            }
-          }
-        } catch (error) {
-          console.warn(
-            '⚠️ [REGISTRATION ACTOR] Failed to fetch commitmentAt:',
-            error,
-          )
-          attempts++
-          if (attempts < maxAttempts) {
-            await sleep(3000)
-          }
-        }
-      }
-
-      if (committedAt === 0n) {
-        throw new Error(
-          'Commitment timestamp not recorded after multiple attempts. The commitment transaction may not have been confirmed yet.',
-        )
-      }
-
-      console.log(
-        `✅ [REGISTRATION ACTOR] Commitment recorded at timestamp: ${committedAt.toString()}`,
-      )
-
-      // If MIN_COMMITMENT_AGE is 0, we can proceed immediately
-      if (minAge === 0n) {
-        console.log(
-          '✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE is 0, commitment is ready',
-        )
-        return
-      }
-
-      // Otherwise, wait until MIN_COMMITMENT_AGE has elapsed
-      const latestBlock = await getBlock(input.publicClient)
-      const nowTs = latestBlock.timestamp as bigint
-      const elapsed = nowTs - committedAt
-
-      if (elapsed < minAge) {
-        const waitSeconds = Number(minAge - elapsed)
-        console.log(
-          `⏳ [REGISTRATION ACTOR] Waiting ${waitSeconds}s for MIN_COMMITMENT_AGE before registering...`,
-        )
-        await sleep(waitSeconds * 1000)
-      } else {
-        console.log(
-          `✅ [REGISTRATION ACTOR] MIN_COMMITMENT_AGE requirement satisfied (elapsed: ${elapsed.toString()}s, required: ${minAge.toString()}s)`,
-        )
-      }
-    })(),
-    (error) => {
-      console.error(
-        '❌ [REGISTRATION ACTOR] Commitment validation failed:',
-        error,
-      )
-      return error as Error
-    },
-  )
-}
-
-/**
  * Submit token approval transaction via transaction manager
  * Note: Normalizes token address to lowercase for Rhinestone SDK compatibility
  */
@@ -700,7 +582,7 @@ export function submitApprovalActor(input: {
       const tokenAddress = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
-      console.log(
+      logger.debug(
         `🔧 Token address normalization: ${tokenAddress} -> ${normalizedTokenAddress}`,
       )
 
@@ -771,7 +653,7 @@ export function submitRegistrationActor(input: {
       const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
-      console.log(
+      logger.debug(
         `🔧 Payment token normalization: ${paymentToken} -> ${normalizedPaymentToken}`,
       )
 
@@ -783,7 +665,7 @@ export function submitRegistrationActor(input: {
         args: [normalizedPaymentToken],
       })
 
-      console.log(
+      logger.debug(
         `🔍 Payment token ${normalizedPaymentToken} is supported:`,
         isSupported,
       )
@@ -940,7 +822,7 @@ export function pollTransactionStatusActor(input: {
   return fromPromise(
     new Promise<void>((resolve, reject) => {
       const subscription = txActor.subscribe((snapshot) => {
-        console.log('🔍 [POLL TX STATUS] Transaction state:', {
+        logger.debug('🔍 [POLL TX STATUS] Transaction state:', {
           txId: input.txId,
           state: snapshot.value,
           hasError: !!snapshot.context.error,
@@ -948,13 +830,13 @@ export function pollTransactionStatusActor(input: {
         })
 
         if (snapshot.matches('success' as unknown as never)) {
-          console.log('✅ [POLL TX STATUS] Transaction succeeded')
+          logger.debug('✅ [POLL TX STATUS] Transaction succeeded')
           subscription.unsubscribe()
           resolve()
         }
         // Check if we're in any error state (handles nested states like error.submission, error.reverted, etc.)
         if (typeof snapshot.value === 'object' && 'error' in snapshot.value) {
-          console.error('❌ [POLL TX STATUS] Transaction failed:', {
+          logger.error('❌ [POLL TX STATUS] Transaction failed:', {
             errorState: snapshot.value,
             error: snapshot.context.error,
           })

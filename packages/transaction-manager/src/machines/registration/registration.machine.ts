@@ -1,7 +1,7 @@
+import { logger } from '@ens-apps/utils/logger'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
-import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
   generateCommitmentActor,
@@ -14,7 +14,6 @@ import {
   submitCommitmentActor,
   submitRegistrationActor,
   submitResolverDeploymentActor,
-  validateCommitmentActor,
   verifyRegistrationActor,
 } from './registration.actors'
 
@@ -237,15 +236,6 @@ export const registrationMachine = setup({
         await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
       },
     ),
-    validateCommitment: fromResultAsync(
-      (input: {
-        commitment: CommitmentData
-        publicClient: PublicClient
-        useFastRegistrar: boolean
-      }) => {
-        return validateCommitmentActor(input)
-      },
-    ),
     readMinCommitmentAge: fromResultAsync(
       (input: { publicClient: PublicClient; useFastRegistrar: boolean }) => {
         return readMinCommitmentAgeActor(input)
@@ -280,7 +270,7 @@ export const registrationMachine = setup({
 
   actions: {
     logTransition: ({ context, event }) => {
-      console.log('🔧 [REGISTRATION] State transition:', {
+      logger.debug('🔧 [REGISTRATION] State transition:', {
         event: event?.type,
         name: context.name,
         hasCommitment: !!context.commitment,
@@ -290,37 +280,10 @@ export const registrationMachine = setup({
       })
     },
 
-    recordTransition: ({ context, self, event }) => {
-      try {
-        const state = self.getSnapshot()
-        auditTrail.recordTransition({
-          machineId: 'registration',
-          fromState:
-            state.status === 'active' ? String(state.value) : 'unknown',
-          toState: String(state.value),
-          event: event?.type || 'unknown',
-          context: {
-            name: context.name,
-            duration: context.duration.toString(),
-            resolverTxId: context.resolverTxId,
-            resolverAddress: context.resolverAddress,
-            commitmentTxId: context.commitmentTxId,
-            approvalTxId: context.approvalTxId,
-            registrationTxId: context.registrationTxId,
-          },
-          metadata: {
-            chainId: context.chainId,
-          },
-        })
-      } catch (auditError) {
-        console.warn('Audit service error (non-fatal):', auditError)
-      }
-    },
-
     clearSnapshot: async () => {
       // TODO: Implement via persistence service
       // await persistenceService.clearRegistrationSnapshot()
-      console.log('🗑️ [REGISTRATION] Cleared snapshot')
+      logger.debug('🗑️ [REGISTRATION] Cleared snapshot')
     },
 
     clearRegisterReadyTimestamp: assign({
@@ -342,7 +305,7 @@ export const registrationMachine = setup({
       const totalMs = Date.now() - context.registrationStartedAt
       const totalSeconds = totalMs / 1000
 
-      console.log('✅ [REGISTRATION] START_REGISTRATION elapsed:', {
+      logger.debug('✅ [REGISTRATION] START_REGISTRATION elapsed:', {
         name: context.name,
         signerType: context.signer?.type,
         elapsedMs: totalMs,
@@ -361,7 +324,7 @@ export const registrationMachine = setup({
       const totalMs = Date.now() - context.registrationStartedAt
       const totalSeconds = totalMs / 1000
 
-      console.error('❌ [REGISTRATION] START_REGISTRATION elapsed:', {
+      logger.error('❌ [REGISTRATION] START_REGISTRATION elapsed:', {
         name: context.name,
         signerType: context.signer?.type,
         elapsedMs: totalMs,
@@ -434,7 +397,7 @@ export const registrationMachine = setup({
 
     settingUpRegistration: {
       entry: ({ context }) => {
-        console.log('📝 [REGISTRATION] Setup complete, context populated:', {
+        logger.debug('📝 [REGISTRATION] Setup complete, context populated:', {
           hasPublicClient: !!context.publicClient,
           hasAccountAddress: !!context.accountAddress,
           hasSigner: !!context.signer,
@@ -447,7 +410,7 @@ export const registrationMachine = setup({
     },
 
     deployingResolver: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'deployResolver',
         input: ({ context }) => ({
@@ -483,7 +446,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'deployingResolver' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Resolver deployment submission failed:',
                 event.error,
               )
@@ -497,7 +460,7 @@ export const registrationMachine = setup({
     },
 
     waitingForResolverDeployment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'resolveResolverDeployment',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -516,7 +479,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'deployingResolver' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Resolver deployment failed:',
                 event.error,
               )
@@ -530,11 +493,11 @@ export const registrationMachine = setup({
     },
 
     preparingCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'generateCommitment',
         input: ({ context }) => {
-          console.log('🔍 [REGISTRATION] preparingCommitment invoke input:', {
+          logger.debug('🔍 [REGISTRATION] preparingCommitment invoke input:', {
             hasPublicClient: !!context.publicClient,
             hasAccountAddress: !!context.accountAddress,
             name: context.name,
@@ -567,7 +530,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Commitment preparation failed:',
                 event.error,
               )
@@ -581,7 +544,7 @@ export const registrationMachine = setup({
     },
 
     committingTransaction: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitCommitment',
         input: ({ context }) => ({
@@ -611,7 +574,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Commitment submission failed:',
                 event.error,
               )
@@ -625,7 +588,7 @@ export const registrationMachine = setup({
     },
 
     waitingForCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -641,7 +604,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'committingTransaction' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Commitment transaction failed:',
                 event.error,
               )
@@ -655,7 +618,7 @@ export const registrationMachine = setup({
     },
 
     fetchingCommitmentAge: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'readMinCommitmentAge',
         input: ({ context }) => ({
@@ -705,47 +668,8 @@ export const registrationMachine = setup({
       },
     },
 
-    validatingCommitment: {
-      entry: ['logTransition', 'recordTransition'],
-      invoke: {
-        src: 'validateCommitment',
-        input: ({ context }) => ({
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          commitment: context.commitment!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          publicClient: context.publicClient!,
-          useFastRegistrar: context.useFastRegistrar,
-        }),
-        onDone: [
-          {
-            guard: 'isRhinestoneSigner',
-            target: 'submittingRhinestoneBundle',
-          },
-          { target: 'checkingAllowance' },
-        ],
-        onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'committingTransaction' as const,
-            }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Commitment validation failed:',
-                event.error,
-              )
-            },
-          ],
-        },
-      },
-      on: {
-        CANCEL: 'idle',
-      },
-    },
-
     commitmentCooldown: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
@@ -777,11 +701,7 @@ export const registrationMachine = setup({
     },
 
     submittingRhinestoneBundle: {
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'clearRegisterReadyTimestamp',
-      ],
+      entry: ['logTransition', 'clearRegisterReadyTimestamp'],
       invoke: {
         src: 'submitApprovalAndRegistration',
         input: ({ context }) => ({
@@ -815,7 +735,7 @@ export const registrationMachine = setup({
               error: ({ event }) => event.error as Error,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Approve+register bundle submission failed:',
                 event.error,
               )
@@ -829,7 +749,7 @@ export const registrationMachine = setup({
     },
 
     waitingForRhinestoneBundle: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -842,7 +762,7 @@ export const registrationMachine = setup({
               error: ({ event }) => event.error as Error,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Approve+register bundle failed:',
                 event.error,
               )
@@ -856,7 +776,7 @@ export const registrationMachine = setup({
     },
 
     checkingAllowance: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'readPaymentTokenAllowance',
         input: ({ context }) => ({
@@ -891,7 +811,7 @@ export const registrationMachine = setup({
     },
 
     approvingToken: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({
@@ -919,7 +839,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'approvingToken' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Token approval submission failed:',
                 event.error,
               )
@@ -933,7 +853,7 @@ export const registrationMachine = setup({
     },
 
     waitingForApproval: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -947,7 +867,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'approvingToken' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Token approval transaction failed:',
                 event.error,
               )
@@ -961,7 +881,7 @@ export const registrationMachine = setup({
     },
 
     registeringDomain: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitRegistration',
         input: ({ context }) => ({
@@ -996,7 +916,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Registration submission failed:',
                 event.error,
               )
@@ -1010,7 +930,7 @@ export const registrationMachine = setup({
     },
 
     waitingForRegistration: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1032,7 +952,7 @@ export const registrationMachine = setup({
     },
 
     verifyingRegistration: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'verifyRegistration',
         input: ({ context }) => ({
@@ -1060,7 +980,7 @@ export const registrationMachine = setup({
                 retryTarget: () => 'registeringDomain' as const,
               }),
               ({ context }) => {
-                console.error(
+                logger.error(
                   '❌ [REGISTRATION] Registration not present on-chain after fallback check:',
                   context.error,
                 )
@@ -1075,7 +995,7 @@ export const registrationMachine = setup({
               retryTarget: () => 'registeringDomain' as const,
             }),
             ({ event }) => {
-              console.error(
+              logger.error(
                 '❌ [REGISTRATION] Registration transaction failed:',
                 event.error,
               )
@@ -1091,12 +1011,7 @@ export const registrationMachine = setup({
     success: {
       // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
       // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'logRegistrationDuration',
-        'clearSnapshot',
-      ],
+      entry: ['logTransition', 'logRegistrationDuration', 'clearSnapshot'],
       on: {
         CANCEL: {
           target: 'idle',
@@ -1107,10 +1022,9 @@ export const registrationMachine = setup({
     error: {
       entry: [
         'logTransition',
-        'recordTransition',
         'logRegistrationFailureDuration',
         ({ context }) => {
-          console.error('❌ [REGISTRATION MACHINE] Entered error state:', {
+          logger.error('❌ [REGISTRATION MACHINE] Entered error state:', {
             error: context.error?.message,
             errorName: context.error?.name,
             errorStack: context.error?.stack,

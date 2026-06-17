@@ -1,6 +1,8 @@
+import { logger } from '@ens-apps/utils/logger'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hash, PublicClient, TransactionReceipt } from 'viem'
+import { TransactionReceiptNotFoundError } from 'viem'
 import { assign, fromPromise as fromPromiseXState, setup } from 'xstate'
 import { submitEOATransaction } from '../actors/eoa-transport.actor'
 import { prepareTransaction } from '../actors/prepare-transaction.actor'
@@ -13,7 +15,6 @@ import {
   TransactionTimeoutError,
   TransactionUserRejectedError,
 } from '../errors/transaction.errors'
-import * as auditTrail from '../services/audit-trail.service'
 import type { Signer } from '../types/signer.types'
 import type {
   EOATransactionRequest,
@@ -27,12 +28,13 @@ import type {
  * Base Transaction Machine
  *
  * Generic transaction lifecycle machine that routes to different transport actors
- * based on transaction type:
+ * based on signer type and resolved infrastructure:
  * - EOA: Standard wallet transactions via submitEOATransaction
- * - Rhinestone: Smart account transactions via submitRhinestoneTransaction
+ * - Rhinestone (warp): Intent-based submission via submitWarpTransaction
+ * - Rhinestone (pimlico): ERC-4337 submission via submitRhinestoneTransaction
  *
- * This machine focuses solely on transaction lifecycle (submit → pending → confirm).
- * Account initialization and management is handled externally by AccountProvider.
+ * This machine focuses solely on transaction lifecycle (prepare → submit →
+ * pending → confirm).
  */
 export const transactionMachine = setup({
   types: {
@@ -46,7 +48,6 @@ export const transactionMachine = setup({
       useSmartAccount: boolean
       estimatedCost?: bigint
       hash?: Hash
-      userOpHash?: Hash
       receipt?: TransactionReceipt
       error?: Error
       retryCount: number
@@ -81,9 +82,7 @@ export const transactionMachine = setup({
      * Prepare Transaction Actor
      *
      * Routes to the appropriate preparation logic based on intent.type:
-     * - ens-renewal → prepareENSRenewal
-     * - eth-transfer → prepareETHTransfer
-     * - custom → use provided request
+     * - ens-renewal / eth-transfer / custom
      */
     prepareTransaction: fromResultAsync(
       ({
@@ -96,20 +95,13 @@ export const transactionMachine = setup({
         publicClient: PublicClient
         chainId: number
         useSmartAccount: boolean
-      }) => {
-        console.log('🔧 [TRANSACTION] prepareTransaction actor invoked:', {
-          intentType: intent.type,
-          useSmartAccount,
-          chainId,
-        })
-
-        return prepareTransaction({
+      }) =>
+        prepareTransaction({
           intent,
           publicClient,
           chainId,
           useSmartAccount,
-        })
-      },
+        }),
     ),
 
     /**
@@ -154,99 +146,36 @@ export const transactionMachine = setup({
           )
         }
 
-        const nowMs = (): number =>
-          typeof performance !== 'undefined' &&
-          typeof performance.now === 'function'
-            ? performance.now()
-            : Date.now()
+        // Route to transport actor based on signer type + infrastructure
+        switch (signer.type) {
+          case 'eoa':
+            return submitEOATransaction({ request, signer })
 
-        const resolvedInfrastructure =
-          signer.type === 'rhinestone'
-            ? (options?.infrastructure ??
-              signer.config.defaultInfra ??
-              'pimlico')
-            : undefined
+          case 'rhinestone': {
+            const infra =
+              options?.infrastructure ?? signer.config.defaultInfra ?? 'pimlico'
 
-        const submitStart = nowMs()
-
-        const getSubmitResult = (): ResultAsync<
-          Hash,
-          TransactionSubmissionError | TransactionUserRejectedError
-        > => {
-          console.log('🔧 [TRANSACTION] submitTransaction actor invoked:', {
-            requestType: request.type,
-            signerType: signer.type,
-            infrastructure: resolvedInfrastructure ?? options?.infrastructure,
-          })
-
-          // Route to transport actor based on signer type + infrastructure
-          switch (signer.type) {
-            case 'eoa':
-              return submitEOATransaction({ request, signer })
-
-            case 'rhinestone': {
-              const infra =
-                resolvedInfrastructure ??
-                signer.config.defaultInfra ??
-                'pimlico'
-
-              if (infra === 'warp') {
-                return submitWarpTransaction({ request, signer })
-              }
-              return submitRhinestoneTransaction({
-                request,
-                signer,
-                publicClient,
-              })
+            if (infra === 'warp') {
+              return submitWarpTransaction({ request, signer })
             }
-
-            default:
-              signer satisfies never
-              return errAsync(
-                new TransactionSubmissionError(
-                  request,
-                  new Error(
-                    `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
-                  ),
-                ),
-              )
+            return submitRhinestoneTransaction({
+              request,
+              signer,
+              publicClient,
+            })
           }
+
+          default:
+            signer satisfies never
+            return errAsync(
+              new TransactionSubmissionError(
+                request,
+                new Error(
+                  `Unknown signer type: ${(signer as { type?: string }).type || 'unknown'}`,
+                ),
+              ),
+            )
         }
-
-        const result = getSubmitResult()
-
-        return result
-          .map((hash) => {
-            const elapsedMs = nowMs() - submitStart
-            console.log(
-              '⏱️ [TRANSACTION] submitTransaction latency (ms):',
-              elapsedMs.toFixed(1),
-              {
-                requestType: request.type,
-                signerType: signer.type,
-                infrastructure:
-                  resolvedInfrastructure ?? options?.infrastructure,
-                hash,
-              },
-            )
-            return hash
-          })
-          .mapErr((error) => {
-            const elapsedMs = nowMs() - submitStart
-            console.error(
-              '⏱️ [TRANSACTION] submitTransaction failed after (ms):',
-              elapsedMs.toFixed(1),
-              {
-                requestType: request.type,
-                signerType: signer.type,
-                infrastructure:
-                  resolvedInfrastructure ?? options?.infrastructure,
-                errorName: (error as Error).name,
-                errorMessage: (error as Error).message,
-              },
-            )
-            return error
-          })
       },
     ),
 
@@ -265,12 +194,6 @@ export const transactionMachine = setup({
       }): ResultAsync<TransactionReceipt, TransactionTimeoutError> => {
         const confirmations = options?.confirmations || 1
         const timeout = options?.timeout || 120000
-
-        console.log('⏳ [TRANSACTION] Waiting for receipt:', {
-          hash,
-          confirmations,
-          timeout,
-        })
 
         return fromPromise(
           publicClient.waitForTransactionReceipt({
@@ -327,7 +250,16 @@ export const transactionMachine = setup({
                 result: hash,
                 receipt,
               }))
-              .catch(() => ({ wouldSucceed: false as const })),
+              .catch((error: unknown) => {
+                // A missing receipt just means the tx isn't mined yet — not
+                // confirmed, keep polling. Any other error is real and must
+                // propagate (wrapped as EthCallFallbackError) rather than be
+                // masked as a generic "would not succeed".
+                if (error instanceof TransactionReceiptNotFoundError) {
+                  return { wouldSucceed: false as const }
+                }
+                throw error
+              }),
             (error) => new EthCallFallbackError(request, error),
           )
         }
@@ -377,82 +309,10 @@ export const transactionMachine = setup({
 
     isReverted: ({ context }) => context.receipt?.status === 'reverted',
   },
-  actions: {
-    recordTransition: ({ context, self, event }) => {
-      try {
-        const state = self.getSnapshot()
-        auditTrail.recordTransition({
-          machineId: 'transaction',
-          fromState:
-            state.status === 'active' ? String(state.value) : 'unknown',
-          toState: String(state.value),
-          event: event?.type || 'unknown',
-          context: {
-            hash: context.hash,
-            request: context.request,
-            retryCount: context.retryCount,
-          },
-          metadata: {
-            chainId: context.request?.chainId,
-            transactionHash: context.hash,
-          },
-        })
-      } catch (auditError) {
-        console.warn('Audit service error (non-fatal):', auditError)
-      }
-    },
-
-    logError: (
-      { context },
-      params: { error?: Error | string } | Error | string,
-    ) => {
-      const error =
-        params && typeof params === 'object' && 'error' in params
-          ? params.error
-          : params || 'Unknown error'
-      try {
-        auditTrail.addAuditEntry('error', 'Transaction error occurred', {
-          error,
-          hash: context.hash,
-          request: context.request,
-        })
-      } catch (auditError) {
-        console.warn('Audit service error (non-fatal):', auditError)
-      }
-      console.error('❌ [TRANSACTION] Error:', error)
-    },
-
-    // biome-ignore lint/suspicious/noExplicitAny: XState action params require `any` for type inference compatibility
-    logCritical: ({ context }, params: any) => {
-      const error = params?.error || params || 'Unknown critical error'
-      try {
-        auditTrail.addAuditEntry('critical', 'Critical transaction failure', {
-          error,
-          hash: context.hash,
-          request: context.request,
-          retryCount: context.retryCount,
-        })
-      } catch (auditError) {
-        console.warn('Audit service error (non-fatal):', auditError)
-      }
-      console.error('🔥 [TRANSACTION] CRITICAL:', error)
-    },
-  },
 }).createMachine({
   id: 'transaction',
   initial: 'idle',
   context: ({ input }) => {
-    console.log('🏗️ [TRANSACTION] Initializing context:', {
-      hasIntent: !!input.intent,
-      intentType: input.intent?.type,
-      hasRequest: !!input.request,
-      requestType: input.request?.type,
-      hasPublicClient: !!input.publicClient,
-      signerType: input.signer?.type,
-      chainId: input.chainId,
-      useSmartAccount: input.useSmartAccount,
-    })
-
     // Extract request from custom intent if applicable
     const request =
       input.request ||
@@ -497,14 +357,6 @@ export const transactionMachine = setup({
   },
   states: {
     idle: {
-      entry: ({ context }) => {
-        console.log('🔵 [TRANSACTION] Entered idle state:', {
-          hasIntent: !!context.intent,
-          intentType: context.intent?.type,
-          hasRequest: !!context.request,
-          requestType: context.request?.type,
-        })
-      },
       always: [
         {
           // If we have an intent, prepare the transaction first
@@ -527,7 +379,6 @@ export const transactionMachine = setup({
             retryCount: 0,
             fallbackChecks: 0,
             hash: undefined,
-            userOpHash: undefined,
             receipt: undefined,
             error: undefined,
             modal: ({ event, context }) => ({
@@ -550,16 +401,6 @@ export const transactionMachine = setup({
     },
 
     preparing: {
-      entry: [
-        'recordTransition',
-        ({ context }) => {
-          console.log('🔧 [TRANSACTION] Preparing transaction:', {
-            intentType: context.intent?.type,
-            chainId: context.chainId,
-            useSmartAccount: context.useSmartAccount,
-          })
-        },
-      ],
       invoke: {
         src: 'prepareTransaction',
         input: ({ context }) => ({
@@ -572,19 +413,10 @@ export const transactionMachine = setup({
         }),
         onDone: {
           target: 'submitting',
-          actions: [
-            assign({
-              request: ({ event }) => event.output.request,
-              estimatedCost: ({ event }) => event.output.estimatedCost,
-            }),
-            'recordTransition',
-            ({ event }) => {
-              console.log('✅ [TRANSACTION] Transaction prepared:', {
-                requestType: event.output.request.type,
-                estimatedCost: event.output.estimatedCost.toString(),
-              })
-            },
-          ],
+          actions: assign({
+            request: ({ event }) => event.output.request,
+            estimatedCost: ({ event }) => event.output.estimatedCost,
+          }),
         },
         onError: {
           target: 'error.preparation',
@@ -592,8 +424,8 @@ export const transactionMachine = setup({
             assign({
               error: ({ event }) => event.error as Error,
             }),
-            'logCritical',
-            'recordTransition',
+            ({ event }) =>
+              logger.error('Transaction preparation failed', event.error),
           ],
         },
       },
@@ -603,15 +435,6 @@ export const transactionMachine = setup({
     },
 
     submitting: {
-      entry: [
-        'recordTransition',
-        ({ context }) => {
-          console.log('📤 [TRANSACTION] Submitting transaction:', {
-            requestType: context.request?.type,
-            signerType: context.signer?.type,
-          })
-        },
-      ],
       invoke: {
         src: 'submitTransaction',
         input: ({ context }) => ({
@@ -622,17 +445,9 @@ export const transactionMachine = setup({
         }),
         onDone: {
           target: 'pending',
-          actions: [
-            assign({
-              hash: ({ event }) => event.output,
-            }),
-            'recordTransition',
-            ({ event }) => {
-              console.log('✅ [TRANSACTION] Transaction submitted:', {
-                hash: event.output,
-              })
-            },
-          ],
+          actions: assign({
+            hash: ({ event }) => event.output,
+          }),
         },
         onError: [
           {
@@ -660,14 +475,10 @@ export const transactionMachine = setup({
               return context.retryCount < (context.options.retryCount || 3)
             },
             target: 'retrying',
-            actions: [
-              assign({
-                error: ({ event }) => event.error as Error,
-                retryCount: ({ context }) => context.retryCount + 1,
-              }),
-              'logCritical',
-              'recordTransition',
-            ],
+            actions: assign({
+              error: ({ event }) => event.error as Error,
+              retryCount: ({ context }) => context.retryCount + 1,
+            }),
           },
           {
             target: 'error.submission',
@@ -675,8 +486,8 @@ export const transactionMachine = setup({
               assign({
                 error: ({ event }) => event.error as Error,
               }),
-              'logCritical',
-              'recordTransition',
+              ({ event }) =>
+                logger.error('Transaction submission failed', event.error),
             ],
           },
         ],
@@ -684,14 +495,6 @@ export const transactionMachine = setup({
     },
 
     pending: {
-      entry: [
-        'recordTransition',
-        ({ context }) => {
-          console.log('⏳ [TRANSACTION] Transaction pending:', {
-            hash: context.hash,
-          })
-        },
-      ],
       invoke: {
         src: 'waitForReceipt',
         input: ({ context }) => ({
@@ -702,23 +505,17 @@ export const transactionMachine = setup({
         }),
         onDone: {
           target: 'confirming',
-          actions: [
-            assign({
-              receipt: ({ event }) => event.output,
-            }),
-            'recordTransition',
-          ],
+          actions: assign({
+            receipt: ({ event }) => event.output,
+          }),
         },
         onError: [
           {
             guard: 'shouldCheckFallback',
             target: 'checkingFallback',
-            actions: [
-              assign({
-                fallbackChecks: ({ context }) => context.fallbackChecks + 1,
-              }),
-              'recordTransition',
-            ],
+            actions: assign({
+              fallbackChecks: ({ context }) => context.fallbackChecks + 1,
+            }),
           },
           {
             target: 'error.timeout',
@@ -726,8 +523,7 @@ export const transactionMachine = setup({
               assign({
                 error: ({ event }) => event.error as Error,
               }),
-              'logCritical',
-              'recordTransition',
+              ({ event }) => logger.error('Transaction timed out', event.error),
             ],
           },
         ],
@@ -735,18 +531,11 @@ export const transactionMachine = setup({
       on: {
         FORCE_SUCCESS: {
           target: 'success',
-          actions: 'recordTransition',
         },
       },
     },
 
     checkingFallback: {
-      entry: [
-        'recordTransition',
-        () => {
-          console.log('🔍 [TRANSACTION] Checking with eth_call fallback')
-        },
-      ],
       invoke: {
         src: 'checkWithEthCall',
         input: ({ context }) => ({
@@ -758,48 +547,29 @@ export const transactionMachine = setup({
           {
             guard: ({ event }) => event.output.wouldSucceed,
             target: 'success',
-            actions: [
-              assign({
-                receipt: ({ event }) => event.output.receipt,
-              }),
-              ({ context, event }) => {
-                try {
-                  const message = event.output.receipt
-                    ? 'Transaction confirmed via on-chain receipt (fallback)'
-                    : 'Transaction succeeded via eth_call fallback'
-                  auditTrail.addAuditEntry('warning', message, {
-                    hash: context.hash,
-                    request: context.request,
-                  })
-                } catch (auditError) {
-                  console.warn('Audit service error (non-fatal):', auditError)
-                }
-              },
-              'recordTransition',
-            ],
+            actions: assign({
+              receipt: ({ event }) => event.output.receipt,
+            }),
           },
           {
             target: 'pending',
-            actions: 'recordTransition',
           },
         ],
         onError: {
+          // Real fallback-check failures (network, RPC) shouldn't fail the
+          // transaction — return to pending and retry — but they must be
+          // visible rather than silently swallowed.
           target: 'pending',
-          actions: 'recordTransition',
+          actions: ({ event }) =>
+            logger.warn(
+              'eth_call fallback check failed; retrying',
+              event.error,
+            ),
         },
       },
     },
 
     confirming: {
-      entry: [
-        'recordTransition',
-        ({ context }) => {
-          console.log('✔️ [TRANSACTION] Confirming transaction:', {
-            hash: context.hash,
-            status: context.receipt?.status,
-          })
-        },
-      ],
       always: [
         {
           guard: 'isReverted',
@@ -811,64 +581,32 @@ export const transactionMachine = setup({
                   `Transaction ${context.hash} reverted`,
                 ),
             }),
-            'logCritical',
-            'recordTransition',
+            ({ context }) =>
+              logger.error('Transaction reverted', { hash: context.hash }),
           ],
         },
         {
           target: 'success',
-          actions: 'recordTransition',
         },
       ],
     },
 
     retrying: {
-      entry: [
-        'recordTransition',
-        ({ context }) => {
-          console.log(
-            `🔄 [TRANSACTION] Retrying transaction (attempt ${context.retryCount})`,
-          )
-        },
-      ],
       invoke: {
         src: 'wait',
         input: ({ context }) => context.options.retryDelay || 2000,
         onDone: {
           target: 'submitting',
-          actions: 'recordTransition',
         },
       },
       on: {
         CANCEL: {
           target: 'error.cancelled',
-          actions: 'recordTransition',
         },
       },
     },
 
     success: {
-      entry: [
-        'recordTransition',
-        ({ context }) => {
-          try {
-            auditTrail.addAuditEntry(
-              'info',
-              'Transaction completed successfully',
-              {
-                hash: context.hash,
-                receipt: context.receipt,
-                gasUsed: context.receipt?.gasUsed?.toString(),
-              },
-            )
-          } catch (auditError) {
-            console.warn('Audit service error (non-fatal):', auditError)
-          }
-          console.log('✅ [TRANSACTION] Transaction successful:', {
-            hash: context.hash,
-          })
-        },
-      ],
       on: {
         EXECUTE: {
           target: 'submitting',
@@ -878,7 +616,6 @@ export const transactionMachine = setup({
             retryCount: 0,
             fallbackChecks: 0,
             hash: undefined,
-            userOpHash: undefined,
             receipt: undefined,
             error: undefined,
           }),
@@ -889,38 +626,21 @@ export const transactionMachine = setup({
     error: {
       initial: 'unknown',
       states: {
-        preparation: {
-          entry: 'recordTransition',
-        },
-        validation: {
-          entry: 'recordTransition',
-        },
-        submission: {
-          entry: 'recordTransition',
-        },
-        timeout: {
-          entry: 'recordTransition',
-        },
-        reverted: {
-          entry: 'recordTransition',
-        },
-        cancelled: {
-          entry: 'recordTransition',
-        },
-        unknown: {
-          entry: 'recordTransition',
-        },
+        preparation: {},
+        validation: {},
+        submission: {},
+        timeout: {},
+        reverted: {},
+        cancelled: {},
+        unknown: {},
       },
       on: {
         RETRY: {
           target: 'submitting',
-          actions: [
-            assign({
-              retryCount: ({ context }) => context.retryCount + 1,
-              error: undefined,
-            }),
-            'recordTransition',
-          ],
+          actions: assign({
+            retryCount: ({ context }) => context.retryCount + 1,
+            error: undefined,
+          }),
         },
         EXECUTE: {
           target: 'submitting',
@@ -930,7 +650,6 @@ export const transactionMachine = setup({
             retryCount: 0,
             fallbackChecks: 0,
             hash: undefined,
-            userOpHash: undefined,
             receipt: undefined,
             error: undefined,
           }),

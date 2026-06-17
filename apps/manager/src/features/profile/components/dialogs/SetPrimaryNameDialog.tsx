@@ -1,9 +1,7 @@
-import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -30,12 +28,11 @@ import {
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
+import { useSetPrimaryName } from '../../hooks/useSetPrimaryName'
 import { getProfileEthAddressSnapshot } from '../../service/profileEthAddress'
 import { profileRecordsQuery } from '../../service/profileRecords'
 import {
   getEthAddressFromRecords,
-  handlePrimaryNameCancel,
-  handleSetPrimaryName,
   hasMatchingEthAddress,
 } from '../ProfileEdit.handlers'
 import { saveRecords } from '../ProfileEdit.transactions'
@@ -84,25 +81,18 @@ export const SetPrimaryNameDialog = ({
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const chainId = useChainId()
 
-  const primaryNameActor = useActorRef(primaryNameMachine, {
-    input: { chainId },
-  })
+  const {
+    submit: submitPrimaryName,
+    isSubmitting,
+    isSuccess,
+    isError,
+    error: primaryNameError,
+    txHash,
+    reset: resetPrimaryName,
+  } = useSetPrimaryName()
 
-  const primaryNameState = useSelector(primaryNameActor, (state) => state)
-
-  const txHash = primaryNameState.context.txHash
-  const isSubmitting =
-    primaryNameState.matches('submittingUpdate') ||
-    primaryNameState.matches('waitingForUpdate') ||
-    primaryNameState.matches('submittingReverse') ||
-    primaryNameState.matches('waitingForReverse')
-  const isSuccess = primaryNameState.matches('success')
-  const isError = primaryNameState.matches('error')
   const machineErrorMessage =
-    (isError &&
-      primaryNameState.context.error &&
-      primaryNameState.context.error.message) ||
-    (isError && t`Failed to set primary name`) ||
+    (isError && (primaryNameError?.message || t`Failed to set primary name`)) ||
     undefined
 
   const { data: records, isLoading: isLoadingRecords } = useQuery({
@@ -181,19 +171,16 @@ export const SetPrimaryNameDialog = ({
       }
     }
 
-    handleSetPrimaryName(
-      { name, owner },
-      {
-        account,
-        primaryNameActor,
-        publicClient: publicClient as PublicClient,
-      },
-    )
+    try {
+      await submitPrimaryName({ name, owner })
+    } catch {
+      // Error surfaced via isError / machineErrorMessage.
+    }
   }
 
   const handleCancel = () => {
     setOpen(false)
-    handlePrimaryNameCancel(primaryNameActor)
+    resetPrimaryName()
   }
 
   const triggerButton = (

@@ -1,16 +1,15 @@
-import type { PublicClient } from 'viem'
+import { logger } from '@ens-apps/utils/logger'
+import type { Hash, PublicClient } from 'viem'
 import { type ActorRefFrom, createActor } from 'xstate'
 import {
+  archiveTransaction,
   clearAllTransactions,
   type PersistedTransaction,
   removeTransaction,
   saveTransaction,
 } from '../helpers/transaction-persistence'
 import { transactionMachine } from '../machines/transaction.machine'
-import {
-  createRunTelemetryService,
-  estimateTelemetryBytes,
-} from '../services/run-telemetry.service'
+import { createRunTelemetryService } from '../services/run-telemetry.service'
 import type {
   FailedRunPayloadV2,
   RunTelemetryEventSubscriber,
@@ -28,6 +27,65 @@ import type {
 type TransactionChangeListener = (
   transactions: Map<string, ActorRefFrom<typeof transactionMachine>>,
 ) => void
+
+/**
+ * A transaction that has reached a terminal state, emitted to
+ * {@link TransactionManager.onTransactionArchived} subscribers. This is the
+ * seam through which an app reports transaction history to a backend (the
+ * core package stays transport- and app-agnostic).
+ */
+export interface ArchivedTransaction {
+  txId: string
+  chainId?: number
+  hash?: Hash
+  status: TransactionRunStatus
+  /** Caller-supplied operation kind (e.g. 'set-resolver'); see TransactionOptions.operation */
+  operation?: string
+  /** ENS name involved, for display */
+  name?: string
+  request?: TransactionRequest
+  error?: string
+  timestamp: number
+}
+
+type TransactionArchivedListener = (transaction: ArchivedTransaction) => void
+
+/**
+ * Build the {@link ArchivedTransaction} payload emitted when a transaction
+ * reaches a terminal state. Pure (the timestamp is supplied) so the
+ * name/request fallback logic is unit-testable in isolation.
+ *
+ * - `name` prefers the caller-supplied option, falling back to the intent name
+ *   for ENS renewals.
+ * - `request` prefers the prepared request, falling back to a custom intent's
+ *   embedded request.
+ */
+export function buildArchivedTransaction(input: {
+  txId: string
+  chainId?: number
+  status: TransactionRunStatus
+  hash?: Hash
+  error?: string
+  operation?: string
+  name?: string
+  intent?: TransactionIntent
+  request?: TransactionRequest
+  timestamp: number
+}): ArchivedTransaction {
+  const { intent, name, request } = input
+  return {
+    txId: input.txId,
+    chainId: input.chainId,
+    hash: input.hash,
+    status: input.status,
+    operation: input.operation,
+    name: name ?? (intent?.type === 'ens-renewal' ? intent.name : undefined),
+    request:
+      request || (intent?.type === 'custom' ? intent.request : undefined),
+    error: input.error,
+    timestamp: input.timestamp,
+  }
+}
 
 function getRootState(value: unknown): string {
   if (typeof value === 'string') return value
@@ -54,18 +112,15 @@ function isCancelledState(value: unknown): boolean {
  * - PublicClients are stored per-chain (safe to share - no user data)
  * - Supports fallback to per-transaction publicClient if not pre-configured
  * - Safe to use in Next.js, Remix, etc.
- * - No data leaks between server requests
  *
  * Benefits:
  * - No prop drilling - import and call directly
  * - Works outside React (Node.js, CLI, tests)
  * - Single source of truth for all transactions
  * - Supports multiple chains simultaneously
- * - Optional publicClient pre-configuration (less verbose)
  * - Still supports React integration via change listeners
  */
 class TransactionManager {
-  private instanceId = `tm-${Math.random().toString(36).slice(2, 9)}`
   private transactions = new Map<
     string,
     ActorRefFrom<typeof transactionMachine>
@@ -73,35 +128,23 @@ class TransactionManager {
   private listeners = new Set<TransactionChangeListener>()
   private telemetryListeners = new Set<RunTelemetrySubscriber>()
   private telemetryEventListeners = new Set<RunTelemetryEventSubscriber>()
+  private archivedListeners = new Set<TransactionArchivedListener>()
   private publicClients = new Map<number, PublicClient>() // chainId -> PublicClient
   private completedTelemetry = new Set<string>()
   private runTelemetry = createRunTelemetryService()
 
-  constructor() {
-    console.log(`🔧 [TRANSACTION MANAGER] Instance created: ${this.instanceId}`)
-  }
-
   /**
    * Set a public client for a specific chain
    *
-   * This is optional - if set, you don't need to pass publicClient in startTransaction options.
-   * Useful for reducing verbosity in single-chain or multi-chain apps.
-   *
-   * @param chainId - The chain ID (e.g., 1 for mainnet, 11155111 for sepolia)
-   * @param publicClient - The public client for this chain
+   * Optional - if set, you don't need to pass publicClient in startTransaction
+   * options. Useful for reducing verbosity in single-chain or multi-chain apps.
    */
   setPublicClient(chainId: number, publicClient: PublicClient): void {
     this.publicClients.set(chainId, publicClient)
-    console.log(
-      `✅ [TRANSACTION MANAGER ${this.instanceId}] Public client set for chain ${chainId}`,
-    )
   }
 
   /**
    * Get a stored public client for a chain
-   *
-   * @param chainId - The chain ID
-   * @returns The public client if set, undefined otherwise
    */
   getPublicClient(chainId: number): PublicClient | undefined {
     return this.publicClients.get(chainId)
@@ -115,9 +158,6 @@ class TransactionManager {
    * 2. Pre-configured via setPublicClient() - determined by intent/request chainId or options.chainId
    * 3. If neither, throws an error
    *
-   * @param intentOrRequest - Transaction intent (high-level) or unsigned transaction request (pre-prepared)
-   * @param signer - Signer capability (EOA, Rhinestone, etc.)
-   * @param options - Transaction options (modal, description, optional publicClient, optional chainId, optional useSmartAccount)
    * @returns Transaction ID
    */
   startTransaction(
@@ -158,26 +198,12 @@ class TransactionManager {
         request?.chainId ||
         // biome-ignore lint/suspicious/noExplicitAny: runtime duck-typing to extract chainId from intent variants
         (intent as any)?.chainId
-      console.log(
-        `🔍 [TRANSACTION MANAGER ${this.instanceId}] Resolving publicClient for chainId: ${resolvedChainId}`,
-      )
-      console.log(
-        `🔍 [TRANSACTION MANAGER ${this.instanceId}] Stored publicClients:`,
-        Array.from(this.publicClients.keys()),
-      )
       if (resolvedChainId) {
         publicClient = this.publicClients.get(resolvedChainId)
-        console.log(
-          `🔍 [TRANSACTION MANAGER ${this.instanceId}] Found publicClient:`,
-          !!publicClient,
-        )
       }
     }
 
     if (!publicClient) {
-      console.error(
-        `❌ [TRANSACTION MANAGER ${this.instanceId}] No publicClient available`,
-      )
       throw new Error(
         'publicClient is required. Either pass it in options or pre-configure it with setPublicClient(chainId, client)',
       )
@@ -186,16 +212,6 @@ class TransactionManager {
     const txId =
       transactionOptions.id ||
       `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-
-    console.log('🚀 [TRANSACTION MANAGER] Starting transaction:', {
-      id: txId,
-      isIntent,
-      intentType: intent?.type,
-      requestType: request?.type,
-      signerType: signer.type,
-      chainId,
-      useSmartAccount,
-    })
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
@@ -223,9 +239,7 @@ class TransactionManager {
 
     actor.start()
 
-    console.log('✅ [TRANSACTION MANAGER] Actor started:', txId)
-
-    // Subscribe to actor state changes for persistence
+    // Subscribe to actor state changes for persistence + telemetry
     actor.subscribe((snapshot) => {
       const state = getRootState(snapshot.value)
       const ctx = snapshot.context
@@ -239,9 +253,6 @@ class TransactionManager {
         )
       }
 
-      console.log(`📊 [TRANSACTION MANAGER] Transaction ${txId} state:`, state)
-
-      // Persist transaction state
       const persisted: PersistedTransaction = {
         id: txId,
         hash: ctx.hash,
@@ -254,41 +265,51 @@ class TransactionManager {
         updatedAt: Date.now(),
       }
 
-      // Remove from IndexedDB when complete
-      if (state === 'success' || state === 'error') {
-        console.log(
-          `✅ [TRANSACTION MANAGER] Removing completed transaction ${txId}`,
-        )
-        removeTransaction(txId).catch((err) =>
-          console.error(
-            `❌ [TRANSACTION MANAGER] Failed to remove transaction ${txId}:`,
-            err,
-          ),
-        )
-      } else {
+      const isTerminal = state === 'success' || state === 'error'
+
+      if (!isTerminal) {
+        // Keep the in-flight record in the active store.
         saveTransaction(txId, persisted).catch((err) =>
-          console.error(
-            `❌ [TRANSACTION MANAGER] Failed to save transaction ${txId}:`,
-            err,
-          ),
+          logger.error(`Failed to save transaction ${txId}`, err),
         )
+        return
       }
 
-      if (
-        (state === 'success' || state === 'error') &&
-        !this.completedTelemetry.has(txId)
-      ) {
-        this.completedTelemetry.add(txId)
-        const terminalStatus: TransactionRunStatus =
-          state === 'success'
-            ? 'success'
-            : isCancelledState(snapshot.value)
-              ? 'cancelled'
-              : 'error'
-        const payload = this.runTelemetry.completeRun(txId, terminalStatus)
-        if (payload) {
-          this.notifyTelemetryListeners(payload)
-        }
+      // Terminal — run the completion side effects exactly once.
+      if (this.completedTelemetry.has(txId)) return
+      this.completedTelemetry.add(txId)
+
+      const status: TransactionRunStatus =
+        state === 'success'
+          ? 'success'
+          : isCancelledState(snapshot.value)
+            ? 'cancelled'
+            : 'error'
+
+      // Move the record from the active store to the history store.
+      archiveTransaction(persisted).catch((err) =>
+        logger.error(`Failed to archive transaction ${txId}`, err),
+      )
+
+      // Report the terminal transaction (apps wire this to a backend).
+      this.notifyTransactionArchived(
+        buildArchivedTransaction({
+          txId,
+          chainId,
+          status,
+          hash: ctx.hash,
+          error: ctx.error?.message,
+          operation: transactionOptions.operation,
+          name: transactionOptions.name,
+          intent,
+          request,
+          timestamp: Date.now(),
+        }),
+      )
+
+      const payload = this.runTelemetry.completeRun(txId, status)
+      if (payload) {
+        this.notifyTelemetryListeners(payload)
       }
     })
 
@@ -303,8 +324,6 @@ class TransactionManager {
    * Cancel a transaction
    */
   cancelTransaction(id: string): void {
-    console.log(`🛑 [TRANSACTION MANAGER] Cancelling transaction ${id}`)
-
     const actor = this.transactions.get(id)
     if (actor) {
       actor.send({ type: 'CANCEL' })
@@ -314,12 +333,9 @@ class TransactionManager {
     this.transactions.delete(id)
     this.notifyListeners()
 
-    // Remove from IndexedDB
+    // Remove from persistence
     removeTransaction(id).catch((err) =>
-      console.error(
-        `❌ [TRANSACTION MANAGER] Failed to remove cancelled transaction ${id}:`,
-        err,
-      ),
+      logger.error(`Failed to remove cancelled transaction ${id}`, err),
     )
   }
 
@@ -342,13 +358,27 @@ class TransactionManager {
   /**
    * Subscribe to transaction changes (for React integration)
    *
-   * @param listener - Callback fired when transactions change
    * @returns Unsubscribe function
    */
   onTransactionsChange(listener: TransactionChangeListener): () => void {
     this.listeners.add(listener)
     return () => {
       this.listeners.delete(listener)
+    }
+  }
+
+  /**
+   * Subscribe to terminal transactions as they are archived.
+   *
+   * This is the seam an app uses to persist transaction history to a backend
+   * (e.g. a user's account), keeping the core package backend-agnostic.
+   *
+   * @returns Unsubscribe function
+   */
+  onTransactionArchived(listener: TransactionArchivedListener): () => void {
+    this.archivedListeners.add(listener)
+    return () => {
+      this.archivedListeners.delete(listener)
     }
   }
 
@@ -376,15 +406,22 @@ class TransactionManager {
     })
   }
 
+  private notifyTransactionArchived(transaction: ArchivedTransaction): void {
+    this.archivedListeners.forEach((listener) => {
+      try {
+        listener(transaction)
+      } catch (error) {
+        logger.error('Transaction archived listener crashed', error)
+      }
+    })
+  }
+
   private notifyTelemetryListeners(payload: FailedRunPayloadV2): void {
     this.telemetryListeners.forEach((listener) => {
       try {
         listener(payload)
       } catch (error) {
-        console.error(
-          `❌ [TRANSACTION MANAGER ${this.instanceId}] Failed run telemetry listener crashed:`,
-          error,
-        )
+        logger.error('Failed run telemetry listener crashed', error)
       }
     })
   }
@@ -410,10 +447,7 @@ class TransactionManager {
           event,
         })
       } catch (error) {
-        console.error(
-          `❌ [TRANSACTION MANAGER ${this.instanceId}] Telemetry event listener crashed:`,
-          error,
-        )
+        logger.error('Telemetry event listener crashed', error)
       }
     })
   }
@@ -432,18 +466,10 @@ class TransactionManager {
   }
 
   /**
-   * Cancel and clear all active transactions
+   * Cancel and clear all active transactions and persistence
    */
   async clearAllAndPersistence(): Promise<void> {
-    console.log(
-      `🧹 [TRANSACTION MANAGER ${this.instanceId}] Clearing all transactions and persistence`,
-    )
-
-    this.transactions.forEach((actor, id) => {
-      console.log(
-        `🛑 [TRANSACTION MANAGER ${this.instanceId}] Stopping transaction ${id}`,
-      )
-
+    this.transactions.forEach((actor) => {
       actor.send({ type: 'CANCEL' })
       actor.stop()
     })
@@ -455,18 +481,11 @@ class TransactionManager {
 
     try {
       await clearAllTransactions()
-      console.log(
-        `✅ [TRANSACTION MANAGER ${this.instanceId}] Cleared all persisted transactions`,
-      )
     } catch (err) {
-      console.error(
-        `❌ [TRANSACTION MANAGER ${this.instanceId}] Failed to clear persisted transactions:`,
-        err,
-      )
+      logger.error('Failed to clear persisted transactions', err)
     }
   }
 }
 
 // Export singleton instance
 export const transactionManager = new TransactionManager()
-export { estimateTelemetryBytes }

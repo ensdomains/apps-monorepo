@@ -2,7 +2,6 @@ import { useWallet } from '@getpara/react-sdk-lite'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import type { Address } from 'viem'
 import { LinkButton } from '@/components/ui/button'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -63,7 +62,7 @@ const useOwnerRedirect = (name: string, isProfileEmpty: boolean) => {
 
   return {
     isOwner,
-    owner: ownerData?.owner as Address | undefined,
+    owner: ownerData?.owner,
     shouldHide: (isOwner || isOwnerPending) && isProfileEmpty,
   }
 }

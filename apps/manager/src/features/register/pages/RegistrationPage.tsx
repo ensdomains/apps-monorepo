@@ -56,7 +56,6 @@ function mapMachineStateToStep(
     case 'committingTransaction':
     case 'waitingForCommitment':
     case 'commitmentCooldown':
-    case 'validatingCommitment':
       return RegistrationStep.COMMITTING
     case 'approvingToken':
     case 'waitingForApproval':

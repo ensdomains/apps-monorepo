@@ -12,7 +12,6 @@ export const REGISTRATION_STAGE_PROGRESS = {
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,
   commitmentCooldown: 44,
-  validatingCommitment: 46,
   checkingAllowance: 50,
   approvingToken: 54,
   waitingForApproval: 62,

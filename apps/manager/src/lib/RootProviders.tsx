@@ -18,6 +18,7 @@ import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { ParaConnectionCookieSync } from './ParaConnectionCookieSync'
 import { getParaClient, setParaConnectionCookie } from './para'
+import { TransactionHistoryReporter } from './transaction-history/TransactionHistoryReporter'
 import { sepoliaWithEns } from './wagmi'
 
 const onWalletChange = () => {
@@ -130,6 +131,7 @@ export const RootProviders = ({ children }: { children: React.ReactNode }) => {
           }}
         >
           <ParaConnectionCookieSync />
+          <TransactionHistoryReporter />
           <PHProvider>
             <SmartAccountContextProvider>
               {children}

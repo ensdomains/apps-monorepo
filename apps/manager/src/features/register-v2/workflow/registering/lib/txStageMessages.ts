@@ -74,10 +74,6 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Waiting for commitment cooldown`,
       stageDescription: msg`The registrar requires a short wait between commit and register`,
     }))
-    .with({ stage: 'validatingCommitment' }, () => ({
-      stageLabel: msg`Validating commitment`,
-      stageDescription: msg`Validating the commitment`,
-    }))
     .with({ stage: 'checkingAllowance' }, () => ({
       stageLabel: msg`Checking token allowance`,
       stageDescription: msg`Checking whether an approval transaction is needed`,

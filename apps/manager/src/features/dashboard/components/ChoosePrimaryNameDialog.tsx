@@ -1,10 +1,8 @@
 import { Domain_OrderBy, OrderDirection } from '@ens-apps/indexer'
-import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useWallet } from '@getpara/react-sdk-lite'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -25,13 +23,10 @@ import {
 } from '@/components/ui/dialog'
 import {
   getEthAddressFromRecords,
-  handlePrimaryNameCancel,
-  handleSetPrimaryName,
   hasMatchingEthAddress,
-  type PrimaryNameOptions,
-  type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
+import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import {
   type AvatarLookupEntry,
   namesAvatarsQuery,
@@ -49,6 +44,33 @@ interface ChoosePrimaryNameDialogProps {
   readonly children?: React.ReactNode
 }
 
+/**
+ * Runs the success side-effects of a primary-name update once it completes:
+ * toast, invalidate the reverse-name query, close the dialog, notify the
+ * parent, and reset the mutation so a later open starts clean.
+ */
+const usePrimaryNameSuccessEffect = (params: {
+  isSuccess: boolean
+  onUpdated?: () => void
+  setOpen: (open: boolean) => void
+  queryClient: ReturnType<typeof useQueryClient>
+  reset: () => void
+}) => {
+  const { t } = useLingui()
+  const { isSuccess, onUpdated, setOpen, queryClient, reset } = params
+
+  useEffect(() => {
+    if (!isSuccess) return
+    toast.success(t`Primary name set successfully`)
+    queryClient.invalidateQueries({
+      queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+    })
+    setOpen(false)
+    onUpdated?.()
+    reset()
+  }, [isSuccess, queryClient, onUpdated, setOpen, t, reset])
+}
+
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
@@ -61,18 +83,13 @@ export const ChoosePrimaryNameDialog = ({
   const queryClient = useQueryClient()
   const chainId = useChainId()
 
-  const primaryNameActor = useActorRef(primaryNameMachine, {
-    input: { chainId },
-  })
-
-  const primaryNameState = useSelector(primaryNameActor, (state) => state)
-
-  const isSubmitting =
-    primaryNameState.matches('submittingUpdate') ||
-    primaryNameState.matches('waitingForUpdate') ||
-    primaryNameState.matches('submittingReverse') ||
-    primaryNameState.matches('waitingForReverse')
-  const isError = primaryNameState.matches('error')
+  const {
+    submit: submitPrimaryName,
+    isSubmitting,
+    isSuccess,
+    isError,
+    reset: resetPrimaryName,
+  } = useSetPrimaryName()
 
   // Fetch current primary name from reverse resolver
   const { data: reverseName } = useQuery({
@@ -191,24 +208,13 @@ export const ChoosePrimaryNameDialog = ({
     }
   }, [reverseName, selectedName])
 
-  // Subscribe to actor state changes
-  useEffect(() => {
-    const subscription = primaryNameActor.subscribe((snapshot) => {
-      if (snapshot.matches('success')) {
-        toast.success(t`Primary name set successfully`)
-        queryClient.invalidateQueries({
-          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
-        })
-        setOpen(false)
-        onUpdated?.()
-        setTimeout(() => {
-          handlePrimaryNameCancel(primaryNameActor)
-        }, 300)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [primaryNameActor, queryClient, onUpdated, t])
+  usePrimaryNameSuccessEffect({
+    isSuccess,
+    onUpdated,
+    setOpen,
+    queryClient,
+    reset: resetPrimaryName,
+  })
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
@@ -230,20 +236,13 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    const params: PrimaryNameParams = {
-      name: selectedName,
-      owner: account.ownerAddress as Address,
-    }
-
-    const options: PrimaryNameOptions = {
-      account,
-      primaryNameActor,
-      publicClient: publicClient as PublicClient,
-    }
-
-    const error = handleSetPrimaryName(params, options)
-    if (error) {
-      console.error(error)
+    try {
+      await submitPrimaryName({
+        name: selectedName,
+        owner: account.ownerAddress as Address,
+      })
+    } catch {
+      // Error surfaced via isError.
     }
   }
 
