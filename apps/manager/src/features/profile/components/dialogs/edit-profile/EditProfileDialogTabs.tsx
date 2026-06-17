@@ -224,6 +224,7 @@ export const EditProfileDialogTabs = ({
               onBaseChange={onBaseChange}
               onContactChange={onContactChange}
               onImageUploadComplete={onImageUploadComplete}
+              owner={owner}
               values={values}
             />
           </TabsContent>

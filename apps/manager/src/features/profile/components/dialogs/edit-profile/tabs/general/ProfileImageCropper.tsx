@@ -4,17 +4,14 @@ import { useRef } from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import { getCropBaseScale, getCropViewportSize } from './ProfileImageField.crop'
-import {
-  fieldShellClassName,
-  focusVisibleRingClassName,
-} from './ProfileImageField.helpers'
+import { focusVisibleRingClassName } from './ProfileImageField.helpers'
 import type {
   ProfileImageCropOffset,
   ProfileImageKind,
   ProfileImageSize,
 } from './ProfileImageField.types'
 import { ErrorMessage } from './ProfileImageFieldPanels'
-import { BackButton } from './ProfileImageFieldSteps'
+import { ImagePickerPanel } from './ProfileImageFieldSteps'
 
 const MIN_CROP_ZOOM = 1
 const MAX_CROP_ZOOM = 3
@@ -107,89 +104,86 @@ export const UploadCropStep = ({
   }
 
   return (
-    <div
-      className={cn(
-        'relative flex min-h-82.5 w-full items-start justify-center p-4',
-        fieldShellClassName,
-      )}
+    <ImagePickerPanel
+      backDisabled={disabled || isProcessing}
+      className="min-h-82.5 p-4"
+      contentClassName="max-w-95 gap-2.5"
+      onBack={onBack}
     >
-      <BackButton disabled={disabled || isProcessing} onBack={onBack} />
-      <div className="flex w-full max-w-95 flex-col items-center gap-2.5">
-        <p className="text-base text-ens-quartz-500 leading-ens-normal">
-          Edit image
-        </p>
-        <div
-          className="relative flex touch-none select-none items-center justify-center overflow-hidden rounded-xl border border-ens-quartz-350 bg-ens-quartz-50"
-          onPointerCancel={handlePointerEnd}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerEnd}
-          style={{
-            height: viewportSize.height,
-            width: viewportSize.width,
-          }}
-        >
-          {uploadPreviewUrl ? (
-            <img
-              alt="Uploaded preview"
-              className="absolute top-1/2 left-1/2 max-w-none cursor-grab object-cover active:cursor-grabbing"
-              draggable={false}
-              onLoad={(event) =>
-                onCropImageLoad({
-                  height: event.currentTarget.naturalHeight,
-                  width: event.currentTarget.naturalWidth,
-                })
-              }
-              src={uploadPreviewUrl}
-              style={cropImageStyle}
-            />
-          ) : null}
-        </div>
-        <div className="flex items-center justify-center gap-0.5 p-1 text-black">
-          <MSymbol
-            aria-hidden="true"
-            className="ms-wght-300"
-            style={{ fontSize: 20 }}
-            symbol="zoom_out"
+      <p className="text-base text-ens-quartz-500 leading-ens-normal">
+        Edit image
+      </p>
+      <div
+        className="relative flex touch-none select-none items-center justify-center overflow-hidden rounded-xl border border-ens-quartz-350 bg-ens-quartz-50"
+        onPointerCancel={handlePointerEnd}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        style={{
+          height: viewportSize.height,
+          width: viewportSize.width,
+        }}
+      >
+        {uploadPreviewUrl ? (
+          <img
+            alt="Uploaded preview"
+            className="absolute top-1/2 left-1/2 max-w-none cursor-grab object-cover active:cursor-grabbing"
+            draggable={false}
+            onLoad={(event) =>
+              onCropImageLoad({
+                height: event.currentTarget.naturalHeight,
+                width: event.currentTarget.naturalWidth,
+              })
+            }
+            src={uploadPreviewUrl}
+            style={cropImageStyle}
           />
-          <input
-            aria-label="Zoom image"
-            className="h-7 w-33 cursor-pointer accent-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50"
-            disabled={disabled || isProcessing || !cropImageSize}
-            max={MAX_CROP_ZOOM}
-            min={MIN_CROP_ZOOM}
-            onChange={(event) => onCropZoomChange(Number(event.target.value))}
-            step={CROP_ZOOM_STEP}
-            type="range"
-            value={cropZoom}
-          />
-          <MSymbol
-            aria-hidden="true"
-            className="ms-wght-300"
-            style={{ fontSize: 20 }}
-            symbol="zoom_in"
-          />
-        </div>
-        <button
-          className={cn(
-            'flex h-12.5 items-center justify-center rounded-sm bg-ens-lapis-100 px-6 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
-            focusVisibleRingClassName,
-          )}
-          disabled={disabled || isProcessing || !uploadFile || !cropImageSize}
-          onClick={onConfirm}
-          type="button"
-        >
-          {isProcessing ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" />
-              {processingLabel}
-            </span>
-          ) : (
-            'Confirm edit'
-          )}
-        </button>
-        <ErrorMessage error={error} />
+        ) : null}
       </div>
-    </div>
+      <div className="flex items-center justify-center gap-0.5 p-1 text-black">
+        <MSymbol
+          aria-hidden="true"
+          className="ms-wght-300"
+          style={{ fontSize: 20 }}
+          symbol="zoom_out"
+        />
+        <input
+          aria-label="Zoom image"
+          className="h-7 w-33 cursor-pointer accent-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50"
+          disabled={disabled || isProcessing || !cropImageSize}
+          max={MAX_CROP_ZOOM}
+          min={MIN_CROP_ZOOM}
+          onChange={(event) => onCropZoomChange(Number(event.target.value))}
+          step={CROP_ZOOM_STEP}
+          type="range"
+          value={cropZoom}
+        />
+        <MSymbol
+          aria-hidden="true"
+          className="ms-wght-300"
+          style={{ fontSize: 20 }}
+          symbol="zoom_in"
+        />
+      </div>
+      <button
+        className={cn(
+          'flex h-12.5 items-center justify-center rounded-sm bg-ens-lapis-100 px-6 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+          focusVisibleRingClassName,
+        )}
+        disabled={disabled || isProcessing || !uploadFile || !cropImageSize}
+        onClick={onConfirm}
+        type="button"
+      >
+        {isProcessing ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin" />
+            {processingLabel}
+          </span>
+        ) : (
+          'Confirm edit'
+        )}
+      </button>
+      <ErrorMessage error={error} />
+    </ImagePickerPanel>
   )
 }

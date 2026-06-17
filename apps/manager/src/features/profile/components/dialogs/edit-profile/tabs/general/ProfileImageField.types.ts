@@ -1,3 +1,4 @@
+import type { Address } from 'viem'
 import type { ImageType } from '@/features/profile/service/profileImageUpload'
 
 export type ProfileImageKind = ImageType
@@ -16,6 +17,7 @@ export interface ProfileImageFieldProps {
     kind: ProfileImageKind,
     imageUrl: string,
   ) => void
+  readonly owner?: Address
 }
 
 export interface ProfileImageSize {

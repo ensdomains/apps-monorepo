@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -6,6 +6,7 @@ import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { uploadImageMutationOptions } from '@/features/profile/service/profileImageUpload'
+import { profileNftsQuery } from '@/features/profile/service/profileNfts'
 import { inspect } from '@/utils/xstate'
 import {
   cropImageFile,
@@ -33,7 +34,9 @@ export const useProfileImageField = ({
   onImageChange,
   onImageRemove,
   onImageUploadComplete,
+  owner,
 }: ProfileImageFieldProps) => {
+  const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
@@ -58,7 +61,13 @@ export const useProfileImageField = ({
 
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
-      onImageChange: (url: string) => {
+      onImageChange: (url: string, resolvedImage?: string) => {
+        if (resolvedImage) {
+          queryClient.setQueryData(
+            parseAvatarQuery(url).queryKey,
+            resolvedImage,
+          )
+        }
         onImageChange(url)
         onCancel()
       },
@@ -69,6 +78,21 @@ export const useProfileImageField = ({
     },
     inspect,
   })
+  const isNftSelectionOpen = state.matches('nftSelection')
+  const nftOwnerAddress = owner ?? address
+  const nftQuery = useQuery({
+    ...profileNftsQuery({
+      address: nftOwnerAddress,
+      chainId,
+    }),
+    enabled:
+      isActive && kind === 'avatar' && isNftSelectionOpen && !!nftOwnerAddress,
+  })
+
+  useEffect(() => {
+    if (kind !== 'avatar' || !isNftSelectionOpen) return
+    send({ type: 'SET_NFTS', nfts: nftQuery.data ?? [] })
+  }, [isNftSelectionOpen, kind, nftQuery.data, send])
 
   const resetEditor = () => {
     send({ type: 'RESET' })
@@ -184,6 +208,12 @@ export const useProfileImageField = ({
     send({ type: 'OPEN_MANUAL_INPUT' })
   }
 
+  const handleNftClick = () => {
+    send({ type: 'CLEAR_ERROR' })
+    onActivate()
+    send({ type: 'OPEN_NFT_SELECTION' })
+  }
+
   const handleRemoveClick = () => {
     send({ type: 'CLEAR_ERROR' })
     if (hasImage) {
@@ -259,6 +289,14 @@ export const useProfileImageField = ({
     }
   }
 
+  const nftErrorMessage = (() => {
+    if (!nftQuery.error) return null
+    if (nftQuery.error instanceof Error && nftQuery.error.message) {
+      return nftQuery.error.message
+    }
+    return 'Failed to load NFTs'
+  })()
+
   return {
     cropImageSize,
     cropOffset,
@@ -275,11 +313,15 @@ export const useProfileImageField = ({
     handleFileChange,
     handleManualClick,
     handleManualPreviewError,
+    handleNftClick,
     handleRemoveClick,
     handleUploadClick,
     hasImage,
     isCropping,
+    isLoadingNfts: nftQuery.isFetching,
     isUploading,
+    nftErrorMessage,
+    nftOwnerAddress,
     send,
     state,
     uploadFile,

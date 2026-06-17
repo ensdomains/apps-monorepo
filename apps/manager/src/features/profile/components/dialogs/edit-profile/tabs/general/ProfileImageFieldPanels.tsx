@@ -208,6 +208,7 @@ interface ImageActionPanelProps {
   readonly disabled?: boolean
   readonly error: string | null
   readonly onManual: () => void
+  readonly onNft?: () => void
   readonly onRemove: () => void
   readonly onUpload: () => void
 }
@@ -216,6 +217,7 @@ const ImageActionPanel = ({
   disabled,
   error,
   onManual,
+  onNft,
   onRemove,
   onUpload,
 }: ImageActionPanelProps) => (
@@ -232,6 +234,14 @@ const ImageActionPanel = ({
         label="Upload image"
         onClick={onUpload}
       />
+      {onNft ? (
+        <ProfileImageAction
+          disabled={disabled}
+          icon="account_balance_wallet"
+          label="Choose NFT"
+          onClick={onNft}
+        />
+      ) : null}
       <ProfileImageAction
         disabled={disabled}
         icon="text_fields_alt"
@@ -256,6 +266,7 @@ interface ActiveImageOptionsProps extends ImagePreviewProps {
   readonly onDragOver: (event: React.DragEvent) => void
   readonly onDrop: (event: React.DragEvent) => void
   readonly onManual: () => void
+  readonly onNft?: () => void
   readonly onRemove: () => void
   readonly onUpload: () => void
 }
@@ -271,6 +282,7 @@ export const ActiveImageOptions = ({
   onDragOver,
   onDrop,
   onManual,
+  onNft,
   onRemove,
   onUpload,
 }: ActiveImageOptionsProps) => (
@@ -289,6 +301,7 @@ export const ActiveImageOptions = ({
       disabled={disabled}
       error={error}
       onManual={onManual}
+      onNft={kind === 'avatar' ? onNft : undefined}
       onRemove={onRemove}
       onUpload={onUpload}
     />

@@ -1,5 +1,6 @@
 import { ChevronDown, Link as LinkIcon } from 'lucide-react'
 import { useState } from 'react'
+import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
@@ -150,6 +151,7 @@ interface GeneralTabProps {
     kind: ProfileImageKind,
     imageUrl: string,
   ) => void
+  readonly owner?: Address
   readonly values: ProfileRecords
 }
 
@@ -158,6 +160,7 @@ export const GeneralTab = ({
   onBaseChange,
   onContactChange,
   onImageUploadComplete,
+  owner,
   values,
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
@@ -243,6 +246,7 @@ export const GeneralTab = ({
             onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
             onImageRemove={() => setBaseValue('avatar', '')}
             onImageUploadComplete={onImageUploadComplete}
+            owner={owner}
           />
         )}
 
