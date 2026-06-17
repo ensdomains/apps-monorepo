@@ -1,9 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { JACQUARD_PATTERN6_DYE_BLEED_OPTIONS, WEAVE_REGISTRATION_LONG_NAME } from '@/components/WeaveLoader'
 import { REGISTRATION_STAGE_PROGRESS } from '../../../state/registration.stages'
 import { useForwardProgress } from '../lib/useForwardProgress'
 import { WeaveRegistration } from './WeaveRegistration'
+
+const LONG_NAME_WEAVE_OPTIONS = JACQUARD_PATTERN6_DYE_BLEED_OPTIONS
+const LONG_NAME = WEAVE_REGISTRATION_LONG_NAME
 
 const meta = {
   title: 'Features/RegisterV2/WeaveRegistration',
@@ -15,8 +18,10 @@ const meta = {
   },
   decorators: [
     (Story) => (
-      <div className="mx-auto flex min-h-[420px] max-w-6xl items-center px-4">
-        <Story />
+      <div className="flex min-h-screen w-full items-center justify-center p-8">
+        <div className="w-full max-w-6xl">
+          <Story />
+        </div>
       </div>
     ),
   ],
@@ -42,22 +47,6 @@ export const Complete: Story = {
   args: { progress: 100 },
 }
 
-/** Completion hold — fully filled with the Continue button that skips the 1s wait. */
-export const CompleteWithContinue: Story = {
-  args: {
-    progress: 100,
-    footer: (
-      <Button
-        className="mt-2 w-fit uppercase tracking-[0.12em] max-md:mx-auto"
-        size="lg"
-        variant="lightBlue"
-      >
-        Continue
-      </Button>
-    ),
-  },
-}
-
 /** With the commitment-cooldown countdown as the secondary line. */
 export const WithCooldown: Story = {
   args: {
@@ -66,23 +55,31 @@ export const WithCooldown: Story = {
   },
 }
 
-/** Long name to check wrapping / measurement. */
+/** Long name — Figma reference, multi-line fill, mid-progress. */
 export const LongName: Story = {
-  args: { name: 'verylongname.eth', progress: 55 },
+  args: {
+    name: LONG_NAME,
+    progress: 55,
+    weaveOptions: LONG_NAME_WEAVE_OPTIONS,
+  },
 }
 
-// ENS labels can be up to 255 characters — the fill must wrap and stay perceivable.
-const SIXTY_THREE_CHAR_NAME = `${'pneumonoultramicroscopicsilicovolcanoconiosis-and-then-some'.slice(0, 59)}.eth`
-const MAX_LENGTH_NAME = `${'q'.repeat(251)}.eth`
-
-/** 63-char name — multi-line fill, mid-progress. */
+/** Same Figma long name — multi-line fill, mid-progress. */
 export const SixtyThreeCharName: Story = {
-  args: { name: SIXTY_THREE_CHAR_NAME, progress: 55 },
+  args: {
+    name: LONG_NAME,
+    progress: 55,
+    weaveOptions: LONG_NAME_WEAVE_OPTIONS,
+  },
 }
 
-/** Maximum-length (255-char) name — stress test for wrapping and fill velocity. */
+/** Same Figma long name — wrapping and fill velocity. */
 export const MaxLengthName: Story = {
-  args: { name: MAX_LENGTH_NAME, progress: 55 },
+  args: {
+    name: LONG_NAME,
+    progress: 55,
+    weaveOptions: LONG_NAME_WEAVE_OPTIONS,
+  },
 }
 
 /**
@@ -160,7 +157,7 @@ const LiveForwardProgressDemo = (
   }, [])
 
   const stageProgress = STAGE_SEQUENCE[stageIndex] ?? 0
-  const { progress, fillDone } = useForwardProgress(
+  const { progress } = useForwardProgress(
     stageProgress,
     isComplete,
     args.name.length,
@@ -168,37 +165,24 @@ const LiveForwardProgressDemo = (
   )
 
   return (
-    <WeaveRegistration
-      {...args}
-      animate={false}
-      footer={
-        fillDone ? (
-          <Button
-            className="mt-2 w-fit uppercase tracking-[0.12em] max-md:mx-auto"
-            size="lg"
-            variant="lightBlue"
-          >
-            Continue
-          </Button>
-        ) : null
-      }
-      progress={progress}
-    />
+    <WeaveRegistration {...args} animate={false} progress={progress} />
   )
 }
 
 /**
  * Exercises the real `useForwardProgress` driver: the machine's stage milestones advance
  * every ~2.5s, and the displayed fill sweeps from 0 letter-by-letter, catching up then
- * creeping continuously between them — exactly how the live flow animates. Completes at
- * the end and shows the Continue button.
+ * creeping continuously between them — exactly how the live flow animates.
  */
 export const LiveForwardProgress: Story = {
   render: (args) => <LiveForwardProgressDemo {...args} />,
 }
 
-/** The live driver with a maximum-length name — velocity scales with name length. */
+/** The live driver with the Figma long name. */
 export const LiveForwardProgressMaxLength: Story = {
-  args: { name: MAX_LENGTH_NAME },
+  args: {
+    name: LONG_NAME,
+    weaveOptions: LONG_NAME_WEAVE_OPTIONS,
+  },
   render: (args) => <LiveForwardProgressDemo {...args} />,
 }

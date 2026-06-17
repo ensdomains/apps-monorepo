@@ -1,6 +1,9 @@
+export { FilledGlyph, type FilledGlyphProps } from './FilledGlyph'
 export { NameFill, type NameFillProps } from './NameFill'
 export {
   HOUNDSTOOTH_SHIMMER_OPTIONS,
+  JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
+  JACQUARD_SHADERBOX_2_OPTIONS,
   WEAVE_PROGRESS_BAR_OPTIONS,
 } from './presets'
 export { PATTERNS, type WeavePattern } from './shader/patterns'
@@ -19,3 +22,11 @@ export {
   WEAVE_STEPS,
   type WeaveStep,
 } from './weaveSteps'
+export {
+  WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
+  WEAVE_REGISTRATION_LONG_NAME,
+  WEAVE_REGISTRATION_NAME_FILL,
+  WEAVE_REGISTRATION_NAME_FILL_COMPACT,
+  WEAVE_REGISTRATION_NAME_FILL_SMALL_FONT_THRESHOLD,
+  weaveRegistrationNameFillFor,
+} from './weaveNameFill'

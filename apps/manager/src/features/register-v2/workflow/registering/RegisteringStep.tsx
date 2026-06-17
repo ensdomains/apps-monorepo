@@ -1,11 +1,9 @@
 import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
-import { Trans } from '@lingui/react/macro'
 import { useBlocker } from '@tanstack/react-router'
 import { Calligraph } from 'calligraph'
 import { useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { Button } from '@/components/ui/button'
 import { WeaveProgressBar } from '@/components/WeaveLoader'
 import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
@@ -94,13 +92,12 @@ export const RegisteringStep = () => {
     uiStage?.transaction === 'pending'
 
   const enteredLoaderRef = useRef(false)
-  const [fillFinished, setFillFinished] = useState(false)
   useEffect(() => {
     if (showWeaveLoader) enteredLoaderRef.current = true
   }, [showWeaveLoader])
 
   const holdForFill =
-    isRegistrationComplete && enteredLoaderRef.current && !fillFinished
+    isRegistrationComplete && enteredLoaderRef.current && !fillDone
 
   const showCenteredLoader = showWeaveLoader || holdForFill
 
@@ -129,18 +126,6 @@ export const RegisteringStep = () => {
         <WeaveRegistration
           animate={false}
           description={holdForFill ? undefined : stageDescription}
-          footer={
-            fillDone ? (
-              <Button
-                className="w-fit uppercase tracking-[0.12em]"
-                onClick={() => setFillFinished(true)}
-                size="lg"
-                variant="lightBlue"
-              >
-                <Trans>Continue</Trans>
-              </Button>
-            ) : null
-          }
           name={fullName}
           progress={fillProgress}
         />

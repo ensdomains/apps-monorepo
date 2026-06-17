@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useEffect, useState } from 'react'
 import { NameFill } from './NameFill'
+import {
+  WEAVE_REGISTRATION_LONG_NAME,
+  WEAVE_REGISTRATION_NAME_FILL,
+} from './weaveNameFill'
 
 const meta = {
   title: 'Components/WeaveLoader/NameFill',
@@ -75,4 +79,23 @@ export const AnimatedLoop: Story = {
     }, [])
     return <NameFill {...args} progress={progress} />
   },
+}
+
+/** Long name — multi-line fill must not bleed onto lower lines. */
+export const FigmaLongName: Story = {
+  args: {
+    name: WEAVE_REGISTRATION_LONG_NAME,
+    progress: 0.55,
+    className: 'w-full whitespace-normal break-all',
+    ...WEAVE_REGISTRATION_NAME_FILL,
+  },
+  decorators: [
+    (Story) => (
+      <div className="flex min-h-[200px] w-full max-w-6xl items-start justify-center p-10">
+        <div className="flex h-full w-[50%] min-w-0 flex-col gap-12">
+          <Story />
+        </div>
+      </div>
+    ),
+  ],
 }

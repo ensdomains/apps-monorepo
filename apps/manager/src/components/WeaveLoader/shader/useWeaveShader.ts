@@ -1,4 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  COLORWAY_BIAS_ANIM,
+  randomColorwayLoopValues,
+  resolveAnimatedColorwayBias,
+  resolveAnimatedColorwayNoiseX,
+  tickColorwayLoopCycle,
+} from '../colorwayAnim'
 import { buildPatternTexture, PATTERNS, type WeavePattern } from './patterns'
 import {
   getPaletteColor,
@@ -47,6 +54,16 @@ export interface WeaveShaderOptions {
   colorwayBleedCrossFiber?: number
   colorwayBleedDraftCoupled?: boolean
   colorwayIncludeMask?: number
+  /** Jacquard-style bias play loop (44s, 0.25–4 around colorwayNoiseBias). */
+  animateColorwayBias?: boolean
+  /** Jacquard-style noise X play loop (~50min, -500–500 around colorwayNoiseX). */
+  animateColorwayNoiseX?: boolean
+  /** Skip the diagonal weave-in on mount; fabric starts fully revealed. */
+  skipWeaveInReveal?: boolean
+  /** Restart colorway play loops each cycle (bias period = 44s). */
+  colorwayAnimLoop?: boolean
+  /** Pick new seed / scale / bleed / anim origins when a loop cycle wraps. */
+  colorwayAnimRandomizeOnLoop?: boolean
   patterns?: WeavePattern[]
   onFpsChange?: (fps: number) => void
 }
@@ -196,6 +213,49 @@ export function useWeaveShader(
 
   const optsRef = useRef(o)
   optsRef.current = o
+
+  const colorwayBiasAnimRef = useRef({
+    enabled: false,
+    origin: WEAVE_DEFAULTS.colorwayNoiseBias,
+    startMs: Date.now(),
+  })
+  const colorwayNoiseXAnimRef = useRef({
+    enabled: false,
+    origin: WEAVE_DEFAULTS.colorwayNoiseX,
+    startMs: Date.now(),
+  })
+  const colorwayLoopStartRef = useRef(Date.now())
+  const colorwayRuntimeRef = useRef({
+    seed: options.colorwaySeed ?? WEAVE_DEFAULTS.colorwaySeed,
+    noiseScale: options.colorwayNoiseScale ?? WEAVE_DEFAULTS.colorwayNoiseScale,
+    bleedAnisotropy:
+      options.colorwayBleedAnisotropy ?? WEAVE_DEFAULTS.colorwayBleedAnisotropy,
+  })
+
+  const allColorwaysEnabled = options.useAllColorways !== false
+  const biasAnimEnabled = allColorwaysEnabled && options.animateColorwayBias === true
+  if (biasAnimEnabled && !colorwayBiasAnimRef.current.enabled) {
+    colorwayBiasAnimRef.current = {
+      enabled: true,
+      origin: options.colorwayNoiseBias ?? WEAVE_DEFAULTS.colorwayNoiseBias,
+      startMs: Date.now(),
+    }
+  } else if (!biasAnimEnabled) {
+    colorwayBiasAnimRef.current.enabled = false
+  }
+
+  const noiseXAnimEnabled =
+    allColorwaysEnabled && options.animateColorwayNoiseX === true
+  if (noiseXAnimEnabled && !colorwayNoiseXAnimRef.current.enabled) {
+    colorwayNoiseXAnimRef.current = {
+      enabled: true,
+      origin: options.colorwayNoiseX ?? WEAVE_DEFAULTS.colorwayNoiseX,
+      startMs: Date.now(),
+    }
+  } else if (!noiseXAnimEnabled) {
+    colorwayNoiseXAnimRef.current.enabled = false
+  }
+
   const onFpsChangeRef = useRef(options.onFpsChange)
   onFpsChangeRef.current = options.onFpsChange
   const patterns = options.patterns ?? PATTERNS
@@ -263,8 +323,12 @@ export function useWeaveShader(
       const time = (Date.now() - startTime) / 1000
 
       const pi = Math.floor(s.pattern)
-      if (lastPatternIndex !== -1 && pi !== lastPatternIndex) {
-        revealStartTime = (Date.now() - startTime) / 1000
+      if (
+        lastPatternIndex !== -1 &&
+        pi !== lastPatternIndex &&
+        !s.skipWeaveInReveal
+      ) {
+        revealStartTime = time
       }
       lastPatternIndex = pi
       const pat = list[Math.min(Math.max(0, pi), list.length - 1)] ?? list[0]
@@ -279,12 +343,7 @@ export function useWeaveShader(
 
       gl.uniform1f(uniformLocs.time, time)
       if (uniformLocs.shimmerTime) gl.uniform1f(uniformLocs.shimmerTime, time)
-      if (uniformLocs.shimmerPhase) {
-        const phase = s.shimmer
-          ? (((time * s.shimmerSpeed + s.shimmerPosition) % 1) + 1) % 1
-          : s.shimmerPosition
-        gl.uniform1f(uniformLocs.shimmerPhase, phase)
-      }
+      if (uniformLocs.shimmerPhase) gl.uniform1f(uniformLocs.shimmerPhase, 0)
       gl.uniform2f(uniformLocs.resolution, canvas.width, canvas.height)
       if (uniformLocs.stageTranslateX)
         gl.uniform1f(uniformLocs.stageTranslateX, 0)
@@ -355,7 +414,10 @@ export function useWeaveShader(
       gl.uniform1f(uniformLocs.weftStartPos, Math.min(wfr[0], wfr[1]) / 100)
       gl.uniform1f(uniformLocs.weftEndPos, Math.max(wfr[0], wfr[1]) / 100)
       gl.uniform1f(uniformLocs.gradSteps, s.gradSteps)
-      gl.uniform1f(uniformLocs.revealStartTime, revealStartTime)
+      gl.uniform1f(
+        uniformLocs.revealStartTime,
+        s.skipWeaveInReveal ? time - 10_000 : revealStartTime,
+      )
       gl.uniform1f(uniformLocs.rectAspect, s.rectAspect)
       gl.uniform1f(uniformLocs.cornerRadius, s.cornerRadius)
 
@@ -384,10 +446,53 @@ export function useWeaveShader(
 
       if (uniformLocs.useAllColorways)
         gl.uniform1f(uniformLocs.useAllColorways, s.useAllColorways ? 1 : 0)
-      if (uniformLocs.colorwaySeed)
-        gl.uniform1f(uniformLocs.colorwaySeed, s.colorwaySeed)
-      if (uniformLocs.colorwayNoiseScale)
-        gl.uniform1f(uniformLocs.colorwayNoiseScale, s.colorwayNoiseScale)
+
+      const colorwayRuntime = colorwayRuntimeRef.current
+      const anyColorwayAnim =
+        s.useAllColorways &&
+        (colorwayBiasAnimRef.current.enabled ||
+          colorwayNoiseXAnimRef.current.enabled)
+
+      if (s.colorwayAnimLoop && anyColorwayAnim) {
+        const cycle = tickColorwayLoopCycle(
+          colorwayLoopStartRef.current,
+          COLORWAY_BIAS_ANIM.periodMs,
+        )
+        colorwayLoopStartRef.current = cycle.startMs
+        if (cycle.didWrap) {
+          colorwayBiasAnimRef.current.startMs = cycle.startMs
+          colorwayNoiseXAnimRef.current.startMs = cycle.startMs
+          if (s.colorwayAnimRandomizeOnLoop) {
+            const next = randomColorwayLoopValues()
+            colorwayRuntime.seed = next.seed
+            colorwayRuntime.noiseScale = next.noiseScale
+            colorwayRuntime.bleedAnisotropy = next.bleedAnisotropy
+            if (colorwayBiasAnimRef.current.enabled) {
+              colorwayBiasAnimRef.current.origin = next.biasOrigin
+            }
+            if (colorwayNoiseXAnimRef.current.enabled) {
+              colorwayNoiseXAnimRef.current.origin = next.noiseXOrigin
+            }
+          }
+        }
+      }
+
+      if (uniformLocs.colorwaySeed) {
+        gl.uniform1f(
+          uniformLocs.colorwaySeed,
+          s.colorwayAnimRandomizeOnLoop
+            ? colorwayRuntime.seed
+            : s.colorwaySeed,
+        )
+      }
+      if (uniformLocs.colorwayNoiseScale) {
+        gl.uniform1f(
+          uniformLocs.colorwayNoiseScale,
+          s.colorwayAnimRandomizeOnLoop
+            ? colorwayRuntime.noiseScale
+            : s.colorwayNoiseScale,
+        )
+      }
       if (uniformLocs.colorwayNoiseMode)
         gl.uniform1f(uniformLocs.colorwayNoiseMode, s.colorwayNoiseMode)
       if (uniformLocs.colorwayNoiseOctaves)
@@ -402,14 +507,30 @@ export function useWeaveShader(
           uniformLocs.colorwayNoiseLacunarity,
           s.colorwayNoiseLacunarity,
         )
-      if (uniformLocs.colorwayNoiseBias)
-        gl.uniform1f(uniformLocs.colorwayNoiseBias, s.colorwayNoiseBias)
-      if (uniformLocs.colorwayNoiseX)
-        gl.uniform1f(uniformLocs.colorwayNoiseX, s.colorwayNoiseX)
+      if (uniformLocs.colorwayNoiseBias) {
+        const biasAnim = colorwayBiasAnimRef.current
+        const bias = resolveAnimatedColorwayBias(
+          biasAnim.enabled && s.useAllColorways,
+          Date.now() - biasAnim.startMs,
+          biasAnim.origin,
+        )
+        gl.uniform1f(uniformLocs.colorwayNoiseBias, bias)
+      }
+      if (uniformLocs.colorwayNoiseX) {
+        const noiseXAnim = colorwayNoiseXAnimRef.current
+        const noiseX = resolveAnimatedColorwayNoiseX(
+          noiseXAnim.enabled && s.useAllColorways,
+          Date.now() - noiseXAnim.startMs,
+          noiseXAnim.origin,
+        )
+        gl.uniform1f(uniformLocs.colorwayNoiseX, noiseX)
+      }
       if (uniformLocs.colorwayBleedAnisotropy)
         gl.uniform1f(
           uniformLocs.colorwayBleedAnisotropy,
-          s.colorwayBleedAnisotropy,
+          s.colorwayAnimRandomizeOnLoop
+            ? colorwayRuntime.bleedAnisotropy
+            : s.colorwayBleedAnisotropy,
         )
       if (uniformLocs.colorwayBleedRotation)
         gl.uniform1f(uniformLocs.colorwayBleedRotation, s.colorwayBleedRotation)

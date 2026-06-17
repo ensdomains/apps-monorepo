@@ -80,29 +80,24 @@ the big loader), passing `"label.eth".length` and the live cooldown countdown fr
 
 ### `NameFill`
 
-Real HTML text that fills with a colour (or any CSS `background`, e.g. a gradient) as
-`progress` (0–1) advances left→right. Two identical text layers: the base painted in
-`baseColor` (grey, `--color-ens-gray-two`), and the fill layer painted via
-`background-clip: text` and clipped by `clip-path: inset(0 X% 0 0)`. Using identical
-text + typography keeps the layers in lockstep, and real text honours letter-spacing /
-line-height natively.
+Real HTML text that fills like a progress bar in **reading order** across wrapped lines.
+Each character is rendered by [`FilledGlyph`](./FilledGlyph.tsx) — an isolated cell with
+grey base + fill layer clipped **horizontally only** via `clip-path: inset(...)`, so
+descenders (`g`, `y`, `p`) fill completely. A hidden probe string (same typography +
+width) is measured via `Range` for per-glyph advance widths and heights.
 
-- `animate` enables a 0.45s CSS transition on clip-path; **disable it when an external
-  rAF driver updates `progress` every frame** (as `RegisteringStep` does).
-- Long names: pass `className="whitespace-normal break-all"` to allow wrapping (labels
-  can be up to 255 chars). Note the clip reveal sweeps all wrapped lines together.
+- `animate` enables a short CSS transition on each cell's fill width; **disable it when
+  an external rAF driver updates `progress` every frame** (as `RegisteringStep` does).
+- Gradient `fill` values fall back to the legacy single-line clip-path overlay.
 
 ### `WeaveRegistration`
 
 The full-screen registration loader (Figma node `1209-29493`):
 
 - Left: 160px rounded square with `WeaveCanvas` running `HOUNDSTOOTH_SHIMMER_OPTIONS`.
-- Right (333px column): step label (32px sans, `--color-ens-quartz-450`, 90% leading,
-  −0.8px tracking) over the name (`NameFill`, 31.68px mono, −1.2672px tracking). The
-  label is a `Calligraph` (`variant="text"`, `animation="smooth"`, `trend={1}`,
-  `autoSize={false}`) so each copy change morphs fluidly — shared characters slide to
-  their new positions, entering ones fade in from below. Copy comes from
-  `stepLabelForProgress` (`weaveSteps.ts`).
+- Right (`w-[50%]` column, `flex flex-col h-full gap-12`): step label, 48px gap, then
+  `NameFill` (`WEAVE_REGISTRATION_NAME_FILL`). Row is `w-full min-h-40 items-stretch`
+  beside the 160px square; long names wrap and grow the column downward.
 - Below the section: optional `description` (e.g. cooldown countdown) and `footer`
   (e.g. the Continue button) — outside the section so they never push the layout.
 - `progress` is 0–100 (matching the UI machine scale).
@@ -171,7 +166,8 @@ positions, entering characters fade in, exiting ones fade out.
 - **Step label** (`WeaveRegistration`): `variant="text"` (default), `animation="smooth"`,
   `trend={1}` (entering chars rise from below), `initial` (animates on first mount),
   `autoSize={false}` (the label wraps inside the fixed 333px column, so the wrapper must
-  not animate its width).
+  not animate its width). Pass `style={{ display: 'flex', flexWrap: 'wrap', width: '100%' }}`
+  and `className="w-full min-w-0"` so Calligraph's default `inline-flex` does not overflow.
 - **"Registering name" loop** (notifications header in `RegisteringStep`): Calligraph
   only animates when its children change, so `useTrailingDots` cycles `"" → "." → ".." →
   "..."` every 700ms and the label renders `Registering name` + dots through a

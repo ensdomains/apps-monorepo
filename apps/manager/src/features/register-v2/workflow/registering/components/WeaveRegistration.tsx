@@ -1,11 +1,15 @@
 import { Calligraph } from 'calligraph'
-import type { ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   HOUNDSTOOTH_SHIMMER_OPTIONS,
   NameFill,
   stepLabelForProgress,
+  weaveRegistrationNameFillFor,
+  WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
   WeaveCanvas,
+  type WeaveShaderOptions,
 } from '@/components/WeaveLoader'
+import { cn } from '@/lib/utils'
 
 export interface WeaveRegistrationProps {
   name: string
@@ -13,6 +17,7 @@ export interface WeaveRegistrationProps {
   description?: string
   animate?: boolean
   footer?: ReactNode
+  weaveOptions?: WeaveShaderOptions
 }
 
 export const WeaveRegistration = ({
@@ -21,41 +26,50 @@ export const WeaveRegistration = ({
   description,
   animate = true,
   footer,
+  weaveOptions = HOUNDSTOOTH_SHIMMER_OPTIONS,
 }: WeaveRegistrationProps) => {
   const p = Math.max(0, Math.min(1, progress / 100))
   const stepLabel = stepLabelForProgress(p)
+  const [nameLineCount, setNameLineCount] = useState(1)
+  const nameFillTypography = useMemo(
+    () => weaveRegistrationNameFillFor(name),
+    [name],
+  )
+  const singleLineName = nameLineCount <= 1
 
   return (
-    <div className="flex flex-col items-center gap-8">
-      <div className="inline-flex items-start gap-12 max-md:flex-col max-md:items-center max-md:gap-8 max-md:text-center">
+    <div className="flex w-full flex-col items-center gap-8">
+      <div className="inline-flex min-h-40 w-full items-stretch gap-12 max-md:flex-col max-md:items-center max-md:gap-8 max-md:text-center">
         <div className="size-40 shrink-0 overflow-hidden rounded-2xl max-md:size-32">
-          <WeaveCanvas options={HOUNDSTOOTH_SHIMMER_OPTIONS} />
+          <WeaveCanvas options={weaveOptions} />
         </div>
 
-        <div className="flex h-40 w-[333px] min-w-0 flex-col justify-between max-md:h-auto max-md:min-h-32 max-md:w-auto max-md:gap-6">
+        <div className="flex min-h-40 h-full w-[333px] min-w-0 flex-col max-md:w-full">
           <Calligraph
             animation="smooth"
             aria-live="polite"
             as="p"
             autoSize={false}
-            className="font-medium font-sans text-[32px] text-ens-quartz-450 leading-[90%] tracking-[-0.8px]"
+            className="w-full min-w-0 shrink-0 font-medium font-sans text-[32px] text-ens-quartz-450 leading-[90%] tracking-[-0.8px]"
             initial
+            style={{ display: 'flex', flexWrap: 'wrap', width: '100%' }}
             trend={1}
           >
             {stepLabel}
           </Calligraph>
+          <div
+            aria-hidden
+            className={cn('shrink-0', singleLineName ? 'flex-1' : 'flex-none')}
+            style={{ minHeight: WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX }}
+          />
           <NameFill
             animate={animate}
-            baseColor="var(--color-ens-gray-two)"
-            className="whitespace-normal break-all"
-            fill="#000"
-            fontFamily="var(--font-mono)"
-            fontSize={31.68}
-            fontWeight={500}
-            letterSpacing="-1.2672px"
-            lineHeight="90%"
+            className="w-full shrink-0 whitespace-normal break-all mt-[18px]"
+       
             name={name}
+            onLineCountChange={setNameLineCount}
             progress={p}
+            {...nameFillTypography}
           />
         </div>
       </div>

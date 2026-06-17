@@ -1,4 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
+import {
+  JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
+  JACQUARD_SHADERBOX_2_OPTIONS,
+} from './presets'
 import { WeaveCanvas } from './WeaveCanvas'
 
 const meta = {
@@ -44,4 +48,14 @@ export const HoundstoothShimmer: Story = {
 /** Coarse grid, all colorways — shows the weave structure clearly. */
 export const CoarseGrid: Story = {
   args: { options: { gridSize: 14 } },
+}
+
+/** Jacquard shaderbox 2 — dye-bleed all-colorways with bias play loop (44s). */
+export const JacquardShaderbox2: Story = {
+  render: () => <WeaveCanvas options={JACQUARD_SHADERBOX_2_OPTIONS} />,
+}
+
+/** Jacquard pattern 6 — dye bleed with bias + noise X play loops. */
+export const JacquardPattern6DyeBleed: Story = {
+  render: () => <WeaveCanvas options={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS} />,
 }
