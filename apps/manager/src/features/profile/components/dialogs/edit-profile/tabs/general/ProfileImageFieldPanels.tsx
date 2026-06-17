@@ -35,6 +35,8 @@ interface ProfileImageActionProps {
   readonly onClick: () => void
 }
 
+// Mobile action labels need raw 10px/1.2px values to fit the compact row;
+// desktop switches back to Tailwind text/tracking tokens.
 const actionTextClassName =
   'font-mono text-ens-lapis-500 text-[10px] uppercase leading-none tracking-[1.2px] md:text-xs md:tracking-widest'
 
