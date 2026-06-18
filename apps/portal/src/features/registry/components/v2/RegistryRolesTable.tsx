@@ -1,64 +1,24 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnDef } from '@tanstack/react-table'
-import { PanelRight } from 'lucide-react'
 import { useState } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { Button } from '@/components/ui/button'
-import { PermissionMark } from '@/features/roles/components/roleTableColumns'
-import { cn } from '@/lib/utils'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import {
+  buildEditActionColumn,
+  buildRoleColumns,
+  rolesTableClassName,
+  rolesToEntries,
+  UserCell,
+} from '@/features/roles/components/roleTableColumns'
 import { getHasRolesQueryOptions } from '../../hooks/useHasRoles'
 import {
   getRegistryRolesQueryOptions,
   type RegistryRoleRow,
 } from '../../hooks/useRegistryRoles'
-import { isAdminRole } from '../../utils/registryRoleAccess'
 import { RegistryEditUserSheet } from './RegistryEditUserSheet'
-
-const formatRole = (role: Role) =>
-  role
-    .replace(/^ROLE_/, '')
-    .replace(/_ADMIN$/, '')
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-
-type RoleRowEntry = {
-  label: string
-  hasAdmin: boolean
-  hasUser: boolean
-}
-
-const toRoleEntries = (roles: Role[]): RoleRowEntry[] => {
-  const map = new Map<string, RoleRowEntry>()
-  for (const role of roles) {
-    const label = formatRole(role)
-    const existing = map.get(label) ?? {
-      label,
-      hasAdmin: false,
-      hasUser: false,
-    }
-    if (isAdminRole(role)) existing.hasAdmin = true
-    else existing.hasUser = true
-    map.set(label, existing)
-  }
-  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
-}
-
-const UserCell = ({ account }: { account: Address }) => (
-  <div className="w-32">
-    <EntityBadge variant="address" address={account}>
-      {truncateAddress(account, 6, 4)}
-    </EntityBadge>
-  </div>
-)
 
 const baseColumns: ColumnDef<RegistryRoleRow>[] = [
   {
@@ -67,57 +27,17 @@ const baseColumns: ColumnDef<RegistryRoleRow>[] = [
     header: 'User',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
-  {
-    id: 'role',
-    header: 'Role',
-    cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5 text-muted-foreground">
-        {toRoleEntries(row.original.roles).map((entry) => (
-          <span
-            className="font-mono pb-2 leading-5 h-5 box-content"
-            key={entry.label}
-          >
-            {entry.label}
-          </span>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'admin',
-    header: () => <div className="text-center">Admin</div>,
-    cell: ({ row }) => (
-      <div className="flex flex-col items-center gap-0.5">
-        {toRoleEntries(row.original.roles).map((entry) => (
-          <div
-            className="h-5 pb-2 box-content flex items-center"
-            key={entry.label}
-          >
-            <PermissionMark isHeld={entry.hasAdmin} />
-          </div>
-        ))}
-      </div>
-    ),
-  },
-  {
-    id: 'user-level',
-    header: () => <div className="text-center">User</div>,
-    cell: ({ row }) => (
-      <div className="flex flex-col items-center gap-0.5">
-        {toRoleEntries(row.original.roles).map((entry) => (
-          <div
-            className="h-5 pb-2 box-content flex items-center"
-            key={entry.label}
-          >
-            <PermissionMark isHeld={entry.hasUser} />
-          </div>
-        ))}
-      </div>
-    ),
-  },
+  ...buildRoleColumns<RegistryRoleRow>((row) => rolesToEntries(row.roles)),
 ]
 
-export const RegistryRolesTable = ({ address }: { address: Address }) => {
+export const RegistryRolesTable = ({
+  address,
+  disableEdit = false,
+}: {
+  address: Address
+  /** Render read-only: no edit action, no slider (e.g. embedded on /$name/roles). */
+  disableEdit?: boolean
+}) => {
   const {
     data: roles,
     isLoading,
@@ -133,26 +53,17 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
       roles: ['ROLE_REGISTRAR_ADMIN'],
       account: callerAddress ?? zeroAddress,
     }),
-    enabled: !!callerAddress,
+    enabled: !!callerAddress && !disableEdit,
   })
 
-  const columns: ColumnDef<RegistryRoleRow>[] = isAdmin
+  const showActions = isAdmin && !disableEdit
+
+  const columns: ColumnDef<RegistryRoleRow>[] = showActions
     ? [
         ...baseColumns,
-        {
-          id: 'actions',
-          header: () => null,
-          cell: ({ row }) => (
-            <Button
-              onClick={() => setEditingRow(row.original)}
-              aria-label="Edit user roles"
-              variant="secondary"
-              className="absolute inset-0 h-auto w-8 rounded-sm p-0 mt-4 flex items-center justify-center"
-            >
-              <PanelRight className="size-4 text-muted-foreground" />
-            </Button>
-          ),
-        },
+        buildEditActionColumn<RegistryRoleRow>((row) =>
+          setEditingRow(row.original),
+        ),
       ]
     : baseColumns
 
@@ -170,18 +81,9 @@ export const RegistryRolesTable = ({ address }: { address: Address }) => {
   }
 
   return (
-    <div
-      className={cn(
-        '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
-        // Last-cell overrides target the Edit-icon column — only present for
-        // admins. Skipping these for non-admins prevents the table's
-        // last visible column (User-level check) from getting squished.
-        isAdmin &&
-          '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
-      )}
-    >
+    <div className={rolesTableClassName(showActions)}>
       <DataTable columns={columns} data={rows} />
-      {isAdmin && (
+      {showActions && (
         <RegistryEditUserSheet
           open={!!editingRow}
           onOpenChange={(open) => {

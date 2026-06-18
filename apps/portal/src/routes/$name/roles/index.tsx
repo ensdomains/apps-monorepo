@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { NameRegistryRolesOverviewTable } from '@/features/registry/components/v2/NameRegistryRolesOverviewTable'
 import { NameResolverRolesOverviewTable } from '@/features/resolver/components/NameResolverRolesOverviewTable'
 import { NameRolesOverviewTable } from '@/features/roles/components/NameRolesOverviewTable'
 
@@ -21,6 +22,7 @@ function RouteComponent() {
       <h1 className="text-2xl md:text-heading font-medium leading-none">
         Roles
       </h1>
+      <NameRegistryRolesOverviewTable name={name} />
       <NameResolverRolesOverviewTable name={name} />
       <NameRolesOverviewTable name={name} />
     </div>
