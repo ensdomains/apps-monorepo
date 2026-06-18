@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { addressRecords } from '@/features/profile/data/records'
 import type { AddressRecordValue } from '@/features/profile/types'
 import {
   applyEthAddressChange,
   getAddressDisplayState,
   getAddressOption,
+  getAddressValidationErrorMessage,
+  getAddressValidationIssues,
   getAddressValue,
   normalizeAddressRows,
   removeAddress,
@@ -14,29 +15,66 @@ import {
   BNB_COIN_TYPE,
   BSC_COIN_TYPE,
   ETH_COIN_TYPE,
-  getPickerRecords,
-  isEvmCoinType,
+  evmChainOptions,
+  getPickerRecordGroups,
 } from './addressPickerRecords'
 
-describe('getPickerRecords', () => {
-  it('lists every available other-network address record when search is empty', async () => {
-    const unavailableCoinTypes = new Set([ETH_COIN_TYPE, 0, 501, 714])
-    const records = getPickerRecords({
-      mode: 'other',
+describe('getPickerRecordGroups', () => {
+  it('groups the top five EVM picker-only records without listing all remaining chains', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'evm',
       normalizedSearchValue: '',
-      unavailableCoinTypes,
+      unavailableCoinTypes: new Set([
+        ETH_COIN_TYPE,
+        ...evmChainOptions.map(({ coinType }) => coinType),
+      ]),
     })
-    const expectedRecords = addressRecords.filter(
-      (record) =>
-        !unavailableCoinTypes.has(record.coinType) &&
-        !isEvmCoinType(record.coinType) &&
-        record.coinType !== ETH_COIN_TYPE,
-    )
 
-    expect(records.map(({ coinType }) => coinType)).toEqual(
-      expectedRecords.map(({ coinType }) => coinType),
-    )
-    expect(records.length).toBeGreaterThan(4)
+    expect(popularRecords.map(({ name }) => name)).toEqual([
+      'Zora',
+      'Scroll',
+      'Linea',
+      'Celo',
+      'Gnosis',
+    ])
+    expect(otherRecords).toEqual([])
+  })
+
+  it('keeps popular picker-only EVM chains visible while filtering remaining chains', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'evm',
+      normalizedSearchValue: 'metis',
+      unavailableCoinTypes: new Set([
+        ETH_COIN_TYPE,
+        ...evmChainOptions.map(({ coinType }) => coinType),
+      ]),
+    })
+
+    expect(popularRecords.map(({ name }) => name)).toEqual([
+      'Zora',
+      'Scroll',
+      'Linea',
+      'Celo',
+      'Gnosis',
+    ])
+    expect(otherRecords.map(({ name }) => name)).toEqual(['Metis'])
+  })
+
+  it('keeps popular picker-only other-network chains visible while filtering remaining chains', () => {
+    const { otherRecords, popularRecords } = getPickerRecordGroups({
+      mode: 'other',
+      normalizedSearchValue: 'monero',
+      unavailableCoinTypes: new Set([ETH_COIN_TYPE, 0, 501, BNB_COIN_TYPE]),
+    })
+
+    expect(popularRecords.map(({ name }) => name)).toEqual([
+      'Litecoin',
+      'Dogecoin',
+      'Reddcoin',
+      'Dash',
+      'Peercoin',
+    ])
+    expect(otherRecords.map(({ name }) => name)).toEqual(['Monero'])
   })
 })
 
@@ -191,5 +229,108 @@ describe('address row helpers', () => {
     ])
     expect(state.unavailableEvmCoinTypes.has(BSC_COIN_TYPE)).toBe(true)
     expect(state.unavailableOtherCoinTypes.has(123_456_789)).toBe(true)
+  })
+
+  it('does not render the chain-specific section when EVM rows mirror the Ethereum address', () => {
+    const state = getAddressDisplayState({
+      addresses: [
+        address(ETH_COIN_TYPE, ethAddress),
+        address(optimismCoinType, ethAddress.toUpperCase()),
+        address(baseCoinType, `  ${ethAddress}  `),
+      ],
+      ethAddress,
+      extraEvmCoinTypes: [],
+      extraOtherCoinTypes: [],
+    })
+
+    expect(state.customEvmOptions).toEqual([])
+    expect(state.visibleEvmChipOptions.map(({ coinType }) => coinType)).toEqual(
+      expect.arrayContaining([optimismCoinType, baseCoinType]),
+    )
+  })
+
+  it('keeps inactive preset EVM chains outside of the picker because they are already visible as quick chips', () => {
+    const state = getAddressDisplayState({
+      addresses: [address(ETH_COIN_TYPE, ethAddress)],
+      ethAddress,
+      extraEvmCoinTypes: [],
+      extraOtherCoinTypes: [],
+    })
+
+    expect(state.visibleEvmChipOptions.map(({ coinType }) => coinType)).toEqual(
+      expect.arrayContaining([optimismCoinType, baseCoinType]),
+    )
+    expect(state.unavailableEvmCoinTypes.has(optimismCoinType)).toBe(true)
+    expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(true)
+  })
+
+  it('hides preset chain-specific EVM records from popular chips and the add-more picker', () => {
+    const state = getAddressDisplayState({
+      addresses: [
+        address(ETH_COIN_TYPE, ethAddress),
+        address(baseCoinType, customBaseAddress),
+      ],
+      ethAddress,
+      extraEvmCoinTypes: [],
+      extraOtherCoinTypes: [],
+    })
+
+    expect(state.customEvmOptions).toEqual([
+      { coinType: baseCoinType, label: 'Base' },
+    ])
+    expect(
+      state.visibleEvmChipOptions.map(({ coinType }) => coinType),
+    ).not.toContain(baseCoinType)
+    expect(state.unavailableEvmCoinTypes.has(baseCoinType)).toBe(true)
+  })
+
+  it('does not return a validation error for empty address values', () => {
+    expect(getAddressValidationErrorMessage(ETH_COIN_TYPE, '')).toBeUndefined()
+  })
+
+  it('validates Ethereum-compatible address values', () => {
+    expect(
+      getAddressValidationErrorMessage(
+        ETH_COIN_TYPE,
+        '0x1111111111111111111111111111111111111111',
+      ),
+    ).toBeUndefined()
+    expect(
+      getAddressValidationErrorMessage(ETH_COIN_TYPE, 'not-an-address'),
+    ).toBe('Enter a valid Ethereum address')
+    expect(
+      getAddressValidationErrorMessage(baseCoinType, 'not-an-address'),
+    ).toBe('Enter a valid Base address')
+  })
+
+  it('validates non-EVM address values with their coin encoder', () => {
+    expect(
+      getAddressValidationErrorMessage(
+        bitcoinCoinType,
+        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      ),
+    ).toBeUndefined()
+    expect(getAddressValidationErrorMessage(bitcoinCoinType, 'not-btc')).toBe(
+      'Enter a valid Bitcoin address',
+    )
+  })
+
+  it('returns validation issues for every invalid address row', () => {
+    expect(
+      getAddressValidationIssues([
+        address(ETH_COIN_TYPE, 'not-an-address'),
+        address(baseCoinType, 'still-not-an-address'),
+        address(bitcoinCoinType, 'not-btc'),
+        address(123_456_789, 'unsupported'),
+      ]),
+    ).toEqual([
+      { coinType: ETH_COIN_TYPE, message: 'Enter a valid Ethereum address' },
+      { coinType: baseCoinType, message: 'Enter a valid Base address' },
+      { coinType: bitcoinCoinType, message: 'Enter a valid Bitcoin address' },
+      {
+        coinType: 123_456_789,
+        message: 'Unsupported address type',
+      },
+    ])
   })
 })

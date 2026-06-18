@@ -52,8 +52,9 @@ export const getRecordHref = (
   value: string,
 ): string | undefined => {
   if (!record || !('href' in record)) return undefined
-  if (typeof record.href === 'function') return record.href(value)
-  return record.href + encodeURIComponent(value || '')
+  const displayValue = getRecordDisplayValue(record, value)
+  if (typeof record.href === 'function') return record.href(displayValue)
+  return record.href + encodeURIComponent(displayValue || '')
 }
 
 export const getRecordDisplayValue = (
@@ -61,10 +62,16 @@ export const getRecordDisplayValue = (
   value: string,
 ): string => {
   if (!record) return value
-  if (record.displayPrefix && value.startsWith(record.displayPrefix)) {
-    return value.slice(record.displayPrefix.length)
+  const displayValue =
+    record.displayPrefix && value.startsWith(record.displayPrefix)
+      ? value.slice(record.displayPrefix.length)
+      : value
+
+  if (record.normalize) {
+    return record.normalize(displayValue)
   }
-  return value
+
+  return displayValue
 }
 
 // Helper accessors

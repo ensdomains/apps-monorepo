@@ -1,8 +1,11 @@
 import type { registrationMachine } from '@ens-apps/transaction-manager'
 import { useActorRef, useSelector } from '@xstate/react'
 import { createContext, use, useEffect, useRef } from 'react'
+import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import type { Actor, ActorRefFrom, SnapshotFrom } from 'xstate'
+import { sepoliaWithEns } from '@/lib/wagmi'
+import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 import {
   getRegistrationV2ChildActor,
   registrationV2UiMachine,
@@ -38,6 +41,22 @@ export const RegistrationV2UiProvider = ({
     getRegistrationV2ChildActor,
   )
   const previousLabel = useRef<string | undefined>(label)
+
+  // The registration flow deploys a dedicated resolver proxy. Once its address
+  // is known, ask Etherscan to link it to the already source-verified
+  // implementation (Read/Write-as-Proxy). Fire-and-forget, latched per address.
+  const resolverAddress = useSelector(
+    registrationActor,
+    (snapshot) => snapshot?.context.resolverAddress,
+  )
+  const verifiedResolverRef = useRef<Address | null>(null)
+  useEffect(() => {
+    if (!resolverAddress || verifiedResolverRef.current === resolverAddress) {
+      return
+    }
+    verifiedResolverRef.current = resolverAddress
+    void verifyProxyContract(sepoliaWithEns, resolverAddress)
+  }, [resolverAddress])
 
   useEffect(() => {
     const subscription = registrationV2UiActor.subscribe({

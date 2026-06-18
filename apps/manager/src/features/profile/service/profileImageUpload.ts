@@ -11,6 +11,14 @@ const JPEG_QUALITY = 0.9
 
 export type ImageType = 'avatar' | 'header'
 
+export interface PreparedProfileImageUpload {
+  readonly dataURL: string
+  readonly hash: string
+  readonly imageUrl: string
+  readonly kind: ImageType
+  readonly name: string
+}
+
 const fileToDataURL = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -60,133 +68,227 @@ const dataURLToBytes = (dataURL: string) => {
 
 type ImageSelectionEvent = EventFrom<typeof imageSelectionMachine>
 
+interface UploadRequestParams {
+  readonly address: string
+  readonly dataURL: string
+  readonly endpoint: string
+  readonly expiry: string
+  readonly sig: string
+}
+
 const getChainName = (chainId: number | null | undefined) => {
   if (!chainId || chainId === 1) return 'mainnet'
   // Default to sepolia for non-mainnet in this app
   return 'sepolia'
 }
 
+const getUploadEndpoint = ({
+  chainId,
+  name,
+  type,
+}: {
+  readonly chainId: number | undefined
+  readonly name: string
+  readonly type: ImageType
+}) => {
+  const chainName = getChainName(chainId)
+  const baseUrlRoot = AVATAR_UPLOAD_BASE_URL
+
+  if (type === 'avatar') {
+    const baseURL =
+      chainName === 'mainnet' ? baseUrlRoot : `${baseUrlRoot}/${chainName}`
+    return `${baseURL}/${name}`
+  }
+
+  return chainName === 'mainnet'
+    ? `${baseUrlRoot}/${name}/h`
+    : `${baseUrlRoot}/${chainName}/${name}/h`
+}
+
+const getUploadHash = (dataURL: string) => {
+  const hash = sha256(dataURLToBytes(dataURL), 'hex')
+  return hash.startsWith('0x') ? hash.slice(2) : hash
+}
+
+const signImageUpload = ({
+  expiry,
+  hash,
+  name,
+  signTypedDataAsync,
+  type,
+}: {
+  readonly expiry: string
+  readonly hash: string
+  readonly name: string
+  readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
+  readonly type: ImageType
+}) =>
+  signTypedDataAsync({
+    primaryType: 'Upload',
+    domain: {
+      name: 'Ethereum Name Service',
+      version: '1',
+    },
+    types: {
+      Upload: [
+        { name: 'upload', type: 'string' },
+        { name: 'expiry', type: 'string' },
+        { name: 'name', type: 'string' },
+        { name: 'hash', type: 'string' },
+      ],
+    },
+    message: {
+      upload: type,
+      expiry,
+      name,
+      hash,
+    },
+  })
+
+const uploadSignedImage = async ({
+  address,
+  dataURL,
+  endpoint,
+  expiry,
+  sig,
+}: UploadRequestParams) => {
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      expiry,
+      dataURL,
+      sig,
+      unverifiedAddress: address,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Upload failed with status ${response.status}`)
+  }
+
+  const result = (await response.json()) as
+    | { message: string }
+    | { error: string; status?: number }
+
+  if ('message' in result && result.message === 'uploaded') {
+    return
+  }
+
+  if ('error' in result) {
+    throw new Error(result.error)
+  }
+
+  throw new Error('Unknown error')
+}
+
 export interface UploadImageMutationOptionsArgs {
-  type: ImageType
-  name?: string
-  uploadFile: File | null
-  isConnected: boolean
-  address?: string
-  chainId: number | undefined
-  signTypedDataAsync: SignTypedDataMutateAsync<unknown>
-  onImageChange: (imageUrl: string) => void
-  setOpen: (open: boolean) => void
-  setUploadFile: (file: File | null) => void
-  send: (event: ImageSelectionEvent) => void
+  readonly type: ImageType
+  readonly name?: string
+  readonly isConnected: boolean
+  readonly address?: string
+  readonly chainId: number | undefined
+  readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
+  readonly onImageChange: (imageUrl: string) => void
+  readonly onImageUploadComplete?: (imageUrl: string) => void
+  readonly setOpen: (open: boolean) => void
+  readonly send: (event: ImageSelectionEvent) => void
+}
+
+export const prepareProfileImageUpload = async ({
+  type,
+  name,
+  chainId,
+  file,
+}: {
+  readonly type: ImageType
+  readonly name: string
+  readonly chainId: number | undefined
+  readonly file: File
+}): Promise<PreparedProfileImageUpload> => {
+  const dataURL = await fileToJpegDataURL(file)
+  const imageUrl = getUploadEndpoint({ chainId, name, type })
+
+  return {
+    dataURL,
+    hash: getUploadHash(dataURL),
+    imageUrl,
+    kind: type,
+    name,
+  }
+}
+
+export const submitPreparedProfileImageUpload = async ({
+  upload,
+  address,
+  signTypedDataAsync,
+}: {
+  readonly upload: PreparedProfileImageUpload
+  readonly address: string
+  readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
+}) => {
+  const expiry = `${Date.now() + ONE_WEEK_MS}`
+  const sig = await signImageUpload({
+    expiry,
+    hash: upload.hash,
+    name: upload.name,
+    signTypedDataAsync,
+    type: upload.kind,
+  })
+
+  try {
+    await uploadSignedImage({
+      address,
+      dataURL: upload.dataURL,
+      endpoint: upload.imageUrl,
+      expiry,
+      sig,
+    })
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error('Upload timed out. Please try again.')
+    }
+    throw err
+  }
 }
 
 export const uploadImageMutationOptions = ({
   type,
   name,
-  uploadFile,
   isConnected,
   address,
   chainId,
   signTypedDataAsync,
   onImageChange,
+  onImageUploadComplete,
   setOpen,
-  setUploadFile,
   send,
 }: UploadImageMutationOptionsArgs) =>
   mutationOptions({
-    mutationFn: async () => {
+    mutationFn: async (uploadFile: File) => {
       if (!name) throw new Error('Name is required to upload an image')
-      if (!uploadFile) throw new Error('No image selected for upload')
       if (!isConnected || !address)
         throw new Error('Please connect your wallet before uploading an image')
 
-      const dataURL = await fileToJpegDataURL(uploadFile)
-
-      const chainName = getChainName(chainId)
-      const baseUrlRoot = AVATAR_UPLOAD_BASE_URL
-
-      let endpoint: string
-      if (type === 'avatar') {
-        const baseURL =
-          chainName === 'mainnet' ? baseUrlRoot : `${baseUrlRoot}/${chainName}`
-        endpoint = `${baseURL}/${name}`
-      } else {
-        // header
-        endpoint =
-          chainName === 'mainnet'
-            ? `${baseUrlRoot}/${name}/h`
-            : `${baseUrlRoot}/${chainName}/${name}/h`
-      }
-
-      const hash = sha256(dataURLToBytes(dataURL), 'hex')
-      const urlHash = hash.startsWith('0x') ? hash.slice(2) : hash
-      const expiry = `${Date.now() + ONE_WEEK_MS}`
-
-      const sig = await signTypedDataAsync({
-        primaryType: 'Upload',
-        domain: {
-          name: 'Ethereum Name Service',
-          version: '1',
-        },
-        types: {
-          Upload: [
-            { name: 'upload', type: 'string' },
-            { name: 'expiry', type: 'string' },
-            { name: 'name', type: 'string' },
-            { name: 'hash', type: 'string' },
-          ],
-        },
-        message: {
-          upload: type,
-          expiry,
-          name,
-          hash: urlHash,
-        },
+      const upload = await prepareProfileImageUpload({
+        chainId,
+        file: uploadFile,
+        name,
+        type,
+      })
+      await submitPreparedProfileImageUpload({
+        address,
+        signTypedDataAsync,
+        upload,
       })
 
-      try {
-        const response = await fetch(endpoint, {
-          method: 'PUT',
-          signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            expiry,
-            dataURL,
-            sig,
-            unverifiedAddress: address,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`Upload failed with status ${response.status}`)
-        }
-
-        const result = (await response.json()) as
-          | { message: string }
-          | { error: string; status?: number }
-
-        if ('message' in result && result.message === 'uploaded') {
-          // Save Avup endpoint as the text record value
-          onImageChange(endpoint)
-          setOpen(false)
-          setUploadFile(null)
-          send({ type: 'RESET' })
-          return
-        }
-
-        if ('error' in result) {
-          throw new Error(result.error)
-        }
-
-        throw new Error('Unknown error')
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          throw new Error('Upload timed out. Please try again.')
-        }
-        throw err
-      }
+      // Save Avup endpoint as the text record value
+      onImageChange(upload.imageUrl)
+      setOpen(false)
+      onImageUploadComplete?.(upload.imageUrl)
     },
     onError: (error: unknown) => {
       const message =

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -8,6 +9,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { ResolverAddUserSheet } from '@/features/resolver/components/ResolverAddUserSheet'
 import { ResolverRolesTable } from '@/features/resolver/components/ResolverRolesTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { queryClient } from '@/utils/queryClient'
@@ -27,6 +29,7 @@ export const Route = createFileRoute('/resolver/$address/roles/')({
 function RouteComponent() {
   const { address } = Route.useParams()
   const { address: accountAddress } = useConnection()
+  const [addUserOpen, setAddUserOpen] = useState(false)
 
   const {
     data: resolver,
@@ -64,11 +67,13 @@ function RouteComponent() {
           Roles
         </h1>
         {accountAddress && canManageRoles && (
-          <Button variant="default" className="flex items-center gap-2" asChild>
-            <Link to="/resolver/$address/roles/add-user" params={{ address }}>
-              <Plus className="size-4" />
-              Add user
-            </Link>
+          <Button
+            variant="default"
+            className="flex items-center gap-2"
+            onClick={() => setAddUserOpen(true)}
+          >
+            <Plus className="size-4" />
+            Add user
           </Button>
         )}
       </div>
@@ -77,6 +82,12 @@ function RouteComponent() {
         nodes={nodes}
         resolverAddress={address as Address}
         canManageRoles={canManageRoles}
+      />
+      <ResolverAddUserSheet
+        open={addUserOpen}
+        onOpenChange={setAddUserOpen}
+        resolverAddress={address as Address}
+        nodes={nodes}
       />
     </div>
   )

@@ -29,6 +29,8 @@ import {
   isSafeHttpUrl,
 } from '@/features/profile/utils/safeUrl'
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
+import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
+import { validateEmail } from '@/features/profile/utils/validateUrl'
 import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
 
 export { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
@@ -83,6 +85,7 @@ export interface SaveRecordsParams {
   publicClient: PublicClient
   chainId: number
   resolverAddress: Address
+  retryCount?: number
 }
 
 export interface SaveRecordsResult extends WaitForTransactionResult {
@@ -268,6 +271,13 @@ const validateFinalTextRecords = (texts: FinalTextRecord[]): RecordIssue[] => {
       }
     }
 
+    if (key === 'email') {
+      const message = validateEmail(trimmed)
+      if (message) {
+        issues.push(recordIssue('contact', 'email', message))
+      }
+    }
+
     if (key === 'links') {
       issues.push(...validateLinksRecord(trimmed))
     }
@@ -275,6 +285,14 @@ const validateFinalTextRecords = (texts: FinalTextRecord[]): RecordIssue[] => {
 
   return issues
 }
+
+const validateFinalCoinRecords = (
+  coins: readonly ServiceCoinRecord[],
+): RecordIssue[] =>
+  coins.flatMap(({ coinType, value }) => {
+    const message = validateAddressRecordValue(coinType, value)
+    return message ? [recordIssue('address', String(coinType), message)] : []
+  })
 
 function createTransactionRequest(
   params: CreateTransactionRequestParams,
@@ -342,7 +360,10 @@ async function buildRecordsUpdateRequest(
   }
 
   // Validate the final records, including unchanged records omitted from the diff.
-  const issues = validateFinalTextRecords(after.texts)
+  const issues = [
+    ...validateFinalTextRecords(after.texts),
+    ...validateFinalCoinRecords(after.coins),
+  ]
   if (issues.length > 0) {
     throw new RecordsValidationError(issues)
   }
@@ -473,7 +494,7 @@ async function buildRecordsUpdateRequest(
 export async function saveRecords(
   params: SaveRecordsParams,
 ): Promise<SaveRecordsResult> {
-  const { publicClient, chainId, ...requestParams } = params
+  const { publicClient, chainId, retryCount, ...requestParams } = params
 
   // Build the transaction request (validates and computes diff)
   const { request, description } = await buildRecordsUpdateRequest({
@@ -499,6 +520,7 @@ export async function saveRecords(
       description,
       publicClient,
       chainId,
+      retryCount,
     },
   )
 

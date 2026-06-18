@@ -103,7 +103,7 @@ export type ContactMethod = (typeof contactMethods)[number]
 export type ContactMethodKey = ContactMethod['key']
 
 export const defaultEnabledContactMethodKeys: ReadonlySet<ContactMethodKey> =
-  new Set<ContactMethodKey>(['com.twitter', 'email', 'mail'])
+  new Set<ContactMethodKey>(['com.twitter', 'org.telegram'])
 
 const rowMethodKeys = [
   'email',
