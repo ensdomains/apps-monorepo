@@ -4,16 +4,14 @@ import type {
 } from '@ens-apps/shared-schema/transactions'
 import { relations } from 'drizzle-orm'
 import {
-  index,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
-  unique,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { users } from './core'
 
 /**
@@ -39,7 +37,6 @@ export interface TransactionPayload {
 export const transactions = pgTable(
   'transactions',
   {
-    id: uuid('id').primaryKey().default(randomUUIDv7),
     user_id: uuid('user_id')
       .notNull()
       .references(() => users.id, {
@@ -65,13 +62,9 @@ export const transactions = pgTable(
       .notNull(),
   },
   (table) => [
-    unique('transactions_user_tx_unique').on(table.user_id, table.tx_id),
-    // Covers the user-scoped list query (WHERE user_id ORDER BY created_at DESC);
-    // Postgres scans this composite index backward for the DESC ordering.
-    index('transactions_user_id_created_at_index').on(
-      table.user_id,
-      table.created_at,
-    ),
+    // Composite PK: one row per (user, client-generated tx id), which is also
+    // the upsert idempotency key — no surrogate id or separate unique needed.
+    primaryKey({ columns: [table.user_id, table.tx_id] }),
   ],
 )
 

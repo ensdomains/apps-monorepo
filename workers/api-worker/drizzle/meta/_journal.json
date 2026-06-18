@@ -33,15 +33,8 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1781596272280,
+      "when": 1781791104453,
       "tag": "0004_add_transactions",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1781778191718,
-      "tag": "0005_add_transactions_index",
       "breakpoints": true
     }
   ]

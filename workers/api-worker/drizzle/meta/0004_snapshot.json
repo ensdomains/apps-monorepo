@@ -1,5 +1,5 @@
 {
-  "id": "03cb68d8-ef82-4a0f-ad63-1081fd80c4a1",
+  "id": "d520e043-2754-4dc8-a3d3-525e4a1908ea",
   "prevId": "c3f5fdf8-ead4-47b2-9430-7c271fe11561",
   "version": "7",
   "dialect": "postgresql",
@@ -644,13 +644,6 @@
       "name": "transactions",
       "schema": "",
       "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v7()"
-        },
         "user_id": {
           "name": "user_id",
           "type": "uuid",
@@ -726,14 +719,13 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "transactions_user_tx_unique": {
-          "name": "transactions_user_tx_unique",
-          "nullsNotDistinct": false,
+      "compositePrimaryKeys": {
+        "transactions_user_id_tx_id_pk": {
+          "name": "transactions_user_id_tx_id_pk",
           "columns": ["user_id", "tx_id"]
         }
       },
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
