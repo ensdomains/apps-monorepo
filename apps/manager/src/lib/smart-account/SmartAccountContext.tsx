@@ -6,6 +6,7 @@ import {
   type RhinestoneStoredSession,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
+import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -22,15 +23,101 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import type { Address, WalletClient } from 'viem'
+import {
+  type Address,
+  type WalletClient,
+  createPublicClient,
+  createTestClient,
+  createWalletClient,
+  erc20Abi,
+  http,
+  parseAbi,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { readContract } from 'viem/actions'
 import { useConnection, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
+import { TIME_TRAVEL_RPC } from '@/dev/timeTravel'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
 import { sessionHydrationKey } from './sessionGate'
+
+// Well-known Anvil #0 key — publicly documented, not a secret.
+const ANVIL_FUNDER_KEY =
+  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
+
+const ERC20_MINT_ABI = parseAbi(['function mint(address to, uint256 amount)'])
+const USDC_MINT_AMOUNT = 10_000_000_000n // 10,000 USDC (6 decimals)
+const DAI_MINT_AMOUNT = 10_000_000_000_000_000_000_000n // 10,000 DAI (18 decimals)
+
+/**
+ * Dev-only: clears contract bytecode at `address` on the local Anvil fork and
+ * mints USDC + DAI to it.
+ *
+ * Why setCode: some Anvil-derived addresses coincide with Sepolia contracts
+ * (e.g. well-known account 0xf39F…2266 has an EOF contract deployed on Sepolia).
+ * The ENS registrar calls `_safeMint` on the registration owner, which triggers
+ * an ERC1155 receiver check — if that address has non-receiver bytecode the TX
+ * reverts. Wiping the code makes it a plain EOA on the fork.
+ */
+async function anvilSetupOwner(address: `0x${string}`) {
+  const transport = http(TIME_TRAVEL_RPC)
+  const testClient = createTestClient({
+    chain: customSepolia,
+    mode: 'anvil',
+    transport,
+  })
+  const publicClient = createPublicClient({ chain: customSepolia, transport })
+  const anvilFunder = privateKeyToAccount(ANVIL_FUNDER_KEY)
+  const walletClient = createWalletClient({
+    account: anvilFunder,
+    chain: customSepolia,
+    transport,
+  })
+
+  await testClient.setCode({ address, bytecode: '0x' })
+
+  const [usdcBal, daiBal] = await Promise.all([
+    readContract(publicClient, {
+      address: SUPPORTED_TOKENS.USDC,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [address],
+    }),
+    readContract(publicClient, {
+      address: SUPPORTED_TOKENS.DAI,
+      abi: erc20Abi,
+      functionName: 'balanceOf',
+      args: [address],
+    }),
+  ])
+
+  const mints: Promise<`0x${string}`>[] = []
+  if (usdcBal < USDC_MINT_AMOUNT) {
+    mints.push(
+      walletClient.writeContract({
+        address: SUPPORTED_TOKENS.USDC,
+        abi: ERC20_MINT_ABI,
+        functionName: 'mint',
+        args: [address, USDC_MINT_AMOUNT],
+      }),
+    )
+  }
+  if (daiBal < DAI_MINT_AMOUNT) {
+    mints.push(
+      walletClient.writeContract({
+        address: SUPPORTED_TOKENS.DAI,
+        abi: ERC20_MINT_ABI,
+        functionName: 'mint',
+        args: [address, DAI_MINT_AMOUNT],
+      }),
+    )
+  }
+  await Promise.all(mints)
+}
 import {
   selectIsLoading,
   selectIsReady,
@@ -189,6 +276,23 @@ export const SmartAccountContextProvider = ({
   // refetch AND can't loop on every render. This is what stops the previous
   // infinite loop / faucet+Para spam.
   const lastFundedKeyRef = useRef<string | null>(null)
+
+  // Dev-only: tracks which owner addresses we've already set up on Anvil so we
+  // don't repeat the setCode + mint on every render.
+  const anvilSetupDoneRef = useRef<Set<string>>(new Set())
+
+  // Dev-only: clears contract bytecode + mints USDC/DAI on the local Anvil fork
+  // for the owner address. Runs whenever ownerAddress becomes available.
+  // Falls back silently if anvil_* methods are unavailable (real Sepolia in dev).
+  useEffect(() => {
+    if (!import.meta.env.DEV || !ownerAddress) return
+    if (anvilSetupDoneRef.current.has(ownerAddress)) return
+
+    anvilSetupDoneRef.current.add(ownerAddress)
+    anvilSetupOwner(ownerAddress).catch(() => {
+      anvilSetupDoneRef.current.delete(ownerAddress)
+    })
+  }, [ownerAddress])
 
   const autoFundingMutation = useMutation({
     mutationKey: $qk({

@@ -32,6 +32,9 @@ const STEPS: { label: string; seconds: number }[] = [
   { label: '+1y', seconds: 365 * DAY },
 ]
 
+/** MIN_COMMITMENT_AGE (60s on the v2 ETHRegistrar) + a small buffer. */
+const COMMIT_SKIP_SECONDS = 70
+
 const POSITION_STORAGE_KEY = 'ens:time-travel:pos'
 
 type Pos = { left: number; top: number }
@@ -287,6 +290,24 @@ export function TimeTravelPanel() {
     advanceSeconds(Math.round(days * DAY))
   }, [customDays, advanceSeconds])
 
+  // Advance past the registration commitment cooldown WITHOUT reloading, so the
+  // in-progress registration flow survives. Advancing the chain makes the
+  // subsequent on-chain `register` valid; the Date.now() jump (syncFromChain)
+  // releases the commitment cooldown (which polls the clock) and zeroes its
+  // on-screen countdown.
+  const skipCommitWait = useCallback(async () => {
+    setBusy(true)
+    setActionError(null)
+    try {
+      await increaseTime(COMMIT_SKIP_SECONDS, endpoint)
+      await getChainClock()?.syncFromChain(endpoint)
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }, [endpoint])
+
   const error = actionError ?? blockError
 
   if (collapsed) {
@@ -385,6 +406,16 @@ export function TimeTravelPanel() {
           Real time
         </button>
       </div>
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={skipCommitWait}
+        style={{ ...stepButtonStyle(busy), width: '100%', marginTop: 8 }}
+        title="Advance ~70s (MIN_COMMITMENT_AGE) so a registration's commitment cooldown completes — no reload, keeps the in-progress flow"
+      >
+        Skip commit wait (+{COMMIT_SKIP_SECONDS}s)
+      </button>
 
       {error ? <p style={errorStyle}>{error}</p> : null}
       <p style={hintStyle}>

@@ -7,6 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useWalletClient } from 'wagmi'
+import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
@@ -33,12 +34,19 @@ export function useCreateSubname() {
       }
 
       const signer = createEOASigner(walletClient)
+      // When time-travel is active, Anvil's block time can be far ahead of
+      // Date.now() even with the chain clock applied. Use a 100-year window so
+      // the expiry is never already stale on-chain.
+      const expires = isTimeTravelEnabled()
+        ? BigInt(Math.floor(Date.now() / 1000)) + 3153600000n
+        : undefined
 
       return createSubname({
         ...params,
         walletClient,
         signer,
         chainId,
+        expires,
       })
     },
     onSuccess: (_data, variables) => {

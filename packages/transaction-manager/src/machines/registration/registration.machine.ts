@@ -1,3 +1,4 @@
+import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
@@ -285,9 +286,28 @@ export const registrationMachine = setup({
       return pollTransactionStatusActor(input)
     }),
     waitAfterCommitment: fromPromise(
-      async ({ input }: { input: { delayMs: number } }) => {
-        const safeDelay = Math.max(0, input.delayMs)
-        await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
+      async ({
+        input,
+        signal,
+      }: {
+        input: { targetMs: number }
+        signal: AbortSignal
+      }) => {
+        if (getChainClock()) {
+          // Time-travel dev mode: poll Date.now() so a clock warp releases the
+          // cooldown early. The chain clock patches Date.now() but NOT
+          // setTimeout, so a single setTimeout would ignore the warp.
+          const POLL_INTERVAL_MS = 250
+          while (Date.now() < input.targetMs) {
+            if (signal.aborted) return
+            await new Promise<void>((resolve) =>
+              setTimeout(resolve, POLL_INTERVAL_MS),
+            )
+          }
+        } else {
+          const delayMs = Math.max(0, input.targetMs - Date.now())
+          await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
+        }
       },
     ),
     validateCommitment: fromResultAsync(
@@ -874,12 +894,12 @@ export const registrationMachine = setup({
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
-          // If the ready timestamp is missing (for example after restoring an
-          // older snapshot), do not reintroduce an artificial cooldown when the
-          // commitment has already been validated as old enough on-chain.
-          const targetTimestamp = context.registerReadyTimestamp ?? Date.now()
-          const delayMs = Math.max(0, targetTimestamp - Date.now())
-          return { delayMs }
+          // Wait until the wall-clock (or dev time-travel) clock reaches this
+          // timestamp. If it's missing (for example after restoring an older
+          // snapshot), fall back to now so we don't reintroduce an artificial
+          // cooldown when the commitment is already old enough on-chain.
+          const targetMs = context.registerReadyTimestamp ?? Date.now()
+          return { targetMs }
         },
         onDone: [
           {
