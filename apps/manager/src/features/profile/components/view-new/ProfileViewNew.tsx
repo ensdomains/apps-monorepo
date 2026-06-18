@@ -127,7 +127,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
-    return <ProfileViewNewLoading />
+    return <ProfileViewNewLoading name={name} />
   }
 
   if (ownerMissing && isExpiryError) {

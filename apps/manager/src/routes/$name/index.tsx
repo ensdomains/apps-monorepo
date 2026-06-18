@@ -79,8 +79,10 @@ export const Route = createFileRoute('/$name/')({
 })
 
 function ProfileRoutePending() {
+  const name = Route.useParams({ select: (params) => params.name })
+
   return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
-    <ProfileViewNewLoading />
+    <ProfileViewNewLoading name={name} />
   ) : (
     <ProfileLoading />
   )
