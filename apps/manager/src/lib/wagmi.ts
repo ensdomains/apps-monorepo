@@ -7,6 +7,7 @@ import {
   metaMaskWallet,
   walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets'
+import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
@@ -21,24 +22,31 @@ export { WALLETCONNECT_PROJECT_ID }
 const MANAGER_SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aTDnH6wviUR8JD3QmlfqV1j'
 
-function resolveRpcUrl(): string {
-  try {
+const resolveRpcUrl = createIsomorphicFn()
+  .client(() => {
+    // In the browser any configured URL works, including relative paths like
+    // `/rpc` that proxy through the app's own origin.
+    return import.meta.env?.VITE_SEPOLIA_RPC_URL || MANAGER_SEPOLIA_RPC_URL
+  })
+  .server(() => {
     const envUrl = import.meta.env?.VITE_SEPOLIA_RPC_URL
     if (!envUrl) return MANAGER_SEPOLIA_RPC_URL
     // Relative paths (like /rpc) only work in the browser. During SSR use the
     // server-specific URL or fall back to the manager default.
-    if (envUrl.startsWith('/') && typeof window === 'undefined') {
+    if (envUrl.startsWith('/')) {
       return (
         import.meta.env?.VITE_SEPOLIA_RPC_URL_SERVER || MANAGER_SEPOLIA_RPC_URL
       )
     }
     return envUrl
-  } catch {
-    return MANAGER_SEPOLIA_RPC_URL
-  }
-}
+  })
 
-export const SEPOLIA_RPC_URL: string = resolveRpcUrl()
+// `createIsomorphicFn` is a no-op stub until the TanStack Start Vite plugin
+// transforms it. In environments where that transform doesn't run (e.g. the
+// vitest config, which doesn't include the Start plugin) the call returns
+// `undefined`, so fall back to the default to keep `SEPOLIA_RPC_URL` a string.
+export const SEPOLIA_RPC_URL: string =
+  resolveRpcUrl() || MANAGER_SEPOLIA_RPC_URL
 
 export const customSepolia = {
   ...sepolia,
