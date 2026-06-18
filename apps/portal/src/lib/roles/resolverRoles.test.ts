@@ -182,6 +182,20 @@ describe('groupRolesByAccount', () => {
     expect(result[0].decodedRoles).toContain('ROLE_CLEAR')
   })
 
+  it('should merge the same account across resources', () => {
+    const resourceB =
+      '0x1111111111111111111111111111111111111111111111111111111111111111'
+    const roles = [
+      makeRole('0xABC', resolverRoles.ROLE_SET_ADDR),
+      makeRole('0xABC', resolverRoles.ROLE_SET_TEXT, resourceB),
+    ]
+    const result = groupRolesByAccount(roles)
+
+    expect(result).toHaveLength(1)
+    expect(result[0].roles).toHaveLength(2)
+    expect(result[0].decodedRoles).toEqual(['ROLE_SET_ADDR', 'ROLE_SET_TEXT'])
+  })
+
   it('should return empty array for empty input', () => {
     expect(groupRolesByAccount([])).toEqual([])
   })

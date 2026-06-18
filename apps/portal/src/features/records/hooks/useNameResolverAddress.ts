@@ -11,7 +11,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { fromPromise, ok } from 'neverthrow'
-import { zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 // ============================================================================
@@ -51,10 +51,10 @@ export const getNameResolverAddress = ResultFn(async function* (
   )
 
   if (!resolverAddress || resolverAddress === zeroAddress) {
-    return ok(null)
+    return ok<Address | null>(null)
   }
 
-  return ok(resolverAddress)
+  return ok<Address | null>(resolverAddress)
 })
 
 // ============================================================================
