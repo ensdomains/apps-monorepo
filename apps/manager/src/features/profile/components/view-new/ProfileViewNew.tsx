@@ -1,10 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
-import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
-import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import {
@@ -20,12 +17,11 @@ import { transformProfileRecords } from '@/features/profile/utils/transformRecor
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileViewNewActions } from './ProfileViewNewActions'
+import { ProfileViewNewBanner } from './ProfileViewNewBanner'
 import { ProfileViewNewCards } from './ProfileViewNewCards'
-import {
-  ProfileViewNewBanner,
-  ProfileViewNewHeader,
-} from './ProfileViewNewHeader'
+import { ProfileViewNewHeader } from './ProfileViewNewHeader'
 import { ProfileViewNewLoading } from './ProfileViewNewLoading'
+import { ProfileViewNewStatusBanners } from './ProfileViewNewStatusBanners'
 
 type ProfileViewNewProps = {
   readonly name: string
@@ -54,38 +50,6 @@ const getProfileUrl = (name: string) =>
       ? window.location.origin
       : 'https://app.ens.domains'
   }/p/${name}`
-
-const ProfileViewNewStatusBanners = ({
-  isMigrationEnabled,
-  name,
-  expiry,
-}: {
-  readonly isMigrationEnabled: boolean
-  readonly name: string
-  readonly expiry: ReturnType<typeof getProfileNameExpiryStatus>
-}) => {
-  const graceBanner = match(expiry)
-    .with(
-      { isInGrace: true, graceEndDate: P.not(P.nullish) },
-      ({ graceEndDate }) => (
-        <GracePeriodBanner
-          graceEndDate={graceEndDate}
-          renewName={name}
-          variant="profileOwnName"
-        />
-      ),
-    )
-    .otherwise(() => null)
-
-  if (!isMigrationEnabled && !graceBanner) return null
-
-  return (
-    <div className="mb-6 space-y-4">
-      {isMigrationEnabled ? <UpgradeBanner profileName={name} /> : null}
-      {graceBanner}
-    </div>
-  )
-}
 
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
@@ -171,8 +135,6 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             avatarLoading={avatar.isLoading}
             avatarUrl={avatarUrl}
             displayExpiryDate={expiry.displayExpiryDate}
-            headerLoading={header.isLoading}
-            headerUrl={headerUrl}
             name={name}
             owner={owner}
             ownerReverseName={ownerReverseName.data}

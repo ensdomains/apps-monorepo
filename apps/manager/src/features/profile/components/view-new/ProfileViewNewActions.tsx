@@ -1,29 +1,16 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useAtom } from '@xstate/store-react'
+import { useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
-import { LinkButton } from '@/components/ui/button'
-import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutations/addFavorite'
-import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
-import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'
-import { EditProfileDialog } from '@/features/profile/components/dialogs/edit-profile/EditProfileDialog'
-import { ShareProfileDialog } from '@/features/profile/components/dialogs/ShareProfileDialog'
-import {
-  profileExpiryDateFromSeconds,
-  profileExpiryQuery,
-} from '@/features/profile/service/profileExpiry'
 import type { ProfileRecords } from '@/features/profile/types'
-import { ThirdPartyRenewalDialog } from '@/features/renew/components/ThirdPartyRenewalDialog'
-import { canRenewV2Name } from '@/features/renew/utils/renewableName'
-import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
-import { cn } from '@/lib/utils'
-import { isBackendAuthed } from '@/utils/backend-client'
+import {
+  editActionClassName,
+  editBottomNavClassName,
+  editBottomNavContentClassName,
+  renewActionClassName,
+} from './ProfileViewNewAction.styles'
+import { ProfileViewNewEditAction } from './ProfileViewNewEditAction'
+import { ProfileViewNewFavoriteAction } from './ProfileViewNewFavoriteAction'
+import { ProfileViewNewRenewAction } from './ProfileViewNewRenewAction'
+import { ProfileViewNewShareAction } from './ProfileViewNewShareAction'
 
 type ProfileViewNewActionsProps = {
   readonly avatarUrl?: string
@@ -35,212 +22,6 @@ type ProfileViewNewActionsProps = {
   readonly profileEditNewEnabled: boolean
   readonly records: ProfileRecords
   readonly url: string
-}
-
-const iconActionClassName =
-  'flex size-13.5 shrink-0 items-center justify-center rounded bg-white text-ens-quartz-700 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 disabled:cursor-not-allowed disabled:opacity-50'
-
-const renewActionClassName =
-  'inline-flex h-13.5 min-w-34 items-center justify-center gap-1 whitespace-nowrap rounded border-none bg-white px-3 py-0 font-semi-mono text-xs text-ens-quartz-900 uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] hover:bg-ens-quartz-50 disabled:cursor-wait disabled:opacity-60 lg:landscape:w-33 lg:landscape:min-w-33'
-
-const editActionClassName =
-  'h-[61px] w-full max-w-[348px] rounded border border-ens-quartz-900 bg-white px-6 py-0 font-semi-mono text-sm text-ens-quartz-900 uppercase tracking-[1.12px] shadow-none hover:bg-ens-quartz-50 lg:landscape:h-12.5 lg:landscape:w-[171px] lg:landscape:border-none lg:landscape:bg-(--theme-bg) lg:landscape:text-(--theme-color) lg:landscape:hover:bg-(--theme-hover-bg)'
-
-const editBottomNavClassName =
-  'fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] lg:landscape:shadow-[0_-3.24px_91px_rgba(7,28,47,0.12)]'
-
-const editBottomNavContentClassName =
-  'mx-auto flex w-full max-w-[390px] justify-center px-5 pt-3 pb-[calc(44px+env(safe-area-inset-bottom,0px))] lg:landscape:max-w-[1440px] lg:landscape:justify-end lg:landscape:gap-3 lg:landscape:px-8 lg:landscape:py-4'
-
-const ProfileShareAction = ({
-  avatarUrl,
-  name,
-  url,
-}: {
-  readonly avatarUrl?: string
-  readonly name: string
-  readonly url: string
-}) => {
-  const { t } = useLingui()
-
-  return (
-    <ShareProfileDialog
-      avatarUrl={avatarUrl}
-      name={name}
-      trigger={
-        <button
-          aria-label={t`Share profile`}
-          className={iconActionClassName}
-          type="button"
-        >
-          <MSymbol
-            className="ms-opsz-32 ms-wght-200 text-[32px]"
-            symbol="ios_share"
-          />
-        </button>
-      }
-      url={url}
-    />
-  )
-}
-
-const ProfileFavoriteAction = ({ name }: { readonly name: string }) => {
-  const { t } = useLingui()
-  const isAuthed = useAtom(isBackendAuthed)
-  const { data: favorites = [] } = useQuery({
-    ...favoritesQueryOptions,
-    enabled: isAuthed,
-  })
-  const addMutation = useMutation(addFavoriteMutationOptions)
-  const removeMutation = useMutation(removeFavoriteMutationOptions)
-
-  const isFavorite = favorites.some(
-    (entry) => entry.name.toLowerCase() === name.toLowerCase(),
-  )
-  const isPending = addMutation.isPending || removeMutation.isPending
-
-  const toggleFavorite = () => {
-    if (!isAuthed || isPending) return
-
-    if (isFavorite) {
-      removeMutation.mutate({ name })
-      return
-    }
-
-    addMutation.mutate({ name })
-  }
-
-  const button = (
-    <button
-      aria-label={isFavorite ? t`Remove favorite` : t`Add favorite`}
-      className={iconActionClassName}
-      disabled={!isAuthed || isPending}
-      onClick={toggleFavorite}
-      type="button"
-    >
-      <MSymbol
-        className={cn(
-          'ms-opsz-32 text-[32px] text-ens-magenta',
-          isFavorite ? 'ms-fill ms-wght-300' : 'ms-wght-200',
-        )}
-        symbol="favorite"
-      />
-    </button>
-  )
-
-  if (isAuthed) return button
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent>
-        <Trans>Login to favorite</Trans>
-      </TooltipContent>
-    </Tooltip>
-  )
-}
-
-const ProfileEditAction = ({
-  isInGrace,
-  isOwner,
-  name,
-  onUpdated,
-  owner,
-  profileEditNewEnabled,
-  records,
-  className,
-}: Pick<
-  ProfileViewNewActionsProps,
-  | 'isInGrace'
-  | 'isOwner'
-  | 'name'
-  | 'onUpdated'
-  | 'owner'
-  | 'profileEditNewEnabled'
-  | 'records'
-> & {
-  readonly className: string
-}) => {
-  if (!isOwner || isInGrace) return null
-
-  const trigger = (
-    <button className={className} type="button">
-      <Trans>Edit Profile</Trans>
-    </button>
-  )
-
-  if (profileEditNewEnabled) {
-    return (
-      <EditProfileDialog
-        name={name}
-        onUpdated={onUpdated}
-        owner={owner}
-        records={records}
-        trigger={trigger}
-      />
-    )
-  }
-
-  return (
-    <LinkButton className={className} params={{ name }} to="/p/$name/edit">
-      <Trans>Edit Profile</Trans>
-    </LinkButton>
-  )
-}
-
-const ProfileRenewAction = ({
-  className,
-  isOwner,
-  name,
-}: {
-  readonly className: string
-  readonly isOwner?: boolean
-  readonly name: string
-}) => {
-  const { data: expiryData } = useQuery({
-    ...profileExpiryQuery(name),
-  })
-  const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
-
-  if (!canRenewV2Name(name, expiryDate)) return null
-
-  const buttonContent = (
-    <>
-      <Trans>Renew Name</Trans>
-      <MSymbol
-        aria-hidden="true"
-        className="ms-opsz-20 ms-wght-600 text-base leading-none"
-        symbol="double_arrow"
-      />
-    </>
-  )
-
-  if (isOwner === undefined) {
-    return (
-      <button className={className} disabled type="button">
-        {buttonContent}
-      </button>
-    )
-  }
-
-  if (shouldShowThirdPartyRenewalWarning(isOwner)) {
-    return (
-      <ThirdPartyRenewalDialog
-        name={name}
-        trigger={
-          <button className={className} type="button">
-            {buttonContent}
-          </button>
-        }
-      />
-    )
-  }
-
-  return (
-    <LinkButton className={className} params={{ name }} to="/renew/$name">
-      {buttonContent}
-    </LinkButton>
-  )
 }
 
 export const ProfileViewNewActions = ({
@@ -260,24 +41,32 @@ export const ProfileViewNewActions = ({
     <>
       <div className="absolute inset-x-0 top-[474px] z-30 lg:landscape:hidden">
         <div className="mx-auto flex w-full max-w-[390px] items-center justify-between px-5">
-          <ProfileRenewAction
+          <ProfileViewNewRenewAction
             className={renewActionClassName}
             isOwner={isOwner}
             name={name}
           />
           <div className="flex items-center gap-4">
-            <ProfileFavoriteAction name={name} />
-            <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+            <ProfileViewNewFavoriteAction name={name} />
+            <ProfileViewNewShareAction
+              avatarUrl={avatarUrl}
+              name={name}
+              url={url}
+            />
           </div>
         </div>
       </div>
 
       <div className="absolute top-79 right-8 z-30 hidden w-33 flex-col gap-6 lg:landscape:flex">
         <div className="flex items-center gap-6">
-          <ProfileFavoriteAction name={name} />
-          <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+          <ProfileViewNewFavoriteAction name={name} />
+          <ProfileViewNewShareAction
+            avatarUrl={avatarUrl}
+            name={name}
+            url={url}
+          />
         </div>
-        <ProfileRenewAction
+        <ProfileViewNewRenewAction
           className={renewActionClassName}
           isOwner={isOwner}
           name={name}
@@ -287,7 +76,7 @@ export const ProfileViewNewActions = ({
       {isOwner && !isInGrace ? (
         <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
           <div className={editBottomNavContentClassName}>
-            <ProfileEditAction
+            <ProfileViewNewEditAction
               className={editActionClassName}
               isInGrace={isInGrace}
               isOwner={isOwner}
