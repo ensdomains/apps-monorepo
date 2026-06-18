@@ -2,7 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle, LoaderIcon, WalletIcon, XCircle } from 'lucide-react'
 import type { Connector } from 'wagmi'
-import { useConnect, useConnection, useDisconnect } from 'wagmi'
+import { useConnect, useConnection } from 'wagmi'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -12,14 +12,39 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { useConnectModal, useWalletDisconnect } from '@/lib/wallet'
+import { describeConnectError, type ErrorTone } from './wallet.errors'
 
 export const Route = createFileRoute('/wallet')({
   component: RouteComponent,
   ssr: false,
 })
 
+// Alert tone → styling. One place to map severity to colors (border/text/icon).
+const TONE_STYLES: Record<
+  ErrorTone,
+  { alert: string; text: string; icon: string }
+> = {
+  destructive: {
+    alert: 'border-red-200 bg-red-50',
+    text: 'text-red-800',
+    icon: 'text-red-600',
+  },
+  secondary: {
+    alert: 'border-blue-200 bg-blue-50',
+    text: 'text-blue-800',
+    icon: 'text-blue-600',
+  },
+  default: {
+    alert: 'border-orange-200 bg-orange-50',
+    text: 'text-orange-800',
+    icon: 'text-orange-600',
+  },
+}
+
 const ConnectMenu = () => {
-  const { connect, connectors, data, error, status, variables } = useConnect()
+  const { connect, connectors, error, status, variables } = useConnect()
+  const { openConnectModal } = useConnectModal()
 
   const connectingConnector =
     typeof variables?.connector === 'object' ? variables?.connector.id : null
@@ -28,123 +53,11 @@ const ConnectMenu = () => {
   const isSuccess = status === 'success'
   const hasError = status === 'error'
 
-  console.log('ConnectMenu', {
-    data,
-    error,
-    status,
-    variables,
-  })
-
   const handleConnect = (connector: Connector) => {
-    console.log('Connecting to:', connector)
     connect({ connector })
   }
 
-  // Enhanced error message handling
-  const getErrorMessage = (error: Error | null) => {
-    if (!error) return 'An unknown error occurred while connecting'
-
-    // Handle specific wagmi error types
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return 'This wallet is already connected. Please disconnect first or try a different wallet.'
-    }
-
-    if (error.name === 'UserRejectedRequestError') {
-      return 'Connection was rejected. Please approve the connection request in your wallet.'
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return 'Network error. Please check your internet connection and try again.'
-    }
-
-    if (error.name === 'SwitchChainError') {
-      return 'Failed to switch network. Please try switching networks manually in your wallet.'
-    }
-
-    if (error.name === 'ChainMismatchError') {
-      return 'Network mismatch. Please ensure your wallet is connected to the correct network.'
-    }
-
-    if (error.name === 'InsufficientFundsError') {
-      return 'Insufficient funds for transaction fees. Please add more funds to your wallet.'
-    }
-
-    // Handle common error messages
-    if (error.message) {
-      const message = error.message.toLowerCase()
-
-      if (
-        message.includes('user rejected') ||
-        message.includes('user denied')
-      ) {
-        return 'Connection was rejected. Please approve the connection request in your wallet.'
-      }
-
-      if (message.includes('network') || message.includes('rpc')) {
-        return 'Network error. Please check your connection and try again.'
-      }
-
-      if (message.includes('timeout') || message.includes('timed out')) {
-        return 'Connection timed out. Please try again.'
-      }
-
-      if (message.includes('already connected')) {
-        return 'This wallet is already connected. Please try a different wallet.'
-      }
-
-      if (message.includes('no provider') || message.includes('no wallet')) {
-        return 'No wallet detected. Please install a wallet extension and refresh the page.'
-      }
-
-      if (message.includes('unsupported chain')) {
-        return 'Unsupported network. Please switch to a supported network in your wallet.'
-      }
-    }
-
-    // Fallback to original error message or generic message
-    return (
-      error.message ||
-      'An unexpected error occurred while connecting to your wallet'
-    )
-  }
-
-  const getErrorIcon = (error: Error | null) => {
-    if (!error) return <XCircle className="h-4 w-4 text-red-600" />
-
-    // Different icons for different error types
-    if (error.name === 'UserRejectedRequestError') {
-      return <XCircle className="h-4 w-4 text-orange-600" />
-    }
-
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return <XCircle className="h-4 w-4 text-blue-600" />
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return <XCircle className="h-4 w-4 text-yellow-600" />
-    }
-
-    return <XCircle className="h-4 w-4 text-red-600" />
-  }
-
-  const getErrorVariant = (error: Error | null) => {
-    if (!error) return 'destructive'
-
-    // Different alert variants for different error types
-    if (error.name === 'UserRejectedRequestError') {
-      return 'default' // Less severe - user action
-    }
-
-    if (error.name === 'ConnectorAlreadyConnectedError') {
-      return 'secondary' // Informational
-    }
-
-    if (error.name === 'ResourceUnavailableRpcError') {
-      return 'default' // Network issues
-    }
-
-    return 'destructive' // Default for other errors
-  }
+  const errorDisplay = error ? describeConnectError(error) : null
 
   return (
     <>
@@ -176,22 +89,14 @@ const ConnectMenu = () => {
         </Alert>
       )}
 
-      {hasError && error && (
-        <Alert
-          className={`mb-6 ${getErrorVariant(error) === 'destructive' ? 'border-red-200 bg-red-50' : getErrorVariant(error) === 'secondary' ? 'border-blue-200 bg-blue-50' : 'border-orange-200 bg-orange-50'}`}
-        >
-          {getErrorIcon(error)}
-          <AlertDescription
-            className={
-              getErrorVariant(error) === 'destructive'
-                ? 'text-red-800'
-                : getErrorVariant(error) === 'secondary'
-                  ? 'text-blue-800'
-                  : 'text-orange-800'
-            }
-          >
+      {hasError && errorDisplay && (
+        <Alert className={`mb-6 ${TONE_STYLES[errorDisplay.tone].alert}`}>
+          <XCircle
+            className={`h-4 w-4 ${TONE_STYLES[errorDisplay.tone].icon}`}
+          />
+          <AlertDescription className={TONE_STYLES[errorDisplay.tone].text}>
             <Trans>
-              <strong>Connection failed:</strong> {getErrorMessage(error)}
+              <strong>Connection failed:</strong> {errorDisplay.message}
             </Trans>
           </AlertDescription>
         </Alert>
@@ -248,11 +153,22 @@ const ConnectMenu = () => {
             <div className="py-8 text-center text-gray-500">
               <WalletIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
               <p>
-                <Trans>No wallet connectors available</Trans>
+                <Trans>No wallet connected yet</Trans>
               </p>
-              <p className="text-sm">
-                <Trans>Make sure you have a wallet extension installed</Trans>
+              <p className="mb-4 text-sm">
+                <Trans>
+                  Sign in with a social account or wallet to get started
+                </Trans>
               </p>
+              {/* Privy builds wagmi connectors from the signed-in wallet, so
+                  there are none pre-login — start the Privy login flow instead. */}
+              <Button
+                disabled={!openConnectModal}
+                onClick={() => openConnectModal?.()}
+                type="button"
+              >
+                <Trans>Sign in</Trans>
+              </Button>
             </div>
           )}
         </CardContent>
@@ -262,7 +178,7 @@ const ConnectMenu = () => {
 }
 
 const DisconnectMenu = () => {
-  const { disconnect } = useDisconnect()
+  const { disconnect } = useWalletDisconnect()
   const { address, connector } = useConnection()
 
   const formatAddress = (addr: string) => {
@@ -308,7 +224,9 @@ const DisconnectMenu = () => {
 
           <Button
             className="w-full"
-            onClick={() => disconnect()}
+            onClick={() => {
+              void disconnect()
+            }}
             variant="destructive"
           >
             <Trans>Disconnect Wallet</Trans>
@@ -320,13 +238,7 @@ const DisconnectMenu = () => {
 }
 
 function RouteComponent() {
-  const { isConnected, status, chainId } = useConnection()
-  // console.log(connectors)
-  console.log('RouteComponent', {
-    isConnected,
-    status,
-    chainId,
-  })
+  const { isConnected } = useConnection()
   return (
     <div className="mx-auto max-w-2xl">
       {isConnected ? <DisconnectMenu /> : <ConnectMenu />}
