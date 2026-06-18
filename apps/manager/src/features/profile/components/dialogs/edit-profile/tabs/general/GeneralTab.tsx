@@ -1,6 +1,8 @@
 import { ChevronDown, Link as LinkIcon } from 'lucide-react'
 import { useState } from 'react'
+import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
+import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
@@ -45,6 +47,10 @@ const fieldClassName =
   'w-full rounded-sm border border-[#d4d4d4] bg-transparent p-4 text-[16px] text-ens-quartz-900 outline-none transition-colors placeholder:text-ens-quartz-400 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50'
 
 const urlErrorMessageId = 'general-url-error-message'
+const mobileHiddenShortcutFields: ReadonlySet<GeneralField> = new Set([
+  'name',
+  'url',
+])
 
 interface UrlFieldProps {
   readonly disabled: boolean
@@ -142,10 +148,9 @@ interface GeneralTabProps {
   readonly name: string
   readonly onBaseChange: (base: ProfileRecords['base']) => void
   readonly onContactChange: (contact: ProfileRecords['contact']) => void
-  readonly onImageUploadComplete?: (
-    kind: ProfileImageKind,
-    imageUrl: string,
-  ) => void
+  readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
+  readonly owner?: Address
+  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly values: ProfileRecords
 }
 
@@ -153,18 +158,45 @@ export const GeneralTab = ({
   name,
   onBaseChange,
   onContactChange,
-  onImageUploadComplete,
+  onImageUploadPrepared,
+  owner,
+  preparedImageUploads,
   values,
 }: GeneralTabProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const visibleFields = useEditProfileVisibleFields()
-  const { toggleField } = useEditProfileDialogActions()
+  const { showField, toggleField } = useEditProfileDialogActions()
   const [activeImageField, setActiveImageField] =
     useState<ProfileImageKind | null>(null)
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
+  const getPreparedImagePreviewUrl = (kind: ProfileImageKind) =>
+    preparedImageUploads.find(
+      (upload) => upload.kind === kind && upload.imageUrl === values.base[kind],
+    )?.dataURL
   const urlErrorMessage = getGeneralUrlErrorMessage(values.base.url)
+  const getShortcutLabel = (field: GeneralField, label: string) => {
+    if (field === 'avatar') {
+      return (
+        <>
+          <span className="md:hidden">Avatar</span>
+          <span className="hidden md:inline">{label}</span>
+        </>
+      )
+    }
+
+    if (field === 'header') {
+      return (
+        <>
+          <span className="md:hidden">Header</span>
+          <span className="hidden md:inline">{label}</span>
+        </>
+      )
+    }
+
+    return label
+  }
 
   return (
     <div className="flex flex-col gap-4 pb-4">
@@ -178,6 +210,9 @@ export const GeneralTab = ({
           return (
             <FieldPickerPill
               active={active}
+              className={cn(
+                mobileHiddenShortcutFields.has(field) && 'hidden md:flex',
+              )}
               icon={
                 'icon' in shortcut ? (
                   <LinkIcon className="size-3.5 shrink-0 text-current" />
@@ -190,7 +225,7 @@ export const GeneralTab = ({
                 )
               }
               key={field}
-              label={label}
+              label={getShortcutLabel(field, label)}
               onClick={() => {
                 toggleField(field)
                 if (field === activeImageField) {
@@ -214,7 +249,9 @@ export const GeneralTab = ({
             onCancel={() => setActiveImageField(null)}
             onImageChange={(imageUrl) => setBaseValue('avatar', imageUrl)}
             onImageRemove={() => setBaseValue('avatar', '')}
-            onImageUploadComplete={onImageUploadComplete}
+            onImageUploadPrepared={onImageUploadPrepared}
+            owner={owner}
+            preparedImagePreviewUrl={getPreparedImagePreviewUrl('avatar')}
           />
         )}
 
@@ -229,19 +266,21 @@ export const GeneralTab = ({
             onCancel={() => setActiveImageField(null)}
             onImageChange={(imageUrl) => setBaseValue('header', imageUrl)}
             onImageRemove={() => setBaseValue('header', '')}
-            onImageUploadComplete={onImageUploadComplete}
+            onImageUploadPrepared={onImageUploadPrepared}
+            preparedImagePreviewUrl={getPreparedImagePreviewUrl('header')}
           />
         )}
 
-        {isVisible('name') && (
-          <input
-            className={fieldClassName}
-            disabled={isSaving}
-            onChange={(event) => setBaseValue('name', event.target.value)}
-            placeholder="Full name"
-            value={values.base.name ?? ''}
-          />
-        )}
+        <input
+          className={cn(fieldClassName, !isVisible('name') && 'md:hidden')}
+          disabled={isSaving}
+          onChange={(event) => {
+            showField('name')
+            setBaseValue('name', event.target.value)
+          }}
+          placeholder="Full name"
+          value={values.base.name ?? ''}
+        />
 
         {isVisible('description') && (
           <textarea
@@ -256,12 +295,14 @@ export const GeneralTab = ({
         )}
 
         {isVisible('url') && (
-          <UrlField
-            disabled={isSaving}
-            errorMessage={urlErrorMessage}
-            onChange={(value) => setBaseValue('url', value)}
-            value={values.base.url ?? ''}
-          />
+          <div className="hidden w-full md:block">
+            <UrlField
+              disabled={isSaving}
+              errorMessage={urlErrorMessage}
+              onChange={(value) => setBaseValue('url', value)}
+              value={values.base.url ?? ''}
+            />
+          </div>
         )}
 
         {(isVisible('timezone') || isVisible('language')) && (

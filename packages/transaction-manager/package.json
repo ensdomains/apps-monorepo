@@ -24,7 +24,7 @@
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
     "valibot": "^1.2.0",
-    "viem": "^2.21.58",
+    "viem": "catalog:",
     "xstate": "catalog:"
   },
   "peerDependencies": {

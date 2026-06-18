@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useConnection } from 'wagmi'
 import { Button } from '@/components/ens-consumer/button/Button'
+import { useConnectModal } from '@/lib/wallet'
 
 export const MobileConnectButton = () => {
   const { openConnectModal } = useConnectModal()

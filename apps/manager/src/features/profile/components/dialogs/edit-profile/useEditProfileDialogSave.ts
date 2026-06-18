@@ -6,19 +6,21 @@ import {
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
-import { useChainId } from 'wagmi'
+import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
 import {
   getActiveSignedProfileImageUploads,
   refreshProfileImageCaches,
   type SignedProfileImageUpload,
 } from '@/features/profile/service/profileImageCache'
+import {
+  type PreparedProfileImageUpload,
+  submitPreparedProfileImageUpload,
+} from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import { getRecordsValidationErrorMessage } from '../../ProfileEdit.errors'
 import {
-  RecordsValidationError,
   type SaveRecordsParams,
   saveRecords,
 } from '../../ProfileEdit.transactions'
@@ -27,7 +29,6 @@ import type {
   EditProfileForm,
   EditProfileSaveHandler,
 } from './EditProfileDialog.types'
-import type { ProfileImageKind } from './tabs/general/ProfileImageField'
 
 interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly dialogActor: Actor<typeof editProfileDialogMachine>
@@ -35,11 +36,11 @@ interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly form: EditProfileForm
   readonly isSuccess: boolean
   readonly name: string
-  readonly onSignedImageUploadsSaved: () => void
+  readonly onPreparedImageUploadsSaved: () => void
   readonly onUpdated?: () => undefined | Promise<unknown>
+  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly queryClient: QueryClient
   readonly savedRecords: ProfileRecords
-  readonly signedImageUploads: readonly SignedProfileImageUpload[]
 }
 
 interface UseEditProfileDialogSaveParams {
@@ -57,25 +58,17 @@ interface SaveRecordsMutationVariables extends SaveRecordsParams {
   readonly currentRecords: ProfileRecords
 }
 
-const getMutationErrorMessage = (error: unknown) => {
-  if (error instanceof RecordsValidationError) {
-    return getRecordsValidationErrorMessage(error)
-  }
-
-  return error instanceof Error ? error.message : String(error)
-}
-
 const useCloseProfileDialogOnSuccessfulSave = ({
   dialogActor,
   ethAddressChanged,
   form,
   isSuccess,
   name,
-  onSignedImageUploadsSaved,
+  onPreparedImageUploadsSaved,
   onUpdated,
+  preparedImageUploads,
   queryClient,
   savedRecords,
-  signedImageUploads,
 }: UseCloseProfileDialogOnSuccessfulSaveParams) => {
   useEffect(() => {
     if (!isSuccess) {
@@ -89,13 +82,13 @@ const useCloseProfileDialogOnSuccessfulSave = ({
       await onUpdated?.()
       await refreshProfileImageCaches({
         images: getActiveSignedProfileImageUploads({
-          images: signedImageUploads,
+          images: preparedImageUploads,
           records: savedRecords,
         }),
         name,
         queryClient,
       })
-      onSignedImageUploadsSaved()
+      onPreparedImageUploadsSaved()
 
       if (ethAddressChanged) {
         queryClient.invalidateQueries({
@@ -119,11 +112,11 @@ const useCloseProfileDialogOnSuccessfulSave = ({
     form,
     isSuccess,
     name,
-    onSignedImageUploadsSaved,
+    onPreparedImageUploadsSaved,
     onUpdated,
+    preparedImageUploads,
     queryClient,
     savedRecords,
-    signedImageUploads,
   ])
 }
 
@@ -138,20 +131,21 @@ export const useEditProfileDialogSave = ({
   savedRecords,
 }: UseEditProfileDialogSaveParams) => {
   const account = useSmartAccountContext()
+  const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const queryClient = useQueryClient()
-  const [signedImageUploads, setSignedImageUploads] = useState<
-    readonly SignedProfileImageUpload[]
+  const { signTypedDataAsync } = useSignTypedData()
+  const [preparedImageUploads, setPreparedImageUploads] = useState<
+    readonly PreparedProfileImageUpload[]
   >([])
-  const [isFinalizingSignedImageSave, setIsFinalizingSignedImageSave] =
-    useState(false)
+  const [isFinalizingImageSave, setIsFinalizingImageSave] = useState(false)
 
   const saveRecordsMutation = useMutation({
     mutationFn: ({
       currentRecords: _currentRecords,
       ...params
     }: SaveRecordsMutationVariables) => saveRecords(params),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       const ethBefore = variables.before.coins.find(
         ({ coinType }) => coinType === 60,
       )
@@ -163,14 +157,10 @@ export const useEditProfileDialogSave = ({
         type: 'SAVE_SUCCEEDED',
         currentRecords: variables.currentRecords,
         ethAddressChanged: ethBefore?.value !== ethAfter?.value,
-        txHash: data.hash,
       })
     },
-    onError: (error) => {
-      dialogActor.send({
-        type: 'SAVE_FAILED',
-        errorMessage: getMutationErrorMessage(error),
-      })
+    onError: () => {
+      dialogActor.send({ type: 'RESET_SAVE_STATE' })
     },
   })
 
@@ -179,31 +169,52 @@ export const useEditProfileDialogSave = ({
     dialogActor.send({ type: 'RESET_SAVE_STATE' })
   }, [dialogActor, saveRecordsMutation])
 
-  const resetSignedImageSaveState = useCallback(() => {
-    setSignedImageUploads([])
-    setIsFinalizingSignedImageSave(false)
+  const resetPreparedImageSaveState = useCallback(() => {
+    setPreparedImageUploads([])
+    setIsFinalizingImageSave(false)
   }, [])
 
-  const handleSignedImageUploadsSaved = useCallback(() => {
-    setSignedImageUploads([])
+  const handlePreparedImageUploadsSaved = useCallback(() => {
+    setPreparedImageUploads([])
   }, [])
 
-  const handleSignedImageUploadComplete = useCallback(
-    (kind: ProfileImageKind, imageUrl: string) => {
-      setSignedImageUploads((currentUploads) => [
-        ...currentUploads.filter((upload) => upload.kind !== kind),
-        { kind, imageUrl },
+  const handleImageUploadPrepared = useCallback(
+    (upload: PreparedProfileImageUpload) => {
+      setPreparedImageUploads((currentUploads) => [
+        ...currentUploads.filter(
+          (currentUpload) => currentUpload.kind !== upload.kind,
+        ),
+        upload,
       ])
     },
     [],
   )
 
-  const finalizeSignedImageOnlySave = useCallback(
+  const submitPreparedImageUploads = useCallback(
+    async (uploads: readonly PreparedProfileImageUpload[]) => {
+      if (uploads.length === 0) return
+
+      if (!isConnected || !address) {
+        throw new Error('Please connect your wallet before uploading an image')
+      }
+
+      for (const upload of uploads) {
+        await submitPreparedProfileImageUpload({
+          address,
+          signTypedDataAsync,
+          upload,
+        })
+      }
+    },
+    [address, isConnected, signTypedDataAsync],
+  )
+
+  const finalizeImageOnlySave = useCallback(
     async (
       currentRecords: ProfileRecords,
       images: readonly SignedProfileImageUpload[],
     ) => {
-      setIsFinalizingSignedImageSave(true)
+      setIsFinalizingImageSave(true)
 
       try {
         form.reset(currentRecords)
@@ -213,32 +224,19 @@ export const useEditProfileDialogSave = ({
           name,
           queryClient,
         })
-        setSignedImageUploads([])
+        setPreparedImageUploads([])
         dialogActor.send({ type: 'CLOSE' })
-      } catch (error) {
-        dialogActor.send({
-          type: 'SAVE_FAILED',
-          errorMessage: getMutationErrorMessage(error),
-        })
+      } catch {
+        dialogActor.send({ type: 'RESET_SAVE_STATE' })
       } finally {
-        setIsFinalizingSignedImageSave(false)
+        setIsFinalizingImageSave(false)
       }
     },
     [dialogActor, form, name, onUpdated, queryClient],
   )
 
-  const handleSave = useCallback<EditProfileSaveHandler>(
-    (currentRecords, options) => {
-      resetSaveState()
-
-      if (!options.hasRecordChanges && options.signedImageUploads.length > 0) {
-        void finalizeSignedImageOnlySave(
-          currentRecords,
-          options.signedImageUploads,
-        )
-        return
-      }
-
+  const getPendingRecordSave = useCallback(
+    (currentRecords: ProfileRecords) => {
       dialogActor.send({
         type: 'SAVE_REQUESTED',
         values: currentRecords,
@@ -249,6 +247,7 @@ export const useEditProfileDialogSave = ({
           owner,
           ownerAddress: account.ownerAddress as Address | null,
           publicClient: publicClient as PublicClient,
+          retryCount: 0,
           signer: account.signer,
         },
       })
@@ -258,13 +257,10 @@ export const useEditProfileDialogSave = ({
         !snapshot.matches({ editing: 'saving' }) ||
         !snapshot.context.pendingSave
       ) {
-        return
+        return null
       }
 
-      saveRecordsMutation.mutate({
-        ...snapshot.context.pendingSave.params,
-        currentRecords: snapshot.context.pendingSave.currentRecords,
-      })
+      return snapshot.context.pendingSave
     },
     [
       account.accountAddress,
@@ -272,11 +268,97 @@ export const useEditProfileDialogSave = ({
       account.signer,
       chainId,
       dialogActor,
-      finalizeSignedImageOnlySave,
       name,
       owner,
+    ],
+  )
+
+  const submitPreparedImageUploadsForSave = useCallback(
+    async (uploads: readonly PreparedProfileImageUpload[]) => {
+      if (uploads.length === 0) return true
+
+      setIsFinalizingImageSave(true)
+
+      try {
+        await submitPreparedImageUploads(uploads)
+        return true
+      } catch {
+        dialogActor.send({ type: 'RESET_SAVE_STATE' })
+        return false
+      } finally {
+        setIsFinalizingImageSave(false)
+      }
+    },
+    [dialogActor, submitPreparedImageUploads],
+  )
+
+  const finalizePreparedImageOnlySave = useCallback(
+    async ({
+      currentRecords,
+      hasRecordChanges,
+      uploads,
+    }: {
+      readonly currentRecords: ProfileRecords
+      readonly hasRecordChanges: boolean
+      readonly uploads: readonly PreparedProfileImageUpload[]
+    }) => {
+      if (hasRecordChanges || uploads.length === 0) return false
+
+      await finalizeImageOnlySave(currentRecords, uploads)
+      return true
+    },
+    [finalizeImageOnlySave],
+  )
+
+  const submitPendingRecordSave = useCallback(
+    (pendingRecordSave: NonNullable<ReturnType<typeof getPendingRecordSave>>) =>
+      saveRecordsMutation.mutate({
+        ...pendingRecordSave.params,
+        currentRecords: pendingRecordSave.currentRecords,
+      }),
+    [saveRecordsMutation],
+  )
+
+  const handleSave = useCallback<EditProfileSaveHandler>(
+    (currentRecords, options) => {
+      resetSaveState()
+
+      void (async () => {
+        const pendingRecordSave = options.hasRecordChanges
+          ? getPendingRecordSave(currentRecords)
+          : null
+
+        if (options.hasRecordChanges && !pendingRecordSave) {
+          return
+        }
+
+        const imageUploadsSubmitted = await submitPreparedImageUploadsForSave(
+          options.preparedImageUploads,
+        )
+
+        if (!imageUploadsSubmitted) {
+          return
+        }
+
+        const imageOnlySaveFinalized = await finalizePreparedImageOnlySave({
+          currentRecords,
+          hasRecordChanges: options.hasRecordChanges,
+          uploads: options.preparedImageUploads,
+        })
+
+        if (imageOnlySaveFinalized) {
+          return
+        }
+
+        pendingRecordSave && submitPendingRecordSave(pendingRecordSave)
+      })()
+    },
+    [
+      finalizePreparedImageOnlySave,
+      getPendingRecordSave,
       resetSaveState,
-      saveRecordsMutation,
+      submitPendingRecordSave,
+      submitPreparedImageUploadsForSave,
     ],
   )
 
@@ -286,19 +368,18 @@ export const useEditProfileDialogSave = ({
     form,
     isSuccess,
     name,
-    onSignedImageUploadsSaved: handleSignedImageUploadsSaved,
+    onPreparedImageUploadsSaved: handlePreparedImageUploadsSaved,
     onUpdated,
+    preparedImageUploads,
     queryClient,
     savedRecords,
-    signedImageUploads,
   })
 
   return {
     handleSave,
-    handleSignedImageUploadComplete,
-    isFinalizingSignedImageSave,
-    resetSaveState,
-    resetSignedImageSaveState,
-    signedImageUploads,
+    handleImageUploadPrepared,
+    isFinalizingImageSave,
+    resetPreparedImageSaveState,
+    preparedImageUploads,
   }
 }
