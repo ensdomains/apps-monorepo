@@ -5,11 +5,11 @@ import { useConnection, useConnectionEffect } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { backendAuthStore } from '@/utils/backend-client'
 
-// Blanket localStorage.clear() corrupts reconnection — preserve wagmi.* / rk-*
-// (wagmi's and RainbowKit's connection storage).
+// Blanket localStorage.clear() corrupts reconnection — preserve wagmi.* and
+// privy* keys (privy.logout() clears the Privy ones itself).
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('wagmi') || key.startsWith('rk-')) continue
+    if (key.startsWith('wagmi') || key.startsWith('privy')) continue
     localStorage.removeItem(key)
   }
 }

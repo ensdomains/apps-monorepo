@@ -452,14 +452,9 @@ function getEthereumProvider() {
   if (!window.ethereum) {
     throw new Error('MetaMask provider not found on window.ethereum')
   }
-
-  return window.ethereum
-}
-
-declare global {
-  interface Window {
-    ethereum?: BrowserProvider
-  }
+  // @privy-io/react-auth declares Window.ethereum as `any`; cast rather than
+  // re-declare a conflicting global type.
+  return window.ethereum as unknown as BrowserProvider
 }
 
 async function checkEthBalance(address: Address) {
