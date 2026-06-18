@@ -212,8 +212,8 @@ export const ProfileViewNewActions = ({
   records,
   url,
 }: ProfileViewNewActionsProps) => (
-  <div className="fixed right-0 bottom-0 left-0 z-40 rounded-t-[32px] bg-white px-3 py-3 shadow-[0_-2px_16px_rgba(0,0,0,0.08)]">
-    <div className="mx-auto flex max-w-[905px] items-center justify-center gap-3 overflow-x-auto pb-[env(safe-area-inset-bottom)]">
+  <div className="fixed right-0 bottom-0 left-0 z-40 min-h-[78px] rounded-t-[32px] bg-white px-3 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-[0_-13px_28px_rgba(0,0,0,0.02),0_-52px_52px_rgba(0,0,0,0.02),0_-117px_70px_rgba(0,0,0,0.01)]">
+    <div className="mx-auto flex max-w-[905px] items-center justify-center gap-3 overflow-x-auto">
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
       <ProfileFavoriteAction name={name} />
       <ProfileEditAction

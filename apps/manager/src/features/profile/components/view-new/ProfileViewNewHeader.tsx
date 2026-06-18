@@ -156,13 +156,9 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
-  const hasAbout =
-    records.base.description || websiteHref || timezone || language || location
-
-  if (!hasAbout) return null
 
   return (
-    <section className="flex min-h-[182px] flex-1 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-6 shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+    <section className="flex min-h-[182px] flex-1 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] md:max-w-[635px]">
       <div className="grid w-full gap-6 md:grid-cols-[minmax(0,1fr)_228px]">
         <div className="min-w-0">
           <h2 className="text-base text-ens-quartz-700 leading-[1.5]">
@@ -243,7 +239,7 @@ export const ProfileViewNewBanner = ({
     <ImageFallback.Root className="contents">
       <ImageFallback.Image
         alt={`${name} banner`}
-        className="size-full object-cover"
+        className="h-[360px] w-full object-cover md:h-[520px]"
         src={headerUrl}
       />
       <ImageFallback.Fallback>
@@ -253,7 +249,8 @@ export const ProfileViewNewBanner = ({
         ) : null}
       </ImageFallback.Fallback>
     </ImageFallback.Root>
-    <div className="absolute inset-0 bg-[#011A25]/45" />
+    <div className="absolute inset-x-0 top-0 h-[335px] bg-[#011A25]/45" />
+    <div className="absolute inset-x-0 bottom-0 h-[168px] bg-linear-to-b from-[#FCFBFB]/0 via-[#FCFBFB]/58 to-[#FCFBFB]" />
   </div>
 )
 
@@ -267,8 +264,8 @@ export const ProfileViewNewHeader = ({
   records,
   registrationDate,
 }: ProfileViewNewHeaderProps) => (
-  <div className="space-y-6 px-5 md:px-8">
-    <div className="space-y-3">
+  <div className="space-y-[21.7px] px-5 md:px-8">
+    <div className="space-y-[13px]">
       <NameBadge name={name} />
       <ProfileDetails
         displayExpiryDate={displayExpiryDate}
