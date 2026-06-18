@@ -242,7 +242,7 @@ const AvatarBlock = ({
 }) => (
   <div
     className={cn(
-      'relative size-45.5 shrink-0 overflow-hidden rounded-[18.889px] border-(--theme-color) border-[0.25px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]',
+      'relative size-45.5 shrink-0 overflow-hidden rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]',
       className,
     )}
   >

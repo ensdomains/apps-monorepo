@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProfileRecords } from '@/features/profile/types'
 import {
+  formatChainSpecificAddress,
   formatProfileDetailDate,
   getChainSpecificAddresses,
   getMainReceivingAddress,
@@ -22,6 +23,14 @@ const makeRecords = (
 })
 
 describe('ProfileViewNew helpers', () => {
+  it('formats chain-specific addresses with the first and last three characters', () => {
+    expect(
+      formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
+    ).toBe('bc1...wlh')
+    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe('DE5...xyz')
+    expect(formatChainSpecificAddress('abc123')).toBe('abc123')
+  })
+
   it('formats dates as compact uppercase labels', () => {
     expect(formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'))).toBe(
       'NOV.11.2022',

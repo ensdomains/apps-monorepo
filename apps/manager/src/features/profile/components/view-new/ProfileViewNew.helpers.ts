@@ -54,6 +54,16 @@ type IndexedProfileAddressItem = ProfileAddressItem & {
   readonly sourceIndex: number
 }
 
+const CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH = 3
+
+export const formatChainSpecificAddress = (value: string): string => {
+  const trimmed = value.trim()
+
+  if (trimmed.length <= CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH * 2) return trimmed
+
+  return `${trimmed.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}...${trimmed.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
+}
+
 export const formatProfileDetailDate = (date: Date | null | undefined) => {
   if (!date || Number.isNaN(date.getTime())) return undefined
 

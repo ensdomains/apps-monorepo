@@ -12,6 +12,7 @@ import {
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
 import { cn, truncateAddress } from '@/lib/utils'
 import {
+  formatChainSpecificAddress,
   getChainSpecificAddresses,
   getMainReceivingAddress,
   getPrimaryContactItems,
@@ -46,6 +47,8 @@ const contactValueClassName =
   'w-full truncate text-ens-quartz-700 text-sm leading-normal tracking-[-0.154px]'
 const contactTrailingIconClassName =
   'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
+const contactCardPaddingClassName =
+  'p-4 has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 const addressCopyIconClassName =
   'ml-0 size-5 shrink-0 text-ens-quartz-400 md:size-6'
 const addressCardPaddingClassName =
@@ -55,6 +58,8 @@ const socialLabelClassName =
 const socialValueClassName = 'truncate text-ens-quartz-700 text-sm leading-6'
 const socialTrailingIconClassName =
   'size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
+const socialCardPaddingClassName =
+  'p-3 has-[>svg]:px-3 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 
 const ProfileCard = ({
   children,
@@ -96,7 +101,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
     </>
   )
 
-  const className = `${cardSurfaceClassName} relative flex min-h-28 w-full flex-col items-start gap-2 p-4 text-left md:min-h-33.5 md:p-[24.25px]`
+  const className = `${cardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 text-left md:min-h-33.5`
 
   if (item.href) {
     return (
@@ -160,8 +165,11 @@ const AddressValue = ({
 )
 
 const ChainAddressValue = ({ value }: { readonly value: string }) => (
-  <span className="w-[85px] truncate text-ens-quartz-400 text-sm leading-[1.1] tracking-[-0.28px]">
-    {truncateAddress(value)}
+  <span
+    className="w-[85px] whitespace-nowrap text-ens-quartz-400 text-sm leading-[1.1] tracking-[-0.28px]"
+    title={value}
+  >
+    {formatChainSpecificAddress(value)}
   </span>
 )
 
@@ -318,7 +326,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `${cardSurfaceClassName} flex min-h-17 w-full items-center gap-1 p-3 text-left md:min-h-22.75 md:gap-2 md:p-[24.25px]`
+  const className = `${cardSurfaceClassName} ${socialCardPaddingClassName} flex min-h-17 w-full items-center gap-1 font-sans text-left md:min-h-22.75 md:gap-2`
 
   if (href) {
     return (
