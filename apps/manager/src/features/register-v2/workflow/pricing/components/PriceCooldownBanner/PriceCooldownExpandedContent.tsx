@@ -67,7 +67,8 @@ const BuyNowOrWaitSection = ({
       </p>
       <p className="text-[#3f3f3e] text-xs leading-normal md:text-sm">
         <Trans>
-          You can buy this name at any point during the {periodDays}-day cooldown.
+          You can buy this name at any point during the {periodDays}-day
+          cooldown.
         </Trans>{' '}
         {showDemandStats ? (
           <Trans>
