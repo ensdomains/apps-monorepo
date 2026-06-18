@@ -105,7 +105,7 @@ msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible n
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 
-#. placeholder {0}: getErrorMessage(error)
+#. placeholder {0}: errorDisplay.message
 #: src/routes/wallet.tsx
 msgid "<0>Connection failed:</0> {0}"
 msgstr "<0>Connection failed:</0> {0}"
@@ -704,10 +704,6 @@ msgstr "Could not find resolver for {name}"
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
 msgstr "Could not read ETH address record for {name}"
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Could not save profile"
-msgstr "Could not save profile"
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Couldn't upgrade one of your names. Please try again."
@@ -1314,10 +1310,6 @@ msgstr "Make it yours"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr "Make sure the message starts with \"ENS would like you to ...\""
 
-#: src/routes/wallet.tsx
-msgid "Make sure you have a wallet extension installed"
-msgstr "Make sure you have a wallet extension installed"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
@@ -1498,8 +1490,8 @@ msgid "No stablecoins available"
 msgstr "No stablecoins available"
 
 #: src/routes/wallet.tsx
-msgid "No wallet connectors available"
-msgstr "No wallet connectors available"
+msgid "No wallet connected yet"
+msgstr "No wallet connected yet"
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Not a valid name format"
@@ -1744,14 +1736,6 @@ msgstr "Primary name set successfully"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile saved"
-msgstr "Profile saved"
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile updated successfully."
-msgstr "Profile updated successfully."
 
 #: src/features/register/components/Autorenewal.tsx
 msgid "Protect your name with autorenewal"
@@ -2214,9 +2198,17 @@ msgstr "Show less"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/routes/wallet.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+
+#: src/routes/wallet.tsx
+msgid "Sign in with a social account or wallet to get started"
+msgstr "Sign in with a social account or wallet to get started"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -2480,10 +2472,6 @@ msgstr "Total Paid"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Trademark Guidelines"
 msgstr "Trademark Guidelines"
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Transaction submitted:"
-msgstr "Transaction submitted:"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Transfer your name to any wallet"
