@@ -282,8 +282,8 @@ export const ProfileViewNewHeader = ({
   records,
   registrationDate,
 }: ProfileViewNewHeaderProps) => (
-  <div className="space-y-5.425 px-5 md:px-8">
-    <div className="space-y-3.25">
+  <div className="space-y-[21.7px] px-5 md:px-8">
+    <div className="space-y-[13px]">
       <NameBadge name={name} />
       <ProfileDetails
         displayExpiryDate={displayExpiryDate}
