@@ -45,15 +45,10 @@ const contactLabelClassName =
   'w-full truncate text-ens-quartz-500 text-xs leading-[18px] tracking-[-0.132px]'
 const contactValueClassName =
   'w-full truncate text-ens-quartz-700 text-sm leading-normal tracking-[-0.154px]'
-const profileCardTrailingIconColorClassName = 'text-[#D9D9D9]'
-const contactTrailingIconClassName = cn(
-  'absolute top-4 right-4 ml-0 size-5 shrink-0 md:top-[24.25px] md:right-[24.25px] md:size-7.5',
-  profileCardTrailingIconColorClassName,
-)
-const profileCardCopyIconClassName = cn(
-  'ml-0 size-4 shrink-0 md:size-6',
-  profileCardTrailingIconColorClassName,
-)
+const contactTrailingIconClassName =
+  'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
+const profileCardCopyIconClassName =
+  'ml-0 size-4 shrink-0 text-ens-quartz-400 md:size-6 md:text-ens-quartz-700'
 const profileCardTrailingIconStrokeWidth = 1.33
 const contactCopyIconClassName = cn(
   profileCardCopyIconClassName,
@@ -66,10 +61,8 @@ const addressCardPaddingClassName =
 const socialLabelClassName =
   'truncate text-ens-quartz-500 text-xs leading-[18px]'
 const socialValueClassName = 'truncate text-ens-quartz-700 text-sm leading-6'
-const socialTrailingIconClassName = cn(
-  'size-5 shrink-0 md:size-7.5',
-  profileCardTrailingIconColorClassName,
-)
+const socialTrailingIconClassName =
+  'size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
 const socialCardPaddingClassName =
   'p-3 has-[>svg]:px-3 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 
