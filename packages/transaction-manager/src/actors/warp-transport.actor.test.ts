@@ -57,7 +57,6 @@ function createRhinestoneRequest(
   return {
     type: 'rhinestone-intent',
     from: '0xFrom1234567890123456789012345678901234' as Address,
-    to: '0xTo12345678901234567890123456789012345678' as Address,
     chainId: 11155111,
     rhinestoneParams: {
       calls: MOCK_CALLS,

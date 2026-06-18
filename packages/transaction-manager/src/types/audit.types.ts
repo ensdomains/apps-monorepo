@@ -108,6 +108,7 @@ export interface TransactionRunInitialSnapshot {
   }
   request?: {
     from?: string
+    /** Representative call target — primary call for batched intents. */
     to?: string
     value?: string
     nonce?: number
@@ -115,10 +116,24 @@ export interface TransactionRunInitialSnapshot {
     gasPrice?: string
     maxFeePerGas?: string
     maxPriorityFeePerGas?: string
+    /** Representative call data — primary call for batched intents. */
     data?: string
     dataTruncated?: boolean
     dataBytes?: number
     dataSelector?: string
+    /**
+     * Number of on-chain calls in this request. 1 for EOA transactions; for
+     * Rhinestone intents this reflects the full batch (so multi-call intents
+     * are no longer under-represented as a single top-level call).
+     */
+    callCount?: number
+    /** Per-call summary for batched intents (only present when callCount > 1). */
+    calls?: Array<{
+      to?: string
+      value?: string
+      dataBytes?: number
+      dataSelector?: string
+    }>
   }
   smartAccount: {
     enabled: boolean
