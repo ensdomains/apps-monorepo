@@ -144,6 +144,10 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "A simpler way to<0/><1>get paid.</1>"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewHeader.tsx
+msgid "About"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -189,6 +193,7 @@ msgid "Add Crypto Address"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
 msgid "Add favorite"
 msgstr ""
 
@@ -236,6 +241,10 @@ msgstr ""
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/profile/components/sections/WalletAddressesSection.tsx
 msgid "Address"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewCards.tsx
+msgid "Addresses"
 msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
@@ -474,6 +483,10 @@ msgstr ""
 msgid "Card security code"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewCards.tsx
+msgid "Chain specific addresses"
+msgstr ""
+
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Check Your Email"
 msgstr ""
@@ -661,6 +674,7 @@ msgid "Connection Details"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+#: src/features/profile/components/view-new/ProfileViewNewCards.tsx
 msgid "Contact"
 msgstr ""
 
@@ -708,10 +722,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Could not save profile"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -848,6 +858,7 @@ msgid "Drag and drop an image here, or"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Edit Profile"
 msgstr ""
@@ -977,6 +988,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#: src/features/profile/components/view-new/ProfileViewNewHeader.tsx
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
@@ -1014,6 +1026,10 @@ msgstr ""
 msgid "Expiry Date"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+msgid "Extend Name"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to add email"
 msgstr ""
@@ -1048,6 +1064,7 @@ msgstr ""
 msgid "Failed to load notifications"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNew.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Failed to load registration data for this name."
 msgstr ""
@@ -1269,6 +1286,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx
+#: src/features/profile/components/view-new/ProfileViewNewCards.tsx
 #: src/features/profile/components/view/ViewLinksSection.tsx
 msgid "Links"
 msgstr ""
@@ -1303,12 +1321,17 @@ msgid "Loading..."
 msgstr "Laddar..."
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
 #: src/features/profile/components/view/FavoriteButton.tsx
 msgid "Login to favorite"
 msgstr "Logga in för att favorisera"
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
 msgid "Long-term identity"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewCards.tsx
+msgid "Main receiving address"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
@@ -1582,6 +1605,7 @@ msgid "Owned by"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/profile/components/view-new/ProfileViewNewHeader.tsx
 msgid "Owner"
 msgstr ""
 
@@ -1750,14 +1774,6 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile saved"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile updated successfully."
-msgstr ""
-
 #: src/features/register/components/Autorenewal.tsx
 msgid "Protect your name with autorenewal"
 msgstr ""
@@ -1804,6 +1820,7 @@ msgstr ""
 #: src/features/landing/components/ProfileCard.tsx
 #: src/features/migration/components/ProfileCardPreview.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
+#: src/features/profile/components/view-new/ProfileViewNewHeader.tsx
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1890,6 +1907,7 @@ msgid "Remove Email Contact Method?"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
 msgid "Remove favorite"
 msgstr ""
 
@@ -2203,6 +2221,10 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+msgid "Share profile"
+msgstr ""
+
 #: src/features/profile/components/sections/BioSection.tsx
 msgid "Short Description"
 msgstr ""
@@ -2268,6 +2290,10 @@ msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts
 msgid "Smart account ready"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewCards.tsx
+msgid "Social"
 msgstr ""
 
 #: src/features/profile/components/sections/SocialLinksSection.tsx
@@ -2484,10 +2510,6 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Trademark Guidelines"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Transaction submitted:"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx

@@ -39,6 +39,9 @@ const FEATURE_FLAGS_INTERNAL = {
   PROFILE_EDIT_NEW: {
     enabled: import.meta.env.VITE_FF_PROFILE_EDIT_NEW === 'true',
   },
+  PROFILE_VIEW_NEW: {
+    enabled: import.meta.env.VITE_FF_PROFILE_VIEW_NEW === 'true',
+  },
   REGISTRATION_V2: {
     enabled: true,
   },
