@@ -43,6 +43,14 @@ const FEATURE_FLAGS_INTERNAL = {
     enabled: true,
   },
   /**
+   * Credit-card checkout (Crossmint) on the registration pricing screen.
+   * Off by default until the Crossmint credentials + voucher contract are
+   * wired; enable per-env with VITE_FF_CARD_CHECKOUT=true.
+   */
+  CARD_CHECKOUT: {
+    enabled: import.meta.env.VITE_FF_CARD_CHECKOUT === 'true',
+  },
+  /**
    * Force the transaction manager to use plain EOA signing only — bypasses
    * the Rhinestone smart-account flow entirely. Useful for environments
    * (e.g. the Tenderly virtual sepolia fork) where the relayer/bundler

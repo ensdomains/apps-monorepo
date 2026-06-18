@@ -1,3 +1,4 @@
+import type { RegistrationJob } from '#services/crossmint/types.js'
 import type {
   BaseDeliveryJob,
   EmailDeliveryJob,
@@ -9,6 +10,7 @@ import { handleDlqQueue } from './dlq.js'
 import { handleEmailQueue } from './email.js'
 import { handleEventIngestionQueue } from './event-ingestion.js'
 import { handlePushQueue } from './push.js'
+import { handleRegistrationQueue } from './registration.js'
 import { handleTelegramQueue } from './telegram.js'
 
 export const handleQueue = async (
@@ -33,6 +35,9 @@ export const handleQueue = async (
       break
     case 'app-api-worker-event-ingestion':
       await handleEventIngestionQueue(batch, env)
+      break
+    case 'app-api-worker-registration':
+      await handleRegistrationQueue(batch as MessageBatch<RegistrationJob>, env)
       break
     case 'app-api-worker-dlq':
       await handleDlqQueue(batch as MessageBatch<BaseDeliveryJob>, env)

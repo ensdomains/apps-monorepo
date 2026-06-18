@@ -13,6 +13,11 @@ export const KV_KEY = {
     // calls don't double-mint tokens (or race the funder's nonce).
     FUND_LOCK: (address: string) => `wallet:fund-lock:${address.toLowerCase()}`,
   },
+  CROSSMINT: {
+    // Per-order lock serializing fulfilment so concurrent webhook redeliveries
+    // (or a delayed register racing a retry) can't double-commit / double-register.
+    ORDER_LOCK: (orderId: string) => `crossmint:order-lock:${orderId}`,
+  },
 } as const
 
 export const intoKVError = (err: unknown) => {

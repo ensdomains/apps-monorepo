@@ -3,20 +3,28 @@ import { Trans } from '@lingui/react/macro'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
+import { useState } from 'react'
+import type { Address } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { AnimatedPrice } from './AnimatedPrice'
+import { CrossmintCheckoutDialog } from './CrossmintCheckoutDialog'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
 } from './PaymentCardLineItems'
+
+// Crossmint's default per-transaction credit-card limit (USD). Above this the
+// card option is disabled with a warning (per WEB-7).
+const CARD_LIMIT_USD = 1500
 
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
@@ -24,6 +32,8 @@ export const PaymentCard = () => {
     state.context.duration,
     state.can({ type: 'pricing.step.next' }),
   ])
+  const { ownerAddress } = useSmartAccountContext()
+  const [cardOpen, setCardOpen] = useState(false)
 
   const baseRate = useBaseRate(label)
 
@@ -46,23 +56,45 @@ export const PaymentCard = () => {
     BigInt(duration),
   )
 
+  const totalPriceUsd = pricingQuery.data?.totalPrice
+  const cardCheckoutEnabled = isFeatureEnabled('CARD_CHECKOUT')
+  const overCardLimit =
+    totalPriceUsd !== undefined && totalPriceUsd > CARD_LIMIT_USD
+  const showCardOption = cardCheckoutEnabled && Boolean(ownerAddress)
+
   return (
-    <PaymentCardBase
-      amount={pricingQuery.data?.totalPrice}
-      basePrice={pricingQuery.data?.basePrice}
-      canNext={canNext}
-      discountAmount={discountAmount}
-      isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-      onNext={() => uiActor.send({ type: 'pricing.step.next' })}
-      premiumAmount={pricingQuery.data?.premiumPrice}
-      type="register"
-    />
+    <>
+      <PaymentCardBase
+        amount={totalPriceUsd}
+        basePrice={pricingQuery.data?.basePrice}
+        canNext={canNext}
+        cardOverLimit={overCardLimit}
+        discountAmount={discountAmount}
+        isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
+        onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+        onPayWithCard={showCardOption ? () => setCardOpen(true) : undefined}
+        premiumAmount={pricingQuery.data?.premiumPrice}
+        type="register"
+      />
+      {showCardOption && ownerAddress && (
+        <CrossmintCheckoutDialog
+          durationSeconds={duration}
+          label={label}
+          onOpenChange={setCardOpen}
+          open={cardOpen}
+          ownerAddress={ownerAddress as Address}
+          totalPriceUsd={totalPriceUsd}
+        />
+      )}
+    </>
   )
 }
 
 export const PaymentCardBase = ({
   canNext,
   onNext,
+  onPayWithCard,
+  cardOverLimit,
   amount,
   isLoading,
   discountAmount,
@@ -72,6 +104,10 @@ export const PaymentCardBase = ({
 }: {
   canNext: boolean
   onNext: () => void
+  /** When set, renders a "Pay with card" option (registration only). */
+  onPayWithCard?: () => void
+  /** Disables the card option + shows a warning when over the card limit. */
+  cardOverLimit?: boolean
   amount: number | undefined
   discountAmount?: number
   premiumAmount?: number
@@ -152,15 +188,38 @@ export const PaymentCardBase = ({
         </div>
 
         {isConnected ? (
-          <Button
-            className="w-full font-medium font-mono uppercase tracking-widest"
-            color="blue"
-            disabled={!canNext}
-            onClick={onNext}
-            size="lg"
-          >
-            <Trans>Pay with stablecoins</Trans>
-          </Button>
+          <>
+            <Button
+              className="w-full font-medium font-mono uppercase tracking-widest"
+              color="blue"
+              disabled={!canNext}
+              onClick={onNext}
+              size="lg"
+            >
+              <Trans>Pay with stablecoins</Trans>
+            </Button>
+            {onPayWithCard && (
+              <>
+                <Button
+                  className="w-full font-medium font-mono uppercase tracking-widest"
+                  color="lightBlue"
+                  disabled={!canNext || cardOverLimit}
+                  onClick={onPayWithCard}
+                  size="lg"
+                >
+                  <Trans>Pay with card</Trans>
+                </Button>
+                {cardOverLimit && (
+                  <p className="text-center text-ens-signal-error-core text-xs">
+                    <Trans>
+                      Card payments are limited to $1,500. Pay with stablecoins
+                      for this amount.
+                    </Trans>
+                  </p>
+                )}
+              </>
+            )}
+          </>
         ) : (
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"

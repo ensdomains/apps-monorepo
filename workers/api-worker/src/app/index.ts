@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception'
 import { logger } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
+import crossmintApp from './routes/crossmint'
 import favoritesApp from './routes/favorites'
 import notificationsApp from './routes/notifications'
 import walletApp from './routes/wallet'
@@ -15,6 +16,7 @@ const app = createApp()
   .route('/', notificationsApp)
   .route('/', webhookApp)
   .route('/', walletApp)
+  .route('/', crossmintApp)
   .onError((err, c) => {
     if (err instanceof HTTPException) {
       // Get the custom response

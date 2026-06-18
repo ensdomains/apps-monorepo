@@ -47,11 +47,22 @@
         "queue": "app-api-worker-push-delivery"
       },
       {
+        "binding": "REGISTRATION_QUEUE",
+        "queue": "app-api-worker-registration"
+      },
+      {
         "binding": "DLQ",
         "queue": "app-api-worker-dlq"
       }
     ],
     "consumers": [
+      {
+        "queue": "app-api-worker-registration",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "app-api-worker-dlq"
+      },
       {
         "queue": "app-api-worker-telegram-delivery",
         "max_batch_size": 10,
