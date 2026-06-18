@@ -533,10 +533,10 @@ export const registrationMachine = setup({
           owner: context.ownerAddress ?? context.accountAddress!,
           // The resolver's EACL grantee must be the address the resolver sees at
           // write time (EOA after SCA→EOA unwrap). Mirrors `deployingResolver`.
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverOwner:
             context.resolverOwnerAddress ??
             context.ownerAddress ??
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             context.accountAddress!,
           duration: context.duration,
           selectedToken: context.selectedToken,
@@ -586,10 +586,10 @@ export const registrationMachine = setup({
           // resolver unwraps SCA→EOA at write time, so the grantee must be the
           // EOA (not the SCA) or `setText`/etc. will revert with
           // EACUnauthorizedAccountRoles. See discussion in this file's history.
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner:
             context.resolverOwnerAddress ??
             context.ownerAddress ??
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
