@@ -3,7 +3,6 @@ import { type MaterialSymbol, MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import {
   dropZoneClassName,
-  fieldShellClassName,
   focusVisibleRingClassName,
   getChangeLabel,
   getEmptyLabel,
@@ -36,8 +35,10 @@ interface ProfileImageActionProps {
   readonly onClick: () => void
 }
 
+// Mobile action labels need raw 10px/1.2px values to fit the compact row;
+// desktop switches back to Tailwind text/tracking tokens.
 const actionTextClassName =
-  'font-mono text-ens-lapis-500 text-xs uppercase leading-none tracking-widest'
+  'font-mono text-ens-lapis-500 text-[10px] uppercase leading-none tracking-[1.2px] md:text-xs md:tracking-widest'
 
 const ProfileImageAction = ({
   disabled,
@@ -90,7 +91,8 @@ export const DefaultImageField = ({
 }: DefaultImageFieldProps) => (
   <button
     className={cn(
-      'flex h-42 w-full items-center justify-center overflow-hidden p-3 transition-colors hover:border-ens-quartz-350 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
+      'flex w-full items-center justify-center overflow-hidden p-3 transition-colors hover:border-ens-quartz-350 focus-visible:border-ens-lapis-500 disabled:pointer-events-none disabled:opacity-50',
+      kind === 'avatar' ? 'h-38 md:h-42' : 'h-27 md:h-42',
       dropZoneClassName,
       focusVisibleRingClassName,
     )}
@@ -102,14 +104,14 @@ export const DefaultImageField = ({
     type="button"
   >
     {kind === 'avatar' ? (
-      <div className="flex h-full w-43.5 flex-col items-center justify-center gap-3.5 py-3">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 py-3 md:w-43.5 md:gap-3.5">
         <ProfileImagePreview
           displayImage={displayImage}
           hasImage={hasImage}
           kind={kind}
           name={name}
         />
-        <span className="flex items-center gap-2 text-ens-quartz-400 text-sm">
+        <span className="flex items-center gap-1 text-ens-quartz-400 text-xs md:gap-2 md:text-sm">
           {hasImage ? getChangeLabel(kind) : getEmptyLabel(kind)}
           <MSymbol
             aria-hidden="true"
@@ -150,7 +152,10 @@ const CancelPreviewButton = ({
   if (kind === 'avatar') {
     return (
       <button
-        className="flex h-42 w-43.5 shrink-0 flex-col items-center justify-center gap-3.5 py-3 text-ens-quartz-400 disabled:pointer-events-none disabled:opacity-50"
+        className={cn(
+          'flex h-38 w-full shrink-0 flex-col items-center justify-center gap-2.5 rounded-sm border border-ens-quartz-250 border-dashed bg-ens-quartz-50 py-3 text-ens-quartz-400 disabled:pointer-events-none disabled:opacity-50 md:h-42 md:w-43.5 md:gap-3.5 md:border-none md:bg-transparent',
+          focusVisibleRingClassName,
+        )}
         disabled={disabled}
         onClick={onCancel}
         type="button"
@@ -161,7 +166,7 @@ const CancelPreviewButton = ({
           kind={kind}
           name={name}
         />
-        <span className="flex items-center gap-2 text-sm">
+        <span className="flex items-center gap-2 text-xs md:text-sm">
           Cancel
           <MSymbol aria-hidden="true" style={{ fontSize: 14 }} symbol="close" />
         </span>
@@ -172,8 +177,9 @@ const CancelPreviewButton = ({
   return (
     <button
       className={cn(
-        'flex h-42 min-w-0 flex-1 items-center justify-center overflow-hidden p-3 text-ens-quartz-500 disabled:pointer-events-none disabled:opacity-50',
+        'flex h-27 w-full items-center justify-center overflow-hidden p-3 text-ens-quartz-500 disabled:pointer-events-none disabled:opacity-50 md:h-42 md:min-w-0 md:flex-1',
         dropZoneClassName,
+        focusVisibleRingClassName,
       )}
       disabled={disabled}
       onClick={onCancel}
@@ -189,7 +195,7 @@ const CancelPreviewButton = ({
           name={name}
         />
       ) : (
-        <span className="flex items-center gap-2 text-sm">
+        <span className="flex items-center gap-2 text-xs md:text-sm">
           Cancel
           <MSymbol aria-hidden="true" style={{ fontSize: 14 }} symbol="close" />
         </span>
@@ -202,6 +208,7 @@ interface ImageActionPanelProps {
   readonly disabled?: boolean
   readonly error: string | null
   readonly onManual: () => void
+  readonly onNft?: () => void
   readonly onRemove: () => void
   readonly onUpload: () => void
 }
@@ -210,13 +217,14 @@ const ImageActionPanel = ({
   disabled,
   error,
   onManual,
+  onNft,
   onRemove,
   onUpload,
 }: ImageActionPanelProps) => (
   <div
     className={cn(
-      'flex h-42 min-w-0 flex-1 items-center justify-center p-4',
-      fieldShellClassName,
+      'flex h-42 w-full items-center justify-center p-4 md:min-w-0 md:flex-1',
+      'md:rounded-sm md:border md:border-ens-quartz-250 md:bg-white',
     )}
   >
     <div className="flex flex-col items-start">
@@ -226,6 +234,14 @@ const ImageActionPanel = ({
         label="Upload image"
         onClick={onUpload}
       />
+      {onNft ? (
+        <ProfileImageAction
+          disabled={disabled}
+          icon="account_balance_wallet"
+          label="Choose NFT"
+          onClick={onNft}
+        />
+      ) : null}
       <ProfileImageAction
         disabled={disabled}
         icon="text_fields_alt"
@@ -250,6 +266,7 @@ interface ActiveImageOptionsProps extends ImagePreviewProps {
   readonly onDragOver: (event: React.DragEvent) => void
   readonly onDrop: (event: React.DragEvent) => void
   readonly onManual: () => void
+  readonly onNft?: () => void
   readonly onRemove: () => void
   readonly onUpload: () => void
 }
@@ -265,10 +282,11 @@ export const ActiveImageOptions = ({
   onDragOver,
   onDrop,
   onManual,
+  onNft,
   onRemove,
   onUpload,
 }: ActiveImageOptionsProps) => (
-  <div className="flex w-full gap-3">
+  <div className="flex w-full flex-col gap-3 md:flex-row">
     <CancelPreviewButton
       disabled={disabled}
       displayImage={displayImage}
@@ -283,6 +301,7 @@ export const ActiveImageOptions = ({
       disabled={disabled}
       error={error}
       onManual={onManual}
+      onNft={kind === 'avatar' ? onNft : undefined}
       onRemove={onRemove}
       onUpload={onUpload}
     />

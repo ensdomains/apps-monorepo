@@ -69,6 +69,7 @@ export const RegisterNameCheckoutSummary = ({
   const premiumDecayConfig = oracleData?.premiumDecay
 
   const hasPrice = price && isPriceResult(price)
+
   const premiumRange =
     hasPrice && price
       ? getPremiumInstantRangeFromPrice(price, premiumDecayConfig)

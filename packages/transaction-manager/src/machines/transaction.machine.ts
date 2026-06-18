@@ -459,7 +459,7 @@ export const transactionMachine = setup({
               }
 
               // Retry up to the retry count
-              return context.retryCount < (context.options.retryCount || 3)
+              return context.retryCount < (context.options.retryCount ?? 3)
             },
             target: 'retrying',
             actions: assign({
@@ -581,7 +581,7 @@ export const transactionMachine = setup({
     retrying: {
       invoke: {
         src: 'wait',
-        input: ({ context }) => context.options.retryDelay || 2000,
+        input: ({ context }) => context.options.retryDelay ?? 2000,
         onDone: {
           target: 'submitting',
         },

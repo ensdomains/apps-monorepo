@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import type { SignedProfileImageUpload } from '@/features/profile/service/profileImageCache'
+import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 
 export interface EditProfileForm {
@@ -13,9 +13,9 @@ export interface EditProfileDialogProps {
   readonly onUpdated?: () => undefined | Promise<unknown>
 }
 
-export interface EditProfileSaveOptions {
+interface EditProfileSaveOptions {
   readonly hasRecordChanges: boolean
-  readonly signedImageUploads: readonly SignedProfileImageUpload[]
+  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
 }
 
 export type EditProfileSaveHandler = (

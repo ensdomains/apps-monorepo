@@ -13,6 +13,7 @@ import {
   getYearsFromDuration,
   isDateWithinCalendarRange,
 } from '@/features/register/utils/registrationDuration'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { formatDateTime } from '@/utils/formatting/formatDateTime'
 import { dateToPlainDate, plainDateToDate } from '@/utils/temporal'
@@ -35,6 +36,7 @@ export const RegistrationExpiryDatePicker = ({
   name,
 }: RegistrationExpiryDatePickerProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const isMobile = useIsMobile()
 
   const displayValue = formatDateTime(date)
 
@@ -85,7 +87,12 @@ export const RegistrationExpiryDatePicker = ({
             </span>
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0 border border-border" align="end">
+        <PopoverContent
+          className="w-auto p-0 border border-border"
+          align={isMobile ? 'center' : 'start'}
+          side={isMobile ? 'bottom' : 'right'}
+          sideOffset={isMobile ? 0 : 40}
+        >
           <Calendar
             captionLayout="dropdown"
             defaultMonth={selectedDateForCalendar}
