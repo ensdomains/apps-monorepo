@@ -66,11 +66,15 @@ function resolveSourceAssets(
   // If an explicit amount is given for any asset, use the SDK's exact-input
   // form (`ExactInputConfig[]`). Otherwise use the chain→token map form so the
   // orchestrator sizes the source input itself from the destination
-  // `tokenRequests`. Passing the exact-input form with `amount: undefined`
-  // over-constrains routing (the orchestrator can't form a plan), which is
-  // what produced NO_PLAN_AVAILABLE — see GET /quotes behaviour: the bare
-  // `{ chainIds, tokens }` access list routes fine, the amount-less exact
-  // config does not.
+  // `tokenRequests`.
+  //
+  // NOTE: the `NO_PLAN_AVAILABLE` in the L2-stables register flow was NOT
+  // caused by this encoding. The orchestrator funds an intent from the intent
+  // ACCOUNT's balances — the registration flow uses the HCA, which holds no L2
+  // balance. `sourceAssets` only selects chain/token, never a different funding
+  // owner, so the user's EOA-held L2 stable is invisible to routing. Using the
+  // HCA as executor with the EOA as recipient is supported; the missing piece
+  // is a separate EOA-funded bridge phase.
   const hasExplicitAmount = sourceAssets.some(
     (asset) => asset.amount !== undefined,
   )

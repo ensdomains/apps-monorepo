@@ -1292,10 +1292,14 @@ export function submitPermitAndRegistrationActor(input: {
   resolverAddress: Address
   id?: string
   /**
-   * Optional cross-chain funding source. When present, the registrar is
-   * charged `paymentSource.destinationPaymentToken` and Warp bridges the
-   * source token to the EOA on the target chain. When omitted, the actor
-   * uses the symbol-derived (mock) L1 token — today's same-chain behavior.
+   * Optional cross-chain payment source. Used ONLY to select which token the
+   * registrar is charged: `paymentSource.destinationPaymentToken` (the L1 token
+   * an L2 source was bridged into, e.g. real Sepolia USDC). When omitted, the
+   * actor uses the symbol-derived (mock) L1 token.
+   *
+   * This actor does not bridge — see the same-chain note below. An L2 source
+   * must already be bridged to the EOA on the target chain by a prior phase.
+   * See lib/payment/CROSS_CHAIN_PAYMENT.md.
    */
   paymentSource?: CrossChainPaymentSource
 }): ResultAsync<string, Error> {
@@ -1334,42 +1338,18 @@ export function submitPermitAndRegistrationActor(input: {
 
       const targetChainId = input.publicClient.chain?.id ?? sepolia.id
 
-      // Cross-chain payment: when the selected source lives on another chain,
-      // fund the registration intent from that L2 stable. Warp bridges the
-      // source token to the EOA on the target chain (the registrar pulls rent
-      // from the EOA via `_msgSender()` HCA→EOA unwrap, and the EIP-2612 permit
-      // sets `allowance[EOA][registrar]`), then runs the batched permit+register.
-      // The permit's signed `value` already includes the standard headroom
-      // (authorizedPaymentAmount), so reuse it as the tokenRequest amount.
-      const isCrossChain =
-        input.paymentSource !== undefined &&
-        input.paymentSource.sourceChainId !== targetChainId
-
-      const crossChainParams = isCrossChain
-        ? {
-            tokenRequests: [
-              {
-                address: normalizedPaymentToken,
-                amount: input.permit.value,
-              },
-            ] as RhinestoneTransactionRequest['rhinestoneParams']['tokenRequests'],
-            sourceChains: [
-              (input.paymentSource as CrossChainPaymentSource).sourceChainId,
-            ],
-            sourceAssets: [
-              {
-                chainId: (input.paymentSource as CrossChainPaymentSource)
-                  .sourceChainId,
-                address: (input.paymentSource as CrossChainPaymentSource)
-                  .sourceTokenAddress,
-              },
-            ],
-            // Deliver bridged funds to the EOA (where rent is pulled from and
-            // the permit allowance lives), not the default account recipient.
-            recipient: input.owner,
-          }
-        : {}
-
+      // Same-chain intent only. Both calls execute on the target chain from the
+      // HCA, charging `paymentToken` (real Sepolia USDC when an L2 source was
+      // selected). The registrar pulls rent from the EOA via the `_msgSender()`
+      // HCA→EOA unwrap, against the `allowance[EOA][registrar]` the permit sets.
+      //
+      // This actor does NOT bridge. The orchestrator funds an intent from the
+      // intent ACCOUNT's balances (here the HCA), not the EOA's, and
+      // `sourceAssets` only selects chain/token — never a different funding
+      // owner. So an L2 source must already be bridged to the EOA on the target
+      // chain by a separate phase BEFORE this runs. Folding the bridge into this
+      // intent is what produced NO_PLAN_AVAILABLE (the HCA holds no L2 balance).
+      // See lib/payment/CROSS_CHAIN_PAYMENT.md.
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
@@ -1382,7 +1362,6 @@ export function submitPermitAndRegistrationActor(input: {
           { to: registrarAddress, data: registrationData, value: 0n },
         ],
         sponsored: input.sponsored ?? true,
-        ...crossChainParams,
       })
 
       const txId = transactionManager.startTransaction(
