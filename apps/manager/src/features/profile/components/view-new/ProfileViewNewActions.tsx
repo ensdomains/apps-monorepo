@@ -41,7 +41,7 @@ const iconActionClassName =
   'flex size-13.5 shrink-0 items-center justify-center rounded bg-white text-ens-quartz-700 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 disabled:cursor-not-allowed disabled:opacity-50'
 
 const renewActionClassName =
-  'h-13.5 min-w-34 gap-1 rounded border-none bg-white px-3 py-0 font-semi-mono text-xs text-ens-quartz-900 uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] hover:bg-ens-quartz-50 md:w-33 md:min-w-33'
+  'h-13.5 min-w-34 gap-1 rounded border-none bg-white px-3 py-0 font-semi-mono text-xs text-ens-quartz-900 uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] hover:bg-ens-quartz-50 disabled:cursor-wait disabled:opacity-60 md:w-33 md:min-w-33'
 
 const editActionClassName =
   'h-[61px] w-full rounded border border-ens-quartz-900 bg-white px-6 py-0 font-semi-mono text-sm text-ens-quartz-900 uppercase tracking-[1.12px] shadow-none hover:bg-ens-quartz-50 md:h-12.5 md:w-[171px] md:border-none md:bg-(--theme-bg) md:text-(--theme-color) md:hover:bg-(--theme-hover-bg)'
@@ -213,6 +213,14 @@ const ProfileRenewAction = ({
       />
     </>
   )
+
+  if (isOwner === undefined) {
+    return (
+      <button className={className} disabled type="button">
+        {buttonContent}
+      </button>
+    )
+  }
 
   if (shouldShowThirdPartyRenewalWarning(isOwner)) {
     return (

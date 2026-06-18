@@ -1,8 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
 import { LayoutBackAndNoticeRow } from '@/components/LayoutBackAndNoticeRow'
 import { Header } from '@/features/navigation/Header/Header'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { tw } from '@/utils/tailwind'
@@ -18,6 +21,16 @@ export const Layout = ({ children }: LayoutProps) => {
   const isEnsNameProfilePage = /^\/[^/]+\.[^/]+\/?$/.test(pathname)
   const isNewProfileViewPage = profileViewNewEnabled && isEnsNameProfilePage
   const isSepoliaBannerVisible = !isMigrationPage && !isNewProfileViewPage
+  const profileName = isEnsNameProfilePage
+    ? pathname.replace(/^\/|\/$/g, '')
+    : ''
+  const profileRecords = useQuery({
+    ...profileRecordsQuery(profileName),
+    enabled: isNewProfileViewPage,
+  })
+  const profileThemeColor = getThemeVars(
+    profileRecords.data?.texts.find((record) => record.key === 'theme')?.value,
+  )['--theme-color']
 
   return (
     <div
@@ -28,9 +41,15 @@ export const Layout = ({ children }: LayoutProps) => {
       )}
     >
       <div
-        className={tw(isNewProfileViewPage && 'absolute inset-x-0 top-0 z-50')}
+        className={tw(
+          isNewProfileViewPage &&
+            '-mb-[54px] md:-mb-20 sticky inset-x-0 top-0 z-50',
+        )}
       >
-        <Header transparentBackground={isNewProfileViewPage} />
+        <Header
+          profileThemeColor={profileThemeColor}
+          transparentBackground={isNewProfileViewPage}
+        />
       </div>
 
       <GlobalBackButtonProvider>

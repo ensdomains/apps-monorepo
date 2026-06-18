@@ -5,10 +5,14 @@ import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
 type HeaderProps = {
+  readonly profileThemeColor?: string
   readonly transparentBackground?: boolean
 }
 
-export const Header = ({ transparentBackground = false }: HeaderProps) => {
+export const Header = ({
+  profileThemeColor,
+  transparentBackground = false,
+}: HeaderProps) => {
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
@@ -37,6 +41,8 @@ export const Header = ({ transparentBackground = false }: HeaderProps) => {
     <DesktopHeader
       connectionSettled={connectionSettled}
       isConnected={isConnected}
+      profileThemeColor={profileThemeColor}
+      transparentBackground={transparentBackground}
     />
   )
 }

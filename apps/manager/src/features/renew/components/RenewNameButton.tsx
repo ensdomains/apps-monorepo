@@ -32,6 +32,14 @@ export const RenewNameButton = ({ isOwner, name }: RenewNameButtonProps) => {
     </>
   )
 
+  if (isOwner === undefined) {
+    return (
+      <Button disabled size="sm" type="button" variant="outline">
+        {buttonContent}
+      </Button>
+    )
+  }
+
   if (shouldShowThirdPartyRenewalWarning(isOwner)) {
     return (
       <ThirdPartyRenewalDialog

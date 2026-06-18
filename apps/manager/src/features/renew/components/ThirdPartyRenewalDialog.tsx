@@ -36,7 +36,7 @@ export const ThirdPartyRenewalDialog = ({
         <DialogClose asChild>
           <button
             aria-label={t`Close`}
-            className="absolute top-5 right-5 flex size-5 items-center justify-center text-ens-garnet-800 transition-opacity hover:opacity-75 focus:outline-hidden focus:ring-2 focus:ring-ens-lapis-500/40 focus:ring-offset-2"
+            className="absolute top-5 right-5 flex size-5 items-center justify-center text-ens-garnet-800 transition-opacity hover:opacity-75 focus:outline-none focus-visible:outline-none"
             type="button"
           >
             <MSymbol
