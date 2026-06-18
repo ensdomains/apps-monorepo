@@ -1,12 +1,11 @@
-import { Trans } from '@lingui/react/macro'
-import { Languages, MapPin, UserRound } from 'lucide-react'
+import { Trans, useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
-import { CopyToClipboard } from '@/components/atoms/CopyToClipboard'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords } from '@/features/profile/types'
-import { truncateAddress } from '@/lib/utils'
+import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import { cn, truncateAddress } from '@/lib/utils'
 import {
   formatProfileDetailDate,
   getSafeProfileHref,
@@ -26,7 +25,7 @@ type ProfileViewNewHeaderProps = {
 }
 
 const detailLabelClassName =
-  'flex items-center gap-2 text-ens-quartz-400 text-base leading-[1.5]'
+  'flex items-center text-ens-quartz-400 text-base leading-[1.5]'
 const detailValueClassName =
   'font-sans text-[13px] text-ens-quartz-700 leading-[1.5] tracking-[0.91px]'
 
@@ -62,28 +61,45 @@ const ProfileDetail = ({
   label,
   value,
   copyValue,
+  iconGapClassName = 'gap-3',
 }: {
   readonly icon: React.ReactNode
   readonly label: React.ReactNode
   readonly value: React.ReactNode
   readonly copyValue?: string
+  readonly iconGapClassName?: string
 }) => (
   <div className="flex min-w-0 items-center gap-1.5">
-    <div className={detailLabelClassName}>
+    <div className={cn(detailLabelClassName, iconGapClassName)}>
       {icon}
       <span>{label}</span>
     </div>
     <div className="flex min-w-0 items-center gap-1">
       <span className={`${detailValueClassName} truncate`}>{value}</span>
-      {copyValue ? (
-        <CopyToClipboard
-          className="size-4 text-ens-quartz-400"
-          value={copyValue}
-        />
-      ) : null}
+      {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
     </div>
   </div>
 )
+
+const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
+  const { t } = useLingui()
+  const { copied, copy } = useCopyFeedback()
+
+  return (
+    <button
+      aria-label={t`Copy to clipboard`}
+      className="inline-flex size-5 shrink-0 items-center justify-center text-ens-quartz-400"
+      onClick={() => copy(value)}
+      title={t`Copy to clipboard`}
+      type="button"
+    >
+      <MSymbol
+        className="ms-opsz-20 ms-wght-300"
+        symbol={copied ? 'check' : 'content_copy'}
+      />
+    </button>
+  )
+}
 
 const ProfileDetails = ({
   displayExpiryDate,
@@ -104,7 +120,10 @@ const ProfileDetails = ({
       {owner ? (
         <ProfileDetail
           copyValue={owner}
-          icon={<UserRound className="size-5" strokeWidth={1.7} />}
+          icon={
+            <MSymbol className="ms-opsz-20 ms-wght-300" symbol="key_vertical" />
+          }
+          iconGapClassName="gap-0.5"
           label={<Trans>Owner</Trans>}
           value={ownerReverseName || truncateAddress(owner)}
         />
@@ -114,7 +133,7 @@ const ProfileDetails = ({
           icon={
             <MSymbol
               className="ms-opsz-20 ms-wght-300"
-              symbol="calendar_month"
+              symbol="calendar_clock"
             />
           }
           label={<Trans>Registered</Trans>}
@@ -143,7 +162,7 @@ const AboutMetaItem = ({
 
   return (
     <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
-      <span className="shrink-0 text-(--theme-color)">{icon}</span>
+      <span className="shrink-0 text-ens-quartz-700">{icon}</span>
       <span className="truncate text-sm leading-[1.5]">{value}</span>
     </div>
   )
@@ -192,11 +211,15 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
             value={timezone}
           />
           <AboutMetaItem
-            icon={<Languages className="size-5" strokeWidth={1.7} />}
+            icon={
+              <MSymbol className="ms-opsz-24 ms-wght-300" symbol="translate" />
+            }
             value={language}
           />
           <AboutMetaItem
-            icon={<MapPin className="size-5" strokeWidth={1.7} />}
+            icon={
+              <MSymbol className="ms-opsz-24 ms-wght-300" symbol="distance" />
+            }
             value={location}
           />
         </div>
@@ -235,22 +258,24 @@ export const ProfileViewNewBanner = ({
   headerUrl,
   name,
 }: Pick<ProfileViewNewHeaderProps, 'headerLoading' | 'headerUrl' | 'name'>) => (
-  <div className="relative h-[260px] w-full overflow-hidden md:h-[361px]">
-    <ImageFallback.Root className="contents">
-      <ImageFallback.Image
-        alt={`${name} banner`}
-        className="h-90 w-full object-cover md:h-130"
-        src={headerUrl}
-      />
-      <ImageFallback.Fallback>
-        <div className="size-full bg-[linear-gradient(145deg,var(--theme-bg)_0%,#ffffff_58%,var(--theme-surface)_100%)]" />
-        {headerLoading ? (
-          <div className="absolute inset-0 animate-pulse bg-white/30" />
-        ) : null}
-      </ImageFallback.Fallback>
-    </ImageFallback.Root>
-    <div className="absolute inset-x-0 top-0 h-83.75 bg-[#011A25]/45" />
-    <div className="absolute inset-x-0 bottom-0 h-[168px] bg-linear-to-b from-[#FCFBFB]/0 via-[#FCFBFB]/58 to-[#FCFBFB]" />
+  <div className="relative h-[260px] w-full md:h-[361px]">
+    <div className="absolute inset-0 overflow-hidden">
+      <ImageFallback.Root className="contents">
+        <ImageFallback.Image
+          alt={`${name} banner`}
+          className="h-90 w-full object-cover md:h-130"
+          src={headerUrl}
+        />
+        <ImageFallback.Fallback>
+          <div className="size-full bg-[linear-gradient(145deg,var(--theme-bg)_0%,#ffffff_58%,var(--theme-surface)_100%)]" />
+          {headerLoading ? (
+            <div className="absolute inset-0 animate-pulse bg-white/30" />
+          ) : null}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+      <div className="absolute inset-x-0 top-0 h-full bg-linear-to-b from-[#011A25]/45 via-[#011A25]/22 to-[#011A25]/0" />
+    </div>
+    <div className="-bottom-10 pointer-events-none absolute inset-x-0 h-[250px] bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
   </div>
 )
 
