@@ -160,7 +160,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         headerUrl={headerUrl}
         name={name}
       />
-      <div className="-mt-[69px] relative z-10 mx-auto w-full max-w-[905px] space-y-0">
+      <div className="-mt-17.25 relative z-10 mx-auto w-full max-w-226.25 space-y-0">
         <div>
           <ProfileViewNewStatusBanners
             expiry={expiry}

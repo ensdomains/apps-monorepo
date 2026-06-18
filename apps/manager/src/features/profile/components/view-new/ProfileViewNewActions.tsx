@@ -36,13 +36,13 @@ type ProfileViewNewActionsProps = {
 }
 
 const iconActionClassName =
-  'flex size-[54px] shrink-0 items-center justify-center rounded bg-(--theme-bg) text-(--theme-color) shadow-none transition hover:bg-(--theme-hover-bg) disabled:cursor-not-allowed disabled:opacity-50'
+  'flex size-13.5 shrink-0 items-center justify-center rounded bg-(--theme-bg) text-(--theme-color) shadow-none transition hover:bg-(--theme-hover-bg) disabled:cursor-not-allowed disabled:opacity-50'
 
 const primaryActionClassName =
-  'h-[54px] w-auto min-w-[183px] rounded border border-(--theme-color) bg-white px-6 py-0 font-semi-mono text-sm text-(--theme-color) uppercase shadow-none hover:bg-(--theme-bg)'
+  'h-13.5 w-auto min-w-45.75 rounded border border-(--theme-color) bg-white px-6 py-0 font-semi-mono text-sm text-(--theme-color) uppercase shadow-none hover:bg-(--theme-bg)'
 
 const secondaryActionClassName =
-  'h-[54px] w-auto min-w-[183px] rounded border-none bg-(--theme-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-color) uppercase shadow-none hover:bg-(--theme-hover-bg)'
+  'h-13.5 w-auto min-w-45.75 rounded border-none bg-(--theme-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-color) uppercase shadow-none hover:bg-(--theme-hover-bg)'
 
 const ProfileShareAction = ({
   avatarUrl,
@@ -212,8 +212,8 @@ export const ProfileViewNewActions = ({
   records,
   url,
 }: ProfileViewNewActionsProps) => (
-  <div className="fixed right-0 bottom-0 left-0 z-40 min-h-[78px] rounded-t-[32px] bg-white px-3 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-[0_-13px_28px_rgba(0,0,0,0.02),0_-52px_52px_rgba(0,0,0,0.02),0_-117px_70px_rgba(0,0,0,0.01)]">
-    <div className="mx-auto flex max-w-[905px] items-center justify-center gap-3 overflow-x-auto">
+  <div className="fixed right-0 bottom-0 left-0 z-40 min-h-19.5 rounded-t-[32px] bg-white px-3 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-[0_-13px_28px_rgba(0,0,0,0.02),0_-52px_52px_rgba(0,0,0,0.02),0_-117px_70px_rgba(0,0,0,0.01)]">
+    <div className="mx-auto flex max-w-226.25 items-center justify-center gap-3 overflow-x-auto">
       <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
       <ProfileFavoriteAction name={name} />
       <ProfileEditAction

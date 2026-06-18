@@ -25,9 +25,9 @@ type ProfileViewNewHeaderProps = {
 }
 
 const detailLabelClassName =
-  'flex items-center text-ens-quartz-400 text-base leading-[1.5]'
+  'flex items-center text-ens-quartz-400 text-base leading-normal'
 const detailValueClassName =
-  'font-sans text-[13px] text-ens-quartz-700 leading-[1.5] tracking-[0.91px]'
+  'font-sans text-[13px] text-ens-quartz-700 leading-normal tracking-[0.91px]'
 
 const getContactRecordValue = (records: ProfileRecords, key: string) =>
   records.contact.find((record) => record.key === key)?.value?.trim()
@@ -163,7 +163,7 @@ const AboutMetaItem = ({
   return (
     <div className="flex min-w-0 items-center gap-1 text-ens-quartz-700">
       <span className="shrink-0 text-ens-quartz-700">{icon}</span>
-      <span className="truncate text-sm leading-[1.5]">{value}</span>
+      <span className="truncate text-sm leading-normal">{value}</span>
     </div>
   )
 }
@@ -177,20 +177,20 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
   return (
-    <section className="flex min-h-[182px] flex-1 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] md:max-w-[635px]">
+    <section className="flex min-h-45.5 flex-1 rounded-xl border-[0.25px] border-ens-quartz-300 bg-white p-6 shadow-[0_2px_6px_rgba(0,0,0,0.06)] md:max-w-158.75">
       <div className="grid w-full gap-6 md:grid-cols-[minmax(0,1fr)_228px]">
         <div className="min-w-0">
-          <h2 className="text-base text-ens-quartz-700 leading-[1.5]">
+          <h2 className="text-base text-ens-quartz-700 leading-normal">
             <Trans>About</Trans>
           </h2>
           {records.base.description ? (
-            <p className="mt-3 text-ens-quartz-500 text-sm leading-[1.5]">
+            <p className="mt-3 text-ens-quartz-500 text-sm leading-normal">
               {records.base.description}
             </p>
           ) : null}
           {websiteHref ? (
             <a
-              className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-(--theme-color) text-sm leading-[1.5] hover:opacity-80"
+              className="mt-1 inline-flex max-w-full items-center gap-1 font-mono text-(--theme-color) text-sm leading-normal hover:opacity-80"
               href={websiteHref}
               rel="noopener noreferrer"
               target="_blank"
@@ -233,7 +233,7 @@ const AvatarBlock = ({
   avatarUrl,
   name,
 }: Pick<ProfileViewNewHeaderProps, 'avatarLoading' | 'avatarUrl' | 'name'>) => (
-  <div className="relative size-[148px] shrink-0 overflow-hidden rounded-xl bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] md:size-[182px]">
+  <div className="relative size-37 shrink-0 overflow-hidden rounded-xl bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] md:size-45.5">
     <ImageFallback.Root className="contents">
       <ImageFallback.Image
         alt={`${name} avatar`}
@@ -258,7 +258,7 @@ export const ProfileViewNewBanner = ({
   headerUrl,
   name,
 }: Pick<ProfileViewNewHeaderProps, 'headerLoading' | 'headerUrl' | 'name'>) => (
-  <div className="relative h-[260px] w-full md:h-[361px]">
+  <div className="relative h-65 w-full md:h-90.25">
     <div className="absolute inset-0 overflow-hidden">
       <ImageFallback.Root className="contents">
         <ImageFallback.Image
@@ -275,7 +275,7 @@ export const ProfileViewNewBanner = ({
       </ImageFallback.Root>
       <div className="absolute inset-x-0 top-0 h-full bg-linear-to-b from-[#011A25]/45 via-[#011A25]/22 to-[#011A25]/0" />
     </div>
-    <div className="-bottom-10 pointer-events-none absolute inset-x-0 h-[250px] bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
+    <div className="-bottom-10 pointer-events-none absolute inset-x-0 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
   </div>
 )
 
@@ -289,8 +289,8 @@ export const ProfileViewNewHeader = ({
   records,
   registrationDate,
 }: ProfileViewNewHeaderProps) => (
-  <div className="space-y-[21.7px] px-5 md:px-8">
-    <div className="space-y-[13px]">
+  <div className="space-y-5.425 px-5 md:px-8">
+    <div className="space-y-3.25">
       <NameBadge name={name} />
       <ProfileDetails
         displayExpiryDate={displayExpiryDate}

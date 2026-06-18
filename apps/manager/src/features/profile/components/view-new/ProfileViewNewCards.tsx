@@ -32,16 +32,16 @@ const profileCardClassName =
   'border-[0.25px] border-transparent bg-transparent shadow-none'
 
 const sectionTitleClassName =
-  'font-sans text-base text-ens-quartz-900 leading-[1.5]'
+  'font-sans text-base text-ens-quartz-900 leading-normal'
 
-const valueClassName = 'font-mono text-sm text-ens-quartz-500 leading-[1.5]'
+const valueClassName = 'font-mono text-sm text-ens-quartz-500 leading-normal'
 
 // White surface shared by every contact/social/address card in the design.
 const cardSurfaceClassName =
   'rounded-xl border-[0.25px] border-ens-quartz-300 bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50'
 
-const cardLabelClassName = 'truncate text-ens-quartz-500 text-xs leading-[1.5]'
-const cardValueClassName = 'truncate text-ens-quartz-700 text-sm leading-[1.5]'
+const cardLabelClassName = 'truncate text-ens-quartz-500 text-xs leading-normal'
+const cardValueClassName = 'truncate text-ens-quartz-700 text-sm leading-normal'
 const trailingIconClassName = 'size-5 shrink-0 text-ens-quartz-400'
 
 const ProfileCard = ({
@@ -75,7 +75,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
     </>
   )
 
-  const className = `${cardSurfaceClassName} relative flex min-h-[134px] w-full flex-col p-6 text-left`
+  const className = `${cardSurfaceClassName} relative flex min-h-33.5 w-full flex-col p-6 text-left`
 
   if (item.href) {
     return (
@@ -170,7 +170,7 @@ const MainAddressCard = ({
   readonly name: string
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} h-auto w-full justify-between gap-4 px-6 py-5 md:max-w-[531px]`}
+    className={`${cardSurfaceClassName} h-auto w-full justify-between gap-4 px-6 py-5 md:max-w-132.75`}
     iconClassName={trailingIconClassName}
     value={address.value}
   >
@@ -207,7 +207,7 @@ const ChainAddressCard = ({
   readonly address: ProfileAddressItem
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} h-auto min-h-[74px] w-full justify-between gap-3 px-6 py-5`}
+    className={`${cardSurfaceClassName} h-auto min-h-18.5 w-full justify-between gap-3 px-6 py-5`}
     iconClassName={trailingIconClassName}
     value={address.value}
   >
@@ -236,7 +236,7 @@ const ProfileAddressesSection = ({
       <div className="space-y-8">
         {mainAddress ? (
           <div>
-            <h3 className="mb-3 text-ens-quartz-600 text-sm leading-[1.5]">
+            <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
               <Trans>Main receiving address</Trans>
             </h3>
             <MainAddressCard
@@ -249,7 +249,7 @@ const ProfileAddressesSection = ({
         ) : null}
         {chainAddresses.length > 0 ? (
           <div>
-            <h3 className="mb-3 text-ens-quartz-600 text-sm leading-[1.5]">
+            <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
               <Trans>Chain specific addresses</Trans>
             </h3>
             <div className="grid gap-4 md:grid-cols-3 md:gap-6">
@@ -285,7 +285,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `${cardSurfaceClassName} flex min-h-[91px] w-full items-center gap-3 p-6 text-left`
+  const className = `${cardSurfaceClassName} flex min-h-22.75 w-full items-center gap-3 p-6 text-left`
 
   if (href) {
     return (
@@ -333,19 +333,19 @@ const ProfileSocialSection = ({
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => (
   <a
-    className="group hover:-translate-y-0.5 flex min-h-[205px] min-w-0 flex-col overflow-hidden rounded-xl border-[#C7C6C4] border-[0.25px] bg-white shadow-none transition hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
+    className="group hover:-translate-y-0.5 flex min-h-51.25 min-w-0 flex-col overflow-hidden rounded-xl border-[#C7C6C4] border-[0.25px] bg-white shadow-none transition hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
     href={link.href}
     rel="noopener noreferrer"
     target="_blank"
     title={link.href}
   >
-    <div className="flex h-[120px] items-center justify-center bg-(--theme-bg)">
+    <div className="flex h-30 items-center justify-center bg-(--theme-bg)">
       <div className="flex size-14 items-center justify-center rounded-xl bg-white/80 text-(--theme-color) shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
         <LinkIcon className="size-6" strokeWidth={1.8} />
       </div>
     </div>
     <div className="min-w-0 px-6 py-5">
-      <div className="truncate text-ens-quartz-900 text-sm leading-[1.5]">
+      <div className="truncate text-ens-quartz-900 text-sm leading-normal">
         {link.name}
       </div>
       <div className="mt-1 flex min-w-0 items-center gap-1 text-ens-quartz-500">
