@@ -40,5 +40,12 @@ describe('profile record utils', () => {
         getRecordDisplayValue(getRecordDef('com.reddit'), 'u/ensdomains'),
       ).toBe('ensdomains')
     })
+
+    it('social href construction never produces javascript:/data: even for malicious handle values', () => {
+      const xRecord = getRecordDef('com.twitter')
+      const href = getRecordHref(xRecord, 'javascript:alert(1)')
+      expect(href).toBe('https://x.com/javascript%3Aalert(1)')
+      expect(href?.startsWith('javascript:')).toBe(false)
+    })
   })
 })

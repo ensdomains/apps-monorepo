@@ -32,6 +32,7 @@ import {
   type ImageType,
   uploadImageMutationOptions,
 } from '@/features/profile/service/profileImageUpload'
+import { safeImageSrc } from '@/features/profile/utils/safeUrl'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { inspect } from '@/utils/xstate'
@@ -592,7 +593,7 @@ export const ImageSelectionDialog = ({
                   'Failed to load image. Please check that the URL points to a valid image file.',
               })
             }}
-            src={state.context.manualUrl}
+            src={safeImageSrc(state.context.manualUrl) ?? ''}
           />
           <p className="mt-2 text-gray-500 text-sm">
             <Eye className="mr-1 inline size-4" />

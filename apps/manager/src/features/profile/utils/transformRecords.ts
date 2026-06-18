@@ -12,6 +12,7 @@ import type {
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { LinkItem, ProfileRecords, TextRecordValue } from '../types'
+import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
 
 const emptyProfileRecords = (): ProfileRecords => ({
   base: {},
@@ -36,7 +37,7 @@ export const defaultProfileRecords = newEmptyProfileRecords()
 const LinksSchema = v.array(
   v.object({
     name: v.string(),
-    url: v.string(),
+    url: createSafeUrlSchema('Only http(s) URLs are allowed'),
   }),
 )
 
@@ -44,7 +45,7 @@ const isEmptyLink = (link: LinkItem) =>
   link.name.trim() === '' && link.url.trim() === ''
 
 export const normalizeProfileLinks = (links: readonly LinkItem[]): LinkItem[] =>
-  links.filter((link) => !isEmptyLink(link))
+  links.filter((link) => !isEmptyLink(link) && isSafeHttpUrl(link.url))
 
 const normalizeProfileAddresses = (
   addresses: ProfileRecords['addresses'],

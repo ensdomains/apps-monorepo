@@ -1,6 +1,7 @@
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { AvatarNft } from '@/features/profile/service/profileNfts'
+import { safeImageSrc } from '@/features/profile/utils/safeUrl'
 import { cn } from '@/lib/utils'
 import {
   fieldShellClassName,
@@ -178,7 +179,7 @@ export const ManualPreviewStep = ({
       alt="Manual URL preview"
       className={editPreviewClassName(kind)}
       onError={onImageError}
-      src={manualUrl}
+      src={safeImageSrc(manualUrl) ?? ''}
     />
     <button
       className={cn(
