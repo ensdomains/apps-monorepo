@@ -9,8 +9,8 @@ import {
   parseAbi,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { sepolia } from 'viem/chains'
 import { readContract } from 'viem/actions'
+import { sepolia } from 'viem/chains'
 import { useConnection, useReadContracts } from 'wagmi'
 import { TIME_TRAVEL_RPC } from '@/dev/timeTravel'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
@@ -199,5 +199,4 @@ export function useAutoFundOnLowBalance() {
     })
     fundWalletMutation.mutate(address)
   }, [address, isLoadingBalances, balances])
-
 }
