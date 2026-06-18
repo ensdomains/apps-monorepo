@@ -18,6 +18,22 @@ const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
   e instanceof Error ? e : new Error(String(e)),
 )
 
+/**
+ * Default role bitmap granted to the subname owner on creation.
+ *
+ * Each role occupies one nibble in the EnhancedAccessControl bitmap, so a value
+ * of all `1`s grants every role to the owner. This ensures freshly created
+ * subnames have all roles enabled by default, rather than being created with no
+ * roles attached (an empty `0n` bitmap).
+ *
+ * ensjs uses the same `0x1111…` value internally for `deploySubregistry` and
+ * `deployVerifiableProxy`, but keeps it as a module-private const (it is not
+ * exported from `@ensdomains/ensjs`), so we redeclare the literal here.
+ */
+export const DEFAULT_ROLE_BITMAP = BigInt(
+  '0x1111111111111111111111111111111111111111111111111111111111111111',
+)
+
 export interface PrepareCreateSubnameParams {
   /** The subregistry address (parent registry for the subname) */
   readonly registryAddress: Address
@@ -33,7 +49,7 @@ export interface PrepareCreateSubnameParams {
   readonly chainId: number
   /** Optional: subregistry address for the new subname (defaults to zeroAddress) */
   readonly subregistryAddress?: Address
-  /** Optional: role bitmap to grant to the owner (defaults to 0n) */
+  /** Optional: role bitmap to grant to the owner (defaults to all roles) */
   readonly roleBitmap?: bigint
   /** Optional: expiration timestamp in seconds */
   readonly expires?: bigint
@@ -57,7 +73,7 @@ export function prepareCreateSubnameTransaction({
   walletClient,
   chainId,
   subregistryAddress = zeroAddress,
-  roleBitmap = 0n,
+  roleBitmap = DEFAULT_ROLE_BITMAP,
   expires,
 }: PrepareCreateSubnameParams): ResultAsync<CustomTransactionIntent, Error> {
   if (!assertWalletHasAccount(walletClient)) {
