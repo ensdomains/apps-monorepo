@@ -25,13 +25,13 @@ import {
 import { toast } from 'sonner'
 import {
   type Address,
-  type WalletClient,
   createPublicClient,
   createTestClient,
   createWalletClient,
   erc20Abi,
   http,
   parseAbi,
+  type WalletClient,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { readContract } from 'viem/actions'
@@ -118,6 +118,7 @@ async function anvilSetupOwner(address: `0x${string}`) {
   }
   await Promise.all(mints)
 }
+
 import {
   selectIsLoading,
   selectIsReady,
