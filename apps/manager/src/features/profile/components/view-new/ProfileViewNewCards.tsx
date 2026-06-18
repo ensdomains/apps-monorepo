@@ -40,9 +40,16 @@ const valueClassName = 'font-mono text-sm text-ens-quartz-500 leading-normal'
 const cardSurfaceClassName =
   'rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 md:rounded-xl md:border-[0.25px] md:border-ens-quartz-300'
 
-const cardLabelClassName = 'truncate text-ens-quartz-500 text-xs leading-normal'
-const cardValueClassName = 'truncate text-ens-quartz-700 text-sm leading-normal'
-const trailingIconClassName = 'size-5 shrink-0 text-ens-quartz-400'
+const contactLabelClassName =
+  'w-full truncate text-ens-quartz-500 text-xs leading-[18px] tracking-[-0.132px]'
+const contactValueClassName =
+  'w-full truncate text-ens-quartz-700 text-sm leading-normal tracking-[-0.154px]'
+const contactTrailingIconClassName =
+  'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
+const addressCopyIconClassName =
+  'ml-0 size-5 shrink-0 text-ens-quartz-400 md:size-6'
+const addressCardPaddingClassName =
+  'has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 const socialLabelClassName =
   'truncate text-ens-quartz-500 text-xs leading-[18px]'
 const socialValueClassName = 'truncate text-ens-quartz-700 text-sm leading-6'
@@ -73,18 +80,23 @@ const ProfileCard = ({
 const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
   const content = (
     <>
-      <IconRenderer className="size-7 text-ens-quartz-900" icon={item.icon} />
-      <div className="mt-auto min-w-0 pt-4">
-        <p className={cardLabelClassName}>{item.label}</p>
-        <p className={cardValueClassName}>
-          {item.displayPrefix}
-          {item.displayValue}
-        </p>
+      <div className="flex w-full min-w-0 flex-col items-start gap-2">
+        <div className="flex w-full items-center justify-between">
+          <IconRenderer
+            className="size-7 text-ens-quartz-900 md:size-7.5"
+            icon={item.icon}
+          />
+        </div>
+        <p className={contactLabelClassName}>{item.label}</p>
       </div>
+      <p className={contactValueClassName}>
+        {item.displayPrefix}
+        {item.displayValue}
+      </p>
     </>
   )
 
-  const className = `${cardSurfaceClassName} relative flex min-h-28 w-full flex-col p-4 text-left md:min-h-33.5 md:p-6`
+  const className = `${cardSurfaceClassName} relative flex min-h-28 w-full flex-col items-start gap-2 p-4 text-left md:min-h-33.5 md:p-[24.25px]`
 
   if (item.href) {
     return (
@@ -96,7 +108,8 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
       >
         {content}
         <ArrowUpRight
-          className={`absolute top-4 right-4 md:top-6 md:right-6 ${trailingIconClassName}`}
+          className={contactTrailingIconClassName}
+          strokeWidth={1.33}
         />
       </a>
     )
@@ -105,7 +118,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
   return (
     <CopyableButton
       className={`${className} h-auto items-start`}
-      iconClassName={`absolute top-4 right-4 md:top-6 md:right-6 ${trailingIconClassName}`}
+      iconClassName={contactTrailingIconClassName}
       value={item.displayValue}
     >
       {content}
@@ -146,6 +159,12 @@ const AddressValue = ({
   </span>
 )
 
+const ChainAddressValue = ({ value }: { readonly value: string }) => (
+  <span className="w-[85px] truncate text-ens-quartz-400 text-sm leading-[1.1] tracking-[-0.28px]">
+    {truncateAddress(value)}
+  </span>
+)
+
 const ReceivingChainIcons = ({
   chains,
 }: {
@@ -155,10 +174,10 @@ const ReceivingChainIcons = ({
   if (withIcon.length === 0) return null
 
   return (
-    <div className="flex shrink-0 items-center gap-1">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 md:min-w-50">
       {withIcon.map((chain) => (
         <IconRenderer
-          className="size-4.5 object-contain md:size-6"
+          className="size-4.5 object-contain md:size-6.5"
           icon={chain.icon}
           key={`${chain.coinType}-${chain.value}`}
         />
@@ -179,30 +198,32 @@ const MainAddressCard = ({
   readonly name: string
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} h-[55px] w-full justify-between gap-2 px-4 py-0 md:h-auto md:max-w-132.75 md:gap-4 md:px-6 md:py-5`}
-    iconClassName={trailingIconClassName}
+    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[55px] w-full justify-between gap-2 py-0 md:h-auto md:max-w-132.75`}
+    iconClassName={addressCopyIconClassName}
     value={address.value}
   >
-    <div className="flex min-w-0 flex-1 items-center gap-x-2 gap-y-2 md:flex-wrap md:gap-x-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 md:size-6 md:rounded-[4px]">
-          <ImageFallback.Root className="contents">
-            <ImageFallback.Image
-              alt={`${name} avatar`}
-              className="size-full object-cover"
-              src={avatarUrl}
-            />
-            <ImageFallback.Fallback>
-              <PatternAvatar
-                className="size-full rounded-[4px] border-none bg-transparent p-0 shadow-none"
-                name={name}
+    <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-wrap">
+      <div className="flex min-w-0 items-center gap-2 md:h-6.5 md:gap-4">
+        <div className="flex min-w-0 items-center gap-1">
+          <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 md:size-[25.576px] md:rounded-[4px]">
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
+                alt={`${name} avatar`}
+                className="size-full object-cover"
+                src={avatarUrl}
               />
-            </ImageFallback.Fallback>
-          </ImageFallback.Root>
+              <ImageFallback.Fallback>
+                <PatternAvatar
+                  className="size-full rounded-[4px] border-none bg-transparent p-0 shadow-none"
+                  name={name}
+                />
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
+          </div>
+          <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 md:text-sm md:leading-[0.96] md:tracking-[-0.28px]">
+            {name}
+          </span>
         </div>
-        <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 md:text-sm">
-          {name}
-        </span>
         <AddressValue className="text-ens-quartz-900" value={address.value} />
       </div>
       <ReceivingChainIcons chains={chains} />
@@ -216,18 +237,18 @@ const ChainAddressCard = ({
   readonly address: ProfileAddressItem
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} h-[65px] w-full justify-between gap-2 px-4 py-0 md:h-auto md:min-h-18.5 md:gap-3 md:px-6 md:py-5`}
-    iconClassName={trailingIconClassName}
+    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[65px] w-full justify-between gap-2 py-0 md:h-auto md:min-h-[88.5px]`}
+    iconClassName={addressCopyIconClassName}
     value={address.value}
   >
-    <div className="flex min-w-0 items-center gap-2 md:gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center md:size-10">
+    <div className="flex min-w-0 items-center gap-2 md:gap-0">
+      <div className="flex size-8 shrink-0 items-center justify-center md:size-10 md:p-2">
         <IconRenderer
           className="size-6 object-contain md:size-7"
           icon={address.icon}
         />
       </div>
-      <AddressValue className="text-ens-quartz-400" value={address.value} />
+      <ChainAddressValue value={address.value} />
     </div>
   </CopyableButton>
 )
@@ -245,7 +266,7 @@ const ProfileAddressesSection = ({
 
   return (
     <ProfileCard title={<Trans>Addresses</Trans>}>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {mainAddress ? (
           <div>
             <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
@@ -308,7 +329,10 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
         target="_blank"
       >
         {content}
-        <ArrowUpRight className={socialTrailingIconClassName} />
+        <ArrowUpRight
+          className={socialTrailingIconClassName}
+          strokeWidth={1.33}
+        />
       </a>
     )
   }

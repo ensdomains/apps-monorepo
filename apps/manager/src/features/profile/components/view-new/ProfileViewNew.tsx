@@ -152,7 +152,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
 
   return (
     <div
-      className="relative min-h-screen bg-[#FCFBFB] pb-[117px] md:pb-28"
+      className="relative min-h-screen bg-[#FCFBFB] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[114px]"
       style={expiry.isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
@@ -191,7 +191,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
       <ProfileViewNewActions
         avatarUrl={avatarUrl}
         isInGrace={expiry.isInGrace}
-        isOwner={isOwner}
+        isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         onUpdated={refetchRecords}
         owner={owner}

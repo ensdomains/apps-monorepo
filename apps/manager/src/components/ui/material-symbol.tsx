@@ -58,6 +58,7 @@ export const MATERIAL_SYMBOLS = [
   'notifications_unread',
   'priority_high',
   'receipt_long',
+  'redeem',
   'remove',
   'schedule',
   'search',

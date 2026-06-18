@@ -126,6 +126,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         .otherwise(() => null)}
       <ViewHeaderSection
         isInGrace={expiry.isInGrace}
+        isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         owner={owner}
         records={records}

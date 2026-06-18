@@ -19,14 +19,16 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import type { ProfileRecords } from '@/features/profile/types'
+import { ThirdPartyRenewalDialog } from '@/features/renew/components/ThirdPartyRenewalDialog'
 import { canRenewV2Name } from '@/features/renew/utils/renewableName'
+import { shouldShowThirdPartyRenewalWarning } from '@/features/renew/utils/thirdPartyRenewalWarning'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 
 type ProfileViewNewActionsProps = {
   readonly avatarUrl?: string
   readonly isInGrace: boolean
-  readonly isOwner: boolean
+  readonly isOwner?: boolean
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
@@ -43,6 +45,12 @@ const renewActionClassName =
 
 const editActionClassName =
   'h-[61px] w-full rounded border border-ens-quartz-900 bg-white px-6 py-0 font-semi-mono text-sm text-ens-quartz-900 uppercase tracking-[1.12px] shadow-none hover:bg-ens-quartz-50 md:h-12.5 md:w-[171px] md:border-none md:bg-(--theme-bg) md:text-(--theme-color) md:hover:bg-(--theme-hover-bg)'
+
+const editBottomNavClassName =
+  'fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3.24px_91px_rgba(7,28,47,0.12)]'
+
+const editBottomNavContentClassName =
+  'mx-auto flex w-full max-w-[1440px] justify-end gap-3 px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-8 md:py-4'
 
 const ProfileShareAction = ({
   avatarUrl,
@@ -182,9 +190,11 @@ const ProfileEditAction = ({
 
 const ProfileRenewAction = ({
   className,
+  isOwner,
   name,
 }: {
   readonly className: string
+  readonly isOwner?: boolean
   readonly name: string
 }) => {
   const { data: expiryData } = useQuery({
@@ -194,13 +204,32 @@ const ProfileRenewAction = ({
 
   if (!canRenewV2Name(name, expiryDate)) return null
 
-  return (
-    <LinkButton className={className} params={{ name }} to="/renew/$name">
+  const buttonContent = (
+    <>
       <Trans>Renew Name</Trans>
       <MSymbol
         className="ms-opsz-20 ms-wght-700 text-base"
         symbol="double_arrow"
       />
+    </>
+  )
+
+  if (shouldShowThirdPartyRenewalWarning(isOwner)) {
+    return (
+      <ThirdPartyRenewalDialog
+        name={name}
+        trigger={
+          <button className={className} type="button">
+            {buttonContent}
+          </button>
+        }
+      />
+    )
+  }
+
+  return (
+    <LinkButton className={className} params={{ name }} to="/renew/$name">
+      {buttonContent}
     </LinkButton>
   )
 }
@@ -215,39 +244,53 @@ export const ProfileViewNewActions = ({
   profileEditNewEnabled,
   records,
   url,
-}: ProfileViewNewActionsProps) => (
-  <>
-    <div className="absolute inset-x-0 top-[474px] z-30 md:hidden">
-      <div className="mx-auto flex w-full max-w-[390px] items-center justify-between px-5">
-        <ProfileRenewAction className={renewActionClassName} name={name} />
-        <div className="flex items-center gap-4">
+}: ProfileViewNewActionsProps) => {
+  const { t } = useLingui()
+
+  return (
+    <>
+      <div className="absolute inset-x-0 top-[474px] z-30 md:hidden">
+        <div className="mx-auto flex w-full max-w-[390px] items-center justify-between px-5">
+          <ProfileRenewAction
+            className={renewActionClassName}
+            isOwner={isOwner}
+            name={name}
+          />
+          <div className="flex items-center gap-4">
+            <ProfileFavoriteAction name={name} />
+            <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute top-[316px] right-8 z-30 hidden w-33 flex-col gap-6 md:flex">
+        <div className="flex items-center gap-6">
           <ProfileFavoriteAction name={name} />
           <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
         </div>
-      </div>
-    </div>
-
-    <div className="absolute top-[316px] right-8 z-30 hidden w-33 flex-col gap-6 md:flex">
-      <div className="flex items-center gap-6">
-        <ProfileFavoriteAction name={name} />
-        <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-      </div>
-      <ProfileRenewAction className={renewActionClassName} name={name} />
-    </div>
-
-    {isOwner && !isInGrace ? (
-      <div className="fixed right-0 bottom-0 left-0 z-40 h-[117px] bg-white px-6 pt-3 shadow-[0_-3px_2px_rgba(220,220,220,0.25)] md:right-8 md:bottom-4 md:left-auto md:h-auto md:bg-transparent md:p-0 md:shadow-none">
-        <ProfileEditAction
-          className={editActionClassName}
-          isInGrace={isInGrace}
+        <ProfileRenewAction
+          className={renewActionClassName}
           isOwner={isOwner}
           name={name}
-          onUpdated={onUpdated}
-          owner={owner}
-          profileEditNewEnabled={profileEditNewEnabled}
-          records={records}
         />
       </div>
-    ) : null}
-  </>
-)
+
+      {isOwner && !isInGrace ? (
+        <nav aria-label={t`Profile actions`} className={editBottomNavClassName}>
+          <div className={editBottomNavContentClassName}>
+            <ProfileEditAction
+              className={editActionClassName}
+              isInGrace={isInGrace}
+              isOwner={isOwner}
+              name={name}
+              onUpdated={onUpdated}
+              owner={owner}
+              profileEditNewEnabled={profileEditNewEnabled}
+              records={records}
+            />
+          </div>
+        </nav>
+      ) : null}
+    </>
+  )
+}

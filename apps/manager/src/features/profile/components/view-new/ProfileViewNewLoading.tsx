@@ -246,26 +246,28 @@ const ContactCardLoading = ({
   readonly valueWidth: string
 }) => (
   <div
-    className={`${loadingCardSurfaceClassName} relative flex min-h-28 w-full flex-col p-4 text-left md:min-h-33.5 md:p-6`}
+    className={`${loadingCardSurfaceClassName} relative flex min-h-28 w-full flex-col items-start gap-2 p-4 text-left md:min-h-33.5 md:p-[24.25px]`}
   >
-    <SkeletonBlock
-      className="size-7 rounded"
-      shouldReduceMotion={shouldReduceMotion}
-    />
-    <SkeletonBlock
-      className="absolute top-4 right-4 size-5 rounded md:top-6 md:right-6"
-      shouldReduceMotion={shouldReduceMotion}
-    />
-    <div className="mt-auto min-w-0 space-y-2 pt-4">
+    <div className="flex w-full min-w-0 flex-col items-start gap-2">
+      <div className="flex w-full items-center justify-between">
+        <SkeletonBlock
+          className="size-7 rounded md:size-7.5"
+          shouldReduceMotion={shouldReduceMotion}
+        />
+      </div>
       <SkeletonBlock
-        className="h-3 w-18"
-        shouldReduceMotion={shouldReduceMotion}
-      />
-      <SkeletonBlock
-        className={clsx('h-5', valueWidth)}
+        className="h-[18px] w-18"
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
+    <SkeletonBlock
+      className="absolute top-4 right-4 size-5 rounded md:top-[24.25px] md:right-[24.25px] md:size-7.5"
+      shouldReduceMotion={shouldReduceMotion}
+    />
+    <SkeletonBlock
+      className={clsx('h-[21px]', valueWidth)}
+      shouldReduceMotion={shouldReduceMotion}
+    />
   </div>
 )
 
@@ -297,27 +299,29 @@ const MainAddressCardLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <div
-    className={`${loadingCardSurfaceClassName} flex h-[55px] w-full items-center justify-between gap-2 px-4 py-0 md:h-auto md:max-w-132.75 md:gap-4 md:px-6 md:py-5`}
+    className={`${loadingCardSurfaceClassName} flex h-[55px] w-full items-center justify-between gap-2 px-4 py-0 md:h-auto md:max-w-132.75 md:p-[24.25px]`}
   >
-    <div className="flex min-w-0 flex-1 items-center gap-x-2 gap-y-2 md:flex-wrap md:gap-x-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <SkeletonBlock
-          className="size-5.5 shrink-0 rounded-full bg-ens-quartz-100 md:size-6 md:rounded-[4px]"
-          shouldReduceMotion={shouldReduceMotion}
-        />
-        <SkeletonBlock
-          className="h-5 w-18 md:w-24"
-          shouldReduceMotion={shouldReduceMotion}
-        />
+    <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-wrap">
+      <div className="flex min-w-0 items-center gap-2 md:h-6.5 md:gap-4">
+        <div className="flex min-w-0 items-center gap-1">
+          <SkeletonBlock
+            className="size-5.5 shrink-0 rounded-full bg-ens-quartz-100 md:size-[25.576px] md:rounded-[4px]"
+            shouldReduceMotion={shouldReduceMotion}
+          />
+          <SkeletonBlock
+            className="h-5 w-18 md:w-24"
+            shouldReduceMotion={shouldReduceMotion}
+          />
+        </div>
         <SkeletonBlock
           className="h-5 w-18 md:w-28"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 flex-wrap items-center gap-1 md:min-w-50">
         {['eth', 'base', 'arb', 'op'].map((id) => (
           <SkeletonBlock
-            className="size-4.5 rounded-full md:size-6"
+            className="size-4.5 rounded-full md:size-6.5"
             key={id}
             shouldReduceMotion={shouldReduceMotion}
           />
@@ -325,7 +329,7 @@ const MainAddressCardLoading = ({
       </div>
     </div>
     <SkeletonBlock
-      className="size-5 shrink-0 rounded"
+      className="size-5 shrink-0 rounded md:size-6"
       shouldReduceMotion={shouldReduceMotion}
     />
   </div>
@@ -339,22 +343,22 @@ const ChainAddressCardLoading = ({
   readonly valueWidth: string
 }) => (
   <div
-    className={`${loadingCardSurfaceClassName} flex h-[65px] w-full items-center justify-between gap-2 px-4 py-0 md:h-auto md:min-h-18.5 md:gap-3 md:px-6 md:py-5`}
+    className={`${loadingCardSurfaceClassName} flex h-[65px] w-full items-center justify-between gap-2 px-4 py-0 md:h-auto md:min-h-[88.5px] md:p-[24.25px]`}
   >
-    <div className="flex min-w-0 items-center gap-2 md:gap-3">
-      <div className="flex size-8 shrink-0 items-center justify-center md:size-10">
+    <div className="flex min-w-0 items-center gap-2 md:gap-0">
+      <div className="flex size-8 shrink-0 items-center justify-center md:size-10 md:p-2">
         <SkeletonBlock
           className="size-6 rounded-full md:size-7"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
       <SkeletonBlock
-        className={clsx('h-5', valueWidth)}
+        className={clsx('h-[15.4px] md:w-[85px]', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
     <SkeletonBlock
-      className="size-5 shrink-0 rounded"
+      className="size-5 shrink-0 rounded md:size-6"
       shouldReduceMotion={shouldReduceMotion}
     />
   </div>
@@ -370,7 +374,7 @@ const ProfileAddressesSectionLoading = ({
     shouldReduceMotion={shouldReduceMotion}
     titleWidth="w-24"
   >
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <SkeletonBlock
           className="mb-3 h-5 w-42"
@@ -549,11 +553,13 @@ const ProfileViewNewActionsLoading = ({
       />
     </div>
 
-    <div className="fixed right-0 bottom-0 left-0 z-40 h-[117px] bg-white px-6 pt-3 shadow-[0_-3px_2px_rgba(220,220,220,0.25)] md:right-8 md:bottom-4 md:left-auto md:h-auto md:bg-transparent md:p-0 md:shadow-none">
-      <SkeletonBlock
-        className="h-[61px] w-full rounded border border-ens-quartz-300 bg-white md:h-12.5 md:w-[171px] md:border-none md:bg-white"
-        shouldReduceMotion={shouldReduceMotion}
-      />
+    <div className="fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3.24px_91px_rgba(7,28,47,0.12)]">
+      <div className="mx-auto flex w-full max-w-[1440px] justify-end gap-3 px-6 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-8 md:py-4">
+        <SkeletonBlock
+          className="h-[61px] w-full rounded border border-ens-quartz-300 bg-white md:h-12.5 md:w-[171px] md:border-none md:bg-white"
+          shouldReduceMotion={shouldReduceMotion}
+        />
+      </div>
     </div>
   </>
 )
@@ -562,7 +568,7 @@ export const ProfileViewNewLoading = ({ name }: ProfileViewNewLoadingProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false
 
   return (
-    <div className="relative min-h-screen bg-[#FCFBFB] pb-[117px] md:pb-28">
+    <div className="relative min-h-screen bg-[#FCFBFB] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-[114px]">
       <ProfileViewNewBannerLoading shouldReduceMotion={shouldReduceMotion} />
       <div className="-mt-[84px] md:-mt-[69px] relative z-10 mx-auto w-full max-w-[390px] space-y-0 md:max-w-226.25">
         <ProfileViewNewHeaderLoading
