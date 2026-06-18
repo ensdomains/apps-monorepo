@@ -38,11 +38,16 @@ const valueClassName = 'font-mono text-sm text-ens-quartz-500 leading-normal'
 
 // White surface shared by every contact/social/address card in the design.
 const cardSurfaceClassName =
-  'rounded-xl border-[0.25px] border-ens-quartz-300 bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50'
+  'rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 md:rounded-xl md:border-[0.25px] md:border-ens-quartz-300'
 
 const cardLabelClassName = 'truncate text-ens-quartz-500 text-xs leading-normal'
 const cardValueClassName = 'truncate text-ens-quartz-700 text-sm leading-normal'
 const trailingIconClassName = 'size-5 shrink-0 text-ens-quartz-400'
+const socialLabelClassName =
+  'truncate text-ens-quartz-500 text-xs leading-[18px]'
+const socialValueClassName = 'truncate text-ens-quartz-700 text-sm leading-6'
+const socialTrailingIconClassName =
+  'size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
 
 const ProfileCard = ({
   children,
@@ -79,7 +84,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
     </>
   )
 
-  const className = `${cardSurfaceClassName} relative flex min-h-33.5 w-full flex-col p-6 text-left`
+  const className = `${cardSurfaceClassName} relative flex min-h-28 w-full flex-col p-4 text-left md:min-h-33.5 md:p-6`
 
   if (item.href) {
     return (
@@ -91,7 +96,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
       >
         {content}
         <ArrowUpRight
-          className={`absolute top-6 right-6 ${trailingIconClassName}`}
+          className={`absolute top-4 right-4 md:top-6 md:right-6 ${trailingIconClassName}`}
         />
       </a>
     )
@@ -100,7 +105,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
   return (
     <CopyableButton
       className={`${className} h-auto items-start`}
-      iconClassName={`absolute top-6 right-6 ${trailingIconClassName}`}
+      iconClassName={`absolute top-4 right-4 md:top-6 md:right-6 ${trailingIconClassName}`}
       value={item.displayValue}
     >
       {content}
@@ -118,7 +123,7 @@ const ProfileContactSection = ({
 
   return (
     <ProfileCard title={<Trans>Contact</Trans>}>
-      <div className="grid gap-4 md:grid-cols-3 md:gap-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6">
         {contacts.map((item) => (
           <ContactCard item={item} key={item.key} />
         ))}
@@ -135,7 +140,7 @@ const AddressValue = ({
   readonly value: string
 }) => (
   <span
-    className={`truncate font-mono text-[13px] tracking-[0.91px] ${className}`}
+    className={`truncate font-mono text-[12px] tracking-[0.84px] md:text-[13px] md:tracking-[0.91px] ${className}`}
   >
     {truncateAddress(value)}
   </span>
@@ -153,7 +158,7 @@ const ReceivingChainIcons = ({
     <div className="flex shrink-0 items-center gap-1">
       {withIcon.map((chain) => (
         <IconRenderer
-          className="size-6 object-contain"
+          className="size-4.5 object-contain md:size-6"
           icon={chain.icon}
           key={`${chain.coinType}-${chain.value}`}
         />
@@ -174,13 +179,13 @@ const MainAddressCard = ({
   readonly name: string
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} h-auto w-full justify-between gap-4 px-6 py-5 md:max-w-132.75`}
+    className={`${cardSurfaceClassName} h-[55px] w-full justify-between gap-2 px-4 py-0 md:h-auto md:max-w-132.75 md:gap-4 md:px-6 md:py-5`}
     iconClassName={trailingIconClassName}
     value={address.value}
   >
-    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="flex min-w-0 flex-1 items-center gap-x-2 gap-y-2 md:flex-wrap md:gap-x-4">
       <div className="flex min-w-0 items-center gap-2">
-        <div className="size-6 shrink-0 overflow-hidden rounded-[4px] bg-ens-quartz-100">
+        <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 md:size-6 md:rounded-[4px]">
           <ImageFallback.Root className="contents">
             <ImageFallback.Image
               alt={`${name} avatar`}
@@ -195,7 +200,7 @@ const MainAddressCard = ({
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </div>
-        <span className="truncate font-semi-mono text-ens-quartz-900 text-sm">
+        <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 md:text-sm">
           {name}
         </span>
         <AddressValue className="text-ens-quartz-900" value={address.value} />
@@ -211,13 +216,16 @@ const ChainAddressCard = ({
   readonly address: ProfileAddressItem
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} h-auto min-h-18.5 w-full justify-between gap-3 px-6 py-5`}
+    className={`${cardSurfaceClassName} h-[65px] w-full justify-between gap-2 px-4 py-0 md:h-auto md:min-h-18.5 md:gap-3 md:px-6 md:py-5`}
     iconClassName={trailingIconClassName}
     value={address.value}
   >
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="flex size-10 shrink-0 items-center justify-center">
-        <IconRenderer className="size-7 object-contain" icon={address.icon} />
+    <div className="flex min-w-0 items-center gap-2 md:gap-3">
+      <div className="flex size-8 shrink-0 items-center justify-center md:size-10">
+        <IconRenderer
+          className="size-6 object-contain md:size-7"
+          icon={address.icon}
+        />
       </div>
       <AddressValue className="text-ens-quartz-400" value={address.value} />
     </div>
@@ -256,7 +264,7 @@ const ProfileAddressesSection = ({
             <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
               <Trans>Chain specific addresses</Trans>
             </h3>
-            <div className="grid gap-4 md:grid-cols-3 md:gap-6">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6">
               {chainAddresses.map((address) => (
                 <ChainAddressCard
                   address={address}
@@ -277,19 +285,19 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   const href = getRecordHref(recordDef, displayValue)
   const content = (
     <>
-      <div className="flex size-9 shrink-0 items-center justify-center text-ens-quartz-900">
-        <IconRenderer className="size-5" icon={recordDef?.icon} />
+      <div className="flex size-5.25 shrink-0 items-center justify-center text-ens-quartz-900 md:size-9 md:rounded-[10px] md:bg-white">
+        <IconRenderer className="size-4 md:size-5" icon={recordDef?.icon} />
       </div>
-      <div className="min-w-0 flex-1">
-        <p className={cardLabelClassName}>{recordDef?.name ?? record.key}</p>
-        <p className={cardValueClassName}>
+      <div className="min-w-0 flex-1 md:h-[42px]">
+        <p className={socialLabelClassName}>{recordDef?.name ?? record.key}</p>
+        <p className={socialValueClassName}>
           {recordDef?.displayPrefix}
           {displayValue}
         </p>
       </div>
     </>
   )
-  const className = `${cardSurfaceClassName} flex min-h-22.75 w-full items-center gap-3 p-6 text-left`
+  const className = `${cardSurfaceClassName} flex min-h-17 w-full items-center gap-1 p-3 text-left md:min-h-22.75 md:gap-2 md:p-[24.25px]`
 
   if (href) {
     return (
@@ -300,7 +308,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
         target="_blank"
       >
         {content}
-        <ArrowUpRight className={trailingIconClassName} />
+        <ArrowUpRight className={socialTrailingIconClassName} />
       </a>
     )
   }
@@ -308,7 +316,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   return (
     <CopyableButton
       className={`${className} h-auto justify-start`}
-      iconClassName={trailingIconClassName}
+      iconClassName={socialTrailingIconClassName}
       value={displayValue}
     >
       {content}
@@ -326,7 +334,7 @@ const ProfileSocialSection = ({
 
   return (
     <ProfileCard title={<Trans>Social</Trans>}>
-      <div className="grid gap-4 md:grid-cols-3 md:gap-6">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6">
         {socialRecords.map((record) => (
           <SocialCard key={`${record.key}-${record.value}`} record={record} />
         ))}
@@ -337,13 +345,13 @@ const ProfileSocialSection = ({
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => (
   <a
-    className="group hover:-translate-y-0.5 flex min-h-51.25 min-w-0 flex-col overflow-hidden rounded-xl border-[#C7C6C4] border-[0.25px] bg-white shadow-none transition hover:shadow-[0_8px_18px_rgba(0,0,0,0.08)]"
+    className="group flex h-[205px] min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 md:rounded-xl md:border-[#C7C6C4] md:border-[0.25px]"
     href={link.href}
     rel="noopener noreferrer"
     target="_blank"
     title={link.href}
   >
-    <div className="flex h-30 items-center justify-center bg-(--theme-bg)">
+    <div className="flex h-30 shrink-0 items-center justify-center bg-(--theme-bg)">
       <div className="flex size-14 items-center justify-center rounded-xl bg-white/80 text-(--theme-color) shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
         <LinkIcon className="size-6" strokeWidth={1.8} />
       </div>
@@ -369,8 +377,8 @@ const ProfileLinksSection = ({
   if (links.length === 0) return null
 
   return (
-    <ProfileCard className="md:px-12" title={<Trans>Links</Trans>}>
-      <div className="grid gap-4 md:grid-cols-[repeat(3,minmax(0,230px))] md:gap-6">
+    <ProfileCard title={<Trans>Links</Trans>}>
+      <div className="grid gap-4 md:grid-cols-3 md:gap-6">
         {links.map((link) => (
           <LinkPreview key={`${link.name}-${link.href}`} link={link} />
         ))}

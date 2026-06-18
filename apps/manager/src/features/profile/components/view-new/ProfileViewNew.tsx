@@ -152,7 +152,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
 
   return (
     <div
-      className="relative min-h-screen pb-28"
+      className="relative min-h-screen bg-[#FCFBFB] pb-[117px] md:pb-28"
       style={expiry.isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
@@ -160,7 +160,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         headerUrl={headerUrl}
         name={name}
       />
-      <div className="-mt-17.25 relative z-10 mx-auto w-full max-w-226.25 space-y-0">
+      <div className="-mt-[84px] md:-mt-[69px] relative z-10 mx-auto w-full max-w-[390px] space-y-0 md:max-w-226.25">
         <div>
           <ProfileViewNewStatusBanners
             expiry={expiry}
@@ -179,7 +179,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             records={records}
             registrationDate={registration.data?.registrationDate}
           />
-          <div className="space-y-0 px-5 md:px-0">
+          <div className="space-y-0">
             <ProfileViewNewCards
               avatarUrl={avatarUrl}
               name={name}

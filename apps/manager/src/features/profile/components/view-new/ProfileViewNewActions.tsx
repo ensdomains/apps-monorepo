@@ -36,13 +36,13 @@ type ProfileViewNewActionsProps = {
 }
 
 const iconActionClassName =
-  'flex size-13.5 shrink-0 items-center justify-center rounded bg-(--theme-bg) text-(--theme-color) shadow-none transition hover:bg-(--theme-hover-bg) disabled:cursor-not-allowed disabled:opacity-50'
+  'flex size-13.5 shrink-0 items-center justify-center rounded bg-white text-ens-quartz-700 shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 disabled:cursor-not-allowed disabled:opacity-50'
 
-const primaryActionClassName =
-  'h-13.5 w-auto min-w-45.75 rounded border border-(--theme-color) bg-white px-6 py-0 font-semi-mono text-sm text-(--theme-color) uppercase shadow-none hover:bg-(--theme-bg)'
+const renewActionClassName =
+  'h-13.5 min-w-34 gap-1 rounded border-none bg-white px-3 py-0 font-semi-mono text-xs text-ens-quartz-900 uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] hover:bg-ens-quartz-50 md:w-33 md:min-w-33'
 
-const secondaryActionClassName =
-  'h-13.5 w-auto min-w-45.75 rounded border-none bg-(--theme-bg) px-6 py-0 font-semi-mono text-sm text-(--theme-color) uppercase shadow-none hover:bg-(--theme-hover-bg)'
+const editActionClassName =
+  'h-[61px] w-full rounded border border-ens-quartz-900 bg-white px-6 py-0 font-semi-mono text-sm text-ens-quartz-900 uppercase tracking-[1.12px] shadow-none hover:bg-ens-quartz-50 md:h-12.5 md:w-[171px] md:border-none md:bg-(--theme-bg) md:text-(--theme-color) md:hover:bg-(--theme-hover-bg)'
 
 const ProfileShareAction = ({
   avatarUrl,
@@ -140,6 +140,7 @@ const ProfileEditAction = ({
   owner,
   profileEditNewEnabled,
   records,
+  className,
 }: Pick<
   ProfileViewNewActionsProps,
   | 'isInGrace'
@@ -149,11 +150,13 @@ const ProfileEditAction = ({
   | 'owner'
   | 'profileEditNewEnabled'
   | 'records'
->) => {
+> & {
+  readonly className: string
+}) => {
   if (!isOwner || isInGrace) return null
 
   const trigger = (
-    <button className={secondaryActionClassName} type="button">
+    <button className={className} type="button">
       <Trans>Edit Profile</Trans>
     </button>
   )
@@ -171,17 +174,19 @@ const ProfileEditAction = ({
   }
 
   return (
-    <LinkButton
-      className={secondaryActionClassName}
-      params={{ name }}
-      to="/p/$name/edit"
-    >
+    <LinkButton className={className} params={{ name }} to="/p/$name/edit">
       <Trans>Edit Profile</Trans>
     </LinkButton>
   )
 }
 
-const ProfileExtendAction = ({ name }: { readonly name: string }) => {
+const ProfileRenewAction = ({
+  className,
+  name,
+}: {
+  readonly className: string
+  readonly name: string
+}) => {
   const { data: expiryData } = useQuery({
     ...profileExpiryQuery(name),
   })
@@ -190,13 +195,12 @@ const ProfileExtendAction = ({ name }: { readonly name: string }) => {
   if (!canRenewV2Name(name, expiryDate)) return null
 
   return (
-    <LinkButton
-      className={primaryActionClassName}
-      params={{ name }}
-      to="/renew/$name"
-    >
-      <MSymbol className="ms-opsz-24 ms-wght-700" symbol="arrow_forward" />
-      <Trans>Extend Name</Trans>
+    <LinkButton className={className} params={{ name }} to="/renew/$name">
+      <Trans>Renew Name</Trans>
+      <MSymbol
+        className="ms-opsz-20 ms-wght-700 text-base"
+        symbol="double_arrow"
+      />
     </LinkButton>
   )
 }
@@ -212,20 +216,38 @@ export const ProfileViewNewActions = ({
   records,
   url,
 }: ProfileViewNewActionsProps) => (
-  <div className="fixed right-0 bottom-0 left-0 z-40 min-h-19.5 rounded-t-[32px] bg-white px-3 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] shadow-[0_-13px_28px_rgba(0,0,0,0.02),0_-52px_52px_rgba(0,0,0,0.02),0_-117px_70px_rgba(0,0,0,0.01)]">
-    <div className="mx-auto flex max-w-226.25 items-center justify-center gap-3 overflow-x-auto">
-      <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
-      <ProfileFavoriteAction name={name} />
-      <ProfileEditAction
-        isInGrace={isInGrace}
-        isOwner={isOwner}
-        name={name}
-        onUpdated={onUpdated}
-        owner={owner}
-        profileEditNewEnabled={profileEditNewEnabled}
-        records={records}
-      />
-      <ProfileExtendAction name={name} />
+  <>
+    <div className="absolute inset-x-0 top-[474px] z-30 md:hidden">
+      <div className="mx-auto flex w-full max-w-[390px] items-center justify-between px-5">
+        <ProfileRenewAction className={renewActionClassName} name={name} />
+        <div className="flex items-center gap-4">
+          <ProfileFavoriteAction name={name} />
+          <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+        </div>
+      </div>
     </div>
-  </div>
+
+    <div className="absolute top-[316px] right-8 z-30 hidden w-33 flex-col gap-6 md:flex">
+      <div className="flex items-center gap-6">
+        <ProfileFavoriteAction name={name} />
+        <ProfileShareAction avatarUrl={avatarUrl} name={name} url={url} />
+      </div>
+      <ProfileRenewAction className={renewActionClassName} name={name} />
+    </div>
+
+    {isOwner && !isInGrace ? (
+      <div className="fixed right-0 bottom-0 left-0 z-40 h-[117px] bg-white px-6 pt-3 shadow-[0_-3px_2px_rgba(220,220,220,0.25)] md:right-8 md:bottom-4 md:left-auto md:h-auto md:bg-transparent md:p-0 md:shadow-none">
+        <ProfileEditAction
+          className={editActionClassName}
+          isInGrace={isInGrace}
+          isOwner={isOwner}
+          name={name}
+          onUpdated={onUpdated}
+          owner={owner}
+          profileEditNewEnabled={profileEditNewEnabled}
+          records={records}
+        />
+      </div>
+    ) : null}
+  </>
 )
