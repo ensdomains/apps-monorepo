@@ -36,7 +36,7 @@ export const AccountTriggerContent = () => {
             ))}
         </div>
 
-        <span className="min-w-0 truncate font-normal text-gray-700 text-sm leading-tight tracking-tight md:text-lg md:leading-[0.96] md:tracking-[-0.32px]">
+        <span className="min-w-0 truncate font-normal text-gray-700 text-sm leading-tight tracking-tight md:text-lg md:leading-ens-tight md:tracking-[-0.32px]">
           {getHeaderDisplayName({
             isLoading,
             ownerAddress,
