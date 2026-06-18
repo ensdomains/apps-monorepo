@@ -6,6 +6,7 @@ import {
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
+import { ProfileViewNewLoading } from '@/features/profile/components/view-new/ProfileViewNewLoading'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -74,8 +75,16 @@ export const Route = createFileRoute('/$name/')({
   ssr: false,
   component: RouteComponent,
   errorComponent: ProfileRouteError,
-  pendingComponent: ProfileLoading,
+  pendingComponent: ProfileRoutePending,
 })
+
+function ProfileRoutePending() {
+  return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
+    <ProfileViewNewLoading />
+  ) : (
+    <ProfileLoading />
+  )
+}
 
 function ProfileRouteError({ error }: ErrorComponentProps) {
   return (

@@ -5,7 +5,6 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
 import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
 import {
@@ -26,6 +25,7 @@ import {
   ProfileViewNewBanner,
   ProfileViewNewHeader,
 } from './ProfileViewNewHeader'
+import { ProfileViewNewLoading } from './ProfileViewNewLoading'
 
 type ProfileViewNewProps = {
   readonly name: string
@@ -127,7 +127,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
-    return <ProfileLoading />
+    return <ProfileViewNewLoading />
   }
 
   if (ownerMissing && isExpiryError) {
