@@ -39,32 +39,36 @@ const valueClassName = 'font-mono text-sm text-ens-quartz-500 leading-normal'
 
 // White surface shared by every contact/social/address card in the design.
 const cardSurfaceClassName =
-  'rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 md:rounded-xl md:border-[0.25px] md:border-ens-quartz-300'
+  'rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300'
+
+const contactCardSurfaceClassName =
+  'rounded-xl border-[0.25px] border-ens-quartz-300 bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50'
 
 const contactLabelClassName =
-  'w-full truncate text-ens-quartz-500 text-xs leading-[18px] tracking-[-0.132px]'
+  'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] lg:landscape:text-xs lg:landscape:leading-[18px] lg:landscape:tracking-[-0.132px]'
 const contactValueClassName =
-  'w-full truncate text-ens-quartz-700 text-sm leading-normal tracking-[-0.154px]'
+  'w-full truncate text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] lg:landscape:text-sm lg:landscape:text-ens-quartz-700 lg:landscape:leading-normal lg:landscape:tracking-[-0.154px]'
 const contactTrailingIconClassName =
-  'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
+  'absolute top-4 right-4 ml-0 size-6 shrink-0 text-ens-quartz-400 lg:landscape:top-[24.25px] lg:landscape:right-[24.25px] lg:landscape:size-7.5 lg:landscape:text-ens-quartz-700'
 const profileCardCopyIconClassName =
-  'ml-0 size-4 shrink-0 text-ens-quartz-400 md:size-6 md:text-ens-quartz-700'
+  'ml-0 size-4 shrink-0 text-ens-quartz-400 lg:landscape:size-6 lg:landscape:text-ens-quartz-700'
 const profileCardTrailingIconStrokeWidth = 1.33
 const contactCopyIconClassName = cn(
   profileCardCopyIconClassName,
-  'absolute top-4 right-4 md:top-[24.25px] md:right-[24.25px]',
+  'absolute top-4 right-4 lg:landscape:top-[24.25px] lg:landscape:right-[24.25px]',
 )
 const contactCardPaddingClassName =
-  'p-4 has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
+  'p-4 has-[>svg]:px-4 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
 const addressCardPaddingClassName =
-  'has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
+  'has-[>svg]:px-4 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
 const socialLabelClassName =
-  'truncate text-ens-quartz-500 text-xs leading-[18px]'
-const socialValueClassName = 'truncate text-ens-quartz-700 text-sm leading-6'
+  'truncate text-ens-quartz-500 text-xs leading-[16.5px] lg:landscape:leading-[18px]'
+const socialValueClassName =
+  'truncate text-ens-quartz-700 text-[12px] leading-[19.5px] lg:landscape:text-sm lg:landscape:leading-6'
 const socialTrailingIconClassName =
-  'size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
+  'size-[18px] shrink-0 text-ens-quartz-400 lg:landscape:size-7.5 lg:landscape:text-ens-quartz-700'
 const socialCardPaddingClassName =
-  'p-3 has-[>svg]:px-3 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
+  'p-3 has-[>svg]:px-3 lg:landscape:p-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]'
 
 const ProfileCard = ({
   children,
@@ -78,7 +82,7 @@ const ProfileCard = ({
   <section
     className={cn(
       profileCardClassName,
-      'px-5 py-6 md:px-8 md:pt-8 md:pb-6',
+      'px-5 py-6 lg:landscape:px-8 lg:landscape:pt-8 lg:landscape:pb-6',
       className,
     )}
   >
@@ -93,7 +97,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
       <div className="flex w-full min-w-0 flex-col items-start gap-2">
         <div className="flex w-full items-center justify-between">
           <IconRenderer
-            className="size-7 text-ens-quartz-900 md:size-7.5"
+            className="size-7 text-ens-quartz-900 lg:landscape:size-7.5"
             icon={item.icon}
           />
         </div>
@@ -106,7 +110,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
     </>
   )
 
-  const className = `${cardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 text-left md:min-h-33.5`
+  const className = `${contactCardSurfaceClassName} ${contactCardPaddingClassName} relative flex min-h-28 w-full flex-col items-start gap-2 text-left lg:landscape:min-h-33.5`
 
   if (item.href) {
     return (
@@ -147,7 +151,7 @@ const ProfileContactSection = ({
 
   return (
     <ProfileCard title={<Trans>Contact</Trans>}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6">
+      <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
         {contacts.map((item) => (
           <ContactCard item={item} key={item.key} />
         ))}
@@ -164,7 +168,7 @@ const AddressValue = ({
   readonly value: string
 }) => (
   <span
-    className={`truncate font-mono text-[12px] tracking-[0.84px] md:text-[13px] md:tracking-[0.91px] ${className}`}
+    className={`truncate font-mono text-[12px] tracking-[0.84px] lg:landscape:text-[13px] lg:landscape:tracking-[0.91px] ${className}`}
   >
     {truncateAddress(value)}
   </span>
@@ -172,7 +176,7 @@ const AddressValue = ({
 
 const ChainAddressValue = ({ value }: { readonly value: string }) => (
   <span
-    className="w-[85px] whitespace-nowrap text-ens-quartz-400 text-sm leading-[1.1] tracking-[-0.28px]"
+    className="w-[79px] whitespace-nowrap text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] lg:landscape:w-[85px] lg:landscape:text-sm lg:landscape:leading-[1.1] lg:landscape:tracking-[-0.28px]"
     title={value}
   >
     {formatChainSpecificAddress(value)}
@@ -188,10 +192,10 @@ const ReceivingChainIcons = ({
   if (withIcon.length === 0) return null
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1 md:min-w-50">
+    <div className="flex shrink-0 flex-wrap items-center gap-1 lg:landscape:min-w-50">
       {withIcon.map((chain) => (
         <IconRenderer
-          className="size-4.5 object-contain md:size-6.5"
+          className="size-4.5 object-contain lg:landscape:size-6.5"
           icon={chain.icon}
           key={`${chain.coinType}-${chain.value}`}
         />
@@ -212,15 +216,15 @@ const MainAddressCard = ({
   readonly name: string
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[55px] w-full justify-between gap-2 py-0 md:h-auto md:max-w-132.75`}
+    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[55px] w-full justify-between gap-2 py-0 lg:landscape:h-auto lg:landscape:max-w-132.75`}
     iconClassName={profileCardCopyIconClassName}
     iconStrokeWidth={profileCardTrailingIconStrokeWidth}
     value={address.value}
   >
-    <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-wrap">
-      <div className="flex min-w-0 items-center gap-2 md:h-6.5 md:gap-4">
+    <div className="flex min-w-0 flex-1 items-center gap-2 lg:landscape:flex-wrap">
+      <div className="flex min-w-0 items-center gap-2 lg:landscape:h-6.5 lg:landscape:gap-4">
         <div className="flex min-w-0 items-center gap-1">
-          <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 md:size-[25.576px] md:rounded-[4px]">
+          <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-[4px]">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt={`${name} avatar`}
@@ -235,7 +239,7 @@ const MainAddressCard = ({
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>
-          <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 md:text-sm md:leading-[0.96] md:tracking-[-0.28px]">
+          <span className="truncate font-semi-mono text-[13px] text-ens-quartz-900 lg:landscape:text-sm lg:landscape:leading-[0.96] lg:landscape:tracking-[-0.28px]">
             {name}
           </span>
         </div>
@@ -252,15 +256,19 @@ const ChainAddressCard = ({
   readonly address: ProfileAddressItem
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[65px] w-full justify-between gap-2 py-0 md:h-auto md:min-h-[88.5px]`}
+    className={cn(
+      cardSurfaceClassName,
+      addressCardPaddingClassName,
+      'h-[65px] w-full justify-between gap-1 px-3 py-0 has-[>svg]:px-3 lg:landscape:h-auto lg:landscape:min-h-[88.5px] lg:landscape:gap-2 lg:landscape:px-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]',
+    )}
     iconClassName={profileCardCopyIconClassName}
     iconStrokeWidth={profileCardTrailingIconStrokeWidth}
     value={address.value}
   >
-    <div className="flex min-w-0 items-center gap-2 md:gap-0">
-      <div className="flex size-8 shrink-0 items-center justify-center md:size-10 md:p-2">
+    <div className="flex min-w-0 items-center gap-1 lg:landscape:gap-0">
+      <div className="flex size-7 shrink-0 items-center justify-center lg:landscape:size-10 lg:landscape:p-2">
         <IconRenderer
-          className="size-6 object-contain md:size-7"
+          className="size-6 object-contain lg:landscape:size-7"
           icon={address.icon}
         />
       </div>
@@ -301,7 +309,7 @@ const ProfileAddressesSection = ({
             <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
               <Trans>Chain specific addresses</Trans>
             </h3>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6">
+            <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 lg:landscape:grid-cols-3 lg:landscape:gap-6">
               {chainAddresses.map((address) => (
                 <ChainAddressCard
                   address={address}
@@ -322,10 +330,13 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   const href = getRecordHref(recordDef, displayValue)
   const content = (
     <>
-      <div className="flex size-5.25 shrink-0 items-center justify-center text-ens-quartz-900 md:size-9 md:rounded-[10px] md:bg-white">
-        <IconRenderer className="size-4 md:size-5" icon={recordDef?.icon} />
+      <div className="flex size-5.25 shrink-0 items-center justify-center text-ens-quartz-900 lg:landscape:size-9 lg:landscape:rounded-[10px] lg:landscape:bg-white">
+        <IconRenderer
+          className="size-4 lg:landscape:size-5"
+          icon={recordDef?.icon}
+        />
       </div>
-      <div className="min-w-0 flex-1 md:h-[42px]">
+      <div className="min-w-0 flex-1 lg:landscape:h-[42px]">
         <p className={socialLabelClassName}>{recordDef?.name ?? record.key}</p>
         <p className={socialValueClassName}>
           {recordDef?.displayPrefix}
@@ -334,7 +345,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
       </div>
     </>
   )
-  const className = `${cardSurfaceClassName} ${socialCardPaddingClassName} flex min-h-17 w-full items-center gap-1 font-sans text-left md:min-h-22.75 md:gap-2`
+  const className = `${cardSurfaceClassName} ${socialCardPaddingClassName} flex min-h-17 w-full items-center gap-1 font-sans text-left lg:landscape:min-h-22.75 lg:landscape:gap-2`
 
   if (href) {
     return (
@@ -375,7 +386,7 @@ const ProfileSocialSection = ({
 
   return (
     <ProfileCard title={<Trans>Social</Trans>}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-6">
+      <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
         {socialRecords.map((record) => (
           <SocialCard key={`${record.key}-${record.value}`} record={record} />
         ))}
@@ -386,7 +397,7 @@ const ProfileSocialSection = ({
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => (
   <a
-    className="group flex h-[205px] min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 md:rounded-xl md:border-[#C7C6C4] md:border-[0.25px]"
+    className="group flex h-[205px] min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl lg:landscape:border-[#C7C6C4] lg:landscape:border-[0.25px]"
     href={link.href}
     rel="noopener noreferrer"
     target="_blank"
@@ -419,7 +430,7 @@ const ProfileLinksSection = ({
 
   return (
     <ProfileCard title={<Trans>Links</Trans>}>
-      <div className="grid gap-4 md:grid-cols-3 md:gap-6">
+      <div className="grid gap-4 lg:landscape:grid-cols-3 lg:landscape:gap-6">
         {links.map((link) => (
           <LinkPreview key={`${link.name}-${link.href}`} link={link} />
         ))}

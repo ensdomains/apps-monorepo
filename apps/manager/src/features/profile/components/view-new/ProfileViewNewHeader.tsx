@@ -27,9 +27,9 @@ type ProfileViewNewHeaderProps = {
 }
 
 const detailLabelClassName =
-  'flex items-center text-ens-quartz-400 text-xs leading-[21px] md:text-base md:leading-normal'
+  'flex items-center text-ens-quartz-400 text-xs leading-[21px] lg:landscape:text-base lg:landscape:leading-normal'
 const detailValueClassName =
-  'font-sans text-[11px] text-ens-quartz-700 leading-[18px] tracking-[0.77px] md:text-[13px] md:leading-normal md:tracking-[0.91px]'
+  'font-sans text-[11px] text-ens-quartz-700 leading-[18px] tracking-[0.77px] lg:landscape:text-[13px] lg:landscape:leading-normal lg:landscape:tracking-[0.91px]'
 
 const getContactRecordValue = (records: ProfileRecords, key: string) =>
   records.contact.find((record) => record.key === key)?.value?.trim()
@@ -63,12 +63,12 @@ const ProfileDetail = ({
   readonly copyValue?: string
   readonly iconGapClassName?: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0 md:flex-row md:items-center md:gap-1.5">
+  <div className="flex min-w-0 flex-col items-start gap-0 lg:landscape:flex-row lg:landscape:items-center lg:landscape:gap-1.5">
     <div className={cn(detailLabelClassName, iconGapClassName)}>
       {icon}
       <span>{label}</span>
     </div>
-    <div className="flex min-w-0 items-center gap-1 pl-6 md:pl-0">
+    <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
       <span className={`${detailValueClassName} truncate`}>{value}</span>
       {copyValue ? <ProfileDetailCopyButton value={copyValue} /> : null}
     </div>
@@ -82,15 +82,15 @@ const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
   return (
     <button
       aria-label={t`Copy to clipboard`}
-      className="inline-flex size-4 shrink-0 items-center justify-center text-ens-quartz-400 md:size-5"
+      className="inline-flex size-4 shrink-0 items-center justify-center text-ens-quartz-400 lg:landscape:size-5"
       onClick={() => copy(value)}
       title={t`Copy to clipboard`}
       type="button"
     >
       {copied ? (
-        <Check className="size-3.5 md:size-4" />
+        <Check className="size-3.5 lg:landscape:size-4" />
       ) : (
-        <Copy className="size-3.5 md:size-4" />
+        <Copy className="size-3.5 lg:landscape:size-4" />
       )}
     </button>
   )
@@ -111,7 +111,7 @@ const ProfileDetails = ({
   const formattedExpiryDate = formatProfileDetailDate(displayExpiryDate)
 
   return (
-    <div className="grid w-full grid-cols-3 gap-3 md:flex md:max-w-full md:flex-wrap md:items-center md:gap-x-6 md:gap-y-3">
+    <div className="grid w-full grid-cols-3 gap-3 lg:landscape:flex lg:landscape:max-w-full lg:landscape:flex-wrap lg:landscape:items-center lg:landscape:gap-x-6 lg:landscape:gap-y-3">
       {owner ? (
         <ProfileDetail
           copyValue={owner}
@@ -156,9 +156,9 @@ const AboutMetaItem = ({
   if (!value) return null
 
   return (
-    <div className="flex min-w-0 items-start gap-1 text-ens-quartz-700 md:items-center">
+    <div className="flex min-w-0 items-start gap-1 text-ens-quartz-700 lg:landscape:items-center">
       <span className="shrink-0 text-ens-quartz-700">{icon}</span>
-      <span className="min-w-0 text-[12px] leading-[18px] md:truncate md:text-sm md:leading-normal">
+      <span className="min-w-0 text-[12px] leading-[18px] lg:landscape:truncate lg:landscape:text-sm lg:landscape:leading-normal">
         {value}
       </span>
     </div>
@@ -174,8 +174,8 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
 
   return (
-    <section className="flex min-h-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none md:min-h-45.5 md:max-w-158.75 md:rounded-xl md:border-[0.25px] md:border-ens-quartz-300 md:bg-white md:p-6 md:shadow-[0_2px_6px_rgba(0,0,0,0.06)]">
-      <div className="grid w-full gap-8 md:grid-cols-[minmax(0,346.5px)_228px] md:gap-3">
+    <section className="flex min-h-0 flex-1 rounded-none border-none bg-transparent p-0 shadow-none lg:landscape:min-h-45.5 lg:landscape:max-w-158.75 lg:landscape:rounded-xl lg:landscape:border-[0.25px] lg:landscape:border-ens-quartz-300 lg:landscape:bg-white lg:landscape:p-6 lg:landscape:shadow-[0_2px_6px_rgba(0,0,0,0.06)]">
+      <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
         <div className="min-w-0">
           <h2 className="text-base text-ens-quartz-700 leading-normal">
             <Trans>About</Trans>
@@ -200,11 +200,11 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
             </a>
           ) : null}
         </div>
-        <div className="grid min-w-0 grid-cols-3 gap-4 md:flex md:flex-col md:justify-start md:gap-1.5">
+        <div className="grid min-w-0 grid-cols-3 gap-4 lg:landscape:flex lg:landscape:flex-col lg:landscape:justify-start lg:landscape:gap-1.5">
           <AboutMetaItem
             icon={
               <MSymbol
-                className="ms-opsz-20 ms-wght-300 text-[20px] md:ms-opsz-24 md:text-[24px]"
+                className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
                 symbol="language"
               />
             }
@@ -213,7 +213,7 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
           <AboutMetaItem
             icon={
               <MSymbol
-                className="ms-opsz-20 ms-wght-300 text-[20px] md:ms-opsz-24 md:text-[24px]"
+                className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
                 symbol="translate"
               />
             }
@@ -222,7 +222,7 @@ const AboutCard = ({ records }: { readonly records: ProfileRecords }) => {
           <AboutMetaItem
             icon={
               <MSymbol
-                className="ms-opsz-20 ms-wght-300 text-[20px] md:ms-opsz-24 md:text-[24px]"
+                className="ms-opsz-20 ms-wght-300 text-[20px] lg:landscape:ms-opsz-24 lg:landscape:text-[24px]"
                 symbol="distance"
               />
             }
@@ -272,16 +272,16 @@ export const ProfileViewNewBanner = ({
   headerUrl,
   name,
 }: Pick<ProfileViewNewHeaderProps, 'headerLoading' | 'headerUrl' | 'name'>) => (
-  <div className="relative h-74 w-full md:h-90.25">
+  <div className="relative h-74 w-full lg:landscape:h-90.25">
     <div className="absolute inset-0 overflow-hidden">
       <ImageFallback.Root className="contents">
         <ImageFallback.Image
           alt={`${name} banner`}
-          className="absolute top-14 h-60 w-full object-cover md:top-0 md:h-130"
+          className="absolute top-14 h-60 w-full object-cover lg:landscape:top-0 lg:landscape:h-130"
           src={headerUrl}
         />
         <ImageFallback.Fallback>
-          <div className="absolute top-14 h-60 w-full bg-[linear-gradient(145deg,var(--theme-bg)_0%,#ffffff_58%,var(--theme-surface)_100%)] md:top-0 md:h-full" />
+          <div className="absolute top-14 h-60 w-full bg-[linear-gradient(145deg,var(--theme-bg)_0%,#ffffff_58%,var(--theme-surface)_100%)] lg:landscape:top-0 lg:landscape:h-full" />
           {headerLoading ? (
             <div className="absolute inset-0 animate-pulse bg-white/30" />
           ) : null}
@@ -302,16 +302,16 @@ export const ProfileViewNewHeader = ({
   records,
   registrationDate,
 }: ProfileViewNewHeaderProps) => (
-  <div className="relative min-h-[555px] rounded-b-xl bg-white pt-[62px] shadow-[0_4px_24.1px_rgba(7,28,47,0.07)] md:min-h-0 md:space-y-[21.7px] md:rounded-none md:bg-transparent md:px-8 md:pt-0 md:shadow-none">
+  <div className="relative min-h-[555px] rounded-none bg-transparent pt-[62px] shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0">
     <AvatarBlock
       avatarLoading={avatarLoading}
       avatarUrl={avatarUrl}
-      className="-top-33 -translate-x-1/2 absolute left-1/2 md:hidden"
+      className="-top-33 -translate-x-1/2 absolute left-1/2 lg:landscape:hidden"
       name={name}
     />
-    <div className="flex flex-col items-center md:block md:space-y-[13px]">
+    <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-[13px]">
       <NameBadge name={name} />
-      <div className="mt-10 w-full px-5 md:mt-0 md:px-0">
+      <div className="mt-10 w-full px-5 lg:landscape:mt-0 lg:landscape:px-0">
         <ProfileDetails
           displayExpiryDate={displayExpiryDate}
           owner={owner}
@@ -319,13 +319,13 @@ export const ProfileViewNewHeader = ({
           registrationDate={registrationDate}
         />
       </div>
-      <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t md:hidden" />
+      <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t lg:landscape:hidden" />
     </div>
-    <div className="mt-[91px] flex flex-col gap-6 px-5 md:mt-0 md:flex-row md:items-stretch md:px-0">
+    <div className="mt-[91px] flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
       <AvatarBlock
         avatarLoading={avatarLoading}
         avatarUrl={avatarUrl}
-        className="hidden md:block"
+        className="hidden lg:landscape:block"
         name={name}
       />
       <AboutCard records={records} />

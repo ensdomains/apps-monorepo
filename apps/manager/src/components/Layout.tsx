@@ -43,10 +43,11 @@ export const Layout = ({ children }: LayoutProps) => {
       <div
         className={tw(
           isNewProfileViewPage &&
-            '-mb-[54px] md:-mb-20 sticky inset-x-0 top-0 z-50',
+            '-mb-[54px] lg:landscape:-mb-20 sticky inset-x-0 top-0 z-50',
         )}
       >
         <Header
+          desktopBreakpoint={isNewProfileViewPage ? 'lg-landscape' : 'md'}
           profileThemeColor={profileThemeColor}
           transparentBackground={isNewProfileViewPage}
         />
