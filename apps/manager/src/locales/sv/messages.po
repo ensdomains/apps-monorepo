@@ -711,6 +711,7 @@ msgid "Copy Link"
 msgstr ""
 
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
+#: src/features/profile/components/view-new/ProfileViewNewHeader.tsx
 msgid "Copy to clipboard"
 msgstr ""
 

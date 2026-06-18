@@ -8,6 +8,7 @@ import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { cn, truncateAddress } from '@/lib/utils'
 import {
   formatProfileDetailDate,
+  getDisplayHost,
   getSafeProfileHref,
 } from './ProfileViewNew.helpers'
 
@@ -31,14 +32,6 @@ const detailValueClassName =
 
 const getContactRecordValue = (records: ProfileRecords, key: string) =>
   records.contact.find((record) => record.key === key)?.value?.trim()
-
-const getDisplayHost = (href: string) => {
-  try {
-    return new URL(href).hostname.replace(/^www\./, '')
-  } catch {
-    return href
-  }
-}
 
 const formatLanguage = (language: string | undefined) =>
   language

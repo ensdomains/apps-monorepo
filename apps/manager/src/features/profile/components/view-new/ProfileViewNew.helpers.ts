@@ -76,7 +76,7 @@ const toSafeHttpHref = (value: string): string | undefined => {
 
 export const getSafeProfileHref = toSafeHttpHref
 
-const getDisplayHost = (href: string): string => {
+export const getDisplayHost = (href: string): string => {
   try {
     return new URL(href).hostname.replace(/^www\./, '')
   } catch {
