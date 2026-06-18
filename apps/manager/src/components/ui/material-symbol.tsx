@@ -42,6 +42,7 @@ export const MATERIAL_SYMBOLS = [
   'history',
   'hourglass',
   'info',
+  'ios_share',
   'keyboard_arrow_down',
   'language',
   'login',
