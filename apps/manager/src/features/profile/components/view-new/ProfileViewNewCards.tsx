@@ -45,10 +45,16 @@ const contactLabelClassName =
   'w-full truncate text-ens-quartz-500 text-xs leading-[18px] tracking-[-0.132px]'
 const contactValueClassName =
   'w-full truncate text-ens-quartz-700 text-sm leading-normal tracking-[-0.154px]'
-const contactTrailingIconClassName =
-  'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
-const profileCardCopyIconClassName =
-  'ml-0 size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
+const profileCardTrailingIconColorClassName = 'text-[#D9D9D9]'
+const contactTrailingIconClassName = cn(
+  'absolute top-4 right-4 ml-0 size-5 shrink-0 md:top-[24.25px] md:right-[24.25px] md:size-7.5',
+  profileCardTrailingIconColorClassName,
+)
+const profileCardCopyIconClassName = cn(
+  'ml-0 size-4 shrink-0 md:size-6',
+  profileCardTrailingIconColorClassName,
+)
+const profileCardTrailingIconStrokeWidth = 1.33
 const contactCopyIconClassName = cn(
   profileCardCopyIconClassName,
   'absolute top-4 right-4 md:top-[24.25px] md:right-[24.25px]',
@@ -60,8 +66,10 @@ const addressCardPaddingClassName =
 const socialLabelClassName =
   'truncate text-ens-quartz-500 text-xs leading-[18px]'
 const socialValueClassName = 'truncate text-ens-quartz-700 text-sm leading-6'
-const socialTrailingIconClassName =
-  'size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
+const socialTrailingIconClassName = cn(
+  'size-5 shrink-0 md:size-7.5',
+  profileCardTrailingIconColorClassName,
+)
 const socialCardPaddingClassName =
   'p-3 has-[>svg]:px-3 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 
@@ -128,6 +136,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
     <CopyableButton
       className={`${className} h-auto items-start`}
       iconClassName={contactCopyIconClassName}
+      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
       value={item.displayValue}
     >
       {content}
@@ -212,6 +221,7 @@ const MainAddressCard = ({
   <CopyableButton
     className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[55px] w-full justify-between gap-2 py-0 md:h-auto md:max-w-132.75`}
     iconClassName={profileCardCopyIconClassName}
+    iconStrokeWidth={profileCardTrailingIconStrokeWidth}
     value={address.value}
   >
     <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-wrap">
@@ -251,6 +261,7 @@ const ChainAddressCard = ({
   <CopyableButton
     className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[65px] w-full justify-between gap-2 py-0 md:h-auto md:min-h-[88.5px]`}
     iconClassName={profileCardCopyIconClassName}
+    iconStrokeWidth={profileCardTrailingIconStrokeWidth}
     value={address.value}
   >
     <div className="flex min-w-0 items-center gap-2 md:gap-0">
@@ -353,6 +364,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
     <CopyableButton
       className={`${className} h-auto justify-start`}
       iconClassName={profileCardCopyIconClassName}
+      iconStrokeWidth={profileCardTrailingIconStrokeWidth}
       value={displayValue}
     >
       {content}
