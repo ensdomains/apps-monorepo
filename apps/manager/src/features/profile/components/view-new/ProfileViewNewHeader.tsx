@@ -239,7 +239,7 @@ export const ProfileViewNewBanner = ({
     <ImageFallback.Root className="contents">
       <ImageFallback.Image
         alt={`${name} banner`}
-        className="h-[360px] w-full object-cover md:h-[520px]"
+        className="h-90 w-full object-cover md:h-130"
         src={headerUrl}
       />
       <ImageFallback.Fallback>
@@ -249,7 +249,7 @@ export const ProfileViewNewBanner = ({
         ) : null}
       </ImageFallback.Fallback>
     </ImageFallback.Root>
-    <div className="absolute inset-x-0 top-0 h-[335px] bg-[#011A25]/45" />
+    <div className="absolute inset-x-0 top-0 h-83.75 bg-[#011A25]/45" />
     <div className="absolute inset-x-0 bottom-0 h-[168px] bg-linear-to-b from-[#FCFBFB]/0 via-[#FCFBFB]/58 to-[#FCFBFB]" />
   </div>
 )
