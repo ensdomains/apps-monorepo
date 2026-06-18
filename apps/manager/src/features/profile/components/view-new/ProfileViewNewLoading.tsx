@@ -536,7 +536,7 @@ const ProfileViewNewActionsLoading = ({
       </div>
     </div>
 
-    <div className="absolute top-[316px] right-8 z-30 hidden w-33 flex-col gap-6 md:flex">
+    <div className="absolute top-79 right-8 z-30 hidden w-33 flex-col gap-6 md:flex">
       <div className="flex items-center gap-6">
         <SkeletonBlock
           className="size-13.5 shrink-0 rounded bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)]"

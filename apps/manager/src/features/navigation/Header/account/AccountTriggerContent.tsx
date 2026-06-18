@@ -14,7 +14,7 @@ export const AccountTriggerContent = () => {
   return (
     <>
       <div className="flex min-w-0 items-center gap-2 md:gap-2">
-        <div className="flex size-[30px] shrink-0 items-center justify-center md:size-[46px]">
+        <div className="flex size-7.5 shrink-0 items-center justify-center md:size-[46px]">
           {match({
             avatar: avatar.url,
             avatarLoading: avatar.isLoading,
