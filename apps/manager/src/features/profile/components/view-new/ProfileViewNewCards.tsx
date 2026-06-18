@@ -10,7 +10,7 @@ import {
   getRecordHref,
 } from '@/features/profile/data/records'
 import type { ProfileRecords, TextRecordValue } from '@/features/profile/types'
-import { truncateAddress } from '@/lib/utils'
+import { cn, truncateAddress } from '@/lib/utils'
 import {
   getChainSpecificAddresses,
   getMainReceivingAddress,
@@ -54,7 +54,11 @@ const ProfileCard = ({
   readonly title: React.ReactNode
 }) => (
   <section
-    className={`${profileCardClassName} px-5 py-6 md:px-8 md:pt-8 md:pb-6 ${className}`}
+    className={cn(
+      profileCardClassName,
+      'px-5 py-6 md:px-8 md:pt-8 md:pb-6',
+      className,
+    )}
   >
     <h2 className={sectionTitleClassName}>{title}</h2>
     <div className="mt-6">{children}</div>
