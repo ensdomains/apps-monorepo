@@ -54,7 +54,7 @@ type IndexedProfileAddressItem = ProfileAddressItem & {
   readonly sourceIndex: number
 }
 
-const CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH = 3
+const CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH = 5
 
 export const formatChainSpecificAddress = (value: string): string => {
   const trimmed = value.trim()

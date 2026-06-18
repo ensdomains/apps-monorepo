@@ -23,11 +23,13 @@ const makeRecords = (
 })
 
 describe('ProfileViewNew helpers', () => {
-  it('formats chain-specific addresses with the first and last three characters', () => {
+  it('formats chain-specific addresses with the first and last five characters', () => {
     expect(
       formatChainSpecificAddress('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'),
-    ).toBe('bc1...wlh')
-    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe('DE5...xyz')
+    ).toBe('bc1qx...x0wlh')
+    expect(formatChainSpecificAddress('DE5opa123456789xyz')).toBe(
+      'DE5op...89xyz',
+    )
     expect(formatChainSpecificAddress('abc123')).toBe('abc123')
   })
 

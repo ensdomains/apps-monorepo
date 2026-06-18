@@ -47,10 +47,10 @@ const contactValueClassName =
   'w-full truncate text-ens-quartz-700 text-sm leading-normal tracking-[-0.154px]'
 const contactTrailingIconClassName =
   'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
+const profileCardCopyIconClassName =
+  'ml-0 size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
 const contactCardPaddingClassName =
   'p-4 has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
-const addressCopyIconClassName =
-  'ml-0 size-5 shrink-0 text-ens-quartz-400 md:size-6'
 const addressCardPaddingClassName =
   'has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 const socialLabelClassName =
@@ -123,7 +123,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
   return (
     <CopyableButton
       className={`${className} h-auto items-start`}
-      iconClassName={contactTrailingIconClassName}
+      iconClassName={`${contactTrailingIconClassName} ${profileCardCopyIconClassName}`}
       value={item.displayValue}
     >
       {content}
@@ -207,7 +207,7 @@ const MainAddressCard = ({
 }) => (
   <CopyableButton
     className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[55px] w-full justify-between gap-2 py-0 md:h-auto md:max-w-132.75`}
-    iconClassName={addressCopyIconClassName}
+    iconClassName={profileCardCopyIconClassName}
     value={address.value}
   >
     <div className="flex min-w-0 flex-1 items-center gap-2 md:flex-wrap">
@@ -246,7 +246,7 @@ const ChainAddressCard = ({
 }) => (
   <CopyableButton
     className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[65px] w-full justify-between gap-2 py-0 md:h-auto md:min-h-[88.5px]`}
-    iconClassName={addressCopyIconClassName}
+    iconClassName={profileCardCopyIconClassName}
     value={address.value}
   >
     <div className="flex min-w-0 items-center gap-2 md:gap-0">
@@ -348,7 +348,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   return (
     <CopyableButton
       className={`${className} h-auto justify-start`}
-      iconClassName={socialTrailingIconClassName}
+      iconClassName={`${socialTrailingIconClassName} ${profileCardCopyIconClassName}`}
       value={displayValue}
     >
       {content}

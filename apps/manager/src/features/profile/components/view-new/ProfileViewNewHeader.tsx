@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { Check, Copy } from 'lucide-react'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
@@ -86,10 +87,11 @@ const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
       title={t`Copy to clipboard`}
       type="button"
     >
-      <MSymbol
-        className="ms-opsz-20 ms-wght-300 text-[16px] md:text-[20px]"
-        symbol={copied ? 'check' : 'content_copy'}
-      />
+      {copied ? (
+        <Check className="size-3.5 md:size-4" />
+      ) : (
+        <Copy className="size-3.5 md:size-4" />
+      )}
     </button>
   )
 }
