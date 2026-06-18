@@ -21,8 +21,6 @@ type GetRegistryDeploymentParameters = {
 
 export type RegistryDeployment = {
   readonly transactionHash: Hash
-  readonly blockNumber: number
-  readonly timestamp: number
 }
 
 /**
@@ -53,8 +51,6 @@ const getRegistryDeployment = ResultFn(async function* ({
             first: 1
           ) {
             transactionHash
-            blockNumber
-            timestamp
           }
         }
       `,
