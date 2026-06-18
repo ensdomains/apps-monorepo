@@ -49,6 +49,10 @@ const contactTrailingIconClassName =
   'absolute top-4 right-4 ml-0 size-5 shrink-0 text-ens-quartz-400 md:top-[24.25px] md:right-[24.25px] md:size-7.5 md:text-ens-quartz-700'
 const profileCardCopyIconClassName =
   'ml-0 size-5 shrink-0 text-ens-quartz-400 md:size-7.5 md:text-ens-quartz-700'
+const contactCopyIconClassName = cn(
+  profileCardCopyIconClassName,
+  'absolute top-4 right-4 md:top-[24.25px] md:right-[24.25px]',
+)
 const contactCardPaddingClassName =
   'p-4 has-[>svg]:px-4 md:p-[24.25px] md:has-[>svg]:px-[24.25px]'
 const addressCardPaddingClassName =
@@ -123,7 +127,7 @@ const ContactCard = ({ item }: { readonly item: ProfileContactItem }) => {
   return (
     <CopyableButton
       className={`${className} h-auto items-start`}
-      iconClassName={`${contactTrailingIconClassName} ${profileCardCopyIconClassName}`}
+      iconClassName={contactCopyIconClassName}
       value={item.displayValue}
     >
       {content}
@@ -348,7 +352,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
   return (
     <CopyableButton
       className={`${className} h-auto justify-start`}
-      iconClassName={`${socialTrailingIconClassName} ${profileCardCopyIconClassName}`}
+      iconClassName={profileCardCopyIconClassName}
       value={displayValue}
     >
       {content}
