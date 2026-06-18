@@ -67,15 +67,16 @@ const BuyNowOrWaitSection = ({
       </p>
       <p className="text-[#3f3f3e] text-xs leading-normal md:text-sm">
         <Trans>
-          You can buy this name at any point during the {periodDays}-day
-          cooldown. Some names are more in-demand than others
-        </Trans>
+          You can buy this name at any point during the {periodDays}-day cooldown.
+        </Trans>{' '}
         {showDemandStats ? (
           <Trans>
-            {' '}
-            — the stats below can help you decide whether to act soon or wait.
+            Some names are more in-demand than others — the stats below can help
+            you decide whether to act soon or wait.
           </Trans>
-        ) : null}
+        ) : (
+          <Trans>Some names are more in-demand than others.</Trans>
+        )}
       </p>
       <DemandStats demand={demand} />
     </div>

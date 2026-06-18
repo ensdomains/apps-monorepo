@@ -23,6 +23,7 @@ export function basePricePerYearFromDurationTotal(
   basePriceUsd: number,
   durationSeconds: number,
 ): number {
+  if (durationSeconds <= 0) return 0
   return basePriceUsd / (durationSeconds / SECONDS_IN_YEAR)
 }
 
