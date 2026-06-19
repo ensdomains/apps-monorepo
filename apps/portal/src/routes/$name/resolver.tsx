@@ -111,7 +111,7 @@ const ResolverBanner = ({
             href={docsHref}
             className="underline decoration-dashed underline-offset-4"
           >
-            ENS {name}
+            {name}
           </ExternalLink>
           . This resolver has been audited and is considered secure.
         </p>
