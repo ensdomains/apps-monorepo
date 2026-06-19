@@ -1,7 +1,7 @@
-import { usePrivy } from '@privy-io/react-auth'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useConnectModal } from '@/lib/wallet'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
@@ -23,7 +23,8 @@ export const Header = ({
   )
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
-  const { ready } = usePrivy()
+  // Wallet-layer readiness (keeps the Privy SDK out of this component).
+  const { ready } = useConnectModal()
 
   // Show a loading placeholder (not "Connect") until hydrated, Privy is ready,
   // and wagmi isn't mid-(re)connect — so the slot doesn't flash "Connect" while

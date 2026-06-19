@@ -6,7 +6,13 @@ import {
   wagmiConfig,
 } from '@/lib/wagmi'
 
-const privyAppId = import.meta.env.VITE_PRIVY_APP_ID ?? ''
+const privyAppId = import.meta.env.VITE_PRIVY_APP_ID
+if (!privyAppId) {
+  // Privy owns the wallet layer, so a valid app id is required everywhere.
+  // Fail fast with a clear message instead of letting Privy init with appId=""
+  // and surface a cryptic API error later.
+  throw new Error('VITE_PRIVY_APP_ID is not set')
+}
 
 // Privy (social/email login + embedded wallet) over @privy-io/wagmi. The
 // QueryClientProvider comes from the router's SSR-query integration (router.tsx),
