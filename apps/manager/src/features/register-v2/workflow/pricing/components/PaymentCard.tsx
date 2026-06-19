@@ -81,7 +81,7 @@ export const PaymentCardBase = ({
   type: 'register' | 'renew'
 }) => {
   const { isConnected } = useSmartAccountContext()
-  const { openConnectModal, connectModalOpen } = useConnectModal()
+  const { openConnectModal } = useConnectModal()
 
   return (
     <div
@@ -165,7 +165,7 @@ export const PaymentCardBase = ({
           <Button
             className="w-full font-medium font-mono uppercase tracking-widest"
             color="blue"
-            disabled={connectModalOpen}
+            disabled={!openConnectModal}
             onClick={() => openConnectModal?.()}
             size="lg"
           >

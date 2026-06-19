@@ -1,32 +1,32 @@
 import { usePrivy } from '@privy-io/react-auth'
-import { useEffect, useState } from 'react'
 import { useReconnect } from 'wagmi'
+import { useWalletStatus } from './useWalletStatus'
 
-// Opens Privy's hosted login. If already authenticated, reconnect wagmi instead
-// (recovery flows shouldn't be a no-op). `connectModalOpen` guards against a
-// double-trigger; Privy emits no modal-close event, so it self-clears after a
-// beat in case the user dismisses without logging in.
+// The app's connect entry point. Returns `openConnectModal` (undefined until
+// Privy is ready, which gates the connect buttons) so call sites stay agnostic
+// to the wallet vendor.
 export const useConnectModal = () => {
-  const { ready, authenticated, login } = usePrivy()
+  const { ready, authenticated, login, logout } = usePrivy()
   const { reconnect } = useReconnect()
-  const [connectModalOpen, setConnectModalOpen] = useState(false)
-
-  useEffect(() => {
-    if (authenticated) setConnectModalOpen(false)
-  }, [authenticated])
+  const { syncing } = useWalletStatus()
 
   const openConnectModal = ready
     ? () => {
         if (authenticated) {
-          reconnect()
+          // Mid-handoff: retry the wagmi connection from the live Privy
+          // session. Once the handoff has timed out (`syncing` released), the
+          // session exists but wagmi never connected — a reconnect would hit
+          // the same stall, so start a fresh login instead.
+          if (syncing) reconnect()
+          else
+            logout()
+              .catch(() => {})
+              .finally(login)
           return
         }
-        if (connectModalOpen) return
-        setConnectModalOpen(true)
         login()
-        setTimeout(() => setConnectModalOpen(false), 2000)
       }
     : undefined
 
-  return { openConnectModal, connectModalOpen }
+  return { openConnectModal }
 }
