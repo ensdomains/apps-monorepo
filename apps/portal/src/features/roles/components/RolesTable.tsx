@@ -3,16 +3,14 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
-import { EntityBadge } from '@/components/EntityBadge'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
 import {
   buildEditActionColumn,
   buildRoleColumns,
-  type RoleRowEntry,
   rolesTableClassName,
+  rolesToEntries,
+  UserCell,
 } from '@/features/roles/components/roleTableColumns'
-import { isAdminRole } from '@/lib/roles/permissions'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 type RolesTableProps = {
   readonly name: string
@@ -26,39 +24,6 @@ type AccountGroup = {
   items: string[]
 }
 
-const formatRole = (role: string) =>
-  role
-    .replace(/^ROLE_/, '')
-    .replace(/_ADMIN$/, '')
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-
-const toRoleEntries = (roles: string[]): RoleRowEntry[] => {
-  const map = new Map<string, RoleRowEntry>()
-  for (const role of roles) {
-    const label = formatRole(role)
-    const existing = map.get(label) ?? {
-      label,
-      hasAdmin: false,
-      hasUser: false,
-    }
-    if (isAdminRole(role)) existing.hasAdmin = true
-    else existing.hasUser = true
-    map.set(label, existing)
-  }
-  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
-}
-
-const UserCell = ({ account }: { account: Address }) => (
-  <div className="w-32">
-    <EntityBadge variant="address" address={account}>
-      {truncateAddress(account, 6, 4)}
-    </EntityBadge>
-  </div>
-)
-
 const baseColumns: ColumnDef<AccountGroup>[] = [
   {
     id: 'user',
@@ -66,7 +31,7 @@ const baseColumns: ColumnDef<AccountGroup>[] = [
     header: 'User',
     cell: ({ row }) => <UserCell account={row.original.account} />,
   },
-  ...buildRoleColumns<AccountGroup>((row) => toRoleEntries(row.items)),
+  ...buildRoleColumns<AccountGroup>((row) => rolesToEntries(row.items)),
 ]
 
 export const RolesTable = ({
