@@ -67,6 +67,11 @@ export default defineConfig({
       '@rhinestone/sdk',
       '@rhinestone/sdk/actions/smart-sessions',
       '@rhinestone/sdk/errors',
+      // Privy lazy-loads each modal sub-screen (wallet list, email-OTP) as its
+      // own chunk; pre-bundle so the dynamic imports don't 504 ("Outdated
+      // Optimize Dep") and leave the modal blank.
+      '@privy-io/react-auth',
+      '@privy-io/wagmi',
     ],
   },
   resolve: {
