@@ -16,13 +16,13 @@ import { MobileConnectButton } from './MobileConnectButton'
 
 type MobileHeaderProps = {
   readonly isConnected: boolean
-  readonly connectionSettled: boolean
+  readonly isConnectionSettled: boolean
   readonly transparentBackground?: boolean
 }
 
 export const MobileHeader = ({
   isConnected,
-  connectionSettled,
+  isConnectionSettled,
   transparentBackground = false,
 }: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -96,7 +96,7 @@ export const MobileHeader = ({
                 <MSymbol className="ms-opsz-24" symbol="search" />
               </button>
               <div className="ml-auto flex min-w-0 shrink items-center">
-                {connectionSettled ? (
+                {isConnectionSettled ? (
                   isConnected ? (
                     <MobileAccountDrawer />
                   ) : (
