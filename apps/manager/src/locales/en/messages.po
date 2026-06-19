@@ -105,7 +105,7 @@ msgstr "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible n
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 
-#. placeholder {0}: getErrorMessage(error)
+#. placeholder {0}: errorDisplay.message
 #: src/routes/wallet.tsx
 msgid "<0>Connection failed:</0> {0}"
 msgstr "<0>Connection failed:</0> {0}"
@@ -1340,10 +1340,6 @@ msgstr "Make it yours"
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr "Make sure the message starts with \"ENS would like you to ...\""
 
-#: src/routes/wallet.tsx
-msgid "Make sure you have a wallet extension installed"
-msgstr "Make sure you have a wallet extension installed"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
@@ -1524,8 +1520,8 @@ msgid "No stablecoins available"
 msgstr "No stablecoins available"
 
 #: src/routes/wallet.tsx
-msgid "No wallet connectors available"
-msgstr "No wallet connectors available"
+msgid "No wallet connected yet"
+msgstr "No wallet connected yet"
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Not a valid name format"
@@ -1771,10 +1767,6 @@ msgstr "Primary name set successfully"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
-
-#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
-msgid "Profile actions"
-msgstr "Profile actions"
 
 #: src/features/register/components/Autorenewal.tsx
 msgid "Protect your name with autorenewal"
@@ -2248,9 +2240,17 @@ msgstr "Show less"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/routes/wallet.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+
+#: src/routes/wallet.tsx
+msgid "Sign in with a social account or wallet to get started"
+msgstr "Sign in with a social account or wallet to get started"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx

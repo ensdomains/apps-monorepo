@@ -23,10 +23,8 @@ export const Header = ({
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
 
-  // The connection isn't known on the server or during the connector's initial
-  // reconnect. Treat it as "not settled" until then so the account/connect slot
-  // renders a stable placeholder instead of flashing Connect → account (and so
-  // SSR and the first client render agree).
+  // Show a loading placeholder (not "Connect") until hydrated and nothing is
+  // mid-connect, so the slot doesn't flash during reconnection.
   const connectionSettled = isHydrated && !isConnecting && !isReconnecting
 
   // Default to desktop until hydrated: useMediaQuery is false on the server /
