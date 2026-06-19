@@ -244,6 +244,14 @@ class TransactionManager {
       const state = getRootState(snapshot.value)
       const ctx = snapshot.context
 
+      // Observability contract — do not remove. The portal registration e2e and
+      // the shared console-monitor helper detect transaction progress and
+      // terminal success by matching this exact
+      // `[TRANSACTION MANAGER] Transaction <id> state: <state>` console line
+      // (e.g. `Transaction tx-reg-register state: success`). It is load-bearing
+      // for the tests, not stray debug logging.
+      console.log(`📊 [TRANSACTION MANAGER] Transaction ${txId} state:`, state)
+
       const telemetryEvent = this.runTelemetry.recordSnapshot(txId, snapshot)
       if (telemetryEvent) {
         this.notifyTelemetryEventListeners(
