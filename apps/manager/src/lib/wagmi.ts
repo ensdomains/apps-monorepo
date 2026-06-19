@@ -81,6 +81,9 @@ export const publicClient = createPublicClient({
   },
 })
 
+// @privy-io/wagmi's createConfig sets `ssr: true` and
+// `multiInjectedProviderDiscovery: false` internally, so we don't pass them; it
+// also manages the connectors (Privy's wallet), so none are configured here.
 export const wagmiConfig = createConfig({
   chains: [sepoliaWithEns],
   transports: {
