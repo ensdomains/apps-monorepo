@@ -1,7 +1,7 @@
+import { usePrivy } from '@privy-io/react-auth'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useWalletStatus } from '@/lib/wallet'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
@@ -9,13 +9,13 @@ export const Header = () => {
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
-  const { ready, syncing } = useWalletStatus()
+  const { ready } = usePrivy()
 
   // Show a loading placeholder (not "Connect") until hydrated, Privy is ready,
-  // and nothing is mid-connect — so the slot doesn't flash "Connect" during the
-  // Privy→wagmi handoff or reconnection.
+  // and wagmi isn't mid-(re)connect — so the slot doesn't flash "Connect" while
+  // Privy restores a session and @privy-io/wagmi reconnects the wallet.
   const connectionSettled =
-    isHydrated && ready && !isConnecting && !isReconnecting && !syncing
+    isHydrated && ready && !isConnecting && !isReconnecting
 
   // Default to desktop until hydrated: useMediaQuery is false on the server /
   // first client render, which would flash the mobile header before hydration.

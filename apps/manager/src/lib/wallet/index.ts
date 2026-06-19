@@ -1,5 +1,4 @@
 export { useConnectModal } from './useConnectModal'
 export { useWalletDisconnect } from './useWalletDisconnect'
-export { useWalletStatus } from './useWalletStatus'
 export { WalletLifecycle } from './WalletLifecycle'
 export { WalletProvider } from './WalletProvider'
