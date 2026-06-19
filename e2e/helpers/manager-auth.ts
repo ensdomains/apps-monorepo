@@ -52,15 +52,15 @@ export async function authorizeHeadlessConnection(
   await headlessOption.waitFor({ state: 'visible', timeout: 10_000 })
   await headlessOption.click()
 
-  // Privy asks the provider to confirm — authorize programmatically.
-  // The headless provider queues RequestPermissions then RequestAccounts.
-  await expect
-    .poll(
-      () => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions),
-      { timeout: 15_000 },
-    )
-    .toBeGreaterThanOrEqual(1)
-  await wallet.authorize(Web3RequestKind.RequestPermissions)
+  // Privy connects an injected wallet by calling `eth_requestAccounts` only —
+  // unlike RainbowKit, it never issues a `wallet_requestPermissions` first.
+  // Authorize permissions best-effort (in case the connector changes) and
+  // require accounts.
+  if (
+    await pollPendingRequest(wallet, Web3RequestKind.RequestPermissions, 2_000)
+  ) {
+    await wallet.authorize(Web3RequestKind.RequestPermissions)
+  }
 
   await expect
     .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts), {
@@ -71,12 +71,28 @@ export async function authorizeHeadlessConnection(
 }
 
 /**
+ * Poll for a pending request of `kind`, returning true if one appears within
+ * `timeoutMs` and false otherwise (never throws — for best-effort authorize).
+ */
+async function pollPendingRequest(
+  wallet: Web3ProviderBackend,
+  kind: Web3RequestKind,
+  timeoutMs: number,
+): Promise<boolean> {
+  return expect
+    .poll(() => wallet.getPendingRequestCount(kind), { timeout: timeoutMs })
+    .toBeGreaterThanOrEqual(1)
+    .then(() => true)
+    .catch(() => false)
+}
+
+/**
  * Connect the headless web3 wallet through the manager's Privy modal.
  *
  * Flow:
  *  1. Click the "Connect" button in the nav bar
  *  2. Select "Headless Web3 Provider" from Privy's wallet list
- *  3. Authorize the wallet_requestPermissions + eth_requestAccounts calls
+ *  3. Authorize the eth_requestAccounts call Privy issues to connect
  *
  * After this resolves the wallet is connected and the nav "Connect" button
  * is gone. The smart-account machine then initialises asynchronously — the
