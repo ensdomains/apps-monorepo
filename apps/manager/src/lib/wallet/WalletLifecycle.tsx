@@ -5,11 +5,14 @@ import { useConnection, useConnectionEffect } from 'wagmi'
 import { track } from '@/lib/posthog/events'
 import { backendAuthStore } from '@/utils/backend-client'
 
-// Blanket localStorage.clear() corrupts reconnection — preserve wagmi.* and
-// privy* keys (privy.logout() clears the Privy ones itself).
+// Blanket localStorage.clear() corrupts reconnection, so preserve wagmi.* (wagmi
+// manages its own disconnect state). Privy keys ARE cleared: this runs on
+// disconnect after logout(), and since logout() failures are swallowed upstream
+// we must clear them ourselves or a stale session auto-re-authenticates on the
+// next load.
 const clearAppLocalStorage = () => {
   for (const key of Object.keys(localStorage)) {
-    if (key.startsWith('wagmi') || key.startsWith('privy')) continue
+    if (key.startsWith('wagmi')) continue
     localStorage.removeItem(key)
   }
 }
