@@ -55,7 +55,9 @@ export const Route = createRootRoute({
                 </PHProvider>
               </TransactionManagerSetup>
             </RainbowKitProvider>
-            {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
+            {import.meta.env.DEV && isTimeTravelEnabled() && (
+              <TimeTravelPanel />
+            )}
           </QueryClientProvider>
         </WagmiProvider>
 

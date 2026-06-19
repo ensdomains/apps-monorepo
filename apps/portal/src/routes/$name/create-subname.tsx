@@ -15,6 +15,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
@@ -25,7 +26,6 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'

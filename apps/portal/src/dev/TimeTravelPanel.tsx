@@ -6,12 +6,13 @@
  * reads (e.g. premium price from `getRegisterPrice`) refetch. Rendered only
  * when `isTimeTravelEnabled()` — see `routes/__root.tsx`.
  */
-import { useQuery } from '@tanstack/react-query'
+
 import {
   getBlockTimestampMs,
   increaseTime,
 } from '@ens-apps/utils/time-travel/anvilTime'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
+import { useQuery } from '@tanstack/react-query'
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -122,7 +123,8 @@ function useAnvilBlockMs(endpoint: string): {
     refetchInterval: 5_000,
   })
   let errorMessage: string | null = null
-  if (error) errorMessage = error instanceof Error ? error.message : String(error)
+  if (error)
+    errorMessage = error instanceof Error ? error.message : String(error)
   return { blockMs, error: errorMessage }
 }
 
