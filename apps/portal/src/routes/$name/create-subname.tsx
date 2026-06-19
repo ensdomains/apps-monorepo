@@ -25,6 +25,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -142,6 +143,12 @@ const CreateSubnameForm = ({
   const handleStartTransaction = () => {
     if (!hasSubregistry || !ownerAddress || !resolverAddress) return
 
+    // When time-travel is active, Anvil's block time can be far ahead of
+    // Date.now(). Use a 100-year window so the expiry is never stale on-chain.
+    const expires = isTimeTravelEnabled()
+      ? BigInt(Math.floor(Date.now() / 1000)) + 3153600000n
+      : undefined
+
     createSubname({
       registryAddress: subregistryAddress,
       label: label.trim(),
@@ -150,6 +157,7 @@ const CreateSubnameForm = ({
       parentName: name,
       protocolVersion,
       id: CREATE_SUBNAME_TRANSACTION_ID,
+      expires,
     })
   }
 

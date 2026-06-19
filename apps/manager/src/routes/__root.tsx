@@ -91,10 +91,10 @@ function RootComponent() {
               },
             }}
           />
+          {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
         </RootProviders>
 
         <TanStackRouterDevtools position="bottom-right" />
-        {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
         <Scripts />
       </body>
     </html>

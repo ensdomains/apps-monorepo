@@ -6,6 +6,7 @@
  * reads (e.g. premium price from `getRegisterPrice`) refetch. Rendered only
  * when `isTimeTravelEnabled()` — see `routes/__root.tsx`.
  */
+import { useQuery } from '@tanstack/react-query'
 import {
   getBlockTimestampMs,
   increaseTime,
@@ -115,28 +116,14 @@ function useAnvilBlockMs(endpoint: string): {
   blockMs: number | null
   error: string | null
 } {
-  const [blockMs, setBlockMs] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let active = true
-    const load = async () => {
-      try {
-        const ms = await getBlockTimestampMs(endpoint)
-        if (!active) return
-        setBlockMs(ms)
-        setError(null)
-      } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : String(e))
-      }
-    }
-    load()
-    const id = setInterval(load, 5000)
-    return () => {
-      active = false
-      clearInterval(id)
-    }
-  }, [endpoint])
-  return { blockMs, error }
+  const { data: blockMs = null, error } = useQuery({
+    queryKey: ['anvilBlockMs', endpoint],
+    queryFn: () => getBlockTimestampMs(endpoint),
+    refetchInterval: 5_000,
+  })
+  let errorMessage: string | null = null
+  if (error) errorMessage = error instanceof Error ? error.message : String(error)
+  return { blockMs, error: errorMessage }
 }
 
 /** On first ever run (no stored offset), align the browser clock to chain. */
@@ -319,7 +306,7 @@ export function TimeTravelPanel() {
         style={{ ...collapsedStyle, ...positionStyle }}
         title="Open Time Travel panel"
       >
-        ⏱ {formatOffset(offsetMs)}
+        {'\u23F1'} {formatOffset(offsetMs)}
       </button>
     )
   }
@@ -330,7 +317,7 @@ export function TimeTravelPanel() {
         style={{ ...headerStyle, cursor: 'move', touchAction: 'none' }}
         {...dragHandlers}
       >
-        <span style={{ fontWeight: 600 }}>⏱ Time Travel (dev)</span>
+        <span style={{ fontWeight: 600 }}>{'\u23F1'} Time Travel (dev)</span>
         <button
           type="button"
           onClick={() => setCollapsed(true)}
@@ -338,7 +325,7 @@ export function TimeTravelPanel() {
           style={iconButtonStyle}
           title="Collapse"
         >
-          ✕
+          {'\u2715'}
         </button>
       </div>
 

@@ -55,12 +55,12 @@ export const Route = createRootRoute({
                 </PHProvider>
               </TransactionManagerSetup>
             </RainbowKitProvider>
+            {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
           </QueryClientProvider>
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
         <TanStackRouterDevtools position="bottom-right" />
-        {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
       </>
     )
   },
