@@ -53,37 +53,14 @@ export async function authorizeHeadlessConnection(
   await headlessOption.click()
 
   // Privy connects an injected wallet by calling `eth_requestAccounts` only —
-  // unlike RainbowKit, it never issues a `wallet_requestPermissions` first.
-  // Authorize permissions best-effort (in case the connector changes) and
-  // require accounts.
-  if (
-    await pollPendingRequest(wallet, Web3RequestKind.RequestPermissions, 2_000)
-  ) {
-    await wallet.authorize(Web3RequestKind.RequestPermissions)
-  }
-
+  // unlike RainbowKit, it never issues a `wallet_requestPermissions` first, so
+  // we authorize accounts directly.
   await expect
     .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts), {
       timeout: 15_000,
     })
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestAccounts)
-}
-
-/**
- * Poll for a pending request of `kind`, returning true if one appears within
- * `timeoutMs` and false otherwise (never throws — for best-effort authorize).
- */
-async function pollPendingRequest(
-  wallet: Web3ProviderBackend,
-  kind: Web3RequestKind,
-  timeoutMs: number,
-): Promise<boolean> {
-  return expect
-    .poll(() => wallet.getPendingRequestCount(kind), { timeout: timeoutMs })
-    .toBeGreaterThanOrEqual(1)
-    .then(() => true)
-    .catch(() => false)
 }
 
 /**

@@ -24,8 +24,12 @@ export const PrivyStack = ({ children }: { children: React.ReactNode }) => (
       loginMethods: ['google', 'twitter', 'email', 'wallet'],
       embeddedWallets: {
         ethereum: { createOnLogin: 'users-without-wallets' },
-        // Sign without Privy's confirmation prompt — the Rhinestone HCA flow
-        // signs intents on the user's behalf (still gasless).
+        // Suppress Privy's own confirmation prompts for ALL embedded-wallet
+        // signing — Rhinestone HCA intents and the SIWE backend-auth signature
+        // alike. This is safe because the user-facing consent comes from the
+        // app's own UI (the BackendAuth modal shows the SIWE message and the
+        // user clicks to sign; HCA intents are gasless and app-initiated), so
+        // Privy's extra prompt would be redundant, not a missing confirmation.
         showWalletUIs: false,
       },
       defaultChain: sepoliaWithEns,

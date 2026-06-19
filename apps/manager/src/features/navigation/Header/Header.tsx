@@ -24,13 +24,13 @@ export const Header = ({
   const isHydrated = useHydrated()
   const { isConnected, isConnecting, isReconnecting } = useConnection()
   // Wallet-layer readiness (keeps the Privy SDK out of this component).
-  const { ready } = useConnectModal()
+  const { isReady } = useConnectModal()
 
-  // Show a loading placeholder (not "Connect") until hydrated, Privy is ready,
-  // and wagmi isn't mid-(re)connect — so the slot doesn't flash "Connect" while
-  // Privy restores a session and @privy-io/wagmi reconnects the wallet.
+  // Show a loading placeholder (not "Connect") until hydrated, the wallet layer
+  // is ready, and wagmi isn't mid-(re)connect — so the slot doesn't flash
+  // "Connect" while Privy restores a session and @privy-io/wagmi reconnects.
   const connectionSettled =
-    isHydrated && ready && !isConnecting && !isReconnecting
+    isHydrated && isReady && !isConnecting && !isReconnecting
 
   // Default to desktop until hydrated: useMediaQuery is false on the server /
   // first client render, which would flash the mobile header before hydration.
