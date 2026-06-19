@@ -96,7 +96,7 @@ type ManagerFixtures = {
   /** Headless web3 wallet backend — use to authorize transactions. */
   wallet: Web3ProviderBackend
   /**
-   * Page with the headless wallet connected via RainbowKit and the
+   * Page with the headless wallet connected via Privy and the
    * BackendAuthModal dismissed (skip-for-now). The default page for tests
    * that don't need backend-gated state.
    */
@@ -129,7 +129,7 @@ type ManagerFixtures = {
 }
 
 /**
- * Connect the headless wallet through RainbowKit. In EOA mode
+ * Connect the headless wallet through Privy. In EOA mode
  * (VITE_FF_USE_EOA=true) the smart-account machine is bypassed, so there is
  * no EnableSessions modal to click through — only the BackendAuth (SIWE)
  * modal appears once connected, handled by the caller.
@@ -160,7 +160,7 @@ export const test = base.extend<ManagerFixtures>({
     await use(createAccounts())
   },
 
-  // Inject the headless web3 provider before any navigation so RainbowKit's
+  // Inject the headless web3 provider before any navigation so Privy's
   // injected-wallet discovery surfaces it as "Headless Web3 Provider". Only
   // message-signing is auto-permitted; eth_sendTransaction is authorized
   // explicitly by the specs (see PERMITTED_SIGN_KINDS).
