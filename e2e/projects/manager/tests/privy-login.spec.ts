@@ -7,6 +7,13 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 // as opposed to the injected-wallet path the other specs use. Verifies the
 // app reaches a connected state after a social/email login.
 test.describe('Privy login', () => {
+  // CI provides these via e2e/.env.ci; skip cleanly (rather than hard-failing)
+  // for local devs who haven't configured a Privy test account.
+  test.skip(
+    !process.env.PRIVY_TEST_EMAIL || !process.env.PRIVY_TEST_OTP,
+    'Requires PRIVY_TEST_EMAIL and PRIVY_TEST_OTP (Privy test account credentials)',
+  )
+
   test('logs in with a Privy test account (email + OTP)', async ({ page }) => {
     await page.goto(MANAGER_APP_URL)
 
