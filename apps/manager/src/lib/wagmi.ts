@@ -1,16 +1,11 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import {
-  frameWallet,
-  injectedWallet,
-  metaMaskWallet,
-  walletConnectWallet,
-} from '@rainbow-me/rainbowkit/wallets'
+// Privy's createConfig (NOT wagmi's) — @privy-io/wagmi builds the connectors
+// from Privy's connected wallet.
+import { createConfig } from '@privy-io/wagmi'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
-import { createConfig } from 'wagmi'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -87,27 +82,10 @@ export const publicClient = createPublicClient({
 })
 
 export const wagmiConfig = createConfig({
-  syncConnectedChain: false,
-  ssr: true,
-  multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
   },
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [
-          injectedWallet,
-          metaMaskWallet,
-          walletConnectWallet,
-          frameWallet,
-        ],
-      },
-    ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
-  ),
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>

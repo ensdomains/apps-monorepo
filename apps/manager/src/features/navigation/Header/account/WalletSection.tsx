@@ -87,7 +87,8 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
       )}
 
       <button
-        className="flex w-full items-center gap-2 rounded-lg"
+        className="flex w-full items-center gap-2 rounded-lg disabled:opacity-60"
+        disabled={isDisconnecting}
         onClick={() => void handleDisconnect()}
         type="button"
       >

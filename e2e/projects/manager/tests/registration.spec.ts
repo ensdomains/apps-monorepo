@@ -41,16 +41,17 @@ test.describe('ENS name registration', () => {
     await page.goto(`${MANAGER_APP_URL}/register/${label}`)
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
     // Click "Connect to Register" with retry — the button can be a no-op if
-    // RainbowKit hasn't hydrated yet, and the modal can close before we
+    // Privy hasn't hydrated yet, and the modal can close before we
     // interact with it. Same pattern as connectWithHeadlessWallet.
     const connectBtn = page.getByRole('button', { name: /connect to register/i })
-    const modal = page.getByRole('dialog')
-    const headlessOption = page.getByText('Headless Web3 Provider')
+    const continueWithWallet = page.getByRole('button', {
+      name: /continue with a wallet/i,
+    })
     await expect(async () => {
-      if (!(await modal.isVisible().catch(() => false))) {
+      if (!(await continueWithWallet.isVisible().catch(() => false))) {
         await connectBtn.click({ timeout: 5_000 }).catch(() => {})
       }
-      await expect(headlessOption).toBeVisible({ timeout: 3_000 })
+      await expect(continueWithWallet).toBeVisible({ timeout: 3_000 })
     }).toPass({ timeout: 40_000 })
 
     await authorizeHeadlessConnection(page, wallet)

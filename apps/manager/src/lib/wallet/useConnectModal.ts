@@ -1,9 +1,10 @@
-import { useConnectModal as useRainbowConnectModal } from '@rainbow-me/rainbowkit'
+import { usePrivy } from '@privy-io/react-auth'
 
-// The app's connect entry point. When the vendor changes, swap the body for the
-// new vendor's login hook — the { openConnectModal, connectModalOpen } shape (and
-// every call site) stays the same.
+// The app's connect entry point. `login()` opens Privy's hosted modal;
+// @privy-io/wagmi then syncs the connected wallet into wagmi automatically, so
+// there's no manual handoff to manage here. Undefined until Privy is ready,
+// which gates the connect buttons.
 export const useConnectModal = () => {
-  const { openConnectModal, connectModalOpen } = useRainbowConnectModal()
-  return { openConnectModal, connectModalOpen: connectModalOpen ?? false }
+  const { ready, login } = usePrivy()
+  return { openConnectModal: ready ? login : undefined }
 }

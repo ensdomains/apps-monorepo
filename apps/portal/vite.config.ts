@@ -69,6 +69,14 @@ export default defineConfig(({ mode }) => ({
       'react-dom',
       'react/jsx-runtime',
       'react/jsx-dev-runtime',
+      // Force a single copy of the wagmi/viem stack. The manager app's
+      // @privy-io/wagmi pulls a second @wagmi/connectors peer-closure into the
+      // monorepo, which the shared transaction-manager can otherwise drag into
+      // portal's bundle — two `wagmi` modules break React context.
+      'wagmi',
+      '@wagmi/core',
+      '@wagmi/connectors',
+      'viem',
     ],
   },
   optimizeDeps: {
