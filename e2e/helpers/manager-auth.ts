@@ -132,6 +132,10 @@ export async function connectWithPrivyTestAccount(page: Page): Promise<void> {
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
 
   // Open Privy's login and reach the email field (retry through hydration).
+  // These selectors necessarily target Privy's hosted modal DOM (#privy-dialog,
+  // the numeric OTP inputs below) — there's no public API to drive it. They're
+  // verified against the current modal; if Privy changes its markup these
+  // waitFor calls fail loudly in CI, pointing here, and the selector is updated.
   const emailInput = page.locator('#privy-dialog input[type="email"]')
   await expect(async () => {
     if (!(await emailInput.isVisible().catch(() => false))) {
