@@ -634,6 +634,10 @@ msgstr "Connect a wallet to continue to notification settings and activity."
 msgid "Connect or sign in"
 msgstr "Connect or sign in"
 
+#: src/features/profile/components/common/favoriteAction.helpers.ts
+msgid "connect to favorite name"
+msgstr "connect to favorite name"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr "Connect to register"
@@ -1317,12 +1321,6 @@ msgstr "Loading your stablecoin balances..."
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Loading..."
-
-#: src/features/dashboard/components/NameRow.tsx
-#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
-#: src/features/profile/components/view/FavoriteButton.tsx
-msgid "Login to favorite"
-msgstr "Login to favorite"
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
 msgid "Long-term identity"

@@ -29,7 +29,7 @@ export const ProfileViewNewFavoriteAction = ({
 }) => {
   const { _ } = useLingui()
   const isAuthed = useAtom(isBackendAuthed)
-  const shouldPromptAuth = useMediaQuery('(hover: none), (pointer: coarse)')
+  const shouldPromptAuth = useMediaQuery('(max-width: 767px)')
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
@@ -70,7 +70,7 @@ export const ProfileViewNewFavoriteAction = ({
 
   const button = (
     <button
-      aria-disabled={!isAuthed || isDisabled}
+      aria-disabled={isDisabled}
       aria-label={isFavorite ? _(msg`Remove favorite`) : _(msg`Add favorite`)}
       className={iconActionClassName}
       disabled={isDisabled}

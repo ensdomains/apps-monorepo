@@ -639,6 +639,10 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
+#: src/features/profile/components/common/favoriteAction.helpers.ts
+msgid "connect to favorite name"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr ""
@@ -1322,12 +1326,6 @@ msgstr ""
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Laddar..."
-
-#: src/features/dashboard/components/NameRow.tsx
-#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
-#: src/features/profile/components/view/FavoriteButton.tsx
-msgid "Login to favorite"
-msgstr "Logga in för att favorisera"
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
 msgid "Long-term identity"

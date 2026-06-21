@@ -176,7 +176,7 @@ const FavoriteButton = ({
 
   return (
     <motion.button
-      aria-disabled={!isAuthenticated || isDisabled}
+      aria-disabled={isDisabled}
       aria-label={isFavorite ? t`Remove favorite` : t`Add favorite`}
       aria-pressed={isFavorite}
       className="flex shrink-0 items-center justify-center disabled:cursor-not-allowed"
@@ -215,7 +215,7 @@ const FavoriteControl = ({
   | 'onToggleFavorite'
 >) => {
   const { _ } = useCoreLingui()
-  const shouldPromptAuth = useMediaQuery('(hover: none), (pointer: coarse)')
+  const shouldPromptAuth = useMediaQuery('(max-width: 767px)')
 
   if (!showFavoriteButton) return null
 

@@ -29,7 +29,7 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
   const { _ } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const isAuthed = useAtom(isBackendAuthed)
-  const shouldPromptAuth = useMediaQuery('(hover: none), (pointer: coarse)')
+  const shouldPromptAuth = useMediaQuery('(max-width: 767px)')
 
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
@@ -71,7 +71,7 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
 
   const heartButton = (
     <motion.button
-      aria-disabled={!isAuthed || isDisabled}
+      aria-disabled={isDisabled}
       className="flex size-10 items-center justify-center rounded-full bg-white/90 shadow-md backdrop-blur-sm disabled:cursor-not-allowed"
       disabled={isDisabled}
       onClick={toggleFavorite}
