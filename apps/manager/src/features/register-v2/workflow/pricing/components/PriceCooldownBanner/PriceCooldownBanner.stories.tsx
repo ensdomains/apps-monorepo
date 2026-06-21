@@ -1,8 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
-import { SECONDS_IN_YEAR } from '../../../../utils/time'
 import { buildPriceCooldownBannerProps } from '../../lib/buildPriceCooldownBannerProps'
-import { ORACLE_PRICE_DECIMALS } from '../../lib/oracle'
 import {
   getPremiumPriceAtInstant,
   type PremiumDecayConfig,
@@ -25,10 +23,8 @@ const MOCK_PREMIUM_DECAY: PremiumDecayConfig = {
   startPriceUsd: 100_000_000,
 }
 
-// $8/year base price, expressed as the oracle's USD-per-second rate.
-const MOCK_BASE_RATE_PER_SECOND = BigInt(
-  Math.round((8 * 10 ** ORACLE_PRICE_DECIMALS) / SECONDS_IN_YEAR),
-)
+// Matches the $8/year mock used in duration/payment stories for temp premium.
+const MOCK_BASE_PRICE_PER_YEAR_USD = 8
 
 // How far into the 21-day window the story starts.
 const MOCK_WINDOW_PROGRESS = 0.22
@@ -70,7 +66,7 @@ const LivePriceCooldownBanner = ({
   )
 
   const bannerData = buildPriceCooldownBannerProps({
-    baseRatePerSecond: MOCK_BASE_RATE_PER_SECOND,
+    basePricePerYearUsd: MOCK_BASE_PRICE_PER_YEAR_USD,
     premiumDecay: MOCK_PREMIUM_DECAY,
     premiumUsd: liveCurrentPremiumUsd,
   })

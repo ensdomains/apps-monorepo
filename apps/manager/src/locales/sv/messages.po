@@ -110,7 +110,7 @@ msgstr ""
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr ""
 
-#. placeholder {0}: getErrorMessage(error)
+#. placeholder {0}: errorDisplay.message
 #: src/routes/wallet.tsx
 msgid "<0>Connection failed:</0> {0}"
 msgstr ""
@@ -708,10 +708,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Could not save profile"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -1319,10 +1315,6 @@ msgstr ""
 msgid "Make sure the message starts with \"ENS would like you to ...\""
 msgstr ""
 
-#: src/routes/wallet.tsx
-msgid "Make sure you have a wallet extension installed"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
 msgstr ""
@@ -1503,7 +1495,7 @@ msgid "No stablecoins available"
 msgstr ""
 
 #: src/routes/wallet.tsx
-msgid "No wallet connectors available"
+msgid "No wallet connected yet"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
@@ -1748,14 +1740,6 @@ msgstr "Primärt namn angivet"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Privacy Policy"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile saved"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile updated successfully."
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx
@@ -2219,8 +2203,16 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
+#: src/routes/wallet.tsx
+msgid "Sign in"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+msgstr ""
+
+#: src/routes/wallet.tsx
+msgid "Sign in with a social account or wallet to get started"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -2272,6 +2264,14 @@ msgstr ""
 
 #: src/features/profile/components/sections/SocialLinksSection.tsx
 msgid "Social Links"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others."
 msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx
@@ -2484,10 +2484,6 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Trademark Guidelines"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Transaction submitted:"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -2834,8 +2830,12 @@ msgid "Yes. You can update it anytime. You can even use different primary names 
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+#~ msgid "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+#~ msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "You can now receive notifications at this email address."
