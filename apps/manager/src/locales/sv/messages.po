@@ -485,7 +485,7 @@ msgid "Card security code"
 msgstr ""
 
 #: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
-msgid "Chain specific addresses"
+msgid "Chain-specific addresses"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -1773,6 +1773,10 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+msgid "Profile actions"
+msgstr ""
+
 #: src/features/register/components/Autorenewal.tsx
 msgid "Protect your name with autorenewal"
 msgstr ""
@@ -2310,6 +2314,14 @@ msgstr ""
 
 #: src/features/profile/components/sections/SocialLinksSection.tsx
 msgid "Social Links"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others."
 msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx
@@ -2872,7 +2884,7 @@ msgid "Yes. You can update it anytime. You can even use different primary names 
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx

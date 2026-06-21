@@ -480,8 +480,8 @@ msgid "Card security code"
 msgstr "Card security code"
 
 #: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
-msgid "Chain specific addresses"
-msgstr "Chain specific addresses"
+msgid "Chain-specific addresses"
+msgstr "Chain-specific addresses"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Check Your Email"
@@ -1768,6 +1768,10 @@ msgstr "Primary name set successfully"
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+msgid "Profile actions"
+msgstr "Profile actions"
+
 #: src/features/register/components/Autorenewal.tsx
 msgid "Protect your name with autorenewal"
 msgstr "Protect your name with autorenewal"
@@ -2306,6 +2310,14 @@ msgstr "Social"
 #: src/features/profile/components/sections/SocialLinksSection.tsx
 msgid "Social Links"
 msgstr "Social Links"
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgstr "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others."
+msgstr "Some names are more in-demand than others."
 
 #: src/features/dashboard/components/MyNamesList.tsx
 msgid "Some names could not be loaded"
@@ -2867,8 +2879,8 @@ msgid "Yes. You can update it anytime. You can even use different primary names 
 msgstr "Yes. You can update it anytime. You can even use different primary names on different networks (L2s)."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
-msgstr "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgid "You can buy this name at any point during the {periodDays}-day cooldown."
+msgstr "You can buy this name at any point during the {periodDays}-day cooldown."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "You can now receive notifications at this email address."

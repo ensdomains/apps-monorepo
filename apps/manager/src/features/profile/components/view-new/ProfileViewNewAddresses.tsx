@@ -175,7 +175,7 @@ export const ProfileAddressesSection = ({
         {chainAddresses.length > 0 ? (
           <div>
             <h3 className="mb-3 text-ens-quartz-600 text-sm leading-normal">
-              <Trans>Chain specific addresses</Trans>
+              <Trans>Chain-specific addresses</Trans>
             </h3>
             <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 lg:landscape:grid-cols-3 lg:landscape:gap-6">
               {chainAddresses.map((address) => (
