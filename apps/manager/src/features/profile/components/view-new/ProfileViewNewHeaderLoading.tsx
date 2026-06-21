@@ -30,16 +30,16 @@ const ProfileNameBadgeLoading = ({
 }) => (
   <div
     className={clsx(
-      'relative inline-flex max-w-full items-center overflow-hidden rounded-[3px] bg-ens-quartz-200 px-3 py-2',
+      'relative inline-flex max-w-full items-center overflow-hidden rounded-[3px] bg-ens-quartz-200 px-3 py-1.5',
       !shouldReduceMotion && 'animate-pulse',
     )}
   >
     {name ? (
-      <h1 className="invisible truncate font-semi-mono text-[32px] leading-[0.96]">
+      <h1 className="invisible truncate font-semi-mono text-[32px] leading-[1.12]">
         {name}
       </h1>
     ) : (
-      <div className="h-[30.72px] w-56" />
+      <div className="h-[35.84px] w-56" />
     )}
   </div>
 )

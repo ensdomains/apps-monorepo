@@ -1,8 +1,10 @@
+import { useLingui as useCoreLingui } from '@lingui/react'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import { cva } from 'class-variance-authority'
 import { ArrowRight, Check, Heart, History } from 'lucide-react'
 import { motion } from 'motion/react'
+import { toast } from 'sonner'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import {
@@ -18,6 +20,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
+import {
+  favoriteAuthPromptMessage,
+  getFavoriteActionDisabled,
+  getFavoriteActionIntent,
+} from '@/features/profile/components/common/favoriteAction.helpers'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
@@ -156,24 +164,27 @@ const RowCta = ({
 const FavoriteButton = ({
   isFavorite,
   isAuthenticated,
+  isDisabled,
   onToggleFavorite,
 }: {
   readonly isFavorite: boolean
   readonly isAuthenticated: boolean
+  readonly isDisabled: boolean
   readonly onToggleFavorite?: () => void
 }) => {
   const { t } = useLingui()
 
   return (
     <motion.button
+      aria-disabled={!isAuthenticated || isDisabled}
       aria-label={isFavorite ? t`Remove favorite` : t`Add favorite`}
       aria-pressed={isFavorite}
       className="flex shrink-0 items-center justify-center disabled:cursor-not-allowed"
-      disabled={!isAuthenticated}
-      onClick={isAuthenticated ? onToggleFavorite : undefined}
+      disabled={isDisabled}
+      onClick={onToggleFavorite}
       transition={{ duration: 0.1 }}
       type="button"
-      whileTap={isAuthenticated ? { scale: 0.8 } : undefined}
+      whileTap={isAuthenticated && !isDisabled ? { scale: 0.8 } : undefined}
     >
       <Heart
         className={cn(
@@ -190,32 +201,66 @@ const FavoriteButton = ({
 }
 
 const FavoriteControl = ({
+  label,
   showFavoriteButton,
   isAuthenticated,
   isFavorite,
   onToggleFavorite,
 }: Pick<
   NameRowProps,
-  'showFavoriteButton' | 'isAuthenticated' | 'isFavorite' | 'onToggleFavorite'
+  | 'label'
+  | 'showFavoriteButton'
+  | 'isAuthenticated'
+  | 'isFavorite'
+  | 'onToggleFavorite'
 >) => {
+  const { _ } = useCoreLingui()
+  const shouldPromptAuth = useMediaQuery('(hover: none), (pointer: coarse)')
+
   if (!showFavoriteButton) return null
+
+  const isAuthed = isAuthenticated ?? true
+  const favorite = isFavorite ?? false
+  const isDisabled = getFavoriteActionDisabled({ isPending: false })
+  const authPrompt = _(favoriteAuthPromptMessage)
+
+  const handleToggleFavorite = () => {
+    const intent = getFavoriteActionIntent({
+      isAuthed,
+      isFavorite: favorite,
+      isPending: false,
+      name: label,
+      shouldPromptAuth,
+    })
+
+    switch (intent.kind) {
+      case 'addFavorite':
+      case 'removeFavorite':
+        onToggleFavorite?.()
+        return
+      case 'promptAuth':
+        toast(authPrompt, { id: 'favorite-auth-prompt' })
+        return
+      case 'none':
+        return
+    }
+  }
 
   const button = (
     <FavoriteButton
-      isAuthenticated={isAuthenticated ?? true}
-      isFavorite={isFavorite ?? false}
-      onToggleFavorite={onToggleFavorite}
+      isAuthenticated={isAuthed}
+      isDisabled={isDisabled}
+      isFavorite={favorite}
+      onToggleFavorite={handleToggleFavorite}
     />
   )
 
-  if (isAuthenticated) return button
+  if (isAuthed) return button
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent>
-        <Trans>Login to favorite</Trans>
-      </TooltipContent>
+      <TooltipContent>{authPrompt}</TooltipContent>
     </Tooltip>
   )
 }
@@ -389,6 +434,7 @@ export const NameRow = ({
           <FavoriteControl
             isAuthenticated={isAuthenticated}
             isFavorite={isFavorite}
+            label={label}
             onToggleFavorite={onToggleFavorite}
             showFavoriteButton={showFavoriteButton}
           />

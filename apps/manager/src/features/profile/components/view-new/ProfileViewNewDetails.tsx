@@ -23,8 +23,8 @@ export const ProfileViewNewNameBadge = ({
 }: {
   readonly name: string
 }) => (
-  <div className="inline-flex max-w-full items-center rounded-[3px] bg-(--theme-color) px-3 py-2 text-white">
-    <h1 className="truncate font-semi-mono text-[32px] leading-[0.96]">
+  <div className="inline-flex max-w-full items-center rounded-[3px] bg-(--theme-color) px-3 py-1.5 text-white">
+    <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
       {name}
     </h1>
   </div>
@@ -48,6 +48,24 @@ const ProfileDetailCopyButton = ({ value }: { readonly value: string }) => {
         <Copy className="size-3.5 lg:landscape:size-4" />
       )}
     </button>
+  )
+}
+
+const ProfileDetailDateValue = ({
+  date,
+}: {
+  readonly date: Date | null | undefined
+}) => {
+  const mobileValue = formatProfileDetailDate(date)
+  const desktopValue = formatProfileDetailDate(date, 'desktop')
+
+  if (!mobileValue || !desktopValue) return null
+
+  return (
+    <>
+      <span className="lg:landscape:hidden">{mobileValue}</span>
+      <span className="hidden lg:landscape:inline">{desktopValue}</span>
+    </>
   )
 }
 
@@ -82,9 +100,12 @@ export const ProfileViewNewDetails = ({
   ownerReverseName,
   registrationDate,
 }: ProfileDetailsProps) => {
-  const formattedRegistrationDate = registrationDate
-    ? formatProfileDetailDate(new Date(registrationDate * 1000))
+  const registrationDetailDate = registrationDate
+    ? new Date(registrationDate * 1000)
     : undefined
+  const formattedRegistrationDate = formatProfileDetailDate(
+    registrationDetailDate,
+  )
   const formattedExpiryDate = formatProfileDetailDate(displayExpiryDate)
 
   return (
@@ -109,14 +130,14 @@ export const ProfileViewNewDetails = ({
             />
           }
           label={<Trans>Registered</Trans>}
-          value={formattedRegistrationDate}
+          value={<ProfileDetailDateValue date={registrationDetailDate} />}
         />
       ) : null}
       {formattedExpiryDate ? (
         <ProfileDetail
           icon={<MSymbol className="ms-opsz-20 ms-wght-300" symbol="history" />}
           label={<Trans>Expires</Trans>}
-          value={formattedExpiryDate}
+          value={<ProfileDetailDateValue date={displayExpiryDate} />}
         />
       ) : null}
     </div>

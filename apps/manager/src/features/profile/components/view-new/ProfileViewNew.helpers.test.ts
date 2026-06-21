@@ -33,10 +33,16 @@ describe('ProfileViewNew helpers', () => {
     expect(formatChainSpecificAddress('abc123')).toBe('abc123')
   })
 
-  it('formats dates as compact uppercase labels', () => {
+  it('formats dates as compact uppercase labels for mobile', () => {
     expect(formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'))).toBe(
       'NOV.11.2022',
     )
+  })
+
+  it('formats dates with the full month and comma for desktop', () => {
+    expect(
+      formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'), 'desktop'),
+    ).toBe('NOVEMBER 11, 2022')
   })
 
   it('uses ENSIP-18 primary contact keys before falling back to contact records', () => {

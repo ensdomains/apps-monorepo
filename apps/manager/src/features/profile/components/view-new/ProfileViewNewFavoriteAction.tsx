@@ -1,6 +1,8 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { msg } from '@lingui/core/macro'
+import { useLingui } from '@lingui/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
+import { toast } from 'sonner'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   Tooltip,
@@ -10,6 +12,12 @@ import {
 import { addFavoriteMutationOptions } from '@/features/dashboard/service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '@/features/dashboard/service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '@/features/dashboard/service/queries/getFavorites'
+import {
+  favoriteAuthPromptMessage,
+  getFavoriteActionDisabled,
+  getFavoriteActionIntent,
+} from '@/features/profile/components/common/favoriteAction.helpers'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { iconActionClassName } from './ProfileViewNewAction.styles'
@@ -19,8 +27,9 @@ export const ProfileViewNewFavoriteAction = ({
 }: {
   readonly name: string
 }) => {
-  const { t } = useLingui()
+  const { _ } = useLingui()
   const isAuthed = useAtom(isBackendAuthed)
+  const shouldPromptAuth = useMediaQuery('(hover: none), (pointer: coarse)')
   const { data: favorites = [] } = useQuery({
     ...favoritesQueryOptions,
     enabled: isAuthed,
@@ -32,23 +41,39 @@ export const ProfileViewNewFavoriteAction = ({
     (entry) => entry.name.toLowerCase() === name.toLowerCase(),
   )
   const isPending = addMutation.isPending || removeMutation.isPending
+  const isDisabled = getFavoriteActionDisabled({ isPending })
+  const authPrompt = _(favoriteAuthPromptMessage)
 
   const toggleFavorite = () => {
-    if (!isAuthed || isPending) return
+    const intent = getFavoriteActionIntent({
+      isAuthed,
+      isFavorite,
+      isPending,
+      name,
+      shouldPromptAuth,
+    })
 
-    if (isFavorite) {
-      removeMutation.mutate({ name })
-      return
+    switch (intent.kind) {
+      case 'addFavorite':
+        addMutation.mutate({ name: intent.name })
+        return
+      case 'removeFavorite':
+        removeMutation.mutate({ name: intent.name })
+        return
+      case 'promptAuth':
+        toast(authPrompt, { id: 'favorite-auth-prompt' })
+        return
+      case 'none':
+        return
     }
-
-    addMutation.mutate({ name })
   }
 
   const button = (
     <button
-      aria-label={isFavorite ? t`Remove favorite` : t`Add favorite`}
+      aria-disabled={!isAuthed || isDisabled}
+      aria-label={isFavorite ? _(msg`Remove favorite`) : _(msg`Add favorite`)}
       className={iconActionClassName}
-      disabled={!isAuthed || isPending}
+      disabled={isDisabled}
       onClick={toggleFavorite}
       type="button"
     >
@@ -67,9 +92,7 @@ export const ProfileViewNewFavoriteAction = ({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent>
-        <Trans>Login to favorite</Trans>
-      </TooltipContent>
+      <TooltipContent>{authPrompt}</TooltipContent>
     </Tooltip>
   )
 }

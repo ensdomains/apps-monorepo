@@ -15,7 +15,7 @@ import { parsePrimaryContactKeys } from '../dialogs/edit-profile/tabs/contact/re
 
 const ETH_COIN_TYPE = 60
 const DOMAIN_LIKE_URL = /^[\w.-]+\.[a-z]{2,}(?:[/#?].*)?$/i
-const MONTH_LABELS = [
+const COMPACT_MONTH_LABELS = [
   'JAN',
   'FEB',
   'MAR',
@@ -29,6 +29,22 @@ const MONTH_LABELS = [
   'NOV',
   'DEC',
 ] as const
+const FULL_MONTH_LABELS = [
+  'JANUARY',
+  'FEBRUARY',
+  'MARCH',
+  'APRIL',
+  'MAY',
+  'JUNE',
+  'JULY',
+  'AUGUST',
+  'SEPTEMBER',
+  'OCTOBER',
+  'NOVEMBER',
+  'DECEMBER',
+] as const
+
+type ProfileDetailDateVariant = 'mobile' | 'desktop'
 
 export type ProfileContactItem = {
   readonly key: string
@@ -64,14 +80,23 @@ export const formatChainSpecificAddress = (value: string): string => {
   return `${trimmed.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}...${trimmed.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
 }
 
-export const formatProfileDetailDate = (date: Date | null | undefined) => {
+export const formatProfileDetailDate = (
+  date: Date | null | undefined,
+  variant: ProfileDetailDateVariant = 'mobile',
+) => {
   if (!date || Number.isNaN(date.getTime())) return undefined
 
-  const month = MONTH_LABELS[date.getUTCMonth()]
-  if (!month) return undefined
+  const monthIndex = date.getUTCMonth()
+  const compactMonth = COMPACT_MONTH_LABELS[monthIndex]
+  const fullMonth = FULL_MONTH_LABELS[monthIndex]
+  if (!compactMonth || !fullMonth) return undefined
+
+  if (variant === 'desktop') {
+    return `${fullMonth} ${date.getUTCDate()}, ${date.getUTCFullYear()}`
+  }
 
   const day = String(date.getUTCDate()).padStart(2, '0')
-  return `${month}.${day}.${date.getUTCFullYear()}`
+  return `${compactMonth}.${day}.${date.getUTCFullYear()}`
 }
 
 const toSafeHttpHref = (value: string): string | undefined => {
