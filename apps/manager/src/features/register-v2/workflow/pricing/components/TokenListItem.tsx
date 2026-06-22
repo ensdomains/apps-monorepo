@@ -46,7 +46,7 @@ export const TokenListItem = ({
       <div className="flex items-center gap-2">
         <div className="relative h-8 w-8">
           <IconComponent className="h-8 w-8" />
-          <div className="-right-0.5 -bottom-0.5 absolute flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
+          <div className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
             <span className="text-[0.5rem] text-white leading-none">S</span>
           </div>
         </div>

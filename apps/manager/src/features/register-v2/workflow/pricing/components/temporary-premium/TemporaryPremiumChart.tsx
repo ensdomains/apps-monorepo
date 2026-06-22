@@ -136,7 +136,7 @@ function BelowLabel({
   return (
     <div
       className={cn(
-        '-translate-x-1/2 absolute top-0 whitespace-nowrap',
+        'absolute top-0 -translate-x-1/2 whitespace-nowrap',
         ghost && 'opacity-60',
       )}
       ref={ref}
@@ -580,7 +580,7 @@ export function TemporaryPremiumChart({
       {hoverView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[1] h-2.5 w-2.5 rounded-full"
+            className="pointer-events-none absolute z-[1] h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               left: hoverView.pos.x,
               top: hoverView.pos.y,
@@ -610,7 +610,7 @@ export function TemporaryPremiumChart({
       {nowView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-3 size-3 rounded-full"
+            className="pointer-events-none absolute z-3 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               left: nowView.pos.x,
               top: nowView.pos.y,
@@ -640,7 +640,7 @@ export function TemporaryPremiumChart({
         <>
           <div
             className={cn(
-              '-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-5 h-3 w-3 rounded-full',
+              'pointer-events-none absolute z-5 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full',
               selectedView.isPast && 'border-2 bg-transparent',
             )}
             style={{

@@ -134,7 +134,7 @@ const HeaderSkeleton = ({
           </div>
         </div>
 
-        <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 size-24 md:size-36 lg:size-40">
+        <div className="absolute -bottom-10 left-1/2 size-24 -translate-x-1/2 md:size-36 lg:size-40">
           <SkeletonBlock
             className="size-full rounded-xl bg-gray-200 ring-2 ring-white"
             isSolid

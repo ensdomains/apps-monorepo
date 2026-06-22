@@ -48,9 +48,9 @@ export const ShareProfileDialog = ({
     try {
       const u = new URL(
         url,
-        typeof window !== 'undefined'
-          ? window.location.origin
-          : 'https://app.ens.domains',
+        typeof window === 'undefined'
+          ? 'https://app.ens.domains'
+          : window.location.origin,
       )
       return u.toString()
     } catch {

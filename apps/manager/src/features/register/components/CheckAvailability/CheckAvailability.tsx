@@ -186,16 +186,16 @@ export const CheckAvailability = ({
                             clickable
                             domainName={primaryName}
                             expiryDate={
-                              profileExpiry?.expiry != null
-                                ? new Date(Number(profileExpiry.expiry) * 1000)
-                                : null
+                              profileExpiry?.expiry == null
+                                ? null
+                                : new Date(Number(profileExpiry.expiry) * 1000)
                             }
                             registeredDate={
-                              profileRegistration?.registrationDate != null
-                                ? new Date(
+                              profileRegistration?.registrationDate == null
+                                ? null
+                                : new Date(
                                     profileRegistration.registrationDate * 1000,
                                   )
-                                : null
                             }
                             themeColor={themeColor}
                           />

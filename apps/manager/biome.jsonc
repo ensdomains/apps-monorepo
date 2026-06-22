@@ -14,6 +14,10 @@
       "./**",
       "!**/node_modules",
       "!**/public",
+      // SVG assets are static image files, not source code.
+      // Biome parses them as JSX/HTML and emits noise (parse errors,
+      // a11y/noSvgWithoutTitle, useSortedAttributes). Exclude them.
+      "!**/*.svg",
       // Generated files
       "!**/*.gen.ts",
       "!**/*.gen.d.ts",

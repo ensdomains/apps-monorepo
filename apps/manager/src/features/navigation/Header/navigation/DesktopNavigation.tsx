@@ -69,7 +69,7 @@ export const DesktopNavigation = ({
         <div ref={anchorRef}>
           <MSymbol
             className={tw(
-              'group-data-popup-open:-rotate-180 ms-opsz-32 text-ens-blue-midnight transition-transform duration-200',
+              'ms-opsz-32 text-ens-blue-midnight transition-transform duration-200 group-data-popup-open:-rotate-180',
               profileHeader && 'text-[#093C52]',
             )}
             symbol="arrow_drop_down"
