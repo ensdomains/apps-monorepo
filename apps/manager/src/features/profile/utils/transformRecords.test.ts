@@ -98,6 +98,38 @@ describe('profile transformRecords utils', () => {
       expect(result.unknown).toEqual([])
     })
 
+    it('should safely parse links JSON and drop unsafe entries from the chain', () => {
+      const result = transformProfileRecords({
+        texts: [
+          {
+            key: 'links',
+            value: JSON.stringify([
+              { name: 'ok', url: 'https://good.com' },
+              { name: 'ipfs', url: 'ipfs://QmBad' },
+              { name: 'js', url: 'javascript:alert(1)' },
+              { name: 'also ok', url: 'https://also.good.com' },
+            ]),
+          },
+        ],
+        coins: [],
+      })
+
+      expect(result.links).toEqual([
+        { name: 'ok', url: 'https://good.com' },
+        { name: 'also ok', url: 'https://also.good.com' },
+      ])
+      expect(result.unknown).toEqual([])
+    })
+
+    it('should not throw and should drop all when links JSON is malformed', () => {
+      const result = transformProfileRecords({
+        texts: [{ key: 'links', value: 'not-json' }],
+        coins: [],
+      })
+
+      expect(result.links).toEqual([])
+    })
+
     it('should transform addresses to coins', () => {
       const records = {
         ...newEmptyProfileRecords(),

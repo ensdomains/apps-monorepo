@@ -34,12 +34,30 @@ export const newEmptyProfileRecords = (): ProfileRecords =>
   emptyProfileRecords()
 export const defaultProfileRecords = newEmptyProfileRecords()
 
-const LinksSchema = v.array(
-  v.object({
-    name: v.string(),
-    url: createSafeUrlSchema('Only http(s) URLs are allowed'),
-  }),
-)
+const LinkItemSchema = v.object({
+  name: v.string(),
+  url: createSafeUrlSchema('Only http(s) URLs are allowed'),
+})
+// Canonical array schema kept for clarity and reuse.
+// We intentionally parse per-item below so one bad entry from the chain does not drop all links.
+const LinksSchema = v.array(LinkItemSchema)
+void LinksSchema
+
+const parseLinksJson = (rawValue: string): LinkItem[] => {
+  let raw: unknown
+  try {
+    raw = JSON.parse(rawValue)
+  } catch {
+    return []
+  }
+  if (!Array.isArray(raw)) return []
+  const out: LinkItem[] = []
+  for (const item of raw) {
+    const parsed = v.safeParse(LinkItemSchema, item)
+    if (parsed.success) out.push(parsed.output)
+  }
+  return out
+}
 
 const isEmptyLink = (link: LinkItem) =>
   link.name.trim() === '' && link.url.trim() === ''
@@ -118,7 +136,7 @@ export const transformProfileRecords = (
     }
 
     if (key === 'links') {
-      const links = v.parse(LinksSchema, JSON.parse(value))
+      const links = parseLinksJson(value)
       return {
         ...acc,
         links: [...acc.links, ...links],

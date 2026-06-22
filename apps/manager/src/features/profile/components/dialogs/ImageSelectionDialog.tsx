@@ -573,45 +573,50 @@ export const ImageSelectionDialog = ({
   )
 
   // Manual preview step
-  const renderManualPreviewStep = () => (
-    <>
-      <StepHeader
-        onBack={() => send({ type: 'BACK' })}
-        title={t`Preview Image`}
-      />
-      <ErrorDisplay error={state.context.error} />
-      <div className="space-y-4">
-        <div className="text-center">
-          <img
-            alt="Preview"
-            className={getImageStyles(type, 'large')}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-              send({
-                type: 'SET_ERROR',
-                error:
-                  'Failed to load image. Please check that the URL points to a valid image file.',
-              })
-            }}
-            src={safeImageSrc(state.context.manualUrl) ?? ''}
-          />
-          <p className="mt-2 text-gray-500 text-sm">
-            <Eye className="mr-1 inline size-4" />
-            <Trans>Preview of your image</Trans>
-          </p>
+  const renderManualPreviewStep = () => {
+    const src = safeImageSrc(state.context.manualUrl)
+    return (
+      <>
+        <StepHeader
+          onBack={() => send({ type: 'BACK' })}
+          title={t`Preview Image`}
+        />
+        <ErrorDisplay error={state.context.error} />
+        <div className="space-y-4">
+          <div className="text-center">
+            {src ? (
+              <img
+                alt="Preview"
+                className={getImageStyles(type, 'large')}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  send({
+                    type: 'SET_ERROR',
+                    error:
+                      'Failed to load image. Please check that the URL points to a valid image file.',
+                  })
+                }}
+                src={src}
+              />
+            ) : null}
+            <p className="mt-2 text-gray-500 text-sm">
+              <Eye className="mr-1 inline size-4" />
+              <Trans>Preview of your image</Trans>
+            </p>
+          </div>
         </div>
-      </div>
 
-      <StepFooter>
-        <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-          <Trans>Back</Trans>
-        </Button>
-        <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
-          <Trans>Use This Image</Trans>
-        </Button>
-      </StepFooter>
-    </>
-  )
+        <StepFooter>
+          <Button onClick={() => send({ type: 'BACK' })} variant="outline">
+            <Trans>Back</Trans>
+          </Button>
+          <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
+            <Trans>Use This Image</Trans>
+          </Button>
+        </StepFooter>
+      </>
+    )
+  }
 
   // Main render function that determines which step to show
   const renderStep = () => {
