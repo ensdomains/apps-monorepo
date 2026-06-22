@@ -144,6 +144,10 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "A simpler way to<0/><1>get paid.</1>"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewAbout.tsx
+msgid "About"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Account address:"
 msgstr ""
@@ -189,6 +193,7 @@ msgid "Add Crypto Address"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
 msgid "Add favorite"
 msgstr ""
 
@@ -236,6 +241,10 @@ msgstr ""
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/profile/components/sections/WalletAddressesSection.tsx
 msgid "Address"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+msgid "Addresses"
 msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
@@ -451,6 +460,7 @@ msgstr ""
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -472,6 +482,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx
 msgid "Card security code"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+msgid "Chain-specific addresses"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -534,6 +548,7 @@ msgstr ""
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Close"
 msgstr ""
 
@@ -624,6 +639,10 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
+#: src/features/profile/components/common/favoriteAction.helpers.ts
+msgid "connect to favorite name"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr ""
@@ -661,6 +680,7 @@ msgid "Connection Details"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+#: src/features/profile/components/view-new/ProfileViewNewContacts.tsx
 msgid "Contact"
 msgstr ""
 
@@ -697,6 +717,7 @@ msgid "Copy Link"
 msgstr ""
 
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Copy to clipboard"
 msgstr ""
 
@@ -844,6 +865,7 @@ msgid "Drag and drop an image here, or"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+#: src/features/profile/components/view-new/ProfileViewNewEditAction.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Edit Profile"
 msgstr ""
@@ -973,6 +995,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
@@ -1044,6 +1067,7 @@ msgstr ""
 msgid "Failed to load notifications"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNew.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Failed to load registration data for this name."
 msgstr ""
@@ -1203,6 +1227,10 @@ msgstr ""
 msgid "Human-readable addresses for wallets"
 msgstr ""
 
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+msgid "I Understand"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
 msgstr ""
@@ -1265,6 +1293,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx
+#: src/features/profile/components/view-new/ProfileViewNewLinks.tsx
 #: src/features/profile/components/view/ViewLinksSection.tsx
 msgid "Links"
 msgstr ""
@@ -1298,13 +1327,12 @@ msgstr ""
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/dashboard/components/NameRow.tsx
-#: src/features/profile/components/view/FavoriteButton.tsx
-msgid "Login to favorite"
-msgstr "Logga in för att favorisera"
-
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
 msgid "Long-term identity"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+msgid "Main receiving address"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
@@ -1574,6 +1602,7 @@ msgid "Owned by"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Owner"
 msgstr ""
 
@@ -1742,6 +1771,10 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+msgid "Profile actions"
+msgstr ""
+
 #: src/features/register/components/Autorenewal.tsx
 msgid "Protect your name with autorenewal"
 msgstr ""
@@ -1788,6 +1821,7 @@ msgstr ""
 #: src/features/landing/components/ProfileCard.tsx
 #: src/features/migration/components/ProfileCardPreview.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1874,6 +1908,7 @@ msgid "Remove Email Contact Method?"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
 msgid "Remove favorite"
 msgstr ""
 
@@ -1925,6 +1960,7 @@ msgstr ""
 msgid "Renew name"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewRenewAction.tsx
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "Renew Name"
 msgstr ""
@@ -1959,6 +1995,10 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"
+msgstr ""
+
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+msgid "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2187,6 +2227,10 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
+msgid "Share profile"
+msgstr ""
+
 #: src/features/profile/components/sections/BioSection.tsx
 msgid "Short Description"
 msgstr ""
@@ -2260,6 +2304,10 @@ msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts
 msgid "Smart account ready"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewSocial.tsx
+msgid "Social"
 msgstr ""
 
 #: src/features/profile/components/sections/SocialLinksSection.tsx
@@ -2367,6 +2415,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Terms of Use"
+msgstr ""
+
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+msgid "That's generous of you!"
 msgstr ""
 
 #: src/features/payment/components/add.tsx
