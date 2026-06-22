@@ -75,16 +75,20 @@ export async function resolveAvatarDataUri(
 
     // On-chain avatars (data:/base64 SVGs etc.) are already inline — pass them
     // through without re-fetching (fetching a huge data: URI is itself abusable).
-    if (url.startsWith('data:')) return url
+    // Still enforce the image/* requirement on the embedded MIME type.
+    if (url.startsWith('data:')) {
+      return url.startsWith('data:image/') ? url : null
+    }
 
     const res = await fetch(url, {
       signal: AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS),
     })
     if (!res.ok) return null
 
-    const contentType = res.headers.get('content-type') ?? 'image/png'
-    // Only embed actual images; reject anything else the upstream returns.
-    if (!contentType.startsWith('image/')) return null
+    const contentType = res.headers.get('content-type')
+    // Only embed actual images; reject anything else the upstream returns,
+    // including responses that omit Content-Type entirely.
+    if (!contentType?.startsWith('image/')) return null
 
     const bytes = await readCapped(res, AVATAR_MAX_BYTES)
     if (!bytes) return null

@@ -106,6 +106,17 @@ describe('resolveAvatarDataUri (worker)', () => {
     expect(fetchSpy).not.toHaveBeenCalled()
   })
 
+  it('rejects inline data: URIs with a non-image MIME type without fetching', async () => {
+    mockParseAvatarRecord.mockResolvedValueOnce(
+      'data:text/html;base64,PHNjcmlwdD4=',
+    )
+
+    const result = await resolveAvatarDataUri(client, 'evil')
+
+    expect(result).toBeNull()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it('rejects non-image content types', async () => {
     mockParseAvatarRecord.mockResolvedValueOnce('https://evil.example/page')
     fetchSpy.mockResolvedValueOnce(
@@ -113,6 +124,22 @@ describe('resolveAvatarDataUri (worker)', () => {
     )
 
     const result = await resolveAvatarDataUri(client, 'evil')
+
+    expect(result).toBeNull()
+  })
+
+  it('rejects upstream responses that omit Content-Type entirely', async () => {
+    mockParseAvatarRecord.mockResolvedValueOnce('https://cdn.example/no-ct')
+    // Streamed body with no content-type header at all.
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]))
+        controller.close()
+      },
+    })
+    fetchSpy.mockResolvedValueOnce(new Response(body))
+
+    const result = await resolveAvatarDataUri(client, 'no-ct')
 
     expect(result).toBeNull()
   })
