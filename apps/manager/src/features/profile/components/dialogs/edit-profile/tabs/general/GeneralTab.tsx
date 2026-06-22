@@ -16,6 +16,7 @@ import {
   generalShortcuts,
   getGeneralUrlErrorMessage,
   getTextRecordValue,
+  removeGeneralFieldValue,
 } from './fields'
 import { ProfileImageField, type ProfileImageKind } from './ProfileImageField'
 import { profileLanguageOptions } from './profileLanguages'
@@ -171,6 +172,17 @@ export const GeneralTab = ({
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
+  const removeFieldValue = (field: GeneralField) => {
+    const nextValues = removeGeneralFieldValue(values, field)
+
+    if (nextValues.base !== values.base) {
+      onBaseChange(nextValues.base)
+    }
+
+    if (nextValues.contact !== values.contact) {
+      onContactChange(nextValues.contact)
+    }
+  }
   const getPreparedImagePreviewUrl = (kind: ProfileImageKind) =>
     preparedImageUploads.find(
       (upload) => upload.kind === kind && upload.imageUrl === values.base[kind],
@@ -227,6 +239,9 @@ export const GeneralTab = ({
               key={field}
               label={getShortcutLabel(field, label)}
               onClick={() => {
+                if (active) {
+                  removeFieldValue(field)
+                }
                 toggleField(field)
                 if (field === activeImageField) {
                   setActiveImageField(null)
