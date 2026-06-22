@@ -3,13 +3,16 @@
  *
  * Shared smart-account helpers for ENS apps. Today this is a
  * Rhinestone-only implementation covering HCA (Hidden Contract Account)
- * initialization (`initializeRhinestoneAccount`).
+ * initialization (`initializeRhinestoneAccount`) and the smart-session
+ * lifecycle (`createRhinestoneSession`, session storage, the scoped
+ * registration policy).
  *
- * The HCA model (`@rhinestone/sdk@1.7.0`) installs an ENS ownership
- * validator at construction and permanently locks its module set, so
- * there is no smart-session lifecycle: every ENS operation is an
- * owner-signed, relayer-sponsored Intent (gas sponsored via Rhinestone
- * Warp).
+ * The HCA model (`@rhinestone/sdk`) installs an ENS ownership validator at
+ * construction and permanently locks its module set. Smart sessions are
+ * therefore reached not via an installed module but via the HCA's
+ * preinstalled SmartSessionEmissary: the owner signs ENABLE once, then an
+ * ephemeral session key authorizes subsequent relayer-sponsored Intents
+ * without re-prompting.
  *
  * App-specific concerns (Para wallet wrapping, wagmi chain config,
  * toaster, i18n, env vars) stay in the consuming app. Initialization
@@ -25,12 +28,36 @@
 // Current provider (Rhinestone). Explicit, vendor-named re-exports —
 // we'll introduce a generic provider contract once a second provider
 // exists and proves what the abstraction needs to look like.
+export { SessionEnableError, SessionRestoreError } from './errors'
 export {
+  buildAddSessionOwnerCall,
+  buildRemoveSessionOwnerCall,
+  type CreateRhinestoneSessionParams,
+  clearAllSessions,
+  createRhinestoneSession,
   deployRhinestoneAccountCore,
+  ENS_HCA_MODULE_ADDRESS,
+  getAllSessions,
+  getSession,
+  getSessionByOwner,
+  getSkippedStatus,
+  getValidSession,
+  getValidSessionByOwner,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
   initializeRhinestoneAccountCore,
+  isRhinestoneSession,
+  isSessionExpired,
+  REGISTRATION_SESSION_VALIDITY_SECONDS,
+  type RestoreRhinestoneSessionParams,
   type RhinestoneInitConfig,
   type RhinestoneInitResult,
+  type RhinestoneStoredSession,
+  removeSession,
+  removeSessionsByOwner,
+  restoreRhinestoneSession,
+  saveSession,
+  setSkippedStatus,
 } from './providers/rhinestone'
+export type { BaseStoredSession } from './types'

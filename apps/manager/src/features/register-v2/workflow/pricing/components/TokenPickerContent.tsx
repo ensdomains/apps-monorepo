@@ -1,3 +1,4 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
@@ -6,13 +7,15 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
+import { EnableSessionModal } from '@/features/wallet/components/EnableSessionModal'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { needsSessionBeforeRegistration } from '@/lib/smart-account/sessionGate'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
@@ -67,8 +70,30 @@ export const TokenPickerContent = () => {
     }),
   })
 
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState(false)
+
   const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
+  }
+
+  // Dispatch `registration.start`. `signerOverride` is the session-attached
+  // signer returned by `enableSession()`; passed so the machine starts with
+  // the session in the same tick (the context's `account.signer` only reflects
+  // the session after a re-render).
+  const startRegistration = (signerOverride: Signer | null) => {
+    if (!pricingQuery.data || !selectedToken) return
+    uiActor.send({
+      type: 'registration.start',
+      label,
+      duration: BigInt(Math.ceil(duration)),
+      token: selectedToken,
+      totalPrice: pricingQuery.data.rawPrice,
+      account: signerOverride
+        ? { ...account, signer: signerOverride }
+        : account,
+      basePriceNumber: pricingQuery.data.basePriceNumber,
+      premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+    })
   }
 
   const availabilityMutation = useMutation({
@@ -90,16 +115,15 @@ export const TokenPickerContent = () => {
         return
       }
 
-      uiActor.send({
-        type: 'registration.start',
-        label,
-        duration: BigInt(Math.ceil(duration)),
-        token: selectedToken,
-        totalPrice: pricingQuery.data.rawPrice,
-        account,
-        basePriceNumber: pricingQuery.data.basePriceNumber,
-        premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
-      })
+      // Smart-session gate: on the HCA path, registration runs prompt-free via
+      // a smart session. If none is active, open the EnableSessionModal — the
+      // user signs ENABLE there, then registration resumes with the
+      // session-attached signer. Otherwise start immediately.
+      if (needsSessionBeforeRegistration(account)) {
+        setIsSessionModalOpen(true)
+        return
+      }
+      startRegistration(null)
     },
   })
 
@@ -107,23 +131,43 @@ export const TokenPickerContent = () => {
     useSmartAccountContext()
 
   return (
-    <TokenPickerContentBase
-      errorMessage={
-        availabilityMutation.isError
-          ? t`We couldn't confirm that ${label}.eth is still available. Please try again.`
-          : null
-      }
-      isConnected={isConnected}
-      isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
-      isLoadingBalances={isLoadingBalances}
-      label={label}
-      onNext={() => availabilityMutation.mutate()}
-      onSelectCoin={onSelectCoin}
-      pricingData={pricingQuery.data?.totalPriceNumber}
-      pricingLoading={pricingQuery.isLoading}
-      selectedToken={selectedToken}
-      stablecoinBalances={stablecoinBalances}
-    />
+    <>
+      <TokenPickerContentBase
+        errorMessage={
+          availabilityMutation.isError
+            ? t`We couldn't confirm that ${label}.eth is still available. Please try again.`
+            : null
+        }
+        isConnected={isConnected}
+        isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
+        isLoadingBalances={isLoadingBalances}
+        label={label}
+        onNext={() => availabilityMutation.mutate()}
+        onSelectCoin={onSelectCoin}
+        pricingData={pricingQuery.data?.totalPriceNumber}
+        pricingLoading={pricingQuery.isLoading}
+        selectedToken={selectedToken}
+        stablecoinBalances={stablecoinBalances}
+      />
+      <EnableSessionModal
+        hasError={!!account.sessionError}
+        isEnabling={account.isEnablingSession}
+        onEnableSession={async () => {
+          // The single ENABLE signature (adds the ephemeral key as an HCA
+          // owner). On success, resume registration with the freshly
+          // session-attached signer.
+          const signer = await account.enableSession()
+          if (signer) {
+            setIsSessionModalOpen(false)
+            startRegistration(signer)
+          }
+        }}
+        onOpenChange={setIsSessionModalOpen}
+        open={isSessionModalOpen}
+        smartAccountAddress={account.accountAddress ?? undefined}
+        walletAddress={account.ownerAddress ?? undefined}
+      />
+    </>
   )
 }
 
