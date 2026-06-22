@@ -24,6 +24,7 @@
   "devDependencies": {
     "@tanstack/react-query": "^5.90.12",
     "@types/react": "^19.2.7",
+    "react": "^19.2.5",
     "typescript": "catalog:typescript6"
   }
 }
