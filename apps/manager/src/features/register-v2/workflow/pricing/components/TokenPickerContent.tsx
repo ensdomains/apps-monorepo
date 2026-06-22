@@ -6,6 +6,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
+import type { ReactNode } from 'react'
 import { match, P } from 'ts-pattern'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
@@ -138,6 +139,7 @@ export const TokenPickerContentBase = ({
   stablecoinBalances,
   isLoadingBalances,
   isConnected,
+  nextMessage = <Trans>Buy Name</Trans>,
 }: {
   label: string
   pricingLoading: boolean
@@ -150,6 +152,7 @@ export const TokenPickerContentBase = ({
   stablecoinBalances: StablecoinBalance[]
   isLoadingBalances: boolean
   isConnected: boolean
+  nextMessage?: ReactNode
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -301,7 +304,7 @@ export const TokenPickerContentBase = ({
         disabled={!canNext}
         onClick={onNext}
       >
-        <Trans>Buy Name</Trans>
+        {nextMessage}
       </Button>
     </div>
   )
