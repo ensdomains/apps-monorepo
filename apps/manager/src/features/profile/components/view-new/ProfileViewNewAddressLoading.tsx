@@ -100,15 +100,17 @@ export const ProfileAddressesSectionLoading = ({
           shouldReduceMotion={shouldReduceMotion}
         />
         <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2 lg:landscape:grid-cols-3 lg:landscape:gap-6">
-          {['w-[79px]', 'w-[79px]', 'w-18 lg:landscape:w-[79px]'].map(
-            (width) => (
-              <ChainAddressCardLoading
-                key={width}
-                shouldReduceMotion={shouldReduceMotion}
-                valueWidth={width}
-              />
-            ),
-          )}
+          {[
+            { id: 'bitcoin', width: 'w-[79px]' },
+            { id: 'solana', width: 'w-[79px]' },
+            { id: 'fallback', width: 'w-18 lg:landscape:w-[79px]' },
+          ].map(({ id, width }) => (
+            <ChainAddressCardLoading
+              key={id}
+              shouldReduceMotion={shouldReduceMotion}
+              valueWidth={width}
+            />
+          ))}
         </div>
       </div>
     </div>

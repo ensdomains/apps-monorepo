@@ -28,7 +28,7 @@ export const ProfileViewNewHeader = ({
   records,
   registrationDate,
 }: ProfileViewNewHeaderProps) => (
-  <div className="relative min-h-[555px] rounded-none bg-transparent pt-[62px] shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0">
+  <div className="relative min-h-[523px] rounded-none bg-transparent pt-[62px] shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0">
     <ProfileViewNewAvatar
       avatarLoading={avatarLoading}
       avatarUrl={avatarUrl}
