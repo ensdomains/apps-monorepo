@@ -24,7 +24,7 @@
       // uuid (uuidv7) is intentional here and has no native equivalent
       // (crypto.randomUUID only produces v4). JSON manifests can't carry an
       // inline suppression, so the dependency rule is disabled for this
-      // manifest only. dotenv is still surfaced via its drizzle.config.ts import.
+      // manifest only.
       "includes": ["package.json"],
       "linter": {
         "rules": {
