@@ -4,11 +4,11 @@ import { ArrowUpRight, TriangleAlert } from 'lucide-react'
 import { Fragment } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
-import { useEnsName } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
@@ -61,8 +61,10 @@ export const RegistryTreeItem = ({
     enabled: isLastWithRegistryConfigured,
   })
 
-  // Reverse-resolve the owner so the Created badge can link to their profile.
-  const { data: ownerEnsName } = useEnsName({ address: ownerData.owner })
+  const creationTxUrl = useBlockExplorerTxUrl(
+    summary?.creationTransactionHash ?? undefined,
+    chainId,
+  )
 
   return (
     <div
@@ -130,16 +132,22 @@ export const RegistryTreeItem = ({
               ))
               .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
               .otherwise(() =>
-                summary?.createdAt ? (
+                summary?.creationTransactionHash ? (
                   <EntityBadge
-                    variant={ownerEnsName ? 'name' : 'address'}
+                    variant="tx"
                     className="font-normal"
-                    label={formatTimestampDate(summary.createdAt) ?? '—'}
-                    name={ownerEnsName ?? undefined}
-                    address={ownerData.owner}
+                    label={
+                      summary.createdAt
+                        ? (formatTimestampDate(summary.createdAt) ?? undefined)
+                        : undefined
+                    }
+                    copyValue={summary.creationTransactionHash}
+                    etherscanHref={creationTxUrl}
                   >
-                    {ownerEnsName ?? truncateAddress(ownerData.owner, 6, 4)}
+                    {truncateAddress(summary.creationTransactionHash, 6, 4)}
                   </EntityBadge>
+                ) : summary?.createdAt ? (
+                  <span>{formatTimestampDate(summary.createdAt) ?? '—'}</span>
                 ) : (
                   <span>—</span>
                 ),
