@@ -8,6 +8,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -33,6 +34,8 @@ export const RegistryTreeItem = ({
   label,
   name,
 }: RegistryTreeItemProps) => {
+  const isMobile = useIsMobile()
+
   const isRoot = index === 0
   const isEthRegistry = index === 1
   const isLast = index === registriesCount - 1
@@ -67,116 +70,124 @@ export const RegistryTreeItem = ({
   )
 
   return (
-    <div
-      className="flex flex-col md:gap-2 gap-0"
-      style={{
-        paddingLeft: `${50 * Math.max(index - 1, 0)}px`,
-      }}
-    >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-start md:gap-2 gap-0">
-        <div className="flex flex-row items-center justify-start gap-2">
-          {!isRoot ? (
-            <>
-              <RegistryTreePathIcon />
-              <EntityBadge variant="name" name={levelName} showAvatar>
-                {label}
+    <Fragment>
+      <div
+        className="flex flex-col md:gap-2 gap-0"
+        style={{
+          paddingLeft: `${50 * Math.max(index - 1, 0)}px`,
+        }}
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center justify-start md:gap-2 gap-0">
+          <div className="flex flex-row items-center justify-start gap-2">
+            {!isRoot ? (
+              <>
+                <RegistryTreePathIcon />
+                <EntityBadge variant="name" name={levelName} showAvatar>
+                  {label}
+                </EntityBadge>
+              </>
+            ) : null}
+          </div>
+
+          {isRegistryConfigured ? (
+            <Fragment>
+              <EntityBadge
+                label={match({ isRoot, isParent, isLast })
+                  .with({ isRoot: true }, () => 'root registry')
+                  .with({ isParent: true }, () => 'parent registry')
+                  .with({ isLast: true }, () => 'permissioned registry')
+                  .with(
+                    { isRoot: false, isParent: false, isLast: false },
+                    () => undefined,
+                  )
+                  .exhaustive()}
+                variant="contract"
+                className="font-normal"
+                address={address}
+                isRegistry={isDeployedRegistry}
+                tld={isEthRegistry ? levelName : undefined}
+              >
+                {truncateAddress(address, 6, 4)}
               </EntityBadge>
-            </>
+              {!isLastWithRegistryConfigured ? (
+                <div className="flex flex-row items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
+                  <span className="text-sm text-muted-foreground font-mono">
+                    Chain ID: {chainId}
+                  </span>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    {ownerData.protocolVersion}
+                  </span>
+                </div>
+              ) : null}
+            </Fragment>
           ) : null}
         </div>
-
-        {isRegistryConfigured ? (
-          <Fragment>
-            <EntityBadge
-              label={match({ isRoot, isParent, isLast })
-                .with({ isRoot: true }, () => 'root registry')
-                .with({ isParent: true }, () => 'parent registry')
-                .with({ isLast: true }, () => 'permissioned registry')
-                .with(
-                  { isRoot: false, isParent: false, isLast: false },
-                  () => undefined,
-                )
-                .exhaustive()}
-              variant="contract"
-              className="font-normal"
-              address={address}
-              isRegistry={isDeployedRegistry}
-              tld={isEthRegistry ? levelName : undefined}
-            >
-              {truncateAddress(address, 6, 4)}
-            </EntityBadge>
-            {!isLastWithRegistryConfigured ? (
-              <div className="flex flex-row items-center justify-start gap-2 px-1 lg:px-0 pb-2.5 lg:pb-0">
-                <span className="text-sm text-muted-foreground font-mono">
-                  Chain ID: {chainId}
-                </span>
-                <span className="text-sm text-muted-foreground font-mono">
-                  {ownerData.protocolVersion}
-                </span>
-              </div>
-            ) : null}
-          </Fragment>
+        {isLastWithRegistryConfigured ? (
+          <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
+            <dt className="py-2 h-9">Chain ID:</dt>
+            <dd className="flex items-center h-9">{chainId}</dd>
+            <dt className="py-2 h-9">Protocol Version:</dt>
+            <dd className="flex items-center h-9">
+              {ownerData.protocolVersion}
+            </dd>
+            <dt className="py-2 h-9">Created:</dt>
+            <dd className="flex items-center h-9">
+              {match({ isSummaryLoading, summaryError })
+                .with({ isSummaryLoading: true }, () => (
+                  <Skeleton className="h-5 w-32" />
+                ))
+                .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
+                .otherwise(() =>
+                  summary?.creationTransactionHash ? (
+                    <EntityBadge
+                      variant="tx"
+                      className="font-normal"
+                      label={
+                        summary.createdAt
+                          ? (formatTimestampDate(summary.createdAt) ??
+                            undefined)
+                          : undefined
+                      }
+                      copyValue={summary.creationTransactionHash}
+                      etherscanHref={creationTxUrl}
+                    >
+                      {truncateAddress(summary.creationTransactionHash, 6, 4)}
+                    </EntityBadge>
+                  ) : summary?.createdAt ? (
+                    <span>{formatTimestampDate(summary.createdAt) ?? '—'}</span>
+                  ) : (
+                    <span>—</span>
+                  ),
+                )}
+            </dd>
+            <dt className="py-2 h-9">Labels:</dt>
+            <dd className="flex items-center gap-4 h-9">
+              {match({ isSummaryLoading, summaryError })
+                .with({ isSummaryLoading: true }, () => (
+                  <Skeleton className="h-5 w-8" />
+                ))
+                .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
+                .otherwise(() => (
+                  <span className="text-foreground">
+                    {summary?.labelCount ?? '—'}
+                  </span>
+                ))}
+              <Button variant="outline" size="xs" asChild>
+                <Link to="/registry/$address/labels" params={{ address }}>
+                  View subnames <ArrowUpRight className="size-4" />
+                </Link>
+              </Button>
+            </dd>
+          </dl>
+        ) : null}
+        {isLastWithoutRegistryConfigured && !isMobile ? (
+          <ConfigureRegistryForm name={name} />
         ) : null}
       </div>
-      {isLastWithRegistryConfigured ? (
-        <dl className="grid grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
-          <dt className="py-2 h-9">Chain ID:</dt>
-          <dd className="flex items-center h-9">{chainId}</dd>
-          <dt className="py-2 h-9">Protocol Version:</dt>
-          <dd className="flex items-center h-9">{ownerData.protocolVersion}</dd>
-          <dt className="py-2 h-9">Created:</dt>
-          <dd className="flex items-center h-9">
-            {match({ isSummaryLoading, summaryError })
-              .with({ isSummaryLoading: true }, () => (
-                <Skeleton className="h-5 w-32" />
-              ))
-              .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
-              .otherwise(() =>
-                summary?.creationTransactionHash ? (
-                  <EntityBadge
-                    variant="tx"
-                    className="font-normal"
-                    label={
-                      summary.createdAt
-                        ? (formatTimestampDate(summary.createdAt) ?? undefined)
-                        : undefined
-                    }
-                    copyValue={summary.creationTransactionHash}
-                    etherscanHref={creationTxUrl}
-                  >
-                    {truncateAddress(summary.creationTransactionHash, 6, 4)}
-                  </EntityBadge>
-                ) : summary?.createdAt ? (
-                  <span>{formatTimestampDate(summary.createdAt) ?? '—'}</span>
-                ) : (
-                  <span>—</span>
-                ),
-              )}
-          </dd>
-          <dt className="py-2 h-9">Labels:</dt>
-          <dd className="flex items-center gap-4 h-9">
-            {match({ isSummaryLoading, summaryError })
-              .with({ isSummaryLoading: true }, () => (
-                <Skeleton className="h-5 w-8" />
-              ))
-              .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
-              .otherwise(() => (
-                <span className="text-foreground">
-                  {summary?.labelCount ?? '—'}
-                </span>
-              ))}
-            <Button variant="outline" size="xs" asChild>
-              <Link to="/registry/$address/labels" params={{ address }}>
-                View subnames <ArrowUpRight className="size-4" />
-              </Link>
-            </Button>
-          </dd>
-        </dl>
-      ) : null}
-      {isLastWithoutRegistryConfigured ? (
+      {isLastWithoutRegistryConfigured && isMobile ? (
         <ConfigureRegistryForm name={name} />
       ) : null}
-    </div>
+    </Fragment>
   )
 }
 

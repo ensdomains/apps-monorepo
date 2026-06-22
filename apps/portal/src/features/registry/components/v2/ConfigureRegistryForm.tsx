@@ -18,6 +18,8 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -33,6 +35,7 @@ type ConfigureRegistryFormProps = {
 }
 
 export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
+  const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
 
   const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
@@ -224,7 +227,12 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4 max-w-xl pl-14">
+    <div
+      className={cn(
+        'flex flex-col gap-4 max-w-xl pl-14',
+        isMobile ? 'pl-0 pt-3' : 'pl-14',
+      )}
+    >
       <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
         <h3 className="text-3xl font-medium font-serif">
           No registry configured
