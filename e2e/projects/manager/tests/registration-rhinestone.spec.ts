@@ -22,9 +22,7 @@
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
-import { authorizeApproveIfRequested } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
-import { skipCommitmentCooldown } from '../../../helpers/registration-helpers.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 
@@ -61,19 +59,11 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     // so the approval must be a direct EOA eth_sendTransaction signed by the
     // connected wallet. Authorize that single approval; ignore timeout (the
     // approval is skipped when the allowance is already sufficient).
-    let registered = false
+    const { authorizeTransaction } = await import('../../../helpers/manager-auth.js')
+    const authorizeApproval = authorizeTransaction(wallet, 240_000).catch(() => {})
     await Promise.all([
-      // Authorize the USDC approve only if one is actually requested; stop once
-      // registration completes (no fixed-timeout idle).
-      authorizeApproveIfRequested(page, wallet, () => registered),
-      // Skip the ~60s commitment cooldown: advance Anvil + the in-app clock
-      // instead of waiting it out (mirrors the panel's "Skip commit wait").
-      skipCommitmentCooldown(page, () => registered),
-      expect(successBanner)
-        .toContainText('Registration Complete', { timeout: 240_000 })
-        .then(() => {
-          registered = true
-        }),
+      authorizeApproval,
+      expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 }),
     ])
 
     if (mockIndexer.enabled) {

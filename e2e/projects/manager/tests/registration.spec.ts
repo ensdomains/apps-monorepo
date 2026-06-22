@@ -5,7 +5,6 @@ import {
   authorizeTransaction,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
-import { skipCommitmentCooldown } from '../../../helpers/registration-helpers.js'
 
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -76,17 +75,11 @@ test.describe('ENS name registration', () => {
         }
       }
     })()
-    let registered = false
     await Promise.all([
       authorizeAll,
-      // Skip the ~60s commitment cooldown: advance Anvil + the in-app clock
-      // instead of waiting it out (mirrors the panel's "Skip commit wait").
-      skipCommitmentCooldown(page, () => registered),
-      expect(successBanner)
-        .toContainText('Registration Complete', { timeout: 180_000 })
-        .then(() => {
-          registered = true
-        }),
+      expect(successBanner).toContainText('Registration Complete', {
+        timeout: 180_000,
+      }),
     ])
   })
 })
