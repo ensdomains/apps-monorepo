@@ -32,7 +32,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
         ))}
       </TableRow>
       {row.getIsExpanded() &&
-        row.original.events.map((event, eventIndex) => {
+        row.original.events.map((event) => {
           // First try to extract address from event details (for V1 events with owner/registrant/newOwner)
           // Fall back to the transaction's from address (for V2 events)
           const eventDetails = event.details as Record<string, unknown>
@@ -45,7 +45,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 
           return (
             <TableRow
-              key={`${row.original.transactionID}-${event.id}-${eventIndex}`}
+              key={`${row.original.transactionID}-${event.id}`}
               className="hover:bg-muted"
             >
               <TableCell colSpan={2} className={cellClassName} />

@@ -28,11 +28,11 @@ export const ViewLinksSection = ({ records }: ViewLinksSectionProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
-          {safeLinks.map((link, i) => (
+          {safeLinks.map((link) => (
             <Button
               asChild
               className="w-full min-w-1/3 flex-1 justify-between"
-              key={`${link.name}-${i}`}
+              key={`${link.name}-${link.href}`}
               size="sm"
               variant="outline"
             >

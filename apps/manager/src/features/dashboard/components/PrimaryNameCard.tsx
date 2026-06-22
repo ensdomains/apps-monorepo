@@ -79,9 +79,9 @@ export const PrimaryNameCard = ({
   )
 
   const registeredDate =
-    registration?.registrationDate != null
-      ? new Date(registration.registrationDate * 1000)
-      : null
+    registration?.registrationDate == null
+      ? null
+      : new Date(registration.registrationDate * 1000)
   const hasAvatar = Boolean(avatarUrl) && !isInGrace
   const displayName = primaryName ?? t`Your ENS name`
   const registeredLabel = isRegistrationLoading

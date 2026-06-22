@@ -45,7 +45,7 @@ export const AccountTriggerContent = () => {
         </span>
       </div>
       <MSymbol
-        className="group-data-popup-open:-rotate-180 group-data-[state=open]:-rotate-180 ms-font-rounded shrink-0 transition-transform duration-200"
+        className="ms-font-rounded shrink-0 transition-transform duration-200 group-data-[state=open]:-rotate-180 group-data-popup-open:-rotate-180"
         symbol="keyboard_arrow_down"
       />
     </>

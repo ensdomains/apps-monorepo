@@ -1270,10 +1270,6 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 msgid "Language"
 msgstr "Language"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Learn more"
-msgstr "Learn more"
-
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx
 msgid "Link"
 msgstr "Link"
@@ -2696,6 +2692,10 @@ msgstr "Verifying registration on-chain"
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
 msgstr "Verifying..."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
+msgid "View avatar documentation"
+msgstr "View avatar documentation"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for approval"

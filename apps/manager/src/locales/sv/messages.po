@@ -1275,10 +1275,6 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 msgid "Language"
 msgstr "Språk"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Learn more"
-msgstr ""
-
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx
 msgid "Link"
 msgstr ""
@@ -2700,6 +2696,10 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
+msgid "View avatar documentation"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
