@@ -57,10 +57,10 @@ export interface RhinestoneIntentParams {
    * intent does. The first entry is treated as the "primary" call for
    * summaries/telemetry; see {@link getPrimaryCall}. Must be non-empty.
    */
-  calls: Call[]
+  readonly calls: readonly Call[]
   sponsored?: boolean
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
-  tokenRequests?: TokenRequest[]
+  readonly tokenRequests?: readonly TokenRequest[]
 }
 
 /**
