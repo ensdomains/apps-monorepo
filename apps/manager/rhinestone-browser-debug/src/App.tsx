@@ -1469,7 +1469,7 @@ export function App() {
     : 'API_KEY_REQUIRED'
   const walletButtonLabel = ownerIdentityLabel ?? 'CONNECT_WALLET'
   const sequenceTimeLabel = formatDuration(
-    sequenceStartedAt !== null ? sequenceElapsedMs : lastSequenceDurationMs,
+    sequenceStartedAt === null ? lastSequenceDurationMs : sequenceElapsedMs,
   )
   const phaseLabel =
     activeCheckpoint?.label ??
@@ -1679,6 +1679,7 @@ export function App() {
                 {logs.map((entry, index) => (
                   <div
                     className="terminal-log-line"
+                    // biome-ignore lint/suspicious/noArrayIndexKey: append-only terminal log; the index is the stable position and is also rendered as the line number
                     key={`${entry.msg}-${index}`}
                   >
                     <span className="terminal-log-index">

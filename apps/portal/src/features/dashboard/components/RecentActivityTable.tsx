@@ -49,6 +49,7 @@ export const RecentActivityTable = () => {
 
           return (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: a single transaction can emit multiple events of the same type, so the index is required to disambiguate otherwise-identical rows
               key={`${txHash}-${event.type}-${index}`}
               className="flex flex-col sm:flex-row sm:gap-6 sm:items-center sm:py-4 px-4 border-b border-border last:border-b-0"
             >

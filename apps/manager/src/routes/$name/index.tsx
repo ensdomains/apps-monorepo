@@ -25,9 +25,9 @@ export const Route = createFileRoute('/$name/')({
     ])
 
     const expiryDate =
-      expiryData?.expiry != null
-        ? new Date(Number(expiryData.expiry) * 1000)
-        : null
+      expiryData?.expiry == null
+        ? null
+        : new Date(Number(expiryData.expiry) * 1000)
     const isPastGrace = isPastGracePeriod(expiryDate, true)
 
     if (isPastGrace) {

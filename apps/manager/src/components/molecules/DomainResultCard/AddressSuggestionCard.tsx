@@ -24,7 +24,7 @@ export const AddressSuggestionCard = ({
         'flex w-full items-center text-left transition',
         isCompact
           ? 'gap-3 px-3 py-2 hover:bg-slate-50'
-          : 'domain-result-card hover:-translate-y-0.5 cursor-pointer flex-col gap-3 rounded-sm bg-ens-white px-5 py-5 shadow-lg hover:shadow-xl',
+          : 'domain-result-card cursor-pointer flex-col gap-3 rounded-sm bg-ens-white px-5 py-5 shadow-lg hover:-translate-y-0.5 hover:shadow-xl',
       )}
       onClick={onClick}
       params={{ address: address as Address }}

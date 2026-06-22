@@ -17,7 +17,7 @@ export const ProfileViewNewBannerLoading = ({
         <div className="pointer-events-none absolute top-14 h-60 w-full animate-pulse bg-white/20 lg:landscape:top-0 lg:landscape:h-130" />
       )}
     </div>
-    <div className="-bottom-10 pointer-events-none absolute inset-x-0 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
+    <div className="pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
   </div>
 )
 
@@ -87,7 +87,7 @@ export const ProfileViewNewHeaderLoading = ({
     {...getMotionProps(shouldReduceMotion)}
   >
     <SkeletonBlock
-      className="-top-33 -translate-x-1/2 absolute left-1/2 size-45.5 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] lg:landscape:hidden"
+      className="absolute -top-33 left-1/2 size-45.5 -translate-x-1/2 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] lg:landscape:hidden"
       isSolid
       shouldReduceMotion={shouldReduceMotion}
     />

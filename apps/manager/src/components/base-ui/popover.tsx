@@ -92,18 +92,15 @@ function PopoverDescription({
 
 export {
   Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-}
-
-export {
   Popover as Root,
-  PopoverTrigger as Trigger,
+  PopoverContent,
   PopoverContent as Content,
+  PopoverDescription,
   PopoverDescription as Description,
+  PopoverHeader,
   PopoverHeader as Header,
+  PopoverTitle,
   PopoverTitle as Title,
+  PopoverTrigger,
+  PopoverTrigger as Trigger,
 }

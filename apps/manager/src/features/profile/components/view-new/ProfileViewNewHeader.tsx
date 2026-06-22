@@ -32,7 +32,7 @@ export const ProfileViewNewHeader = ({
     <ProfileViewNewAvatar
       avatarLoading={avatarLoading}
       avatarUrl={avatarUrl}
-      className="-top-33 -translate-x-1/2 absolute left-1/2 lg:landscape:hidden"
+      className="absolute -top-33 left-1/2 -translate-x-1/2 lg:landscape:hidden"
       name={name}
     />
     <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-[13px]">

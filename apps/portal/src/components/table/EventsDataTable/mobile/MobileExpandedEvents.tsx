@@ -12,13 +12,14 @@ export const MobileExpandedEvents = <TEvent extends BaseEvent = BaseEvent>({
 }: MobileExpandedEventsProps<TEvent>) => {
   return (
     <>
-      {events.map((event, eventIndex) => {
+      {events.map((event, index) => {
         const eventDetails = event.details as Record<string, unknown>
         const fromAddress = extractFromAddress(eventDetails)
 
         return (
           <div
-            key={`${event.id}-${eventIndex}`}
+            // biome-ignore lint/suspicious/noArrayIndexKey: multiple events can share an id within one transaction, so event.id is not guaranteed unique; the index disambiguates same-id siblings
+            key={`${event.id}-${index}`}
             className="pl-4 border-l-2 border-border flex flex-col gap-2"
           >
             <div className="text-sm font-medium">Event</div>

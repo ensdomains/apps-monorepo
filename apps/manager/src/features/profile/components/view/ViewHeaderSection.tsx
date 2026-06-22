@@ -36,9 +36,9 @@ export const ViewHeaderSection = ({
   const headerUrl = isInGrace ? undefined : (header.data ?? records.base.header)
 
   const url = `${
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : 'https://app.ens.domains'
+    typeof window === 'undefined'
+      ? 'https://app.ens.domains'
+      : window.location.origin
   }/p/${name}`
 
   return (
@@ -70,7 +70,7 @@ export const ViewHeaderSection = ({
           <FavoriteButton name={name} />
           <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
         </div>
-        <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 size-24 md:size-36 lg:size-40">
+        <div className="absolute -bottom-10 left-1/2 size-24 -translate-x-1/2 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root className="contents">
               {isInGrace ? null : (

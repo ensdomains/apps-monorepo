@@ -348,7 +348,7 @@ export const CryptoPaymentDrawer = ({
                         <div className="relative h-8 w-8">
                           <IconComponent className="h-8 w-8" />
                           {/* Chain badge - Sepolia */}
-                          <div className="-bottom-0.5 -right-0.5 absolute flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
+                          <div className="absolute -right-0.5 -bottom-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-ens-peridot-core">
                             <span className="text-[0.5rem] text-white leading-none">
                               S
                             </span>

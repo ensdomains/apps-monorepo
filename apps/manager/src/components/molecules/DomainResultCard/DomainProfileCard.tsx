@@ -48,7 +48,7 @@ export const DomainProfileCard = ({
         'rounded-sm bg-ens-white p-[22px]',
         'shadow-[0px_4px_6px_-1px_rgba(14,61,104,0.06),0px_20.905px_27.874px_0px_rgba(14,61,104,0.10)] transition',
         clickable &&
-          'hover:-translate-y-0.5 cursor-pointer hover:shadow-[0px_4px_6px_-1px_rgba(14,61,104,0.08),0px_20px_28px_-12px_rgba(15,23,42,0.24)]',
+          'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0px_4px_6px_-1px_rgba(14,61,104,0.08),0px_20px_28px_-12px_rgba(15,23,42,0.24)]',
         className,
       )}
       style={themeVars}
