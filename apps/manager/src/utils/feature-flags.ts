@@ -39,6 +39,13 @@ const FEATURE_FLAGS_INTERNAL = {
   PROFILE_EDIT_NEW: {
     enabled: import.meta.env.VITE_FF_PROFILE_EDIT_NEW === 'true',
   },
+  PROFILE_VIEW_NEW: {
+    enabled: import.meta.env.VITE_FF_PROFILE_VIEW_NEW === 'true',
+  },
+  /** Favorite/search demand stats in the temp premium price cooldown banner. */
+  TEMP_PREMIUM_NAME_STATS: {
+    enabled: import.meta.env.VITE_FF_TEMP_PREMIUM_NAME_STATS === 'true',
+  },
   REGISTRATION_V2: {
     enabled: true,
   },

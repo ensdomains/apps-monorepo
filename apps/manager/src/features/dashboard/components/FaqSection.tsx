@@ -109,8 +109,8 @@ export const FaqSection = () => (
                 strokeWidth={1}
               />
             </CollapsibleTrigger>
-            <CollapsibleContent className="overflow-hidden pb-4 text-muted-foreground text-sm data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
-              {answer}
+            <CollapsibleContent className="overflow-hidden text-muted-foreground text-sm data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down motion-reduce:animate-none">
+              <div className="pb-4">{answer}</div>
             </CollapsibleContent>
           </div>
         </Collapsible>
