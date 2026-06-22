@@ -35,6 +35,18 @@ export type RoleHistoryEntry = {
  * @param resource - Optional resource hex to filter by (case-insensitive)
  * @returns Array of RoleHistoryEntry objects sorted by block number descending
  */
+// Resources are uint256 values, so compare numerically — the same value can be
+// encoded differently (e.g. ROOT_RESOURCE as "0x0" from the indexer vs the
+// 32-byte-padded zero callers build). Falls back to case-insensitive string
+// compare for any non-numeric resource.
+const resourcesMatch = (a: string, b: string): boolean => {
+  try {
+    return BigInt(a) === BigInt(b)
+  } catch {
+    return a.toLowerCase() === b.toLowerCase()
+  }
+}
+
 export const filterEventsByResource = (
   events: readonly IndexerEACEvent[],
   resource?: string,
@@ -47,11 +59,7 @@ export const filterEventsByResource = (
     const data = JSON.parse(event.data) as EACRolesChangedData
     if (!data.resource || !data.account) continue
 
-    // If resource is provided, filter by it
-    // The resource in the event data may have different casing/padding,
-    // so compare as lowercase
-    if (resource && data.resource.toLowerCase() !== resource.toLowerCase())
-      continue
+    if (resource && !resourcesMatch(data.resource, resource)) continue
 
     filtered.push({
       account: getAddress(data.account),

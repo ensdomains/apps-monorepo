@@ -26,33 +26,56 @@ vi.mock('wagmi', async (importOriginal) => {
   return {
     ...actual,
     useConnection: () => ({ address: mockAccount }),
+    useEnsName: () => ({ data: undefined }),
   }
 })
 
-// Stub heavy child components so we can render in isolation and assert only the
-// concerns of V2RegistryInfo (header + deploy CTA gating + layout match arm).
-vi.mock('@/features/registry/components/RegistryCardsGrid', () => ({
-  RegistryCardsGrid: ({
-    label,
-    contractAddress,
-  }: {
-    label?: string
-    contractAddress?: string
-  }) => (
-    <div
-      data-testid="registry-cards-grid"
-      data-label={label}
-      data-contract={contractAddress}
-    />
+// RegistryTreeItem links the contract badge to a block explorer; the hook reads
+// useChainId/useConfig (needs a WagmiProvider) and the explorer href is
+// irrelevant to these layout assertions. Stub it. Its own logic is covered by
+// the getBlockExplorer*Url tests.
+vi.mock('@/utils/blockExplorer/useBlockExplorerUrl', () => ({
+  useBlockExplorerAddressUrl: () => undefined,
+  useBlockExplorerTxUrl: () => undefined,
+}))
+
+// Stub heavy leaf components so we can render the tree in isolation and assert
+// only the concerns of the redesigned registry section (tree rows + the inline
+// configure form for the deepest, unconfigured registry).
+//
+// NameAvatar pulls in `useEnsAvatar`, which needs a WagmiProvider, and
+// ConfigureRegistryForm owns its own deploy/role-gating queries and modal —
+// both are exercised by their own tests.
+vi.mock('@/features/profile/components/NameAvatar', () => ({
+  NameAvatar: ({ name }: { name: string }) => (
+    <span data-testid="name-avatar" data-name={name} />
   ),
 }))
 
-vi.mock('@/features/registry/components/VerifiedRegistryCard', () => ({
-  VerifiedRegistryCard: () => <div data-testid="verified-registry-card" />,
+vi.mock('@/features/registry/components/v2/ConfigureRegistryForm', () => ({
+  ConfigureRegistryForm: ({ name }: { name: string }) => (
+    <div data-testid="configure-registry-form" data-name={name} />
+  ),
 }))
 
-vi.mock('@/components/table/NameSubgraphHistory/NameSubgraphHistory', () => ({
-  NameSubgraphHistory: () => null,
+// EntityBadge is the actions-enabled badge: it pulls in `useNavigate` and wagmi
+// hooks (useChainId/useConfig) that need a router + WagmiProvider. These tests
+// only care about the tree-row layout, so stub it to render its label/children
+// (which carry the truncated addresses the assertions look for). The badge's own
+// behaviour is covered by its dedicated tests.
+vi.mock('@/components/EntityBadge', () => ({
+  EntityBadge: ({
+    children,
+    label,
+  }: {
+    children?: React.ReactNode
+    label?: string
+  }) => (
+    <span>
+      {label ? <span>{label}</span> : null}
+      <span>{children}</span>
+    </span>
+  ),
 }))
 
 // Mock useQuery to dispatch on the first segment of the query key.
@@ -65,7 +88,6 @@ const nameRegistriesResult: {
   error: undefined,
   isLoading: false,
 }
-const hasRolesResult: { data: unknown } = { data: true }
 
 vi.mock('@tanstack/react-query', async () => {
   const actual = await vi.importActual<typeof import('@tanstack/react-query')>(
@@ -78,15 +100,14 @@ vi.mock('@tanstack/react-query', async () => {
       if (key === 'nameRegistries') {
         return nameRegistriesResult
       }
-      if (key === 'hasRoles') {
-        return hasRolesResult
-      }
       return { data: undefined, error: undefined, isLoading: false }
     },
   }
 })
 
-const { V2RegistryInfo } = await import('./registry')
+const { V2RegistryInfo } = await import(
+  '@/features/registry/components/v2/RegistryInfo'
+)
 
 const ownerData = {
   owner: '0x1111111111111111111111111111111111111111',
@@ -100,29 +121,46 @@ const setRegistries = (registries: readonly (string | null)[] | undefined) => {
   nameRegistriesResult.isLoading = false
 }
 
+// truncateAddress(address, 6, 4) — default separator is the ellipsis char '…'
+const truncated = (address: string) =>
+  `${address.slice(0, 6)}…${address.slice(-4)}`
+
 describe('V2RegistryInfo', () => {
   beforeEach(() => {
-    hasRolesResult.data = true
+    setRegistries(undefined)
   })
 
-  it('renders the deploy button and VerifiedRegistryCard for a 2LD with a deployed subregistry', () => {
+  it('renders the section header', () => {
     setRegistries([
-      '0x2222222222222222222222222222222222222222', // foo.eth's subregistry
+      '0x2222222222222222222222222222222222222222',
+      '0x1111111111111111111111111111111111111111',
+      '0x0000000000000000000000000000000000000000',
+    ])
+
+    render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+    expect(screen.getByRole('heading', { name: /registry/i })).toBeVisible()
+  })
+
+  it('omits the configure form for a 2LD with a deployed subregistry', () => {
+    const subregistry = '0x2222222222222222222222222222222222222222'
+    setRegistries([
+      subregistry, // foo.eth's subregistry
       '0x1111111111111111111111111111111111111111', // .eth registry
       '0x0000000000000000000000000000000000000000', // root
     ])
 
     render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
 
+    // Deepest registry is configured, so the inline configure form is hidden.
     expect(
-      screen.getByRole('link', { name: /deploy registry/i }),
-    ).toBeInTheDocument()
-    // VerifiedRegistryCard is only shown for 2LDs that have actually
-    // deployed a subregistry.
-    expect(screen.getByTestId('verified-registry-card')).toBeInTheDocument()
+      screen.queryByTestId('configure-registry-form'),
+    ).not.toBeInTheDocument()
+    // The deployed subregistry renders as a row.
+    expect(screen.getByText(truncated(subregistry))).toBeInTheDocument()
   })
 
-  it('omits VerifiedRegistryCard for a 2LD without a deployed subregistry', () => {
+  it('shows the configure form for a 2LD without a deployed subregistry', () => {
     setRegistries([
       zeroAddress, // foo.eth's subregistry not yet deployed
       '0x1111111111111111111111111111111111111111', // .eth registry
@@ -131,50 +169,32 @@ describe('V2RegistryInfo', () => {
 
     render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
 
-    expect(
-      screen.queryByTestId('verified-registry-card'),
-    ).not.toBeInTheDocument()
+    const form = screen.getByTestId('configure-registry-form')
+    expect(form).toHaveAttribute('data-name', 'foo.eth')
   })
 
-  it('renders the deploy button for a 3LD without a subregistry (WEB-249)', () => {
+  it('shows the configure form for a 3LD without a subregistry (WEB-249)', () => {
+    const parent = '0x2222222222222222222222222222222222222222'
     setRegistries([
       zeroAddress, // 1.foo.eth's subregistry — not yet deployed
-      '0x2222222222222222222222222222222222222222', // foo.eth's subregistry (parent)
+      parent, // foo.eth's subregistry (parent)
       '0x1111111111111111111111111111111111111111', // .eth registry
       '0x0000000000000000000000000000000000000000', // root
     ])
 
     render(<V2RegistryInfo name="1.foo.eth" ownerData={ownerData} />)
 
-    expect(
-      screen.getByRole('link', { name: /deploy registry/i }),
-    ).toBeInTheDocument()
-    // Deeper names never show the verified-card highlight.
-    expect(
-      screen.queryByTestId('verified-registry-card'),
-    ).not.toBeInTheDocument()
+    const form = screen.getByTestId('configure-registry-form')
+    expect(form).toHaveAttribute('data-name', '1.foo.eth')
+    // The parent registry still renders as a row above the form.
+    expect(screen.getByText(truncated(parent))).toBeInTheDocument()
   })
 
-  it('hides the deploy button when the account lacks ROLE_SET_SUBREGISTRY', () => {
-    hasRolesResult.data = false
-    setRegistries([
-      zeroAddress,
-      '0x2222222222222222222222222222222222222222',
-      '0x1111111111111111111111111111111111111111',
-      '0x0000000000000000000000000000000000000000',
-    ])
-
-    render(<V2RegistryInfo name="1.foo.eth" ownerData={ownerData} />)
-
-    expect(
-      screen.queryByRole('link', { name: /deploy registry/i }),
-    ).not.toBeInTheDocument()
-  })
-
-  it('renders the 4LD layout and deploy button for a 5-tuple registries shape', () => {
+  it('renders the 4LD layout for a 5-tuple registries shape', () => {
+    const parent = '0x3333333333333333333333333333333333333333'
     setRegistries([
       zeroAddress, // x.1.foo.eth's subregistry — not yet deployed
-      '0x3333333333333333333333333333333333333333', // 1.foo.eth's subregistry (parent)
+      parent, // 1.foo.eth's subregistry (parent)
       '0x2222222222222222222222222222222222222222', // foo.eth's subregistry
       '0x1111111111111111111111111111111111111111', // .eth registry
       '0x0000000000000000000000000000000000000000', // root
@@ -182,25 +202,17 @@ describe('V2RegistryInfo', () => {
 
     render(<V2RegistryInfo name="x.1.foo.eth" ownerData={ownerData} />)
 
-    expect(
-      screen.getByRole('link', { name: /deploy registry/i }),
-    ).toBeInTheDocument()
-
-    const grids = screen.getAllByTestId('registry-cards-grid')
-    expect(grids).toHaveLength(2)
-    expect(grids[0]).toHaveAttribute('data-label', 'x')
-    expect(grids[1]).toHaveAttribute('data-label', '1')
-    expect(grids[1]).toHaveAttribute(
-      'data-contract',
-      '0x3333333333333333333333333333333333333333',
-    )
+    const form = screen.getByTestId('configure-registry-form')
+    expect(form).toHaveAttribute('data-name', 'x.1.foo.eth')
+    expect(screen.getByText(truncated(parent))).toBeInTheDocument()
   })
 
   // Mirrors on-chain findRegistries(5.4.testing.fresh.eth) on Sepolia.
-  it('renders the 5LD layout and deploy button for a 6-tuple registries shape', () => {
+  it('renders the 5LD layout for a 6-tuple registries shape', () => {
+    const parent = '0x1e39685086544eD33b561Fb2aa2B22192F5e3c47'
     setRegistries([
       zeroAddress, // 5.4.testing.fresh.eth — not yet deployed
-      '0x1e39685086544eD33b561Fb2aa2B22192F5e3c47', // 4.testing.fresh.eth (parent)
+      parent, // 4.testing.fresh.eth (parent)
       '0x4d337208B153620A9ec54Fb27aeF50743F7d4A50', // testing.fresh.eth
       '0x2f8eBF59b8dEeB06d6a0F0443b5bAd9509620d99', // fresh.eth
       '0x796fFF2E907449be8D5921BCC215B1b76D89d080', // .eth
@@ -211,17 +223,8 @@ describe('V2RegistryInfo', () => {
       <V2RegistryInfo name="5.4.testing.fresh.eth" ownerData={ownerData} />,
     )
 
-    expect(
-      screen.getByRole('link', { name: /deploy registry/i }),
-    ).toBeInTheDocument()
-
-    const grids = screen.getAllByTestId('registry-cards-grid')
-    expect(grids).toHaveLength(2)
-    expect(grids[0]).toHaveAttribute('data-label', '5')
-    expect(grids[1]).toHaveAttribute('data-label', '4')
-    expect(grids[1]).toHaveAttribute(
-      'data-contract',
-      '0x1e39685086544eD33b561Fb2aa2B22192F5e3c47',
-    )
+    const form = screen.getByTestId('configure-registry-form')
+    expect(form).toHaveAttribute('data-name', '5.4.testing.fresh.eth')
+    expect(screen.getByText(truncated(parent))).toBeInTheDocument()
   })
 })
