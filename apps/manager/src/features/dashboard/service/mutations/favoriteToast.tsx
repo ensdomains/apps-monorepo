@@ -10,22 +10,21 @@ const getFavoriteAddedToastCopy = () =>
     ? i18n._(favoriteAddedToastMessage)
     : favoriteAddedToastMessage.message
 
+const favoriteToastIconClassName =
+  'ms-fill ms-opsz-24 ms-wght-400 size-6 shrink-0 text-2xl leading-none'
+
 export const showFavoriteAddedToast = () => {
   const message = getFavoriteAddedToastCopy()
 
-  toast.custom(
-    () => (
-      <div className="flex max-w-[calc(100vw-32px)] items-center gap-2 rounded-[6px] bg-[#ffeef3] px-4 py-3.5 text-ens-signal-danger-600 shadow-[0px_2px_6px_rgba(0,0,0,0.06)]">
-        <MSymbol
-          aria-hidden="true"
-          className="ms-fill ms-opsz-24 ms-wght-400 size-6 shrink-0 text-[24px] leading-none"
-          symbol="favorite"
-        />
-        <span className="whitespace-nowrap text-base leading-[1.05] tracking-[0.02em]">
-          {message}
-        </span>
-      </div>
+  toast(message, {
+    icon: (
+      <MSymbol
+        aria-hidden="true"
+        className={favoriteToastIconClassName}
+        symbol="favorite"
+      />
     ),
-    { id: 'favorite-added-toast', position: 'bottom-right' },
-  )
+    id: 'favorite-added-toast',
+    position: 'bottom-right',
+  })
 }

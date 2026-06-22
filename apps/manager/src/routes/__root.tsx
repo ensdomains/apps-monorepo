@@ -18,7 +18,7 @@ type RootRouterContext = {
 }
 
 const toastIconClassName =
-  'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-[24px] leading-none'
+  'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-2xl leading-none'
 
 export const Route = createRootRouteWithContext<RootRouterContext>()({
   head: () => ({

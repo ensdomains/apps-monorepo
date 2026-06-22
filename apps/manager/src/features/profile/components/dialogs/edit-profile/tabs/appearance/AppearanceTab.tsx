@@ -25,7 +25,7 @@ const appearanceThemes = [
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-quartz-75) 7%, var(--color-ens-quartz-200) 146%)',
     badgeClassName: 'bg-ens-lapis-900',
-    badgeTextClassName: 'text-[#f6fbfd]',
+    badgeTextClassName: 'text-[#f6fbfd]', // no exact ENS token
     label: 'Quartz',
     value: '#02293B',
   },
@@ -35,7 +35,7 @@ const appearanceThemes = [
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-garnet-100) 7%, var(--color-ens-garnet-200) 146%)',
     badgeClassName: 'bg-ens-garnet-500',
-    badgeTextClassName: 'text-[#fdf1f5]',
+    badgeTextClassName: 'text-[#fdf1f5]', // no exact ENS token
     label: 'Garnet',
     value: '#E72A96',
   },
@@ -45,7 +45,7 @@ const appearanceThemes = [
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-lapis-bg) 7%, #a3e0fd 146%)',
     badgeClassName: 'bg-ens-lapis-500',
-    badgeTextClassName: 'text-[#f6fbfd]',
+    badgeTextClassName: 'text-[#f6fbfd]', // no exact ENS token
     label: 'Lapis',
     value: '#0082BB',
   },
@@ -54,7 +54,7 @@ const appearanceThemes = [
     addressClassName: 'text-ens-peridot-900',
     backgroundImage: 'linear-gradient(185deg, #e4ffe3 7%, #a3fda6 146%)',
     badgeClassName: 'bg-ens-peridot-500',
-    badgeTextClassName: 'text-[#e9f7ef]',
+    badgeTextClassName: 'text-[#e9f7ef]', // no exact ENS token
     label: 'Peridot',
     value: '#007C20',
   },
@@ -64,7 +64,7 @@ const appearanceThemes = [
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-citrine-100) 7%, var(--color-ens-citrine-300) 146%)',
     badgeClassName: 'bg-ens-citrine-500',
-    badgeTextClassName: 'text-[#fcfcf3]',
+    badgeTextClassName: 'text-[#fcfcf3]', // no exact ENS token
     label: 'Citrine',
     value: '#984D1B',
   },
