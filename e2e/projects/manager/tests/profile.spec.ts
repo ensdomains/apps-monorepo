@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test'
-import { test, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
+import { test, authorizeApproveIfRequested } from '../../../fixtures/playwright.manager.fixture.js'
 import {
     goToEditProfile,
     goToProfile,
