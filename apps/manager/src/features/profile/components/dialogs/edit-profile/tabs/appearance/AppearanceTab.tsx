@@ -59,6 +59,16 @@ const appearanceThemes = [
     label: 'Peridot',
     value: '#007C23',
   },
+  {
+    activeRingClassName: 'ring-ens-citrine-400',
+    addressClassName: 'text-ens-citrine-500',
+    backgroundImage:
+      'linear-gradient(185deg, var(--color-ens-citrine-100) 7%, var(--color-ens-citrine-300) 146%)',
+    badgeClassName: 'bg-ens-citrine-500',
+    badgeTextClassName: 'text-ens-citrine-50',
+    label: 'Citrine',
+    value: '#984D1B',
+  },
 ] as const satisfies readonly AppearanceTheme[]
 
 const themeValues: ReadonlySet<string> = new Set(
