@@ -1,3 +1,4 @@
+import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -6,16 +7,13 @@ import { ResultAsync } from 'neverthrow'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
-
 import { useConnection } from 'wagmi'
-
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,

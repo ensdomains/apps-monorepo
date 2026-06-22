@@ -1,3 +1,4 @@
+import { isTimeTravelEnabled, TimeTravelPanel } from '@ens-apps/dev-time-travel'
 import {
   TransactionManagerProvider,
   transactionManager,
@@ -10,8 +11,6 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { TimeTravelPanel } from '@/dev/TimeTravelPanel'
-import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'

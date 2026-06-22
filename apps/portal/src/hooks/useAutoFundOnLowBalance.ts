@@ -1,3 +1,4 @@
+import { TIME_TRAVEL_RPC } from '@ens-apps/dev-time-travel'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
@@ -12,7 +13,6 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { useConnection, useReadContracts } from 'wagmi'
-import { TIME_TRAVEL_RPC } from '@/dev/timeTravel'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { useFundWallet } from './useFundWallet'
 

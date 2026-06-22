@@ -1,3 +1,4 @@
+import { isTimeTravelEnabled, TimeTravelPanel } from '@ens-apps/dev-time-travel'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -9,8 +10,6 @@ import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
-import { TimeTravelPanel } from '@/dev/TimeTravelPanel'
-import { isTimeTravelEnabled } from '@/dev/timeTravel'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'

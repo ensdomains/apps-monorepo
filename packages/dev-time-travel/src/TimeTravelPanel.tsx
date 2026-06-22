@@ -4,7 +4,7 @@
  * Advances chain time (`evm_increaseTime` + `evm_mine`) AND the browser clock
  * (via the installed chain clock) together, then reloads so cached on-chain
  * reads (e.g. premium price from `getRegisterPrice`) refetch. Rendered only
- * when `isTimeTravelEnabled()` — see `routes/__root.tsx`.
+ * when `isTimeTravelEnabled()` — mounted by each app's root route.
  */
 
 import {
@@ -21,7 +21,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { TIME_TRAVEL_RPC } from './timeTravel'
+import { TIME_TRAVEL_RPC } from './config'
 
 const HOUR = 3600
 const DAY = 86_400
@@ -302,11 +302,11 @@ export function TimeTravelPanel() {
   if (collapsed) {
     return (
       <button
-        onClick={() => setCollapsed(false)}
         ref={setNodeRef}
+        type="button"
+        onClick={() => setCollapsed(false)}
         style={{ ...collapsedStyle, ...positionStyle }}
         title="Open Time Travel panel"
-        type="button"
       >
         {'\u23F1'} {formatOffset(offsetMs)}
       </button>
@@ -321,11 +321,11 @@ export function TimeTravelPanel() {
       >
         <span style={{ fontWeight: 600 }}>{'\u23F1'} Time Travel (dev)</span>
         <button
+          type="button"
           onClick={() => setCollapsed(true)}
           onPointerDown={(e) => e.stopPropagation()}
           style={iconButtonStyle}
           title="Collapse"
-          type="button"
         >
           {'\u2715'}
         </button>
@@ -343,11 +343,11 @@ export function TimeTravelPanel() {
       <div style={gridStyle}>
         {STEPS.map((step) => (
           <button
-            disabled={busy}
             key={step.label}
+            type="button"
+            disabled={busy}
             onClick={() => advanceSeconds(step.seconds)}
             style={stepButtonStyle(busy)}
-            type="button"
           >
             {step.label}
           </button>
@@ -356,20 +356,20 @@ export function TimeTravelPanel() {
 
       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
         <input
-          aria-label="Days to advance"
-          disabled={busy}
-          min="0"
-          onChange={(e) => setCustomDays(e.target.value)}
-          step="0.5"
-          style={inputStyle}
           type="number"
+          min="0"
+          step="0.5"
           value={customDays}
+          onChange={(e) => setCustomDays(e.target.value)}
+          disabled={busy}
+          style={inputStyle}
+          aria-label="Days to advance"
         />
         <button
+          type="button"
           disabled={busy}
           onClick={advanceCustom}
           style={stepButtonStyle(busy)}
-          type="button"
         >
           Advance days
         </button>
@@ -377,31 +377,31 @@ export function TimeTravelPanel() {
 
       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
         <button
+          type="button"
           disabled={busy}
           onClick={syncToChain}
           style={secondaryButtonStyle(busy)}
           title="Set the browser clock to the current Anvil block time"
-          type="button"
         >
           Sync to chain
         </button>
         <button
+          type="button"
           disabled={busy}
           onClick={resetToRealTime}
           style={secondaryButtonStyle(busy)}
           title="Clear the offset — browser clock returns to real time"
-          type="button"
         >
           Real time
         </button>
       </div>
 
       <button
+        type="button"
         disabled={busy}
         onClick={skipCommitWait}
         style={{ ...stepButtonStyle(busy), width: '100%', marginTop: 8 }}
         title="Advance ~70s (MIN_COMMITMENT_AGE) so a registration's commitment cooldown completes — no reload, keeps the in-progress flow"
-        type="button"
       >
         Skip commit wait (+{COMMIT_SKIP_SECONDS}s)
       </button>

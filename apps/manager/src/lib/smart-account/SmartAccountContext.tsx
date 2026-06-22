@@ -5,6 +5,7 @@ import {
   isRhinestoneSession,
   type RhinestoneStoredSession,
 } from '@ens-apps/smart-account'
+import { TIME_TRAVEL_RPC } from '@ens-apps/dev-time-travel'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
@@ -37,7 +38,6 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { readContract } from 'viem/actions'
 import { useConnection, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
-import { TIME_TRAVEL_RPC } from '@/dev/timeTravel'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
