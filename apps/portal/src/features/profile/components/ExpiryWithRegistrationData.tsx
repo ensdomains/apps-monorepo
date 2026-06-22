@@ -12,6 +12,7 @@ import { getNameHistoryQueryOptions } from '../hooks/useNameHistory'
 import { getV1ExpiryQueryOptions } from '../hooks/useV1Expiry'
 import { getV2NameHistoryQueryOptions } from '../hooks/useV2NameHistory'
 import { getV2RegistrationDataQueryOptions } from '../hooks/useV2RegistrationData'
+import { InfoRow } from './InfoRow'
 import { Timestamp } from './Timestamp'
 
 interface RegistrationDateProps {
@@ -39,24 +40,16 @@ type RegistrationDataProps = RegistrationDateProps
 
 const RegistrationData = ({ blockNumber }: RegistrationDataProps) => {
   return (
-    <div className="flex items-center gap-4 min-h-13">
-      <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
-      <span className="text-sm text-muted-foreground w-24 shrink-0">
-        Registered
-      </span>
+    <InfoRow icon={CalendarIcon} label="Registered">
       <RegistrationDate blockNumber={blockNumber} />
-    </div>
+    </InfoRow>
   )
 }
 
 const GraceEndsRow = ({ graceEndDate }: { graceEndDate: Date }) => (
-  <div className="flex items-center gap-4 min-h-13">
-    <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
-    <span className="text-sm text-muted-foreground w-24 shrink-0">
-      Grace ends
-    </span>
+  <InfoRow icon={CalendarIcon} label="Grace ends">
     <Timestamp timestamp={Math.floor(graceEndDate.getTime() / 1000)} />
-  </div>
+  </InfoRow>
 )
 
 const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
@@ -86,15 +79,11 @@ const V1ExpiryWithRegistrationData = ({ name }: { name: string }) => {
   return (
     <>
       {expiry.data && (
-        <div className="flex items-center gap-4 min-h-13">
-          <ClockIcon className="size-4 text-neutral-7 shrink-0" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Expires
-          </span>
+        <InfoRow icon={ClockIcon} label="Expires">
           <span className="font-semi-mono">
             <Timestamp timestamp={expiry.data.expiry} />
           </span>
-        </div>
+        </InfoRow>
       )}
       {blockNumber && <RegistrationData blockNumber={blockNumber} />}
       {grace.isInGrace && grace.graceEndDate && (
@@ -139,24 +128,16 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
         <GraceEndsRow graceEndDate={grace.graceEndDate} />
       ) : (
         data.expiry !== null && (
-          <div className="flex items-center gap-4 min-h-13">
-            <ClockIcon className="size-4 text-neutral-7 shrink-0" />
-            <span className="text-sm text-muted-foreground w-24 shrink-0">
-              Expires
-            </span>
-            <span className="font-semi-mono">
+          <InfoRow icon={ClockIcon} label="Expires">
+            <div className="font-semi-mono pt-2 pb-3">
               <Timestamp timestamp={data.expiry} />
-            </span>
-          </div>
+            </div>
+          </InfoRow>
         )
       )}
 
       {data.registeredAt !== null && (
-        <div className="flex items-center gap-4 min-h-13">
-          <CalendarIcon className="size-4 text-neutral-7 shrink-0" />
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Registered
-          </span>
+        <InfoRow icon={CalendarIcon} label="Registered">
           {registrationTxHash ? (
             <EntityBadge
               variant="tx"
@@ -171,7 +152,7 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
               <Timestamp timestamp={data.registeredAt} />
             </span>
           )}
-        </div>
+        </InfoRow>
       )}
     </>
   )

@@ -5,6 +5,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { useIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { InfoRow } from './InfoRow'
 
 export const ResolverCard = ({
   name,
@@ -33,13 +34,9 @@ export const ResolverCard = ({
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 w-full min-h-13">
-        <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Resolver
-        </span>
+      <InfoRow icon={ResolverIcon} label="Resolver">
         {value}
-      </div>
+      </InfoRow>
     )
   }
 

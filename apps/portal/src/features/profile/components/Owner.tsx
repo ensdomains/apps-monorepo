@@ -6,6 +6,7 @@ import { BlockCard } from '@/features/dashboard/components'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { InfoRow } from './InfoRow'
 
 export const Owner = ({
   owner,
@@ -30,12 +31,9 @@ export const Owner = ({
   if (!owner) {
     if (asRow)
       return (
-        <div className={cn('flex items-center gap-4 min-h-13', className)}>
-          <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
-            {label}
-          </span>
+        <InfoRow label={label} className={className}>
           <span className="text-sm text-muted-foreground">No data</span>
-        </div>
+        </InfoRow>
       )
     return (
       <BlockCard className={cn('flex-col items-start', className)}>
@@ -50,11 +48,7 @@ export const Owner = ({
 
   if (asRow) {
     return (
-      <div className={cn('flex items-center gap-4 w-full min-h-13', className)}>
-        <ShieldPersonIcon className="size-4 shrink-0 text-neutral-7" />
-        <span className="text-sm text-muted-foreground min-w-24 shrink-0 whitespace-nowrap">
-          {label}
-        </span>
+      <InfoRow icon={ShieldPersonIcon} label={label} className={className}>
         <EntityBadge
           variant={variant}
           name={ownerName ?? undefined}
@@ -62,7 +56,7 @@ export const Owner = ({
         >
           {ownerName || shortenedAddress}
         </EntityBadge>
-      </div>
+      </InfoRow>
     )
   }
 
