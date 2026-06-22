@@ -7,11 +7,13 @@ import { cn } from '@/lib/utils'
 type CopyableButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   value: string
   iconClassName?: string
+  iconStrokeWidth?: number
 }
 
 export const CopyableButton = ({
   value,
   iconClassName,
+  iconStrokeWidth,
   className,
   disabled,
   onClick,
@@ -50,9 +52,15 @@ export const CopyableButton = ({
       {children}
       {!isDisabled &&
         (copied ? (
-          <Check className={cn('ml-1', iconClassName)} />
+          <Check
+            className={cn('ml-1', iconClassName)}
+            strokeWidth={iconStrokeWidth}
+          />
         ) : (
-          <Copy className={cn('ml-1', iconClassName)} />
+          <Copy
+            className={cn('ml-1', iconClassName)}
+            strokeWidth={iconStrokeWidth}
+          />
         ))}
     </Button>
   )

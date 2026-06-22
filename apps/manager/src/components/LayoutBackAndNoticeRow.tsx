@@ -6,12 +6,18 @@ import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { tw } from '@/utils/tailwind'
 
 export const LayoutBackAndNoticeRow = ({
+  isHidden = false,
   isSepoliaBannerVisible,
 }: {
+  readonly isHidden?: boolean
   readonly isSepoliaBannerVisible: boolean
 }) => {
   const backButtonConfig = useResolvedGlobalBackButtonConfig()
   const isBackButtonVisible = Boolean(backButtonConfig?.isVisible)
+
+  if (isHidden) {
+    return null
+  }
 
   if (!isBackButtonVisible && !isSepoliaBannerVisible) {
     return null

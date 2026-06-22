@@ -16,6 +16,7 @@ interface ViewHeaderSectionProps {
   records: ProfileRecords
   owner?: Address
   isInGrace?: boolean
+  isOwner?: boolean
 }
 
 export const ViewHeaderSection = ({
@@ -23,6 +24,7 @@ export const ViewHeaderSection = ({
   records,
   owner,
   isInGrace = false,
+  isOwner,
 }: ViewHeaderSectionProps) => {
   const [avatar, header] = useQueries({
     queries: [
@@ -67,7 +69,7 @@ export const ViewHeaderSection = ({
           </ImageFallback.Fallback>
         </ImageFallback.Root>
         <div className="absolute top-4 left-4 flex items-center gap-2">
-          <RenewNameButton name={name} />
+          <RenewNameButton isOwner={isOwner} name={name} />
         </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <FavoriteButton name={name} />
