@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { HubIcon } from '@/assets/icons'
 import type { ProtocolVersion } from '@/utils/types'
+import { InfoRow } from './InfoRow'
 import { RegistryLocation } from './RegistryLocation'
 
 export const RegistryCard = ({
@@ -27,17 +28,13 @@ export const RegistryCard = ({
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 w-full min-h-13">
-        <HubIcon className="size-4 shrink-0 text-neutral-7" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Subregistry
-        </span>
+      <InfoRow icon={HubIcon} label="Subregistry">
         {registryAddress ? (
           <RegistryLocation name={name} registryAddress={registryAddress} />
         ) : (
           <span className="font-semi-mono text-muted-foreground">None set</span>
         )}
-      </div>
+      </InfoRow>
     )
   }
 

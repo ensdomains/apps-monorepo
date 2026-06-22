@@ -9,16 +9,17 @@ import {
 } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
-import { useChainId, useEnsName } from 'wagmi'
+import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
 import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
+import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -56,18 +57,6 @@ function RouteComponent() {
       !!registry?.parentRegistry &&
       !isAddressEqual(registry.parentRegistry, zeroAddress),
   })
-  // Owner of this registry's ENS name — used for the Deployed badge so it
-  // matches the Created badge on /$name/registry exactly.
-  const {
-    data: ownerData,
-    isLoading: isOwnerLoading,
-    error: ownerError,
-  } = useQuery({
-    ...getEnsOwnerQueryOptions({ name: registry?.name }),
-    enabled: !!registry?.name,
-  })
-  const { data: ownerEnsName } = useEnsName({ address: ownerData?.owner })
-
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
     return (
@@ -98,12 +87,12 @@ function RouteComponent() {
     .filter((name): name is string => !!name)
 
   return (
-    <div className="flex flex-col gap-8 p-4 sm:p-10 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-9 p-4 sm:p-9 w-full max-w-360 mx-auto">
       <div className="flex flex-col gap-6">
-        <h1 className="text-2xl md:text-heading font-normal leading-none">
+        <h1 className="text-heading font-normal leading-none">
           Registry Contract
         </h1>
-        <div className="flex flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
+        <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
           <EntityBadge variant="default" label="type" className="font-normal">
             PermissionedRegistry
           </EntityBadge>
@@ -116,47 +105,30 @@ function RouteComponent() {
 
       <div className="flex flex-col gap-10 lg:gap-6 lg:flex-row lg:items-start">
         <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8 text-sm">
-          <dt className="text-muted-foreground">Address</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Address
+          </dt>
+          <dd className="flex items-center h-9">
             <EntityBadge variant="contract" address={address}>
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground">Deployed</dt>
-          <dd>
-            {match({
-              hasName: !!registry.name,
-              isOwnerLoading,
-              ownerError,
-              deployedDate,
-            })
-              .with({ hasName: false }, (m) =>
-                m.deployedDate ? <span>{m.deployedDate}</span> : <span>—</span>,
-              )
-              .with({ isOwnerLoading: true }, () => (
-                <Skeleton className="h-5 w-32" />
-              ))
-              .with({ ownerError: P.not(null) }, () => <FailedToLoad />)
-              .otherwise(() =>
-                deployedDate && ownerData?.owner ? (
-                  <EntityBadge
-                    variant={ownerEnsName ? 'name' : 'address'}
-                    className="font-normal"
-                    label={deployedDate}
-                    name={ownerEnsName ?? undefined}
-                    address={ownerData.owner}
-                  >
-                    {ownerEnsName ?? truncateAddress(ownerData.owner, 6, 4)}
-                  </EntityBadge>
-                ) : (
-                  <span>—</span>
-                ),
-              )}
+          <dt className="text-muted-foreground flex items-center h-9">
+            Deployed
+          </dt>
+          <dd className="flex items-center h-9">
+            <DeployedBadge
+              namehash={registry.namehash}
+              createdBlock={registry.createdBlock}
+              deployedDate={deployedDate}
+            />
           </dd>
 
-          <dt className="text-muted-foreground">Factory</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Factory
+          </dt>
+          <dd className="flex items-center h-9">
             <EntityBadge
               variant="contract"
               label="registry factory"
@@ -167,8 +139,10 @@ function RouteComponent() {
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground">Parent</dt>
-          <dd>
+          <dt className="text-muted-foreground flex items-center h-9">
+            Parent
+          </dt>
+          <dd className="flex items-center h-9">
             {match({
               isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
               isLoadingParent,
@@ -192,8 +166,10 @@ function RouteComponent() {
               ))}
           </dd>
 
-          <dt className="text-muted-foreground">Referenced by</dt>
-          <dd className="flex flex-wrap items-center gap-2">
+          <dt className="text-muted-foreground flex items-center min-h-9 self-start">
+            Referenced by
+          </dt>
+          <dd className="flex flex-wrap items-center gap-x-2 min-h-9 self-start -mt-2">
             {referencedByNames.length > 0 ? (
               referencedByNames.map((name) => (
                 <EntityBadge key={name} variant="name" name={name} showAvatar>
@@ -268,3 +244,39 @@ const FailedToLoad = () => (
     Failed to load
   </span>
 )
+
+const DeployedBadge = ({
+  namehash,
+  createdBlock,
+  deployedDate,
+}: {
+  readonly namehash: string
+  readonly createdBlock: number
+  readonly deployedDate: string | null
+}) => {
+  const {
+    data: deployment,
+    isLoading,
+    error,
+  } = useQuery(getRegistryDeploymentQueryOptions({ namehash, createdBlock }))
+  const deploymentTxHash = deployment?.transactionHash
+  const deploymentTxUrl = useBlockExplorerTxUrl(deploymentTxHash)
+
+  return match({ isLoading, error, deploymentTxHash })
+    .with({ isLoading: true }, () => <Skeleton className="h-5 w-32" />)
+    .with({ error: P.not(null) }, () => <FailedToLoad />)
+    .with({ deploymentTxHash: P.string }, (m) => (
+      <EntityBadge
+        variant="tx"
+        className="font-normal"
+        label={deployedDate ?? undefined}
+        copyValue={m.deploymentTxHash}
+        etherscanHref={deploymentTxUrl}
+      >
+        {truncateAddress(m.deploymentTxHash, 6, 4)}
+      </EntityBadge>
+    ))
+    .otherwise(() =>
+      deployedDate ? <span>{deployedDate}</span> : <span>—</span>,
+    )
+}

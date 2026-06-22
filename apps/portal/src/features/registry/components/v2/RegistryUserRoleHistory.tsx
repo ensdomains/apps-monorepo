@@ -24,7 +24,7 @@ type RegistryUserRoleHistoryProps = {
 const columns: ColumnDef<EnrichedEntry>[] = [
   {
     id: 'date',
-    header: () => <span className="text-muted-foreground">Date</span>,
+    header: 'Date',
     cell: ({ row }) => (
       <div className="text-sm text-muted-foreground whitespace-nowrap mt-4">
         {formatTimestamp(BigInt(row.original.timestamp))}
@@ -33,7 +33,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
   },
   {
     id: 'transaction',
-    header: () => <span className="text-muted-foreground">Transaction</span>,
+    header: 'Transaction',
     cell: ({ row }) => (
       <div className="space-y-1 flex flex-col">
         <BlockExplorerTxLink txHash={row.original.transactionHash} inline />
@@ -43,7 +43,7 @@ const columns: ColumnDef<EnrichedEntry>[] = [
   },
   {
     id: 'from',
-    header: () => <span className="text-muted-foreground">From</span>,
+    header: 'From',
     cell: ({ row }) =>
       row.original.sender ? (
         <AddressDisplay address={row.original.sender} />

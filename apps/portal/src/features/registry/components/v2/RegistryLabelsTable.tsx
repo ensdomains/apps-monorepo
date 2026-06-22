@@ -20,7 +20,6 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
-        className="text-muted-foreground"
       >
         Label
       </SortButton>
@@ -28,7 +27,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     cell: ({ row }) => {
       const { name, labelName, labelhash } = row.original
       return (
-        <span className="bg-foreground font-medium text-background p-1 rounded-sm">
+        <span className="bg-foreground font-medium text-background py-1 px-1.5 rounded-sm">
           {labelName ?? name ?? labelhash}
         </span>
       )
@@ -38,7 +37,6 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
     accessorKey: 'expiryDate',
     header: ({ column }) => (
       <SortButton
-        className="text-muted-foreground"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
       >
@@ -63,7 +61,6 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
       <SortButton
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         sortDirection={column.getIsSorted()}
-        className="text-muted-foreground"
       >
         Role holders
       </SortButton>
@@ -76,7 +73,7 @@ const columns: ColumnDef<RegistryLabelRow>[] = [
   {
     accessorKey: 'labelhash',
     enableSorting: false,
-    header: () => <span className="text-muted-foreground">Label hash</span>,
+    header: 'Label hash',
     cell: ({ row }) => (
       <span className="font-mono text-muted-foreground">
         {row.original.labelhash}

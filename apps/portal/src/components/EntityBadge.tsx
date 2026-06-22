@@ -62,11 +62,14 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 // (see src/styles/index.css @layer base).
 const pillBase =
   'inline-flex items-center h-5 px-1 rounded w-fit ' +
-  'font-mono text-sm font-medium leading-none whitespace-nowrap no-underline'
+  'font-mono text-sm leading-none whitespace-nowrap no-underline'
+
+const pillWeight = (variant: EntityVariant) =>
+  variant === 'name' ? 'font-medium' : 'font-normal'
 
 // Standalone pill: self-contained bg + text (used when there are no chips).
 const pillClass = (variant: EntityVariant, className?: string) =>
-  cn(pillBase, variantClass[variant], className)
+  cn(pillBase, pillWeight(variant), variantClass[variant], className)
 
 const chipClass = cn(
   'inline-flex items-center cursor-pointer transition-colors',
@@ -78,24 +81,6 @@ const chipClass = cn(
   // Active: same border+text as hover, fill steps up to neutral-1
   'active:bg-neutral-1 active:border-neutral-5 active:text-neutral-8',
   'text-[11px] font-normal no-underline',
-)
-
-// Chip overlay reveal — opacity + pointer-events (not display:none) so chips
-// stay in the tab order and a11y tree. Reveals on mouse hover and on
-// keyboard focus-within the badge group.
-const chipOverlayBase = cn(
-  'absolute bottom-full pb-2 flex flex-row gap-1 z-50',
-  'opacity-0 pointer-events-none transition-opacity',
-  'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
-  'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
-)
-
-// Default variant only: also show on touch devices, since copy is the
-// primary affordance for read-only fields and there's no badge-level tap
-// fallback the way other variants have a link.
-const chipOverlayAlwaysOnTouch = cn(
-  '[@media(hover:none)]:opacity-100',
-  '[@media(hover:none)]:pointer-events-auto',
 )
 
 const CopyChip = ({
@@ -219,34 +204,6 @@ export const EntityBadge = ({
       />
     ) : null
 
-  // Default variant: plain truncatable text with a floating Copy chip above
-  // it on hover/focus. Used for read-only key-value displays where copy is
-  // the primary affordance; no link, no animated bg.
-  if (variant === 'default') {
-    return (
-      <div className="relative group/entity inline-flex min-w-0">
-        {derivedCopyValue && (
-          <div
-            className={cn(chipOverlayBase, chipOverlayAlwaysOnTouch, 'left-0')}
-          >
-            <CopyChip value={derivedCopyValue} />
-          </div>
-        )}
-        <span
-          className={cn(
-            'block min-w-0 truncate font-mono text-sm font-medium tracking-tight',
-            'px-1 rounded border-[0.5px] border-entity-border',
-            variantClass[variant],
-            className,
-          )}
-        >
-          {labelContent}
-          {children}
-        </span>
-      </div>
-    )
-  }
-
   const hasChips = !!(
     name ||
     ownerName ||
@@ -259,7 +216,7 @@ export const EntityBadge = ({
 
   if (!hasChips) {
     return (
-      <span className={pillClass(variant, className)}>
+      <span className={cn(pillClass(variant, className), 'h-6 rounded')}>
         {labelContent}
         {children}
       </span>
@@ -271,6 +228,7 @@ export const EntityBadge = ({
   // which work with a button + navigate() pattern.
   const primaryWrapperClass =
     'inline-flex items-center gap-2 py-4 px-2 rounded cursor-pointer text-left no-underline'
+
   const renderPrimary = () => {
     if (variant === 'name' && name) {
       return (
@@ -388,6 +346,7 @@ export const EntityBadge = ({
       <span
         className={cn(
           pillBase,
+          pillWeight(variant),
           'relative z-10',
           variantTextClass[variant],
           // Avatar sits flush against the left edge — remove left padding
@@ -506,7 +465,7 @@ export const EntityBadge = ({
 
         {derivedCopyValue && <CopyChip value={derivedCopyValue} />}
 
-        {etherscanHref && (
+        {variant !== 'default' && etherscanHref && (
           <a
             href={etherscanHref}
             target="_blank"

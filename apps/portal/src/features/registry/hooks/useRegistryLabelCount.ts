@@ -3,7 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 class GetRegistryLabelCountError extends TaggedError(
@@ -25,6 +25,7 @@ export type RegistryLabel = {
 export type RegistrySummary = {
   labelCount: number
   createdAt: number
+  creationTransactionHash: Hash | null
   labels: RegistryLabel[]
 }
 
@@ -38,6 +39,7 @@ const getRegistryLabelCount = ResultFn(async function* ({
       registry: {
         labelCount: number
         createdAt: number
+        creationEvent: { edges: { node: { transactionHash: Hash } }[] }
         labels: RegistryLabel[]
       } | null
     }>(
@@ -46,6 +48,17 @@ const getRegistryLabelCount = ResultFn(async function* ({
           registry(address: $address) {
             labelCount
             createdAt
+            creationEvent: eventConnection(
+              first: 1
+              orderBy: timestamp
+              orderDirection: asc
+            ) {
+              edges {
+                node {
+                  transactionHash
+                }
+              }
+            }
             labels(first: $first, orderBy: name, orderDirection: asc) {
               name
               labelName
@@ -61,7 +74,17 @@ const getRegistryLabelCount = ResultFn(async function* ({
 
   // null = indexer has no record for this registry address (not yet indexed,
   // or contract doesn't exist). Distinct from a registry with 0 labels.
-  return ok(registry as RegistrySummary | null)
+  if (!registry) return ok(null)
+
+  const summary: RegistrySummary = {
+    labelCount: registry.labelCount,
+    createdAt: registry.createdAt,
+    creationTransactionHash:
+      registry.creationEvent?.edges[0]?.node.transactionHash ?? null,
+    labels: registry.labels,
+  }
+
+  return ok(summary)
 })
 
 const getRegistryLabelCountQueryKey = createQueryKey<
