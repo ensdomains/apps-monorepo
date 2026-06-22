@@ -1820,6 +1820,10 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
+#: src/features/register-v2/workflow/registering/RegisteringStep.tsx
+msgid "Registering name"
+msgstr "Registering name"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Registration"
 msgstr "Registration"

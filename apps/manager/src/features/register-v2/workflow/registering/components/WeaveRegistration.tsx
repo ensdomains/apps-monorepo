@@ -1,14 +1,15 @@
 import { Calligraph } from 'calligraph'
 import { type ReactNode, useMemo, useState } from 'react'
+import { NameFill } from '@/components/WeaveLoader/NameFill'
+import { HOUNDSTOOTH_SHIMMER_OPTIONS } from '@/components/WeaveLoader/presets'
+import type { WeaveShaderOptions } from '@/components/WeaveLoader/shader/useWeaveShader'
+import { WeaveCanvas } from '@/components/WeaveLoader/WeaveCanvas'
 import {
-  HOUNDSTOOTH_SHIMMER_OPTIONS,
-  NameFill,
-  stepLabelForProgress,
   WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
-  WeaveCanvas,
-  type WeaveShaderOptions,
   weaveRegistrationNameFillFor,
-} from '@/components/WeaveLoader'
+} from '@/components/WeaveLoader/weaveNameFill'
+import { stepLabelForProgress } from '@/components/WeaveLoader/weaveSteps'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { cn } from '@/lib/utils'
 
 export interface WeaveRegistrationProps {
@@ -37,11 +38,23 @@ export const WeaveRegistration = ({
   )
   const singleLineName = nameLineCount <= 1
 
+  // Honor reduced-motion in the live path: kill the shimmer + the WebGL rAF loop
+  // (render-once) and disable the name fill transition.
+  const reducedMotion = usePrefersReducedMotion()
+  const resolvedWeaveOptions = useMemo<WeaveShaderOptions>(
+    () =>
+      reducedMotion
+        ? { ...weaveOptions, shimmer: false, animated: false }
+        : weaveOptions,
+    [reducedMotion, weaveOptions],
+  )
+  const nameAnimate = animate && !reducedMotion
+
   return (
     <div className="flex w-full flex-col items-center gap-8">
       <div className="inline-flex min-h-40 w-full items-stretch gap-12 max-md:flex-col max-md:items-center max-md:gap-8 max-md:text-center">
         <div className="size-40 shrink-0 overflow-hidden rounded-2xl max-md:size-32">
-          <WeaveCanvas options={weaveOptions} />
+          <WeaveCanvas options={resolvedWeaveOptions} />
         </div>
 
         <div className="flex h-full min-h-40 w-[333px] min-w-0 flex-col max-md:w-full">
@@ -63,7 +76,7 @@ export const WeaveRegistration = ({
             style={{ minHeight: WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX }}
           />
           <NameFill
-            animate={animate}
+            animate={nameAnimate}
             className="mt-[18px] w-full shrink-0 whitespace-normal break-all"
             name={name}
             onLineCountChange={setNameLineCount}

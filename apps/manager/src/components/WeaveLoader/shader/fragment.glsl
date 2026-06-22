@@ -38,11 +38,10 @@ uniform float u_weftStartPos;
 uniform float u_weftEndPos;
 uniform float u_gradSteps;        // 0 or 1 = smooth; >= 2 = discrete bands
 
-// Shimmer: 0 = off, 1 = on. u_shimmerTime = time for band step (pausable); u_shimmerPhase = band position 0–1 (drives UI slider).
+// Shimmer: 0 = off, 1 = on. u_shimmerTime drives the band position (pausable); band sweeps over time.
 uniform float u_shimmer;
 uniform float u_shimmerSpeed;
 uniform float u_shimmerTime;      // Time used for shimmer (frozen when paused)
-uniform float u_shimmerPhase;     // Band position 0–1 (updates from JS when playing)
 uniform float u_shimmerWidth;
 uniform float u_shimmerIntensity;
 uniform float u_shimmerPosition;
@@ -513,10 +512,10 @@ void main() {
       float sinA = sin(angle);
       float period = gridSize * (aspect * abs(cosA) + abs(sinA));
       period = max(period, 1.0);
-      float positionOffset = u_shimmerPosition * period;
-      // Band position from JS (u_shimmerPhase) so UI slider can show and pause at current position.
+      // Band center advances by whole shots/picks over time (pausable via u_shimmerTime);
+      // u_shimmerPosition (0–1) offsets the starting position around the period.
       float timeStep = floor(u_shimmerTime * speed);
-      float bandCenter = u_shimmerPhase * period;
+      float bandCenter = mod(timeStep + u_shimmerPosition * period, period);
       float along = cellID.x * cosA + cellID.y * sinA;
       float phase = mod(along - bandCenter + 0.5 * period, period) - 0.5 * period;
       float d = abs(phase);

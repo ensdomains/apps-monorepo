@@ -1,8 +1,8 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import fragmentSource from './shader/fragment.glsl?raw'
+import fragmentSource from './shader/fragment.prod.glsl?raw'
 import {
   useWeaveShader,
   type WeaveShaderOptions,
@@ -14,6 +14,25 @@ export interface WeaveCanvasProps {
   className?: string
 }
 
+/**
+ * Static, dependency-free stand-in shown when WebGL is unavailable or the shader
+ * fails to compile (disabled WebGL, GPU blocklist, privacy modes, old mobile
+ * browsers, transient context loss). A boring brand-tinted gradient — never the
+ * shader error log — so the registration flow degrades gracefully.
+ */
+export function WeaveFallback({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={cn('absolute inset-0', className)}
+      style={{
+        backgroundImage:
+          'linear-gradient(135deg, #e9f2f8 0%, #9fcbe4 45%, #cfe6f3 70%, #e9f2f8 100%)',
+      }}
+    />
+  )
+}
+
 function WeaveCanvasInner({ options, className }: WeaveCanvasProps) {
   const { canvasRef, containerRef, error } = useWeaveShader(
     vertexSource,
@@ -21,17 +40,24 @@ function WeaveCanvasInner({ options, className }: WeaveCanvasProps) {
     options,
   )
 
+  // Surface shader/WebGL errors to developers only; production users see the
+  // static fallback below instead of raw compiler output.
+  useEffect(() => {
+    if (error && import.meta.env.DEV) {
+      console.error('[WeaveCanvas] WebGL/shader error:', error)
+    }
+  }, [error])
+
   return (
     <div
       className={cn('relative h-full w-full overflow-hidden', className)}
       ref={containerRef}
     >
-      <canvas className="block h-full w-full" ref={canvasRef} />
-      {error ? (
-        <div className="absolute inset-x-0 bottom-0 max-h-[120px] overflow-y-auto bg-black/70 p-2 font-mono text-red-300 text-xs leading-snug">
-          {error}
-        </div>
-      ) : null}
+      <canvas
+        className={cn('block h-full w-full', error && 'invisible')}
+        ref={canvasRef}
+      />
+      {error ? <WeaveFallback /> : null}
     </div>
   )
 }

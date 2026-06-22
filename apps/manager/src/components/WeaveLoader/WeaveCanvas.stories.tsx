@@ -3,11 +3,13 @@ import {
   JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
   JACQUARD_SHADERBOX_2_OPTIONS,
 } from './presets'
-import { WeaveCanvas } from './WeaveCanvas'
+// Stories exercise the full sandbox shader (ENS-mark / hover / stitch / all blend
+// modes). The live app ships the trimmed WeaveCanvas + fragment.prod.glsl.
+import { WeaveCanvasSandbox } from './WeaveCanvasSandbox'
 
 const meta = {
   title: 'Components/WeaveLoader/WeaveCanvas',
-  component: WeaveCanvas,
+  component: WeaveCanvasSandbox,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
   decorators: [
@@ -17,7 +19,7 @@ const meta = {
       </div>
     ),
   ],
-} satisfies Meta<typeof WeaveCanvas>
+} satisfies Meta<typeof WeaveCanvasSandbox>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -52,10 +54,12 @@ export const CoarseGrid: Story = {
 
 /** Jacquard shaderbox 2 — dye-bleed all-colorways with bias play loop (44s). */
 export const JacquardShaderbox2: Story = {
-  render: () => <WeaveCanvas options={JACQUARD_SHADERBOX_2_OPTIONS} />,
+  render: () => <WeaveCanvasSandbox options={JACQUARD_SHADERBOX_2_OPTIONS} />,
 }
 
 /** Jacquard pattern 6 — dye bleed with bias + noise X play loops. */
 export const JacquardPattern6DyeBleed: Story = {
-  render: () => <WeaveCanvas options={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS} />,
+  render: () => (
+    <WeaveCanvasSandbox options={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS} />
+  ),
 }

@@ -66,6 +66,13 @@ export interface WeaveShaderOptions {
   colorwayAnimRandomizeOnLoop?: boolean
   patterns?: WeavePattern[]
   onFpsChange?: (fps: number) => void
+  /**
+   * Drive a continuous requestAnimationFrame loop. Default `true`.
+   * When `false`, the canvas renders a single frame on mount and again only
+   * after a resize or option change — no per-frame rAF. Use for static weaves
+   * (no shimmer / colorway animation) and for reduced-motion.
+   */
+  animated?: boolean
 }
 
 type UniformLocs = ReturnType<typeof getUniformLocs>
@@ -103,7 +110,6 @@ function getUniformLocs(gl: WebGLRenderingContext, program: WebGLProgram) {
     shimmer: u('u_shimmer'),
     shimmerSpeed: u('u_shimmerSpeed'),
     shimmerTime: u('u_shimmerTime'),
-    shimmerPhase: u('u_shimmerPhase'),
     shimmerWidth: u('u_shimmerWidth'),
     shimmerIntensity: u('u_shimmerIntensity'),
     shimmerPosition: u('u_shimmerPosition'),
@@ -261,6 +267,11 @@ export function useWeaveShader(
   onFpsChangeRef.current = options.onFpsChange
   const patterns = options.patterns ?? PATTERNS
 
+  // Render-loop control. `ensureLoopRef` either keeps/starts the rAF loop (when
+  // animation is wanted and the canvas is visible + on-screen) or draws a single
+  // frame to reflect the latest options when static.
+  const ensureLoopRef = useRef<(() => void) | null>(null)
+
   useEffect(() => {
     onFpsChangeRef.current?.(fps)
   }, [fps])
@@ -270,15 +281,20 @@ export function useWeaveShader(
     const container = containerRef.current
     if (!canvas || !container) return undefined
 
+    const contextAttrs: WebGLContextAttributes = {
+      alpha: true,
+      antialias: false,
+      powerPreference: 'low-power',
+    }
     const gl =
-      (canvas.getContext('webgl', {
-        alpha: true,
-        preserveDrawingBuffer: true,
-      }) as WebGLRenderingContext | null) ||
-      (canvas.getContext('experimental-webgl', {
-        alpha: true,
-        preserveDrawingBuffer: true,
-      }) as WebGLRenderingContext | null)
+      (canvas.getContext(
+        'webgl',
+        contextAttrs,
+      ) as WebGLRenderingContext | null) ||
+      (canvas.getContext(
+        'experimental-webgl',
+        contextAttrs,
+      ) as WebGLRenderingContext | null)
     if (!gl) {
       setError('WebGL is not supported')
       return undefined
@@ -290,6 +306,10 @@ export function useWeaveShader(
     let patternTexture: WebGLTexture | null = null
     let animationId: number | null = null
     let resizeObserver: ResizeObserver | null = null
+    let intersectionObserver: IntersectionObserver | null = null
+    let pageVisible =
+      typeof document === 'undefined' || document.visibilityState !== 'hidden'
+    let inView = true
     const startTime = Date.now()
     let lastFrameTime = Date.now()
     let frameCount = 0
@@ -308,6 +328,8 @@ export function useWeaveShader(
       canvas.style.width = `${rect.width}px`
       canvas.style.height = `${rect.height}px`
       gl.viewport(0, 0, w, h)
+      // When static (no rAF loop), redraw immediately to fill the new size.
+      if (animationId == null) render(false)
     }
 
     const setupGeometry = () => {
@@ -316,9 +338,10 @@ export function useWeaveShader(
       gl.bufferData(gl.ARRAY_BUFFER, QUAD_POSITIONS, gl.STATIC_DRAW)
     }
 
-    const render = () => {
+    const render = (countFrame = false) => {
       if (!program || !uniformLocs) return
       const s = optsRef.current
+      const animatedNow = s.animated !== false
       // biome-ignore lint/correctness/useHookAtTopLevel: gl.useProgram is a WebGL API, not a React hook.
       gl.useProgram(program)
       const time = (Date.now() - startTime) / 1000
@@ -344,7 +367,6 @@ export function useWeaveShader(
 
       gl.uniform1f(uniformLocs.time, time)
       if (uniformLocs.shimmerTime) gl.uniform1f(uniformLocs.shimmerTime, time)
-      if (uniformLocs.shimmerPhase) gl.uniform1f(uniformLocs.shimmerPhase, 0)
       gl.uniform2f(uniformLocs.resolution, canvas.width, canvas.height)
       if (uniformLocs.stageTranslateX)
         gl.uniform1f(uniformLocs.stageTranslateX, 0)
@@ -417,7 +439,7 @@ export function useWeaveShader(
       gl.uniform1f(uniformLocs.gradSteps, s.gradSteps)
       gl.uniform1f(
         uniformLocs.revealStartTime,
-        s.skipWeaveInReveal ? time - 10_000 : revealStartTime,
+        s.skipWeaveInReveal || !animatedNow ? time - 10_000 : revealStartTime,
       )
       gl.uniform1f(uniformLocs.rectAspect, s.rectAspect)
       gl.uniform1f(uniformLocs.cornerRadius, s.cornerRadius)
@@ -576,6 +598,7 @@ export function useWeaveShader(
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
 
+      if (!countFrame) return
       frameCount++
       const now = Date.now()
       const elapsed = now - lastFrameTime
@@ -586,9 +609,38 @@ export function useWeaveShader(
       }
     }
 
-    const animate = () => {
-      render()
-      animationId = requestAnimationFrame(animate)
+    // Animation is wanted only when the consumer opted in AND the canvas is
+    // both page-visible and on-screen. Otherwise we stay static (render once).
+    const wantsAnimation = () =>
+      optsRef.current.animated !== false && pageVisible && inView
+
+    const loop = () => {
+      render(true)
+      if (wantsAnimation()) {
+        animationId = requestAnimationFrame(loop)
+      } else {
+        animationId = null
+      }
+    }
+
+    // Keep the loop running when animation is wanted; otherwise draw a single
+    // frame so the canvas reflects the latest resize / option changes.
+    const ensureLoop = () => {
+      if (wantsAnimation()) {
+        if (animationId == null) animationId = requestAnimationFrame(loop)
+      } else {
+        if (animationId != null) {
+          cancelAnimationFrame(animationId)
+          animationId = null
+        }
+        render(false)
+      }
+    }
+    ensureLoopRef.current = ensureLoop
+
+    const onVisibilityChange = () => {
+      pageVisible = document.visibilityState !== 'hidden'
+      ensureLoop()
     }
 
     try {
@@ -630,19 +682,36 @@ export function useWeaveShader(
       window.addEventListener('resize', resize)
       resizeObserver = new ResizeObserver(() => resize())
       resizeObserver.observe(container)
-      animate()
+
+      // Pause the loop when the tab is hidden or the canvas scrolls off-screen.
+      intersectionObserver = new IntersectionObserver(
+        (entries) => {
+          inView = entries.some((e) => e.isIntersecting)
+          ensureLoop()
+        },
+        { threshold: 0 },
+      )
+      intersectionObserver.observe(container)
+      document.addEventListener('visibilitychange', onVisibilityChange)
+
+      ensureLoop()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
 
-    return () => {
-      if (resizeObserver) {
-        try {
-          resizeObserver.disconnect()
-        } catch {
-          /* noop */
-        }
+    const safeDisconnect = (observer: { disconnect: () => void } | null) => {
+      try {
+        observer?.disconnect()
+      } catch {
+        /* noop */
       }
+    }
+
+    return () => {
+      ensureLoopRef.current = null
+      safeDisconnect(resizeObserver)
+      safeDisconnect(intersectionObserver)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('resize', resize)
       if (animationId) cancelAnimationFrame(animationId)
       if (patternTexture) gl.deleteTexture(patternTexture)
@@ -655,6 +724,14 @@ export function useWeaveShader(
     const cleanup = run()
     return () => cleanup?.()
   }, [run])
+
+  // When the canvas is static (no rAF loop), option changes won't be picked up
+  // by a running frame, so re-evaluate the loop after every render. This either
+  // keeps the existing loop, (re)starts it if `animated` flipped on, or draws a
+  // single fresh frame to reflect the new options.
+  useEffect(() => {
+    ensureLoopRef.current?.()
+  })
 
   return { canvasRef, containerRef, error, fps }
 }

@@ -47,10 +47,60 @@ const MIN_SPEED_PCT_PER_SEC = 0.25
 const MIN_SPEED_CHARS_PER_SEC = 0.04
 const COMPLETE_RATE = 4
 const COMPLETE_MIN_SPEED = 30
+// Cap React state updates to ~30fps. The progress value keeps advancing every
+// rAF tick (in a ref), but we only re-render — which re-lays-out every glyph in
+// NameFill — at most this often, plus a guaranteed final frame at each cap.
+const EMIT_INTERVAL_MS = 1000 / 30
 
 export interface ForwardProgress {
   progress: number
   fillDone: boolean
+}
+
+interface AdvanceInputs {
+  stageProgress: number
+  isComplete: boolean
+  nameLength: number
+  cooldownRemainingSeconds: number | null
+}
+
+/**
+ * Pure per-frame step. Returns the next displayed value and the ceiling (`cap`)
+ * it is approaching, so the caller can force a final emit when the cap is hit.
+ */
+function advance(
+  inputs: AdvanceInputs,
+  current: number,
+  dt: number,
+): { next: number; cap: number } {
+  const { stageProgress, isComplete, nameLength, cooldownRemainingSeconds } =
+    inputs
+
+  if (isComplete) {
+    const speed = Math.max((100 - current) * COMPLETE_RATE, COMPLETE_MIN_SPEED)
+    return { next: Math.min(100, current + speed * dt), cap: 100 }
+  }
+
+  const pctPerChar = 100 / Math.max(1, nameLength)
+  const minSpeed = Math.max(
+    MIN_SPEED_PCT_PER_SEC,
+    MIN_SPEED_CHARS_PER_SEC * pctPerChar,
+  )
+
+  if (cooldownRemainingSeconds !== null && cooldownRemainingSeconds > 0) {
+    const cap = POST_COOLDOWN_DISPLAY
+    if (current >= cap) return { next: current, cap }
+    const speed = Math.max(
+      (cap - current) / Math.max(cooldownRemainingSeconds, 0.5),
+      minSpeed,
+    )
+    return { next: Math.min(cap, current + speed * dt), cap }
+  }
+
+  const cap = displayCap(stageProgress)
+  if (current >= cap) return { next: current, cap }
+  const speed = Math.max((cap - current) * GAP_CLOSE_FRACTION_PER_SEC, minSpeed)
+  return { next: Math.min(cap, current + speed * dt), cap }
 }
 
 export function useForwardProgress(
@@ -77,55 +127,24 @@ export function useForwardProgress(
   useEffect(() => {
     let raf = 0
     let last = performance.now()
+    let lastEmit = 0
 
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.1)
       last = now
 
-      const {
-        stageProgress: stage,
-        isComplete: complete,
-        nameLength: chars,
-        cooldownRemainingSeconds: cooldownLeft,
-      } = inputsRef.current
       const current = displayedRef.current
-      let next = current
-
-      const pctPerChar = 100 / Math.max(1, chars)
-      const minSpeed = Math.max(
-        MIN_SPEED_PCT_PER_SEC,
-        MIN_SPEED_CHARS_PER_SEC * pctPerChar,
-      )
-
-      if (complete) {
-        const speed = Math.max(
-          (100 - current) * COMPLETE_RATE,
-          COMPLETE_MIN_SPEED,
-        )
-        next = Math.min(100, current + speed * dt)
-      } else if (cooldownLeft !== null && cooldownLeft > 0) {
-        const target = POST_COOLDOWN_DISPLAY
-        if (current < target) {
-          const speed = Math.max(
-            (target - current) / Math.max(cooldownLeft, 0.5),
-            minSpeed,
-          )
-          next = Math.min(target, current + speed * dt)
-        }
-      } else {
-        const target = displayCap(stage)
-        if (current < target) {
-          const speed = Math.max(
-            (target - current) * GAP_CLOSE_FRACTION_PER_SEC,
-            minSpeed,
-          )
-          next = Math.min(target, current + speed * dt)
-        }
-      }
+      const { next, cap } = advance(inputsRef.current, current, dt)
 
       if (next !== current) {
         displayedRef.current = next
-        setDisplayed(next)
+        // Throttle re-renders to ~30fps, but always commit the frame that
+        // reaches the current ceiling so the fill (and fillDone) settle exactly.
+        const reachedCap = next >= cap - 1e-4
+        if (reachedCap || now - lastEmit >= EMIT_INTERVAL_MS) {
+          lastEmit = now
+          setDisplayed(next)
+        }
       }
       raf = requestAnimationFrame(tick)
     }

@@ -4,6 +4,22 @@ export type GlyphMetrics = {
   lineIndex: number
 }
 
+/**
+ * Split a string into grapheme clusters so emoji, astral characters, and
+ * combining marks count as one visual unit. Falls back to code points
+ * (`Array.from`) where `Intl.Segmenter` is unavailable. Measurement and
+ * rendering MUST use the same segmentation, otherwise glyph counts diverge.
+ */
+export function segmentGraphemes(value: string): string[] {
+  if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+    const segmenter = new Intl.Segmenter(undefined, {
+      granularity: 'grapheme',
+    })
+    return Array.from(segmenter.segment(value), (s) => s.segment)
+  }
+  return Array.from(value)
+}
+
 export function charFillFraction(fillPosition: number, index: number): number {
   return Math.max(0, Math.min(1, fillPosition - index))
 }
@@ -37,6 +53,7 @@ function groupLineIndices(midYs: number[]): number[] {
 export function measureGlyphMetrics(
   probe: HTMLElement,
   textNode: Text,
+  segments: string[],
 ): GlyphMetrics[] {
   const probeBox = probe.getBoundingClientRect()
   const range = document.createRange()
@@ -47,9 +64,15 @@ export function measureGlyphMetrics(
     midY: number
   }[] = []
 
-  for (let index = 0; index < textNode.length; index += 1) {
-    range.setStart(textNode, index)
-    range.setEnd(textNode, index + 1)
+  // Walk grapheme clusters, advancing by each cluster's UTF-16 length so the
+  // range offsets stay aligned with the text node's code units.
+  let offset = 0
+  for (const segment of segments) {
+    const start = offset
+    const end = offset + segment.length
+    offset = end
+    range.setStart(textNode, start)
+    range.setEnd(textNode, end)
     const box = range.getBoundingClientRect()
     positions.push({
       x: box.left - probeBox.left,

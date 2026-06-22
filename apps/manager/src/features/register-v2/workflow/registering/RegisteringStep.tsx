@@ -2,9 +2,8 @@ import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
 import { useBlocker } from '@tanstack/react-router'
 import { Calligraph } from 'calligraph'
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { WeaveProgressBar } from '@/components/WeaveLoader'
 import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
@@ -12,10 +11,32 @@ import { NotificationSettings } from './components/NotificationSettings'
 import { RegistrationCompletionBanner } from './components/RegistrationCompletionBanner'
 import { RegistrationDetails } from './components/RegistrationDetails'
 import { RegistrationProgressBar } from './components/RegistrationProgressBar'
-import { WeaveRegistration } from './components/WeaveRegistration'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 import { useForwardProgress } from './lib/useForwardProgress'
+
+// The WebGL weave loader (and its shader) is only needed once a registration tx
+// is actually pending. Lazy-load it so the route doesn't pay for the shader
+// while the user is still on notification settings / idle.
+const WeaveRegistration = lazy(() =>
+  import('./components/WeaveRegistration').then((m) => ({
+    default: m.WeaveRegistration,
+  })),
+)
+const WeaveProgressBar = lazy(() =>
+  import('@/components/WeaveLoader/WeaveProgressBar').then((m) => ({
+    default: m.WeaveProgressBar,
+  })),
+)
+
+/** Lightweight CSS-only stand-in shown while the weave chunk loads. */
+function WeaveTrackPlaceholder({ className }: { className?: string }) {
+  return (
+    <div
+      className={`h-3 w-full rounded-full bg-ens-gray-two ${className ?? ''}`}
+    />
+  )
+}
 
 const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
   value: state?.value ?? 'idle',
@@ -123,12 +144,14 @@ export const RegisteringStep = () => {
   if (showCenteredLoader) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 max-md:bg-white">
-        <WeaveRegistration
-          animate={false}
-          description={holdForFill ? undefined : stageDescription}
-          name={fullName}
-          progress={fillProgress}
-        />
+        <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
+          <WeaveRegistration
+            animate={false}
+            description={holdForFill ? undefined : stageDescription}
+            name={fullName}
+            progress={fillProgress}
+          />
+        </Suspense>
       </div>
     )
   }
@@ -150,11 +173,15 @@ export const RegisteringStep = () => {
                 >
                   {`${_(msg`Registering name`)}${registeringDots}`}
                 </Calligraph>
-                <WeaveProgressBar
-                  animate={false}
-                  className="w-full max-w-2xl"
-                  progress={fillProgress / 100}
-                />
+                <Suspense
+                  fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}
+                >
+                  <WeaveProgressBar
+                    animate={false}
+                    className="w-full max-w-2xl"
+                    progress={fillProgress / 100}
+                  />
+                </Suspense>
               </div>
             ))
             .with('success', () => <RegistrationCompletionBanner />)

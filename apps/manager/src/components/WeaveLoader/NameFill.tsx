@@ -1,6 +1,12 @@
 'use client'
 
-import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { cn } from '@/lib/utils'
 import { FilledGlyph } from './FilledGlyph'
 import {
@@ -8,6 +14,7 @@ import {
   type GlyphMetrics,
   lineCountFromMetrics,
   measureGlyphMetrics,
+  segmentGraphemes,
 } from './nameFillLayout'
 
 export interface NameFillProps {
@@ -89,7 +96,8 @@ export function NameFill({
   onLineCountChange,
 }: NameFillProps) {
   const p = Math.max(0, Math.min(1, progress))
-  const fillPosition = p * name.length
+  const chars = useMemo(() => segmentGraphemes(name), [name])
+  const fillPosition = p * chars.length
   const gradient = isGradientFill(fill)
   const wraps = className?.includes('break-all') ?? false
 
@@ -114,7 +122,7 @@ export function NameFill({
     const textNode = probe.firstChild
     if (!(textNode instanceof Text) || textNode.data !== name) return
 
-    const next = measureGlyphMetrics(probe, textNode)
+    const next = measureGlyphMetrics(probe, textNode, chars)
     setMetrics(next)
     onLineCountChangeRef.current?.(lineCountFromMetrics(next))
   }
@@ -158,7 +166,6 @@ export function NameFill({
     )
   }
 
-  const chars = Array.from(name)
   const layoutReady = metrics.length === chars.length
 
   return (

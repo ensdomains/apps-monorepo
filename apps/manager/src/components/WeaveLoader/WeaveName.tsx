@@ -110,7 +110,10 @@ export function WeaveName({
             transition: animate ? 'clip-path 0.45s ease' : 'none',
           }}
         >
-          <WeaveCanvas className="h-full w-full" options={weaveOptions} />
+          <WeaveCanvas
+            className="h-full w-full"
+            options={{ ...weaveOptions, animated: animate }}
+          />
         </span>
       ) : null}
     </span>
