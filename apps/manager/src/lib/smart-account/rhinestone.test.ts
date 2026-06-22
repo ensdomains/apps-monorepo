@@ -22,6 +22,22 @@ const { MOCK_OWNER_ADDRESS, MOCK_SMART_ACCOUNT_ADDRESS } = vi.hoisted(() => ({
     '0x1111111111111111111111111111111111111111' as const,
 }))
 
+// Hoisted JWT-auth callback stubs so the JWT-mode test can assert the SDK was
+// constructed with these exact callbacks.
+const { MOCK_ACCESS_TOKEN_FN, MOCK_EXTENSION_TOKEN_FN } = vi.hoisted(() => ({
+  MOCK_ACCESS_TOKEN_FN: vi.fn(),
+  MOCK_EXTENSION_TOKEN_FN: vi.fn(),
+}))
+
+// The manager wrapper builds JWT-auth callbacks via this module when the
+// experimental_jwt flag is on. Mock it so we don't reach the real backend.
+vi.mock('./sponsorship-jwt', () => ({
+  createJwtAuthCallbacks: vi.fn(() => ({
+    accessToken: MOCK_ACCESS_TOKEN_FN,
+    getIntentExtensionToken: MOCK_EXTENSION_TOKEN_FN,
+  })),
+}))
+
 // Mock the Rhinestone SDK. We surface the `RhinestoneSDK` class (used by
 // the package's `initializeRhinestoneAccount`) plus the
 // `walletClientToAccount` helper (used by the manager-side wrapper to
@@ -81,6 +97,9 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     vi.clearAllMocks()
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
+    // Default the JWT sponsorship flag off — the API-key path is the baseline.
+    // The JWT-mode test opts in explicitly.
+    vi.stubEnv('VITE_FF_EXPERIMENTAL_JWT', 'false')
   })
 
   afterEach(() => {
@@ -119,6 +138,25 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     // Warp-only: the SDK is constructed with just the API key — no bundler.
     expect(RhinestoneSDK).toHaveBeenCalledWith({
       apiKey: 'test-rhinestone-key',
+    })
+  })
+
+  it('builds the SDK in JWT mode when VITE_FF_EXPERIMENTAL_JWT is true', async () => {
+    vi.stubEnv('VITE_FF_EXPERIMENTAL_JWT', 'true')
+
+    await initializeRhinestoneAccount({
+      walletClient: mockWalletClient,
+    })
+
+    // JWT mode swaps the static API key for the experimental_jwt auth
+    // callbacks — the SDK must be constructed with the token callbacks and
+    // never a raw `apiKey`.
+    expect(RhinestoneSDK).toHaveBeenCalledWith({
+      auth: {
+        mode: 'experimental_jwt',
+        accessToken: MOCK_ACCESS_TOKEN_FN,
+        getIntentExtensionToken: MOCK_EXTENSION_TOKEN_FN,
+      },
     })
   })
 

@@ -8,6 +8,7 @@
   "include": [
     "src/hc.ts",
     "src/types/index.ts",
+    "src/types/rhinestone-env.d.ts",
     "worker-configuration.gen.d.ts"
   ]
   // "include": ["src/hc.ts", "worker-configuration.gen.d.ts", "src/**/*"]

@@ -30,6 +30,7 @@ import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
 import { toast } from 'sonner'
 import type { Account, Address, WalletClient } from 'viem'
 import { customSepolia } from '@/lib/wagmi'
+import { createJwtAuthCallbacks } from './sponsorship-jwt'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
@@ -130,11 +131,20 @@ export async function initializeRhinestoneAccount(
   })
   const env = resolveSdkEnv()
 
+  // JWT-mode sponsorship (flagged). When on, the SDK authenticates each
+  // sponsored intent through the api-worker `shouldSponsor` predicate instead
+  // of a static API key. Off → existing API-key behaviour is unchanged.
+  const jwtAuth =
+    import.meta.env.VITE_FF_EXPERIMENTAL_JWT === 'true'
+      ? createJwtAuthCallbacks()
+      : undefined
+
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
     eoaAddress,
     chain: customSepolia,
     rhinestoneApiKey: env.rhinestoneApiKey,
+    jwtAuth,
     rhinestoneEndpointUrl: env.rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls: env.rhinestoneCustomRpcUrls,
   }

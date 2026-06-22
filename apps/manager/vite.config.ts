@@ -5,7 +5,60 @@ import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+/**
+ * Dev-only: send `Cache-Control: no-store` on the SSR HTML document.
+ *
+ * Vite serves optimised deps as `immutable`, but the document itself has no
+ * caching headers, so a normal browser can heuristically reuse a stale HTML
+ * shell that points at dep chunk hashes the server has since rotated — which
+ * loads as a blank page (incognito has no cache, so it always works). Forcing
+ * `no-store` on the document guarantees every load fetches fresh HTML carrying
+ * the current `?v=hash` references. Scoped to `serve`; never ships to the
+ * built worker, so production caching is untouched.
+ */
+function devNoStoreHtml(): Plugin {
+  return {
+    name: 'dev-no-store-html',
+    apply: 'serve',
+    configureServer(server) {
+      // Proxied upstreams (see `server.proxy`) own their own caching headers —
+      // never rewrite those. This plugin only concerns the SSR document.
+      const PROXIED_PREFIXES = [
+        '/api',
+        '/rpc',
+        '/bundler',
+        '/paymaster',
+        '/orchestrator',
+        '/indexer',
+      ]
+      server.middlewares.use((req, res, next) => {
+        const accept = req.headers.accept ?? ''
+        const url = req.url ?? ''
+        const isProxied = PROXIED_PREFIXES.some(
+          (prefix) => url === prefix || url.startsWith(`${prefix}/`),
+        )
+        if (
+          !isProxied &&
+          req.method === 'GET' &&
+          accept.includes('text/html')
+        ) {
+          // Set now, and re-assert on writeHead: the cloudflare SSR middleware
+          // produces the response downstream and merges (not clears) headers,
+          // but re-asserting guards against a writeHead that omits ours.
+          res.setHeader('Cache-Control', 'no-store')
+          const writeHead = res.writeHead.bind(res)
+          res.writeHead = ((...args: Parameters<typeof writeHead>) => {
+            res.setHeader('Cache-Control', 'no-store')
+            return writeHead(...args)
+          }) as typeof writeHead
+        }
+        next()
+      })
+    },
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -47,6 +100,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    devNoStoreHtml(),
     cloudflare({
       viteEnvironment: { name: 'ssr' },
     }),
