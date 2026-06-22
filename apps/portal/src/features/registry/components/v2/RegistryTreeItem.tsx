@@ -73,7 +73,7 @@ export const RegistryTreeItem = ({
         paddingLeft: `${50 * Math.max(index - 1, 0)}px`,
       }}
     >
-      <div className="flex flex-col lg:flex-row lg:items-center justify-start gap-2">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-start md:gap-2 gap-0">
         <div className="flex flex-row items-center justify-start gap-2">
           {!isRoot ? (
             <>
@@ -106,7 +106,7 @@ export const RegistryTreeItem = ({
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
             {!isLastWithRegistryConfigured ? (
-              <div className="flex flex-row items-center justify-start gap-2">
+              <div className="flex flex-row items-center justify-start gap-2 pb-2.5">
                 <span className="text-sm text-muted-foreground font-mono">
                   Chain ID: {chainId}
                 </span>
