@@ -7,8 +7,9 @@
  *                        auto-authorized by PERMITTED_SIGN_KINDS)
  *   2. commit           (eth_signTypedData_v4 — same, auto-authorized)
  *   3. [commitment age wait — handled by the app]
- *   4. sign USDC permit (eth_signTypedData_v4 — EIP-2612 permit, auto-authorized)
- *   5. register+permit bundle (submitted by Rhinestone bundler, no user tx)
+ *   4. approve USDC     (eth_sendTransaction — EOA signs the ERC-20 approval,
+ *                        authorized explicitly via authorizeTransaction)
+ *   5. register         (eth_signTypedData_v4 — same, auto-authorized)
  *
  * The mockestrator impersonates the HCA on the Anvil fork to fill each intent.
  * It needs ETH in the HCA address to pay for impersonated gas — the fund script
@@ -21,14 +22,16 @@
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
-import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
+import { authorizeApproveIfRequested } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
+import { skipCommitmentCooldown } from '../../../helpers/registration-helpers.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', async ({
     connectedPage: page,
+    wallet,
     mockIndexer,
     accounts,
   }) => {
@@ -40,11 +43,6 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
-    // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false) clicking
-    // "Pay with stablecoins" opens the EnableSessions modal BEFORE the token
-    // picker. Click through it (the single ENABLE intent is auto-authorized via
-    // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
-    await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
 
     createConsoleMonitor(page, {
@@ -57,10 +55,26 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
-    // On the HCA path all payment authorization uses an EIP-2612 permit
-    // (eth_signTypedData_v4, auto-authorized by PERMITTED_SIGN_KINDS) carried
-    // into the sponsored register bundle — no eth_sendTransaction is needed.
-    await expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 })
+    // In the Rhinestone HCA flow all intents are eth_signTypedData_v4 and are
+    // auto-authorized by PERMITTED_SIGN_KINDS. The ONE exception is the USDC
+    // ERC-20 approval: the registrar pulls tokens from the EOA (not the HCA),
+    // so the approval must be a direct EOA eth_sendTransaction signed by the
+    // connected wallet. Authorize that single approval; ignore timeout (the
+    // approval is skipped when the allowance is already sufficient).
+    let registered = false
+    await Promise.all([
+      // Authorize the USDC approve only if one is actually requested; stop once
+      // registration completes (no fixed-timeout idle).
+      authorizeApproveIfRequested(page, wallet, () => registered),
+      // Skip the ~60s commitment cooldown: advance Anvil + the in-app clock
+      // instead of waiting it out (mirrors the panel's "Skip commit wait").
+      skipCommitmentCooldown(page, () => registered),
+      expect(successBanner)
+        .toContainText('Registration Complete', { timeout: 240_000 })
+        .then(() => {
+          registered = true
+        }),
+    ])
 
     if (mockIndexer.enabled) {
       mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: accounts.getAddress('user') })
