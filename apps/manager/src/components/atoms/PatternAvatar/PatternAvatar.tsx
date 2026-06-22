@@ -91,11 +91,11 @@ export const PatternAvatar = ({ name, className }: PatternAvatarProps) => {
             <stop offset="100%" stopColor={colors[1]} />
           </linearGradient>
         </defs>
-        {cells.map((cell, i) => (
+        {cells.map((cell) => (
           <rect
             fill={`url(#${gradientId})`}
             height={2}
-            key={`${cell.x}-${cell.y}-${i}`}
+            key={`${cell.x}-${cell.y}`}
             rx={0}
             width={2}
             x={cell.x}

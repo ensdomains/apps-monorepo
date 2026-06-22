@@ -13,6 +13,7 @@ import {
 } from '@ens-apps/utils/neverthrow'
 import { and, eq, inArray } from 'drizzle-orm'
 import { ok } from 'neverthrow'
+// biome-ignore lint/nursery/noRestrictedDependencies: uuid is used for its v7 (time-ordered) generator, which has no native equivalent (crypto.randomUUID only produces v4)
 import { v7 as uuidv7 } from 'uuid'
 import { getQueueForChannel } from '#config/queues.js'
 import { type Database, intoDbResult, TABLE } from '#core/database/index.js'

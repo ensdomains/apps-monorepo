@@ -397,6 +397,7 @@ export const MixedCharacterTypes: Story = {
             {breakdown.map((item, idx) => (
               <span
                 className="rounded bg-slate-200 px-2 py-1 font-mono text-xs"
+                // biome-ignore lint/suspicious/noArrayIndexKey: a character breakdown contains repeated characters at distinct positions, so the index is required for a stable unique key
                 key={`${item.char}-${idx}-${item.bytes}`}
                 title={`${item.bytes} byte${item.bytes > 1 ? 's' : ''}`}
               >

@@ -80,26 +80,26 @@
  * should use this base class.
  */
 @utility material-symbol {
-  font-family: var(--ms-font, var(--default-ms-font)), var(--default-ms-font);
-  font-weight: var(--ms-weight, var(--default-ms-weight));
-  font-style: normal;
-  font-size: calc(var(--ms-optical-size, var(--default-ms-optical-size)) * 1px);
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
   display: inline-block;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: "liga";
-  -webkit-font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
+  font-family: var(--ms-font, var(--default-ms-font)), var(--default-ms-font);
+  font-size: calc(var(--ms-optical-size, var(--default-ms-optical-size)) * 1px);
   font-variation-settings:
     "wght" var(--ms-weight, var(--default-ms-weight)),
     "FILL" var(--ms-fill, var(--default-ms-fill)),
     "GRAD" var(--ms-grade, var(--default-ms-grade)),
     "opsz" var(--ms-optical-size, var(--default-ms-optical-size));
+  font-style: normal;
+  font-weight: var(--ms-weight, var(--default-ms-weight));
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  text-rendering: optimizeLegibility;
 }
 
 /**

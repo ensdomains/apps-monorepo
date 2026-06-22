@@ -33,24 +33,24 @@ export const FEATURE_CARDS: FeatureCard[] = [
     ),
     children: (
       <>
-        <div className="-z-10 absolute inset-0 overflow-hidden rounded-sm">
+        <div className="absolute inset-0 -z-10 overflow-hidden rounded-sm">
           <BgPattern className="opacity-90" />
           <div className="absolute inset-0 bg-linear-130 from-25% from-[#e4e5e4cc] to-110% to-[#92ad9acc]"></div>
         </div>
 
         <img
           alt="card-1-2"
-          className="-bottom-2 pointer-events-none absolute left-8 w-64 max-sm:hidden md:left-[10%] lg:bottom-3 lg:left-[27.5%]"
+          className="pointer-events-none absolute -bottom-2 left-8 w-64 max-sm:hidden md:left-[10%] lg:bottom-3 lg:left-[27.5%]"
           src={card_1_2}
         />
         <img
           alt="card-1-1"
-          className="-left-8 -top-7 pointer-events-none absolute w-58 sm:top-4 sm:left-5.5 md:top-5.5 lg:w-64"
+          className="pointer-events-none absolute -top-7 -left-8 w-58 sm:top-4 sm:left-5.5 md:top-5.5 lg:w-64"
           src={card_1_1}
         />
         <img
           alt="card-1-3"
-          className="-right-5 -bottom-20 pointer-events-none absolute w-58 sm:right-4 sm:bottom-12 lg:w-64"
+          className="pointer-events-none absolute -right-5 -bottom-20 w-58 sm:right-4 sm:bottom-12 lg:w-64"
           src={card_1_3}
         />
       </>
@@ -69,7 +69,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
     ),
     children: (
       <>
-        <div className="-z-10 absolute inset-0 overflow-hidden rounded-sm">
+        <div className="absolute inset-0 -z-10 overflow-hidden rounded-sm">
           <BgPattern className="opacity-90" />
           <div className="absolute inset-0 bg-linear-290 from-55% from-[#FFEFF6CC] to-130% to-[#F886B64D] opacity-90" />
         </div>
@@ -127,7 +127,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
     ),
     children: (
       <>
-        <div className="-z-10 absolute inset-0 overflow-hidden rounded-sm">
+        <div className="absolute inset-0 -z-10 overflow-hidden rounded-sm">
           <BgPattern className="opacity-30" />
           <div className="absolute inset-0 bg-linear-125 from-22% from-[#FEFEFE00] to-63% to-[#EDF1F2] opacity-80" />
         </div>
@@ -140,7 +140,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
             <span className="-translate-1/2 absolute top-0 left-0 text-[28px] leading-none md:text-[32px]">
               🫣
             </span>
-            <span className="-translate-y-1/2 absolute top-1/2 right-0 translate-x-[115%] text-[32px] leading-none md:text-[42px]">
+            <span className="absolute top-1/2 right-0 translate-x-[115%] -translate-y-1/2 text-[32px] leading-none md:text-[42px]">
               🫷
             </span>
           </div>
@@ -149,11 +149,11 @@ export const FEATURE_CARDS: FeatureCard[] = [
         <div className="-translate-1/2 absolute top-[55%] left-1/2">
           <div className="relative rounded-md bg-linear-90 from-ens-blue to-[#21B8FF] p-3 md:p-5">
             {/* Five randomly placed sparkles */}
-            <Sparkle className="-top-8 -left-13 md:-left-20 absolute max-md:h-8" />
-            <Sparkle className="-bottom-7 -left-8 md:-left-12 md:-bottom-12 absolute max-md:h-8" />
-            <Sparkle className="-right-14 -top-2 md:-right-20 md:-top-8 absolute max-md:h-8" />
-            <Sparkle className="-bottom-12 -right-4 md:-bottom-14 md:-right-12 absolute rotate-180 max-md:h-8" />
-            <Sparkle className="-bottom-17 -right-11 md:-bottom-20 md:-right-32 absolute max-md:h-8" />
+            <Sparkle className="absolute -top-8 -left-13 max-md:h-8 md:-left-20" />
+            <Sparkle className="absolute -bottom-7 -left-8 max-md:h-8 md:-bottom-12 md:-left-12" />
+            <Sparkle className="absolute -top-2 -right-14 max-md:h-8 md:-top-8 md:-right-20" />
+            <Sparkle className="absolute -right-4 -bottom-12 rotate-180 max-md:h-8 md:-right-12 md:-bottom-14" />
+            <Sparkle className="absolute -right-11 -bottom-17 max-md:h-8 md:-right-32 md:-bottom-20" />
 
             <span className="block w-full font-medium font-semi-mono text-lg text-white md:text-[28px]">
               friend.eth
@@ -161,7 +161,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
             <span className="-translate-1/2 absolute top-0 left-0 text-[28px] leading-none md:text-[44px]">
               😌
             </span>
-            <span className="-translate-y-1/2 absolute top-1/2 right-0 translate-x-5/6 text-[28px] leading-none md:text-[44px]">
+            <span className="absolute top-1/2 right-0 translate-x-5/6 -translate-y-1/2 text-[28px] leading-none md:text-[44px]">
               🫶
             </span>
           </div>
@@ -316,7 +316,7 @@ export const FeaturesCarousel = () => {
           </button>
         </div>
       </div>
-      <div className="-z-10 absolute inset-x-0 top-1/2 bottom-0 bg-white"></div>
+      <div className="absolute inset-x-0 top-1/2 bottom-0 -z-10 bg-white"></div>
     </div>
   )
 }

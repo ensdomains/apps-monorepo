@@ -46,9 +46,9 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
 
 const getProfileUrl = (name: string) =>
   `${
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : 'https://app.ens.domains'
+    typeof window === 'undefined'
+      ? 'https://app.ens.domains'
+      : window.location.origin
   }/p/${name}`
 
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
@@ -124,7 +124,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         headerUrl={headerUrl}
         name={name}
       />
-      <div className="-mt-[84px] lg:landscape:-mt-[69px] relative z-10 mx-auto w-full max-w-[390px] space-y-0 lg:landscape:max-w-226.25">
+      <div className="relative z-10 mx-auto -mt-[84px] w-full max-w-[390px] space-y-0 lg:landscape:-mt-[69px] lg:landscape:max-w-226.25">
         <div>
           <ProfileViewNewStatusBanners
             expiry={expiry}

@@ -18,7 +18,7 @@ export const signInBackendMutation = mutationOptions({
   mutationFn: async ({ walletClient }: { walletClient: WalletClient }) => {
     const account = walletClient.account
 
-    if (!account || !account.address) {
+    if (!account?.address) {
       throw new Error('No account found')
     }
 
