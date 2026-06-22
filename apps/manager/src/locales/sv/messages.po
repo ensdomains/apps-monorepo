@@ -1962,6 +1962,7 @@ msgstr ""
 
 #: src/features/profile/components/view-new/ProfileViewNewRenewAction.tsx
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew Name"
 msgstr ""
 
