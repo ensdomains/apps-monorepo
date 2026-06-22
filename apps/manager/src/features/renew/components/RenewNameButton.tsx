@@ -7,8 +7,6 @@ import {
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { canRenewV2Name } from '../utils/renewableName'
-import { shouldShowThirdPartyRenewalWarning } from '../utils/thirdPartyRenewalWarning'
-import { ThirdPartyRenewalDialog } from './ThirdPartyRenewalDialog'
 
 type RenewNameButtonProps = {
   readonly isOwner?: boolean
@@ -37,19 +35,6 @@ export const RenewNameButton = ({ isOwner, name }: RenewNameButtonProps) => {
       <Button disabled size="sm" type="button" variant="outline">
         {buttonContent}
       </Button>
-    )
-  }
-
-  if (shouldShowThirdPartyRenewalWarning(isOwner)) {
-    return (
-      <ThirdPartyRenewalDialog
-        name={name}
-        trigger={
-          <Button size="sm" type="button" variant="outline">
-            {buttonContent}
-          </Button>
-        }
-      />
     )
   }
 
