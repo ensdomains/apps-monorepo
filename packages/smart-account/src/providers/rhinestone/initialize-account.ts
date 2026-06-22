@@ -90,8 +90,19 @@ export interface InitializeRhinestoneAccountParams {
   /** Chain the HCA lives on. */
   readonly chain: Chain
 
-  /** Rhinestone API key. Required. */
+  /** Rhinestone API key. Required unless `jwtAuth` is provided. */
   readonly rhinestoneApiKey: string
+
+  /**
+   * JWT-mode auth (Rhinestone `experimental_jwt`). When provided, the SDK is
+   * built with `auth: { mode: 'experimental_jwt', … }` instead of a static API
+   * key, so each sponsored intent mints a single-use extension token via
+   * `getIntentExtensionToken`. `rhinestoneApiKey` is not consulted in this mode.
+   */
+  readonly jwtAuth?: {
+    readonly accessToken: () => Promise<string>
+    readonly getIntentExtensionToken: (intentInput: unknown) => Promise<string>
+  }
 
   /** Override the Rhinestone orchestrator endpoint (e.g. for local dev). */
   readonly rhinestoneEndpointUrl?: string
@@ -107,6 +118,39 @@ export interface InitializeRhinestoneAccountParams {
     stage: Exclude<InitProgressStage, 'ready'>,
     error: Error,
   ) => void
+}
+
+/**
+ * Build the Rhinestone SDK constructor options. JWT mode (`experimental_jwt`)
+ * takes precedence when `jwtAuth` is supplied — the SDK then authenticates each
+ * sponsored intent via the api-worker token callbacks instead of a static key.
+ */
+function buildSdkOptions(params: {
+  readonly jwtAuth?: InitializeRhinestoneAccountParams['jwtAuth']
+  readonly rhinestoneApiKey: string
+  readonly rhinestoneEndpointUrl?: string
+  readonly rhinestoneCustomRpcUrls?: Record<number, string>
+}): ConstructorParameters<typeof RhinestoneSDK>[0] {
+  const {
+    jwtAuth,
+    rhinestoneApiKey,
+    rhinestoneEndpointUrl,
+    rhinestoneCustomRpcUrls,
+  } = params
+  const shared = {
+    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
+    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
+  }
+  return jwtAuth
+    ? {
+        auth: {
+          mode: 'experimental_jwt' as const,
+          accessToken: jwtAuth.accessToken,
+          getIntentExtensionToken: jwtAuth.getIntentExtensionToken,
+        },
+        ...shared,
+      }
+    : { apiKey: rhinestoneApiKey, ...shared }
 }
 
 /**
@@ -128,19 +172,21 @@ export async function initializeRhinestoneAccountCore(
     eoaAddress,
     chain,
     rhinestoneApiKey,
+    jwtAuth,
     rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls,
   } = params
 
-  if (!rhinestoneApiKey) {
-    throw new Error('rhinestoneApiKey is required')
+  if (!jwtAuth && !rhinestoneApiKey) {
+    throw new Error('rhinestoneApiKey or jwtAuth is required')
   }
 
-  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
-    apiKey: rhinestoneApiKey,
-    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
-    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
-  }
+  const sdkOptions = buildSdkOptions({
+    jwtAuth,
+    rhinestoneApiKey,
+    rhinestoneEndpointUrl,
+    rhinestoneCustomRpcUrls,
+  })
 
   const sdk = new RhinestoneSDK(sdkOptions)
 
@@ -238,25 +284,28 @@ export async function initializeRhinestoneAccount(
     eoaAddress,
     chain,
     rhinestoneApiKey,
+    jwtAuth,
     rhinestoneEndpointUrl,
     rhinestoneCustomRpcUrls,
     onProgress,
     onError,
   } = params
 
-  if (!rhinestoneApiKey) {
-    throw new Error('rhinestoneApiKey is required')
+  if (!jwtAuth && !rhinestoneApiKey) {
+    throw new Error('rhinestoneApiKey or jwtAuth is required')
   }
 
   // Gas sponsorship for the HCA is handled by the Rhinestone Warp
   // orchestrator (intent-based, relayer-funded). We deliberately do not
   // configure an ERC-4337 bundler here — HCA operations route through
-  // sponsored Intents, not bundled UserOps.
-  const sdkOptions: ConstructorParameters<typeof RhinestoneSDK>[0] = {
-    apiKey: rhinestoneApiKey,
-    ...(rhinestoneEndpointUrl && { endpointUrl: rhinestoneEndpointUrl }),
-    ...(rhinestoneCustomRpcUrls && { customRpcUrls: rhinestoneCustomRpcUrls }),
-  }
+  // sponsored Intents, not bundled UserOps. JWT mode (when `jwtAuth` is
+  // supplied) swaps the static API key for the api-worker token callbacks.
+  const sdkOptions = buildSdkOptions({
+    jwtAuth,
+    rhinestoneApiKey,
+    rhinestoneEndpointUrl,
+    rhinestoneCustomRpcUrls,
+  })
 
   const sdk = new RhinestoneSDK(sdkOptions)
 

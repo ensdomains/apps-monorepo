@@ -133,7 +133,7 @@ describe('initializeRhinestoneAccountCore', () => {
         chain: MOCK_CHAIN,
         rhinestoneApiKey: '',
       }),
-    ).rejects.toThrow('rhinestoneApiKey is required')
+    ).rejects.toThrow('rhinestoneApiKey or jwtAuth is required')
   })
 })
 
@@ -371,6 +371,6 @@ describe('initializeRhinestoneAccount (backward-compatible wrapper)', () => {
         chain: MOCK_CHAIN,
         rhinestoneApiKey: '',
       }),
-    ).rejects.toThrow('rhinestoneApiKey is required')
+    ).rejects.toThrow('rhinestoneApiKey or jwtAuth is required')
   })
 })

@@ -33,3 +33,6 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# Rhinestone Sepolia JWT signing key stash (local, do not commit)
+.dev.vars.sepolia.local
