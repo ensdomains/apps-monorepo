@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { resolveThemeColor } from '@/features/profile/utils/themeColor'
 import { THEME_COLORS } from '../../constants'
 
 export const ThemeSection = withForm({
@@ -30,7 +31,8 @@ export const ThemeSection = withForm({
             {(field) => (
               <div className="flex gap-3">
                 {THEME_COLORS.map(({ value, label }) => {
-                  const isSelected = field.state.value === value
+                  const isSelected =
+                    resolveThemeColor(field.state.value) === value
                   return (
                     <button
                       aria-label={

@@ -225,6 +225,10 @@ msgstr "Add your wallet addresses to receive payments. All addresses will be pub
 msgid "Added"
 msgstr "Added"
 
+#: src/features/dashboard/service/mutations/favoriteToast.tsx
+msgid "Added to your favorites!"
+msgstr "Added to your favorites!"
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Adding telegram..."
 msgstr "Adding telegram..."
@@ -2222,6 +2226,7 @@ msgstr "Settings"
 msgid "Share"
 msgstr "Share"
 
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
 msgid "Share profile"
 msgstr "Share profile"

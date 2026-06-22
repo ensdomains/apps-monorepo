@@ -2,6 +2,8 @@ import { useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
 import type { ProfileRecords } from '@/features/profile/types'
 import {
+  desktopActionContainerClassName,
+  desktopActionContainerStyle,
   editActionClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
@@ -57,7 +59,10 @@ export const ProfileViewNewActions = ({
         </div>
       </div>
 
-      <div className="absolute top-79 right-8 z-30 hidden w-33 flex-col gap-6 lg:landscape:flex">
+      <div
+        className={desktopActionContainerClassName}
+        style={desktopActionContainerStyle}
+      >
         <div className="flex items-center gap-6">
           <ProfileViewNewFavoriteAction name={name} />
           <ProfileViewNewShareAction

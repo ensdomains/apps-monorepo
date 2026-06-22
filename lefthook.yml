@@ -8,11 +8,11 @@ pre-commit:
   commands:
     lingui-extract:
       glob: "apps/manager/src/**/*.{ts,tsx}"
-      run: pnpm --filter manager i18n:extract --clean && git add apps/manager/src/locales/
+      run: corepack pnpm --filter manager i18n:extract --clean && git add apps/manager/src/locales/
       priority: 1
     biome-check:
       glob: "*.{js,ts,jsx,tsx,json,jsonc}"
-      run: pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
+      run: corepack pnpm biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files} || true
       stage_fixed: true
       priority: 2
 
@@ -20,4 +20,4 @@ pre-commit:
 pre-push:
   commands:
     biome-ci:
-      run: pnpm biome ci --formatter-enabled=true --linter-enabled=true || true
+      run: corepack pnpm biome ci --formatter-enabled=true --linter-enabled=true || true

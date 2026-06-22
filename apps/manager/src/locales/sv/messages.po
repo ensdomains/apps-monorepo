@@ -230,6 +230,10 @@ msgstr ""
 msgid "Added"
 msgstr ""
 
+#: src/features/dashboard/service/mutations/favoriteToast.tsx
+msgid "Added to your favorites!"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Adding telegram..."
 msgstr ""
@@ -2227,6 +2231,7 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
 msgid "Share profile"
 msgstr ""
