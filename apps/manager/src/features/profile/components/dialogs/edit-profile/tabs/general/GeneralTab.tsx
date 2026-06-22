@@ -1,5 +1,5 @@
 import { ChevronDown, Link as LinkIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
@@ -169,17 +169,22 @@ export const GeneralTab = ({
   const { showField, toggleField } = useEditProfileDialogActions()
   const [activeImageField, setActiveImageField] =
     useState<ProfileImageKind | null>(null)
+  const valuesRef = useRef(values)
+  useEffect(() => {
+    valuesRef.current = values
+  }, [values])
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
-    onBaseChange({ ...values.base, [key]: value })
+    onBaseChange({ ...valuesRef.current.base, [key]: value })
   const removeFieldValue = (field: GeneralField) => {
-    const nextValues = removeGeneralFieldValue(values, field)
+    const currentValues = valuesRef.current
+    const nextValues = removeGeneralFieldValue(currentValues, field)
 
-    if (nextValues.base !== values.base) {
+    if (nextValues.base !== currentValues.base) {
       onBaseChange(nextValues.base)
     }
 
-    if (nextValues.contact !== values.contact) {
+    if (nextValues.contact !== currentValues.contact) {
       onContactChange(nextValues.contact)
     }
   }
