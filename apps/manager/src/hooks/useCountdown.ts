@@ -44,16 +44,16 @@ export const useCountdown = (
   const isActive = remainingSeconds !== null && remainingSeconds > 0
 
   const minutes =
-    remainingSeconds !== null ? Math.floor(remainingSeconds / 60) : 0
-  const seconds = remainingSeconds !== null ? remainingSeconds % 60 : 0
+    remainingSeconds === null ? 0 : Math.floor(remainingSeconds / 60)
+  const seconds = remainingSeconds === null ? 0 : remainingSeconds % 60
 
   const formatted = {
     minutes: String(minutes).padStart(2, '0'),
     seconds: String(seconds).padStart(2, '0'),
     display:
-      remainingSeconds !== null
-        ? `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
-        : '--:--',
+      remainingSeconds === null
+        ? '--:--'
+        : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
   }
 
   return {

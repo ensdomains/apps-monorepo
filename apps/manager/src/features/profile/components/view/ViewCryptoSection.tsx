@@ -51,8 +51,8 @@ export const ViewCryptoSection = ({ records }: ViewCryptoSectionProps) => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-2">
-          {addressesWithValues.map((address, i) => (
-            <CryptoAddress address={address} key={`${address.coinType}-${i}`} />
+          {addressesWithValues.map((address) => (
+            <CryptoAddress address={address} key={address.coinType} />
           ))}
         </div>
       </CardContent>

@@ -127,9 +127,9 @@ export const NameList = ({ address, limit }: NameListProps) => {
     <div className="border rounded-sm border-border overflow-hidden">
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
-        {data.map((name, index) => (
+        {data.map((name) => (
           <NameMobileCard
-            key={`${name.name}-${index}`}
+            key={name.name}
             name={name.name}
             expiryDate={name.expiryDate}
             roleBitmap={name.roleBitmap}

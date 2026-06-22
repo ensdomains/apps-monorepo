@@ -2,7 +2,7 @@ import type * as v from 'valibot'
 import type { ChannelType } from './channels'
 import { type NotificationDefinitions, notificationDefinitions } from './kinds'
 
-export { notificationDefinitions, type NotificationDefinitions }
+export { type NotificationDefinitions, notificationDefinitions }
 
 export type NotificationKind = keyof NotificationDefinitions
 

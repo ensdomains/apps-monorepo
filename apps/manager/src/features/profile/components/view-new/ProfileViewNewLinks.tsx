@@ -26,7 +26,7 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => (
       </div>
       <div className="mt-1 flex min-w-0 items-center gap-1 text-ens-quartz-500">
         <span className={`${valueClassName} truncate`}>{link.displayHost}</span>
-        <ExternalLink className="group-hover:-translate-y-0.5 size-4 shrink-0 transition group-hover:translate-x-0.5" />
+        <ExternalLink className="size-4 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
       </div>
     </div>
   </a>

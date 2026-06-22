@@ -1,7 +1,7 @@
 :root {
   font-family:
-    "IBM Plex Mono", "SFMono-Regular", "SF Mono", "Cascadia Code", "Roboto Mono",
-    Consolas, monospace;
+    "IBM Plex Mono", "SFMono-Regular", "SF Mono", "Cascadia Code",
+    "Roboto Mono", Consolas, monospace;
   font-weight: 400;
   line-height: 1.5;
   color: #c6cad5;
@@ -12,7 +12,8 @@
       circle at bottom right,
       rgba(245, 50, 147, 0.14),
       transparent 28%
-    ), #09090b;
+    ),
+    #09090b;
 }
 
 * {

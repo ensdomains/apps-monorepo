@@ -537,7 +537,7 @@ export const ImageSelectionDialog = ({
               rel="noopener noreferrer"
               target="_blank"
             >
-              <Trans>Learn more</Trans>
+              <Trans>View avatar documentation</Trans>
             </a>
           </>
         }

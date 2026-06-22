@@ -139,7 +139,7 @@ const SelectField = ({
           </option>
         ))}
       </select>
-      <ChevronDown className="-translate-y-1/2 pointer-events-none absolute top-1/2 right-4 size-5 text-ens-quartz-400" />
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-4 size-5 -translate-y-1/2 text-ens-quartz-400" />
     </div>
   )
 }

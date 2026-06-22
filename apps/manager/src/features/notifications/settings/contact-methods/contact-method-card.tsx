@@ -143,14 +143,14 @@ export const ContactMethodCard = ({
 }: ContactMethodCardProps) => {
   const renderedAction =
     action ??
-    (actionLabel !== undefined
-      ? renderVariantAction(variant, {
+    (actionLabel === undefined
+      ? null
+      : renderVariantAction(variant, {
           label: actionLabel,
           onClick: onAction,
           disabled: actionDisabled,
           loading: actionLoading,
-        })
-      : null)
+        }))
 
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-[#fafafb] p-4">

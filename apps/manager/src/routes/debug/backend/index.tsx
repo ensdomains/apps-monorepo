@@ -193,7 +193,7 @@ const QueryTester = <TData, TError>({
 const loginMutation = async () => {
   const account = getAccount(wagmiConfig)
 
-  if (!account || !account.address) {
+  if (!account?.address) {
     throw new Error('No account found')
   }
 
