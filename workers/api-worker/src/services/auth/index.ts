@@ -1,14 +1,14 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { ok, safeTry } from 'neverthrow'
 import type { Address, Hash } from 'viem'
-import { generateSiweNonce, parseSiweMessage } from 'viem/siwe'
+import { generateSiweNonce } from 'viem/siwe'
 import { signJWT } from '#core/auth/jwt.js'
 import type { Database } from '#core/database/index.js'
 import type { ViemClient } from '#core/eth/client.js'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import { logger } from '#utils/logger.js'
 import { addUserIfNotExists } from '../users'
-import { safeVerifySiweMessage } from './helpers'
+import { safeParseSiweMessage, safeVerifySiweMessage } from './helpers'
 
 const ALLOWED_SIWE_DOMAINS = ['app.ens.dev', 'app.ens.domains'] as const
 type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
@@ -74,7 +74,8 @@ export const createJWT = ({
   safeTry(async function* () {
     yield* verifyAndConsumeNonce(env, nonce)
 
-    const parsed = parseSiweMessage(message)
+    const parsed = yield* safeParseSiweMessage(message)
+
     if (
       !parsed.domain ||
       !ALLOWED_SIWE_DOMAINS.includes(parsed.domain as AllowedSiweDomain)

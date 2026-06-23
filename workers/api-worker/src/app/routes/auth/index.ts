@@ -60,6 +60,9 @@ export default createApp()
           .with({ _tag: 'INVALID_URI' }, () =>
             c.json({ error: 'Invalid SIWE uri' }, 400),
           )
+          .with({ _tag: 'SIWE_PARSE_ERROR' }, () =>
+            c.json({ error: 'Invalid SIWE message' }, 400),
+          )
           .with(
             {
               _tag: P.union(
