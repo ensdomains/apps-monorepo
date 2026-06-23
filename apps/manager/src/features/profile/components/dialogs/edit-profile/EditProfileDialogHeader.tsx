@@ -55,7 +55,7 @@ export const EditProfileDialogHeader = ({
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </div>
-        <DialogTitle className="max-w-[calc(100vw-7rem)] truncate rounded-sm border border-(--theme-color) px-2 py-1.5 font-medium font-semi-mono text-(--theme-color) text-[21.25px] leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
+        <DialogTitle className="flex h-9.75 max-w-[calc(100vw-7rem)] items-center truncate rounded-sm border border-(--theme-color) px-2 font-medium font-semi-mono text-(--theme-color) text-[21.25px] leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
           {name}
         </DialogTitle>
       </div>
