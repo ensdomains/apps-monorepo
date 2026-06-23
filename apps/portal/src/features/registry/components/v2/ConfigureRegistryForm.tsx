@@ -34,6 +34,18 @@ type ConfigureRegistryFormProps = {
   name: string
 }
 
+const NoRegistryConfiguredCard = ({ name }: { name: string }) => (
+  <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
+    <h3 className="text-3xl font-medium font-serif">No registry configured</h3>
+    <p className="text-base">
+      This name doesn't have a contract set to create and manage subnames.
+      Create one to turn <strong>{name}</strong> into its own namespace with
+      subnames like <strong>cold.{name}</strong> or{' '}
+      <strong>agent.{name}</strong>.
+    </p>
+  </div>
+)
+
 export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
@@ -199,10 +211,6 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   if (isLoadingRoleCheck) {
     return <LoadingSpinner title="Checking permissions..." />
   }
- 
-  if (!hasSetSubregistryRole) {
-    return null
-  }
 
   if (!connectedAddress) {
     return (
@@ -213,25 +221,33 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
     )
   }
 
+  const wrapperClassName = cn(
+    'flex flex-col gap-4 max-w-xl',
+    isMobile ? 'pl-0 pt-3' : 'pl-14',
+  )
+
+  if (!hasSetSubregistryRole) {
+    return (
+      <div className={wrapperClassName}>
+        <NoRegistryConfiguredCard name={name} />
+        <div className="flex flex-col gap-2">
+          <Button className="w-full" variant="default" disabled>
+            <Plus className="size-3" />
+            Configure registry
+          </Button>
+          <p className="text-sm text-muted-foreground">
+            You need the{' '}
+            <strong className="text-foreground">Set Subregistry</strong> role to
+            configure this registry. Ask an admin to grant it.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 max-w-xl pl-14',
-        isMobile ? 'pl-0 pt-3' : 'pl-14',
-      )}
-    >
-      <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
-        <h3 className="text-3xl font-medium font-serif">
-          No registry configured
-        </h3>
-        <p className="text-base">
-          This name doesn't have a contract set to create and manage subnames.
-          Create one to turn <strong>{name}</strong> into its own namespace with
-          subnames like <strong>cold.{name}</strong> or{' '}
-          <strong>agent.{name}</strong>.
-        </p>
-      </div>
+    <div className={wrapperClassName}>
+      <NoRegistryConfiguredCard name={name} />
       {showDeploySubregistryForm ? (
         <form
           className="flex flex-col gap-5 border border-border rounded-lg p-5"
