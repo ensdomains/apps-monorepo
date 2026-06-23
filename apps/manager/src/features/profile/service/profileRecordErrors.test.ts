@@ -3,7 +3,7 @@ import {
   getRecordsValidationErrorMessage,
   getSaveRecordsErrorMessage,
   RecordsValidationError,
-} from './ProfileEdit.errors'
+} from './profileRecordErrors'
 
 describe('getSaveRecordsErrorMessage', () => {
   it('returns the message for non-validation save errors', () => {

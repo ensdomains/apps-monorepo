@@ -31,9 +31,9 @@ import {
 import { parseAbiRecord } from '@/features/profile/utils/validateAbi'
 import { validateAddressRecordValue } from '@/features/profile/utils/validateAddress'
 import { validateEmail } from '@/features/profile/utils/validateUrl'
-import { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
+import { type RecordIssue, RecordsValidationError } from './profileRecordErrors'
 
-export { type RecordIssue, RecordsValidationError } from './ProfileEdit.errors'
+export { type RecordIssue, RecordsValidationError } from './profileRecordErrors'
 
 // --- Types ---
 

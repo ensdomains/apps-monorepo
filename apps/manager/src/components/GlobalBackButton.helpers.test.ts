@@ -14,7 +14,6 @@ describe('getDefaultGlobalBackButtonConfig', () => {
       '/example.eth/',
       '/0x0000000000000000000000000000000000000000',
       '/0x0000000000000000000000000000000000000000/',
-      '/p/example.eth/edit',
       '/payment/add',
       '/payment/list',
       '/notifications',
@@ -45,6 +44,7 @@ describe('getDefaultGlobalBackButtonConfig', () => {
       '/renew/example.eth',
       '/example',
       '/0x1234',
+      '/p/example.eth/edit',
       '/debug/backend',
       '/notifications/channels/email/verify',
     ]

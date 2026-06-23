@@ -30,7 +30,6 @@ import { Route as NotificationsAuthenticatedRouteRouteImport } from './routes/no
 import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
 import { Route as NotificationsAuthenticatedIndexRouteImport } from './routes/notifications/_authenticated/index'
 import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
-import { Route as PNameEditRouteImport } from './routes/p/$name/edit'
 import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend/settings'
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
@@ -143,11 +142,6 @@ const DebugBackendIndexRoute = DebugBackendIndexRouteImport.update({
   path: '/debug/backend/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PNameEditRoute = PNameEditRouteImport.update({
-  id: '/p/$name/edit',
-  path: '/p/$name/edit',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DebugBackendSettingsRoute = DebugBackendSettingsRouteImport.update({
   id: '/debug/backend/settings',
   path: '/debug/backend/settings',
@@ -186,7 +180,6 @@ export interface FileRoutesByFullPath {
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
-  '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/': typeof NotificationsAuthenticatedIndexRoute
   '/p/$name/': typeof PNameIndexRoute
@@ -210,7 +203,6 @@ export interface FileRoutesByTo {
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/register': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
-  '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications': typeof NotificationsAuthenticatedIndexRoute
   '/p/$name': typeof PNameIndexRoute
@@ -238,7 +230,6 @@ export interface FileRoutesById {
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
-  '/p/$name/edit': typeof PNameEditRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/_authenticated/': typeof NotificationsAuthenticatedIndexRoute
   '/p/$name/': typeof PNameIndexRoute
@@ -267,7 +258,6 @@ export interface FileRouteTypes {
     | '/auto-renewal/'
     | '/register/'
     | '/debug/backend/settings'
-    | '/p/$name/edit'
     | '/debug/backend/'
     | '/notifications/'
     | '/p/$name/'
@@ -291,7 +281,6 @@ export interface FileRouteTypes {
     | '/auto-renewal'
     | '/register'
     | '/debug/backend/settings'
-    | '/p/$name/edit'
     | '/debug/backend'
     | '/notifications'
     | '/p/$name'
@@ -318,7 +307,6 @@ export interface FileRouteTypes {
     | '/auto-renewal/'
     | '/register/'
     | '/debug/backend/settings'
-    | '/p/$name/edit'
     | '/debug/backend/'
     | '/notifications/_authenticated/'
     | '/p/$name/'
@@ -344,7 +332,6 @@ export interface RootRouteChildren {
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
-  PNameEditRoute: typeof PNameEditRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
   NotificationsChannelsEmailVerifyRoute: typeof NotificationsChannelsEmailVerifyRoute
@@ -499,13 +486,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DebugBackendIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/p/$name/edit': {
-      id: '/p/$name/edit'
-      path: '/p/$name/edit'
-      fullPath: '/p/$name/edit'
-      preLoaderRoute: typeof PNameEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/debug/backend/settings': {
       id: '/debug/backend/settings'
       path: '/debug/backend/settings'
@@ -590,7 +570,6 @@ const rootRouteChildren: RootRouteChildren = {
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,
-  PNameEditRoute: PNameEditRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,
   NotificationsChannelsEmailVerifyRoute: NotificationsChannelsEmailVerifyRoute,
