@@ -26,9 +26,7 @@ vi.mock('./ProfileImageField', () => ({
     readonly kind: string
     readonly onImageRemove: () => void
   }) => {
-    if (!profileImageFieldMock.removeHandlers.has(kind)) {
-      profileImageFieldMock.removeHandlers.set(kind, onImageRemove)
-    }
+    profileImageFieldMock.removeHandlers.set(kind, onImageRemove)
 
     return (
       <button

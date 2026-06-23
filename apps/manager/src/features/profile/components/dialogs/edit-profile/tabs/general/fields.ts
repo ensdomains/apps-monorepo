@@ -30,6 +30,11 @@ export const generalShortcuts = [
 
 export type GeneralField = (typeof generalShortcuts)[number]['field']
 
+export interface GeneralValidationIssue {
+  readonly field: GeneralField
+  readonly message: string
+}
+
 export const getTextRecordValue = (
   records: readonly TextRecordValue[],
   key: string,
@@ -38,7 +43,9 @@ export const getTextRecordValue = (
 export const getGeneralUrlErrorMessage = (value: string | undefined) =>
   validateUrl(value)
 
-export const getGeneralValidationIssues = (records: ProfileRecords) => {
+export const getGeneralValidationIssues = (
+  records: ProfileRecords,
+): readonly GeneralValidationIssue[] => {
   const urlMessage = getGeneralUrlErrorMessage(records.base.url)
 
   return urlMessage ? [{ field: 'url', message: urlMessage }] : []

@@ -1,5 +1,5 @@
 import { ChevronDown, Link as LinkIcon } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
@@ -21,13 +21,7 @@ import {
 import { ProfileImageField, type ProfileImageKind } from './ProfileImageField'
 import { profileLanguageOptions } from './profileLanguages'
 
-type BaseGeneralField =
-  | 'avatar'
-  | 'header'
-  | 'url'
-  | 'name'
-  | 'description'
-  | 'language'
+type BaseGeneralField = Extract<GeneralField, keyof ProfileRecords['base']>
 
 const timezoneSelectOptions = Array.from({ length: 27 }, (_, index) => {
   const offset = index - 12
@@ -169,15 +163,11 @@ export const GeneralTab = ({
   const { showField, toggleField } = useEditProfileDialogActions()
   const [activeImageField, setActiveImageField] =
     useState<ProfileImageKind | null>(null)
-  const valuesRef = useRef(values)
-  useEffect(() => {
-    valuesRef.current = values
-  }, [values])
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
-    onBaseChange({ ...valuesRef.current.base, [key]: value })
+    onBaseChange({ ...values.base, [key]: value })
   const removeFieldValue = (field: GeneralField) => {
-    const currentValues = valuesRef.current
+    const currentValues = values
     const nextValues = removeGeneralFieldValue(currentValues, field)
 
     if (nextValues.base !== currentValues.base) {
