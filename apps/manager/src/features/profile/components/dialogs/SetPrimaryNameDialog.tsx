@@ -37,8 +37,8 @@ import {
   handleSetPrimaryName,
   hasMatchingEthAddress,
 } from '../../service/profilePrimaryName'
-import { saveRecords } from '../../service/profileRecordTransactions'
 import { profileRecordsQuery } from '../../service/profileRecords'
+import { saveRecords } from '../../service/profileRecordTransactions'
 
 interface SetPrimaryNameDialogProps {
   name: string
