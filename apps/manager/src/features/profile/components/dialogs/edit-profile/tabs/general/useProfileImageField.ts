@@ -44,6 +44,16 @@ export const useProfileImageField = ({
   preparedImagePreviewUrl,
 }: ProfileImageFieldProps) => {
   const queryClient = useQueryClient()
+  const latestCallbacksRef = useRef({
+    onCancel,
+    onImageChange,
+    onImageRemove,
+  })
+  latestCallbacksRef.current = {
+    onCancel,
+    onImageChange,
+    onImageRemove,
+  }
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
@@ -77,12 +87,12 @@ export const useProfileImageField = ({
             resolvedImage,
           )
         }
-        onImageChange(url)
-        onCancel()
+        latestCallbacksRef.current.onImageChange(url)
+        latestCallbacksRef.current.onCancel()
       },
       onImageRemove: () => {
-        onImageRemove()
-        onCancel()
+        latestCallbacksRef.current.onImageRemove()
+        latestCallbacksRef.current.onCancel()
       },
     },
     inspect,
