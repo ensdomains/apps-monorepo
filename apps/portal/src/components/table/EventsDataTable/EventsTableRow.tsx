@@ -18,8 +18,9 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
     <>
       <TableRow
         className={cn(
-          'hover:bg-muted',
-          tableView.strippedRows && 'odd:bg-muted',
+          !tableView.strippedRows && 'hover:bg-sidebar/60',
+          tableView.strippedRows &&
+            'odd:bg-sidebar/60 odd:hover:bg-background even:hover:bg-sidebar/60',
         )}
       >
         {row.getVisibleCells().map((cell) => (
@@ -47,7 +48,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
             <TableRow
               // biome-ignore lint/suspicious/noArrayIndexKey: multiple events can share an id within one transaction, so transactionID-event.id is not guaranteed unique; the index disambiguates same-id siblings
               key={`${row.original.transactionID}-${event.id}-${index}`}
-              className="hover:bg-muted"
+              className="hover:bg-sidebar/60"
             >
               <TableCell colSpan={2} className={cellClassName} />
 

@@ -68,8 +68,14 @@ export const DataTable = <TData, TValue>({
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
               className={cn(
-                'hover:bg-muted',
-                tableView.strippedRows && 'odd:bg-muted',
+                // Unstriped: every row lifts to the subtle tone on hover.
+                // `/60` lightens the existing sidebar token toward the row bg
+                // (tune this number for a lighter/stronger tint).
+                !tableView.strippedRows && 'hover:bg-sidebar/60',
+                // Striped: odd rows carry the tint and clear to white on hover;
+                // even (white) rows pick up the tint — so every row reacts.
+                tableView.strippedRows &&
+                  'odd:bg-sidebar/60 odd:hover:bg-background even:hover:bg-sidebar/60',
               )}
             >
               {row.getVisibleCells().map((cell) => (
