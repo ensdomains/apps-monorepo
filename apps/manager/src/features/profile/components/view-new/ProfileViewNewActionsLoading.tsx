@@ -34,19 +34,6 @@ const ActionTextButtonLoading = ({
   </div>
 )
 
-const BottomActionButtonLoading = ({
-  shouldReduceMotion,
-}: {
-  readonly shouldReduceMotion: boolean
-}) => (
-  <div className="flex h-15.25 w-full max-w-87 items-center justify-center rounded border border-ens-quartz-300 bg-white lg:landscape:h-12.5 lg:landscape:w-42.75 lg:landscape:border-none">
-    <SkeletonBlock
-      className="h-4 w-24 rounded-sm"
-      shouldReduceMotion={shouldReduceMotion}
-    />
-  </div>
-)
-
 export const ProfileViewNewActionsLoading = ({
   shouldReduceMotion,
 }: {
@@ -78,12 +65,6 @@ export const ProfileViewNewActionsLoading = ({
         className="w-33"
         shouldReduceMotion={shouldReduceMotion}
       />
-    </div>
-
-    <div className="fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] lg:landscape:shadow-[0_-3.24px_91px_rgba(7,28,47,0.12)]">
-      <div className="mx-auto flex w-full max-w-97.5 justify-center px-5 pt-3 pb-[calc(44px+env(safe-area-inset-bottom,0))] lg:landscape:max-w-360 lg:landscape:justify-end lg:landscape:gap-3 lg:landscape:px-8 lg:landscape:py-4">
-        <BottomActionButtonLoading shouldReduceMotion={shouldReduceMotion} />
-      </div>
     </div>
   </>
 )
