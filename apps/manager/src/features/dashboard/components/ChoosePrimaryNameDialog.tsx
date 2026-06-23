@@ -33,10 +33,10 @@ import {
   hasMatchingEthAddress,
   type PrimaryNameOptions,
   type PrimaryNameParams,
-} from '@/features/profile/components/ProfileEdit.handlers'
-import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
+} from '@/features/profile/service/profilePrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
+import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import {

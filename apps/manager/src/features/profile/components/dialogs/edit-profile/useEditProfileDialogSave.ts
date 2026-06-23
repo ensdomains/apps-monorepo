@@ -17,13 +17,13 @@ import {
   type PreparedProfileImageUpload,
   submitPreparedProfileImageUpload,
 } from '@/features/profile/service/profileImageUpload'
-import type { ProfileRecords } from '@/features/profile/types'
-import { useSmartAccountContext } from '@/lib/smart-account'
-import { publicClient } from '@/lib/wagmi'
 import {
   type SaveRecordsParams,
   saveRecords,
-} from '../../ProfileEdit.transactions'
+} from '@/features/profile/service/profileRecordTransactions'
+import type { ProfileRecords } from '@/features/profile/types'
+import { useSmartAccountContext } from '@/lib/smart-account'
+import { publicClient } from '@/lib/wagmi'
 import type { editProfileDialogMachine } from './EditProfileDialog.machine'
 import type {
   EditProfileForm,

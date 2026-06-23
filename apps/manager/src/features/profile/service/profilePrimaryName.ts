@@ -1,14 +1,13 @@
 /**
- * Pure Handler Functions for Profile Editing & Resolver/Primary Updates
+ * Pure handler functions for resolver and primary-name updates.
  *
  * Business logic extracted outside React components for testability.
  */
 
 import type { primaryNameMachine } from '@ens-apps/transaction-manager'
-import type { FormEvent } from 'react'
 import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
-import type { ProfileRecordsResult } from '../service/profileRecords'
+import type { ProfileRecordsResult } from './profileRecords'
 
 const ETH_COIN_TYPE = 60
 
@@ -42,21 +41,6 @@ export interface PrimaryNameOptions {
   }
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
   publicClient: PublicClient
-}
-
-export interface ProfileResetParams {
-  resetForm: () => void
-  refetchRecords: () => void
-  refetchOwner: () => void
-}
-
-export function handleProfileFormSubmit(
-  event: FormEvent<HTMLFormElement>,
-  onSubmit: () => void,
-): void {
-  event.preventDefault()
-  event.stopPropagation()
-  onSubmit()
 }
 
 /**
@@ -116,11 +100,4 @@ export function handlePrimaryNameCancel(
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>,
 ): void {
   primaryNameActor.send({ type: 'CANCEL' })
-}
-
-export function handleProfileReset(params: ProfileResetParams): void {
-  const { resetForm, refetchRecords, refetchOwner } = params
-  resetForm()
-  refetchRecords()
-  refetchOwner()
 }

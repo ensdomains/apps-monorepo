@@ -31,14 +31,14 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { getProfileEthAddressSnapshot } from '../../service/profileEthAddress'
-import { profileRecordsQuery } from '../../service/profileRecords'
 import {
   getEthAddressFromRecords,
   handlePrimaryNameCancel,
   handleSetPrimaryName,
   hasMatchingEthAddress,
-} from '../ProfileEdit.handlers'
-import { saveRecords } from '../ProfileEdit.transactions'
+} from '../../service/profilePrimaryName'
+import { saveRecords } from '../../service/profileRecordTransactions'
+import { profileRecordsQuery } from '../../service/profileRecords'
 
 interface SetPrimaryNameDialogProps {
   name: string
