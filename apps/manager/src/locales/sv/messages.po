@@ -1995,7 +1995,11 @@ msgid "Share profile"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "Should I buy now or wait?"
+#~ msgid "Should I buy now or wait?"
+#~ msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Should I register now or wait?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
@@ -2242,7 +2246,7 @@ msgstr ""
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
 
@@ -2565,8 +2569,12 @@ msgid "Welcome to the new ENS app!"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "What additional fee would you pay?"
+msgid "What additional fee are you willing to pay?"
 msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+#~ msgid "What additional fee would you pay?"
+#~ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"

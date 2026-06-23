@@ -1990,8 +1990,12 @@ msgid "Share profile"
 msgstr "Share profile"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "Should I buy now or wait?"
-msgstr "Should I buy now or wait?"
+#~ msgid "Should I buy now or wait?"
+#~ msgstr "Should I buy now or wait?"
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Should I register now or wait?"
+msgstr "Should I register now or wait?"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 msgid "Show less"
@@ -2237,7 +2241,7 @@ msgstr "This page can only verify your email when opened from the link in the ve
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr "Times shown in your local time zone ({timezoneLabel})"
 
@@ -2560,8 +2564,12 @@ msgid "Welcome to the new ENS app!"
 msgstr "Welcome to the new ENS app!"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "What additional fee would you pay?"
-msgstr "What additional fee would you pay?"
+msgid "What additional fee are you willing to pay?"
+msgstr "What additional fee are you willing to pay?"
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+#~ msgid "What additional fee would you pay?"
+#~ msgstr "What additional fee would you pay?"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"

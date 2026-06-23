@@ -33,9 +33,11 @@
   ::-webkit-scrollbar {
     @apply bg-transparent w-2;
   }
+
   ::-webkit-scrollbar-thumb {
     @apply bg-ens-lapis-dust rounded-sm;
   }
+
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-ens-lapis-surface;
   }
@@ -175,6 +177,7 @@
     0% {
       transform: translateX(-100%);
     }
+
     100% {
       transform: translateX(100%);
     }
@@ -182,6 +185,28 @@
 
   .animate-shimmer {
     animation: shimmer 2s infinite;
+  }
+
+  @keyframes fee-decay-nudge {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0) rotate(180deg);
+    }
+
+    80% {
+      transform: translateY(2px) rotate(180deg);
+    }
+  }
+
+  .animate-fee-decay {
+    animation: fee-decay-nudge 1.8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fee-decay {
+      animation: none;
+    }
   }
 }
 
