@@ -1,4 +1,4 @@
-import clsx from 'clsx'
+import { tw } from '@/utils/tailwind'
 import {
   loadingCardSurfaceClassName,
   ProfileViewNewSectionLoading,
@@ -31,7 +31,7 @@ const SkeletonCardLoading = ({
         />
       </div>
       <SkeletonBlock
-        className={clsx('h-[16.5px] rounded-sm lg:landscape:h-4.5', labelWidth)}
+        className={tw('h-[16.5px] rounded-sm lg:landscape:h-4.5', labelWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
@@ -40,7 +40,7 @@ const SkeletonCardLoading = ({
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock
-      className={clsx(
+      className={tw(
         'h-[19.5px] max-w-full rounded-sm lg:landscape:h-5',
         valueWidth,
       )}
