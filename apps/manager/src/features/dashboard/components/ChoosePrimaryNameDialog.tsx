@@ -26,6 +26,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import {
   getEthAddressFromRecords,
   handlePrimaryNameCancel,
@@ -34,10 +36,8 @@ import {
   type PrimaryNameOptions,
   type PrimaryNameParams,
 } from '@/features/profile/service/profilePrimaryName'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
-import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
-import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import {
   type SmartAccountContextValue,
