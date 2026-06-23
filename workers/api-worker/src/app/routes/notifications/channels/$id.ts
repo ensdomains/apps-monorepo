@@ -6,6 +6,10 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import {
+  checkAndConsumeEmailVerificationRateLimit,
+  formatEmailVerificationRateLimitError,
+} from '#services/notifications/email-verification-rate-limit.js'
+import {
   generateToken,
   type PublicChannel,
   toPublicChannel,
@@ -166,22 +170,20 @@ export default createApp()
       return c.json({ error: 'Only email channels can be resend' }, 400)
     }
 
-    // Check cooldown (5 minutes)
-    if (channel.last_verification_sent_at) {
-      const cooldownMs = 5 * 60 * 1000 // 5 minutes
-      const timeSinceLastSent =
-        Date.now() - new Date(channel.last_verification_sent_at).getTime()
+    const rateLimit = await checkAndConsumeEmailVerificationRateLimit(
+      c.env.KV,
+      channel.target,
+    )
 
-      if (timeSinceLastSent < cooldownMs) {
-        const remainingMs = cooldownMs - timeSinceLastSent
-        const remainingMinutes = Math.ceil(remainingMs / (60 * 1000))
-        return c.json(
-          {
-            error: `Please wait ${remainingMinutes} minutes before requesting another verification email`,
-          },
-          429,
-        )
-      }
+    if (!rateLimit.allowed) {
+      return c.json(
+        {
+          error: formatEmailVerificationRateLimitError(
+            rateLimit.retryAfterSeconds,
+          ),
+        },
+        429,
+      )
     }
 
     // Create new verification token
