@@ -129,7 +129,6 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         owner={owner}
-        records={records}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}

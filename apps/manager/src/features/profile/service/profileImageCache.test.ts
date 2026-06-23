@@ -4,7 +4,9 @@ import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
   buildNameAvatarUrl,
+  buildNameHeaderUrl,
   nameAvatarQuery,
+  nameHeaderQuery,
   namesAvatarsByNameQuery,
 } from './profileAvatar'
 import {
@@ -70,5 +72,31 @@ describe('profile image cache helpers', () => {
     expect(
       queryClient.getQueryData(namesAvatarsByNameQuery([name]).queryKey),
     ).toEqual({ [name]: cacheBustedMetadataAvatarUrl })
+  })
+
+  it('cache busts gasless header queries after signed upload save', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1234)
+
+    const queryClient = new QueryClient()
+    const name = 'vitalik.eth'
+    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/${name}/h`
+    const cacheBustedImageUrl = `${imageUrl}?v=1234`
+    const cacheBustedMetadataHeaderUrl = buildNameHeaderUrl(name, 1234)
+
+    queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
+    queryClient.setQueryData(nameHeaderQuery(name).queryKey, imageUrl)
+
+    await refreshProfileImageCaches({
+      images: [{ kind: 'header', imageUrl }],
+      name,
+      queryClient,
+    })
+
+    expect(queryClient.getQueryData(imageRecordQuery(imageUrl).queryKey)).toBe(
+      cacheBustedImageUrl,
+    )
+    expect(queryClient.getQueryData(nameHeaderQuery(name).queryKey)).toBe(
+      cacheBustedMetadataHeaderUrl,
+    )
   })
 })

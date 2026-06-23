@@ -3,14 +3,22 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { skipToken, useQuery } from '@tanstack/react-query'
 import { ok } from 'neverthrow'
 
-const ENS_METADATA_V2_SEPOLIA_AVATAR_URL =
-  'https://ens-metadata-v2.ensdomains.workers.dev/sepolia/avatar'
+const ENS_METADATA_V2_SEPOLIA_URL =
+  'https://ens-metadata-v2.ensdomains.workers.dev/sepolia'
 
 export type NameAvatarMap = Record<string, string | undefined>
 
-export const buildNameAvatarUrl = (name: string, version?: number): string => {
+const buildNameImageUrl = ({
+  kind,
+  name,
+  version,
+}: {
+  kind: 'avatar' | 'header'
+  name: string
+  version?: number
+}): string => {
   const url = new URL(
-    `${ENS_METADATA_V2_SEPOLIA_AVATAR_URL}/${encodeURIComponent(name)}`,
+    `${ENS_METADATA_V2_SEPOLIA_URL}/${kind}/${encodeURIComponent(name)}`,
   )
 
   if (version !== undefined) {
@@ -19,6 +27,12 @@ export const buildNameAvatarUrl = (name: string, version?: number): string => {
 
   return url.toString()
 }
+
+export const buildNameAvatarUrl = (name: string, version?: number): string =>
+  buildNameImageUrl({ kind: 'avatar', name, version })
+
+export const buildNameHeaderUrl = (name: string, version?: number): string =>
+  buildNameImageUrl({ kind: 'header', name, version })
 
 export const getNamesAvatarsByName = (
   names: readonly string[],

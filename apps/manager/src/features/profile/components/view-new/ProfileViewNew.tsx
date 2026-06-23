@@ -3,12 +3,14 @@ import { useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
-import { nameAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  nameAvatarQuery,
+  nameHeaderQuery,
+} from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
-import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
@@ -62,7 +64,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
 
   const [avatar, header] = useQueries({
-    queries: [nameAvatarQuery(name), imageRecordQuery(records.base.header)],
+    queries: [nameAvatarQuery(name), nameHeaderQuery(name)],
   })
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
@@ -106,9 +108,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   }
 
   const avatarUrl = expiry.isInGrace ? undefined : (avatar.data ?? undefined)
-  const headerUrl = expiry.isInGrace
-    ? undefined
-    : (header.data ?? records.base.header)
+  const headerUrl = expiry.isInGrace ? undefined : (header.data ?? undefined)
 
   return (
     <div

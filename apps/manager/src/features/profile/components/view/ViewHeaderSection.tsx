@@ -4,9 +4,7 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
-import { nameAvatarQuery } from '../../service/profileAvatar'
-import { imageRecordQuery } from '../../service/profileImageRecord'
-import type { ProfileRecords } from '../../types'
+import { nameAvatarQuery, nameHeaderQuery } from '../../service/profileAvatar'
 import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
@@ -14,7 +12,6 @@ import { FavoriteButton } from './FavoriteButton'
 
 interface ViewHeaderSectionProps {
   name: string
-  records: ProfileRecords
   owner?: Address
   isInGrace?: boolean
   isOwner?: boolean
@@ -22,13 +19,12 @@ interface ViewHeaderSectionProps {
 
 export const ViewHeaderSection = ({
   name,
-  records,
   owner,
   isInGrace = false,
   isOwner,
 }: ViewHeaderSectionProps) => {
   const [avatar, header] = useQueries({
-    queries: [nameAvatarQuery(name), imageRecordQuery(records.base.header)],
+    queries: [nameAvatarQuery(name), nameHeaderQuery(name)],
   })
 
   const avatarUrl = isInGrace
@@ -36,7 +32,7 @@ export const ViewHeaderSection = ({
     : safeImageSrc(avatar.data ?? undefined)
   const headerUrl = isInGrace
     ? undefined
-    : safeImageSrc(header.data ?? records.base.header)
+    : safeImageSrc(header.data ?? undefined)
 
   const url = `${
     typeof window === 'undefined'
