@@ -110,7 +110,7 @@ msgstr ""
 msgid "<0>All </0><1>{visibleCount}</1><2> eligible names selected</2>"
 msgstr ""
 
-#. placeholder {0}: getErrorMessage(error)
+#. placeholder {0}: errorDisplay.message
 #: src/routes/wallet.tsx
 msgid "<0>Connection failed:</0> {0}"
 msgstr ""
@@ -142,6 +142,10 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "A simpler way to<0/><1>get paid.</1>"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAbout.tsx
+msgid "About"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -189,6 +193,7 @@ msgid "Add Crypto Address"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
 msgid "Add favorite"
 msgstr ""
 
@@ -225,6 +230,10 @@ msgstr ""
 msgid "Added"
 msgstr ""
 
+#: src/features/dashboard/service/mutations/favoriteToast.tsx
+msgid "Added to your favorites!"
+msgstr ""
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Adding telegram..."
 msgstr ""
@@ -236,6 +245,10 @@ msgstr ""
 #: src/features/navigation/Header/account/WalletSection.tsx
 #: src/features/profile/components/sections/WalletAddressesSection.tsx
 msgid "Address"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+msgid "Addresses"
 msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
@@ -343,12 +356,10 @@ msgstr ""
 msgid "Awaiting approval signature"
 msgstr ""
 
-#: src/features/migration/components/SelectNamesStep.tsx
+#: src/components/GlobalBackButton.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-#: src/features/register-v2/workflow/pricing/PricingStep.tsx
-#: src/features/renew/workflow/pricing/PricingStep.tsx
 msgid "Back"
 msgstr ""
 
@@ -356,7 +367,6 @@ msgstr ""
 msgid "Back to dashboard"
 msgstr ""
 
-#: src/features/legal/pages/PrivacyPolicyPage.tsx
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Back to Home"
 msgstr ""
@@ -454,6 +464,7 @@ msgstr ""
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
 #: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Cancel"
 msgstr "Avbryt"
 
@@ -475,6 +486,10 @@ msgstr ""
 
 #: src/features/payment/components/add.tsx
 msgid "Card security code"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+msgid "Chain-specific addresses"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -537,6 +552,7 @@ msgstr ""
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Close"
 msgstr ""
 
@@ -627,6 +643,10 @@ msgstr ""
 msgid "Connect or sign in"
 msgstr ""
 
+#: src/features/profile/components/common/favoriteAction.helpers.ts
+msgid "Connect to favorite name"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
 msgstr ""
@@ -664,6 +684,7 @@ msgid "Connection Details"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
+#: src/features/profile/components/view-new/ProfileViewNewContacts.tsx
 msgid "Contact"
 msgstr ""
 
@@ -700,6 +721,7 @@ msgid "Copy Link"
 msgstr ""
 
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Copy to clipboard"
 msgstr ""
 
@@ -711,10 +733,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Could not save profile"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -851,6 +869,7 @@ msgid "Drag and drop an image here, or"
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+#: src/features/profile/components/view-new/ProfileViewNewEditAction.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Edit Profile"
 msgstr ""
@@ -980,6 +999,7 @@ msgstr ""
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
@@ -1051,6 +1071,7 @@ msgstr ""
 msgid "Failed to load notifications"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNew.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Failed to load registration data for this name."
 msgstr ""
@@ -1210,6 +1231,10 @@ msgstr ""
 msgid "Human-readable addresses for wallets"
 msgstr ""
 
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+msgid "I Understand"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
 msgstr ""
@@ -1254,10 +1279,6 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 msgid "Language"
 msgstr "Språk"
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Learn more"
-msgstr ""
-
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx
 msgid "Link"
 msgstr ""
@@ -1272,6 +1293,7 @@ msgid "links"
 msgstr ""
 
 #: src/features/profile/components/sections/LinksSection.tsx
+#: src/features/profile/components/view-new/ProfileViewNewLinks.tsx
 #: src/features/profile/components/view/ViewLinksSection.tsx
 msgid "Links"
 msgstr ""
@@ -1305,13 +1327,12 @@ msgstr ""
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/dashboard/components/NameRow.tsx
-#: src/features/profile/components/view/FavoriteButton.tsx
-msgid "Login to favorite"
-msgstr "Logga in för att favorisera"
-
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
 msgid "Long-term identity"
+msgstr ""
+
+#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+msgid "Main receiving address"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
@@ -1320,10 +1341,6 @@ msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx
 msgid "Make sure the message starts with \"ENS would like you to ...\""
-msgstr ""
-
-#: src/routes/wallet.tsx
-msgid "Make sure you have a wallet extension installed"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -1506,7 +1523,7 @@ msgid "No stablecoins available"
 msgstr ""
 
 #: src/routes/wallet.tsx
-msgid "No wallet connectors available"
+msgid "No wallet connected yet"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
@@ -1585,6 +1602,7 @@ msgid "Owned by"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Owner"
 msgstr ""
 
@@ -1753,12 +1771,8 @@ msgstr "Primärt namn angivet"
 msgid "Privacy Policy"
 msgstr ""
 
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile saved"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Profile updated successfully."
+#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+msgid "Profile actions"
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx
@@ -1807,6 +1821,7 @@ msgstr ""
 #: src/features/landing/components/ProfileCard.tsx
 #: src/features/migration/components/ProfileCardPreview.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
+#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 msgid "Registered"
 msgstr "Registrerad"
 
@@ -1897,6 +1912,7 @@ msgid "Remove Email Contact Method?"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
 msgid "Remove favorite"
 msgstr ""
 
@@ -1948,7 +1964,9 @@ msgstr ""
 msgid "Renew name"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewRenewAction.tsx
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew Name"
 msgstr ""
 
@@ -1982,6 +2000,10 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"
+msgstr ""
+
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+msgid "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2210,6 +2232,11 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+#: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
+msgid "Share profile"
+msgstr ""
+
 #: src/features/profile/components/sections/BioSection.tsx
 msgid "Short Description"
 msgstr ""
@@ -2226,8 +2253,16 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
+#: src/routes/wallet.tsx
+msgid "Sign in"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
+msgstr ""
+
+#: src/routes/wallet.tsx
+msgid "Sign in with a social account or wallet to get started"
 msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
@@ -2277,8 +2312,20 @@ msgstr ""
 msgid "Smart account ready"
 msgstr ""
 
+#: src/features/profile/components/view-new/ProfileViewNewSocial.tsx
+msgid "Social"
+msgstr ""
+
 #: src/features/profile/components/sections/SocialLinksSection.tsx
 msgid "Social Links"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
+msgid "Some names are more in-demand than others."
 msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx
@@ -2374,6 +2421,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Terms of Use"
+msgstr ""
+
+#: src/features/renew/components/ThirdPartyRenewalDialog.tsx
+msgid "That's generous of you!"
 msgstr ""
 
 #: src/features/payment/components/add.tsx
@@ -2491,10 +2542,6 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Trademark Guidelines"
-msgstr ""
-
-#: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-msgid "Transaction submitted:"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -2658,6 +2705,10 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
+msgid "View avatar documentation"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -2841,7 +2892,7 @@ msgid "Yes. You can update it anytime. You can even use different primary names 
 msgstr "Ja. Du kan uppdatera det när som helst. Du kan till och med använda olika primära namn på olika nätverk (L2)."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "You can buy this name at any point during the {periodDays}-day cooldown. Some names are more in-demand than others — the stats below can help you decide whether to act soon or wait."
+msgid "You can buy this name at any point during the {periodDays}-day cooldown."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx

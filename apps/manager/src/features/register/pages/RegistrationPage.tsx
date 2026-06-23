@@ -2,10 +2,11 @@ import { registrationMachine } from '@ens-apps/transaction-manager'
 import { useNavigate } from '@tanstack/react-router'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useAtom } from '@xstate/store-react'
-import { AlertCircle, ArrowLeftIcon } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
 import type { Address, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
+import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { Button } from '@/components/ui/button'
 import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { Pricing } from '@/features/register/components/Pricing'
@@ -166,20 +167,7 @@ export const Registration = ({
   const isApprovePending = step === RegistrationStep.APPROVING
   const isRegisterPending = step === RegistrationStep.REGISTERING
 
-  const handleBack = () => {
-    if (step === RegistrationStep.PRICING) {
-      navigate({ to: '/' })
-    } else if (
-      step === RegistrationStep.APPROVING ||
-      step === RegistrationStep.REGISTERING
-    ) {
-      // Don't allow going back during transactions
-      return
-    } else {
-      actor.send({ type: 'CANCEL' })
-      dispatch({ type: 'RESET', initialName })
-    }
-  }
+  useGlobalBackButton({ isVisible: step === RegistrationStep.PRICING })
 
   const handleSetDuration = (newDuration: number) => {
     dispatch({ type: 'SET_DURATION', duration: newDuration })
@@ -227,22 +215,6 @@ export const Registration = ({
 
   return (
     <div className="mx-6 flex flex-col items-start gap-4 md:flex-row">
-      {!(
-        skipNotificationSettings ||
-        hasSkippedNotifications ||
-        hasConfirmedNotifications
-      ) && (
-        <div className="absolute flex items-center justify-between">
-          <Button
-            className="h-auto p-2 text-ens-lapis-surface uppercase"
-            onClick={handleBack}
-            variant="ghost"
-          >
-            <ArrowLeftIcon className="h-6 w-6 font-bold" /> Back
-          </Button>
-        </div>
-      )}
-
       {step === RegistrationStep.PRICING && displayDomainName && (
         <div className="w-full py-6 md:py-6">
           {isCheckingAvailability && initialName && (
@@ -264,7 +236,7 @@ export const Registration = ({
             initialName &&
             selectedName &&
             isAvailable === false && (
-              <div className="flex min-h-[400px] items-center justify-center px-4">
+              <div className="flex min-h-100 items-center justify-center px-4">
                 <div className="flex w-full max-w-2xl flex-col items-center gap-8 rounded-lg border border-ens-gray-two bg-white p-8 text-center">
                   <AlertCircle className="h-16 w-16 text-ens-gray" />
 

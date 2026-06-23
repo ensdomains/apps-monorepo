@@ -1,18 +1,6 @@
-import { Trans } from '@lingui/react/macro'
-import { Link } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
-
 export const PrivacyPolicyPage = () => {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-8 md:py-12">
-      <Link
-        className="mb-6 inline-flex items-center gap-2 text-ens-blue transition-colors hover:text-ens-blue-dark"
-        to="/"
-      >
-        <ArrowLeft className="size-4" />
-        <Trans>Back to Home</Trans>
-      </Link>
-
       <article className="prose prose-gray max-w-none">
         <h1 className="mb-2 font-bold text-3xl text-ens-blue-dark md:text-4xl">
           Privacy Policy

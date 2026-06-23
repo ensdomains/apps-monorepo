@@ -51,11 +51,13 @@ const getCacheBustedImageUrl = (imageUrl: string, version: number) => {
   return url.toString()
 }
 
-export const getActiveSignedProfileImageUploads = ({
+export const getActiveSignedProfileImageUploads = <
+  TImage extends SignedProfileImageUpload,
+>({
   images,
   records,
 }: {
-  readonly images: readonly SignedProfileImageUpload[]
+  readonly images: readonly TImage[]
   readonly records: ProfileRecords
 }) =>
   images.filter(
@@ -81,7 +83,7 @@ const refreshParsedAvatarCaches = ({
   )
 
   for (const query of queryClient.getQueryCache().findAll({
-    queryKey: $qk({ $scope: 'profile', $action: 'parse_avatar' }),
+    queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
   })) {
     const record = getQueryMetaString(query.queryKey, 'record')
     const imageUrl = record
@@ -91,54 +93,6 @@ const refreshParsedAvatarCaches = ({
     if (imageUrl) {
       queryClient.setQueryData(query.queryKey, imageUrl)
     }
-  }
-}
-
-const isNameAvatarMap = (
-  data: unknown,
-): data is Record<string, string | undefined> =>
-  !!data && typeof data === 'object' && !Array.isArray(data)
-
-const refreshNameAvatarCaches = ({
-  images,
-  name,
-  queryClient,
-  version,
-}: {
-  readonly images: readonly SignedProfileImageUpload[]
-  readonly name: string
-  readonly queryClient: QueryClient
-  readonly version: number
-}) => {
-  const avatarUpload = images.find(({ kind }) => kind === 'avatar')
-
-  if (!avatarUpload) {
-    return
-  }
-
-  const imageUrl = getCacheBustedImageUrl(avatarUpload.imageUrl, version)
-
-  for (const query of queryClient.getQueryCache().findAll({
-    queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
-  })) {
-    if (getQueryMetaString(query.queryKey, 'name') === name) {
-      queryClient.setQueryData(query.queryKey, imageUrl)
-    }
-  }
-
-  const updateAvatarMap = (data: unknown) => {
-    if (!isNameAvatarMap(data) || !(name in data)) {
-      return data
-    }
-
-    return { ...data, [name]: imageUrl }
-  }
-
-  for (const action of ['names_avatars', 'names_avatars_by_name']) {
-    queryClient.setQueriesData(
-      { queryKey: $qk({ $scope: 'profile', $action: action }) },
-      updateAvatarMap,
-    )
   }
 }
 
@@ -160,28 +114,13 @@ export const refreshProfileImageCaches = async ({
       queryKey: profileRecordsQuery(name).queryKey,
     }),
     queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'parse_avatar' }),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'names_avatars' }),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'names_avatars_by_name' }),
+      queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
     }),
   ])
 
   const version = Date.now()
   refreshParsedAvatarCaches({
     images: gaslessImages,
-    queryClient,
-    version,
-  })
-  refreshNameAvatarCaches({
-    images: gaslessImages,
-    name,
     queryClient,
     version,
   })

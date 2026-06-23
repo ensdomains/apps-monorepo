@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useMutation } from '@tanstack/react-query'
 import { useAtom, useSelector } from '@xstate/store-react'
 import type { ReactNode } from 'react'
@@ -7,6 +6,7 @@ import { useConnection, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { useConnectModal } from '@/lib/wallet'
 import { backendAuthStore, isBackendAuthed } from '@/utils/backend-client'
 
 interface RequireBackendAuthProps {

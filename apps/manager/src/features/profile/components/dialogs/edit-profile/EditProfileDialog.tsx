@@ -14,6 +14,7 @@ export const EditProfileDialog = ({
   records,
   owner,
   onUpdated,
+  trigger,
 }: EditProfileDialogProps) => {
   const dialogActor = useActorRef(editProfileDialogMachine, {
     input: { records },
@@ -40,11 +41,10 @@ export const EditProfileDialog = ({
 
   const {
     handleSave,
-    handleSignedImageUploadComplete,
-    isFinalizingSignedImageSave,
-    resetSaveState,
-    resetSignedImageSaveState,
-    signedImageUploads,
+    handleImageUploadPrepared,
+    isFinalizingImageSave,
+    resetPreparedImageSaveState,
+    preparedImageUploads,
   } = useEditProfileDialogSave({
     dialogActor,
     ethAddressChanged,
@@ -58,7 +58,7 @@ export const EditProfileDialog = ({
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
-      resetSignedImageSaveState()
+      resetPreparedImageSaveState()
       form.reset(records)
       dialogActor.send({ type: 'OPEN', records })
       return
@@ -68,34 +68,35 @@ export const EditProfileDialog = ({
       return
     }
 
-    resetSignedImageSaveState()
+    resetPreparedImageSaveState()
     dialogActor.send({ type: 'CLOSE' })
   }
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
-        <Button className="w-full" type="button">
-          <Trans>Edit Profile</Trans>
-        </Button>
+        {trigger ?? (
+          <Button className="w-full" type="button">
+            <Trans>Edit Profile</Trans>
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
-        className="!max-w-none sm:!max-w-none md:!max-w-200 top-0 left-0 h-dvh max-h-dvh w-screen translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg md:top-[50%] md:left-[50%] md:h-[min(90dvh,739px)] md:w-[min(92vw,800px)] md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl"
+        className="top-0 left-0 h-dvh max-h-dvh w-screen max-w-none! translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-none! md:top-[50%] md:left-[50%] md:h-[min(90dvh,739px)] md:w-[min(92vw,800px)] md:max-w-200! md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl"
         overlayClassName="bg-black/20 backdrop-blur-[2px]"
         showCloseButton={false}
       >
         <EditProfileDialogProvider actor={dialogActor}>
           <EditProfileDialogBody
             form={form}
-            isFinalizingSignedImageSave={isFinalizingSignedImageSave}
+            isFinalizingImageSave={isFinalizingImageSave}
             name={name}
-            onResetSaveState={resetSaveState}
+            onImageUploadPrepared={handleImageUploadPrepared}
             onSave={handleSave}
-            onSignedImageUploadComplete={handleSignedImageUploadComplete}
             open={open}
             owner={owner}
+            preparedImageUploads={preparedImageUploads}
             savedRecords={savedRecords}
-            signedImageUploads={signedImageUploads}
           />
         </EditProfileDialogProvider>
       </DialogContent>

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { Tabs } from '@/components/ui/tabs'
-import {
-  getActiveSignedProfileImageUploads,
-  type SignedProfileImageUpload,
-} from '@/features/profile/service/profileImageCache'
+import { getActiveSignedProfileImageUploads } from '@/features/profile/service/profileImageCache'
+import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { createDiff } from '@/features/profile/utils/createDiff'
 import {
@@ -17,47 +15,41 @@ import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
-import type { ProfileImageKind } from './tabs/general/ProfileImageField'
+import { getGeneralValidationIssues } from './tabs/general/fields'
 import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface EditProfileDialogBodyProps {
-  readonly isFinalizingSignedImageSave: boolean
+  readonly isFinalizingImageSave: boolean
   readonly name: string
   readonly onSave: EditProfileSaveHandler
-  readonly onResetSaveState: () => void
-  readonly onSignedImageUploadComplete: (
-    kind: ProfileImageKind,
-    imageUrl: string,
-  ) => void
+  readonly onImageUploadPrepared: (upload: PreparedProfileImageUpload) => void
   readonly open: boolean
   readonly owner?: Address
   readonly savedRecords: ProfileRecords
-  readonly signedImageUploads: readonly SignedProfileImageUpload[]
+  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
 }
 
 export const EditProfileDialogBody = withForm({
   ...sharedOptions,
   props: {
-    isFinalizingSignedImageSave: false,
+    isFinalizingImageSave: false,
     name: '',
-    onResetSaveState: () => {},
     onSave: () => {},
-    onSignedImageUploadComplete: () => {},
+    onImageUploadPrepared: () => {},
     open: false,
+    preparedImageUploads: [],
     savedRecords: defaultProfileRecords,
-    signedImageUploads: [],
   } as EditProfileDialogBodyProps,
   render: ({
     form,
-    isFinalizingSignedImageSave,
+    isFinalizingImageSave,
     name,
-    onResetSaveState,
     onSave,
-    onSignedImageUploadComplete,
+    onImageUploadPrepared,
     open,
     owner,
+    preparedImageUploads,
     savedRecords,
-    signedImageUploads,
   }) => {
     const [hasDraftLinkValidationIssues, setHasDraftLinkValidationIssues] =
       useState(false)
@@ -78,11 +70,17 @@ export const EditProfileDialogBody = withForm({
           const submittedValues = normalizeProfileRecords(values)
           const diff = createDiff(savedRecords, submittedValues)
           const hasChanges = Object.keys(diff).length > 0
-          const activeSignedImageUploads = getActiveSignedProfileImageUploads({
-            images: signedImageUploads,
-            records: submittedValues,
-          })
-          const hasSignedImageUpload = activeSignedImageUploads.length > 0
+          const activePreparedImageUploads = getActiveSignedProfileImageUploads(
+            {
+              images: preparedImageUploads,
+              records: submittedValues,
+            },
+          )
+          const activePreparedAvatarPreviewUrl =
+            activePreparedImageUploads.find(
+              ({ kind }) => kind === 'avatar',
+            )?.dataURL
+          const hasPreparedImageUpload = activePreparedImageUploads.length > 0
           const hasAddressValidationIssues =
             getAddressValidationIssues(values.addresses).length > 0
           const hasLinkValidationIssues =
@@ -90,39 +88,37 @@ export const EditProfileDialogBody = withForm({
             hasDraftLinkValidationIssues
           const hasContactValidationIssues =
             getContactValidationIssues(values).length > 0
+          const hasGeneralValidationIssues =
+            getGeneralValidationIssues(values).length > 0
           const canSaveProfile =
-            (hasChanges || hasSignedImageUpload) &&
+            (hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
-            !isFinalizingSignedImageSave &&
+            !isFinalizingImageSave &&
             !hasAddressValidationIssues &&
+            !hasGeneralValidationIssues &&
             !hasLinkValidationIssues &&
             !hasContactValidationIssues
           const handleBaseChange = (base: ProfileRecords['base']) => {
-            onResetSaveState()
             form.setFieldValue('base', base)
           }
           const handleAddressesChange = (
             addresses: ProfileRecords['addresses'],
           ) => {
-            onResetSaveState()
             form.setFieldValue('addresses', addresses)
           }
           const handleContactChange = (contact: ProfileRecords['contact']) => {
-            onResetSaveState()
             form.setFieldValue('contact', contact)
           }
           const handleSocialChange = (social: ProfileRecords['social']) => {
-            onResetSaveState()
             form.setFieldValue('social', social)
           }
           const handleLinksChange = (links: ProfileRecords['links']) => {
-            onResetSaveState()
             form.setFieldValue('links', links)
           }
           const handleSave = () =>
             onSave(submittedValues, {
               hasRecordChanges: hasChanges,
-              signedImageUploads: activeSignedImageUploads,
+              preparedImageUploads: activePreparedImageUploads,
             })
 
           return (
@@ -132,6 +128,7 @@ export const EditProfileDialogBody = withForm({
               orientation="vertical"
             >
               <EditProfileDialogHeader
+                avatarPreviewUrl={activePreparedAvatarPreviewUrl}
                 avatarUrl={values.base.avatar}
                 canSave={canSaveProfile}
                 name={name}
@@ -147,11 +144,12 @@ export const EditProfileDialogBody = withForm({
                 onDraftLinkValidationIssuesChange={
                   setHasDraftLinkValidationIssues
                 }
-                onImageUploadComplete={onSignedImageUploadComplete}
+                onImageUploadPrepared={onImageUploadPrepared}
                 onLinksChange={handleLinksChange}
                 onSave={handleSave}
                 onSocialChange={handleSocialChange}
                 owner={owner}
+                preparedImageUploads={activePreparedImageUploads}
                 values={values}
               />
             </Tabs>

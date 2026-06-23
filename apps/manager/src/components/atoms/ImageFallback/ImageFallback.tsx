@@ -228,14 +228,14 @@ const Fallback = ImageFallbackFallback
 const Loading = ImageFallbackLoading
 
 export {
+  Fallback,
+  Image,
   //
   ImageFallback,
-  ImageFallbackImage,
   ImageFallbackFallback,
+  ImageFallbackImage,
   ImageFallbackLoading,
+  Loading,
   //
   Root,
-  Image,
-  Fallback,
-  Loading,
 }

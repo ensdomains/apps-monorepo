@@ -5,7 +5,7 @@ import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import {
   filterFavoritesBySearch,
@@ -89,15 +89,6 @@ export const FavoritesList = ({
   )
   const paginatedFavorites = paginatedData.favorites
 
-  const visibleLabels = useMemo(
-    () => paginatedFavorites.map((fav) => fav.label),
-    [paginatedFavorites],
-  )
-
-  const { data: avatarsByName } = useQuery(
-    namesAvatarsByNameQuery(visibleLabels),
-  )
-
   return (
     <div className="w-full">
       <div className="flex w-full flex-col">
@@ -155,7 +146,7 @@ export const FavoritesList = ({
                     })}
               >
                 <NameRow
-                  avatarUrl={avatarsByName?.[fav.label]}
+                  avatarUrl={buildNameAvatarUrl(fav.label)}
                   isAuthenticated
                   isFavorite
                   label={fav.label}

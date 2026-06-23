@@ -38,7 +38,7 @@ export const FloatingInput = forwardRef<HTMLInputElement, FloatingInputProps>(
         />
         <label
           className={cn(
-            '-translate-y-1/2 pointer-events-none absolute top-0 left-3 z-10 flex items-center gap-1 bg-background px-1 text-muted-foreground text-sm',
+            'pointer-events-none absolute top-0 left-3 z-10 flex -translate-y-1/2 items-center gap-1 bg-background px-1 text-muted-foreground text-sm',
             'transition-all duration-200 ease-out',
             'peer-placeholder-shown:top-1/2 peer-placeholder-shown:bg-transparent peer-placeholder-shown:text-base',
             'peer-focus:top-0 peer-focus:bg-background peer-focus:text-sm',

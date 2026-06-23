@@ -16,8 +16,7 @@
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@ensdomains/headless-web3-provider": "^1.0.8",
-    "dotenv": "^17.2.3",
-    "viem": "^2.47.2"
+    "viem": "catalog:"
   },
   "devDependencies": {
     "@browserbasehq/stagehand": "^3.0.8",

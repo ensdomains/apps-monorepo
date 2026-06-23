@@ -81,9 +81,9 @@ export const getBackendApiBaseUrl = () =>
 const resolveBaseUrl = (baseUrl: string) => {
   if (baseUrl.startsWith('/')) {
     const origin =
-      typeof window !== 'undefined'
-        ? window.location.origin
-        : 'http://localhost'
+      typeof window === 'undefined'
+        ? 'http://localhost'
+        : window.location.origin
     return new URL(baseUrl, origin)
   }
 

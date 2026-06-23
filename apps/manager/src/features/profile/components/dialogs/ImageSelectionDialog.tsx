@@ -1,7 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
-import clsx from 'clsx'
 import {
   AlertCircle,
   ArrowLeft,
@@ -27,13 +26,15 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import {
   type ImageType,
   uploadImageMutationOptions,
 } from '@/features/profile/service/profileImageUpload'
+import { safeImageSrc } from '@/features/profile/utils/safeUrl'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
+import { tw } from '@/utils/tailwind'
 import { inspect } from '@/utils/xstate'
 
 const MAX_FILE_SIZE_MB = 3
@@ -102,14 +103,14 @@ const getImageStyles = (type: ImageType, size: ImagePreviewSize = 'medium') => {
       medium: 'size-32',
       large: 'size-40',
     }
-    return clsx(baseClasses, sizeClasses[size])
+    return tw(baseClasses, sizeClasses[size])
   }
   const sizeClasses = {
     small: 'h-20 w-full',
     medium: 'h-32 w-full',
     large: 'h-40 w-full',
   }
-  return clsx(baseClasses, sizeClasses[size])
+  return tw(baseClasses, sizeClasses[size])
 }
 
 interface ImageSelectionDialogProps {
@@ -159,7 +160,7 @@ const ImageSelectionTrigger = forwardRef<
   ) => (
     <button
       {...buttonProps}
-      className={clsx(
+      className={tw(
         'group relative block w-full cursor-pointer overflow-hidden',
         triggerClassName ??
           (imageType === 'avatar'
@@ -172,7 +173,7 @@ const ImageSelectionTrigger = forwardRef<
       type="button"
     >
       <div
-        className={clsx(
+        className={tw(
           'absolute inset-0 flex items-center justify-center bg-transparent transition-all duration-200 group-hover:bg-black/20 motion-reduce:transition-none',
           imageType === 'avatar' && 'rounded-md',
           imageType === 'header' && 'pb-12',
@@ -245,7 +246,7 @@ export const ImageSelectionDialog = ({
 
   // Resolve the current image if it's an IPFS/NFT URL
   const resolvedImage = useQuery({
-    ...parseAvatarQuery(currentImage),
+    ...imageRecordQuery(currentImage),
     enabled: !!currentImage,
   })
 
@@ -418,14 +419,24 @@ export const ImageSelectionDialog = ({
                 src={displayImage}
               />
               <ImageFallback.Fallback>
-                <div
-                  className={cn(
-                    getImageStyles(type, 'small'),
-                    'flex items-center justify-center bg-gray-200',
-                  )}
-                >
-                  <Image className="size-8 text-gray-400" />
-                </div>
+                {type === 'avatar' ? (
+                  <PatternAvatar
+                    className={cn(
+                      getImageStyles(type, 'small'),
+                      'border-none bg-transparent p-0 shadow-none',
+                    )}
+                    name={name || 'avatar'}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      getImageStyles(type, 'small'),
+                      'flex items-center justify-center bg-gray-200',
+                    )}
+                  >
+                    <Image className="size-8 text-gray-400" />
+                  </div>
+                )}
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>
@@ -537,7 +548,7 @@ export const ImageSelectionDialog = ({
               rel="noopener noreferrer"
               target="_blank"
             >
-              <Trans>Learn more</Trans>
+              <Trans>View avatar documentation</Trans>
             </a>
           </>
         }
@@ -572,45 +583,50 @@ export const ImageSelectionDialog = ({
   )
 
   // Manual preview step
-  const renderManualPreviewStep = () => (
-    <>
-      <StepHeader
-        onBack={() => send({ type: 'BACK' })}
-        title={t`Preview Image`}
-      />
-      <ErrorDisplay error={state.context.error} />
-      <div className="space-y-4">
-        <div className="text-center">
-          <img
-            alt="Preview"
-            className={getImageStyles(type, 'large')}
-            onError={(e) => {
-              e.currentTarget.style.display = 'none'
-              send({
-                type: 'SET_ERROR',
-                error:
-                  'Failed to load image. Please check that the URL points to a valid image file.',
-              })
-            }}
-            src={state.context.manualUrl}
-          />
-          <p className="mt-2 text-gray-500 text-sm">
-            <Eye className="mr-1 inline size-4" />
-            <Trans>Preview of your image</Trans>
-          </p>
+  const renderManualPreviewStep = () => {
+    const src = safeImageSrc(state.context.manualUrl)
+    return (
+      <>
+        <StepHeader
+          onBack={() => send({ type: 'BACK' })}
+          title={t`Preview Image`}
+        />
+        <ErrorDisplay error={state.context.error} />
+        <div className="space-y-4">
+          <div className="text-center">
+            {src ? (
+              <img
+                alt="Preview"
+                className={getImageStyles(type, 'large')}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  send({
+                    type: 'SET_ERROR',
+                    error:
+                      'Failed to load image. Please check that the URL points to a valid image file.',
+                  })
+                }}
+                src={src}
+              />
+            ) : null}
+            <p className="mt-2 text-gray-500 text-sm">
+              <Eye className="mr-1 inline size-4" />
+              <Trans>Preview of your image</Trans>
+            </p>
+          </div>
         </div>
-      </div>
 
-      <StepFooter>
-        <Button onClick={() => send({ type: 'BACK' })} variant="outline">
-          <Trans>Back</Trans>
-        </Button>
-        <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
-          <Trans>Use This Image</Trans>
-        </Button>
-      </StepFooter>
-    </>
-  )
+        <StepFooter>
+          <Button onClick={() => send({ type: 'BACK' })} variant="outline">
+            <Trans>Back</Trans>
+          </Button>
+          <Button onClick={() => send({ type: 'CONFIRM_MANUAL_URL' })}>
+            <Trans>Use This Image</Trans>
+          </Button>
+        </StepFooter>
+      </>
+    )
+  }
 
   // Main render function that determines which step to show
   const renderStep = () => {

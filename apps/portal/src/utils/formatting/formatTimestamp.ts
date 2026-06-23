@@ -17,3 +17,26 @@ export const formatTimestamp = (timestamp?: bigint): string | null => {
     .replace(/\..+/, '')
     .replace(/-/g, '/')
 }
+
+/**
+ * Formats a Unix timestamp (in seconds) to a long-form date string in UTC.
+ * Format: "Month DD, YYYY" (e.g. "October 25, 2025")
+ *
+ * @param timestamp - Unix timestamp in seconds (as bigint or number)
+ * @returns Formatted date string, or null if timestamp is undefined
+ *
+ * @example
+ * formatTimestampDate(1761350400n) // "October 25, 2025"
+ */
+export const formatTimestampDate = (
+  timestamp?: bigint | number,
+): string | null => {
+  if (!timestamp) return null
+
+  return new Date(Number(timestamp) * 1000).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+}

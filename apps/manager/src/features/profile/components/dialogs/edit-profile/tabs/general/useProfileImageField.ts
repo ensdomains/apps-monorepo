@@ -1,11 +1,12 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMachine } from '@xstate/react'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { useAccount, useChainId, useSignTypedData } from 'wagmi'
+import { useAccount, useChainId } from 'wagmi'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
-import { uploadImageMutationOptions } from '@/features/profile/service/profileImageUpload'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
+import { prepareProfileImageUpload } from '@/features/profile/service/profileImageUpload'
+import { profileNftsQuery } from '@/features/profile/service/profileNfts'
 import { inspect } from '@/utils/xstate'
 import {
   cropImageFile,
@@ -22,6 +23,12 @@ import type {
   ProfileImageSize,
 } from './ProfileImageField.types'
 
+const revokeBlobUrl = (url: string | null) => {
+  if (url?.startsWith('blob:')) {
+    URL.revokeObjectURL(url)
+  }
+}
+
 export const useProfileImageField = ({
   isActive,
   currentImage,
@@ -32,8 +39,21 @@ export const useProfileImageField = ({
   onCancel,
   onImageChange,
   onImageRemove,
-  onImageUploadComplete,
+  onImageUploadPrepared,
+  owner,
+  preparedImagePreviewUrl,
 }: ProfileImageFieldProps) => {
+  const queryClient = useQueryClient()
+  const latestCallbacksRef = useRef({
+    onCancel,
+    onImageChange,
+    onImageRemove,
+  })
+  latestCallbacksRef.current = {
+    onCancel,
+    onImageChange,
+    onImageRemove,
+  }
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null)
@@ -48,27 +68,50 @@ export const useProfileImageField = ({
   const [isCropping, setIsCropping] = useState(false)
   const hasImage = Boolean(currentImage?.trim())
   const imageQuery = useQuery({
-    ...parseAvatarQuery(currentImage),
-    enabled: hasImage,
+    ...imageRecordQuery(currentImage),
+    enabled: hasImage && !preparedImagePreviewUrl,
   })
-  const displayImage = uploadPreviewUrl || imageQuery.data || currentImage
-  const { address, isConnected } = useAccount()
+  const displayImage =
+    uploadPreviewUrl ||
+    preparedImagePreviewUrl ||
+    imageQuery.data ||
+    currentImage
+  const { address } = useAccount()
   const chainId = useChainId()
-  const { signTypedDataAsync } = useSignTypedData()
-
   const [state, send] = useMachine(imageSelectionMachine, {
     input: {
-      onImageChange: (url: string) => {
-        onImageChange(url)
-        onCancel()
+      onImageChange: (url: string, resolvedImage?: string) => {
+        if (resolvedImage) {
+          queryClient.setQueryData(
+            imageRecordQuery(url).queryKey,
+            resolvedImage,
+          )
+        }
+        latestCallbacksRef.current.onImageChange(url)
+        latestCallbacksRef.current.onCancel()
       },
       onImageRemove: () => {
-        onImageRemove()
-        onCancel()
+        latestCallbacksRef.current.onImageRemove()
+        latestCallbacksRef.current.onCancel()
       },
     },
     inspect,
   })
+  const isNftSelectionOpen = state.matches('nftSelection')
+  const nftOwnerAddress = owner ?? address
+  const nftQuery = useQuery({
+    ...profileNftsQuery({
+      address: nftOwnerAddress,
+      chainId,
+    }),
+    enabled:
+      isActive && kind === 'avatar' && isNftSelectionOpen && !!nftOwnerAddress,
+  })
+
+  useEffect(() => {
+    if (kind !== 'avatar' || !isNftSelectionOpen) return
+    send({ type: 'SET_NFTS', nfts: nftQuery.data ?? [] })
+  }, [isNftSelectionOpen, kind, nftQuery.data, send])
 
   const resetEditor = () => {
     send({ type: 'RESET' })
@@ -85,27 +128,6 @@ export const useProfileImageField = ({
     onCancel()
   }
 
-  const { mutate: uploadImage, isPending: isUploading } = useMutation(
-    uploadImageMutationOptions({
-      type: kind,
-      name,
-      isConnected,
-      address,
-      chainId,
-      signTypedDataAsync,
-      onImageChange,
-      onImageUploadComplete: (imageUrl) =>
-        onImageUploadComplete?.(kind, imageUrl),
-      setOpen: (open) => {
-        if (!open) {
-          resetEditor()
-          onCancel()
-        }
-      },
-      send,
-    }),
-  )
-
   useEffect(() => {
     if (!isActive) {
       send({ type: 'RESET' })
@@ -120,9 +142,7 @@ export const useProfileImageField = ({
 
   useEffect(() => {
     return () => {
-      if (uploadPreviewUrl) {
-        URL.revokeObjectURL(uploadPreviewUrl)
-      }
+      revokeBlobUrl(uploadPreviewUrl)
     }
   }, [uploadPreviewUrl])
 
@@ -148,7 +168,7 @@ export const useProfileImageField = ({
     setCropOffset({ x: 0, y: 0 })
     setCropZoom(1)
     setUploadPreviewUrl((previousUrl) => {
-      if (previousUrl) URL.revokeObjectURL(previousUrl)
+      revokeBlobUrl(previousUrl)
       return URL.createObjectURL(file)
     })
     onActivate()
@@ -182,6 +202,12 @@ export const useProfileImageField = ({
   const handleManualClick = () => {
     send({ type: 'CLEAR_ERROR' })
     send({ type: 'OPEN_MANUAL_INPUT' })
+  }
+
+  const handleNftClick = () => {
+    send({ type: 'CLEAR_ERROR' })
+    onActivate()
+    send({ type: 'OPEN_NFT_SELECTION' })
   }
 
   const handleRemoveClick = () => {
@@ -244,12 +270,24 @@ export const useProfileImageField = ({
         offset: cropOffset,
         zoom: cropZoom,
       })
+      const upload = await prepareProfileImageUpload({
+        chainId,
+        file: croppedFile,
+        name,
+        type: kind,
+      })
       setUploadFile(croppedFile)
       setUploadPreviewUrl((previousUrl) => {
-        if (previousUrl) URL.revokeObjectURL(previousUrl)
-        return URL.createObjectURL(croppedFile)
+        revokeBlobUrl(previousUrl)
+        return upload.dataURL
       })
-      uploadImage(croppedFile)
+      queryClient.setQueryData(
+        imageRecordQuery(upload.imageUrl).queryKey,
+        upload.dataURL,
+      )
+      onImageUploadPrepared?.(upload)
+      onImageChange(upload.imageUrl)
+      onCancel()
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to crop image'
@@ -258,6 +296,14 @@ export const useProfileImageField = ({
       setIsCropping(false)
     }
   }
+
+  const nftErrorMessage = (() => {
+    if (!nftQuery.error) return null
+    if (nftQuery.error instanceof Error && nftQuery.error.message) {
+      return nftQuery.error.message
+    }
+    return 'Failed to load NFTs'
+  })()
 
   return {
     cropImageSize,
@@ -275,15 +321,18 @@ export const useProfileImageField = ({
     handleFileChange,
     handleManualClick,
     handleManualPreviewError,
+    handleNftClick,
     handleRemoveClick,
     handleUploadClick,
     hasImage,
     isCropping,
-    isUploading,
+    isLoadingNfts: nftQuery.isFetching,
+    isUploading: false,
+    nftErrorMessage,
+    nftOwnerAddress,
     send,
     state,
     uploadFile,
-    uploadImage,
     uploadPreviewUrl,
   }
 }

@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
 import { type Address, checksumAddress, isAddress } from 'viem'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageContainer } from '@/components/PageContainer'
 import { ResolverSidebar } from '@/components/ResolverSidebar'
 import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
@@ -26,7 +27,9 @@ function RouteComponent() {
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <SepoliaNoticeBanner />
-        <Outlet />
+        <PageContainer>
+          <Outlet />
+        </PageContainer>
       </SidebarInset>
     </SidebarProvider>
   )

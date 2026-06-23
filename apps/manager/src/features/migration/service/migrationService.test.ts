@@ -256,8 +256,8 @@ describe('executeMigration', () => {
     expect(plan.migrateCalls.length).toBe(2)
     expect(plan.batches.map((b) => b.names.length)).toEqual([100, 50])
     expect(onBatchComplete).toHaveBeenCalledTimes(2)
-    expect(onBatchComplete.mock.calls[0]![0]).toHaveLength(100)
-    expect(onBatchComplete.mock.calls[1]![0]).toHaveLength(50)
+    expect(onBatchComplete.mock.calls[0]?.[0]).toHaveLength(100)
+    expect(onBatchComplete.mock.calls[1]?.[0]).toHaveLength(50)
     expect(result.completed).toBe(150)
   })
 

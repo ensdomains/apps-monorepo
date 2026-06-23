@@ -1,19 +1,17 @@
 import { Trans } from '@lingui/react/macro'
-import { AlertCircle, CheckCircle2, Loader2, Menu } from 'lucide-react'
+import { Loader2, Menu } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Address } from 'viem'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { DialogClose } from '@/components/ui/dialog'
 import { TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
-import { getEditProfileDialogStatus } from './EditProfileDialogStatus'
 import { AddressesTab } from './tabs/addresses/AddressesTab'
 import { AppearanceTab } from './tabs/appearance/AppearanceTab'
 import { ContactTab } from './tabs/contact/ContactTab'
 import { GeneralTab } from './tabs/general/GeneralTab'
-import type { ProfileImageKind } from './tabs/general/ProfileImageField'
 import { LinksTab } from './tabs/links/LinksTab'
 
 const tabs = [
@@ -23,51 +21,6 @@ const tabs = [
   { label: 'Links', value: 'links' },
   { label: 'Appearance', value: 'appearance' },
 ] as const
-
-const EditProfileDialogStatusPanel = () => {
-  const status = getEditProfileDialogStatus(useEditProfileDialogStatus())
-
-  if (!status) {
-    return null
-  }
-
-  return (
-    <div className="px-4 pt-4">
-      {status.kind === 'error' ? (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>
-            <Trans>Could not save profile</Trans>
-          </AlertTitle>
-          <AlertDescription className="whitespace-pre-wrap break-words">
-            {status.message}
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <Alert
-          aria-live="polite"
-          className="border-green-200 bg-green-50 text-green-800 *:data-[slot=alert-description]:text-green-800/90"
-          role="status"
-        >
-          <CheckCircle2 className="size-4" />
-          <AlertTitle>
-            <Trans>Profile saved</Trans>
-          </AlertTitle>
-          <AlertDescription>
-            {status.txHash ? (
-              <p className="break-all">
-                <Trans>Transaction submitted:</Trans>{' '}
-                <span className="font-mono">{status.txHash}</span>
-              </p>
-            ) : (
-              <Trans>Profile updated successfully.</Trans>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
-  )
-}
 
 interface EditProfileDialogTabsProps {
   readonly canSave: boolean
@@ -79,13 +32,11 @@ interface EditProfileDialogTabsProps {
     hasValidationIssues: boolean,
   ) => void
   readonly onLinksChange: (links: ProfileRecords['links']) => void
-  readonly onImageUploadComplete?: (
-    kind: ProfileImageKind,
-    imageUrl: string,
-  ) => void
+  readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly onSave: () => void
   readonly onSocialChange: (social: ProfileRecords['social']) => void
   readonly owner?: Address
+  readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
   readonly values: ProfileRecords
 }
 
@@ -170,11 +121,12 @@ export const EditProfileDialogTabs = ({
   onBaseChange,
   onContactChange,
   onDraftLinkValidationIssuesChange,
-  onImageUploadComplete,
+  onImageUploadPrepared,
   onLinksChange,
   onSave,
   onSocialChange,
   owner,
+  preparedImageUploads,
   values,
 }: EditProfileDialogTabsProps) => {
   const { isSaving } = useEditProfileDialogStatus()
@@ -211,10 +163,8 @@ export const EditProfileDialogTabs = ({
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <EditProfileDialogStatusPanel />
-
         <div
-          className="scrollbar-scroll-only min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-4 pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]"
+          className="scrollbar-scroll-only min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-4 pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] md:px-4"
           data-scrolling={isScrolling}
           onScroll={handleScroll}
         >
@@ -223,7 +173,9 @@ export const EditProfileDialogTabs = ({
               name={name}
               onBaseChange={onBaseChange}
               onContactChange={onContactChange}
-              onImageUploadComplete={onImageUploadComplete}
+              onImageUploadPrepared={onImageUploadPrepared}
+              owner={owner}
+              preparedImageUploads={preparedImageUploads}
               values={values}
             />
           </TabsContent>

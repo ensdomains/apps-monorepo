@@ -85,4 +85,4 @@ const BaseLinkButton = React.forwardRef<
 
 const LinkButton = createLink(BaseLinkButton)
 
-export { Button, LinkButton, buttonVariants }
+export { Button, buttonVariants, LinkButton }

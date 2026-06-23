@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { optionalSafeHttpUrlSchema } from '../../safe-http-url'
 import type { NotificationDefinition } from '../types'
 
 export const ensUpdateDefinition = {
@@ -7,7 +8,7 @@ export const ensUpdateDefinition = {
   payloadSchema: v.object({
     title: v.string(),
     summary: v.string(),
-    url: v.optional(v.string()),
+    url: optionalSafeHttpUrlSchema(),
   }),
   metadata: {
     category: 'ENS Updates',

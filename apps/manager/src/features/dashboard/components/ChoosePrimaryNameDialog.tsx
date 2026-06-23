@@ -35,10 +35,7 @@ import {
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
-import {
-  type AvatarLookupEntry,
-  namesAvatarsQuery,
-} from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -81,20 +78,18 @@ const PrimaryNameSkeletonList = () => (
 const PrimaryNameOption = ({
   domain,
   selectedName,
-  avatarsByName,
   isSubmitting,
   onSelectName,
 }: {
   readonly domain: PrimaryNameDomain
   readonly selectedName: string | null
-  readonly avatarsByName?: Record<string, string | undefined>
   readonly isSubmitting: boolean
   readonly onSelectName: (name: string) => void
 }) => {
   const { t } = useLingui()
   const label = resolveDomainLabel(domain)
   const isSelected = selectedName === label
-  const avatarUrl = avatarsByName?.[label]
+  const avatarUrl = buildNameAvatarUrl(label)
 
   return (
     <button
@@ -290,17 +285,6 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const avatarLookups = useMemo<AvatarLookupEntry[]>(() => {
-    if (!open) return []
-    return domains.flatMap((domain) => {
-      const resolverAddress = domain.resolver?.address as Address | undefined
-      if (!resolverAddress) return []
-      return [{ name: resolveDomainLabel(domain), resolverAddress }]
-    })
-  }, [open, domains])
-
-  const { data: avatarsByName } = useQuery(namesAvatarsQuery(avatarLookups))
-
   const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && !!selectedName,
@@ -420,7 +404,6 @@ export const ChoosePrimaryNameDialog = ({
               .otherwise(({ domains }) =>
                 domains.map((domain) => (
                   <PrimaryNameOption
-                    avatarsByName={avatarsByName}
                     domain={domain}
                     isSubmitting={isSubmitting}
                     key={domain.id}

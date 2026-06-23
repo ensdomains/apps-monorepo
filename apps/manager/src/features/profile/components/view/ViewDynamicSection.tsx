@@ -1,7 +1,7 @@
-import clsx from 'clsx'
 import { CopyableButton } from '@/components/atoms/CopyableButton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { tw } from '@/utils/tailwind'
 import {
   getRecordDef,
   getRecordDisplayValue,
@@ -31,7 +31,7 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
     return (
       <Button
         asChild
-        className={clsx('justify-start hover:brightness-95', themeClassName)}
+        className={tw('justify-start hover:brightness-95', themeClassName)}
         size="sm"
         variant="outline"
       >
@@ -49,7 +49,7 @@ const DynamicRecord = ({ record }: DynamicRecordProps) => {
 
   return (
     <CopyableButton
-      className={clsx('justify-start hover:brightness-95', themeClassName)}
+      className={tw('justify-start hover:brightness-95', themeClassName)}
       title={record.value}
       value={displayValue}
     >
@@ -88,8 +88,8 @@ export const ViewDynamicSection = ({
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-center gap-2">
-          {sectionRecords.map((record, i) => (
-            <DynamicRecord key={`${record.key}-${i}`} record={record} />
+          {sectionRecords.map((record) => (
+            <DynamicRecord key={record.key} record={record} />
           ))}
         </div>
       </CardContent>
