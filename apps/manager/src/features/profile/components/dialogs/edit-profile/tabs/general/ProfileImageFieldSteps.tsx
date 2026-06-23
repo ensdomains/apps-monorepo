@@ -1,6 +1,7 @@
 import type React from 'react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { AvatarNft } from '@/features/profile/service/profileNfts'
+import { safeImageSrc } from '@/features/profile/utils/safeUrl'
 import { cn } from '@/lib/utils'
 import {
   fieldShellClassName,
@@ -169,31 +170,36 @@ export const ManualPreviewStep = ({
   onBack,
   onImageError,
   onUseImage,
-}: ManualPreviewStepProps) => (
-  <StepPanel backDisabled={disabled} onBack={onBack}>
-    <p className="text-base text-ens-quartz-500 leading-ens-normal">
-      Preview image
-    </p>
-    <img
-      alt="Manual URL preview"
-      className={editPreviewClassName(kind)}
-      onError={onImageError}
-      src={manualUrl}
-    />
-    <button
-      className={cn(
-        'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
-        focusVisibleRingClassName,
-      )}
-      disabled={disabled}
-      onClick={onUseImage}
-      type="button"
-    >
-      Use image
-    </button>
-    <ErrorMessage error={error} />
-  </StepPanel>
-)
+}: ManualPreviewStepProps) => {
+  const src = safeImageSrc(manualUrl)
+  return (
+    <StepPanel backDisabled={disabled} onBack={onBack}>
+      <p className="text-base text-ens-quartz-500 leading-ens-normal">
+        Preview image
+      </p>
+      {src ? (
+        <img
+          alt="Manual URL preview"
+          className={editPreviewClassName(kind)}
+          onError={onImageError}
+          src={src}
+        />
+      ) : null}
+      <button
+        className={cn(
+          'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+          focusVisibleRingClassName,
+        )}
+        disabled={disabled}
+        onClick={onUseImage}
+        type="button"
+      >
+        Use image
+      </button>
+      <ErrorMessage error={error} />
+    </StepPanel>
+  )
+}
 
 interface NftSelectionStepProps {
   readonly disabled?: boolean

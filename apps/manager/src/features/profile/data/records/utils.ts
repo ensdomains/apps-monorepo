@@ -1,3 +1,4 @@
+import { safeRecordHref } from '../../utils/safeUrl'
 import { addressRecords } from './address'
 import {
   sections,
@@ -53,8 +54,11 @@ export const getRecordHref = (
 ): string | undefined => {
   if (!record || !('href' in record)) return undefined
   const displayValue = getRecordDisplayValue(record, value)
-  if (typeof record.href === 'function') return record.href(displayValue)
-  return record.href + encodeURIComponent(displayValue || '')
+  const href =
+    typeof record.href === 'function'
+      ? record.href(displayValue)
+      : record.href + encodeURIComponent(displayValue || '')
+  return safeRecordHref(href)
 }
 
 export const getRecordDisplayValue = (
