@@ -6,6 +6,7 @@ import {
   backendAuthStore,
   backendClient,
   getSiweDomain,
+  getSiweUri,
 } from '@/utils/backend-client'
 
 const getNonce = async () => {
@@ -29,14 +30,14 @@ export const signInBackendMutation = mutationOptions({
     const nonce = await getNonce()
 
     const domain = getSiweDomain()
-    const url = new URL(window.location.origin)
+    const uri = getSiweUri()
 
     const siweMessage = createSiweMessage({
       address: account.address,
       domain,
       nonce,
       chainId: walletClient.chain?.id ?? 0,
-      uri: url.origin,
+      uri,
       version: '1',
     })
 

@@ -24,6 +24,7 @@ import {
   backendAuthStore,
   backendClient,
   getSiweDomain,
+  getSiweUri,
   isBackendAuthed,
 } from '@/utils/backend-client'
 
@@ -201,17 +202,14 @@ const loginMutation = async () => {
   const nonce = await getNonce()
 
   const domain = getSiweDomain()
-  const origin =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : 'http://localhost:3000'
+  const uri = getSiweUri()
 
   const siweMessage = createSiweMessage({
     address: account.address,
     domain,
     nonce,
     chainId: wagmiConfig.chains[0].id,
-    uri: origin,
+    uri,
     version: '1',
   })
 

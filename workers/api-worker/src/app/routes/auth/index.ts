@@ -57,6 +57,9 @@ export default createApp()
           .with({ _tag: 'INVALID_DOMAIN' }, () =>
             c.json({ error: 'Invalid SIWE domain' }, 400),
           )
+          .with({ _tag: 'INVALID_URI' }, () =>
+            c.json({ error: 'Invalid SIWE uri' }, 400),
+          )
           .with(
             {
               _tag: P.union(

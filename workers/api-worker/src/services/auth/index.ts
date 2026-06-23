@@ -25,6 +25,10 @@ class InvalidDomainError extends TaggedError('INVALID_DOMAIN')<{
   message: string
 }> {}
 
+class InvalidUriError extends TaggedError('INVALID_URI')<{
+  message: string
+}> {}
+
 export const createNonce = (env: CloudflareBindings) => {
   const nonce = generateSiweNonce()
 
@@ -77,6 +81,13 @@ export const createJWT = ({
     ) {
       yield* new InvalidDomainError({
         message: 'Invalid SIWE domain',
+      })
+    }
+
+    const expectedUri = `https://${parsed.domain}`
+    if (parsed.uri !== expectedUri) {
+      yield* new InvalidUriError({
+        message: 'Invalid SIWE uri',
       })
     }
 

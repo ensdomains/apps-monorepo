@@ -89,6 +89,8 @@ export const getSiweDomain = (): AllowedSiweDomain => {
   return DEFAULT_SIWE_DOMAIN
 }
 
+export const getSiweUri = (): string => `https://${getSiweDomain()}`
+
 export const getBackendApiBaseUrl = () =>
   backendAuthStore.get().context.apiBaseUrlOverride ?? DEFAULT_BACKEND_API_URL
 
