@@ -20,6 +20,7 @@ export const ProfileViewNewLoading = ({ name }: ProfileViewNewLoadingProps) => {
     <div className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0px))] lg:landscape:pb-[114px]">
       <ProfileViewNewBannerLoading shouldReduceMotion={shouldReduceMotion} />
       <div className="relative z-10 mx-auto -mt-[84px] w-full max-w-[390px] space-y-0 lg:landscape:-mt-[69px] lg:landscape:max-w-226.25">
+        <div aria-hidden="true" className="mb-6 h-0" />
         <ProfileViewNewHeaderLoading
           name={name}
           shouldReduceMotion={shouldReduceMotion}

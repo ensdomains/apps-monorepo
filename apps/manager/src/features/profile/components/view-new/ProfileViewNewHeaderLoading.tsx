@@ -99,7 +99,7 @@ const ProfileDetailLoading = ({
         shouldReduceMotion={shouldReduceMotion}
       />
       <SkeletonBlock
-        className="h-5 w-14 lg:landscape:w-16"
+        className="h-5 w-14 lg:landscape:h-6 lg:landscape:w-16"
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>

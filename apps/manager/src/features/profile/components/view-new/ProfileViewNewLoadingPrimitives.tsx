@@ -57,7 +57,7 @@ export const ProfileViewNewSectionLoading = ({
     {...getMotionProps(shouldReduceMotion, index * 0.05)}
   >
     <SkeletonBlock
-      className={clsx('h-5', titleWidth)}
+      className={clsx('h-6', titleWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
     <div className="mt-6">{children}</div>

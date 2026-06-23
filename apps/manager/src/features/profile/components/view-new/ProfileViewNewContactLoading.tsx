@@ -6,9 +6,11 @@ import {
 } from './ProfileViewNewLoadingPrimitives'
 
 const ContactCardLoading = ({
+  labelWidth,
   shouldReduceMotion,
   valueWidth,
 }: {
+  readonly labelWidth: string
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
@@ -18,12 +20,15 @@ const ContactCardLoading = ({
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
-          className="size-7 rounded lg:landscape:size-7.5"
+          className="size-7 rounded-[6px] lg:landscape:size-7.5"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
       <SkeletonBlock
-        className="h-[18px] w-18"
+        className={clsx(
+          'h-[16.5px] rounded-[4px] lg:landscape:h-[18px]',
+          labelWidth,
+        )}
         shouldReduceMotion={shouldReduceMotion}
       />
     </div>
@@ -32,11 +37,29 @@ const ContactCardLoading = ({
       shouldReduceMotion={shouldReduceMotion}
     />
     <SkeletonBlock
-      className={clsx('h-[21px]', valueWidth)}
+      className={clsx('h-[19.5px] rounded-[4px] lg:landscape:h-5', valueWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
   </div>
 )
+
+const contactCardPlaceholders = [
+  {
+    id: 'email',
+    labelWidth: 'w-[76px]',
+    valueWidth: 'w-[124px]',
+  },
+  {
+    id: 'x',
+    labelWidth: 'w-14',
+    valueWidth: 'w-[70px]',
+  },
+  {
+    id: 'mailing-address',
+    labelWidth: 'w-[96px]',
+    valueWidth: 'w-[168px]',
+  },
+]
 
 export const ProfileContactSectionLoading = ({
   shouldReduceMotion,
@@ -49,11 +72,12 @@ export const ProfileContactSectionLoading = ({
     titleWidth="w-17"
   >
     <div className="grid grid-cols-2 gap-3 lg:landscape:grid-cols-3 lg:landscape:gap-6">
-      {['w-4/5', 'w-2/3', 'w-3/5'].map((width) => (
+      {contactCardPlaceholders.map(({ id, labelWidth, valueWidth }) => (
         <ContactCardLoading
-          key={width}
+          key={id}
+          labelWidth={labelWidth}
           shouldReduceMotion={shouldReduceMotion}
-          valueWidth={width}
+          valueWidth={valueWidth}
         />
       ))}
     </div>
