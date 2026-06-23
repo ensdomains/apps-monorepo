@@ -2,8 +2,8 @@ import clsx from 'clsx'
 import { Copy } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
-  MSymbol,
   type MaterialSymbolProps,
+  MSymbol,
 } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import {
@@ -28,7 +28,7 @@ export const ProfileViewNewBannerLoading = ({
         <div className="pointer-events-none absolute top-14 h-60 w-full animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent lg:landscape:top-0 lg:landscape:h-full" />
       )}
     </div>
-    <div className="pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
+    <div className="mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)] pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm" />
   </div>
 )
 
@@ -58,9 +58,9 @@ const NeutralAvatarLoading = ({
         />
       ))}
     </div>
-    {!shouldReduceMotion ? (
+    {shouldReduceMotion ? null : (
       <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent" />
-    ) : null}
+    )}
   </div>
 )
 
@@ -84,9 +84,9 @@ const ProfileNameBadgeLoading = ({
     ) : (
       <div className="h-[35.84px] w-56" />
     )}
-    {!shouldReduceMotion ? (
+    {shouldReduceMotion ? null : (
       <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/15 to-transparent" />
-    ) : null}
+    )}
   </div>
 )
 
@@ -112,10 +112,7 @@ const ProfileDetailLoading = ({
         iconGapClassName,
       )}
     >
-      <MSymbol
-        className="ms-opsz-20 ms-wght-300 shrink-0"
-        symbol={symbol}
-      />
+      <MSymbol className="ms-opsz-20 ms-wght-300 shrink-0" symbol={symbol} />
       <span>{label}</span>
     </div>
     <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
