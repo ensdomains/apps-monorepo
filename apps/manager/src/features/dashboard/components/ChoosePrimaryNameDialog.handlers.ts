@@ -1,13 +1,13 @@
 /**
- * Pure handler functions for resolver and primary-name updates.
+ * Handler functions for primary-name updates.
  *
  * Business logic extracted outside React components for testability.
  */
 
-import type { primaryNameMachine } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient } from 'viem'
+import type { primaryNameMachine, Signer } from '@ens-apps/transaction-manager'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
-import type { ProfileRecordsResult } from './profileRecords'
+import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 
 const ETH_COIN_TYPE = 60
 
@@ -32,13 +32,15 @@ export interface PrimaryNameParams {
   owner?: Address
 }
 
+interface PrimaryNameAccount {
+  walletClient?: WalletClient | null
+  ownerAddress?: Address | null
+  signer?: Signer | null
+  accountAddress?: Address | null
+}
+
 export interface PrimaryNameOptions {
-  account: {
-    walletClient?: import('viem').WalletClient | null
-    ownerAddress?: Address | null
-    signer?: import('@ens-apps/transaction-manager').Signer | null
-    accountAddress?: Address | null
-  }
+  account: PrimaryNameAccount
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
   publicClient: PublicClient
 }
@@ -87,10 +89,10 @@ export function handleSetPrimaryName(
     type: 'START_UPDATE',
     name,
     signer: account.signer,
-    accountAddress: account.accountAddress as Address,
+    accountAddress: account.accountAddress,
     publicClient,
     walletClient,
-    eoaAddress: account.ownerAddress as Address,
+    eoaAddress: account.ownerAddress,
   })
 
   return undefined

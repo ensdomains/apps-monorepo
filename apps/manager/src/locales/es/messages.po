@@ -403,7 +403,6 @@ msgstr ""
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Cancel"
 msgstr ""
@@ -658,12 +657,10 @@ msgid "Copy to clipboard"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not find resolver for {name}"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
 msgstr ""
 
@@ -989,12 +986,10 @@ msgid "Failed to resend email verification"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Failed to set ETH address record"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Failed to set primary name. Please try again."
 msgstr ""
 
@@ -1357,7 +1352,6 @@ msgid "No eligible names found for this wallet"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid ""
 "No ETH address record set. If you proceed, your current wallet address will "
 "be set as the ETH address and this name will be set as your primary name."
@@ -1622,7 +1616,6 @@ msgid "Primary Name Profile"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Primary name set successfully"
 msgstr ""
 
@@ -1996,15 +1989,14 @@ msgid "Sending..."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Set as Primary"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid ""
-"Set it as your primary name. You can do this from your profile page in the "
-"ENS App."
+"Set it as your primary name from the primary name card on your Dashboard."
 msgstr ""
+"Set it as your primary name from the primary name card on your Dashboard."
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Set multiple records: ETH, BTC, email"
@@ -2012,10 +2004,6 @@ msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx
 msgid "Set primary name"
-msgstr ""
-
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "Set Primary Name"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -2034,10 +2022,6 @@ msgstr ""
 msgid "Setting ETH address..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "Setting ETH address…"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting up registration"
 msgstr ""
@@ -2052,10 +2036,6 @@ msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting..."
-msgstr ""
-
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "Setting…"
 msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
@@ -2275,7 +2255,6 @@ msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid ""
 "The ETH address record does not match your wallet. If you proceed, it will "
 "be updated to your current wallet address and this name will be set as your "
@@ -2342,12 +2321,6 @@ msgstr ""
 msgid ""
 "This will be split into {0} batches — expect that many wallet signatures "
 "(plus approvals)."
-msgstr ""
-
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid ""
-"This will set <0>{name}</0> as your primary ENS name for this account, so "
-"compatible apps and wallets can display it as your default identity."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx
@@ -2659,7 +2632,6 @@ msgid "Wallet funded successfully"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Wallet signer not available"
 msgstr ""
 
