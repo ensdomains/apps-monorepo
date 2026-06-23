@@ -1,5 +1,6 @@
-import { Loader2Icon, UserIcon } from 'lucide-react'
-import { match, P } from 'ts-pattern'
+import { Loader2Icon } from 'lucide-react'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
@@ -14,29 +15,27 @@ export const AccountTriggerContent = () => {
   return (
     <>
       <div className="flex min-w-0 items-center gap-2 md:gap-2">
-        <div className="flex size-[30px] shrink-0 items-center justify-center md:size-[46px]">
-          {match({
-            avatar: avatar.url,
-            avatarLoading: avatar.isLoading,
-          })
-            .with({ avatar: P.string }, ({ avatar }) => (
-              <img
+        <div className="flex size-7.5 shrink-0 items-center justify-center md:size-[46px]">
+          {avatar.isLoading ? (
+            <Loader2Icon className="size-4 animate-spin rounded-full bg-ens-gray-two md:size-5" />
+          ) : (
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
                 alt="ENS Avatar"
                 className="size-full rounded-full object-cover"
-                src={avatar}
+                src={avatar.url ?? undefined}
               />
-            ))
-            .with({ avatarLoading: true }, () => (
-              <Loader2Icon className="size-4 animate-spin rounded-full bg-ens-gray-two md:size-5" />
-            ))
-            .otherwise(() => (
-              <div className="flex size-full items-center justify-center rounded-full bg-ens-gray-two">
-                <UserIcon className="size-4 text-muted-foreground md:size-5" />
-              </div>
-            ))}
+              <ImageFallback.Fallback>
+                <PatternAvatar
+                  className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                  name={reverseNameQuery.data ?? ownerAddress ?? 'wallet'}
+                />
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
+          )}
         </div>
 
-        <span className="min-w-0 truncate font-normal text-gray-700 text-sm leading-tight tracking-tight md:text-lg md:leading-[0.96] md:tracking-[-0.32px]">
+        <span className="min-w-0 truncate font-normal text-gray-700 text-sm leading-tight tracking-tight md:text-lg md:leading-ens-tight md:tracking-[-0.32px]">
           {getHeaderDisplayName({
             isLoading,
             ownerAddress,
@@ -45,7 +44,7 @@ export const AccountTriggerContent = () => {
         </span>
       </div>
       <MSymbol
-        className="group-data-popup-open:-rotate-180 group-data-[state=open]:-rotate-180 ms-font-rounded shrink-0 transition-transform duration-200"
+        className="ms-font-rounded shrink-0 transition-transform duration-200 group-data-[state=open]:-rotate-180 group-data-popup-open:-rotate-180"
         symbol="keyboard_arrow_down"
       />
     </>

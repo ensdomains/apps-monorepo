@@ -14,6 +14,7 @@ export const EditProfileDialog = ({
   records,
   owner,
   onUpdated,
+  trigger,
 }: EditProfileDialogProps) => {
   const dialogActor = useActorRef(editProfileDialogMachine, {
     input: { records },
@@ -74,9 +75,11 @@ export const EditProfileDialog = ({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
-        <Button className="w-full" type="button">
-          <Trans>Edit Profile</Trans>
-        </Button>
+        {trigger ?? (
+          <Button className="w-full" type="button">
+            <Trans>Edit Profile</Trans>
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent
         className="top-0 left-0 h-dvh max-h-dvh w-screen max-w-none! translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none border-[#dededf] border-[0.75px] bg-white p-0 shadow-lg sm:max-w-none! md:top-[50%] md:left-[50%] md:h-[min(90dvh,739px)] md:w-[min(92vw,800px)] md:max-w-200! md:translate-x-[-50%] md:translate-y-[-50%] md:rounded-xl"

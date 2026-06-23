@@ -1,42 +1,40 @@
-import { useQueries } from '@tanstack/react-query'
-import clsx from 'clsx'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
-import { parseAvatarQuery } from '../../service/profileAvatar'
-import type { ProfileRecords } from '../../types'
+import {
+  buildNameAvatarUrl,
+  buildNameHeaderUrl,
+} from '../../service/profileAvatar'
+import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
 import { FavoriteButton } from './FavoriteButton'
 
 interface ViewHeaderSectionProps {
   name: string
-  records: ProfileRecords
   owner?: Address
   isInGrace?: boolean
+  isOwner?: boolean
 }
 
 export const ViewHeaderSection = ({
   name,
-  records,
   owner,
   isInGrace = false,
+  isOwner,
 }: ViewHeaderSectionProps) => {
-  const [avatar, header] = useQueries({
-    queries: [
-      parseAvatarQuery(records.base.avatar),
-      parseAvatarQuery(records.base.header),
-    ],
-  })
-
-  const avatarUrl = isInGrace ? undefined : (avatar.data ?? records.base.avatar)
-  const headerUrl = isInGrace ? undefined : (header.data ?? records.base.header)
+  const avatarUrl = isInGrace
+    ? undefined
+    : safeImageSrc(buildNameAvatarUrl(name))
+  const headerUrl = isInGrace
+    ? undefined
+    : safeImageSrc(buildNameHeaderUrl(name))
 
   const url = `${
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : 'https://app.ens.domains'
+    typeof window === 'undefined'
+      ? 'https://app.ens.domains'
+      : window.location.origin
   }/p/${name}`
 
   return (
@@ -53,7 +51,7 @@ export const ViewHeaderSection = ({
           )}
           <ImageFallback.Fallback>
             <div
-              className={clsx('size-full', header.isLoading && 'animate-pulse')}
+              className="size-full"
               style={{
                 backgroundImage:
                   'linear-gradient(162deg, transparent 21.72%, var(--color-muted) 62.7%)',
@@ -62,13 +60,13 @@ export const ViewHeaderSection = ({
           </ImageFallback.Fallback>
         </ImageFallback.Root>
         <div className="absolute top-4 left-4 flex items-center gap-2">
-          <RenewNameButton name={name} />
+          <RenewNameButton isOwner={isOwner} name={name} />
         </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <FavoriteButton name={name} />
           <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
         </div>
-        <div className="-bottom-10 -translate-x-1/2 absolute left-1/2 size-24 md:size-36 lg:size-40">
+        <div className="absolute -bottom-10 left-1/2 size-24 -translate-x-1/2 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
             <ImageFallback.Root className="contents">
               {isInGrace ? null : (
@@ -80,15 +78,9 @@ export const ViewHeaderSection = ({
               )}
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className={clsx(
-                    'size-full rounded-xl border-none bg-transparent p-0 shadow-none',
-                    avatar.isLoading && 'opacity-50',
-                  )}
+                  className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
                   name={name}
                 />
-                {avatar.isLoading && (
-                  <div className="absolute inset-0 animate-pulse rounded-xl bg-gray-100" />
-                )}
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>

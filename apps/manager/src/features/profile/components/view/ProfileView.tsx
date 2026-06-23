@@ -19,6 +19,7 @@ import { profileRecordsQuery } from '../../service/profileRecords'
 import { getThemeVars } from '../../utils/themeColor'
 import { transformProfileRecords } from '../../utils/transformRecords'
 import { EditProfileDialog } from '../dialogs/edit-profile/EditProfileDialog'
+import { ProfileViewNew } from '../view-new/ProfileViewNew'
 import { isConnectedProfileOwner } from './ProfileView.helpers'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
@@ -48,6 +49,16 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
+  const profileViewNewEnabled = useFeatureFlag('PROFILE_VIEW_NEW')
+
+  return profileViewNewEnabled ? (
+    <ProfileViewNew name={name} />
+  ) : (
+    <ProfileViewCurrent name={name} />
+  )
+}
+
+const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
   const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
@@ -115,9 +126,9 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
         .otherwise(() => null)}
       <ViewHeaderSection
         isInGrace={expiry.isInGrace}
+        isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         owner={owner}
-        records={records}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}

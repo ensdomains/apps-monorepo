@@ -46,10 +46,7 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
   const [isSyncing, setIsSyncing] = useState(false)
   const isWrongChain = isConnected && chain?.id !== chainId
 
-  const getSwitchToRequiredNetworkRequest = useCallback(
-    () => ({ chainId }),
-    [chainId],
-  )
+  const getSwitchToRequiredNetworkRequest = useCallback(() => ({ chainId }), [])
 
   const switchToRequiredNetwork = useCallback(() => {
     switchChain(getSwitchToRequiredNetworkRequest())

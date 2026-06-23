@@ -96,7 +96,7 @@ export const ChatBubble = ({
         aria-hidden="true"
         className={cn(
           'absolute top-full',
-          kind === 'message' ? 'left-3' : '-scale-x-100 right-3',
+          kind === 'message' ? 'left-3' : 'right-3 -scale-x-100',
         )}
         fill="none"
         height={tailHeight}

@@ -23,7 +23,7 @@ export const createPersistedStore = <
   { key }: PersistedStoreOptions,
 ) => {
   const persistedContext =
-    typeof window !== 'undefined' ? localStorage.getItem(key) : undefined
+    typeof window === 'undefined' ? undefined : localStorage.getItem(key)
   const initialContext = persistedContext
     ? (JSON.parse(persistedContext) as TContext)
     : context

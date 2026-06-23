@@ -891,7 +891,9 @@ async function registerEnsDomain(
 
   // Step 10: Approve token (if not ETH)
   console.log('\n📤 Step 2: Approving token...')
-  if (paymentToken !== zeroAddress) {
+  if (paymentToken === zeroAddress) {
+    console.log('⚡ Using ETH - no approval needed')
+  } else {
     const approveData = encodeFunctionData({
       abi: ERC20_ABI,
       functionName: 'approve',
@@ -955,8 +957,6 @@ async function registerEnsDomain(
       console.error('\n❌ Approve transaction failed:', error)
       throw error
     }
-  } else {
-    console.log('⚡ Using ETH - no approval needed')
   }
 
   // Step 11: Register (third transaction) - No wait time needed with FastTestETHRegistrar

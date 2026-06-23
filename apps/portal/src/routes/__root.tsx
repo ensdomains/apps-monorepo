@@ -10,6 +10,7 @@ import { type ReactNode, useEffect } from 'react'
 import { Toaster } from 'sonner'
 import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
@@ -19,6 +20,7 @@ function TransactionManagerSetup({ children }: { children: ReactNode }) {
   const publicClient = usePublicClient()
 
   useAutoFundOnLowBalance()
+  useTransactionModalRouteReset()
 
   useEffect(() => {
     if (publicClient) {

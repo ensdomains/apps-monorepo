@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { optionalSafeHttpUrlSchema } from '../../safe-http-url'
 import type { NotificationDefinition } from '../types'
 
 export const alphaWelcomeDefinition = {
@@ -8,7 +9,7 @@ export const alphaWelcomeDefinition = {
     title: v.string(),
     body: v.string(),
     ctaLabel: v.optional(v.string()),
-    ctaUrl: v.optional(v.string()),
+    ctaUrl: optionalSafeHttpUrlSchema(),
   }),
   metadata: {
     category: 'ENS Updates',

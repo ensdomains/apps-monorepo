@@ -18,11 +18,11 @@ const classify = (o: Parameters<typeof makeDomain>[0] = {}) =>
   classifyName(makeDomain(o), OWNER)
 
 const classified = (r: ReturnType<typeof classifyName>): ClassifiedName => {
-  if (!r || r.type !== 'classified') throw new Error('not classified')
+  if (r?.type !== 'classified') throw new Error('not classified')
   return r.name
 }
 const ineligibleReason = (r: ReturnType<typeof classifyName>) => {
-  if (!r || r.type !== 'ineligible') throw new Error('not ineligible')
+  if (r?.type !== 'ineligible') throw new Error('not ineligible')
   return r.name.reason
 }
 

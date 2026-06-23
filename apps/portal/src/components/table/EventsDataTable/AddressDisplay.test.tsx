@@ -41,6 +41,7 @@ vi.mock('@/components/EntityBadge', () => ({
         <div data-testid="name-avatar">{name}</div>
       ) : null}
       {children}
+      {/* biome-ignore lint/a11y/noAmbiguousAnchorText: test mock; the anchor text is irrelevant because the test queries by role, not visible text */}
       <a
         href={variant === 'name' ? `/$name/${name}` : `/addr/$addr/${address}`}
       >

@@ -5,7 +5,7 @@ import {
   Share as ShareIcon,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import QRCode from 'react-qr-code'
+import QRCodeImport from 'react-qr-code'
 import { toast } from 'sonner'
 import ensLogo from '@/assets/icons/ens.svg'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
@@ -15,15 +15,20 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
+  DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
 import {
   Drawer,
   DrawerContent,
   DrawerFooter,
+  DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { resolveDefaultExport } from './ShareProfileDialog.helpers'
+
+const QRCode = resolveDefaultExport(QRCodeImport)
 
 interface ShareProfileDialogProps {
   name: string
@@ -48,9 +53,9 @@ export const ShareProfileDialog = ({
     try {
       const u = new URL(
         url,
-        typeof window !== 'undefined'
-          ? window.location.origin
-          : 'https://app.ens.domains',
+        typeof window === 'undefined'
+          ? 'https://app.ens.domains'
+          : window.location.origin,
       )
       return u.toString()
     } catch {
@@ -146,7 +151,10 @@ export const ShareProfileDialog = ({
     return (
       <Dialog onOpenChange={handleOpenChange} open={open}>
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-        <DialogContent className="max-w-sm">
+        <DialogContent aria-describedby={undefined} className="max-w-sm">
+          <DialogTitle className="sr-only">
+            <Trans>Share profile</Trans>
+          </DialogTitle>
           {content}
           <DialogFooter>{footer}</DialogFooter>
         </DialogContent>
@@ -158,6 +166,9 @@ export const ShareProfileDialog = ({
     <Drawer onOpenChange={handleOpenChange} open={open}>
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent>
+        <DrawerTitle className="sr-only">
+          <Trans>Share profile</Trans>
+        </DrawerTitle>
         <div className="px-4 pt-4">{content}</div>
         <DrawerFooter>{footer}</DrawerFooter>
       </DrawerContent>

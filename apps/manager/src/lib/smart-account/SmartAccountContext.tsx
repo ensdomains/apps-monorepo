@@ -170,7 +170,7 @@ export const SmartAccountContextProvider = ({
       return response.json()
     },
     onSuccess: (data, address) => {
-      if (!data || !data.txHash) {
+      if (!data?.txHash) {
         toast.dismiss(`fund-wallet-${address}`)
         return
       }
@@ -266,7 +266,7 @@ export const SmartAccountContextProvider = ({
     // wagmi wallet client directly. This is the only viable signer on the
     // tenderly fork where the Rhinestone relayer is unavailable.
     if (isFeatureEnabled('USE_EOA')) {
-      if (!wagmiWalletClient || !wagmiWalletClient.account) return null
+      if (!wagmiWalletClient?.account) return null
       return {
         type: 'eoa',
         walletClient: wagmiWalletClient as WalletClient,

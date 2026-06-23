@@ -1,25 +1,25 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, useParams } from '@tanstack/react-router'
-import { AlertCircle } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { useRef, useState } from 'react'
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
-import { isAddress, zeroAddress } from 'viem'
+import { type Address, isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { DeployRegistryForm } from '@/features/registry/components/DeployRegistryForm'
-import { DeployRegistryHeader } from '@/features/registry/components/DeployRegistryHeader'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { useSetSubregistry } from '@/features/registry/hooks/useSetSubregistry'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { verifyProxyContract } from '@/utils/blockExplorer/verifyProxyContract'
 
@@ -28,17 +28,25 @@ const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
 
 const SUCCESS_LABEL_DURATION_MS = 5000
 
-export const Route = createFileRoute('/$name/deploy-registry')({
-  component: RouteComponent,
-})
+type RegistryOption = 'deploy' | 'use-existing'
 
-function RouteComponent() {
-  const { name } = useParams({ from: '/$name/deploy-registry' })
+type ConfigureRegistryFormProps = {
+  name: string
+}
+
+export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
+  const isMobile = useIsMobile()
   const { address: connectedAddress } = useConnection()
-  const [useCustomRegistry, setUseCustomRegistry] = useState(false)
+
+  const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
+
+  const useCustomRegistry = registryOption === 'use-existing'
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)
   const deployedSubregistryAddressRef = useRef<Address | null>(null)
+
+  const [showDeploySubregistryForm, setShowDeploySubregistryForm] =
+    useState(false)
 
   const {
     openModal: openTransactionModal,
@@ -46,17 +54,11 @@ function RouteComponent() {
     clearTransaction,
   } = useTransactionModal()
 
-  const { data: ownerData } = useQuery(getEnsOwnerQueryOptions({ name }))
-
   const {
     data: registries,
     isLoading,
-    error: registryError,
-  } = useQuery({
-    ...getNameRegistriesQueryOptions({ name }),
-    // findRegistries is only meaningful for V2 names; V1 names have no subregistries
-    enabled: ownerData?.protocolVersion === 'ENSv2',
-  })
+    error,
+  } = useQuery(getNameRegistriesQueryOptions({ name }))
 
   const label = name.split('.')[0]
   const parentRegistry = registries?.at(1) ?? null
@@ -102,6 +104,7 @@ function RouteComponent() {
   const {
     setSubregistry,
     isPending: isSetSubregistryPending,
+    isSuccess: isSetSubregistrySuccess,
     hasWallet: hasSetWallet,
   } = useSetSubregistry({
     name,
@@ -134,6 +137,11 @@ function RouteComponent() {
   const handleSetSubregistryAfterDeployStart = () => {
     const deployed = deployedSubregistryAddressRef.current
     if (!deployed) return
+    // Both the deploy step's `onDone` (fired automatically on success by
+    // `useAutoAdvanceTransaction`) and the set step's `onStart` route here, so
+    // guard against resubmitting while a set is already in flight or done. An
+    // errored set leaves both flags false, so "Try again" still works.
+    if (isSetSubregistryPending || isSetSubregistrySuccess) return
     setSubregistry(deployed)
   }
 
@@ -146,6 +154,7 @@ function RouteComponent() {
     closeTransactionModal()
     clearTransaction()
     setContractAddress('')
+    setRegistryOption('deploy')
     deployedSubregistryAddressRef.current = null
     setShowSuccessButtonLabel(true)
     setTimeout(
@@ -176,108 +185,141 @@ function RouteComponent() {
     return <LoadingSpinner title="Loading registry information" />
   }
 
-  if (registryError) {
-    const errorMessage =
-      registryError instanceof Error
-        ? registryError.message
-        : 'Failed to load registry information'
-
+  if (error) {
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <DeployRegistryHeader name={name} />
-        <Alert variant="destructive" className="max-w-full">
-          <AlertCircle />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-            {errorMessage}
-          </AlertDescription>
-        </Alert>
-      </div>
+      <ErrorMessage
+        title={error.cause.name}
+        description={error.message || error.cause.message}
+      />
     )
   }
 
-  if (ownerData?.protocolVersion === 'ENSv1') {
-    return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <DeployRegistryHeader name={name} />
-        <Alert className="max-w-full">
-          <AlertCircle />
-          <AlertTitle>Not Available for V1 Names</AlertTitle>
-          <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-            V1 names (like {name}) don't support custom subregistries. Only V2
-            names can deploy and manage their own subregistries.
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  if (!parentRegistry || parentRegistry === zeroAddress) {
-    return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <DeployRegistryHeader name={name} />
-        <Alert variant="destructive" className="max-w-full">
-          <AlertCircle />
-          <AlertTitle>Registry Not Found</AlertTitle>
-          <AlertDescription className="break-all whitespace-normal max-w-full overflow-wrap-anywhere">
-            Could not load registry information for {name}. Please try again
-            later.
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
+  if (!parentRegistry || parentRegistry === zeroAddress) return null
 
   if (isLoadingRoleCheck) {
     return <LoadingSpinner title="Checking permissions..." />
   }
 
-  if (connectedAddress && !hasSetSubregistryRole) {
+  if (!connectedAddress) {
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <DeployRegistryHeader name={name} />
-        <ErrorMessage
-          title="Permission Denied"
-          description={
-            <>
-              You don't have the required{' '}
-              <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
-                ROLE_SET_SUBREGISTRY
-              </code>{' '}
-              permission to change the registry for <strong>{name}</strong>.
-              Please contact the registry administrator to request access.
-            </>
-          }
-        />
-      </div>
+      <ErrorMessage
+        title="Wallet Not Connected"
+        description="Please connect your wallet to deploy or change a registry."
+      />
     )
   }
 
-  if (!connectedAddress) {
+  if (!hasSetSubregistryRole) {
     return (
-      <div className="flex flex-col gap-4 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-        <DeployRegistryHeader name={name} />
-        <ErrorMessage
-          title="Wallet Not Connected"
-          description="Please connect your wallet to deploy or change a registry."
-        />
-      </div>
+      <ErrorMessage
+        title="Permission Denied"
+        description={
+          <>
+            You don't have the required{' '}
+            <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
+              ROLE_SET_SUBREGISTRY
+            </code>{' '}
+            permission to change the registry for <strong>{name}</strong>.
+          </>
+        }
+      />
     )
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 w-full lg:max-w-2xl xl:max-w-5xl mx-auto">
-      <DeployRegistryHeader name={name} />
-
-      <DeployRegistryForm
-        useCustomRegistry={useCustomRegistry}
-        setUseCustomRegistry={setUseCustomRegistry}
-        contractAddress={contractAddress}
-        setContractAddress={setContractAddress}
-        onSubmit={handleSubmit}
-        isSubmitDisabled={isSubmitDisabled}
-        buttonText={buttonText}
-      />
+    <div
+      className={cn(
+        'flex flex-col gap-4 max-w-xl pl-14',
+        isMobile ? 'pl-0 pt-3' : 'pl-14',
+      )}
+    >
+      <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
+        <h3 className="text-3xl font-medium font-serif">
+          No registry configured
+        </h3>
+        <p className="text-base">
+          This name doesn't have a contract set to create and manage subnames.
+          Create one to turn <strong>{name}</strong> into its own namespace with
+          subnames like <strong>cold.{name}</strong> or{' '}
+          <strong>agent.{name}</strong>.
+        </p>
+      </div>
+      {showDeploySubregistryForm ? (
+        <form
+          className="flex flex-col gap-5 border border-border rounded-lg p-5"
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSubmit()
+          }}
+        >
+          <RadioGroup
+            value={registryOption}
+            onValueChange={(value) =>
+              setRegistryOption(value as RegistryOption)
+            }
+          >
+            <div className="flex items-center gap-3">
+              <RadioGroupItem value="deploy" id="registry-option-deploy" />
+              <Label
+                htmlFor="registry-option-deploy"
+                className="cursor-pointer text-foreground"
+              >
+                Deploy a new Permissioned Registry contract
+              </Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <RadioGroupItem
+                value="use-existing"
+                id="registry-option-use-existing"
+              />
+              <Label
+                htmlFor="registry-option-use-existing"
+                className="cursor-pointer text-foreground"
+              >
+                Use a pre-existing registry contract
+              </Label>
+            </div>
+          </RadioGroup>
+          {useCustomRegistry && (
+            <div className="flex flex-col gap-3">
+              <Input
+                id="contract-address"
+                placeholder="Paste contract address"
+                value={contractAddress}
+                className="w-full p-3 h-9 bg-background border border-border rounded-md"
+                onChange={(e) => setContractAddress(e.target.value)}
+              />
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="col-span-1"
+              onClick={() => setShowDeploySubregistryForm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              className="col-span-2"
+              disabled={isSubmitDisabled}
+            >
+              <span className="flex items-center gap-2">{buttonText}</span>
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Button
+          className="w-full"
+          variant="default"
+          onClick={() => setShowDeploySubregistryForm(true)}
+        >
+          <Plus className="size-3" />
+          Configure registry
+        </Button>
+      )}
 
       <TransactionModal
         transactions={
@@ -289,6 +331,8 @@ function RouteComponent() {
                   transactionName: `Deploy subregistry for ${name}`,
                   estimatedGasCost: 0.0008,
                   onStart: handleDeploySubregistryStart,
+                  // Chains into the set step once the deploy succeeds; the
+                  // handler is idempotent so this can't double-submit.
                   onDone: handleSetSubregistryAfterDeployStart,
                 },
                 {
