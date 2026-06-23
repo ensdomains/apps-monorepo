@@ -31,12 +31,11 @@
 export { SessionEnableError, SessionRestoreError } from './errors'
 export {
   buildAddSessionOwnerCall,
-  buildRemoveSessionOwnerCall,
   type CreateRhinestoneSessionParams,
   clearAllSessions,
   createRhinestoneSession,
   deployRhinestoneAccountCore,
-  ENS_HCA_MODULE_ADDRESS,
+  ENS_HCA_MODULE,
   getAllSessions,
   getSession,
   getSessionByOwner,

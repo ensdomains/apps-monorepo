@@ -3,12 +3,12 @@ import type { Address, Chain, Hex } from 'viem'
 import { decodeFunctionData, parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
-import { ENS_HCA_MODULE_ADDRESS } from './registration-policy'
+import { ENS_HCA_MODULE } from './registration-policy'
 import { createRhinestoneSession, restoreRhinestoneSession } from './session'
 import type { RhinestoneStoredSession } from './types'
 
-const OWNER: Address = '0x1111111111111111111111111111111111111111'
-const HCA: Address = '0xaAaA000000000000000000000000000000000001'
+const OWNER = '0x1111111111111111111111111111111111111111' as const
+const HCA = '0xaAaA000000000000000000000000000000000001' as const
 
 const updateConfigAbi = parseAbi([
   'struct Owner { address addr; uint48 expiration; }',
@@ -43,12 +43,14 @@ describe('createRhinestoneSession (owner-key model)', () => {
     expect(result.isOk()).toBe(true)
     expect(sendTransaction).toHaveBeenCalledTimes(1)
     expect(waitForExecution).toHaveBeenCalledTimes(1)
+    // Accept preconfirmation (true) rather than waiting for full settlement.
+    expect(waitForExecution).toHaveBeenCalledWith(expect.anything(), true)
 
     // The single Intent adds the ephemeral key as an HCA owner via updateConfig.
     const tx = sendTransaction.mock.calls[0][0]
     expect(tx.sponsored).toBe(true)
     expect(tx.calls).toHaveLength(1)
-    expect(tx.calls[0].to).toBe(ENS_HCA_MODULE_ADDRESS)
+    expect(tx.calls[0].to).toBe(ENS_HCA_MODULE)
     const decoded = decodeFunctionData({
       abi: updateConfigAbi,
       data: tx.calls[0].data as Hex,

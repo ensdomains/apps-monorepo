@@ -8,12 +8,11 @@ import {
 import { describe, expect, it } from 'vitest'
 import {
   buildAddSessionOwnerCall,
-  buildRemoveSessionOwnerCall,
-  ENS_HCA_MODULE_ADDRESS,
+  ENS_HCA_MODULE,
   REGISTRATION_SESSION_VALIDITY_SECONDS,
 } from './registration-policy'
 
-const SESSION_KEY: Address = '0x3333333333333333333333333333333333333333'
+const SESSION_KEY = '0x3333333333333333333333333333333333333333' as const
 const VALID_UNTIL_SEC = 2_000_000_000 // 2033-05-18
 
 const abi = parseAbi([
@@ -38,7 +37,7 @@ describe('buildAddSessionOwnerCall', () => {
   })
 
   it('targets the HCA validator module with zero value', () => {
-    expect(call.to).toBe(ENS_HCA_MODULE_ADDRESS)
+    expect(call.to).toBe(ENS_HCA_MODULE)
     expect(call.value).toBe(0n)
   })
 
@@ -60,20 +59,6 @@ describe('buildAddSessionOwnerCall', () => {
         validUntil: Number(maxUint48),
       }),
     ).toThrow(/finite/i)
-  })
-})
-
-describe('buildRemoveSessionOwnerCall', () => {
-  it('encodes updateConfig removing the session key, threshold 1', () => {
-    const call = buildRemoveSessionOwnerCall({ sessionKeyAddress: SESSION_KEY })
-    expect(call.to).toBe(ENS_HCA_MODULE_ADDRESS)
-    const { functionName, args } = decode(call.data)
-    expect(functionName).toBe('updateConfig')
-    const [threshold, ownersToAdd, ownersToRemove] = args
-    expect(threshold).toBe(1n)
-    expect(ownersToAdd).toHaveLength(0)
-    expect(ownersToRemove).toHaveLength(1)
-    expect(ownersToRemove[0].toLowerCase()).toBe(SESSION_KEY.toLowerCase())
   })
 })
 

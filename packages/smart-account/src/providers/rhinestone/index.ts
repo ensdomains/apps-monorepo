@@ -27,8 +27,7 @@ export {
 } from './initialize-account'
 export {
   buildAddSessionOwnerCall,
-  buildRemoveSessionOwnerCall,
-  ENS_HCA_MODULE_ADDRESS,
+  ENS_HCA_MODULE,
   REGISTRATION_SESSION_VALIDITY_SECONDS,
 } from './registration-policy'
 export {

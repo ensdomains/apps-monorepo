@@ -78,7 +78,12 @@ export function createRhinestoneSession(
         calls: [addOwnerCall],
         tokenRequests: [],
       })
-      await rhinestoneAccount.waitForExecution(tx, false)
+      // Accept preconfirmation rather than waiting for full settlement: the
+      // orchestrator/solver path adds seconds of settlement tail on top of
+      // on-chain inclusion. PRECONFIRMED means the solver has committed to
+      // filling the add-owner Intent, which is enough to proceed — the
+      // subsequent register Intent is itself session-signed and re-simulated.
+      await rhinestoneAccount.waitForExecution(tx, true)
 
       const session: RhinestoneStoredSession = {
         id: crypto.randomUUID(),

@@ -34,11 +34,11 @@ import { encodeFunctionData, maxUint48, parseAbi } from 'viem'
 
 /**
  * The HCA validator module (HCAModule / OwnableValidator) on Sepolia.
- * Matches the SDK's `ENS_HCA_MODULE` constant and the HCA impl's immutable
- * default validator (verified on-chain).
+ * Mirrors the SDK's `ENS_HCA_MODULE`, which isn't re-exported from any public
+ * subpath (verified on-chain + against the SDK source).
  */
-export const ENS_HCA_MODULE_ADDRESS: Address =
-  '0x5049ecBd4d961aE6DFEED9b7ccCe7f026454970E'
+export const ENS_HCA_MODULE =
+  '0x5049ecBd4d961aE6DFEED9b7ccCe7f026454970E' as const
 
 /** Default session lifetime: 1 week. */
 export const REGISTRATION_SESSION_VALIDITY_SECONDS = 7 * 24 * 60 * 60
@@ -71,30 +71,12 @@ export function buildAddSessionOwnerCall(params: {
   // the field as `number`.
   const expiration = validUntil
   return {
-    to: ENS_HCA_MODULE_ADDRESS,
+    to: ENS_HCA_MODULE,
     value: 0n,
     data: encodeFunctionData({
       abi: ownableValidatorAbi,
       functionName: 'updateConfig',
       args: [1n, [{ addr: sessionKeyAddress, expiration }], []],
-    }),
-  }
-}
-
-/**
- * Build the call that REVOKES the ephemeral key (removes it as an owner).
- * Threshold stays 1 (the permanent EOA owner remains).
- */
-export function buildRemoveSessionOwnerCall(params: {
-  readonly sessionKeyAddress: Address
-}): { to: Address; value: bigint; data: Hex } {
-  return {
-    to: ENS_HCA_MODULE_ADDRESS,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: ownableValidatorAbi,
-      functionName: 'updateConfig',
-      args: [1n, [], [params.sessionKeyAddress]],
     }),
   }
 }
