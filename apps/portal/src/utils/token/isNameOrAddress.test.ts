@@ -1,34 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import { isNameOrAddress } from './isNameOrAddress'
 
+const ADDRESS = '0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d'
+const ADDRESS_LOWER = '0x2245606dd6b3ae61205fcf8c843e200cc2f1123d'
+const ADDRESS_MIXED = '0xAAAAAaaaaaAAAAAaaaaaAAAAAaaaaaAAAAAaaaaa' // wrong checksum
+const ADDRESS_39_HEX = '0x2245606Dd6B3ae61205fCf8c843E200CC2f1123' // 1 char short
+const ADDRESS_NO_PREFIX = '2245606dd6b3ae61205fcf8c843e200cc2f1123d'
+const ADDRESS_NON_HEX = '0xZZZ5606dd6b3ae61205fcf8c843e200cc2f1123d'
+
 describe('isNameOrAddress', () => {
   describe('addresses', () => {
     it('accepts checksummed and all-lowercase hex addresses', () => {
-      expect(
-        isNameOrAddress('0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d'),
-      ).toBe(true)
-      expect(
-        isNameOrAddress('0x2245606dd6b3ae61205fcf8c843e200cc2f1123d'),
-      ).toBe(true)
+      expect(isNameOrAddress(ADDRESS)).toBe(true)
+      expect(isNameOrAddress(ADDRESS_LOWER)).toBe(true)
     })
 
     it('accepts non-checksummed (mixed-case) addresses — validation is non-strict', () => {
-      expect(
-        isNameOrAddress('0xAAAAAaaaaaAAAAAaaaaaAAAAAaaaaaAAAAAaaaaa'),
-      ).toBe(true)
+      expect(isNameOrAddress(ADDRESS_MIXED)).toBe(true)
     })
 
     it('rejects malformed addresses', () => {
       expect(isNameOrAddress('0x1234')).toBe(false) // too short
-      expect(
-        isNameOrAddress('0x2245606Dd6B3ae61205fCf8c843E200CC2f1123'),
-      ).toBe(false) // 39 hex chars
-      expect(
-        isNameOrAddress('2245606dd6b3ae61205fcf8c843e200cc2f1123d'),
-      ).toBe(false) // missing 0x prefix
-      expect(
-        isNameOrAddress('0xZZZ5606dd6b3ae61205fcf8c843e200cc2f1123d'),
-      ).toBe(false) // non-hex characters
+      expect(isNameOrAddress(ADDRESS_39_HEX)).toBe(false) // 39 hex chars
+      expect(isNameOrAddress(ADDRESS_NO_PREFIX)).toBe(false) // missing 0x prefix
+      expect(isNameOrAddress(ADDRESS_NON_HEX)).toBe(false) // non-hex characters
     })
   })
 
