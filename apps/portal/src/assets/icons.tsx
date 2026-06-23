@@ -154,14 +154,14 @@ export const ChipCopyIcon = (props: Props) => (
 
 export const ChipLinkIcon = (props: Props) => (
   <svg
-    viewBox="0 0 7 7"
+    viewBox="0 0 11 11"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
     <title>External link</title>
     <path
-      d="M0.595817 6.98748L-1.61082e-05 6.39165L5.55207 0.839566H0.622901V-1.66893e-05H6.98748V6.36457H6.1479V1.4354L0.595817 6.98748Z"
+      d="M2.26356 9.15523L1.66772 8.55939L7.21981 3.00731H2.29064V2.16772H8.65522V8.53231H7.81564V3.60314L2.26356 9.15523Z"
       fill="currentColor"
     />
   </svg>
