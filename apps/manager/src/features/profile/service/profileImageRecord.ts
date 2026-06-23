@@ -24,7 +24,7 @@ export const parseImageRecord = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const url = yield* await fromPromise(
+  const url = yield* fromPromise(
     parseAvatarRecord(client, {
       record,
       gatewayUrls: buildGatewayUrls(gatewayUrls),
