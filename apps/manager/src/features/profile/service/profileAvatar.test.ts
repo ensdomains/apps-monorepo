@@ -3,7 +3,6 @@ import {
   buildNameAvatarUrl,
   buildNameHeaderUrl,
   getNameAvatar,
-  getNameHeader,
   getNamesAvatarsByName,
 } from './profileAvatar'
 
@@ -14,9 +13,9 @@ describe('profile avatar metadata URLs', () => {
     )
   })
 
-  it('URL-encodes the name path segment and appends a cache-busting version', () => {
-    expect(buildNameAvatarUrl('slash/name.eth', 1234)).toBe(
-      'https://ens-metadata-v2.ensdomains.workers.dev/sepolia/avatar/slash%2Fname.eth?v=1234',
+  it('URL-encodes the name path segment', () => {
+    expect(buildNameAvatarUrl('slash/name.eth')).toBe(
+      'https://ens-metadata-v2.ensdomains.workers.dev/sepolia/avatar/slash%2Fname.eth',
     )
   })
 
@@ -26,9 +25,9 @@ describe('profile avatar metadata URLs', () => {
     )
   })
 
-  it('URL-encodes the header name path segment and appends a cache-busting version', () => {
-    expect(buildNameHeaderUrl('slash/name.eth', 1234)).toBe(
-      'https://ens-metadata-v2.ensdomains.workers.dev/sepolia/header/slash%2Fname.eth?v=1234',
+  it('URL-encodes the header name path segment', () => {
+    expect(buildNameHeaderUrl('slash/name.eth')).toBe(
+      'https://ens-metadata-v2.ensdomains.workers.dev/sepolia/header/slash%2Fname.eth',
     )
   })
 
@@ -57,11 +56,4 @@ describe('profile avatar metadata URLs', () => {
     )
   })
 
-  it('returns the metadata header URL for one name', async () => {
-    const result = await getNameHeader('vitalik.eth')
-
-    expect(result._unsafeUnwrap()).toBe(
-      'https://ens-metadata-v2.ensdomains.workers.dev/sepolia/header/vitalik.eth',
-    )
-  })
 })

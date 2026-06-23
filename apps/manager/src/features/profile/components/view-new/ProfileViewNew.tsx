@@ -1,11 +1,11 @@
 import { Trans } from '@lingui/react/macro'
-import { useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
 import {
+  buildNameHeaderUrl,
   nameAvatarQuery,
-  nameHeaderQuery,
 } from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
@@ -63,8 +63,8 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const records = transformProfileRecords(profileRecords)
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
 
-  const [avatar, header] = useQueries({
-    queries: [nameAvatarQuery(name), nameHeaderQuery(name)],
+  const avatar = useQuery({
+    ...nameAvatarQuery(name),
   })
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
@@ -108,7 +108,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   }
 
   const avatarUrl = expiry.isInGrace ? undefined : (avatar.data ?? undefined)
-  const headerUrl = expiry.isInGrace ? undefined : (header.data ?? undefined)
+  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
 
   return (
     <div
@@ -116,7 +116,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
       style={expiry.isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
-        headerLoading={header.isLoading}
+        headerLoading={false}
         headerUrl={headerUrl}
         name={name}
       />

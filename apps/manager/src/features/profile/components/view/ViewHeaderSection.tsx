@@ -1,10 +1,13 @@
-import { useQueries } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
-import { nameAvatarQuery, nameHeaderQuery } from '../../service/profileAvatar'
+import {
+  buildNameHeaderUrl,
+  nameAvatarQuery,
+} from '../../service/profileAvatar'
 import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
@@ -23,16 +26,14 @@ export const ViewHeaderSection = ({
   isInGrace = false,
   isOwner,
 }: ViewHeaderSectionProps) => {
-  const [avatar, header] = useQueries({
-    queries: [nameAvatarQuery(name), nameHeaderQuery(name)],
+  const avatar = useQuery({
+    ...nameAvatarQuery(name),
   })
 
   const avatarUrl = isInGrace
     ? undefined
     : safeImageSrc(avatar.data ?? undefined)
-  const headerUrl = isInGrace
-    ? undefined
-    : safeImageSrc(header.data ?? undefined)
+  const headerUrl = isInGrace ? undefined : safeImageSrc(buildNameHeaderUrl(name))
 
   const url = `${
     typeof window === 'undefined'
@@ -54,7 +55,7 @@ export const ViewHeaderSection = ({
           )}
           <ImageFallback.Fallback>
             <div
-              className={clsx('size-full', header.isLoading && 'animate-pulse')}
+              className="size-full"
               style={{
                 backgroundImage:
                   'linear-gradient(162deg, transparent 21.72%, var(--color-muted) 62.7%)',

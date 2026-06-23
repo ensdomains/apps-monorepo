@@ -11,63 +11,53 @@ export type NameAvatarMap = Record<string, string | undefined>
 const buildNameImageUrl = ({
   kind,
   name,
-  version,
 }: {
   kind: 'avatar' | 'header'
   name: string
-  version?: number
 }): string => {
   const url = new URL(
     `${ENS_METADATA_V2_SEPOLIA_URL}/${kind}/${encodeURIComponent(name)}`,
   )
 
-  if (version !== undefined) {
-    url.searchParams.set('v', String(version))
-  }
-
   return url.toString()
 }
 
-export const buildNameAvatarUrl = (name: string, version?: number): string =>
-  buildNameImageUrl({ kind: 'avatar', name, version })
+export const buildNameAvatarUrl = (name: string): string =>
+  buildNameImageUrl({ kind: 'avatar', name })
 
-export const buildNameHeaderUrl = (name: string, version?: number): string =>
-  buildNameImageUrl({ kind: 'header', name, version })
+export const buildNameHeaderUrl = (name: string): string =>
+  buildNameImageUrl({ kind: 'header', name })
 
 export const getNamesAvatarsByName = (
   names: readonly string[],
-  version?: number,
 ) =>
   ok(
     Object.fromEntries(
-      names.map((name) => [name, buildNameAvatarUrl(name, version)]),
+      names.map((name) => [name, buildNameAvatarUrl(name)]),
     ) as NameAvatarMap,
   )
 
 export const namesAvatarsByNameQuery = (
   names: readonly string[],
-  version?: number,
 ) => {
   const sortedNames = names.slice().sort()
   return resultQueryOptions({
     queryKey: qk('profile', 'names_avatars_by_name', {
       names: sortedNames,
-      version,
     }),
     queryFn:
       names.length > 0
-        ? () => getNamesAvatarsByName(names, version)
+        ? () => getNamesAvatarsByName(names)
         : skipToken,
   })
 }
 
-export const getNameAvatar = (name: string, version?: number) =>
-  ok(buildNameAvatarUrl(name, version))
+export const getNameAvatar = (name: string) => ok(buildNameAvatarUrl(name))
 
-export const nameAvatarQuery = (name: string | undefined, version?: number) =>
+export const nameAvatarQuery = (name: string | undefined) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'name_avatar', { name, version }),
-    queryFn: name ? () => getNameAvatar(name, version) : skipToken,
+    queryKey: qk('profile', 'name_avatar', { name }),
+    queryFn: name ? () => getNameAvatar(name) : skipToken,
   })
 
 export const useAvatarFromName = ({

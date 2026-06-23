@@ -3,10 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
-  buildNameAvatarUrl,
-  buildNameHeaderUrl,
   nameAvatarQuery,
-  nameHeaderQuery,
   namesAvatarsByNameQuery,
 } from './profileAvatar'
 import {
@@ -42,14 +39,13 @@ describe('profile image cache helpers', () => {
     ).toEqual([{ kind: 'avatar', imageUrl: avatarUrl }])
   })
 
-  it('cache busts gasless avatar queries after signed upload save', async () => {
+  it('cache busts raw image records without touching metadata avatar queries', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
 
     const queryClient = new QueryClient()
     const name = 'vitalik.eth'
     const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/${name}`
     const cacheBustedImageUrl = `${imageUrl}?v=1234`
-    const cacheBustedMetadataAvatarUrl = buildNameAvatarUrl(name, 1234)
 
     queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
     queryClient.setQueryData(nameAvatarQuery(name).queryKey, imageUrl)
@@ -67,36 +63,10 @@ describe('profile image cache helpers', () => {
       cacheBustedImageUrl,
     )
     expect(queryClient.getQueryData(nameAvatarQuery(name).queryKey)).toBe(
-      cacheBustedMetadataAvatarUrl,
+      imageUrl,
     )
     expect(
       queryClient.getQueryData(namesAvatarsByNameQuery([name]).queryKey),
-    ).toEqual({ [name]: cacheBustedMetadataAvatarUrl })
-  })
-
-  it('cache busts gasless header queries after signed upload save', async () => {
-    vi.spyOn(Date, 'now').mockReturnValue(1234)
-
-    const queryClient = new QueryClient()
-    const name = 'vitalik.eth'
-    const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/${name}/h`
-    const cacheBustedImageUrl = `${imageUrl}?v=1234`
-    const cacheBustedMetadataHeaderUrl = buildNameHeaderUrl(name, 1234)
-
-    queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
-    queryClient.setQueryData(nameHeaderQuery(name).queryKey, imageUrl)
-
-    await refreshProfileImageCaches({
-      images: [{ kind: 'header', imageUrl }],
-      name,
-      queryClient,
-    })
-
-    expect(queryClient.getQueryData(imageRecordQuery(imageUrl).queryKey)).toBe(
-      cacheBustedImageUrl,
-    )
-    expect(queryClient.getQueryData(nameHeaderQuery(name).queryKey)).toBe(
-      cacheBustedMetadataHeaderUrl,
-    )
+    ).toEqual({ [name]: imageUrl })
   })
 })

@@ -2,7 +2,6 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import type { ProfileRecords } from '@/features/profile/types'
-import { buildNameAvatarUrl } from './profileAvatar'
 import type { ImageType } from './profileImageUpload'
 import { profileRecordsQuery } from './profileRecords'
 
@@ -97,52 +96,6 @@ const refreshParsedAvatarCaches = ({
   }
 }
 
-const isNameAvatarMap = (
-  data: unknown,
-): data is Record<string, string | undefined> =>
-  !!data && typeof data === 'object' && !Array.isArray(data)
-
-const refreshNameAvatarCaches = ({
-  images,
-  name,
-  queryClient,
-  version,
-}: {
-  readonly images: readonly SignedProfileImageUpload[]
-  readonly name: string
-  readonly queryClient: QueryClient
-  readonly version: number
-}) => {
-  const avatarUpload = images.find(({ kind }) => kind === 'avatar')
-
-  if (!avatarUpload) {
-    return
-  }
-
-  const imageUrl = buildNameAvatarUrl(name, version)
-
-  for (const query of queryClient.getQueryCache().findAll({
-    queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
-  })) {
-    if (getQueryMetaString(query.queryKey, 'name') === name) {
-      queryClient.setQueryData(query.queryKey, imageUrl)
-    }
-  }
-
-  const updateAvatarMap = (data: unknown) => {
-    if (!isNameAvatarMap(data) || !(name in data)) {
-      return data
-    }
-
-    return { ...data, [name]: imageUrl }
-  }
-
-  queryClient.setQueriesData(
-    { queryKey: $qk({ $scope: 'profile', $action: 'names_avatars_by_name' }) },
-    updateAvatarMap,
-  )
-}
-
 export const refreshProfileImageCaches = async ({
   images,
   name,
@@ -163,23 +116,11 @@ export const refreshProfileImageCaches = async ({
     queryClient.invalidateQueries({
       queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
     }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'names_avatars_by_name' }),
-    }),
   ])
 
   const version = Date.now()
   refreshParsedAvatarCaches({
     images: gaslessImages,
-    queryClient,
-    version,
-  })
-  refreshNameAvatarCaches({
-    images: gaslessImages,
-    name,
     queryClient,
     version,
   })
