@@ -39,7 +39,7 @@ const BottomActionButtonLoading = ({
 }: {
   readonly shouldReduceMotion: boolean
 }) => (
-  <div className="flex h-15.25 w-full max-w-87 items-center justify-center rounded border border-ens-quartz-300 bg-white lg:landscape:h-12.5 lg:landscape:w-[171px] lg:landscape:border-none">
+  <div className="flex h-15.25 w-full max-w-87 items-center justify-center rounded border border-ens-quartz-300 bg-white lg:landscape:h-12.5 lg:landscape:w-42.75 lg:landscape:border-none">
     <SkeletonBlock
       className="h-4 w-24 rounded-sm"
       shouldReduceMotion={shouldReduceMotion}

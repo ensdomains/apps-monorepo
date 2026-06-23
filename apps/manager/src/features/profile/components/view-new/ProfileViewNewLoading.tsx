@@ -6,7 +6,6 @@ import {
   ProfileViewNewBannerLoading,
   ProfileViewNewHeaderLoading,
 } from './ProfileViewNewHeaderLoading'
-import { ProfileSocialSectionLoading } from './ProfileViewNewSocialLoading'
 
 type ProfileViewNewLoadingProps = {
   readonly name?: string
@@ -16,9 +15,9 @@ export const ProfileViewNewLoading = ({ name }: ProfileViewNewLoadingProps) => {
   const shouldReduceMotion = useReducedMotion() ?? false
 
   return (
-    <div className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0px))] lg:landscape:pb-[114px]">
+    <div className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:pb-28.5">
       <ProfileViewNewBannerLoading shouldReduceMotion={shouldReduceMotion} />
-      <div className="relative z-10 mx-auto -mt-[84px] w-full max-w-97.5 space-y-0 lg:landscape:-mt-[69px] lg:landscape:max-w-226.25">
+      <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
         <div aria-hidden="true" className="mb-6 h-0" />
         <ProfileViewNewHeaderLoading
           name={name}
@@ -29,9 +28,6 @@ export const ProfileViewNewLoading = ({ name }: ProfileViewNewLoadingProps) => {
             shouldReduceMotion={shouldReduceMotion}
           />
           <ProfileAddressesSectionLoading
-            shouldReduceMotion={shouldReduceMotion}
-          />
-          <ProfileSocialSectionLoading
             shouldReduceMotion={shouldReduceMotion}
           />
         </div>

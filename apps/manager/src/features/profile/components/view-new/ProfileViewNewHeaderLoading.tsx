@@ -28,7 +28,7 @@ export const ProfileViewNewBannerLoading = ({
         <div className="pointer-events-none absolute top-14 h-60 w-full animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent lg:landscape:top-0 lg:landscape:h-full" />
       )}
     </div>
-    <div className="pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-[8px] [mask-image:linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
+    <div className="pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)]" />
   </div>
 )
 
@@ -138,7 +138,7 @@ export const ProfileViewNewHeaderLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <motion.div
-    className="relative min-h-[523px] rounded-none bg-transparent pt-[62px] shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0"
+    className="relative min-h-130.75 rounded-none bg-transparent pt-15.5 shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0"
     {...getMotionProps(shouldReduceMotion)}
   >
     <NeutralAvatarLoading
