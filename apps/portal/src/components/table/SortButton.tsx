@@ -1,13 +1,16 @@
 import type { SortDirection } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface SortButtonProps extends React.ComponentProps<'button'> {
   sortDirection?: SortDirection | false
+  className?: string
 }
 
 export const SortButton = ({
   children,
   sortDirection,
+  className,
   ...props
 }: SortButtonProps) => {
   const SortIcon =
@@ -19,7 +22,7 @@ export const SortButton = ({
 
   return (
     <button
-      className="p-0 flex flex-row items-center cursor-pointer"
+      className={cn('p-0 flex flex-row items-center cursor-pointer', className)}
       type="button"
       {...props}
     >

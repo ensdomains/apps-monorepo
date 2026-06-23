@@ -60,3 +60,49 @@ export const isManagerRoleSettable = (
   if (is2LD && nonSettableManagerRolesFor2LD.has(role)) return false
   return true
 }
+
+export type RegistryRootPermission = {
+  readonly key: PermissionKey | null
+  readonly adminKey: Role
+  readonly title: string
+  readonly description: string
+}
+
+export const registryRootPermissions: readonly RegistryRootPermission[] = [
+  {
+    key: 'ROLE_SET_SUBREGISTRY',
+    adminKey: 'ROLE_SET_SUBREGISTRY_ADMIN',
+    title: 'Set Subregistry',
+    description: 'Can change subregistry addresses',
+  },
+  {
+    key: 'ROLE_SET_RESOLVER',
+    adminKey: 'ROLE_SET_RESOLVER_ADMIN',
+    title: 'Set Resolver',
+    description: 'Can change the resolver address',
+  },
+  {
+    key: 'ROLE_RENEW',
+    adminKey: 'ROLE_RENEW_ADMIN',
+    title: 'Renew',
+    description: 'Can extend name expiration',
+  },
+  {
+    key: 'ROLE_REGISTRAR',
+    adminKey: 'ROLE_REGISTRAR_ADMIN',
+    title: 'Registrar',
+    description: 'Can register new labels',
+  },
+  {
+    key: 'ROLE_REGISTER_RESERVED',
+    adminKey: 'ROLE_REGISTER_RESERVED_ADMIN',
+    title: 'Register Reserved',
+    description: 'Can register reserved labels',
+  },
+  {
+    key: 'ROLE_SET_PARENT',
+    adminKey: 'ROLE_SET_PARENT_ADMIN',
+    title: 'Set Parent',
+    description: 'Can update canonical parent',
+  },
+] as const
