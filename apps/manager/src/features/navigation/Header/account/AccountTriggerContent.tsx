@@ -1,5 +1,6 @@
-import { Loader2Icon, UserIcon } from 'lucide-react'
+import { Loader2Icon } from 'lucide-react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
@@ -25,9 +26,10 @@ export const AccountTriggerContent = () => {
                 src={avatar.url ?? undefined}
               />
               <ImageFallback.Fallback>
-                <div className="flex size-full items-center justify-center rounded-full bg-ens-gray-two">
-                  <UserIcon className="size-4 text-muted-foreground md:size-5" />
-                </div>
+                <PatternAvatar
+                  className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                  name={reverseNameQuery.data ?? ownerAddress ?? 'wallet'}
+                />
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           )}
