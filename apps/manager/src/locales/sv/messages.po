@@ -18,10 +18,6 @@ msgstr ""
 "X-Crowdin-File: /src/locales/en/messages.po\n"
 "X-Crowdin-File-ID: 18\n"
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "(empty)"
-msgstr ""
-
 #. placeholder {0}: Math.floor( (autoRenewal.expires - Date.now()) / TIME_UNITS.DAY, )
 #: src/features/auto-renewal/components/index.tsx
 msgid "{0, plural, one {# day remaining} other {# days remaining}}"
@@ -80,14 +76,6 @@ msgstr ""
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/dashboard/components/NameRow.tsx
 msgid "{label} avatar"
-msgstr ""
-
-#: src/features/profile/components/sections/ThemeSection.tsx
-msgid "{label} theme"
-msgstr ""
-
-#: src/features/profile/components/sections/ThemeSection.tsx
-msgid "{label} theme (selected)"
 msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
@@ -152,28 +140,12 @@ msgstr ""
 msgid "Account address:"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx
-msgid "Account not ready. Please wait for wallet to connect."
-msgstr ""
-
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx
-msgid "Add"
-msgstr ""
-
 #: src/features/payment/components/add.tsx
 msgid "Add a Backup Payment Method"
 msgstr ""
 
-#: src/features/profile/components/sections/BioSection.tsx
-msgid "Add a bio to your profile"
-msgstr ""
-
 #: src/features/payment/components/add.tsx
 msgid "Add a credit card"
-msgstr ""
-
-#: src/features/profile/components/sections/BioSection.tsx
-msgid "Add a short bio to your profile"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -188,25 +160,9 @@ msgstr ""
 msgid "Add credit card"
 msgstr ""
 
-#: src/features/profile/components/sections/WalletAddressesSection.tsx
-msgid "Add Crypto Address"
-msgstr ""
-
 #: src/features/dashboard/components/NameRow.tsx
 #: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
 msgid "Add favorite"
-msgstr ""
-
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx
-msgid "Add Link"
-msgstr ""
-
-#: src/features/profile/components/sections/LinksSection.tsx
-msgid "Add links to your profile"
-msgstr ""
-
-#: src/features/profile/components/sections/WalletAddressesSection.tsx
-msgid "Add more"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/index.tsx
@@ -216,18 +172,6 @@ msgstr ""
 #: src/features/payment/components/add.tsx
 #: src/routes/payment/list.tsx
 msgid "Add Payment Method"
-msgstr ""
-
-#: src/features/profile/components/sections/SocialLinksSection.tsx
-msgid "Add your social media profiles to your profile"
-msgstr ""
-
-#: src/features/profile/components/sections/WalletAddressesSection.tsx
-msgid "Add your wallet addresses to receive payments. All addresses will be publicly visible on your profile."
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Added"
 msgstr ""
 
 #: src/features/dashboard/service/mutations/favoriteToast.tsx
@@ -243,7 +187,6 @@ msgid "Additional fee"
 msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
-#: src/features/profile/components/sections/WalletAddressesSection.tsx
 msgid "Address"
 msgstr ""
 
@@ -307,14 +250,6 @@ msgstr ""
 msgid "Approving the payment token"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Are you sure you want to remove your current avatar? This will revert to the default image."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Are you sure you want to remove your current header? This will revert to the default image."
-msgstr ""
-
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Are you sure?"
 msgstr ""
@@ -359,7 +294,6 @@ msgstr ""
 #: src/components/GlobalBackButton.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 #: src/features/notifications/settings/email-verify-step.tsx
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 msgid "Back"
 msgstr ""
 
@@ -408,17 +342,12 @@ msgstr ""
 msgid "Billing zip code"
 msgstr ""
 
-#: src/features/profile/components/sections/BioSection.tsx
 #: src/features/profile/components/view/ViewBioSection.tsx
 msgid "Bio"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Browse Files"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/push.tsx
@@ -459,22 +388,11 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 #: src/features/notifications/settings/email-verify-step.tsx
-#: src/features/profile/components/dialogs/DiffDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Cancel"
 msgstr "Avbryt"
-
-#: src/features/profile/components/ProfileEdit.tsx
-msgid "Cannot save profile - ENS owner is not available."
-msgstr ""
-
-#: src/features/profile/components/ProfileEdit.tsx
-msgid "Cannot save profile - resolver address is not available."
-msgstr ""
 
 #: src/features/payment/components/add.tsx
 msgid "Card expiry date"
@@ -514,10 +432,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
-msgstr ""
-
-#: src/features/profile/components/sections/ThemeSection.tsx
-msgid "Choose a color for your profile"
 msgstr ""
 
 #: src/routes/wallet.tsx
@@ -692,10 +606,6 @@ msgstr ""
 msgid "Contact methods"
 msgstr ""
 
-#: src/features/profile/components/sections/OtherSection.tsx
-msgid "Content Hash"
-msgstr ""
-
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Continue to Home"
 msgstr ""
@@ -726,12 +636,10 @@ msgid "Copy to clipboard"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not find resolver for {name}"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
 msgstr ""
 
@@ -767,26 +675,6 @@ msgstr ""
 msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Crop Image"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Crop your image to fit the avatar dimensions."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Crop your image to fit the header dimensions."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Cropping functionality coming soon"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Current"
-msgstr ""
-
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx
 msgid "Custom duration in years"
 msgstr ""
@@ -812,7 +700,6 @@ msgid "Dashboard"
 msgstr "Översikt"
 
 #: src/features/payment/components/index.tsx
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 msgid "Default"
 msgstr ""
 
@@ -864,13 +751,8 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Drag and drop an image here, or"
-msgstr ""
-
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewEditAction.tsx
-#: src/features/profile/components/view/ProfileView.tsx
 msgid "Edit Profile"
 msgstr ""
 
@@ -956,22 +838,6 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx
 msgid "Enter custom duration"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Enter Image URL"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Enter the URL of an image. Supported formats: JPG, PNG, GIF, WebP."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Enter URL Manually"
-msgstr ""
-
-#: src/features/profile/components/sections/WalletAddressesSection.tsx
-msgid "Enter wallet address"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1089,12 +955,10 @@ msgid "Failed to resend email verification"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Failed to set ETH address record"
 msgstr "Kunde inte ange ETH-adresspost"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Failed to set primary name. Please try again."
 msgstr "Kunde inte ange primärt namn. Försök igen."
 
@@ -1140,10 +1004,6 @@ msgstr ""
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Frequently Asked Questions"
 msgstr "Vanliga frågor"
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "From:"
-msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Funding wallet"
@@ -1201,10 +1061,6 @@ msgstr ""
 msgid "Go to profile"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Go to Profile"
-msgstr ""
-
 #. placeholder {0}: index + 1
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Go to slide {0}"
@@ -1243,10 +1099,6 @@ msgstr ""
 msgid "If your primary card is declined, we will use this card to charge you."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Image must be under {MAX_FILE_SIZE_MB}MB"
-msgstr ""
-
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 msgid "Image not available"
 msgstr ""
@@ -1279,10 +1131,6 @@ msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje
 msgid "Language"
 msgstr "Språk"
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx
-msgid "Link"
-msgstr ""
-
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Link copied to clipboard"
 msgstr ""
@@ -1292,7 +1140,6 @@ msgstr ""
 msgid "links"
 msgstr ""
 
-#: src/features/profile/components/sections/LinksSection.tsx
 #: src/features/profile/components/view-new/ProfileViewNewLinks.tsx
 #: src/features/profile/components/view/ViewLinksSection.tsx
 msgid "Links"
@@ -1383,10 +1230,6 @@ msgstr ""
 msgid "MM/YY"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Modified"
-msgstr ""
-
 #: src/features/dashboard/components/NameRow.tsx
 msgid "More options for {label}"
 msgstr ""
@@ -1406,7 +1249,6 @@ msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/NamesTable.tsx
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx
 msgid "Name"
 msgstr "Namn"
 
@@ -1448,10 +1290,6 @@ msgstr ""
 msgid "New Experience"
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "New value:"
-msgstr ""
-
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Next card"
 msgstr ""
@@ -1463,10 +1301,6 @@ msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Next slide"
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "No changes to save"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
@@ -1482,16 +1316,11 @@ msgid "No eligible names found for this wallet"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
 msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
 
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
-msgstr ""
-
-#: src/features/profile/components/dialogs/AddAddressRecordsDialog.tsx
-msgid "No more records to add"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -1585,10 +1414,6 @@ msgstr ""
 msgid "or"
 msgstr ""
 
-#: src/features/profile/components/sections/OtherSection.tsx
-msgid "Other"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Over 2 million ENS names registered"
 msgstr ""
@@ -1659,17 +1484,9 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/profile/components/dialogs/AddLinkDialog.tsx
-msgid "Personal Site"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Please select a valid image file"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx
@@ -1717,14 +1534,6 @@ msgstr ""
 msgid "Preparing your wallet with gas for the upgrade..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Preview Image"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Preview of your image"
-msgstr ""
-
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Previous card"
 msgstr ""
@@ -1763,7 +1572,6 @@ msgid "Primary Name Profile"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Primary name set successfully"
 msgstr "Primärt namn angivet"
 
@@ -1899,12 +1707,7 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 #: src/features/notifications/settings/contact-methods/telegram.tsx
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
 msgid "Remove"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Remove Avatar"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1916,24 +1719,12 @@ msgstr ""
 msgid "Remove favorite"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Remove Header"
-msgstr ""
-
 #: src/features/notifications/shared/primitives.tsx
 msgid "Remove notification"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove Telegram Contact Method?"
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Removed"
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Removed:"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2019,10 +1810,6 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/profile/components/ProfileEdit.tsx
-msgid "Reset Changes"
-msgstr ""
-
 #. placeholder {0}: index + 1
 #: src/features/migration/components/GameStep.tsx
 msgid "Restoring records batch {0} of {total}"
@@ -2044,10 +1831,6 @@ msgstr ""
 msgid "Retrying will attempt the renewal again from where it left off."
 msgstr ""
 
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Review Changes"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Save <0/>"
 msgstr ""
@@ -2059,10 +1842,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Save and Continue"
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "Save Changes"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
@@ -2088,7 +1867,6 @@ msgid "Saving manager for {label}.eth"
 msgstr ""
 
 #: src/features/notifications/settings/preferences.tsx
-#: src/features/profile/components/dialogs/DiffDialog.tsx
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Saving..."
 msgstr ""
@@ -2160,13 +1938,12 @@ msgid "Sending..."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Set as Primary"
 msgstr "Ange som primärt"
 
 #: src/features/dashboard/components/FaqSection.tsx
-msgid "Set it as your primary name. You can do this from your profile page in the ENS App."
-msgstr "Ange det som ditt primära namn. Du kan göra detta från din profilsida i ENS-appen."
+msgid "Set it as your primary name from the primary name card on your Dashboard."
+msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Set multiple records: ETH, BTC, email"
@@ -2176,16 +1953,8 @@ msgstr ""
 msgid "Set primary name"
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "Set Primary Name"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Set reverse record to show your name"
-msgstr ""
-
-#: src/features/profile/components/sections/OtherSection.tsx
-msgid "Set the content hash and ABI for your name"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -2199,10 +1968,6 @@ msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböck
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting ETH address..."
 msgstr "Anger ETH-adress..."
-
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "Setting ETH address…"
-msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting up registration"
@@ -2220,10 +1985,6 @@ msgstr ""
 msgid "Setting..."
 msgstr "Anger..."
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "Setting…"
-msgstr ""
-
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
 msgid "Settings"
 msgstr ""
@@ -2235,10 +1996,6 @@ msgstr ""
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
 msgid "Share profile"
-msgstr ""
-
-#: src/features/profile/components/sections/BioSection.tsx
-msgid "Short Description"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -2314,10 +2071,6 @@ msgstr ""
 
 #: src/features/profile/components/view-new/ProfileViewNewSocial.tsx
 msgid "Social"
-msgstr ""
-
-#: src/features/profile/components/sections/SocialLinksSection.tsx
-msgid "Social Links"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -2436,7 +2189,6 @@ msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
 msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
 
@@ -2462,10 +2214,6 @@ msgstr ""
 
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "The renewal for {label}.eth could not be completed. You can retry or go back to adjust your settings."
-msgstr ""
-
-#: src/features/profile/components/sections/ThemeSection.tsx
-msgid "Theme"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -2498,10 +2246,6 @@ msgstr ""
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
-msgid "This will set <0>{name}</0> as your primary ENS name for this account, so compatible apps and wallets can display it as your default identity."
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
@@ -2512,10 +2256,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "To:"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
@@ -2609,28 +2349,12 @@ msgstr ""
 msgid "Upgrading your names..."
 msgstr ""
 
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Upload & Use Image"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Upload or drag & drop"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Uploading…"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "USD"
 msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Use Different Email"
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Use This Image"
 msgstr ""
 
 #: src/features/landing/IntegrationsSection.tsx
@@ -2705,10 +2429,6 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
-msgstr ""
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "View avatar documentation"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -2820,7 +2540,6 @@ msgid "Wallet funded successfully"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/SetPrimaryNameDialog.tsx
 msgid "Wallet signer not available"
 msgstr "Plånbokssignering inte tillgänglig"
 
@@ -2839,10 +2558,6 @@ msgstr ""
 #: src/features/register/pages/CheckDomainPage.tsx
 #: src/routes/index.tsx
 msgid "web3 username"
-msgstr ""
-
-#: src/features/profile/components/sections/BioSection.tsx
-msgid "Website"
 msgstr ""
 
 #: src/features/migration/components/UpgradeBanner.tsx
@@ -2905,10 +2620,6 @@ msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
-msgstr ""
-
-#: src/features/profile/components/dialogs/DiffDialog.tsx
-msgid "You have unsaved changes. Are you sure you want to leave?"
 msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx

@@ -21,7 +21,6 @@ type ProfileViewNewActionsProps = {
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
-  readonly profileEditNewEnabled: boolean
   readonly records: ProfileRecords
   readonly url: string
 }
@@ -33,7 +32,6 @@ export const ProfileViewNewActions = ({
   name,
   onUpdated,
   owner,
-  profileEditNewEnabled,
   records,
   url,
 }: ProfileViewNewActionsProps) => {
@@ -88,7 +86,6 @@ export const ProfileViewNewActions = ({
               name={name}
               onUpdated={onUpdated}
               owner={owner}
-              profileEditNewEnabled={profileEditNewEnabled}
               records={records}
             />
           </div>
