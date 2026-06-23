@@ -419,14 +419,24 @@ export const ImageSelectionDialog = ({
                 src={displayImage}
               />
               <ImageFallback.Fallback>
-                <div
-                  className={cn(
-                    getImageStyles(type, 'small'),
-                    'flex items-center justify-center bg-gray-200',
-                  )}
-                >
-                  <Image className="size-8 text-gray-400" />
-                </div>
+                {type === 'avatar' ? (
+                  <PatternAvatar
+                    className={cn(
+                      getImageStyles(type, 'small'),
+                      'border-none bg-transparent p-0 shadow-none',
+                    )}
+                    name={name || 'avatar'}
+                  />
+                ) : (
+                  <div
+                    className={cn(
+                      getImageStyles(type, 'small'),
+                      'flex items-center justify-center bg-gray-200',
+                    )}
+                  >
+                    <Image className="size-8 text-gray-400" />
+                  </div>
+                )}
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>

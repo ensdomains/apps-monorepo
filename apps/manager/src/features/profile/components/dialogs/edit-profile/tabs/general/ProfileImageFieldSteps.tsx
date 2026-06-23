@@ -1,4 +1,5 @@
 import type React from 'react'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { AvatarNft } from '@/features/profile/service/profileNfts'
 import { safeImageSrc } from '@/features/profile/utils/safeUrl'
@@ -247,7 +248,7 @@ export const NftSelectionStep = ({
     }
 
     return (
-      <div className="flex max-h-[232px] w-full max-w-[540px] flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
+      <div className="flex max-h-58 w-full max-w-[540px] flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
         {nfts.map((nft) => (
           <button
             className={cn(
@@ -263,13 +264,10 @@ export const NftSelectionStep = ({
               alt={nft.name}
               className="mx-auto size-[74px] rounded-md object-cover"
               fallback={
-                <div className="mx-auto flex size-[74px] items-center justify-center rounded-md bg-ens-quartz-100 text-ens-quartz-400">
-                  <MSymbol
-                    aria-hidden="true"
-                    style={{ fontSize: 24 }}
-                    symbol="face"
-                  />
-                </div>
+                <PatternAvatar
+                  className="mx-auto size-[74px] rounded-md border-none bg-transparent p-0 shadow-none"
+                  name={nft.name}
+                />
               }
               src={nft.image}
             />
@@ -333,13 +331,10 @@ export const NftConfirmationStep = ({
         alt={nft.name}
         className="size-50 rounded-md object-cover"
         fallback={
-          <div className="flex size-50 items-center justify-center rounded-md bg-ens-quartz-100 text-ens-quartz-400">
-            <MSymbol
-              aria-hidden="true"
-              style={{ fontSize: 36 }}
-              symbol="face"
-            />
-          </div>
+          <PatternAvatar
+            className="size-50 rounded-md border-none bg-transparent p-0 shadow-none"
+            name={nft.name}
+          />
         }
         src={nft.image}
       />
@@ -370,6 +365,7 @@ interface RemoveConfirmationStepProps {
   readonly disabled?: boolean
   readonly displayImage?: string | null
   readonly kind: ProfileImageKind
+  readonly name: string
   readonly onBack: () => void
   readonly onConfirm: () => void
 }
@@ -378,6 +374,7 @@ export const RemoveConfirmationStep = ({
   disabled,
   displayImage,
   kind,
+  name,
   onBack,
   onConfirm,
 }: RemoveConfirmationStepProps) => (
@@ -394,13 +391,20 @@ export const RemoveConfirmationStep = ({
           'object-cover',
         )}
         fallback={
-          <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
-            <MSymbol
-              aria-hidden="true"
-              style={{ fontSize: 28 }}
-              symbol={kind === 'avatar' ? 'face' : 'wall_art'}
+          kind === 'avatar' ? (
+            <PatternAvatar
+              className="size-25 rounded-xl border-none bg-transparent p-0 shadow-none"
+              name={name}
             />
-          </div>
+          ) : (
+            <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
+              <MSymbol
+                aria-hidden="true"
+                style={{ fontSize: 28 }}
+                symbol="wall_art"
+              />
+            </div>
+          )
         }
         src={displayImage}
       />
@@ -415,7 +419,14 @@ export const RemoveConfirmationStep = ({
           kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
           'bg-ens-quartz-100',
         )}
-      />
+      >
+        {kind === 'avatar' ? (
+          <PatternAvatar
+            className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
+            name={name}
+          />
+        ) : null}
+      </div>
     </div>
     <div className="flex items-center gap-3">
       <button
