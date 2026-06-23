@@ -9,9 +9,6 @@ export const DEFAULT_GLOBAL_BACK_BUTTON_CONFIG = {
   isVisible: true,
 } satisfies GlobalBackButtonConfig
 
-const isProfileEditRoute = (pathname: string) =>
-  /^\/p\/[^/]+\/edit\/?$/.test(pathname)
-
 const isProfileRoute = (pathname: string) =>
   /^\/[^/]+\.[^/]+\/?$/.test(pathname) ||
   /^\/0x[a-fA-F0-9]{40}\/?$/.test(pathname)
@@ -38,7 +35,7 @@ export const getDefaultGlobalBackButtonConfig = (
     return DEFAULT_GLOBAL_BACK_BUTTON_CONFIG
   }
 
-  if (isProfileEditRoute(pathname) || isProfileRoute(pathname)) {
+  if (isProfileRoute(pathname)) {
     return DEFAULT_GLOBAL_BACK_BUTTON_CONFIG
   }
 

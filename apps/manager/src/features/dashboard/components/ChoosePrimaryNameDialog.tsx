@@ -26,18 +26,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  getEthAddressFromRecords,
-  handlePrimaryNameCancel,
-  handleSetPrimaryName,
-  hasMatchingEthAddress,
-  type PrimaryNameOptions,
-  type PrimaryNameParams,
-} from '@/features/profile/components/ProfileEdit.handlers'
-import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import {
   type SmartAccountContextValue,
@@ -46,6 +38,14 @@ import {
 import { publicClient } from '@/lib/wagmi'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
+import {
+  getEthAddressFromRecords,
+  handlePrimaryNameCancel,
+  handleSetPrimaryName,
+  hasMatchingEthAddress,
+  type PrimaryNameOptions,
+  type PrimaryNameParams,
+} from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void

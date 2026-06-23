@@ -1,14 +1,13 @@
 /**
- * Pure Handler Functions for Profile Editing & Resolver/Primary Updates
+ * Handler functions for primary-name updates.
  *
  * Business logic extracted outside React components for testability.
  */
 
-import type { primaryNameMachine } from '@ens-apps/transaction-manager'
-import type { FormEvent } from 'react'
-import type { Address, PublicClient } from 'viem'
+import type { primaryNameMachine, Signer } from '@ens-apps/transaction-manager'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
-import type { ProfileRecordsResult } from '../service/profileRecords'
+import type { ProfileRecordsResult } from '@/features/profile/service/profileRecords'
 
 const ETH_COIN_TYPE = 60
 
@@ -33,30 +32,17 @@ export interface PrimaryNameParams {
   owner?: Address
 }
 
+interface PrimaryNameAccount {
+  walletClient?: WalletClient | null
+  ownerAddress?: Address | null
+  signer?: Signer | null
+  accountAddress?: Address | null
+}
+
 export interface PrimaryNameOptions {
-  account: {
-    walletClient?: import('viem').WalletClient | null
-    ownerAddress?: Address | null
-    signer?: import('@ens-apps/transaction-manager').Signer | null
-    accountAddress?: Address | null
-  }
+  account: PrimaryNameAccount
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>
   publicClient: PublicClient
-}
-
-export interface ProfileResetParams {
-  resetForm: () => void
-  refetchRecords: () => void
-  refetchOwner: () => void
-}
-
-export function handleProfileFormSubmit(
-  event: FormEvent<HTMLFormElement>,
-  onSubmit: () => void,
-): void {
-  event.preventDefault()
-  event.stopPropagation()
-  onSubmit()
 }
 
 /**
@@ -103,10 +89,10 @@ export function handleSetPrimaryName(
     type: 'START_UPDATE',
     name,
     signer: account.signer,
-    accountAddress: account.accountAddress as Address,
+    accountAddress: account.accountAddress,
     publicClient,
     walletClient,
-    eoaAddress: account.ownerAddress as Address,
+    eoaAddress: account.ownerAddress,
   })
 
   return undefined
@@ -116,11 +102,4 @@ export function handlePrimaryNameCancel(
   primaryNameActor: ActorRefFrom<typeof primaryNameMachine>,
 ): void {
   primaryNameActor.send({ type: 'CANCEL' })
-}
-
-export function handleProfileReset(params: ProfileResetParams): void {
-  const { resetForm, refetchRecords, refetchOwner } = params
-  resetForm()
-  refetchRecords()
-  refetchOwner()
 }

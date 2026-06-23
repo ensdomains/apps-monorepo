@@ -56,7 +56,6 @@ const getProfileUrl = (name: string) =>
 
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
-  const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -149,7 +148,6 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         name={name}
         onUpdated={refetchRecords}
         owner={owner}
-        profileEditNewEnabled={profileEditNewEnabled}
         records={records}
         url={getProfileUrl(name)}
       />

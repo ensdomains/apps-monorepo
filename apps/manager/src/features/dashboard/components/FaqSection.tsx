@@ -49,8 +49,8 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
     question: <Trans>How do I show my .eth name instead of my address?</Trans>,
     answer: (
       <Trans>
-        Set it as your primary name. You can do this from your profile page in
-        the ENS App.
+        Set it as your primary name from the primary name card on your
+        Dashboard.
       </Trans>
     ),
   },
