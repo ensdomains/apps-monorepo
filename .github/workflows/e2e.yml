@@ -33,8 +33,8 @@ jobs:
       configs: ${{ steps.build-matrix.outputs.configs }}
       has-configs: ${{ steps.build-matrix.outputs.has-configs }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           # Shared paths are inlined into both filters (no YAML anchors,
@@ -114,13 +114,13 @@ jobs:
     steps:
       # ── checkout & toolchain ──────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: "lts/*"
           cache: "pnpm"
@@ -134,7 +134,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
@@ -154,7 +154,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         continue-on-error: true
         with:
           registry: ghcr.io
@@ -328,7 +328,7 @@ jobs:
 
       # ── artifacts & cleanup ───────────────────────────────────────
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-results-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
@@ -344,7 +344,7 @@ jobs:
           docker compose -f e2e/infra/docker-compose.yml logs --no-color > /tmp/e2e-docker-logs/docker-compose.log 2>&1
 
       - name: Upload Docker logs artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-docker-logs-${{ matrix.config.project }}-shard-${{ matrix.config.shardIndex }}
