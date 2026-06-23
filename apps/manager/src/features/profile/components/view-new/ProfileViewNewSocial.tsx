@@ -36,7 +36,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
           icon={recordDef?.icon}
         />
       </div>
-      <div className="min-w-0 flex-1 lg:landscape:h-[42px]">
+      <div className="min-w-0 flex-1 lg:landscape:h-10.5">
         <p className={socialLabelClassName}>{recordDef?.name ?? record.key}</p>
         <p className={socialValueClassName}>
           {recordDef?.displayPrefix}

@@ -11,7 +11,7 @@ const LinkPreviewLoading = ({
   readonly shouldReduceMotion: boolean
   readonly valueWidth: string
 }) => (
-  <div className="flex h-[205px] min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:rounded-xl lg:landscape:border-[#C7C6C4] lg:landscape:border-[0.25px]">
+  <div className="flex h-51.25 min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] lg:landscape:rounded-xl lg:landscape:border-[#C7C6C4] lg:landscape:border-[0.25px]">
     <div className="flex h-30 shrink-0 items-center justify-center bg-ens-quartz-100">
       <SkeletonBlock
         className="size-14 rounded-xl bg-ens-quartz-200 shadow-[0_2px_8px_rgba(0,0,0,0.06)]"

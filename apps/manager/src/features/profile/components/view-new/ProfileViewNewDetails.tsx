@@ -14,7 +14,7 @@ type ProfileDetailsProps = {
 }
 
 const detailLabelClassName =
-  'flex items-center text-ens-quartz-400 text-xs leading-[21px] lg:landscape:text-base lg:landscape:leading-normal'
+  'flex items-center text-ens-quartz-400 text-xs leading-5.25 lg:landscape:text-base lg:landscape:leading-normal'
 const detailValueClassName =
   'font-sans text-[11px] text-ens-quartz-700 leading-4.5 tracking-[0.77px] lg:landscape:text-[13px] lg:landscape:leading-normal lg:landscape:tracking-[0.91px]'
 

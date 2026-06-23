@@ -26,13 +26,13 @@ const SkeletonCardLoading = ({
     <div className="flex w-full min-w-0 flex-col items-start gap-2">
       <div className="flex w-full items-center justify-between">
         <SkeletonBlock
-          className="size-7 rounded-[6px] lg:landscape:size-7.5"
+          className="size-7 rounded-md lg:landscape:size-7.5"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
       <SkeletonBlock
         className={clsx(
-          'h-[16.5px] rounded-sm lg:landscape:h-[18px]',
+          'h-[16.5px] rounded-sm lg:landscape:h-4.5',
           labelWidth,
         )}
         shouldReduceMotion={shouldReduceMotion}

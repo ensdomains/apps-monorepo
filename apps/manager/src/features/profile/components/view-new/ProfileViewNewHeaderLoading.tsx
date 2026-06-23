@@ -49,7 +49,7 @@ const NeutralAvatarLoading = ({
       {neutralAvatarCellIds.map((cellId) => (
         <div
           className={clsx(
-            'rounded-[2px]',
+            'rounded-xs',
             neutralAvatarFilledCells.has(cellId)
               ? 'bg-ens-quartz-300'
               : 'bg-ens-quartz-200/45',
@@ -108,7 +108,7 @@ const ProfileDetailLoading = ({
   <div className="flex min-w-0 flex-col items-start gap-0 lg:landscape:flex-row lg:landscape:items-center lg:landscape:gap-1.5">
     <div
       className={cn(
-        'flex items-center text-ens-quartz-400 text-xs leading-[21px] lg:landscape:text-base lg:landscape:leading-normal',
+        'flex items-center text-ens-quartz-400 text-xs leading-5.25 lg:landscape:text-base lg:landscape:leading-normal',
         iconGapClassName,
       )}
     >
@@ -145,7 +145,7 @@ export const ProfileViewNewHeaderLoading = ({
       className="absolute -top-33 left-1/2 size-45.5 -translate-x-1/2 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] lg:landscape:hidden"
       shouldReduceMotion={shouldReduceMotion}
     />
-    <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-[13px]">
+    <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-3.25">
       <ProfileNameBadgeLoading
         name={name}
         shouldReduceMotion={shouldReduceMotion}
@@ -177,7 +177,7 @@ export const ProfileViewNewHeaderLoading = ({
       <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t lg:landscape:hidden" />
     </div>
 
-    <div className="mt-[91px] flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
+    <div className="mt-22.75 flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
       <NeutralAvatarLoading
         className="hidden size-45.5 shrink-0 rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)] lg:landscape:block"
         shouldReduceMotion={shouldReduceMotion}
