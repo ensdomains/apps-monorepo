@@ -17,7 +17,7 @@ import {
 const contactCardSurfaceClassName =
   'rounded-xl border-[0.25px] border-ens-quartz-300 bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50'
 const contactLabelClassName =
-  'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] lg:landscape:text-xs lg:landscape:leading-[18px] lg:landscape:tracking-[-0.132px]'
+  'w-full truncate text-ens-quartz-500 text-[11px] leading-[16.5px] tracking-[-0.121px] lg:landscape:text-xs lg:landscape:leading-4.5 lg:landscape:tracking-[-0.132px]'
 const contactValueClassName =
   'w-full truncate text-ens-quartz-500 text-[13px] leading-[19.5px] tracking-[-0.143px] lg:landscape:text-sm lg:landscape:text-ens-quartz-700 lg:landscape:leading-normal lg:landscape:tracking-[-0.154px]'
 const contactTrailingIconClassName =

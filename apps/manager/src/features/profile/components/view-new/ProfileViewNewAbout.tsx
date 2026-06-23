@@ -26,7 +26,7 @@ const AboutMetaItem = ({
   return (
     <div className="flex min-w-0 items-start gap-1 text-ens-quartz-700 lg:landscape:items-center">
       <span className="shrink-0 text-ens-quartz-700">{icon}</span>
-      <span className="min-w-0 text-[12px] leading-[18px] lg:landscape:truncate lg:landscape:text-sm lg:landscape:leading-normal">
+      <span className="min-w-0 text-[12px] leading-4.5 lg:landscape:truncate lg:landscape:text-sm lg:landscape:leading-normal">
         {value}
       </span>
     </div>

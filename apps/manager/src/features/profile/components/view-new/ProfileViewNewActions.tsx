@@ -41,8 +41,8 @@ export const ProfileViewNewActions = ({
 
   return (
     <>
-      <div className="absolute inset-x-0 top-[474px] z-30 lg:landscape:hidden">
-        <div className="mx-auto flex w-full max-w-[390px] items-center justify-between px-5">
+      <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
+        <div className="mx-auto flex w-full max-w-97.5 items-center justify-between px-5">
           <ProfileViewNewRenewAction
             className={renewActionClassName}
             isOwner={isOwner}

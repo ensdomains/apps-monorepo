@@ -13,7 +13,7 @@ export const editBottomNavClassName =
   'fixed inset-x-0 bottom-0 z-40 bg-white shadow-[0_-3px_2px_rgba(220,220,220,0.25)] lg:landscape:shadow-[0_-3.24px_91px_rgba(7,28,47,0.12)]'
 
 export const editBottomNavContentClassName =
-  'mx-auto flex w-full max-w-[390px] justify-center px-5 pt-3 pb-[calc(44px+env(safe-area-inset-bottom,0px))] lg:landscape:max-w-[1440px] lg:landscape:justify-end lg:landscape:gap-3 lg:landscape:px-8 lg:landscape:py-4'
+  'mx-auto flex w-full max-w-97.5 justify-center px-5 pt-3 pb-[calc(44px+env(safe-area-inset-bottom,0px))] lg:landscape:max-w-[1440px] lg:landscape:justify-end lg:landscape:gap-3 lg:landscape:px-8 lg:landscape:py-4'
 
 export const desktopActionContainerClassName =
   'absolute top-[422px] z-30 hidden w-33 flex-col gap-6 lg:landscape:flex'
