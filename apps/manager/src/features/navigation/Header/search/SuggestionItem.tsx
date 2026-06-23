@@ -119,7 +119,7 @@ export const NameSuggestionItem = ({
     (needsSelfCheck ? activeQuery.isLoading : isLoadingProp) || isCheckingGrace
   const isError =
     (needsSelfCheck ? activeQuery.isError : isErrorProp) ||
-    registeredExpiryQuery.isError
+    (isRegistered !== true && registeredExpiryQuery.isError)
   const isAvailable =
     isSupported &&
     !isSubname &&
@@ -131,7 +131,7 @@ export const NameSuggestionItem = ({
     !isSupported ||
     (isSubname && isRegistered === false) ||
     isCheckingGrace ||
-    registeredExpiryQuery.isError
+    (isRegistered !== true && registeredExpiryQuery.isError)
 
   // Only fetch pricing for rows that are actually available — registered
   // names and subnames can't be in cooldown.
