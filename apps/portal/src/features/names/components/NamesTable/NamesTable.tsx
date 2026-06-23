@@ -7,6 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { NameMobileCard } from '../NameMobileCard'
@@ -70,10 +71,7 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
-                className={cn(
-                  'hover:bg-muted',
-                  tableView.strippedRows && 'odd:bg-muted',
-                )}
+                className={stripedRowClassName(tableView.strippedRows)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell

@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { EventDetailSheet } from '@/features/resolver/components/EventDetailSheet'
@@ -304,10 +305,7 @@ export const ResolverEventsTable = ({
                 <Fragment key={row.id}>
                   <TableRow
                     key={row.id}
-                    className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
-                    )}
+                    className={stripedRowClassName(tableView.strippedRows)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cellClassName}>

@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-table'
 import { useState } from 'react'
 
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import {
   Table,
   TableBody,
@@ -67,11 +68,7 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
-              className={cn(
-                !tableView.strippedRows && 'hover:bg-sidebar/60',
-                tableView.strippedRows &&
-                  'odd:bg-sidebar/60 odd:hover:bg-background even:hover:bg-sidebar/60',
-              )}
+              className={stripedRowClassName(tableView.strippedRows)}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell

@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -365,8 +366,7 @@ function RouteComponent() {
                     <TableRow
                       key={row.id}
                       className={cn(
-                        'hover:bg-muted',
-                        tableView.strippedRows && 'odd:bg-muted',
+                        stripedRowClassName(tableView.strippedRows),
                         deleteMutation.isPending &&
                           deleteMutation.variables === row.original.fromName &&
                           'opacity-50',

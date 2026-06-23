@@ -29,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -382,8 +383,7 @@ export const SubnamesTable = ({
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
                     className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
+                      stripedRowClassName(tableView.strippedRows),
                       isPendingTx && 'opacity-50 pointer-events-none',
                     )}
                   >

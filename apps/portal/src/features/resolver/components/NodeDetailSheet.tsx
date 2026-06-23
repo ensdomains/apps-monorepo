@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import {
@@ -165,10 +166,7 @@ export const NodeDetailSheet = ({
                         {roles.map((role) => (
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
-                            className={cn(
-                              'hover:bg-muted',
-                              tableView.strippedRows && 'odd:bg-muted',
-                            )}
+                            className={stripedRowClassName(tableView.strippedRows)}
                           >
                             <TableCell
                               className={cn(cellClassName, 'font-mono text-xs')}

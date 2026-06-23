@@ -30,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import { cn } from '@/lib/utils'
@@ -329,10 +330,7 @@ export const EditRecordsTable = ({
                 <React.Fragment key={row.id}>
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
-                    className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
-                    )}
+                    className={stripedRowClassName(tableView.strippedRows)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
