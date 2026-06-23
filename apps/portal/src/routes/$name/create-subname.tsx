@@ -259,7 +259,7 @@ const CreateSubnameForm = ({
             disabled={isSubmitting || isSuccess}
             onChange={(e) => {
               hasUserEditedOwner.current = true
-              const value = e.target.value
+              const value = e.target.value.trim()
               setOwnerInput(value)
               setResolveError(null)
 
