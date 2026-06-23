@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { getEditProfileDialogHeaderStyle } from './EditProfileDialogHeaderTheme'
 
@@ -27,7 +27,7 @@ export const EditProfileDialogHeader = ({
 }: EditProfileDialogHeaderProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const resolvedAvatar = useQuery({
-    ...parseAvatarQuery(avatarUrl),
+    ...imageRecordQuery(avatarUrl),
     enabled: !!avatarUrl && !avatarPreviewUrl,
   })
   const displayAvatarUrl = avatarPreviewUrl ?? resolvedAvatar.data ?? avatarUrl

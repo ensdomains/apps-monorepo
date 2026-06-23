@@ -2,6 +2,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import type { ProfileRecords } from '@/features/profile/types'
+import { buildNameAvatarUrl } from './profileAvatar'
 import type { ImageType } from './profileImageUpload'
 import { profileRecordsQuery } from './profileRecords'
 
@@ -83,7 +84,7 @@ const refreshParsedAvatarCaches = ({
   )
 
   for (const query of queryClient.getQueryCache().findAll({
-    queryKey: $qk({ $scope: 'profile', $action: 'parse_avatar' }),
+    queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
   })) {
     const record = getQueryMetaString(query.queryKey, 'record')
     const imageUrl = record
@@ -118,7 +119,7 @@ const refreshNameAvatarCaches = ({
     return
   }
 
-  const imageUrl = getCacheBustedImageUrl(avatarUpload.imageUrl, version)
+  const imageUrl = buildNameAvatarUrl(name, version)
 
   for (const query of queryClient.getQueryCache().findAll({
     queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
@@ -136,12 +137,10 @@ const refreshNameAvatarCaches = ({
     return { ...data, [name]: imageUrl }
   }
 
-  for (const action of ['names_avatars', 'names_avatars_by_name']) {
-    queryClient.setQueriesData(
-      { queryKey: $qk({ $scope: 'profile', $action: action }) },
-      updateAvatarMap,
-    )
-  }
+  queryClient.setQueriesData(
+    { queryKey: $qk({ $scope: 'profile', $action: 'names_avatars_by_name' }) },
+    updateAvatarMap,
+  )
 }
 
 export const refreshProfileImageCaches = async ({
@@ -162,13 +161,10 @@ export const refreshProfileImageCaches = async ({
       queryKey: profileRecordsQuery(name).queryKey,
     }),
     queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'parse_avatar' }),
+      queryKey: $qk({ $scope: 'profile', $action: 'image_record' }),
     }),
     queryClient.invalidateQueries({
       queryKey: $qk({ $scope: 'profile', $action: 'name_avatar' }),
-    }),
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'names_avatars' }),
     }),
     queryClient.invalidateQueries({
       queryKey: $qk({ $scope: 'profile', $action: 'names_avatars_by_name' }),

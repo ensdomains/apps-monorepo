@@ -4,7 +4,7 @@ import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useAccount, useChainId } from 'wagmi'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { prepareProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import { profileNftsQuery } from '@/features/profile/service/profileNfts'
 import { inspect } from '@/utils/xstate'
@@ -58,7 +58,7 @@ export const useProfileImageField = ({
   const [isCropping, setIsCropping] = useState(false)
   const hasImage = Boolean(currentImage?.trim())
   const imageQuery = useQuery({
-    ...parseAvatarQuery(currentImage),
+    ...imageRecordQuery(currentImage),
     enabled: hasImage && !preparedImagePreviewUrl,
   })
   const displayImage =
@@ -73,7 +73,7 @@ export const useProfileImageField = ({
       onImageChange: (url: string, resolvedImage?: string) => {
         if (resolvedImage) {
           queryClient.setQueryData(
-            parseAvatarQuery(url).queryKey,
+            imageRecordQuery(url).queryKey,
             resolvedImage,
           )
         }
@@ -272,7 +272,7 @@ export const useProfileImageField = ({
         return upload.dataURL
       })
       queryClient.setQueryData(
-        parseAvatarQuery(upload.imageUrl).queryKey,
+        imageRecordQuery(upload.imageUrl).queryKey,
         upload.dataURL,
       )
       onImageUploadPrepared?.(upload)

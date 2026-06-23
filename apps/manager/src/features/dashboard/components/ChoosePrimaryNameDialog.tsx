@@ -35,10 +35,7 @@ import {
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
-import {
-  type AvatarLookupEntry,
-  namesAvatarsQuery,
-} from '@/features/profile/service/profileAvatar'
+import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -290,16 +287,14 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const avatarLookups = useMemo<AvatarLookupEntry[]>(() => {
+  const visibleAvatarNames = useMemo(() => {
     if (!open) return []
-    return domains.flatMap((domain) => {
-      const resolverAddress = domain.resolver?.address as Address | undefined
-      if (!resolverAddress) return []
-      return [{ name: resolveDomainLabel(domain), resolverAddress }]
-    })
+    return domains.map(resolveDomainLabel)
   }, [open, domains])
 
-  const { data: avatarsByName } = useQuery(namesAvatarsQuery(avatarLookups))
+  const { data: avatarsByName } = useQuery(
+    namesAvatarsByNameQuery(visibleAvatarNames),
+  )
 
   const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),

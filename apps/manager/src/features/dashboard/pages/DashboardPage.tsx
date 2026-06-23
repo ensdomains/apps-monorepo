@@ -11,7 +11,7 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { nameAvatarQuery } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -47,17 +47,13 @@ export const DashboardPage = () => {
     enabled: !!reverseName,
   })
 
-  const avatarRecord = reverseRecords?.texts.find(
-    (text) => text.key === 'avatar',
-  )?.value
-
   const themeColor = reverseRecords?.texts.find(
     (text) => text.key === 'theme',
   )?.value
 
   const { data: parsedAvatar } = useQuery({
-    ...parseAvatarQuery(avatarRecord),
-    enabled: !!avatarRecord,
+    ...nameAvatarQuery(reverseName ?? undefined),
+    enabled: !!reverseName,
   })
 
   const defaultName = reverseName ?? null

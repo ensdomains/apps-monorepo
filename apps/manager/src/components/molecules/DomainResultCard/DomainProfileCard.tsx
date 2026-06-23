@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
 import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 
@@ -58,11 +59,20 @@ export const DomainProfileCard = ({
         {/* Avatar */}
         <div className="relative size-[113px] shrink-0">
           <div className="size-[113px] overflow-clip rounded-[5.215px] bg-ens-white">
-            <img
-              alt={`${domainName} avatar`}
-              className="size-full object-cover"
-              src={avatarUrl || placeholderAvatar}
-            />
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
+                alt={`${domainName} avatar`}
+                className="size-full object-cover"
+                src={avatarUrl ?? undefined}
+              />
+              <ImageFallback.Fallback>
+                <img
+                  alt=""
+                  className="size-full object-cover"
+                  src={placeholderAvatar}
+                />
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
           </div>
         </div>
 

@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer'
 import { Input } from '@/components/ui/input'
 import { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import {
   type ImageType,
   uploadImageMutationOptions,
@@ -246,7 +246,7 @@ export const ImageSelectionDialog = ({
 
   // Resolve the current image if it's an IPFS/NFT URL
   const resolvedImage = useQuery({
-    ...parseAvatarQuery(currentImage),
+    ...imageRecordQuery(currentImage),
     enabled: !!currentImage,
   })
 

@@ -14,7 +14,7 @@ import {
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { nameAvatarQuery } from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
   profileExpiryQuery,
@@ -79,17 +79,13 @@ export const CheckAvailability = ({
     enabled: !!profileName,
   })
 
-  const avatarRecord = profileRecords?.texts.find(
-    (text) => text.key === 'avatar',
-  )?.value
-
   const themeColor = profileRecords?.texts.find(
     (text) => text.key === 'theme',
   )?.value
 
   const { data: profileAvatar } = useQuery({
-    ...parseAvatarQuery(avatarRecord),
-    enabled: !!profileName && !!avatarRecord,
+    ...nameAvatarQuery(profileName ?? undefined),
+    enabled: !!profileName,
   })
 
   const { data: profileExpiry } = useQuery({

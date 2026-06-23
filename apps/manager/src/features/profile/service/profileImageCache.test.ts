@@ -3,15 +3,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
+  buildNameAvatarUrl,
   nameAvatarQuery,
   namesAvatarsByNameQuery,
-  namesAvatarsQuery,
-  parseAvatarQuery,
 } from './profileAvatar'
 import {
   getActiveSignedProfileImageUploads,
   refreshProfileImageCaches,
 } from './profileImageCache'
+import { imageRecordQuery } from './profileImageRecord'
 
 describe('profile image cache helpers', () => {
   afterEach(() => {
@@ -47,19 +47,13 @@ describe('profile image cache helpers', () => {
     const name = 'vitalik.eth'
     const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/${name}`
     const cacheBustedImageUrl = `${imageUrl}?v=1234`
-    const resolverAddress = '0x0000000000000000000000000000000000000001'
+    const cacheBustedMetadataAvatarUrl = buildNameAvatarUrl(name, 1234)
 
-    queryClient.setQueryData(parseAvatarQuery(imageUrl).queryKey, imageUrl)
+    queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
     queryClient.setQueryData(nameAvatarQuery(name).queryKey, imageUrl)
     queryClient.setQueryData(namesAvatarsByNameQuery([name]).queryKey, {
       [name]: imageUrl,
     })
-    queryClient.setQueryData(
-      namesAvatarsQuery([{ name, resolverAddress }]).queryKey,
-      {
-        [name]: imageUrl,
-      },
-    )
 
     await refreshProfileImageCaches({
       images: [{ kind: 'avatar', imageUrl }],
@@ -67,19 +61,14 @@ describe('profile image cache helpers', () => {
       queryClient,
     })
 
-    expect(queryClient.getQueryData(parseAvatarQuery(imageUrl).queryKey)).toBe(
+    expect(queryClient.getQueryData(imageRecordQuery(imageUrl).queryKey)).toBe(
       cacheBustedImageUrl,
     )
     expect(queryClient.getQueryData(nameAvatarQuery(name).queryKey)).toBe(
-      cacheBustedImageUrl,
+      cacheBustedMetadataAvatarUrl,
     )
     expect(
       queryClient.getQueryData(namesAvatarsByNameQuery([name]).queryKey),
-    ).toEqual({ [name]: cacheBustedImageUrl })
-    expect(
-      queryClient.getQueryData(
-        namesAvatarsQuery([{ name, resolverAddress }]).queryKey,
-      ),
-    ).toEqual({ [name]: cacheBustedImageUrl })
+    ).toEqual({ [name]: cacheBustedMetadataAvatarUrl })
   })
 })

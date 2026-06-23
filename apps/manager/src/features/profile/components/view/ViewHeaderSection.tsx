@@ -4,7 +4,8 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
-import { parseAvatarQuery } from '../../service/profileAvatar'
+import { nameAvatarQuery } from '../../service/profileAvatar'
+import { imageRecordQuery } from '../../service/profileImageRecord'
 import type { ProfileRecords } from '../../types'
 import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
@@ -27,15 +28,12 @@ export const ViewHeaderSection = ({
   isOwner,
 }: ViewHeaderSectionProps) => {
   const [avatar, header] = useQueries({
-    queries: [
-      parseAvatarQuery(records.base.avatar),
-      parseAvatarQuery(records.base.header),
-    ],
+    queries: [nameAvatarQuery(name), imageRecordQuery(records.base.header)],
   })
 
   const avatarUrl = isInGrace
     ? undefined
-    : safeImageSrc(avatar.data ?? records.base.avatar)
+    : safeImageSrc(avatar.data ?? undefined)
   const headerUrl = isInGrace
     ? undefined
     : safeImageSrc(header.data ?? records.base.header)
