@@ -32,7 +32,7 @@ const SkeletonCardLoading = ({
       </div>
       <SkeletonBlock
         className={clsx(
-          'h-[16.5px] rounded-[4px] lg:landscape:h-[18px]',
+          'h-[16.5px] rounded-sm lg:landscape:h-[18px]',
           labelWidth,
         )}
         shouldReduceMotion={shouldReduceMotion}
@@ -44,7 +44,7 @@ const SkeletonCardLoading = ({
     />
     <SkeletonBlock
       className={clsx(
-        'h-[19.5px] max-w-full rounded-[4px] lg:landscape:h-5',
+        'h-[19.5px] max-w-full rounded-sm lg:landscape:h-5',
         valueWidth,
       )}
       shouldReduceMotion={shouldReduceMotion}

@@ -1,5 +1,10 @@
 import clsx from 'clsx'
+import { Copy } from 'lucide-react'
 import { motion } from 'motion/react'
+import {
+  MSymbol,
+  type MaterialSymbolProps,
+} from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import {
   getMotionProps,
@@ -86,32 +91,41 @@ const ProfileNameBadgeLoading = ({
 )
 
 const ProfileDetailLoading = ({
+  hasCopy,
+  iconGapClassName = 'gap-3',
+  label,
   shouldReduceMotion,
+  symbol,
   valueWidth,
 }: {
+  readonly hasCopy?: boolean
+  readonly iconGapClassName?: string
+  readonly label: string
   readonly shouldReduceMotion: boolean
+  readonly symbol: MaterialSymbolProps['symbol']
   readonly valueWidth: string
 }) => (
   <div className="flex min-w-0 flex-col items-start gap-0 lg:landscape:flex-row lg:landscape:items-center lg:landscape:gap-1.5">
-    <div className="flex items-center gap-1.5">
-      <SkeletonBlock
-        className="size-5 rounded"
-        shouldReduceMotion={shouldReduceMotion}
+    <div
+      className={cn(
+        'flex items-center text-ens-quartz-400 text-xs leading-[21px] lg:landscape:text-base lg:landscape:leading-normal',
+        iconGapClassName,
+      )}
+    >
+      <MSymbol
+        className="ms-opsz-20 ms-wght-300 shrink-0"
+        symbol={symbol}
       />
-      <SkeletonBlock
-        className="h-5 w-14 lg:landscape:h-6 lg:landscape:w-16"
-        shouldReduceMotion={shouldReduceMotion}
-      />
+      <span>{label}</span>
     </div>
     <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
       <SkeletonBlock
-        className={clsx('h-5', valueWidth)}
+        className={clsx('h-4.5 rounded-sm lg:landscape:h-5', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
-      <SkeletonBlock
-        className="size-5 rounded"
-        shouldReduceMotion={shouldReduceMotion}
-      />
+      {hasCopy ? (
+        <Copy className="size-3.5 shrink-0 text-ens-quartz-400 lg:landscape:size-4" />
+      ) : null}
     </div>
   </div>
 )
@@ -139,16 +153,24 @@ export const ProfileViewNewHeaderLoading = ({
       <div className="mt-10 w-full px-5 lg:landscape:mt-0 lg:landscape:px-0">
         <div className="grid w-full grid-cols-3 gap-3 lg:landscape:flex lg:landscape:max-w-full lg:landscape:flex-wrap lg:landscape:items-center lg:landscape:gap-x-6 lg:landscape:gap-y-3">
           <ProfileDetailLoading
+            hasCopy
+            iconGapClassName="gap-0.5"
+            label="Owner"
             shouldReduceMotion={shouldReduceMotion}
-            valueWidth="w-15 lg:landscape:w-28"
+            symbol="key_vertical"
+            valueWidth="w-15 lg:landscape:w-21"
           />
           <ProfileDetailLoading
+            label="Registered"
             shouldReduceMotion={shouldReduceMotion}
-            valueWidth="w-14 lg:landscape:w-24"
+            symbol="calendar_clock"
+            valueWidth="w-14 lg:landscape:w-28"
           />
           <ProfileDetailLoading
+            label="Expires"
             shouldReduceMotion={shouldReduceMotion}
-            valueWidth="w-14 lg:landscape:w-24"
+            symbol="history"
+            valueWidth="w-14 lg:landscape:w-28"
           />
         </div>
       </div>

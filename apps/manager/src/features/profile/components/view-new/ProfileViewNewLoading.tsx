@@ -6,7 +6,6 @@ import {
   ProfileViewNewBannerLoading,
   ProfileViewNewHeaderLoading,
 } from './ProfileViewNewHeaderLoading'
-import { ProfileLinksSectionLoading } from './ProfileViewNewLinksLoading'
 import { ProfileSocialSectionLoading } from './ProfileViewNewSocialLoading'
 
 type ProfileViewNewLoadingProps = {
@@ -35,7 +34,6 @@ export const ProfileViewNewLoading = ({ name }: ProfileViewNewLoadingProps) => {
           <ProfileSocialSectionLoading
             shouldReduceMotion={shouldReduceMotion}
           />
-          <ProfileLinksSectionLoading shouldReduceMotion={shouldReduceMotion} />
         </div>
       </div>
       <ProfileViewNewActionsLoading shouldReduceMotion={shouldReduceMotion} />
