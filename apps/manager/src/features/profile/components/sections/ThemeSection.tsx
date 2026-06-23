@@ -1,5 +1,4 @@
 import { Trans, useLingui } from '@lingui/react/macro'
-import clsx from 'clsx'
 import { Check } from 'lucide-react'
 import {
   Card,
@@ -9,6 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { sharedOptions, withForm } from '@/features/profile/components/form'
+import { tw } from '@/utils/tailwind'
 import { THEME_COLORS } from '../../constants'
 import { getSelectedThemeColor } from './ThemeSection.helpers'
 
@@ -40,7 +40,7 @@ export const ThemeSection = withForm({
                           ? t`${label} theme (selected)`
                           : t`${label} theme`
                       }
-                      className={clsx(
+                      className={tw(
                         'flex h-10 w-10 items-center justify-center rounded-full transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
                         isSelected && 'ring-2 ring-offset-2',
                       )}

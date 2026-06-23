@@ -1,4 +1,4 @@
-import clsx from 'clsx'
+import { tw } from '@/utils/tailwind'
 import {
   ProfileViewNewSectionLoading,
   SkeletonBlock,
@@ -20,7 +20,7 @@ const LinkPreviewLoading = ({
     </div>
     <div className="min-w-0 px-6 py-5">
       <SkeletonBlock
-        className={clsx('h-5', valueWidth)}
+        className={tw('h-5', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       <div className="mt-1 flex min-w-0 items-center gap-1">

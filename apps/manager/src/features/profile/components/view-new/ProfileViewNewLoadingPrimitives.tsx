@@ -1,6 +1,6 @@
-import clsx from 'clsx'
 import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
+import { tw } from '@/utils/tailwind'
 
 type SkeletonBlockProps = {
   readonly className?: string
@@ -47,14 +47,14 @@ export const ProfileViewNewSectionLoading = ({
   titleWidth,
 }: ProfileViewNewSectionLoadingProps) => (
   <motion.section
-    className={clsx(
+    className={tw(
       'border-[0.25px] border-transparent bg-transparent px-5 py-6 shadow-none lg:landscape:px-8 lg:landscape:pt-8 lg:landscape:pb-6',
       className,
     )}
     {...getMotionProps(shouldReduceMotion, index * 0.05)}
   >
     <SkeletonBlock
-      className={clsx('h-6', titleWidth)}
+      className={tw('h-6', titleWidth)}
       shouldReduceMotion={shouldReduceMotion}
     />
     <div className="mt-6">{children}</div>

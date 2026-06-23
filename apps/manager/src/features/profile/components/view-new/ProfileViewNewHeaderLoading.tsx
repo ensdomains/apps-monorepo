@@ -1,4 +1,3 @@
-import clsx from 'clsx'
 import { Copy } from 'lucide-react'
 import { motion } from 'motion/react'
 import {
@@ -6,6 +5,7 @@ import {
   MSymbol,
 } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
+import { tw } from '@/utils/tailwind'
 import {
   getMotionProps,
   SkeletonBlock,
@@ -48,7 +48,7 @@ const NeutralAvatarLoading = ({
     <div className="grid size-full grid-cols-6 grid-rows-6 gap-1.5">
       {neutralAvatarCellIds.map((cellId) => (
         <div
-          className={clsx(
+          className={tw(
             'rounded-xs',
             neutralAvatarFilledCells.has(cellId)
               ? 'bg-ens-quartz-300'
@@ -72,7 +72,7 @@ const ProfileNameBadgeLoading = ({
   readonly shouldReduceMotion: boolean
 }) => (
   <div
-    className={clsx(
+    className={tw(
       'relative inline-flex max-w-full items-center overflow-hidden rounded-[3px] px-3 py-1.5',
       name ? 'bg-ens-quartz-700 text-white' : 'bg-ens-quartz-200',
     )}
@@ -117,7 +117,7 @@ const ProfileDetailLoading = ({
     </div>
     <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
       <SkeletonBlock
-        className={clsx('h-4.5 rounded-sm lg:landscape:h-5', valueWidth)}
+        className={tw('h-4.5 rounded-sm lg:landscape:h-5', valueWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       {hasCopy ? (
@@ -212,7 +212,7 @@ export const ProfileViewNewHeaderLoading = ({
                   shouldReduceMotion={shouldReduceMotion}
                 />
                 <SkeletonBlock
-                  className={clsx(
+                  className={tw(
                     'h-5',
                     index === 0 ? 'w-36' : index === 1 ? 'w-24' : 'w-28',
                   )}

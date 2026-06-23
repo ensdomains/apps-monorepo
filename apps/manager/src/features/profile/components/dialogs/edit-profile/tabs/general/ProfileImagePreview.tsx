@@ -1,5 +1,6 @@
 import type React from 'react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { getEmptyLabel } from './ProfileImageField.helpers'
 import type { ProfileImageKind } from './ProfileImageField.types'
@@ -27,15 +28,11 @@ export const DisplayImage = ({
   </ImageFallback.Root>
 )
 
-const AvatarFallback = () => (
-  <div className="flex size-25 items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed bg-ens-quartz-50">
-    <MSymbol
-      aria-hidden="true"
-      className="text-ens-quartz-380"
-      style={{ fontSize: 32 }}
-      symbol="face"
-    />
-  </div>
+const AvatarFallback = ({ name }: { readonly name: string }) => (
+  <PatternAvatar
+    className="size-25 rounded-xl border-none bg-transparent p-0 shadow-none"
+    name={name}
+  />
 )
 
 interface ProfileImagePreviewProps {
@@ -56,11 +53,11 @@ export const ProfileImagePreview = ({
       <DisplayImage
         alt={`${name} avatar`}
         className="block size-25 rounded-xl object-cover"
-        fallback={<AvatarFallback />}
+        fallback={<AvatarFallback name={name} />}
         src={displayImage}
       />
     ) : (
-      <AvatarFallback />
+      <AvatarFallback name={name} />
     )
   }
 
