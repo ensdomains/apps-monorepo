@@ -10,7 +10,10 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
-import { isInGracePeriod } from '@/features/grace/utils/gracePeriod'
+import {
+  getProfileNameExpiryStatus,
+  profileExpiryQuery,
+} from '@/features/profile/service/profileExpiry'
 import {
   getNamePricingQueryOptions,
   getSearchNameQueryOptions,
@@ -99,28 +102,36 @@ export const NameSuggestionItem = ({
       query.data ? !query.data.isAvailable : undefined,
     )
   const registeredExpiryQuery = useQuery({
-    ...getDomainsQuery(
-      !isSubname && isRegistered === true
-        ? {
-            where: { name },
-            first: 1,
-            orderBy: Domain_OrderBy.Name,
-            orderDirection: OrderDirection.Asc,
-          }
-        : undefined,
-    ),
-    enabled: !isSubname && isRegistered === true,
+    ...profileExpiryQuery(name),
+    enabled:
+      !isSubname &&
+      isSupported &&
+      isRegistered !== undefined &&
+      !(needsSelfCheck ? activeQuery.isLoading : isLoadingProp),
   })
-  const expirySeconds = registeredExpiryQuery.data?.domains[0]?.expiryDate
-  const isInGrace = isInGracePeriod(
-    typeof expirySeconds === 'number' ? new Date(expirySeconds * 1000) : null,
+  const { isInGrace } = getProfileNameExpiryStatus(
+    registeredExpiryQuery.data?.expiry,
     true,
-    new Date(),
   )
-  const isLoading = needsSelfCheck ? activeQuery.isLoading : isLoadingProp
-  const isError = needsSelfCheck ? activeQuery.isError : isErrorProp
-  const isAvailable = isSupported && !isSubname && isRegistered === false
-  const isDisabled = !isSupported || (isSubname && isRegistered === false)
+  const isCheckingGrace =
+    !isSubname && isRegistered === false && registeredExpiryQuery.isLoading
+  const isLoading =
+    (needsSelfCheck ? activeQuery.isLoading : isLoadingProp) || isCheckingGrace
+  const isError =
+    (needsSelfCheck ? activeQuery.isError : isErrorProp) ||
+    (isRegistered !== true && registeredExpiryQuery.isError)
+  const isAvailable =
+    isSupported &&
+    !isSubname &&
+    isRegistered === false &&
+    !isInGrace &&
+    !isCheckingGrace &&
+    !registeredExpiryQuery.isError
+  const isDisabled =
+    !isSupported ||
+    (isSubname && isRegistered === false) ||
+    isCheckingGrace ||
+    (isRegistered !== true && registeredExpiryQuery.isError)
 
   // Only fetch pricing for rows that are actually available — registered
   // names and subnames can't be in cooldown.
@@ -183,14 +194,18 @@ export const NameSuggestionItem = ({
           .with({ isError: true }, () => (
             <XIcon className="size-4 text-slate-500" />
           ))
-          .with({ isRegistered: true }, () => (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <span className="inline-flex h-5 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
-                <Trans>Registered</Trans>
-              </span>
-              {isInGrace && <GracePeriodBadge />}
-            </div>
-          ))
+          .when(
+            ({ isRegistered }) =>
+              isRegistered === true || (isRegistered === false && isInGrace),
+            () => (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <span className="inline-flex h-5 items-center justify-center rounded-xl bg-ens-white px-2 py-1 font-sans text-ens-lapis-core text-xs leading-none">
+                  <Trans>Registered</Trans>
+                </span>
+                {isInGrace && <GracePeriodBadge />}
+              </div>
+            ),
+          )
           .with({ isSubname: true }, () => null)
           .with({ isRegistered: false }, () => (
             <div className="shrink-0 rounded-full bg-ens-peridot-bg px-1.5 py-1 font-normal text-ens-peridot-core text-xs">
