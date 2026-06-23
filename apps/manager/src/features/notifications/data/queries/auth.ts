@@ -2,7 +2,11 @@ import { mutationOptions } from '@tanstack/react-query'
 import type { WalletClient } from 'viem'
 import { signMessage } from 'viem/actions'
 import { createSiweMessage } from 'viem/siwe'
-import { backendAuthStore, backendClient } from '@/utils/backend-client'
+import {
+  backendAuthStore,
+  backendClient,
+  getSiweDomain,
+} from '@/utils/backend-client'
 
 const getNonce = async () => {
   const response = await backendClient.auth.nonce.$post()
@@ -24,12 +28,12 @@ export const signInBackendMutation = mutationOptions({
 
     const nonce = await getNonce()
 
+    const domain = getSiweDomain()
     const url = new URL(window.location.origin)
 
     const siweMessage = createSiweMessage({
       address: account.address,
-      // domain: 'app.ens.domains',
-      domain: url.hostname,
+      domain,
       nonce,
       chainId: walletClient.chain?.id ?? 0,
       uri: url.origin,

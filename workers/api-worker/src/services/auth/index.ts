@@ -1,7 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { ok, safeTry } from 'neverthrow'
 import type { Address, Hash } from 'viem'
-import { generateSiweNonce } from 'viem/siwe'
+import { generateSiweNonce, parseSiweMessage } from 'viem/siwe'
 import { signJWT } from '#core/auth/jwt.js'
 import type { Database } from '#core/database/index.js'
 import type { ViemClient } from '#core/eth/client.js'
@@ -10,11 +10,18 @@ import { logger } from '#utils/logger.js'
 import { addUserIfNotExists } from '../users'
 import { safeVerifySiweMessage } from './helpers'
 
+const ALLOWED_SIWE_DOMAINS = ['app.ens.dev', 'app.ens.domains'] as const
+type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
+
 class InvalidNonceError extends TaggedError('INVALID_NONCE')<{
   message: string
 }> {}
 
 class InvalidSignatureError extends TaggedError('INVALID_SIGNATURE')<{
+  message: string
+}> {}
+
+class InvalidDomainError extends TaggedError('INVALID_DOMAIN')<{
   message: string
 }> {}
 
@@ -63,13 +70,22 @@ export const createJWT = ({
   safeTry(async function* () {
     yield* verifyAndConsumeNonce(env, nonce)
 
+    const parsed = parseSiweMessage(message)
+    if (
+      !parsed.domain ||
+      !ALLOWED_SIWE_DOMAINS.includes(parsed.domain as AllowedSiweDomain)
+    ) {
+      yield* new InvalidDomainError({
+        message: 'Invalid SIWE domain',
+      })
+    }
+
     const valid = yield* safeVerifySiweMessage(client, {
       address,
       message,
       signature,
       nonce,
-      // TODO: CRITICAL Add domain verification
-      // domain: 'app.ens.domains',
+      domain: parsed.domain,
     })
 
     if (!valid) {
