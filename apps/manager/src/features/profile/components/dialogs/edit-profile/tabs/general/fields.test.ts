@@ -65,13 +65,13 @@ describe('general profile fields', () => {
   })
 
   it('reports invalid custom link values as general validation issues', () => {
-    expect(getGeneralValidationIssues(createRecords({ url: 'fffasdf' }))).toEqual(
-      [
-        {
-          field: 'url',
-          message: 'Enter a valid URL (e.g. https://example.com)',
-        },
-      ],
-    )
+    expect(
+      getGeneralValidationIssues(createRecords({ url: 'fffasdf' })),
+    ).toEqual([
+      {
+        field: 'url',
+        message: 'Enter a valid URL (e.g. https://example.com)',
+      },
+    ])
   })
 })
