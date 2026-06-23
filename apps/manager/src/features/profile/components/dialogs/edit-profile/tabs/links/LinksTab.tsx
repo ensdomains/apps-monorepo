@@ -259,7 +259,7 @@ export const LinksTab = ({
 
                 <button
                   aria-label={`Remove link ${row.index + 1}`}
-                  className="-translate-y-1/2 absolute top-1/2 right-3 flex size-6 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
+                  className="absolute top-1/2 right-3 flex size-6 -translate-y-1/2 items-center justify-center rounded-sm text-ens-quartz-400 transition-colors hover:bg-ens-quartz-100 hover:text-ens-quartz-700 disabled:pointer-events-none disabled:opacity-50"
                   disabled={isSaving}
                   onClick={() =>
                     row.isDraft

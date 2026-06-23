@@ -29,7 +29,7 @@ export const ProfileCardPreview = () => (
       />
     </div>
 
-    <div className="-mt-4 relative z-10 ml-2.5">
+    <div className="relative z-10 -mt-4 ml-2.5">
       <div
         className="size-10 rounded-full border-[1.5px] border-white shadow-sm"
         style={{

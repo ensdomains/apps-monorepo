@@ -28,14 +28,14 @@ export const ProfileViewNewHeader = ({
   records,
   registrationDate,
 }: ProfileViewNewHeaderProps) => (
-  <div className="relative min-h-[555px] rounded-none bg-transparent pt-[62px] shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0">
+  <div className="relative min-h-130.75 rounded-none bg-transparent pt-15.5 shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0">
     <ProfileViewNewAvatar
       avatarLoading={avatarLoading}
       avatarUrl={avatarUrl}
-      className="-top-33 -translate-x-1/2 absolute left-1/2 lg:landscape:hidden"
+      className="absolute -top-33 left-1/2 -translate-x-1/2 lg:landscape:hidden"
       name={name}
     />
-    <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-[13px]">
+    <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-3.25">
       <ProfileViewNewNameBadge name={name} />
       <div className="mt-10 w-full px-5 lg:landscape:mt-0 lg:landscape:px-0">
         <ProfileViewNewDetails
@@ -47,7 +47,7 @@ export const ProfileViewNewHeader = ({
       </div>
       <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t lg:landscape:hidden" />
     </div>
-    <div className="mt-[91px] flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
+    <div className="mt-22.75 flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
       <ProfileViewNewAvatar
         avatarLoading={avatarLoading}
         avatarUrl={avatarUrl}

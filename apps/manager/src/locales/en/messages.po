@@ -225,6 +225,10 @@ msgstr "Add your wallet addresses to receive payments. All addresses will be pub
 msgid "Added"
 msgstr "Added"
 
+#: src/features/dashboard/service/mutations/favoriteToast.tsx
+msgid "Added to your favorites!"
+msgstr "Added to your favorites!"
+
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Adding telegram..."
 msgstr "Adding telegram..."
@@ -635,8 +639,8 @@ msgid "Connect or sign in"
 msgstr "Connect or sign in"
 
 #: src/features/profile/components/common/favoriteAction.helpers.ts
-msgid "connect to favorite name"
-msgstr "connect to favorite name"
+msgid "Connect to favorite name"
+msgstr "Connect to favorite name"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Connect to register"
@@ -1269,10 +1273,6 @@ msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). The
 #: src/features/navigation/Header/account/LanguageSection.tsx
 msgid "Language"
 msgstr "Language"
-
-#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
-msgid "Learn more"
-msgstr "Learn more"
 
 #: src/features/profile/components/dialogs/AddLinkDialog.tsx
 msgid "Link"
@@ -2223,6 +2223,7 @@ msgstr "Settings"
 msgid "Share"
 msgstr "Share"
 
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
 msgid "Share profile"
 msgstr "Share profile"
@@ -2696,6 +2697,10 @@ msgstr "Verifying registration on-chain"
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
 msgstr "Verifying..."
+
+#: src/features/profile/components/dialogs/ImageSelectionDialog.tsx
+msgid "View avatar documentation"
+msgstr "View avatar documentation"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for approval"

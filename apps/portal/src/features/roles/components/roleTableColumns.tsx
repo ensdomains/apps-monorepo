@@ -1,7 +1,10 @@
 import type { ColumnDef, Row } from '@tanstack/react-table'
 import { Check, PanelRight } from 'lucide-react'
+import type { Address } from 'viem'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 /**
  * Shared building blocks for the flat roles tables (name registry + resolver).
@@ -16,9 +19,60 @@ export type RoleRowEntry = {
   hasUser: boolean
 }
 
+/**
+ * Strip the `ROLE_` prefix / `_ADMIN` suffix and Title-Case a raw role name,
+ * e.g. `ROLE_SET_RESOLVER_ADMIN` -> `Set Resolver`.
+ */
+export const formatRoleLabel = (role: string) =>
+  role
+    .replace(/^ROLE_/, '')
+    .replace(/_ADMIN$/, '')
+    .toLowerCase()
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+
+/**
+ * Collapse a flat list of role names (with `_ADMIN` variants interleaved) into
+ * one entry per permission, recording whether the account holds the admin
+ * and/or manager (non-admin) variant. Shared by the name-registry and registry
+ * roles tables, which both receive role-name lists.
+ */
+export const rolesToEntries = (roles: readonly string[]): RoleRowEntry[] => {
+  const map = new Map<string, RoleRowEntry>()
+  for (const role of roles) {
+    const label = formatRoleLabel(role)
+    const existing = map.get(label) ?? {
+      label,
+      hasAdmin: false,
+      hasUser: false,
+    }
+    if (role.endsWith('_ADMIN')) existing.hasAdmin = true
+    else existing.hasUser = true
+    map.set(label, existing)
+  }
+  return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** Fixed-width account badge used as the leading "User" column cell. */
+export const UserCell = ({ account }: { account: Address }) => (
+  <div className="w-32">
+    <EntityBadge variant="address" address={account}>
+      {truncateAddress(account, 6, 4)}
+    </EntityBadge>
+  </div>
+)
+
 export const GreenCheck = () => (
   <Check className="size-5 text-success-text bg-success-fill rounded-full p-1" />
 )
+
+export const GrayDot = () => (
+  <div className="size-5 rounded-full bg-neutral-2" />
+)
+
+export const PermissionMark = ({ isHeld }: { isHeld: boolean }) =>
+  isHeld ? <GreenCheck /> : <GrayDot />
 
 /** Role label + Admin/User check columns, vertically aligned per permission. */
 export const buildRoleColumns = <T,>(
@@ -26,7 +80,7 @@ export const buildRoleColumns = <T,>(
 ): ColumnDef<T>[] => [
   {
     id: 'role',
-    header: () => <span className="text-muted-foreground">Role</span>,
+    header: 'Role',
     cell: ({ row }) => (
       <div className="flex flex-col gap-0.5 text-muted-foreground">
         {getEntries(row.original).map((entry) => (
@@ -42,15 +96,15 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'admin',
-    header: () => <span className="text-muted-foreground">Admin</span>,
+    header: () => <div className="text-center">Admin</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-center gap-0.5">
         {getEntries(row.original).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            {entry.hasAdmin ? <GreenCheck /> : null}
+            <PermissionMark isHeld={entry.hasAdmin} />
           </div>
         ))}
       </div>
@@ -58,15 +112,15 @@ export const buildRoleColumns = <T,>(
   },
   {
     id: 'user-level',
-    header: () => <span className="text-muted-foreground">Manager</span>,
+    header: () => <div className="text-center">Manager</div>,
     cell: ({ row }) => (
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col items-center gap-0.5">
         {getEntries(row.original).map((entry) => (
           <div
             className="h-5 pb-2 box-content flex items-center"
             key={entry.label}
           >
-            {entry.hasUser ? <GreenCheck /> : null}
+            <PermissionMark isHeld={entry.hasUser} />
           </div>
         ))}
       </div>

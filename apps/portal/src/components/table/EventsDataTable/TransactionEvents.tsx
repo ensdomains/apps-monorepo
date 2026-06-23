@@ -174,6 +174,7 @@ export const TransactionEvents = ({
             <TabsList className="w-full justify-start rounded-none p-0 inline-flex">
               {events.map((event, index) => (
                 <TabsTrigger
+                  // biome-ignore lint/suspicious/noArrayIndexKey: the index is part of the tab's stable value (multiple events can share an id within one transaction) and mirrors the value prop used for tab matching
                   key={`${event.id}-${index}`}
                   value={`${event.id}-${index}`}
                   className="whitespace-nowrap py-4"
@@ -189,6 +190,7 @@ export const TransactionEvents = ({
 
           {events.map((event, index) => (
             <TabsContent
+              // biome-ignore lint/suspicious/noArrayIndexKey: the index is part of the tab's stable value (multiple events can share an id within one transaction) and mirrors the value prop used for tab matching
               key={`${event.id}-${index}`}
               value={`${event.id}-${index}`}
               className="p-6"

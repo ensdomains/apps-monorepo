@@ -40,6 +40,34 @@ export const formatExpiryDateTimeLocal = (instant: Temporal.Instant): string =>
   })
 
 /**
+ * Formats the time remaining until an expiry date as whole years and the
+ * leftover days (months collapsed into days).
+ * Format: "1 year 123 days" (e.g., "2 years 5 days", "45 days", "3 years").
+ * Returns "Expired" once the date is at or before `today`.
+ *
+ * `today` is injectable for testing; defaults to the current calendar date.
+ */
+export const formatExpiryDuration = (
+  expiryDate: Temporal.PlainDate,
+  today: Temporal.PlainDate = Temporal.Now.plainDateISO(),
+): string => {
+  if (Temporal.PlainDate.compare(expiryDate, today) <= 0) return 'Expired'
+
+  const { years } = today.until(expiryDate, { largestUnit: 'years' })
+  const { days } = today.add({ years }).until(expiryDate, {
+    largestUnit: 'days',
+  })
+
+  const parts: string[] = []
+  if (years > 0) parts.push(years === 1 ? '1 year' : `${years} years`)
+  // Keep the day component unless it's a clean number of years (e.g. "3 years").
+  if (days > 0 || years === 0) {
+    parts.push(days === 1 ? '1 day' : `${days} days`)
+  }
+  return parts.join(' ')
+}
+
+/**
  * Formats a Temporal.Instant as a dotted date + 24h local time.
  * Format: "YYYY.MM.DD at HH:MM" (e.g., "2026.05.08 at 02:44").
  */

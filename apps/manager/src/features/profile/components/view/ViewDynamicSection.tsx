@@ -88,8 +88,8 @@ export const ViewDynamicSection = ({
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-center gap-2">
-          {sectionRecords.map((record, i) => (
-            <DynamicRecord key={`${record.key}-${i}`} record={record} />
+          {sectionRecords.map((record) => (
+            <DynamicRecord key={record.key} record={record} />
           ))}
         </div>
       </CardContent>

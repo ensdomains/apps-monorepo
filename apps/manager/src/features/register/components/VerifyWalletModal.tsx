@@ -159,7 +159,7 @@ export const VerifyWalletModal = ({
           {/* Instructions */}
           <div className="flex w-full flex-col gap-1">
             <div className="relative min-h-11 w-full">
-              <p className="-translate-y-1/2 absolute top-1/2 left-0 font-normal text-base text-ens-blue-midnight leading-none tracking-tight">
+              <p className="absolute top-1/2 left-0 -translate-y-1/2 font-normal text-base text-ens-blue-midnight leading-none tracking-tight">
                 <Trans>
                   Please sign a message to verify your ownership of the wallet.
                   This will not cost any gas.

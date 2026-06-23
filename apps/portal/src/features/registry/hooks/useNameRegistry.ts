@@ -27,7 +27,7 @@ const getNameRegistry = ResultFn(async function* (
 ) {
   const client = yield* safeGetClient()
 
-  const registryAddress = yield* await fromPromise(
+  const registryAddress = yield* fromPromise(
     ensjs_getNameRegistryAddress(client, params),
     (e) =>
       new NameRegistryError({ cause: e as GetNameRegistryAddressErrorType }),

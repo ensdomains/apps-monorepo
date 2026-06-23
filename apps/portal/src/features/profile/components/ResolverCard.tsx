@@ -2,8 +2,10 @@ import { useNavigate } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ResolverIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
+import { useIsPermissionedResolver } from '@/features/resolver/hooks/useIsPermissionedResolver'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { InfoRow } from './InfoRow'
 
 export const ResolverCard = ({
   name,
@@ -15,22 +17,26 @@ export const ResolverCard = ({
   asRow?: boolean
 }) => {
   const navigate = useNavigate()
+  const { data: isPermissionedResult } = useIsPermissionedResolver({
+    resolverAddress,
+  })
+  const resolverLabel = isPermissionedResult ? 'owned resolver' : undefined
 
   const value = (
-    <EntityBadge variant="contract" address={resolverAddress}>
-      {truncateAddress(resolverAddress, 6, 4, '...')}
+    <EntityBadge
+      variant="contract"
+      address={resolverAddress}
+      label={resolverLabel}
+    >
+      {truncateAddress(resolverAddress, 6, 4)}
     </EntityBadge>
   )
 
   if (asRow) {
     return (
-      <div className="flex items-center gap-4 w-full">
-        <ResolverIcon className="size-4 shrink-0 text-neutral-7" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Resolver
-        </span>
+      <InfoRow icon={ResolverIcon} label="Resolver">
         {value}
-      </div>
+      </InfoRow>
     )
   }
 

@@ -29,7 +29,7 @@ describe('buildBatchedProfileReplayCalls', () => {
     const profiles = new Map<Hex, Profile>([[nodeHex, profileOf(2, 1)]])
     const calls = buildBatchedProfileReplayCalls({ resolver, profiles })
     expect(calls).toHaveLength(1)
-    expect(calls[0]!.to).toBe(resolver)
+    expect(calls[0]?.to).toBe(resolver)
   })
 
   it('splits inner calls across batches when the budget is tight', () => {

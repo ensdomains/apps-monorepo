@@ -102,8 +102,8 @@ export const ViewBioSection = ({ records }: ViewBioSectionProps) => {
           <>
             <hr className="my-2" />
             <div className="flex flex-wrap gap-3 max-md:justify-center">
-              {contactsWithValues.map((record, i) => (
-                <ContactItem key={`${record.key}-${i}`} record={record} />
+              {contactsWithValues.map((record) => (
+                <ContactItem key={record.key} record={record} />
               ))}
             </div>
           </>

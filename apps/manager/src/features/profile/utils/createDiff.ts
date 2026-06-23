@@ -169,7 +169,7 @@ const createLinksDiff = (
   }
 
   const formatLinkCount = (links: unknown[]) =>
-    `${links.length} link${links.length !== 1 ? 's' : ''}`
+    `${links.length} link${links.length === 1 ? '' : 's'}`
 
   if (original.length === 0 && current.length > 0) {
     return { current: formatLinkCount(current), type: 'added' }

@@ -1,6 +1,6 @@
 import { msg } from '@lingui/core/macro'
 
-export const favoriteAuthPromptMessage = msg`connect to favorite name`
+export const favoriteAuthPromptMessage = msg`Connect to favorite name`
 
 type FavoriteActionIntentArgs = {
   readonly isAuthed: boolean
