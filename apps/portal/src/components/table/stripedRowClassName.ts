@@ -11,5 +11,5 @@
  */
 export const stripedRowClassName = (striped: boolean): string =>
   striped
-    ? 'odd:bg-sidebar/60 odd:hover:bg-background even:hover:bg-sidebar/60'
-    : 'hover:bg-sidebar/60'
+    ? 'odd:bg-sidebar/80 odd:hover:bg-background even:hover:bg-sidebar/80'
+    : 'hover:bg-muted'
