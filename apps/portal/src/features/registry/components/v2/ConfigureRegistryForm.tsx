@@ -210,20 +210,7 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   }
 
   if (!hasSetSubregistryRole) {
-    return (
-      <ErrorMessage
-        title="Permission Denied"
-        description={
-          <>
-            You don't have the required{' '}
-            <code className="font-mono text-sm bg-muted px-1 py-0.5 rounded">
-              ROLE_SET_SUBREGISTRY
-            </code>{' '}
-            permission to change the registry for <strong>{name}</strong>.
-          </>
-        }
-      />
-    )
+    return null
   }
 
   return (
