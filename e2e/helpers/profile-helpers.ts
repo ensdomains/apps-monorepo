@@ -10,16 +10,16 @@ export async function goToProfile(page: Page, name: string) {
 }
 
 export async function goToEditProfile(page: Page, name: string) {
-  await page.goto(`${MANAGER_APP_URL}/p/${name}/edit`)
-  await page.waitForLoadState('networkidle')
-  await page.waitForTimeout(3_000)
+  await goToProfile(page, name)
+  await page.getByRole('button', { name: 'Edit Profile' }).click()
+  await page.waitForTimeout(1_500)
 }
 
 /**
  * Clicks a pill button to reveal a profile field if it isn't already mounted,
  * then asserts the field becomes visible.
  *
- * Bio/Website fields are pill-gated (not rendered until their pill is clicked).
+ * Useful for Contact-tab methods that have an aria-label matching fieldLabel.
  */
 export async function ensureProfilePillField(
   page: Page,
@@ -33,20 +33,16 @@ export async function ensureProfilePillField(
 }
 
 /**
- * Clicks the main "Save Changes" button, waits for the diff dialog to appear,
- * then clicks the confirm button inside the dialog.
+ * Clicks the "Save Profile" button in the edit-profile dialog header.
+ * The dialog closes automatically once the on-chain save succeeds.
  */
 export async function saveProfileChanges(page: Page) {
-  await page.getByText('Save Changes').click()
-  const confirmButton = page
-    .locator('[role="dialog"]')
-    .getByRole('button', { name: /save changes/i })
-  await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  await confirmButton.click()
+  await page.getByRole('button', { name: 'Save Profile' }).click()
 }
 
 export async function waitForProfileUpdated(page: Page, timeout = 90_000) {
-  await expect(page.getByText('Profile updated')).toBeVisible({ timeout })
+  // The edit-profile dialog closes automatically when the save succeeds.
+  await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout })
 }
 
 /**
