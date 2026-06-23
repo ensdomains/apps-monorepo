@@ -1,9 +1,12 @@
 import { Trans } from '@lingui/react/macro'
-import { useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  buildNameAvatarUrl,
+  buildNameHeaderUrl,
+} from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
   profileExpiryQuery,
@@ -60,13 +63,6 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const records = transformProfileRecords(profileRecords)
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
 
-  const [avatar, header] = useQueries({
-    queries: [
-      parseAvatarQuery(records.base.avatar),
-      parseAvatarQuery(records.base.header),
-    ],
-  })
-
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
   })
@@ -107,12 +103,8 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     )
   }
 
-  const avatarUrl = expiry.isInGrace
-    ? undefined
-    : (avatar.data ?? records.base.avatar)
-  const headerUrl = expiry.isInGrace
-    ? undefined
-    : (header.data ?? records.base.header)
+  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
+  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
 
   return (
     <div
@@ -120,7 +112,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
       style={expiry.isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
-        headerLoading={header.isLoading}
+        headerLoading={false}
         headerUrl={headerUrl}
         name={name}
       />
@@ -132,7 +124,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             name={name}
           />
           <ProfileViewNewHeader
-            avatarLoading={avatar.isLoading}
+            avatarLoading={false}
             avatarUrl={avatarUrl}
             displayExpiryDate={expiry.displayExpiryDate}
             name={name}

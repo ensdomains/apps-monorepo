@@ -30,6 +30,11 @@ export const generalShortcuts = [
 
 export type GeneralField = (typeof generalShortcuts)[number]['field']
 
+export interface GeneralValidationIssue {
+  readonly field: GeneralField
+  readonly message: string
+}
+
 export const getTextRecordValue = (
   records: readonly TextRecordValue[],
   key: string,
@@ -37,6 +42,57 @@ export const getTextRecordValue = (
 
 export const getGeneralUrlErrorMessage = (value: string | undefined) =>
   validateUrl(value)
+
+export const getGeneralValidationIssues = (
+  records: ProfileRecords,
+): readonly GeneralValidationIssue[] => {
+  const urlMessage = getGeneralUrlErrorMessage(records.base.url)
+
+  return urlMessage ? [{ field: 'url', message: urlMessage }] : []
+}
+
+const removeBaseRecord = (
+  records: ProfileRecords,
+  key: keyof ProfileRecords['base'],
+): ProfileRecords => {
+  if (!(key in records.base)) {
+    return records
+  }
+
+  const nextBase = { ...records.base }
+  delete nextBase[key]
+
+  return { ...records, base: nextBase }
+}
+
+const removeContactRecord = (
+  records: ProfileRecords,
+  key: string,
+): ProfileRecords => {
+  const nextContact = records.contact.filter((record) => record.key !== key)
+
+  return nextContact.length === records.contact.length
+    ? records
+    : { ...records, contact: nextContact }
+}
+
+export const removeGeneralFieldValue = (
+  records: ProfileRecords,
+  field: GeneralField,
+): ProfileRecords => {
+  switch (field) {
+    case 'location':
+    case 'timezone':
+      return removeContactRecord(records, field)
+    case 'avatar':
+    case 'header':
+    case 'url':
+    case 'description':
+    case 'name':
+    case 'language':
+      return removeBaseRecord(records, field)
+  }
+}
 
 export const getDefaultVisibleFields = (
   records: ProfileRecords,
