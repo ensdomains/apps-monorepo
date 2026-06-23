@@ -38,6 +38,12 @@ export const getTextRecordValue = (
 export const getGeneralUrlErrorMessage = (value: string | undefined) =>
   validateUrl(value)
 
+export const getGeneralValidationIssues = (records: ProfileRecords) => {
+  const urlMessage = getGeneralUrlErrorMessage(records.base.url)
+
+  return urlMessage ? [{ field: 'url', message: urlMessage }] : []
+}
+
 const removeBaseRecord = (
   records: ProfileRecords,
   key: keyof ProfileRecords['base'],

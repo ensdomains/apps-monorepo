@@ -3,6 +3,7 @@ import type { ProfileRecords } from '@/features/profile/types'
 import {
   generalShortcuts,
   getDefaultVisibleFields,
+  getGeneralValidationIssues,
   removeGeneralFieldValue,
 } from './fields'
 
@@ -61,5 +62,16 @@ describe('general profile fields', () => {
     }
 
     expect(result.contact.some((record) => record.key === field)).toBe(false)
+  })
+
+  it('reports invalid custom link values as general validation issues', () => {
+    expect(getGeneralValidationIssues(createRecords({ url: 'fffasdf' }))).toEqual(
+      [
+        {
+          field: 'url',
+          message: 'Enter a valid URL (e.g. https://example.com)',
+        },
+      ],
+    )
   })
 })
