@@ -1,12 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
-import clsx from 'clsx'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
 import {
+  buildNameAvatarUrl,
   buildNameHeaderUrl,
-  nameAvatarQuery,
 } from '../../service/profileAvatar'
 import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
@@ -26,14 +24,12 @@ export const ViewHeaderSection = ({
   isInGrace = false,
   isOwner,
 }: ViewHeaderSectionProps) => {
-  const avatar = useQuery({
-    ...nameAvatarQuery(name),
-  })
-
   const avatarUrl = isInGrace
     ? undefined
-    : safeImageSrc(avatar.data ?? undefined)
-  const headerUrl = isInGrace ? undefined : safeImageSrc(buildNameHeaderUrl(name))
+    : safeImageSrc(buildNameAvatarUrl(name))
+  const headerUrl = isInGrace
+    ? undefined
+    : safeImageSrc(buildNameHeaderUrl(name))
 
   const url = `${
     typeof window === 'undefined'
@@ -82,15 +78,9 @@ export const ViewHeaderSection = ({
               )}
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className={clsx(
-                    'size-full rounded-xl border-none bg-transparent p-0 shadow-none',
-                    avatar.isLoading && 'opacity-50',
-                  )}
+                  className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
                   name={name}
                 />
-                {avatar.isLoading && (
-                  <div className="absolute inset-0 animate-pulse rounded-xl bg-gray-100" />
-                )}
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>

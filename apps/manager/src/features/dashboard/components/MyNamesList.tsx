@@ -1,5 +1,4 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
@@ -11,7 +10,7 @@ import {
   type SortField,
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { tw } from '@/utils/tailwind'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
@@ -172,19 +171,6 @@ export const MyNamesList = ({
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
-  const visibleAvatarNames = useMemo(
-    () =>
-      pageItems.flatMap((item) => {
-        if (item.kind !== 'v2') return []
-        return [item.sortName]
-      }),
-    [pageItems],
-  )
-
-  const { data: pageAvatars } = useQuery(
-    namesAvatarsByNameQuery(visibleAvatarNames),
-  )
-
   const isPending = isV2Pending || (migrationEnabled && isV1Pending)
   const hasPartialV2Error = isV2Error && v2Names.length > 0
 
@@ -236,7 +222,11 @@ export const MyNamesList = ({
           .otherwise(({ pageItems }) =>
             pageItems.map((item, index) => (
               <AnimatedNameRow
-                avatarUrl={pageAvatars?.[item.sortName]}
+                avatarUrl={
+                  item.kind === 'v2'
+                    ? buildNameAvatarUrl(item.sortName)
+                    : undefined
+                }
                 favoriteLabels={favoriteLabels}
                 index={index}
                 isAuthenticated={isAuthenticated}

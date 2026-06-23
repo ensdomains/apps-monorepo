@@ -3,10 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
-  nameAvatarQuery,
-  namesAvatarsByNameQuery,
-} from './profileAvatar'
-import {
   getActiveSignedProfileImageUploads,
   refreshProfileImageCaches,
 } from './profileImageCache'
@@ -39,7 +35,7 @@ describe('profile image cache helpers', () => {
     ).toEqual([{ kind: 'avatar', imageUrl: avatarUrl }])
   })
 
-  it('cache busts raw image records without touching metadata avatar queries', async () => {
+  it('cache busts raw image records after signed upload save', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
 
     const queryClient = new QueryClient()
@@ -48,10 +44,6 @@ describe('profile image cache helpers', () => {
     const cacheBustedImageUrl = `${imageUrl}?v=1234`
 
     queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
-    queryClient.setQueryData(nameAvatarQuery(name).queryKey, imageUrl)
-    queryClient.setQueryData(namesAvatarsByNameQuery([name]).queryKey, {
-      [name]: imageUrl,
-    })
 
     await refreshProfileImageCaches({
       images: [{ kind: 'avatar', imageUrl }],
@@ -62,11 +54,5 @@ describe('profile image cache helpers', () => {
     expect(queryClient.getQueryData(imageRecordQuery(imageUrl).queryKey)).toBe(
       cacheBustedImageUrl,
     )
-    expect(queryClient.getQueryData(nameAvatarQuery(name).queryKey)).toBe(
-      imageUrl,
-    )
-    expect(
-      queryClient.getQueryData(namesAvatarsByNameQuery([name]).queryKey),
-    ).toEqual({ [name]: imageUrl })
   })
 })

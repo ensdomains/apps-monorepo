@@ -4,8 +4,8 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
 import {
+  buildNameAvatarUrl,
   buildNameHeaderUrl,
-  nameAvatarQuery,
 } from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
@@ -63,10 +63,6 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const records = transformProfileRecords(profileRecords)
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
 
-  const avatar = useQuery({
-    ...nameAvatarQuery(name),
-  })
-
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
   })
@@ -107,7 +103,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     )
   }
 
-  const avatarUrl = expiry.isInGrace ? undefined : (avatar.data ?? undefined)
+  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
   const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
 
   return (
@@ -128,7 +124,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             name={name}
           />
           <ProfileViewNewHeader
-            avatarLoading={avatar.isLoading}
+            avatarLoading={false}
             avatarUrl={avatarUrl}
             displayExpiryDate={expiry.displayExpiryDate}
             name={name}

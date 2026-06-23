@@ -11,7 +11,7 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { nameAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -51,13 +51,8 @@ export const DashboardPage = () => {
     (text) => text.key === 'theme',
   )?.value
 
-  const { data: parsedAvatar } = useQuery({
-    ...nameAvatarQuery(reverseName ?? undefined),
-    enabled: !!reverseName,
-  })
-
   const defaultName = reverseName ?? null
-  const avatarUrl = parsedAvatar ?? null
+  const avatarUrl = reverseName ? buildNameAvatarUrl(reverseName) : null
   const hasProfile = Boolean(defaultName)
 
   return (

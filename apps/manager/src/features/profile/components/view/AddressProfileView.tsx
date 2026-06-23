@@ -25,7 +25,7 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
-import { useAvatarFromName } from '../../service/profileAvatar'
+import { buildNameAvatarUrl } from '../../service/profileAvatar'
 import {
   PROFILE_NAMES_PAGE_SIZE,
   profileOwnedNamesQuery,
@@ -45,7 +45,7 @@ const formatExpiry = (
 }
 
 const NameAvatar = ({ name }: { name: string }) => {
-  const { data: avatarUrl, isLoading } = useAvatarFromName({ name })
+  const avatarUrl = buildNameAvatarUrl(name)
 
   return (
     <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
@@ -60,9 +60,6 @@ const NameAvatar = ({ name }: { name: string }) => {
             className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
             name={name}
           />
-          {isLoading && (
-            <div className="absolute inset-0 animate-pulse rounded-full bg-gray-100" />
-          )}
         </ImageFallback.Fallback>
       </ImageFallback.Root>
     </div>

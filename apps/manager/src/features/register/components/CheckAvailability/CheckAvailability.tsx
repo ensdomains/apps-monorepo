@@ -14,7 +14,7 @@ import {
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
-import { nameAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
   profileExpiryQuery,
@@ -83,10 +83,9 @@ export const CheckAvailability = ({
     (text) => text.key === 'theme',
   )?.value
 
-  const { data: profileAvatar } = useQuery({
-    ...nameAvatarQuery(profileName ?? undefined),
-    enabled: !!profileName,
-  })
+  const profileAvatar = profileName
+    ? buildNameAvatarUrl(profileName)
+    : undefined
 
   const { data: profileExpiry } = useQuery({
     ...profileExpiryQuery(profileName ?? ''),

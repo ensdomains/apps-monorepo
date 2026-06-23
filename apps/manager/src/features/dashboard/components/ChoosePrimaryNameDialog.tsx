@@ -35,7 +35,7 @@ import {
   type PrimaryNameParams,
 } from '@/features/profile/components/ProfileEdit.handlers'
 import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
-import { namesAvatarsByNameQuery } from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -78,20 +78,18 @@ const PrimaryNameSkeletonList = () => (
 const PrimaryNameOption = ({
   domain,
   selectedName,
-  avatarsByName,
   isSubmitting,
   onSelectName,
 }: {
   readonly domain: PrimaryNameDomain
   readonly selectedName: string | null
-  readonly avatarsByName?: Record<string, string | undefined>
   readonly isSubmitting: boolean
   readonly onSelectName: (name: string) => void
 }) => {
   const { t } = useLingui()
   const label = resolveDomainLabel(domain)
   const isSelected = selectedName === label
-  const avatarUrl = avatarsByName?.[label]
+  const avatarUrl = buildNameAvatarUrl(label)
 
   return (
     <button
@@ -287,15 +285,6 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const visibleAvatarNames = useMemo(() => {
-    if (!open) return []
-    return domains.map(resolveDomainLabel)
-  }, [open, domains])
-
-  const { data: avatarsByName } = useQuery(
-    namesAvatarsByNameQuery(visibleAvatarNames),
-  )
-
   const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && !!selectedName,
@@ -415,7 +404,6 @@ export const ChoosePrimaryNameDialog = ({
               .otherwise(({ domains }) =>
                 domains.map((domain) => (
                   <PrimaryNameOption
-                    avatarsByName={avatarsByName}
                     domain={domain}
                     isSubmitting={isSubmitting}
                     key={domain.id}
