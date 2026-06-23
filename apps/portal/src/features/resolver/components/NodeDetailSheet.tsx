@@ -4,6 +4,7 @@ import { ExternalLink } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -20,7 +21,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import {

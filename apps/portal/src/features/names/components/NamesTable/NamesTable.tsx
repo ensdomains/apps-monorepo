@@ -1,4 +1,5 @@
 import { flexRender, type Table as TableData } from '@tanstack/react-table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import {
   Table,
   TableBody,
@@ -7,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { NameMobileCard } from '../NameMobileCard'

@@ -14,6 +14,7 @@ import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -23,7 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { EventDetailSheet } from '@/features/resolver/components/EventDetailSheet'

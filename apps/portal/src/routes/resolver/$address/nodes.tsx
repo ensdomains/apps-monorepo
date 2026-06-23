@@ -17,6 +17,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,7 +33,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { NodeDetailSheet } from '@/features/resolver/components/NodeDetailSheet'
