@@ -1,15 +1,13 @@
-import { useAvatarFromName } from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 
 export const useConnectedAvatar = () => {
   const reverseNameQuery = useConnectedReverseName()
-  const { data, isLoading, error } = useAvatarFromName({
-    name: reverseNameQuery.data ?? undefined,
-  })
+  const name = reverseNameQuery.data ?? undefined
 
   return {
-    url: data,
-    isLoading: reverseNameQuery.isLoading || isLoading,
-    error,
+    url: name ? buildNameAvatarUrl(name) : undefined,
+    isLoading: reverseNameQuery.isLoading,
+    error: reverseNameQuery.error,
   }
 }

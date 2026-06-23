@@ -106,6 +106,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
           disabled={disabled}
           displayImage={editor.displayImage}
           kind={kind}
+          name={name}
           onBack={() => editor.send({ type: 'BACK' })}
           onConfirm={() => editor.send({ type: 'CONFIRM_REMOVAL' })}
         />
