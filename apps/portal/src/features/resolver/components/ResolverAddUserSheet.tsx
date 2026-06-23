@@ -38,6 +38,7 @@ import { resolverPermissions } from '@/lib/roles/resolverRoles'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 
 const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
 const RESOLVE_DEBOUNCE_MS = 500
@@ -213,8 +214,9 @@ export const ResolverAddUserSheet = ({
 
     if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
 
-    // Only valid (per the input pattern) name/address shapes resolve.
-    if (!e.currentTarget.checkValidity()) {
+    // Only a valid 0x address or ENSIP-15-normalized name resolves; anything
+    // else (incl. empty) is treated as not-yet-valid input.
+    if (!isNameOrAddress(value)) {
       setAddress(null)
       setIsResolvingAddress(false)
       return
@@ -306,7 +308,6 @@ export const ResolverAddUserSheet = ({
                 name="user"
                 placeholder="User name or address"
                 required
-                pattern="(?:[-A-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
                 value={nameOrAddressInput}
                 disabled={isPending || isSuccess}
                 aria-invalid={
