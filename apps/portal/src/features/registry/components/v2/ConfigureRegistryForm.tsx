@@ -199,6 +199,10 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   if (isLoadingRoleCheck) {
     return <LoadingSpinner title="Checking permissions..." />
   }
+ 
+  if (!hasSetSubregistryRole) {
+    return null
+  }
 
   if (!connectedAddress) {
     return (
@@ -209,9 +213,6 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
     )
   }
 
-  if (!hasSetSubregistryRole) {
-    return null
-  }
 
   return (
     <div
