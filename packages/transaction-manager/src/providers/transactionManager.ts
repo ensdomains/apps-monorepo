@@ -112,7 +112,7 @@ function generateTransactionId(): string {
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')}`
   }
-  return `tx-${Date.now()}`
+  return `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
 /**

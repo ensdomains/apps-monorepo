@@ -14,6 +14,7 @@ import {
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
+  bytesToHex,
   concatHex,
   decodeEventLog,
   encodeAbiParameters,
@@ -181,10 +182,14 @@ function generateCommitment(
   registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
+  if (
+    typeof crypto === 'undefined' ||
+    typeof crypto.getRandomValues !== 'function'
+  ) {
+    return errAsync(new Error('crypto.getRandomValues is not available'))
+  }
   const secretBytes = crypto.getRandomValues(new Uint8Array(32))
-  const secret = `0x${Array.from(secretBytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')}` as Hash
+  const secret = bytesToHex(secretBytes) as Hash
 
   return fromPromise(
     (async () => {

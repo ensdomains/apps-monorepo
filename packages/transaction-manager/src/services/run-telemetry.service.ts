@@ -88,7 +88,7 @@ function randomId(): string {
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')}`
   }
-  return `run-${Date.now()}`
+  return `run-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
 
 function toStringSafe(value: unknown): string | undefined {
