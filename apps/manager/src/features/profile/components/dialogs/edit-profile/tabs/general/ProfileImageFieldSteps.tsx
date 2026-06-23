@@ -84,7 +84,7 @@ const NftStepPanel = ({
 }: Pick<ImagePickerPanelProps, 'backDisabled' | 'children' | 'onBack'>) => (
   <ImagePickerPanel
     backDisabled={backDisabled}
-    className="min-h-[340px] overflow-hidden p-1.5"
+    className="min-h-85 overflow-hidden p-1.5"
     contentClassName="gap-3 pt-4"
     onBack={onBack}
   >
@@ -229,7 +229,7 @@ export const NftSelectionStep = ({
     ? 'No NFTs match your search.'
     : 'No NFTs found for this wallet on this network.'
   const nftStatusClassName =
-    'flex min-h-32 w-full max-w-[540px] items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed p-4 text-center text-ens-quartz-400 text-xs leading-ens-normal'
+    'flex min-h-32 w-full max-w-135 items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed p-4 text-center text-ens-quartz-400 text-xs leading-ens-normal'
   const renderNftContent = () => {
     if (!nftOwnerAddress) {
       return (
@@ -248,11 +248,11 @@ export const NftSelectionStep = ({
     }
 
     return (
-      <div className="flex max-h-58 w-full max-w-[540px] flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
+      <div className="flex max-h-58 w-full max-w-135 flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
         {nfts.map((nft) => (
           <button
             className={cn(
-              'w-[74px] rounded-sm text-center transition-opacity hover:opacity-80 disabled:pointer-events-none disabled:opacity-50',
+              'w-18.5 rounded-sm text-center transition-opacity hover:opacity-80 disabled:pointer-events-none disabled:opacity-50',
               focusVisibleRingClassName,
             )}
             disabled={disabled}
@@ -262,10 +262,10 @@ export const NftSelectionStep = ({
           >
             <DisplayImage
               alt={nft.name}
-              className="mx-auto size-[74px] rounded-md object-cover"
+              className="mx-auto size-18.5 rounded-md object-cover"
               fallback={
                 <PatternAvatar
-                  className="mx-auto size-[74px] rounded-md border-none bg-transparent p-0 shadow-none"
+                  className="mx-auto size-18.5 rounded-md border-none bg-transparent p-0 shadow-none"
                   name={nft.name}
                 />
               }
@@ -287,7 +287,7 @@ export const NftSelectionStep = ({
       </p>
       <div
         className={cn(
-          'flex h-9 w-full max-w-[368px] items-center gap-2 rounded-full bg-ens-quartz-50 px-3 text-ens-quartz-400 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-ens-lapis-500',
+          'flex h-9 w-full max-w-92 items-center gap-2 rounded-full bg-ens-quartz-50 px-3 text-ens-quartz-400 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-ens-lapis-500',
           focusVisibleRingClassName,
         )}
       >
