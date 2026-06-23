@@ -9,7 +9,7 @@ import { ProfileCard, valueClassName } from './ProfileViewNewCard'
 
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => (
   <a
-    className="group flex h-[205px] min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl lg:landscape:border-[#C7C6C4] lg:landscape:border-[0.25px]"
+    className="group flex h-51.25 min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl lg:landscape:border-[#C7C6C4] lg:landscape:border-[0.25px]"
     href={link.href}
     rel="noopener noreferrer"
     target="_blank"

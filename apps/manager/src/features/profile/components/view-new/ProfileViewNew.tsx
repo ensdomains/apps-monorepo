@@ -116,7 +116,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
 
   return (
     <div
-      className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0px))] lg:landscape:pb-[114px]"
+      className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:pb-28.5"
       style={expiry.isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
@@ -124,7 +124,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         headerUrl={headerUrl}
         name={name}
       />
-      <div className="relative z-10 mx-auto -mt-[84px] w-full max-w-[390px] space-y-0 lg:landscape:-mt-[69px] lg:landscape:max-w-226.25">
+      <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
         <div>
           <ProfileViewNewStatusBanners
             expiry={expiry}

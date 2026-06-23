@@ -69,7 +69,7 @@ export async function renewFor28Days(page: Page): Promise<string> {
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
   await page.getByText('USDC', { exact: true }).click()
-  await page.getByRole('button', { name: /buy name/i }).click()
+  await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
 
   await expect(page.getByText('Renewal Complete!')).toBeVisible({ timeout: 90_000 })

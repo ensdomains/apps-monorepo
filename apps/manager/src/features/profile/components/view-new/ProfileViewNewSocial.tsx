@@ -16,7 +16,7 @@ import {
 } from './ProfileViewNewCard'
 
 const socialLabelClassName =
-  'truncate text-ens-quartz-500 text-xs leading-[16.5px] lg:landscape:leading-[18px]'
+  'truncate text-ens-quartz-500 text-xs leading-[16.5px] lg:landscape:leading-4.5'
 const socialValueClassName =
   'truncate text-ens-quartz-700 text-[12px] leading-[19.5px] lg:landscape:text-sm lg:landscape:leading-6'
 const socialTrailingIconClassName =
@@ -36,7 +36,7 @@ const SocialCard = ({ record }: { readonly record: TextRecordValue }) => {
           icon={recordDef?.icon}
         />
       </div>
-      <div className="min-w-0 flex-1 lg:landscape:h-[42px]">
+      <div className="min-w-0 flex-1 lg:landscape:h-10.5">
         <p className={socialLabelClassName}>{recordDef?.name ?? record.key}</p>
         <p className={socialValueClassName}>
           {recordDef?.displayPrefix}
