@@ -164,7 +164,7 @@ export const EditProfileDialogTabs = ({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div
-          className="scrollbar-scroll-only min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-1.5 pt-4 pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] md:px-4"
+          className="scrollbar-scroll-only min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 pt-4 pb-4 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] md:px-4"
           data-scrolling={isScrolling}
           onScroll={handleScroll}
         >
