@@ -1,4 +1,5 @@
 import * as v from 'valibot'
+import { safeHttpUrlSchema } from '../../safe-http-url'
 import type { NotificationDefinition } from '../types'
 
 export const blogPostDefinition = {
@@ -6,8 +7,8 @@ export const blogPostDefinition = {
   source: 'broadcast',
   payloadSchema: v.object({
     title: v.string(),
-    url: v.string(),
-    imageUrl: v.string(),
+    url: safeHttpUrlSchema(),
+    imageUrl: safeHttpUrlSchema(),
   }),
   metadata: {
     category: 'ENS Updates',

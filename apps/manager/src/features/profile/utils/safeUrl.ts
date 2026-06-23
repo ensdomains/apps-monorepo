@@ -1,20 +1,15 @@
-import * as v from 'valibot'
+import { isSafeHttpUrl, safeHttpUrlSchema } from '@ens-apps/shared-schema'
 
-const SAFE_HTTP_URL_PROTOCOLS = ['http:', 'https:'] as const
+const SAFE_RECORD_HREF_PROTOCOLS = [
+  'http:',
+  'https:',
+  'mailto:',
+  'tel:',
+  'ipfs:',
+  'ar:',
+] as const
 
-export const isSafeHttpUrl = (value: string): boolean => {
-  const trimmed = value.trim()
-  if (!trimmed) return false
-
-  try {
-    const parsedUrl = new URL(trimmed)
-    return SAFE_HTTP_URL_PROTOCOLS.includes(
-      parsedUrl.protocol as (typeof SAFE_HTTP_URL_PROTOCOLS)[number],
-    )
-  } catch {
-    return false
-  }
-}
+export { isSafeHttpUrl }
 
 export const safeHttpHref = (
   value: string | null | undefined,
@@ -24,5 +19,34 @@ export const safeHttpHref = (
   return trimmed
 }
 
+export const isSafeRecordHref = (value: string): boolean => {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  try {
+    const parsedUrl = new URL(trimmed)
+    return SAFE_RECORD_HREF_PROTOCOLS.includes(
+      parsedUrl.protocol as (typeof SAFE_RECORD_HREF_PROTOCOLS)[number],
+    )
+  } catch {
+    return false
+  }
+}
+
+export const safeRecordHref = (
+  value: string | null | undefined,
+): string | undefined => {
+  const trimmed = value?.trim()
+  if (!trimmed || !isSafeRecordHref(trimmed)) return undefined
+  return trimmed
+}
+
+export const isSafeImageSrc = isSafeHttpUrl
+
+export const safeImageSrc = (
+  value: string | null | undefined,
+): string | undefined => {
+  return safeHttpHref(value)
+}
+
 export const createSafeUrlSchema = (message: string) =>
-  v.pipe(v.string(), v.trim(), v.check(isSafeHttpUrl, message))
+  safeHttpUrlSchema(message)

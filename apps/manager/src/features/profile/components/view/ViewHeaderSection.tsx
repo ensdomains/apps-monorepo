@@ -6,6 +6,7 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
 import { parseAvatarQuery } from '../../service/profileAvatar'
 import type { ProfileRecords } from '../../types'
+import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
 import { FavoriteButton } from './FavoriteButton'
@@ -32,8 +33,12 @@ export const ViewHeaderSection = ({
     ],
   })
 
-  const avatarUrl = isInGrace ? undefined : (avatar.data ?? records.base.avatar)
-  const headerUrl = isInGrace ? undefined : (header.data ?? records.base.header)
+  const avatarUrl = isInGrace
+    ? undefined
+    : safeImageSrc(avatar.data ?? records.base.avatar)
+  const headerUrl = isInGrace
+    ? undefined
+    : safeImageSrc(header.data ?? records.base.header)
 
   const url = `${
     typeof window === 'undefined'
