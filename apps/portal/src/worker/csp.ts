@@ -8,8 +8,8 @@
  * The policy is delivered two ways (see `worker.ts`):
  *   - as an HTTP `Content-Security-Policy` header on every response, and
  *   - as a `<meta http-equiv>` tag injected into every HTML `<head>`.
- * `frame-ancestors` and `upgrade-insecure-requests` are ignored / invalid in a
- * meta tag, so the meta variant omits them — hence the two exported strings.
+ * `frame-ancestors` is invalid inside a `<meta>` tag (browsers ignore it there),
+ * so the meta variant omits it — hence the two exported strings.
  */
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
@@ -19,8 +19,6 @@
 const CONNECT_HOSTS = [
   // default Sepolia RPC — packages/indexer/chain.ts
   'https://lb.drpc.live',
-  // OG-worker Sepolia RPC fallback — src/worker/clients.ts
-  'https://sepolia.drpc.org',
   // indexer GraphQL — packages/indexer/urql/client.ts
   'https://graphql.ens.dev',
   // ENS subgraph (ensjs default Sepolia endpoint) — @ensdomains/ensjs/subgraph
@@ -48,14 +46,16 @@ const CONNECT_HOSTS = [
 const SCRIPT_HOSTS = ['https://jakob.ens.domains'] as const
 
 // SHA-256 of the inline theme-init script in index.html (avoids 'unsafe-inline').
-// Regenerate if that script changes; the byte-authoritative value is whatever
-// the browser reports as blocked in the console.
+// If that script changes, regenerate this — the browser logs the expected hash
+// in the CSP violation when it blocks the script.
 const INLINE_THEME_SCRIPT_HASH =
   "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='"
 
 // Directives shared by the header and the meta tag.
 const baseDirectives = [
   "default-src 'self'",
+  // 'wasm-unsafe-eval' permits WebAssembly compilation (needed by some
+  // wallet/crypto dependencies) WITHOUT enabling general 'unsafe-eval'.
   `script-src 'self' 'wasm-unsafe-eval' ${SCRIPT_HOSTS.join(' ')} ${INLINE_THEME_SCRIPT_HASH}`,
   // 'unsafe-inline' styles: required by Tailwind / CSS-in-JS runtime injection.
   "style-src 'self' 'unsafe-inline'",
@@ -69,15 +69,21 @@ const baseDirectives = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-]
-
-// Header-only directives — ignored / invalid inside a <meta> tag.
-const headerOnlyDirectives = [
-  "frame-ancestors 'self'",
+  // Valid in both the header and a <meta> tag; upgrades any http subresource
+  // request to https.
   'upgrade-insecure-requests',
 ]
 
-/** CSP for the `<meta http-equiv>` tag (no frame-ancestors / upgrade). */
+// `frame-ancestors` is the only directive that's invalid inside a <meta> tag,
+// so it's the sole header-only entry.
+const headerOnlyDirectives = [
+  // 'self' pairs with `X-Frame-Options: SAMEORIGIN` (set below) — same-origin
+  // framing only. The two MUST agree (CSP wins in modern browsers, XFO in
+  // legacy ones).
+  "frame-ancestors 'self'",
+]
+
+/** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
 export const cspWithoutFrameAncestors = `${baseDirectives.join('; ')};`
 
 /** Full CSP for the HTTP header. */
@@ -92,7 +98,8 @@ export function withSecurityHeaders(response: Response): Response {
   // headers are mutable (HTMLRewriter / `new Response` results pass through too).
   const result = new Response(response.body, response)
   result.headers.set('Content-Security-Policy', cspWithFrameAncestors)
-  result.headers.set('X-Frame-Options', 'DENY')
+  // SAMEORIGIN (not DENY) to agree with `frame-ancestors 'self'` above.
+  result.headers.set('X-Frame-Options', 'SAMEORIGIN')
   result.headers.set('X-Content-Type-Options', 'nosniff')
   result.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   result.headers.set(
