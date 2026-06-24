@@ -100,9 +100,11 @@ export function extractRegisterName(
   if (!raw || raw === '.eth') return null
   if (!raw.endsWith('.eth')) return null
 
-  // Only 2nd-level `.eth` names are registerable (`label.eth`). Subnames like
-  // `foo.bar.eth` pass the suffix check but the register route rejects them
-  // (see `isRegistrable`/`is2LD`), so previewing them would be misleading.
+  // Only 2nd-level `.eth` names are registerable here (`label.eth`). Subnames
+  // (`sub.label.eth`) pass the suffix check but the register route can't service
+  // them: subname issuance is permissioned (only the 2LD owner can mint them)
+  // and a subregistry may not even be enabled, so there's no generic register
+  // action to preview. See `isRegistrable`/`is2LD`.
   if (raw.split('.').length !== 2) return null
 
   return raw
