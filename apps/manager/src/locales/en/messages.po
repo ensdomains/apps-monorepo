@@ -1990,10 +1990,6 @@ msgid "Share profile"
 msgstr "Share profile"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-#~ msgid "Should I buy now or wait?"
-#~ msgstr "Should I buy now or wait?"
-
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"
 msgstr "Should I register now or wait?"
 
@@ -2566,10 +2562,6 @@ msgstr "Welcome to the new ENS app!"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "What additional fee are you willing to pay?"
 msgstr "What additional fee are you willing to pay?"
-
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-#~ msgid "What additional fee would you pay?"
-#~ msgstr "What additional fee would you pay?"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "What is a primary name?"
