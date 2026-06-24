@@ -11,6 +11,7 @@ import { Check, Trash2, X } from 'lucide-react'
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -329,10 +330,7 @@ export const EditRecordsTable = ({
                 <React.Fragment key={row.id}>
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
-                    className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
-                    )}
+                    className={stripedRowClassName(tableView.strippedRows)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell

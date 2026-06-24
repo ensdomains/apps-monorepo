@@ -4,14 +4,22 @@ import { formatPremiumDateTimeLocal } from '../../lib/formatPremiumDateTime'
 import { formatPriceForInput } from '../../lib/formatPriceForInput'
 import {
   dateAtPoint,
+  dayAtPrice,
   PREMIUM_RESOLUTION,
+  PREMIUM_START_PRICE,
   pointAtPrice,
   posAtPoint,
   UNIT_CHART_GEO,
 } from '../temporary-premium/TemporaryPremiumChart'
 
-// ±$1 around `now` counts as "match". The live `now` is a continuously
-// ticking float, so an exact-equals check would never fire.
+const MS_PER_DAY = 86_400_000
+
+const MAX_TARGET_PRICE = PREMIUM_START_PRICE
+
+function dateAtPrice(price: number, startDate: Date): Date {
+  return new Date(startDate.getTime() + dayAtPrice(price) * MS_PER_DAY)
+}
+
 const TARGET_MATCH_TOLERANCE_USD = 1
 
 function parseTargetPriceInput(raw: string): number | null {
@@ -28,11 +36,9 @@ function parseTargetPriceInput(raw: string): number | null {
           .replace(/[.,]/g, '')}`
   const parsed = Number.parseFloat(normalized)
   if (!Number.isFinite(parsed) || parsed < 0) return null
-  return parsed
+  return Math.min(parsed, MAX_TARGET_PRICE)
 }
 
-// The chart hides selected view when selectedPoint < 0, so we use -1 as
-// "no user selection yet" — only `now` is shown on first load.
 const NO_SELECTION = -1
 
 export type PriceCooldownChartSelection = ReturnType<
@@ -59,8 +65,6 @@ export function usePriceCooldownChartSelection(
     [syncInputFromPoint],
   )
 
-  // A typed price above `now` resolves to a past point. Suppress the selected
-  // dot in that case — the reach-label still shows "already below".
   const pointFromTypedPrice = useCallback(
     (price: number): number => {
       const point = pointAtPrice(price)
@@ -86,10 +90,9 @@ export function usePriceCooldownChartSelection(
     }
     const parsed = parseTargetPriceInput(targetPriceInput)
     if (parsed === null) return
-    const point = pointFromTypedPrice(parsed)
-    setSelectedPoint(point)
-    if (point !== NO_SELECTION) syncInputFromPoint(point)
-  }, [pointFromTypedPrice, syncInputFromPoint, targetPriceInput])
+    setSelectedPoint(pointFromTypedPrice(parsed))
+    setTargetPriceInput(formatPriceForInput(parsed))
+  }, [pointFromTypedPrice, targetPriceInput])
 
   const targetPriceReachLabel = useMemo((): ReactNode | null => {
     const trimmed = targetPriceInput.trim()
@@ -97,10 +100,8 @@ export function usePriceCooldownChartSelection(
     const parsed = parseTargetPriceInput(trimmed)
     if (parsed === null) return null
 
-    // Compare in the chart's curve coords (same space pointAtPrice maps into).
     const currentPrice = posAtPoint(nowPoint, UNIT_CHART_GEO).price
 
-    // Target = $0 → end of cooldown date, not the generic reach date.
     if (parsed === 0) {
       const endDate = dateAtPoint(PREMIUM_RESOLUTION, premiumStartDate)
       return (
@@ -114,7 +115,6 @@ export function usePriceCooldownChartSelection(
       )
     }
 
-    // Target higher than current → already below; no future date.
     if (parsed > currentPrice + TARGET_MATCH_TOLERANCE_USD) {
       return (
         <>
@@ -124,7 +124,6 @@ export function usePriceCooldownChartSelection(
       )
     }
 
-    // Target within ±$1 of `now`.
     if (Math.abs(parsed - currentPrice) <= TARGET_MATCH_TOLERANCE_USD) {
       return (
         <>
@@ -135,21 +134,26 @@ export function usePriceCooldownChartSelection(
       )
     }
 
-    // Target below `now` → project to the date the curve will reach it.
-    const reachDate = dateAtPoint(selectedPoint, premiumStartDate)
-    const price = posAtPoint(selectedPoint, UNIT_CHART_GEO).price
+    const reachDate = dateAtPrice(parsed, premiumStartDate)
     return (
       <>
-        The fee will reach {formatUsd(price)} on{' '}
+        The fee will reach {formatUsd(parsed)} on{' '}
         <span className="text-[#353535]">
           {formatPremiumDateTimeLocal(reachDate.getTime())}.
         </span>
       </>
     )
-  }, [nowPoint, premiumStartDate, selectedPoint, targetPriceInput])
+  }, [nowPoint, premiumStartDate, targetPriceInput])
+
+  const selectedDisplayPrice = useMemo((): number | undefined => {
+    if (selectedPoint < 0) return undefined
+    const parsed = parseTargetPriceInput(targetPriceInput)
+    return parsed ?? undefined
+  }, [selectedPoint, targetPriceInput])
 
   return {
     selectedPoint,
+    selectedDisplayPrice,
     targetPriceInput,
     handleSelectedPointChange,
     handleTargetPriceInputChange,

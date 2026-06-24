@@ -97,10 +97,19 @@ export function submitWarpTransaction(
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
       logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      // HCA accounts are session-less: every Intent is authorized by the
-      // account's ENS owner (the connected wallet held inside `account`)
-      // and gas-sponsored by Warp relayers. We never pass session
-      // `signers` — the SDK uses the account's owner validator.
+      // Authorization: if the signer carries an active smart session, the SDK
+      // signs this Intent with the ephemeral SESSION KEY (no owner prompt). The
+      // ephemeral key is a time-boxed HCA owner, so it signs through the normal
+      // owner validator path. Without a session we omit `signers` and the SDK
+      // uses the connected owner (owner-signed).
+      const sessionSigners = signer.session
+        ? ({
+            type: 'owner' as const,
+            kind: 'ecdsa' as const,
+            accounts: [signer.session.sessionAccount],
+          } satisfies NonNullable<Transaction['signers']>)
+        : undefined
+
       const sdkParams = {
         sourceChains: [chain],
         targetChain: chain,
@@ -112,6 +121,7 @@ export function submitWarpTransaction(
         // not assignable from TokenRequest[], but semantically equivalent here.
         tokenRequests: (tokenRequests ?? []) as TokenRequest[] &
           Transaction['tokenRequests'],
+        ...(sessionSigners ? { signers: sessionSigners } : {}),
       } satisfies Transaction
 
       logger.debug(
