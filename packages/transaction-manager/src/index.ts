@@ -151,6 +151,7 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,
   TransactionInfra,
