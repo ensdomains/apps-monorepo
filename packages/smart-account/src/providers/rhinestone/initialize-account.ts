@@ -9,16 +9,21 @@
  *   - `account: { type: 'hca' }` selects the audited HCA implementation
  *     (CREATE3 ERC-1967 proxy behind the ENS HCA factory).
  *   - `owners: { type: 'ens', … }` installs the ENS ownership validator
- *     at construction. The owning EOA (the connected wallet / Para
- *     account) signs every intent — there is **no smart-session path**.
- *     The SDK throws `AccountConfigurationNotSupportedError` if you pass
+ *     (HCAModule, an OwnableValidator) at construction. The owning EOA (the
+ *     connected wallet / Para account) signs every intent — there is **no
+ *     ERC-7579 SmartSessions path**. The SDK throws
+ *     `AccountConfigurationNotSupportedError` if you pass
  *     `experimental_sessions`, `recovery`, or extra `modules` for an HCA,
  *     because the account permanently locks its module set
  *     (`installModule` reverts `NoModuleChangeAllowed()`).
  *
- * Because sessions are impossible, every ENS operation is an
- * owner-signed, relayer-sponsored Intent (gas is still sponsored — only
- * the authorization signature comes from the user).
+ * At init time, every ENS operation is therefore an owner-signed,
+ * relayer-sponsored Intent (gas is still sponsored — only the authorization
+ * signature comes from the user). NOTE: prompt-free registration is added
+ * separately, NOT via SmartSessions, by adding a time-boxed ephemeral OWNER to
+ * the OwnableValidator via `updateConfig` (see ./session.ts and
+ * ./registration-policy.ts). That owner-key "session" is distinct from the
+ * SmartSessions module the SDK rejects above.
  *
  * The caller is responsible for:
  *   - Producing a viem `Account` from whatever wallet provider it uses
