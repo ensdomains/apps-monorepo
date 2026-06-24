@@ -406,6 +406,10 @@ msgstr ""
 msgid "Card security code"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Carving your name into the blockchain"
+msgstr ""
+
 #: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
 msgid "Chain-specific addresses"
 msgstr ""
@@ -979,6 +983,10 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Farming aura"
+msgstr ""
+
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "Favorites"
 msgstr "Favoriter"
@@ -1068,6 +1076,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBadge.tsx
 msgid "Grace period"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Growing your corner of the decentralized web"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -1192,6 +1204,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Making your name work everywhere"
 msgstr ""
 
 #: src/features/notifications/inbox/list.tsx
@@ -1482,6 +1498,14 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Permission missing. Please try again."
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Placing your new identity in your wallet"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Planting your name in the infinite garden"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -1808,6 +1832,10 @@ msgstr ""
 #. placeholder {0}: email.label
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resending email verification for {0}"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+msgid "Reserving your name"
 msgstr ""
 
 #. placeholder {0}: index + 1
