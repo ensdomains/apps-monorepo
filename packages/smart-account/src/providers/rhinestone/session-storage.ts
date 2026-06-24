@@ -4,10 +4,10 @@
  * NOTE: "session" is NOT ERC-7579 SmartSessions. It is an ephemeral key added
  * as a time-boxed owner of the HCA's OwnableValidator (see ./registration-policy.ts).
  *
- * The ephemeral session key and its one-time enable signature are stored here,
- * keyed by smart-account (HCA) address, so a session is reused across Intents
- * and across page reloads (persistent session). The owner only signs ENABLE
- * once per stored session.
+ * The ephemeral session key (and metadata: address, expiry, owner, chain) is
+ * stored here, keyed by smart-account (HCA) address, so a session is reused
+ * across Intents and across page reloads (persistent session). The owner only
+ * signs the ENABLE Intent once per stored session.
  *
  * Storage-key versioning: the key is bumped whenever the stored-session SHAPE
  * changes, so stale rows from an incompatible layout are ignored rather than
