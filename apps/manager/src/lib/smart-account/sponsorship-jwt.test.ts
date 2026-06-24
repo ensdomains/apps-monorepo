@@ -121,15 +121,16 @@ describe('createJwtAuthCallbacks / mintToken', () => {
     expect(JSON.parse(init.body)).toEqual({ intentInput })
   })
 
-  it('throws with the status when the response is not ok', async () => {
+  it('throws with the status and worker detail when the response is not ok', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 403,
+      text: async () => 'not sponsored',
       json: async () => ({}),
     })
 
     await expect(createJwtAuthCallbacks().accessToken()).rejects.toThrow(
-      'sponsorship/access-token failed: 403',
+      'sponsorship/access-token failed: 403 — not sponsored',
     )
   })
 

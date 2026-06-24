@@ -46,7 +46,14 @@ async function mintToken(path: string, body?: unknown): Promise<string> {
   })
 
   if (!response.ok) {
-    throw new Error(`sponsorship/${path} failed: ${response.status}`)
+    // Include the worker's response body so a denied/failed mint is
+    // diagnosable (e.g. a 403 chain-not-allowlisted or 400 validation
+    // message). The worker sanitises 5xx to a generic message, so this never
+    // surfaces internal signer/config detail.
+    const detail = await response.text().catch(() => '')
+    throw new Error(
+      `sponsorship/${path} failed: ${response.status}${detail ? ` — ${detail}` : ''}`,
+    )
   }
 
   // Validate the worker response shape with a guard rather than a bare cast

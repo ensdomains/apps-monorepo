@@ -38,6 +38,10 @@ const ConfigEnvSchema = v.object({
   RHINESTONE_APP_ID: v.pipe(v.string(), v.nonEmpty()),
   RHINESTONE_JWT_ACTIVE_KEY_ID: v.pipe(v.string(), v.nonEmpty()),
   RHINESTONE_JWT_AUDIENCE: v.optional(v.string(), ''),
+  // Validated here too so a missing/blank value fails as a clear config error
+  // up front, rather than surfacing later as a misleading "not valid JSON"
+  // from the `JSON.parse` below.
+  RHINESTONE_JWT_SIGNING_KEYS: v.pipe(v.string(), v.nonEmpty()),
 })
 
 const summarise = (issues: readonly v.BaseIssue<unknown>[]): string =>
