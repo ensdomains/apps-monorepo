@@ -9,6 +9,7 @@ import {
   getSessionByOwner,
   getSkippedStatus,
   getValidSession,
+  getValidSessionForAccount,
   isSessionExpired,
   removeSession,
   removeSessionsByOwner,
@@ -105,5 +106,77 @@ describe('session-storage', () => {
     expect(getSkippedStatus(OWNER)).toBe(true)
     setSkippedStatus(OWNER, false)
     expect(getSkippedStatus(OWNER)).toBe(false)
+  })
+
+  describe('getValidSessionForAccount (owner + chain scoped reuse)', () => {
+    const CHAIN_ID = 11155111
+    const OTHER_OWNER: Address = '0x2222222222222222222222222222222222222222'
+
+    it('returns the session when account, owner and chain all match', () => {
+      const s = makeSession({ chainId: CHAIN_ID })
+      saveSession(s)
+      expect(
+        getValidSessionForAccount({
+          accountAddress: HCA_A,
+          ownerAddress: OWNER,
+          chainId: CHAIN_ID,
+        })?.id,
+      ).toBe(s.id)
+    })
+
+    it('evicts and returns null when the owner does not match', () => {
+      saveSession(makeSession({ chainId: CHAIN_ID }))
+      expect(
+        getValidSessionForAccount({
+          accountAddress: HCA_A,
+          ownerAddress: OTHER_OWNER,
+          chainId: CHAIN_ID,
+        }),
+      ).toBeNull()
+      // stale row evicted so the caller creates fresh
+      expect(getSession(HCA_A)).toBeNull()
+    })
+
+    it('evicts and returns null when the chain does not match', () => {
+      saveSession(makeSession({ chainId: CHAIN_ID }))
+      expect(
+        getValidSessionForAccount({
+          accountAddress: HCA_A,
+          ownerAddress: OWNER,
+          chainId: 1,
+        }),
+      ).toBeNull()
+      expect(getSession(HCA_A)).toBeNull()
+    })
+
+    it('returns null (and evicts) for an expired session', () => {
+      saveSession(makeSession({ chainId: CHAIN_ID, validUntil: NOW_SEC - 10 }))
+      expect(
+        getValidSessionForAccount({
+          accountAddress: HCA_A,
+          ownerAddress: OWNER,
+          chainId: CHAIN_ID,
+        }),
+      ).toBeNull()
+      expect(getSession(HCA_A)).toBeNull()
+    })
+
+    it('does not reuse a session stored under a different account', () => {
+      // Same owner, but the session was created for HCA_A; looking up HCA_B
+      // must not return it.
+      saveSession(
+        makeSession({ smartAccountAddress: HCA_A, chainId: CHAIN_ID }),
+      )
+      expect(
+        getValidSessionForAccount({
+          accountAddress: HCA_B,
+          ownerAddress: OWNER,
+          chainId: CHAIN_ID,
+        }),
+      ).toBeNull()
+      // HCA_A's row is untouched (mismatch eviction only targets the looked-up
+      // account)
+      expect(getSession(HCA_A)).not.toBeNull()
+    })
   })
 })

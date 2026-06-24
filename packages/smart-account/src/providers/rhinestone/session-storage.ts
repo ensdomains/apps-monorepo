@@ -159,3 +159,36 @@ export function getValidSessionByOwner(
   }
   return session
 }
+
+export interface SessionScope {
+  readonly accountAddress: Address
+  readonly ownerAddress: Address
+  readonly chainId: number
+}
+
+/**
+ * Get a non-expired session scoped to a specific HCA, verifying that it was
+ * created for the SAME owner and chain before reuse.
+ *
+ * Sessions are keyed by `smartAccountAddress`, but an owner-keyed lookup can
+ * return a session for a different HCA/chain — its ephemeral key is NOT an
+ * owner of the current HCA, so reusing it would skip ENABLE and then fail
+ * intent simulation. This lookup pins all three identifiers; on any mismatch
+ * (or expiry) it evicts the stale row and returns `null` so the caller creates
+ * a fresh session.
+ */
+export function getValidSessionForAccount(
+  scope: SessionScope,
+): RhinestoneStoredSession | null {
+  const session = getValidSession(scope.accountAddress)
+  if (!session) return null
+
+  const ownerMatches =
+    session.ownerAddress.toLowerCase() === scope.ownerAddress.toLowerCase()
+  const chainMatches = session.chainId === scope.chainId
+  if (!ownerMatches || !chainMatches) {
+    removeSession(scope.accountAddress)
+    return null
+  }
+  return session
+}

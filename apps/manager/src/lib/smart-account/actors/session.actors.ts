@@ -22,32 +22,36 @@
 import {
   createRhinestoneSession,
   getSkippedStatus,
-  getValidSessionByOwner,
+  getValidSessionForAccount,
   isRhinestoneSession,
   type RhinestoneStoredSession,
   restoreRhinestoneSession,
   type SessionEnableError,
   SessionRestoreError,
+  type SessionScope,
   saveSession,
 } from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, Chain } from 'viem'
 
-export interface CheckSessionInput {
-  readonly ownerAddress: Address
-}
+export type CheckSessionInput = SessionScope
 
 export interface CheckSessionOutput {
   readonly session: RhinestoneStoredSession | null
   readonly wasSkipped: boolean
 }
 
-/** Reuse a valid stored Rhinestone session for this owner, if any. */
+/**
+ * Reuse a valid stored Rhinestone session for THIS HCA (owner + chain
+ * verified), if any. An owner-keyed lookup alone can return a session for a
+ * different account/chain whose ephemeral key is not an owner of the current
+ * HCA; this scopes to the account and evicts on mismatch.
+ */
 export function checkExistingSessionActor(
   input: CheckSessionInput,
 ): ResultAsync<CheckSessionOutput, never> {
-  const session = getValidSessionByOwner(input.ownerAddress)
+  const session = getValidSessionForAccount(input)
   const wasSkipped = getSkippedStatus(input.ownerAddress)
 
   if (session && !isRhinestoneSession(session)) {
@@ -131,9 +135,18 @@ export interface ResolvedSession {
 export function resolveSessionActor(
   input: ResolveSessionInput,
 ): ResultAsync<ResolvedSession, SessionEnableError> {
-  const { ownerAddress } = input
+  const { ownerAddress, accountAddress, chain } = input
 
-  const stored = getValidSessionByOwner(ownerAddress)
+  // Scope reuse to THIS HCA (owner + chain verified): an owner-keyed lookup
+  // can return a session for a different account/chain whose ephemeral key is
+  // not an owner of the current HCA, which would skip ENABLE and then fail
+  // intent simulation. On mismatch the stale row is evicted and we create
+  // fresh.
+  const stored = getValidSessionForAccount({
+    accountAddress,
+    ownerAddress,
+    chainId: chain.id,
+  })
   if (!stored || !isRhinestoneSession(stored)) {
     return createAndResolve(input)
   }

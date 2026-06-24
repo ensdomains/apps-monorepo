@@ -44,9 +44,11 @@ export {
   getSkippedStatus,
   getValidSession,
   getValidSessionByOwner,
+  getValidSessionForAccount,
   isSessionExpired,
   removeSession,
   removeSessionsByOwner,
+  type SessionScope,
   saveSession,
   setSkippedStatus,
 } from './session-storage'

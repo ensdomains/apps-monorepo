@@ -42,6 +42,7 @@ export {
   getSkippedStatus,
   getValidSession,
   getValidSessionByOwner,
+  getValidSessionForAccount,
   type InitializeRhinestoneAccountParams,
   type InitProgressStage,
   initializeRhinestoneAccount,
@@ -56,6 +57,7 @@ export {
   removeSession,
   removeSessionsByOwner,
   restoreRhinestoneSession,
+  type SessionScope,
   saveSession,
   setSkippedStatus,
 } from './providers/rhinestone'

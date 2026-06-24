@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  getValidSessionByOwner,
+  getValidSessionForAccount,
   isRhinestoneSession,
   type RhinestoneStoredSession,
 } from '@ens-apps/smart-account'
@@ -320,9 +320,19 @@ export const SmartAccountContextProvider = ({
       setActiveSession(null)
       return
     }
-    const stored = ownerAddress ? getValidSessionByOwner(ownerAddress) : null
+    // Scope reuse to THIS HCA (owner + chain verified) so a stored session for
+    // a different account/chain is never attached — its ephemeral key is not an
+    // owner of the current HCA. Mirrors resolveSessionActor's lookup.
+    const stored =
+      ownerAddress && accountAddress
+        ? getValidSessionForAccount({
+            accountAddress,
+            ownerAddress,
+            chainId: customSepolia.id,
+          })
+        : null
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
-  }, [ownerAddress])
+  }, [ownerAddress, accountAddress])
 
   const enableSession = useCallback(async (): Promise<Signer | null> => {
     // EOA-only path has no sessions.
