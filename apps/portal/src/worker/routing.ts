@@ -88,7 +88,7 @@ export function extractTldFromPath(pathname: string): string | null {
  * "Available to register" preview instead of the generic default.
  *
  * Returns the trimmed name when `pathname` is the register route and `name`
- * is a non-empty `.eth` label, otherwise `null`.
+ * is a registerable second-level `.eth` name (`label.eth`), otherwise `null`.
  */
 export function extractRegisterName(
   pathname: string,
@@ -99,6 +99,11 @@ export function extractRegisterName(
   const raw = searchParams.get('name')?.trim()
   if (!raw || raw === '.eth') return null
   if (!raw.endsWith('.eth')) return null
+
+  // Only 2nd-level `.eth` names are registerable (`label.eth`). Subnames like
+  // `foo.bar.eth` pass the suffix check but the register route rejects them
+  // (see `isRegistrable`/`is2LD`), so previewing them would be misleading.
+  if (raw.split('.').length !== 2) return null
 
   return raw
 }

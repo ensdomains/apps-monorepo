@@ -245,6 +245,17 @@ describe('routing', () => {
       expect(extractRegisterName('/register', params('name=nick'))).toBeNull()
     })
 
+    it('returns null for non-2LD subnames the register route cannot handle', () => {
+      // Only `label.eth` is registerable; `foo.bar.eth` ends in .eth but the
+      // register route rejects it, so its preview would be misleading.
+      expect(
+        extractRegisterName('/register', params('name=foo.bar.eth')),
+      ).toBeNull()
+      expect(
+        extractRegisterName('/register', params('name=a.b.c.eth')),
+      ).toBeNull()
+    })
+
     it('returns null for non-register paths', () => {
       expect(
         extractRegisterName('/registry', params('name=nick.eth')),
