@@ -12,6 +12,7 @@ import {
 import {
   extractAddrFromPath,
   extractNameFromPath,
+  extractRegisterName,
   extractTldFromPath,
   isAddressRoute,
   isAddrSubpage,
@@ -326,6 +327,13 @@ function handlePageMeta(
   const name = extractNameFromPath(pathname)
   if (name) {
     return handleNamePage(request, url, env, name)
+  }
+
+  // `/register?name=foo.eth` previews the registration target name, which lives
+  // in the query string rather than the path (WEB-509 reserved `/register`).
+  const registerName = extractRegisterName(pathname, url.searchParams)
+  if (registerName) {
+    return handleNamePage(request, url, env, registerName)
   }
 
   if (isTldRoute(pathname)) {

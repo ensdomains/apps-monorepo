@@ -78,6 +78,31 @@ export function extractTldFromPath(pathname: string): string | null {
   return match ? match[1] : null
 }
 
+/**
+ * Extract the ENS name a `/register` page is previewing.
+ *
+ * The register page carries its target name in the `?name=` query string
+ * (e.g. `/register?name=foo.eth`), not the path — so it's excluded from
+ * {@link extractNameFromPath} as a reserved segment (WEB-509). When a valid
+ * `.eth` name is present we still want the OG card to show that name's
+ * "Available to register" preview instead of the generic default.
+ *
+ * Returns the trimmed name when `pathname` is the register route and `name`
+ * is a non-empty `.eth` label, otherwise `null`.
+ */
+export function extractRegisterName(
+  pathname: string,
+  searchParams: URLSearchParams,
+): string | null {
+  if (pathname !== '/register' && pathname !== '/register/') return null
+
+  const raw = searchParams.get('name')?.trim()
+  if (!raw || raw === '.eth') return null
+  if (!raw.endsWith('.eth')) return null
+
+  return raw
+}
+
 export function extractNameFromPath(pathname: string): string | null {
   if (!pathname.startsWith('/')) return null
   const segments = pathname.slice(1).split('/')
