@@ -790,9 +790,6 @@ importers:
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@19f7a6f
-      '@rhinestone/module-sdk':
-        specifier: ^0.4.0
-        version: 0.4.0(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@rhinestone/sdk':
         specifier: 'catalog:'
         version: 1.8.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
