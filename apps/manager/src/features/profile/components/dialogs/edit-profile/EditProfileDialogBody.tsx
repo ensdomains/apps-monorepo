@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { Tabs } from '@/components/ui/tabs'
-import { getActiveSignedProfileImageUploads } from '@/features/profile/service/profileImageCache'
 import type { PreparedProfileImageUpload } from '@/features/profile/service/profileImageUpload'
 import type { ProfileRecords } from '@/features/profile/types'
-import { createDiff } from '@/features/profile/utils/createDiff'
-import {
-  defaultProfileRecords,
-  normalizeProfileRecords,
-} from '@/features/profile/utils/transformRecords'
+import { defaultProfileRecords } from '@/features/profile/utils/transformRecords'
 import { sharedOptions, withForm } from '../../form'
 import type { EditProfileSaveHandler } from './EditProfileDialog.types'
+import { getEditProfileDialogDraftState } from './EditProfileDialog.unsavedChanges'
 import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
@@ -23,10 +19,27 @@ interface EditProfileDialogBodyProps {
   readonly name: string
   readonly onSave: EditProfileSaveHandler
   readonly onImageUploadPrepared: (upload: PreparedProfileImageUpload) => void
+  readonly onUnsavedChangesChange: (hasUnsavedChanges: boolean) => void
   readonly open: boolean
   readonly owner?: Address
   readonly savedRecords: ProfileRecords
   readonly preparedImageUploads: readonly PreparedProfileImageUpload[]
+}
+
+interface EditProfileDialogUnsavedChangesReporterProps {
+  readonly hasUnsavedChanges: boolean
+  readonly onChange: (hasUnsavedChanges: boolean) => void
+}
+
+const EditProfileDialogUnsavedChangesReporter = ({
+  hasUnsavedChanges,
+  onChange,
+}: EditProfileDialogUnsavedChangesReporterProps) => {
+  useEffect(() => {
+    onChange(hasUnsavedChanges)
+  }, [hasUnsavedChanges, onChange])
+
+  return null
 }
 
 export const EditProfileDialogBody = withForm({
@@ -36,6 +49,7 @@ export const EditProfileDialogBody = withForm({
     name: '',
     onSave: () => {},
     onImageUploadPrepared: () => {},
+    onUnsavedChangesChange: () => {},
     open: false,
     preparedImageUploads: [],
     savedRecords: defaultProfileRecords,
@@ -46,6 +60,7 @@ export const EditProfileDialogBody = withForm({
     name,
     onSave,
     onImageUploadPrepared,
+    onUnsavedChangesChange,
     open,
     owner,
     preparedImageUploads,
@@ -67,20 +82,21 @@ export const EditProfileDialogBody = withForm({
         })}
       >
         {({ canSubmit, values }) => {
-          const submittedValues = normalizeProfileRecords(values)
-          const diff = createDiff(savedRecords, submittedValues)
-          const hasChanges = Object.keys(diff).length > 0
-          const activePreparedImageUploads = getActiveSignedProfileImageUploads(
-            {
-              images: preparedImageUploads,
-              records: submittedValues,
-            },
-          )
+          const {
+            activePreparedImageUploads,
+            hasPreparedImageUpload,
+            hasRecordChanges,
+            hasUnsavedChanges,
+            submittedValues,
+          } = getEditProfileDialogDraftState({
+            preparedImageUploads,
+            savedRecords,
+            values,
+          })
           const activePreparedAvatarPreviewUrl =
             activePreparedImageUploads.find(
               ({ kind }) => kind === 'avatar',
             )?.dataURL
-          const hasPreparedImageUpload = activePreparedImageUploads.length > 0
           const hasAddressValidationIssues =
             getAddressValidationIssues(values.addresses).length > 0
           const hasLinkValidationIssues =
@@ -91,7 +107,7 @@ export const EditProfileDialogBody = withForm({
           const hasGeneralValidationIssues =
             getGeneralValidationIssues(values).length > 0
           const canSaveProfile =
-            (hasChanges || hasPreparedImageUpload) &&
+            (hasRecordChanges || hasPreparedImageUpload) &&
             canSubmit &&
             !isFinalizingImageSave &&
             !hasAddressValidationIssues &&
@@ -117,42 +133,48 @@ export const EditProfileDialogBody = withForm({
           }
           const handleSave = () =>
             onSave(submittedValues, {
-              hasRecordChanges: hasChanges,
+              hasRecordChanges,
               preparedImageUploads: activePreparedImageUploads,
             })
 
           return (
-            <Tabs
-              className="h-full min-h-0 flex-1 gap-0 overflow-hidden"
-              defaultValue="general"
-              orientation="vertical"
-            >
-              <EditProfileDialogHeader
-                avatarPreviewUrl={activePreparedAvatarPreviewUrl}
-                avatarUrl={values.base.avatar}
-                canSave={canSaveProfile}
-                name={name}
-                onSave={handleSave}
-                themeColor={values.base.theme}
+            <>
+              <EditProfileDialogUnsavedChangesReporter
+                hasUnsavedChanges={hasUnsavedChanges}
+                onChange={onUnsavedChangesChange}
               />
-              <EditProfileDialogTabs
-                canSave={canSaveProfile}
-                name={name}
-                onAddressesChange={handleAddressesChange}
-                onBaseChange={handleBaseChange}
-                onContactChange={handleContactChange}
-                onDraftLinkValidationIssuesChange={
-                  setHasDraftLinkValidationIssues
-                }
-                onImageUploadPrepared={onImageUploadPrepared}
-                onLinksChange={handleLinksChange}
-                onSave={handleSave}
-                onSocialChange={handleSocialChange}
-                owner={owner}
-                preparedImageUploads={activePreparedImageUploads}
-                values={values}
-              />
-            </Tabs>
+              <Tabs
+                className="h-full min-h-0 flex-1 gap-0 overflow-hidden"
+                defaultValue="general"
+                orientation="vertical"
+              >
+                <EditProfileDialogHeader
+                  avatarPreviewUrl={activePreparedAvatarPreviewUrl}
+                  avatarUrl={values.base.avatar}
+                  canSave={canSaveProfile}
+                  name={name}
+                  onSave={handleSave}
+                  themeColor={values.base.theme}
+                />
+                <EditProfileDialogTabs
+                  canSave={canSaveProfile}
+                  name={name}
+                  onAddressesChange={handleAddressesChange}
+                  onBaseChange={handleBaseChange}
+                  onContactChange={handleContactChange}
+                  onDraftLinkValidationIssuesChange={
+                    setHasDraftLinkValidationIssues
+                  }
+                  onImageUploadPrepared={onImageUploadPrepared}
+                  onLinksChange={handleLinksChange}
+                  onSave={handleSave}
+                  onSocialChange={handleSocialChange}
+                  owner={owner}
+                  preparedImageUploads={activePreparedImageUploads}
+                  values={values}
+                />
+              </Tabs>
+            </>
           )
         }}
       </form.Subscribe>

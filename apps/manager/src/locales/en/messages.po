@@ -2613,6 +2613,10 @@ msgstr "You can verify later by clicking your profile in the navbar"
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 
+#: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
+msgid "You have unsaved changes. Discard them?"
+msgstr "You have unsaved changes. Discard them?"
+
 #: src/features/dashboard/pages/DashboardPage.tsx
 msgid "You haven't set a primary name yet."
 msgstr "You haven't set a primary name yet."

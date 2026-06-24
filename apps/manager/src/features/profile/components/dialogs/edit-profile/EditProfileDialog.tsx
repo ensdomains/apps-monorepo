@@ -1,11 +1,13 @@
-import { Trans } from '@lingui/react/macro'
+import { Trans, useLingui } from '@lingui/react/macro'
 import { useActorRef, useSelector } from '@xstate/react'
+import { useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { useAppForm } from '../../form'
 import { EditProfileDialogProvider } from './EditProfileDialog.context'
 import { editProfileDialogMachine } from './EditProfileDialog.machine'
 import type { EditProfileDialogProps } from './EditProfileDialog.types'
+import { getEditProfileDialogCloseAction } from './EditProfileDialog.unsavedChanges'
 import { EditProfileDialogBody } from './EditProfileDialogBody'
 import { useEditProfileDialogSave } from './useEditProfileDialogSave'
 
@@ -16,6 +18,8 @@ export const EditProfileDialog = ({
   onUpdated,
   trigger,
 }: EditProfileDialogProps) => {
+  const { t } = useLingui()
+  const hasUnsavedChangesRef = useRef(false)
   const dialogActor = useActorRef(editProfileDialogMachine, {
     input: { records },
   })
@@ -58,19 +62,34 @@ export const EditProfileDialog = ({
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
+      hasUnsavedChangesRef.current = false
       resetPreparedImageSaveState()
       form.reset(records)
       dialogActor.send({ type: 'OPEN', records })
       return
     }
 
-    if (isSaving) {
+    const closeAction = getEditProfileDialogCloseAction({
+      confirmDiscard: () => confirm(t`You have unsaved changes. Discard them?`),
+      hasUnsavedChanges: hasUnsavedChangesRef.current,
+      isSaving,
+    })
+
+    if (closeAction === 'keepOpen') {
       return
     }
 
+    hasUnsavedChangesRef.current = false
     resetPreparedImageSaveState()
     dialogActor.send({ type: 'CLOSE' })
   }
+
+  const handleUnsavedChangesChange = useCallback(
+    (hasUnsavedChanges: boolean) => {
+      hasUnsavedChangesRef.current = hasUnsavedChanges
+    },
+    [],
+  )
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
@@ -93,6 +112,7 @@ export const EditProfileDialog = ({
             name={name}
             onImageUploadPrepared={handleImageUploadPrepared}
             onSave={handleSave}
+            onUnsavedChangesChange={handleUnsavedChangesChange}
             open={open}
             owner={owner}
             preparedImageUploads={preparedImageUploads}
