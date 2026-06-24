@@ -30,6 +30,7 @@ import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
+import { sessionHydrationKey } from './sessionGate'
 import {
   selectIsLoading,
   selectIsReady,
@@ -46,17 +47,22 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly isReady: boolean
   readonly walletClient: WalletClient | null
   readonly infrastructure: 'warp'
-  /** Whether a valid smart session is active (registration runs prompt-free). */
+  /**
+   * Whether a valid time-boxed-owner session is active (registration runs
+   * prompt-free). NOT SmartSessions — an ephemeral key added as a temporary HCA
+   * owner.
+   */
   readonly hasActiveSession: boolean
   /** True while the one-time ENABLE signature is in flight. */
   readonly isEnablingSession: boolean
   /** Last session-enable error message, if any. */
   readonly sessionError: string | null
   /**
-   * Ensure a valid smart session exists for the current owner, creating one
-   * (the single ENABLE wallet signature) if needed. Resolves with the
-   * session-attached signer to use IMMEDIATELY (avoids waiting for a React
-   * re-render of `signer`), or null on failure / the EOA-only path.
+   * Ensure a valid time-boxed-owner session exists for the current owner,
+   * creating one (the single ENABLE wallet signature that adds the ephemeral
+   * key as a temporary HCA owner) if needed. Resolves with the session-attached
+   * signer to use IMMEDIATELY (avoids waiting for a React re-render of
+   * `signer`), or null on failure / the EOA-only path.
    */
   readonly enableSession: () => Promise<Signer | null>
 }
@@ -295,10 +301,11 @@ export const SmartAccountContextProvider = ({
   const baseClient = snapshot.context.client
   const infrastructure = snapshot.context.infrastructure
 
-  // ── Smart session state ────────────────────────────────────────────────
-  // The active session (ephemeral key + enable signature) for the current
-  // owner. Attached to the rhinestone signer so registration Intents are
-  // signed by the session key (prompt-free) instead of the owner.
+  // ── Time-boxed-owner session state ──────────────────────────────────────
+  // NOT SmartSessions: the active session is an ephemeral key added as a
+  // temporary OWNER of the HCA (the ENABLE signature), for the current owner.
+  // Attached to the rhinestone signer so registration Intents are signed by the
+  // ephemeral owner key (prompt-free) instead of the connected owner.
   const [activeSession, setActiveSession] =
     useState<RhinestoneStoredSession | null>(null)
   const [isEnablingSession, setIsEnablingSession] = useState(false)
@@ -309,28 +316,38 @@ export const SmartAccountContextProvider = ({
   // this owner is reused WITHOUT prompting (the ephemeral key is already an
   // HCA owner on-chain). This makes a 2nd registration within the session's
   // lifetime skip the enable modal entirely. EOA-only mode keeps no session.
-  const sessionOwnerRef = useRef<string | null>(null)
+  // Key the guard on BOTH addresses. On a page reload mid-registration the
+  // owner resolves a tick BEFORE the HCA `accountAddress` does; keying only on
+  // the owner would run this effect once (while `accountAddress` is still null,
+  // so the lookup is skipped and the session reads as inactive) and then the
+  // ref guard would short-circuit the re-run once `accountAddress` arrives —
+  // leaving `hasActiveSession=false` and re-prompting ENABLE on every reload
+  // even though a valid session is sitting in localStorage. Including the
+  // account in the key lets the lookup actually run once both are known.
+  const sessionScopeRef = useRef<string | null>(null)
   useEffect(() => {
-    const key = ownerAddress?.toLowerCase() ?? null
-    if (sessionOwnerRef.current === key) return
-    sessionOwnerRef.current = key
+    const scopeKey = sessionHydrationKey(ownerAddress, accountAddress)
+    if (sessionScopeRef.current === scopeKey) return
+    sessionScopeRef.current = scopeKey
     setSessionError(null)
 
-    if (!key || isFeatureEnabled('USE_EOA')) {
+    if (!ownerAddress || isFeatureEnabled('USE_EOA')) {
       setActiveSession(null)
       return
     }
+    // Wait until the HCA address is known before attempting reuse — the lookup
+    // is scoped to THIS HCA (owner + account + chain). Until then leave the
+    // current session state untouched (don't clobber an already-hydrated one).
+    if (!accountAddress) return
+
     // Scope reuse to THIS HCA (owner + chain verified) so a stored session for
     // a different account/chain is never attached — its ephemeral key is not an
     // owner of the current HCA. Mirrors resolveSessionActor's lookup.
-    const stored =
-      ownerAddress && accountAddress
-        ? getValidSessionForAccount({
-            accountAddress,
-            ownerAddress,
-            chainId: customSepolia.id,
-          })
-        : null
+    const stored = getValidSessionForAccount({
+      accountAddress,
+      ownerAddress,
+      chainId: customSepolia.id,
+    })
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [ownerAddress, accountAddress])
 
@@ -408,10 +425,11 @@ export const SmartAccountContextProvider = ({
       return null
     }
 
-    // HCA signer. When a smart session is active it's attached here so
-    // registration Intents are signed by the ephemeral session key
-    // (prompt-free) via the HCA's preinstalled owner-key module. Without a
-    // session, every Intent is owner-signed (the legacy path).
+    // HCA signer. When a time-boxed-owner session is active it's attached here
+    // so registration Intents are signed by the ephemeral session key
+    // (prompt-free) via the HCA's preinstalled OwnableValidator — this is NOT
+    // SmartSessions, just an extra owner. Without a session, every Intent is
+    // owner-signed (the legacy path).
     return {
       type: 'rhinestone' as const,
       account: baseClient as unknown as RhinestoneSigner['account'],
