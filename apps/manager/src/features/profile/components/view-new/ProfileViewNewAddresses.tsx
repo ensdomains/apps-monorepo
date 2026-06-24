@@ -44,7 +44,7 @@ const AddressValue = ({
 
 const ChainAddressValue = ({ value }: { readonly value: string }) => (
   <span
-    className="w-[79px] whitespace-nowrap text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] lg:landscape:w-[85px] lg:landscape:text-sm lg:landscape:leading-[1.1] lg:landscape:tracking-[-0.28px]"
+    className="w-19.75 whitespace-nowrap text-[13px] text-ens-quartz-400 leading-[1.2] tracking-[-0.26px] lg:landscape:w-21.25 lg:landscape:text-sm lg:landscape:leading-[1.1] lg:landscape:tracking-[-0.28px]"
     title={value}
   >
     {formatChainSpecificAddress(value)}
@@ -84,7 +84,7 @@ const MainAddressCard = ({
   readonly name: string
 }) => (
   <CopyableButton
-    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-[55px] w-full justify-between gap-2 py-0 lg:landscape:h-auto lg:landscape:max-w-132.75`}
+    className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-13.75 w-full justify-between gap-2 py-0 lg:landscape:h-auto lg:landscape:max-w-132.75`}
     iconClassName={profileCardCopyIconClassName}
     iconStrokeWidth={profileCardTrailingIconStrokeWidth}
     value={address.value}
@@ -92,7 +92,7 @@ const MainAddressCard = ({
     <div className="flex min-w-0 flex-1 items-center gap-2 lg:landscape:flex-wrap">
       <div className="flex min-w-0 items-center gap-2 lg:landscape:h-6.5 lg:landscape:gap-4">
         <div className="flex min-w-0 items-center gap-1">
-          <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-[4px]">
+          <div className="size-5.5 shrink-0 overflow-hidden rounded-full bg-ens-quartz-100 lg:landscape:size-[25.576px] lg:landscape:rounded-sm">
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt={`${name} avatar`}
@@ -101,7 +101,7 @@ const MainAddressCard = ({
               />
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className="size-full rounded-[4px] border-none bg-transparent p-0 shadow-none"
+                  className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
                   name={name}
                 />
               </ImageFallback.Fallback>
@@ -127,7 +127,7 @@ const ChainAddressCard = ({
     className={cn(
       cardSurfaceClassName,
       addressCardPaddingClassName,
-      'h-[65px] w-full justify-between gap-1 px-3 py-0 has-[>svg]:px-3 lg:landscape:h-auto lg:landscape:min-h-[88.5px] lg:landscape:gap-2 lg:landscape:px-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]',
+      'h-16.25 w-full justify-between gap-1 px-3 py-0 has-[>svg]:px-3 lg:landscape:h-auto lg:landscape:min-h-[88.5px] lg:landscape:gap-2 lg:landscape:px-[24.25px] lg:landscape:has-[>svg]:px-[24.25px]',
     )}
     iconClassName={profileCardCopyIconClassName}
     iconStrokeWidth={profileCardTrailingIconStrokeWidth}

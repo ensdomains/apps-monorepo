@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { DialogClose, DialogTitle } from '@/components/ui/dialog'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import { imageRecordQuery } from '@/features/profile/service/profileImageRecord'
 import { useEditProfileDialogStatus } from './EditProfileDialog.context'
 import { getEditProfileDialogHeaderStyle } from './EditProfileDialogHeaderTheme'
 
@@ -27,7 +27,7 @@ export const EditProfileDialogHeader = ({
 }: EditProfileDialogHeaderProps) => {
   const { isSaving } = useEditProfileDialogStatus()
   const resolvedAvatar = useQuery({
-    ...parseAvatarQuery(avatarUrl),
+    ...imageRecordQuery(avatarUrl),
     enabled: !!avatarUrl && !avatarPreviewUrl,
   })
   const displayAvatarUrl = avatarPreviewUrl ?? resolvedAvatar.data ?? avatarUrl
@@ -55,7 +55,7 @@ export const EditProfileDialogHeader = ({
             </ImageFallback.Fallback>
           </ImageFallback.Root>
         </div>
-        <DialogTitle className="max-w-[calc(100vw-7rem)] truncate rounded-sm border border-(--theme-color) px-2 py-1.5 font-medium font-semi-mono text-(--theme-color) text-[21.25px] leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
+        <DialogTitle className="flex h-9.75 max-w-[calc(100vw-7rem)] items-center truncate rounded-sm border border-(--theme-color) px-2 font-medium font-semi-mono text-(--theme-color) text-[21.25px] leading-[0.96] tracking-[-0.425px] md:max-w-104 md:text-[28px] md:tracking-[-0.595px]">
           {name}
         </DialogTitle>
       </div>

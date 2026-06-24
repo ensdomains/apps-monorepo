@@ -3,7 +3,6 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
-import { LinkButton } from '@/components/ui/button'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
@@ -60,7 +59,6 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 
 const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
-  const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -129,7 +127,6 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         owner={owner}
-        records={records}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
@@ -151,22 +148,12 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
 
           {isOwner && !expiry.isInGrace && (
             <div className="space-y-2">
-              {profileEditNewEnabled ? (
-                <EditProfileDialog
-                  name={name}
-                  onUpdated={refetchRecords}
-                  owner={owner}
-                  records={records}
-                />
-              ) : (
-                <LinkButton
-                  className="w-full"
-                  params={{ name }}
-                  to="/p/$name/edit"
-                >
-                  <Trans>Edit Profile</Trans>
-                </LinkButton>
-              )}
+              <EditProfileDialog
+                name={name}
+                onUpdated={refetchRecords}
+                owner={owner}
+                records={records}
+              />
             </div>
           )}
         </div>

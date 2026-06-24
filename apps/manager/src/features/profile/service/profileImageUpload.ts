@@ -1,9 +1,6 @@
-import { mutationOptions } from '@tanstack/react-query'
 import type { SignTypedDataMutateAsync } from '@wagmi/core/query'
 import { sha256 } from 'viem'
-import type { EventFrom } from 'xstate'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
-import type { imageSelectionMachine } from '@/features/profile/machines/imageSelection'
 
 const UPLOAD_TIMEOUT_MS = 30000
 const ONE_WEEK_MS = 1000 * 60 * 60 * 24 * 7
@@ -65,8 +62,6 @@ const dataURLToBytes = (dataURL: string) => {
   const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
   return bytes
 }
-
-type ImageSelectionEvent = EventFrom<typeof imageSelectionMachine>
 
 interface UploadRequestParams {
   readonly address: string
@@ -185,19 +180,6 @@ const uploadSignedImage = async ({
   throw new Error('Unknown error')
 }
 
-export interface UploadImageMutationOptionsArgs {
-  readonly type: ImageType
-  readonly name?: string
-  readonly isConnected: boolean
-  readonly address?: string
-  readonly chainId: number | undefined
-  readonly signTypedDataAsync: SignTypedDataMutateAsync<unknown>
-  readonly onImageChange: (imageUrl: string) => void
-  readonly onImageUploadComplete?: (imageUrl: string) => void
-  readonly setOpen: (open: boolean) => void
-  readonly send: (event: ImageSelectionEvent) => void
-}
-
 export const prepareProfileImageUpload = async ({
   type,
   name,
@@ -254,45 +236,3 @@ export const submitPreparedProfileImageUpload = async ({
     throw err
   }
 }
-
-export const uploadImageMutationOptions = ({
-  type,
-  name,
-  isConnected,
-  address,
-  chainId,
-  signTypedDataAsync,
-  onImageChange,
-  onImageUploadComplete,
-  setOpen,
-  send,
-}: UploadImageMutationOptionsArgs) =>
-  mutationOptions({
-    mutationFn: async (uploadFile: File) => {
-      if (!name) throw new Error('Name is required to upload an image')
-      if (!isConnected || !address)
-        throw new Error('Please connect your wallet before uploading an image')
-
-      const upload = await prepareProfileImageUpload({
-        chainId,
-        file: uploadFile,
-        name,
-        type,
-      })
-      await submitPreparedProfileImageUpload({
-        address,
-        signTypedDataAsync,
-        upload,
-      })
-
-      // Save Avup endpoint as the text record value
-      onImageChange(upload.imageUrl)
-      setOpen(false)
-      onImageUploadComplete?.(upload.imageUrl)
-    },
-    onError: (error: unknown) => {
-      const message =
-        error instanceof Error ? error.message : 'Failed to upload image'
-      send({ type: 'SET_ERROR', error: message })
-    },
-  })

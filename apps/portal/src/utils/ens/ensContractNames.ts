@@ -17,6 +17,7 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   ensLegacyRegistry: 'LegacyENSRegistry',
   ensReverseRegistrar: 'ReverseRegistrar',
   ensUniversalResolver: 'UniversalResolver',
+  ensDefaultReverseResolver: 'DefaultReverseResolver',
   ensPermissionedResolverImpl: 'PermissionedResolver',
   ensVerifiableFactory: 'VerifiableFactory',
   ensEthRegistrar: 'ETHRegistrar',

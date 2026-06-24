@@ -1,7 +1,6 @@
 import { expect } from '@playwright/test'
 import { test, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
 import {
-    ensureProfilePillField,
     goToEditProfile,
     goToProfile,
     renewFor28Days,
@@ -18,55 +17,29 @@ test.describe('ENS profile', () => {
         connectedPage: page,
         makeV2Name,
     }) => {
-        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profileadd' })
         console.log(`[profile] name for add-records test: ${name}`)
 
         await goToEditProfile(page, name)
 
-        // Bio
-        await ensureProfilePillField(page, {
-            pillName: /^Bio\b/,
-            fieldLabel: 'Short Description',
-        })
-        await page.getByLabel('Short Description').fill('This is a test bio')
+        // --- General tab (default) ---
+        // Description and Custom link are visible by default; fill them directly.
+        await page.getByPlaceholder('Description').fill('This is a test bio')
+        await page.getByPlaceholder('https://yourwebsite.com').fill('https://example.com')
 
-        // Website
-        await ensureProfilePillField(page, {
-            pillName: /^Website\b/,
-            fieldLabel: 'Website',
-        })
-        await page.getByLabel('Website').fill('https://example.com')
+        // --- Contact tab ---
+        await page.getByRole('tab', { name: 'Contact' }).click()
 
-        // Email
-        if ((await page.getByLabel('Email Address').count()) === 0) {
-            await page.getByRole('button', { name: 'Email Address' }).click()
-        }
-        await page.getByLabel('Email Address').fill('test@example.com')
+        // E-mail is not enabled by default — toggle its pill first.
+        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByLabel('E-mail', { exact: true }).fill('test@example.com')
 
-        // GitHub
-        if ((await page.getByLabel('GitHub').count()) === 0) {
-            await page.getByRole('button', { name: 'GitHub' }).click()
-        }
-        await page.getByLabel('GitHub').fill('ens-test-user')
+        // GitHub is not enabled by default — toggle its pill first.
+        await page.getByRole('button', { name: 'GitHub' }).click()
+        await page.getByLabel('GitHub', { exact: true }).fill('ens-test-user')
 
-        // X (Twitter)
-        if ((await page.getByLabel('X (Twitter)').count()) === 0) {
-            await page.getByRole('button', { name: 'X (Twitter)' }).click()
-        }
-        await page.getByLabel('X (Twitter)').fill('ens_test_user')
-
-        // Custom link
-        await page.getByRole('button', { name: 'Add Link' }).click()
-        const addLinkPanel = page.locator(
-            '[data-slot="dialog-content"], [data-slot="drawer-content"]',
-        )
-        await addLinkPanel.waitFor({ state: 'visible', timeout: 10_000 })
-        await addLinkPanel.getByLabel('Name', { exact: true }).fill('Test Link')
-        await addLinkPanel
-            .getByLabel('Link', { exact: true })
-            .fill('https://link.example.com')
-        await addLinkPanel.getByRole('button', { name: 'Add', exact: true }).click()
+        // Twitter is enabled by default — fill the already-visible input.
+        await page.getByLabel('Twitter', { exact: true }).fill('ens_test_user')
 
         await saveProfileChanges(page)
         // In Rhinestone HCA mode profile-record saves are eth_signTypedData_v4 intents
@@ -80,37 +53,32 @@ test.describe('ENS profile', () => {
         connectedPage: page,
         makeV2Name,
     }) => {
-        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profilerem' })
         console.log(`[profile] name for remove-records test: ${name}`)
 
-        // First pass — add two records and save
+        // First pass — add a description and an e-mail record
         await goToEditProfile(page, name)
 
-        await ensureProfilePillField(page, {
-            pillName: /^Bio\b/,
-            fieldLabel: 'Short Description',
-        })
-        await page.getByLabel('Short Description').fill('Bio to be removed')
+        // General tab: Description is visible by default.
+        await page.getByPlaceholder('Description').fill('Bio to be removed')
 
-        if ((await page.getByLabel('Email Address').count()) === 0) {
-            await page.getByRole('button', { name: 'Email Address' }).click()
-        }
-        await page.getByLabel('Email Address').fill('remove@example.com')
+        // Contact tab: E-mail is not enabled by default — toggle its pill first.
+        await page.getByRole('tab', { name: 'Contact' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByLabel('E-mail', { exact: true }).fill('remove@example.com')
 
         await saveProfileChanges(page)
         await waitForProfileUpdated(page)
 
-        // Navigate to view profile, wait for it to settle, then go into edit
-        await goToProfile(page, name)
-        await page.waitForTimeout(5_000)
-        await page.getByText('Edit Profile').click()
-        await page.waitForLoadState('networkidle')
-        await page.waitForTimeout(3_000)
+        // Second pass — remove both records by clicking their active pills
+        await goToEditProfile(page, name)
 
-        // Both fields are removed by clicking their active pills
-        await page.getByRole('button', { name: /^Bio\b/ }).click()
-        await page.getByRole('button', { name: /^Email Address\b/ }).click()
+        // General tab: clicking the active "Description" pill clears its value.
+        await page.getByRole('button', { name: 'Description' }).click()
+
+        // Contact tab: clicking the active "E-mail" pill removes the record.
+        await page.getByRole('tab', { name: 'Contact' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).click()
 
         await saveProfileChanges(page)
         await waitForProfileUpdated(page)
@@ -127,32 +95,41 @@ test.describe('ENS profile', () => {
         connectedPage: page,
         makeV2Name,
     }) => {
-        test.skip(true, 'Blocked - WEB409')
         const name = await makeV2Name({ label: 'profileval' })
         console.log(`[profile] name for validation-error test: ${name}`)
 
         await goToEditProfile(page, name)
 
-        // Invalid website URL — fill then blur to trigger inline validation
-        if ((await page.getByLabel('Website').count()) === 0) {
-            await page.getByRole('button', { name: /^Website\b/ }).click()
-        }
-        await page.getByLabel('Website').fill('not-a-url')
-        await page.getByLabel('Website').blur()
-
-        // Invalid email — fill then blur to trigger inline validation
-        if ((await page.getByLabel('Email Address').count()) === 0) {
-            await page.getByRole('button', { name: /^Email Address\b/ }).click()
-        }
-        await page.getByLabel('Email Address').fill('not-an-email')
-        await page.getByLabel('Email Address').blur()
-
-        // Errors appear inline beneath the fields without needing to save
+        // General tab: Custom link is visible by default — fill with an invalid URL.
+        // Validation fires immediately on change.
+        await page.getByPlaceholder('https://yourwebsite.com').fill('not-a-url')
         await expect(
             page.getByText('Enter a valid URL (e.g. https://example.com)'),
         ).toBeVisible({ timeout: 10_000 })
+
+        // Contact tab: enable E-mail then fill with an invalid address.
+        await page.getByRole('tab', { name: 'Contact' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByLabel('E-mail', { exact: true }).fill('not-an-email')
         await expect(
             page.getByText('Enter a valid email address'),
+        ).toBeVisible({ timeout: 10_000 })
+
+        // Addresses tab: fill the ETH address with a non-address value.
+        await page.getByRole('tab', { name: 'Addresses' }).click()
+        await page.getByLabel('Your Ethereum Address').fill('not-an-address')
+        await expect(
+            page.getByText('Enter a valid Ethereum address'),
+        ).toBeVisible({ timeout: 10_000 })
+
+        // Links tab: fill only the URL field with an invalid URL — the draft stays
+        // a draft (title is empty) but validation still runs on non-empty drafts.
+        // Use exact match to distinguish from the General-tab "Enter a valid URL
+        // (e.g. https://example.com)" message which may still be in the DOM.
+        await page.getByRole('tab', { name: 'Links' }).click()
+        await page.getByRole('textbox', { name: 'Link 1 URL' }).fill('not-a-url')
+        await expect(
+            page.getByText('Enter a valid URL', { exact: true }),
         ).toBeVisible({ timeout: 10_000 })
 
         console.log(`[profile] ✅ Validation errors correctly shown for ${name}`)
@@ -180,23 +157,19 @@ test.describe('ENS profile', () => {
         await page.waitForTimeout(3_000)
 
         // Add to favourites — register the response listener BEFORE the click so we
-        // never miss a fast response. Accept any /favorites request (POST or DELETE)
-        // so the test stays green on retries where the name may already be favourited.
-        const heartButton = page.locator('button:has(.lucide-heart)').first()
-        await heartButton.waitFor({ state: 'visible', timeout: 10_000 })
+        // never miss a fast response. The new profile view uses aria-labels
+        // "Add favorite" / "Remove favorite" instead of a Lucide heart icon.
+        await page.getByRole('button', { name: /(Add|Remove) favorite/ }).first().waitFor({ state: 'visible', timeout: 10_000 })
 
         // If already favourited from a previous retry, unfavourite first so the
         // dashboard assertion (name IN Favorites) is reliable.
-        const isAlreadyFavourited = await page
-            .locator('button:has(.lucide-heart) svg.lucide-heart')
-            .first()
-            .evaluate((el) => el.classList.contains('fill-[#f53293]'))
+        const isAlreadyFavourited = await page.getByRole('button', { name: 'Remove favorite' }).first().isVisible()
         if (isAlreadyFavourited) {
             const removePrior = page.waitForResponse(
                 (resp) => resp.url().includes('/favorites') && resp.request().method() === 'DELETE',
                 { timeout: 10_000 },
             )
-            await heartButton.click()
+            await page.getByRole('button', { name: 'Remove favorite' }).first().click()
             await removePrior
         }
 
@@ -204,7 +177,7 @@ test.describe('ENS profile', () => {
             (resp) => resp.url().includes('/favorites') && resp.request().method() === 'PUT',
             { timeout: 10_000 },
         )
-        await heartButton.click()
+        await page.getByRole('button', { name: 'Add favorite' }).first().click()
         await addDone
 
         // Verify name appears under the Favorites tab on the dashboard
@@ -216,14 +189,13 @@ test.describe('ENS profile', () => {
         // Remove from favourites — listener registered before click, then wait for it
         await goToProfile(page, name)
         await page.waitForTimeout(3_000)
-        const unfavButton = page.locator('button:has(.lucide-heart)').first()
-        await unfavButton.waitFor({ state: 'visible', timeout: 10_000 })
+        await page.getByRole('button', { name: 'Remove favorite' }).first().waitFor({ state: 'visible', timeout: 10_000 })
 
         const removeDone = page.waitForResponse(
             (resp) => resp.url().includes('/favorites') && resp.request().method() === 'DELETE',
             { timeout: 10_000 },
         )
-        await unfavButton.click()
+        await page.getByRole('button', { name: 'Remove favorite' }).first().click()
         await removeDone
 
         // Verify name is gone from the Favorites tab.
@@ -261,9 +233,8 @@ test.describe('ENS profile', () => {
         await page.waitForTimeout(3_000)
 
         // Favourite it
-        const heartButton = page.locator('button:has(.lucide-heart)').first()
-        await heartButton.waitFor({ state: 'visible', timeout: 10_000 })
-        await heartButton.click()
+        await page.getByRole('button', { name: 'Add favorite' }).first().waitFor({ state: 'visible', timeout: 10_000 })
+        await page.getByRole('button', { name: 'Add favorite' }).first().click()
         await page.waitForTimeout(2_000)
 
         // Verify it appears in the Favorites tab on the dashboard
@@ -276,9 +247,8 @@ test.describe('ENS profile', () => {
         await page.goto(`${MANAGER_APP_URL}/p/${name}`)
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(3_000)
-        const unfavButton = page.locator('button:has(.lucide-heart)').first()
-        await unfavButton.waitFor({ state: 'visible', timeout: 10_000 })
-        await unfavButton.click()
+        await page.getByRole('button', { name: 'Remove favorite' }).first().waitFor({ state: 'visible', timeout: 10_000 })
+        await page.getByRole('button', { name: 'Remove favorite' }).first().click()
         await page.waitForTimeout(2_000)
 
         // Verify name is gone from the Favorites tab
@@ -326,7 +296,10 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(3_000)
 
-        await page.getByRole('link', { name: /renew/i }).click()
+        // For non-owners the new profile view shows a ThirdPartyRenewalDialog before
+        // navigating — click the button to open it, then confirm with "I Understand".
+        await page.getByRole('button', { name: /renew name/i }).click()
+        await page.getByRole('link', { name: /i understand/i }).click()
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 

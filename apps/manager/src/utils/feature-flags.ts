@@ -36,9 +36,6 @@ const FEATURE_FLAGS_INTERNAL = {
   MIGRATION: {
     enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
   },
-  PROFILE_EDIT_NEW: {
-    enabled: import.meta.env.VITE_FF_PROFILE_EDIT_NEW === 'true',
-  },
   PROFILE_VIEW_NEW: {
     enabled: import.meta.env.VITE_FF_PROFILE_VIEW_NEW === 'true',
   },

@@ -1,5 +1,5 @@
-import clsx from 'clsx'
 import { motion, useReducedMotion } from 'motion/react'
+import { tw } from '@/utils/tailwind'
 
 interface SkeletonLine {
   id: string
@@ -93,7 +93,7 @@ const SkeletonBlock = ({
 }: SkeletonBlockProps) => {
   return (
     <div
-      className={clsx(
+      className={tw(
         'relative overflow-hidden rounded-md',
         isSolid ? 'bg-gray-200' : 'bg-gray-200/80',
         className,
@@ -149,19 +149,19 @@ const HeaderSkeleton = ({
           shouldReduceMotion={shouldReduceMotion}
         />
         <SkeletonBlock
-          className="h-5 w-[110px] rounded-full"
+          className="h-5 w-27.5 rounded-full"
           shouldReduceMotion={shouldReduceMotion}
         />
         <SkeletonBlock
-          className="mt-1 h-4 w-[210px]"
+          className="mt-1 h-4 w-52.5"
           shouldReduceMotion={shouldReduceMotion}
         />
         <SkeletonBlock
-          className="h-4 w-[175px]"
+          className="h-4 w-43.75"
           shouldReduceMotion={shouldReduceMotion}
         />
         <SkeletonBlock
-          className="h-4 w-[165px]"
+          className="h-4 w-41.25"
           shouldReduceMotion={shouldReduceMotion}
         />
       </div>
@@ -184,13 +184,13 @@ const SkeletonCard = ({
       {...getMotionProps(shouldReduceMotion, index * 0.05)}
     >
       <SkeletonBlock
-        className={clsx('mb-4 h-5', layout.titleWidth)}
+        className={tw('mb-4 h-5', layout.titleWidth)}
         shouldReduceMotion={shouldReduceMotion}
       />
       <div className="space-y-3">
         {layout.lines.map((line) => (
           <SkeletonBlock
-            className={clsx('h-4', line.width)}
+            className={tw('h-4', line.width)}
             key={line.id}
             shouldReduceMotion={shouldReduceMotion}
           />

@@ -9,6 +9,25 @@ export const STATIC_PATH_PREFIXES = [
   '/logo',
 ] as const
 
+/**
+ * Reserved top-level route segments that are app pages, not ENS names.
+ *
+ * These have their own dedicated routes (e.g. `/resolver/$address`,
+ * `/registry/$address`, `/register`) and must never be resolved as ENS names —
+ * otherwise the OG renderer fetches them as names and produces nonsense like an
+ * "Available to register" card for the literal label "resolver".
+ *
+ * `addr` and `tld` are also reserved but already excluded via
+ * {@link STATIC_PATH_PREFIXES} and the dedicated `/tld/` handling respectively.
+ */
+export const RESERVED_ROUTE_SEGMENTS = new Set([
+  'addr',
+  'register',
+  'registry',
+  'resolver',
+  'tld',
+])
+
 export function isAddressRoute(pathname: string): boolean {
   const match = pathname.match(/^\/addr\/(0x[0-9a-fA-F]{40})$/)
   return !!match
@@ -22,6 +41,32 @@ export function isAddrSubpage(pathname: string): boolean {
 export function extractAddrFromPath(pathname: string): string | null {
   const match = pathname.match(/^\/addr\/(0x[0-9a-fA-F]{40})/)
   return match ? match[1] : null
+}
+
+/**
+ * Match an address-keyed contract route (`/resolver/0x…`, `/registry/0x…`) and
+ * pull out the address plus any subpage.
+ *
+ * Returns `null` when the path isn't a `segment/0x{40}` route so callers can
+ * fall through to the next handler.
+ */
+export function matchContractRoute(
+  pathname: string,
+  segment: string,
+): { address: string; subpage: string | null } | null {
+  const match = pathname.match(
+    new RegExp(`^/${segment}/(0x[0-9a-fA-F]{40})(?:/(.+))?$`),
+  )
+  if (!match) return null
+  return { address: match[1], subpage: match[2] ?? null }
+}
+
+export function isResolverRoute(pathname: string): boolean {
+  return matchContractRoute(pathname, 'resolver') !== null
+}
+
+export function isRegistryRoute(pathname: string): boolean {
+  return matchContractRoute(pathname, 'registry') !== null
 }
 
 export function isTldRoute(pathname: string): boolean {
@@ -46,7 +91,7 @@ export function extractNameFromPath(pathname: string): string | null {
 
   if (name.includes('.') && !name.endsWith('.eth')) return null
 
-  if (name === 'tld') return null
+  if (RESERVED_ROUTE_SEGMENTS.has(name)) return null
 
   return name
 }

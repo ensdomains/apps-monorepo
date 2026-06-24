@@ -1,9 +1,12 @@
 import { Trans } from '@lingui/react/macro'
-import { useQueries, useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
-import { parseAvatarQuery } from '@/features/profile/service/profileAvatar'
+import {
+  buildNameAvatarUrl,
+  buildNameHeaderUrl,
+} from '@/features/profile/service/profileAvatar'
 import {
   getProfileNameExpiryStatus,
   profileExpiryQuery,
@@ -53,19 +56,11 @@ const getProfileUrl = (name: string) =>
 
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
-  const profileEditNewEnabled = useFeatureFlag('PROFILE_EDIT_NEW')
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
   const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
-
-  const [avatar, header] = useQueries({
-    queries: [
-      parseAvatarQuery(records.base.avatar),
-      parseAvatarQuery(records.base.header),
-    ],
-  })
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
@@ -107,24 +102,20 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     )
   }
 
-  const avatarUrl = expiry.isInGrace
-    ? undefined
-    : (avatar.data ?? records.base.avatar)
-  const headerUrl = expiry.isInGrace
-    ? undefined
-    : (header.data ?? records.base.header)
+  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
+  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
 
   return (
     <div
-      className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0px))] lg:landscape:pb-[114px]"
+      className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:pb-28.5"
       style={expiry.isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
-        headerLoading={header.isLoading}
+        headerLoading={false}
         headerUrl={headerUrl}
         name={name}
       />
-      <div className="relative z-10 mx-auto -mt-[84px] w-full max-w-[390px] space-y-0 lg:landscape:-mt-[69px] lg:landscape:max-w-226.25">
+      <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
         <div>
           <ProfileViewNewStatusBanners
             expiry={expiry}
@@ -132,7 +123,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             name={name}
           />
           <ProfileViewNewHeader
-            avatarLoading={avatar.isLoading}
+            avatarLoading={false}
             avatarUrl={avatarUrl}
             displayExpiryDate={expiry.displayExpiryDate}
             name={name}
@@ -157,7 +148,6 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         name={name}
         onUpdated={refetchRecords}
         owner={owner}
-        profileEditNewEnabled={profileEditNewEnabled}
         records={records}
         url={getProfileUrl(name)}
       />

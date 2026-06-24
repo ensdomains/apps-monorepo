@@ -1,9 +1,9 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
+import type { SaveRecordsParams } from '@/features/profile/service/profileRecordTransactions'
 import type { ProfileRecords } from '@/features/profile/types'
 import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
-import type { SaveRecordsParams } from '../../ProfileEdit.transactions'
 import {
   type GeneralField,
   getDefaultVisibleFields,

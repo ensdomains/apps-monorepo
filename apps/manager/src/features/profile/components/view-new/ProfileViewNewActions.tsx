@@ -2,6 +2,8 @@ import { useLingui } from '@lingui/react/macro'
 import type { Address } from 'viem'
 import type { ProfileRecords } from '@/features/profile/types'
 import {
+  desktopActionContainerClassName,
+  desktopActionContainerStyle,
   editActionClassName,
   editBottomNavClassName,
   editBottomNavContentClassName,
@@ -19,7 +21,6 @@ type ProfileViewNewActionsProps = {
   readonly name: string
   readonly onUpdated: () => undefined | Promise<unknown>
   readonly owner?: Address
-  readonly profileEditNewEnabled: boolean
   readonly records: ProfileRecords
   readonly url: string
 }
@@ -31,7 +32,6 @@ export const ProfileViewNewActions = ({
   name,
   onUpdated,
   owner,
-  profileEditNewEnabled,
   records,
   url,
 }: ProfileViewNewActionsProps) => {
@@ -39,8 +39,8 @@ export const ProfileViewNewActions = ({
 
   return (
     <>
-      <div className="absolute inset-x-0 top-[474px] z-30 lg:landscape:hidden">
-        <div className="mx-auto flex w-full max-w-[390px] items-center justify-between px-5">
+      <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
+        <div className="mx-auto flex w-full max-w-97.5 items-center justify-between px-5">
           <ProfileViewNewRenewAction
             className={renewActionClassName}
             isOwner={isOwner}
@@ -57,7 +57,10 @@ export const ProfileViewNewActions = ({
         </div>
       </div>
 
-      <div className="absolute top-79 right-8 z-30 hidden w-33 flex-col gap-6 lg:landscape:flex">
+      <div
+        className={desktopActionContainerClassName}
+        style={desktopActionContainerStyle}
+      >
         <div className="flex items-center gap-6">
           <ProfileViewNewFavoriteAction name={name} />
           <ProfileViewNewShareAction
@@ -83,7 +86,6 @@ export const ProfileViewNewActions = ({
               name={name}
               onUpdated={onUpdated}
               owner={owner}
-              profileEditNewEnabled={profileEditNewEnabled}
               records={records}
             />
           </div>

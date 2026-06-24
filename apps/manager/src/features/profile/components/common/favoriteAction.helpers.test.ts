@@ -79,6 +79,6 @@ describe('favoriteAction.helpers', () => {
   })
 
   it('uses the requested authentication prompt copy', () => {
-    expect(favoriteAuthPromptMessage.message).toBe('connect to favorite name')
+    expect(favoriteAuthPromptMessage.message).toBe('Connect to favorite name')
   })
 })
