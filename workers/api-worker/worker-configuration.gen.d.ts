@@ -26,6 +26,7 @@ declare namespace Cloudflare {
 		SENDGRID_API_KEY: string;
 		EMAIL_FROM_ADDRESS: string;
 		ETH_PRIVATE_KEY: string;
+		SEPOLIA_RPC_URL: string;
 		DATABASE_URL: string;
 		SENDGRID_WEBHOOK_VERIFICATION_KEY: string;
 		VAPID_PRIVATE_KEY: string;
@@ -36,7 +37,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CHAIN" | "BASE_URL" | "ENS_INDEXER_GRAPHQL_URL" | "MANAGER_APP_URL" | "VAPID_SUBJECT" | "VAPID_PUBLIC_KEY" | "SENDGRID_BROADCAST_LIST_ID" | "SENDGRID_TEMPLATE_IDS" | "TELEGRAM_WEBHOOK_SECRET" | "JWT_SECRET" | "TELEGRAM_BOT_TOKEN" | "SENDGRID_API_KEY" | "EMAIL_FROM_ADDRESS" | "ETH_PRIVATE_KEY" | "DATABASE_URL" | "SENDGRID_WEBHOOK_VERIFICATION_KEY" | "VAPID_PRIVATE_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CHAIN" | "BASE_URL" | "ENS_INDEXER_GRAPHQL_URL" | "MANAGER_APP_URL" | "VAPID_SUBJECT" | "VAPID_PUBLIC_KEY" | "SENDGRID_BROADCAST_LIST_ID" | "SENDGRID_TEMPLATE_IDS" | "TELEGRAM_WEBHOOK_SECRET" | "JWT_SECRET" | "TELEGRAM_BOT_TOKEN" | "SENDGRID_API_KEY" | "EMAIL_FROM_ADDRESS" | "ETH_PRIVATE_KEY" | "SEPOLIA_RPC_URL" | "DATABASE_URL" | "SENDGRID_WEBHOOK_VERIFICATION_KEY" | "VAPID_PRIVATE_KEY">> {}
 }
 
 // Begin runtime types
