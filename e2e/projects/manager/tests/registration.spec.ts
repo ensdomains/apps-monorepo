@@ -3,6 +3,7 @@ import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   authorizeHeadlessConnection,
   authorizeTransaction,
+  clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
 
@@ -54,11 +55,15 @@ test.describe('ENS name registration', () => {
 
     await authorizeHeadlessConnection(page, wallet)
 
-    // EOA mode (VITE_FF_USE_EOA=true): no smart-account/EnableSessions step —
-    // just dismiss the SIWE modal, then register via direct EOA transactions.
+    // Dismiss the SIWE modal that appears once connected.
     await dismissBackendAuthModal(page)
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false, the CI
+    // default) clicking "Pay with stablecoins" opens the EnableSessions modal
+    // BEFORE the token picker. Click through it (the single ENABLE intent is
+    // auto-authorized via PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
+    await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
     await page.getByRole('button', { name: /buy name/i }).click()
 
