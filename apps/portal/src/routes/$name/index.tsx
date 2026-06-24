@@ -103,17 +103,13 @@ const Profile = ({
   // For non-.eth TLDs, we need to wait for DNSSEC check
   const isTldValid = isEthTld || dnsSecQuery.data === true
 
-  // Check availability for 2LDs when:
-  // - TLD is valid (either .eth or DNSSEC-enabled)
-  // - It's a 2LD (not a TLD or 3LD+)
-  // For .eth 2LDs, fire in parallel with owner query to avoid waterfall.
-  // For non-.eth, we still need to wait for DNSSEC check.
-  // The result is only used when ownerQuery returns null.
-  const shouldCheckAvailability = isTldValid && is2LD(name)
-
+  // `getAvailable` only supports .eth 2LDs (it re-appends `.eth`, so a non-.eth
+  // 2LD like `alice.xyz` would query an unrelated `alice.xyz.eth` and throw).
+  // Gate on isRegistrable so `enabled` matches the guards that consume it; fires
+  // in parallel with the owner query to avoid a waterfall.
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
-    enabled: shouldCheckAvailability,
+    enabled: isRegistrable(name),
   })
 
   // When ownerQuery returns null, the registry has gated ownerOf on _isExpired,
@@ -250,13 +246,13 @@ const Profile = ({
     }
 
     if (availabilityQuery.error) {
-      const errorMessage =
-        (availabilityQuery.error.cause as Error | undefined)?.message ??
-        'Failed to check name availability'
       return (
         <ErrorMessage
           title="Error checking availability"
-          description={errorMessage}
+          description={
+            availabilityQuery.error.cause?.message ||
+            availabilityQuery.error.message
+          }
         />
       )
     }
@@ -268,6 +264,26 @@ const Profile = ({
         description="Could not retrieve information for this name."
       />
     )
+  }
+
+  if (availabilityQuery.isLoading && isRegistrable(name)) {
+    return <LoadingSpinner title="Checking availability..." />
+  }
+
+  if (availabilityQuery.error && isRegistrable(name)) {
+    return (
+      <ErrorMessage
+        title="Error checking availability"
+        description={
+          availabilityQuery.error.cause?.message ||
+          availabilityQuery.error.message
+        }
+      />
+    )
+  }
+
+  if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
+    return <AvailableNameMessage name={name} />
   }
 
   // Profile query error - but we have owner, so name exists
