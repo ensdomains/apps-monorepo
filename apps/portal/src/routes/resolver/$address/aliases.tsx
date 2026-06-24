@@ -18,6 +18,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -365,8 +366,7 @@ function RouteComponent() {
                     <TableRow
                       key={row.id}
                       className={cn(
-                        'hover:bg-muted',
-                        tableView.strippedRows && 'odd:bg-muted',
+                        stripedRowClassName(tableView.strippedRows),
                         deleteMutation.isPending &&
                           deleteMutation.variables === row.original.fromName &&
                           'opacity-50',
