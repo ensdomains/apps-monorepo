@@ -47,12 +47,12 @@ export const useWalletVerification = ({
         typeof window !== 'undefined'
       ) {
         const wasVerified = localStorage.getItem(getStorageKey(address))
-        if (wasVerified !== 'true') {
+        if (wasVerified === 'true') {
+          setIsVerified(true)
+        } else {
           setTimeout(() => {
             setShowVerifyModal(true)
           }, 500)
-        } else {
-          setIsVerified(true)
         }
       }
     },
@@ -71,12 +71,12 @@ export const useWalletVerification = ({
       typeof window !== 'undefined'
     ) {
       const wasVerified = localStorage.getItem(getStorageKey(address))
-      if (wasVerified !== 'true') {
+      if (wasVerified === 'true') {
+        setIsVerified(true)
+      } else {
         setTimeout(() => {
           setShowVerifyModal(true)
         }, 500)
-      } else {
-        setIsVerified(true)
       }
     }
   }, [enabled, isExternalWallet, isConnected, address, getStorageKey])

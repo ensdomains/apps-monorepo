@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
 import { PriceCooldownDecayChart } from './PriceCooldownDecayChart'
 import type { PriceCooldownDemand, PriceCooldownInfo } from './types'
@@ -12,11 +13,18 @@ type PriceCooldownExpandedContentProps = {
   selection: PriceCooldownChartSelection
 }
 
-const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
+const hasDemandStatsData = (demand?: PriceCooldownDemand) => {
   const { favoriteCount, searchCount30d } = demand ?? {}
-  if (favoriteCount === undefined && searchCount30d === undefined) {
+  return favoriteCount !== undefined || searchCount30d !== undefined
+}
+
+const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
+  const nameStatsEnabled = isFeatureEnabled('TEMP_PREMIUM_NAME_STATS')
+  if (!nameStatsEnabled || !hasDemandStatsData(demand)) {
     return null
   }
+
+  const { favoriteCount, searchCount30d } = demand ?? {}
 
   return (
     <div className="flex flex-col gap-2 text-ens-lapis-900 md:flex-row md:flex-wrap md:gap-3">
@@ -42,12 +50,48 @@ const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
   )
 }
 
+const BuyNowOrWaitSection = ({
+  periodDays,
+  demand,
+}: {
+  periodDays: number
+  demand?: PriceCooldownDemand
+}) => {
+  const nameStatsEnabled = isFeatureEnabled('TEMP_PREMIUM_NAME_STATS')
+  const showDemandStats = nameStatsEnabled && hasDemandStatsData(demand)
+
+  return (
+    <div className="flex flex-col gap-2 md:gap-4">
+      <p className="text-[#353535] text-sm leading-normal md:text-base">
+        <Trans>Should I register now or wait?</Trans>
+      </p>
+      <p className="text-[#3f3f3e] text-xs leading-normal md:text-sm">
+        <Trans>
+          You can buy this name at any point during the {periodDays}-day
+          cooldown.
+        </Trans>{' '}
+        {showDemandStats ? (
+          <Trans>
+            Some names are more in-demand than others — the stats below can help
+            you decide whether to act soon or wait.
+          </Trans>
+        ) : (
+          <Trans>Some names are more in-demand than others.</Trans>
+        )}
+      </p>
+      <DemandStats demand={demand} />
+    </div>
+  )
+}
+
 const TargetPriceField = ({
   basePricePerYearLabel,
   selection,
+  timezoneLabel,
 }: {
   basePricePerYearLabel: string
   selection: PriceCooldownChartSelection
+  timezoneLabel: string
 }) => {
   const {
     targetPriceInput,
@@ -66,12 +110,9 @@ const TargetPriceField = ({
           </Trans>
         </span>
         <span className="hidden md:inline">
-          <Trans>What additional fee would you pay?</Trans>
+          <Trans>What additional fee are you willing to pay?</Trans>
         </span>
       </p>
-      {/* field-sizing: content shrinks the input to its value width so the
-          suffix sits right after the digits. Clicking the label focuses
-          the input natively. */}
       <label
         className={tw(
           'flex h-12 w-full cursor-text items-center gap-2 overflow-hidden',
@@ -107,6 +148,9 @@ const TargetPriceField = ({
           {targetPriceReachLabel}
         </p>
       )}
+      <p className="text-ens-quartz-400 text-xs leading-5">
+        <Trans>Times shown in your local time zone ({timezoneLabel})</Trans>
+      </p>
     </div>
   )
 }
@@ -125,21 +169,17 @@ export const PriceCooldownExpandedContent = ({
     nowPoint,
   } = cooldown
 
-  const showDemandSection =
-    demand !== undefined &&
-    (demand.favoriteCount !== undefined || demand.searchCount30d !== undefined)
-
   const chartProps = {
     nowPoint,
     onSelectedPointChange: selection.handleSelectedPointChange,
     premiumStartDate,
     selectedPoint: selection.selectedPoint,
-    timezoneLabel,
+    selectedDisplayPrice: selection.selectedDisplayPrice,
   }
 
   return (
     <div className="flex w-full flex-col gap-5 md:gap-10">
-      <div className="flex flex-col gap-3 px-5 md:hidden">
+      <div className="flex flex-col gap-3 md:hidden">
         <p className="font-normal text-[#353535] text-sm">
           <Trans>How it works</Trans>
         </p>
@@ -159,51 +199,24 @@ export const PriceCooldownExpandedContent = ({
         <TargetPriceField
           basePricePerYearLabel={basePricePerYearLabel}
           selection={selection}
+          timezoneLabel={timezoneLabel}
         />
-      </div>
-
-      {showDemandSection && (
         <div
           className={tw(
-            'mx-5 rounded-xl border-[#80c4e0] border-[0.5px] bg-[#effafe] p-4 md:mx-0 md:hidden',
+            'rounded-xl border-[#80c4e0] border-[0.5px] bg-[#effafe] p-4',
           )}
         >
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <p className="text-[#353535] text-sm">
-                <Trans>Should I buy now or wait?</Trans>
-              </p>
-              <p className="text-[#3f3f3e] text-xs leading-normal">
-                <Trans>
-                  You can buy this name at any point during the {periodDays}-day
-                  cooldown. Some names are more in-demand than others — the
-                  stats below can help you decide whether to act soon or wait.
-                </Trans>
-              </p>
-            </div>
-            <DemandStats demand={demand} />
-          </div>
+          <BuyNowOrWaitSection demand={demand} periodDays={periodDays} />
         </div>
-      )}
+      </div>
 
       <div className="hidden md:grid md:grid-cols-2 md:items-start md:gap-x-10 md:gap-y-6">
         <div className="flex min-w-0 flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <p className="text-[#353535] text-base leading-normal">
-              <Trans>Should I buy now or wait?</Trans>
-            </p>
-            <p className="text-[#3f3f3e] text-sm leading-normal">
-              <Trans>
-                You can buy this name at any point during the {periodDays}-day
-                cooldown. Some names are more in-demand than others — the stats
-                below can help you decide whether to act soon or wait.
-              </Trans>
-            </p>
-            <DemandStats demand={demand} />
-          </div>
+          <BuyNowOrWaitSection demand={demand} periodDays={periodDays} />
           <TargetPriceField
             basePricePerYearLabel={basePricePerYearLabel}
             selection={selection}
+            timezoneLabel={timezoneLabel}
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3 self-start">

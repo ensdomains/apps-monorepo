@@ -6,6 +6,7 @@ import {
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
+import { ProfileViewNewLoading } from '@/features/profile/components/view-new/ProfileViewNewLoading'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -24,9 +25,9 @@ export const Route = createFileRoute('/$name/')({
     ])
 
     const expiryDate =
-      expiryData?.expiry != null
-        ? new Date(Number(expiryData.expiry) * 1000)
-        : null
+      expiryData?.expiry == null
+        ? null
+        : new Date(Number(expiryData.expiry) * 1000)
     const isPastGrace = isPastGracePeriod(expiryDate, true)
 
     if (isPastGrace) {
@@ -74,8 +75,18 @@ export const Route = createFileRoute('/$name/')({
   ssr: false,
   component: RouteComponent,
   errorComponent: ProfileRouteError,
-  pendingComponent: ProfileLoading,
+  pendingComponent: ProfileRoutePending,
 })
+
+function ProfileRoutePending() {
+  const name = Route.useParams({ select: (params) => params.name })
+
+  return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
+    <ProfileViewNewLoading name={name} />
+  ) : (
+    <ProfileLoading />
+  )
+}
 
 function ProfileRouteError({ error }: ErrorComponentProps) {
   return (

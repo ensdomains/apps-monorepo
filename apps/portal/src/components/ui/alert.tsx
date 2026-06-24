@@ -90,4 +90,4 @@ function AlertClose({
   )
 }
 
-export { Alert, AlertTitle, AlertDescription, AlertClose }
+export { Alert, AlertClose, AlertDescription, AlertTitle }

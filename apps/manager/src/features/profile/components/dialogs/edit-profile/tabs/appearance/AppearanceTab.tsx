@@ -1,13 +1,12 @@
 import type { Address } from 'viem'
 import {
   DEFAULT_THEME_COLOR,
-  type THEME_COLORS,
+  type ThemeColorValue,
 } from '@/features/profile/constants'
 import type { ProfileRecords } from '@/features/profile/types'
+import { resolveThemeColor } from '@/features/profile/utils/themeColor'
 import { cn, truncateAddress } from '@/lib/utils'
 import { useEditProfileDialogStatus } from '../../EditProfileDialog.context'
-
-type ThemeValue = (typeof THEME_COLORS)[number]['value']
 
 interface AppearanceTheme {
   readonly activeRingClassName: string
@@ -16,48 +15,58 @@ interface AppearanceTheme {
   readonly badgeClassName: string
   readonly badgeTextClassName: string
   readonly label: string
-  readonly value: ThemeValue
+  readonly value: ThemeColorValue
 }
 
 const appearanceThemes = [
   {
-    activeRingClassName: 'ring-ens-quartz-300',
+    activeRingClassName: 'ring-ens-quartz-350',
     addressClassName: 'text-ens-quartz-500',
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-quartz-75) 7%, var(--color-ens-quartz-200) 146%)',
-    badgeClassName: 'bg-ens-quartz-900',
-    badgeTextClassName: 'text-ens-quartz-0',
+    badgeClassName: 'bg-ens-lapis-900',
+    badgeTextClassName: 'text-[#f6fbfd]', // no exact ENS token
     label: 'Quartz',
-    value: '#000000',
+    value: '#02293B',
   },
   {
-    activeRingClassName: 'ring-ens-garnet-300',
+    activeRingClassName: 'ring-ens-garnet-400',
     addressClassName: 'text-ens-garnet-900',
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-garnet-100) 7%, var(--color-ens-garnet-200) 146%)',
     badgeClassName: 'bg-ens-garnet-500',
-    badgeTextClassName: 'text-ens-quartz-0',
+    badgeTextClassName: 'text-[#fdf1f5]', // no exact ENS token
     label: 'Garnet',
-    value: '#ED2496',
+    value: '#E72A96',
   },
   {
-    activeRingClassName: 'ring-ens-lapis-300',
+    activeRingClassName: 'ring-ens-lapis-400',
     addressClassName: 'text-ens-lapis-900',
     backgroundImage:
       'linear-gradient(185deg, var(--color-ens-lapis-bg) 7%, #a3e0fd 146%)',
     badgeClassName: 'bg-ens-lapis-500',
-    badgeTextClassName: 'text-ens-lapis-100',
+    badgeTextClassName: 'text-[#f6fbfd]', // no exact ENS token
     label: 'Lapis',
-    value: '#0080BC',
+    value: '#0082BB',
   },
   {
-    activeRingClassName: 'ring-ens-peridot-300',
+    activeRingClassName: 'ring-ens-peridot-400',
     addressClassName: 'text-ens-peridot-900',
     backgroundImage: 'linear-gradient(185deg, #e4ffe3 7%, #a3fda6 146%)',
     badgeClassName: 'bg-ens-peridot-500',
-    badgeTextClassName: 'text-ens-peridot-100',
+    badgeTextClassName: 'text-[#e9f7ef]', // no exact ENS token
     label: 'Peridot',
-    value: '#007C23',
+    value: '#007C20',
+  },
+  {
+    activeRingClassName: 'ring-ens-citrine-400',
+    addressClassName: 'text-ens-citrine-900',
+    backgroundImage:
+      'linear-gradient(185deg, var(--color-ens-citrine-100) 7%, var(--color-ens-citrine-300) 146%)',
+    badgeClassName: 'bg-ens-citrine-500',
+    badgeTextClassName: 'text-[#fcfcf3]', // no exact ENS token
+    label: 'Citrine',
+    value: '#984D1B',
   },
 ] as const satisfies readonly AppearanceTheme[]
 
@@ -66,9 +75,9 @@ const themeValues: ReadonlySet<string> = new Set(
 )
 
 const getSelectedThemeValue = (theme?: string | null) => {
-  const normalizedTheme = theme?.trim().toLowerCase()
-  return normalizedTheme && themeValues.has(normalizedTheme)
-    ? normalizedTheme
+  const resolvedTheme = resolveThemeColor(theme).toLowerCase()
+  return themeValues.has(resolvedTheme)
+    ? resolvedTheme
     : DEFAULT_THEME_COLOR.toLowerCase()
 }
 

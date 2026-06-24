@@ -2,6 +2,7 @@ import {
   type SUPPORTED_TOKEN,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import { Trans } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
@@ -41,6 +42,7 @@ export const TokenPickerContent = () => {
       isConnected={isConnected}
       isLoadingBalances={isLoadingBalances}
       label={label}
+      nextMessage={<Trans>Renew Name</Trans>}
       onNext={() => uiActor.send({ type: 'pricing.step.next' })}
       onSelectCoin={onSelectCoin}
       pricingData={pricingQuery.data}

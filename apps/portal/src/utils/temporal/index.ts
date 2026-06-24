@@ -21,3 +21,18 @@ export const dateToPlainDate = (date: Date): Temporal.PlainDate =>
     month: date.getMonth() + 1,
     day: date.getDate(),
   })
+
+/**
+ * Convert a Unix timestamp (seconds) to a Temporal.PlainDate in UTC.
+ *
+ * Use for on-chain timestamps (expiry, registration) whose calendar day must
+ * match the contract value for every viewer. Do NOT route these through
+ * `dateToPlainDate` — that reads the local calendar day and shifts the date
+ * for users west of UTC (e.g. a UTC-midnight expiry shows as the day before).
+ */
+export const unixSecondsToPlainDateUtc = (
+  seconds: number,
+): Temporal.PlainDate =>
+  Temporal.Instant.fromEpochMilliseconds(seconds * 1000)
+    .toZonedDateTimeISO('UTC')
+    .toPlainDate()

@@ -149,7 +149,7 @@ export const GameStep = () => {
                     ? { x: frensX, y: 300, rotate: 15, opacity: 0 }
                     : { x: frensX }
                 }
-                className="-translate-x-1/2 absolute bottom-0 left-0"
+                className="absolute bottom-0 left-0 -translate-x-1/2"
                 transition={
                   hasCollapsed
                     ? { duration: 1, ease: [0.36, 0, 0.66, -0.56] }
@@ -204,7 +204,7 @@ export const GameStep = () => {
                           ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
                           : { y: [0, -6, -3, 0] }
                       }
-                      className="-translate-x-1/2 absolute top-[-30px] left-1/2 h-[24px]"
+                      className="absolute top-[-30px] left-1/2 h-[24px] -translate-x-1/2"
                       src="/frens/bittu.svg"
                       transition={
                         isExcited

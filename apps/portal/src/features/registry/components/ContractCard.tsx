@@ -26,7 +26,6 @@ export function ContractCard({
           <span className="text-sm truncate">{label}</span>
         </div>
         <EntityBadge
-          inline
           variant="contract"
           address={address}
           etherscanHref={explorerUrl}

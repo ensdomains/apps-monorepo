@@ -63,7 +63,7 @@ export const SuccessModal = ({
             <motion.span
               animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1.1, 1, 1.2] }}
               aria-hidden
-              className="-top-2 -right-1 absolute text-2xl"
+              className="absolute -top-2 -right-1 text-2xl"
               transition={{
                 duration: 2.2,
                 repeat: Number.POSITIVE_INFINITY,
@@ -75,7 +75,7 @@ export const SuccessModal = ({
             <motion.span
               animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1.1, 1, 1.2] }}
               aria-hidden
-              className="-bottom-1 -left-3 absolute text-lg"
+              className="absolute -bottom-1 -left-3 text-lg"
               transition={{
                 duration: 2.2,
                 delay: 0.6,
@@ -131,7 +131,7 @@ export const SuccessModal = ({
 
           <motion.button
             animate={{ opacity: 1, y: 0 }}
-            className="hover:-translate-y-px mt-1 w-full max-w-[280px] rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] transition-transform active:translate-y-px"
+            className="mt-1 w-full max-w-[280px] rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)] transition-transform hover:-translate-y-px active:translate-y-px"
             initial={{ opacity: 0, y: 10 }}
             onClick={onClose}
             transition={{ duration: 0.4, delay: 0.55 }}

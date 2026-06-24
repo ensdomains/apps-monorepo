@@ -31,7 +31,7 @@ const FeePill = ({
       variant === 'base' ? 'bg-[#effafe]' : 'bg-ens-lapis-100',
       pillShadow,
       layout === 'column' &&
-        'flex min-h-[78px] flex-col items-center justify-center gap-1.5',
+        'flex min-h-[78px] w-full flex-col items-center justify-center gap-1.5',
     )}
   >
     <span className="font-medium text-[#595755] text-xs leading-normal tracking-tight">
@@ -52,8 +52,8 @@ const FeePill = ({
       </span>
       {showDecayIcon && (
         <MSymbol
-          className="ms-opsz-20 ms-wght-300 rotate-180 text-ens-lapis-400"
-          symbol="keyboard_arrow_down"
+          className="ms-opsz-20 ms-wght-300 animate-fee-decay text-ens-lapis-400"
+          symbol="arrow_shape_up_stack"
         />
       )}
     </div>
@@ -90,7 +90,7 @@ export const PriceCooldownFeePills = ({
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <FeePill
         animatedValue={currentPremiumValue}
         label={<Trans>Fee at this moment</Trans>}
@@ -105,6 +105,6 @@ export const PriceCooldownFeePills = ({
         value={basePricePerYearLabel}
         variant="base"
       />
-    </>
+    </div>
   )
 }

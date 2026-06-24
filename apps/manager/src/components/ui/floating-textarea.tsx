@@ -34,10 +34,10 @@ export const FloatingTextarea = forwardRef<
       />
       <label
         className={cn(
-          '-translate-y-1/2 pointer-events-none absolute top-0 left-3 z-10 bg-background px-1 text-muted-foreground text-sm',
+          'pointer-events-none absolute top-0 left-3 z-10 -translate-y-1/2 bg-background px-1 text-muted-foreground text-sm',
           'transition-all duration-200 ease-out',
           'peer-placeholder-shown:top-5 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:bg-transparent peer-placeholder-shown:text-base',
-          'peer-focus:-translate-y-1/2 peer-focus:top-0 peer-focus:bg-background peer-focus:text-sm',
+          'peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:bg-background peer-focus:text-sm',
           'peer-disabled:opacity-50',
         )}
         htmlFor={textareaId}

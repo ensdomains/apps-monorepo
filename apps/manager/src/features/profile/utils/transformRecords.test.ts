@@ -98,6 +98,38 @@ describe('profile transformRecords utils', () => {
       expect(result.unknown).toEqual([])
     })
 
+    it('should safely parse links JSON and drop unsafe entries from the chain', () => {
+      const result = transformProfileRecords({
+        texts: [
+          {
+            key: 'links',
+            value: JSON.stringify([
+              { name: 'ok', url: 'https://good.com' },
+              { name: 'ipfs', url: 'ipfs://QmBad' },
+              { name: 'js', url: 'javascript:alert(1)' },
+              { name: 'also ok', url: 'https://also.good.com' },
+            ]),
+          },
+        ],
+        coins: [],
+      })
+
+      expect(result.links).toEqual([
+        { name: 'ok', url: 'https://good.com' },
+        { name: 'also ok', url: 'https://also.good.com' },
+      ])
+      expect(result.unknown).toEqual([])
+    })
+
+    it('should not throw and should drop all when links JSON is malformed', () => {
+      const result = transformProfileRecords({
+        texts: [{ key: 'links', value: 'not-json' }],
+        coins: [],
+      })
+
+      expect(result.links).toEqual([])
+    })
+
     it('should transform addresses to coins', () => {
       const records = {
         ...newEmptyProfileRecords(),
@@ -152,6 +184,24 @@ describe('profile transformRecords utils', () => {
       const linksText = result.texts.find((t) => t.key === 'links')
       expect(linksText).toBeDefined()
       expect(linksText?.value).toBe(JSON.stringify(records.links))
+    })
+
+    it('should reject javascript:/data: links at transform time via normalize', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [
+          { name: 'bad', url: 'javascript:alert(1)' },
+          { name: 'ok', url: 'https://good.com' },
+        ],
+      }
+
+      const result = transformToServiceFormat(records)
+
+      const linksText = result.texts.find((t) => t.key === 'links')
+      expect(linksText).toBeDefined()
+      const parsed = JSON.parse(linksText!.value)
+      expect(parsed).toHaveLength(1)
+      expect(parsed[0].url).toBe('https://good.com')
     })
 
     it('should omit empty links from the JSON string', () => {
@@ -265,6 +315,23 @@ describe('profile transformRecords utils', () => {
         ...records,
         links: [{ name: 'Website', url: 'https://example.com' }],
       })
+    })
+
+    it('should drop unsafe scheme links (javascript:/data:) during normalize', () => {
+      const records = {
+        ...newEmptyProfileRecords(),
+        links: [
+          { name: 'ok', url: 'https://good.com' },
+          { name: 'bad', url: 'javascript:alert(1)' },
+          { name: 'data', url: 'data:text/html,hi' },
+        ],
+      }
+
+      const normalized = normalizeProfileRecords(records)
+
+      expect(normalized.links).toEqual([
+        { name: 'ok', url: 'https://good.com' },
+      ])
     })
 
     it('should remove empty address drafts without changing filled addresses', () => {
