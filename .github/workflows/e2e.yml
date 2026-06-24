@@ -242,11 +242,11 @@ jobs:
         if: matrix.config.project == 'manager' || matrix.config.project == 'manager-premium'
         run: |
           bash e2e/infra/scripts/fund-rhinestone-account.sh
-          # The manager app runs with VITE_FF_USE_EOA=true in CI (see
-          # apps/manager/.env.ci), so registration pays from the connected EOA
-          # (Anvil account 0), not the Rhinestone smart account. Fund it too, or
-          # the stablecoin payment option stays disabled (insufficient balance)
-          # and the registration tests time out selecting USDC.
+          # The manager app runs with VITE_FF_USE_EOA=false in CI (the HCA path;
+          # see apps/manager/.env.ci). The registrar still pulls the USDC payment
+          # from the connected EOA (Anvil account 0), not the smart account, so
+          # fund it too — otherwise the stablecoin payment option stays disabled
+          # (insufficient balance) and the registration tests time out on USDC.
           bash e2e/infra/scripts/fund-account.sh 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 
       # ── run e2e tests ─────────────────────────────────────────────
