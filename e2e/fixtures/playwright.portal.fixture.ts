@@ -1,8 +1,8 @@
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
-import { config as loadEnv } from 'dotenv'
 import {
   type Account,
   type Address,
@@ -47,7 +47,13 @@ const localSepolia = {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-loadEnv({ path: path.resolve(__dirname, '..', '.env') })
+// Load the e2e `.env` natively (replaces `dotenv`). `process.loadEnvFile`
+// throws if the file is missing, so guard on existence to keep the previous
+// silent-when-absent behaviour.
+const envPath = path.resolve(__dirname, '..', '.env')
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath)
+}
 
 // ---------------------------------------------------------------------------
 // Accounts — derived from the default Anvil mnemonic

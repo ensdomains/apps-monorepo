@@ -18,6 +18,7 @@ catalog:
   posthog-js: ^1.386.6
   "@posthog/react": ^1.10.1
   viem: ^2.52.2
+  "@rhinestone/sdk": 1.8.0
 
 catalogs:
   typescript6:

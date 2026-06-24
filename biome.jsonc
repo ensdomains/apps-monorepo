@@ -14,6 +14,11 @@
 
       "!**/node_modules",
 
+      // SVG assets are static image files, not source code.
+      // Biome parses them as JSX/HTML and emits noise (parse errors,
+      // a11y/noSvgWithoutTitle, useSortedAttributes). Exclude them.
+      "!**/*.svg",
+
       // Generated files
       "!**/*.gen.ts",
       "!**/*.gen.d.ts",
@@ -32,7 +37,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "suspicious": {
         "noUnknownAtRules": "off",
         "noExplicitAny": "warn"
@@ -52,6 +57,11 @@
       },
       "correctness": {
         "noNestedComponentDefinitions": "warn"
+      },
+      "nursery": {
+        // Flags dependencies that have leaner/native alternatives
+        // (e18e replacement data). e.g. dotenv -> Node's --env-file.
+        "noRestrictedDependencies": "warn"
       }
     }
   },

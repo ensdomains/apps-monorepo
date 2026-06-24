@@ -11,6 +11,7 @@ export interface EditProfileDialogProps {
   readonly records: ProfileRecords
   readonly owner?: Address
   readonly onUpdated?: () => undefined | Promise<unknown>
+  readonly trigger?: React.ReactNode
 }
 
 interface EditProfileSaveOptions {

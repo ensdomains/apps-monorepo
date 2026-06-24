@@ -17,6 +17,7 @@ import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -269,10 +270,7 @@ function RouteComponent() {
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
-                    )}
+                    className={stripedRowClassName(tableView.strippedRows)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell

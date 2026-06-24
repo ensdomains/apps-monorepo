@@ -3,15 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import {
-  nameAvatarQuery,
-  namesAvatarsByNameQuery,
-  namesAvatarsQuery,
-  parseAvatarQuery,
-} from './profileAvatar'
-import {
   getActiveSignedProfileImageUploads,
   refreshProfileImageCaches,
 } from './profileImageCache'
+import { imageRecordQuery } from './profileImageRecord'
 
 describe('profile image cache helpers', () => {
   afterEach(() => {
@@ -40,26 +35,15 @@ describe('profile image cache helpers', () => {
     ).toEqual([{ kind: 'avatar', imageUrl: avatarUrl }])
   })
 
-  it('cache busts gasless avatar queries after signed upload save', async () => {
+  it('cache busts raw image records after signed upload save', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1234)
 
     const queryClient = new QueryClient()
     const name = 'vitalik.eth'
     const imageUrl = `${AVATAR_UPLOAD_BASE_URL}/${name}`
     const cacheBustedImageUrl = `${imageUrl}?v=1234`
-    const resolverAddress = '0x0000000000000000000000000000000000000001'
 
-    queryClient.setQueryData(parseAvatarQuery(imageUrl).queryKey, imageUrl)
-    queryClient.setQueryData(nameAvatarQuery(name).queryKey, imageUrl)
-    queryClient.setQueryData(namesAvatarsByNameQuery([name]).queryKey, {
-      [name]: imageUrl,
-    })
-    queryClient.setQueryData(
-      namesAvatarsQuery([{ name, resolverAddress }]).queryKey,
-      {
-        [name]: imageUrl,
-      },
-    )
+    queryClient.setQueryData(imageRecordQuery(imageUrl).queryKey, imageUrl)
 
     await refreshProfileImageCaches({
       images: [{ kind: 'avatar', imageUrl }],
@@ -67,19 +51,8 @@ describe('profile image cache helpers', () => {
       queryClient,
     })
 
-    expect(queryClient.getQueryData(parseAvatarQuery(imageUrl).queryKey)).toBe(
+    expect(queryClient.getQueryData(imageRecordQuery(imageUrl).queryKey)).toBe(
       cacheBustedImageUrl,
     )
-    expect(queryClient.getQueryData(nameAvatarQuery(name).queryKey)).toBe(
-      cacheBustedImageUrl,
-    )
-    expect(
-      queryClient.getQueryData(namesAvatarsByNameQuery([name]).queryKey),
-    ).toEqual({ [name]: cacheBustedImageUrl })
-    expect(
-      queryClient.getQueryData(
-        namesAvatarsQuery([{ name, resolverAddress }]).queryKey,
-      ),
-    ).toEqual({ [name]: cacheBustedImageUrl })
   })
 })

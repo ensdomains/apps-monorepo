@@ -17,9 +17,6 @@ export const PriceCooldownBanner = ({
 }: PriceCooldownBannerProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded)
 
-  // Lives here (not in PriceCooldownExpandedContent) so chart selection and
-  // the typed target price survive collapse/expand — the expanded content
-  // unmounts on collapse, but the banner itself stays mounted.
   const selection = usePriceCooldownChartSelection(
     cooldown.premiumStartDate,
     cooldown.nowPoint,
@@ -58,20 +55,33 @@ export const PriceCooldownBanner = ({
         <MSymbol
           className={tw(
             'ms-opsz-14 ms-wght-500 transition-transform',
-            expanded ? '' : 'rotate-180',
+            expanded ? 'rotate-180' : '',
           )}
           symbol="keyboard_arrow_down"
         />
       </button>
 
-      {expanded && (
-        <PriceCooldownExpandedContent
-          basePricePerYearLabel={fees.basePricePerYearLabel}
-          cooldown={cooldown}
-          demand={demand}
-          selection={selection}
-        />
-      )}
+      {/* Smooth expand/collapse via animated grid rows (animates to height
+          auto without JS measuring) + an opacity fade. The collapsed content
+          stays mounted but is marked inert so it isn't tab-focusable. */}
+      <div
+        className={tw(
+          'grid transition-all duration-300 ease-out motion-reduce:transition-none',
+          expanded
+            ? 'grid-rows-[1fr] opacity-100'
+            : '-mt-4 grid-rows-[0fr] opacity-0',
+        )}
+        inert={!expanded}
+      >
+        <div className="overflow-hidden">
+          <PriceCooldownExpandedContent
+            basePricePerYearLabel={fees.basePricePerYearLabel}
+            cooldown={cooldown}
+            demand={demand}
+            selection={selection}
+          />
+        </div>
+      </div>
     </section>
   )
 }

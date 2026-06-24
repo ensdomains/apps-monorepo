@@ -35,7 +35,7 @@
   },
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
-    "@biomejs/biome": "^2.3.8",
+    "@biomejs/biome": "^2.5.0",
     "knip": "^5.70.2",
     "lefthook": "^2.1.6",
     "wrangler": "catalog:"

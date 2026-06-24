@@ -33,9 +33,6 @@ import {
   priceAtDay,
 } from './premiumChartMath'
 
-// Re-export the math, hooks, and debug-controls modules so existing importers
-// of `./TemporaryPremiumChart` keep their import surface unchanged after the
-// file was split for size.
 export * from './premiumChartHooks'
 export * from './premiumChartMath'
 export {
@@ -44,11 +41,9 @@ export {
   type TemporaryPremiumChartDebugState,
 } from './TemporaryPremiumChartDebugControls'
 
-// ---------------------------------------------------------------------------
-// Chart
-// ---------------------------------------------------------------------------
-
 const PADDING = 10
+
+const AT_NOW_EPSILON_POINTS = PREMIUM_RES_PER_DAY / 288
 
 const DEFAULT_LEADER_CONFIG: LeaderConfig = {
   steepThreshold: 1.0,
@@ -73,6 +68,7 @@ export type TemporaryPremiumChartProps = {
   nowPoint: number
   selectedPoint: number
   onSelect: (point: number) => void
+  selectedDisplayPrice?: number
   leaderConfig?: Partial<LeaderConfig>
   height?: number
   className?: string
@@ -80,12 +76,6 @@ export type TemporaryPremiumChartProps = {
   tweenNowPrice?: boolean
   tweenDurationMs?: number
   allowPastSelection?: boolean
-  /**
-   * When true, the selected-point pill renders below the chart (with a
-   * vertical dashed leader) instead of as a floating pill on the chart
-   * surface. Used on mobile/compact layouts where horizontal leader lines
-   * collide with the chart edges. Hover pills are suppressed in this mode.
-   */
   selectedLabelBelow?: boolean
   ref?: Ref<HTMLButtonElement>
 }
@@ -100,12 +90,6 @@ type LabelView = {
   bottomLine: string
 }
 
-/**
- * A single value label rendered below the chart (mobile/compact layout),
- * centered under its dot. It measures its own rendered width and clamps its
- * horizontal position so it never spills past the left or right edge of the
- * chart — important for wide "millions" values near the ends of the curve.
- */
 function BelowLabel({
   view,
   chartWidth,
@@ -136,7 +120,7 @@ function BelowLabel({
   return (
     <div
       className={cn(
-        '-translate-x-1/2 absolute top-0 whitespace-nowrap',
+        'absolute top-0 -translate-x-1/2 whitespace-nowrap',
         ghost && 'opacity-60',
       )}
       ref={ref}
@@ -167,6 +151,7 @@ export function TemporaryPremiumChart({
   nowPoint,
   selectedPoint,
   onSelect,
+  selectedDisplayPrice,
   leaderConfig,
   height = 240,
   className,
@@ -338,10 +323,21 @@ export function TemporaryPremiumChart({
   const selectedView = useMemo(() => {
     if (selectedPoint < 0) return null
     const isAtNow =
-      Math.abs(selectedPoint - effectiveNowPoint) < PREMIUM_RES_PER_DAY / 24
+      !selectedLabelBelow &&
+      Math.abs(selectedPoint - effectiveNowPoint) < AT_NOW_EPSILON_POINTS
     if (isAtNow) return null
-    return computeLabelView(selectedPoint)
-  }, [selectedPoint, effectiveNowPoint, computeLabelView])
+    const view = computeLabelView(selectedPoint)
+    if (view && !view.isPast && selectedDisplayPrice !== undefined) {
+      return { ...view, bottomLine: formatMoney(selectedDisplayPrice) }
+    }
+    return view
+  }, [
+    selectedPoint,
+    effectiveNowPoint,
+    computeLabelView,
+    selectedDisplayPrice,
+    selectedLabelBelow,
+  ])
 
   const hoverView = useMemo(() => {
     if (hoverPoint == null) return null
@@ -372,13 +368,35 @@ export function TemporaryPremiumChart({
     return buildSteepZonePath(geo, cfg.steepThreshold)
   }, [debugEnabled, debugProps?.showOverlay, geo, cfg.steepThreshold, width])
 
-  // Pointer events unify mouse and touch handling. On touch devices the
-  // browser only fires pointermove while a finger is in contact, so dragging
-  // updates the hover point and lifting the finger fires the synthetic click
-  // for selection.
+  const draggingRef = useRef(false)
+
+  const selectFromClientX = useCallback(
+    (clientX: number, target: HTMLButtonElement) => {
+      const rect = target.getBoundingClientRect()
+      const x = clientX - rect.left - PADDING
+      const pt = pointAtX(x, geo)
+      onSelect(allowPastSelection ? pt : Math.max(pt, effectiveNowPoint))
+    },
+    [geo, onSelect, allowPastSelection, effectiveNowPoint],
+  )
+
+  const handlePointerDown = useCallback(
+    (e: PointerEvent<HTMLButtonElement>) => {
+      if (width === 0 || e.pointerType !== 'touch') return
+      draggingRef.current = true
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+      selectFromClientX(e.clientX, e.currentTarget)
+    },
+    [width, selectFromClientX],
+  )
+
   const handlePointerMove = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
       if (width === 0) return
+      if (draggingRef.current) {
+        selectFromClientX(e.clientX, e.currentTarget)
+        return
+      }
       const rect = e.currentTarget.getBoundingClientRect()
       const x = e.clientX - rect.left - PADDING
       const pt = pointAtX(x, geo)
@@ -389,7 +407,7 @@ export function TemporaryPremiumChart({
         hoverRafRef.current = null
       })
     },
-    [geo, width],
+    [geo, width, selectFromClientX],
   )
 
   const handlePointerLeave = useCallback(() => {
@@ -398,11 +416,12 @@ export function TemporaryPremiumChart({
     setHoverPoint(null)
   }, [])
 
-  // Touch end: clear the hover point so a tapped finger doesn't leave a stale
-  // hover dot lingering on the chart.
   const handlePointerUp = useCallback(
     (e: PointerEvent<HTMLButtonElement>) => {
-      if (e.pointerType === 'touch') handlePointerLeave()
+      if (e.pointerType === 'touch') {
+        draggingRef.current = false
+        handlePointerLeave()
+      }
     },
     [handlePointerLeave],
   )
@@ -413,16 +432,12 @@ export function TemporaryPremiumChart({
       const rect = e.currentTarget.getBoundingClientRect()
       const x = e.clientX - rect.left - PADDING
       const pt = pointAtX(x, geo)
-      // Clicks in the past area are ignored (hover-only). Past selection only
-      // applies in debug/story contexts that opt in via allowPastSelection.
       if (!allowPastSelection && pt < effectiveNowPoint) return
       onSelect(pt)
     },
     [geo, effectiveNowPoint, onSelect, width, allowPastSelection],
   )
 
-  // When the cursor is hovering the past area and selection isn't allowed
-  // there, drop the crosshair cursor so the area reads as hover-only.
   const isHoverInPastAndLocked =
     !allowPastSelection && hoverPoint !== null && hoverPoint < effectiveNowPoint
 
@@ -436,12 +451,14 @@ export function TemporaryPremiumChart({
     <button
       aria-label="Temporary premium decay chart"
       className={cn(
-        'premium-chart relative block w-full select-none overflow-visible rounded-xl border-0 bg-transparent p-0 text-left',
+        'premium-chart relative block w-full touch-none select-none overflow-visible rounded-xl border-0 bg-transparent p-0 text-left',
         isHoverInPastAndLocked ? 'cursor-default' : 'cursor-crosshair',
         className,
       )}
       data-debug={debugEnabled ? 'true' : undefined}
       onClick={handleClick}
+      onPointerCancel={handlePointerUp}
+      onPointerDown={handlePointerDown}
       onPointerLeave={handlePointerLeave}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -452,8 +469,12 @@ export function TemporaryPremiumChart({
       }}
       style={{
         height,
+        // Figma (nodes 3610:8883/8885): a solid lapis/100 (#dbf0f8) base with
+        // near-white (lapis/50 @ 25%) stripe bands; the 2px gaps reveal the
+        // bluer base as dividers. The old build had a near-white base with
+        // faint lapis bands, so the whole chart read white instead of lapis.
         background:
-          'repeating-linear-gradient(90deg, var(--premium-chart-stripe, rgba(57,180,234,0.10)) 0%, var(--premium-chart-stripe, rgba(57,180,234,0.10)) calc((100% - 42px) / 21), transparent calc((100% - 42px) / 21) calc((100% - 42px) / 21 + 2px))',
+          'repeating-linear-gradient(90deg, rgba(246,251,253,0.25) 0%, rgba(246,251,253,0.25) calc((100% - 42px) / 21), transparent calc((100% - 42px) / 21) calc((100% - 42px) / 21 + 2px)), #dbf0f8',
         backgroundSize: 'calc(100% + 2px) 100%',
       }}
       type="button"
@@ -539,7 +560,6 @@ export function TemporaryPremiumChart({
           />
         )}
         {hoverView && selectedLabelBelow && (
-          // Same, ghosted, for the hover preview (its horizontal leader is hidden here).
           <line
             opacity={0.6}
             stroke="var(--premium-chart-hover, #94A3B8)"
@@ -580,7 +600,7 @@ export function TemporaryPremiumChart({
       {hoverView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-[1] h-2.5 w-2.5 rounded-full"
+            className="pointer-events-none absolute z-[1] h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               left: hoverView.pos.x,
               top: hoverView.pos.y,
@@ -610,7 +630,7 @@ export function TemporaryPremiumChart({
       {nowView && (
         <>
           <div
-            className="-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-3 size-3 rounded-full"
+            className="pointer-events-none absolute z-3 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               left: nowView.pos.x,
               top: nowView.pos.y,
@@ -640,7 +660,7 @@ export function TemporaryPremiumChart({
         <>
           <div
             className={cn(
-              '-translate-x-1/2 -translate-y-1/2 pointer-events-none absolute z-5 h-3 w-3 rounded-full',
+              'pointer-events-none absolute z-5 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full',
               selectedView.isPast && 'border-2 bg-transparent',
             )}
             style={{
@@ -680,9 +700,6 @@ export function TemporaryPremiumChart({
     </button>
   )
 
-  // Below-chart labels (selected + ghosted hover), rendered as a sibling of the
-  // chart button so they sit outside its click area and don't perturb the
-  // pointer math (which is relative to the button). "Now" stays on the chart.
   const belowLabel =
     selectedLabelBelow && width > 0 && (selectedView || hoverView) ? (
       <div className="relative mt-1 h-10 w-full">

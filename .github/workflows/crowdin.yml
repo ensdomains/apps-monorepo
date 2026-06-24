@@ -28,7 +28,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action != 'pull')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Upload sources
         uses: crowdin/github-action@v2
@@ -52,7 +52,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && github.event.inputs.action != 'push')
       )
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download translations
         uses: crowdin/github-action@v2

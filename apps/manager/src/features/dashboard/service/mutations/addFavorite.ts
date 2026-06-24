@@ -5,6 +5,7 @@ import {
   type FavoriteEntry,
   favoritesQueryOptions,
 } from '../queries/getFavorites'
+import { showFavoriteAddedToast } from './favoriteToast'
 
 export const addFavoriteMutationOptions = mutationOptions({
   mutationKey: [
@@ -65,6 +66,11 @@ export const addFavoriteMutationOptions = mutationOptions({
       description: 'See console for more details',
     })
     console.error(`Failed to add ${variables.name} to favorites`, err)
+  },
+  onSuccess: (_data, _variables, onMutateResult) => {
+    if (!onMutateResult?.wasCacheUpdated) return
+
+    showFavoriteAddedToast()
   },
   onSettled: (_data, _error, _variables, onMutateResult, { client }) => {
     // Don't invalidate if no changes were made
