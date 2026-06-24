@@ -1,5 +1,5 @@
-import { msg } from '@lingui/core/macro'
-import { useLingui } from '@lingui/react'
+import { JACQUARD_PATTERN6_DYE_BLEED_OPTIONS } from '@ens-apps/weave-loader/presets'
+import { useLingui } from '@lingui/react/macro'
 import { useBlocker } from '@tanstack/react-router'
 import { Calligraph } from 'calligraph'
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
@@ -15,21 +15,19 @@ import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 import { useForwardProgress } from './lib/useForwardProgress'
 
-// The WebGL weave loader (and its shader) is only needed once a registration tx
-// is actually pending. Lazy-load it so the route doesn't pay for the shader
-// while the user is still on notification settings / idle.
+// Lazy-load weave chunks until a registration tx is pending.
 const WeaveRegistration = lazy(() =>
   import('./components/WeaveRegistration').then((m) => ({
     default: m.WeaveRegistration,
   })),
 )
 const WeaveProgressBar = lazy(() =>
-  import('@/components/WeaveLoader/WeaveProgressBar').then((m) => ({
+  import('@ens-apps/weave-loader/WeaveProgressBar').then((m) => ({
     default: m.WeaveProgressBar,
   })),
 )
 
-/** Lightweight CSS-only stand-in shown while the weave chunk loads. */
+/** CSS placeholder while the weave chunk loads. */
 function WeaveTrackPlaceholder({ className }: { className?: string }) {
   return (
     <div
@@ -56,23 +54,38 @@ const REGISTERING_DOTS_INTERVAL_MS = 700
 const useTrailingDots = (max = 3) => {
   const [count, setCount] = useState(0)
   useEffect(() => {
-    const t = setInterval(
+    const timer = setInterval(
       () => setCount((c) => (c + 1) % (max + 1)),
       REGISTERING_DOTS_INTERVAL_MS,
     )
-    return () => clearInterval(t)
+    return () => clearInterval(timer)
   }, [max])
   return '.'.repeat(count)
 }
 
+// Isolate trailing dots so only the title re-renders on each tick.
+const RegisteringTitle = () => {
+  const { t } = useLingui()
+  const dots = useTrailingDots()
+  return (
+    <Calligraph
+      animation="smooth"
+      as="p"
+      className="text-base text-ens-blue"
+      initial
+    >
+      {`${t`Registering name`}${dots}`}
+    </Calligraph>
+  )
+}
+
 export const RegisteringStep = () => {
-  const { _ } = useLingui()
+  const { t, i18n } = useLingui()
   const { registrationActor, uiActor, label } = RegisterV2Context.use()
   const registeringTx = useRegisteringTx(registrationActor)
   const uiStage = useRegisteringStage(uiActor)
   const txState = useRegistrationTxState(registeringTx)
   const maxProgress = useMaxProgress(uiActor)
-  const registeringDots = useTrailingDots()
 
   const displayedStage = maxProgress?.stage ?? registeringTx.value
   const displayedProgress = maxProgress?.progress ?? 0
@@ -85,11 +98,9 @@ export const RegisteringStep = () => {
     useCountdown(registeringTx.registerReadyTimestamp)
   const cooldownSecondsDisplay = cooldownSeconds ?? 0
   const stageDescription = isCooldownActive
-    ? _(
-        msg`Waiting for commitment cooldown — register unlocks in ${cooldownSecondsDisplay}s`,
-      )
+    ? t`Waiting for commitment cooldown — register unlocks in ${cooldownSecondsDisplay}s`
     : stageMessages.stageDescription
-      ? _(stageMessages.stageDescription)
+      ? i18n._(stageMessages.stageDescription)
       : undefined
 
   const isRegistrationComplete =
@@ -112,6 +123,7 @@ export const RegisteringStep = () => {
     uiStage?.notifications === 'completed' &&
     uiStage?.transaction === 'pending'
 
+  // Only hold the loader post-success if the user actually saw it.
   const enteredLoaderRef = useRef(false)
   useEffect(() => {
     if (showWeaveLoader) enteredLoaderRef.current = true
@@ -132,9 +144,7 @@ export const RegisteringStep = () => {
       }
 
       const shouldLeave = confirm(
-        _(
-          msg`Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?`,
-        ),
+        t`Your registration is in progress. Leaving may interrupt it. Are you sure you want to leave?`,
       )
 
       return !shouldLeave
@@ -150,6 +160,7 @@ export const RegisteringStep = () => {
             description={holdForFill ? undefined : stageDescription}
             name={fullName}
             progress={fillProgress}
+            weaveOptions={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS}
           />
         </Suspense>
       </div>
@@ -165,14 +176,7 @@ export const RegisteringStep = () => {
           match(uiStage?.transaction)
             .with('pending', () => (
               <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
-                <Calligraph
-                  animation="smooth"
-                  as="p"
-                  className="text-base text-ens-blue"
-                  initial
-                >
-                  {`${_(msg`Registering name`)}${registeringDots}`}
-                </Calligraph>
+                <RegisteringTitle />
                 <Suspense
                   fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}
                 >
@@ -186,10 +190,7 @@ export const RegisteringStep = () => {
             ))
             .with('success', () => <RegistrationCompletionBanner />)
             .with(undefined, () => (
-              <RegistrationProgressBar
-                label={_(msg`Loading...`)}
-                progress={0}
-              />
+              <RegistrationProgressBar label={t`Loading...`} progress={0} />
             ))
             .exhaustive()
         )}

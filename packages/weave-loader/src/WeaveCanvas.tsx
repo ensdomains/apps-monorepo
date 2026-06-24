@@ -1,7 +1,5 @@
-'use client'
-
 import { memo, useEffect } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from './lib/utils'
 import fragmentSource from './shader/fragment.prod.glsl?raw'
 import {
   useWeaveShader,
@@ -40,8 +38,6 @@ function WeaveCanvasInner({ options, className }: WeaveCanvasProps) {
     options,
   )
 
-  // Surface shader/WebGL errors to developers only; production users see the
-  // static fallback below instead of raw compiler output.
   useEffect(() => {
     if (error && import.meta.env.DEV) {
       console.error('[WeaveCanvas] WebGL/shader error:', error)

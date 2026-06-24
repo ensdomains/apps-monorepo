@@ -1,15 +1,12 @@
+import {
+  WEAVE_REGISTRATION_LONG_NAME as LONG_NAME,
+  JACQUARD_PATTERN6_DYE_BLEED_OPTIONS as LONG_NAME_WEAVE_OPTIONS,
+} from '@ens-apps/weave-loader'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useEffect, useRef, useState } from 'react'
-import {
-  JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
-  WEAVE_REGISTRATION_LONG_NAME,
-} from '@/components/WeaveLoader'
 import { REGISTRATION_STAGE_PROGRESS } from '../../../state/registration.stages'
 import { useForwardProgress } from '../lib/useForwardProgress'
 import { WeaveRegistration } from './WeaveRegistration'
-
-const LONG_NAME_WEAVE_OPTIONS = JACQUARD_PATTERN6_DYE_BLEED_OPTIONS
-const LONG_NAME = WEAVE_REGISTRATION_LONG_NAME
 
 const meta = {
   title: 'Features/RegisterV2/WeaveRegistration',
@@ -85,10 +82,6 @@ export const MaxLengthName: Story = {
   },
 }
 
-/**
- * Simulates the live flow: progress ramps 0→100 over ~12s (stepping like the real stages),
- * then holds at 100 with the name fully filled — exactly what you'd see end-to-end.
- */
 export const AnimatedRegistration: Story = {
   render: (args) => {
     const [progress, setProgress] = useState(0)
@@ -99,7 +92,6 @@ export const AnimatedRegistration: Story = {
       const tick = (now: number) => {
         if (startRef.current === null) startRef.current = now
         const t = Math.min(1, (now - startRef.current) / DURATION)
-        // Ease-out so it slows near the end, like waiting on confirmations.
         const eased = 1 - (1 - t) ** 2
         setProgress(Math.round(eased * 100))
         if (t < 1) raf = requestAnimationFrame(tick)
@@ -111,7 +103,6 @@ export const AnimatedRegistration: Story = {
   },
 }
 
-// Real machine milestones in flow order, used to simulate stage jumps.
 const STAGE_SEQUENCE = [
   REGISTRATION_STAGE_PROGRESS.settingUpRegistration,
   REGISTRATION_STAGE_PROGRESS.preparingCommitment,
@@ -125,7 +116,6 @@ const STAGE_SEQUENCE = [
   REGISTRATION_STAGE_PROGRESS.verifyingRegistration,
 ]
 
-// Compressed cooldown for the demo (real flows wait ~60s; the pacing is identical).
 const COOLDOWN_DEMO_SECONDS = 8
 
 const LiveForwardProgressDemo = (
@@ -138,7 +128,6 @@ const LiveForwardProgressDemo = (
     let i = 0
     let cooldown: number | null = null
     const interval = setInterval(() => {
-      // Hold on the cooldown stage and tick its countdown, like the real machine.
       if (
         STAGE_SEQUENCE[i] === REGISTRATION_STAGE_PROGRESS.commitmentCooldown
       ) {
@@ -170,11 +159,6 @@ const LiveForwardProgressDemo = (
   return <WeaveRegistration {...args} animate={false} progress={progress} />
 }
 
-/**
- * Exercises the real `useForwardProgress` driver: the machine's stage milestones advance
- * every ~2.5s, and the displayed fill sweeps from 0 letter-by-letter, catching up then
- * creeping continuously between them — exactly how the live flow animates.
- */
 export const LiveForwardProgress: Story = {
   render: (args) => <LiveForwardProgressDemo {...args} />,
 }

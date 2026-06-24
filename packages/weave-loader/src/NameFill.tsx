@@ -1,5 +1,3 @@
-'use client'
-
 import {
   type CSSProperties,
   useLayoutEffect,
@@ -7,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from './lib/utils'
 import { FilledGlyph } from './FilledGlyph'
 import {
   charFillFraction,

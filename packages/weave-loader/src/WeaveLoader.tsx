@@ -1,10 +1,21 @@
-'use client'
-
-import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
-import { cn } from '@/lib/utils'
+import { usePrefersReducedMotion } from './hooks/usePrefersReducedMotion'
+import { cn } from './lib/utils'
 import type { WeaveShaderOptions } from './shader/useWeaveShader'
 import { WeaveName } from './WeaveName'
-import { stepLabelForProgress, WEAVE_STEPS, type WeaveStep } from './weaveSteps'
+
+/** A progress milestone with a pre-resolved (already translated) label. */
+export interface WeaveStep {
+  label: string
+  end: number
+}
+
+function stepLabelForProgress(progress: number, steps: WeaveStep[]): string {
+  const p = Math.max(0, Math.min(1, progress))
+  for (const step of steps) {
+    if (p <= step.end) return step.label
+  }
+  return steps[steps.length - 1]?.label ?? ''
+}
 
 export interface WeaveLoaderProps {
   name: string
@@ -22,7 +33,7 @@ export function WeaveLoader({
   name,
   progress,
   stepLabel,
-  steps = WEAVE_STEPS,
+  steps = [],
   hideStep = false,
   animate,
   weaveOptions,

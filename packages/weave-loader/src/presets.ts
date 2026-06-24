@@ -91,8 +91,6 @@ export const WEAVE_PROGRESS_BAR_OPTIONS: WeaveShaderOptions = {
   gridSize: 10,
   shimmer: false,
   bgShade: 4,
-  // The progress-bar weave is purely decorative and never animates: render a
-  // single frame instead of running requestAnimationFrame at 60fps.
   animated: false,
   skipWeaveInReveal: true,
 }

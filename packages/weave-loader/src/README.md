@@ -7,9 +7,10 @@ square rendered with a WebGL shader. Matches the Figma design (ENS App Beta, nod
 
 ## Where it lives
 
-- Components: `src/components/WeaveLoader/`
-- Registration integration: `src/features/register-v2/workflow/registering/`
-  (`RegisteringStep.tsx`, `components/WeaveRegistration.tsx`, `lib/useForwardProgress.ts`)
+- Shared primitives: `@ens-apps/weave-loader` (this package, `packages/weave-loader/src/`)
+- Registration integration (manager app): `apps/manager/src/features/register-v2/workflow/registering/`
+  (`RegisteringStep.tsx`, `components/WeaveRegistration.tsx`, `lib/useForwardProgress.ts`,
+  `lib/weaveSteps.ts` — the translated step copy lives here, not in this package)
 - Text transitions: the [`calligraph`](https://github.com/raphaelsalaja/calligraph)
   library (fluid character transitions powered by Motion)
 
@@ -151,10 +152,14 @@ indicator in `RegisteringStep`.
 
 ## Step copy
 
-`weaveSteps.ts` holds the playful step labels ("Reserving your name" → … → "Placing your
-new identity in your wallet"). Each step owns a slice of the 0–1 progress range
-(`end` = upper bound); `stepLabelForProgress(p)` resolves the active label. These are
-plain strings for now — swap to lingui `msg` descriptors when copy is finalized.
+The manager app's `registering/lib/weaveSteps.ts` holds the playful step labels
+("Reserving your name" → … → "Placing your new identity in your wallet") as lingui
+`msg` descriptors. Each step owns a slice of the 0–1 progress range (`end` = upper
+bound); `stepMessageForProgress(p)` returns the active step's descriptor, which the
+caller resolves with the `useLingui` macro.
+
+`WeaveLoader` in this package is translation-agnostic: it accepts a `steps` array of
+`{ label: string; end: number }` (pre-resolved strings) or a single `stepLabel`.
 
 ## Text transitions (`calligraph`)
 

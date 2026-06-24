@@ -23,6 +23,7 @@
     "lint:fix": "biome check --fix"
   },
   "dependencies": {
+    "@ens-apps/weave-loader": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",

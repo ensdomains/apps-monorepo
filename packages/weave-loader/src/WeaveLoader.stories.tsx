@@ -1,7 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useEffect, useState } from 'react'
-import { WeaveLoader } from './WeaveLoader'
-import { WEAVE_STEPS } from './weaveSteps'
+import { WeaveLoader, type WeaveStep } from './WeaveLoader'
+
+// Demo steps with pre-resolved string labels (the live app passes translated
+// copy from the manager's registration step catalog).
+const DEMO_STEPS: WeaveStep[] = [
+  { label: 'Reserving your name', end: 0.16 },
+  { label: 'Carving your name into the blockchain', end: 0.32 },
+  { label: 'Making your name work everywhere', end: 0.48 },
+  { label: 'Planting your name in the infinite garden', end: 0.62 },
+  { label: 'Farming aura', end: 0.76 },
+  { label: 'Growing your corner of the decentralized web', end: 0.9 },
+  { label: 'Placing your new identity in your wallet', end: 1 },
+]
 
 const meta = {
   title: 'Components/WeaveLoader',
@@ -25,6 +36,7 @@ const meta = {
     name: 'erni.eth',
     progress: 0.6,
     fontSize: 80,
+    steps: DEMO_STEPS,
   },
 } satisfies Meta<typeof WeaveLoader>
 
@@ -53,8 +65,8 @@ export const LongName: Story = {
 export const AllSteps: Story = {
   render: (args) => (
     <div className="flex flex-col gap-10">
-      {WEAVE_STEPS.map((step, i) => {
-        const prev = i === 0 ? 0 : (WEAVE_STEPS[i - 1]?.end ?? 0)
+      {DEMO_STEPS.map((step, i) => {
+        const prev = i === 0 ? 0 : (DEMO_STEPS[i - 1]?.end ?? 0)
         const mid = (prev + step.end) / 2
         return (
           <WeaveLoader

@@ -1,7 +1,5 @@
-'use client'
-
 import { memo, useEffect } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from './lib/utils'
 import fragmentSource from './shader/fragment.glsl?raw'
 import {
   useWeaveShader,
@@ -15,15 +13,7 @@ export interface WeaveCanvasSandboxProps {
   className?: string
 }
 
-/**
- * Storybook / design-exploration canvas backed by the full sandbox shader
- * (`fragment.glsl`) which carries every experimental feature: ENS-mark
- * compositing, hover ripple, stitch-in reveal, all blend modes, etc.
- *
- * Production code must use {@link WeaveCanvas} instead, which ships the trimmed
- * `fragment.prod.glsl`. Keeping the heavy shader out of the live import graph is
- * intentional — do not use this component outside stories.
- */
+/** Storybook-only — full sandbox shader; production uses {@link WeaveCanvas}. */
 function WeaveCanvasSandboxInner({
   options,
   className,

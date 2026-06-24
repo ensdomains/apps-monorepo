@@ -7,13 +7,24 @@ export interface TextMetricsBox {
   baseline: number
 }
 
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
+/** Escape text content and attribute values destined for inline SVG markup. */
+function escapeXml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
+}
+
+/**
+ * Coerce a value that must end up as a numeric SVG attribute. Anything
+ * non-finite (NaN, Infinity, injected strings) collapses to 0 so it can never
+ * break out of the attribute or inject markup.
+ */
+function safeNumber(value: number | string): number {
+  const n = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(n) ? n : 0
 }
 
 export interface NameSvgOptions {
@@ -33,11 +44,22 @@ export function nameSvgDataUri({
   fontWeight,
   fill,
 }: NameSvgOptions): string {
-  const { width, height, baseline } = box
+  const width = safeNumber(box.width)
+  const height = safeNumber(box.height)
+  const baseline = safeNumber(box.baseline)
+  const safeFontSize = safeNumber(fontSize)
+  // font-weight is a keyword (`bold`) or a number; escape the keyword form.
+  const safeFontWeight =
+    typeof fontWeight === 'number'
+      ? safeNumber(fontWeight)
+      : escapeXml(fontWeight)
+  const safeFontFamily = escapeXml(fontFamily)
+  const safeFill = escapeXml(fill)
+
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
-    `<text x="0" y="${baseline}" font-family="${fontFamily.replace(/"/g, "'")}" ` +
-    `font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" ` +
+    `<text x="0" y="${baseline}" font-family="${safeFontFamily}" ` +
+    `font-size="${safeFontSize}" font-weight="${safeFontWeight}" fill="${safeFill}" ` +
     `xml:space="preserve">${escapeXml(name)}</text></svg>`
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
 }

@@ -108,9 +108,3 @@ export function lineCountFromMetrics(metrics: GlyphMetrics[]): number {
   if (metrics.length === 0) return 1
   return Math.max(...metrics.map((metric) => metric.lineIndex)) + 1
 }
-
-/** @deprecated Use GlyphMetrics */
-export type GlyphAdvance = GlyphMetrics
-
-/** @deprecated Use measureGlyphMetrics */
-export const measureGlyphAdvances = measureGlyphMetrics

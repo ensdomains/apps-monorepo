@@ -1,6 +1,4 @@
-'use client'
-
-import { cn } from '@/lib/utils'
+import { cn } from './lib/utils'
 import { WEAVE_PROGRESS_BAR_OPTIONS } from './presets'
 import type { WeaveShaderOptions } from './shader/useWeaveShader'
 import { WeaveCanvas } from './WeaveCanvas'
