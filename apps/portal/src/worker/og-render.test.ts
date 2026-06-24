@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 // the node test environment can't resolve. Stub it — escapeHtml is pure.
 vi.mock('workers-og', () => ({ ImageResponse: class {} }))
 
-const { escapeHtml } = await import('./og-render')
+const { escapeHtml, resolverSubtitle, resolverPageLabel, registryPageLabel } =
+  await import('./og-render')
 
 describe('escapeHtml', () => {
   it('escapes the five HTML-sensitive characters', () => {
@@ -30,5 +31,45 @@ describe('escapeHtml', () => {
   it('leaves slashes untouched so base64 data: URIs survive intact', () => {
     const url = 'data:image/png;base64,iVBOR/w0KGgo+AAAA=='
     expect(escapeHtml(url)).toBe(url)
+  })
+})
+
+describe('resolverSubtitle', () => {
+  it('labels permissioned resolvers', () => {
+    expect(resolverSubtitle(true)).toBe('Permissioned Resolver')
+  })
+
+  it('labels plain resolvers', () => {
+    expect(resolverSubtitle(false)).toBe('Resolver')
+  })
+})
+
+describe('resolverPageLabel', () => {
+  it('defaults to the overview label', () => {
+    expect(resolverPageLabel(null)).toBe('Resolver Overview')
+  })
+
+  it('maps known subpages', () => {
+    expect(resolverPageLabel('roles')).toBe('Roles')
+    expect(resolverPageLabel('nodes')).toBe('Nodes')
+    expect(resolverPageLabel('aliases')).toBe('Aliases')
+    expect(resolverPageLabel('create-alias')).toBe('Create Alias')
+    expect(resolverPageLabel('history')).toBe('History')
+  })
+
+  it('title-cases unknown subpages', () => {
+    expect(resolverPageLabel('something')).toBe('Something')
+  })
+})
+
+describe('registryPageLabel', () => {
+  it('defaults to the overview label', () => {
+    expect(registryPageLabel(null)).toBe('Registry Overview')
+  })
+
+  it('maps known subpages', () => {
+    expect(registryPageLabel('labels')).toBe('Labels')
+    expect(registryPageLabel('roles')).toBe('Roles')
+    expect(registryPageLabel('history')).toBe('History')
   })
 })

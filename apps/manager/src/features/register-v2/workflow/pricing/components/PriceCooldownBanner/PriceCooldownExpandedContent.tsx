@@ -63,7 +63,7 @@ const BuyNowOrWaitSection = ({
   return (
     <div className="flex flex-col gap-2 md:gap-4">
       <p className="text-[#353535] text-sm leading-normal md:text-base">
-        <Trans>Should I buy now or wait?</Trans>
+        <Trans>Should I register now or wait?</Trans>
       </p>
       <p className="text-[#3f3f3e] text-xs leading-normal md:text-sm">
         <Trans>
@@ -87,9 +87,11 @@ const BuyNowOrWaitSection = ({
 const TargetPriceField = ({
   basePricePerYearLabel,
   selection,
+  timezoneLabel,
 }: {
   basePricePerYearLabel: string
   selection: PriceCooldownChartSelection
+  timezoneLabel: string
 }) => {
   const {
     targetPriceInput,
@@ -108,12 +110,9 @@ const TargetPriceField = ({
           </Trans>
         </span>
         <span className="hidden md:inline">
-          <Trans>What additional fee would you pay?</Trans>
+          <Trans>What additional fee are you willing to pay?</Trans>
         </span>
       </p>
-      {/* field-sizing: content shrinks the input to its value width so the
-          suffix sits right after the digits. Clicking the label focuses
-          the input natively. */}
       <label
         className={tw(
           'flex h-12 w-full cursor-text items-center gap-2 overflow-hidden',
@@ -149,6 +148,9 @@ const TargetPriceField = ({
           {targetPriceReachLabel}
         </p>
       )}
+      <p className="text-ens-quartz-400 text-xs leading-5">
+        <Trans>Times shown in your local time zone ({timezoneLabel})</Trans>
+      </p>
     </div>
   )
 }
@@ -172,7 +174,7 @@ export const PriceCooldownExpandedContent = ({
     onSelectedPointChange: selection.handleSelectedPointChange,
     premiumStartDate,
     selectedPoint: selection.selectedPoint,
-    timezoneLabel,
+    selectedDisplayPrice: selection.selectedDisplayPrice,
   }
 
   return (
@@ -197,6 +199,7 @@ export const PriceCooldownExpandedContent = ({
         <TargetPriceField
           basePricePerYearLabel={basePricePerYearLabel}
           selection={selection}
+          timezoneLabel={timezoneLabel}
         />
         <div
           className={tw(
@@ -213,6 +216,7 @@ export const PriceCooldownExpandedContent = ({
           <TargetPriceField
             basePricePerYearLabel={basePricePerYearLabel}
             selection={selection}
+            timezoneLabel={timezoneLabel}
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3 self-start">

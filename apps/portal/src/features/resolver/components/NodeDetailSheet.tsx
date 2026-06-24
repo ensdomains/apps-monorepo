@@ -4,6 +4,7 @@ import { ExternalLink } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -165,9 +166,8 @@ export const NodeDetailSheet = ({
                         {roles.map((role) => (
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
-                            className={cn(
-                              'hover:bg-muted',
-                              tableView.strippedRows && 'odd:bg-muted',
+                            className={stripedRowClassName(
+                              tableView.strippedRows,
                             )}
                           >
                             <TableCell

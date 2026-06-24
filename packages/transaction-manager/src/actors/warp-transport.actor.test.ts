@@ -107,7 +107,7 @@ describe('submitWarpTransaction', () => {
     )
   })
 
-  it('calls sendTransaction with sourceChains, targetChain, calls, sponsored=true, and no session signers', async () => {
+  it('owner-signed (no session): omits `signers` so the SDK uses the owner validator', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest()
 
@@ -120,9 +120,30 @@ describe('submitWarpTransaction', () => {
       sponsored: true,
       tokenRequests: [],
     })
-    // HCA is session-less — `signers` must never be passed.
+    // No active session → `signers` must not be passed.
     expect(signer.account.sendTransaction).not.toHaveBeenCalledWith(
       expect.objectContaining({ signers: expect.anything() }),
+    )
+  })
+
+  it('session attached: signs the Intent with the ephemeral owner key (owner/ecdsa signers)', async () => {
+    const signer = createMockSigner()
+    const sessionAccount = {
+      address: '0x5555555555555555555555555555555555555555',
+    }
+    signer.session = { sessionAccount: sessionAccount as never }
+    const request = createRhinestoneRequest()
+
+    await submitWarpTransaction({ request, signer })
+
+    expect(signer.account.sendTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signers: {
+          type: 'owner',
+          kind: 'ecdsa',
+          accounts: [sessionAccount],
+        },
+      }),
     )
   })
 

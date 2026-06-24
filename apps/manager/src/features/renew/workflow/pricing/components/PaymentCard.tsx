@@ -6,6 +6,7 @@ import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/p
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { PaymentCardBase } from '@/features/register-v2/workflow/pricing/components/PaymentCard'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
+import { useSmartSessionGate } from '@/features/wallet/hooks/useSmartSessionGate'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
 export const PaymentCard = () => {
@@ -15,6 +16,10 @@ export const PaymentCard = () => {
     state.context.duration,
     state.can({ type: 'pricing.step.next' }),
   ])
+
+  // Same front-of-flow smart-session gate as registration: prompt to enable a
+  // session before opening the stablecoin chooser, not over it.
+  const { gate, sessionModal } = useSmartSessionGate()
 
   const baseRate = useBaseRate(label)
 
@@ -30,14 +35,19 @@ export const PaymentCard = () => {
     BigInt(duration),
   )
 
+  const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })
+
   return (
-    <PaymentCardBase
-      amount={pricingQuery.data}
-      canNext={canNext}
-      discountAmount={discountAmount}
-      isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-      onNext={() => uiActor.send({ type: 'pricing.step.next' })}
-      type="renew"
-    />
+    <>
+      <PaymentCardBase
+        amount={pricingQuery.data}
+        canNext={canNext}
+        discountAmount={discountAmount}
+        isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
+        onNext={() => gate(openTokenPicker)}
+        type="renew"
+      />
+      {sessionModal}
+    </>
   )
 }

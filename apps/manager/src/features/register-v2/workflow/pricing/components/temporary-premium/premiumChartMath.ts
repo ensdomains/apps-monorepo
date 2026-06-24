@@ -326,7 +326,10 @@ export function formatMoney(n: number): string {
   // numbers. Only show cents once the value drops below $1 (the additional fee
   // near the end of its decay).
   if (n >= 1) return `$${Math.round(n).toLocaleString()}`
-  return `$${n.toFixed(2)}`
+  // Sub-dollar values show cents, except an exact/rounded $0 which reads as
+  // "$0" rather than "$0.00" (e.g. at the end of the cooldown).
+  const cents = Math.max(n, 0).toFixed(2)
+  return cents === '0.00' ? '$0' : `$${cents}`
 }
 
 export function formatChartDate(d: Date): string {

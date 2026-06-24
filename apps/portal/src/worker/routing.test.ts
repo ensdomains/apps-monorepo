@@ -2,11 +2,18 @@ import { describe, expect, it } from 'vitest'
 import {
   extractAddrFromPath,
   extractNameFromPath,
+  extractRegisterName,
   isAddressRoute,
   isAddrSubpage,
+  isRegistryRoute,
+  isResolverRoute,
+  matchContractRoute,
+  RESERVED_ROUTE_SEGMENTS,
   STATIC_PATH_PREFIXES,
   truncate,
 } from './routing'
+
+const ADDR = '0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d'
 
 describe('routing', () => {
   describe('STATIC_PATH_PREFIXES', () => {
@@ -169,6 +176,150 @@ describe('routing', () => {
 
     it('should handle encoded names', () => {
       expect(extractNameFromPath('/test%20name.eth')).toBe('test%20name.eth')
+    })
+
+    it('should return null for reserved route segments', () => {
+      expect(extractNameFromPath('/resolver')).toBeNull()
+      expect(extractNameFromPath('/registry')).toBeNull()
+      expect(extractNameFromPath('/register')).toBeNull()
+      expect(extractNameFromPath('/tld')).toBeNull()
+      expect(extractNameFromPath('/addr')).toBeNull()
+    })
+
+    it('should return null for reserved route subpages', () => {
+      // Regression: WEB-509 — `/resolver/0x.../roles` was resolved as the ENS
+      // name "resolver", producing an "Available to register" OG preview.
+      expect(
+        extractNameFromPath(
+          '/resolver/0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d/roles',
+        ),
+      ).toBeNull()
+      expect(
+        extractNameFromPath(
+          '/registry/0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d/labels',
+        ),
+      ).toBeNull()
+      expect(
+        extractNameFromPath(
+          '/resolver/0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d',
+        ),
+      ).toBeNull()
+    })
+  })
+
+  describe('extractRegisterName', () => {
+    const params = (search: string) => new URLSearchParams(search)
+
+    it('extracts a .eth name from the register query string', () => {
+      // Regression: WEB-509 reserved `/register`, which also stopped
+      // `/register?name=foo.eth` from previewing the target name's OG card.
+      expect(
+        extractRegisterName('/register', params('name=helloaweswomes.eth')),
+      ).toBe('helloaweswomes.eth')
+    })
+
+    it('handles the trailing-slash register route', () => {
+      expect(extractRegisterName('/register/', params('name=nick.eth'))).toBe(
+        'nick.eth',
+      )
+    })
+
+    it('trims surrounding whitespace', () => {
+      expect(
+        extractRegisterName('/register', params('name=%20nick.eth%20')),
+      ).toBe('nick.eth')
+    })
+
+    it('returns null when no name is present', () => {
+      expect(extractRegisterName('/register', params(''))).toBeNull()
+    })
+
+    it('returns null for the bare .eth placeholder', () => {
+      expect(extractRegisterName('/register', params('name=.eth'))).toBeNull()
+    })
+
+    it('returns null for non-eth names', () => {
+      expect(
+        extractRegisterName('/register', params('name=nick.com')),
+      ).toBeNull()
+      expect(extractRegisterName('/register', params('name=nick'))).toBeNull()
+    })
+
+    it('returns null for non-2LD subnames the register route cannot handle', () => {
+      // Only `label.eth` is registerable; `foo.bar.eth` ends in .eth but the
+      // register route rejects it, so its preview would be misleading.
+      expect(
+        extractRegisterName('/register', params('name=foo.bar.eth')),
+      ).toBeNull()
+      expect(
+        extractRegisterName('/register', params('name=a.b.c.eth')),
+      ).toBeNull()
+    })
+
+    it('returns null for non-register paths', () => {
+      expect(
+        extractRegisterName('/registry', params('name=nick.eth')),
+      ).toBeNull()
+      expect(extractRegisterName('/', params('name=nick.eth'))).toBeNull()
+    })
+  })
+
+  describe('RESERVED_ROUTE_SEGMENTS', () => {
+    it('should contain all dedicated top-level app routes', () => {
+      expect(RESERVED_ROUTE_SEGMENTS).toContain('addr')
+      expect(RESERVED_ROUTE_SEGMENTS).toContain('register')
+      expect(RESERVED_ROUTE_SEGMENTS).toContain('registry')
+      expect(RESERVED_ROUTE_SEGMENTS).toContain('resolver')
+      expect(RESERVED_ROUTE_SEGMENTS).toContain('tld')
+    })
+  })
+
+  describe('matchContractRoute', () => {
+    it('extracts the address from a plain contract route', () => {
+      expect(matchContractRoute(`/resolver/${ADDR}`, 'resolver')).toEqual({
+        address: ADDR,
+        subpage: null,
+      })
+    })
+
+    it('extracts the address and subpage from a contract subroute', () => {
+      expect(matchContractRoute(`/resolver/${ADDR}/roles`, 'resolver')).toEqual(
+        {
+          address: ADDR,
+          subpage: 'roles',
+        },
+      )
+      expect(
+        matchContractRoute(`/registry/${ADDR}/labels`, 'registry'),
+      ).toEqual({
+        address: ADDR,
+        subpage: 'labels',
+      })
+    })
+
+    it('returns null when the segment does not match', () => {
+      expect(matchContractRoute(`/resolver/${ADDR}`, 'registry')).toBeNull()
+    })
+
+    it('returns null for a non-address contract route', () => {
+      expect(
+        matchContractRoute('/resolver/not-an-address', 'resolver'),
+      ).toBeNull()
+    })
+  })
+
+  describe('isResolverRoute / isRegistryRoute', () => {
+    it('detects resolver routes', () => {
+      expect(isResolverRoute(`/resolver/${ADDR}`)).toBe(true)
+      expect(isResolverRoute(`/resolver/${ADDR}/roles`)).toBe(true)
+      expect(isResolverRoute(`/registry/${ADDR}`)).toBe(false)
+      expect(isResolverRoute('/resolver')).toBe(false)
+    })
+
+    it('detects registry routes', () => {
+      expect(isRegistryRoute(`/registry/${ADDR}`)).toBe(true)
+      expect(isRegistryRoute(`/registry/${ADDR}/labels`)).toBe(true)
+      expect(isRegistryRoute(`/resolver/${ADDR}`)).toBe(false)
     })
   })
 

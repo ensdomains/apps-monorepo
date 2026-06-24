@@ -1,4 +1,5 @@
 import { flexRender, type Table as TableData } from '@tanstack/react-table'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import {
   Table,
   TableBody,
@@ -70,10 +71,7 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
-                className={cn(
-                  'hover:bg-muted',
-                  tableView.strippedRows && 'odd:bg-muted',
-                )}
+                className={stripedRowClassName(tableView.strippedRows)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
