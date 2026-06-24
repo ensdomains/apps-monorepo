@@ -9,8 +9,8 @@ import {
 import { cn } from './lib/utils'
 import { NameFillLineRow } from './NameFillLineRow'
 import {
-  groupCharsByLine,
   type GlyphMetrics,
+  groupCharsByLine,
   lineCountFromMetrics,
   lineRevealRatio,
   measureGlyphMetrics,
@@ -39,7 +39,10 @@ function isGradientFill(fill: string): boolean {
 
 const FILL_CLIP_TRANSITION_MS = 450
 
-function settleDelayMs(animate: boolean, msSinceProgressChange: number): number {
+function settleDelayMs(
+  animate: boolean,
+  msSinceProgressChange: number,
+): number {
   if (!animate) return 0
   return Math.max(
     FILL_CLIP_TRANSITION_MS,

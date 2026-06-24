@@ -13,6 +13,7 @@
     "./WeaveLoader": "./src/WeaveLoader.tsx",
     "./WeaveName": "./src/WeaveName.tsx",
     "./WeaveProgressBar": "./src/WeaveProgressBar.tsx",
+    "./hooks/useRafProgress": "./src/hooks/useRafProgress.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {

@@ -14,8 +14,8 @@ import { RegistrationProgressBar } from './components/RegistrationProgressBar'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 
-const WeaveRegistration = lazy(() =>
-  import('./components/WeaveRegistration').then((m) => ({
+const LazyWeaveRegistration = lazy(() =>
+  import('@/features/weave-registration').then((m) => ({
     default: m.WeaveRegistration,
   })),
 )
@@ -156,7 +156,10 @@ export const RegisteringStep = ({
   useEffect(() => {
     if (!isRegistrationComplete || !sawWeaveFlow || !fillDone) return undefined
 
-    const id = window.setTimeout(() => setExitLoaderReady(true), COMPLETION_BEAT_MS)
+    const id = window.setTimeout(
+      () => setExitLoaderReady(true),
+      COMPLETION_BEAT_MS,
+    )
     return () => window.clearTimeout(id)
   }, [fillDone, isRegistrationComplete, sawWeaveFlow])
 
@@ -178,8 +181,7 @@ export const RegisteringStep = ({
     sawWeaveFlow,
   ])
 
-  const holdForFill =
-    isRegistrationComplete && sawWeaveFlow && !exitLoaderReady
+  const holdForFill = isRegistrationComplete && sawWeaveFlow && !exitLoaderReady
 
   const showCenteredLoader = showWeaveLoader || holdForFill
 
@@ -209,7 +211,7 @@ export const RegisteringStep = ({
     return (
       <div className="flex min-h-[60vh] items-center justify-center px-4 max-md:bg-white">
         <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
-          <WeaveRegistration
+          <LazyWeaveRegistration
             animate={false}
             description={holdForFill ? undefined : stageDescription}
             name={fullName}

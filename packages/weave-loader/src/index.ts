@@ -1,4 +1,14 @@
 export { FilledGlyph, type FilledGlyphProps } from './FilledGlyph'
+export {
+  type UseRafProgressOptions,
+  useRafProgress,
+} from './hooks/useRafProgress'
+export {
+  type CreateRafProgressStoreOptions,
+  createRafProgressStore,
+  type RafProgressAdvance,
+  type RafProgressStore,
+} from './lib/rafProgressStore'
 export { NameFill, type NameFillProps } from './NameFill'
 export {
   HOUNDSTOOTH_SHIMMER_OPTIONS,

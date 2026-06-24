@@ -80,8 +80,7 @@ export function lineRevealRatio(
   for (let index = 0; index < count; index += 1) {
     const width = lineMetrics[index]?.advanceWidth ?? 0
     totalWidth += width
-    filledWidth +=
-      width * charFillFraction(fillPosition, lineStart + index)
+    filledWidth += width * charFillFraction(fillPosition, lineStart + index)
   }
 
   return totalWidth > 0 ? Math.min(1, filledWidth / totalWidth) : 0

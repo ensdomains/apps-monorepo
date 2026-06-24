@@ -406,7 +406,7 @@ msgstr ""
 msgid "Card security code"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Carving your name into the blockchain"
 msgstr ""
 
@@ -983,7 +983,7 @@ msgstr ""
 msgid "Failed to verify email"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Farming aura"
 msgstr ""
 
@@ -1078,7 +1078,7 @@ msgstr ""
 msgid "Grace period"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Growing your corner of the decentralized web"
 msgstr ""
 
@@ -1206,7 +1206,7 @@ msgstr ""
 msgid "Makes crypto addresses human-readable"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Making your name work everywhere"
 msgstr ""
 
@@ -1500,11 +1500,11 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Placing your new identity in your wallet"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Planting your name in the infinite garden"
 msgstr ""
 
@@ -1834,7 +1834,7 @@ msgstr ""
 msgid "Resending email verification for {0}"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Reserving your name"
 msgstr ""
 

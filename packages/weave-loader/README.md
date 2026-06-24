@@ -1,9 +1,10 @@
 # @ens-apps/weave-loader
 
 Standalone weave loader: WebGL woven-fabric shader, animated name fill, and progress
-primitives for ENS apps. The manager registration flow consumes this package from
-`apps/manager/src/features/register-v2/workflow/registering/` (`RegisteringStep.tsx`,
-`components/WeaveRegistration.tsx`, `lib/useForwardProgress.ts`, `lib/weaveSteps.ts`).
+primitives for ENS apps. The manager integration lives in
+`apps/manager/src/features/weave-registration/` (`WeaveRegistration.tsx`,
+`lib/useForwardProgress.ts`, `lib/weaveSteps.ts`), wired from
+`apps/manager/src/features/register-v2/workflow/registering/RegisteringStep.tsx`.
 
 Matches the Figma design (ENS App Beta, node `1209-29493`).
 
@@ -78,7 +79,7 @@ Review feedback on an earlier iteration is addressed as follows:
 | **5. Reduced motion not in live path** | **Fixed.** `WeaveRegistration` calls `usePrefersReducedMotion` and sets `{ shimmer: false, animated: false }` on weave options plus disables `NameFill` animation. |
 | **6. Over-featured production shader** | **Fixed.** Split: `fragment.prod.glsl` for `WeaveCanvas`, full `fragment.glsl` for `WeaveCanvasSandbox` only. |
 | **7. Eager shader bundle** | **Fixed.** `RegisteringStep` lazy-loads `WeaveRegistration` and `WeaveProgressBar` via `React.lazy` + `Suspense` with a lightweight CSS placeholder. |
-| **8. NameFill re-renders every frame** | **Mitigated.** Manager `useForwardProgress` throttles React state to ~30 fps (`EMIT_INTERVAL_MS = 1000/30`). Per-glyph reconciliation remains; profiling a 255-char name on mid-tier mobile before ship is still worthwhile if names that long are common. |
+| **8. NameFill re-renders every frame** | **Mitigated.** Line-based clip updates at rAF cadence (~60 fps). Per-line reconciliation remains; profile long names on mid-tier mobile if 255-char names are common. |
 | **9. Unicode / grapheme handling** | **Fixed.** `segmentGraphemes()` used consistently for measure and render. |
 
 **Intentional cost:** The centered registration square (`JACQUARD_PATTERN6_DYE_BLEED_OPTIONS`)
@@ -86,11 +87,20 @@ runs an animated rAF loop when visible and motion is allowed — colorway bias/n
 animation is the live decorative effect. That is expected; static surfaces (progress bar,
 reduced motion, hidden/off-screen) do not pay continuous GPU time.
 
+## rAF progress store
+
+`lib/rafProgressStore.ts` + `hooks/useRafProgress.ts` — generic subscribe-driven
+scalar animation (no `useEffect`). Pass a pure `advance(context, current, dt)` function;
+the store runs rAF while subscribed and exposes snapshots for `useSyncExternalStore`.
+
+Manager registration uses this via `features/weave-registration/lib/useForwardProgress.ts`
+with registration-specific pacing in `forwardProgressMath.ts`.
+
 ## Progress driver (manager app)
 
-`useForwardProgress` (manager-only) shapes machine stage progress into a monotonic
-display value paced around the commitment cooldown. See that file for band tables and
-speed rules. It feeds both the header bar and `WeaveRegistration`.
+`useForwardProgress` shapes machine stage progress into a monotonic display value paced
+around the commitment cooldown. See `forwardProgressMath.ts` for band tables and speed
+rules. It feeds both the header bar and `WeaveRegistration`.
 
 ## Step copy
 
@@ -99,7 +109,7 @@ This package's `WeaveLoader` accepts pre-resolved `{ label, end }` steps.
 
 ## Stories
 
-Manager Storybook: `Features/RegisterV2/WeaveRegistration` (including completion-hold
+Manager Storybook: `Features/WeaveRegistration/WeaveRegistration` (including completion-hold
 transition stories), `Components/WeaveLoader/*`.
 
 ```bash

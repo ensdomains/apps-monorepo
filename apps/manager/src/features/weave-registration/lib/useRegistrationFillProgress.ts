@@ -1,9 +1,9 @@
-import { useCountdown } from '@/hooks/useCountdown'
-import { RegisterV2Context } from '../../../state/registrationUi.context'
+import { RegisterV2Context } from '@/features/register-v2/state/registrationUi.context'
 import {
   useRegisteringStage,
   useRegistrationStep,
-} from '../../../state/registrationUi.selectors'
+} from '@/features/register-v2/state/registrationUi.selectors'
+import { useCountdown } from '@/hooks/useCountdown'
 import { useForwardProgress } from './useForwardProgress'
 
 const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
@@ -24,7 +24,7 @@ const useMaxProgress = RegisterV2Context.createSelector(
  */
 export function useRegistrationFillProgress(
   sawWeaveFlow: boolean,
-  resetToken: unknown,
+  resetGeneration: number,
 ) {
   const { registrationActor, uiActor, label } = RegisterV2Context.use()
   const registeringTx = useRegisteringTx(registrationActor)
@@ -53,7 +53,7 @@ export function useRegistrationFillProgress(
       runCompletionSweep,
       fullName.length,
       isCooldownActive ? cooldownSeconds : null,
-      resetToken,
+      resetGeneration,
     ),
   }
 }

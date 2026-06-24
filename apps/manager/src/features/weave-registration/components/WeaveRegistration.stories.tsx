@@ -2,14 +2,15 @@ import {
   WEAVE_REGISTRATION_LONG_NAME as LONG_NAME,
   JACQUARD_PATTERN6_DYE_BLEED_OPTIONS as LONG_NAME_WEAVE_OPTIONS,
 } from '@ens-apps/weave-loader'
+import { useRafProgress } from '@ens-apps/weave-loader/hooks/useRafProgress'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useEffect, useRef, useState } from 'react'
-import { REGISTRATION_STAGE_PROGRESS } from '../../../state/registration.stages'
+import { REGISTRATION_STAGE_PROGRESS } from '@/features/register-v2/state/registration.stages'
 import { useForwardProgress } from '../lib/useForwardProgress'
 import { WeaveRegistration } from './WeaveRegistration'
 
 const meta = {
-  title: 'Features/RegisterV2/WeaveRegistration',
+  title: 'Features/WeaveRegistration/WeaveRegistration',
   component: WeaveRegistration,
   parameters: { layout: 'fullscreen' },
   tags: ['autodocs'],
@@ -59,23 +60,25 @@ export const LongName: Story = {
   },
 }
 
+const ANIMATED_REGISTRATION_MS = 12_000
+
 export const AnimatedRegistration: Story = {
   render: (args) => {
-    const [progress, setProgress] = useState(0)
-    const startRef = useRef<number | null>(null)
-    useEffect(() => {
-      const DURATION = 12000
-      let raf = 0
-      const tick = (now: number) => {
-        if (startRef.current === null) startRef.current = now
-        const t = Math.min(1, (now - startRef.current) / DURATION)
-        const eased = 1 - (1 - t) ** 2
-        setProgress(Math.round(eased * 100))
-        if (t < 1) raf = requestAnimationFrame(tick)
-      }
-      raf = requestAnimationFrame(tick)
-      return () => cancelAnimationFrame(raf)
-    }, [])
+    const timingRef = useRef({
+      start: performance.now(),
+      duration: ANIMATED_REGISTRATION_MS,
+    })
+
+    const progress = useRafProgress({
+      advance: (_ctx, _current, _dt) => {
+        const { start, duration } = timingRef.current
+        const t = Math.min(1, (performance.now() - start) / duration)
+        return (1 - (1 - t) ** 2) * 100
+      },
+      context: timingRef.current,
+      snap: (value) => Math.round(value),
+    })
+
     return <WeaveRegistration {...args} progress={progress} />
   },
 }
@@ -95,6 +98,39 @@ const STAGE_SEQUENCE = [
 
 const COOLDOWN_DEMO_SECONDS = 8
 
+function tickForwardProgressStage(
+  stageIndex: number,
+  cooldown: number | null,
+  cooldownSeconds: number,
+):
+  | { done: true; cooldownLeft: null }
+  | {
+      done?: false
+      stageIndex: number
+      cooldown: number | null
+      cooldownLeft?: number | null
+    } {
+  if (
+    STAGE_SEQUENCE[stageIndex] ===
+    REGISTRATION_STAGE_PROGRESS.commitmentCooldown
+  ) {
+    const nextCooldown = (cooldown ?? cooldownSeconds) - 1
+    if (nextCooldown > 0) {
+      return {
+        stageIndex,
+        cooldown: nextCooldown,
+        cooldownLeft: nextCooldown,
+      }
+    }
+  }
+
+  if (stageIndex + 1 >= STAGE_SEQUENCE.length) {
+    return { done: true, cooldownLeft: null }
+  }
+
+  return { stageIndex: stageIndex + 1, cooldown: null }
+}
+
 const LiveForwardProgressDemo = (
   args: React.ComponentProps<typeof WeaveRegistration>,
 ) => {
@@ -105,21 +141,23 @@ const LiveForwardProgressDemo = (
     let i = 0
     let cooldown: number | null = null
     const interval = setInterval(() => {
-      if (
-        STAGE_SEQUENCE[i] === REGISTRATION_STAGE_PROGRESS.commitmentCooldown
-      ) {
-        if (cooldown === null) cooldown = COOLDOWN_DEMO_SECONDS
-        cooldown -= 1
-        setCooldownLeft(cooldown > 0 ? cooldown : null)
-        if (cooldown > 0) return
-      }
-      if (i + 1 >= STAGE_SEQUENCE.length) {
+      const result = tickForwardProgressStage(
+        i,
+        cooldown,
+        COOLDOWN_DEMO_SECONDS,
+      )
+      if (result.done) {
         clearInterval(interval)
         setCooldownLeft(null)
         setIsComplete(true)
         return
       }
-      i += 1
+      i = result.stageIndex
+      cooldown = result.cooldown
+      if (result.cooldownLeft !== undefined) {
+        setCooldownLeft(result.cooldownLeft)
+        return
+      }
       setStageIndex(i)
     }, 1000)
     return () => clearInterval(interval)
@@ -192,7 +230,11 @@ const RegisteringCompletionHoldDemo = ({
         {exitReady ? ' — showing details' : ''}
       </p>
       {showCenteredLoader ? (
-        <WeaveRegistration animate={false} name={name} progress={fillProgress} />
+        <WeaveRegistration
+          animate={false}
+          name={name}
+          progress={fillProgress}
+        />
       ) : (
         <div className="w-full max-w-2xl space-y-4 rounded-xl border border-ens-gray-two p-6">
           <p className="font-medium text-ens-blue text-lg">

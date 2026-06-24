@@ -401,7 +401,7 @@ msgstr "Card number"
 msgid "Card security code"
 msgstr "Card security code"
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Carving your name into the blockchain"
 msgstr "Carving your name into the blockchain"
 
@@ -978,7 +978,7 @@ msgstr "Failed to update preferences"
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Farming aura"
 msgstr "Farming aura"
 
@@ -1073,7 +1073,7 @@ msgstr "Go to slide {0}"
 msgid "Grace period"
 msgstr "Grace period"
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Growing your corner of the decentralized web"
 msgstr "Growing your corner of the decentralized web"
 
@@ -1201,7 +1201,7 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Making your name work everywhere"
 msgstr "Making your name work everywhere"
 
@@ -1495,11 +1495,11 @@ msgstr "people have favorited this name"
 msgid "Permission missing. Please try again."
 msgstr "Permission missing. Please try again."
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Placing your new identity in your wallet"
 msgstr "Placing your new identity in your wallet"
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Planting your name in the infinite garden"
 msgstr "Planting your name in the infinite garden"
 
@@ -1829,7 +1829,7 @@ msgstr "Resending email verification"
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
 
-#: src/features/register-v2/workflow/registering/lib/weaveSteps.ts
+#: src/features/weave-registration/lib/weaveSteps.ts
 msgid "Reserving your name"
 msgstr "Reserving your name"
 

@@ -17,7 +17,7 @@ import {
   useRegistrationStep,
   useRegistrationV2Context,
 } from '@/features/register-v2'
-import { useRegistrationFillProgress } from '@/features/register-v2/workflow/registering/lib/useRegistrationFillProgress'
+import { useRegistrationFillProgress } from '@/features/weave-registration'
 
 export const Route = createFileRoute('/register/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -61,7 +61,7 @@ function RouteComponent() {
 
   return (
     <RegistrationV2UiProvider label={label}>
-      <PageContent />
+      <PageContent key={label} />
     </RegistrationV2UiProvider>
   )
 }
@@ -90,7 +90,7 @@ function resetWeaveFlowState(
 }
 
 function PageContent() {
-  const { uiActor, label } = useRegistrationV2Context()
+  const { uiActor } = useRegistrationV2Context()
   const step = useRegistrationStep(uiActor)
   const sawWeaveFlowRef = useRef(false)
   const [sawWeaveFlow, setSawWeaveFlow] = useState(false)
@@ -103,18 +103,21 @@ function PageContent() {
   }, [])
 
   useEffect(() => {
-    resetWeaveFlowState(sawWeaveFlowRef, setSawWeaveFlow, setCompletionAnimationDone)
-    bumpFillGeneration()
-  }, [label, bumpFillGeneration])
-
-  useEffect(() => {
     const prevStep = prevStepRef.current
     if (step === 'registering' && prevStep !== 'registering') {
-      resetWeaveFlowState(sawWeaveFlowRef, setSawWeaveFlow, setCompletionAnimationDone)
+      resetWeaveFlowState(
+        sawWeaveFlowRef,
+        setSawWeaveFlow,
+        setCompletionAnimationDone,
+      )
       bumpFillGeneration()
     }
     if (step === 'pricing' && prevStep !== 'pricing') {
-      resetWeaveFlowState(sawWeaveFlowRef, setSawWeaveFlow, setCompletionAnimationDone)
+      resetWeaveFlowState(
+        sawWeaveFlowRef,
+        setSawWeaveFlow,
+        setCompletionAnimationDone,
+      )
       bumpFillGeneration()
     }
     prevStepRef.current = step
@@ -126,13 +129,14 @@ function PageContent() {
     setSawWeaveFlow(true)
   }, [])
 
-  const { progress: fillProgress, fillDone, isRegistrationComplete } =
-    useRegistrationFillProgress(sawWeaveFlow, fillGeneration)
+  const {
+    progress: fillProgress,
+    fillDone,
+    isRegistrationComplete,
+  } = useRegistrationFillProgress(sawWeaveFlow, fillGeneration)
 
   const showRegisteringCompletion =
-    step === 'success' &&
-    sawWeaveFlowRef.current &&
-    !completionAnimationDone
+    step === 'success' && sawWeaveFlowRef.current && !completionAnimationDone
 
   if (step === 'registering' || showRegisteringCompletion) {
     return (
