@@ -1,6 +1,8 @@
 import type React from 'react'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { AvatarNft } from '@/features/profile/service/profileNfts'
+import { safeImageSrc } from '@/features/profile/utils/safeUrl'
 import { cn } from '@/lib/utils'
 import {
   fieldShellClassName,
@@ -82,7 +84,7 @@ const NftStepPanel = ({
 }: Pick<ImagePickerPanelProps, 'backDisabled' | 'children' | 'onBack'>) => (
   <ImagePickerPanel
     backDisabled={backDisabled}
-    className="min-h-[340px] overflow-hidden p-1.5"
+    className="min-h-85 overflow-hidden p-1.5"
     contentClassName="gap-3 pt-4"
     onBack={onBack}
   >
@@ -169,31 +171,36 @@ export const ManualPreviewStep = ({
   onBack,
   onImageError,
   onUseImage,
-}: ManualPreviewStepProps) => (
-  <StepPanel backDisabled={disabled} onBack={onBack}>
-    <p className="text-base text-ens-quartz-500 leading-ens-normal">
-      Preview image
-    </p>
-    <img
-      alt="Manual URL preview"
-      className={editPreviewClassName(kind)}
-      onError={onImageError}
-      src={manualUrl}
-    />
-    <button
-      className={cn(
-        'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
-        focusVisibleRingClassName,
-      )}
-      disabled={disabled}
-      onClick={onUseImage}
-      type="button"
-    >
-      Use image
-    </button>
-    <ErrorMessage error={error} />
-  </StepPanel>
-)
+}: ManualPreviewStepProps) => {
+  const src = safeImageSrc(manualUrl)
+  return (
+    <StepPanel backDisabled={disabled} onBack={onBack}>
+      <p className="text-base text-ens-quartz-500 leading-ens-normal">
+        Preview image
+      </p>
+      {src ? (
+        <img
+          alt="Manual URL preview"
+          className={editPreviewClassName(kind)}
+          onError={onImageError}
+          src={src}
+        />
+      ) : null}
+      <button
+        className={cn(
+          'flex h-10 items-center justify-center rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+          focusVisibleRingClassName,
+        )}
+        disabled={disabled}
+        onClick={onUseImage}
+        type="button"
+      >
+        Use image
+      </button>
+      <ErrorMessage error={error} />
+    </StepPanel>
+  )
+}
 
 interface NftSelectionStepProps {
   readonly disabled?: boolean
@@ -222,7 +229,7 @@ export const NftSelectionStep = ({
     ? 'No NFTs match your search.'
     : 'No NFTs found for this wallet on this network.'
   const nftStatusClassName =
-    'flex min-h-32 w-full max-w-[540px] items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed p-4 text-center text-ens-quartz-400 text-xs leading-ens-normal'
+    'flex min-h-32 w-full max-w-135 items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed p-4 text-center text-ens-quartz-400 text-xs leading-ens-normal'
   const renderNftContent = () => {
     if (!nftOwnerAddress) {
       return (
@@ -241,11 +248,11 @@ export const NftSelectionStep = ({
     }
 
     return (
-      <div className="flex max-h-[232px] w-full max-w-[540px] flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
+      <div className="flex max-h-58 w-full max-w-135 flex-wrap items-start justify-center gap-x-4 gap-y-5 overflow-y-auto px-2 pt-3">
         {nfts.map((nft) => (
           <button
             className={cn(
-              'w-[74px] rounded-sm text-center transition-opacity hover:opacity-80 disabled:pointer-events-none disabled:opacity-50',
+              'w-18.5 rounded-sm text-center transition-opacity hover:opacity-80 disabled:pointer-events-none disabled:opacity-50',
               focusVisibleRingClassName,
             )}
             disabled={disabled}
@@ -255,15 +262,12 @@ export const NftSelectionStep = ({
           >
             <DisplayImage
               alt={nft.name}
-              className="mx-auto size-[74px] rounded-md object-cover"
+              className="mx-auto size-18.5 rounded-md object-cover"
               fallback={
-                <div className="mx-auto flex size-[74px] items-center justify-center rounded-md bg-ens-quartz-100 text-ens-quartz-400">
-                  <MSymbol
-                    aria-hidden="true"
-                    style={{ fontSize: 24 }}
-                    symbol="face"
-                  />
-                </div>
+                <PatternAvatar
+                  className="mx-auto size-18.5 rounded-md border-none bg-transparent p-0 shadow-none"
+                  name={nft.name}
+                />
               }
               src={nft.image}
             />
@@ -283,7 +287,7 @@ export const NftSelectionStep = ({
       </p>
       <div
         className={cn(
-          'flex h-9 w-full max-w-[368px] items-center gap-2 rounded-full bg-ens-quartz-50 px-3 text-ens-quartz-400 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-ens-lapis-500',
+          'flex h-9 w-full max-w-92 items-center gap-2 rounded-full bg-ens-quartz-50 px-3 text-ens-quartz-400 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-ens-lapis-500',
           focusVisibleRingClassName,
         )}
       >
@@ -327,13 +331,10 @@ export const NftConfirmationStep = ({
         alt={nft.name}
         className="size-50 rounded-md object-cover"
         fallback={
-          <div className="flex size-50 items-center justify-center rounded-md bg-ens-quartz-100 text-ens-quartz-400">
-            <MSymbol
-              aria-hidden="true"
-              style={{ fontSize: 36 }}
-              symbol="face"
-            />
-          </div>
+          <PatternAvatar
+            className="size-50 rounded-md border-none bg-transparent p-0 shadow-none"
+            name={nft.name}
+          />
         }
         src={nft.image}
       />
@@ -364,6 +365,7 @@ interface RemoveConfirmationStepProps {
   readonly disabled?: boolean
   readonly displayImage?: string | null
   readonly kind: ProfileImageKind
+  readonly name: string
   readonly onBack: () => void
   readonly onConfirm: () => void
 }
@@ -372,6 +374,7 @@ export const RemoveConfirmationStep = ({
   disabled,
   displayImage,
   kind,
+  name,
   onBack,
   onConfirm,
 }: RemoveConfirmationStepProps) => (
@@ -388,13 +391,20 @@ export const RemoveConfirmationStep = ({
           'object-cover',
         )}
         fallback={
-          <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
-            <MSymbol
-              aria-hidden="true"
-              style={{ fontSize: 28 }}
-              symbol={kind === 'avatar' ? 'face' : 'wall_art'}
+          kind === 'avatar' ? (
+            <PatternAvatar
+              className="size-25 rounded-xl border-none bg-transparent p-0 shadow-none"
+              name={name}
             />
-          </div>
+          ) : (
+            <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
+              <MSymbol
+                aria-hidden="true"
+                style={{ fontSize: 28 }}
+                symbol="wall_art"
+              />
+            </div>
+          )
         }
         src={displayImage}
       />
@@ -409,7 +419,14 @@ export const RemoveConfirmationStep = ({
           kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
           'bg-ens-quartz-100',
         )}
-      />
+      >
+        {kind === 'avatar' ? (
+          <PatternAvatar
+            className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
+            name={name}
+          />
+        ) : null}
+      </div>
     </div>
     <div className="flex items-center gap-3">
       <button

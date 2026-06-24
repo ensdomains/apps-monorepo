@@ -15,6 +15,7 @@ import { EditProfileDialogHeader } from './EditProfileDialogHeader'
 import { EditProfileDialogTabs } from './EditProfileDialogTabs'
 import { getAddressValidationIssues } from './tabs/addresses/AddressesTab.helpers'
 import { getContactValidationIssues } from './tabs/contact/records'
+import { getGeneralValidationIssues } from './tabs/general/fields'
 import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface EditProfileDialogBodyProps {
@@ -87,11 +88,14 @@ export const EditProfileDialogBody = withForm({
             hasDraftLinkValidationIssues
           const hasContactValidationIssues =
             getContactValidationIssues(values).length > 0
+          const hasGeneralValidationIssues =
+            getGeneralValidationIssues(values).length > 0
           const canSaveProfile =
             (hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
             !isFinalizingImageSave &&
             !hasAddressValidationIssues &&
+            !hasGeneralValidationIssues &&
             !hasLinkValidationIssues &&
             !hasContactValidationIssues
           const handleBaseChange = (base: ProfileRecords['base']) => {

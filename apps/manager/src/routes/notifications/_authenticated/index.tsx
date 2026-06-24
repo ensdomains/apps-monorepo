@@ -120,7 +120,7 @@ export const AllNotificationsPage = () => {
             <MSymbol className="ms-opsz-24 ms-wght-200" symbol="search" />
           </InputGroupAddon>
         </InputGroup>
-        <div className="-mx-8 sm:-mx-6 overflow-x-auto px-8 [scrollbar-width:none] sm:px-6 [&::-webkit-scrollbar]:hidden">
+        <div className="-mx-8 overflow-x-auto px-8 [scrollbar-width:none] sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max gap-4">
             <FilterBadge
               active={selectedTag === 'all'}

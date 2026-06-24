@@ -32,7 +32,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
         ))}
       </TableRow>
       {row.getIsExpanded() &&
-        row.original.events.map((event, eventIndex) => {
+        row.original.events.map((event, index) => {
           // First try to extract address from event details (for V1 events with owner/registrant/newOwner)
           // Fall back to the transaction's from address (for V2 events)
           const eventDetails = event.details as Record<string, unknown>
@@ -45,7 +45,8 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 
           return (
             <TableRow
-              key={`${row.original.transactionID}-${event.id}-${eventIndex}`}
+              // biome-ignore lint/suspicious/noArrayIndexKey: multiple events can share an id within one transaction, so transactionID-event.id is not guaranteed unique; the index disambiguates same-id siblings
+              key={`${row.original.transactionID}-${event.id}-${index}`}
               className="hover:bg-muted"
             >
               <TableCell colSpan={2} className={cellClassName} />

@@ -28,6 +28,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 import type { ProtocolVersion } from '@/utils/types'
 
 const getClient = () => wagmiConfig.getClient()
@@ -212,7 +213,7 @@ const CreateSubnameForm = ({
           create subnames.
         </p>
         <Button asChild variant="default" className="w-fit">
-          <Link to="/$name/deploy-registry" params={{ name }}>
+          <Link to="/$name/registry" params={{ name }}>
             Deploy subregistry
           </Link>
         </Button>
@@ -256,10 +257,9 @@ const CreateSubnameForm = ({
             value={ownerInput}
             required
             disabled={isSubmitting || isSuccess}
-            pattern="(?:[\u002DA-Za-z0-9]+[.][A-Za-z]+|0x[a-fA-F0-9]{40})"
             onChange={(e) => {
               hasUserEditedOwner.current = true
-              const value = e.target.value
+              const value = e.target.value.trim()
               setOwnerInput(value)
               setResolveError(null)
 
@@ -267,7 +267,7 @@ const CreateSubnameForm = ({
                 clearTimeout(resolveTimeoutRef.current)
               }
 
-              if (e.currentTarget.checkValidity()) {
+              if (isNameOrAddress(value)) {
                 if (isAddress(value)) {
                   setOwnerAddress(value)
                   setIsResolving(false)

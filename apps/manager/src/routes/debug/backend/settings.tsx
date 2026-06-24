@@ -37,9 +37,9 @@ const resolveBaseUrlForDisplay = (baseUrl: string) => {
   const resolved = baseUrl.startsWith('/')
     ? new URL(
         baseUrl,
-        typeof window !== 'undefined'
-          ? window.location.origin
-          : 'http://localhost',
+        typeof window === 'undefined'
+          ? 'http://localhost'
+          : window.location.origin,
       )
     : new URL(baseUrl)
 

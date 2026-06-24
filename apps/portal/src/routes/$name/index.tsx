@@ -224,7 +224,7 @@ const Profile = ({
     // owner can renew before the window closes.
     if (grace.isInGrace && grace.graceEndDate) {
       return (
-        <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+        <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
           <GraceBanner
             graceEndDate={grace.graceEndDate}
             protocolVersion="ENSv2"
@@ -280,7 +280,7 @@ const Profile = ({
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
   return (
-    <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
       {registrationBanner && (
         <RegistrationSuccessBanner name={name} {...registrationBanner} />
       )}

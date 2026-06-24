@@ -104,7 +104,7 @@ export const ProfileCard = ({
       >
         <img
           alt={name}
-          className={tw`-bottom-1/2 absolute left-5 size-32 rounded-full border-4 ${COLOR_VARIANTS[variant].border}`}
+          className={tw`absolute -bottom-1/2 left-5 size-32 rounded-full border-4 ${COLOR_VARIANTS[variant].border}`}
           src={avatarUrl}
         />
       </div>

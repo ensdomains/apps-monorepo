@@ -94,7 +94,7 @@ export const mergeMulticallResultsIntoProfiles = (params: {
   const { buckets, calls, results } = params
   for (const [i, call] of calls.entries()) {
     const res = results[i]
-    if (!res || res.status !== 'success') continue
+    if (res?.status !== 'success') continue
     const bucket = buckets.get(profileMapKey(call.name.nodeHex))
     if (!bucket) continue
     if (call.kind === 'text') {

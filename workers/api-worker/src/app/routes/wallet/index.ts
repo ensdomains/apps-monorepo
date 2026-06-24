@@ -70,7 +70,7 @@ const MINT_ABI = [
 ] as const
 
 const createWalletClient = (privateKey: string | undefined) => {
-  if (!privateKey || !privateKey.startsWith('0x')) {
+  if (!privateKey?.startsWith('0x')) {
     throw new HTTPException(500, {
       message: 'Server is not configured to fund wallets',
     })

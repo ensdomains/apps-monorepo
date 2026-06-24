@@ -48,7 +48,7 @@ export const DomainResultCard = ({
     'bg-ens-white',
     'rounded-sm',
     'shadow-lg transition',
-    clickable && 'hover:-translate-y-0.5 cursor-pointer hover:shadow-xl',
+    clickable && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-xl',
     className,
   )
 

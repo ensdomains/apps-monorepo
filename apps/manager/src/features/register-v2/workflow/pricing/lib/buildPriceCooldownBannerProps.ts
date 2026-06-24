@@ -1,4 +1,3 @@
-import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { SECONDS_IN_YEAR } from '../../../utils/time'
 import type {
@@ -6,7 +5,6 @@ import type {
   PriceCooldownInfo,
 } from '../components/PriceCooldownBanner/types'
 import { formatPremiumDateTimeLocal } from './formatPremiumDateTime'
-import { ORACLE_PRICE_DECIMALS } from './oracle'
 import {
   getPremiumInstantRange,
   getPremiumPeriodDays,
@@ -16,8 +14,17 @@ import {
 
 export type BuildPriceCooldownBannerInput = {
   premiumUsd: number
-  baseRatePerSecond: bigint
+  /** Base registration cost per year (USD), from `getRegisterPrice` — same source as pricing UI. */
+  basePricePerYearUsd: number
   premiumDecay: PremiumDecayConfig
+}
+
+export function basePricePerYearFromDurationTotal(
+  basePriceUsd: number,
+  durationSeconds: number,
+): number {
+  if (durationSeconds <= 0) return 0
+  return basePriceUsd / (durationSeconds / SECONDS_IN_YEAR)
 }
 
 export type BuildPriceCooldownBannerResult = {
@@ -34,7 +41,7 @@ export type BuildPriceCooldownBannerResult = {
 
 export function buildPriceCooldownBannerProps({
   premiumUsd,
-  baseRatePerSecond,
+  basePricePerYearUsd,
   premiumDecay,
 }: BuildPriceCooldownBannerInput): BuildPriceCooldownBannerResult | null {
   if (premiumUsd <= 0) return null
@@ -46,11 +53,6 @@ export function buildPriceCooldownBannerProps({
   )
   if (!premiumRange) return null
 
-  const basePricePerYearUsd = decimalBigintToNumber(
-    baseRatePerSecond * BigInt(SECONDS_IN_YEAR),
-    ORACLE_PRICE_DECIMALS,
-  )
-
   const periodDays = getPremiumPeriodDays(premiumDecay)
 
   return {
@@ -59,7 +61,7 @@ export function buildPriceCooldownBannerProps({
     premiumDecay,
     props: {
       fees: {
-        basePricePerYearLabel: `${formatUsd(Math.ceil(basePricePerYearUsd))}/year`,
+        basePricePerYearLabel: `${formatUsd(basePricePerYearUsd)}/year`,
         currentPremiumLabel: formatUsd(premiumUsd),
       },
       cooldown: {

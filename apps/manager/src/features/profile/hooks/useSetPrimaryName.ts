@@ -13,6 +13,11 @@ export interface SetPrimaryNameArgs {
   owner?: Address
 }
 
+export interface UseSetPrimaryNameOptions {
+  /** Run once the primary-name update settles successfully. */
+  onSuccess?: () => void
+}
+
 export interface UseSetPrimaryNameResult {
   /** Submit the primary-name update. Rejects on validation or transaction error. */
   submit: (args: SetPrimaryNameArgs) => Promise<void>
@@ -28,9 +33,13 @@ export interface UseSetPrimaryNameResult {
 /**
  * Drives the primary-name update through the transaction manager (replacing
  * primaryNameMachine). Exposes react-query mutation state for the UI and tracks
- * the current transaction hash via a selector on the tx actor.
+ * the current transaction hash via a selector on the tx actor. Success handling
+ * (toast, cache invalidation, closing the dialog) belongs in `onSuccess`, not a
+ * `useEffect` watching `isSuccess`.
  */
-export function useSetPrimaryName(): UseSetPrimaryNameResult {
+export function useSetPrimaryName(
+  options?: UseSetPrimaryNameOptions,
+): UseSetPrimaryNameResult {
   const account = useSmartAccountContext()
   const chainId = useChainId()
   const [txId, setTxId] = useState<string | undefined>()
@@ -39,6 +48,7 @@ export function useSetPrimaryName(): UseSetPrimaryNameResult {
   const txHash = useSelector(txActor, (snapshot) => snapshot?.context.hash)
 
   const mutation = useMutation({
+    onSuccess: options?.onSuccess,
     mutationFn: async ({ name, owner }: SetPrimaryNameArgs) => {
       if (!owner) {
         throw new Error('Cannot set primary name - ENS owner is not available.')

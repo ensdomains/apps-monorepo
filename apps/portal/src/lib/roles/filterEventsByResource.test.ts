@@ -71,6 +71,16 @@ describe('filterEventsByResource', () => {
     expect(result).toHaveLength(1)
   })
 
+  it('should match ROOT_RESOURCE regardless of zero-padding', () => {
+    // Indexer emits the root resource as "0x0"; callers filter with the
+    // 32-byte-padded zero. They're the same uint256 and must match.
+    const paddedRoot = `0x${'0'.repeat(64)}`
+    const events = [makeEvent({ resource: '0x0' })]
+    const result = filterEventsByResource(events, paddedRoot)
+
+    expect(result).toHaveLength(1)
+  })
+
   it('should sort by most recent block first', () => {
     const events = [
       makeEvent({ blockNumber: 50 }),

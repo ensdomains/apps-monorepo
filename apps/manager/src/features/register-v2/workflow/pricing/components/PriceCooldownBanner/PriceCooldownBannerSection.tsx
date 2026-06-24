@@ -2,13 +2,15 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useMemo, useRef } from 'react'
-import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
 import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
-import { buildPriceCooldownBannerProps } from '../../lib/buildPriceCooldownBannerProps'
+import {
+  basePricePerYearFromDurationTotal,
+  buildPriceCooldownBannerProps,
+} from '../../lib/buildPriceCooldownBannerProps'
 import { getPremiumPriceAtInstant } from '../../lib/premiumDecay'
 import {
   PREMIUM_DURATION_MS,
@@ -19,7 +21,6 @@ import { useTickingNowMs } from './useTickingNowMs'
 
 export const PriceCooldownBannerSection = () => {
   const { uiActor, label } = useRegistrationV2Context()
-  const baseRate = useBaseRate(label)
 
   const duration = useSelector(uiActor, (state) => state.context.duration)
 
@@ -27,6 +28,7 @@ export const PriceCooldownBannerSection = () => {
     ...getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     select: (data) => ({
       premiumUsd: decimalBigintToNumber(data.premium, TOKENS.USDC.decimals),
+      basePriceUsd: decimalBigintToNumber(data.basePrice, TOKENS.USDC.decimals),
     }),
     placeholderData: keepPreviousData,
   })
@@ -39,10 +41,13 @@ export const PriceCooldownBannerSection = () => {
 
     return buildPriceCooldownBannerProps({
       premiumUsd: pricingQuery.data.premiumUsd,
-      baseRatePerSecond: baseRate,
+      basePricePerYearUsd: basePricePerYearFromDurationTotal(
+        pricingQuery.data.basePriceUsd,
+        duration,
+      ),
       premiumDecay,
     })
-  }, [oracleQuery.data?.premiumDecay, pricingQuery.data, baseRate])
+  }, [oracleQuery.data?.premiumDecay, pricingQuery.data, duration])
 
   // Anchor the back-solved start date once per (label, duration), and only from
   // fresh (non-placeholder) data. `getPremiumInstantRange` back-solves startMs

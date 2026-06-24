@@ -3,6 +3,7 @@ import { type Address, checksumAddress, isAddress } from 'viem'
 import { AddrSidebar } from '@/components/AddrSidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageContainer } from '@/components/PageContainer'
 import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
@@ -24,7 +25,9 @@ function RouteComponent() {
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <SepoliaNoticeBanner />
-        <Outlet />
+        <PageContainer>
+          <Outlet />
+        </PageContainer>
       </SidebarInset>
     </SidebarProvider>
   )

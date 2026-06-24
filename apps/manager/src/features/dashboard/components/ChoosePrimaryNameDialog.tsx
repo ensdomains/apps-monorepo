@@ -24,18 +24,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import {
-  getEthAddressFromRecords,
-  hasMatchingEthAddress,
-} from '@/features/profile/components/ProfileEdit.handlers'
-import { saveRecords } from '@/features/profile/components/ProfileEdit.transactions'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
-import {
-  type AvatarLookupEntry,
-  namesAvatarsQuery,
-} from '@/features/profile/service/profileAvatar'
+import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import {
   type SmartAccountContextValue,
@@ -44,6 +37,10 @@ import {
 import { publicClient } from '@/lib/wagmi'
 import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
+import {
+  getEthAddressFromRecords,
+  hasMatchingEthAddress,
+} from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
   readonly onUpdated?: () => void
@@ -68,20 +65,18 @@ const PrimaryNameSkeletonList = () => (
 const PrimaryNameOption = ({
   domain,
   selectedName,
-  avatarsByName,
   isSubmitting,
   onSelectName,
 }: {
   readonly domain: PrimaryNameDomain
   readonly selectedName: string | null
-  readonly avatarsByName?: Record<string, string | undefined>
   readonly isSubmitting: boolean
   readonly onSelectName: (name: string) => void
 }) => {
   const { t } = useLingui()
   const label = resolveDomainLabel(domain)
   const isSelected = selectedName === label
-  const avatarUrl = avatarsByName?.[label]
+  const avatarUrl = buildNameAvatarUrl(label)
 
   return (
     <button
@@ -216,33 +211,6 @@ const getPrimaryNameQueryVariables = (
   }
 }
 
-interface UsePrimaryNameSuccessEffectParams {
-  readonly isSuccess: boolean
-  readonly onUpdated?: () => void
-  readonly setOpen: (open: boolean) => void
-  readonly queryClient: ReturnType<typeof useQueryClient>
-  readonly reset: () => void
-}
-
-const usePrimaryNameSuccessEffect = (
-  params: UsePrimaryNameSuccessEffectParams,
-) => {
-  const { t } = useLingui()
-  const { isSuccess, onUpdated, setOpen, queryClient, reset } = params
-
-  useEffect(() => {
-    if (!isSuccess) return
-
-    toast.success(t`Primary name set successfully`)
-    queryClient.invalidateQueries({
-      queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
-    })
-    setOpen(false)
-    onUpdated?.()
-    reset()
-  }, [isSuccess, onUpdated, setOpen, queryClient, reset, t])
-}
-
 export const ChoosePrimaryNameDialog = ({
   onUpdated,
   children,
@@ -258,11 +226,18 @@ export const ChoosePrimaryNameDialog = ({
   const {
     submit: submitPrimaryName,
     isSubmitting,
-    isSuccess,
     isError,
     error: primaryNameError,
-    reset: resetPrimaryName,
-  } = useSetPrimaryName()
+  } = useSetPrimaryName({
+    onSuccess: () => {
+      toast.success(t`Primary name set successfully`)
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+      })
+      setOpen(false)
+      onUpdated?.()
+    },
+  })
 
   const primaryNameErrorMessage =
     (isError && (primaryNameError?.message || t`Failed to set primary name`)) ||
@@ -298,17 +273,6 @@ export const ChoosePrimaryNameDialog = ({
     [allDomains, reverseName],
   )
 
-  const avatarLookups = useMemo<AvatarLookupEntry[]>(() => {
-    if (!open) return []
-    return domains.flatMap((domain) => {
-      const resolverAddress = domain.resolver?.address as Address | undefined
-      if (!resolverAddress) return []
-      return [{ name: resolveDomainLabel(domain), resolverAddress }]
-    })
-  }, [open, domains])
-
-  const { data: avatarsByName } = useQuery(namesAvatarsQuery(avatarLookups))
-
   const { data: selectedNameRecords, isLoading: isLoadingRecords } = useQuery({
     ...profileRecordsQuery(selectedName ?? ''),
     enabled: open && !!selectedName,
@@ -333,14 +297,6 @@ export const ChoosePrimaryNameDialog = ({
       setSelectedName(reverseName)
     }
   }, [reverseName, selectedName])
-
-  usePrimaryNameSuccessEffect({
-    isSuccess,
-    onUpdated,
-    setOpen,
-    queryClient,
-    reset: resetPrimaryName,
-  })
 
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
@@ -410,7 +366,6 @@ export const ChoosePrimaryNameDialog = ({
               .otherwise(({ domains }) =>
                 domains.map((domain) => (
                   <PrimaryNameOption
-                    avatarsByName={avatarsByName}
                     domain={domain}
                     isSubmitting={isSubmitting}
                     key={domain.id}
