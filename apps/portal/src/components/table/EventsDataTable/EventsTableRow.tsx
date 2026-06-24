@@ -1,6 +1,7 @@
 import { flexRender, type Row } from '@tanstack/react-table'
 import type { Address } from 'viem'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { TableCell, TableRow } from '@/components/ui/table'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
@@ -16,12 +17,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 
   return (
     <>
-      <TableRow
-        className={cn(
-          'hover:bg-muted',
-          tableView.strippedRows && 'odd:bg-muted',
-        )}
-      >
+      <TableRow className={stripedRowClassName(tableView.strippedRows)}>
         {row.getVisibleCells().map((cell) => (
           <TableCell
             key={cell.id}
@@ -47,7 +43,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
             <TableRow
               // biome-ignore lint/suspicious/noArrayIndexKey: multiple events can share an id within one transaction, so transactionID-event.id is not guaranteed unique; the index disambiguates same-id siblings
               key={`${row.original.transactionID}-${event.id}-${index}`}
-              className="hover:bg-muted"
+              className={stripedRowClassName(false)}
             >
               <TableCell colSpan={2} className={cellClassName} />
 
