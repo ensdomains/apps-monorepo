@@ -24,6 +24,69 @@ export function charFillFraction(fillPosition: number, index: number): number {
   return Math.max(0, Math.min(1, fillPosition - index))
 }
 
+export type LineGroup = {
+  lineIndex: number
+  startCharIndex: number
+  charCount: number
+  text: string
+}
+
+/** Group measured glyphs into wrapped lines for line-based fill reveal. */
+export function groupCharsByLine(
+  chars: string[],
+  metrics: GlyphMetrics[],
+): LineGroup[] {
+  if (metrics.length === 0) return []
+
+  const lines: LineGroup[] = []
+  let lineStart = 0
+  let currentLine = metrics[0]?.lineIndex ?? 0
+
+  for (let index = 1; index <= metrics.length; index += 1) {
+    const nextLine = index < metrics.length ? metrics[index]?.lineIndex : -1
+    if (index === metrics.length || nextLine !== currentLine) {
+      lines.push({
+        lineIndex: currentLine,
+        startCharIndex: lineStart,
+        charCount: index - lineStart,
+        text: chars.slice(lineStart, index).join(''),
+      })
+      lineStart = index
+      if (index < metrics.length && nextLine !== undefined) {
+        currentLine = nextLine
+      }
+    }
+  }
+
+  return lines
+}
+
+/**
+ * 0–1 horizontal reveal for one line. Uses measured advance widths so partial
+ * characters fill proportionally without per-glyph clip-path cells.
+ */
+export function lineRevealRatio(
+  lineStart: number,
+  lineMetrics: GlyphMetrics[],
+  fillPosition: number,
+): number {
+  const count = lineMetrics.length
+  if (count === 0) return 0
+  if (fillPosition <= lineStart) return 0
+  if (fillPosition >= lineStart + count) return 1
+
+  let filledWidth = 0
+  let totalWidth = 0
+  for (let index = 0; index < count; index += 1) {
+    const width = lineMetrics[index]?.advanceWidth ?? 0
+    totalWidth += width
+    filledWidth +=
+      width * charFillFraction(fillPosition, lineStart + index)
+  }
+
+  return totalWidth > 0 ? Math.min(1, filledWidth / totalWidth) : 0
+}
+
 function groupLineIndices(midYs: number[]): number[] {
   if (midYs.length === 0) return []
 

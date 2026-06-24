@@ -13,7 +13,6 @@ import { RegistrationDetails } from './components/RegistrationDetails'
 import { RegistrationProgressBar } from './components/RegistrationProgressBar'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
-import { useForwardProgress } from './lib/useForwardProgress'
 
 const WeaveRegistration = lazy(() =>
   import('./components/WeaveRegistration').then((m) => ({
@@ -49,6 +48,9 @@ const useMaxProgress = RegisterV2Context.createSelector(
 
 const REGISTERING_DOTS_INTERVAL_MS = 700
 
+/** Pause on a fully filled name before handing off to SuccessStep. */
+const COMPLETION_BEAT_MS = 200
+
 const useTrailingDots = (max = 3) => {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -76,7 +78,25 @@ const RegisteringTitle = () => {
   )
 }
 
-export const RegisteringStep = () => {
+export interface RegisteringStepProps {
+  fillProgress: number
+  fillDone: boolean
+  isRegistrationComplete: boolean
+  /** Parent latch — user dismissed notification settings and entered the weave flow. */
+  sawWeaveFlow?: boolean
+  onWeaveFlowEntered?: () => void
+  /** Fired after fill progress reaches 100% and the completion beat finishes. */
+  onCompletionAnimationFinished?: () => void
+}
+
+export const RegisteringStep = ({
+  fillProgress,
+  fillDone,
+  isRegistrationComplete,
+  sawWeaveFlow = false,
+  onWeaveFlowEntered,
+  onCompletionAnimationFinished,
+}: RegisteringStepProps) => {
   const { t, i18n } = useLingui()
   const { registrationActor, uiActor, label } = RegisterV2Context.use()
   const registeringTx = useRegisteringTx(registrationActor)
@@ -85,7 +105,6 @@ export const RegisteringStep = () => {
   const maxProgress = useMaxProgress(uiActor)
 
   const displayedStage = maxProgress?.stage ?? registeringTx.value
-  const displayedProgress = maxProgress?.progress ?? 0
   const stageMessages = getRegistrationStageMessages(
     { ...registeringTx, value: displayedStage },
     txState,
@@ -100,42 +119,74 @@ export const RegisteringStep = () => {
       ? i18n._(stageMessages.stageDescription)
       : undefined
 
-  const isRegistrationComplete =
-    registeringTx.value === 'success' || uiStage?.transaction === 'success'
-
-  const fullName = `${label}.eth`
-  const [nameFillSettled, setNameFillSettled] = useState(false)
-  const { progress: fillProgress } = useForwardProgress(
-    displayedProgress,
-    isRegistrationComplete,
-    fullName.length,
-    isCooldownActive ? cooldownSeconds : null,
-  )
-
-  useEffect(() => {
-    if (!isRegistrationComplete) {
-      setNameFillSettled(false)
-    }
-  }, [isRegistrationComplete])
-
-  const advanceNotificationsStep = () => {
-    uiActor.send({ type: 'notifications.step.next' })
-  }
-
   const showWeaveLoader =
     !isRegistrationComplete &&
     uiStage?.notifications === 'completed' &&
     uiStage?.transaction === 'pending'
 
-  const enteredLoaderRef = useRef(false)
   useEffect(() => {
-    if (showWeaveLoader) enteredLoaderRef.current = true
-  }, [showWeaveLoader])
+    if (showWeaveLoader) {
+      onWeaveFlowEntered?.()
+    }
+  }, [onWeaveFlowEntered, showWeaveLoader])
+
+  useEffect(() => {
+    if (uiStage?.notifications === 'completed') {
+      onWeaveFlowEntered?.()
+    }
+  }, [onWeaveFlowEntered, uiStage?.notifications])
+
+  const fullName = `${label}.eth`
+  const [exitLoaderReady, setExitLoaderReady] = useState(false)
+  const completionFinishedRef = useRef(false)
+
+  const prevCompleteRef = useRef(isRegistrationComplete)
+  useEffect(() => {
+    if (isRegistrationComplete && !prevCompleteRef.current) {
+      setExitLoaderReady(false)
+      completionFinishedRef.current = false
+    }
+    if (!isRegistrationComplete) {
+      setExitLoaderReady(false)
+      completionFinishedRef.current = false
+    }
+    prevCompleteRef.current = isRegistrationComplete
+  }, [isRegistrationComplete])
+
+  useEffect(() => {
+    if (!isRegistrationComplete || !sawWeaveFlow || !fillDone) return undefined
+
+    const id = window.setTimeout(() => setExitLoaderReady(true), COMPLETION_BEAT_MS)
+    return () => window.clearTimeout(id)
+  }, [fillDone, isRegistrationComplete, sawWeaveFlow])
+
+  useEffect(() => {
+    if (
+      !exitLoaderReady ||
+      !isRegistrationComplete ||
+      !sawWeaveFlow ||
+      completionFinishedRef.current
+    ) {
+      return
+    }
+    completionFinishedRef.current = true
+    onCompletionAnimationFinished?.()
+  }, [
+    exitLoaderReady,
+    isRegistrationComplete,
+    onCompletionAnimationFinished,
+    sawWeaveFlow,
+  ])
 
   const holdForFill =
-    isRegistrationComplete && enteredLoaderRef.current && !nameFillSettled
+    isRegistrationComplete && sawWeaveFlow && !exitLoaderReady
 
   const showCenteredLoader = showWeaveLoader || holdForFill
+
+  const advanceNotificationsStep = () => {
+    onWeaveFlowEntered?.()
+    uiActor.send({ type: 'notifications.step.next' })
+  }
 
   useBlocker({
     shouldBlockFn: () => {
@@ -159,10 +210,9 @@ export const RegisteringStep = () => {
       <div className="flex min-h-[60vh] items-center justify-center px-4 max-md:bg-white">
         <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
           <WeaveRegistration
-            animate={holdForFill}
+            animate={false}
             description={holdForFill ? undefined : stageDescription}
             name={fullName}
-            onFillSettled={() => setNameFillSettled(true)}
             progress={fillProgress}
             weaveOptions={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS}
           />

@@ -6,12 +6,13 @@ import {
   useRef,
   useState,
 } from 'react'
-import { FilledGlyph } from './FilledGlyph'
 import { cn } from './lib/utils'
+import { NameFillLineRow } from './NameFillLineRow'
 import {
-  charFillFraction,
+  groupCharsByLine,
   type GlyphMetrics,
   lineCountFromMetrics,
+  lineRevealRatio,
   measureGlyphMetrics,
   segmentGraphemes,
 } from './nameFillLayout'
@@ -37,6 +38,14 @@ function isGradientFill(fill: string): boolean {
 }
 
 const FILL_CLIP_TRANSITION_MS = 450
+
+function settleDelayMs(animate: boolean, msSinceProgressChange: number): number {
+  if (!animate) return 0
+  return Math.max(
+    FILL_CLIP_TRANSITION_MS,
+    FILL_CLIP_TRANSITION_MS - msSinceProgressChange,
+  )
+}
 
 function NameFillByClip({
   name,
@@ -97,14 +106,18 @@ export function NameFill({
   onLineCountChange,
   onFillSettled,
 }: NameFillProps) {
-  const p = Math.max(0, Math.min(1, progress))
+  const rawP = Math.max(0, Math.min(1, progress))
+  const fillComplete = rawP >= 1 - 1e-6
+  const p = fillComplete ? 1 : rawP
   const chars = useMemo(() => segmentGraphemes(name), [name])
-  const fillPosition = p * chars.length
+  const fillPosition = fillComplete ? chars.length : p * chars.length
   const gradient = isGradientFill(fill)
   const wraps = className?.includes('break-all') ?? false
   const fillSettledRef = useRef(false)
   const onFillSettledRef = useRef(onFillSettled)
   onFillSettledRef.current = onFillSettled
+  const lastProgressChangeAtRef = useRef(performance.now())
+  const prevProgressRef = useRef(p)
 
   const containerRef = useRef<HTMLSpanElement>(null)
   const probeRef = useRef<HTMLSpanElement>(null)
@@ -158,6 +171,17 @@ export function NameFill({
   ])
 
   const layoutReady = metrics.length === chars.length
+  const lines = useMemo(
+    () => (layoutReady ? groupCharsByLine(chars, metrics) : []),
+    [chars, layoutReady, metrics],
+  )
+
+  useEffect(() => {
+    if (p !== prevProgressRef.current) {
+      prevProgressRef.current = p
+      lastProgressChangeAtRef.current = performance.now()
+    }
+  }, [p])
 
   useEffect(() => {
     if (gradient && !wraps) return undefined
@@ -173,12 +197,16 @@ export function NameFill({
       onFillSettledRef.current?.()
     }
 
-    if (!animate) {
+    const delay = settleDelayMs(
+      animate,
+      performance.now() - lastProgressChangeAtRef.current,
+    )
+    if (delay <= 0) {
       settle()
       return undefined
     }
 
-    const id = window.setTimeout(settle, FILL_CLIP_TRANSITION_MS)
+    const id = window.setTimeout(settle, delay)
     return () => window.clearTimeout(id)
   }, [animate, gradient, layoutReady, p, wraps])
 
@@ -220,21 +248,26 @@ export function NameFill({
       </span>
 
       {layoutReady ? (
-        chars.map((char, index) => {
-          const glyph = metrics[index]
-          if (!glyph) return null
+        lines.map((line) => {
+          const lineMetrics = metrics.slice(
+            line.startCharIndex,
+            line.startCharIndex + line.charCount,
+          )
+          const revealRatio = lineRevealRatio(
+            line.startCharIndex,
+            lineMetrics,
+            fillPosition,
+          )
           return (
-            <FilledGlyph
-              advanceWidth={glyph.advanceWidth}
+            <NameFillLineRow
               animate={animate}
               baseColor={baseColor}
-              char={char}
+              className={className}
               fill={fill}
-              fraction={charFillFraction(fillPosition, index)}
-              glyphHeight={glyph.glyphHeight}
-              gradient={gradient}
-              // biome-ignore lint/suspicious/noArrayIndexKey: chars is a fixed positional decomposition of name; glyphs never reorder, so index is the stable identity.
-              key={index}
+              key={`line-${line.lineIndex}-${line.startCharIndex}`}
+              revealRatio={revealRatio}
+              text={line.text}
+              typography={typography}
             />
           )
         })

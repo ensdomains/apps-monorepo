@@ -45,9 +45,9 @@ function displayCap(machineProgress: number): number {
 const GAP_CLOSE_FRACTION_PER_SEC = 0.07
 const MIN_SPEED_PCT_PER_SEC = 0.25
 const MIN_SPEED_CHARS_PER_SEC = 0.04
-const COMPLETE_RATE = 4
-const COMPLETE_MIN_SPEED = 30
-const EMIT_INTERVAL_MS = 1000 / 30
+/** Finish the remaining fill in 0.5s once registration succeeds. */
+const COMPLETE_SWEEP_SEC = 0.5
+const COMPLETE_MIN_SPEED = 50
 
 export interface ForwardProgress {
   progress: number
@@ -70,7 +70,9 @@ function advance(
     inputs
 
   if (isComplete) {
-    const speed = Math.max((100 - current) * COMPLETE_RATE, COMPLETE_MIN_SPEED)
+    const remaining = 100 - current
+    if (remaining <= 1e-4) return { next: 100, cap: 100 }
+    const speed = Math.max(remaining / COMPLETE_SWEEP_SEC, COMPLETE_MIN_SPEED)
     return { next: Math.min(100, current + speed * dt), cap: 100 }
   }
 
@@ -101,6 +103,7 @@ export function useForwardProgress(
   isComplete: boolean,
   nameLength: number,
   cooldownRemainingSeconds: number | null = null,
+  resetToken: unknown = 0,
 ): ForwardProgress {
   const [displayed, setDisplayed] = useState(0)
   const displayedRef = useRef(0)
@@ -118,31 +121,32 @@ export function useForwardProgress(
   }
 
   useEffect(() => {
+    displayedRef.current = 0
+    setDisplayed(0)
+  }, [resetToken])
+
+  useEffect(() => {
     let raf = 0
     let last = performance.now()
-    let lastEmit = 0
 
     const tick = (now: number) => {
       const dt = Math.min((now - last) / 1000, 0.1)
       last = now
 
       const current = displayedRef.current
-      const { next, cap } = advance(inputsRef.current, current, dt)
+      const { next } = advance(inputsRef.current, current, dt)
+      const snapped = next >= 100 - 1e-4 ? 100 : next
 
-      if (next !== current) {
-        displayedRef.current = next
-        const reachedCap = next >= cap - 1e-4
-        if (reachedCap || now - lastEmit >= EMIT_INTERVAL_MS) {
-          lastEmit = now
-          setDisplayed(next)
-        }
+      if (snapped !== current) {
+        displayedRef.current = snapped
+        setDisplayed(snapped)
       }
       raf = requestAnimationFrame(tick)
     }
 
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [resetToken])
 
   return {
     progress: displayed,

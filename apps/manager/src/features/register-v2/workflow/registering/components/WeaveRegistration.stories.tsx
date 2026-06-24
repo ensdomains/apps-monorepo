@@ -154,23 +154,27 @@ const RegisteringCompletionHoldDemo = ({
   name?: string
 }) => {
   const [isComplete, setIsComplete] = useState(false)
-  const [nameFillSettled, setNameFillSettled] = useState(false)
-  const enteredLoaderRef = useRef(true)
+  const [exitReady, setExitReady] = useState(false)
   const machineProgress = isComplete ? 100 : 88
 
   useEffect(() => {
-    if (!isComplete) setNameFillSettled(false)
+    if (!isComplete) setExitReady(false)
   }, [isComplete])
 
-  const { progress: fillProgress } = useForwardProgress(
+  const { progress: fillProgress, fillDone } = useForwardProgress(
     machineProgress,
     isComplete,
     name.length,
     null,
   )
 
-  const holdForFill = isComplete && enteredLoaderRef.current && !nameFillSettled
-  const showCenteredLoader = !isComplete || holdForFill
+  useEffect(() => {
+    if (!isComplete || !fillDone) return undefined
+    const id = window.setTimeout(() => setExitReady(true), 200)
+    return () => window.clearTimeout(id)
+  }, [fillDone, isComplete])
+
+  const showCenteredLoader = !isComplete || !exitReady
 
   return (
     <div className="flex w-full flex-col items-center gap-6">
@@ -184,22 +188,18 @@ const RegisteringCompletionHoldDemo = ({
       </button>
       <p className="text-ens-gray text-sm">
         Fill progress: {fillProgress.toFixed(1)}%
-        {nameFillSettled ? ' — settled' : ''}
+        {fillDone ? ' — 100% reached' : ''}
+        {exitReady ? ' — showing details' : ''}
       </p>
       {showCenteredLoader ? (
-        <WeaveRegistration
-          animate={holdForFill}
-          name={name}
-          onFillSettled={() => setNameFillSettled(true)}
-          progress={fillProgress}
-        />
+        <WeaveRegistration animate={false} name={name} progress={fillProgress} />
       ) : (
         <div className="w-full max-w-2xl space-y-4 rounded-xl border border-ens-gray-two p-6">
           <p className="font-medium text-ens-blue text-lg">
             Registration complete
           </p>
           <p className="text-ens-gray text-sm">
-            Registration details (shown after the name fill finishes)
+            Registration details (shown after fill progress reaches 100%)
           </p>
         </div>
       )}

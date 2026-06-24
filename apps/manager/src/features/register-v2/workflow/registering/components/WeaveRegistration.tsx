@@ -77,10 +77,10 @@ export const WeaveRegistration = ({
   const nameAnimate = animate && !reducedMotion
 
   return (
-    <div className="flex w-full flex-col items-center gap-8">
+    <div className="weave-registration mx-auto flex w-full max-w-full flex-col items-center gap-8">
       <div
         className={cn(
-          'inline-flex w-full gap-12 max-md:flex-col max-md:items-center max-md:gap-3 max-md:text-center',
+          'inline-flex w-full max-w-[225px] gap-12 max-md:flex-col max-md:items-center max-md:gap-3 max-md:text-center md:max-w-none md:w-auto',
           singleLineName
             ? 'md:h-[210px] md:items-end'
             : 'md:min-h-[210px] md:items-stretch',
@@ -91,7 +91,7 @@ export const WeaveRegistration = ({
           style={{ height: WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_MOBILE_PX }}
         >
           <WeaveRegistrationStepLabel
-            className="mx-auto w-[225px] max-w-full justify-start text-left text-[#3e3e3e] text-base leading-[90%] tracking-[-0.4px]"
+            className="mx-auto w-full max-w-[225px] justify-center text-center text-[#3e3e3e] text-base leading-[90%] tracking-[-0.4px]"
             label={stepLabel}
           />
         </div>
