@@ -4,6 +4,8 @@ import type { WeaveShaderOptions } from '@ens-apps/weave-loader/shader/useWeaveS
 import { WeaveCanvas } from '@ens-apps/weave-loader/WeaveCanvas'
 import {
   WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
+  WEAVE_REGISTRATION_TALL_NAME_DESKTOP_GAP_PX,
+  WEAVE_REGISTRATION_TALL_NAME_LINE_THRESHOLD,
   weaveRegistrationNameFillFor,
 } from '@ens-apps/weave-loader/weaveNameFill'
 import { useLingui } from '@lingui/react/macro'
@@ -11,7 +13,11 @@ import { Calligraph } from 'calligraph'
 import { type ReactNode, useState } from 'react'
 import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { cn } from '@/lib/utils'
-import { stepMessageForProgress } from '../lib/weaveSteps'
+import {
+  stepMessageForProgress,
+  WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_MOBILE_PX,
+  WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_PX,
+} from '../lib/weaveSteps'
 
 export interface WeaveRegistrationProps {
   name: string
@@ -20,9 +26,9 @@ export interface WeaveRegistrationProps {
   animate?: boolean
   footer?: ReactNode
   weaveOptions?: WeaveShaderOptions
+  onFillSettled?: () => void
 }
 
-// Calligraph sets display:flex — hide via a wrapper, not on Calligraph itself.
 const WeaveRegistrationStepLabel = ({
   label,
   className,
@@ -53,6 +59,7 @@ export const WeaveRegistration = ({
   animate = true,
   footer,
   weaveOptions = JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
+  onFillSettled,
 }: WeaveRegistrationProps) => {
   const { i18n } = useLingui()
   const p = Math.max(0, Math.min(1, progress / 100))
@@ -61,6 +68,7 @@ export const WeaveRegistration = ({
   const [nameLineCount, setNameLineCount] = useState(1)
   const nameFillTypography = weaveRegistrationNameFillFor(name)
   const singleLineName = nameLineCount <= 1
+  const tallName = nameLineCount >= WEAVE_REGISTRATION_TALL_NAME_LINE_THRESHOLD
 
   const reducedMotion = usePrefersReducedMotion()
   const resolvedWeaveOptions = reducedMotion
@@ -70,37 +78,68 @@ export const WeaveRegistration = ({
 
   return (
     <div className="flex w-full flex-col items-center gap-8">
-      <div className="inline-flex min-h-40 w-full items-stretch gap-12 max-md:flex-col max-md:items-center max-md:gap-3 max-md:text-center">
-        <div className="w-full md:hidden">
+      <div
+        className={cn(
+          'inline-flex w-full gap-12 max-md:flex-col max-md:items-center max-md:gap-3 max-md:text-center',
+          singleLineName
+            ? 'md:h-[210px] md:items-end'
+            : 'md:min-h-[210px] md:items-stretch',
+        )}
+      >
+        <div
+          className="w-full shrink-0 md:hidden"
+          style={{ height: WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_MOBILE_PX }}
+        >
           <WeaveRegistrationStepLabel
             className="mx-auto w-[225px] max-w-full justify-start text-left text-[#3e3e3e] text-base leading-[90%] tracking-[-0.4px]"
             label={stepLabel}
           />
         </div>
 
-        <div className="size-40 shrink-0 overflow-hidden rounded-2xl max-md:size-[225px]">
+        <div className="shrink-0 overflow-hidden rounded-2xl max-md:size-[225px] md:h-[210px] md:w-[199px]">
           <WeaveCanvas options={resolvedWeaveOptions} />
         </div>
 
-        <div className="flex h-full min-h-40 w-[333px] min-w-0 flex-col max-md:w-full">
-          <div className="hidden md:block">
+        <div
+          className={cn(
+            'flex w-[333px] min-w-0 flex-col max-md:w-full',
+            singleLineName
+              ? 'md:h-[210px] md:justify-between'
+              : 'md:min-h-[210px]',
+          )}
+        >
+          <div
+            className="hidden shrink-0 md:block"
+            style={
+              singleLineName
+                ? undefined
+                : { height: WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_PX }
+            }
+          >
             <WeaveRegistrationStepLabel
               className="w-full text-[32px] text-ens-quartz-450 leading-[90%] tracking-[-0.8px]"
               label={stepLabel}
             />
           </div>
-          <div
-            aria-hidden
-            className={cn(
-              'shrink-0 max-md:hidden',
-              singleLineName ? 'flex-1' : 'flex-none',
-            )}
-            style={{ minHeight: WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX }}
-          />
+          {singleLineName ? null : (
+            <div
+              aria-hidden
+              className="shrink-0 max-md:hidden"
+              style={{
+                minHeight: tallName
+                  ? WEAVE_REGISTRATION_TALL_NAME_DESKTOP_GAP_PX
+                  : WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX,
+              }}
+            />
+          )}
           <NameFill
             animate={nameAnimate}
-            className="mt-[18px] w-full shrink-0 whitespace-normal break-all max-md:mt-3 max-md:text-center"
+            className={cn(
+              'w-full shrink-0 whitespace-normal break-all max-md:mt-3 max-md:text-center',
+              !singleLineName && !tallName && 'mt-[18px]',
+            )}
             name={name}
+            onFillSettled={onFillSettled}
             onLineCountChange={setNameLineCount}
             progress={p}
             {...nameFillTypography}

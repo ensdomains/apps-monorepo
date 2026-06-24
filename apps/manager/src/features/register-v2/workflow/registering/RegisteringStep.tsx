@@ -15,7 +15,6 @@ import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 import { useForwardProgress } from './lib/useForwardProgress'
 
-// Lazy-load weave chunks until a registration tx is pending.
 const WeaveRegistration = lazy(() =>
   import('./components/WeaveRegistration').then((m) => ({
     default: m.WeaveRegistration,
@@ -27,7 +26,6 @@ const WeaveProgressBar = lazy(() =>
   })),
 )
 
-/** CSS placeholder while the weave chunk loads. */
 function WeaveTrackPlaceholder({ className }: { className?: string }) {
   return (
     <div
@@ -63,7 +61,6 @@ const useTrailingDots = (max = 3) => {
   return '.'.repeat(count)
 }
 
-// Isolate trailing dots so only the title re-renders on each tick.
 const RegisteringTitle = () => {
   const { t } = useLingui()
   const dots = useTrailingDots()
@@ -107,12 +104,19 @@ export const RegisteringStep = () => {
     registeringTx.value === 'success' || uiStage?.transaction === 'success'
 
   const fullName = `${label}.eth`
-  const { progress: fillProgress, fillDone } = useForwardProgress(
+  const [nameFillSettled, setNameFillSettled] = useState(false)
+  const { progress: fillProgress } = useForwardProgress(
     displayedProgress,
     isRegistrationComplete,
     fullName.length,
     isCooldownActive ? cooldownSeconds : null,
   )
+
+  useEffect(() => {
+    if (!isRegistrationComplete) {
+      setNameFillSettled(false)
+    }
+  }, [isRegistrationComplete])
 
   const advanceNotificationsStep = () => {
     uiActor.send({ type: 'notifications.step.next' })
@@ -123,14 +127,13 @@ export const RegisteringStep = () => {
     uiStage?.notifications === 'completed' &&
     uiStage?.transaction === 'pending'
 
-  // Only hold the loader post-success if the user actually saw it.
   const enteredLoaderRef = useRef(false)
   useEffect(() => {
     if (showWeaveLoader) enteredLoaderRef.current = true
   }, [showWeaveLoader])
 
   const holdForFill =
-    isRegistrationComplete && enteredLoaderRef.current && !fillDone
+    isRegistrationComplete && enteredLoaderRef.current && !nameFillSettled
 
   const showCenteredLoader = showWeaveLoader || holdForFill
 
@@ -156,9 +159,10 @@ export const RegisteringStep = () => {
       <div className="flex min-h-[60vh] items-center justify-center px-4 max-md:bg-white">
         <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
           <WeaveRegistration
-            animate={false}
+            animate={holdForFill}
             description={holdForFill ? undefined : stageDescription}
             name={fullName}
+            onFillSettled={() => setNameFillSettled(true)}
             progress={fillProgress}
             weaveOptions={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS}
           />

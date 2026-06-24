@@ -34,20 +34,16 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-/** Mid-registration — square weaving, name partly filled, step copy tracking progress. */
 export const Default: Story = {}
 
-/** Just dismissed notifications — nothing filled yet. */
 export const Start: Story = {
   args: { progress: 2 },
 }
 
-/** Registration finished — name fully filled. */
 export const Complete: Story = {
   args: { progress: 100 },
 }
 
-/** With the commitment-cooldown countdown as the secondary line. */
 export const WithCooldown: Story = {
   args: {
     progress: 40,
@@ -55,26 +51,7 @@ export const WithCooldown: Story = {
   },
 }
 
-/** Long name — Figma reference, multi-line fill, mid-progress. */
 export const LongName: Story = {
-  args: {
-    name: LONG_NAME,
-    progress: 55,
-    weaveOptions: LONG_NAME_WEAVE_OPTIONS,
-  },
-}
-
-/** Same Figma long name — multi-line fill, mid-progress. */
-export const SixtyThreeCharName: Story = {
-  args: {
-    name: LONG_NAME,
-    progress: 55,
-    weaveOptions: LONG_NAME_WEAVE_OPTIONS,
-  },
-}
-
-/** Same Figma long name — wrapping and fill velocity. */
-export const MaxLengthName: Story = {
   args: {
     name: LONG_NAME,
     progress: 55,
@@ -163,11 +140,77 @@ export const LiveForwardProgress: Story = {
   render: (args) => <LiveForwardProgressDemo {...args} />,
 }
 
-/** The live driver with the Figma long name. */
 export const LiveForwardProgressMaxLength: Story = {
   args: {
     name: LONG_NAME,
     weaveOptions: LONG_NAME_WEAVE_OPTIONS,
   },
   render: (args) => <LiveForwardProgressDemo {...args} />,
+}
+
+const RegisteringCompletionHoldDemo = ({
+  name = 'erni.eth',
+}: {
+  name?: string
+}) => {
+  const [isComplete, setIsComplete] = useState(false)
+  const [nameFillSettled, setNameFillSettled] = useState(false)
+  const enteredLoaderRef = useRef(true)
+  const machineProgress = isComplete ? 100 : 88
+
+  useEffect(() => {
+    if (!isComplete) setNameFillSettled(false)
+  }, [isComplete])
+
+  const { progress: fillProgress } = useForwardProgress(
+    machineProgress,
+    isComplete,
+    name.length,
+    null,
+  )
+
+  const holdForFill = isComplete && enteredLoaderRef.current && !nameFillSettled
+  const showCenteredLoader = !isComplete || holdForFill
+
+  return (
+    <div className="flex w-full flex-col items-center gap-6">
+      <button
+        className="rounded-lg bg-ens-blue px-4 py-2 text-sm text-white"
+        disabled={isComplete}
+        onClick={() => setIsComplete(true)}
+        type="button"
+      >
+        Complete registration (fill at ~88%)
+      </button>
+      <p className="text-ens-gray text-sm">
+        Fill progress: {fillProgress.toFixed(1)}%
+        {nameFillSettled ? ' — settled' : ''}
+      </p>
+      {showCenteredLoader ? (
+        <WeaveRegistration
+          animate={holdForFill}
+          name={name}
+          onFillSettled={() => setNameFillSettled(true)}
+          progress={fillProgress}
+        />
+      ) : (
+        <div className="w-full max-w-2xl space-y-4 rounded-xl border border-ens-gray-two p-6">
+          <p className="font-medium text-ens-blue text-lg">
+            Registration complete
+          </p>
+          <p className="text-ens-gray text-sm">
+            Registration details (shown after the name fill finishes)
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export const CompletionHoldTransition: Story = {
+  render: () => <RegisteringCompletionHoldDemo />,
+}
+
+export const CompletionHoldTransitionLongName: Story = {
+  render: () => <RegisteringCompletionHoldDemo name="vitalik.eth" />,
 }

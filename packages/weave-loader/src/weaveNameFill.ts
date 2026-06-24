@@ -1,6 +1,5 @@
 import type { NameFillProps } from './NameFill'
 
-/** Figma spec for the registration name fill (node 1209-29493). */
 export const WEAVE_REGISTRATION_NAME_FILL = {
   baseColor: '#D3D3D3',
   fill: '#000000',
@@ -20,7 +19,6 @@ export const WEAVE_REGISTRATION_NAME_FILL = {
   | 'lineHeight'
 >
 
-/** Names longer than this use the compact 24px size. */
 export const WEAVE_REGISTRATION_NAME_FILL_SMALL_FONT_THRESHOLD =
   'thisisanincrediblylongnametotestlongnameswiththisisani'.length
 
@@ -44,9 +42,16 @@ export function weaveRegistrationNameFillFor(name: string) {
     : WEAVE_REGISTRATION_NAME_FILL
 }
 
-/** Min gap (px) between step label and name when the name wraps. */
 export const WEAVE_REGISTRATION_HEADLINE_NAME_GAP_MIN_PX = 24
 
-/** Stress-test label for multi-line fill stories. */
+export const WEAVE_REGISTRATION_CANVAS_WIDTH_PX = 199
+export const WEAVE_REGISTRATION_CANVAS_HEIGHT_PX = 210
+
+export const WEAVE_REGISTRATION_CANVAS_MOBILE_SIZE_PX = 225
+
+export const WEAVE_REGISTRATION_TALL_NAME_LINE_THRESHOLD = 3
+
+export const WEAVE_REGISTRATION_TALL_NAME_DESKTOP_GAP_PX = 6
+
 export const WEAVE_REGISTRATION_LONG_NAME =
   'thisisanincrediblylongnametotestlongnameswiththisisanincrediblylongnametotestlongnameswiththisisanincrediblylongnametotestlongnameswiththisisanincrediblylongnametotestlongnameswiththisisanincrediblylongnametotestlongnameswiththisisanincrediblylongnamt.eth'

@@ -47,9 +47,6 @@ const MIN_SPEED_PCT_PER_SEC = 0.25
 const MIN_SPEED_CHARS_PER_SEC = 0.04
 const COMPLETE_RATE = 4
 const COMPLETE_MIN_SPEED = 30
-// Cap React state updates to ~30fps. The progress value keeps advancing every
-// rAF tick (in a ref), but we only re-render — which re-lays-out every glyph in
-// NameFill — at most this often, plus a guaranteed final frame at each cap.
 const EMIT_INTERVAL_MS = 1000 / 30
 
 export interface ForwardProgress {
@@ -64,10 +61,6 @@ interface AdvanceInputs {
   cooldownRemainingSeconds: number | null
 }
 
-/**
- * Pure per-frame step. Returns the next displayed value and the ceiling (`cap`)
- * it is approaching, so the caller can force a final emit when the cap is hit.
- */
 function advance(
   inputs: AdvanceInputs,
   current: number,
@@ -138,8 +131,6 @@ export function useForwardProgress(
 
       if (next !== current) {
         displayedRef.current = next
-        // Throttle re-renders to ~30fps, but always commit the frame that
-        // reaches the current ceiling so the fill (and fillDone) settle exactly.
         const reachedCap = next >= cap - 1e-4
         if (reachedCap || now - lastEmit >= EMIT_INTERVAL_MS) {
           lastEmit = now
@@ -153,5 +144,8 @@ export function useForwardProgress(
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  return { progress: displayed, fillDone: isComplete && displayed >= 100 }
+  return {
+    progress: displayed,
+    fillDone: isComplete && displayed >= 100 - 1e-4,
+  }
 }

@@ -4,7 +4,6 @@ export interface FilledGlyphProps {
   char: string
   advanceWidth: number
   glyphHeight: number
-  /** 0 = unfilled, 1 = fully filled */
   fraction: number
   fill: string
   baseColor: string
@@ -12,10 +11,6 @@ export interface FilledGlyphProps {
   gradient?: boolean
 }
 
-/**
- * One glyph with independent fill — grey base + fill layer clipped horizontally
- * only (clip-path), so descenders (g, y, p) are never vertically truncated.
- */
 export function FilledGlyph({
   char,
   advanceWidth,
@@ -27,6 +22,7 @@ export function FilledGlyph({
   gradient = false,
 }: FilledGlyphProps) {
   const insetRight = (1 - fraction) * 100
+  const boxHeight = glyphHeight > 0 ? glyphHeight : undefined
 
   const fillStyle: CSSProperties = gradient
     ? {
@@ -38,21 +34,59 @@ export function FilledGlyph({
       }
     : { color: fill }
 
+  if (!boxHeight) {
+    return (
+      <span
+        aria-hidden
+        className="relative inline-block overflow-visible align-bottom"
+        style={{ width: advanceWidth, verticalAlign: 'bottom' }}
+      >
+        <span style={{ color: baseColor }}>{char}</span>
+        {fraction > 0 ? (
+          <span
+            className="pointer-events-none absolute inset-0 overflow-visible"
+            style={{
+              clipPath: `inset(0 ${insetRight}% 0 0)`,
+              WebkitClipPath: `inset(0 ${insetRight}% 0 0)`,
+              transition: animate ? 'clip-path 0.45s ease' : 'none',
+            }}
+          >
+            <span
+              style={{
+                ...fillStyle,
+                display: 'inline-block',
+                width: advanceWidth,
+              }}
+            >
+              {char}
+            </span>
+          </span>
+        ) : null}
+      </span>
+    )
+  }
+
   return (
     <span
       aria-hidden
       className="relative inline-block overflow-visible align-bottom"
       style={{
         width: advanceWidth,
-        minHeight: glyphHeight > 0 ? glyphHeight : undefined,
+        height: boxHeight,
         verticalAlign: 'bottom',
       }}
     >
-      <span style={{ color: baseColor }}>{char}</span>
+      <span
+        className="absolute bottom-0 left-0"
+        style={{ width: advanceWidth, color: baseColor }}
+      >
+        {char}
+      </span>
       {fraction > 0 ? (
         <span
-          className="pointer-events-none absolute inset-0 overflow-visible"
+          className="pointer-events-none absolute bottom-0 left-0 overflow-visible"
           style={{
+            width: advanceWidth,
             clipPath: `inset(0 ${insetRight}% 0 0)`,
             WebkitClipPath: `inset(0 ${insetRight}% 0 0)`,
             transition: animate ? 'clip-path 0.45s ease' : 'none',

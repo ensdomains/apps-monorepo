@@ -16,6 +16,10 @@ export const WEAVE_STEPS: WeaveStep[] = [
   { label: msg`Placing your new identity in your wallet`, end: 1 },
 ]
 
+export const WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_PX = 87
+
+export const WEAVE_REGISTRATION_STEP_LABEL_HEIGHT_MOBILE_PX = 28
+
 export function stepIndexForProgress(
   progress: number,
   steps: WeaveStep[] = WEAVE_STEPS,

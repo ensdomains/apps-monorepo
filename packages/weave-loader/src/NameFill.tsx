@@ -1,12 +1,13 @@
 import {
   type CSSProperties,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
-import { cn } from './lib/utils'
 import { FilledGlyph } from './FilledGlyph'
+import { cn } from './lib/utils'
 import {
   charFillFraction,
   type GlyphMetrics,
@@ -28,13 +29,15 @@ export interface NameFillProps {
   animate?: boolean
   className?: string
   onLineCountChange?: (lineCount: number) => void
+  onFillSettled?: () => void
 }
 
 function isGradientFill(fill: string): boolean {
   return /gradient\s*\(/i.test(fill)
 }
 
-/** Single-line clip reveal — Storybook gradient demos only. */
+const FILL_CLIP_TRANSITION_MS = 450
+
 function NameFillByClip({
   name,
   progress,
@@ -92,12 +95,16 @@ export function NameFill({
   animate = true,
   className,
   onLineCountChange,
+  onFillSettled,
 }: NameFillProps) {
   const p = Math.max(0, Math.min(1, progress))
   const chars = useMemo(() => segmentGraphemes(name), [name])
   const fillPosition = p * chars.length
   const gradient = isGradientFill(fill)
   const wraps = className?.includes('break-all') ?? false
+  const fillSettledRef = useRef(false)
+  const onFillSettledRef = useRef(onFillSettled)
+  onFillSettledRef.current = onFillSettled
 
   const containerRef = useRef<HTMLSpanElement>(null)
   const probeRef = useRef<HTMLSpanElement>(null)
@@ -150,6 +157,31 @@ export function NameFill({
     className,
   ])
 
+  const layoutReady = metrics.length === chars.length
+
+  useEffect(() => {
+    if (gradient && !wraps) return undefined
+    if (!layoutReady || p < 1) {
+      if (p < 1) fillSettledRef.current = false
+      return undefined
+    }
+    if (fillSettledRef.current) return undefined
+
+    const settle = () => {
+      if (fillSettledRef.current) return
+      fillSettledRef.current = true
+      onFillSettledRef.current?.()
+    }
+
+    if (!animate) {
+      settle()
+      return undefined
+    }
+
+    const id = window.setTimeout(settle, FILL_CLIP_TRANSITION_MS)
+    return () => window.clearTimeout(id)
+  }, [animate, gradient, layoutReady, p, wraps])
+
   if (gradient && !wraps) {
     return (
       <NameFillByClip
@@ -163,8 +195,6 @@ export function NameFill({
       />
     )
   }
-
-  const layoutReady = metrics.length === chars.length
 
   return (
     <span
