@@ -1,13 +1,13 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
-import { useGlobalBackButton } from '@/components/GlobalBackButton'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
@@ -102,6 +102,7 @@ const invalidateMigrationQueries = (
 
 export const MigrationPage = () => {
   const navigate = useNavigate()
+  const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
   const migrateSubstep = useMigrateSubstep(uiActor)
@@ -141,11 +142,14 @@ export const MigrationPage = () => {
     [uiActor],
   )
 
-  useGlobalBackButton({
-    className: 'text-black hover:text-black/70',
-    fallbackPath: '/dashboard',
-    isVisible: step === 'select',
-  })
+  const handleBack = useCallback(() => {
+    if (canGoBack) {
+      window.history.back()
+      return
+    }
+
+    navigate({ to: '/dashboard' })
+  }, [canGoBack, navigate])
 
   const handleBeginUpgrade = useCallback(async () => {
     if (!ownerAddress || !wagmiWalletClient?.account) return false
@@ -176,7 +180,21 @@ export const MigrationPage = () => {
 
   return (
     <div className="relative flex min-h-0 flex-1 overflow-hidden">
-      <GrainOverlay />
+      <GrainOverlay className="opacity-70" />
+
+      {step === 'select' && (
+        <button
+          aria-label="Back"
+          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+          onClick={handleBack}
+          type="button"
+        >
+          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+          <span className="max-xl:hidden">
+            <Trans>Back</Trans>
+          </span>
+        </button>
+      )}
 
       {match(step)
         .with('select', () => (
