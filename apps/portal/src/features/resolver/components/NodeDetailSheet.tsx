@@ -166,7 +166,9 @@ export const NodeDetailSheet = ({
                         {roles.map((role) => (
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
-                            className={stripedRowClassName(tableView.strippedRows)}
+                            className={stripedRowClassName(
+                              tableView.strippedRows,
+                            )}
                           >
                             <TableCell
                               className={cn(cellClassName, 'font-mono text-xs')}
