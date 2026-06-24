@@ -17,9 +17,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 
   return (
     <>
-      <TableRow
-        className={stripedRowClassName(tableView.strippedRows)}
-      >
+      <TableRow className={stripedRowClassName(tableView.strippedRows)}>
         {row.getVisibleCells().map((cell) => (
           <TableCell
             key={cell.id}
