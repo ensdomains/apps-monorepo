@@ -130,6 +130,9 @@ importers:
       '@ens-apps/l2-primary':
         specifier: workspace:*
         version: link:../../packages/l2-primary
+      '@ens-apps/migration':
+        specifier: workspace:*
+        version: link:../../packages/migration
       '@ens-apps/shared-schema':
         specifier: workspace:*
         version: link:../../packages/shared-schema
@@ -443,6 +446,9 @@ importers:
       '@ens-apps/l2-primary':
         specifier: workspace:*
         version: link:../../packages/l2-primary
+      '@ens-apps/migration':
+        specifier: workspace:*
+        version: link:../../packages/migration
       '@ens-apps/transaction-manager':
         specifier: workspace:*
         version: link:../../packages/transaction-manager
@@ -830,6 +836,25 @@ importers:
         version: 6.0.3
 
   packages/locales: {}
+
+  packages/migration:
+    dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f2a5d7c(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+      '@ensdomains/ensjs-abi':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f2a5d7c
+      viem:
+        specifier: 'catalog:'
+        version: 2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+    devDependencies:
+      typescript:
+        specifier: catalog:typescript6
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.2)(@vitest/coverage-v8@4.1.5)(happy-dom@18.0.1)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2))
 
   packages/motion-plus:
     dependencies:

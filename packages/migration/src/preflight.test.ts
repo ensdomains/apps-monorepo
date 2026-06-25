@@ -1,26 +1,50 @@
 import { type Address, zeroAddress } from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  fail,
-  makeClassified,
-  OTHER,
-  OWNER,
-  ok,
-  publicClient,
-} from './_fixtures'
-import { FUSES } from './classifyNames'
+import { type ClassifiedName, FUSES, type MigrationTokenType } from './classify'
 import {
   checkFrozenApproval,
   checkOwnership,
   runEligibilityChecks,
-} from './preflightChecks'
+} from './preflight'
+import type { V1Domain } from './types'
 
-vi.mock('viem/actions', () => ({
-  multicall: vi.fn(),
-}))
+vi.mock('viem/actions', () => ({ multicall: vi.fn() }))
 
 const multicallMock = vi.mocked(multicall)
+
+const OWNER: Address = '0x0000000000000000000000000000000000000001'
+const OTHER: Address = '0x0000000000000000000000000000000000000002'
+
+const publicClient = {} as never
+const ok = <T>(result: T) => ({ status: 'success' as const, result })
+const fail = () => ({
+  status: 'failure' as const,
+  error: new Error('reverted'),
+  result: undefined,
+})
+
+const makeClassified = (o: {
+  id: string
+  label?: string
+  name?: string
+  tokenType?: MigrationTokenType
+  fuses?: number
+}): ClassifiedName => ({
+  tokenType: o.tokenType ?? 'unwrapped',
+  label: o.label ?? 'alice',
+  parentName: 'eth',
+  fuses: o.fuses ?? 0,
+  tokenHolder: OWNER,
+  v1ResolverAddress: null,
+  resolverStrategy: 'to-owned-permres',
+  managerAddress: null,
+  domain: {
+    id: o.id,
+    labelhash: o.id,
+    name: o.name ?? 'alice.eth',
+  } as unknown as V1Domain,
+})
 
 beforeEach(() => {
   multicallMock.mockReset()

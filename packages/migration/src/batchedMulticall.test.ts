@@ -1,12 +1,19 @@
 import type { PublicClient } from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fail, ok, publicClient } from './_fixtures'
 import { batchedMulticall } from './batchedMulticall'
 
 vi.mock('viem/actions', () => ({ multicall: vi.fn() }))
 
 const multicallMock = vi.mocked(multicall)
+
+const publicClient = {} as PublicClient
+const ok = <T>(result: T) => ({ status: 'success' as const, result })
+const fail = () => ({
+  status: 'failure' as const,
+  error: new Error('reverted'),
+  result: undefined,
+})
 
 // Intentionally any: minimal shape required by batchedMulticall.
 type AnyContract = Parameters<typeof batchedMulticall>[1][number]

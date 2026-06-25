@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isKnownPublicResolver } from './knownResolvers'
+import { isKnownPublicResolver } from './classify'
 
 describe('isKnownPublicResolver', () => {
   it.each([
@@ -25,12 +25,6 @@ describe('isKnownPublicResolver', () => {
       '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
       true,
     ],
-    // This actually resolves to 0x640294a2b2d87e7f522db3e3e3e876764bce170d
-    // [
-    //   'Sepolia V1 PublicResolver',
-    //   '0x640294a2b2d87e7f522db3e3e3e876764bce170d',
-    //   true,
-    // ],
     ['unknown resolver', '0x0000000000000000000000000000000000000001', false],
   ])('returns %s → %s', (_, input, expected) => {
     expect(isKnownPublicResolver(input)).toBe(expected)

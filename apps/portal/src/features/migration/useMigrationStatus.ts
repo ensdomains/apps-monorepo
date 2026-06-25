@@ -1,0 +1,97 @@
+import {
+  evaluateMigration,
+  type MigrationVerdict,
+  type V1Domain,
+} from '@ens-apps/migration'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
+import { useQuery } from '@tanstack/react-query'
+import type { ClientError } from 'graphql-request'
+import { gql } from 'graphql-request'
+import { fromPromise, ok } from 'neverthrow'
+import type { PublicClient } from 'viem'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+
+/** The migration verdict for a name, as computed by `@ens-apps/migration`. */
+export type MigrationStatus = MigrationVerdict
+
+const V1_DOMAIN_QUERY = gql`
+  query getV1DomainForMigration($name: String!) {
+    domains(where: { name: $name }, first: 1) {
+      id
+      labelName
+      labelhash
+      name
+      resolver { address }
+      owner { id }
+      registrant { id }
+      wrappedOwner { id }
+      parent { name wrappedDomain { fuses } }
+      registration { expiryDate }
+      wrappedDomain { expiryDate fuses }
+    }
+  }
+`
+
+type V1DomainResponse = { domains: V1Domain[] }
+
+class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
+  cause: unknown
+}> {}
+
+type GetMigrationStatusParameters = {
+  name: string
+}
+
+const getMigrationStatus = ResultFn(async function* ({
+  name,
+}: GetMigrationStatusParameters) {
+  const client = yield* safeGetClient()
+  const subgraphClient = createSubgraphClient(client)
+
+  const { domains } = yield* fromPromise(
+    subgraphClient.request<V1DomainResponse, { name: string }>(
+      V1_DOMAIN_QUERY,
+      { name },
+    ),
+    (e) => new GetMigrationStatusError({ cause: e as ClientError }),
+  )
+
+  const verdict = yield* fromPromise(
+    evaluateMigration(client as unknown as PublicClient, domains[0] ?? null),
+    (e) => new GetMigrationStatusError({ cause: e }),
+  )
+
+  return ok(verdict)
+})
+
+const getMigrationStatusQueryKey = createQueryKey<
+  'get-migration-status',
+  GetMigrationStatusParameters
+>('get-migration-status')
+
+export const getMigrationStatusQueryOptions = (
+  params: GetMigrationStatusParameters,
+) =>
+  resultQueryOptions({
+    queryKey: getMigrationStatusQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
+  })
+
+/**
+ * Resolves whether a v1 name can migrate to v2. Only meaningful for ENSv1
+ * names, so callers gate it with `enabled` on the resolved protocol version.
+ */
+export const useMigrationStatus = ({
+  name,
+  enabled = true,
+}: {
+  name: string
+  enabled?: boolean
+}) =>
+  useQuery({
+    ...getMigrationStatusQueryOptions({ name }),
+    enabled: enabled && !!name,
+  })
