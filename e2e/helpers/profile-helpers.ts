@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+import { clickThroughEnableSessions } from './manager-auth.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -64,6 +65,10 @@ export async function renewFor28Days(page: Page): Promise<string> {
   const expectedExpiry = dateMatch[0]
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+  // Smart-session gate: on the HCA path clicking "Pay with stablecoins" opens the
+  // EnableSessions modal BEFORE the token picker — same gate as registration.
+  // Idempotent no-op in EOA mode or when sessions are already active.
+  await clickThroughEnableSessions(page)
   await page.getByText('USDC', { exact: true }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
