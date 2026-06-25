@@ -79,7 +79,15 @@ function randomId(): string {
   ) {
     return crypto.randomUUID()
   }
-
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.getRandomValues === 'function'
+  ) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    return `run-${Date.now()}-${Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')}`
+  }
   return `run-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
 
