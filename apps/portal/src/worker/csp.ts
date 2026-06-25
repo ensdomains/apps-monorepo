@@ -29,6 +29,7 @@ const CONNECT_HOSTS = [
   'https://1.1.1.1',
   // PostHog analytics host — .env (VITE_PUBLIC_POSTHOG_HOST)
   'https://jakob.ens.domains',
+  'https://i.pinimg.com',
   // WalletConnect / RainbowKit relay, verify, pulse, explorer-api
   'https://*.walletconnect.com',
   'wss://*.walletconnect.com',
