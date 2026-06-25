@@ -280,7 +280,10 @@ test.describe('ENS profile', () => {
         // EIP-2612 permit (eth_signTypedData_v4, auto-authorized) — no
         // eth_sendTransaction. Fire authorization in the background for
         // EOA-mode compatibility; the .catch absorbs the timeout.
-        void authorizeTransaction(wallet, 60_000).catch(() => {})
+        // 120 s budget: clickThroughEnableSessions inside renewFor28Days
+        // blocks for up to 30 s in EOA mode before no-oping, so 60 s was
+        // too tight — the USDC sendTransaction arrives ~35 s in.
+        void authorizeTransaction(wallet, 120_000).catch(() => {})
         const expiry = await renewFor28Days(page)
         console.log(`[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
@@ -306,8 +309,9 @@ test.describe('ENS profile', () => {
 
         // Same as the owned-name extend test: HCA path uses a permit (no
         // eth_sendTransaction). Fire authorization in the background for EOA
-        // compatibility; the .catch absorbs the timeout.
-        void authorizeTransaction(wallet, 60_000).catch(() => {})
+        // compatibility; 120 s for the same reason as above (extra navigation
+        // via ThirdPartyRenewalDialog tightens the budget further).
+        void authorizeTransaction(wallet, 120_000).catch(() => {})
         const expiry = await renewFor28Days(page)
         console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
