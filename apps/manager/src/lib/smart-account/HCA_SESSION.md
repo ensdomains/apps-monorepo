@@ -138,12 +138,60 @@ is reused, so the user only sees the permit (the ENABLE step is skipped — see
 ```
 ENABLE   updateConfig(1, [{ addr: ephemeralKey, expiration: now + 1w }], [])  ← 1 wallet signature
 USE      sendTransaction({ ..., signers: { type:'owner', kind:'ecdsa', accounts:[ephemeralAccount] } })  ← prompt-free
+RENEW    updateOwnerExpiration(ephemeralKey, now + 1w)  (optional — extend the SAME key, see below)
 EXPIRE   block.timestamp > expiration  → key auto-invalid on-chain (no tx needed)
 REVOKE   updateConfig(1, [], [ephemeralKey])  (optional, explicit)
 ```
 
 `threshold` stays at **1** (1-of-n): either the permanent EOA owner _or_ the
 ephemeral key can authorize an Intent.
+
+### Renewal: `updateOwnerExpiration` vs. a fresh ENABLE (avoids owner accretion)
+
+> ⚠️ **Observed on the live HCA:** repeated ENABLEs accumulate owners. The live
+> account currently holds the permanent EOA at `owners[0]` **plus several finite
+> ephemeral owners** (one per ENABLE) — verified via
+> `cast call $MODULE "getOwners(address)" $HCA`. Each `createRhinestoneSession`
+> mints a NEW ephemeral key and a NEW `updateConfig` add-owner call, so a new row
+> is appended every time (old rows linger until they expire — expiry does NOT
+> evict them from storage; `getOwnersCount` still counts expired owners, capped at
+> `MAX_OWNERS = 32`).
+
+`OwnableValidator` also exposes a second, cheaper lever the current code does
+**not** use:
+
+```solidity
+// rhinestonewtf/ens-modules — src/hca-module/base/OwnableValidator.sol
+function updateOwnerExpiration(address owner, uint48 newExpiration) public moduleIsInitialized
+```
+
+`updateOwnerExpiration` extends (or reduces) the expiry of an **existing** owner
+in place — internally a `remove + re-add` of the same address, so it does NOT
+grow the owner set. It reverts `OwnerNotFound` if the address isn't already an
+owner, and `ExpirationInPast` if `newExpiration <= block.timestamp` (unless
+`type(uint48).max`).
+
+Two valid renewal strategies, with different tradeoffs:
+
+| Strategy | Call | Reuses key? | Owner set grows? | Wallet prompt? |
+|----------|------|-------------|------------------|----------------|
+| **Fresh ENABLE** (current behaviour) | `updateConfig(1, [{newKey, now+1w}], [])` | no — new ephemeral key | **yes**, +1 row per renewal | yes (owner-signed) |
+| **Extend in place** | `updateOwnerExpiration(sameKey, now+1w)` | yes — same stored key | no | yes (owner-signed) |
+
+Both are owner-signed (one wallet signature), so neither is "free." The
+in-place extension is preferable for **storage hygiene** — it keeps a single
+ephemeral owner alive rather than leaving a trail of expired-but-still-stored
+rows that count toward `MAX_OWNERS`. It does mean a longer-lived key on disk, so
+if you adopt it, pair it with an explicit REVOKE on logout/rotation.
+
+> 🔭 **Not yet wired.** The app always takes the **Fresh ENABLE** path (a stored
+> session is reused only while still valid — see §6 — and once expired a brand
+> new key+owner is minted). Switching reuse-on-expiry to `updateOwnerExpiration`
+> would require: (1) a `buildExtendSessionOwnerCall({ sessionKeyAddress, validUntil })`
+> builder alongside `buildAddSessionOwnerCall`; (2) a session-storage path that
+> keeps the same `sessionPrivateKey` and only bumps `validUntil`; and (3) an
+> optional periodic REVOKE/cleanup pass for stale owners. Tracked as a future
+> improvement; the current model is correct, just less storage-frugal.
 
 ---
 
@@ -277,13 +325,26 @@ effect re-runs and performs the lookup once both are known. Covered by
 | Thing | Value |
 |-------|-------|
 | HCA account (proxy) | `0xc4991693c3cd15a9724b3c61119a48f3f26366c8` (`accountId() = "ens-hca.1.0.0"`) |
-| HCA implementation | `0x8B6e553709C960576FA6F3Ed7d062047E8cD2B70` |
+| HCA implementation | `0x8B6e553709C960576FA6F3Ed7d062047E8cD2B70` (this account's ERC-1967 slot — see drift note ⬇) |
 | Default validator (type 1) | **HCAModule** `0x5049ecBd4d961aE6DFEED9b7ccCe7f026454970E` (immutable) |
 | Default executor (type 2) | **IntentExecutor** `0x00000000005ad9ce1f5035fd62ca96cef16adaaf` (immutable) |
 | Hook (type 4) | _none_ — `getActiveHook()` = `0x0` |
 | SmartSessions / Emissary | **NOT installed** (0 occurrences in bytecode; `installModule` reverts `0xca962ccf`) |
 | EntryPoint | `0x0000000071727De22E5e9d8BAf0edAc6f37da032` (4337 v0.7) |
-| HCAFactory | `0x358680728dedb552adaa9f5eb5d4395b291cf943` |
+| HCAFactory | `0x358680728dedb552adaa9f5eb5d4395b291cf943` (matches the SDK's `HCA_FACTORY_ADDRESS`) |
+
+> ⚠️ **Implementation-address drift (SDK vs. deployed).** The Rhinestone SDK
+> hardcodes a `HCA_IMPLEMENTATION_ADDRESS` (currently
+> `0x7c2cC1e499a87ab480Df154e05164cD56D05d570` in `src/accounts/hca.ts`) used only
+> for CREATE3 address _prediction_. The **live account `0xc499…` was deployed with
+> an OLDER implementation**: its ERC-1967 implementation slot
+> (`0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc`) reads
+> `0x8B6e…2B70` — the value in the table above, confirmed via
+> `eth_getStorageAt`. The **HCAFactory matches** (`0x3586…f943`), so CREATE3
+> address derivation is unaffected; the implementation pointer simply differs
+> because the SDK bumped its impl after this account was created. This is expected
+> drift, not a misconfiguration — but if you re-derive or re-deploy with a current
+> SDK, expect a different implementation behind the proxy.
 
 **App / SDK config:**
 
@@ -320,4 +381,20 @@ cast call $MODULE "isInitialized(address)(bool)" $HCA --rpc-url $RPC   # true
 cast call $HCA "getActiveHook()(address)" --rpc-url $RPC       # 0x0 (no hook)
 cast call $HCA "installModule(uint256,address,bytes)" 1 0x000000000000000000000000000000000000dEaD 0x --rpc-url $RPC  # revert 0xca962ccf = NoModuleChangeAllowed()
 cast call $SMARTSESSIONS "isInitialized(address)(bool)" $HCA --rpc-url $RPC   # false
+
+# Implementation pointer (ERC-1967 slot) — confirms the deployed impl (drift note §7):
+cast storage $HCA 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc --rpc-url $RPC  # 0x..8B6e553709C960576FA6F3Ed7d062047E8cD2B70
+
+# Owner set — EOA permanent (expiration = type(uint48).max = 281474976710655) +
+# finite ephemeral owners, one per ENABLE (owner accretion, see §3 Renewal):
+cast call $MODULE "getOwners(address)((address,uint48)[])" $HCA --rpc-url $RPC
+# e.g. [(0x205d2686…462CF, 281474976710655), (0x71E7…184F, 1782732230), …]
 ```
+
+### Owner-set hygiene check
+
+- [ ] `getOwners(HCA)` shows `owners[0]` = EOA with expiration
+      `281474976710655` (= `type(uint48).max`, permanent).
+- [ ] Every other owner is a finite-expiry ephemeral session key. A growing
+      count of these across renewals is expected with the current **Fresh
+      ENABLE** model (§3) — switch to `updateOwnerExpiration` to keep it to one.
