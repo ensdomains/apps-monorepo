@@ -113,7 +113,9 @@ export function submitWarpTransaction(
       const sdkParams = {
         sourceChains: [chain],
         targetChain: chain,
-        calls,
+        // Spread into a fresh mutable array: the SDK's CallInput[] is mutable
+        // while rhinestoneParams.calls is readonly.
+        calls: [...calls],
         sponsored: sponsored ?? true,
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).

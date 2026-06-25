@@ -1,9 +1,10 @@
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Hex, PublicClient } from 'viem'
 import { prepareENSRenewalTransaction } from '../helpers/rhinestone-account.helpers'
-import type {
-  TransactionIntent,
-  TransactionRequest,
+import {
+  getPrimaryCall,
+  type TransactionIntent,
+  type TransactionRequest,
 } from '../types/transaction.types'
 
 export class TransactionPreparationError extends Error {
@@ -51,11 +52,13 @@ export function prepareTransaction(input: {
       return prepareETHTransfer(intent, publicClient, chainId, useSmartAccount)
 
     case 'custom':
-      // Custom intent already has a prepared request
+      // Custom intent already has a prepared request. Derive the estimated cost
+      // from the primary call so it works for both EOA (top-level value) and
+      // Rhinestone intents (value lives in rhinestoneParams.calls).
       return ResultAsync.fromSafePromise(
         Promise.resolve({
           request: intent.request,
-          estimatedCost: intent.request.value || 0n,
+          estimatedCost: getPrimaryCall(intent.request)?.value ?? 0n,
         }),
       )
 
@@ -104,9 +107,6 @@ function prepareENSRenewal(
         ? {
             type: 'rhinestone-intent',
             from,
-            to,
-            data,
-            value,
             chainId,
             rhinestoneParams: {
               calls: [
@@ -172,9 +172,6 @@ function prepareETHTransfer(
         ? {
             type: 'rhinestone-intent',
             from,
-            to,
-            data: data || ('0x' as Hex),
-            value,
             chainId,
             rhinestoneParams: {
               calls: [

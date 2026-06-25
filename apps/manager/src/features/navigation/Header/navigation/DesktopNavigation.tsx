@@ -72,6 +72,7 @@ export const DesktopNavigation = ({
               'ms-opsz-32 text-ens-blue-midnight transition-transform duration-200 group-data-popup-open:-rotate-180',
               profileHeader && 'text-[#093C52]',
             )}
+            style={profileHeader ? { color: profileThemeColor } : undefined}
             symbol="arrow_drop_down"
           />
         </div>

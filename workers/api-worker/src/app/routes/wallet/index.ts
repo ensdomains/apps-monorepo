@@ -16,7 +16,6 @@ import { sepolia } from 'viem/chains'
 import { encodeFunctionData, parseEther, parseUnits } from 'viem/utils'
 import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { SEPOLIA_RPC_URL } from '#core/eth/client.js'
 import { KV_KEY } from '#core/kv/index.js'
 import { hasV1Names } from '#services/v1-names/index.js'
 import { logger } from '#utils/logger.js'
@@ -69,7 +68,7 @@ const MINT_ABI = [
   },
 ] as const
 
-const createWalletClient = (privateKey: string | undefined) => {
+const createWalletClient = (privateKey: string | undefined, rpcUrl: string) => {
   if (!privateKey?.startsWith('0x')) {
     throw new HTTPException(500, {
       message: 'Server is not configured to fund wallets',
@@ -86,7 +85,7 @@ const createWalletClient = (privateKey: string | undefined) => {
     // `batch: true` coalesces concurrent reads (the Promise.all below) into a
     // single JSON-RPC batch HTTP request — one round-trip without the on-chain
     // Multicall3 dependency.
-    transport: http(SEPOLIA_RPC_URL, { batch: true }),
+    transport: http(rpcUrl, { batch: true }),
     account: walletAccount,
   })
     .extend(publicActions)
@@ -107,8 +106,17 @@ export default createApp()
     async (c) => {
       const { address } = c.req.valid('json')
 
+      if (!c.env.SEPOLIA_RPC_URL) {
+        throw new HTTPException(500, {
+          message: 'Server is not configured with SEPOLIA_RPC_URL',
+        })
+      }
+
       // Setup wallet
-      const walletClient = createWalletClient(c.env.ETH_PRIVATE_KEY)
+      const walletClient = createWalletClient(
+        c.env.ETH_PRIVATE_KEY,
+        c.env.SEPOLIA_RPC_URL,
+      )
 
       // Serialize funding per address. Without this, concurrent /wallet/fund
       // calls for the same address each read the same (low) balances and each

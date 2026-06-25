@@ -78,7 +78,7 @@ export const SelectNamesStep = ({
   )
 
   return (
-    <div className="relative z-10 flex h-full flex-col">
+    <div className="relative z-10 flex min-h-0 w-full flex-1 flex-col self-stretch">
       <div
         className={cn(
           'flex min-h-0 flex-1 flex-col items-center px-5 pt-6 pb-0 md:pb-5',
