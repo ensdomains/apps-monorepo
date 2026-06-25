@@ -13,6 +13,15 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import './SmartAccountContext.mocks'
 
+// WEB-287: keep all the real session-storage helpers (the context imports
+// several) but spy on `removeSessionsByOwner` to assert cross-EOA eviction.
+vi.mock('@ens-apps/smart-account', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@ens-apps/smart-account')>()
+  return { ...actual, removeSessionsByOwner: vi.fn() }
+})
+
+import { removeSessionsByOwner } from '@ens-apps/smart-account'
 import { useWalletClient } from 'wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { initializeRhinestoneAccount } from './rhinestone'
@@ -21,6 +30,9 @@ import {
   useSmartAccountContext,
   useSmartAccountContextSafe,
 } from './SmartAccountContext'
+
+const removeSessionsByOwnerMock =
+  removeSessionsByOwner as unknown as ReturnType<typeof vi.fn>
 
 const fundPost = backendClient.wallet.fund.$post as unknown as ReturnType<
   typeof vi.fn
@@ -220,6 +232,91 @@ describe('SmartAccountContext', () => {
       // Give the effect time to (incorrectly) re-fire; it must not.
       await new Promise((resolve) => setTimeout(resolve, 50))
       expect(fundPost).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // WEB-287 / EXP-RHN-003: a session enabled by owner A on a shared device must
+  // not survive a switch to owner B. When the connected EOA changes, the
+  // previous owner's stored session is evicted.
+  describe('cross-EOA session eviction', () => {
+    const EOA_A = '0xAAAA000000000000000000000000000000000001'
+    const EOA_B = '0xBBBB000000000000000000000000000000000002'
+
+    beforeEach(() => {
+      removeSessionsByOwnerMock.mockClear()
+    })
+
+    it('evicts the previous owner session when the connected EOA changes', async () => {
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: { account: { address: EOA_A } },
+      } as any)
+
+      const { rerender } = renderHook(() => useSmartAccountContext(), {
+        wrapper: createWrapper(),
+      })
+
+      // Owner A connects and initializes — no eviction yet.
+      await waitFor(() => {
+        expect(initializeRhinestoneAccount).toHaveBeenCalled()
+      })
+      expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
+
+      // Switch the connected wallet to owner B.
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: { account: { address: EOA_B } },
+      } as any)
+      rerender()
+
+      // The previous owner (A) — and only A — has its session evicted.
+      await waitFor(() => {
+        expect(removeSessionsByOwnerMock).toHaveBeenCalledWith(EOA_A)
+      })
+      expect(removeSessionsByOwnerMock).not.toHaveBeenCalledWith(EOA_B)
+    })
+
+    it('evicts the previous owner session on wallet disconnect (eoa → null)', async () => {
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: { account: { address: EOA_A } },
+      } as any)
+
+      const { rerender } = renderHook(() => useSmartAccountContext(), {
+        wrapper: createWrapper(),
+      })
+
+      // Owner A connects and initializes — no eviction yet.
+      await waitFor(() => {
+        expect(initializeRhinestoneAccount).toHaveBeenCalled()
+      })
+      expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
+
+      // Disconnect: wagmi reports no wallet client (eoaAddress → null).
+      vi.mocked(useWalletClient).mockReturnValue({ data: null } as any)
+      rerender()
+
+      // The previously-connected owner (A) has its session evicted.
+      await waitFor(() => {
+        expect(removeSessionsByOwnerMock).toHaveBeenCalledWith(EOA_A)
+      })
+    })
+
+    it('does NOT evict on a plain re-render with the same EOA', async () => {
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: { account: { address: EOA_A } },
+      } as any)
+
+      const { rerender } = renderHook(() => useSmartAccountContext(), {
+        wrapper: createWrapper(),
+      })
+
+      await waitFor(() => {
+        expect(initializeRhinestoneAccount).toHaveBeenCalled()
+      })
+
+      rerender()
+      rerender()
+
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
     })
   })
 })
