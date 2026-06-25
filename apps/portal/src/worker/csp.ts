@@ -10,6 +10,9 @@
  *   - as a `<meta http-equiv>` tag injected into every HTML `<head>`.
  * `frame-ancestors` is invalid inside a `<meta>` tag (browsers ignore it there),
  * so the meta variant omits it — hence the two exported strings.
+ *
+ * Violations are reported to PostHog (see `POSTHOG_CSP_REPORT_ENDPOINT`) via the
+ * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
  */
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
@@ -80,9 +83,23 @@ const BASE_DIRECTIVES = [
   'upgrade-insecure-requests',
 ] as const
 
-// `frame-ancestors` is the only directive that's invalid inside a <meta> tag,
-// so it's the sole header-only entry.
-const HEADER_ONLY_DIRECTIVES = ["frame-ancestors 'none'"] as const
+// PostHog CSP-violation reporting endpoint, visualized by PostHog's "CSP
+// violations" dashboard template. Points directly at PostHog's EU cloud, not our
+// jakob.ens.domains analytics proxy — that proxy can't serve /report/ (confirmed
+// with its maintainer), at the cost of a few reports lost to ad-blockers. The
+// token is the public client key (VITE_PUBLIC_POSTHOG_KEY); the trailing slash
+// is required.
+const POSTHOG_CSP_REPORT_ENDPOINT = `https://eu.i.posthog.com/report/?token=${import.meta.env.VITE_PUBLIC_POSTHOG_KEY}`
+
+// Directives the browser ignores inside a <meta> tag, so they're header-only:
+// frame-ancestors is invalid there, and report-to/report-uri only fire from the
+// HTTP header. `report-to posthog` names the `Reporting-Endpoints` endpoint set
+// in `withSecurityHeaders`; `report-uri` is the legacy fallback.
+const HEADER_ONLY_DIRECTIVES = [
+  "frame-ancestors 'none'",
+  'report-to posthog',
+  `report-uri ${POSTHOG_CSP_REPORT_ENDPOINT}`,
+] as const
 
 /** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
 export const cspWithoutFrameAncestors = `${BASE_DIRECTIVES.join('; ')};`
@@ -99,6 +116,11 @@ export function withSecurityHeaders(response: Response): Response {
   // headers are mutable (HTMLRewriter / `new Response` results pass through too).
   const result = new Response(response.body, response)
   result.headers.set('Content-Security-Policy', cspWithFrameAncestors)
+  // Names the `posthog` endpoint that the `report-to` CSP directive targets.
+  result.headers.set(
+    'Reporting-Endpoints',
+    `posthog="${POSTHOG_CSP_REPORT_ENDPOINT}"`,
+  )
   result.headers.set('X-Frame-Options', 'DENY')
   result.headers.set('X-Content-Type-Options', 'nosniff')
   result.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
