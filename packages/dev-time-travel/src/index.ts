@@ -9,3 +9,4 @@
  */
 export { isTimeTravelEnabled, TIME_TRAVEL_RPC } from './config'
 export { TimeTravelPanel } from './TimeTravelPanel'
+export { anvilSetupOwner } from './anvilSetupOwner'

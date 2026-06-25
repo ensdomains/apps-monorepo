@@ -1,3 +1,4 @@
+import { isMigrationToolEnabled, MigrationTestPanel } from '@ens-apps/dev-migration-tool'
 import { isTimeTravelEnabled, TimeTravelPanel } from '@ens-apps/dev-time-travel'
 import {
   TransactionManagerProvider,
@@ -56,6 +57,9 @@ export const Route = createRootRoute({
             </RainbowKitProvider>
             {import.meta.env.DEV && isTimeTravelEnabled() && (
               <TimeTravelPanel />
+            )}
+            {import.meta.env.DEV && isMigrationToolEnabled() && (
+              <MigrationTestPanel />
             )}
           </QueryClientProvider>
         </WagmiProvider>

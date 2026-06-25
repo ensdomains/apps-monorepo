@@ -1,7 +1,7 @@
 {
-  "name": "@ens-apps/dev-time-travel",
+  "name": "@ens-apps/dev-migration-tool",
   "version": "1.0.0",
-  "description": "DEV-only manual time-travel tooling (Anvil clock control + panel) for the ENS apps.",
+  "description": "DEV-only migration test tooling — create V1 name states and trigger migration from the browser.",
   "type": "module",
   "private": true,
   "sideEffects": [
@@ -15,7 +15,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ens-apps/utils": "workspace:*",
     "viem": "catalog:"
   },
   "peerDependencies": {
