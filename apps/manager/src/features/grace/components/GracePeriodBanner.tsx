@@ -94,9 +94,9 @@ export const GracePeriodBanner = ({
         <div className="@md:w-[298px] w-full shrink-0">
           {previewRenew ? (
             <span className={renewButtonClassName}>
-              <Trans>Renew</Trans>
+              {isV2 ? <Trans>Renew</Trans> : <Trans>Renewal</Trans>}
             </span>
-          ) : (
+          ) : isV2 ? (
             <LinkButton
               className={renewButtonClassName}
               params={{ name: renewName }}
@@ -104,6 +104,15 @@ export const GracePeriodBanner = ({
               variant="outline"
             >
               <Trans>Renew</Trans>
+            </LinkButton>
+          ) : (
+            <LinkButton
+              className={renewButtonClassName}
+              search={{ renew: renewName }}
+              to="/migration"
+              variant="outline"
+            >
+              <Trans>Renewal</Trans>
             </LinkButton>
           )}
         </div>

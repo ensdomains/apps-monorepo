@@ -8,8 +8,11 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 export const MigrationProgressBanner = () => {
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
-  const { eligible: eligibleV1Names, isPending: isV1Pending } =
-    useEligibleV1Names()
+  const {
+    eligible: eligibleV1Names,
+    renewableGrace: renewableGraceV1Names,
+    isPending: isV1Pending,
+  } = useEligibleV1Names()
   const { data: migratedCount, isPending: isCountPending } =
     useMigratedNamesCount()
 
@@ -17,7 +20,7 @@ export const MigrationProgressBanner = () => {
   if (isV1Pending || isCountPending) return null
 
   const migrated = migratedCount ?? 0
-  const remaining = eligibleV1Names.length
+  const remaining = eligibleV1Names.length + renewableGraceV1Names.length
   const total = migrated + remaining
 
   if (migrated < 1 || remaining < 1) return null

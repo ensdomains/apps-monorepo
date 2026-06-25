@@ -12,12 +12,14 @@ import { groupByParent } from '../service/groupByParent'
 
 type Params = {
   readonly eligible: readonly ClassifiedName[]
+  readonly initialSelectedNames?: readonly string[]
   readonly isPending: boolean
   readonly onNamesChange: (names: string[]) => void
 }
 
 export const useNameSelection = ({
   eligible,
+  initialSelectedNames,
   isPending,
   onNamesChange,
 }: Params) => {
@@ -34,9 +36,21 @@ export const useNameSelection = ({
   useEffect(() => {
     if (didSeed.current || isPending || eligible.length === 0) return
     didSeed.current = true
-    setSelected(allSelectable)
-    onNamesChange([...allSelectable])
-  }, [isPending, eligible.length, allSelectable, onNamesChange])
+    const initialSelection =
+      initialSelectedNames === undefined
+        ? allSelectable
+        : new Set(
+            initialSelectedNames.filter((name) => allSelectable.has(name)),
+          )
+    setSelected(initialSelection)
+    onNamesChange([...initialSelection])
+  }, [
+    isPending,
+    eligible.length,
+    allSelectable,
+    initialSelectedNames,
+    onNamesChange,
+  ])
 
   useEffect(() => {
     if (!didSeed.current || isPending) return

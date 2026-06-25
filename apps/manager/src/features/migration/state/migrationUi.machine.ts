@@ -12,6 +12,7 @@ import {
   adjustPlanForRetry,
   type MigrationPlan,
 } from '@/features/migration/service/buildMigrationPlan'
+import type { RenewableGraceName } from '@/features/migration/service/classifyNames'
 import {
   decodeMigrationError,
   type MigrationError,
@@ -23,6 +24,11 @@ import {
   type MigrationStepDescriptor,
 } from '@/features/migration/service/migrationService'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import {
+  executeLegacyGraceRenewals,
+  type LegacyGraceRenewalProgress,
+  type LegacyGraceRenewalResult,
+} from '../service/legacyGraceRenewal'
 
 const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
@@ -33,6 +39,10 @@ type Context = {
   plan?: MigrationPlan
   signer?: Signer
   accountAddress?: Address
+  renewableGraceNames: readonly RenewableGraceName[]
+  renewedGraceNames: string[]
+  renewalTxHashes: readonly Hex[]
+  renewalProgress?: LegacyGraceRenewalProgress
   migratedNames: string[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
@@ -47,6 +57,22 @@ type Events =
       plan: MigrationPlan
       signer: Signer
       accountAddress: Address
+    }
+  | {
+      type: 'graceRenewal.start'
+      names: readonly RenewableGraceName[]
+      signer: Signer
+      accountAddress: Address
+    }
+  | { type: 'graceRenewal.progress'; progress: LegacyGraceRenewalProgress }
+  | {
+      type: 'graceRenewal.nameComplete'
+      name: string
+      txHash: Hex
+    }
+  | {
+      type: 'graceRenewal.complete'
+      result: LegacyGraceRenewalResult
     }
   | { type: 'migration.progress'; progress: MigrationProgress }
   | {
@@ -67,6 +93,10 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   wagmiConfig,
   selectedNames: [],
   plan: undefined,
+  renewableGraceNames: [],
+  renewedGraceNames: [],
+  renewalTxHashes: [],
+  renewalProgress: undefined,
   migratedNames: [],
   txHashes: [],
   progress: undefined,
@@ -132,10 +162,54 @@ export const migrationUiMachine = setup({
         cancelled = true
       }
     }),
+    runGraceRenewals: fromCallback<
+      Events,
+      {
+        names: readonly RenewableGraceName[]
+        signer: Signer
+        accountAddress: Address
+      }
+    >(({ input, sendBack }) => {
+      let cancelled = false
+
+      executeLegacyGraceRenewals({
+        names: input.names,
+        signer: input.signer,
+        accountAddress: input.accountAddress,
+        publicClient: defaultPublicClient as PublicClient,
+        onProgress: (progress) => {
+          if (cancelled) return
+          sendBack({ type: 'graceRenewal.progress', progress })
+        },
+        onNameComplete: (name, txHash) => {
+          if (cancelled) return
+          sendBack({ type: 'graceRenewal.nameComplete', name, txHash })
+        },
+      })
+        .then((result) => {
+          if (cancelled) return
+          sendBack({ type: 'graceRenewal.complete', result })
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return
+          sendBack({
+            type: 'migration.failed',
+            error: decodeMigrationError(err),
+          })
+        })
+
+      return () => {
+        cancelled = true
+      }
+    }),
   },
   guards: {
     hasSelection: ({ event }) =>
       event.type === 'migration.start' && event.plan.classified.length > 0,
+    hasGraceRenewals: ({ event }) =>
+      event.type === 'graceRenewal.start' && event.names.length > 0,
+    canRetryGraceRenewal: ({ context }) =>
+      context.renewableGraceNames.length > 0 && !context.plan,
     isOnlyFailures: ({ event, context }) =>
       event.type === 'migration.complete' &&
       event.result.txHashes.length === 0 &&
@@ -156,6 +230,54 @@ export const migrationUiMachine = setup({
         progress: undefined,
         lastError: undefined,
         txHashes: [] as readonly Hex[],
+      }
+    }),
+    captureGraceRenewalStart: assign(({ event }) => {
+      if (event.type !== 'graceRenewal.start') return {}
+      return {
+        renewableGraceNames: event.names,
+        signer: event.signer,
+        accountAddress: event.accountAddress,
+        renewalProgress: undefined,
+        lastError: undefined,
+        renewalTxHashes: [] as readonly Hex[],
+        renewedGraceNames: [] as string[],
+        plan: undefined,
+      }
+    }),
+    setRenewalProgress: assign({
+      renewalProgress: ({ event, context }) =>
+        event.type === 'graceRenewal.progress'
+          ? event.progress
+          : context.renewalProgress,
+    }),
+    appendGraceRenewalComplete: assign(({ event, context }) => {
+      if (event.type !== 'graceRenewal.nameComplete') return {}
+      const existingNames = new Set(context.renewedGraceNames)
+      const renewedGraceNames = existingNames.has(event.name)
+        ? context.renewedGraceNames
+        : [...context.renewedGraceNames, event.name]
+      const existingHashes = new Set(context.renewalTxHashes)
+      const renewalTxHashes = existingHashes.has(event.txHash)
+        ? context.renewalTxHashes
+        : [...context.renewalTxHashes, event.txHash]
+      return { renewedGraceNames, renewalTxHashes }
+    }),
+    recordGraceRenewalCompletion: assign(({ event, context }) => {
+      if (event.type !== 'graceRenewal.complete') return {}
+      const existingNames = new Set(context.renewedGraceNames)
+      const existingHashes = new Set(context.renewalTxHashes)
+      return {
+        renewedGraceNames: [
+          ...context.renewedGraceNames,
+          ...event.result.renewedNames.filter(
+            (name) => !existingNames.has(name),
+          ),
+        ],
+        renewalTxHashes: [
+          ...context.renewalTxHashes,
+          ...event.result.txHashes.filter((hash) => !existingHashes.has(hash)),
+        ],
       }
     }),
     setProgress: assign({
@@ -233,6 +355,61 @@ export const migrationUiMachine = setup({
           guard: 'hasSelection',
           actions: 'captureMigrationStart',
         },
+        'graceRenewal.start': {
+          target: 'renewGrace',
+          guard: 'hasGraceRenewals',
+          actions: 'captureGraceRenewalStart',
+        },
+      },
+    },
+    renewGrace: {
+      initial: 'running',
+      states: {
+        running: {
+          tags: 'running',
+          invoke: {
+            id: 'runGraceRenewals',
+            src: 'runGraceRenewals',
+            input: ({ context }) => {
+              if (
+                context.renewableGraceNames.length === 0 ||
+                !context.signer ||
+                !context.accountAddress
+              ) {
+                throw new Error('Grace renewal context is incomplete')
+              }
+              return {
+                names: context.renewableGraceNames,
+                signer: context.signer,
+                accountAddress: context.accountAddress,
+              }
+            },
+          },
+          on: {
+            'graceRenewal.progress': {
+              actions: 'setRenewalProgress',
+            },
+            'graceRenewal.nameComplete': {
+              actions: 'appendGraceRenewalComplete',
+            },
+            'graceRenewal.complete': {
+              target: 'succeeding',
+              actions: 'recordGraceRenewalCompletion',
+            },
+            'migration.failed': {
+              target: '#migrationUi.failure',
+              actions: 'setError',
+            },
+          },
+        },
+        succeeding: {
+          tags: 'running',
+          after: {
+            successHold: {
+              target: '#migrationUi.select',
+            },
+          },
+        },
       },
     },
     migrate: {
@@ -307,10 +484,17 @@ export const migrationUiMachine = setup({
     failure: {
       tags: 'result',
       on: {
-        retry: {
-          target: 'migrate',
-          actions: 'resetForRetry',
-        },
+        retry: [
+          {
+            target: 'renewGrace',
+            guard: 'canRetryGraceRenewal',
+            actions: 'setError',
+          },
+          {
+            target: 'migrate',
+            actions: 'resetForRetry',
+          },
+        ],
         cancel: {
           target: 'select',
           actions: 'resetAll',

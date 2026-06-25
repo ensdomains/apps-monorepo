@@ -6,15 +6,28 @@ import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMi
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly isWaitingForGasFunding: boolean
+  readonly selectedGraceCount: number
   readonly totalSelected: number
 }
 
 const GasEstimateMessage = ({
   gasEstimate,
   isWaitingForGasFunding,
+  selectedGraceCount,
   totalSelected,
 }: GasEstimateMessageProps) => {
   if (totalSelected === 0) return null
+
+  if (selectedGraceCount > 0) {
+    return (
+      <p>
+        <Trans>
+          Renewal brings grace-period names back before upgrade. You can renew
+          for longer after upgrade.
+        </Trans>
+      </p>
+    )
+  }
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain. Surface it so the owner knows why the button is briefly blocked.
@@ -61,6 +74,7 @@ type UpgradeButtonLabelProps = {
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
+  readonly selectedGraceCount: number
   readonly totalSelected: number
 }
 
@@ -68,9 +82,11 @@ const UpgradeButtonLabel = ({
   isEstimatingGas,
   isStarting,
   isWaitingForGasFunding,
+  selectedGraceCount,
   totalSelected,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
+  if (selectedGraceCount > 0) return <Trans>Renewal</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
   return (
@@ -89,6 +105,7 @@ type SelectNamesStepFooterProps = {
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
+  readonly selectedGraceCount: number
   readonly totalSelected: number
   readonly visibleCount: number
 }
@@ -100,6 +117,7 @@ export const SelectNamesStepFooter = ({
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
+  selectedGraceCount,
   totalSelected,
   visibleCount,
 }: SelectNamesStepFooterProps) => (
@@ -108,9 +126,10 @@ export const SelectNamesStepFooter = ({
       <GasEstimateMessage
         gasEstimate={gasEstimate}
         isWaitingForGasFunding={isWaitingForGasFunding}
+        selectedGraceCount={selectedGraceCount}
         totalSelected={totalSelected}
       />
-      {totalSelected > 100 && (
+      {selectedGraceCount === 0 && totalSelected > 100 && (
         <p>
           <Trans>
             This will be split into {Math.ceil(totalSelected / 100)} batches —
@@ -130,6 +149,7 @@ export const SelectNamesStepFooter = ({
           isEstimatingGas={isEstimatingGas}
           isStarting={isStarting}
           isWaitingForGasFunding={isWaitingForGasFunding}
+          selectedGraceCount={selectedGraceCount}
           totalSelected={totalSelected}
         />
       </button>

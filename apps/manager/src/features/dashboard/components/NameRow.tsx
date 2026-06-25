@@ -36,7 +36,11 @@ import {
 } from './DashboardPills'
 
 export type NameStatus = 'eligibleUpgrade' | 'ensv1Only'
-export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
+export type NameRowCta =
+  | 'renew'
+  | 'remindMe'
+  | 'manageExplorer'
+  | 'migrationRenewal'
 
 interface NameRowProps {
   readonly label: string
@@ -145,6 +149,19 @@ const RowCta = ({
           className="ms-opsz-20 text-xl"
           symbol="notification_settings"
         />
+      </Link>
+    )
+  }
+
+  if (cta === 'migrationRenewal') {
+    return (
+      <Link
+        className={ctaVariants({ kind: 'renew' })}
+        search={{ renew: label }}
+        to="/migration"
+      >
+        <Trans>Renewal</Trans>
+        <MSymbol className="ms-opsz-20 text-xl" symbol="double_arrow" />
       </Link>
     )
   }
@@ -325,7 +342,13 @@ const NameAvatar = ({
   )
 }
 
-const NameOptionsMenu = ({ label }: { readonly label: string }) => {
+const NameOptionsMenu = ({
+  cta,
+  label,
+}: {
+  readonly cta?: NameRowCta | null
+  readonly label: string
+}) => {
   const { t } = useLingui()
 
   return (
@@ -348,17 +371,31 @@ const NameOptionsMenu = ({ label }: { readonly label: string }) => {
         sideOffset={10}
       >
         <DropdownMenuItem asChild>
-          <Link
-            className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
-            params={{ name: label }}
-            to="/renew/$name"
-          >
-            <Trans>Renew name</Trans>
-            <MSymbol
-              className="ms-opsz-20 text-xl leading-none"
-              symbol="double_arrow"
-            />
-          </Link>
+          {cta === 'migrationRenewal' ? (
+            <Link
+              className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
+              search={{ renew: label }}
+              to="/migration"
+            >
+              <Trans>Renewal</Trans>
+              <MSymbol
+                className="ms-opsz-20 text-xl leading-none"
+                symbol="double_arrow"
+              />
+            </Link>
+          ) : (
+            <Link
+              className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
+              params={{ name: label }}
+              to="/renew/$name"
+            >
+              <Trans>Renew name</Trans>
+              <MSymbol
+                className="ms-opsz-20 text-xl leading-none"
+                symbol="double_arrow"
+              />
+            </Link>
+          )}
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link
@@ -443,7 +480,7 @@ export const NameRow = ({
           {verified && <VerifiedCheck />}
         </div>
 
-        <NameOptionsMenu label={label} />
+        <NameOptionsMenu cta={cta} label={label} />
       </div>
 
       <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />

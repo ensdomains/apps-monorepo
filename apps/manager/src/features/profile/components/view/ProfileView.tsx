@@ -5,6 +5,7 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -77,6 +78,14 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
     ...profileExpiryQuery(name),
   })
   const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const { renewableGrace: renewableGraceNames } = useEligibleV1Names({
+    enabled: migrationEnabled,
+    fallbackToClassified: false,
+  })
+  const v1GraceName = renewableGraceNames.find(
+    (candidate) => candidate.domain.name.toLowerCase() === name.toLowerCase(),
+  )
+  const isInGrace = expiry.isInGrace || !!v1GraceName
 
   const owner = ownerData?.owner as Address | undefined
 
@@ -107,23 +116,32 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   return (
     <div
       className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
-      style={expiry.isInGrace ? undefined : themeVars}
+      style={isInGrace ? undefined : themeVars}
     >
       {migrationEnabled && <UpgradeBanner profileName={name} />}
-      {match(expiry)
-        .with(
-          { isInGrace: true, graceEndDate: P.not(P.nullish) },
-          ({ graceEndDate }) => (
-            <GracePeriodBanner
-              graceEndDate={graceEndDate}
-              renewName={name}
-              variant="profileOwnName"
-            />
-          ),
-        )
-        .otherwise(() => null)}
+      {v1GraceName ? (
+        <GracePeriodBanner
+          graceEndDate={v1GraceName.graceEndDate}
+          isV2={false}
+          renewName={v1GraceName.domain.name}
+          variant="profileOwnName"
+        />
+      ) : (
+        match(expiry)
+          .with(
+            { isInGrace: true, graceEndDate: P.not(P.nullish) },
+            ({ graceEndDate }) => (
+              <GracePeriodBanner
+                graceEndDate={graceEndDate}
+                renewName={name}
+                variant="profileOwnName"
+              />
+            ),
+          )
+          .otherwise(() => null)
+      )}
       <ViewHeaderSection
-        isInGrace={expiry.isInGrace}
+        isInGrace={isInGrace}
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         owner={owner}
@@ -146,7 +164,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
           <ViewCryptoSection records={records} />
           <ViewLinksSection records={records} />
 
-          {isOwner && !expiry.isInGrace && (
+          {isOwner && !isInGrace && (
             <div className="space-y-2">
               <EditProfileDialog
                 name={name}

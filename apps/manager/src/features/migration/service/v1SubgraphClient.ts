@@ -1,5 +1,6 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
+import { getV1GraceFetchCutoffSeconds } from './graceRenewal'
 
 const V1_SUBGRAPH_URL = 'https://api.sepolia.ensnode.io/subgraph'
 
@@ -131,7 +132,7 @@ const fetchPage = async (
 }
 
 export const getV1NamesForAddress = ResultFn(async function* (address: string) {
-  const now = Math.floor(Date.now() / 1000).toString()
+  const graceCutoff = getV1GraceFetchCutoffSeconds()
   const addr = address.toLowerCase()
 
   const result = yield* fromPromise(
@@ -141,7 +142,7 @@ export const getV1NamesForAddress = ResultFn(async function* (address: string) {
 
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       while (true) {
-        const page = await fetchPage(addr, now, idCursor)
+        const page = await fetchPage(addr, graceCutoff, idCursor)
         allDomains.push(...page)
         if (page.length < PAGE_SIZE) break
         idCursor = page[page.length - 1]?.id

@@ -18,11 +18,14 @@ export const UpgradeBanner = ({ profileName }: UpgradeBannerProps) => {
   const migrationEnabled = useFeatureFlag('MIGRATION')
   const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()
-  const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
-    useEligibleV1Names({
-      enabled: migrationEnabled,
-      fallbackToClassified: false,
-    })
+  const {
+    eligible: eligibleV1Names,
+    renewableGrace: renewableGraceV1Names,
+    isPending: isV1NamesPending,
+  } = useEligibleV1Names({
+    enabled: migrationEnabled,
+    fallbackToClassified: false,
+  })
   const { data: migratedCount, isPending: isMigratedCountPending } =
     useMigratedNamesCount({ enabled: migrationEnabled && !isProfileBanner })
 
@@ -33,7 +36,7 @@ export const UpgradeBanner = ({ profileName }: UpgradeBannerProps) => {
   }
   if (
     !shouldShowUpgradeBanner({
-      eligibleV1Names,
+      eligibleV1Names: [...eligibleV1Names, ...renewableGraceV1Names],
       migratedCount,
       profileName,
     })

@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
 import {
   buildNameAvatarUrl,
@@ -78,6 +79,14 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   })
 
   const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const { renewableGrace: renewableGraceNames } = useEligibleV1Names({
+    enabled: migrationEnabled,
+    fallbackToClassified: false,
+  })
+  const v1GraceName = renewableGraceNames.find(
+    (candidate) => candidate.domain.name.toLowerCase() === name.toLowerCase(),
+  )
+  const isInGrace = expiry.isInGrace || !!v1GraceName
   const owner = ownerData?.owner as Address | undefined
   const ownerReverseName = useQuery({
     ...profileReverseNameQuery(owner),
@@ -102,13 +111,13 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     )
   }
 
-  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
-  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
+  const avatarUrl = isInGrace ? undefined : buildNameAvatarUrl(name)
+  const headerUrl = isInGrace ? undefined : buildNameHeaderUrl(name)
 
   return (
     <div
       className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:pb-28.5"
-      style={expiry.isInGrace ? undefined : themeVars}
+      style={isInGrace ? undefined : themeVars}
     >
       <ProfileViewNewBanner
         headerLoading={false}
@@ -121,6 +130,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             expiry={expiry}
             isMigrationEnabled={migrationEnabled}
             name={name}
+            v1GraceName={v1GraceName}
           />
           <ProfileViewNewHeader
             avatarLoading={false}
@@ -143,7 +153,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
       </div>
       <ProfileViewNewActions
         avatarUrl={avatarUrl}
-        isInGrace={expiry.isInGrace}
+        isInGrace={isInGrace}
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         onUpdated={refetchRecords}

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { isMigrationQueryKey } from './MigrationPage.helpers'
+import {
+  isMigrationQueryKey,
+  isPostMigrationRefreshQueryKey,
+} from './MigrationPage.helpers'
 
 describe('isMigrationQueryKey', () => {
   it.each([
@@ -14,5 +17,16 @@ describe('isMigrationQueryKey', () => {
     ['empty key', [], false],
   ] as const)('%s → %s', (_, key, expected) => {
     expect(isMigrationQueryKey([...key])).toBe(expected)
+  })
+})
+
+describe('isPostMigrationRefreshQueryKey', () => {
+  it.each([
+    ['migration key', [{ $scope: 'migration' }, { x: 1 }], true],
+    ['dashboard key', [{ $scope: 'dashboard' }, { x: 1 }], true],
+    ['profile key', [{ $scope: 'profile' }, { x: 1 }], true],
+    ['unrelated key', [{ $scope: 'renew' }, { x: 1 }], false],
+  ] as const)('%s → %s', (_, key, expected) => {
+    expect(isPostMigrationRefreshQueryKey([...key])).toBe(expected)
   })
 })

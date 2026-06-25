@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   makeDomain,
   OTHER,
@@ -87,17 +87,33 @@ describe('classifyName — expired wrap', () => {
 })
 
 describe('classifyName — grace period registrations', () => {
-  it('marks wrapped .eth 2LD in registration grace as ineligible', () => {
-    expect(
-      ineligibleReason(
-        classify({
-          isWrapped: true,
-          registrationExpiry: '100',
-          wrappedExpiry: '99999999999',
-          fuses: FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH,
-        }),
-      ),
-    ).toBe('expired-registration')
+  it('marks owned .eth 2LD in registration grace as renewable grace', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-10T00:00:00.000Z'))
+    const expiry = Math.floor(
+      new Date('2026-01-01T00:00:00.000Z').getTime() / 1000,
+    ).toString()
+
+    const result = classify({ registrationExpiry: expiry })
+
+    expect(result?.type).toBe('renewableGrace')
+    if (result?.type !== 'renewableGrace') throw new Error('not renewable')
+    expect(result.name.domain.name).toBe('alice.eth')
+    expect(result.name.renewalDurationSeconds).toBe(16 * 24 * 60 * 60)
+    vi.useRealTimers()
+  })
+
+  it('marks .eth 2LD after v1 grace as expired-registration', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-01T00:00:00.000Z'))
+    const expiry = Math.floor(
+      new Date('2026-01-01T00:00:00.000Z').getTime() / 1000,
+    ).toString()
+
+    expect(ineligibleReason(classify({ registrationExpiry: expiry }))).toBe(
+      'expired-registration',
+    )
+    vi.useRealTimers()
   })
 })
 
@@ -247,8 +263,12 @@ describe('classifyNames', () => {
       }),
       makeDomain({ id: '0x4', labelName: null }),
     ]
-    const { classified, ineligible } = classifyNames(domains, OWNER)
+    const { classified, ineligible, renewableGrace } = classifyNames(
+      domains,
+      OWNER,
+    )
     expect(classified.map((c) => c.domain.id)).toEqual(['0x1'])
+    expect(renewableGrace).toEqual([])
     expect(ineligible.map((i) => [i.domain.id, i.reason])).toEqual([
       ['0x2', 'not-transferable'],
       ['0x3', 'unlocked-subname'],

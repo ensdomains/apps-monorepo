@@ -21,9 +21,10 @@ export const DashboardGraceBanner = ({
   const migrationEnabled = useFeatureFlag('MIGRATION')
   const { v2Names, isAllPagesLoaded } = useOwnedDomains()
 
-  const { eligible: v1Classified } = useEligibleV1Names({
-    enabled: migrationEnabled,
-  })
+  const { eligible: v1Classified, renewableGrace: v1RenewableGrace } =
+    useEligibleV1Names({
+      enabled: migrationEnabled,
+    })
 
   const { data: primaryExpiryData } = useQuery({
     ...profileExpiryQuery(primaryLabel ?? ''),
@@ -40,12 +41,15 @@ export const DashboardGraceBanner = ({
         ),
         // Wait for all indexer pages before scanning for non-primary grace names.
         v2Names: isAllPagesLoaded ? v2Names : [],
-        v1Classified: migrationEnabled ? v1Classified : [],
+        v1Classified: migrationEnabled
+          ? [...v1Classified, ...v1RenewableGrace]
+          : [],
       }),
     [
       primaryLabel,
       primaryExpiryData?.expiry,
       v1Classified,
+      v1RenewableGrace,
       v2Names,
       isAllPagesLoaded,
       migrationEnabled,

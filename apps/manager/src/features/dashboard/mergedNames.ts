@@ -34,7 +34,7 @@ export type MergedItem =
 
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
-export type ExpiryCta = 'renew' | 'remindMe'
+export type ExpiryCta = 'renew' | 'remindMe' | 'migrationRenewal'
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
 
@@ -131,6 +131,23 @@ export type MergedRowMetadata = {
   readonly avatarUrl: string | undefined
 }
 
+const getExpiryCta = (params: {
+  readonly daysUntilExpiry: number | null
+  readonly expiringSoon: boolean
+  readonly isInGrace: boolean
+  readonly isV1: boolean
+}): ExpiryCta | null => {
+  const { daysUntilExpiry, expiringSoon, isInGrace, isV1 } = params
+  if (isV1 && isInGrace) return 'migrationRenewal'
+  if (isV1) return null
+  if (isInGrace) return 'renew'
+  if (!expiringSoon || daysUntilExpiry === null) return null
+  return daysUntilExpiry <= RENEW_CTA_THRESHOLD_DAYS ? 'renew' : 'remindMe'
+}
+
+const isProminentRenewCta = (cta: ExpiryCta | null): boolean =>
+  cta === 'renew' || cta === 'migrationRenewal'
+
 export const mergedRowMetadata = (
   item: MergedItem,
   primaryLabel?: string | null,
@@ -149,14 +166,12 @@ export const mergedRowMetadata = (
   const daysSinceExpiry =
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
   const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
-  const expiryCta =
-    isV2 && isInGrace
-      ? 'renew'
-      : isV2 && expiringSoon && daysUntilExpiry !== null
-        ? daysUntilExpiry <= RENEW_CTA_THRESHOLD_DAYS
-          ? 'renew'
-          : 'remindMe'
-        : null
+  const expiryCta = getExpiryCta({
+    daysUntilExpiry,
+    expiringSoon,
+    isInGrace,
+    isV1,
+  })
   const isPrimary =
     !isV1 &&
     !!primaryLabel &&
@@ -175,7 +190,7 @@ export const mergedRowMetadata = (
     isV1,
     isPrimary,
     isInGrace,
-    showProminentRenew: expiryCta === 'renew',
+    showProminentRenew: isProminentRenewCta(expiryCta),
     expiryCta,
     useDefaultAvatar: isInGrace,
     avatarUrl,

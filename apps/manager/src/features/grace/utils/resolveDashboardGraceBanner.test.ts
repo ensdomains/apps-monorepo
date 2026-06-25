@@ -41,7 +41,7 @@ describe('resolveDashboardGraceBanner', () => {
     })
   })
 
-  it('does not use v1 grace names for any-name banner (renew is v2-only)', () => {
+  it('shows any-name banner for non-primary v1 name in grace', () => {
     const expired = Math.floor(
       new Date('2023-12-20T00:00:00Z').getTime() / 1000,
     )
@@ -69,7 +69,14 @@ describe('resolveDashboardGraceBanner', () => {
       ],
     })
 
-    expect(result).toEqual({ show: false })
+    expect(result).toEqual({
+      show: true,
+      variant: 'anyNameExpired',
+      renewName: 'legacy.eth',
+      graceEndDate: new Date('2024-03-19T00:00:00.000Z'),
+      daysSinceExpiry: 12,
+      isV2: false,
+    })
   })
 
   it('shows any-name banner for non-primary v2 name in grace', () => {

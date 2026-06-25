@@ -314,4 +314,18 @@ describe('mergedRowMetadata', () => {
       meta.expiryDate?.getTime() ?? 0,
     )
   })
+
+  it('uses migration renewal CTA for expired v1 names in grace', () => {
+    const expired = Math.floor(
+      new Date('2023-12-20T00:00:00Z').getTime() / 1000,
+    )
+    const item = makeMergedV1({
+      sortName: 'legacy.eth',
+      sortExpiry: expired,
+    })
+    const meta = mergedRowMetadata(item, null)
+    expect(meta.isInGrace).toBe(true)
+    expect(meta.expiryCta).toBe('migrationRenewal')
+    expect(meta.showProminentRenew).toBe(true)
+  })
 })

@@ -1,11 +1,11 @@
 import { Trans } from '@lingui/react/macro'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
 import { cn } from '@/lib/utils'
-import { startUpgrade } from './SelectNamesStep.handlers'
+import { startSelectNamesAction } from './SelectNamesStep.handlers'
 import { SelectNamesStepFooter } from './SelectNamesStepFooter'
 import { SelectNamesStepSelectionOptions } from './SelectNamesStepSelectionOptions'
 import {
@@ -18,18 +18,26 @@ import {
 type SelectNamesStepProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly gasFundingStatus: MigrationGasFundingStatus
+  readonly initialSelectedNames?: readonly string[]
   readonly onNamesChange: (names: string[]) => void
+  readonly onRenewGrace: (names: string[]) => boolean | Promise<boolean>
   readonly onNext: () => boolean | Promise<boolean>
 }
 
 export const SelectNamesStep = ({
   gasEstimate,
   gasFundingStatus,
+  initialSelectedNames,
   onNamesChange,
+  onRenewGrace,
   onNext,
 }: SelectNamesStepProps) => {
-  const { eligible, isPending } = useEligibleV1Names()
+  const { eligible, renewableGrace = [], isPending } = useEligibleV1Names()
   const [isStarting, setIsStarting] = useState(false)
+  const selectableNames = useMemo(
+    () => [...eligible, ...renewableGrace],
+    [eligible, renewableGrace],
+  )
 
   const {
     search,
@@ -43,16 +51,36 @@ export const SelectNamesStep = ({
     toggleName,
     toggleGroup,
     toggleAll,
-  } = useNameSelection({ eligible, isPending, onNamesChange })
+  } = useNameSelection({
+    eligible: selectableNames,
+    initialSelectedNames,
+    isPending,
+    onNamesChange,
+  })
+  const selectedGraceNames = useMemo(
+    () =>
+      renewableGrace
+        .filter((name) => selected.has(name.domain.name))
+        .map((name) => name.domain.name),
+    [renewableGrace, selected],
+  )
+  const hasSelectedGraceNames = selectedGraceNames.length > 0
 
-  const isEstimatingGas = totalSelected > 0 && gasEstimate.status === 'loading'
+  const isEstimatingGas =
+    totalSelected > 0 &&
+    !hasSelectedGraceNames &&
+    gasEstimate.status === 'loading'
   const isWaitingForGasEstimate =
-    totalSelected > 0 && gasEstimate.status !== 'ready'
+    totalSelected > 0 &&
+    !hasSelectedGraceNames &&
+    gasEstimate.status !== 'ready'
   // The gas drip request only resolves once any sepETH top-up is confirmed
   // on-chain, so block "Upgrade" until then — otherwise the owner can start a
   // migration that fails for lack of gas before the ETH has landed.
   const isWaitingForGasFunding =
-    totalSelected > 0 && gasFundingStatus === 'funding'
+    totalSelected > 0 &&
+    !hasSelectedGraceNames &&
+    gasFundingStatus === 'funding'
   const isUpgradeDisabled =
     totalSelected === 0 ||
     isPending ||
@@ -73,8 +101,15 @@ export const SelectNamesStep = ({
   }, [search, setSearch, showNameSearch])
 
   const handleUpgrade = useCallback(
-    () => startUpgrade({ isUpgradeDisabled, onNext, setIsStarting }),
-    [isUpgradeDisabled, onNext],
+    () =>
+      startSelectNamesAction({
+        isDisabled: isUpgradeDisabled,
+        onRenewGrace,
+        onUpgrade: onNext,
+        selectedGraceNames,
+        setIsStarting,
+      }),
+    [isUpgradeDisabled, onNext, onRenewGrace, selectedGraceNames],
   )
 
   return (
@@ -127,6 +162,7 @@ export const SelectNamesStep = ({
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
+        selectedGraceCount={selectedGraceNames.length}
         totalSelected={totalSelected}
         visibleCount={visibleCount}
       />

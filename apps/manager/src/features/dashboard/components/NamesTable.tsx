@@ -68,12 +68,14 @@ export const NamesTable = ({
     enabled: isAuthed,
   })
 
-  const { eligible: eligibleV1Names } = useEligibleV1Names({
-    enabled: migrationEnabled,
-  })
+  const { eligible: eligibleV1Names, renewableGrace: renewableGraceV1Names } =
+    useEligibleV1Names({
+      enabled: migrationEnabled,
+    })
 
   const favoritesCount = favorites.length
-  const ownedCount = v2Names.length + eligibleV1Names.length
+  const ownedCount =
+    v2Names.length + eligibleV1Names.length + renewableGraceV1Names.length
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),

@@ -5,6 +5,7 @@ import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
   type ClassifiedName,
   classifyNames,
+  type RenewableGraceName,
 } from '@/features/migration/service/classifyNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
@@ -18,23 +19,38 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const { ownerAddress } = useSmartAccountContext()
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
 
-  const classified = useMemo<ClassifiedName[]>(() => {
-    if (!enabled || !v1NamesRaw || !ownerAddress) return []
-    return classifyNames(v1NamesRaw, ownerAddress as Address).classified
+  const classifiedResult = useMemo(() => {
+    if (!enabled || !v1NamesRaw || !ownerAddress)
+      return {
+        classified: [] as ClassifiedName[],
+        renewableGrace: [] as RenewableGraceName[],
+      }
+    const result = classifyNames(v1NamesRaw, ownerAddress as Address)
+    return {
+      classified: result.classified,
+      renewableGrace: result.renewableGrace,
+    }
   }, [enabled, v1NamesRaw, ownerAddress])
 
   const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(classified, enabled ? ownerAddress : undefined)
+    useMigrationEligibility(
+      classifiedResult.classified,
+      enabled ? ownerAddress : undefined,
+    )
 
   const eligible = useMemo<readonly ClassifiedName[]>(
-    () => eligibility?.eligible ?? (fallbackToClassified ? classified : []),
-    [eligibility, classified, fallbackToClassified],
+    () =>
+      eligibility?.eligible ??
+      (fallbackToClassified ? classifiedResult.classified : []),
+    [eligibility, classifiedResult.classified, fallbackToClassified],
   )
 
   return {
     eligible,
+    renewableGrace: classifiedResult.renewableGrace,
     isPending:
       enabled &&
-      (isV1Pending || (classified.length > 0 && isEligibilityPending)),
+      (isV1Pending ||
+        (classifiedResult.classified.length > 0 && isEligibilityPending)),
   }
 }

@@ -85,6 +85,18 @@ describe('getV1NamesForAddress', () => {
     )
   })
 
+  it('fetches names from the v1 grace window instead of only future expiries', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-31T00:00:00.000Z'))
+    respondWith([])
+    await getV1NamesForAddress(OWNER)
+
+    expect(readBody().variables.whereFilter.and).toContainEqual({
+      or: [{ expiryDate_gt: '1762041600' }, { expiryDate: null }],
+    })
+    vi.useRealTimers()
+  })
+
   it.each([
     [
       'HTTP non-ok',

@@ -1,5 +1,10 @@
 import { type Address, isAddress } from 'viem'
+import {
+  getGraceEndDate,
+  isInGracePeriod,
+} from '@/features/grace/utils/gracePeriod'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
+import { getV1GraceRenewalDurationSeconds } from './graceRenewal'
 import type { V1Domain } from './v1SubgraphClient'
 
 const toAddress = (s: string | null | undefined): Address | null => {
@@ -57,6 +62,13 @@ export type ClassifiedName = {
   readonly managerAddress: Address | null
 }
 
+export type RenewableGraceName = ClassifiedName & {
+  readonly renewalStatus: 'renewable-grace'
+  readonly registrationExpiryDate: Date
+  readonly graceEndDate: Date
+  readonly renewalDurationSeconds: number
+}
+
 export const hasFuse = (fuses: number, fuse: number): boolean =>
   (fuses & fuse) !== 0
 
@@ -89,6 +101,7 @@ const resolverStrategyFor = (params: {
 
 type ClassifyResult =
   | { type: 'classified'; name: ClassifiedName }
+  | { type: 'renewableGrace'; name: RenewableGraceName }
   | { type: 'ineligible'; name: IneligibleName }
   | null
 
@@ -108,15 +121,279 @@ const isWrapActive = (
   return BigInt(wrappedDomain.expiryDate) > nowSeconds
 }
 
-const hasExpiredDotEthRegistration = (
+const getDotEthRegistrationExpiry = (
   domain: V1Domain,
   parentName: string | null,
-  nowSeconds: bigint,
-): boolean => {
-  if (parentName !== 'eth') return false
+): Date | null => {
+  if (parentName !== 'eth') return null
   const expiryDate = domain.registration?.expiryDate
-  if (!expiryDate) return false
-  return BigInt(expiryDate) <= nowSeconds
+  if (!expiryDate) return null
+  const seconds = Number(expiryDate)
+  if (!Number.isFinite(seconds)) return null
+  return new Date(seconds * 1000)
+}
+
+const isExpired = (expiryDate: Date, now: Date): boolean =>
+  expiryDate.getTime() <= now.getTime()
+
+const makeRenewableGraceName = (params: {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly parentName: string | null
+  readonly tokenHolder: Address
+  readonly v1ResolverAddress: string | null
+  readonly managerAddress: Address | null
+  readonly registrationExpiryDate: Date
+  readonly now: Date
+}): RenewableGraceName => ({
+  domain: params.domain,
+  tokenType: 'unwrapped',
+  label: params.label,
+  parentName: params.parentName,
+  fuses: 0,
+  tokenHolder: params.tokenHolder,
+  v1ResolverAddress: params.v1ResolverAddress,
+  resolverStrategy: resolverStrategyFor({
+    tokenType: 'unwrapped',
+    fuses: 0,
+    v1ResolverAddress: params.v1ResolverAddress,
+  }),
+  managerAddress: params.managerAddress,
+  renewalStatus: 'renewable-grace',
+  registrationExpiryDate: params.registrationExpiryDate,
+  graceEndDate: getGraceEndDate(params.registrationExpiryDate, false),
+  renewalDurationSeconds: getV1GraceRenewalDurationSeconds(
+    params.registrationExpiryDate,
+    params.now,
+  ),
+})
+
+const makeClassifiedResult = (params: {
+  readonly domain: V1Domain
+  readonly tokenType: MigrationTokenType
+  readonly label: string
+  readonly parentName: string | null
+  readonly fuses: number
+  readonly tokenHolder: Address
+  readonly v1ResolverAddress: string | null
+  readonly managerAddress: Address | null
+}): ClassifyResult => ({
+  type: 'classified',
+  name: {
+    domain: params.domain,
+    tokenType: params.tokenType,
+    label: params.label,
+    parentName: params.parentName,
+    fuses: params.fuses,
+    tokenHolder: params.tokenHolder,
+    v1ResolverAddress: params.v1ResolverAddress,
+    resolverStrategy: resolverStrategyFor({
+      tokenType: params.tokenType,
+      fuses: params.fuses,
+      v1ResolverAddress: params.v1ResolverAddress,
+    }),
+    managerAddress: params.managerAddress,
+  },
+})
+
+const classifyExpiredRegistration = (params: {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly parentName: string | null
+  readonly tokenHolder: Address
+  readonly v1ResolverAddress: string | null
+  readonly managerAddress: Address | null
+  readonly now: Date
+}): ClassifyResult => {
+  const registrationExpiryDate = getDotEthRegistrationExpiry(
+    params.domain,
+    params.parentName,
+  )
+  if (
+    !registrationExpiryDate ||
+    !isExpired(registrationExpiryDate, params.now)
+  ) {
+    return null
+  }
+  if (isInGracePeriod(registrationExpiryDate, false, params.now)) {
+    return {
+      type: 'renewableGrace',
+      name: makeRenewableGraceName({
+        domain: params.domain,
+        label: params.label,
+        parentName: params.parentName,
+        tokenHolder: params.tokenHolder,
+        v1ResolverAddress: params.v1ResolverAddress,
+        managerAddress: params.managerAddress,
+        registrationExpiryDate,
+        now: params.now,
+      }),
+    }
+  }
+  return {
+    type: 'ineligible',
+    name: { domain: params.domain, reason: 'expired-registration' },
+  }
+}
+
+const classifyUnwrappedDomain = (params: {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly parentName: string | null
+  readonly addr: string
+  readonly v1ResolverAddress: string | null
+  readonly now: Date
+}): ClassifyResult => {
+  const { addr, domain, label, now, parentName, v1ResolverAddress } = params
+  const registrant = domain.registrant
+  if (registrant?.id.toLowerCase() !== addr) return null
+  if (parentName !== 'eth') return null
+
+  const tokenHolder = toAddress(registrant.id)
+  if (!tokenHolder) return null
+
+  const registryOwnerAddress = toAddress(domain.owner.id)
+  const managerAddress: Address | null =
+    registryOwnerAddress &&
+    registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
+      ? registryOwnerAddress
+      : null
+  const expiredRegistration = classifyExpiredRegistration({
+    domain,
+    label,
+    parentName,
+    tokenHolder,
+    v1ResolverAddress,
+    managerAddress,
+    now,
+  })
+  if (expiredRegistration) return expiredRegistration
+
+  return makeClassifiedResult({
+    domain,
+    tokenType: 'unwrapped',
+    label,
+    parentName,
+    fuses: 0,
+    tokenHolder,
+    v1ResolverAddress,
+    managerAddress,
+  })
+}
+
+const isDetachedChildCandidate = (
+  domain: V1Domain,
+  parentName: string | null,
+  fuses: number,
+): boolean =>
+  !!parentName &&
+  hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
+  !!domain.parent?.wrappedDomain &&
+  hasFuse(domain.parent.wrappedDomain.fuses, FUSES.CANNOT_UNWRAP)
+
+const classifyUnlockedWrappedDomain = (params: {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly parentName: string | null
+  readonly fuses: number
+  readonly tokenHolder: Address
+  readonly v1ResolverAddress: string | null
+}): ClassifyResult => {
+  const { domain, fuses, label, parentName, tokenHolder, v1ResolverAddress } =
+    params
+  if (parentName === 'eth') {
+    return makeClassifiedResult({
+      domain,
+      tokenType: 'unlocked',
+      label,
+      parentName,
+      fuses,
+      tokenHolder,
+      v1ResolverAddress,
+      managerAddress: null,
+    })
+  }
+  if (isDetachedChildCandidate(domain, parentName, fuses)) {
+    return makeClassifiedResult({
+      domain,
+      tokenType: 'detached-child',
+      label,
+      parentName,
+      fuses,
+      tokenHolder,
+      v1ResolverAddress,
+      managerAddress: null,
+    })
+  }
+  return {
+    type: 'ineligible',
+    name: { domain, reason: 'unlocked-subname' },
+  }
+}
+
+const classifyWrappedDomain = (params: {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly parentName: string | null
+  readonly wrappedDomain: NonNullable<V1Domain['wrappedDomain']>
+  readonly wrappedOwnerMatches: boolean
+  readonly v1ResolverAddress: string | null
+  readonly now: Date
+}): ClassifyResult => {
+  const {
+    domain,
+    label,
+    now,
+    parentName,
+    v1ResolverAddress,
+    wrappedDomain,
+    wrappedOwnerMatches,
+  } = params
+  const wrappedOwner = domain.wrappedOwner
+  if (!wrappedOwner || !wrappedOwnerMatches) return null
+
+  const fuses = wrappedDomain.fuses
+  const wrappedHolder = toAddress(wrappedOwner.id)
+  if (!wrappedHolder) return null
+
+  const expiredRegistration = classifyExpiredRegistration({
+    domain,
+    label,
+    parentName,
+    tokenHolder: wrappedHolder,
+    v1ResolverAddress,
+    managerAddress: null,
+    now,
+  })
+  if (expiredRegistration) return expiredRegistration
+
+  if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
+    return classifyUnlockedWrappedDomain({
+      domain,
+      label,
+      parentName,
+      fuses,
+      tokenHolder: wrappedHolder,
+      v1ResolverAddress,
+    })
+  }
+  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
+    return { type: 'ineligible', name: { domain, reason: 'not-transferable' } }
+  }
+  if (!parentName) {
+    return { type: 'ineligible', name: { domain, reason: 'missing-parent' } }
+  }
+
+  return makeClassifiedResult({
+    domain,
+    tokenType: parentName === 'eth' ? 'locked-2ld' : 'locked-child',
+    label,
+    parentName,
+    fuses,
+    tokenHolder: wrappedHolder,
+    v1ResolverAddress,
+    managerAddress: null,
+  })
 }
 
 export const classifyName = (
@@ -132,9 +409,9 @@ export const classifyName = (
   const parentName = domain.parent?.name ?? null
   const addr = ownerAddress.toLowerCase()
   const v1ResolverAddress = domain.resolver?.address ?? null
-  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
-  const wrappedOwner = domain.wrappedOwner
-  const wrappedOwnerMatches = wrappedOwner?.id.toLowerCase() === addr
+  const now = new Date()
+  const nowSeconds = BigInt(Math.floor(now.getTime() / 1000))
+  const wrappedOwnerMatches = domain.wrappedOwner?.id.toLowerCase() === addr
   const effectiveWrappedDomain =
     domain.wrappedDomain &&
     (isWrapActive(domain.wrappedDomain, nowSeconds) || wrappedOwnerMatches)
@@ -142,142 +419,30 @@ export const classifyName = (
       : null
 
   if (!effectiveWrappedDomain) {
-    const registrant = domain.registrant
-    if (registrant?.id.toLowerCase() !== addr) return null
-    if (parentName !== 'eth') return null
-    if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-      return {
-        type: 'ineligible',
-        name: { domain, reason: 'expired-registration' },
-      }
-    }
-
-    const tokenHolder = toAddress(registrant.id)
-    if (!tokenHolder) return null
-
-    const registryOwnerAddress = toAddress(domain.owner.id)
-    const managerAddress: Address | null =
-      registryOwnerAddress &&
-      registryOwnerAddress.toLowerCase() !== registrant.id.toLowerCase()
-        ? registryOwnerAddress
-        : null
-
-    return {
-      type: 'classified',
-      name: {
-        domain,
-        tokenType: 'unwrapped',
-        label,
-        parentName,
-        fuses: 0,
-        tokenHolder,
-        v1ResolverAddress,
-        resolverStrategy: resolverStrategyFor({
-          tokenType: 'unwrapped',
-          fuses: 0,
-          v1ResolverAddress,
-        }),
-        managerAddress,
-      },
-    }
-  }
-
-  if (!wrappedOwner || !wrappedOwnerMatches) return null
-
-  const fuses = effectiveWrappedDomain.fuses
-  const wrappedHolder = toAddress(wrappedOwner.id)
-  if (!wrappedHolder) return null
-  if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
-    return {
-      type: 'ineligible',
-      name: { domain, reason: 'expired-registration' },
-    }
-  }
-
-  if (!hasFuse(fuses, FUSES.CANNOT_UNWRAP)) {
-    if (parentName !== 'eth') {
-      if (
-        hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
-        parentName &&
-        domain.parent?.wrappedDomain &&
-        hasFuse(domain.parent.wrappedDomain.fuses, FUSES.CANNOT_UNWRAP)
-      ) {
-        return {
-          type: 'classified',
-          name: {
-            domain,
-            tokenType: 'detached-child',
-            label,
-            parentName,
-            fuses,
-            tokenHolder: wrappedHolder,
-            v1ResolverAddress,
-            resolverStrategy: resolverStrategyFor({
-              tokenType: 'detached-child',
-              fuses,
-              v1ResolverAddress,
-            }),
-            managerAddress: null,
-          },
-        }
-      }
-      return {
-        type: 'ineligible',
-        name: { domain, reason: 'unlocked-subname' },
-      }
-    }
-    return {
-      type: 'classified',
-      name: {
-        domain,
-        tokenType: 'unlocked',
-        label,
-        parentName,
-        fuses,
-        tokenHolder: wrappedHolder,
-        v1ResolverAddress,
-        resolverStrategy: resolverStrategyFor({
-          tokenType: 'unlocked',
-          fuses,
-          v1ResolverAddress,
-        }),
-        managerAddress: null,
-      },
-    }
-  }
-
-  if (hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
-    return { type: 'ineligible', name: { domain, reason: 'not-transferable' } }
-  }
-  if (!parentName) {
-    return { type: 'ineligible', name: { domain, reason: 'missing-parent' } }
-  }
-
-  const lockedTokenType: MigrationTokenType =
-    parentName === 'eth' ? 'locked-2ld' : 'locked-child'
-
-  return {
-    type: 'classified',
-    name: {
+    return classifyUnwrappedDomain({
       domain,
-      tokenType: lockedTokenType,
       label,
       parentName,
-      fuses,
-      tokenHolder: wrappedHolder,
+      addr,
       v1ResolverAddress,
-      resolverStrategy: resolverStrategyFor({
-        tokenType: lockedTokenType,
-        fuses,
-        v1ResolverAddress,
-      }),
-      managerAddress: null,
-    },
+      now,
+    })
   }
+
+  return classifyWrappedDomain({
+    domain,
+    label,
+    parentName,
+    wrappedDomain: effectiveWrappedDomain,
+    wrappedOwnerMatches,
+    v1ResolverAddress,
+    now,
+  })
 }
 
 export type ClassifyNamesResult = {
   readonly classified: ClassifiedName[]
+  readonly renewableGrace: RenewableGraceName[]
   readonly ineligible: IneligibleName[]
 }
 
@@ -286,6 +451,7 @@ export const classifyNames = (
   ownerAddress: Address,
 ): ClassifyNamesResult => {
   const classified: ClassifiedName[] = []
+  const renewableGrace: RenewableGraceName[] = []
   const ineligible: IneligibleName[] = []
 
   for (const domain of domains) {
@@ -293,12 +459,14 @@ export const classifyNames = (
     if (!result) continue
     if (result.type === 'classified') {
       classified.push(result.name)
+    } else if (result.type === 'renewableGrace') {
+      renewableGrace.push(result.name)
     } else {
       ineligible.push(result.name)
     }
   }
 
-  return { classified, ineligible }
+  return { classified, renewableGrace, ineligible }
 }
 
 export type GroupedNames = {

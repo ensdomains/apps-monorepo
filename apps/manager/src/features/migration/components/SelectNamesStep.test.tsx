@@ -44,7 +44,11 @@ const eligibleFixture: readonly ClassifiedName[] = [
 ]
 
 vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
-  useEligibleV1Names: () => ({ eligible: eligibleFixture, isPending: false }),
+  useEligibleV1Names: () => ({
+    eligible: eligibleFixture,
+    renewableGrace: [],
+    isPending: false,
+  }),
 }))
 
 // eslint-disable-next-line import/first
@@ -62,10 +66,14 @@ const readyGasEstimate: MigrationGasEstimateState = {
 const renderStep = ({
   gasEstimate = { status: 'idle' } as MigrationGasEstimateState,
   gasFundingStatus = 'settled',
+  initialSelectedNames,
+  onRenewGrace = vi.fn(),
   onNext = vi.fn(),
 }: {
   gasEstimate?: MigrationGasEstimateState
   gasFundingStatus?: MigrationGasFundingStatus
+  initialSelectedNames?: readonly string[]
+  onRenewGrace?: (names: string[]) => boolean | Promise<boolean>
   onNext?: () => boolean | Promise<boolean>
 } = {}) => {
   const onNamesChange = vi.fn<(names: string[]) => void>()
@@ -73,11 +81,13 @@ const renderStep = ({
     <SelectNamesStep
       gasEstimate={gasEstimate}
       gasFundingStatus={gasFundingStatus}
+      initialSelectedNames={initialSelectedNames}
       onNamesChange={onNamesChange}
       onNext={onNext}
+      onRenewGrace={onRenewGrace}
     />,
   )
-  return { onNamesChange, onNext, ...utils }
+  return { onNamesChange, onNext, onRenewGrace, ...utils }
 }
 
 describe('SelectNamesStep', () => {
@@ -90,6 +100,14 @@ describe('SelectNamesStep', () => {
     expect([...lastCall].sort()).toEqual(
       eligibleFixture.map((item) => item.domain.name).sort(),
     )
+  })
+
+  it('seeds only the requested initial name when provided', () => {
+    const { onNamesChange } = renderStep({
+      initialSelectedNames: ['one.eth'],
+    })
+    const lastCall = onNamesChange.mock.calls.at(-1)?.[0] ?? []
+    expect(lastCall).toEqual(['one.eth'])
   })
 
   it('unselecting a parent unselects all its subnames', () => {

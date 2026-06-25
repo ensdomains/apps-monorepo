@@ -97,7 +97,7 @@ const AnimatedNameRow = ({
     >
       <NameRow
         avatarUrl={fallbackAvatarUrl}
-        cta={isV1 ? null : expiryCta}
+        cta={isV1 && !isInGrace ? null : expiryCta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
         isAuthenticated={isAuthenticated}
@@ -108,7 +108,7 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         showFavoriteButton
-        status={isV1 ? 'eligibleUpgrade' : null}
+        status={isV1 && !isInGrace ? 'eligibleUpgrade' : null}
         verified={isPrimary}
       />
     </motion.div>
@@ -135,12 +135,14 @@ export const MyNamesList = ({
     setPage(1)
   }
 
-  const { eligible: v1Classified, isPending: isV1Pending } = useEligibleV1Names(
-    { enabled: migrationEnabled },
-  )
+  const {
+    eligible: v1Classified,
+    renewableGrace: v1RenewableGrace,
+    isPending: isV1Pending,
+  } = useEligibleV1Names({ enabled: migrationEnabled })
   const visibleV1Classified = useMemo(
-    () => (migrationEnabled ? v1Classified : []),
-    [migrationEnabled, v1Classified],
+    () => (migrationEnabled ? [...v1Classified, ...v1RenewableGrace] : []),
+    [migrationEnabled, v1Classified, v1RenewableGrace],
   )
 
   const {
