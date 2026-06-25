@@ -4,21 +4,7 @@ import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { error } from '../../utils/result'
 
-// Single source of truth for Sepolia RPC URL
-export const SEPOLIA_RPC_URL =
-  'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
-
-// Create a custom Sepolia chain with working RPC
-export const customSepolia = {
-  ...sepolia,
-  rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
-  },
-}
-
-export const sepoliaWithEns = extendChainWithEns(customSepolia)
-
+const sepoliaWithEns = extendChainWithEns(sepolia)
 export type ViemClient =
   ReturnType<typeof createEnsClient> extends Result<infer T, infer _E>
     ? T
@@ -32,9 +18,16 @@ export const createEnsClient = (env: CloudflareBindings) => {
     })
   }
 
+  if (!env.SEPOLIA_RPC_URL) {
+    return error({
+      code: 'MISSING_SEPOLIA_RPC_URL',
+      message: 'SEPOLIA_RPC_URL is not configured',
+    })
+  }
+
   const client = createPublicClient({
     chain: sepoliaWithEns,
-    transport: http(SEPOLIA_RPC_URL),
+    transport: http(env.SEPOLIA_RPC_URL),
   })
 
   return ok(client)

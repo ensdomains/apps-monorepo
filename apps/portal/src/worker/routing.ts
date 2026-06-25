@@ -78,6 +78,38 @@ export function extractTldFromPath(pathname: string): string | null {
   return match ? match[1] : null
 }
 
+/**
+ * Extract the ENS name a `/register` page is previewing.
+ *
+ * The register page carries its target name in the `?name=` query string
+ * (e.g. `/register?name=foo.eth`), not the path — so it's excluded from
+ * {@link extractNameFromPath} as a reserved segment (WEB-509). When a valid
+ * `.eth` name is present we still want the OG card to show that name's
+ * "Available to register" preview instead of the generic default.
+ *
+ * Returns the trimmed name when `pathname` is the register route and `name`
+ * is a registerable second-level `.eth` name (`label.eth`), otherwise `null`.
+ */
+export function extractRegisterName(
+  pathname: string,
+  searchParams: URLSearchParams,
+): string | null {
+  if (pathname !== '/register' && pathname !== '/register/') return null
+
+  const raw = searchParams.get('name')?.trim()
+  if (!raw || raw === '.eth') return null
+  if (!raw.endsWith('.eth')) return null
+
+  // Only 2nd-level `.eth` names are registerable here (`label.eth`). Subnames
+  // (`sub.label.eth`) pass the suffix check but the register route can't service
+  // them: subname issuance is permissioned (only the 2LD owner can mint them)
+  // and a subregistry may not even be enabled, so there's no generic register
+  // action to preview. See `isRegistrable`/`is2LD`.
+  if (raw.split('.').length !== 2) return null
+
+  return raw
+}
+
 export function extractNameFromPath(pathname: string): string | null {
   if (!pathname.startsWith('/')) return null
   const segments = pathname.slice(1).split('/')

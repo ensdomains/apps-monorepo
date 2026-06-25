@@ -22,6 +22,7 @@
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
+import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
@@ -41,6 +42,11 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false) clicking
+    // "Pay with stablecoins" opens the EnableSessions modal BEFORE the token
+    // picker. Click through it (the single ENABLE intent is auto-authorized via
+    // PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
+    await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
 
     createConsoleMonitor(page, {

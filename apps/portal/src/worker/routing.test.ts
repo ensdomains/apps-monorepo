@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   extractAddrFromPath,
   extractNameFromPath,
+  extractRegisterName,
   isAddressRoute,
   isAddrSubpage,
   isRegistryRoute,
@@ -203,6 +204,63 @@ describe('routing', () => {
           '/resolver/0x2245606Dd6B3ae61205fCf8c843E200CC2f1123d',
         ),
       ).toBeNull()
+    })
+  })
+
+  describe('extractRegisterName', () => {
+    const params = (search: string) => new URLSearchParams(search)
+
+    it('extracts a .eth name from the register query string', () => {
+      // Regression: WEB-509 reserved `/register`, which also stopped
+      // `/register?name=foo.eth` from previewing the target name's OG card.
+      expect(
+        extractRegisterName('/register', params('name=helloaweswomes.eth')),
+      ).toBe('helloaweswomes.eth')
+    })
+
+    it('handles the trailing-slash register route', () => {
+      expect(extractRegisterName('/register/', params('name=nick.eth'))).toBe(
+        'nick.eth',
+      )
+    })
+
+    it('trims surrounding whitespace', () => {
+      expect(
+        extractRegisterName('/register', params('name=%20nick.eth%20')),
+      ).toBe('nick.eth')
+    })
+
+    it('returns null when no name is present', () => {
+      expect(extractRegisterName('/register', params(''))).toBeNull()
+    })
+
+    it('returns null for the bare .eth placeholder', () => {
+      expect(extractRegisterName('/register', params('name=.eth'))).toBeNull()
+    })
+
+    it('returns null for non-eth names', () => {
+      expect(
+        extractRegisterName('/register', params('name=nick.com')),
+      ).toBeNull()
+      expect(extractRegisterName('/register', params('name=nick'))).toBeNull()
+    })
+
+    it('returns null for non-2LD subnames the register route cannot handle', () => {
+      // Only `label.eth` is registerable; `foo.bar.eth` ends in .eth but the
+      // register route rejects it, so its preview would be misleading.
+      expect(
+        extractRegisterName('/register', params('name=foo.bar.eth')),
+      ).toBeNull()
+      expect(
+        extractRegisterName('/register', params('name=a.b.c.eth')),
+      ).toBeNull()
+    })
+
+    it('returns null for non-register paths', () => {
+      expect(
+        extractRegisterName('/registry', params('name=nick.eth')),
+      ).toBeNull()
+      expect(extractRegisterName('/', params('name=nick.eth'))).toBeNull()
     })
   })
 

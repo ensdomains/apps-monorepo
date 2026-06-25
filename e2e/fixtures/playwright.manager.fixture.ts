@@ -135,10 +135,12 @@ type ManagerFixtures = {
 }
 
 /**
- * Connect the headless wallet through RainbowKit. In EOA mode
- * (VITE_FF_USE_EOA=true) the smart-account machine is bypassed, so there is
- * no EnableSessions modal to click through — only the BackendAuth (SIWE)
- * modal appears once connected, handled by the caller.
+ * Connect the headless wallet through RainbowKit. CI runs the HCA path
+ * (VITE_FF_USE_EOA=false; see apps/manager/.env.ci): the smart-account machine
+ * initialises, but the EnableSessions modal is now gated behind the "Pay with
+ * stablecoins" action — it does NOT appear on connect. Only the BackendAuth
+ * (SIWE) modal appears once connected, handled by the caller. In EOA mode the
+ * gate is a no-op (the signer is an EOA), so no session modal appears at all.
  */
 async function connectHeadless(
   page: Page,

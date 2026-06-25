@@ -756,6 +756,9 @@ importers:
       '@ens-apps/transaction-manager':
         specifier: workspace:*
         version: link:../transaction-manager
+      '@ens-apps/utils':
+        specifier: workspace:*
+        version: link:../utils
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da62
@@ -769,6 +772,9 @@ importers:
         specifier: 'catalog:'
         version: 2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
     devDependencies:
+      happy-dom:
+        specifier: ^18.0.1
+        version: 18.0.1
       typescript:
         specifier: catalog:typescript6
         version: 6.0.3
