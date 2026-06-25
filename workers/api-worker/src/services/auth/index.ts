@@ -8,13 +8,24 @@ import type { ViemClient } from '#core/eth/client.js'
 import { intoKVResult, KV_KEY } from '#core/kv/index.js'
 import { logger } from '#utils/logger.js'
 import { addUserIfNotExists } from '../users'
-import { safeVerifySiweMessage } from './helpers'
+import { safeParseSiweMessage, safeVerifySiweMessage } from './helpers'
+
+const ALLOWED_SIWE_DOMAINS = ['app.ens.dev', 'app.ens.domains'] as const
+type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
 
 class InvalidNonceError extends TaggedError('INVALID_NONCE')<{
   message: string
 }> {}
 
 class InvalidSignatureError extends TaggedError('INVALID_SIGNATURE')<{
+  message: string
+}> {}
+
+class InvalidDomainError extends TaggedError('INVALID_DOMAIN')<{
+  message: string
+}> {}
+
+class InvalidUriError extends TaggedError('INVALID_URI')<{
   message: string
 }> {}
 
@@ -63,13 +74,30 @@ export const createJWT = ({
   safeTry(async function* () {
     yield* verifyAndConsumeNonce(env, nonce)
 
+    const parsed = yield* safeParseSiweMessage(message)
+
+    if (
+      !parsed.domain ||
+      !ALLOWED_SIWE_DOMAINS.includes(parsed.domain as AllowedSiweDomain)
+    ) {
+      yield* new InvalidDomainError({
+        message: 'Invalid SIWE domain',
+      })
+    }
+
+    const expectedUri = `https://${parsed.domain}`
+    if (parsed.uri !== expectedUri) {
+      yield* new InvalidUriError({
+        message: 'Invalid SIWE uri',
+      })
+    }
+
     const valid = yield* safeVerifySiweMessage(client, {
       address,
       message,
       signature,
       nonce,
-      // TODO: CRITICAL Add domain verification
-      // domain: 'app.ens.domains',
+      domain: parsed.domain,
     })
 
     if (!valid) {
