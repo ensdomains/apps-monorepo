@@ -13,13 +13,13 @@ import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 import { MIGRATION_TOOL_RPC } from './config'
 import {
   type ActiveName,
-  type PresetType,
-  PRESETS,
-  TYPE_BADGE_COLORS,
   buildMockDomain,
   createV1NameOnAnvil,
   ensureNamesOnAnvil,
+  PRESETS,
+  type PresetType,
   readStoredNames,
+  TYPE_BADGE_COLORS,
   writeStoredNames,
 } from './MigrationTestPanel.helpers'
 import { useAnvilStatus, useDraggablePanel } from './MigrationTestPanel.hooks'
@@ -49,11 +49,16 @@ export function setInjectedNames(names: ActiveName[]): void {
   if (!w.__migToolOrigFetch) w.__migToolOrigFetch = window.fetch.bind(window)
   const origFetch = w.__migToolOrigFetch
 
-  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  window.fetch = async (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+  ): Promise<Response> => {
     const url =
-      typeof input === 'string' ? input
-      : input instanceof URL ? input.href
-      : (input as Request).url
+      typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.href
+          : (input as Request).url
 
     if (!url.includes(V1_SUBGRAPH_PATTERN)) return origFetch(input, init)
 
@@ -65,10 +70,16 @@ export function setInjectedNames(names: ActiveName[]): void {
       const real = await origFetch(input, init)
       const json = (await real.json()) as { data?: { domains?: unknown[] } }
       realDomains = json?.data?.domains ?? []
-    } catch { /* subgraph unreachable */ }
+    } catch {
+      /* subgraph unreachable */
+    }
 
     return new Response(
-      JSON.stringify({ data: { domains: [...realDomains, ..._injectedNames.map(buildMockDomain)] } }),
+      JSON.stringify({
+        data: {
+          domains: [...realDomains, ..._injectedNames.map(buildMockDomain)],
+        },
+      }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     )
   }
@@ -91,13 +102,15 @@ export function MigrationTestPanel() {
   const [busyPreset, setBusyPreset] = useState<PresetType | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   // Restore names from localStorage so they survive page navigation
-  const [activeNames, setActiveNames] = useState<ActiveName[]>(() => readStoredNames())
+  const [activeNames, setActiveNames] = useState<ActiveName[]>(() =>
+    readStoredNames(),
+  )
   const queryClient = useQueryClient()
 
   // On mount: bust any stale migration query caches (v1_names + eligibility).
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: [{ $scope: 'migration' }] })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Keep the module-level injected names in sync with React state + localStorage
@@ -113,10 +126,19 @@ export function MigrationTestPanel() {
       setBusyPreset(type)
       setActionError(null)
       try {
-        const { label: resultLabel, expiryDate } = await createV1NameOnAnvil(endpoint, label, type)
+        const { label: resultLabel, expiryDate } = await createV1NameOnAnvil(
+          endpoint,
+          label,
+          type,
+        )
         setActiveNames((prev) => [
           ...prev,
-          { label: resultLabel, type, id: `${resultLabel}-${Date.now()}`, expiryDate },
+          {
+            label: resultLabel,
+            type,
+            id: `${resultLabel}-${Date.now()}`,
+            expiryDate,
+          },
         ])
       } catch (e) {
         setActionError(
@@ -144,8 +166,10 @@ export function MigrationTestPanel() {
         setActiveNames(refreshed)
         setInjectedNames(refreshed)
         writeStoredNames(refreshed)
-        void queryClient.invalidateQueries({ queryKey: [{ $scope: 'migration' }] })
-        const nameParam = refreshed.map((n) => n.label + '.eth').join(',')
+        void queryClient.invalidateQueries({
+          queryKey: [{ $scope: 'migration' }],
+        })
+        const nameParam = refreshed.map((n) => `${n.label}.eth`).join(',')
         window.location.href = `/migration?names=${encodeURIComponent(nameParam)}`
       } catch (e) {
         setActionError(`Failed to sync names to Anvil: ${String(e)}`)
@@ -160,9 +184,12 @@ export function MigrationTestPanel() {
     void navigateToMigration(activeNames)
   }, [activeNames, navigateToMigration])
 
-  const migrateSingle = useCallback((name: ActiveName) => {
-    void navigateToMigration([name])
-  }, [navigateToMigration])
+  const migrateSingle = useCallback(
+    (name: ActiveName) => {
+      void navigateToMigration([name])
+    },
+    [navigateToMigration],
+  )
 
   const removeName = useCallback((id: string) => {
     setActiveNames((prev) => prev.filter((n) => n.id !== id))
@@ -224,9 +251,7 @@ export function MigrationTestPanel() {
       {/* Section 2: Active Names */}
       {activeNames.length > 0 && (
         <>
-          <p style={sectionLabelStyle}>
-            Active names ({activeNames.length})
-          </p>
+          <p style={sectionLabelStyle}>Active names ({activeNames.length})</p>
           <div style={nameListStyle}>
             {activeNames.map((name) => (
               <div key={name.id} style={nameRowStyle}>

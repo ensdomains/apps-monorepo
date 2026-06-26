@@ -1,11 +1,11 @@
 'use client'
 
+import { anvilSetupOwner } from '@ens-apps/dev-time-travel'
 import {
   getValidSessionForAccount,
   isRhinestoneSession,
   type RhinestoneStoredSession,
 } from '@ens-apps/smart-account'
-import { anvilSetupOwner } from '@ens-apps/dev-time-travel'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
@@ -24,7 +24,7 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, type WalletClient } from 'viem'
+import type { Address, WalletClient } from 'viem'
 import { useConnection, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
@@ -205,7 +205,10 @@ export const SmartAccountContextProvider = ({
     if (anvilSetupDoneRef.current.has(ownerAddress)) return
 
     anvilSetupDoneRef.current.add(ownerAddress)
-    anvilSetupOwner(ownerAddress, customSepolia, { USDC: SUPPORTED_TOKENS.USDC, DAI: SUPPORTED_TOKENS.DAI }).catch(() => {
+    anvilSetupOwner(ownerAddress, customSepolia, {
+      USDC: SUPPORTED_TOKENS.USDC,
+      DAI: SUPPORTED_TOKENS.DAI,
+    }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
   }, [ownerAddress])
