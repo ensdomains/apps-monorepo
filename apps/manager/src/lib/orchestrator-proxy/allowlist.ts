@@ -73,7 +73,11 @@ export async function buildContractAllowlist(
   const { ensL1Contracts, supportedL1Chains } = await import(
     '@ensdomains/ensjs/chain'
   )
-  const contracts = ensL1Contracts[supportedL1Chains[chain]]
+  const chainId = supportedL1Chains[chain]
+  if (chainId === undefined) {
+    throw new Error(`Unknown chain: ${chain}`)
+  }
+  const contracts = ensL1Contracts[chainId]
 
   return [
     contracts.ensRegistry.address, // setResolver

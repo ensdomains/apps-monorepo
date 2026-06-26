@@ -71,6 +71,21 @@ export async function handleOrchestratorRequest(
     return forward(request, splat)
   }
 
+  if (!env.RHINESTONE_API_KEY) {
+    console.error(
+      '[orchestrator-proxy] RHINESTONE_API_KEY secret not configured',
+    )
+    return Response.json(
+      { error: 'RHINESTONE_API_KEY secret not configured' },
+      { status: 500 },
+    )
+  }
+
+  const contentLength = request.headers.get('content-length')
+  if (contentLength && parseInt(contentLength, 10) > 100_000) {
+    return Response.json({ error: 'Request too large' }, { status: 413 })
+  }
+
   const text = await request.text()
   let body: unknown
   try {
