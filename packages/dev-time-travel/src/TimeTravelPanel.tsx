@@ -67,7 +67,7 @@ export function TimeTravelPanelContent() {
         await increaseTime(seconds, endpoint)
         await getChainClock()?.syncFromChain(endpoint)
       }),
-    [endpoint, runAndReload],
+    [runAndReload],
   )
 
   const syncToChain = useCallback(
@@ -75,7 +75,7 @@ export function TimeTravelPanelContent() {
       runAndReload(async () => {
         await getChainClock()?.syncFromChain(endpoint)
       }),
-    [endpoint, runAndReload],
+    [runAndReload],
   )
 
   const resetToRealTime = useCallback(
@@ -106,7 +106,7 @@ export function TimeTravelPanelContent() {
     } finally {
       setBusy(false)
     }
-  }, [endpoint])
+  }, [])
 
   const error = actionError ?? blockError
 
