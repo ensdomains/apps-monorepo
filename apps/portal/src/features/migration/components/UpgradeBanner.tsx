@@ -1,7 +1,9 @@
-import { ArrowUpCircle } from 'lucide-react'
+import { ArrowUpCircle, CircleAlert } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { getManagerMigrateUrl } from '@/lib/constants/managerApp'
+import { MANAGER_APP_URL } from '@/lib/constants/domain'
+
+const MANAGER_MIGRATE_URL = `${MANAGER_APP_URL}/migration`
 
 /**
  * Prompts the connected owner of a migratable v1 name to upgrade it to ENSv2 in
@@ -9,24 +11,48 @@ import { getManagerMigrateUrl } from '@/lib/constants/managerApp'
  * wallet is connected (gated by the caller).
  */
 export const UpgradeBanner = ({ name }: { name: string }) => (
-  <Alert className="flex flex-wrap items-center justify-between gap-3">
-    <div className="flex items-start gap-3">
-      <ArrowUpCircle className="size-6 shrink-0 mt-0.5" />
-      <div>
-        <p className="text-base font-medium leading-tight">Upgrade to ENSv2</p>
-        <p className="text-sm text-muted-foreground">
-          This name is reserved on ENS v2 until it is migrated from ENS v1.
-        </p>
+  <Alert
+    variant="default"
+    className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 p-5"
+  >
+    <div className="flex items-start gap-4 flex-col sm:flex-row sm:items-center">
+      <CircleAlert className="size-6 shrink-0" />
+      <p className="text-3xl font-normal leading-tight font-serif">
+        Upgrade to ENSv2
+      </p>
+    </div>
+    <div className="flex items-start lg:items-center gap-4 flex-col lg:flex-row">
+      <p className="text-sm">
+        This name is reserved on ENS v2 until it is migrated from ENS v1{' '}
+      </p>
+      <div className="flex items-center gap-4">
+        <Button
+          className="rounded-xs"
+          asChild
+          variant="entity-outline"
+          size="xs"
+        >
+          {/** biome-ignore lint/a11y/noAmbiguousAnchorText: aria-label is used */}
+          <a
+            href={MANAGER_MIGRATE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Learn more about migrating ${name} to ENS v2`}
+          >
+            Learn more
+          </a>
+        </Button>
+        <Button className="rounded-xs" asChild variant="entity" size="xs">
+          <a
+            href={MANAGER_MIGRATE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <ArrowUpCircle className="size-4 shrink-0" />
+            Upgrade to v2
+          </a>
+        </Button>
       </div>
     </div>
-    <Button asChild size="sm">
-      <a
-        href={getManagerMigrateUrl(name)}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Upgrade to v2
-      </a>
-    </Button>
   </Alert>
 )

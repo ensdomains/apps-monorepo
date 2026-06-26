@@ -15,11 +15,15 @@ const buttonVariants = cva(
         outline:
           'border bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/50',
+          'bg-type-entity-fill text-type-entity-text hover:bg-type-entity-fill/90',
         success:
           'bg-button-success-default text-foreground hover:bg-button-success-hover',
         warning:
           'bg-button-warning-default text-foreground hover:bg-button-warning-hover',
+        entity:
+          'bg-type-entity-text text-type-entity-fill hover:bg-type-entity-text/90',
+        'entity-outline':
+          'border border-type-entity-text bg-type-entity-fill text-type-entity-text hover:bg-type-entity-fill/90',
         ghost:
           'hover:bg-accent text-primary hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
