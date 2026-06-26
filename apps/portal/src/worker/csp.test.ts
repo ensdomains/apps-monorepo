@@ -3,6 +3,7 @@ import {
   cspMetaTag,
   cspWithFrameAncestors,
   cspWithoutFrameAncestors,
+  originFromEnvUrl,
   withSecurityHeaders,
 } from './csp'
 
@@ -38,6 +39,17 @@ describe('csp', () => {
       expect(header['script-src']).not.toContain("'unsafe-inline'")
       expect(header['script-src']).not.toContain("'unsafe-eval'")
       expect(header['script-src']).toContain("'wasm-unsafe-eval'")
+    })
+
+    it('pins the inline-script hashes (theme init + PostHog bootstrap)', () => {
+      // Hardcoded sha256 hashes let specific inline scripts run without
+      // 'unsafe-inline'. The PostHog one is version-tied — regenerate on upgrade.
+      expect(header['script-src']).toContain(
+        "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
+      )
+      expect(header['script-src']).toContain(
+        "'sha256-aKAwvWwisgzRhW5auVEe5FrNQ3wlLsxZvLvimiQ3+os='",
+      )
     })
 
     it('puts frame-ancestors in the header only, never the meta tag', () => {
@@ -139,6 +151,31 @@ describe('csp', () => {
       // http: image can never load. This is why avatar/record image hosts never
       // need a connect-src or img-src entry.
       expect(header['img-src']).toEqual(["'self'", 'data:', 'blob:', 'https:'])
+    })
+  })
+
+  describe('originFromEnvUrl (deployment override origins)', () => {
+    it('extracts the origin from an absolute https URL, dropping path/query', () => {
+      // RPC override carries an API key in the path; only the origin is allowed.
+      expect(
+        originFromEnvUrl('https://rpc.example.com/sepolia/secret-key?x=1'),
+      ).toBe('https://rpc.example.com')
+    })
+
+    it('keeps a non-default port in the origin', () => {
+      expect(originFromEnvUrl('http://127.0.0.1:5655/graphql')).toBe(
+        'http://127.0.0.1:5655',
+      )
+    })
+
+    it('returns null for unset / relative / non-http values', () => {
+      // Relative paths resolve to the page origin (already covered by 'self').
+      expect(originFromEnvUrl(undefined)).toBeNull()
+      expect(originFromEnvUrl('')).toBeNull()
+      expect(originFromEnvUrl('/rpc')).toBeNull()
+      expect(originFromEnvUrl('/indexer/graphql')).toBeNull()
+      expect(originFromEnvUrl('ws://relay.example.com')).toBeNull()
+      expect(originFromEnvUrl('not a url')).toBeNull()
     })
   })
 

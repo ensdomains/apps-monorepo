@@ -15,11 +15,41 @@
  * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
  */
 
+/**
+ * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
+ * be allowlisted in `connect-src`.
+ *
+ * `VITE_SEPOLIA_RPC_URL` and `VITE_INDEXER_GRAPHQL_URL` are inlined by Vite at
+ * build time and can point a deployment's RPC / indexer at a host outside the
+ * static list below. Without this, the browser would enforce the static
+ * `connect-src` and block those configured requests even though the app
+ * accepted the override.
+ *
+ * Returns `null` for unset, relative (`/rpc` — already covered by `'self'`), or
+ * unparseable values, so only real absolute http(s) overrides are added.
+ */
+export function originFromEnvUrl(value: string | undefined): string | null {
+  if (!value || value.startsWith('/')) return null
+  try {
+    const { protocol, origin } = new URL(value)
+    return protocol === 'https:' || protocol === 'http:' ? origin : null
+  } catch {
+    return null
+  }
+}
+
+// Deployment-specific override origins, derived from the same build-time envs
+// the RPC/indexer clients read (lib/wagmi.ts, packages/indexer/urql/client.ts).
+const OVERRIDE_CONNECT_ORIGINS = [
+  originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
+  originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
+].filter((origin): origin is string => origin !== null)
+
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
-// NOTE: VITE_SEPOLIA_RPC_URL and VITE_INDEXER_GRAPHQL_URL can override the RPC
-// and indexer hosts per deployment — overriding them requires updating this list.
-const CONNECT_HOSTS = [
+// Per-deployment overrides via VITE_SEPOLIA_RPC_URL / VITE_INDEXER_GRAPHQL_URL
+// are appended automatically (see OVERRIDE_CONNECT_ORIGINS / CONNECT_HOSTS).
+const DEFAULT_CONNECT_HOSTS = [
   // default Sepolia RPC — packages/indexer/chain.ts
   'https://lb.drpc.live',
   // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
@@ -64,21 +94,32 @@ const CONNECT_HOSTS = [
   'https://sepolia-rpc.scroll.io',
 ] as const
 
+// Static defaults plus any deployment-specific override origins. Deduped so an
+// override that matches a default doesn't appear twice.
+const CONNECT_HOSTS = [
+  ...new Set<string>([...DEFAULT_CONNECT_HOSTS, ...OVERRIDE_CONNECT_ORIGINS]),
+]
+
 // PostHog also loads its script bundle from the analytics host.
 const SCRIPT_HOSTS = ['https://jakob.ens.domains'] as const
 
-// SHA-256 of the inline theme-init script in index.html (avoids 'unsafe-inline').
-// If that script changes, regenerate this — the browser logs the expected hash
-// in the CSP violation when it blocks the script.
-const INLINE_THEME_SCRIPT_HASH =
-  "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='"
+// SHA-256 hashes of the inline scripts we allow (avoids 'unsafe-inline'). The
+// browser logs the expected hash in the CSP violation when it blocks a script.
+const INLINE_SCRIPT_HASHES = [
+  // theme-init script in index.html — regenerate if that script changes.
+  "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
+  // PostHog's inline bootstrap loader (posthog-js). This hash is tied to the
+  // posthog-js version, so it MUST be regenerated when posthog-js is upgraded —
+  // the new expected hash appears in the script-src-elem CSP violation.
+  "'sha256-aKAwvWwisgzRhW5auVEe5FrNQ3wlLsxZvLvimiQ3+os='",
+] as const
 
 // Directives shared by the header and the meta tag.
 const BASE_DIRECTIVES = [
   "default-src 'self'",
   // 'wasm-unsafe-eval' permits WebAssembly compilation (needed by some
   // wallet/crypto dependencies) WITHOUT enabling general 'unsafe-eval'.
-  `script-src 'self' 'wasm-unsafe-eval' ${SCRIPT_HOSTS.join(' ')} ${INLINE_THEME_SCRIPT_HASH}`,
+  `script-src 'self' 'wasm-unsafe-eval' ${SCRIPT_HOSTS.join(' ')} ${INLINE_SCRIPT_HASHES.join(' ')}`,
   // 'unsafe-inline' styles: required by Tailwind / CSS-in-JS runtime injection.
   "style-src 'self' 'unsafe-inline'",
   // Images are intentionally host-agnostic: an ENS avatar record is an
