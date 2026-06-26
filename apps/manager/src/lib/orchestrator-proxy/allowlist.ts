@@ -9,75 +9,63 @@
  */
 
 import {
-  l2EthRegistrarCommitSnippet,
-  l2EthRegistrarMakeCommitmentSnippet,
-  l2EthRegistrarRegisterSnippet,
-  l2EthRegistrarRenewSnippet,
-} from '@ensdomains/ensjs/contracts'
-import {
-  type Abi,
-  type AbiFunction,
   type Address,
-  erc20Abi,
   getAddress,
   isAddressEqual,
   toFunctionSelector,
 } from 'viem'
 
-// Rhinestone OwnableValidator — fixed address across chains (not an ENS
-// contract, so it has no canonical source in ensjs).
-const OWNABLE_VALIDATOR = '0x000000000000000000000000000000000000fffe'
-
 /**
- * Extract the single function item from an ensjs-abi snippet (an ABI array
- * that bundles the function together with its error definitions) so its
- * 4-byte selector can be derived. Throws if the snippet has no function —
- * a build-time misconfiguration we want to fail loudly on.
+ * Addresses the manager emits sponsored calls to that are NOT (yet) in ensjs
+ * chain config. These are the canonical Sepolia V2 deployments mirrored from
+ * the app's own constants:
+ *   - DefaultReverseRegistrar: packages/transaction-manager/src/contracts/ens-sepolia.ts
+ *   - ENS_HCA_MODULE:          packages/smart-account/src/providers/rhinestone/registration-policy.ts
+ *
+ * TODO(mainnet): these are Sepolia-specific. Revisit when V2 mainnet addresses
+ * exist (ideally once ensjs exposes them, so they can be chain-derived).
  */
-function selectorFromSnippet(abi: Abi, name?: string): `0x${string}` {
-  const fn = abi.find(
-    (item): item is AbiFunction =>
-      item.type === 'function' && (name === undefined || item.name === name),
-  )
-  if (!fn) {
-    throw new Error(
-      `No function${name ? ` "${name}"` : ''} found in ABI snippet`,
-    )
-  }
-  return toFunctionSelector(fn)
-}
-
-// Derive selectors from ABIs once (same across chains).
-export const ALLOWED_SELECTORS: ReadonlySet<string> = new Set([
-  selectorFromSnippet(l2EthRegistrarCommitSnippet),
-  selectorFromSnippet(l2EthRegistrarRegisterSnippet),
-  selectorFromSnippet(l2EthRegistrarRenewSnippet),
-  selectorFromSnippet(l2EthRegistrarMakeCommitmentSnippet),
-  selectorFromSnippet(erc20Abi, 'approve'),
-  toFunctionSelector({
-    name: 'addOwner',
-    type: 'function',
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'expiry', type: 'uint48' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  }),
-  toFunctionSelector({
-    name: 'removeOwner',
-    type: 'function',
-    inputs: [{ name: 'owner', type: 'address' }],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  }),
-])
+const DEFAULT_REVERSE_REGISTRAR = '0xeb8269fb39290f31c4c29cec548807ca2133abb4'
+const ENS_HCA_MODULE = '0x5049ecBd4d961aE6DFEED9b7ccCe7f026454970E'
 
 /**
- * Build the list of allowlisted contract addresses for the given chain,
- * resolved from ensjs chain config. Every address is normalised to its EIP-55
- * checksum via `getAddress` (ensjs does not guarantee checksummed output), so
- * comparisons can use `isAddressEqual` rather than ad-hoc case folding.
+ * Function selectors the proxy will sponsor, derived from human-readable
+ * signatures via viem (no hardcoded hex). These mirror every sponsored call
+ * the manager emits — see the audit in PR #914. Keep in sync with:
+ *   - packages/transaction-manager/src/machines/registration/*.actors.ts
+ *   - packages/smart-account/src/providers/rhinestone/registration-policy.ts
+ */
+const SPONSORED_SIGNATURES = [
+  // v2 ETHRegistrar
+  'function commit(bytes32 commitment)',
+  'function register(string name, address owner, bytes32 secret, address resolver, address subregistry, uint64 duration, address referrer, bytes32 extraData)',
+  'function renew(string name, uint64 duration, address referrer, bytes32 extraData)',
+  // V1 ETHRegistrarController renewal (smart-account renewal path)
+  'function renew(string name, uint256 duration)',
+  // Payment tokens (USDC/DAI)
+  'function approve(address spender, uint256 amount)',
+  'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
+  // Resolver deploy (VerifiableFactory) + resolver wiring (v2 registry)
+  'function deployProxy(address implementation, uint256 salt, bytes data)',
+  'function setResolver(uint256 id, address resolver)',
+  // Primary-name (ReverseRegistrar + DefaultReverseRegistrar)
+  'function setName(string name)',
+  'function setNameForAddrWithSignature(address addr, uint256 coinType, string name, uint256[] coinTypes, bytes signature)',
+  // Session enable (HCA OwnableValidator self-call)
+  'function updateConfig(uint256 newThreshold, (address addr, uint48 expiration)[] ownersToAdd, address[] ownersToRemove)',
+] as const
+
+export const ALLOWED_SELECTORS: ReadonlySet<string> = new Set(
+  SPONSORED_SIGNATURES.map((sig) => toFunctionSelector(sig)),
+)
+
+/**
+ * Build the list of allowlisted contract addresses for the given chain.
+ *
+ * ensjs-sourced addresses are chain-derived (single source of truth); the two
+ * non-ensjs addresses above are appended. Every address is normalised to its
+ * EIP-55 checksum via `getAddress` (ensjs does not guarantee checksummed
+ * output) so comparisons can use `isAddressEqual` rather than case folding.
  */
 export async function buildContractAllowlist(
   chain: 'sepolia' | 'mainnet',
@@ -88,18 +76,31 @@ export async function buildContractAllowlist(
   const contracts = ensL1Contracts[supportedL1Chains[chain]]
 
   return [
-    contracts.ensRegistry.address,
-    contracts.ensLegacyRegistry.address,
-    contracts.ensEthRegistrar.address,
-    contracts.ensEthRegistrarController.address,
-    contracts.ensPublicResolver.address,
-    contracts.ensReverseRegistrar.address,
-    contracts.ensVerifiableFactory.address,
-    contracts.ensHcaFactory.address,
-    contracts.usdc.address,
-    contracts.dai.address,
-    OWNABLE_VALIDATOR,
+    contracts.ensRegistry.address, // setResolver
+    contracts.ensEthRegistrar.address, // commit / register / renew (v2)
+    contracts.ensEthRegistrarController.address, // renew (V1)
+    contracts.ensReverseRegistrar.address, // setName
+    contracts.ensVerifiableFactory.address, // deployProxy (resolver deploy)
+    contracts.usdc.address, // approve / permit
+    contracts.dai.address, // approve / permit
+    DEFAULT_REVERSE_REGISTRAR, // setName / setNameForAddrWithSignature
+    ENS_HCA_MODULE, // updateConfig (session enable)
   ].map((address) => getAddress(address))
+}
+
+/**
+ * Contracts where any selector is allowed. The HCA factory is invoked with
+ * opaque, SDK-generated `factoryData` (the account-deploy call), so its
+ * selector is not statically knowable and must not be selector-checked.
+ */
+export async function buildAnySelectorAllowlist(
+  chain: 'sepolia' | 'mainnet',
+): Promise<readonly Address[]> {
+  const { ensL1Contracts, supportedL1Chains } = await import(
+    '@ensdomains/ensjs/chain'
+  )
+  const contracts = ensL1Contracts[supportedL1Chains[chain]]
+  return [contracts.ensHcaFactory.address].map((address) => getAddress(address))
 }
 
 type Call = { to: string; data?: string }
@@ -133,14 +134,23 @@ export function extractAccount(body: unknown): Address | null {
   }
 }
 
-/** Validate that every call targets an allowlisted contract + selector. */
+/**
+ * Validate that every call targets an allowlisted contract + selector.
+ *
+ * `anySelectorContracts` are trusted addresses (e.g. the HCA factory) whose
+ * calldata is opaque/SDK-generated; for those the selector check is skipped
+ * but the address must still be allowlisted.
+ */
 export function validateCalls(
   calls: Call[],
   allowlist: {
     contracts: readonly Address[]
     selectors: ReadonlySet<string>
+    anySelectorContracts?: readonly Address[]
   },
 ): { ok: true } | { ok: false; reason: string } {
+  const anySelector = allowlist.anySelectorContracts ?? []
+
   for (const call of calls) {
     if (!call.to) return { ok: false, reason: 'Call missing "to" address' }
 
@@ -149,6 +159,12 @@ export function validateCalls(
       to = getAddress(call.to)
     } catch {
       return { ok: false, reason: `Invalid "to" address: ${call.to}` }
+    }
+
+    // Trusted contracts with opaque calldata: address must match, selector is
+    // not checked.
+    if (anySelector.some((allowed) => isAddressEqual(allowed, to))) {
+      continue
     }
 
     if (!allowlist.contracts.some((allowed) => isAddressEqual(allowed, to))) {

@@ -17,6 +17,7 @@
 import { env } from 'cloudflare:workers'
 import {
   ALLOWED_SELECTORS,
+  buildAnySelectorAllowlist,
   buildContractAllowlist,
   extractAccount,
   extractCalls,
@@ -81,10 +82,14 @@ export async function handleOrchestratorRequest(
   // Only sponsor allowlisted ENS operations.
   const calls = extractCalls(body)
   if (calls.length > 0) {
-    const contracts = await buildContractAllowlist(env.CHAIN)
+    const [contracts, anySelectorContracts] = await Promise.all([
+      buildContractAllowlist(env.CHAIN),
+      buildAnySelectorAllowlist(env.CHAIN),
+    ])
     const result = validateCalls(calls, {
       contracts,
       selectors: ALLOWED_SELECTORS,
+      anySelectorContracts,
     })
     if (!result.ok) {
       return Response.json({ error: result.reason }, { status: 403 })
