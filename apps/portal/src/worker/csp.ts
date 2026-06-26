@@ -102,7 +102,7 @@ const HEADER_ONLY_DIRECTIVES = [
 ] as const
 
 /** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
-export const cspWithoutFrameAncestors = BASE_DIRECTIVES.join('; ')
+export const cspWithoutFrameAncestors = `${BASE_DIRECTIVES.join('; ')};`
 
 /** Full CSP for the HTTP header. */
 export const cspWithFrameAncestors = `${[...BASE_DIRECTIVES, ...HEADER_ONLY_DIRECTIVES].join('; ')};`
