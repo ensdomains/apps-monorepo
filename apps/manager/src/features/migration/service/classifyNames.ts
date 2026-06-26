@@ -1,7 +1,3 @@
-// Classification lives in @ens-apps/migration (shared with the portal explorer).
-// The grouping helpers below are manager-only — they drive migration *execution*
-// (planning/grouping by parent), which the explorer never does — so they stay
-// here rather than in the shared package.
 import type { ClassifiedName } from '@ens-apps/migration'
 
 export {

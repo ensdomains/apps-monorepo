@@ -1,7 +1,4 @@
-// Public API: the cross-app v1→v2 migration surface. Internal plumbing
-// (ABIs, multicall, the granular preflight checks, chain config) stays
-// unexported — consumers go through `evaluateMigration` / `classifyName` /
-// `runEligibilityChecks`.
+// Public API. Internals (ABIs, multicall, granular checks, chain config) stay unexported.
 export {
   type ClassifiedName,
   type ClassifyNamesResult,
