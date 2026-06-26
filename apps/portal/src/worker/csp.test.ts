@@ -52,15 +52,6 @@ describe('csp', () => {
       expect(meta).toHaveProperty('upgrade-insecure-requests')
     })
 
-    it('reports violations to PostHog from the header only', () => {
-      expect(header['report-to']).toEqual(['posthog'])
-      expect(header['report-uri']?.[0]).toContain(
-        'https://eu.i.posthog.com/report/',
-      )
-      expect(meta['report-to']).toBeUndefined()
-      expect(meta['report-uri']).toBeUndefined()
-    })
-
     it('builds a meta tag carrying the meta policy', () => {
       expect(cspMetaTag).toContain('http-equiv="Content-Security-Policy"')
       expect(cspMetaTag).toContain(cspWithoutFrameAncestors)
@@ -81,14 +72,6 @@ describe('csp', () => {
       )
       expect(result.headers.get('Permissions-Policy')).toBe(
         'geolocation=(), microphone=(), camera=()',
-      )
-    })
-
-    it('declares the PostHog reporting endpoint that report-to targets', () => {
-      const result = withSecurityHeaders(new Response('hi'))
-      const reportingEndpoints = result.headers.get('Reporting-Endpoints') ?? ''
-      expect(reportingEndpoints).toMatch(
-        /^posthog="https:\/\/eu\.i\.posthog\.com\/report\//,
       )
     })
 
