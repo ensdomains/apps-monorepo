@@ -11,6 +11,8 @@ import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership')({
   component: RouteComponent,
@@ -21,6 +23,11 @@ function RouteComponent() {
   const { name } = Route.useParams()
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
+
+  const availabilityQuery = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: isRegistrable(name),
+  })
 
   const grace = useGraceStatus({
     name,
@@ -35,9 +42,32 @@ function RouteComponent() {
       />
     )
 
-  if (isLoading) return <LoadingMessage />
+  if (isLoading || (availabilityQuery.isLoading && isRegistrable(name)))
+    return <LoadingMessage />
 
-  if (!data) return null
+  if (availabilityQuery.error)
+    return (
+      <ErrorMessage
+        title="Error checking availability"
+        description={
+          availabilityQuery.error.cause?.message ||
+          availabilityQuery.error.message
+        }
+      />
+    )
+
+  if (availabilityQuery.data?.isAvailable || !data)
+    return (
+      <NotFoundMessage
+        title="Name not registered"
+        description={
+          <>
+            <strong>{name}</strong> is not registered, so there is no ownership
+            data to display.
+          </>
+        }
+      />
+    )
 
   return (
     <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
