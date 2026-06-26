@@ -1,4 +1,4 @@
-import type { Address, PublicClient } from 'viem'
+import type { Address } from 'viem'
 import type { ClassifiedName } from '../classifyNames'
 import type { V1Domain } from '../v1SubgraphClient'
 
@@ -6,8 +6,6 @@ export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'
 export const DEFAULT_RESOLVER: Address =
   '0x000000000000000000000000000000000000dddd'
-
-export const publicClient = {} as PublicClient
 
 export const ok = <T>(result: T) => ({ status: 'success' as const, result })
 export const fail = () => ({
