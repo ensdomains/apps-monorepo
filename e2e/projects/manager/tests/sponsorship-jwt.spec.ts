@@ -27,13 +27,14 @@
  */
 import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
+import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const DOMAIN_TO_REGISTER = `jwt-e2e-${Date.now().toString(36)}.eth`
 
 test.describe('Gas sponsorship JWT hop (Rhinestone)', () => {
   test('mints a sponsorship extension token from the api-worker during a sponsored registration', async ({
-    authenticatedPage: page,
+    connectedPage: page,
   }) => {
     // This spec only holds when the manager under test was booted in JWT
     // sponsorship mode (VITE_FF_EXPERIMENTAL_JWT=true). The default manager-e2e
@@ -71,6 +72,9 @@ test.describe('Gas sponsorship JWT hop (Rhinestone)', () => {
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+    // HCA path: "Pay with stablecoins" opens the EnableSessions modal before the
+    // token picker; click through the single auto-authorized ENABLE intent.
+    await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
 
     createConsoleMonitor(page, {
