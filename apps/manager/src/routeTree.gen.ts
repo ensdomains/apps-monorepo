@@ -31,6 +31,7 @@ import { Route as PNameIndexRouteImport } from './routes/p/$name/index'
 import { Route as NotificationsAuthenticatedIndexRouteImport } from './routes/notifications/_authenticated/index'
 import { Route as DebugBackendIndexRouteImport } from './routes/debug/backend/index'
 import { Route as DebugBackendSettingsRouteImport } from './routes/debug/backend/settings'
+import { Route as ApiOrchestratorSplatRouteImport } from './routes/api/orchestrator/$'
 import { Route as NotificationsAuthenticatedSettingsIndexRouteImport } from './routes/notifications/_authenticated/settings/index'
 import { Route as NotificationsChannelsEmailVerifyRouteImport } from './routes/notifications/channels/email/verify'
 
@@ -147,6 +148,11 @@ const DebugBackendSettingsRoute = DebugBackendSettingsRouteImport.update({
   path: '/debug/backend/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiOrchestratorSplatRoute = ApiOrchestratorSplatRouteImport.update({
+  id: '/api/orchestrator/$',
+  path: '/api/orchestrator/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotificationsAuthenticatedSettingsIndexRoute =
   NotificationsAuthenticatedSettingsIndexRouteImport.update({
     id: '/settings/',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
+  '/api/orchestrator/$': typeof ApiOrchestratorSplatRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/': typeof NotificationsAuthenticatedIndexRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/$name': typeof NameIndexRoute
   '/auto-renewal': typeof AutoRenewalIndexRoute
   '/register': typeof RegisterIndexRoute
+  '/api/orchestrator/$': typeof ApiOrchestratorSplatRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend': typeof DebugBackendIndexRoute
   '/notifications': typeof NotificationsAuthenticatedIndexRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   '/$name/': typeof NameIndexRoute
   '/auto-renewal/': typeof AutoRenewalIndexRoute
   '/register/': typeof RegisterIndexRoute
+  '/api/orchestrator/$': typeof ApiOrchestratorSplatRoute
   '/debug/backend/settings': typeof DebugBackendSettingsRoute
   '/debug/backend/': typeof DebugBackendIndexRoute
   '/notifications/_authenticated/': typeof NotificationsAuthenticatedIndexRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/auto-renewal/'
     | '/register/'
+    | '/api/orchestrator/$'
     | '/debug/backend/settings'
     | '/debug/backend/'
     | '/notifications/'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/$name'
     | '/auto-renewal'
     | '/register'
+    | '/api/orchestrator/$'
     | '/debug/backend/settings'
     | '/debug/backend'
     | '/notifications'
@@ -306,6 +317,7 @@ export interface FileRouteTypes {
     | '/$name/'
     | '/auto-renewal/'
     | '/register/'
+    | '/api/orchestrator/$'
     | '/debug/backend/settings'
     | '/debug/backend/'
     | '/notifications/_authenticated/'
@@ -331,6 +343,7 @@ export interface RootRouteChildren {
   RenewNameRoute: typeof RenewNameRoute
   AutoRenewalIndexRoute: typeof AutoRenewalIndexRoute
   RegisterIndexRoute: typeof RegisterIndexRoute
+  ApiOrchestratorSplatRoute: typeof ApiOrchestratorSplatRoute
   DebugBackendSettingsRoute: typeof DebugBackendSettingsRoute
   DebugBackendIndexRoute: typeof DebugBackendIndexRoute
   PNameIndexRoute: typeof PNameIndexRoute
@@ -493,6 +506,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DebugBackendSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/orchestrator/$': {
+      id: '/api/orchestrator/$'
+      path: '/api/orchestrator/$'
+      fullPath: '/api/orchestrator/$'
+      preLoaderRoute: typeof ApiOrchestratorSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notifications/_authenticated/settings/': {
       id: '/notifications/_authenticated/settings/'
       path: '/settings'
@@ -569,6 +589,7 @@ const rootRouteChildren: RootRouteChildren = {
   RenewNameRoute: RenewNameRoute,
   AutoRenewalIndexRoute: AutoRenewalIndexRoute,
   RegisterIndexRoute: RegisterIndexRoute,
+  ApiOrchestratorSplatRoute: ApiOrchestratorSplatRoute,
   DebugBackendSettingsRoute: DebugBackendSettingsRoute,
   DebugBackendIndexRoute: DebugBackendIndexRoute,
   PNameIndexRoute: PNameIndexRoute,
