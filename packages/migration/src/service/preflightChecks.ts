@@ -1,19 +1,19 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import type { Address, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
-import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from './abis'
+import { sepoliaWithEns } from '../chain'
+import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
-import { DEFAULT_PREFLIGHT_ADDRESSES } from './chain'
-import { type ClassifiedName, FUSES, hasFuse } from './classify'
+import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
 
-/**
- * On-chain contract addresses the preflight checks read from. Defaults to the
- * active chain's {@link DEFAULT_PREFLIGHT_ADDRESSES}; pass an override only when
- * checking against a different chain.
- */
-export type PreflightAddresses = {
-  readonly baseRegistrar: Address
-  readonly nameWrapper: Address
-}
+const BASE_REGISTRAR = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensBaseRegistrarImplementation',
+})
+const NAME_WRAPPER = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensNameWrapper',
+})
 
 export type EligibilityResult = {
   eligible: ClassifiedName[]
@@ -25,7 +25,6 @@ export const checkOwnership = async (
   publicClient: PublicClient,
   names: readonly ClassifiedName[],
   migrationOwner: Address,
-  addresses: PreflightAddresses = DEFAULT_PREFLIGHT_ADDRESSES,
 ): Promise<Set<string>> => {
   const ids = new Set<string>()
   if (names.length === 0) return ids
@@ -34,13 +33,13 @@ export const checkOwnership = async (
   const contracts: Contract[] = names.map((name) =>
     name.tokenType === 'unwrapped'
       ? {
-          address: addresses.baseRegistrar,
+          address: BASE_REGISTRAR,
           abi: BASE_REGISTRAR_ABI,
           functionName: 'ownerOf' as const,
           args: [BigInt(name.domain.labelhash)] as const,
         }
       : {
-          address: addresses.nameWrapper,
+          address: NAME_WRAPPER,
           abi: NAME_WRAPPER_ABI,
           functionName: 'getData' as const,
           args: [BigInt(name.domain.id)] as const,
@@ -77,7 +76,6 @@ export const checkOwnership = async (
 export const checkFrozenApproval = async (
   publicClient: PublicClient,
   candidates: readonly ClassifiedName[],
-  addresses: PreflightAddresses = DEFAULT_PREFLIGHT_ADDRESSES,
 ): Promise<Set<string>> => {
   const ids = new Set<string>()
   if (candidates.length === 0) return ids
@@ -85,7 +83,7 @@ export const checkFrozenApproval = async (
   const results = await batchedMulticall<Address>(
     publicClient,
     candidates.map((name) => ({
-      address: addresses.nameWrapper,
+      address: NAME_WRAPPER,
       abi: NAME_WRAPPER_ABI,
       functionName: 'getApproved' as const,
       args: [BigInt(name.domain.id)] as const,
@@ -122,7 +120,6 @@ export const runEligibilityChecks = async (
   publicClient: PublicClient,
   names: ClassifiedName[],
   migrationOwner: Address,
-  addresses: PreflightAddresses = DEFAULT_PREFLIGHT_ADDRESSES,
 ): Promise<EligibilityResult> => {
   if (names.length === 0) {
     return { eligible: [], frozen: [], alreadyMigrated: [] }
@@ -131,8 +128,8 @@ export const runEligibilityChecks = async (
   const frozenCandidates = frozenApprovalCandidates(names)
 
   const [migratedIds, frozenIds] = await Promise.all([
-    checkOwnership(publicClient, names, migrationOwner, addresses),
-    checkFrozenApproval(publicClient, frozenCandidates, addresses),
+    checkOwnership(publicClient, names, migrationOwner),
+    checkFrozenApproval(publicClient, frozenCandidates),
   ])
 
   return {

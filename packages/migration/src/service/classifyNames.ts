@@ -1,37 +1,10 @@
-import { type Address, isAddress, isAddressEqual } from 'viem'
-import { KNOWN_PUBLIC_RESOLVERS } from './chain'
-import type { V1Domain } from './types'
-
-/**
- * Options shared by {@link classifyName} / {@link classifyNames}. Defaults to
- * the active chain's {@link KNOWN_PUBLIC_RESOLVERS}; pass an override only when
- * classifying against a different chain. The list drives the resolver migration
- * strategy: names still on a known public resolver are moved onto an owned
- * permissioned resolver, otherwise the v1 resolver is kept.
- */
-export type ClassifyOptions = {
-  readonly knownPublicResolvers: readonly Address[]
-}
-
-const DEFAULT_CLASSIFY_OPTIONS: ClassifyOptions = {
-  knownPublicResolvers: KNOWN_PUBLIC_RESOLVERS,
-}
+import { type Address, isAddress } from 'viem'
+import { isKnownPublicResolver } from '../contracts/knownResolvers'
+import type { V1Domain } from './v1SubgraphClient'
 
 const toAddress = (s: string | null | undefined): Address | null => {
   if (!s) return null
   return isAddress(s) ? (s as Address) : null
-}
-
-export const isKnownPublicResolver = (
-  address: string | null,
-  knownPublicResolvers: readonly Address[] = KNOWN_PUBLIC_RESOLVERS,
-): boolean => {
-  // Non-strict: accept any well-formed address regardless of checksum casing;
-  // isAddressEqual compares case-insensitively.
-  if (!address || !isAddress(address, { strict: false })) return false
-  return knownPublicResolvers.some((known) =>
-    isAddressEqual(known, address as Address),
-  )
 }
 
 export const FUSES = {
@@ -87,13 +60,17 @@ export type ClassifiedName = {
 export const hasFuse = (fuses: number, fuse: number): boolean =>
   (fuses & fuse) !== 0
 
+export const is2LD = (name: ClassifiedName): boolean =>
+  name.tokenType === 'unwrapped' ||
+  name.tokenType === 'unlocked' ||
+  name.tokenType === 'locked-2ld'
+
 const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
   fuses: number
   v1ResolverAddress: string | null
-  knownPublicResolvers: readonly Address[]
 }): ResolverStrategy => {
-  const { tokenType, fuses, v1ResolverAddress, knownPublicResolvers } = params
+  const { tokenType, fuses, v1ResolverAddress } = params
 
   const cannotSetResolverLocked =
     (tokenType === 'locked-2ld' || tokenType === 'locked-child') &&
@@ -103,10 +80,7 @@ const resolverStrategyFor = (params: {
     return 'keep-v1'
   }
 
-  if (
-    v1ResolverAddress &&
-    !isKnownPublicResolver(v1ResolverAddress, knownPublicResolvers)
-  ) {
+  if (v1ResolverAddress && !isKnownPublicResolver(v1ResolverAddress)) {
     return 'keep-v1'
   }
 
@@ -148,9 +122,7 @@ const hasExpiredDotEthRegistration = (
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
-  options: ClassifyOptions = DEFAULT_CLASSIFY_OPTIONS,
 ): ClassifyResult => {
-  const { knownPublicResolvers } = options
   if (hasUnknownLabel(domain)) {
     return { type: 'ineligible', name: { domain, reason: 'unknown-label' } }
   }
@@ -204,7 +176,6 @@ export const classifyName = (
           tokenType: 'unwrapped',
           fuses: 0,
           v1ResolverAddress,
-          knownPublicResolvers,
         }),
         managerAddress,
       },
@@ -245,7 +216,6 @@ export const classifyName = (
               tokenType: 'detached-child',
               fuses,
               v1ResolverAddress,
-              knownPublicResolvers,
             }),
             managerAddress: null,
           },
@@ -270,7 +240,6 @@ export const classifyName = (
           tokenType: 'unlocked',
           fuses,
           v1ResolverAddress,
-          knownPublicResolvers,
         }),
         managerAddress: null,
       },
@@ -301,7 +270,6 @@ export const classifyName = (
         tokenType: lockedTokenType,
         fuses,
         v1ResolverAddress,
-        knownPublicResolvers,
       }),
       managerAddress: null,
     },
@@ -316,13 +284,12 @@ export type ClassifyNamesResult = {
 export const classifyNames = (
   domains: V1Domain[],
   ownerAddress: Address,
-  options: ClassifyOptions = DEFAULT_CLASSIFY_OPTIONS,
 ): ClassifyNamesResult => {
   const classified: ClassifiedName[] = []
   const ineligible: IneligibleName[] = []
 
   for (const domain of domains) {
-    const result = classifyName(domain, ownerAddress, options)
+    const result = classifyName(domain, ownerAddress)
     if (!result) continue
     if (result.type === 'classified') {
       classified.push(result.name)
@@ -332,4 +299,43 @@ export const classifyNames = (
   }
 
   return { classified, ineligible }
+}
+
+export type GroupedNames = {
+  readonly unwrapped: readonly ClassifiedName[]
+  readonly unlocked: readonly ClassifiedName[]
+  readonly locked2ld: readonly ClassifiedName[]
+  readonly childNames: ReadonlyMap<string, readonly ClassifiedName[]>
+}
+
+export const groupClassifiedNames = (names: ClassifiedName[]): GroupedNames => {
+  const unwrapped: ClassifiedName[] = []
+  const unlocked: ClassifiedName[] = []
+  const locked2ld: ClassifiedName[] = []
+  const childNames = new Map<string, ClassifiedName[]>()
+
+  for (const name of names) {
+    switch (name.tokenType) {
+      case 'unwrapped':
+        unwrapped.push(name)
+        break
+      case 'unlocked':
+        unlocked.push(name)
+        break
+      case 'locked-2ld':
+        locked2ld.push(name)
+        break
+      case 'locked-child':
+      case 'detached-child': {
+        const parent = name.parentName
+        if (!parent) break
+        const existing = childNames.get(parent) ?? []
+        existing.push(name)
+        childNames.set(parent, existing)
+        break
+      }
+    }
+  }
+
+  return { unwrapped, unlocked, locked2ld, childNames }
 }

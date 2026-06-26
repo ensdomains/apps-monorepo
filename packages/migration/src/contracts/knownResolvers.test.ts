@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isKnownPublicResolver } from './classify'
+import { isKnownPublicResolver } from './knownResolvers'
 
 describe('isKnownPublicResolver', () => {
   it.each([

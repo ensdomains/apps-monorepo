@@ -2,7 +2,6 @@
 export {
   type ClassifiedName,
   type ClassifyNamesResult,
-  type ClassifyOptions,
   classifyName,
   classifyNames,
   FUSES,
@@ -10,16 +9,14 @@ export {
   type IneligibleName,
   type IneligibleReason,
   type MigrationTokenType,
-} from './classify'
+} from './service/classifyNames'
 export {
-  type EvaluateMigrationOptions,
   evaluateMigration,
   type MigrationBlockReason,
   type MigrationVerdict,
-} from './evaluate'
+} from './service/evaluateMigration'
 export {
   type EligibilityResult,
-  type PreflightAddresses,
   runEligibilityChecks,
-} from './preflight'
-export type { V1Domain } from './types'
+} from './service/preflightChecks'
+export type { V1Domain } from './service/v1SubgraphClient'

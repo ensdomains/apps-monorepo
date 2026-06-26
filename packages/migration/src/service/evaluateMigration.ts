@@ -1,12 +1,11 @@
 import type { Address, PublicClient } from 'viem'
-import { DEFAULT_PREFLIGHT_ADDRESSES, KNOWN_PUBLIC_RESOLVERS } from './chain'
 import {
   classifyName,
   type IneligibleReason,
   type MigrationTokenType,
-} from './classify'
-import { type PreflightAddresses, runEligibilityChecks } from './preflight'
-import type { V1Domain } from './types'
+} from './classifyNames'
+import { runEligibilityChecks } from './preflightChecks'
+import type { V1Domain } from './v1SubgraphClient'
 
 /**
  * Why a v1 name can't migrate. Extends the classifier's reasons with `no-path`
@@ -23,11 +22,6 @@ export type MigrationVerdict =
     }
   | { readonly migratable: false; readonly reason: MigrationBlockReason }
 
-export type EvaluateMigrationOptions = {
-  readonly knownPublicResolvers?: readonly Address[]
-  readonly addresses?: PreflightAddresses
-}
-
 /**
  * Decides whether a single v1 name can migrate to v2 for `ownerAddress`:
  * classifies the name against that wallet, then confirms eligibility against
@@ -39,14 +33,10 @@ export const evaluateMigration = async (
   client: PublicClient,
   domain: V1Domain | null,
   ownerAddress: Address,
-  options: EvaluateMigrationOptions = {},
 ): Promise<MigrationVerdict> => {
   if (!domain) return { migratable: false, reason: 'not-found' }
 
-  const result = classifyName(domain, ownerAddress, {
-    knownPublicResolvers:
-      options.knownPublicResolvers ?? KNOWN_PUBLIC_RESOLVERS,
-  })
+  const result = classifyName(domain, ownerAddress)
   if (!result) return { migratable: false, reason: 'no-path' }
   if (result.type === 'ineligible') {
     return { migratable: false, reason: result.name.reason }
@@ -57,7 +47,6 @@ export const evaluateMigration = async (
     client,
     [classified],
     ownerAddress,
-    options.addresses ?? DEFAULT_PREFLIGHT_ADDRESSES,
   )
 
   if (eligibility.eligible.length > 0) {

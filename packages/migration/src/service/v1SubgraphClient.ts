@@ -1,10 +1,8 @@
 /**
- * Shape of a v1 ENS domain as returned by the v1 (subgraph) data source.
- *
- * This is the set of "fuse/wrap subgraph fields" the migration classifier needs
- * to decide whether a name can move from ENSv1 to ENSv2. Each consuming app is
- * responsible for fetching this shape (by-address in the manager dashboard,
- * by-name in the explorer) and passing it into {@link classifyName}.
+ * Shape of a v1 ENS domain as returned by the v1 subgraph. The package keeps
+ * only the type — each app owns its own fetching (by-address in the manager
+ * dashboard, by-name in the portal explorer) and passes this shape into
+ * {@link classifyName}.
  */
 export type V1Domain = {
   id: string

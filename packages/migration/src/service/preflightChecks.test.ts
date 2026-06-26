@@ -1,13 +1,17 @@
 import { type Address, zeroAddress } from 'viem'
 import { multicall } from 'viem/actions'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { type ClassifiedName, FUSES, type MigrationTokenType } from './classify'
+import {
+  type ClassifiedName,
+  FUSES,
+  type MigrationTokenType,
+} from './classifyNames'
 import {
   checkFrozenApproval,
   checkOwnership,
   runEligibilityChecks,
-} from './preflight'
-import type { V1Domain } from './types'
+} from './preflightChecks'
+import type { V1Domain } from './v1SubgraphClient'
 
 vi.mock('viem/actions', () => ({ multicall: vi.fn() }))
 
