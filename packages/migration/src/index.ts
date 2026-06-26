@@ -11,11 +11,6 @@ export {
   type MigrationTokenType,
 } from './service/classifyNames'
 export {
-  evaluateMigration,
-  type MigrationBlockReason,
-  type MigrationVerdict,
-} from './service/evaluateMigration'
-export {
   type EligibilityResult,
   runEligibilityChecks,
 } from './service/preflightChecks'

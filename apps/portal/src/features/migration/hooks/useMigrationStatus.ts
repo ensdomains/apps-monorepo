@@ -1,6 +1,6 @@
 import {
-  evaluateMigration,
-  type MigrationVerdict,
+  classifyName,
+  runEligibilityChecks,
   type V1Domain,
 } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
@@ -12,8 +12,13 @@ import { fromPromise, ok } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-/** The migration verdict for a name, as computed by `@ens-apps/migration`. */
-export type MigrationStatus = MigrationVerdict
+/**
+ * Migration status for a name, scoped to the connected wallet: whether it can
+ * migrate and, if so, which address holds the v1 token.
+ */
+export type MigrationStatus =
+  | { readonly migratable: true; readonly tokenHolder: Address }
+  | { readonly migratable: false }
 
 const V1_DOMAIN_QUERY = gql`
   query getV1DomainForMigration($name: String!) {
@@ -49,8 +54,7 @@ const getMigrationStatus = ResultFn(async function* ({
   name,
   address,
 }: GetMigrationStatusParameters) {
-  if (!address)
-    return ok<MigrationVerdict>({ migratable: false, reason: 'not-found' })
+  if (!address) return ok<MigrationStatus>({ migratable: false })
 
   const client = yield* safeGetClient()
   const subgraphClient = createSubgraphClient(client)
@@ -63,16 +67,27 @@ const getMigrationStatus = ResultFn(async function* ({
     (e) => new GetMigrationStatusError({ cause: e }),
   )
 
-  const verdict = yield* fromPromise(
-    evaluateMigration(
+  const domain = domains[0] ?? null
+  if (!domain) return ok<MigrationStatus>({ migratable: false })
+
+  const classified = classifyName(domain, address)
+  if (classified?.type !== 'classified')
+    return ok<MigrationStatus>({ migratable: false })
+
+  const { eligible } = yield* fromPromise(
+    runEligibilityChecks(
       client as unknown as PublicClient,
-      domains[0] ?? null,
+      [classified.name],
       address,
     ),
     (e) => new GetMigrationStatusError({ cause: e }),
   )
 
-  return ok(verdict)
+  return ok<MigrationStatus>(
+    eligible.length > 0
+      ? { migratable: true, tokenHolder: classified.name.tokenHolder }
+      : { migratable: false },
+  )
 })
 
 const getMigrationStatusQueryKey = createQueryKey<
