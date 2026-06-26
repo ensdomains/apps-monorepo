@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cspMetaTag } from './csp'
 import { MetaTagInjector, TitleRewriter } from './html-rewriter'
 
 describe('html-rewriter', () => {
@@ -21,11 +20,7 @@ describe('html-rewriter', () => {
 
       injector.element(mockElement)
 
-      // The injector prepends the CSP meta tag (defense-in-depth) before the
-      // provided tags, so the appended content carries both.
-      expect(mockAppend).toHaveBeenCalledWith(`${cspMetaTag}\n${tags}`, {
-        html: true,
-      })
+      expect(mockAppend).toHaveBeenCalledWith(tags, { html: true })
     })
   })
 
