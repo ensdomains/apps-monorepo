@@ -1,12 +1,12 @@
 /**
- * Tests for the orchestrator-proxy allowlist + call validation. This is the
- * security boundary that ensures the proxy only sponsors gas for allowlisted
- * ENS operations, so it is worth covering directly.
+ * Tests for the orchestrator-proxy allowlist + call validation.
+ * This is the security boundary that ensures the proxy only sponsors gas
+ * for allowlisted ENS operations.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAddress, toFunctionSelector } from 'viem'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import {
   ALLOWED_SELECTORS,
   buildAnySelectorAllowlist,
@@ -17,18 +17,27 @@ import {
 } from './allowlist'
 
 const sepolia = ensL1Contracts[supportedL1Chains.sepolia]
-// ensjs returns this lowercased; the checksummed form is what wallets send.
 const REGISTRAR = sepolia.ensEthRegistrar.address
 const REGISTRAR_CHECKSUMMED = getAddress(REGISTRAR)
-// `commit(bytes32)` is in ALLOWED_SELECTORS (derived from the same snippet in
-// allowlist.ts). Using the human-readable signature here keeps the test simple.
-const COMMIT_SELECTOR = toFunctionSelector(
-  'function commit(bytes32 commitment)',
-)
+const COMMIT = toFunctionSelector('function commit(bytes32 commitment)')
+
+let contracts: Awaited<ReturnType<typeof buildContractAllowlist>>
+let anySelectorContracts: Awaited<ReturnType<typeof buildAnySelectorAllowlist>>
+let opts: {
+  contracts: typeof contracts
+  selectors: typeof ALLOWED_SELECTORS
+  anySelectorContracts?: typeof anySelectorContracts
+}
+
+beforeAll(async () => {
+  ;[contracts, anySelectorContracts] = await Promise.all([
+    buildContractAllowlist('sepolia'),
+    buildAnySelectorAllowlist('sepolia'),
+  ])
+  opts = { contracts, selectors: ALLOWED_SELECTORS }
+})
 
 describe('ALLOWED_SELECTORS', () => {
-  // Every sponsored call path the manager emits must be allowlisted, or the
-  // proxy 403s legitimate intents. See the audit in PR #914.
   it.each([
     ['commit', 'function commit(bytes32 c)'],
     [
@@ -53,11 +62,11 @@ describe('ALLOWED_SELECTORS', () => {
       'updateConfig',
       'function updateConfig(uint256 t, (address addr, uint48 expiration)[] add, address[] rm)',
     ],
-  ])('includes the %s selector', (_label, sig) => {
+  ])('includes %s', (_label, sig) => {
     expect(ALLOWED_SELECTORS.has(toFunctionSelector(sig))).toBe(true)
   })
 
-  it('does NOT include removed selectors (addOwner/removeOwner/makeCommitment)', () => {
+  it('does not include removed addOwner/removeOwner selectors', () => {
     expect(
       ALLOWED_SELECTORS.has(
         toFunctionSelector('function addOwner(address o, uint48 e)'),
@@ -78,13 +87,13 @@ describe('extractCalls', () => {
     ])
   })
 
-  it('reads `destinationExecutions` as a fallback', () => {
+  it('falls back to `destinationExecutions`', () => {
     expect(extractCalls({ destinationExecutions: [{ to: '0xdef' }] })).toEqual([
       { to: '0xdef' },
     ])
   })
 
-  it('returns [] for bodies without calls', () => {
+  it('returns [] when absent', () => {
     expect(extractCalls({})).toEqual([])
     expect(extractCalls(undefined)).toEqual([])
     expect(extractCalls(null)).toEqual([])
@@ -92,7 +101,7 @@ describe('extractCalls', () => {
 })
 
 describe('extractAccount', () => {
-  it('returns the checksummed account address', () => {
+  it('checksums the account address', () => {
     expect(extractAccount({ account: REGISTRAR })).toBe(REGISTRAR_CHECKSUMMED)
   })
 
@@ -104,131 +113,83 @@ describe('extractAccount', () => {
 })
 
 describe('validateCalls', () => {
-  it('allows an allowlisted contract + selector', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls(
-      [{ to: REGISTRAR, data: `${COMMIT_SELECTOR}deadbeef` }],
-      { contracts, selectors: ALLOWED_SELECTORS },
+  it('allows allowlisted contract + selector', () => {
+    expect(
+      validateCalls([{ to: REGISTRAR, data: `${COMMIT}deadbeef` }], opts),
+    ).toEqual({ ok: true })
+  })
+
+  it('allows call with no data (plain value transfer)', () => {
+    expect(validateCalls([{ to: REGISTRAR }], opts)).toEqual({ ok: true })
+  })
+
+  it('rejects non-allowlisted contract', () => {
+    const r = validateCalls(
+      [{ to: '0x000000000000000000000000000000000000dead', data: COMMIT }],
+      opts,
     )
-    expect(result).toEqual({ ok: true })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toMatch(/Contract not allowlisted/)
   })
 
-  it('allows a call with no data (plain value transfer to allowlisted)', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls([{ to: REGISTRAR }], {
-      contracts,
-      selectors: ALLOWED_SELECTORS,
-    })
-    expect(result).toEqual({ ok: true })
+  it('rejects disallowed selector on allowlisted contract', () => {
+    const r = validateCalls([{ to: REGISTRAR, data: '0xdeadbeef' }], opts)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toMatch(/Selector not allowlisted/)
   })
 
-  it('rejects a non-allowlisted contract', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls(
-      [
-        {
-          to: '0x000000000000000000000000000000000000dead',
-          data: COMMIT_SELECTOR,
-        },
-      ],
-      { contracts, selectors: ALLOWED_SELECTORS },
+  it('rejects empty `to`', () => {
+    expect(validateCalls([{ to: '' }], opts).ok).toBe(false)
+  })
+
+  it('rejects malformed `to`', () => {
+    const r = validateCalls([{ to: '0xnot-an-address', data: COMMIT }], opts)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toMatch(/Invalid "to" address/)
+  })
+
+  it('matches checksummed vs lowercase addresses', () => {
+    expect(
+      validateCalls([{ to: REGISTRAR_CHECKSUMMED, data: COMMIT }], opts),
+    ).toEqual({ ok: true })
+  })
+
+  it('allows any selector for HCA factory (opaque SDK calldata)', () => {
+    expect(
+      validateCalls(
+        [{ to: sepolia.ensHcaFactory.address, data: '0xdeadbeef' }],
+        { ...opts, anySelectorContracts },
+      ),
+    ).toEqual({ ok: true })
+  })
+
+  it('rejects unknown selector on HCA factory without anySelectorContracts', () => {
+    expect(
+      validateCalls(
+        [{ to: sepolia.ensHcaFactory.address, data: '0xdeadbeef' }],
+        opts,
+      ).ok,
+    ).toBe(false)
+  })
+
+  it('rejects bogus OwnableValidator 0x..fffe', () => {
+    expect(
+      validateCalls(
+        [{ to: '0x000000000000000000000000000000000000fffe' }],
+        opts,
+      ).ok,
+    ).toBe(false)
+  })
+
+  it('allows updateConfig on ENS_HCA_MODULE', () => {
+    const selector = toFunctionSelector(
+      'function updateConfig(uint256 t, (address addr, uint48 expiration)[] add, address[] rm)',
     )
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.reason).toMatch(/Contract not allowlisted/)
-  })
-
-  it('rejects an allowlisted contract with a disallowed selector', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls([{ to: REGISTRAR, data: '0xdeadbeef' }], {
-      contracts,
-      selectors: ALLOWED_SELECTORS,
-    })
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.reason).toMatch(/Selector not allowlisted/)
-  })
-
-  it('rejects a call missing a `to` address', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls([{ to: '' }], {
-      contracts,
-      selectors: ALLOWED_SELECTORS,
-    })
-    expect(result.ok).toBe(false)
-  })
-
-  it('rejects a malformed `to` address', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls(
-      [{ to: '0xnot-an-address', data: COMMIT_SELECTOR }],
-      {
-        contracts,
-        selectors: ALLOWED_SELECTORS,
-      },
-    )
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.reason).toMatch(/Invalid "to" address/)
-  })
-
-  it('matches regardless of address casing (checksummed vs lowercase)', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    // ensjs sources the allowlist lowercased; a checksummed incoming address
-    // must still match (and vice-versa) via isAddressEqual.
-    const result = validateCalls(
-      [{ to: REGISTRAR_CHECKSUMMED, data: COMMIT_SELECTOR }],
-      { contracts, selectors: ALLOWED_SELECTORS },
-    )
-    expect(result).toEqual({ ok: true })
-  })
-
-  it('allows any selector for the HCA factory (opaque deploy calldata)', async () => {
-    const [contracts, anySelectorContracts] = await Promise.all([
-      buildContractAllowlist('sepolia'),
-      buildAnySelectorAllowlist('sepolia'),
-    ])
-    const factory = sepolia.ensHcaFactory.address
-    // Arbitrary SDK-generated factoryData selector — must pass.
-    const result = validateCalls([{ to: factory, data: '0xdeadbeef' }], {
-      contracts,
-      selectors: ALLOWED_SELECTORS,
-      anySelectorContracts,
-    })
-    expect(result).toEqual({ ok: true })
-  })
-
-  it('still rejects an unknown selector on the HCA factory when not in anySelector set', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const factory = sepolia.ensHcaFactory.address
-    // Without anySelectorContracts, the factory isn't a regular allowlisted
-    // contract, so it's rejected — guards against accidentally widening it.
-    const result = validateCalls([{ to: factory, data: '0xdeadbeef' }], {
-      contracts,
-      selectors: ALLOWED_SELECTORS,
-    })
-    expect(result.ok).toBe(false)
-  })
-
-  it('rejects the bogus OwnableValidator 0x..fffe (removed)', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls(
-      [{ to: '0x000000000000000000000000000000000000fffe' }],
-      { contracts, selectors: ALLOWED_SELECTORS },
-    )
-    expect(result.ok).toBe(false)
-  })
-
-  it('allows the session-enable updateConfig on the HCA module', async () => {
-    const contracts = await buildContractAllowlist('sepolia')
-    const result = validateCalls(
-      [
-        {
-          to: '0x5049ecBd4d961aE6DFEED9b7ccCe7f026454970E',
-          data: toFunctionSelector(
-            'function updateConfig(uint256 t, (address addr, uint48 expiration)[] add, address[] rm)',
-          ),
-        },
-      ],
-      { contracts, selectors: ALLOWED_SELECTORS },
-    )
-    expect(result).toEqual({ ok: true })
+    expect(
+      validateCalls(
+        [{ to: '0x5049ecBd4d961aE6DFEED9b7ccCe7f026454970E', data: selector }],
+        opts,
+      ),
+    ).toEqual({ ok: true })
   })
 })
