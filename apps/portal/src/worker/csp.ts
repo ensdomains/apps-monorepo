@@ -52,7 +52,7 @@ const INLINE_THEME_SCRIPT_HASH =
   "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='"
 
 // Directives shared by the header and the meta tag.
-const BASE_DIRECTIVES = [
+const baseDirectives = [
   "default-src 'self'",
   // 'wasm-unsafe-eval' permits WebAssembly compilation (needed by some
   // wallet/crypto dependencies) WITHOUT enabling general 'unsafe-eval'.
@@ -72,17 +72,17 @@ const BASE_DIRECTIVES = [
   // Valid in both the header and a <meta> tag; upgrades any http subresource
   // request to https.
   'upgrade-insecure-requests',
-] as const
+]
 
 // `frame-ancestors` is the only directive that's invalid inside a <meta> tag,
 // so it's the sole header-only entry.
-const HEADER_ONLY_DIRECTIVES = ["frame-ancestors 'none'"] as const
+const headerOnlyDirectives = ["frame-ancestors 'none'"]
 
 /** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
-export const cspWithoutFrameAncestors = `${BASE_DIRECTIVES.join('; ')};`
+export const cspWithoutFrameAncestors = `${baseDirectives.join('; ')};`
 
 /** Full CSP for the HTTP header. */
-export const cspWithFrameAncestors = `${[...BASE_DIRECTIVES, ...HEADER_ONLY_DIRECTIVES].join('; ')};`
+export const cspWithFrameAncestors = `${[...baseDirectives, ...headerOnlyDirectives].join('; ')};`
 
 /** A `<meta>` tag carrying the CSP, for injection into every HTML `<head>`. */
 export const cspMetaTag = `<meta http-equiv="Content-Security-Policy" content="${cspWithoutFrameAncestors}" />`
