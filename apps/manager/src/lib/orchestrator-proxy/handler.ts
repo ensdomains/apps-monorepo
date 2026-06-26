@@ -9,20 +9,20 @@
  * CORS handling or cross-site origin allowlist — the browser only reaches it
  * from the app itself.
  *
- * NOTE: there is no application-level rate limiting here. A Durable Object
- * limiter would require a DO migration, which cannot be applied through the
- * manager's gradual (`wrangler versions upload`) deploy pipeline. Throttling
- * should be enforced at the edge (e.g. a Cloudflare rate-limiting rule on
- * `/api/orchestrator`) instead.
+ * Sponsored transactions are rate-limited per account (see ./rate-limit). The
+ * limit is only consumed for requests that actually carry sponsored calls, not
+ * for every orchestrator HTTP request.
  */
 
 import { env } from 'cloudflare:workers'
 import {
   ALLOWED_SELECTORS,
   buildContractAllowlist,
+  extractAccount,
   extractCalls,
   validateCalls,
 } from './allowlist'
+import { reserveSponsorship, SPONSOR_RATE_LIMIT } from './rate-limit'
 
 const ORCHESTRATOR_BASE = 'https://v1.orchestrator.rhinestone.dev'
 
@@ -88,6 +88,24 @@ export async function handleOrchestratorRequest(
     })
     if (!result.ok) {
       return Response.json({ error: result.reason }, { status: 403 })
+    }
+
+    // Rate-limit sponsored transactions per account (only when there are
+    // sponsored calls to meter).
+    const account = extractAccount(body)
+    if (account) {
+      const { allowed } = await reserveSponsorship(
+        env.SPONSOR_RATE_LIMIT_KV,
+        account,
+      )
+      if (!allowed) {
+        return Response.json(
+          {
+            error: `Sponsorship rate limit exceeded (max ${SPONSOR_RATE_LIMIT}/min per account)`,
+          },
+          { status: 429 },
+        )
+      }
     }
   }
 

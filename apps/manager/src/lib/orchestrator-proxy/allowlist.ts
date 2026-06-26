@@ -118,6 +118,21 @@ export function extractCalls(body: unknown): Call[] {
   return []
 }
 
+/**
+ * Pull the smart-account address out of a request body, checksummed so the
+ * same account maps to one rate-limit key regardless of incoming casing.
+ * Returns null when absent or malformed.
+ */
+export function extractAccount(body: unknown): Address | null {
+  const obj = body as Record<string, unknown> | undefined
+  if (!obj || typeof obj.account !== 'string') return null
+  try {
+    return getAddress(obj.account)
+  } catch {
+    return null
+  }
+}
+
 /** Validate that every call targets an allowlisted contract + selector. */
 export function validateCalls(
   calls: Call[],
