@@ -42,7 +42,7 @@ describe('csp', () => {
 
     it('puts frame-ancestors in the header only, never the meta tag', () => {
       // frame-ancestors is invalid inside a <meta> tag.
-      expect(header['frame-ancestors']).toEqual(["'none'"])
+      expect(header['frame-ancestors']).toEqual(["'self'"])
       expect(meta['frame-ancestors']).toBeUndefined()
     })
 

@@ -76,7 +76,12 @@ const baseDirectives = [
 
 // `frame-ancestors` is the only directive that's invalid inside a <meta> tag,
 // so it's the sole header-only entry.
-const headerOnlyDirectives = ["frame-ancestors 'none'"]
+const headerOnlyDirectives = [
+  // 'self' pairs with `X-Frame-Options: SAMEORIGIN` (set below) — same-origin
+  // framing only. The two MUST agree (CSP wins in modern browsers, XFO in
+  // legacy ones).
+  "frame-ancestors 'self'",
+]
 
 /** CSP for the `<meta http-equiv>` tag (omits frame-ancestors). */
 export const cspWithoutFrameAncestors = `${baseDirectives.join('; ')};`
@@ -93,7 +98,8 @@ export function withSecurityHeaders(response: Response): Response {
   // headers are mutable (HTMLRewriter / `new Response` results pass through too).
   const result = new Response(response.body, response)
   result.headers.set('Content-Security-Policy', cspWithFrameAncestors)
-  result.headers.set('X-Frame-Options', 'DENY')
+  // SAMEORIGIN (not DENY) to agree with `frame-ancestors 'self'` above.
+  result.headers.set('X-Frame-Options', 'SAMEORIGIN')
   result.headers.set('X-Content-Type-Options', 'nosniff')
   result.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   result.headers.set(
