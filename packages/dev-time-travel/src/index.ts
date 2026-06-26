@@ -7,6 +7,7 @@
  *  - mount `<TimeTravelPanel />` (gated by `isTimeTravelEnabled()`) in the root.
  *  - use `TIME_TRAVEL_RPC` / `isTimeTravelEnabled` in dev-only feature code.
  */
-export { isTimeTravelEnabled, TIME_TRAVEL_RPC } from './config'
-export { TimeTravelPanel } from './TimeTravelPanel'
+
 export { anvilSetupOwner } from './anvilSetupOwner'
+export { isTimeTravelEnabled, TIME_TRAVEL_RPC } from './config'
+export { TimeTravelPanel, TimeTravelPanelContent } from './TimeTravelPanel'

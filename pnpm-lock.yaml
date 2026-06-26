@@ -109,6 +109,9 @@ importers:
       '@ens-apps/dev-time-travel':
         specifier: workspace:*
         version: link:../../packages/dev-time-travel
+      '@ens-apps/dev-tools':
+        specifier: workspace:*
+        version: link:../../packages/dev-tools
       '@ens-apps/indexer':
         specifier: workspace:*
         version: link:../../packages/indexer
@@ -410,6 +413,9 @@ importers:
       '@ens-apps/dev-time-travel':
         specifier: workspace:*
         version: link:../../packages/dev-time-travel
+      '@ens-apps/dev-tools':
+        specifier: workspace:*
+        version: link:../../packages/dev-tools
       '@ens-apps/indexer':
         specifier: workspace:*
         version: link:../../packages/indexer
@@ -707,6 +713,28 @@ importers:
       viem:
         specifier: 'catalog:'
         version: 2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.90.12
+        version: 5.90.12(react@19.2.5)
+      '@types/react':
+        specifier: ^19.2.7
+        version: 19.2.7
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
+      typescript:
+        specifier: catalog:typescript6
+        version: 6.0.3
+
+  packages/dev-tools:
+    dependencies:
+      '@ens-apps/dev-migration-tool':
+        specifier: workspace:*
+        version: link:../dev-migration-tool
+      '@ens-apps/dev-time-travel':
+        specifier: workspace:*
+        version: link:../dev-time-travel
     devDependencies:
       '@tanstack/react-query':
         specifier: ^5.90.12
@@ -1448,17 +1476,17 @@ packages:
     resolution: {integrity: sha512-OzdkXgdFmduzcJKU4KRkkJkQHnm5p7m7FkX8k+bHOEoOIzc0ueGT/Jay4nnb60wNk1wSHRmzY+hHBMpFDiGReg==}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da62':
-    resolution: {integrity: sha512-m2JpCgZoF/28fNV9rS8uW1rNCUZ4evMl0CSHv/c5bY12HBUWrwAApHouH7UdN7tY0jF8QDrtrD4CydB1OiVcgA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da62}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da62}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da629474dd9c5025931bb10fc6d7a5398738f':
-    resolution: {integrity: sha512-m2JpCgZoF/28fNV9rS8uW1rNCUZ4evMl0CSHv/c5bY12HBUWrwAApHouH7UdN7tY0jF8QDrtrD4CydB1OiVcgA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da629474dd9c5025931bb10fc6d7a5398738f}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da629474dd9c5025931bb10fc6d7a5398738f}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@614da62':
-    resolution: {integrity: sha512-vh4SHqWYwr4IGLz32qZk0yUnjuLTNAMLnTCx+houSsaIBL/AeHoEBTZlOHQKrABSxGgJUMe1JJk7/im5SXPXRw==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@614da62}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@614da62}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
     peerDependencies:

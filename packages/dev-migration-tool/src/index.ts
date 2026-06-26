@@ -7,4 +7,4 @@
  *  - use `MIGRATION_TOOL_RPC` / `isMigrationToolEnabled` in dev-only feature code.
  */
 export { isMigrationToolEnabled, MIGRATION_TOOL_RPC } from './config'
-export { MigrationTestPanel } from './MigrationTestPanel'
+export { MigrationPanelContent, MigrationTestPanel } from './MigrationTestPanel'

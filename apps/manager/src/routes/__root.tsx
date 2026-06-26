@@ -1,8 +1,4 @@
-import {
-  isMigrationToolEnabled,
-  MigrationTestPanel,
-} from '@ens-apps/dev-migration-tool'
-import { isTimeTravelEnabled, TimeTravelPanel } from '@ens-apps/dev-time-travel'
+import { DevDrawer } from '@ens-apps/dev-tools'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -94,10 +90,7 @@ function RootComponent() {
               },
             }}
           />
-          {import.meta.env.DEV && isTimeTravelEnabled() && <TimeTravelPanel />}
-          {import.meta.env.DEV && isMigrationToolEnabled() && (
-            <MigrationTestPanel />
-          )}
+          {import.meta.env.DEV && <DevDrawer />}
         </RootProviders>
 
         <TanStackRouterDevtools position="bottom-right" />

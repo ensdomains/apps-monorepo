@@ -7,13 +7,16 @@
  * when `isTimeTravelEnabled()` — mounted by each app's root route.
  */
 
-import {
-  increaseTime,
-} from '@ens-apps/utils/time-travel/anvilTime'
+import { increaseTime } from '@ens-apps/utils/time-travel/anvilTime'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { type CSSProperties, useCallback, useState } from 'react'
 import { TIME_TRAVEL_RPC } from './config'
-import { DAY, HOUR, formatDateTime, formatOffset } from './TimeTravelPanel.helpers'
+import {
+  DAY,
+  formatDateTime,
+  formatOffset,
+  HOUR,
+} from './TimeTravelPanel.helpers'
 import {
   useAnvilBlockMs,
   useDraggablePanel,
@@ -33,21 +36,18 @@ const STEPS: { label: string; seconds: number }[] = [
 /** MIN_COMMITMENT_AGE (60s on the v2 ETHRegistrar) + a small buffer. */
 const COMMIT_SKIP_SECONDS = 70
 
-// --- component -------------------------------------------------------------
+// --- components -------------------------------------------------------------
 
-export function TimeTravelPanel() {
+/** Inner UI — time display, advance buttons, skip-commit. No wrapper or positioning. */
+export function TimeTravelPanelContent() {
   const endpoint = TIME_TRAVEL_RPC
   const warpedNow = useWarpedNow()
   const { blockMs, error: blockError } = useAnvilBlockMs(endpoint)
   useFirstRunChainSync(endpoint)
-  const { setNodeRef, dragHandlers, positionStyle } = useDraggablePanel()
 
-  const [collapsed, setCollapsed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [customDays, setCustomDays] = useState('30')
-
-  const offsetMs = getChainClock()?.getOffsetMs() ?? 0
 
   const runAndReload = useCallback(async (op: () => Promise<void>) => {
     setBusy(true)
@@ -95,11 +95,6 @@ export function TimeTravelPanel() {
     advanceSeconds(Math.round(days * DAY))
   }, [customDays, advanceSeconds])
 
-  // Advance past the registration commitment cooldown WITHOUT reloading, so the
-  // in-progress registration flow survives. Advancing the chain makes the
-  // subsequent on-chain `register` valid; the Date.now() jump (syncFromChain)
-  // releases the commitment cooldown (which polls the clock) and zeroes its
-  // on-screen countdown.
   const skipCommitWait = useCallback(async () => {
     setBusy(true)
     setActionError(null)
@@ -115,45 +110,17 @@ export function TimeTravelPanel() {
 
   const error = actionError ?? blockError
 
-  if (collapsed) {
-    return (
-      <button
-        ref={setNodeRef}
-        type="button"
-        onClick={() => setCollapsed(false)}
-        style={{ ...collapsedStyle, ...positionStyle }}
-        title="Open Time Travel panel"
-      >
-        {'⏱'} {formatOffset(offsetMs)}
-      </button>
-    )
-  }
-
   return (
-    <div ref={setNodeRef} style={{ ...panelStyle, ...positionStyle }}>
-      <div
-        style={{ ...headerStyle, cursor: 'move', touchAction: 'none' }}
-        {...dragHandlers}
-      >
-        <span style={{ fontWeight: 600 }}>{'⏱'} Time Travel (dev)</span>
-        <button
-          type="button"
-          onClick={() => setCollapsed(true)}
-          onPointerDown={(e) => e.stopPropagation()}
-          style={iconButtonStyle}
-          title="Collapse"
-        >
-          {'✕'}
-        </button>
-      </div>
-
+    <>
       <dl style={rowsStyle}>
         <dt style={dtStyle}>App clock</dt>
         <dd style={ddStyle}>{formatDateTime(warpedNow || null)}</dd>
         <dt style={dtStyle}>Anvil block</dt>
         <dd style={ddStyle}>{formatDateTime(blockMs)}</dd>
         <dt style={dtStyle}>Offset</dt>
-        <dd style={ddStyle}>{formatOffset(offsetMs)}</dd>
+        <dd style={ddStyle}>
+          {formatOffset(getChainClock()?.getOffsetMs() ?? 0)}
+        </dd>
       </dl>
 
       <div style={gridStyle}>
@@ -224,9 +191,49 @@ export function TimeTravelPanel() {
 
       {error ? <p style={errorStyle}>{error}</p> : null}
       <p style={hintStyle}>
-        Advancing warps Anvil + the browser clock, then reloads. Drag the title
-        bar to move this panel.
+        Advancing warps Anvil + the browser clock, then reloads.
       </p>
+    </>
+  )
+}
+
+/** Standalone floating draggable panel — wraps TimeTravelPanelContent. */
+export function TimeTravelPanel() {
+  const { setNodeRef, dragHandlers, positionStyle } = useDraggablePanel()
+  const [collapsed, setCollapsed] = useState(false)
+
+  if (collapsed) {
+    return (
+      <button
+        ref={setNodeRef}
+        type="button"
+        onClick={() => setCollapsed(false)}
+        style={{ ...collapsedStyle, ...positionStyle }}
+        title="Open Time Travel panel"
+      >
+        {'⏱'} Time Travel
+      </button>
+    )
+  }
+
+  return (
+    <div ref={setNodeRef} style={{ ...panelStyle, ...positionStyle }}>
+      <div
+        style={{ ...headerStyle, cursor: 'move', touchAction: 'none' }}
+        {...dragHandlers}
+      >
+        <span style={{ fontWeight: 600 }}>{'⏱'} Time Travel (dev)</span>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={iconButtonStyle}
+          title="Collapse"
+        >
+          {'✕'}
+        </button>
+      </div>
+      <TimeTravelPanelContent />
     </div>
   )
 }

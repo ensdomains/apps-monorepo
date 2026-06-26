@@ -1,8 +1,4 @@
-import {
-  isMigrationToolEnabled,
-  MigrationTestPanel,
-} from '@ens-apps/dev-migration-tool'
-import { isTimeTravelEnabled, TimeTravelPanel } from '@ens-apps/dev-time-travel'
+import { DevDrawer } from '@ens-apps/dev-tools'
 import {
   TransactionManagerProvider,
   transactionManager,
@@ -58,12 +54,7 @@ export const Route = createRootRoute({
                 </PHProvider>
               </TransactionManagerSetup>
             </RainbowKitProvider>
-            {import.meta.env.DEV && isTimeTravelEnabled() && (
-              <TimeTravelPanel />
-            )}
-            {import.meta.env.DEV && isMigrationToolEnabled() && (
-              <MigrationTestPanel />
-            )}
+            {import.meta.env.DEV && <DevDrawer />}
           </QueryClientProvider>
         </WagmiProvider>
 

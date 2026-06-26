@@ -85,23 +85,21 @@ export function setInjectedNames(names: ActiveName[]): void {
   }
 })()
 
-// --- component -------------------------------------------------------------
+// --- components -------------------------------------------------------------
 
 let _nameCounter = Math.floor(Date.now() / 1000) % 10000
 function nextLabel(): string {
   return `dev${(++_nameCounter).toString().padStart(4, '0')}`
 }
 
-export function MigrationTestPanel() {
+/** Inner UI — preset buttons, name list, migrate actions. No wrapper or positioning. */
+export function MigrationPanelContent() {
   const endpoint = MIGRATION_TOOL_RPC
-  const { setNodeRef, dragHandlers, positionStyle } = useDraggablePanel()
   const anvilStatus = useAnvilStatus(endpoint)
 
-  const [collapsed, setCollapsed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [busyPreset, setBusyPreset] = useState<PresetType | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  // Restore names from localStorage so they survive page navigation
   const [activeNames, setActiveNames] = useState<ActiveName[]>(() =>
     readStoredNames(),
   )
@@ -148,11 +146,6 @@ export function MigrationTestPanel() {
     }
   }, [])
 
-  /**
-   * Sync names to Anvil, invalidate migration caches, then hard-navigate.
-   * Hard navigation keeps localStorage names alive across the reload so the
-   * fetch interceptor restores and injects them into the next subgraph query.
-   */
   const navigateToMigration = useCallback(
     async (names: ActiveName[]) => {
       setBusy(true)
@@ -191,39 +184,8 @@ export function MigrationTestPanel() {
     setActiveNames((prev) => prev.filter((n) => n.id !== id))
   }, [])
 
-  if (collapsed) {
-    return (
-      <button
-        ref={setNodeRef}
-        type="button"
-        onClick={() => setCollapsed(false)}
-        style={{ ...collapsedStyle, ...positionStyle }}
-        title="Open Migration Tool panel"
-      >
-        {'↑'} Migration Tool
-      </button>
-    )
-  }
-
   return (
-    <div ref={setNodeRef} style={{ ...panelStyle, ...positionStyle }}>
-      {/* Header */}
-      <div
-        style={{ ...headerStyle, cursor: 'move', touchAction: 'none' }}
-        {...dragHandlers}
-      >
-        <span style={{ fontWeight: 600 }}>{'↑'} Migration Tool (dev)</span>
-        <button
-          type="button"
-          onClick={() => setCollapsed(true)}
-          onPointerDown={(e) => e.stopPropagation()}
-          style={iconButtonStyle}
-          title="Collapse"
-        >
-          {'✕'}
-        </button>
-      </div>
-
+    <>
       {/* Section 1: Create Preset */}
       <p style={sectionLabelStyle}>Create V1 name</p>
       <div style={gridStyle}>
@@ -313,6 +275,48 @@ export function MigrationTestPanel() {
       </div>
 
       {actionError ? <p style={errorStyle}>{actionError}</p> : null}
+    </>
+  )
+}
+
+/** Standalone floating draggable panel — wraps MigrationPanelContent. */
+export function MigrationTestPanel() {
+  const { setNodeRef, dragHandlers, positionStyle } = useDraggablePanel()
+  const [collapsed, setCollapsed] = useState(false)
+
+  if (collapsed) {
+    return (
+      <button
+        ref={setNodeRef}
+        type="button"
+        onClick={() => setCollapsed(false)}
+        style={{ ...collapsedStyle, ...positionStyle }}
+        title="Open Migration Tool panel"
+      >
+        {'↑'} Migration Tool
+      </button>
+    )
+  }
+
+  return (
+    <div ref={setNodeRef} style={{ ...panelStyle, ...positionStyle }}>
+      {/* Header */}
+      <div
+        style={{ ...headerStyle, cursor: 'move', touchAction: 'none' }}
+        {...dragHandlers}
+      >
+        <span style={{ fontWeight: 600 }}>{'↑'} Migration Tool (dev)</span>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={iconButtonStyle}
+          title="Collapse"
+        >
+          {'✕'}
+        </button>
+      </div>
+      <MigrationPanelContent />
     </div>
   )
 }
