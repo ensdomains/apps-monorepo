@@ -1,3 +1,4 @@
+import { withSecurityHeaders } from './worker/csp'
 import { fetchEnsData, fetchIsPermissionedResolver } from './worker/ens'
 import { MetaTagInjector, TitleRewriter } from './worker/html-rewriter'
 import {
@@ -348,26 +349,30 @@ function handlePageMeta(
   })
 }
 
+async function handle(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url)
+  const { pathname } = url
+
+  // Default OG image route: /og/default.png
+  if (pathname === '/og/default.png') {
+    return serveDefaultOgImage(request, url, env)
+  }
+
+  // OG image route: /og/:name.png or /og/:name/:subpage.png
+  const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
+  if (ogMatch) {
+    return handleOgImage(decodeURIComponent(ogMatch[1]), request, env)
+  }
+
+  // Page routes: only inject meta tags for HTML navigations, never assets.
+  if (!wantsHtml(request)) {
+    return env.ASSETS.fetch(request)
+  }
+  return handlePageMeta(request, url, env)
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url)
-    const { pathname } = url
-
-    // Default OG image route: /og/default.png
-    if (pathname === '/og/default.png') {
-      return serveDefaultOgImage(request, url, env)
-    }
-
-    // OG image route: /og/:name.png or /og/:name/:subpage.png
-    const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
-    if (ogMatch) {
-      return handleOgImage(decodeURIComponent(ogMatch[1]), request, env)
-    }
-
-    // Page routes: only inject meta tags for HTML navigations, never assets.
-    if (!wantsHtml(request)) {
-      return env.ASSETS.fetch(request)
-    }
-    return handlePageMeta(request, url, env)
+    return withSecurityHeaders(await handle(request, env))
   },
 }
