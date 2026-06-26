@@ -10,7 +10,6 @@ import { describe, expect, it } from 'vitest'
 import {
   ALLOWED_SELECTORS,
   buildContractAllowlist,
-  extractAccount,
   extractCalls,
   validateCalls,
 } from './allowlist'
@@ -48,18 +47,6 @@ describe('extractCalls', () => {
     expect(extractCalls({})).toEqual([])
     expect(extractCalls(undefined)).toEqual([])
     expect(extractCalls(null)).toEqual([])
-  })
-})
-
-describe('extractAccount', () => {
-  it('returns the checksummed account address', () => {
-    expect(extractAccount({ account: REGISTRAR })).toBe(REGISTRAR_CHECKSUMMED)
-  })
-
-  it('returns null when absent or malformed', () => {
-    expect(extractAccount({})).toBeNull()
-    expect(extractAccount(undefined)).toBeNull()
-    expect(extractAccount({ account: '0xABCDEF' })).toBeNull()
   })
 })
 

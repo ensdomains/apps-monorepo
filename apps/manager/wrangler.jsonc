@@ -3,7 +3,7 @@
   "name": "manager-app-v4",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "src/server.ts",
+  "main": "@tanstack/react-start/server-entry",
   "preview_urls": true,
   "observability": {
     "enabled": true
@@ -11,29 +11,11 @@
 
   // Chain used by the orchestrator proxy to resolve the ENS contract
   // allowlist (see src/lib/orchestrator-proxy). Override to "mainnet" in prod.
+  //
+  // RHINESTONE_API_KEY is a runtime secret set via
+  // `wrangler secret put RHINESTONE_API_KEY` (or the dashboard); it is
+  // intentionally not declared here so it never lands in the client bundle.
   "vars": {
     "CHAIN": "sepolia"
-  },
-
-  // Rhinestone API key for the orchestrator proxy — injected server-side so it
-  // never reaches the client. Set via `wrangler secret put RHINESTONE_API_KEY`.
-  "secrets": {
-    "required": ["RHINESTONE_API_KEY"]
-  },
-
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "RATE_LIMITER",
-        "class_name": "RateLimiterDO"
-      }
-    ]
-  },
-
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["RateLimiterDO"]
-    }
-  ]
+  }
 }
