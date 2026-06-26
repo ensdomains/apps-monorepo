@@ -1,4 +1,7 @@
-import { isMigrationToolEnabled, MigrationTestPanel } from '@ens-apps/dev-migration-tool'
+import {
+  isMigrationToolEnabled,
+  MigrationTestPanel,
+} from '@ens-apps/dev-migration-tool'
 import { isTimeTravelEnabled, TimeTravelPanel } from '@ens-apps/dev-time-travel'
 import {
   TransactionManagerProvider,
