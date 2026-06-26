@@ -14,6 +14,7 @@ import {
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
+  bytesToHex,
   concatHex,
   decodeEventLog,
   encodeAbiParameters,
@@ -132,8 +133,12 @@ export async function predictResolverAddress(input: {
 // ============================================================================
 
 function generateResolverSalt(name: string): bigint {
-  const timestamp = new Date().toISOString()
-  return BigInt(keccak256(stringToBytes(`${name}:${timestamp}`)))
+  // Use CSPRNG (not `Date.now()`/`Math.random()`) so the resolver salt is
+  // unpredictable. The CREATE2 address is also bound to the deployer via
+  // `keccak256(abi.encode(msg.sender, salt))`, but unpredictable randomness is
+  // the correct hygiene for any on-chain-influencing value.
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
+  return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
 }
 
 function getResolverInitCalldata(ownerAddress: Address): Hex {
