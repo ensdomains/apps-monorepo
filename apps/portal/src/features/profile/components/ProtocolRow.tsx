@@ -1,5 +1,5 @@
 import { Layers } from 'lucide-react'
-import type { MigrationStatus } from '@/features/migration/useMigrationStatus'
+import type { MigrationStatus } from '@/features/migration/hooks/useMigrationStatus'
 import type { ProtocolVersion } from '@/utils/types'
 import { InfoRow } from './InfoRow'
 

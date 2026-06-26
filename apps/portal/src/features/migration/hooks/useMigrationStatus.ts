@@ -7,7 +7,6 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
-import type { ClientError } from 'graphql-request'
 import { gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import type { PublicClient } from 'viem'
@@ -55,7 +54,7 @@ const getMigrationStatus = ResultFn(async function* ({
       V1_DOMAIN_QUERY,
       { name },
     ),
-    (e) => new GetMigrationStatusError({ cause: e as ClientError }),
+    (e) => new GetMigrationStatusError({ cause: e }),
   )
 
   const verdict = yield* fromPromise(
@@ -77,4 +76,5 @@ export const getMigrationStatusQueryOptions = (
   resultQueryOptions({
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
+    enabled: !!params.name,
   })
