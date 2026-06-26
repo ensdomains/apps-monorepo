@@ -70,7 +70,7 @@ export const needsSignatureFlow = <T extends SignatureFlowFields>(
  * Request the EOA's authorization signature for setNameForAddrWithSignature.
  * Off-chain (no gas); the smart account submits it.
  */
-async function requestPrimaryNameSignature(input: {
+export async function requestPrimaryNameSignature(input: {
   name: string
   eoaAddress: Address
   signatureExpiry: bigint
@@ -112,7 +112,7 @@ async function requestPrimaryNameSignature(input: {
  * Submit the smart-account signature flow: a single sponsored, batched
  * transaction that sets the EOA's reverse record via signature.
  */
-function submitWithSignature(input: {
+export function submitPrimaryNameWithSignature(input: {
   name: string
   eoaAddress: Address
   signature: Hex
@@ -170,7 +170,7 @@ function submitWithSignature(input: {
 }
 
 /** EOA forward leg: setName on the default reverse registrar. */
-function submitForward(input: {
+export function submitPrimaryNameForward(input: {
   name: string
   signer: Signer
   accountAddress: Address
@@ -207,7 +207,7 @@ function submitForward(input: {
 }
 
 /** EOA reverse leg: setName on the reverse registrar. */
-function submitReverse(input: {
+export function submitPrimaryNameReverse(input: {
   name: string
   signer: Signer
   accountAddress: Address
@@ -243,6 +243,38 @@ function submitReverse(input: {
   )
 }
 
+export async function startSmartPrimaryNameTransaction(
+  params: SetPrimaryNameParams & {
+    signer: RhinestoneSigner
+    walletClient: WalletClient
+    eoaAddress: Address
+  },
+): Promise<string> {
+  const nowSeconds = params.now ? params.now() : Math.floor(Date.now() / 1000)
+  const signatureExpiry = BigInt(nowSeconds + SIGNATURE_TTL_SECONDS)
+  const coinTypes = [ETH_COIN_TYPE]
+
+  const signature = await requestPrimaryNameSignature({
+    name: params.name,
+    eoaAddress: params.eoaAddress,
+    signatureExpiry,
+    coinTypes,
+    walletClient: params.walletClient,
+    registrarAddress: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+  })
+
+  return submitPrimaryNameWithSignature({
+    name: params.name,
+    eoaAddress: params.eoaAddress,
+    signature,
+    signatureExpiry,
+    coinTypes,
+    signer: params.signer,
+    publicClient: params.publicClient,
+    chainId: params.chainId,
+  })
+}
+
 /**
  * Set an ENS name as the account's primary name through the transaction
  * manager. Replaces primaryNameMachine with sequenced direct calls:
@@ -259,37 +291,14 @@ export async function setPrimaryName(
   const { name, signer, accountAddress, publicClient, chainId, onTxId } = params
 
   if (needsSignatureFlow(params)) {
-    const { eoaAddress, walletClient } = params
-    const nowSeconds = params.now ? params.now() : Math.floor(Date.now() / 1000)
-    const signatureExpiry = BigInt(nowSeconds + SIGNATURE_TTL_SECONDS)
-    const coinTypes = [ETH_COIN_TYPE]
-
-    const signature = await requestPrimaryNameSignature({
-      name,
-      eoaAddress,
-      signatureExpiry,
-      coinTypes,
-      walletClient,
-      registrarAddress: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
-    })
-
-    const txId = submitWithSignature({
-      name,
-      eoaAddress,
-      signature,
-      signatureExpiry,
-      coinTypes,
-      signer: params.signer,
-      publicClient,
-      chainId,
-    })
+    const txId = await startSmartPrimaryNameTransaction(params)
     onTxId?.(txId)
     await waitForTransaction(txId)
     return
   }
 
   // EOA: two sequential transactions (forward, then reverse).
-  const forwardTxId = submitForward({
+  const forwardTxId = submitPrimaryNameForward({
     name,
     signer,
     accountAddress,
@@ -299,7 +308,7 @@ export async function setPrimaryName(
   onTxId?.(forwardTxId)
   await waitForTransaction(forwardTxId)
 
-  const reverseTxId = submitReverse({
+  const reverseTxId = submitPrimaryNameReverse({
     name,
     signer,
     accountAddress,

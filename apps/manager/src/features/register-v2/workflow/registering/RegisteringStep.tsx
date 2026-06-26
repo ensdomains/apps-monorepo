@@ -3,6 +3,7 @@ import { useLingui } from '@lingui/react'
 import { useBlocker } from '@tanstack/react-router'
 import { match, P } from 'ts-pattern'
 import { useCountdown } from '@/hooks/useCountdown'
+import type { RegistrationStage } from '../../state/registration.stages'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
 import { NotificationSettings } from './components/NotificationSettings'
@@ -12,31 +13,75 @@ import { RegistrationProgressBar } from './components/RegistrationProgressBar'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
 
-const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
-  value: state?.value ?? 'idle',
-  resolverTxId: state?.context.resolverTxId,
-  commitmentTxId: state?.context.commitmentTxId,
-  approvalTxId: state?.context.approvalTxId,
-  registrationTxId: state?.context.registrationTxId,
-  registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
-}))
+const useUiRegistrationState = RegisterV2Context.createSelector((state) => {
+  const transactionState = match(state.value)
+    .with(
+      { registering: { transaction: P.string } },
+      (value) => value.registering.transaction,
+    )
+    .otherwise(() => undefined)
+
+  return {
+    transactionState,
+    ethRecordSyncTxId: state.context.ethRecordSyncTxId,
+    primaryNameTxId: state.context.primaryNameTxId,
+  }
+})
+
+const useChildRegistrationState = RegisterV2Context.createTxSelector(
+  (state) => ({
+    resolverTxId: state?.context.resolverTxId,
+    commitmentTxId: state?.context.commitmentTxId,
+    approvalTxId: state?.context.approvalTxId,
+    registrationTxId: state?.context.registrationTxId,
+    registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
+    value: state?.value ?? 'idle',
+  }),
+)
 
 const useMaxProgress = RegisterV2Context.createSelector(
   (state) => state.context.maxProgressReached ?? null,
 )
 
+const getDisplayedRegistrationStage = (
+  transactionState: string | undefined,
+  childStage: string,
+): RegistrationStage =>
+  match(transactionState)
+    .with('postRegistrationDecision', () => 'postRegistrationSetup' as const)
+    .with('syncingEthRecord', () => 'syncingEthRecord' as const)
+    .with('waitingForEthRecordSync', () => 'waitingForEthRecordSync' as const)
+    .with('settingPrimaryNameForward', () => 'settingPrimaryName' as const)
+    .with('waitingForPrimaryNameForward', () => 'settingPrimaryName' as const)
+    .with('settingPrimaryNameReverse', () => 'settingPrimaryName' as const)
+    .with('waitingForPrimaryNameReverse', () => 'settingPrimaryName' as const)
+    .with('settingPrimaryName', () => 'settingPrimaryName' as const)
+    .with('waitingForPrimaryName', () => 'settingPrimaryName' as const)
+    .with('success', () => 'success' as const)
+    .otherwise(() => childStage as RegistrationStage)
+
 export const RegisteringStep = () => {
   const { _ } = useLingui()
   const { registrationActor, uiActor } = RegisterV2Context.use()
-  const registeringTx = useRegisteringTx(registrationActor)
+  const uiRegistrationState = useUiRegistrationState(uiActor)
+  const childRegistrationState = useChildRegistrationState(registrationActor)
   const uiStage = useRegisteringStage(uiActor)
+  const displayedStage = getDisplayedRegistrationStage(
+    uiRegistrationState.transactionState,
+    childRegistrationState.value,
+  )
+  const registeringTx = {
+    ...childRegistrationState,
+    ...uiRegistrationState,
+    value: displayedStage,
+  }
   const txState = useRegistrationTxState(registeringTx)
   const maxProgress = useMaxProgress(uiActor)
 
-  const displayedStage = maxProgress?.stage ?? registeringTx.value
+  const progressStage = maxProgress?.stage ?? registeringTx.value
   const displayedProgress = maxProgress?.progress ?? 0
   const stageMessages = getRegistrationStageMessages(
-    { ...registeringTx, value: displayedStage },
+    { ...registeringTx, value: progressStage },
     txState,
   )
 
@@ -53,7 +98,8 @@ export const RegisteringStep = () => {
 
   // Child machine success can arrive before the UI actor reflects it.
   const isRegistrationComplete =
-    registeringTx.value === 'success' || uiStage?.transaction === 'success'
+    registeringTx.value === 'success' ||
+    uiRegistrationState.transactionState === 'success'
   const advanceNotificationsStep = () => {
     uiActor.send({ type: 'notifications.step.next' })
   }
@@ -61,9 +107,6 @@ export const RegisteringStep = () => {
   useBlocker({
     shouldBlockFn: () => {
       if (isRegistrationComplete) {
-        return false
-      }
-      if (uiStage?.transaction !== 'pending') {
         return false
       }
 
@@ -84,14 +127,14 @@ export const RegisteringStep = () => {
           <RegistrationCompletionBanner />
         ) : (
           match(uiStage?.transaction)
-            .with('pending', () => (
+            .with('success', () => <RegistrationCompletionBanner />)
+            .with(P.string, () => (
               <RegistrationProgressBar
                 description={stageDescription}
                 label={_(stageMessages.stageLabel)}
                 progress={displayedProgress}
               />
             ))
-            .with('success', () => <RegistrationCompletionBanner />)
             .with(undefined, () => (
               <RegistrationProgressBar
                 label={_(msg`Loading...`)}
