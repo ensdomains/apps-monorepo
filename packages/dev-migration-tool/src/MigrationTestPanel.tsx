@@ -329,7 +329,7 @@ export function MigrationTestPanel() {
 
 const panelStyle: CSSProperties = {
   position: 'fixed',
-  bottom: 12,
+  top: 12,
   right: 12,
   zIndex: 2_147_483_000,
   width: 280,
@@ -344,7 +344,7 @@ const panelStyle: CSSProperties = {
 
 const collapsedStyle: CSSProperties = {
   position: 'fixed',
-  bottom: 12,
+  top: 12,
   right: 12,
   zIndex: 2_147_483_000,
   padding: '6px 10px',
