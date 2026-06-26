@@ -14,7 +14,15 @@ import {
   l2EthRegistrarRegisterSnippet,
   l2EthRegistrarRenewSnippet,
 } from '@ensdomains/ensjs/contracts'
-import { type Abi, type AbiFunction, erc20Abi, toFunctionSelector } from 'viem'
+import {
+  type Abi,
+  type AbiFunction,
+  type Address,
+  erc20Abi,
+  getAddress,
+  isAddressEqual,
+  toFunctionSelector,
+} from 'viem'
 
 // Rhinestone OwnableValidator — fixed address across chains (not an ENS
 // contract, so it has no canonical source in ensjs).
@@ -66,30 +74,32 @@ export const ALLOWED_SELECTORS: ReadonlySet<string> = new Set([
 ])
 
 /**
- * Build the set of allowlisted contract addresses for the given chain,
- * resolved from ensjs chain config.
+ * Build the list of allowlisted contract addresses for the given chain,
+ * resolved from ensjs chain config. Every address is normalised to its EIP-55
+ * checksum via `getAddress` (ensjs does not guarantee checksummed output), so
+ * comparisons can use `isAddressEqual` rather than ad-hoc case folding.
  */
 export async function buildContractAllowlist(
   chain: 'sepolia' | 'mainnet',
-): Promise<ReadonlySet<string>> {
+): Promise<readonly Address[]> {
   const { ensL1Contracts, supportedL1Chains } = await import(
     '@ensdomains/ensjs/chain'
   )
   const contracts = ensL1Contracts[supportedL1Chains[chain]]
 
-  return new Set([
-    contracts.ensRegistry.address.toLowerCase(),
-    contracts.ensLegacyRegistry.address.toLowerCase(),
-    contracts.ensEthRegistrar.address.toLowerCase(),
-    contracts.ensEthRegistrarController.address.toLowerCase(),
-    contracts.ensPublicResolver.address.toLowerCase(),
-    contracts.ensReverseRegistrar.address.toLowerCase(),
-    contracts.ensVerifiableFactory.address.toLowerCase(),
-    contracts.ensHcaFactory.address.toLowerCase(),
-    contracts.usdc.address.toLowerCase(),
-    contracts.dai.address.toLowerCase(),
+  return [
+    contracts.ensRegistry.address,
+    contracts.ensLegacyRegistry.address,
+    contracts.ensEthRegistrar.address,
+    contracts.ensEthRegistrarController.address,
+    contracts.ensPublicResolver.address,
+    contracts.ensReverseRegistrar.address,
+    contracts.ensVerifiableFactory.address,
+    contracts.ensHcaFactory.address,
+    contracts.usdc.address,
+    contracts.dai.address,
     OWNABLE_VALIDATOR,
-  ])
+  ].map((address) => getAddress(address))
 }
 
 type Call = { to: string; data?: string }
@@ -108,28 +118,45 @@ export function extractCalls(body: unknown): Call[] {
   return []
 }
 
-/** Pull the smart-account address out of a request body, for rate-limiting. */
-export function extractAccount(body: unknown): string | null {
+/**
+ * Pull the smart-account address out of a request body, for rate-limiting.
+ * Returned checksummed so the same account maps to one rate-limit key
+ * regardless of the casing the client sent.
+ */
+export function extractAccount(body: unknown): Address | null {
   const obj = body as Record<string, unknown> | undefined
-  if (!obj) return null
-  if (typeof obj.account === 'string') return obj.account.toLowerCase()
-  return null
+  if (!obj || typeof obj.account !== 'string') return null
+  try {
+    return getAddress(obj.account)
+  } catch {
+    return null
+  }
 }
 
 /** Validate that every call targets an allowlisted contract + selector. */
 export function validateCalls(
   calls: Call[],
   allowlist: {
-    contracts: ReadonlySet<string>
+    contracts: readonly Address[]
     selectors: ReadonlySet<string>
   },
 ): { ok: true } | { ok: false; reason: string } {
   for (const call of calls) {
-    const to = call.to?.toLowerCase()
-    if (!to) return { ok: false, reason: 'Call missing "to" address' }
-    if (!allowlist.contracts.has(to)) {
+    if (!call.to) return { ok: false, reason: 'Call missing "to" address' }
+
+    let to: Address
+    try {
+      to = getAddress(call.to)
+    } catch {
+      return { ok: false, reason: `Invalid "to" address: ${call.to}` }
+    }
+
+    if (!allowlist.contracts.some((allowed) => isAddressEqual(allowed, to))) {
       return { ok: false, reason: `Contract not allowlisted: ${to}` }
     }
+
+    // Function selectors are 4-byte hex, not addresses — compare as canonical
+    // lowercase hex (what `toFunctionSelector` produces).
     const selector = call.data?.slice(0, 10).toLowerCase()
     if (selector && selector !== '0x' && !allowlist.selectors.has(selector)) {
       return {

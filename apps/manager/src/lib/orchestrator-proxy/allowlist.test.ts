@@ -5,7 +5,7 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { toFunctionSelector } from 'viem'
+import { getAddress, toFunctionSelector } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   ALLOWED_SELECTORS,
@@ -16,7 +16,9 @@ import {
 } from './allowlist'
 
 const sepolia = ensL1Contracts[supportedL1Chains.sepolia]
+// ensjs returns this lowercased; the checksummed form is what wallets send.
 const REGISTRAR = sepolia.ensEthRegistrar.address
+const REGISTRAR_CHECKSUMMED = getAddress(REGISTRAR)
 // `commit(bytes32)` is in ALLOWED_SELECTORS (derived from the same snippet in
 // allowlist.ts). Using the human-readable signature here keeps the test simple.
 const COMMIT_SELECTOR = toFunctionSelector(
@@ -50,13 +52,14 @@ describe('extractCalls', () => {
 })
 
 describe('extractAccount', () => {
-  it('lowercases the account address', () => {
-    expect(extractAccount({ account: '0xABCDEF' })).toBe('0xabcdef')
+  it('returns the checksummed account address', () => {
+    expect(extractAccount({ account: REGISTRAR })).toBe(REGISTRAR_CHECKSUMMED)
   })
 
-  it('returns null when absent', () => {
+  it('returns null when absent or malformed', () => {
     expect(extractAccount({})).toBeNull()
     expect(extractAccount(undefined)).toBeNull()
+    expect(extractAccount({ account: '0xABCDEF' })).toBeNull()
   })
 })
 
@@ -113,10 +116,25 @@ describe('validateCalls', () => {
     expect(result.ok).toBe(false)
   })
 
-  it('is case-insensitive on the contract address', async () => {
+  it('rejects a malformed `to` address', async () => {
     const contracts = await buildContractAllowlist('sepolia')
     const result = validateCalls(
-      [{ to: REGISTRAR.toUpperCase(), data: COMMIT_SELECTOR }],
+      [{ to: '0xnot-an-address', data: COMMIT_SELECTOR }],
+      {
+        contracts,
+        selectors: ALLOWED_SELECTORS,
+      },
+    )
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.reason).toMatch(/Invalid "to" address/)
+  })
+
+  it('matches regardless of address casing (checksummed vs lowercase)', async () => {
+    const contracts = await buildContractAllowlist('sepolia')
+    // ensjs sources the allowlist lowercased; a checksummed incoming address
+    // must still match (and vice-versa) via isAddressEqual.
+    const result = validateCalls(
+      [{ to: REGISTRAR_CHECKSUMMED, data: COMMIT_SELECTOR }],
       { contracts, selectors: ALLOWED_SELECTORS },
     )
     expect(result).toEqual({ ok: true })
