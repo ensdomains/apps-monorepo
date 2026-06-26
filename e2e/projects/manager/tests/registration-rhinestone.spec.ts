@@ -7,9 +7,8 @@
  *                        auto-authorized by PERMITTED_SIGN_KINDS)
  *   2. commit           (eth_signTypedData_v4 — same, auto-authorized)
  *   3. [commitment age wait — handled by the app]
- *   4. approve USDC     (eth_sendTransaction — EOA signs the ERC-20 approval,
- *                        authorized explicitly via authorizeTransaction)
- *   5. register         (eth_signTypedData_v4 — same, auto-authorized)
+ *   4. sign USDC permit (eth_signTypedData_v4 — EIP-2612 permit, auto-authorized)
+ *   5. register+permit bundle (submitted by Rhinestone bundler, no user tx)
  *
  * The mockestrator impersonates the HCA on the Anvil fork to fill each intent.
  * It needs ETH in the HCA address to pay for impersonated gas — the fund script
@@ -30,7 +29,6 @@ const DOMAIN_TO_REGISTER = `rh-e2e-${Date.now().toString(36)}.eth`
 test.describe('ENS name registration (Rhinestone HCA)', () => {
   test('registers a name via Rhinestone HCA headless wallet', async ({
     connectedPage: page,
-    wallet,
     mockIndexer,
     accounts,
   }) => {
@@ -59,18 +57,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
-    // In the Rhinestone HCA flow all intents are eth_signTypedData_v4 and are
-    // auto-authorized by PERMITTED_SIGN_KINDS. The ONE exception is the USDC
-    // ERC-20 approval: the registrar pulls tokens from the EOA (not the HCA),
-    // so the approval must be a direct EOA eth_sendTransaction signed by the
-    // connected wallet. Authorize that single approval; ignore timeout (the
-    // approval is skipped when the allowance is already sufficient).
-    const { authorizeTransaction } = await import('../../../helpers/manager-auth.js')
-    const authorizeApproval = authorizeTransaction(wallet, 240_000).catch(() => {})
-    await Promise.all([
-      authorizeApproval,
-      expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 }),
-    ])
+    // On the HCA path all payment authorization uses an EIP-2612 permit
+    // (eth_signTypedData_v4, auto-authorized by PERMITTED_SIGN_KINDS) carried
+    // into the sponsored register bundle — no eth_sendTransaction is needed.
+    await expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 })
 
     if (mockIndexer.enabled) {
       mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: accounts.getAddress('user') })

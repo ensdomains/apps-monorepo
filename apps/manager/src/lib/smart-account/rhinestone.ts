@@ -15,7 +15,8 @@
  * ownership validator is installed atomically by the factory at
  * construction, so there is **no** post-deploy ownership-registration
  * step. Gas is sponsored through the Rhinestone Warp orchestrator; the
- * owning wallet signs each Intent (there is no smart session).
+ * owning wallet signs each Intent (no time-boxed owner session is active —
+ * the HCA does not use SmartSessions).
  */
 
 import {

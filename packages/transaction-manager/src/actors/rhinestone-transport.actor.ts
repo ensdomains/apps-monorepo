@@ -80,7 +80,7 @@ export function submitRhinestoneTransaction(input: {
       const transaction = await account.sendTransaction({
         sourceChains: [chain],
         targetChain: chain,
-        calls: rhinestoneRequest.rhinestoneParams.calls,
+        calls: [...rhinestoneRequest.rhinestoneParams.calls],
         sponsored: rhinestoneRequest.rhinestoneParams.sponsored ?? true,
       })
       const receipt = await account.waitForExecution(transaction, false)
