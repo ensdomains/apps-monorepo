@@ -1,5 +1,3 @@
-import { cspMetaTag } from './csp'
-
 export class MetaTagInjector {
   readonly #tags: string
 
@@ -8,9 +6,7 @@ export class MetaTagInjector {
   }
 
   element(element: Element): void {
-    // CSP meta tag mirrors the HTTP header (defense-in-depth); injected on
-    // every HTML route since this runs on each `<head>`.
-    element.append(`${cspMetaTag}\n${this.#tags}`, { html: true })
+    element.append(this.#tags, { html: true })
   }
 }
 
