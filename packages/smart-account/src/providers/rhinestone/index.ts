@@ -8,12 +8,15 @@
  * discussion on https://github.com/ensdomains/apps-monorepo/pull/751
  * for the rationale.
  *
- * The HCA reaches smart sessions through its preinstalled
- * SmartSessionEmissary (not an installed module — the HCA's module set is
- * locked). The session lifecycle is exported here: `registration-policy`
- * (the scoped action set), `session` (create/restore + the one-time enable
- * signature), and `session-storage` (localStorage persistence of the
- * ephemeral key).
+ * Prompt-free registration is NOT done via ERC-7579 SmartSessions/Emissary —
+ * the HCA does not install those modules (its module set is locked to
+ * `{HCAModule validator, IntentExecutor}`; verified on-chain). Instead, a
+ * "session" is an ephemeral key added as a time-boxed OWNER of the HCA's
+ * OwnableValidator, which can then sign Intents directly. The session lifecycle
+ * is exported here: `registration-policy` (the `updateConfig` add-owner call
+ * builder), `session` (create/restore + the one-time enable signature that adds
+ * the owner), and `session-storage` (localStorage persistence of the ephemeral
+ * key). See apps/manager/src/lib/smart-account/HCA_SESSION.md.
  */
 
 export {
