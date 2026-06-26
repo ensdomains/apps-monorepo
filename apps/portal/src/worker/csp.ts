@@ -23,8 +23,6 @@ const CONNECT_HOSTS = [
   'https://sepolia.drpc.org',
   // indexer GraphQL — packages/indexer/urql/client.ts
   'https://graphql.ens.dev',
-  // ENS subgraph (ensjs default Sepolia endpoint) — @ensdomains/ensjs/subgraph
-  'https://api.sepolia.ensnode.io',
   // wallet fund / faucet API — src/hooks/useFundWallet.ts
   'https://app-api.ens.dev',
   // DNSSEC DNS-over-HTTPS — src/features/profile/hooks/useDnsSecEnabled.ts
