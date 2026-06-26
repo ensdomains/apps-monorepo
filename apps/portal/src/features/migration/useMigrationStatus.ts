@@ -7,7 +7,6 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
-import { useQuery } from '@tanstack/react-query'
 import type { ClientError } from 'graphql-request'
 import { gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
@@ -78,20 +77,4 @@ export const getMigrationStatusQueryOptions = (
   resultQueryOptions({
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
-  })
-
-/**
- * Resolves whether a v1 name can migrate to v2. Only meaningful for ENSv1
- * names, so callers gate it with `enabled` on the resolved protocol version.
- */
-export const useMigrationStatus = ({
-  name,
-  enabled = true,
-}: {
-  name: string
-  enabled?: boolean
-}) =>
-  useQuery({
-    ...getMigrationStatusQueryOptions({ name }),
-    enabled: enabled && !!name,
   })

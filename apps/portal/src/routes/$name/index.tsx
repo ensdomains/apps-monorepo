@@ -9,7 +9,7 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { useMigrationStatus } from '@/features/migration/useMigrationStatus'
+import { getMigrationStatusQueryOptions } from '@/features/migration/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
@@ -130,7 +130,12 @@ const Profile = ({
   // checks accordingly. `connectedAddress` decides whether the owner-only
   // upgrade banner is shown.
   const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
-  const migrationQuery = useMigrationStatus({ name, enabled: isV1Name })
+
+  const migrationQuery = useQuery({
+    ...getMigrationStatusQueryOptions({ name }),
+    enabled: isV1Name,
+  })
+
   const { address: connectedAddress } = useAccount()
 
   // Loading states
