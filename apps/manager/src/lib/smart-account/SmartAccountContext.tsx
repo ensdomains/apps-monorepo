@@ -83,14 +83,16 @@ function detectWalletSource(
 }
 
 /**
- * Resolve the Rhinestone API key, allowing a `local-dev` placeholder when a
- * local orchestrator endpoint is configured.
+ * Resolve the Rhinestone API key. When an orchestrator endpoint is
+ * configured (`VITE_RHINESTONE_ENDPOINT_URL`), traffic is routed through a
+ * proxy that injects the real key server-side, so a `'proxied'` placeholder
+ * is used and `VITE_RHINESTONE_API_KEY` should not be shipped to the client.
  */
 function resolveRhinestoneApiKey(): string | undefined {
-  const isLocalOrchestrator = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
+  const isProxied = !!import.meta.env.VITE_RHINESTONE_ENDPOINT_URL
   return (
     import.meta.env.VITE_RHINESTONE_API_KEY ||
-    (isLocalOrchestrator ? 'local-dev' : undefined)
+    (isProxied ? 'proxied' : undefined)
   )
 }
 

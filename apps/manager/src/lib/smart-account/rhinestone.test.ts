@@ -81,6 +81,10 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     vi.clearAllMocks()
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
+    // Default to direct mode (no proxy endpoint) so assertions are
+    // deterministic regardless of the repo .env. Proxy behaviour is covered
+    // by a dedicated test below.
+    vi.stubEnv('VITE_RHINESTONE_ENDPOINT_URL', '')
   })
 
   afterEach(() => {
@@ -153,7 +157,7 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     })
   })
 
-  it('throws error when Rhinestone API key is missing', async () => {
+  it('throws error when Rhinestone API key is missing (direct mode)', async () => {
     vi.stubEnv('VITE_RHINESTONE_API_KEY', '')
 
     await expect(
@@ -161,5 +165,23 @@ describe('initializeRhinestoneAccount (HCA)', () => {
         walletClient: mockWalletClient,
       }),
     ).rejects.toThrow('Rhinestone API key not configured')
+  })
+
+  it('uses a placeholder key and forwards endpointUrl when proxied', async () => {
+    // Proxy mode: no client API key, but an endpoint is configured. The SDK
+    // gets a placeholder key (the proxy injects the real one server-side) and
+    // the endpoint is forwarded.
+    vi.stubEnv('VITE_RHINESTONE_API_KEY', '')
+    vi.stubEnv('VITE_RHINESTONE_ENDPOINT_URL', '/api/orchestrator')
+
+    const result = await initializeRhinestoneAccount({
+      walletClient: mockWalletClient,
+    })
+
+    expect(result.address).toBe(MOCK_SMART_ACCOUNT_ADDRESS)
+    expect(RhinestoneSDK).toHaveBeenCalledWith({
+      apiKey: 'proxied',
+      endpointUrl: '/api/orchestrator',
+    })
   })
 })

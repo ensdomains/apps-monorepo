@@ -73,10 +73,18 @@ function resolveOwnerAccount(params: { walletClient?: WalletClient }): {
 /**
  * Resolve env-derived SDK options.
  *
- * A local orchestrator (`VITE_RHINESTONE_ENDPOINT_URL` set) is
- * considered API-key-eligible even without `VITE_RHINESTONE_API_KEY`,
- * using the placeholder `'local-dev'`. Lets us run against the
- * mockestrator in e2e without a production key.
+ * When `VITE_RHINESTONE_ENDPOINT_URL` is set, orchestrator traffic is
+ * routed through a proxy that injects the real Rhinestone API key
+ * server-side, so the client must NOT ship `VITE_RHINESTONE_API_KEY`.
+ * This covers two cases:
+ *   - production: the `rhinestone-proxy` Cloudflare Worker (keeps the key
+ *     out of the client bundle), and
+ *   - e2e: the local mockestrator.
+ * In both, the SDK still requires a non-empty `apiKey`, so we pass the
+ * placeholder `'proxied'`; the proxy overwrites the `x-api-key` header.
+ *
+ * Without an endpoint URL (direct-to-orchestrator), a real
+ * `VITE_RHINESTONE_API_KEY` is required.
  *
  * `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
  */
@@ -86,15 +94,16 @@ function resolveSdkEnv(): {
   rhinestoneCustomRpcUrls?: Record<number, string>
 } {
   const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL || undefined
-  const isLocalOrchestrator = !!endpointUrl
+  const isProxied = !!endpointUrl
 
   const apiKey =
     import.meta.env.VITE_RHINESTONE_API_KEY ||
-    (isLocalOrchestrator ? 'local-dev' : undefined)
+    (isProxied ? 'proxied' : undefined)
 
   if (!apiKey) {
     throw new Error(
-      'Rhinestone API key not configured in environment variables',
+      'Rhinestone API key not configured: set VITE_RHINESTONE_ENDPOINT_URL ' +
+        '(proxied) or VITE_RHINESTONE_API_KEY (direct)',
     )
   }
 
