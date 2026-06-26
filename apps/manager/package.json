@@ -23,6 +23,7 @@
     "lint:fix": "biome check --fix"
   },
   "dependencies": {
+    "@crossmint/client-sdk-react-ui": "^4.2.11",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",

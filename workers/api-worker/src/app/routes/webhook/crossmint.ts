@@ -61,8 +61,8 @@ async function verifySvixSignature(
 }
 
 export default createApp()
-  .basePath('/webhook')
-  .post('/crossmint', injectDb, async (c) => {
+  .basePath('/crossmint')
+  .post('/', injectDb, async (c) => {
     const rawBody = await c.req.text()
 
     if (c.env.CROSSMINT_WEBHOOK_SECRET) {

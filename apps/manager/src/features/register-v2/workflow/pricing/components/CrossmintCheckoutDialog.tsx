@@ -1,9 +1,38 @@
+import {
+  CrossmintCheckoutProvider,
+  CrossmintEmbeddedCheckout,
+  CrossmintProvider,
+  useCrossmintCheckout,
+} from '@crossmint/client-sdk-react-ui'
 import { Trans } from '@lingui/react/macro'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { backendClient, getBackendApiBaseUrl } from '@/utils/backend-client'
 import { PaymentDialogBase } from './TokenPickerDialog'
+
+// Crossmint staging client (publishable) key + the BYOC collection locator.
+// When both are present the real embedded checkout renders; otherwise the dev
+// mock-pay fallback drives the backend directly.
+const CROSSMINT_CLIENT_KEY = import.meta.env.VITE_CROSSMINT_CLIENT_KEY as
+  | string
+  | undefined
+const CROSSMINT_COLLECTION = import.meta.env.VITE_CROSSMINT_COLLECTION as
+  | string
+  | undefined
+// The voucher's on-chain commitment arg is decorative for our flow (the backend
+// joins via clientReference and computes its own commit-reveal commitment), so a
+// zero bytes32 is fine for the mint callData.
+const PLACEHOLDER_COMMITMENT = `0x${'0'.repeat(64)}`
+
+// Crossmint BYOC reads callData.totalPrice as the on-chain native-token amount
+// (ETH) carried as msg.value, and charges the card its fiat value. So the USD
+// name price must be converted to ETH. STAGING approximation — production should
+// source this rate from a live oracle (and reconcile the ETH the contract holds
+// against the USDC the backend fronts for registration).
+const ETH_USD_RATE = 1800
+const usdToEthString = (usd: number) =>
+  (Math.max(usd, 0) / ETH_USD_RATE).toFixed(6)
 
 type Phase =
   | { kind: 'creating' }
@@ -43,25 +72,85 @@ type Props = {
 }
 
 /**
+ * Watches the Crossmint checkout order and signals once the card payment has
+ * settled, so the parent can switch to polling our backend fulfilment. Must be
+ * rendered inside CrossmintCheckoutProvider.
+ */
+const CheckoutWatcher = ({ onPaid }: { onPaid: () => void }) => {
+  const { order } = useCrossmintCheckout()
+  const paymentStatus = order?.payment?.status
+  useEffect(() => {
+    if (paymentStatus === 'completed') onPaid()
+  }, [paymentStatus, onPaid])
+  return null
+}
+
+/** The real Crossmint embedded checkout (card-only) for a paid order intent. */
+const EmbeddedCheckoutPanel = ({
+  orderId,
+  ownerAddress,
+  durationSeconds,
+  totalPriceUsd,
+  onPaid,
+}: {
+  orderId: string
+  ownerAddress: Address
+  durationSeconds: number
+  totalPriceUsd: number | undefined
+  onPaid: () => void
+}) => {
+  // Memoize the whole checkout element. Window-focus refetches (staleTime 0 +
+  // refetchOnWindowFocus) re-render this subtree; without a stable element the
+  // SDK receives new config objects and tears down/rebuilds the card iframe,
+  // wiping any details already entered. Same element ref => React skips it.
+  const checkout = useMemo(
+    () => (
+      <CrossmintEmbeddedCheckout
+        appearance={{
+          rules: {
+            DestinationInput: { display: 'hidden' },
+            ReceiptEmailInput: { display: 'hidden' },
+          },
+        }}
+        lineItems={{
+          collectionLocator: CROSSMINT_COLLECTION ?? '',
+          callData: {
+            totalPrice: usdToEthString(totalPriceUsd ?? 0),
+            commitment: PLACEHOLDER_COMMITMENT,
+            duration: String(durationSeconds),
+          },
+        }}
+        metadata={{ clientReference: orderId }}
+        payment={{
+          defaultMethod: 'fiat',
+          crypto: { enabled: false },
+          fiat: {
+            enabled: true,
+            defaultCurrency: 'usd',
+            allowedMethods: { card: true, applePay: false, googlePay: false },
+          },
+        }}
+        recipient={{ walletAddress: ownerAddress }}
+      />
+    ),
+    [orderId, ownerAddress, durationSeconds, totalPriceUsd],
+  )
+  return (
+    <CrossmintProvider apiKey={CROSSMINT_CLIENT_KEY ?? ''}>
+      <CrossmintCheckoutProvider>
+        <CheckoutWatcher onPaid={onPaid} />
+        {checkout}
+      </CrossmintCheckoutProvider>
+    </CrossmintProvider>
+  )
+}
+
+/**
  * Credit-card checkout in a popup modal. Creates a server-side order intent,
- * runs the Crossmint embedded checkout, then polls our backend while it does
- * the commit-reveal registration on the buyer's behalf and delivers the name.
- *
- * NOTE: the Crossmint embedded-checkout widget (`@crossmint/client-sdk-react-ui`)
- * is not yet wired (dependency + staging credentials pending — see WEB-7 /
- * ens-crossmint-voucher repo). Until then this renders a mock "pay" control that
- * drives the real backend fulfilment via the (unsigned, dev-only) webhook. The
- * real widget config to drop in:
- *
- *   <CrossmintEmbeddedCheckout
- *     lineItems={{ collectionLocator: VITE_CROSSMINT_COLLECTION, callData: {
- *       totalPrice, duration: durationSeconds, clientReference: orderId } }}
- *     payment={{ defaultMethod: 'fiat', crypto: { enabled: false },
- *       fiat: { enabled: true, defaultCurrency: 'usd',
- *         allowedMethods: { card: true, applePay: false, googlePay: false } } }}
- *     recipient={{ walletAddress: ownerAddress }}
- *     appearance={{ rules: { DestinationInput: { display: 'hidden' },
- *       ReceiptEmailInput: { display: 'hidden' } } }} />
+ * renders the Crossmint embedded checkout (card-only), then polls our backend
+ * while it does the commit-reveal registration on the buyer's behalf and
+ * delivers the name. When the Crossmint client key / collection env vars are
+ * absent it falls back to a dev mock-pay control.
  */
 export const CrossmintCheckoutDialog = ({
   open,
@@ -164,13 +253,15 @@ export const CrossmintCheckoutDialog = ({
     }
   }, [phase])
 
-  // Mock payment: drive the real backend fulfilment via the dev webhook (no
-  // signing secret configured => signature check skipped). Replaced by the
-  // Crossmint widget's success callback once the SDK is wired.
-  const onMockPay = useCallback(async () => {
-    if (phase.kind !== 'awaiting_payment') return
-    const orderId = phase.orderId
+  const goToProcessing = useCallback((orderId: string) => {
     setPhase({ kind: 'processing', orderId, status: 'paid' })
+  }, [])
+
+  // Dev-only: Crossmint's webhook can't reach localhost, so kick fulfilment by
+  // POSTing the (unsigned) webhook ourselves. In production the Svix-signed
+  // webhook drives this server-side, so this is a no-op there.
+  const triggerLocalFulfilment = useCallback(async (orderId: string) => {
+    if (!import.meta.env.DEV) return
     try {
       await fetch(`${getBackendApiBaseUrl()}/webhook/crossmint`, {
         method: 'POST',
@@ -183,7 +274,28 @@ export const CrossmintCheckoutDialog = ({
     } catch {
       // The poll loop surfaces any resulting failure.
     }
-  }, [phase])
+  }, [])
+
+  // When the real card payment settles, move to processing and (in dev only)
+  // kick fulfilment locally since Crossmint can't reach our localhost webhook.
+  const handlePaid = useCallback(
+    (orderId: string) => {
+      goToProcessing(orderId)
+      void triggerLocalFulfilment(orderId)
+    },
+    [goToProcessing, triggerLocalFulfilment],
+  )
+
+  // Dev fallback when the Crossmint env isn't configured: a button driving the
+  // same local fulfilment trigger.
+  const onMockPay = useCallback(() => {
+    if (phase.kind !== 'awaiting_payment') return
+    handlePaid(phase.orderId)
+  }, [phase, handlePaid])
+
+  const crossmintConfigured = Boolean(
+    CROSSMINT_CLIENT_KEY && CROSSMINT_COLLECTION,
+  )
 
   return (
     <PaymentDialogBase
@@ -198,27 +310,35 @@ export const CrossmintCheckoutDialog = ({
           </p>
         )}
 
-        {phase.kind === 'awaiting_payment' && (
-          <>
-            <div className="space-y-1">
-              <p className="font-medium text-ens-blue-midnight text-lg">
-                {label}.eth
-              </p>
-              {totalPriceUsd !== undefined && (
-                <p className="text-ens-gray text-sm">
-                  ${totalPriceUsd.toFixed(2)} <Trans>USD</Trans>
+        {phase.kind === 'awaiting_payment' &&
+          (crossmintConfigured ? (
+            <EmbeddedCheckoutPanel
+              durationSeconds={durationSeconds}
+              onPaid={() => handlePaid(phase.orderId)}
+              orderId={phase.orderId}
+              ownerAddress={ownerAddress}
+              totalPriceUsd={totalPriceUsd}
+            />
+          ) : (
+            <>
+              <div className="space-y-1">
+                <p className="font-medium text-ens-blue-midnight text-lg">
+                  {label}.eth
                 </p>
-              )}
-            </div>
-            {/* Stand-in for the Crossmint embedded checkout (see file note). */}
-            <Button color="blue" onClick={onMockPay} size="lg">
-              <Trans>Pay by card</Trans>
-            </Button>
-            <p className="text-ens-gray text-xs">
-              <Trans>Card checkout (test mode)</Trans>
-            </p>
-          </>
-        )}
+                {totalPriceUsd !== undefined && (
+                  <p className="text-ens-gray text-sm">
+                    ${totalPriceUsd.toFixed(2)} <Trans>USD</Trans>
+                  </p>
+                )}
+              </div>
+              <Button color="blue" onClick={onMockPay} size="lg">
+                <Trans>Pay by card</Trans>
+              </Button>
+              <p className="text-ens-gray text-xs">
+                <Trans>Card checkout (test mode)</Trans>
+              </p>
+            </>
+          ))}
 
         {phase.kind === 'processing' && (
           <div className="space-y-2">
