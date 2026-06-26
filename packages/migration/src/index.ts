@@ -16,7 +16,6 @@ export {
   evaluateMigration,
   type MigrationBlockReason,
   type MigrationVerdict,
-  tokenHolderOf,
 } from './evaluate'
 export {
   type EligibilityResult,

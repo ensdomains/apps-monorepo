@@ -9,7 +9,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
-import type { PublicClient } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 /** The migration verdict for a name, as computed by `@ens-apps/migration`. */
@@ -58,11 +58,16 @@ class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
 
 type GetMigrationStatusParameters = {
   name: string
+  address: Address | undefined
 }
 
 const getMigrationStatus = ResultFn(async function* ({
   name,
+  address,
 }: GetMigrationStatusParameters) {
+  if (!address)
+    return ok<MigrationVerdict>({ migratable: false, reason: 'not-found' })
+
   const client = yield* safeGetClient()
   const subgraphClient = createSubgraphClient(client)
 
@@ -77,7 +82,11 @@ const getMigrationStatus = ResultFn(async function* ({
   )
 
   const verdict = yield* fromPromise(
-    evaluateMigration(client as unknown as PublicClient, domains[0] ?? null),
+    evaluateMigration(
+      client as unknown as PublicClient,
+      domains[0] ?? null,
+      address,
+    ),
     (e) => new GetMigrationStatusError({ cause: e }),
   )
 
@@ -95,5 +104,5 @@ export const getMigrationStatusQueryOptions = (
   resultQueryOptions({
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
-    enabled: !!params.name,
+    enabled: !!params.name && !!params.address,
   })

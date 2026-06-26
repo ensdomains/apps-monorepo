@@ -23,38 +23,27 @@ export type MigrationVerdict =
     }
   | { readonly migratable: false; readonly reason: MigrationBlockReason }
 
-/**
- * The address that holds a name's v1 token. The migration verdict is
- * viewer-independent, so we classify against this rather than a connected
- * wallet — the result reflects the name's intrinsic migratability.
- */
-export const tokenHolderOf = (domain: V1Domain): Address | null => {
-  const holder =
-    domain.wrappedOwner?.id ?? domain.registrant?.id ?? domain.owner.id
-  return (holder as Address) || null
-}
-
 export type EvaluateMigrationOptions = {
   readonly knownPublicResolvers?: readonly Address[]
   readonly addresses?: PreflightAddresses
 }
 
 /**
- * Decides whether a single v1 name can migrate to v2: classifies it, then
- * confirms eligibility against current chain state (ownership still held, no
- * frozen approval). Pass `null` when no v1 domain was found.
+ * Decides whether a single v1 name can migrate to v2 for `ownerAddress`:
+ * classifies the name against that wallet, then confirms eligibility against
+ * current chain state (ownership still held, no frozen approval). The verdict
+ * is owner-scoped — exactly as the manager evaluates the connected wallet's own
+ * names. Pass `null` when no v1 domain was found.
  */
 export const evaluateMigration = async (
   client: PublicClient,
   domain: V1Domain | null,
+  ownerAddress: Address,
   options: EvaluateMigrationOptions = {},
 ): Promise<MigrationVerdict> => {
   if (!domain) return { migratable: false, reason: 'not-found' }
 
-  const owner = tokenHolderOf(domain)
-  if (!owner) return { migratable: false, reason: 'no-path' }
-
-  const result = classifyName(domain, owner, {
+  const result = classifyName(domain, ownerAddress, {
     knownPublicResolvers:
       options.knownPublicResolvers ?? KNOWN_PUBLIC_RESOLVERS,
   })
@@ -67,7 +56,7 @@ export const evaluateMigration = async (
   const eligibility = await runEligibilityChecks(
     client,
     [classified],
-    owner,
+    ownerAddress,
     options.addresses ?? DEFAULT_PREFLIGHT_ADDRESSES,
   )
 

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
 import { type Address, isAddressEqual } from 'viem'
-import { useAccount, useEnsResolver } from 'wagmi'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
@@ -126,17 +126,18 @@ const Profile = ({
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
   })
 
-  // Migration eligibility is only meaningful for v1 names; gate the on-chain
-  // checks accordingly. `connectedAddress` decides whether the owner-only
-  // upgrade banner is shown.
+  const { address: connectedAddress } = useConnection()
+
+  // Migration eligibility is only meaningful for v1 names, and the verdict is
+  // owner-scoped (classified against the connected wallet, exactly like the
+  // manager). Gate the query on both so non-v1 names and disconnected viewers
+  // skip the on-chain checks and see no migration status.
   const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
 
   const migrationQuery = useQuery({
-    ...getMigrationStatusQueryOptions({ name }),
-    enabled: isV1Name,
+    ...getMigrationStatusQueryOptions({ name, address: connectedAddress }),
+    enabled: isV1Name && !!connectedAddress,
   })
-
-  const { address: connectedAddress } = useAccount()
 
   // Loading states
   if (ownerQuery.isLoading) {
@@ -311,13 +312,17 @@ const Profile = ({
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
   const migration = migrationQuery.data
-  // Banner only when the name is migratable AND the connected wallet is the
-  // token holder (per design: "migrateable AND owner wallet is connected").
-  const showUpgradeBanner =
-    resolvedProtocolVersion === 'ENSv1' &&
+  // Migration status is owner-only: surface it (both the banner and the
+  // Protocol-row label) only when the name is migratable AND the connected
+  // wallet is the v1 token holder. Non-owners see no migration text, matching
+  // the manager, which only ever operates on the connected wallet's own names.
+  const isMigratableByConnectedOwner =
     migration?.migratable === true &&
     !!connectedAddress &&
     isAddressEqual(connectedAddress, migration.tokenHolder)
+
+  const showUpgradeBanner =
+    resolvedProtocolVersion === 'ENSv1' && isMigratableByConnectedOwner
 
   return (
     <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
@@ -371,7 +376,7 @@ const Profile = ({
           />
           <ProtocolRow
             protocolVersion={resolvedProtocolVersion}
-            migration={migration}
+            migration={isMigratableByConnectedOwner ? migration : undefined}
             isLoading={migrationQuery.isLoading}
           />
         </div>
