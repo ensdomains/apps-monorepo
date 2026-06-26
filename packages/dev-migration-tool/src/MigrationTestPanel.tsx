@@ -110,8 +110,7 @@ export function MigrationTestPanel() {
   // On mount: bust any stale migration query caches (v1_names + eligibility).
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: [{ $scope: 'migration' }] })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [queryClient.invalidateQueries])
 
   // Keep the module-level injected names in sync with React state + localStorage
   useEffect(() => {
@@ -119,38 +118,35 @@ export function MigrationTestPanel() {
     writeStoredNames(activeNames)
   }, [activeNames])
 
-  const createName = useCallback(
-    async (type: PresetType) => {
-      const label = nextLabel()
-      setBusy(true)
-      setBusyPreset(type)
-      setActionError(null)
-      try {
-        const { label: resultLabel, expiryDate } = await createV1NameOnAnvil(
-          endpoint,
-          label,
+  const createName = useCallback(async (type: PresetType) => {
+    const label = nextLabel()
+    setBusy(true)
+    setBusyPreset(type)
+    setActionError(null)
+    try {
+      const { label: resultLabel, expiryDate } = await createV1NameOnAnvil(
+        endpoint,
+        label,
+        type,
+      )
+      setActiveNames((prev) => [
+        ...prev,
+        {
+          label: resultLabel,
           type,
-        )
-        setActiveNames((prev) => [
-          ...prev,
-          {
-            label: resultLabel,
-            type,
-            id: `${resultLabel}-${Date.now()}`,
-            expiryDate,
-          },
-        ])
-      } catch (e) {
-        setActionError(
-          `Failed to create ${type}: ${e instanceof Error ? e.message : String(e)}`,
-        )
-      } finally {
-        setBusy(false)
-        setBusyPreset(null)
-      }
-    },
-    [endpoint],
-  )
+          id: `${resultLabel}-${Date.now()}`,
+          expiryDate,
+        },
+      ])
+    } catch (e) {
+      setActionError(
+        `Failed to create ${type}: ${e instanceof Error ? e.message : String(e)}`,
+      )
+    } finally {
+      setBusy(false)
+      setBusyPreset(null)
+    }
+  }, [])
 
   /**
    * Sync names to Anvil, invalidate migration caches, then hard-navigate.
@@ -176,7 +172,7 @@ export function MigrationTestPanel() {
         setBusy(false)
       }
     },
-    [endpoint, queryClient],
+    [queryClient],
   )
 
   const migrateAll = useCallback(() => {
