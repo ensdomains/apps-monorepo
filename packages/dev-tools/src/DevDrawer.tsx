@@ -36,14 +36,14 @@ export function DevDrawer() {
           <div style={toolsRowStyle}>
             {travelEnabled && (
               <section style={sectionStyle}>
-                <p style={sectionTitleStyle}>{'⏱'} Time Travel</p>
+                <p style={ttLabelStyle}>⏱ Time Travel</p>
                 <TimeTravelPanelContent />
               </section>
             )}
             {travelEnabled && migrationEnabled && <div style={dividerStyle} />}
             {migrationEnabled && (
               <section style={sectionStyle}>
-                <p style={sectionTitleStyle}>{'↑'} Migration Tool</p>
+                <p style={migLabelStyle}>↑ Migration</p>
                 <MigrationPanelContent />
               </section>
             )}
@@ -66,30 +66,34 @@ export function DevDrawer() {
 
 // --- styles -----------------------------------------------------------------
 
-const FONT = '12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace'
-const BG = 'rgba(17, 24, 39, 0.97)'
+const FONT = '11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace'
+const BG = 'rgba(17, 24, 39, 0.72)'
 const BORDER = '1px solid rgba(255,255,255,0.09)'
+const BLUR = 'blur(14px) saturate(140%)'
 const Z = 2_147_483_000
 
 const containerStyle: CSSProperties = {
   position: 'fixed',
   bottom: 0,
-  left: '50%',
-  transform: 'translateX(-50%)',
+  left: 0,
+  right: 0,
   zIndex: Z,
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'center',
+  alignItems: 'stretch',
 }
 
 const handleStyle: CSSProperties = {
-  padding: '5px 16px',
+  alignSelf: 'center',
+  padding: '4px 14px',
   background: BG,
+  backdropFilter: BLUR,
+  WebkitBackdropFilter: BLUR,
   color: '#9ca3af',
   font: '11px/1 ui-monospace, SFMono-Regular, Menlo, monospace',
   border: BORDER,
   borderBottom: 'none',
-  borderRadius: '8px 8px 0 0',
+  borderRadius: '7px 7px 0 0',
   cursor: 'pointer',
   userSelect: 'none',
   whiteSpace: 'nowrap',
@@ -98,44 +102,56 @@ const handleStyle: CSSProperties = {
 
 const panelStyle: CSSProperties = {
   background: BG,
+  backdropFilter: BLUR,
+  WebkitBackdropFilter: BLUR,
   border: BORDER,
   borderBottom: 'none',
-  borderRadius: '12px 12px 0 0',
+  borderTop: BORDER,
   color: '#e5e7eb',
   font: FONT,
-  boxShadow: '0 -8px 32px rgba(0,0,0,0.4)',
-  maxHeight: '80vh',
-  overflowY: 'auto',
-  width: 'max-content',
-  maxWidth: '95vw',
+  boxShadow: '0 -4px 24px rgba(0,0,0,0.25)',
+  width: '100%',
 }
 
 const toolsRowStyle: CSSProperties = {
   display: 'flex',
   gap: 0,
-  padding: '14px 16px 16px',
+  padding: '5px 24px 6px',
   alignItems: 'flex-start',
+  justifyContent: 'flex-start',
 }
 
 const sectionStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  minWidth: 248,
-  maxWidth: 300,
-}
-
-const sectionTitleStyle: CSSProperties = {
-  margin: '0 0 10px',
-  fontWeight: 600,
-  paddingBottom: 7,
-  borderBottom: '1px solid rgba(255,255,255,0.10)',
-  color: '#e5e7eb',
 }
 
 const dividerStyle: CSSProperties = {
   width: 1,
   background: 'rgba(255,255,255,0.08)',
-  margin: '0 16px',
+  margin: '0 12px',
   alignSelf: 'stretch',
   flexShrink: 0,
+}
+
+const baseLabelStyle: CSSProperties = {
+  margin: '0 0 4px',
+  fontSize: 10,
+  fontWeight: 700,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+  paddingLeft: 6,
+  borderRadius: '3px 3px 0 0',
+}
+
+const ttLabelStyle: CSSProperties = {
+  ...baseLabelStyle,
+  color: '#7dd3fc',
+  borderLeft: '2px solid #38bdf8',
+}
+
+const migLabelStyle: CSSProperties = {
+  ...baseLabelStyle,
+  color: '#fbbf24',
+  borderLeft: '2px solid #f59e0b',
 }

@@ -19,10 +19,13 @@ import {
   PRESETS,
   type PresetType,
   readStoredNames,
-  TYPE_BADGE_COLORS,
   writeStoredNames,
 } from './MigrationTestPanel.helpers'
-import { useAnvilStatus, useDraggablePanel } from './MigrationTestPanel.hooks'
+import {
+  useAnvilStatus,
+  useDraggablePanel,
+  useInvalidateMigrationQueriesOnMount,
+} from './MigrationTestPanel.hooks'
 
 // V1 subgraph URL pattern — intercepted to inject panel-created names
 const V1_SUBGRAPH_PATTERN = 'ensnode.io/subgraph'
@@ -92,6 +95,13 @@ function nextLabel(): string {
   return `dev${(++_nameCounter).toString().padStart(4, '0')}`
 }
 
+function useSyncInjectedNames(activeNames: ActiveName[]): void {
+  useEffect(() => {
+    setInjectedNames(activeNames)
+    writeStoredNames(activeNames)
+  }, [activeNames])
+}
+
 /** Inner UI — preset buttons, name list, migrate actions. No wrapper or positioning. */
 export function MigrationPanelContent() {
   const endpoint = MIGRATION_TOOL_RPC
@@ -105,16 +115,8 @@ export function MigrationPanelContent() {
   )
   const queryClient = useQueryClient()
 
-  // On mount: bust any stale migration query caches (v1_names + eligibility).
-  useEffect(() => {
-    void queryClient.invalidateQueries({ queryKey: [{ $scope: 'migration' }] })
-  }, [queryClient.invalidateQueries])
-
-  // Keep the module-level injected names in sync with React state + localStorage
-  useEffect(() => {
-    setInjectedNames(activeNames)
-    writeStoredNames(activeNames)
-  }, [activeNames])
+  useInvalidateMigrationQueriesOnMount(queryClient)
+  useSyncInjectedNames(activeNames)
 
   const createName = useCallback(async (type: PresetType) => {
     const label = nextLabel()
@@ -184,11 +186,14 @@ export function MigrationPanelContent() {
     setActiveNames((prev) => prev.filter((n) => n.id !== id))
   }, [])
 
+  const [selectedId, setSelectedId] = useState<string>('')
+  const selectedName =
+    activeNames.find((n) => n.id === selectedId) ?? activeNames[0] ?? null
+
   return (
-    <>
-      {/* Section 1: Create Preset */}
-      <p style={sectionLabelStyle}>Create V1 name</p>
-      <div style={gridStyle}>
+    <div style={columnStyle}>
+      {/* Row 1: preset buttons */}
+      <div style={rowStyle}>
         {PRESETS.map((preset) => {
           const isThisBusy = busy && busyPreset === preset.type
           return (
@@ -197,62 +202,59 @@ export function MigrationPanelContent() {
               type="button"
               disabled={busy}
               onClick={() => void createName(preset.type)}
-              style={presetButtonStyle(busy, isThisBusy)}
+              style={presetChipStyle(busy, isThisBusy)}
               title={preset.title}
             >
-              {isThisBusy ? 'Creating...' : preset.label}
+              {isThisBusy ? '…' : preset.label}
             </button>
           )
         })}
       </div>
 
-      {/* Section 2: Active Names */}
-      {activeNames.length > 0 && (
-        <>
-          <p style={sectionLabelStyle}>Active names ({activeNames.length})</p>
-          <div style={nameListStyle}>
-            {activeNames.map((name) => (
-              <div key={name.id} style={nameRowStyle}>
-                <span style={nameLabelStyle}>{name.label}.eth</span>
-                <span
-                  style={{
-                    ...typeBadgeStyle,
-                    background: TYPE_BADGE_COLORS[name.type],
-                  }}
-                >
-                  {name.type}
-                </span>
-                <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-                  <button
-                    type="button"
-                    onClick={() => migrateSingle(name)}
-                    style={smallButtonStyle('#2563eb')}
-                    title={`Migrate ${name.label}.eth`}
-                  >
-                    Migrate
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeName(name.id)}
-                    style={smallButtonStyle('#374151')}
-                    title="Remove from list"
-                  >
-                    Del
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Section 3: Footer */}
-      <div style={footerStyle}>
+      {/* Row 2: name picker + migrate actions + anvil */}
+      <div style={rowStyle}>
+        {activeNames.length > 0 ? (
+          <>
+            <select
+              value={selectedName?.id ?? ''}
+              onChange={(e) => setSelectedId(e.target.value)}
+              style={selectStyle}
+              disabled={busy}
+            >
+              {activeNames.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.label}.eth ({n.type})
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              disabled={busy || !selectedName}
+              onClick={() => selectedName && migrateSingle(selectedName)}
+              style={smallChipStyle('#2563eb')}
+              title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
+            >
+              Migrate
+            </button>
+            <button
+              type="button"
+              disabled={!selectedName}
+              onClick={() => selectedName && removeName(selectedName.id)}
+              style={smallChipStyle('#374151')}
+              title="Remove selected"
+            >
+              ×
+            </button>
+            <span style={sepStyle} />
+          </>
+        ) : (
+          <span style={emptyStyle}>no names</span>
+        )}
         <button
           type="button"
           disabled={busy || activeNames.length === 0}
           onClick={migrateAll}
-          style={migrateAllButtonStyle(busy || activeNames.length === 0)}
+          style={migrateAllChipStyle(busy || activeNames.length === 0)}
           title="Navigate to /migration with all active names"
         >
           Migrate All ({activeNames.length})
@@ -270,12 +272,12 @@ export function MigrationPanelContent() {
             }}
             title={`Anvil: ${anvilStatus}`}
           />
-          <span style={{ color: '#6b7280' }}>Anvil</span>
+          <span style={{ color: '#6b7280', fontSize: 10 }}>Anvil</span>
         </div>
       </div>
 
-      {actionError ? <p style={errorStyle}>{actionError}</p> : null}
-    </>
+      {actionError ? <span style={errorInlineStyle}>{actionError}</span> : null}
+    </div>
   )
 }
 
@@ -376,98 +378,88 @@ const iconButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-const sectionLabelStyle: CSSProperties = {
-  margin: '8px 0 4px',
-  color: '#9ca3af',
-  fontSize: 11,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-}
-
-const gridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
+const columnStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
   gap: 5,
 }
 
-function presetButtonStyle(disabled: boolean, active: boolean): CSSProperties {
+const rowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  flexWrap: 'wrap',
+}
+
+const sepStyle: CSSProperties = {
+  width: 1,
+  height: 13,
+  background: 'rgba(255,255,255,0.15)',
+  flexShrink: 0,
+  alignSelf: 'center',
+  margin: '0 3px',
+}
+
+const selectStyle: CSSProperties = {
+  padding: '2px 5px',
+  borderRadius: 4,
+  border: '1px solid rgba(255,255,255,0.18)',
+  background: 'rgba(0,0,0,0.3)',
+  color: '#e5e7eb',
+  fontSize: 11,
+  cursor: 'pointer',
+  maxWidth: 200,
+}
+
+const emptyStyle: CSSProperties = {
+  color: '#4b5563',
+  fontSize: 11,
+  fontStyle: 'italic',
+}
+
+function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {
   return {
-    padding: '6px 4px',
-    borderRadius: 6,
+    padding: '2px 7px',
+    borderRadius: 4,
     border: '1px solid rgba(255,255,255,0.12)',
     background: active
       ? 'rgba(37,99,235,0.6)'
       : disabled
         ? 'rgba(75,85,99,0.4)'
-        : 'rgba(37,99,235,0.8)',
+        : 'rgba(37,99,235,0.85)',
     color: disabled ? '#9ca3af' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    lineHeight: '1.2',
   }
 }
 
-const nameListStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-  maxHeight: 160,
-  overflowY: 'auto',
-}
-
-const nameRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 5,
-  padding: '4px 0',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
-}
-
-const nameLabelStyle: CSSProperties = {
-  flexShrink: 0,
-  color: '#e5e7eb',
-}
-
-const typeBadgeStyle: CSSProperties = {
-  flexShrink: 0,
-  padding: '1px 5px',
-  borderRadius: 4,
-  color: '#fff',
-  fontSize: 10,
-  whiteSpace: 'nowrap',
-}
-
-function smallButtonStyle(bg: string): CSSProperties {
+function smallChipStyle(bg: string): CSSProperties {
   return {
-    padding: '3px 6px',
-    borderRadius: 5,
+    padding: '2px 6px',
+    borderRadius: 4,
     border: '1px solid rgba(255,255,255,0.12)',
     background: bg,
     color: '#fff',
     cursor: 'pointer',
     fontSize: 11,
+    lineHeight: '1.2',
   }
 }
 
-const footerStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  marginTop: 10,
-}
-
-function migrateAllButtonStyle(disabled: boolean): CSSProperties {
+function migrateAllChipStyle(disabled: boolean): CSSProperties {
   return {
-    flex: 1,
-    padding: '6px 0',
-    borderRadius: 6,
+    padding: '2px 10px',
+    borderRadius: 4,
     border: '1px solid rgba(255,255,255,0.12)',
     background: disabled ? 'rgba(75,85,99,0.4)' : '#d97706',
     color: disabled ? '#9ca3af' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
+    fontSize: 11,
     fontWeight: 600,
+    whiteSpace: 'nowrap',
+    lineHeight: '1.2',
   }
 }
 
@@ -480,13 +472,13 @@ const statusDotContainerStyle: CSSProperties = {
 
 const statusDotStyle: CSSProperties = {
   display: 'inline-block',
-  width: 8,
-  height: 8,
+  width: 7,
+  height: 7,
   borderRadius: '50%',
+  flexShrink: 0,
 }
 
-const errorStyle: CSSProperties = {
-  margin: '8px 0 0',
+const errorInlineStyle: CSSProperties = {
   color: '#fca5a5',
-  wordBreak: 'break-word',
+  fontSize: 11,
 }

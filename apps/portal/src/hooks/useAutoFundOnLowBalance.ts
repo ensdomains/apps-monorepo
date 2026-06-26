@@ -1,103 +1,13 @@
-import { TIME_TRAVEL_RPC } from '@ens-apps/dev-time-travel'
+import { anvilSetupOwner, isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import {
-  createPublicClient,
-  createTestClient,
-  createWalletClient,
-  erc20Abi,
-  http,
-  parseAbi,
-} from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
-import { readContract } from 'viem/actions'
+import { erc20Abi } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection, useReadContracts } from 'wagmi'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { useFundWallet } from './useFundWallet'
 
 const LOW_BALANCE_THRESHOLD = 500n
-
-// Well-known Anvil test key — used only when VITE_TIME_TRAVEL=1 (local dev).
-// This is the standard Anvil #0 private key, publicly documented in the Anvil
-// docs and in e2e/infra/scripts/fund-account.sh; it is not a secret.
-const ANVIL_FUNDER_KEY =
-  '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'
-
-const ERC20_MINT_ABI = parseAbi(['function mint(address to, uint256 amount)'])
-const USDC_MINT_AMOUNT = 10_000_000_000n // 10_000 USDC (6 decimals)
-const DAI_MINT_AMOUNT = 10_000_000_000_000_000_000_000n // 10_000 DAI (18 decimals)
-
-/**
- * Clears contract bytecode at `address` on the local Anvil fork, then mints
- * USDC and DAI to it.
- *
- * Why setCode: Anvil-derived addresses can coincide with Sepolia contracts
- * (e.g. the well-known 0xf39F…2266 has an EOF contract). When the ENS
- * registrar calls `_safeMint`, the ERC1155 receiver check fires against the
- * owner address and reverts if the owner has bytecode that isn't an ERC1155
- * receiver. Wiping the code makes the address a plain EOA on the fork.
- */
-async function anvilFundAccount(address: `0x${string}`) {
-  const transport = http(TIME_TRAVEL_RPC)
-
-  const testClient = createTestClient({
-    chain: sepolia,
-    mode: 'anvil',
-    transport,
-  })
-  const publicClient = createPublicClient({ chain: sepolia, transport })
-  const anvilFunder = privateKeyToAccount(ANVIL_FUNDER_KEY)
-  const walletClient = createWalletClient({
-    account: anvilFunder,
-    chain: sepolia,
-    transport,
-  })
-
-  // Wipe any contract bytecode so the address behaves as a plain EOA.
-  await testClient.setCode({ address, bytecode: '0x' })
-
-  const [usdcBal, daiBal] = await Promise.all([
-    readContract(publicClient, {
-      address: PAYMENT_TOKENS[0].address,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [address],
-    }),
-    readContract(publicClient, {
-      address: PAYMENT_TOKENS[1].address,
-      abi: erc20Abi,
-      functionName: 'balanceOf',
-      args: [address],
-    }),
-  ])
-
-  const mints: Promise<`0x${string}`>[] = []
-
-  if (usdcBal < USDC_MINT_AMOUNT) {
-    mints.push(
-      walletClient.writeContract({
-        address: PAYMENT_TOKENS[0].address,
-        abi: ERC20_MINT_ABI,
-        functionName: 'mint',
-        args: [address, USDC_MINT_AMOUNT],
-      }),
-    )
-  }
-
-  if (daiBal < DAI_MINT_AMOUNT) {
-    mints.push(
-      walletClient.writeContract({
-        address: PAYMENT_TOKENS[1].address,
-        abi: ERC20_MINT_ABI,
-        functionName: 'mint',
-        args: [address, DAI_MINT_AMOUNT],
-      }),
-    )
-  }
-
-  await Promise.all(mints)
-}
 
 /**
  * Auto-funds the connected wallet when USDC+DAI balance is below threshold.
@@ -148,12 +58,11 @@ export function useAutoFundOnLowBalance() {
     },
   })
 
-  // Dev-only: clear bytecode + mint tokens directly on the Anvil fork.
-  // separate feature; Anvil setup is needed for any local fork run.
+  // Time-travel only: clear bytecode + mint tokens directly on the Anvil fork.
   // Falls back to the external API if the RPC doesn't support anvil_* methods
-  // (i.e. you're running in dev mode against real Sepolia).
+  // (i.e. running against real Sepolia without time travel).
   useEffect(() => {
-    if (!import.meta.env.DEV || !address) return
+    if (!isTimeTravelEnabled() || !address) return
     if (setupDoneRef.current.has(address)) return
 
     setupDoneRef.current.add(address)
@@ -161,7 +70,10 @@ export function useAutoFundOnLowBalance() {
       description: 'Clearing bytecode and minting test tokens on Anvil...',
       id: `anvil-setup-${address}`,
     })
-    anvilFundAccount(address)
+    anvilSetupOwner(address, sepolia, {
+      USDC: PAYMENT_TOKENS[0].address,
+      DAI: PAYMENT_TOKENS[1].address,
+    })
       .then(() => {
         toast.success('Dev wallet ready', {
           description: 'Bytecode cleared and USDC/DAI minted.',
@@ -181,7 +93,7 @@ export function useAutoFundOnLowBalance() {
   // (i.e. connected to real Sepolia). Skipped if Anvil setup already ran.
   // biome-ignore lint/correctness/useExhaustiveDependencies: Should not rerun from mutation status
   useEffect(() => {
-    if (import.meta.env.DEV && setupDoneRef.current.has(address ?? '')) return
+    if (isTimeTravelEnabled() && setupDoneRef.current.has(address ?? '')) return
     if (!address || isLoadingBalances || fundWalletMutation.isPending) return
 
     const totalBalance = balances.reduce((acc, balance, i) => {

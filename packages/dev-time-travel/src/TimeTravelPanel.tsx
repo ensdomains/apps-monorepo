@@ -111,33 +111,36 @@ export function TimeTravelPanelContent() {
   const error = actionError ?? blockError
 
   return (
-    <>
-      <dl style={rowsStyle}>
-        <dt style={dtStyle}>App clock</dt>
-        <dd style={ddStyle}>{formatDateTime(warpedNow || null)}</dd>
-        <dt style={dtStyle}>Anvil block</dt>
-        <dd style={ddStyle}>{formatDateTime(blockMs)}</dd>
-        <dt style={dtStyle}>Offset</dt>
-        <dd style={ddStyle}>
-          {formatOffset(getChainClock()?.getOffsetMs() ?? 0)}
-        </dd>
-      </dl>
+    <div style={columnStyle}>
+      {/* Row 1: dates + offset */}
+      <div style={rowStyle}>
+        <span style={statLabelStyle}>⏱</span>
+        <span>{formatDateTime(warpedNow || null)}</span>
+        <span style={sepStyle} />
+        <span style={statLabelStyle}>Block</span>
+        <span>{formatDateTime(blockMs)}</span>
+        <span style={sepStyle} />
+        <span style={statLabelStyle}>Δ</span>
+        <span>{formatOffset(getChainClock()?.getOffsetMs() ?? 0)}</span>
+      </div>
 
-      <div style={gridStyle}>
+      {/* Row 2: step buttons */}
+      <div style={rowStyle}>
         {STEPS.map((step) => (
           <button
             key={step.label}
             type="button"
             disabled={busy}
             onClick={() => advanceSeconds(step.seconds)}
-            style={stepButtonStyle(busy)}
+            style={chipStyle(busy)}
           >
             {step.label}
           </button>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+      {/* Row 3: custom advance + sync / skip */}
+      <div style={rowStyle}>
         <input
           type="number"
           min="0"
@@ -152,48 +155,42 @@ export function TimeTravelPanelContent() {
           type="button"
           disabled={busy}
           onClick={advanceCustom}
-          style={stepButtonStyle(busy)}
+          style={chipStyle(busy)}
         >
-          Advance days
+          Advance
         </button>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+        <span style={sepStyle} />
         <button
           type="button"
           disabled={busy}
           onClick={syncToChain}
-          style={secondaryButtonStyle(busy)}
-          title="Set the browser clock to the current Anvil block time"
+          style={dimStyle(busy)}
+          title="Sync browser clock to chain"
         >
-          Sync to chain
+          Sync
         </button>
         <button
           type="button"
           disabled={busy}
           onClick={resetToRealTime}
-          style={secondaryButtonStyle(busy)}
-          title="Clear the offset — browser clock returns to real time"
+          style={dimStyle(busy)}
+          title="Reset to real time"
         >
           Real time
         </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={skipCommitWait}
+          style={dimStyle(busy)}
+          title="Advance ~70s (MIN_COMMITMENT_AGE) — no reload"
+        >
+          Skip+{COMMIT_SKIP_SECONDS}s
+        </button>
       </div>
 
-      <button
-        type="button"
-        disabled={busy}
-        onClick={skipCommitWait}
-        style={{ ...stepButtonStyle(busy), width: '100%', marginTop: 8 }}
-        title="Advance ~70s (MIN_COMMITMENT_AGE) so a registration's commitment cooldown completes — no reload, keeps the in-progress flow"
-      >
-        Skip commit wait (+{COMMIT_SKIP_SECONDS}s)
-      </button>
-
-      {error ? <p style={errorStyle}>{error}</p> : null}
-      <p style={hintStyle}>
-        Advancing warps Anvil + the browser clock, then reloads.
-      </p>
-    </>
+      {error ? <span style={errorInlineStyle}>{error}</span> : null}
+    </div>
   )
 }
 
@@ -293,62 +290,70 @@ const iconButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-const rowsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'auto 1fr',
-  columnGap: 8,
-  rowGap: 2,
-  margin: '0 0 8px',
+const columnStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 5,
 }
 
-const dtStyle: CSSProperties = { color: '#9ca3af' }
-const ddStyle: CSSProperties = { margin: 0, textAlign: 'right' }
-
-const gridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
-  gap: 6,
+const rowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 4,
+  flexWrap: 'nowrap',
 }
 
-function stepButtonStyle(disabled: boolean): CSSProperties {
+const sepStyle: CSSProperties = {
+  width: 1,
+  height: 13,
+  background: 'rgba(255,255,255,0.15)',
+  flexShrink: 0,
+  alignSelf: 'center',
+  margin: '0 3px',
+}
+
+const statLabelStyle: CSSProperties = { color: '#9ca3af', fontSize: 11 }
+
+function chipStyle(disabled: boolean): CSSProperties {
   return {
-    padding: '6px 0',
-    borderRadius: 6,
+    padding: '2px 7px',
+    borderRadius: 4,
     border: '1px solid rgba(255,255,255,0.12)',
-    background: disabled ? 'rgba(75,85,99,0.5)' : '#2563eb',
-    color: '#fff',
+    background: disabled ? 'rgba(75,85,99,0.4)' : '#2563eb',
+    color: disabled ? '#9ca3af' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
+    fontSize: 11,
+    whiteSpace: 'nowrap',
+    lineHeight: '1.2',
   }
 }
 
-function secondaryButtonStyle(disabled: boolean): CSSProperties {
+function dimStyle(disabled: boolean): CSSProperties {
   return {
-    flex: 1,
-    padding: '6px 0',
-    borderRadius: 6,
-    border: '1px solid rgba(255,255,255,0.18)',
+    padding: '2px 7px',
+    borderRadius: 4,
+    border: '1px solid rgba(255,255,255,0.14)',
     background: 'transparent',
-    color: '#e5e7eb',
+    color: disabled ? '#4b5563' : '#9ca3af',
     cursor: disabled ? 'default' : 'pointer',
+    fontSize: 11,
+    whiteSpace: 'nowrap',
+    lineHeight: '1.2',
   }
 }
 
 const inputStyle: CSSProperties = {
-  width: 72,
-  padding: '6px 8px',
-  borderRadius: 6,
+  width: 52,
+  padding: '2px 6px',
+  borderRadius: 4,
   border: '1px solid rgba(255,255,255,0.18)',
-  background: 'rgba(0,0,0,0.25)',
+  background: 'rgba(0,0,0,0.2)',
   color: '#e5e7eb',
+  fontSize: 11,
+  lineHeight: '1.2',
 }
 
-const errorStyle: CSSProperties = {
-  margin: '8px 0 0',
+const errorInlineStyle: CSSProperties = {
   color: '#fca5a5',
-  wordBreak: 'break-word',
-}
-
-const hintStyle: CSSProperties = {
-  margin: '8px 0 0',
-  color: '#6b7280',
+  fontSize: 11,
 }

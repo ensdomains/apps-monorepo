@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query'
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
@@ -6,7 +7,22 @@ import {
   useRef,
   useState,
 } from 'react'
-import { type Pos, POSITION_STORAGE_KEY, clampPos, rpcCall, readStoredPos } from './MigrationTestPanel.helpers'
+import {
+  clampPos,
+  POSITION_STORAGE_KEY,
+  type Pos,
+  readStoredPos,
+  rpcCall,
+} from './MigrationTestPanel.helpers'
+
+/** Invalidates all migration-scoped React Query caches on mount. */
+export function useInvalidateMigrationQueriesOnMount(
+  queryClient: QueryClient,
+): void {
+  useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: [{ $scope: 'migration' }] })
+  }, [queryClient])
+}
 
 /** Poll Anvil connection status every 5s. */
 export function useAnvilStatus(endpoint: string): 'ok' | 'error' | 'checking' {
