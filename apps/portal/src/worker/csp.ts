@@ -30,11 +30,6 @@ const CONNECT_HOSTS = [
   // PostHog analytics host — .env (VITE_PUBLIC_POSTHOG_HOST)
   'https://jakob.ens.domains',
   'https://i.pinimg.com',
-  // IPFS gateways for avatar / NFT-metadata resolution — viem's default
-  // (ipfs.io) and the ENS gateway (worker/ens.ts). The NFT-metadata fetch has
-  // no <img> fallback, so the gateway must be reachable or NFT avatars break.
-  'https://ipfs.io',
-  'https://ipfs.euc.li',
   // WalletConnect / RainbowKit relay, verify, pulse, explorer-api
   'https://*.walletconnect.com',
   'wss://*.walletconnect.com',
