@@ -32,8 +32,8 @@ export type EvaluateMigrationOptions = {
  * Decides whether a single v1 name can migrate to v2 for `ownerAddress`:
  * classifies the name against that wallet, then confirms eligibility against
  * current chain state (ownership still held, no frozen approval). The verdict
- * is owner-scoped — exactly as the manager evaluates the connected wallet's own
- * names. Pass `null` when no v1 domain was found.
+ * is owner-scoped — migratability is evaluated for the given wallet, not the
+ * name in the abstract. Pass `null` when no v1 domain was found.
  */
 export const evaluateMigration = async (
   client: PublicClient,

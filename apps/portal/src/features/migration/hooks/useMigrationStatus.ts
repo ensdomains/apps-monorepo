@@ -16,25 +16,8 @@ import { safeGetClient } from '@/lib/wagmi/helpers'
 export type MigrationStatus = MigrationVerdict
 
 const V1_DOMAIN_QUERY = gql`
-  query getV1DomainForMigration($name: String!, $now: BigInt!) {
-    domains(
-      where: {
-        name: $name
-        and: [
-          { or: [{ expiryDate_gt: $now }, { expiryDate: null }] }
-          {
-            or: [
-              { owner_not: "0x0000000000000000000000000000000000000000" }
-              { resolver_not: null }
-              { registrant_not: "0x0000000000000000000000000000000000000000" }
-            ]
-          }
-        ]
-      }
-      orderBy: createdAt
-      orderDirection: desc
-      first: 1
-    ) {
+  query getV1DomainForMigration($name: String!) {
+    domains(where: { name: $name }, first: 1) {
       id
       labelName
       labelhash
@@ -58,6 +41,7 @@ class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
 
 type GetMigrationStatusParameters = {
   name: string
+  /** The wallet to evaluate migratability for; the verdict is owner-scoped. */
   address: Address | undefined
 }
 
@@ -71,12 +55,10 @@ const getMigrationStatus = ResultFn(async function* ({
   const client = yield* safeGetClient()
   const subgraphClient = createSubgraphClient(client)
 
-  const now = Math.floor(Date.now() / 1000).toString()
-
   const { domains } = yield* fromPromise(
-    subgraphClient.request<V1DomainResponse, { name: string; now: string }>(
+    subgraphClient.request<V1DomainResponse, { name: string }>(
       V1_DOMAIN_QUERY,
-      { name, now },
+      { name },
     ),
     (e) => new GetMigrationStatusError({ cause: e }),
   )

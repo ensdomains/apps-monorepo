@@ -129,9 +129,9 @@ const Profile = ({
   const { address: connectedAddress } = useConnection()
 
   // Migration eligibility is only meaningful for v1 names, and the verdict is
-  // owner-scoped (classified against the connected wallet, exactly like the
-  // manager). Gate the query on both so non-v1 names and disconnected viewers
-  // skip the on-chain checks and see no migration status.
+  // owner-scoped (evaluated for the connected wallet). Gate the query on both so
+  // non-v1 names and disconnected viewers skip the on-chain checks and see no
+  // migration status.
   const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
 
   const migrationQuery = useQuery({
@@ -314,8 +314,8 @@ const Profile = ({
   const migration = migrationQuery.data
   // Migration status is owner-only: surface it (both the banner and the
   // Protocol-row label) only when the name is migratable AND the connected
-  // wallet is the v1 token holder. Non-owners see no migration text, matching
-  // the manager, which only ever operates on the connected wallet's own names.
+  // wallet holds the v1 token. Non-owners and disconnected viewers see no
+  // migration text.
   const isMigratableByConnectedOwner =
     migration?.migratable === true &&
     !!connectedAddress &&
