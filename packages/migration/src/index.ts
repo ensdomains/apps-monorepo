@@ -1,4 +1,4 @@
-// Public API. Internals (ABIs, multicall, granular checks, chain config) stay unexported.
+export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from './contracts/abis'
 export {
   type ClassifiedName,
   type ClassifyNamesResult,
