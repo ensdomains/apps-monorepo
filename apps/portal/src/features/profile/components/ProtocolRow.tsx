@@ -1,6 +1,5 @@
 import { Layers } from 'lucide-react'
 import type { MigrationStatus } from '@/features/migration/useMigrationStatus'
-import { cn } from '@/lib/utils'
 import type { ProtocolVersion } from '@/utils/types'
 import { InfoRow } from './InfoRow'
 
@@ -22,23 +21,13 @@ export const ProtocolRow = ({
 
   return (
     <InfoRow icon={Layers} label="Protocol">
-      <span className="font-semi-mono">
-        {protocolVersion}
-        {showMigrationSuffix && (
-          <>
-            {': '}
-            <span
-              className={cn(
-                migration.migratable
-                  ? 'text-message-success-text'
-                  : 'text-muted-foreground',
-              )}
-            >
-              {migration.migratable ? 'Can be migrated' : 'Cannot be migrated'}
-            </span>
-          </>
-        )}
-      </span>
+      {protocolVersion}
+      {showMigrationSuffix && (
+        <>
+          {' : '}
+          {migration.migratable ? 'Can be migrated' : 'Cannot be migrated'}
+        </>
+      )}
     </InfoRow>
   )
 }
