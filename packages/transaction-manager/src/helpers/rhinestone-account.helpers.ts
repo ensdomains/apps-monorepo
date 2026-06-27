@@ -17,7 +17,10 @@ import {
 import { readContract } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { ETH_REGISTRAR_CONTROLLER_ABI } from '../contracts/abis/ETHRegistrarController.abi'
-import { ENS_SEPOLIA_CONTRACTS } from '../contracts/ens-sepolia'
+import {
+  ENS_SEPOLIA_CONTRACTS,
+  REFERER_ADDRESS,
+} from '../contracts/ens-sepolia'
 
 export class RhinestoneAccountError extends Error {
   constructor(message: string) {
@@ -176,7 +179,7 @@ export function prepareENSRenewalTransaction(
       const data = encodeFunctionData({
         abi: ETH_REGISTRAR_CONTROLLER_ABI,
         functionName: 'renew',
-        args: [name, duration],
+        args: [name, duration, REFERER_ADDRESS],
       })
 
       const txData = {

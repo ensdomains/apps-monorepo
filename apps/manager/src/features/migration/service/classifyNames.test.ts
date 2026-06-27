@@ -99,7 +99,8 @@ describe('classifyName — grace period registrations', () => {
     expect(result?.type).toBe('renewableGrace')
     if (result?.type !== 'renewableGrace') throw new Error('not renewable')
     expect(result.name.domain.name).toBe('alice.eth')
-    expect(result.name.renewalDurationSeconds).toBe(16 * 24 * 60 * 60)
+    expect(result.name.renewalMode).toBe('onchain')
+    expect(result.name.renewalDurationSeconds).toBe(28 * 24 * 60 * 60)
     vi.useRealTimers()
   })
 
@@ -113,6 +114,41 @@ describe('classifyName — grace period registrations', () => {
     expect(ineligibleReason(classify({ registrationExpiry: expiry }))).toBe(
       'expired-registration',
     )
+    vi.useRealTimers()
+  })
+
+  it('marks near-future expiry as renewable grace in local dev for testing', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    const expiry = Math.floor(
+      new Date('2026-01-29T00:00:00.000Z').getTime() / 1000,
+    ).toString()
+
+    const result = classify({ registrationExpiry: expiry })
+
+    expect(result?.type).toBe('renewableGrace')
+    if (result?.type !== 'renewableGrace') throw new Error('not renewable')
+    expect(result.name.renewalMode).toBe('local-test-noop')
+    expect(result.name.renewalDurationSeconds).toBe(28 * 24 * 60 * 60)
+    vi.useRealTimers()
+  })
+
+  it('treats renewed grace names as normal migration candidates in the current session', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    const expiry = Math.floor(
+      new Date('2026-01-29T00:00:00.000Z').getTime() / 1000,
+    ).toString()
+
+    const result = classifyName(
+      makeDomain({ registrationExpiry: expiry }),
+      OWNER,
+      { renewedGraceNames: new Set(['alice.eth']) },
+    )
+
+    expect(result?.type).toBe('classified')
+    if (result?.type !== 'classified') throw new Error('not classified')
+    expect(result.name.tokenType).toBe('unwrapped')
     vi.useRealTimers()
   })
 })

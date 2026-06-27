@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import { useLegacyGraceRenewalEstimate } from '@/features/migration/hooks/useLegacyGraceRenewalEstimate'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 import type { MigrationGasFundingStatus } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useNameSelection } from '@/features/migration/hooks/useNameSelection'
@@ -22,6 +23,7 @@ type SelectNamesStepProps = {
   readonly onNamesChange: (names: string[]) => void
   readonly onRenewGrace: (names: string[]) => boolean | Promise<boolean>
   readonly onNext: () => boolean | Promise<boolean>
+  readonly renewedGraceNames?: readonly string[]
 }
 
 export const SelectNamesStep = ({
@@ -31,8 +33,15 @@ export const SelectNamesStep = ({
   onNamesChange,
   onRenewGrace,
   onNext,
+  renewedGraceNames,
 }: SelectNamesStepProps) => {
-  const { eligible, renewableGrace = [], isPending } = useEligibleV1Names()
+  const {
+    eligible,
+    renewableGrace = [],
+    isPending,
+  } = useEligibleV1Names({
+    renewedGraceNames,
+  })
   const [isStarting, setIsStarting] = useState(false)
   const selectableNames = useMemo(
     () => [...eligible, ...renewableGrace],
@@ -57,14 +66,20 @@ export const SelectNamesStep = ({
     isPending,
     onNamesChange,
   })
-  const selectedGraceNames = useMemo(
-    () =>
-      renewableGrace
-        .filter((name) => selected.has(name.domain.name))
-        .map((name) => name.domain.name),
+  const selectedGraceNameObjects = useMemo(
+    () => renewableGrace.filter((name) => selected.has(name.domain.name)),
     [renewableGrace, selected],
   )
+  const selectedGraceNames = useMemo(
+    () => selectedGraceNameObjects.map((name) => name.domain.name),
+    [selectedGraceNameObjects],
+  )
   const hasSelectedGraceNames = selectedGraceNames.length > 0
+  const renewalEstimate = useLegacyGraceRenewalEstimate(
+    selectedGraceNameObjects,
+  )
+  const isWaitingForRenewalEstimate =
+    hasSelectedGraceNames && renewalEstimate.status !== 'ready'
 
   const isEstimatingGas =
     totalSelected > 0 &&
@@ -85,6 +100,7 @@ export const SelectNamesStep = ({
     totalSelected === 0 ||
     isPending ||
     isStarting ||
+    isWaitingForRenewalEstimate ||
     isWaitingForGasEstimate ||
     isWaitingForGasFunding
   const showBulkSelection = shouldShowBulkSelection(visibleCount)
@@ -162,6 +178,7 @@ export const SelectNamesStep = ({
         isUpgradeDisabled={isUpgradeDisabled}
         isWaitingForGasFunding={isWaitingForGasFunding}
         onUpgrade={handleUpgrade}
+        renewalEstimate={renewalEstimate}
         selectedGraceCount={selectedGraceNames.length}
         totalSelected={totalSelected}
         visibleCount={visibleCount}

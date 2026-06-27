@@ -166,6 +166,7 @@ export const buildMigrationPlan = async (params: {
   preflight: MigrationPreflight
   hasBaseRegistrarApproval: boolean
   hasNameWrapperApproval: boolean
+  renewedGraceNames?: readonly string[]
 }): Promise<MigrationPlan> => {
   const {
     domains,
@@ -174,9 +175,12 @@ export const buildMigrationPlan = async (params: {
     preflight,
     hasBaseRegistrarApproval,
     hasNameWrapperApproval,
+    renewedGraceNames = [],
   } = params
 
-  const classifiedNamesResult = classifyNames([...domains], migrationOwner)
+  const classifiedNamesResult = classifyNames([...domains], migrationOwner, {
+    renewedGraceNames: new Set(renewedGraceNames),
+  })
   const classified = await routeEmptyProfilesToOwnedPermRes(
     classifiedNamesResult.classified,
   )

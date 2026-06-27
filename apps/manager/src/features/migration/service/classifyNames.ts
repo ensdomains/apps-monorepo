@@ -4,7 +4,10 @@ import {
   isInGracePeriod,
 } from '@/features/grace/utils/gracePeriod'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
-import { getV1GraceRenewalDurationSeconds } from './graceRenewal'
+import {
+  getV1GraceRenewalDurationSeconds,
+  isV1GraceLocalTestFutureExpiry,
+} from './graceRenewal'
 import type { V1Domain } from './v1SubgraphClient'
 
 const toAddress = (s: string | null | undefined): Address | null => {
@@ -64,6 +67,7 @@ export type ClassifiedName = {
 
 export type RenewableGraceName = ClassifiedName & {
   readonly renewalStatus: 'renewable-grace'
+  readonly renewalMode: 'onchain' | 'local-test-noop'
   readonly registrationExpiryDate: Date
   readonly graceEndDate: Date
   readonly renewalDurationSeconds: number
@@ -105,6 +109,10 @@ type ClassifyResult =
   | { type: 'ineligible'; name: IneligibleName }
   | null
 
+type ClassifyOptions = {
+  readonly renewedGraceNames?: ReadonlySet<string>
+}
+
 const UNKNOWN_LABEL_PATTERN = /\[[0-9a-fA-F]{64}\]/
 const hasUnknownLabel = (domain: V1Domain): boolean => {
   if (!domain.labelName) return true
@@ -144,6 +152,7 @@ const makeRenewableGraceName = (params: {
   readonly v1ResolverAddress: string | null
   readonly managerAddress: Address | null
   readonly registrationExpiryDate: Date
+  readonly renewalMode: RenewableGraceName['renewalMode']
   readonly now: Date
 }): RenewableGraceName => ({
   domain: params.domain,
@@ -160,6 +169,7 @@ const makeRenewableGraceName = (params: {
   }),
   managerAddress: params.managerAddress,
   renewalStatus: 'renewable-grace',
+  renewalMode: params.renewalMode,
   registrationExpiryDate: params.registrationExpiryDate,
   graceEndDate: getGraceEndDate(params.registrationExpiryDate, false),
   renewalDurationSeconds: getV1GraceRenewalDurationSeconds(
@@ -203,19 +213,29 @@ const classifyExpiredRegistration = (params: {
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
   readonly managerAddress: Address | null
+  readonly skipGraceClassification: boolean
   readonly now: Date
 }): ClassifyResult => {
   const registrationExpiryDate = getDotEthRegistrationExpiry(
     params.domain,
     params.parentName,
   )
-  if (
-    !registrationExpiryDate ||
-    !isExpired(registrationExpiryDate, params.now)
-  ) {
+  if (!registrationExpiryDate) return null
+  const isExpiredRegistration = isExpired(registrationExpiryDate, params.now)
+  const isLocalTestGrace = isV1GraceLocalTestFutureExpiry(
+    registrationExpiryDate,
+    params.now,
+  )
+  if (!isExpiredRegistration && !isLocalTestGrace) {
     return null
   }
-  if (isInGracePeriod(registrationExpiryDate, false, params.now)) {
+  if (params.skipGraceClassification) {
+    return null
+  }
+  if (
+    isLocalTestGrace ||
+    isInGracePeriod(registrationExpiryDate, false, params.now)
+  ) {
     return {
       type: 'renewableGrace',
       name: makeRenewableGraceName({
@@ -226,6 +246,7 @@ const classifyExpiredRegistration = (params: {
         v1ResolverAddress: params.v1ResolverAddress,
         managerAddress: params.managerAddress,
         registrationExpiryDate,
+        renewalMode: isLocalTestGrace ? 'local-test-noop' : 'onchain',
         now: params.now,
       }),
     }
@@ -242,9 +263,11 @@ const classifyUnwrappedDomain = (params: {
   readonly parentName: string | null
   readonly addr: string
   readonly v1ResolverAddress: string | null
+  readonly options: ClassifyOptions
   readonly now: Date
 }): ClassifyResult => {
-  const { addr, domain, label, now, parentName, v1ResolverAddress } = params
+  const { addr, domain, label, now, options, parentName, v1ResolverAddress } =
+    params
   const registrant = domain.registrant
   if (registrant?.id.toLowerCase() !== addr) return null
   if (parentName !== 'eth') return null
@@ -265,6 +288,8 @@ const classifyUnwrappedDomain = (params: {
     tokenHolder,
     v1ResolverAddress,
     managerAddress,
+    skipGraceClassification:
+      options.renewedGraceNames?.has(domain.name) ?? false,
     now,
   })
   if (expiredRegistration) return expiredRegistration
@@ -338,12 +363,14 @@ const classifyWrappedDomain = (params: {
   readonly wrappedDomain: NonNullable<V1Domain['wrappedDomain']>
   readonly wrappedOwnerMatches: boolean
   readonly v1ResolverAddress: string | null
+  readonly options: ClassifyOptions
   readonly now: Date
 }): ClassifyResult => {
   const {
     domain,
     label,
     now,
+    options,
     parentName,
     v1ResolverAddress,
     wrappedDomain,
@@ -363,6 +390,8 @@ const classifyWrappedDomain = (params: {
     tokenHolder: wrappedHolder,
     v1ResolverAddress,
     managerAddress: null,
+    skipGraceClassification:
+      options.renewedGraceNames?.has(domain.name) ?? false,
     now,
   })
   if (expiredRegistration) return expiredRegistration
@@ -399,6 +428,7 @@ const classifyWrappedDomain = (params: {
 export const classifyName = (
   domain: V1Domain,
   ownerAddress: Address,
+  options: ClassifyOptions = {},
 ): ClassifyResult => {
   if (hasUnknownLabel(domain)) {
     return { type: 'ineligible', name: { domain, reason: 'unknown-label' } }
@@ -425,6 +455,7 @@ export const classifyName = (
       parentName,
       addr,
       v1ResolverAddress,
+      options,
       now,
     })
   }
@@ -436,6 +467,7 @@ export const classifyName = (
     wrappedDomain: effectiveWrappedDomain,
     wrappedOwnerMatches,
     v1ResolverAddress,
+    options,
     now,
   })
 }
@@ -449,13 +481,14 @@ export type ClassifyNamesResult = {
 export const classifyNames = (
   domains: V1Domain[],
   ownerAddress: Address,
+  options: ClassifyOptions = {},
 ): ClassifyNamesResult => {
   const classified: ClassifiedName[] = []
   const renewableGrace: RenewableGraceName[] = []
   const ineligible: IneligibleName[] = []
 
   for (const domain of domains) {
-    const result = classifyName(domain, ownerAddress)
+    const result = classifyName(domain, ownerAddress, options)
     if (!result) continue
     if (result.type === 'classified') {
       classified.push(result.name)

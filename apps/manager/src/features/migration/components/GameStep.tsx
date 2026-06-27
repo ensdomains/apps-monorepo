@@ -1,33 +1,181 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { AnimatePresence, motion } from 'motion/react'
-import { match } from 'ts-pattern'
 import { useElementWidth } from '@/features/migration/hooks/useElementWidth'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
   useMigrateSubstep,
   useMigrationProgress,
+  useMigrationStep,
   useMigrationStepDescriptors,
+  useRenewGraceSubstep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { cn } from '@/lib/utils'
 import {
+  type CollapseTransition,
   computeBridgeLayout,
   describeNextStep,
   displayStepOf,
+  formatStepDescription,
   giantAnimateFor,
   giantModeOf,
   giantTransitionFor,
   VISIBLE_PLANKS,
 } from './GameStep.helpers'
 
+const GameHeading = ({
+  descriptionText,
+  displayStep,
+  hasCollapsed,
+  isRenewalStep,
+  totalSteps,
+}: {
+  readonly descriptionText: string
+  readonly displayStep: number
+  readonly hasCollapsed: boolean
+  readonly isRenewalStep: boolean
+  readonly totalSteps: number
+}) => (
+  <>
+    <motion.div
+      animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+      className="flex h-11 shrink-0 items-center"
+      transition={{ duration: 0.3 }}
+    >
+      <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
+        {isRenewalStep ? (
+          <Trans>Renewing your names...</Trans>
+        ) : (
+          <Trans>Upgrading your names...</Trans>
+        )}
+      </p>
+    </motion.div>
+
+    <motion.div
+      animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+      className="flex h-6 shrink-0 items-center overflow-hidden"
+      transition={{ duration: 0.3 }}
+    >
+      <AnimatePresence mode="popLayout">
+        <motion.span
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          className="font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
+          exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+          initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+          key={descriptionText}
+          transition={{ duration: 0.3 }}
+        >
+          {descriptionText}
+        </motion.span>
+      </AnimatePresence>
+    </motion.div>
+
+    {totalSteps > 1 && (
+      <motion.div
+        animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
+        className="mt-1 flex h-4 shrink-0 items-center"
+        transition={{ duration: 0.3 }}
+      >
+        <span className="font-semi-mono text-[10px] text-ens-garnet-400 uppercase tabular-nums tracking-[0.12px]">
+          {displayStep}/{totalSteps}
+        </span>
+      </motion.div>
+    )}
+  </>
+)
+
+type BridgePlankProps = {
+  readonly collapseTransition: CollapseTransition
+  readonly hasCollapsed: boolean
+  readonly id: string
+  readonly index: number
+  readonly plankWidth: number
+  readonly stepDone: boolean
+}
+
+const BridgePlank = ({
+  collapseTransition,
+  hasCollapsed,
+  id,
+  index,
+  plankWidth,
+  stepDone,
+}: BridgePlankProps) => (
+  <motion.div
+    animate={
+      hasCollapsed
+        ? {
+            y: 40 + (index % VISIBLE_PLANKS) * 15,
+            rotate: index % 2 === 0 ? 12 : -10,
+            opacity: 0,
+          }
+        : { y: 0, rotate: 0, opacity: 1 }
+    }
+    className="flex items-stretch"
+    key={id}
+    style={{ width: plankWidth - 6 }}
+    transition={
+      hasCollapsed
+        ? {
+            ...collapseTransition,
+            delay: 0.05 + (index % VISIBLE_PLANKS) * 0.06,
+          }
+        : { duration: 0 }
+    }
+  >
+    <motion.div
+      animate={stepDone ? { scaleX: 1, opacity: 1 } : undefined}
+      className={cn(
+        'h-6 flex-1 origin-left rounded-[3px] border-x-[3px]',
+        stepDone
+          ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
+          : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
+      )}
+      initial={stepDone ? { scaleX: 0, opacity: 0 } : undefined}
+      transition={{
+        duration: 0.5,
+        ease: [0.4, 0, 0.2, 1],
+      }}
+    />
+    <motion.div
+      animate={
+        hasCollapsed
+          ? {
+              y: 30 + (index % VISIBLE_PLANKS) * 10,
+              rotate: index % 2 === 0 ? -15 : 8,
+              opacity: 0,
+            }
+          : { y: 0, rotate: 0, opacity: 1 }
+      }
+      className={cn(
+        'ml-1.5 w-1 shrink-0 rounded-sm',
+        stepDone ? 'bg-ens-garnet-900/40' : 'bg-ens-garnet-900/10',
+      )}
+      transition={
+        hasCollapsed
+          ? {
+              ...collapseTransition,
+              delay: 0.08 + (index % VISIBLE_PLANKS) * 0.06,
+            }
+          : { duration: 0 }
+      }
+    />
+  </motion.div>
+)
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: animation state stays together so the bridge, frens, and giant remain synchronized.
 export const GameStep = () => {
   const { t } = useLingui()
   const { ref: trackRef, width: trackWidth } = useElementWidth()
 
   const { uiActor } = useMigrationUiContext()
-  const substep = useMigrateSubstep(uiActor)
+  const step = useMigrationStep(uiActor)
+  const migrateSubstep = useMigrateSubstep(uiActor)
+  const renewGraceSubstep = useRenewGraceSubstep(uiActor)
+  const substep = migrateSubstep ?? renewGraceSubstep
   const progress = useMigrationProgress(uiActor)
   const stepDescriptors = useMigrationStepDescriptors(uiActor)
+  const isRenewalStep = step === 'renewGrace'
 
   const done = substep === 'succeeding'
   const hasCollapsed = substep === 'failing'
@@ -49,34 +197,7 @@ export const GameStep = () => {
     progressDescription: progress?.description,
     descriptor: nextDescriptor,
   })
-  const descriptionText = match(stepDescription)
-    .with({ kind: 'done' }, () => t`Almost there...`)
-    .with({ kind: 'progress' }, ({ text }) => text)
-    .with({ kind: 'preparing' }, () => t`Getting ready...`)
-    .with(
-      { kind: 'approve-base-registrar' },
-      () => `${t`Approve in your wallet`}...`,
-    )
-    .with(
-      { kind: 'approve-name-wrapper' },
-      () => `${t`Approve in your wallet`}...`,
-    )
-    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up resolver`}...`)
-    .with({ kind: 'migrate-batch' }, ({ index, total, count }) =>
-      total === 1
-        ? `${t`Upgrading ${count} name(s)`}...`
-        : `${t`Upgrading batch ${index + 1} of ${total} (${count} name(s))`}...`,
-    )
-    .with(
-      { kind: 'grant-role' },
-      ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
-    )
-    .with({ kind: 'profile-replay-batch' }, ({ index, total }) =>
-      total === 1
-        ? `${t`Restoring your records`}...`
-        : `${t`Restoring records batch ${index + 1} of ${total}`}...`,
-    )
-    .exhaustive()
+  const descriptionText = formatStepDescription(stepDescription, t)
 
   const stepIds = Array.from({ length: totalSteps }, (_, i) => `step-${i}`)
 
@@ -92,46 +213,13 @@ export const GameStep = () => {
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-5 md:px-8">
       <div className="flex h-full w-full flex-col items-center justify-center">
-        <motion.div
-          animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
-          className="flex h-11 shrink-0 items-center"
-          transition={{ duration: 0.3 }}
-        >
-          <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-            <Trans>Upgrading your names...</Trans>
-          </p>
-        </motion.div>
-
-        <motion.div
-          animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
-          className="flex h-6 shrink-0 items-center overflow-hidden"
-          transition={{ duration: 0.3 }}
-        >
-          <AnimatePresence mode="popLayout">
-            <motion.span
-              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-              className="font-semi-mono text-ens-garnet-500 text-xs uppercase tracking-[0.12px]"
-              exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
-              initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
-              key={descriptionText}
-              transition={{ duration: 0.3 }}
-            >
-              {descriptionText}
-            </motion.span>
-          </AnimatePresence>
-        </motion.div>
-
-        {totalSteps > 1 && (
-          <motion.div
-            animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
-            className="mt-1 flex h-4 shrink-0 items-center"
-            transition={{ duration: 0.3 }}
-          >
-            <span className="font-semi-mono text-[10px] text-ens-garnet-400 uppercase tabular-nums tracking-[0.12px]">
-              {displayStep}/{totalSteps}
-            </span>
-          </motion.div>
-        )}
+        <GameHeading
+          descriptionText={descriptionText}
+          displayStep={displayStep}
+          hasCollapsed={hasCollapsed}
+          isRenewalStep={isRenewalStep}
+          totalSteps={totalSteps}
+        />
 
         <div className="relative mt-4 h-[360px] w-full max-w-[1040px] shrink-0">
           <motion.div
@@ -284,77 +372,17 @@ export const GameStep = () => {
                         : { duration: 0 }
                     }
                   />
-                  {stepIds.map((id, i) => {
-                    const stepDone = i < completedSteps
-                    return (
-                      <motion.div
-                        animate={
-                          hasCollapsed
-                            ? {
-                                y: 40 + (i % VISIBLE_PLANKS) * 15,
-                                rotate: i % 2 === 0 ? 12 : -10,
-                                opacity: 0,
-                              }
-                            : { y: 0, rotate: 0, opacity: 1 }
-                        }
-                        className="flex items-stretch"
-                        key={id}
-                        style={{ width: plankWidth - 6 }}
-                        transition={
-                          hasCollapsed
-                            ? {
-                                ...collapseTransition,
-                                delay: 0.05 + (i % VISIBLE_PLANKS) * 0.06,
-                              }
-                            : { duration: 0 }
-                        }
-                      >
-                        <motion.div
-                          animate={
-                            stepDone ? { scaleX: 1, opacity: 1 } : undefined
-                          }
-                          className={cn(
-                            'h-6 flex-1 origin-left rounded-[3px] border-x-[3px]',
-                            stepDone
-                              ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
-                              : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
-                          )}
-                          initial={
-                            stepDone ? { scaleX: 0, opacity: 0 } : undefined
-                          }
-                          transition={{
-                            duration: 0.5,
-                            ease: [0.4, 0, 0.2, 1],
-                          }}
-                        />
-                        <motion.div
-                          animate={
-                            hasCollapsed
-                              ? {
-                                  y: 30 + (i % VISIBLE_PLANKS) * 10,
-                                  rotate: i % 2 === 0 ? -15 : 8,
-                                  opacity: 0,
-                                }
-                              : { y: 0, rotate: 0, opacity: 1 }
-                          }
-                          className={cn(
-                            'ml-1.5 w-1 shrink-0 rounded-sm',
-                            stepDone
-                              ? 'bg-ens-garnet-900/40'
-                              : 'bg-ens-garnet-900/10',
-                          )}
-                          transition={
-                            hasCollapsed
-                              ? {
-                                  ...collapseTransition,
-                                  delay: 0.08 + (i % VISIBLE_PLANKS) * 0.06,
-                                }
-                              : { duration: 0 }
-                          }
-                        />
-                      </motion.div>
-                    )
-                  })}
+                  {stepIds.map((id, i) => (
+                    <BridgePlank
+                      collapseTransition={collapseTransition}
+                      hasCollapsed={hasCollapsed}
+                      id={id}
+                      index={i}
+                      key={id}
+                      plankWidth={plankWidth}
+                      stepDone={i < completedSteps}
+                    />
+                  ))}
                 </motion.div>
               </div>
 

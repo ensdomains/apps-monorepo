@@ -3,6 +3,11 @@ import type { MigrationStepDescriptor } from '@/features/migration/service/migra
 
 export const VISIBLE_PLANKS = 6
 
+export type CollapseTransition = {
+  readonly duration: number
+  readonly ease: readonly [number, number, number, number]
+}
+
 export type BridgeLayout = {
   readonly plankWidth: number
   readonly frensX: number
@@ -71,6 +76,12 @@ export type StepDescription =
   | { readonly kind: 'done' }
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
+  | {
+      readonly kind: 'renew-grace'
+      readonly label: string
+      readonly index: number
+      readonly total: number
+    }
   | { readonly kind: 'approve-base-registrar' }
   | { readonly kind: 'approve-name-wrapper' }
   | { readonly kind: 'ensure-resolver' }
@@ -100,6 +111,12 @@ export const describeNextStep = (params: {
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
+    .with({ descriptor: { type: 'renew-grace' } }, ({ descriptor }) => ({
+      kind: 'renew-grace' as const,
+      label: descriptor.label,
+      index: descriptor.index,
+      total: descriptor.total,
+    }))
     .with({ descriptor: { type: 'approve-base-registrar' } }, () => ({
       kind: 'approve-base-registrar' as const,
     }))
@@ -126,6 +143,44 @@ export const describeNextStep = (params: {
         index: descriptor.index,
         total: descriptor.total,
       }),
+    )
+    .exhaustive()
+
+export const formatStepDescription = (
+  stepDescription: StepDescription,
+  t: (strings: TemplateStringsArray, ...values: unknown[]) => string,
+): string =>
+  match(stepDescription)
+    .with({ kind: 'done' }, () => t`Almost there...`)
+    .with({ kind: 'progress' }, ({ text }) => text)
+    .with({ kind: 'preparing' }, () => t`Getting ready...`)
+    .with({ kind: 'renew-grace' }, ({ label, index, total }) =>
+      total === 1
+        ? `${t`Renewing ${label}.eth`}...`
+        : `${t`Renewing ${label}.eth`} (${index + 1}/${total})...`,
+    )
+    .with(
+      { kind: 'approve-base-registrar' },
+      () => `${t`Approve in your wallet`}...`,
+    )
+    .with(
+      { kind: 'approve-name-wrapper' },
+      () => `${t`Approve in your wallet`}...`,
+    )
+    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up resolver`}...`)
+    .with({ kind: 'migrate-batch' }, ({ index, total, count }) =>
+      total === 1
+        ? `${t`Upgrading ${count} name(s)`}...`
+        : `${t`Upgrading batch ${index + 1} of ${total} (${count} name(s))`}...`,
+    )
+    .with(
+      { kind: 'grant-role' },
+      ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
+    )
+    .with({ kind: 'profile-replay-batch' }, ({ index, total }) =>
+      total === 1
+        ? `${t`Restoring your records`}...`
+        : `${t`Restoring records batch ${index + 1} of ${total}`}...`,
     )
     .exhaustive()
 

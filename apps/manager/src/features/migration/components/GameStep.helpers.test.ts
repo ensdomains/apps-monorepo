@@ -92,6 +92,19 @@ describe('describeNextStep', () => {
       { kind: 'preparing' },
     ],
     [
+      'renew-grace descriptor',
+      {
+        done: false,
+        descriptor: descriptor({
+          type: 'renew-grace',
+          label: 'alice',
+          index: 0,
+          total: 1,
+        }),
+      },
+      { kind: 'renew-grace', label: 'alice', index: 0, total: 1 },
+    ],
+    [
       'approve-base-registrar descriptor',
       {
         done: false,

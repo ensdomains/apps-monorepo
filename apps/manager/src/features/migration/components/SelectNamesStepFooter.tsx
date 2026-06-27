@@ -1,11 +1,13 @@
 import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
+import type { LegacyGraceRenewalEstimateState } from '@/features/migration/hooks/useLegacyGraceRenewalEstimate'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
   readonly isWaitingForGasFunding: boolean
+  readonly renewalEstimate: LegacyGraceRenewalEstimateState
   readonly selectedGraceCount: number
   readonly totalSelected: number
 }
@@ -13,20 +15,46 @@ type GasEstimateMessageProps = {
 const GasEstimateMessage = ({
   gasEstimate,
   isWaitingForGasFunding,
+  renewalEstimate,
   selectedGraceCount,
   totalSelected,
 }: GasEstimateMessageProps) => {
   if (totalSelected === 0) return null
 
   if (selectedGraceCount > 0) {
-    return (
-      <p>
-        <Trans>
-          Renewal brings grace-period names back before upgrade. You can renew
-          for longer after upgrade.
-        </Trans>
-      </p>
-    )
+    return match(renewalEstimate)
+      .with({ status: 'ready' }, (estimate) => (
+        <p>
+          <Trans>
+            Renewal cost:{' '}
+            <strong className="font-semibold">
+              ~{estimate.formattedRenewalEth} ETH
+            </strong>
+          </Trans>
+          <br />
+          <Trans>
+            Estimated network fee:{' '}
+            <strong className="font-semibold">
+              ~{estimate.formattedGasEth} ETH
+            </strong>{' '}
+            across{' '}
+            <strong className="font-semibold">
+              {estimate.transactionCount} transactions
+            </strong>
+            .
+          </Trans>
+        </p>
+      ))
+      .with({ status: 'error' }, () => (
+        <p>
+          <Trans>Renewal estimate unavailable</Trans>
+        </p>
+      ))
+      .otherwise(() => (
+        <p>
+          <Trans>Estimating renewal cost...</Trans>
+        </p>
+      ))
   }
 
   // The gas drip request only resolves once any sepETH top-up is confirmed
@@ -74,7 +102,6 @@ type UpgradeButtonLabelProps = {
   readonly isEstimatingGas: boolean
   readonly isStarting: boolean
   readonly isWaitingForGasFunding: boolean
-  readonly selectedGraceCount: number
   readonly totalSelected: number
 }
 
@@ -82,11 +109,9 @@ const UpgradeButtonLabel = ({
   isEstimatingGas,
   isStarting,
   isWaitingForGasFunding,
-  selectedGraceCount,
   totalSelected,
 }: UpgradeButtonLabelProps) => {
   if (isStarting) return <Trans>Starting...</Trans>
-  if (selectedGraceCount > 0) return <Trans>Renewal</Trans>
   if (isEstimatingGas) return <Trans>Estimating...</Trans>
   if (isWaitingForGasFunding) return <Trans>Preparing wallet...</Trans>
   return (
@@ -105,6 +130,7 @@ type SelectNamesStepFooterProps = {
   readonly isUpgradeDisabled: boolean
   readonly isWaitingForGasFunding: boolean
   readonly onUpgrade: () => void
+  readonly renewalEstimate: LegacyGraceRenewalEstimateState
   readonly selectedGraceCount: number
   readonly totalSelected: number
   readonly visibleCount: number
@@ -117,6 +143,7 @@ export const SelectNamesStepFooter = ({
   isUpgradeDisabled,
   isWaitingForGasFunding,
   onUpgrade,
+  renewalEstimate,
   selectedGraceCount,
   totalSelected,
   visibleCount,
@@ -126,6 +153,7 @@ export const SelectNamesStepFooter = ({
       <GasEstimateMessage
         gasEstimate={gasEstimate}
         isWaitingForGasFunding={isWaitingForGasFunding}
+        renewalEstimate={renewalEstimate}
         selectedGraceCount={selectedGraceCount}
         totalSelected={totalSelected}
       />
@@ -149,7 +177,6 @@ export const SelectNamesStepFooter = ({
           isEstimatingGas={isEstimatingGas}
           isStarting={isStarting}
           isWaitingForGasFunding={isWaitingForGasFunding}
-          selectedGraceCount={selectedGraceCount}
           totalSelected={totalSelected}
         />
       </button>

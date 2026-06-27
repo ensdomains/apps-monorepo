@@ -37,6 +37,10 @@ export const useMigrationMigratedNames = createMigrationUiSelector(
   (state) => state.context.migratedNames,
 )
 
+export const useMigrationRenewedGraceNames = createMigrationUiSelector(
+  (state) => state.context.renewedGraceNames,
+)
+
 export const useMigrationLastError = createMigrationUiSelector(
   (state) => state.context.lastError,
 )

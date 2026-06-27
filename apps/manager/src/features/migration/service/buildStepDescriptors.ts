@@ -2,6 +2,7 @@ import type { ClassifiedName, GroupedNames } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
 
 export type MigrationStepDescriptor =
+  | { type: 'renew-grace'; label: string; index: number; total: number }
   | { type: 'approve-base-registrar' }
   | { type: 'approve-name-wrapper' }
   | { type: 'ensure-resolver' }

@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import type { ClassifiedName } from '../service/classifyNames'
@@ -13,6 +13,20 @@ type NameRowProps = {
   readonly onClick?: () => void
 }
 
+const RenewalBadge = ({ visible }: { readonly visible: boolean }) => {
+  if (!visible) return null
+  return (
+    <span
+      aria-label="Needs renewal"
+      className="relative z-10 flex size-9.25 shrink-0 items-center justify-center rounded-xs border border-ens-citrine-300 bg-ens-citrine-100 text-ens-citrine-600"
+      role="img"
+      title="Needs renewal"
+    >
+      <CircleAlert className="size-4.5" strokeWidth={2} />
+    </span>
+  )
+}
+
 export const NameRow = ({
   item,
   isSelected,
@@ -25,6 +39,8 @@ export const NameRow = ({
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
   const avatarUrl = getMigrationAvatarUrl(item.domain.name)
   const showAvatar = failedAvatarUrl !== avatarUrl
+  const needsRenewal =
+    'renewalStatus' in item && item.renewalStatus === 'renewable-grace'
 
   const content = (
     <>
@@ -72,14 +88,15 @@ export const NameRow = ({
       </div>
       <div
         className={cn(
-          'flex h-9.25 items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
+          'flex h-9.25 min-w-0 items-center rounded-xs border bg-white px-2 py-1 font-medium font-semi-mono text-base leading-[0.96] tracking-[-0.32px] md:text-[20px] md:tracking-[-0.4px]',
           isSelected
             ? 'border-ens-quartz-500/40 text-ens-quartz-500'
             : 'border-ens-lapis-500 text-ens-lapis-500',
         )}
       >
-        {item.domain.name}
+        <span className="min-w-0 break-all">{item.domain.name}</span>
       </div>
+      <RenewalBadge visible={needsRenewal} />
     </>
   )
 

@@ -3,7 +3,7 @@ import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect, useMemo } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
@@ -22,16 +22,19 @@ import {
 } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
-  useGraceRenewalProgress,
   useMigrateSubstep,
   useMigrationLastError,
   useMigrationMigratedNames,
+  useMigrationRenewedGraceNames,
   useMigrationSelectedNames,
   useMigrationStep,
   useRenewGraceSubstep,
 } from '@/features/migration/state/migrationUi.selectors'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isPostMigrationRefreshQueryKey } from './MigrationPage.helpers'
+import {
+  getAutoMigrationStartKeyAfterRenewal,
+  isPostMigrationRefreshQueryKey,
+} from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
@@ -114,15 +117,16 @@ export const MigrationPage = ({ initialRenewName }: MigrationPageProps) => {
   const step = useMigrationStep(uiActor)
   const migrateSubstep = useMigrateSubstep(uiActor)
   const renewGraceSubstep = useRenewGraceSubstep(uiActor)
-  const renewalProgress = useGraceRenewalProgress(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const migratedNames = useMigrationMigratedNames(uiActor)
+  const renewedGraceNames = useMigrationRenewedGraceNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
-  const { renewableGrace } = useEligibleV1Names()
+  const { renewableGrace } = useEligibleV1Names({ renewedGraceNames })
   const { ownerAddress } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
+  const lastAutoMigrationStartKeyRef = useRef<string | null>(null)
   const renewableGraceByName = useMemo(
     () => new Map(renewableGrace.map((name) => [name.domain.name, name])),
     [renewableGrace],
@@ -145,6 +149,7 @@ export const MigrationPage = ({ initialRenewName }: MigrationPageProps) => {
   )
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
+    renewedGraceNames,
     selectedNames: selectedMigrationNames,
     v1Names,
   })
@@ -155,6 +160,15 @@ export const MigrationPage = ({ initialRenewName }: MigrationPageProps) => {
   // resolve until any drip is confirmed on-chain, so we gate the upgrade
   // button on `gasFundingStatus` to stop owners starting before the ETH lands.
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
+  const autoMigrationStartKey = getAutoMigrationStartKeyAfterRenewal({
+    step,
+    selectedNames,
+    renewedGraceNames,
+    selectedRenewableGraceCount: selectedRenewableGraceNames.length,
+    gasEstimateStatus: gasEstimate.status,
+    gasFundingStatus,
+    canSubmitMigration: !!ownerAddress && !!wagmiWalletClient?.account,
+  })
 
   useEffect(() => {
     if (migrateSubstep === 'succeeding' || renewGraceSubstep === 'succeeding') {
@@ -240,6 +254,21 @@ export const MigrationPage = ({ initialRenewName }: MigrationPageProps) => {
     [ownerAddress, renewableGraceByName, uiActor, wagmiWalletClient],
   )
 
+  useEffect(() => {
+    if (!autoMigrationStartKey) return
+    if (lastAutoMigrationStartKeyRef.current === autoMigrationStartKey) return
+
+    lastAutoMigrationStartKeyRef.current = autoMigrationStartKey
+    void handleBeginUpgrade().then((didStart) => {
+      if (
+        !didStart &&
+        lastAutoMigrationStartKeyRef.current === autoMigrationStartKey
+      ) {
+        lastAutoMigrationStartKeyRef.current = null
+      }
+    })
+  }, [autoMigrationStartKey, handleBeginUpgrade])
+
   return (
     <div className="relative flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 flex-col overflow-hidden">
       <GrainOverlay className="opacity-70" />
@@ -267,34 +296,10 @@ export const MigrationPage = ({ initialRenewName }: MigrationPageProps) => {
             onNamesChange={handleNamesChange}
             onNext={handleBeginUpgrade}
             onRenewGrace={handleRenewGrace}
+            renewedGraceNames={renewedGraceNames}
           />
         ))
-        .with('renewGrace', () => (
-          <ResultLayout>
-            <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
-              <Trans>Renewal</Trans>
-            </p>
-            <motion.div
-              animate={{ opacity: 1, y: 0 }}
-              className="flex w-full max-w-md flex-col gap-2 rounded-sm bg-ens-garnet-900/5 p-4 text-center text-ens-garnet-900/75"
-              initial={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.4, delay: 0.15 }}
-            >
-              <p className="text-sm leading-normal">
-                {renewalProgress?.description ?? (
-                  <Trans>Preparing renewal...</Trans>
-                )}
-              </p>
-              {renewalProgress && (
-                <p className="font-semi-mono text-xs uppercase tracking-[1.44px]">
-                  <Trans>
-                    Name {renewalProgress.current} of {renewalProgress.total}
-                  </Trans>
-                </p>
-              )}
-            </motion.div>
-          </ResultLayout>
-        ))
+        .with('renewGrace', () => <GameStep />)
         .with('migrate', () => <GameStep />)
         .with('failure', () => (
           <ResultLayout>

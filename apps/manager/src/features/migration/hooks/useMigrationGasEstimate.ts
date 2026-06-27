@@ -25,9 +25,12 @@ export type MigrationGasEstimateState =
 
 type UseMigrationGasEstimateParams = {
   readonly ownerAddress: Address | undefined
+  readonly renewedGraceNames?: readonly string[]
   readonly selectedNames: readonly string[]
   readonly v1Names: readonly V1Domain[]
 }
+
+const EMPTY_RENEWED_GRACE_NAMES: readonly string[] = []
 
 const selectDomainsFromNames = (
   v1Names: readonly V1Domain[],
@@ -46,6 +49,7 @@ const formatEstimatedEth = (wei: bigint): string => {
 
 export const useMigrationGasEstimate = ({
   ownerAddress,
+  renewedGraceNames = EMPTY_RENEWED_GRACE_NAMES,
   selectedNames,
   v1Names,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
@@ -78,6 +82,7 @@ export const useMigrationGasEstimate = ({
       'migration-gas-estimate',
       ownerAddress?.toLowerCase() ?? '',
       domainIds,
+      renewedGraceNames.join(','),
       selectionRevisionRef.current.revision,
     ] as const,
     enabled,
@@ -95,6 +100,7 @@ export const useMigrationGasEstimate = ({
         preflight,
         hasBaseRegistrarApproval: preflight.baseRegistrarApproved,
         hasNameWrapperApproval: preflight.nameWrapperApproved,
+        renewedGraceNames,
       })
       const estimate = await estimateMigrationGasCost({
         plan,

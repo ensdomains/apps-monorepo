@@ -9,13 +9,20 @@ import {
 } from '@/features/migration/service/classifyNames'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
+const EMPTY_RENEWED_GRACE_NAMES: readonly string[] = []
+
 type UseEligibleV1NamesOptions = {
   readonly enabled?: boolean
   readonly fallbackToClassified?: boolean
+  readonly renewedGraceNames?: readonly string[]
 }
 
 export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
-  const { enabled = true, fallbackToClassified = true } = options
+  const {
+    enabled = true,
+    fallbackToClassified = true,
+    renewedGraceNames = EMPTY_RENEWED_GRACE_NAMES,
+  } = options
   const { ownerAddress } = useSmartAccountContext()
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
 
@@ -25,12 +32,14 @@ export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
         classified: [] as ClassifiedName[],
         renewableGrace: [] as RenewableGraceName[],
       }
-    const result = classifyNames(v1NamesRaw, ownerAddress as Address)
+    const result = classifyNames(v1NamesRaw, ownerAddress as Address, {
+      renewedGraceNames: new Set(renewedGraceNames),
+    })
     return {
       classified: result.classified,
       renewableGrace: result.renewableGrace,
     }
-  }, [enabled, v1NamesRaw, ownerAddress])
+  }, [enabled, v1NamesRaw, ownerAddress, renewedGraceNames])
 
   const { data: eligibility, isPending: isEligibilityPending } =
     useMigrationEligibility(

@@ -33,6 +33,15 @@ import {
 const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
 
+const graceRenewalProgressToMigrationProgress = (
+  progress: LegacyGraceRenewalProgress,
+): MigrationProgress => ({
+  currentStep: Math.max(0, progress.current - 1),
+  totalSteps: progress.total,
+  description: progress.description,
+  txHash: progress.txHash,
+})
+
 type Context = {
   wagmiConfig: WagmiConfig
   selectedNames: string[]
@@ -243,13 +252,21 @@ export const migrationUiMachine = setup({
         renewalTxHashes: [] as readonly Hex[],
         renewedGraceNames: [] as string[],
         plan: undefined,
+        progress: undefined,
+        stepDescriptors: event.names.map((name, index) => ({
+          type: 'renew-grace' as const,
+          label: name.label,
+          index,
+          total: event.names.length,
+        })),
       }
     }),
-    setRenewalProgress: assign({
-      renewalProgress: ({ event, context }) =>
-        event.type === 'graceRenewal.progress'
-          ? event.progress
-          : context.renewalProgress,
+    setRenewalProgress: assign(({ event }) => {
+      if (event.type !== 'graceRenewal.progress') return {}
+      return {
+        renewalProgress: event.progress,
+        progress: graceRenewalProgressToMigrationProgress(event.progress),
+      }
     }),
     appendGraceRenewalComplete: assign(({ event, context }) => {
       if (event.type !== 'graceRenewal.nameComplete') return {}

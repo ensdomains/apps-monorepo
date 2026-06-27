@@ -1,11 +1,12 @@
 export const ETH_REGISTRAR_CONTROLLER_ABI = [
   {
     inputs: [
-      { internalType: 'string', name: 'name', type: 'string' },
+      { internalType: 'string', name: 'label', type: 'string' },
       { internalType: 'uint256', name: 'duration', type: 'uint256' },
+      { internalType: 'bytes32', name: 'referrer', type: 'bytes32' },
     ],
     name: 'renew',
-    outputs: [{ internalType: 'uint256', name: 'cost', type: 'uint256' }],
+    outputs: [],
     stateMutability: 'payable',
     type: 'function',
   },

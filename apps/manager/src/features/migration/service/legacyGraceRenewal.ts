@@ -2,6 +2,7 @@ import {
   type Call,
   ENS_SEPOLIA_CONTRACTS,
   ETH_REGISTRAR_CONTROLLER_ABI,
+  REFERER_ADDRESS,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -29,7 +30,17 @@ export type LegacyGraceRenewalResult = {
   readonly txHashes: readonly Hex[]
 }
 
+export type LegacyGraceRenewalEstimate = {
+  readonly renewalCostWei: bigint
+  readonly gasFeeWei: bigint
+  readonly gasUnits: bigint
+  readonly transactionCount: number
+}
+
 const PENDING_TX_HASH = '0x0' as Hex
+const FALLBACK_RENEWAL_GAS_UNITS = 120_000n
+const isLocalTestNoopRenewal = (name: RenewableGraceName): boolean =>
+  name.renewalMode === 'local-test-noop'
 
 export const buildLegacyGraceRenewalCall = ({
   name,
@@ -40,11 +51,11 @@ export const buildLegacyGraceRenewalCall = ({
   data: encodeFunctionData({
     abi: ETH_REGISTRAR_CONTROLLER_ABI,
     functionName: 'renew',
-    args: [name.label, BigInt(name.renewalDurationSeconds)],
+    args: [name.label, BigInt(name.renewalDurationSeconds), REFERER_ADDRESS],
   }),
 })
 
-const getLegacyGraceRenewalPrice = async (
+export const getLegacyGraceRenewalPrice = async (
   publicClient: PublicClient,
   name: RenewableGraceName,
 ): Promise<bigint> => {
@@ -55,6 +66,15 @@ const getLegacyGraceRenewalPrice = async (
     args: [name.label, BigInt(name.renewalDurationSeconds)],
   })
   return price.base + price.premium
+}
+
+const estimateFeePerGas = async (
+  publicClient: PublicClient,
+): Promise<bigint> => {
+  const fees = await publicClient.estimateFeesPerGas()
+  if (fees.maxFeePerGas) return fees.maxFeePerGas
+  if (fees.gasPrice) return fees.gasPrice
+  return publicClient.getGasPrice()
 }
 
 const buildEOARequest = (params: {
@@ -74,6 +94,41 @@ const buildEOARequest = (params: {
   }
 }
 
+export const estimateLegacyGraceRenewals = async (params: {
+  readonly names: readonly RenewableGraceName[]
+  readonly accountAddress: Address
+  readonly publicClient: PublicClient
+}): Promise<LegacyGraceRenewalEstimate> => {
+  const feePerGasWei = await estimateFeePerGas(params.publicClient)
+  let renewalCostWei = 0n
+  let gasUnits = 0n
+  let transactionCount = 0
+
+  for (const name of params.names) {
+    transactionCount += 1
+    const price = await getLegacyGraceRenewalPrice(params.publicClient, name)
+    const call = buildLegacyGraceRenewalCall({ name, price })
+    renewalCostWei += price
+    try {
+      gasUnits += await params.publicClient.estimateGas({
+        account: params.accountAddress,
+        to: call.to,
+        data: call.data,
+        value: call.value,
+      })
+    } catch {
+      gasUnits += FALLBACK_RENEWAL_GAS_UNITS
+    }
+  }
+
+  return {
+    renewalCostWei,
+    gasFeeWei: gasUnits * feePerGasWei,
+    gasUnits,
+    transactionCount,
+  }
+}
+
 export const executeLegacyGraceRenewals = async (params: {
   readonly names: readonly RenewableGraceName[]
   readonly signer: Signer
@@ -88,6 +143,23 @@ export const executeLegacyGraceRenewals = async (params: {
 
   for (const [index, name] of names.entries()) {
     const current = index + 1
+    if (isLocalTestNoopRenewal(name)) {
+      onProgress?.({
+        current,
+        total: names.length,
+        name: name.domain.name,
+        description: `Renew ${name.domain.name}`,
+      })
+      renewedNames.push(name.domain.name)
+      onProgress?.({
+        current,
+        total: names.length,
+        name: name.domain.name,
+        description: `Renewed ${name.domain.name}`,
+      })
+      continue
+    }
+
     onProgress?.({
       current,
       total: names.length,

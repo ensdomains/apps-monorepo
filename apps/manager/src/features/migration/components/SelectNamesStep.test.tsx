@@ -51,6 +51,10 @@ vi.mock('@/features/migration/hooks/useEligibleV1Names', () => ({
   }),
 }))
 
+vi.mock('@/features/migration/hooks/useLegacyGraceRenewalEstimate', () => ({
+  useLegacyGraceRenewalEstimate: () => ({ status: 'idle' }),
+}))
+
 // eslint-disable-next-line import/first
 import { SelectNamesStep } from './SelectNamesStep'
 
