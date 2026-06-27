@@ -1,22 +1,24 @@
 /**
- * Session storage — localStorage persistence for Rhinestone smart sessions.
+ * Session storage — localStorage persistence for Rhinestone HCA sessions.
  *
- * The ephemeral session key and its one-time enable signature are stored here,
- * keyed by smart-account (HCA) address, so a session is reused across Intents
- * and across page reloads (persistent session). The owner only signs ENABLE
- * once per stored session.
+ * NOTE: "session" is NOT ERC-7579 SmartSessions. It is an ephemeral key added
+ * as a time-boxed owner of the HCA's OwnableValidator (see ./registration-policy.ts).
  *
- * Storage-key versioning: the key is bumped whenever the session ACTION SET
- * changes, because the action set determines the PermissionId. Using a stale
- * `enableSignature` against a different PermissionId yields InvalidSignature()
- * at orchestrator simulation time. Old rows are harmless cruft; a fresh
- * session is enabled lazily on the next registration with a single prompt.
+ * The ephemeral session key (and metadata: address, expiry, owner, chain) is
+ * stored here, keyed by smart-account (HCA) address, so a session is reused
+ * across Intents and across page reloads (persistent session). The owner only
+ * signs the ENABLE Intent once per stored session.
  *
- *   v4 → v5: re-added the on-chain `time-frame` policy (SDK 1.8.0 fixed the
- *            12-vs-32-byte initData mismatch) and dropped the obsolete
- *            HCAFactory.setAccountOwner action (the audited HCA locks its
- *            module set and fixes its owner at construction). Both change the
- *            action-set hash → PermissionId.
+ * Storage-key versioning: the key is bumped whenever the stored-session SHAPE
+ * changes, so stale rows from an incompatible layout are ignored rather than
+ * mis-deserialized. Old rows are harmless cruft; a fresh session is enabled
+ * lazily on the next registration with a single ENABLE prompt.
+ *
+ *   v4 → v5: dropped the obsolete SmartSessions fields (`enableSignature`,
+ *            action set / PermissionId, etc.). The HCA does NOT use
+ *            SmartSessions — a session is just a time-boxed owner added to the
+ *            OwnableValidator — so the record now only needs the ephemeral key
+ *            and its expiry. See ./registration-policy.ts.
  */
 
 import type { Address } from 'viem'
@@ -126,7 +128,8 @@ export function setSkippedStatus(
 /**
  * Client-side expiry check — a UX preflight that evicts stale rows and
  * surfaces a re-enable prompt before the user spends an Intent. The actual
- * expiry boundary is enforced on-chain by the session's `time-frame` policy.
+ * expiry boundary is enforced on-chain by the owner's `uint48` expiration in
+ * the OwnableValidator (an expired owner is excluded from signature validation).
  * Returns `false` for sessions with no `validUntil` (treat as non-expiring).
  */
 export function isSessionExpired(session: RhinestoneStoredSession): boolean {

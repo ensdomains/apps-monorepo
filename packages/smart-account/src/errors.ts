@@ -9,7 +9,7 @@
 
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 
-/** Raised when creating/enabling a Rhinestone smart session fails. */
+/** Raised when creating/enabling a Rhinestone HCA owner-key session fails. */
 export class SessionEnableError extends TaggedError('SessionEnableError')<{
   message: string
   cause?: unknown

@@ -15,7 +15,7 @@
  * signature). The EOA-only path (no rhinestone signer) never needs a session.
  */
 
-import type { Address } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
 import type { SmartAccountContextValue } from './SmartAccountContext'
 
 export function needsSessionBeforeRegistration(
@@ -24,6 +24,40 @@ export function needsSessionBeforeRegistration(
   >,
 ): boolean {
   return account.signer?.type === 'rhinestone' && !account.hasActiveSession
+}
+
+/**
+ * Owner-equality guard for the Rhinestone session path (WEB-287 / EXP-RHN-003).
+ *
+ * The HCA owner address has two independent sources: the smart-account state
+ * machine's context (`snapshot.context.ownerAddress`, set at HCA init / enable
+ * time) and wagmi's connected wallet (`eoaAddress`). A time-boxed session enables
+ * an ephemeral key as an owner of the HCA for a SPECIFIC owner EOA; reusing it
+ * against a different connected EOA (shared device, cross-EOA reconnect, or a
+ * transitional state-machine snapshot where the machine has reset to
+ * `disconnected` — `ownerAddress=null` — while wagmi already reports a new
+ * address) would either register a name to the wrong owner or attach a session
+ * the on-chain OwnableValidator rejects.
+ *
+ * This returns the verified owner ONLY when both sources are present and agree
+ * (checksum-insensitive, via viem's `isAddressEqual`). It returns `null` —
+ * never a fallback — when the machine's owner is missing or diverges, so
+ * callers fail fast instead of papering over the race with `?? eoaAddress`.
+ *
+ * `isAddressEqual` throws on a malformed address; we treat that as a
+ * divergence (return `null`) rather than crashing the render that builds the
+ * signer — a non-address owner is, definitionally, not the connected EOA.
+ */
+export function resolveVerifiedOwner(
+  machineOwner: Address | null | undefined,
+  eoaAddress: Address | null | undefined,
+): Address | null {
+  if (!machineOwner || !eoaAddress) return null
+  try {
+    return isAddressEqual(machineOwner, eoaAddress) ? machineOwner : null
+  } catch {
+    return null
+  }
 }
 
 /**

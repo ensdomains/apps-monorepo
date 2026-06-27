@@ -110,10 +110,12 @@ interface TransactionCall {
 interface CreateTransactionRequestParams {
   readonly signer: Signer
   readonly from: Address
-  readonly to: Address
-  readonly data: Hex
-  readonly value: bigint
   readonly chainId: number
+  /**
+   * Single source of truth for the call data. EOA requests must contain
+   * exactly one call (its fields become the top-level tx); Rhinestone intents
+   * store the batch verbatim with no divergent top-level copy.
+   */
   readonly calls: TransactionCall[]
   readonly sponsored?: boolean
 }
@@ -297,34 +299,42 @@ const validateFinalCoinRecords = (
 function createTransactionRequest(
   params: CreateTransactionRequestParams,
 ): TransactionRequest {
-  const { signer, from, to, data, value, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls, sponsored } = params
+
+  if (calls.length === 0) {
+    throw new Error('createTransactionRequest requires at least one call')
+  }
 
   if (signer.type === 'eoa') {
     // EOA submits a single direct transaction (no batching support).
-    // `calls` is ignored; profile updates already use a single multicall to the resolver.
+    // Profile updates already use a single multicall to the resolver.
+    if (calls.length > 1) {
+      throw new Error(
+        'EOA transaction requests support a single call; received a batch.',
+      )
+    }
+    // biome-ignore lint/style/noNonNullAssertion: length checked above
+    const call = calls[0]!
     return {
       type: 'eoa',
       from,
-      to,
-      data,
-      value,
+      to: call.to,
+      data: call.data,
+      value: call.value,
       chainId,
-    } as EOATransactionRequest
+    } satisfies EOATransactionRequest
   }
 
   if (signer.type === 'rhinestone') {
     return {
       type: 'rhinestone-intent',
       from,
-      to,
-      data,
-      value,
       chainId,
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
       },
-    } as RhinestoneTransactionRequest
+    } satisfies RhinestoneTransactionRequest
   }
 
   signer satisfies never
@@ -448,9 +458,6 @@ async function buildRecordsUpdateRequest(
   const request = createTransactionRequest({
     signer,
     from: fromAddress,
-    to: resolverAddress,
-    data,
-    value: 0n,
     chainId,
     calls,
   })

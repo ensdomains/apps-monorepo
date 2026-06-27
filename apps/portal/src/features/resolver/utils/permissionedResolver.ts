@@ -1,5 +1,6 @@
 import {
   type Address,
+  bytesToHex,
   decodeEventLog,
   encodeFunctionData,
   getAddress,
@@ -23,8 +24,12 @@ const verifiableFactoryAbi = parseAbi([
 ])
 
 export const generateResolverSalt = (name: string) => {
-  const timestamp = new Date().toISOString()
-  return BigInt(keccak256(stringToBytes(`${name}:${timestamp}`)))
+  // Use CSPRNG (not `Date.now()`/`Math.random()`) so the resolver salt is
+  // unpredictable. The CREATE2 address is also bound to the deployer via
+  // `keccak256(abi.encode(msg.sender, salt))`, but unpredictable randomness is
+  // the correct hygiene for any on-chain-influencing value.
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
+  return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
 }
 
 export const getResolverInitCalldata = (ownerAddress: Address): Hex => {

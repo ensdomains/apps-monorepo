@@ -75,6 +75,22 @@ export const isBackendAuthed = backendAuthStore.select(
 
 export const DEFAULT_BACKEND_API_URL = import.meta.env.VITE_API_URL ?? '/api'
 
+export const ALLOWED_SIWE_DOMAINS = ['app.ens.dev', 'app.ens.domains'] as const
+export type AllowedSiweDomain = (typeof ALLOWED_SIWE_DOMAINS)[number]
+export const DEFAULT_SIWE_DOMAIN: AllowedSiweDomain = 'app.ens.dev'
+
+export const getSiweDomain = (): AllowedSiweDomain => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if ((ALLOWED_SIWE_DOMAINS as readonly string[]).includes(host)) {
+      return host as AllowedSiweDomain
+    }
+  }
+  return DEFAULT_SIWE_DOMAIN
+}
+
+export const getSiweUri = (): string => `https://${getSiweDomain()}`
+
 export const getBackendApiBaseUrl = () =>
   backendAuthStore.get().context.apiBaseUrlOverride ?? DEFAULT_BACKEND_API_URL
 

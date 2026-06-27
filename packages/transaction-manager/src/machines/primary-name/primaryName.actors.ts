@@ -157,9 +157,6 @@ export const submitPrimaryNameWithSignatureActor = (input: {
         request = {
           type: 'rhinestone-intent' as const,
           from: smartAccountAddress,
-          to: defaultRegistrar,
-          data: defaultData,
-          value: 0n,
           chainId,
           rhinestoneParams: {
             calls: batchedCalls,
@@ -248,9 +245,6 @@ export const submitPrimaryNameUpdateActor = (input: {
           request = {
             type: 'rhinestone-intent' as const,
             from: fromAddress,
-            to: defaultRegistrar,
-            data: defaultData,
-            value: 0n,
             chainId: input.chainId,
             rhinestoneParams: {
               calls: batchedCalls,

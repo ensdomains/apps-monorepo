@@ -23,6 +23,8 @@ import { wagmiConfig } from '@/lib/wagmi'
 import {
   backendAuthStore,
   backendClient,
+  getSiweDomain,
+  getSiweUri,
   isBackendAuthed,
 } from '@/utils/backend-client'
 
@@ -199,13 +201,15 @@ const loginMutation = async () => {
 
   const nonce = await getNonce()
 
+  const domain = getSiweDomain()
+  const uri = getSiweUri()
+
   const siweMessage = createSiweMessage({
     address: account.address,
-    // domain: 'app.ens.domains',
-    domain: 'localhost',
+    domain,
     nonce,
     chainId: wagmiConfig.chains[0].id,
-    uri: 'http://localhost:3000',
+    uri,
     version: '1',
   })
 
