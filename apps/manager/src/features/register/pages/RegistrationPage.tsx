@@ -4,7 +4,7 @@ import { useActorRef, useSelector } from '@xstate/react'
 import { useAtom } from '@xstate/store-react'
 import { AlertCircle } from 'lucide-react'
 import { useCallback, useReducer, useState } from 'react'
-import type { Address, PublicClient } from 'viem'
+import type { Address } from 'viem'
 import { useChainId } from 'wagmi'
 import { useGlobalBackButton } from '@/components/GlobalBackButton'
 import { Button } from '@/components/ui/button'
@@ -12,16 +12,16 @@ import { useCheckAvailability } from '@/features/register/components/CheckAvaila
 import { Pricing } from '@/features/register/components/Pricing'
 import { PricingDomainHeader } from '@/features/register/components/Pricing/PricingDomainHeader'
 import { RegistrationInProgress } from '@/features/register/components/RegistrationInProgress/RegistrationInProgress'
+import { EnableSessionModal } from '@/features/wallet/components/EnableSessionModal'
 import { useCountdown } from '@/hooks/useCountdown'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { publicClient } from '@/lib/wagmi'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { inspect } from '@/utils/xstate'
-import { handleStartRegistration } from './RegistrationPage.handlers'
 import {
   createInitialUIState,
   registrationUIReducer,
 } from './RegistrationPage.reducer'
+import { useSessionGate } from './useSessionGate'
 
 export enum RegistrationStep {
   PRICING = 'pricing',
@@ -117,6 +117,15 @@ export const Registration = ({
   const [hasSkippedNotifications, setHasSkippedNotifications] = useState(false)
   const [hasConfirmedNotifications, setHasConfirmedNotifications] =
     useState(false)
+
+  // Smart-session gate: on the HCA path, confirm-payment first ensures a smart
+  // session exists (one ENABLE signature via the modal), then registers.
+  const sessionGate = useSessionGate({
+    account,
+    actor,
+    name: ui.name,
+    duration: ui.duration,
+  })
 
   const {
     selectedName,
@@ -273,19 +282,7 @@ export const Registration = ({
                 isCommitPending || isApprovePending || isRegisterPending
               }
               onConfirmPayment={(tokenPrice, selectedToken) => {
-                handleStartRegistration(
-                  {
-                    name: ui.name,
-                    duration: ui.duration,
-                    selectedToken: selectedToken as Address,
-                    tokenPrice,
-                  },
-                  account,
-                  actor,
-                  {
-                    publicClient: publicClient as PublicClient,
-                  },
-                )
+                sessionGate.confirmPayment(tokenPrice, selectedToken as Address)
               }}
               onPricingDataChange={handlePricingDataChange}
               onSelectCrypto={handleSelectCrypto}
@@ -319,6 +316,16 @@ export const Registration = ({
           totalPrice={pricingData?.finalPrice ?? 0}
         />
       )}
+
+      <EnableSessionModal
+        hasError={!!account.sessionError}
+        isEnabling={account.isEnablingSession}
+        onEnableSession={sessionGate.enableSessionAndResume}
+        onOpenChange={sessionGate.setSessionModalOpen}
+        open={sessionGate.isSessionModalOpen}
+        smartAccountAddress={accountAddress ?? undefined}
+        walletAddress={account.ownerAddress ?? undefined}
+      />
     </div>
   )
 }

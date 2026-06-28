@@ -20,6 +20,13 @@ export interface StartRegistrationParams {
 
 export interface HandleRegistrationOptions {
   publicClient: PublicClient
+  /**
+   * Signer to use instead of `account.signer`. Pass the session-attached
+   * signer returned by `enableSession()` so registration starts with the
+   * session in the same tick (the context's `account.signer` only reflects
+   * the session after a re-render).
+   */
+  signerOverride?: Signer
 }
 
 /**
@@ -41,8 +48,13 @@ export function handleStartRegistration(
   const { name, duration, selectedToken, tokenPrice } = params
   const { publicClient } = options
 
+  // Prefer an explicitly-provided signer (e.g. one just returned by
+  // enableSession with the session freshly attached) over the context's
+  // `account.signer`, which may be a stale pre-session snapshot this tick.
+  const signer = options.signerOverride ?? account.signer
+
   // Validate account is ready - signer is pre-computed by the hook
-  if (!account.signer || !account.accountAddress) {
+  if (!signer || !account.accountAddress) {
     console.error('❌ Smart account not connected or not initialized', {
       accountAddress: account.accountAddress,
       hasSigner: !!account.signer,
@@ -91,7 +103,7 @@ export function handleStartRegistration(
   // `signPermitActor` would reject the rhinestone signer fallback. Mirrors the
   // v2 guard in registrationUi.machine.ts.
   const isHcaRegistration =
-    account.signer.type === 'rhinestone' &&
+    signer.type === 'rhinestone' &&
     ownerAddress.toLowerCase() !== account.accountAddress.toLowerCase()
 
   if (isHcaRegistration && !approvalSigner) {
@@ -114,7 +126,7 @@ export function handleStartRegistration(
     duration: durationInSeconds,
     token,
     price: tokenPrice,
-    hasSigner: !!account.signer,
+    hasSigner: !!signer,
     hasPublicClient: !!publicClient,
     sponsored: enableSponsorship,
     ownerAddress,
@@ -128,7 +140,7 @@ export function handleStartRegistration(
     duration: durationInSeconds,
     token,
     price: tokenPrice,
-    signer: account.signer,
+    signer,
     approvalSigner, // EOA signer for the gasless permit (HCA flows)
     accountAddress: account.accountAddress,
     ownerAddress, // HCA-only: register the ENS name to the EOA

@@ -1,6 +1,10 @@
+import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
+import type { Address, Hex } from 'viem'
+import { getStorageAt } from 'viem/actions'
 import { parseAvatarRecord } from 'viem/ens'
 
+import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
 import { createClient, type EnsClient } from './clients'
 
@@ -111,6 +115,49 @@ export async function resolveOwner(
 ): Promise<string | null> {
   const result = await resolveEnsOwner(client, name).catch(() => null)
   return result ? result.owner : null
+}
+
+/** EIP-1967 implementation slot — mirrors `useIsPermissionedResolver`. */
+const EIP1967_IMPLEMENTATION_SLOT: Hex =
+  '0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc'
+
+/**
+ * Determine whether a resolver is an ENS Permissioned Resolver, so the OG card
+ * can render the "Permissioned Resolver" subtitle.
+ *
+ * Worker-side mirror of {@link useIsPermissionedResolver}: read the EIP-1967
+ * implementation slot and compare against the known permissioned-resolver
+ * implementation for the chain. Any failure resolves to `false` so the card
+ * still renders (just as a plain "Resolver").
+ */
+export async function fetchIsPermissionedResolver(
+  env: Env,
+  address: string,
+): Promise<boolean> {
+  try {
+    const client = createClient(env)
+
+    const knownImpl = getChainContractAddress({
+      chain: client.chain,
+      contract: 'ensPermissionedResolverImpl',
+    })?.toLowerCase()
+    if (!knownImpl) return false
+
+    const normalized = address.toLowerCase()
+    if (normalized === knownImpl) return true
+
+    const slotValue = await getStorageAt(client, {
+      address: address as Address,
+      slot: EIP1967_IMPLEMENTATION_SLOT,
+    })
+
+    const implementation = decodeImplementationAddress(slotValue)
+    if (!implementation) return false
+
+    return implementation.toLowerCase() === knownImpl
+  } catch {
+    return false
+  }
 }
 
 export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {

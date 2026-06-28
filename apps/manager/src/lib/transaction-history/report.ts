@@ -2,7 +2,10 @@ import {
   parseTransactionOperation,
   type UpsertTransaction,
 } from '@ens-apps/shared-schema/transactions'
-import type { ArchivedTransaction } from '@ens-apps/transaction-manager'
+import {
+  type ArchivedTransaction,
+  getPrimaryCall,
+} from '@ens-apps/transaction-manager'
 import { logger } from '@ens-apps/utils/logger'
 import { backendClient, isBackendAuthed } from '@/utils/backend-client'
 
@@ -24,9 +27,12 @@ export function buildTransactionReport(
 
   const payload: Record<string, unknown> = {}
   if (archived.error) payload.error = archived.error
-  if (archived.request?.to) payload.to = archived.request.to
-  if (archived.request?.value !== undefined) {
-    payload.value = archived.request.value.toString()
+  const primaryCall = archived.request
+    ? getPrimaryCall(archived.request)
+    : undefined
+  if (primaryCall?.to) payload.to = primaryCall.to
+  if (primaryCall?.value !== undefined) {
+    payload.value = primaryCall.value.toString()
   }
 
   return {

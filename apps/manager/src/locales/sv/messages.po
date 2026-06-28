@@ -194,6 +194,10 @@ msgstr ""
 msgid "Addresses"
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
+msgstr ""
+
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
 msgstr ""
@@ -236,6 +240,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approve payment"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Approve the signature in your wallet, then wait for on-chain confirmation."
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -796,6 +804,18 @@ msgstr ""
 msgid "Enable"
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Enable Sessions"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Enable Smart Sessions"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Enabling sessions…"
+msgstr ""
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "ENS"
 msgstr ""
@@ -1117,6 +1137,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Invalid character"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -1995,7 +2019,7 @@ msgid "Share profile"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "Should I buy now or wait?"
+msgid "Should I register now or wait?"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
@@ -2031,6 +2055,14 @@ msgstr ""
 msgid "Sign Message"
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Sign once to enable gasless transactions for your ENS operations."
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Sign once to enable seamless transactions."
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Sign the gasless payment approval in your wallet"
 msgstr ""
@@ -2061,8 +2093,16 @@ msgstr ""
 msgid "Slide {0}"
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Smart Account"
+msgstr ""
+
 #: src/lib/smart-account/rhinestone.ts
 msgid "Smart account ready"
+msgstr ""
+
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "Smart sessions are required to use this app."
 msgstr ""
 
 #: src/features/profile/components/view-new/ProfileViewNewSocial.tsx
@@ -2237,12 +2277,16 @@ msgstr ""
 msgid "This page can only verify your email when opened from the link in the verification email."
 msgstr ""
 
+#: src/features/wallet/components/EnableSessionModal.tsx
+msgid "This signature is free and doesn't cost any gas."
+msgstr ""
+
 #. placeholder {0}: Math.ceil(totalSelected / 100)
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "This will be split into {0} batches — expect that many wallet signatures (plus approvals)."
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownDecayChart.tsx
+#: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
 msgstr ""
 
@@ -2287,6 +2331,7 @@ msgstr ""
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 #: src/features/renew/workflow/result/FailureStep.tsx
+#: src/features/wallet/components/EnableSessionModal.tsx
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Try Again"
 msgstr ""
@@ -2565,7 +2610,7 @@ msgid "Welcome to the new ENS app!"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
-msgid "What additional fee would you pay?"
+msgid "What additional fee are you willing to pay?"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx

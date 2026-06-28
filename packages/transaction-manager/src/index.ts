@@ -74,6 +74,7 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,
   TransactionInfra,
@@ -97,3 +98,4 @@ export type {
   TransactionStep,
   TransactionType,
 } from './types/transaction.types'
+export { getPrimaryCall } from './types/transaction.types'

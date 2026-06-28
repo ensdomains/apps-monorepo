@@ -143,9 +143,6 @@ function submitWithSignature(input: {
   const request: TransactionRequest = {
     type: 'rhinestone-intent',
     from: getSmartAccountAddress(input.signer),
-    to: defaultRegistrar,
-    data: defaultData,
-    value: 0n,
     chainId: input.chainId,
     rhinestoneParams: {
       calls: [

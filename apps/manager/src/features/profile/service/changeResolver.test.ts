@@ -118,9 +118,6 @@ describe('changeResolver', () => {
       request: {
         type: 'rhinestone-intent',
         from: SMART_ACCOUNT,
-        to: ETH_REGISTRY,
-        data: expectedSetResolverData('leon'),
-        value: 0n,
         chainId: CHAIN_ID,
         rhinestoneParams: {
           calls: [

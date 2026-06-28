@@ -1,3 +1,4 @@
+SEPOLIA_RPC_URL="https://lb.drpc.live/sepolia/<your-drpc-key>"
 WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_DB="postgresql://postgres:postgres@localhost/postgres"
 JWT_SECRET=""
 TELEGRAM_BOT_TOKEN=""

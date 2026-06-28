@@ -57,9 +57,6 @@ export function changeResolver(params: ChangeResolverParams): string {
       : {
           type: 'rhinestone-intent',
           from,
-          to,
-          data,
-          value: 0n,
           chainId,
           rhinestoneParams: {
             calls: [{ to, data, value: 0n }],

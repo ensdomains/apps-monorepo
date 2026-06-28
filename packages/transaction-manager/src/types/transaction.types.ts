@@ -12,17 +12,24 @@ import type { TransactionInfra } from './signer.types'
 
 export type TransactionType = 'eoa' | 'rhinestone-intent'
 
+/**
+ * Fields shared by every transaction request, regardless of how it is
+ * submitted on-chain. Deliberately does NOT include call data
+ * (`to`/`data`/`value`): single-call requests (EOA) carry those at the top
+ * level, while batched requests (Rhinestone intents) carry them inside
+ * `rhinestoneParams.calls` as the single source of truth.
+ */
 export interface BaseTransactionRequest {
   type: TransactionType
   from: Address
-  to: Address
-  value?: bigint
-  data?: Hex
   chainId: number
 }
 
 export interface EOATransactionRequest extends BaseTransactionRequest {
   type: 'eoa'
+  to: Address
+  value?: bigint
+  data?: Hex
   gas?: bigint
   gasPrice?: bigint
   maxFeePerGas?: bigint
@@ -44,19 +51,60 @@ export interface Call {
   value: bigint
 }
 
+export interface RhinestoneIntentParams {
+  /**
+   * The calls executed on-chain — the single source of truth for what this
+   * intent does. The first entry is treated as the "primary" call for
+   * summaries/telemetry; see {@link getPrimaryCall}. Must be non-empty.
+   */
+  readonly calls: readonly Call[]
+  sponsored?: boolean
+  /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
+  readonly tokenRequests?: readonly TokenRequest[]
+}
+
+/**
+ * A Rhinestone (chain-abstraction) intent request.
+ *
+ * Unlike {@link EOATransactionRequest}, this type intentionally does NOT carry
+ * top-level `to`/`data`/`value`. The call data lives exclusively in
+ * `rhinestoneParams.calls`, which is the array actually submitted on-chain by
+ * the Warp/Rhinestone transports. Keeping a single copy removes the
+ * "two sources of truth that can silently diverge" class of bug for
+ * multi-call intents (e.g. deploy + commit). To derive a representative
+ * `{ to, data, value }` for logging/telemetry, use {@link getPrimaryCall}.
+ */
 export interface RhinestoneTransactionRequest extends BaseTransactionRequest {
   type: 'rhinestone-intent'
-  rhinestoneParams: {
-    calls: Call[]
-    sponsored?: boolean
-    /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
-    tokenRequests?: TokenRequest[]
-  }
+  rhinestoneParams: RhinestoneIntentParams
 }
 
 export type TransactionRequest =
   | EOATransactionRequest
   | RhinestoneTransactionRequest
+
+/**
+ * Resolve the representative call for a request as `{ to, data, value }`.
+ *
+ * - EOA requests carry these at the top level.
+ * - Rhinestone intents derive them from the first canonical call in
+ *   `rhinestoneParams.calls` (the primary call). Returns `undefined` only if
+ *   an intent has an empty `calls` array, which transports reject anyway.
+ *
+ * This keeps consumers (telemetry, logging) reading a single source of truth
+ * instead of a second, divergence-prone copy of the call data.
+ */
+export function getPrimaryCall(
+  request: TransactionRequest,
+): { to: Address; data?: Hex; value?: bigint } | undefined {
+  if (request.type === 'eoa') {
+    return { to: request.to, data: request.data, value: request.value }
+  }
+
+  const primary = request.rhinestoneParams.calls[0]
+  if (!primary) return undefined
+  return { to: primary.to, data: primary.data, value: primary.value }
+}
 
 // Transaction Intents - High-level descriptions of what the user wants to do
 // (Distinct from Rhinestone intents, which are chain abstraction intents)

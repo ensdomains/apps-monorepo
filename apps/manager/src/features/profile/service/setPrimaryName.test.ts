@@ -101,15 +101,19 @@ describe('setPrimaryName', () => {
       request: {
         type: 'rhinestone-intent',
         from: SMART_ACCOUNT,
-        to: DEFAULT_REVERSE,
         rhinestoneParams: { sponsored: true },
       },
     })
-    // Batched: setNameForAddrWithSignature on default + setName on reverse
-    const request = (
-      intent as { request: { rhinestoneParams: { calls: unknown[] } } }
-    ).request
-    expect(request.rhinestoneParams.calls).toHaveLength(2)
+    // Batched: setNameForAddrWithSignature on default + setName on reverse.
+    // The default registrar is the target of the first canonical call
+    // (rhinestoneParams.calls is the single source of truth for to/data/value).
+    const calls = (
+      intent as unknown as {
+        request: { rhinestoneParams: { calls: Array<{ to: string }> } }
+      }
+    ).request.rhinestoneParams.calls
+    expect(calls).toHaveLength(2)
+    expect(calls[0]?.to).toBe(DEFAULT_REVERSE)
     expect(opts).toMatchObject({ operation: 'set-primary-name' })
   })
 

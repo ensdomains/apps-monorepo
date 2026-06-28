@@ -1,12 +1,20 @@
 import { useId } from 'react'
+import { tw } from '@/utils/tailwind'
 
-export const GrainOverlay = () => {
+export const GrainOverlay = ({
+  className,
+}: {
+  readonly className?: string
+}) => {
   const filterId = useId()
 
   return (
     <svg
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 size-full opacity-40"
+      className={tw(
+        'pointer-events-none absolute inset-0 size-full opacity-40',
+        className,
+      )}
     >
       <filter id={filterId}>
         <feTurbulence

@@ -37,6 +37,17 @@ const LABEL_COLOR_BY_VARIANT: Record<ChartValuePillVariant, string> = {
   hover: 'text-ens-lapis-surface',
 }
 
+const SURFACE_BY_VARIANT: Record<ChartValuePillVariant, string> = {
+  // "Now" pill per Figma (node 3610:8913):
+  //   border: 0.4px solid var(--lapis-300, #80C4E0);
+  //   background: rgba(219, 240, 248, 0.15);   (lapis/100 @ 15% — true alpha)
+  //   backdrop-filter: blur(0.75px);
+  // Literal rgba (not the /15 token, which compiles to an oklab color-mix).
+  now: 'border-ens-lapis-300 bg-[rgba(219,240,248,0.15)] backdrop-blur-[0.75px]',
+  selected: 'border-ens-lapis-100 bg-white',
+  hover: 'border-ens-lapis-100 bg-white',
+}
+
 export const ChartValuePill = ({
   label,
   value,
@@ -47,7 +58,8 @@ export const ChartValuePill = ({
   <div
     className={cn(
       'inline-flex min-w-17.75 flex-col items-center justify-center gap-0.5',
-      'rounded-xl border-[0.4px] border-ens-lapis-100 bg-white p-1.5',
+      'rounded-xl border-[0.4px] p-1.5',
+      SURFACE_BY_VARIANT[variant],
       variant === 'hover' && 'opacity-75',
       className,
     )}
