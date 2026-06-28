@@ -102,6 +102,19 @@ function isCancelledState(value: unknown): boolean {
   return root === 'cancelled'
 }
 
+function generateTransactionId(): string {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.getRandomValues === 'function'
+  ) {
+    const bytes = crypto.getRandomValues(new Uint8Array(8))
+    return `tx-${Date.now()}-${Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')}`
+  }
+  return `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
 /**
  * Transaction Manager Singleton
  *
@@ -209,9 +222,7 @@ class TransactionManager {
       )
     }
 
-    const txId =
-      transactionOptions.id ||
-      `tx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    const txId = transactionOptions.id || generateTransactionId()
 
     // Create and start the transaction actor
     const actor = createActor(transactionMachine, {
