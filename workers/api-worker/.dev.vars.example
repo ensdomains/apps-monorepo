@@ -7,14 +7,20 @@ SENDGRID_API_KEY=""
 EMAIL_FROM_ADDRESS=""
 
 # Rhinestone gas-sponsorship JWT issuer (FET-3334).
-# RHINESTONE_JWT_SIGNING_KEYS is a JSON array of { keyId, privateKey } where
-# privateKey is a JWK (EC P-256 -> ES256). Hold every registered key here and
-# select the active one with RHINESTONE_JWT_ACTIVE_KEY_ID (zero-downtime kid rotation).
-RHINESTONE_INTEGRATOR_ID=""
-RHINESTONE_PROJECT_ID=""
-RHINESTONE_APP_ID=""
-RHINESTONE_JWT_AUDIENCE=""
-RHINESTONE_JWT_ACTIVE_KEY_ID=""
+#
+# The ONLY value that must be set is the signing key. Everything else has a
+# Sepolia-launch default baked into the code (see config.ts IDENTITY_DEFAULTS /
+# predicate.ts DEFAULT_SPONSORSHIP_CHAIN_IDS) and only needs setting to override.
+#
+# RHINESTONE_JWT_SIGNING_KEYS — REQUIRED. JSON array of { keyId, privateKey }
+# where privateKey is a JWK (EC P-256 -> ES256). A single key selects itself;
+# hold several + set RHINESTONE_JWT_ACTIVE_KEY_ID for zero-downtime kid rotation.
 RHINESTONE_JWT_SIGNING_KEYS="[]"
-# Chain ids eligible for sponsorship, comma-separated (e.g. mainnet + sepolia).
-RHINESTONE_SPONSORSHIP_CHAIN_IDS="1,11155111"
+#
+# Optional overrides (defaults in code; uncomment only to change them):
+# RHINESTONE_JWT_ACTIVE_KEY_ID=""        # only needed with multiple keys
+# RHINESTONE_INTEGRATOR_ID=""            # default: app
+# RHINESTONE_PROJECT_ID=""               # default: cmgk24o77001v3j0tkscm3a65
+# RHINESTONE_APP_ID=""                   # default: ens-manager-sepolia
+# RHINESTONE_JWT_AUDIENCE=""             # default: rhinestone-api (SDK)
+# RHINESTONE_SPONSORSHIP_CHAIN_IDS=""    # default: 11155111 (Sepolia only)

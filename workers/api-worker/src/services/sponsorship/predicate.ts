@@ -33,19 +33,28 @@ export function parseSponsorshipChainIds(
  * Returns Rhinestone's `SponsorshipFilter`, i.e. the value passed as the SDK's
  * `shouldSponsor` config key. "Predicate" is our (and the design doc's) name for it.
  */
+/**
+ * Default sponsorable chains when `RHINESTONE_SPONSORSHIP_CHAIN_IDS` is unset —
+ * Sepolia only. Mainnet is deliberately excluded; opting it in is a deliberate
+ * change (set the env var, or extend this default) gated by FET-3337.
+ */
+const DEFAULT_SPONSORSHIP_CHAIN_IDS = '11155111'
+
 export function createSponsorshipPredicate(
   env: CloudflareBindings,
 ): SponsorshipFilter {
+  // `??` (not `||`): an *unset* var takes the Sepolia default, but an explicit
+  // blank/empty value is honoured as a deliberate deny-all off-switch.
   const chainIds = parseSponsorshipChainIds(
-    env.RHINESTONE_SPONSORSHIP_CHAIN_IDS,
+    env.RHINESTONE_SPONSORSHIP_CHAIN_IDS ?? DEFAULT_SPONSORSHIP_CHAIN_IDS,
   )
   if (chainIds.size === 0) {
-    // Deny-all is the safe direction, but it is almost always a
-    // misconfiguration (unset/blank RHINESTONE_SPONSORSHIP_CHAIN_IDS) rather
-    // than intent, and it silently disables sponsorship — so surface it.
+    // Reached only if the allowlist was explicitly set to a value with no valid
+    // chain ids (an unset var uses the Sepolia default above) — surface the
+    // resulting deny-all so it is not mistaken for silent breakage.
     logger.warn(
       'Sponsorship chain allowlist is empty; every chain will be denied. ' +
-        'Set RHINESTONE_SPONSORSHIP_CHAIN_IDS (comma-separated chain ids) to enable sponsorship.',
+        'RHINESTONE_SPONSORSHIP_CHAIN_IDS is set but has no valid chain ids.',
     )
   }
   return {

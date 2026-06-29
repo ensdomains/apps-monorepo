@@ -33,6 +33,15 @@ describe('createSponsorshipPredicate', () => {
     expect(chain({ id: 8453 })).toBe(false)
   })
 
+  it('defaults to Sepolia when no chain ids are configured', () => {
+    const { chain } = createSponsorshipPredicate(
+      {} as unknown as CloudflareBindings,
+    )
+    if (!chain) throw new Error('chain filter should be defined')
+    expect(chain({ id: 11155111 })).toBe(true)
+    expect(chain({ id: 1 })).toBe(false)
+  })
+
   it('stubs account and calls to true (real gating is FET-3337)', () => {
     const { account, calls } = createSponsorshipPredicate(makeEnv('1'))
     if (!account || !calls) throw new Error('stub filters should be defined')

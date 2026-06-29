@@ -73,9 +73,39 @@ describe('buildRhinestoneJwtConfig', () => {
       expect(result.error._tag).toBe('RHINESTONE_JWT_CONFIG_ERROR')
   })
 
-  it('errors when a required config value is blank', () => {
+  it('falls back to the baked-in identity when integrator/project/app are unset', () => {
     const result = buildRhinestoneJwtConfig(
-      makeEnv({ RHINESTONE_INTEGRATOR_ID: '' }),
+      makeEnv({
+        RHINESTONE_INTEGRATOR_ID: '',
+        RHINESTONE_PROJECT_ID: '',
+        RHINESTONE_APP_ID: '',
+      }),
+    )
+    if (!result.isOk()) throw new Error('expected ok')
+    expect(result.value.jwt.integratorId).toBe('app')
+    expect(result.value.jwt.projectId).toBe('cmgk24o77001v3j0tkscm3a65')
+    expect(result.value.jwt.appId).toBe('ens-manager-sepolia')
+  })
+
+  it('uses the sole signing key when no active key id is set', () => {
+    const result = buildRhinestoneJwtConfig(
+      makeEnv({
+        RHINESTONE_JWT_ACTIVE_KEY_ID: '',
+        RHINESTONE_JWT_SIGNING_KEYS: JSON.stringify([
+          {
+            keyId: 'only',
+            privateKey: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y', d: 'd' },
+          },
+        ]),
+      }),
+    )
+    if (!result.isOk()) throw new Error('expected ok')
+    expect(result.value.jwt.keyId).toBe('only')
+  })
+
+  it('errors when several keys are set without an active key id', () => {
+    const result = buildRhinestoneJwtConfig(
+      makeEnv({ RHINESTONE_JWT_ACTIVE_KEY_ID: '' }),
     )
     expect(result.isErr()).toBe(true)
     if (result.isErr())
