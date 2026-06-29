@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import ensLogo from '@/assets/icons/ens.svg'
 import {
   Popover,
@@ -40,7 +40,6 @@ export const DesktopNavigation = ({
   profileThemeColor,
 }: DesktopNavigationProps) => {
   const [open, setOpen] = useState(false)
-  const logoRef = useRef<HTMLDivElement>(null)
 
   const handleAction = () => {
     setOpen(false)
@@ -54,7 +53,7 @@ export const DesktopNavigation = ({
         delay={50}
         openOnHover
       >
-        <div className="flex shrink-0" ref={logoRef}>
+        <div className="flex shrink-0">
           <Link
             onClick={(e) => {
               e.stopPropagation()
@@ -83,7 +82,6 @@ export const DesktopNavigation = ({
       <PopoverContent
         align="start"
         alignOffset={-12}
-        // anchor={logoRef.current}
         className="w-xs space-y-6 bg-white p-6"
         sideOffset={16}
       >
