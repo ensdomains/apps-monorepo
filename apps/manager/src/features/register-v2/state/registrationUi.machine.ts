@@ -123,9 +123,7 @@ const isRegistrationSnapshotEvent = (
   !!event && typeof event === 'object' && 'snapshot' in event
 
 const shouldSyncEthRecord = (context: Context) =>
-  !!context.postRegistrationSetup?.primaryName &&
-  (context.postRegistrationSetup.primaryName.enabled ||
-    context.postRegistrationSetup.primaryName.syncEthRecord === true)
+  context.postRegistrationSetup?.primaryName?.syncEthRecord === true
 
 const shouldSetPrimaryName = (context: Context) =>
   context.postRegistrationSetup?.primaryName?.enabled === true
@@ -184,7 +182,7 @@ const machineSetup = setup({
           ownerAddress: input.ownerAddress,
           resolverAddress: input.resolverAddress,
           signer: input.signer,
-          accountAddress: input.accountAddress,
+          walletClient: input.walletClient,
           publicClient: input.publicClient,
           chainId: input.chainId,
         }),

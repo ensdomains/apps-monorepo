@@ -104,7 +104,15 @@ const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
 const HCA_ADDRESS = '0x1111111111111111111111111111111111111111' as const
 const EOA_ADDRESS = '0x2222222222222222222222222222222222222222' as const
 
-const startEvent = (account: SmartAccountContextValue, withSetup = false) =>
+const startEvent = (
+  account: SmartAccountContextValue,
+  setup:
+    | false
+    | {
+        enabled: boolean
+        syncEthRecord?: boolean
+      } = false,
+) =>
   ({
     type: 'registration.start' as const,
     label: 'example',
@@ -114,11 +122,11 @@ const startEvent = (account: SmartAccountContextValue, withSetup = false) =>
     account,
     basePriceNumber: 1,
     premiumPriceNumber: 0,
-    postRegistrationSetup: withSetup
+    postRegistrationSetup: setup
       ? {
           primaryName: {
-            enabled: true,
-            syncEthRecord: false,
+            enabled: setup.enabled,
+            syncEthRecord: setup.syncEthRecord,
           },
         }
       : undefined,
@@ -246,15 +254,16 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     startSyncEthRecord.mockReturnValueOnce(ethSubmit.promise)
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, true))
+    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: false }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush()
 
     expect(
       actor
         .getSnapshot()
-        .matches({ registering: { transaction: 'syncingEthRecord' } }),
+        .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
     ).toBe(true)
+    expect(startSyncEthRecord).not.toHaveBeenCalled()
   })
 
   it('stores the ETH record tx id before waiting for confirmation', async () => {
@@ -263,7 +272,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     waitForKnownTransaction.mockReturnValueOnce(wait.promise as never)
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, true))
+    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush()
 
@@ -283,7 +292,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       .mockReturnValueOnce(deferred<{ hash: '0xreverse' }>().promise as never)
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, true))
+    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(16)
 
@@ -308,7 +317,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     startSmartPrimaryName.mockResolvedValueOnce('tx-primary-smart')
 
     const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, true))
+    actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(16)
 
@@ -331,7 +340,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       .mockResolvedValueOnce({ hash: '0xreverse' } as never)
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, true))
+    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(20)
 
@@ -344,7 +353,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     startSyncEthRecord.mockRejectedValueOnce(new Error('post setup failed'))
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, true))
+    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush()
 
@@ -364,7 +373,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       .mockResolvedValueOnce({ hash: '0xreverse' } as never)
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, true))
+    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
     const child = getChild(actor)
 
     child.send({ type: 'FORCE_SUCCESS' } as any)

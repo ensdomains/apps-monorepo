@@ -29,7 +29,7 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
-import { checksumAddress } from 'viem'
+import { checksumAddress, type WalletClient } from 'viem'
 import {
   startSyncEthAddressRecordTransaction,
   syncEthAddressRecord,
@@ -59,7 +59,6 @@ describe('syncEthAddressRecord', () => {
       ownerAddress: OWNER,
       resolverAddress: RESOLVER,
       signer: { type: 'eoa', walletClient: {} as never },
-      accountAddress: ACCOUNT,
       publicClient,
       chainId: CHAIN_ID,
       onTxId,
@@ -100,7 +99,6 @@ describe('syncEthAddressRecord', () => {
       ownerAddress: OWNER,
       resolverAddress: RESOLVER,
       signer: { type: 'eoa', walletClient: {} as never },
-      accountAddress: ACCOUNT,
       publicClient,
       chainId: CHAIN_ID,
     })
@@ -108,7 +106,9 @@ describe('syncEthAddressRecord', () => {
     expect(wait).toHaveBeenCalledWith('tx-record')
   })
 
-  it('submits a sponsored rhinestone intent with a single call', async () => {
+  it('uses the owner EOA wallet for smart-account record sync', async () => {
+    const walletClient = { account: { address: OWNER } } as WalletClient
+
     await startSyncEthAddressRecordTransaction({
       name: 'leon.eth',
       ownerAddress: OWNER,
@@ -118,7 +118,7 @@ describe('syncEthAddressRecord', () => {
         account: {} as never,
         config: { accountAddress: SMART_ACCOUNT, rhinestoneApiKey: 'k' },
       },
-      accountAddress: ACCOUNT,
+      walletClient,
       publicClient,
       chainId: CHAIN_ID,
     })
@@ -126,21 +126,16 @@ describe('syncEthAddressRecord', () => {
     expect(start.mock.calls[0]?.[0]).toEqual({
       type: 'custom',
       request: expect.objectContaining({
-        type: 'rhinestone-intent',
-        from: SMART_ACCOUNT,
+        type: 'eoa',
+        from: OWNER,
         to: RESOLVER,
         value: 0n,
         chainId: CHAIN_ID,
-        rhinestoneParams: {
-          calls: [
-            expect.objectContaining({
-              to: RESOLVER,
-              value: 0n,
-            }),
-          ],
-          sponsored: true,
-        },
       }),
+    })
+    expect(start.mock.calls[0]?.[1]).toEqual({
+      type: 'eoa',
+      walletClient,
     })
   })
 })
