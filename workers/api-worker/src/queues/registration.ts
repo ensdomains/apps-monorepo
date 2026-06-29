@@ -1,8 +1,10 @@
 import { eq } from 'drizzle-orm'
 import type { Address } from 'viem'
-import type { Database } from '#core/database/index.js'
-import { getDatabase, TABLE } from '#core/database/index.js'
-import type { CrossmintOrderStatus } from '#core/database/schema/crossmint.js'
+import { type CrossmintDb, getCrossmintDb } from '#core/database/crossmint.js'
+import {
+  type CrossmintOrderStatus,
+  crossmintOrders,
+} from '#core/database/schema/crossmint.js'
 import { KV_KEY } from '#core/kv/index.js'
 import {
   authorizedPaymentAmount,
@@ -31,26 +33,26 @@ const MAX_ATTEMPTS = 3
 // Buffer added on top of MIN_COMMITMENT_AGE before the register phase fires.
 const COMMITMENT_AGE_BUFFER_SECONDS = 15
 
-type OrderRow = typeof TABLE.crossmintOrders.$inferSelect
+type OrderRow = typeof crossmintOrders.$inferSelect
 
 async function loadOrder(
-  db: Database,
+  db: CrossmintDb,
   orderId: string,
 ): Promise<OrderRow | undefined> {
   return db.query.crossmintOrders.findFirst({
-    where: eq(TABLE.crossmintOrders.id, orderId),
+    where: eq(crossmintOrders.id, orderId),
   })
 }
 
 async function updateOrder(
-  db: Database,
+  db: CrossmintDb,
   orderId: string,
   fields: Partial<OrderRow> & { status?: CrossmintOrderStatus },
 ): Promise<void> {
   await db
-    .update(TABLE.crossmintOrders)
+    .update(crossmintOrders)
     .set({ ...fields, updated_at: new Date() })
-    .where(eq(TABLE.crossmintOrders.id, orderId))
+    .where(eq(crossmintOrders.id, orderId))
 }
 
 /**
@@ -58,7 +60,7 @@ async function updateOrder(
  * then re-enqueue a `register` job delayed past MIN_COMMITMENT_AGE.
  */
 async function runCommitPhase(
-  db: Database,
+  db: CrossmintDb,
   env: CloudflareBindings,
   orderId: string,
 ): Promise<void> {
@@ -94,7 +96,7 @@ async function runCommitPhase(
     owner: server,
     secret: order.secret as `0x${string}`,
     resolver,
-    duration: order.duration,
+    duration: BigInt(order.duration),
   })
   const commitTxHash = await submitCommit(client, commitment)
   const minAge = await readMinCommitmentAge(client)
@@ -124,7 +126,7 @@ async function runCommitPhase(
  * `register`, delivering the name to the buyer, then burn the voucher.
  */
 async function runRegisterPhase(
-  db: Database,
+  db: CrossmintDb,
   env: CloudflareBindings,
   orderId: string,
 ): Promise<void> {
@@ -155,7 +157,7 @@ async function runRegisterPhase(
 
   const price = await getRegisterPriceTotal(client, {
     label: order.name,
-    duration: order.duration,
+    duration: BigInt(order.duration),
     paymentToken: tokenAddress,
   })
   await ensureTokenAllowance(client, {
@@ -169,7 +171,7 @@ async function runRegisterPhase(
     owner: server,
     secret: order.secret as `0x${string}`,
     resolver,
-    duration: order.duration,
+    duration: BigInt(order.duration),
     paymentToken: tokenAddress,
   })
   await transferName(client, { tokenId, to: buyer })
@@ -199,7 +201,7 @@ export const handleRegistrationQueue = async (
   batch: MessageBatch<RegistrationJob>,
   env: CloudflareBindings,
 ): Promise<void> => {
-  const db = getDatabase(env)
+  const db = getCrossmintDb(env)
 
   for (const message of batch.messages) {
     const job = message.body

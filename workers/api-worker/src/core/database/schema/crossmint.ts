@@ -1,14 +1,4 @@
-import { relations } from 'drizzle-orm'
-import {
-  bigint,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from 'drizzle-orm/pg-core'
-import { randomUUIDv7 } from '../utils/schemaHelpers'
-import { users } from './core'
+import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 /**
  * Lifecycle of a credit-card (Crossmint) registration order.
@@ -31,23 +21,28 @@ export type CrossmintOrderStatus =
   | 'registered'
   | 'failed'
 
-export const crossmintOrders = pgTable(
+/**
+ * Crossmint orders live in a dedicated D1 (SQLite) database, separate from the
+ * worker's Neon/Postgres tables. The feature touches only this one table and
+ * needs no Postgres features, so D1 keeps it self-contained (and the shared
+ * Neon DB untouched). UUIDs + timestamps are app-generated (SQLite has no
+ * server-side equivalents).
+ */
+export const crossmintOrders = sqliteTable(
   'crossmint_orders',
   {
-    /** Canonical order id; also the clientReference handed to Crossmint. */
-    id: uuid('id').primaryKey().default(randomUUIDv7),
+    /** Canonical order id (UUID, app-generated); also the Crossmint clientReference. */
+    id: text('id').primaryKey(),
     /** Crossmint's own order id, recorded on payment (for reference/debugging). */
     crossmint_order_id: text('crossmint_order_id').unique(),
-    /** Resolved ENS user (best-effort; orders are keyed by crossmint_order_id). */
-    user_id: uuid('user_id').references(() => users.id, {
-      onDelete: 'set null',
-    }),
+    /** Resolved ENS user id (best-effort; no cross-DB FK to the Neon users table). */
+    user_id: text('user_id'),
     /** Delivery wallet — the name is registered to this address. Lowercased. */
     owner_address: text('owner_address').notNull(),
     /** Plaintext label being registered (server-side only; never on-chain). */
     name: text('name').notNull(),
     /** Registration period in seconds. */
-    duration: bigint('duration', { mode: 'bigint' }).notNull(),
+    duration: integer('duration').notNull(),
     /** Commit-reveal secret (0x hex). Persisted so register can reveal it. */
     secret: text('secret').notNull(),
     /** The computed commit-reveal commitment (0x hex). */
@@ -67,27 +62,17 @@ export const crossmintOrders = pgTable(
       .notNull()
       .default('pending'),
     error: text('error'),
-    committed_at: timestamp('committed_at', { withTimezone: true }),
-    created_at: timestamp('created_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    updated_at: timestamp('updated_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
+    committed_at: integer('committed_at', { mode: 'timestamp' }),
+    created_at: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updated_at: integer('updated_at', { mode: 'timestamp' })
+      .notNull()
+      .$defaultFn(() => new Date()),
   },
   (table) => [
     index('crossmint_orders_user_id_index').on(table.user_id),
     index('crossmint_orders_owner_address_index').on(table.owner_address),
     index('crossmint_orders_status_index').on(table.status),
   ],
-)
-
-export const crossmintOrdersRelations = relations(
-  crossmintOrders,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [crossmintOrders.user_id],
-      references: [users.id],
-    }),
-  }),
 )

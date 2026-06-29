@@ -2,9 +2,9 @@ import { vValidator } from '@hono/valibot-validator'
 import { and, eq } from 'drizzle-orm'
 import { isAddressEqual } from 'viem'
 import { requireAuth } from '#app/middleware/auth.js'
-import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { schema } from '#core/database/index.js'
+import { getCrossmintDb } from '#core/database/crossmint.js'
+import { crossmintOrders } from '#core/database/schema/crossmint.js'
 import { generateSecret } from '#services/crossmint/fulfilment.js'
 import { CreateOrderBodySchema } from '#services/crossmint/types.js'
 import { logger } from '#utils/logger.js'
@@ -20,7 +20,6 @@ export default createApp()
   .post(
     '/orders',
     ...requireAuth,
-    injectDb,
     vValidator('json', CreateOrderBodySchema),
     async (c) => {
       const body = c.req.valid('json')
@@ -33,33 +32,34 @@ export default createApp()
         )
       }
 
-      const [row] = await c.var.db
-        .insert(schema.crossmintOrders)
+      const id = crypto.randomUUID()
+      await getCrossmintDb(c.env)
+        .insert(crossmintOrders)
         .values({
+          id,
           user_id: c.var.user_id,
           owner_address: body.ownerAddress.toLowerCase(),
           name: body.name.replace(/\.eth$/, ''),
-          duration: BigInt(body.durationSeconds),
+          duration: body.durationSeconds,
           secret: generateSecret(),
           payment_token: body.paymentToken,
           status: 'pending',
         })
-        .returning({ id: schema.crossmintOrders.id })
 
       logger.info('Crossmint order intent created', {
-        orderId: row.id,
+        orderId: id,
         user_id: c.var.user_id,
       })
-      return c.json({ orderId: row.id })
+      return c.json({ orderId: id })
     },
   )
   /** Poll the fulfilment status of an order (scoped to the buyer's wallet). */
-  .get('/orders/:id', ...requireAuth, injectDb, async (c) => {
+  .get('/orders/:id', ...requireAuth, async (c) => {
     const id = c.req.param('id')
-    const order = await c.var.db.query.crossmintOrders.findFirst({
+    const order = await getCrossmintDb(c.env).query.crossmintOrders.findFirst({
       where: and(
-        eq(schema.crossmintOrders.id, id),
-        eq(schema.crossmintOrders.owner_address, c.var.address.toLowerCase()),
+        eq(crossmintOrders.id, id),
+        eq(crossmintOrders.owner_address, c.var.address.toLowerCase()),
       ),
       columns: {
         status: true,

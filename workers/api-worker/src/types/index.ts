@@ -14,6 +14,8 @@ export * from './helpers'
 declare global {
   interface CloudflareBindings {
     REGISTRATION_QUEUE: Queue
+    /** Dedicated D1 (SQLite) database for crossmint_orders. */
+    CROSSMINT_DB: D1Database
     /** Svix signing secret for verifying Crossmint webhooks (`whsec_...`). */
     CROSSMINT_WEBHOOK_SECRET?: string
   }

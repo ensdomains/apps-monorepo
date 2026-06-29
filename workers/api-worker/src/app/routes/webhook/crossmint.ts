@@ -1,8 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import * as v from 'valibot'
-import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { TABLE } from '#core/database/index.js'
+import { getCrossmintDb } from '#core/database/crossmint.js'
+import { crossmintOrders } from '#core/database/schema/crossmint.js'
 import {
   CrossmintWebhookEventSchema,
   getClientReference,
@@ -62,8 +62,9 @@ async function verifySvixSignature(
 
 export default createApp()
   .basePath('/crossmint')
-  .post('/', injectDb, async (c) => {
+  .post('/', async (c) => {
     const rawBody = await c.req.text()
+    const db = getCrossmintDb(c.env)
 
     if (c.env.CROSSMINT_WEBHOOK_SECRET) {
       const id = c.req.header('svix-id')
@@ -107,8 +108,8 @@ export default createApp()
 
     // Idempotent: only a pending order flips to paid + enqueues. Webhook
     // redeliveries (or an order already in-flight) match 0 rows and no-op.
-    const updated = await c.var.db
-      .update(TABLE.crossmintOrders)
+    const updated = await db
+      .update(crossmintOrders)
       .set({
         status: 'paid',
         crossmint_order_id: event.data.orderId ?? null,
@@ -118,11 +119,11 @@ export default createApp()
       })
       .where(
         and(
-          eq(TABLE.crossmintOrders.id, clientReference),
-          eq(TABLE.crossmintOrders.status, 'pending'),
+          eq(crossmintOrders.id, clientReference),
+          eq(crossmintOrders.status, 'pending'),
         ),
       )
-      .returning({ id: TABLE.crossmintOrders.id })
+      .returning({ id: crossmintOrders.id })
 
     if (updated.length === 0) {
       logger.info(

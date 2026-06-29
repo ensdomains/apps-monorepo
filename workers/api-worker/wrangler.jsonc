@@ -28,6 +28,15 @@
     }
   ],
 
+  "d1_databases": [
+    {
+      "binding": "CROSSMINT_DB",
+      "database_name": "app-api-worker-crossmint",
+      "database_id": "8d96fa19-5ff5-4833-8b47-a495d0b21a0b",
+      "migrations_dir": "d1-migrations"
+    }
+  ],
+
   "queues": {
     "producers": [
       {
