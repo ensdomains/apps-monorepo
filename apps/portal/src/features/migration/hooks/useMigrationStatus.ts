@@ -8,7 +8,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { gql } from 'graphql-request'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, PublicClient } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
@@ -74,7 +74,7 @@ const getMigrationStatus = ResultFn(async function* ({
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
 
-  const { eligible } = yield* fromPromise(
+  const { eligible, failed } = yield* fromPromise(
     runEligibilityChecks(
       client as unknown as PublicClient,
       [classified.name],
@@ -82,6 +82,13 @@ const getMigrationStatus = ResultFn(async function* ({
     ),
     (e) => new GetMigrationStatusError({ cause: e }),
   )
+
+  if (failed.length > 0)
+    return err(
+      new GetMigrationStatusError({
+        cause: new Error('preflight could not read on-chain ownership'),
+      }),
+    )
 
   return ok<MigrationStatus>(
     eligible.length > 0
@@ -102,4 +109,5 @@ export const getMigrationStatusQueryOptions = (
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
     enabled: !!params.name && !!params.address,
+    retry: 2,
   })

@@ -19,12 +19,14 @@ export type EligibilityResult = {
   eligible: ClassifiedName[]
   frozen: ClassifiedName[]
   alreadyMigrated: ClassifiedName[]
+  failed: ClassifiedName[]
 }
 
 export const checkOwnership = async (
   publicClient: PublicClient,
   names: readonly ClassifiedName[],
   migrationOwner: Address,
+  failed?: Set<string>,
 ): Promise<Set<string>> => {
   const ids = new Set<string>()
   if (names.length === 0) return ids
@@ -56,6 +58,7 @@ export const checkOwnership = async (
     const r = results[i]
     if (!r || r.status === 'failure') {
       ids.add(name.domain.id)
+      failed?.add(name.domain.id)
       continue
     }
     const result = r.result
@@ -76,6 +79,7 @@ export const checkOwnership = async (
 export const checkFrozenApproval = async (
   publicClient: PublicClient,
   candidates: readonly ClassifiedName[],
+  failed?: Set<string>,
 ): Promise<Set<string>> => {
   const ids = new Set<string>()
   if (candidates.length === 0) return ids
@@ -97,6 +101,7 @@ export const checkFrozenApproval = async (
         `[migration] frozen-approval check failed for ${name.domain.id}; treating as frozen`,
       )
       ids.add(name.domain.id)
+      failed?.add(name.domain.id)
       continue
     }
     if (r.result !== zeroAddress) {
@@ -122,14 +127,15 @@ export const runEligibilityChecks = async (
   migrationOwner: Address,
 ): Promise<EligibilityResult> => {
   if (names.length === 0) {
-    return { eligible: [], frozen: [], alreadyMigrated: [] }
+    return { eligible: [], frozen: [], alreadyMigrated: [], failed: [] }
   }
 
   const frozenCandidates = frozenApprovalCandidates(names)
+  const failedIds = new Set<string>()
 
   const [migratedIds, frozenIds] = await Promise.all([
-    checkOwnership(publicClient, names, migrationOwner),
-    checkFrozenApproval(publicClient, frozenCandidates),
+    checkOwnership(publicClient, names, migrationOwner, failedIds),
+    checkFrozenApproval(publicClient, frozenCandidates, failedIds),
   ])
 
   return {
@@ -138,5 +144,6 @@ export const runEligibilityChecks = async (
     ),
     frozen: names.filter((n) => frozenIds.has(n.domain.id)),
     alreadyMigrated: names.filter((n) => migratedIds.has(n.domain.id)),
+    failed: names.filter((n) => failedIds.has(n.domain.id)),
   }
 }
