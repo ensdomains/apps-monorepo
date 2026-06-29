@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useQuery } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
@@ -10,11 +11,12 @@ import {
   type SortField,
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { tw } from '@/utils/tailwind'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
+import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
 const PAGE_SIZE = 5
 
@@ -53,7 +55,6 @@ const AnimatedNameRow = ({
   index,
   shouldReduceMotion,
   primaryLabel,
-  avatarUrl,
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
@@ -62,7 +63,6 @@ const AnimatedNameRow = ({
   readonly index: number
   readonly shouldReduceMotion: boolean | null
   readonly primaryLabel?: string | null
-  readonly avatarUrl?: string
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
@@ -74,10 +74,17 @@ const AnimatedNameRow = ({
     formattedExpiryDate,
     isV1,
     isPrimary,
-    avatarUrl: fallbackAvatarUrl,
     isInGrace,
     expiryCta,
-  } = mergedRowMetadata(item, primaryLabel, avatarUrl)
+  } = mergedRowMetadata(item, primaryLabel)
+  const { data: profileRecords } = useQuery({
+    ...profileRecordsQuery(label),
+    enabled: item.kind === 'v2' && !isInGrace,
+  })
+  const profilePreview = getNameRowProfilePreview({
+    label,
+    records: profileRecords,
+  })
 
   return (
     <motion.div
@@ -96,7 +103,7 @@ const AnimatedNameRow = ({
           })}
     >
       <NameRow
-        avatarUrl={fallbackAvatarUrl}
+        avatarUrl={profilePreview.avatarUrl}
         cta={isV1 ? null : expiryCta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
@@ -109,6 +116,7 @@ const AnimatedNameRow = ({
         onToggleFavorite={() => onToggleFavorite(label)}
         showFavoriteButton
         status={isV1 ? 'eligibleUpgrade' : null}
+        themeColor={profilePreview.themeColor}
         verified={isPrimary}
       />
     </motion.div>
@@ -222,11 +230,6 @@ export const MyNamesList = ({
           .otherwise(({ pageItems }) =>
             pageItems.map((item, index) => (
               <AnimatedNameRow
-                avatarUrl={
-                  item.kind === 'v2'
-                    ? buildNameAvatarUrl(item.sortName)
-                    : undefined
-                }
                 favoriteLabels={favoriteLabels}
                 index={index}
                 isAuthenticated={isAuthenticated}

@@ -54,4 +54,15 @@ describe('PatternAvatar', () => {
       getImageSrc(first.container),
     )
   })
+
+  it('lets explicit size utilities override the default fill size', () => {
+    const { container } = render(
+      <PatternAvatar className="size-25 rounded-xl" name="vitalik.eth" />,
+    )
+
+    const wrapper = container.firstElementChild
+
+    expect(wrapper).toHaveClass('size-25')
+    expect(wrapper).not.toHaveClass('h-full', 'w-full')
+  })
 })
