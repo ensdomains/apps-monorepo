@@ -86,6 +86,9 @@ const DEFAULT_CONNECT_HOSTS = [
   'wss://*.walletconnect.com',
   'https://*.walletconnect.org',
   'wss://*.walletconnect.org',
+  // Reown AppKit (formerly Web3Modal) config + analytics API — separate host
+  // from *.walletconnect.*; AccountController fetches /appkit/v1/config here.
+  'https://api.web3modal.org',
   // viem default public L2 RPCs for L2 setName — src/lib/wagmiL2.ts
   'https://sepolia.optimism.io',
   'https://sepolia-rollup.arbitrum.io',
