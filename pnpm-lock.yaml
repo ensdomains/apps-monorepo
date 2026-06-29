@@ -129,7 +129,7 @@ importers:
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f2a5d7c(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da62
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f2a5d7c
       '@ensdomains/etherloom':
         specifier: 0.1.0-alpha.2
         version: 0.1.0-alpha.2
