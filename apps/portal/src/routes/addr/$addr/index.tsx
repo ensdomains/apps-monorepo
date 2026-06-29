@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
-import { type Address, isAddressEqual } from 'viem'
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -100,7 +100,9 @@ function RouteComponent() {
   const { addr } = Route.useParams() as { addr: Address }
 
   const isViewingConnectedWallet =
-    !!connectedAddress && isAddressEqual(connectedAddress, addr)
+    !!connectedAddress &&
+    isAddress(addr) &&
+    isAddressEqual(connectedAddress, addr)
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
