@@ -56,6 +56,7 @@ interface NameRowProps {
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
+  readonly showOptionsMenu?: boolean
 }
 
 const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
@@ -438,6 +439,7 @@ export const NameRow = ({
   onToggleFavorite,
   isAuthenticated = true,
   isInGrace = false,
+  showOptionsMenu = true,
 }: NameRowProps) => {
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
@@ -471,7 +473,7 @@ export const NameRow = ({
           {verified && <VerifiedCheck />}
         </div>
 
-        <NameOptionsMenu label={label} />
+        {showOptionsMenu && <NameOptionsMenu label={label} />}
       </div>
 
       <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />

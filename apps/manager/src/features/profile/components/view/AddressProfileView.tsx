@@ -1,12 +1,10 @@
-import { Trans, useLingui } from '@lingui/react/macro'
-import { keepPreviousData, useQueries } from '@tanstack/react-query'
+import { Trans } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
 import {
   ArrowUpRight,
   CircleArrowLeft,
   CircleArrowRight,
   Info,
-  Loader2,
   Wallet,
 } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
@@ -15,54 +13,61 @@ import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { CopyableAddress } from '@/components/atoms/CopyableAddress'
 import { CountBadge } from '@/components/atoms/CountBadge'
-import * as ImageFallback from '@/components/atoms/ImageFallback'
-import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Card } from '@/components/ui/card'
+import { NameRow } from '@/features/dashboard/components/NameRow'
 import {
-  formatDashboardDate,
-  resolveDomainLabel,
-  toDateFromSeconds,
-} from '@/features/dashboard/utils'
-import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
-import { tw } from '@/utils/tailwind'
+  type MergedItem,
+  mergedRowMetadata,
+} from '@/features/dashboard/mergedNames'
+import { useAddressNames } from '../../hooks/useAddressNames'
 import { buildNameAvatarUrl } from '../../service/profileAvatar'
-import {
-  PROFILE_NAMES_PAGE_SIZE,
-  profileOwnedNamesQuery,
-} from '../../service/profileOwnedNames'
+
+const PAGE_SIZE = 5
 
 const shortenAddress = (value: string) =>
   `${value.slice(0, 6)}...${value.slice(-4)}`
 
-const formatExpiry = (
-  expiry: number | null | undefined,
-  t: (strings: TemplateStringsArray, ...values: unknown[]) => string,
-) => {
-  const asDate = toDateFromSeconds(expiry)
-  const formatted = formatDashboardDate(asDate)
-
-  return formatted === '—' ? t`No expiry set` : t`Expires ${formatted}`
-}
-
-const NameAvatar = ({ name }: { name: string }) => {
-  const avatarUrl = buildNameAvatarUrl(name)
+const AddressNameRow = ({
+  item,
+  index,
+  primaryName,
+  shouldReduceMotion,
+}: {
+  readonly item: MergedItem
+  readonly index: number
+  readonly primaryName?: string
+  readonly shouldReduceMotion: boolean | null
+}) => {
+  const { label, isV1, isPrimary, formattedExpiryDate, isInGrace } =
+    mergedRowMetadata(item, primaryName)
+  const avatarUrl = isV1 ? undefined : (buildNameAvatarUrl(label) ?? undefined)
 
   return (
-    <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
-      <ImageFallback.Root className="size-full">
-        <ImageFallback.Image
-          alt={`${name} avatar`}
-          className="size-full object-cover"
-          src={avatarUrl ?? undefined}
-        />
-        <ImageFallback.Fallback>
-          <PatternAvatar
-            className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
-            name={name}
-          />
-        </ImageFallback.Fallback>
-      </ImageFallback.Root>
-    </div>
+    <motion.div
+      className="border-ens-quartz-250 border-b-[0.5px] py-6 first:pt-0 last:border-none md:py-8 md:first:pt-0"
+      {...(shouldReduceMotion
+        ? {}
+        : {
+            initial: { opacity: 0, y: 6 },
+            animate: { opacity: 1, y: 0 },
+            transition: {
+              duration: 0.2,
+              ease: [0.25, 0.46, 0.45, 0.94] as const,
+              delay: index * 0.04,
+            },
+          })}
+    >
+      <NameRow
+        avatarUrl={avatarUrl}
+        expiryLabel={formattedExpiryDate}
+        isInGrace={isInGrace}
+        label={label}
+        nameVariant={isPrimary ? 'primary' : 'secondary'}
+        showOptionsMenu={false}
+        status={isV1 ? 'ensv1Only' : null}
+        verified={isPrimary}
+      />
+    </motion.div>
   )
 }
 
@@ -73,55 +78,33 @@ export const AddressProfileView = ({
   address: Address
   primaryName?: string
 }) => {
-  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
 
-  const [ownedNamesQuery, ownedNamesCountQueryState] = useQueries({
-    queries: [
-      {
-        ...profileOwnedNamesQuery(address, {
-          skip: (page - 1) * PROFILE_NAMES_PAGE_SIZE,
-        }),
-        placeholderData: keepPreviousData,
-      },
-      {
-        ...ownedNamesCountQueryOptions(address),
-      },
-    ],
+  const { items, totalCount, isPending, isError } = useAddressNames(address, {
+    sortField: 'name',
+    sortDir: 'asc',
   })
 
-  const { data, isPending, isError, isPlaceholderData } = ownedNamesQuery
-  const { data: namesCount } = ownedNamesCountQueryState
-
-  const names = data?.domains ?? []
-  const hasNextPage = names.length === PROFILE_NAMES_PAGE_SIZE
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = items.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
 
   const handlePrev = () => {
-    if (!isPending && page > 1) setPage((p) => p - 1)
+    if (currentPage > 1) setPage(currentPage - 1)
   }
 
   const handleNext = () => {
-    if (!isPending && hasNextPage) setPage((p) => p + 1)
+    if (currentPage < totalPages) setPage(currentPage + 1)
   }
-
-  const staggerProps = (index: number) =>
-    shouldReduceMotion
-      ? {}
-      : {
-          initial: { opacity: 0, y: 6 },
-          animate: { opacity: 1, y: 0 },
-          transition: {
-            duration: 0.25,
-            ease: [0.25, 0.46, 0.45, 0.94] as const,
-            delay: index * 0.04,
-          },
-        }
 
   const namesContent = match({
     isPending,
     isError,
-    hasNames: names.length > 0,
+    hasNames: items.length > 0,
   })
     .with({ isPending: true }, () => (
       <div>
@@ -146,44 +129,20 @@ export const AddressProfileView = ({
     ))
     .with({ hasNames: false }, () => (
       <div className="rounded-lg bg-ens-white px-4 py-6 text-center text-muted-foreground text-sm">
-        No ENS names found for this address on this network.
+        No ENS names found for this address.
       </div>
     ))
     .otherwise(() => (
       <div>
-        {names.map((domain, index) => {
-          const label = resolveDomainLabel(domain)
-
-          return (
-            <motion.div
-              className="border-[lightgrey] border-b-[0.41px] py-6 last:border-none"
-              key={domain.id}
-              {...staggerProps(index)}
-            >
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-3">
-                  <NameAvatar name={label} />
-                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 md:px-2 md:py-1">
-                    <Link
-                      className="mr-1 min-w-0 text-pretty break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:mr-2 md:tracking-[-0.32px]"
-                      params={{ name: label }}
-                      to="/$name"
-                    >
-                      {label}
-                    </Link>
-                    <ArrowUpRight
-                      className="size-2 shrink-0 text-ens-blue md:size-3"
-                      strokeWidth={2}
-                    />
-                  </div>
-                </div>
-                <span className="shrink-0 text-muted-foreground text-sm tracking-[-0.24px]">
-                  {formatExpiry(domain.expiryDate, t)}
-                </span>
-              </div>
-            </motion.div>
-          )
-        })}
+        {pageItems.map((item, index) => (
+          <AddressNameRow
+            index={index}
+            item={item}
+            key={item.key}
+            primaryName={primaryName}
+            shouldReduceMotion={shouldReduceMotion}
+          />
+        ))}
       </div>
     ))
 
@@ -238,39 +197,33 @@ export const AddressProfileView = ({
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
-              <Trans>Registered ENS names</Trans>
+              <Trans>ENS names</Trans>
             </span>
-            {namesCount !== undefined && namesCount > 0 && (
-              <CountBadge value={namesCount} />
-            )}
+            {!isPending && totalCount > 0 && <CountBadge value={totalCount} />}
           </div>
           <span className="text-muted-foreground text-sm">
             {shortenAddress(address)}
           </span>
         </div>
 
-        <div
-          className={tw(isPlaceholderData && 'opacity-50 transition-opacity')}
-        >
-          {namesContent}
-        </div>
+        {namesContent}
 
-        {!isPending && !isError && names.length > 0 && (
+        {!isPending && !isError && totalPages > 1 && (
           <div className="mt-8 flex flex-col gap-3 md:h-14 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center justify-center gap-3">
               <button
-                aria-label={t`Previous page`}
+                aria-label="Previous page"
                 className="flex size-8 items-center justify-center text-ens-gray-three disabled:text-border"
-                disabled={isPending || page === 1}
+                disabled={currentPage === 1}
                 onClick={handlePrev}
                 type="button"
               >
                 <CircleArrowLeft className="size-8" strokeWidth={1} />
               </button>
               <button
-                aria-label={t`Next page`}
+                aria-label="Next page"
                 className="flex size-8 items-center justify-center text-ens-blue disabled:text-border"
-                disabled={isPending || !hasNextPage}
+                disabled={currentPage >= totalPages}
                 onClick={handleNext}
                 type="button"
               >
@@ -278,8 +231,7 @@ export const AddressProfileView = ({
               </button>
             </div>
             <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-              {isPlaceholderData && <Loader2 className="size-3 animate-spin" />}
-              Showing registered names
+              Page {currentPage} of {totalPages}
             </span>
           </div>
         )}

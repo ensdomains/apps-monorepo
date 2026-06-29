@@ -823,6 +823,10 @@ msgstr "ENS app landing page"
 msgid "ENS Labs Updates"
 msgstr "ENS Labs Updates"
 
+#: src/features/profile/components/view/AddressProfileView.tsx
+msgid "ENS names"
+msgstr "ENS names"
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "ENS names are stored on-chain as NFTs"
 msgstr "ENS names are stored on-chain as NFTs"
@@ -1314,7 +1318,6 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/DashboardPagination.tsx
-#: src/features/profile/components/view/AddressProfileView.tsx
 msgid "Next page"
 msgstr "Next page"
 
@@ -1562,7 +1565,6 @@ msgid "Previous owner"
 msgstr "Previous owner"
 
 #: src/features/dashboard/components/DashboardPagination.tsx
-#: src/features/profile/components/view/AddressProfileView.tsx
 msgid "Previous page"
 msgstr "Previous page"
 
@@ -1653,8 +1655,8 @@ msgid "Registered"
 msgstr "Registered"
 
 #: src/features/profile/components/view/AddressProfileView.tsx
-msgid "Registered ENS names"
-msgstr "Registered ENS names"
+#~ msgid "Registered ENS names"
+#~ msgstr "Registered ENS names"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
