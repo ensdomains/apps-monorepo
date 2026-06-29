@@ -1,3 +1,4 @@
+import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
 import type { V1Domain } from './v1SubgraphClient'
@@ -9,16 +10,16 @@ const toAddress = (s: string | null | undefined): Address | null => {
 
 export const FUSES = {
   CAN_DO_EVERYTHING: 0,
-  CANNOT_UNWRAP: 1,
-  CANNOT_BURN_FUSES: 2,
-  CANNOT_TRANSFER: 4,
-  CANNOT_SET_RESOLVER: 8,
-  CANNOT_SET_TTL: 16,
-  CANNOT_CREATE_SUBDOMAIN: 32,
-  CANNOT_APPROVE: 64,
-  PARENT_CANNOT_CONTROL: 1 << 16,
-  IS_DOT_ETH: 1 << 17,
-  CAN_EXTEND_EXPIRY: 1 << 18,
+  CANNOT_UNWRAP: Number(ChildFuses.CANNOT_UNWRAP),
+  CANNOT_BURN_FUSES: Number(ChildFuses.CANNOT_BURN_FUSES),
+  CANNOT_TRANSFER: Number(ChildFuses.CANNOT_TRANSFER),
+  CANNOT_SET_RESOLVER: Number(ChildFuses.CANNOT_SET_RESOLVER),
+  CANNOT_SET_TTL: Number(ChildFuses.CANNOT_SET_TTL),
+  CANNOT_CREATE_SUBDOMAIN: Number(ChildFuses.CANNOT_CREATE_SUBDOMAIN),
+  CANNOT_APPROVE: Number(ChildFuses.CANNOT_APPROVE),
+  PARENT_CANNOT_CONTROL: Number(FullParentFuses.PARENT_CANNOT_CONTROL),
+  IS_DOT_ETH: Number(FullParentFuses.IS_DOT_ETH),
+  CAN_EXTEND_EXPIRY: Number(FullParentFuses.CAN_EXTEND_EXPIRY),
 } as const
 
 export type MigrationTokenType =
