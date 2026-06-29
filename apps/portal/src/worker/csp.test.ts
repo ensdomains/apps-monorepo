@@ -48,7 +48,7 @@ describe('csp', () => {
         "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
       )
       expect(header['script-src']).toContain(
-        "'sha256-aKAwvWwisgzRhW5auVEe5FrNQ3wlLsxZvLvimiQ3+os='",
+        "'sha256-Ib51wWFT2R+IqxlqfWtMLgSQRX9nVaSnkYU0IDqsGL4='",
       )
     })
 

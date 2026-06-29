@@ -111,7 +111,7 @@ const INLINE_SCRIPT_HASHES = [
   // PostHog's inline bootstrap loader (posthog-js). This hash is tied to the
   // posthog-js version, so it MUST be regenerated when posthog-js is upgraded —
   // the new expected hash appears in the script-src-elem CSP violation.
-  "'sha256-aKAwvWwisgzRhW5auVEe5FrNQ3wlLsxZvLvimiQ3+os='",
+  "'sha256-Ib51wWFT2R+IqxlqfWtMLgSQRX9nVaSnkYU0IDqsGL4='",
 ] as const
 
 // Directives shared by the header and the meta tag.
