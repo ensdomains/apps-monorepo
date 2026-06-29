@@ -15,14 +15,14 @@
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
-    "@ensdomains/address-encoder": "^1.1.2",
+    "@ensdomains/address-encoder": "^1.1.4",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
-    "@xstate/react": "^4.0.0-beta.12",
+    "@xstate/react": "^4.1.3",
     "idb": "^8.0.3",
-    "neverthrow": "^8.1.1",
-    "valibot": "^1.2.0",
+    "neverthrow": "^8.2.0",
+    "valibot": "^1.4.1",
     "viem": "catalog:",
     "xstate": "catalog:"
   },
@@ -32,10 +32,10 @@
     "wagmi": "^3.0.2"
   },
   "devDependencies": {
-    "@types/react": "^19.0.6",
+    "@types/react": "^19.2.17",
+    "react": "^19.2.7",
     "typescript": "catalog:typescript6",
     "vitest": "catalog:",
-    "wagmi": "^3.0.2",
-    "react": "^19.2.5"
+    "wagmi": "^3.6.21"
   }
 }

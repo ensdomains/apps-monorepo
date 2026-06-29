@@ -93,7 +93,11 @@ export const registrationMachineMock = setup({
           target: 'Error',
           actions: [
             assign({
-              error: ({ event }) => event.error,
+              // `fromResultAsync` rethrows the typed neverthrow error, so the
+              // actor's `onError` event carries this union at runtime. xstate's
+              // `ErrorActorEvent` widens `error` to `unknown`, so narrow it back.
+              error: ({ event }) =>
+                event.error as NameAvailabilityError | WagmiClientError,
               isAvailable: (_) => undefined,
             }),
             log(({ event }) => `Availability check failed: ${event.error}`),

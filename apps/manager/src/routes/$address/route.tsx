@@ -1,20 +1,20 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { isAddress } from 'viem'
+import { type Address, isAddress } from 'viem'
 
 export const Route = createFileRoute('/$address')({
   params: {
-    parse: (rawParams) => {
+    // Returning `false` (instead of throwing) tells the router to skip this
+    // route during matching when the param isn't a valid address, so a
+    // non-address `/$param` can fall through to the `/$name` route.
+    parse: (rawParams): { address: Address } | false => {
       if (!isAddress(rawParams.address, { strict: false })) {
-        throw new Error('Not an address')
+        return false
       }
 
       return {
         address: rawParams.address,
       }
     },
-  },
-  skipRouteOnParseError: {
-    params: true,
     // Prioritize address over names since addresses are more strict.
     priority: 100,
   },

@@ -1,11 +1,10 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
-import { useConnection } from 'wagmi'
-import { getEnsResolverQueryOptions } from 'wagmi/query'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AssuredWorkloadIcon, EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -31,7 +30,6 @@ import {
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
-import { wagmiConfig } from '@/lib/wagmi'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
@@ -469,15 +467,8 @@ const NoResolverSet = ({
 function RouteComponent() {
   const { name } = useParams({ from: '/$name/resolver' })
 
-  const [ownerQuery, resolverQuery] = useQueries({
-    queries: [
-      getEnsOwnerQueryOptions({ name }),
-      getEnsResolverQueryOptions(wagmiConfig, {
-        name,
-        universalResolverAddress,
-      }),
-    ],
-  })
+  const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const resolverQuery = useEnsResolver({ name, universalResolverAddress })
 
   // Whether the name is registered is a chain-state question: the v2 registry
   // keeps returning the previous owner (latestOwner) after expiry, so use the

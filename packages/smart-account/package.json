@@ -17,7 +17,7 @@
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
-    "neverthrow": "^8.1.1",
+    "neverthrow": "^8.2.0",
     "viem": "catalog:"
   },
   "devDependencies": {

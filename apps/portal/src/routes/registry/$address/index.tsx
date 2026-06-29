@@ -16,7 +16,10 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { RegistryHistoryByAddress } from '@/features/registry/components/v2/RegistryHistory'
-import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
+import {
+  getRegistryInfoQueryOptions,
+  type RegistryInfo,
+} from '@/features/registry/hooks/useRegistry'
 import { getRegistryDeploymentQueryOptions } from '@/features/registry/hooks/useRegistryDeployment'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -46,7 +49,7 @@ function RouteComponent() {
     error,
   } = useQuery(getRegistryInfoQueryOptions({ address }))
   const {
-    data: parent,
+    data: parentData,
     isLoading: isLoadingParent,
     error: parentError,
   } = useQuery({
@@ -57,6 +60,10 @@ function RouteComponent() {
       !!registry?.parentRegistry &&
       !isAddressEqual(registry.parentRegistry, zeroAddress),
   })
+  // Re-annotate to the plain union. TanStack Query v5.101's inferred `data`
+  // type displays as `RegistryInfo | null | undefined` but is wrapped in a
+  // way that defeats ts-pattern's structural narrowing of `parent.name` below.
+  const parent: RegistryInfo | null | undefined = parentData
   if (isLoading) return <LoadingSpinner title="Loading registry" />
   if (error)
     return (

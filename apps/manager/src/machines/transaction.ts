@@ -71,7 +71,12 @@ export const transactionMachine = setup({
         onError: {
           target: 'Error',
           actions: [
-            assign({ error: ({ event }) => event.error }),
+            // `fromResultAsync` rethrows the typed neverthrow error, so the
+            // actor's `onError` event carries `TransactionMachineError` at
+            // runtime. xstate widens `error` to `unknown`; narrow it back.
+            assign({
+              error: ({ event }) => event.error as TransactionMachineError,
+            }),
             log(({ event }) => `Transaction failed to send: ${event.error}`),
           ],
         },
@@ -90,7 +95,11 @@ export const transactionMachine = setup({
         },
         onError: {
           target: 'Error',
-          actions: [assign({ error: ({ event }) => event.error })],
+          actions: [
+            assign({
+              error: ({ event }) => event.error as TransactionMachineError,
+            }),
+          ],
         },
       },
     },

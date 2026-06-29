@@ -48,20 +48,16 @@ export const MultiNamePaymentTokenPicker = ({
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
   const hasAddress = Boolean(address)
 
-  const [balancesQuery] = useQueries({
-    queries: [
-      {
-        ...readContractsQueryOptions(config, {
-          contracts: PAYMENT_TOKENS.map((token) => ({
-            address: token.address,
-            abi: erc20Abi,
-            functionName: 'balanceOf',
-            args: [address as Address],
-          })),
-        }),
-        enabled: hasAddress,
-      },
-    ],
+  const balancesQuery = useQuery({
+    ...readContractsQueryOptions(config, {
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address as Address],
+      })),
+    }),
+    enabled: hasAddress,
   })
 
   const allowancesQuery = useQuery({
