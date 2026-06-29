@@ -80,7 +80,7 @@ export const WeaveRegistration = ({
     <div className="weave-registration mx-auto flex w-full max-w-full flex-col items-center gap-8">
       <div
         className={cn(
-          'inline-flex w-full max-w-[225px] gap-12 max-md:flex-col max-md:items-center max-md:gap-3 max-md:text-center md:w-auto md:max-w-none',
+          'inline-flex w-full max-w-[290px] gap-12 max-md:flex-col max-md:items-center max-md:gap-3 max-md:text-center md:w-auto md:max-w-none',
           singleLineName
             ? 'md:h-[210px] md:items-end'
             : 'md:min-h-[210px] md:items-stretch',
