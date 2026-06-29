@@ -106,7 +106,7 @@ export const DefaultImageField = ({
     type="button"
   >
     {kind === 'avatar' ? (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 py-3 md:w-43.5 md:gap-3.5">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 md:w-43.5 md:gap-3.5">
         <ProfileImagePreview
           displayImage={displayImage}
           hasImage={hasImage}
