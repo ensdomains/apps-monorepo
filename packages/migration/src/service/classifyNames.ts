@@ -61,9 +61,7 @@ export const hasFuse = (fuses: number, fuse: number): boolean =>
   (fuses & fuse) !== 0
 
 export const is2LD = (name: ClassifiedName): boolean =>
-  name.tokenType === 'unwrapped' ||
-  name.tokenType === 'unlocked' ||
-  name.tokenType === 'locked-2ld'
+  ['unwrapped', 'unlocked', 'locked-2ld'].includes(name.tokenType)
 
 const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
