@@ -97,8 +97,9 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     vi.clearAllMocks()
     i18n.loadAndActivate({ locale: 'en', messages: {} })
     vi.stubEnv('VITE_RHINESTONE_API_KEY', 'test-rhinestone-key')
-    // Default the JWT sponsorship flag off — the API-key path is the baseline.
-    // The JWT-mode test opts in explicitly.
+    // JWT is now the default path, so the API-key baseline tests must opt OUT
+    // explicitly by setting the flag to 'false'. The default-on case is covered
+    // by its own test (flag unset).
     vi.stubEnv('VITE_FF_EXPERIMENTAL_JWT', 'false')
   })
 
@@ -151,6 +152,24 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     // JWT mode swaps the static API key for the experimental_jwt auth
     // callbacks — the SDK must be constructed with the token callbacks and
     // never a raw `apiKey`.
+    expect(RhinestoneSDK).toHaveBeenCalledWith({
+      auth: {
+        mode: 'experimental_jwt',
+        accessToken: MOCK_ACCESS_TOKEN_FN,
+        getIntentExtensionToken: MOCK_EXTENSION_TOKEN_FN,
+      },
+    })
+  })
+
+  it('builds the SDK in JWT mode by default when the flag is unset', async () => {
+    vi.stubEnv('VITE_FF_EXPERIMENTAL_JWT', undefined as unknown as string)
+
+    await initializeRhinestoneAccount({
+      walletClient: mockWalletClient,
+    })
+
+    // JWT is the default sponsorship path — an unset flag still builds the SDK
+    // with the experimental_jwt auth callbacks, not a raw API key.
     expect(RhinestoneSDK).toHaveBeenCalledWith({
       auth: {
         mode: 'experimental_jwt',

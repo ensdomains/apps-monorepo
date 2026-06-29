@@ -131,13 +131,14 @@ export async function initializeRhinestoneAccount(
   })
   const env = resolveSdkEnv()
 
-  // JWT-mode sponsorship (flagged). When on, the SDK authenticates each
-  // sponsored intent through the api-worker `shouldSponsor` predicate instead
-  // of a static API key. Off → existing API-key behaviour is unchanged.
+  // JWT-mode sponsorship is the default path: the SDK authenticates each
+  // sponsored intent through the api-worker `shouldSponsor` predicate (which is
+  // where sponsorship policy lives). Set VITE_FF_EXPERIMENTAL_JWT=false to fall
+  // back to the static API-key path; any other value (incl. unset) keeps JWT.
   const jwtAuth =
-    import.meta.env.VITE_FF_EXPERIMENTAL_JWT === 'true'
-      ? createJwtAuthCallbacks()
-      : undefined
+    import.meta.env.VITE_FF_EXPERIMENTAL_JWT === 'false'
+      ? undefined
+      : createJwtAuthCallbacks()
 
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
