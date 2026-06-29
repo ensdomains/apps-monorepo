@@ -9,7 +9,7 @@ import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
   EthCallFallbackError,
-  type SignerAddressMismatchError,
+  SignerAddressMismatchError,
   TransactionRevertedError,
   TransactionSubmissionError,
   TransactionTimeoutError,
@@ -445,6 +445,14 @@ export const transactionMachine = setup({
             guard: ({ context, event }) => {
               // Don't retry if the transaction was rejected by the user
               if (event.error instanceof TransactionUserRejectedError) {
+                return false
+              }
+
+              // A signer/address mismatch is non-recoverable: the same
+              // signer + request pair fails the same check every time and the
+              // wallet is never even prompted. Surface it immediately instead
+              // of burning retries.
+              if (event.error instanceof SignerAddressMismatchError) {
                 return false
               }
 
