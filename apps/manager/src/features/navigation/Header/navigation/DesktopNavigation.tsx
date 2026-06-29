@@ -40,7 +40,7 @@ export const DesktopNavigation = ({
   profileThemeColor,
 }: DesktopNavigationProps) => {
   const [open, setOpen] = useState(false)
-  const anchorRef = useRef<HTMLDivElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
 
   const handleAction = () => {
     setOpen(false)
@@ -51,22 +51,25 @@ export const DesktopNavigation = ({
       <PopoverTrigger
         aria-label="Open navigation"
         className="group flex shrink-0 items-center justify-center"
+        delay={50}
         openOnHover
       >
-        <Link
-          onClick={(e) => {
-            e.stopPropagation()
-            setOpen(false)
-          }}
-          to="/"
-        >
-          {profileHeader ? (
-            <ProfileThemeEnsLogo color={profileThemeColor} />
-          ) : (
-            <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
-          )}
-        </Link>
-        <div ref={anchorRef}>
+        <div className="flex shrink-0" ref={logoRef}>
+          <Link
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(false)
+            }}
+            to="/"
+          >
+            {profileHeader ? (
+              <ProfileThemeEnsLogo color={profileThemeColor} />
+            ) : (
+              <img alt="ENS Logo" className="h-6.5 shrink-0" src={ensLogo} />
+            )}
+          </Link>
+        </div>
+        <div>
           <MSymbol
             className={tw(
               'ms-opsz-32 text-ens-blue-midnight transition-transform duration-200 group-data-popup-open:-rotate-180',
@@ -79,7 +82,8 @@ export const DesktopNavigation = ({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        anchor={anchorRef.current}
+        alignOffset={-12}
+        // anchor={logoRef.current}
         className="w-xs space-y-6 bg-white p-6"
         sideOffset={16}
       >
