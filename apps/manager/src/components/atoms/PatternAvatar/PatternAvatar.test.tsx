@@ -5,9 +5,10 @@ import { render } from '@/utils/test-utils'
 import { PatternAvatar } from './PatternAvatar'
 
 const etherloomOptions = {
-  cellSize: 8,
+  cellSize: 10,
   height: 96,
   width: 96,
+  padding: 10,
 } as const
 
 const getExpectedPatternSrc = (name: string) =>

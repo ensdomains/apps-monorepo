@@ -10,9 +10,10 @@ import { tw } from '@/utils/tailwind'
 const etherloomPattern: PatternName = 'ENS Vertical Pairs'
 const etherloomColor = '#0080BC'
 const etherloomOptions = {
-  cellSize: 8,
+  cellSize: 10,
   height: 96,
   width: 96,
+  padding: 10,
 } satisfies PatternOptions
 
 export type PatternAvatarProps = {
@@ -35,7 +36,7 @@ export const PatternAvatar = ({ name, className }: PatternAvatarProps) => {
   return (
     <div
       className={tw(
-        'flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100 p-1 shadow-inner',
+        'flex h-full w-full items-center justify-center overflow-hidden rounded-md border border-slate-200 shadow-inner',
         className,
       )}
     >
