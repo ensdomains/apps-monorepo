@@ -98,14 +98,6 @@ const hasUnknownLabel = (domain: V1Domain): boolean => {
   return false
 }
 
-const isWrapActive = (
-  wrappedDomain: V1Domain['wrappedDomain'],
-  nowSeconds: bigint,
-): boolean => {
-  if (!wrappedDomain) return false
-  return BigInt(wrappedDomain.expiryDate) > nowSeconds
-}
-
 const hasExpiredDotEthRegistration = (
   domain: V1Domain,
   parentName: string | null,
@@ -135,7 +127,8 @@ export const classifyName = (
   const wrappedOwnerMatches = wrappedOwner?.id.toLowerCase() === addr
   const effectiveWrappedDomain =
     domain.wrappedDomain &&
-    (isWrapActive(domain.wrappedDomain, nowSeconds) || wrappedOwnerMatches)
+    (BigInt(domain.wrappedDomain.expiryDate) > nowSeconds ||
+      wrappedOwnerMatches)
       ? domain.wrappedDomain
       : null
 
