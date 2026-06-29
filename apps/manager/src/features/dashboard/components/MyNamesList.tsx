@@ -55,16 +55,20 @@ type MergedNameRowMetadata = ReturnType<typeof mergedRowMetadata>
 
 const AnimatedNameRow = ({
   metadata,
+  name,
   index,
   profileRecords,
+  isProfileRecordsLoading,
   shouldReduceMotion,
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
 }: {
   readonly metadata: MergedNameRowMetadata
+  readonly name: string
   readonly index: number
   readonly profileRecords?: ProfileRecordsResult | null
+  readonly isProfileRecordsLoading: boolean
   readonly shouldReduceMotion: boolean | null
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
@@ -82,7 +86,9 @@ const AnimatedNameRow = ({
   } = metadata
   const profilePreview = getNameRowProfilePreview({
     label,
+    name,
     records: profileRecords,
+    isLoading: isProfileRecordsLoading,
   })
 
   return (
@@ -101,6 +107,7 @@ const AnimatedNameRow = ({
           })}
     >
       <NameRow
+        avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
         cta={isV1 ? null : expiryCta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
@@ -182,13 +189,21 @@ export const MyNamesList = ({
   const pageRows = pageItems.map((item) => ({
     item,
     metadata: mergedRowMetadata(item, primaryLabel),
+    name:
+      item.kind === 'v2'
+        ? (item.domain.normalizedName ?? item.sortName)
+        : item.sortName,
   }))
   const pageProfileRecords = useQueries({
-    queries: pageRows.map(({ item, metadata }) => ({
-      ...profileRecordsQuery(metadata.label),
+    queries: pageRows.map(({ item, metadata, name }) => ({
+      ...profileRecordsQuery(name),
       enabled: item.kind === 'v2' && !metadata.isInGrace,
     })),
-    combine: (results) => results.map((result) => result.data),
+    combine: (results) =>
+      results.map((result) => ({
+        records: result.data,
+        isLoading: result.isLoading,
+      })),
   })
 
   if (isV2Error && v2Names.length === 0) {
@@ -237,18 +252,26 @@ export const MyNamesList = ({
             </div>
           ))
           .otherwise(() =>
-            pageRows.map((row, index) => (
-              <AnimatedNameRow
-                favoriteLabels={favoriteLabels}
-                index={index}
-                isAuthenticated={isAuthenticated}
-                key={row.item.key}
-                metadata={row.metadata}
-                onToggleFavorite={onToggleFavorite}
-                profileRecords={pageProfileRecords[index]}
-                shouldReduceMotion={shouldReduceMotion}
-              />
-            )),
+            pageRows.map((row, index) => {
+              const profileRecordState = pageProfileRecords[index]
+
+              return (
+                <AnimatedNameRow
+                  favoriteLabels={favoriteLabels}
+                  index={index}
+                  isAuthenticated={isAuthenticated}
+                  isProfileRecordsLoading={
+                    profileRecordState?.isLoading ?? false
+                  }
+                  key={row.item.key}
+                  metadata={row.metadata}
+                  name={row.name}
+                  onToggleFavorite={onToggleFavorite}
+                  profileRecords={profileRecordState?.records}
+                  shouldReduceMotion={shouldReduceMotion}
+                />
+              )
+            }),
           )}
       </div>
 

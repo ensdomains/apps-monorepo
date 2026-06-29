@@ -4,6 +4,7 @@ import type { ProfileRecordsResult } from '@/features/profile/service/profileRec
 export type NameRowProfilePreview = {
   readonly themeColor?: string
   readonly avatarUrl?: string
+  readonly isAvatarPending: boolean
 }
 
 const getTextRecordValue = (
@@ -16,13 +17,17 @@ const getTextRecordValue = (
 
 export const getNameRowProfilePreview = (params: {
   readonly label: string
+  readonly name?: string
   readonly records?: ProfileRecordsResult | null
+  readonly isLoading?: boolean
 }): NameRowProfilePreview => {
   const themeColor = getTextRecordValue(params.records, 'theme')
   const avatarRecord = getTextRecordValue(params.records, 'avatar')
+  const avatarName = params.name ?? params.label
 
   return {
-    avatarUrl: avatarRecord ? buildNameAvatarUrl(params.label) : undefined,
+    avatarUrl: avatarRecord ? buildNameAvatarUrl(avatarName) : undefined,
     themeColor,
+    isAvatarPending: params.isLoading === true && !params.records,
   }
 }

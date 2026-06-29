@@ -11,6 +11,22 @@ const profileRecords = (
 })
 
 describe('getNameRowProfilePreview', () => {
+  it('marks generated avatar color as pending while profile records are loading', () => {
+    expect(
+      getNameRowProfilePreview({
+        label: 'alaska.eth',
+        isLoading: true,
+      }).isAvatarPending,
+    ).toBe(true)
+
+    expect(
+      getNameRowProfilePreview({
+        label: 'alaska.eth',
+        records: profileRecords([{ key: 'theme', value: '#E72A96' }]),
+      }).isAvatarPending,
+    ).toBe(false)
+  })
+
   it('uses the profile theme record for themed generated avatars', () => {
     const preview = getNameRowProfilePreview({
       label: 'alaska.eth',
@@ -31,10 +47,23 @@ describe('getNameRowProfilePreview', () => {
     expect(
       getNameRowProfilePreview({
         label: 'alaska.eth',
+        name: 'alaska.eth',
         records: profileRecords([
           { key: 'avatar', value: 'https://example.com/avatar.png' },
         ]),
       }).avatarUrl,
     ).toBe(buildNameAvatarUrl('alaska.eth'))
+  })
+
+  it('uses the canonical name for metadata avatar URLs', () => {
+    const preview = getNameRowProfilePreview({
+      label: 'Display Name',
+      name: 'normalized.eth',
+      records: profileRecords([
+        { key: 'avatar', value: 'https://example.com/avatar.png' },
+      ]),
+    })
+
+    expect(preview.avatarUrl).toBe(buildNameAvatarUrl('normalized.eth'))
   })
 })
