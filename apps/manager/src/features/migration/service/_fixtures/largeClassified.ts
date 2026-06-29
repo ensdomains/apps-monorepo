@@ -14,7 +14,7 @@ const make = (
     tokenType,
     label,
     parentName,
-    fuses: 0,
+    fuses: 0n,
     tokenHolder: OWNER,
     v1ResolverAddress: null,
     resolverStrategy: 'to-owned-permres',

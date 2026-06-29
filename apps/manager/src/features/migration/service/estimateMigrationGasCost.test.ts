@@ -36,7 +36,7 @@ const makeClassifiedName = (
   tokenType: 'unlocked',
   label: name.split('.')[0] ?? name,
   parentName: 'eth',
-  fuses: 0,
+  fuses: 0n,
   tokenHolder: account,
   v1ResolverAddress: callTarget,
   resolverStrategy: 'to-owned-permres',

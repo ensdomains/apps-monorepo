@@ -9,17 +9,17 @@ const toAddress = (s: string | null | undefined): Address | null => {
 }
 
 export const FUSES = {
-  CAN_DO_EVERYTHING: 0,
-  CANNOT_UNWRAP: Number(ChildFuses.CANNOT_UNWRAP),
-  CANNOT_BURN_FUSES: Number(ChildFuses.CANNOT_BURN_FUSES),
-  CANNOT_TRANSFER: Number(ChildFuses.CANNOT_TRANSFER),
-  CANNOT_SET_RESOLVER: Number(ChildFuses.CANNOT_SET_RESOLVER),
-  CANNOT_SET_TTL: Number(ChildFuses.CANNOT_SET_TTL),
-  CANNOT_CREATE_SUBDOMAIN: Number(ChildFuses.CANNOT_CREATE_SUBDOMAIN),
-  CANNOT_APPROVE: Number(ChildFuses.CANNOT_APPROVE),
-  PARENT_CANNOT_CONTROL: Number(FullParentFuses.PARENT_CANNOT_CONTROL),
-  IS_DOT_ETH: Number(FullParentFuses.IS_DOT_ETH),
-  CAN_EXTEND_EXPIRY: Number(FullParentFuses.CAN_EXTEND_EXPIRY),
+  CAN_DO_EVERYTHING: 0n,
+  CANNOT_UNWRAP: ChildFuses.CANNOT_UNWRAP,
+  CANNOT_BURN_FUSES: ChildFuses.CANNOT_BURN_FUSES,
+  CANNOT_TRANSFER: ChildFuses.CANNOT_TRANSFER,
+  CANNOT_SET_RESOLVER: ChildFuses.CANNOT_SET_RESOLVER,
+  CANNOT_SET_TTL: ChildFuses.CANNOT_SET_TTL,
+  CANNOT_CREATE_SUBDOMAIN: ChildFuses.CANNOT_CREATE_SUBDOMAIN,
+  CANNOT_APPROVE: ChildFuses.CANNOT_APPROVE,
+  PARENT_CANNOT_CONTROL: FullParentFuses.PARENT_CANNOT_CONTROL,
+  IS_DOT_ETH: FullParentFuses.IS_DOT_ETH,
+  CAN_EXTEND_EXPIRY: FullParentFuses.CAN_EXTEND_EXPIRY,
 } as const
 
 export type MigrationTokenType =
@@ -51,22 +51,22 @@ export type ClassifiedName = {
   readonly tokenType: MigrationTokenType
   readonly label: string
   readonly parentName: string | null
-  readonly fuses: number
+  readonly fuses: bigint
   readonly tokenHolder: Address
   readonly v1ResolverAddress: string | null
   readonly resolverStrategy: ResolverStrategy
   readonly managerAddress: Address | null
 }
 
-export const hasFuse = (fuses: number, fuse: number): boolean =>
-  (fuses & fuse) !== 0
+export const hasFuse = (fuses: bigint, fuse: bigint): boolean =>
+  (fuses & fuse) !== 0n
 
 export const is2LD = (name: ClassifiedName): boolean =>
   ['unwrapped', 'unlocked', 'locked-2ld'].includes(name.tokenType)
 
 const resolverStrategyFor = (params: {
   tokenType: MigrationTokenType
-  fuses: number
+  fuses: bigint
   v1ResolverAddress: string | null
 }): ResolverStrategy => {
   const { tokenType, fuses, v1ResolverAddress } = params
@@ -161,12 +161,12 @@ export const classifyName = (
         tokenType: 'unwrapped',
         label,
         parentName,
-        fuses: 0,
+        fuses: 0n,
         tokenHolder,
         v1ResolverAddress,
         resolverStrategy: resolverStrategyFor({
           tokenType: 'unwrapped',
-          fuses: 0,
+          fuses: 0n,
           v1ResolverAddress,
         }),
         managerAddress,
@@ -176,7 +176,7 @@ export const classifyName = (
 
   if (!wrappedOwner || !wrappedOwnerMatches) return null
 
-  const fuses = effectiveWrappedDomain.fuses
+  const fuses = BigInt(effectiveWrappedDomain.fuses)
   const wrappedHolder = toAddress(wrappedOwner.id)
   if (!wrappedHolder) return null
   if (hasExpiredDotEthRegistration(domain, parentName, nowSeconds)) {
@@ -192,7 +192,7 @@ export const classifyName = (
         hasFuse(fuses, FUSES.PARENT_CANNOT_CONTROL) &&
         parentName &&
         domain.parent?.wrappedDomain &&
-        hasFuse(domain.parent.wrappedDomain.fuses, FUSES.CANNOT_UNWRAP)
+        hasFuse(BigInt(domain.parent.wrappedDomain.fuses), FUSES.CANNOT_UNWRAP)
       ) {
         return {
           type: 'classified',

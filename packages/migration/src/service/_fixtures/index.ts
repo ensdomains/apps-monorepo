@@ -22,7 +22,7 @@ export type ClassifiedOverrides = {
   name?: string
   labelhash?: string
   id?: string
-  fuses?: number
+  fuses?: bigint
   label?: string
   managerAddress?: Address | null
   tokenHolder?: Address
@@ -34,7 +34,7 @@ export const makeClassified = (
   tokenType: o.tokenType ?? 'unwrapped',
   label: o.label ?? 'alice',
   parentName: o.parentName === undefined ? 'eth' : o.parentName,
-  fuses: o.fuses ?? 0,
+  fuses: o.fuses ?? 0n,
   tokenHolder: o.tokenHolder ?? OWNER,
   v1ResolverAddress:
     o.v1ResolverAddress === undefined ? null : o.v1ResolverAddress,
