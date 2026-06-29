@@ -7,6 +7,7 @@ type ProfileViewNewAvatarProps = {
   readonly avatarUrl?: string
   readonly className?: string
   readonly name: string
+  readonly themeColor?: string
 }
 
 export const ProfileViewNewAvatar = ({
@@ -14,6 +15,7 @@ export const ProfileViewNewAvatar = ({
   avatarUrl,
   className,
   name,
+  themeColor,
 }: ProfileViewNewAvatarProps) => (
   <div
     className={cn(
@@ -30,6 +32,7 @@ export const ProfileViewNewAvatar = ({
       <ImageFallback.Fallback>
         <PatternAvatar
           className="size-full rounded-[18.889px] border-none bg-transparent p-0 shadow-none"
+          color={themeColor}
           name={name}
         />
         {avatarLoading ? (

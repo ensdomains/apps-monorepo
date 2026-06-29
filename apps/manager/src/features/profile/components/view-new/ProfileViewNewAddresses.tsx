@@ -23,6 +23,7 @@ type ProfileAddressesSectionProps = {
   readonly avatarUrl?: string
   readonly name: string
   readonly records: ProfileRecords
+  readonly themeColor?: string
 }
 
 const addressCardPaddingClassName =
@@ -77,11 +78,13 @@ const MainAddressCard = ({
   avatarUrl,
   chains,
   name,
+  themeColor,
 }: {
   readonly address: ProfileAddressItem
   readonly avatarUrl?: string
   readonly chains: ProfileAddressItem[]
   readonly name: string
+  readonly themeColor?: string
 }) => (
   <CopyableButton
     className={`${cardSurfaceClassName} ${addressCardPaddingClassName} h-13.75 w-full justify-between gap-2 py-0 lg:landscape:h-auto lg:landscape:max-w-132.75`}
@@ -102,6 +105,7 @@ const MainAddressCard = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+                  color={themeColor}
                   name={name}
                 />
               </ImageFallback.Fallback>
@@ -149,6 +153,7 @@ export const ProfileAddressesSection = ({
   avatarUrl,
   name,
   records,
+  themeColor,
 }: ProfileAddressesSectionProps) => {
   const mainAddress = getMainReceivingAddress(records)
   const receivingChains = getReceivingAddressChains(records)
@@ -169,6 +174,7 @@ export const ProfileAddressesSection = ({
               avatarUrl={avatarUrl}
               chains={receivingChains}
               name={name}
+              themeColor={themeColor}
             />
           </div>
         ) : null}

@@ -8,12 +8,14 @@ type ProfileViewNewCardsProps = {
   readonly avatarUrl?: string
   readonly name: string
   readonly records: ProfileRecords
+  readonly themeColor?: string
 }
 
 export const ProfileViewNewCards = ({
   avatarUrl,
   name,
   records,
+  themeColor,
 }: ProfileViewNewCardsProps) => (
   <div className="space-y-0">
     <ProfileContactSection records={records} />
@@ -21,6 +23,7 @@ export const ProfileViewNewCards = ({
       avatarUrl={avatarUrl}
       name={name}
       records={records}
+      themeColor={themeColor}
     />
     <ProfileSocialSection records={records} />
     <ProfileLinksSection records={records} />

@@ -10,12 +10,13 @@ const etherloomOptions = {
   width: 96,
   padding: 10,
 } as const
+const defaultEtherloomColor = '#0082BB'
 
 const getExpectedPatternSrc = (name: string) =>
   generatePatternDataURI(
     name,
     'ENS Vertical Pairs',
-    '#0080BC',
+    defaultEtherloomColor,
     etherloomOptions,
   )
 

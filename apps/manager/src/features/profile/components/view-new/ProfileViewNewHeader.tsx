@@ -16,6 +16,7 @@ type ProfileViewNewHeaderProps = {
   readonly ownerReverseName?: string | null
   readonly records: ProfileRecords
   readonly registrationDate?: number | null
+  readonly themeColor?: string
 }
 
 export const ProfileViewNewHeader = ({
@@ -27,6 +28,7 @@ export const ProfileViewNewHeader = ({
   ownerReverseName,
   records,
   registrationDate,
+  themeColor,
 }: ProfileViewNewHeaderProps) => (
   <div className="relative min-h-130.75 rounded-none bg-transparent pt-15.5 shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0">
     <ProfileViewNewAvatar
@@ -34,6 +36,7 @@ export const ProfileViewNewHeader = ({
       avatarUrl={avatarUrl}
       className="absolute -top-33 left-1/2 -translate-x-1/2 lg:landscape:hidden"
       name={name}
+      themeColor={themeColor}
     />
     <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-3.25">
       <ProfileViewNewNameBadge name={name} />
@@ -53,6 +56,7 @@ export const ProfileViewNewHeader = ({
         avatarUrl={avatarUrl}
         className="hidden lg:landscape:block"
         name={name}
+        themeColor={themeColor}
       />
       <ProfileViewNewAbout records={records} />
     </div>

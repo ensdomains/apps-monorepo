@@ -8,7 +8,7 @@ import { useMemo } from 'react'
 import { tw } from '@/utils/tailwind'
 
 const etherloomPattern: PatternName = 'ENS Vertical Pairs'
-const etherloomColor = '#0080BC'
+const defaultEtherloomColor = '#0082BB'
 const etherloomOptions = {
   cellSize: 10,
   height: 96,
@@ -19,18 +19,24 @@ const etherloomOptions = {
 export type PatternAvatarProps = {
   readonly name: string
   readonly className?: string
+  readonly color?: string | null
 }
 
-export const PatternAvatar = ({ name, className }: PatternAvatarProps) => {
+export const PatternAvatar = ({
+  name,
+  className,
+  color,
+}: PatternAvatarProps) => {
+  const patternColor = color ?? defaultEtherloomColor
   const src = useMemo(
     () =>
       generatePatternDataURI(
         name,
         etherloomPattern,
-        etherloomColor,
+        patternColor,
         etherloomOptions,
       ),
-    [name],
+    [name, patternColor],
   )
 
   return (
