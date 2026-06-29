@@ -1,3 +1,4 @@
+import { DevDrawer } from '@ens-apps/dev-tools'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -89,6 +90,7 @@ function RootComponent() {
               },
             }}
           />
+          {import.meta.env.DEV && <DevDrawer />}
         </RootProviders>
 
         <TanStackRouterDevtools position="bottom-right" />

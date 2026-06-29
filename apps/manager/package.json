@@ -23,6 +23,9 @@
     "lint:fix": "biome check --fix"
   },
   "dependencies": {
+    "@ens-apps/dev-migration-tool": "workspace:*",
+    "@ens-apps/dev-time-travel": "workspace:*",
+    "@ens-apps/dev-tools": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
