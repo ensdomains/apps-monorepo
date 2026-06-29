@@ -20,24 +20,6 @@ export type MigrationStatus =
   | { readonly migratable: true; readonly tokenHolder: Address }
   | { readonly migratable: false }
 
-const V1_DOMAIN_QUERY = gql`
-  query getV1DomainForMigration($name: String!) {
-    domains(where: { name: $name }, first: 1) {
-      id
-      labelName
-      labelhash
-      name
-      resolver { address }
-      owner { id }
-      registrant { id }
-      wrappedOwner { id }
-      parent { name wrappedDomain { fuses } }
-      registration { expiryDate }
-      wrappedDomain { expiryDate fuses }
-    }
-  }
-`
-
 type V1DomainResponse = { domains: V1Domain[] }
 
 class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
@@ -61,7 +43,23 @@ const getMigrationStatus = ResultFn(async function* ({
 
   const { domains } = yield* fromPromise(
     subgraphClient.request<V1DomainResponse, { name: string }>(
-      V1_DOMAIN_QUERY,
+      gql`
+        query getV1DomainForMigration($name: String!) {
+          domains(where: { name: $name }) {
+            id
+            labelName
+            labelhash
+            name
+            resolver { address }
+            owner { id }
+            registrant { id }
+            wrappedOwner { id }
+            parent { name wrappedDomain { fuses } }
+            registration { expiryDate }
+            wrappedDomain { expiryDate fuses }
+          }
+        }
+      `,
       { name },
     ),
     (e) => new GetMigrationStatusError({ cause: e }),
