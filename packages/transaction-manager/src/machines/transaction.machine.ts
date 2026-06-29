@@ -9,6 +9,7 @@ import { prepareTransaction } from '../actors/prepare-transaction.actor'
 import { submitWarpTransaction } from '../actors/warp-transport.actor'
 import {
   EthCallFallbackError,
+  type SignerAddressMismatchError,
   TransactionRevertedError,
   TransactionSubmissionError,
   TransactionTimeoutError,
@@ -122,7 +123,9 @@ export const transactionMachine = setup({
         publicClient: PublicClient
       }): ResultAsync<
         Hash,
-        TransactionSubmissionError | TransactionUserRejectedError
+        | TransactionSubmissionError
+        | TransactionUserRejectedError
+        | SignerAddressMismatchError
       > => {
         if (!request) {
           return errAsync(

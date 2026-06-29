@@ -1,6 +1,6 @@
 import { YieldableError } from '@ens-apps/utils/neverthrow'
 import type { ITaggedError } from '@ens-apps/utils/neverthrow/error-classes'
-import type { Hash, UserRejectedRequestError } from 'viem'
+import type { Address, Hash, UserRejectedRequestError } from 'viem'
 import type { TransactionRequest } from '../types/transaction.types'
 
 // Base error class for transaction errors
@@ -161,5 +161,38 @@ export class ImportError extends TransactionError implements ITaggedError {
   readonly _tag = 'ImportError'
   constructor({ cause }: { cause?: unknown }) {
     super('Failed to import data', cause)
+  }
+}
+
+/**
+ * Raised when an address we were handed as authoritative does NOT match the
+ * address the signer will actually sign from. Covers two invariants that are
+ * the same class of bug, both surfaced as this single tagged error:
+ *
+ *   - EOA: `EOATransactionRequest.from` must equal the connected
+ *     `walletClient.account.address`. Otherwise viem would be asked to sign for
+ *     a different account than the request claims, corrupting telemetry /
+ *     audit attribution (and, in theory, enabling a confused-deputy prompt).
+ *   - Smart account (Rhinestone HCA): a cached `signer.config.accountAddress`
+ *     must equal the live `signer.account.getAddress()`. A divergence would
+ *     encode calldata against one address while the SDK signs from another.
+ *
+ * Addresses are compared with viem's `isAddressEqual` (checksum-safe), matching
+ * the repo-wide convention; never lowercase folding.
+ */
+export class SignerAddressMismatchError
+  extends TransactionError
+  implements ITaggedError
+{
+  readonly _tag = 'SignerAddressMismatchError'
+  constructor(
+    /** The address that was presented as authoritative (request.from / cached config). */
+    public readonly expected: Address,
+    /** The address the signer actually signs from (live wallet / SDK), if known. */
+    public readonly actual: Address | undefined,
+  ) {
+    super(
+      `Signer address mismatch: presented ${expected} but signer is ${actual ?? 'unknown'}`,
+    )
   }
 }

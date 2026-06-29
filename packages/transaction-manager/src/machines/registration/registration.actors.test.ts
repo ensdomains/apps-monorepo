@@ -1,8 +1,12 @@
-import type { Address, Hex } from 'viem'
+import type { Address, Hex, WalletClient } from 'viem'
 import { describe, expect, it } from 'vitest'
-import type { Signer } from '../../types/signer.types'
+import { SignerAddressMismatchError } from '../../errors/transaction.errors'
+import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import { type Call, getPrimaryCall } from '../../types/transaction.types'
-import { createTransactionRequest } from './registration.actors'
+import {
+  createTransactionRequest,
+  getSignerAddress,
+} from './registration.actors'
 
 const FROM = '0xF00000000000000000000000000000000000000F' as Address
 const eoaSigner = { type: 'eoa' } as unknown as Signer
@@ -18,6 +22,61 @@ const registerCall: Call = {
   data: '0x12345678' as Hex,
   value: 7n,
 }
+
+const HCA = '0x1111111111111111111111111111111111111111' as Address
+const HCA_OTHER = '0x2222222222222222222222222222222222222222' as Address
+
+function rhinestoneSignerWith(opts: {
+  liveAddress: Address
+  configAddress?: Address
+}): RhinestoneSigner {
+  return {
+    type: 'rhinestone',
+    account: {
+      getAddress: () => opts.liveAddress,
+    } as unknown as RhinestoneSigner['account'],
+    config: {
+      // biome-ignore lint/suspicious/noExplicitAny: minimal chain stub for the test
+      chain: {} as any,
+      rhinestoneApiKey: 'test-key',
+      ...(opts.configAddress ? { accountAddress: opts.configAddress } : {}),
+    },
+  }
+}
+
+describe('getSignerAddress', () => {
+  it('returns the connected EOA account address', () => {
+    const signer = {
+      type: 'eoa',
+      walletClient: { account: { address: FROM } } as unknown as WalletClient,
+    } as Signer
+    expect(getSignerAddress(signer)).toBe(FROM)
+  })
+
+  it('throws when an EOA wallet has no connected account', () => {
+    const signer = {
+      type: 'eoa',
+      walletClient: { account: undefined } as unknown as WalletClient,
+    } as Signer
+    expect(() => getSignerAddress(signer)).toThrow(/no account connected/i)
+  })
+
+  it('returns the verified rhinestone smart-account address', () => {
+    const signer = rhinestoneSignerWith({
+      liveAddress: HCA,
+      configAddress: HCA,
+    })
+    expect(getSignerAddress(signer)).toBe(HCA)
+  })
+
+  it('throws SignerAddressMismatchError when the cached HCA address diverges', () => {
+    const signer = rhinestoneSignerWith({
+      liveAddress: HCA_OTHER,
+      configAddress: HCA,
+    })
+    expect(() => getSignerAddress(signer)).toThrow(SignerAddressMismatchError)
+  })
+})
 
 describe('createTransactionRequest', () => {
   it('derives EOA top-level fields from the single call', () => {
