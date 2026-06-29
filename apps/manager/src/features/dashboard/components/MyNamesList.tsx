@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
@@ -11,7 +11,10 @@ import {
   type SortField,
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
-import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import {
+  type ProfileRecordsResult,
+  profileRecordsQuery,
+} from '@/features/profile/service/profileRecords'
 import { tw } from '@/utils/tailwind'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
@@ -48,21 +51,21 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
   return { field, dir }
 }
 
-type MergedNameItem = ReturnType<typeof buildMergedNamesList>[number]
+type MergedNameRowMetadata = ReturnType<typeof mergedRowMetadata>
 
 const AnimatedNameRow = ({
-  item,
+  metadata,
   index,
+  profileRecords,
   shouldReduceMotion,
-  primaryLabel,
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
 }: {
-  readonly item: MergedNameItem
+  readonly metadata: MergedNameRowMetadata
   readonly index: number
+  readonly profileRecords?: ProfileRecordsResult | null
   readonly shouldReduceMotion: boolean | null
-  readonly primaryLabel?: string | null
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
@@ -76,11 +79,7 @@ const AnimatedNameRow = ({
     isPrimary,
     isInGrace,
     expiryCta,
-  } = mergedRowMetadata(item, primaryLabel)
-  const { data: profileRecords } = useQuery({
-    ...profileRecordsQuery(label),
-    enabled: item.kind === 'v2' && !isInGrace,
-  })
+  } = metadata
   const profilePreview = getNameRowProfilePreview({
     label,
     records: profileRecords,
@@ -89,7 +88,6 @@ const AnimatedNameRow = ({
   return (
     <motion.div
       className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
-      key={item.key}
       {...(shouldReduceMotion
         ? {}
         : {
@@ -181,6 +179,17 @@ export const MyNamesList = ({
 
   const isPending = isV2Pending || (migrationEnabled && isV1Pending)
   const hasPartialV2Error = isV2Error && v2Names.length > 0
+  const pageRows = pageItems.map((item) => ({
+    item,
+    metadata: mergedRowMetadata(item, primaryLabel),
+  }))
+  const pageProfileRecords = useQueries({
+    queries: pageRows.map(({ item, metadata }) => ({
+      ...profileRecordsQuery(metadata.label),
+      enabled: item.kind === 'v2' && !metadata.isInGrace,
+    })),
+    combine: (results) => results.map((result) => result.data),
+  })
 
   if (isV2Error && v2Names.length === 0) {
     return (
@@ -227,16 +236,16 @@ export const MyNamesList = ({
               </span>
             </div>
           ))
-          .otherwise(({ pageItems }) =>
-            pageItems.map((item, index) => (
+          .otherwise(() =>
+            pageRows.map((row, index) => (
               <AnimatedNameRow
                 favoriteLabels={favoriteLabels}
                 index={index}
                 isAuthenticated={isAuthenticated}
-                item={item}
-                key={item.key}
+                key={row.item.key}
+                metadata={row.metadata}
                 onToggleFavorite={onToggleFavorite}
-                primaryLabel={primaryLabel}
+                profileRecords={pageProfileRecords[index]}
                 shouldReduceMotion={shouldReduceMotion}
               />
             )),
