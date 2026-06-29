@@ -339,27 +339,30 @@ export async function verifyRegistration(
   )
 }
 
+/** Deployed Sepolia BYOC voucher contract (public address, inlined for the POC). */
+const VOUCHER_ADDRESS = '0x4137481644498B3b91899D1491d6DbB9C155Fea3'
+
 /**
  * Burn the Crossmint voucher once the name is delivered.
  *
- * No-op until the BYOC voucher contract is deployed and `CROSSMINT_VOUCHER_ADDRESS`
- * is configured (the contract is being built in a separate repo — see SPEC). The
- * server wallet will hold BURNER_ROLE. Registration is complete without this; an
- * un-burned voucher is harmless (soulbound, single-use).
+ * No-op until the minted voucher tokenId is captured (from the `VoucherMinted`
+ * event) and the server wallet is granted BURNER_ROLE. Registration is complete
+ * without this; an un-burned voucher is harmless (soulbound, single-use).
  */
 export async function burnVoucher(
   _client: ServerWalletClient,
-  env: CloudflareBindings,
+  _env: CloudflareBindings,
   tokenId: string | undefined,
 ): Promise<void> {
-  const voucherAddress = env.CROSSMINT_VOUCHER_ADDRESS
-  if (!voucherAddress || !tokenId) {
-    logger.info('Voucher burn skipped (contract not configured)', { tokenId })
+  if (!tokenId) {
+    logger.info('Voucher burn skipped (no voucher tokenId tracked)', {
+      tokenId,
+    })
     return
   }
-  // TODO: once deployed, call voucher.burn(tokenId) via the BURNER_ROLE wallet.
+  // TODO: call the voucher contract's burn(tokenId) via the BURNER_ROLE wallet.
   logger.info('Voucher burn pending contract wiring', {
     tokenId,
-    voucherAddress,
+    voucher: VOUCHER_ADDRESS,
   })
 }

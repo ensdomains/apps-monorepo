@@ -11,15 +11,16 @@ import { Button } from '@/components/ens-consumer/button/Button'
 import { backendClient, getBackendApiBaseUrl } from '@/utils/backend-client'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
-// Crossmint staging client (publishable) key + the BYOC collection locator.
-// When both are present the real embedded checkout renders; otherwise the dev
-// mock-pay fallback drives the backend directly.
-const CROSSMINT_CLIENT_KEY = import.meta.env.VITE_CROSSMINT_CLIENT_KEY as
-  | string
-  | undefined
-const CROSSMINT_COLLECTION = import.meta.env.VITE_CROSSMINT_COLLECTION as
-  | string
-  | undefined
+// Crossmint staging client (publishable) key + BYOC collection locator, inlined
+// for the POC: a publishable key and a public collection id carry no secrecy
+// (vite bakes them into the bundle regardless), so neither needs to be an env
+// var. An env var still overrides per-environment if we ever need to.
+const CROSSMINT_CLIENT_KEY =
+  (import.meta.env.VITE_CROSSMINT_CLIENT_KEY as string | undefined) ??
+  'ck_staging_9o9hNPwQHJSk913QkoVPtkU36dNDk49cCoRuH1X92NyUUJM5JyQAiTteegkogTeT3qMENUxhsWiGRrNhJUM5dLn2QXGoG8d3DoCKGyAkc2H3FVWm93mey8WdXottPCJsqheiQbV1k6FEFJuDce8Fpp86rL1zqf7ZsSoDxzXX9UHwxa254sxDHaiByH4zwW1LsFLaP9WfeTPNvnvBJz1sDjWK'
+const CROSSMINT_COLLECTION =
+  (import.meta.env.VITE_CROSSMINT_COLLECTION as string | undefined) ??
+  'crossmint:f8ee32d1-55fd-4c73-aa1f-6936d0a804ce'
 // The voucher's on-chain commitment arg is decorative for our flow (the backend
 // joins via clientReference and computes its own commit-reveal commitment), so a
 // zero bytes32 is fine for the mint callData.
@@ -113,7 +114,7 @@ const EmbeddedCheckoutPanel = ({
           },
         }}
         lineItems={{
-          collectionLocator: CROSSMINT_COLLECTION ?? '',
+          collectionLocator: CROSSMINT_COLLECTION,
           callData: {
             totalPrice: usdToEthString(totalPriceUsd ?? 0),
             commitment: PLACEHOLDER_COMMITMENT,
@@ -136,7 +137,7 @@ const EmbeddedCheckoutPanel = ({
     [orderId, ownerAddress, durationSeconds, totalPriceUsd],
   )
   return (
-    <CrossmintProvider apiKey={CROSSMINT_CLIENT_KEY ?? ''}>
+    <CrossmintProvider apiKey={CROSSMINT_CLIENT_KEY}>
       <CrossmintCheckoutProvider>
         <CheckoutWatcher onPaid={onPaid} />
         {checkout}
@@ -286,17 +287,6 @@ export const CrossmintCheckoutDialog = ({
     [goToProcessing, triggerLocalFulfilment],
   )
 
-  // Dev fallback when the Crossmint env isn't configured: a button driving the
-  // same local fulfilment trigger.
-  const onMockPay = useCallback(() => {
-    if (phase.kind !== 'awaiting_payment') return
-    handlePaid(phase.orderId)
-  }, [phase, handlePaid])
-
-  const crossmintConfigured = Boolean(
-    CROSSMINT_CLIENT_KEY && CROSSMINT_COLLECTION,
-  )
-
   return (
     <PaymentDialogBase
       onOpenChange={onOpenChange}
@@ -310,35 +300,15 @@ export const CrossmintCheckoutDialog = ({
           </p>
         )}
 
-        {phase.kind === 'awaiting_payment' &&
-          (crossmintConfigured ? (
-            <EmbeddedCheckoutPanel
-              durationSeconds={durationSeconds}
-              onPaid={() => handlePaid(phase.orderId)}
-              orderId={phase.orderId}
-              ownerAddress={ownerAddress}
-              totalPriceUsd={totalPriceUsd}
-            />
-          ) : (
-            <>
-              <div className="space-y-1">
-                <p className="font-medium text-ens-blue-midnight text-lg">
-                  {label}.eth
-                </p>
-                {totalPriceUsd !== undefined && (
-                  <p className="text-ens-gray text-sm">
-                    ${totalPriceUsd.toFixed(2)} <Trans>USD</Trans>
-                  </p>
-                )}
-              </div>
-              <Button color="blue" onClick={onMockPay} size="lg">
-                <Trans>Pay by card</Trans>
-              </Button>
-              <p className="text-ens-gray text-xs">
-                <Trans>Card checkout (test mode)</Trans>
-              </p>
-            </>
-          ))}
+        {phase.kind === 'awaiting_payment' && (
+          <EmbeddedCheckoutPanel
+            durationSeconds={durationSeconds}
+            onPaid={() => handlePaid(phase.orderId)}
+            orderId={phase.orderId}
+            ownerAddress={ownerAddress}
+            totalPriceUsd={totalPriceUsd}
+          />
+        )}
 
         {phase.kind === 'processing' && (
           <div className="space-y-2">

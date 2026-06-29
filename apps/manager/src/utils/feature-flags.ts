@@ -44,11 +44,11 @@ const FEATURE_FLAGS_INTERNAL = {
   },
   /**
    * Credit-card checkout (Crossmint) on the registration pricing screen.
-   * Off by default until the Crossmint credentials + voucher contract are
-   * wired; enable per-env with VITE_FF_CARD_CHECKOUT=true.
+   * On for the POC (the app isn't launched yet, so prod visibility is fine).
+   * Flip to false in code to hide it; no env var required.
    */
   CARD_CHECKOUT: {
-    enabled: import.meta.env.VITE_FF_CARD_CHECKOUT === 'true',
+    enabled: true,
   },
   /**
    * Force the transaction manager to use plain EOA signing only — bypasses
