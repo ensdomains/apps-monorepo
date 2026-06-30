@@ -6,6 +6,7 @@ import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
 import notificationsApp from './routes/notifications'
 import sponsorshipApp from './routes/sponsorship'
+import transactionsApp from './routes/transactions'
 import walletApp from './routes/wallet'
 import webhookApp from './routes/webhook'
 
@@ -15,6 +16,7 @@ const app = createApp()
   .route('/', favoritesApp)
   .route('/', notificationsApp)
   .route('/', sponsorshipApp)
+  .route('/', transactionsApp)
   .route('/', webhookApp)
   .route('/', walletApp)
   .onError((err, c) => {
