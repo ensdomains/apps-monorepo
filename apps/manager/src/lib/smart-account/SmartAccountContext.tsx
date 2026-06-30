@@ -1,5 +1,6 @@
 'use client'
 
+import { anvilSetupOwner } from '@ens-apps/dev-time-travel'
 import {
   getValidSessionForAccount,
   isRhinestoneSession,
@@ -7,6 +8,7 @@ import {
   removeSessionsByOwner,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
+import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
@@ -309,6 +311,26 @@ export const SmartAccountContextProvider = ({
   // refetch AND can't loop on every render. This is what stops the previous
   // infinite loop / faucet+Para spam.
   const lastFundedKeyRef = useRef<string | null>(null)
+
+  // Dev-only: tracks which owner addresses we've already set up on Anvil so we
+  // don't repeat the setCode + mint on every render.
+  const anvilSetupDoneRef = useRef<Set<string>>(new Set())
+
+  // Dev-only: clears contract bytecode + mints USDC/DAI on the local Anvil fork
+  // for the owner address. Runs whenever ownerAddress becomes available.
+  // Falls back silently if anvil_* methods are unavailable (real Sepolia in dev).
+  useEffect(() => {
+    if (!import.meta.env.DEV || !ownerAddress) return
+    if (anvilSetupDoneRef.current.has(ownerAddress)) return
+
+    anvilSetupDoneRef.current.add(ownerAddress)
+    anvilSetupOwner(ownerAddress, customSepolia, {
+      USDC: SUPPORTED_TOKENS.USDC,
+      DAI: SUPPORTED_TOKENS.DAI,
+    }).catch(() => {
+      anvilSetupDoneRef.current.delete(ownerAddress)
+    })
+  }, [ownerAddress])
 
   const autoFundingMutation = useMutation({
     mutationKey: $qk({

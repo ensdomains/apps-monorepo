@@ -1,3 +1,4 @@
+import { isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import { getResolver } from '@ensdomains/ensjs/public'
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
@@ -6,9 +7,7 @@ import { ResultAsync } from 'neverthrow'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
-
 import { useConnection } from 'wagmi'
-
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -142,6 +141,12 @@ const CreateSubnameForm = ({
   const handleStartTransaction = () => {
     if (!hasSubregistry || !ownerAddress || !resolverAddress) return
 
+    // When time-travel is active, Anvil's block time can be far ahead of
+    // Date.now(). Use a 100-year window so the expiry is never stale on-chain.
+    const expires = isTimeTravelEnabled()
+      ? BigInt(Math.floor(Date.now() / 1000)) + 3153600000n
+      : undefined
+
     createSubname({
       registryAddress: subregistryAddress,
       label: label.trim(),
@@ -150,6 +155,7 @@ const CreateSubnameForm = ({
       parentName: name,
       protocolVersion,
       id: CREATE_SUBNAME_TRANSACTION_ID,
+      expires,
     })
   }
 

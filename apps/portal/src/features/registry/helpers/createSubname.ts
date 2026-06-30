@@ -35,6 +35,8 @@ export type CreateSubnameParameters = {
   readonly parentName: string
   /** Transaction ID for tracking */
   readonly id: string
+  /** Optional expiry timestamp in seconds (unix). Defaults to 1 year via ensjs. */
+  readonly expires?: bigint
 }
 
 export interface CreateSubnameResult {
@@ -55,6 +57,7 @@ export async function createSubname(
     chainId,
     parentName,
     id,
+    expires,
   } = params
 
   const intentResult = await prepareCreateSubnameTransaction({
@@ -64,6 +67,7 @@ export async function createSubname(
     resolverAddress,
     walletClient,
     chainId,
+    expires,
   })
 
   if (intentResult.isErr()) {
