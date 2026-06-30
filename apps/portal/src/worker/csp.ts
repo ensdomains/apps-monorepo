@@ -103,18 +103,23 @@ const CONNECT_HOSTS = [
   ...new Set<string>([...DEFAULT_CONNECT_HOSTS, ...OVERRIDE_CONNECT_ORIGINS]),
 ]
 
-// PostHog also loads its script bundle from the analytics host.
-const SCRIPT_HOSTS = ['https://jakob.ens.domains'] as const
+// No third-party script hosts. PostHog used to lazy-load its extension bundles
+// (recorder, surveys, dead-clicks, web-vitals) from the analytics host at
+// runtime, which required allowlisting it here — but the app now imports
+// `posthog-js/dist/module.full.no-external` (see lib/posthog/provider.tsx), so
+// the entire SDK is in our own bundle (served from 'self') and nothing loads
+// from the analytics host. PostHog ingestion calls go over connect-src instead.
+const SCRIPT_HOSTS = [] as const
 
 // SHA-256 hashes of the inline scripts we allow (avoids 'unsafe-inline'). The
 // browser logs the expected hash in the CSP violation when it blocks a script.
 const INLINE_SCRIPT_HASHES = [
   // theme-init script in index.html — regenerate if that script changes.
   "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
-  // PostHog's inline bootstrap loader (posthog-js). This hash is tied to the
-  // posthog-js version, so it MUST be regenerated when posthog-js is upgraded —
-  // the new expected hash appears in the script-src-elem CSP violation.
-  "'sha256-Ib51wWFT2R+IqxlqfWtMLgSQRX9nVaSnkYU0IDqsGL4='",
+  // NOTE: the PostHog inline bootstrap loader no longer runs — the SDK is now
+  // pre-bundled (module.full.no-external) and injects no scripts — so its
+  // version-tied hash was removed. If you revert to the default posthog-js
+  // build, re-add the hash from the script-src-elem CSP violation.
 ] as const
 
 // Directives shared by the header and the meta tag.
@@ -122,7 +127,15 @@ const BASE_DIRECTIVES = [
   "default-src 'self'",
   // 'wasm-unsafe-eval' permits WebAssembly compilation (needed by some
   // wallet/crypto dependencies) WITHOUT enabling general 'unsafe-eval'.
-  `script-src 'self' 'wasm-unsafe-eval' ${SCRIPT_HOSTS.join(' ')} ${INLINE_SCRIPT_HASHES.join(' ')}`,
+  // Tokens are joined from an array so an empty SCRIPT_HOSTS doesn't leave a
+  // stray double space in the directive.
+  [
+    'script-src',
+    "'self'",
+    "'wasm-unsafe-eval'",
+    ...SCRIPT_HOSTS,
+    ...INLINE_SCRIPT_HASHES,
+  ].join(' '),
   // 'unsafe-inline' styles: required by Tailwind / CSS-in-JS runtime injection.
   "style-src 'self' 'unsafe-inline'",
   // Images are intentionally host-agnostic: an ENS avatar record is an

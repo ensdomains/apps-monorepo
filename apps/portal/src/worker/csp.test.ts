@@ -89,15 +89,24 @@ describe('csp', () => {
       expect(header['img-src']).toEqual(["'self'", 'data:', 'blob:', 'https:'])
     })
 
-    it('pins inline-script hashes instead of unsafe-inline', () => {
-      // Hardcoded sha256 hashes let specific inline scripts run. The PostHog one
-      // is version-tied — regenerate it on a posthog-js upgrade.
+    it('pins the inline theme-init hash instead of unsafe-inline', () => {
+      // Hardcoded sha256 hash lets the one inline script (theme-init in
+      // index.html) run without 'unsafe-inline'.
       expect(header['script-src']).toContain(
         "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
       )
-      expect(header['script-src']).toContain(
-        "'sha256-Ib51wWFT2R+IqxlqfWtMLgSQRX9nVaSnkYU0IDqsGL4='",
-      )
+    })
+
+    it('allowlists no third-party script hosts', () => {
+      // PostHog is pre-bundled (module.full.no-external) and served from 'self',
+      // so it no longer loads scripts from the analytics host. script-src must
+      // not regress to allowing an external script origin.
+      expect(header['script-src']).toEqual([
+        "'self'",
+        "'wasm-unsafe-eval'",
+        "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
+      ])
+      expect(header['script-src']).not.toContain('https://jakob.ens.domains')
     })
   })
 
