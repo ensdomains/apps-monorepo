@@ -974,8 +974,8 @@ msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Failed to set primary name. Please try again."
-msgstr "Failed to set primary name. Please try again."
+msgid "Failed to set primary name"
+msgstr "Failed to set primary name"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
