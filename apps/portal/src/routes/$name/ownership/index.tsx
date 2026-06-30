@@ -1,9 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { Send } from 'lucide-react'
+import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
+import { Button } from '@/components/ui/button'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
@@ -15,13 +18,14 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
-export const Route = createFileRoute('/$name/ownership')({
+export const Route = createFileRoute('/$name/ownership/')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
 })
 
 function RouteComponent() {
   const { name } = Route.useParams()
+  const { address } = useConnection()
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
@@ -76,6 +80,13 @@ function RouteComponent() {
       />
     )
 
+  // Transferring a name is a V2-only feature and only the current owner can do
+  // it (the ERC-1155 token holder). Hide the entry point otherwise.
+  const canTransfer =
+    data.protocolVersion === 'ENSv2' &&
+    !!address &&
+    address.toLowerCase() === data.owner.toLowerCase()
+
   return (
     <div className="flex flex-col gap-8">
       {grace.isInGrace && grace.graceEndDate && (
@@ -84,8 +95,16 @@ function RouteComponent() {
           canExtend={graceCanExtend}
         />
       )}
-      <div className="flex flex-row justify-between">
+      <div className="flex flex-row items-center justify-between">
         <h1 className="text-h1">Ownership</h1>
+        {canTransfer && (
+          <Button asChild className="gap-2" variant="default">
+            <Link params={{ name }} to="/$name/ownership/transfer">
+              <Send className="h-4 w-4" />
+              Send name
+            </Link>
+          </Button>
+        )}
       </div>
       {/* Header list — same structure as the Overview/Resolver pages (WEB-649) */}
       <div className="flex flex-col">
@@ -94,16 +113,16 @@ function RouteComponent() {
           protocolVersion={data.protocolVersion}
         />
         <Owner
-          owner={data.owner}
-          label={grace.isInGrace ? 'Previous owner' : 'Owner'}
           asRow
+          label={grace.isInGrace ? 'Previous owner' : 'Owner'}
+          owner={data.owner}
         />
         {data.protocolVersion === 'ENSv1' && (
-          <V1NameManagerRecord name={name} asRow />
+          <V1NameManagerRecord asRow name={name} />
         )}
-        <ParentName name={name} asRow />
+        <ParentName asRow name={name} />
       </div>
-      <NameSubgraphHistory name={name} category="domain" />
+      <NameSubgraphHistory category="domain" name={name} />
     </div>
   )
 }
