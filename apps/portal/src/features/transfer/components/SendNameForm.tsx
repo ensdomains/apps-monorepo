@@ -1,10 +1,14 @@
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { type Address, isAddressEqual } from 'viem'
+import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -112,7 +116,7 @@ export const SendNameForm = ({
           spellCheck={false}
           className="h-9"
         />
-        <div className="min-h-5 text-sm">
+        <div className="text-sm">
           {isResolving && (
             <span className="text-muted-foreground">Resolving…</span>
           )}
@@ -125,9 +129,7 @@ export const SendNameForm = ({
             </span>
           )}
           {!isResolving && recipient && !isSelf && (
-            <span className="text-muted-foreground font-mono">
-              {truncateAddress(recipient)}
-            </span>
+            <RecipientPreview address={recipient} />
           )}
         </div>
       </div>
@@ -171,6 +173,32 @@ export const SendNameForm = ({
       )}
 
       <TransactionModal transactions={transactions} />
+    </div>
+  )
+}
+
+const RecipientPreview = ({ address }: { address: Address }) => {
+  const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(address))
+
+  return (
+    <div className="flex bg-muted items-start gap-3 rounded-sm p-2.5">
+      <NameAvatar
+        name={primaryName ?? address}
+        width="48px"
+        height="48px"
+        rounded="rounded-sm"
+      />
+      <div className="flex flex-col min-w-0">
+        {primaryName && (
+          <CopyableRecord value={primaryName} textClassName="text-foreground" />
+        )}
+        <CopyableRecord
+          value={address}
+          displayValue={truncateAddress(address)}
+          textClassName="text-muted-foreground"
+          truncate={false}
+        />
+      </div>
     </div>
   )
 }
