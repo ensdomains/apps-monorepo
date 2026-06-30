@@ -22,27 +22,20 @@ type SendNameFormProps = {
 type OptionConfig = {
   readonly key: keyof TransferOptions
   readonly label: string
-  readonly description: string
 }
 
 const OPTIONS: readonly OptionConfig[] = [
   {
     key: 'setDefaultAddress',
     label: 'Set the default address to the recipient',
-    description:
-      "Update the name's ETH address record to point at the recipient so it resolves to them.",
   },
   {
     key: 'deployResolver',
     label: 'Deploy a new resolver',
-    description:
-      'Deploy a fresh dedicated resolver admin’d by the recipient and point the name at it.',
   },
   {
     key: 'deployRegistry',
     label: 'Deploy a new registry',
-    description:
-      'Deploy a fresh subregistry admin’d by the recipient and point the name at it.',
   },
 ]
 
@@ -71,8 +64,6 @@ export const SendNameForm = ({
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
 
-  // The default-address step needs a resolver. If the name has none, the user
-  // must also deploy one in the same flow.
   const needsResolverForDefaultAddress =
     options.setDefaultAddress &&
     !options.deployResolver &&
@@ -104,9 +95,8 @@ export const SendNameForm = ({
       <Alert variant="warning">
         <AlertTriangle />
         <AlertDescription>
-          Transferring a name hands over ownership of the ERC-1155 token to the
-          recipient. This cannot be undone - only the new owner can transfer it
-          back.
+          Transferring ownership of an ENS name is irreversible. Make sure you
+          check the recipient address before proceeding.
         </AlertDescription>
       </Alert>
 
@@ -120,6 +110,7 @@ export const SendNameForm = ({
           disabled={hasFlow}
           autoComplete="off"
           spellCheck={false}
+          className="h-9"
         />
         <div className="min-h-5 text-sm">
           {isResolving && (
@@ -146,14 +137,9 @@ export const SendNameForm = ({
           <label
             key={option.key}
             htmlFor={`transfer-option-${option.key}`}
-            className="flex gap-3 items-start justify-between cursor-pointer"
+            className="flex flex-col items-start justify-between cursor-pointer"
           >
-            <span className="flex flex-col">
-              <span className="text-foreground">{option.label}</span>
-              <span className="text-muted-foreground text-sm">
-                {option.description}
-              </span>
-            </span>
+            <span className="text-foreground font-medium">{option.label}</span>
             <Switch
               id={`transfer-option-${option.key}`}
               checked={options[option.key]}
@@ -177,7 +163,7 @@ export const SendNameForm = ({
         disabled={!canStart}
         className="flex items-center justify-center gap-2 w-fit"
       >
-        {isPreparing ? 'Preparing…' : 'Transfer'}
+        {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
 
       {prepError && (
