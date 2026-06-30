@@ -39,11 +39,13 @@ import {
   zeroAddress,
 } from 'viem'
 import {
+  addChain,
   getBlock,
   getEip712Domain,
   multicall,
   readContract,
   signTypedData,
+  switchChain,
   writeContract,
 } from 'viem/actions'
 import { baseSepolia, sepolia } from 'viem/chains'
@@ -1302,6 +1304,39 @@ const BRIDGE_SOURCE_CHAINS = {
   [sepolia.id]: sepolia,
 } as const
 
+// EIP-1193 error code for "chain not added to the wallet". viem surfaces this
+// (and some wallets surface -32603/generic) when `wallet_switchEthereumChain`
+// targets a chain the wallet doesn't know yet — recover by adding it.
+const CHAIN_NOT_ADDED_CODE = 4902
+
+/**
+ * Ensure the connected wallet is on `chain` before signing/sending on it. The
+ * bridge actor talks to the wallet through a raw viem `WalletClient`, so chain
+ * switching is NOT automatic (viem asserts the active chain and throws
+ * `ChainMismatchError` on mismatch — unlike wagmi's connector-aware actions).
+ *
+ * `switchChain` is attempted first; if the wallet reports the chain is unknown
+ * (4902), `addChain` registers it and we retry the switch. A no-op when already
+ * on the right chain (wallets return immediately).
+ */
+async function ensureWalletOnChain(
+  walletClient: WalletClient,
+  chain: (typeof BRIDGE_SOURCE_CHAINS)[keyof typeof BRIDGE_SOURCE_CHAINS],
+): Promise<void> {
+  if (walletClient.chain?.id === chain.id) return
+  try {
+    await switchChain(walletClient, { id: chain.id })
+  } catch (error) {
+    const code = (error as { code?: number })?.code
+    if (code === CHAIN_NOT_ADDED_CODE) {
+      await addChain(walletClient, { chain })
+      await switchChain(walletClient, { id: chain.id })
+      return
+    }
+    throw error
+  }
+}
+
 /**
  * Bridge the cross-chain source stable to the EOA on the target (L1) chain via a
  * standalone, **EOA-signed** Rhinestone intent.
@@ -1421,30 +1456,46 @@ export function bridgeViaEoaIntentActor(input: {
         input.sourceTokenAddress,
       )
 
-      let finalPrepared = prepared
-      if (needsApproval) {
-        await writeContract(walletClient, {
-          chain: sourceChain,
-          account: walletClient.account ?? null,
-          address: input.sourceTokenAddress,
-          abi: erc20Abi,
-          functionName: 'approve',
-          // max approval to Permit2 — one-time, avoids re-prompting on future
-          // cross-chain deposits. Permit2 (not Rhinestone) holds the allowance.
-          args: [PERMIT2_ADDRESS, maxUint256],
+      // The Permit2 approve and the origin intent signature both happen ON THE
+      // SOURCE CHAIN, so the wallet must be switched there first. Switch back to
+      // the target (L1) chain afterwards so the subsequent registration steps run
+      // on Sepolia. The app's wagmi config only registers Sepolia as a connected
+      // chain (Base Sepolia is read-only), so without this the wallet stays on
+      // L1 and the approve/sign would throw ChainMismatchError.
+      await ensureWalletOnChain(walletClient, sourceChain)
+      try {
+        let finalPrepared = prepared
+        if (needsApproval) {
+          await writeContract(walletClient, {
+            chain: sourceChain,
+            account: walletClient.account ?? null,
+            address: input.sourceTokenAddress,
+            abi: erc20Abi,
+            functionName: 'approve',
+            // max approval to Permit2 — one-time, avoids re-prompting on future
+            // cross-chain deposits. Permit2 (not Rhinestone) holds the allowance.
+            args: [PERMIT2_ADDRESS, maxUint256],
+          })
+          finalPrepared = await account.prepareTransaction(prepareParams)
+        }
+
+        const signed = await account.signTransaction(finalPrepared)
+        const result = await account.submitTransaction(signed)
+        const receipt = await account.waitForExecution(result, false)
+
+        const txHash = receipt?.fill?.hash as Hash | undefined
+        if (!txHash) {
+          throw new Error('No fill hash returned from the EOA bridge intent')
+        }
+        return txHash
+      } finally {
+        // Restore the wallet to the registration (L1) chain regardless of
+        // success/failure so the next machine step doesn't inherit Base Sepolia.
+        await ensureWalletOnChain(walletClient, targetChain).catch(() => {
+          // Best-effort: a failed switch-back must not mask the bridge result
+          // or error. The registration step will switch as needed.
         })
-        finalPrepared = await account.prepareTransaction(prepareParams)
       }
-
-      const signed = await account.signTransaction(finalPrepared)
-      const result = await account.submitTransaction(signed)
-      const receipt = await account.waitForExecution(result, false)
-
-      const txHash = receipt?.fill?.hash as Hash | undefined
-      if (!txHash) {
-        throw new Error('No fill hash returned from the EOA bridge intent')
-      }
-      return txHash
     })(),
     (error: unknown) =>
       error instanceof Error ? error : new Error(String(error)),

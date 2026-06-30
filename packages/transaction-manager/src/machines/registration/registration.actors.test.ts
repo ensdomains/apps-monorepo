@@ -36,6 +36,14 @@ function mockPublicClient(): PublicClient {
   return { request: vi.fn() } as unknown as PublicClient
 }
 
+// Hoisted spies so individual tests can assert call order across the
+// chain-switch / approve sequence in `bridgeViaEoaIntentActor`.
+const bridgeSpies = vi.hoisted(() => ({
+  switchChain: vi.fn(async () => {}),
+  addChain: vi.fn(async () => {}),
+  writeContract: vi.fn(async () => '0xapprovehash'),
+}))
+
 vi.mock('viem/actions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('viem/actions')>()
   return {
@@ -44,8 +52,44 @@ vi.mock('viem/actions', async (importOriginal) => {
     readContract: vi
       .fn()
       .mockResolvedValue('0x917C561a74Df398646e06f3FFAA51DB8e8330C5A'),
+    switchChain: bridgeSpies.switchChain,
+    addChain: bridgeSpies.addChain,
+    writeContract: bridgeSpies.writeContract,
   }
 })
+
+// Mock the Rhinestone SDK so the EOA bridge intent never hits the network. The
+// prepared intent reports an outstanding Permit2 approval so the actor exercises
+// the source-chain switch + approve + switch-back path.
+const sdkSpies = vi.hoisted(() => ({
+  prepareTransaction: vi.fn(async () => ({
+    tokenRequirements: {
+      'eip155:84532': {
+        '0x036CbD53842c5426634e7929541eC2318f3dCF7e': {
+          type: 'approval' as const,
+          amount: '5500000',
+          spender: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+        },
+      },
+    },
+  })),
+  signTransaction: vi.fn(async (p: unknown) => p),
+  submitTransaction: vi.fn(async () => ({ id: 'intent-1' })),
+  waitForExecution: vi.fn(async () => ({ fill: { hash: '0xfillhash' } })),
+}))
+
+vi.mock('@rhinestone/sdk', () => ({
+  walletClientToAccount: vi.fn((wc: unknown) => wc),
+  RhinestoneSDK: vi.fn(function (this: Record<string, unknown>) {
+    this.createAccount = vi.fn(async () => ({
+      getAddress: () => FROM,
+      prepareTransaction: sdkSpies.prepareTransaction,
+      signTransaction: sdkSpies.signTransaction,
+      submitTransaction: sdkSpies.submitTransaction,
+      waitForExecution: sdkSpies.waitForExecution,
+    }))
+  }),
+}))
 
 describe('predictResolverAddress', () => {
   // Verified against a real on-chain ProxyDeployed event from the sepolia
@@ -252,10 +296,13 @@ describe('bridgeViaEoaIntentActor', () => {
     rhinestoneApiKey: 'test-key',
   }
 
+  // A valid checksummed EOA address — `encodeFunctionData` checksum-validates
+  // the `transfer` recipient, so the test must use a real address shape.
+  const EOA_ADDRESS = '0x205d2686da3Bf33f64C17f21462c51B5eaD462CF' as Address
   const eoa: EOASigner = {
     type: 'eoa',
     walletClient: {
-      account: { address: FROM },
+      account: { address: EOA_ADDRESS },
     } as unknown as WalletClient,
   }
 
@@ -301,5 +348,42 @@ describe('bridgeViaEoaIntentActor', () => {
     if (result.isErr()) {
       expect(result.error.message).toMatch(/source chain/i)
     }
+  })
+
+  it('switches the wallet to the source chain, approves Permit2, then switches back to the target', async () => {
+    bridgeSpies.switchChain.mockClear()
+    bridgeSpies.writeContract.mockClear()
+
+    const result = await bridgeViaEoaIntentActor({
+      ...baseInput,
+      eoaSigner: eoa,
+      sourceChainId: 84532, // Base Sepolia
+      targetChainId: 11155111, // Sepolia
+    })
+
+    expect(result.isOk()).toBe(true)
+    if (result.isOk()) {
+      expect(result.value).toBe('0xfillhash')
+    }
+
+    // Switched to source (Base Sep) first, then back to target (Sepolia).
+    const switchedChainIds = bridgeSpies.switchChain.mock.calls.map(
+      (call) => (call[1] as { id: number }).id,
+    )
+    expect(switchedChainIds[0]).toBe(84532)
+    expect(switchedChainIds.at(-1)).toBe(11155111)
+
+    // Approved Permit2 (max) for the source token while on the source chain.
+    expect(bridgeSpies.writeContract).toHaveBeenCalledTimes(1)
+    const approveArgs = bridgeSpies.writeContract.mock
+      .calls[0][1] as unknown as {
+      functionName: string
+      args: [Address, bigint]
+    }
+    expect(approveArgs.functionName).toBe('approve')
+    expect(approveArgs.args[0]).toBe(
+      '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+    )
+    expect(approveArgs.args[1]).toBe(maxUint256)
   })
 })
