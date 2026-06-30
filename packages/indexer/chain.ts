@@ -65,7 +65,7 @@ export const sepoliaFallbackTransport: Transport = fallback(
   { rank: false, retryCount: 2 },
 )
 
-export const WALLETCONNECT_PROJECT_ID = '1cb2e088d817de31a39a54154b265f68'
+export const WALLETCONNECT_PROJECT_ID = '2d42eb34b815c3019db4943096fcd58a'
 
 export const customSepolia = {
   ...sepolia,
