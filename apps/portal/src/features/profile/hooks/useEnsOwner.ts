@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import type { GetOwnerErrorType as ensjsv1_GetOwnerErrorType } from '@ensdomains/ensjs/public/v1'
 import type {
   GetOwnerErrorType as ensjsv2_GetOwnerErrorType,
-  GetNameRegistryAddressErrorType,
+  GetNameRegistriesErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -21,7 +21,7 @@ export class GetEnsOwnerError extends TaggedError('GetEnsOwnerError')<{
   cause:
     | ensjsv1_GetOwnerErrorType
     | ensjsv2_GetOwnerErrorType
-    | GetNameRegistryAddressErrorType
+    | GetNameRegistriesErrorType
     | NameRequiredError
 }> {}
 
@@ -44,8 +44,8 @@ export const getEnsOwner = ResultFn(async function* ({
     )
   }
 
-  // Shared traversal: V2 (.eth only, walking down to the leaf's subregistry)
-  // then V1 fallback. See resolveEnsOwner for details.
+  // Shared resolution: V2 by name (.eth only) then V1 fallback. See
+  // resolveEnsOwner for details.
   const result = yield* fromPromise(
     resolveEnsOwner(client, name),
     (e) =>
@@ -53,7 +53,7 @@ export const getEnsOwner = ResultFn(async function* ({
         cause: e as
           | ensjsv1_GetOwnerErrorType
           | ensjsv2_GetOwnerErrorType
-          | GetNameRegistryAddressErrorType,
+          | GetNameRegistriesErrorType,
       }),
   )
 
