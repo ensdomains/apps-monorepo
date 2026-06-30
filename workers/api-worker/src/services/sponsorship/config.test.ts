@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { buildRhinestoneJwtConfig } from './config'
 
+// Distinct private-key material per key id, so a selection bug that returns the
+// wrong key's `privateKey` (not just the wrong `keyId`) is caught.
+const KEY_A_PRIVATE = { kty: 'EC', crv: 'P-256', x: 'x', y: 'y', d: 'd' }
+const KEY_B_PRIVATE = { kty: 'EC', crv: 'P-256', x: 'x2', y: 'y2', d: 'd2' }
+
 const makeEnv = (overrides: Record<string, string> = {}): CloudflareBindings =>
   ({
     RHINESTONE_INTEGRATOR_ID: 'int_1',
@@ -10,14 +15,8 @@ const makeEnv = (overrides: Record<string, string> = {}): CloudflareBindings =>
     RHINESTONE_JWT_AUDIENCE: '',
     RHINESTONE_SPONSORSHIP_CHAIN_IDS: '11155111',
     RHINESTONE_JWT_SIGNING_KEYS: JSON.stringify([
-      {
-        keyId: 'key-a',
-        privateKey: { kty: 'EC', crv: 'P-256', x: 'x', y: 'y', d: 'd' },
-      },
-      {
-        keyId: 'key-b',
-        privateKey: { kty: 'EC', crv: 'P-256', x: 'x2', y: 'y2', d: 'd2' },
-      },
+      { keyId: 'key-a', privateKey: KEY_A_PRIVATE },
+      { keyId: 'key-b', privateKey: KEY_B_PRIVATE },
     ]),
     ...overrides,
   }) as unknown as CloudflareBindings
@@ -28,6 +27,7 @@ describe('buildRhinestoneJwtConfig', () => {
     expect(result.isOk()).toBe(true)
     if (!result.isOk()) return
     expect(result.value.jwt.keyId).toBe('key-a')
+    expect(result.value.jwt.privateKey).toEqual(KEY_A_PRIVATE)
     expect(result.value.jwt.integratorId).toBe('int_1')
     expect(result.value.jwt.projectId).toBe('proj_1')
     expect(result.value.jwt.appId).toBe('app_1')
@@ -39,6 +39,8 @@ describe('buildRhinestoneJwtConfig', () => {
     )
     if (!result.isOk()) throw new Error('expected ok')
     expect(result.value.jwt.keyId).toBe('key-b')
+    // The paired material must rotate too — not just the id.
+    expect(result.value.jwt.privateKey).toEqual(KEY_B_PRIVATE)
   })
 
   it('omits audience when blank so the SDK default applies', () => {
@@ -101,6 +103,13 @@ describe('buildRhinestoneJwtConfig', () => {
     )
     if (!result.isOk()) throw new Error('expected ok')
     expect(result.value.jwt.keyId).toBe('only')
+    expect(result.value.jwt.privateKey).toEqual({
+      kty: 'EC',
+      crv: 'P-256',
+      x: 'x',
+      y: 'y',
+      d: 'd',
+    })
   })
 
   it('errors when several keys are set without an active key id', () => {

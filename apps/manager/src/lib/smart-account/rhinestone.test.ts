@@ -179,6 +179,26 @@ describe('initializeRhinestoneAccount (HCA)', () => {
     })
   })
 
+  it('builds the SDK in JWT mode even when VITE_RHINESTONE_API_KEY is unset', async () => {
+    // JWT auth does not consult the static API key, so a JWT-only deployment
+    // must not require VITE_RHINESTONE_API_KEY. The SDK still builds with the
+    // experimental_jwt callbacks rather than throwing on the absent key.
+    vi.stubEnv('VITE_FF_EXPERIMENTAL_JWT', 'true')
+    vi.stubEnv('VITE_RHINESTONE_API_KEY', '')
+
+    await initializeRhinestoneAccount({
+      walletClient: mockWalletClient,
+    })
+
+    expect(RhinestoneSDK).toHaveBeenCalledWith({
+      auth: {
+        mode: 'experimental_jwt',
+        accessToken: MOCK_ACCESS_TOKEN_FN,
+        getIntentExtensionToken: MOCK_EXTENSION_TOKEN_FN,
+      },
+    })
+  })
+
   it('throws error when no walletClient is provided', async () => {
     await expect(initializeRhinestoneAccount({})).rejects.toThrow(
       'A walletClient must be provided',

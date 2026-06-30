@@ -80,8 +80,12 @@ function resolveOwnerAccount(params: { walletClient?: WalletClient }): {
  * mockestrator in e2e without a production key.
  *
  * `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
+ *
+ * `requireApiKey` gates the missing-key error: JWT-mode sponsorship
+ * authenticates with signed tokens rather than the static key, so JWT-path
+ * callers pass `false` and tolerate an absent `VITE_RHINESTONE_API_KEY`.
  */
-function resolveSdkEnv(): {
+function resolveSdkEnv(params: { requireApiKey: boolean }): {
   rhinestoneApiKey: string
   rhinestoneEndpointUrl?: string
   rhinestoneCustomRpcUrls?: Record<number, string>
@@ -93,7 +97,9 @@ function resolveSdkEnv(): {
     import.meta.env.VITE_RHINESTONE_API_KEY ||
     (isLocalOrchestrator ? 'local-dev' : undefined)
 
-  if (!apiKey) {
+  // JWT-mode sponsorship authenticates each intent with signed tokens, not the
+  // static API key, so the key is only required on the API-key path.
+  if (params.requireApiKey && !apiKey) {
     throw new Error(
       'Rhinestone API key not configured in environment variables',
     )
@@ -105,7 +111,7 @@ function resolveSdkEnv(): {
     : undefined
 
   return {
-    rhinestoneApiKey: apiKey,
+    rhinestoneApiKey: apiKey ?? '',
     rhinestoneEndpointUrl: endpointUrl,
     rhinestoneCustomRpcUrls: customRpcUrls,
   }
@@ -130,8 +136,6 @@ export async function initializeRhinestoneAccount(
   const { ownerAccount, eoaAddress } = resolveOwnerAccount({
     walletClient,
   })
-  const env = resolveSdkEnv()
-
   // JWT-mode sponsorship is the default path: the SDK authenticates each
   // sponsored intent through the api-worker `shouldSponsor` predicate (which is
   // where sponsorship policy lives). Set VITE_FF_EXPERIMENTAL_JWT=false to fall
@@ -140,6 +144,10 @@ export async function initializeRhinestoneAccount(
     import.meta.env.VITE_FF_EXPERIMENTAL_JWT === 'false'
       ? undefined
       : createJwtAuthCallbacks()
+
+  // The static API key is only consulted on the non-JWT path, so require it
+  // only there — a JWT-only deployment needs no VITE_RHINESTONE_API_KEY.
+  const env = resolveSdkEnv({ requireApiKey: !jwtAuth })
 
   const coreParams: InitializeRhinestoneAccountParams = {
     ownerAccount,
