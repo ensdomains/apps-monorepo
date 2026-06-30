@@ -2,12 +2,11 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
-import {
-  getNameRegistryAddress as ensjsv2_getNameRegistryAddress,
-  getOwner as ensjsv2_getOwner,
-} from '@ensdomains/ensjs/public/v2'
+import { universalResolverV2FindOwnerSnippet } from '@ensdomains/ensjs-abi/universalResolver'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, bytesToHex, zeroAddress } from 'viem'
+import { readContract } from 'viem/actions'
+import { packetToBytes } from 'viem/ens'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEthName } from './profileName'
@@ -16,9 +15,9 @@ class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: unknown
 }> {}
 
-const ENS_REGISTRY = getChainContractAddress({
+const UNIVERSAL_RESOLVER = getChainContractAddress({
   chain: sepoliaWithEns,
-  contract: 'ensRegistry',
+  contract: 'ensUniversalResolver',
 })
 
 export const getOwner = ResultFn(async function* (params: { name: string }) {
@@ -29,28 +28,17 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
   }
 
   const client = yield* safeGetClient()
-  let registryAddress: Address = ENS_REGISTRY
 
-  for (const label of ethName.parentLabelsRootFirst) {
-    const nextRegistryAddress = yield* fromPromise(
-      ensjsv2_getNameRegistryAddress(client, {
-        registryAddress,
-        label,
-      }),
-      (e) => new GetOwnerError({ cause: e }),
-    )
-
-    if (nextRegistryAddress === zeroAddress) {
-      return ok(null)
-    }
-
-    registryAddress = nextRegistryAddress
-  }
-
+  // The Universal Resolver V2 walks the registry tree on-chain and returns the
+  // owner of the leaf label in a single call (any depth), replacing the manual
+  // per-label `getSubregistry` walk. `findOwner` is V2-only — it returns the
+  // zero address for unmigrated V1 names — which matches this V2 profile view.
   const owner = yield* fromPromise(
-    ensjsv2_getOwner(client, {
-      registryAddress,
-      label: ethName.leafLabel,
+    readContract(client, {
+      address: UNIVERSAL_RESOLVER,
+      abi: universalResolverV2FindOwnerSnippet,
+      functionName: 'findOwner',
+      args: [bytesToHex(packetToBytes(ethName.name))],
     }),
     (e) => new GetOwnerError({ cause: e }),
   )
