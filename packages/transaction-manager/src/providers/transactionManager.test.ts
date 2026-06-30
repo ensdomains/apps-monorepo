@@ -132,5 +132,21 @@ describe('buildArchivedTransaction', () => {
 
       expect(archived.request).toBeUndefined()
     })
+
+    it('carries the machine-prepared request for a non-custom intent', () => {
+      // ens-renewal/eth-transfer intents have no embedded request; the machine
+      // prepares one into ctx.request. The manager passes that prepared request
+      // (ctx.request) here, so the archive must carry it rather than dropping
+      // `to`/`value` from the history report.
+      const archived = buildArchivedTransaction({
+        txId: 'tx',
+        status: 'success',
+        request: customRequest,
+        intent: { type: 'ens-renewal', name: 'leon', duration: 1n, from: FROM },
+        timestamp: TIMESTAMP,
+      })
+
+      expect(archived.request).toBe(customRequest)
+    })
   })
 })

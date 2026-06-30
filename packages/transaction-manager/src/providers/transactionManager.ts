@@ -277,7 +277,10 @@ class TransactionManager {
         hash: ctx.hash,
         state,
         context: {
-          request,
+          // Prefer the machine-prepared request (ctx.request); the closure
+          // `request` is only set for pre-prepared requests, not intents the
+          // machine prepares internally (ens-renewal/eth-transfer).
+          request: ctx.request ?? request,
           error: ctx.error?.message,
         },
         timestamp: Date.now(),
@@ -321,7 +324,7 @@ class TransactionManager {
           operation: transactionOptions.operation,
           name: transactionOptions.name,
           intent,
-          request,
+          request: ctx.request ?? request,
           timestamp: Date.now(),
         }),
       )
