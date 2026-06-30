@@ -84,7 +84,8 @@
       "typed-array-buffer": "npm:@socketregistry/typed-array-buffer@^1",
       "which-typed-array": "npm:@socketregistry/which-typed-array@^1",
       "es-set-tostringtag": "npm:@socketregistry/es-set-tostringtag@^1",
-      "vite@8.0.10>rolldown": "1.0.0-rc.18"
+      "vite@8.0.10>rolldown": "1.0.0-rc.18",
+      "zod": "4.1.13"
     }
   }
 }
