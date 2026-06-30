@@ -13,11 +13,15 @@ import { isFeatureEnabled } from '@/utils/feature-flags'
  *
  * - For L1 sources (Sepolia USDC/DAI) the source token == the destination
  *   token; no bridging happens.
- * - For L2 sources (Base Sepolia USDC) the user holds the stable on the L2,
- *   and Rhinestone Warp bridges it to the **destination** L1 token on Sepolia
- *   (landing at the EOA owner) inside the same intent. Pricing, the EOA
- *   permit, and the on-chain `register` call are all denominated in the
- *   destination L1 token and are unchanged by the source choice.
+ * - For L2 sources (Base Sepolia USDC) the user holds the stable on the L2.
+ *   A standalone, EOA-signed Rhinestone intent bridges it to the
+ *   **destination** L1 token on Sepolia, landing at the EOA owner, BEFORE the
+ *   registration runs (Rhinestone requires an EOA-invoked, non-sponsored
+ *   bridge — it cannot be batched into the HCA/session/sponsored registration
+ *   intent, and needs a prior Permit2 approval on the source chain). Once the
+ *   funds land, the existing same-chain owner-key registration runs unchanged.
+ *   Pricing, the EOA permit, and the on-chain `register` call are all
+ *   denominated in the destination L1 token and are unaffected by the source.
  *
  * Token addresses for L2 are manager-owned: ensjs only models L1, and the
  * routable addresses are dictated by the Rhinestone orchestrator's supported

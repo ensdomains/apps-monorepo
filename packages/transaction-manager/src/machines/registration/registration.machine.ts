@@ -5,6 +5,7 @@ import { assign, fromPromise, setup } from 'xstate'
 import type { Signer } from '../../types/signer.types'
 import {
   authorizedPaymentAmount,
+  bridgeViaEoaIntentActor,
   type CrossChainPaymentSource,
   ensureHcaDeployedActor,
   generateCommitmentActor,
@@ -111,11 +112,18 @@ export type RegistrationContext = {
   registrationTxId?: string
   registerReadyTimestamp?: number
   registrationStartedAt?: number
+  /**
+   * Fill hash of the standalone EOA-signed bridge intent that moves the L2
+   * stable to the destination L1 token at the EOA. Only set on the cross-chain
+   * path, before any registration step runs.
+   */
+  bridgeTxHash?: Hash
 
   // Error state
   error?: Error
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
+    | 'bridgingFunds'
     | 'deployingResolver'
     | 'submittingSetupBundle'
     | 'ensuringHcaDeployed'
@@ -297,6 +305,19 @@ export const registrationMachine = setup({
         return submitPermitAndRegistrationActor(input)
       },
     ),
+    bridgeViaEoaIntent: fromResultAsync(
+      (input: {
+        eoaSigner: Signer
+        sourceChainId: number
+        sourceTokenAddress: Address
+        destinationToken: Address
+        amount: bigint
+        rhinestoneApiKey: string
+        targetChainId?: number
+      }) => {
+        return bridgeViaEoaIntentActor(input)
+      },
+    ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
@@ -359,6 +380,16 @@ export const registrationMachine = setup({
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    // True when the chosen payment source lives on a different chain than the
+    // registration target — the L2 stable must be bridged to L1 first via a
+    // standalone EOA-signed intent (Rhinestone forbids bridging a user EOA's
+    // funds inside the HCA/session/sponsored registration intent).
+    isCrossChainPayment: ({ context }) => {
+      const source = context.paymentSource
+      if (!source) return false
+      const targetChainId = context.publicClient?.chain?.id ?? context.chainId
+      return source.sourceChainId !== targetChainId
+    },
   },
 
   actions: {
@@ -455,7 +486,7 @@ export const registrationMachine = setup({
     idle: {
       on: {
         START_REGISTRATION: {
-          target: 'settingUpRegistration',
+          target: 'bridgingFunds',
           actions: assign({
             name: ({ event }) => event.name,
             duration: ({ event }) => event.duration,
@@ -487,6 +518,76 @@ export const registrationMachine = setup({
           }),
         },
       },
+    },
+
+    // Cross-chain (L2) payment sources are bridged to the destination L1 token
+    // at the EOA via a standalone, EOA-signed Rhinestone intent BEFORE any
+    // registration step. Same-chain (L1) payments fall through immediately.
+    // Rhinestone forbids bridging a user EOA's funds inside the HCA / smart
+    // session / sponsored registration intent, so the bridge must be its own
+    // EOA-signed, non-sponsored intent.
+    bridgingFunds: {
+      entry: ['logTransition', 'recordTransition'],
+      // Skip to setup for same-chain payments. When cross-chain, no `always`
+      // transition matches, so the `invoke` below runs.
+      always: [
+        { guard: 'isCrossChainPayment', target: 'bridgingFundsActive' },
+        { target: 'settingUpRegistration' },
+      ],
+      on: { CANCEL: 'idle' },
+    },
+
+    bridgingFundsActive: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'bridgeViaEoaIntent',
+        input: ({ context }) => ({
+          // The bridge is signed by the user's EOA (NOT the HCA / session). The
+          // EOA owns the source funds and pays source-chain gas. Use the
+          // dedicated EOA `approvalSigner` (same signer that produces the L1
+          // permit); fall back to `signer` only if it is itself an EOA.
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          eoaSigner: context.approvalSigner ?? context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: guarded by isCrossChainPayment
+          sourceChainId: context.paymentSource!.sourceChainId,
+          // biome-ignore lint/style/noNonNullAssertion: guarded by isCrossChainPayment
+          sourceTokenAddress: context.paymentSource!.sourceTokenAddress,
+          // biome-ignore lint/style/noNonNullAssertion: guarded by isCrossChainPayment
+          destinationToken: context.paymentSource!.destinationPaymentToken,
+          // Bridge exactly what the registration will authorize/spend (price +
+          // headroom), so the EOA receives enough to cover the permit value.
+          amount: authorizedPaymentAmount(context.tokenPrice),
+          // The Rhinestone API key lives on the HCA signer's config; the bridge
+          // uses the same key for its plain-EOA account.
+          rhinestoneApiKey:
+            context.signer?.type === 'rhinestone'
+              ? context.signer.config.rhinestoneApiKey
+              : '',
+          targetChainId: context.publicClient?.chain?.id ?? context.chainId,
+        }),
+        onDone: {
+          target: 'settingUpRegistration',
+          actions: assign({
+            bridgeTxHash: ({ event }) => event.output as Hash,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'bridgingFunds' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] EOA cross-chain bridge intent failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: { CANCEL: 'idle' },
     },
 
     settingUpRegistration: {
@@ -1316,6 +1417,19 @@ export const registrationMachine = setup({
       ],
       on: {
         RETRY: [
+          {
+            guard: ({ context }) => context.retryTarget === 'bridgingFunds',
+            // Re-run the EOA bridge intent from scratch. The Permit2 approval is
+            // idempotent (max approval) and the orchestrator re-quotes, so a
+            // retry is safe even if a prior attempt partially progressed.
+            target: 'bridgingFunds',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              bridgeTxHash: undefined,
+            })),
+          },
           {
             guard: ({ context }) => context.retryTarget === 'registeringDomain',
             target: 'registeringDomain',

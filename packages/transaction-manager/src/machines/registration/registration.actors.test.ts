@@ -9,6 +9,7 @@ import type {
 import { type Call, getPrimaryCall } from '../../types/transaction.types'
 import {
   authorizedPaymentAmount,
+  bridgeViaEoaIntentActor,
   createTransactionRequest,
   predictResolverAddress,
 } from './registration.actors'
@@ -239,5 +240,66 @@ describe('createTransactionRequest (cross-chain params)', () => {
 
     expect(request.type).toBe('eoa')
     expect('rhinestoneParams' in request).toBe(false)
+  })
+})
+
+describe('bridgeViaEoaIntentActor', () => {
+  const baseInput = {
+    sourceChainId: 84532,
+    sourceTokenAddress: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
+    destinationToken: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as Address,
+    amount: parseUnits('5.5', 6),
+    rhinestoneApiKey: 'test-key',
+  }
+
+  const eoa: EOASigner = {
+    type: 'eoa',
+    walletClient: {
+      account: { address: FROM },
+    } as unknown as WalletClient,
+  }
+
+  it('rejects a non-EOA signer (cross-chain deposits must be EOA-signed)', async () => {
+    const rhinestone = {
+      type: 'rhinestone',
+      account: {},
+      config: { rhinestoneApiKey: 'k' },
+    } as unknown as Signer
+
+    const result = await bridgeViaEoaIntentActor({
+      ...baseInput,
+      eoaSigner: rhinestone,
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toMatch(/EOA-signed/i)
+    }
+  })
+
+  it('rejects an empty Rhinestone API key', async () => {
+    const result = await bridgeViaEoaIntentActor({
+      ...baseInput,
+      eoaSigner: eoa,
+      rhinestoneApiKey: '',
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toMatch(/rhinestoneApiKey is required/i)
+    }
+  })
+
+  it('rejects an unsupported source chain id', async () => {
+    const result = await bridgeViaEoaIntentActor({
+      ...baseInput,
+      eoaSigner: eoa,
+      sourceChainId: 999999,
+    })
+
+    expect(result.isErr()).toBe(true)
+    if (result.isErr()) {
+      expect(result.error.message).toMatch(/source chain/i)
+    }
   })
 })

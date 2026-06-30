@@ -11,8 +11,16 @@ import {
   ethRegistrarRegisterSnippet,
   ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
+import { RhinestoneSDK, walletClientToAccount } from '@rhinestone/sdk'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import type {
+  Address,
+  Hash,
+  Hex,
+  PublicClient,
+  TransactionReceipt,
+  WalletClient,
+} from 'viem'
 import {
   bytesToHex,
   concatHex,
@@ -23,6 +31,7 @@ import {
   getCreate2Address,
   isAddressEqual,
   keccak256,
+  maxUint256,
   pad,
   parseAbi,
   parseSignature,
@@ -35,8 +44,9 @@ import {
   multicall,
   readContract,
   signTypedData,
+  writeContract,
 } from 'viem/actions'
-import { sepolia } from 'viem/chains'
+import { baseSepolia, sepolia } from 'viem/chains'
 import type { Signer } from '../..'
 import { VERIFIABLE_FACTORY_ABI } from '../../contracts/abis/VerifiableFactory.abi'
 
@@ -1280,11 +1290,216 @@ export function signPermitActor(input: {
   )
 }
 
+// Canonical Permit2 (Uniswap) — the same address on every EVM chain. Rhinestone
+// EOA intents pull the source token through Permit2, so the source token must be
+// approved to this contract on the source chain before the intent is signed.
+const PERMIT2_ADDRESS: Address = '0x000000000022D473030F116dDEE9F6B43aC78BA3'
+
+// Source chains a cross-chain bridge intent may originate from. The Rhinestone
+// orchestrator validates actual support; this only maps chainId → viem Chain.
+const BRIDGE_SOURCE_CHAINS = {
+  [baseSepolia.id]: baseSepolia,
+  [sepolia.id]: sepolia,
+} as const
+
+/**
+ * Bridge the cross-chain source stable to the EOA on the target (L1) chain via a
+ * standalone, **EOA-signed** Rhinestone intent.
+ *
+ * Per the Rhinestone orchestrator's constraints, an L2→L1 deposit funded from a
+ * user's own EOA balance MUST be its own intent: it cannot be batched into the
+ * HCA registration intent, cannot be authorized by a smart-session/owner key,
+ * and cannot be gas-sponsored. The EOA signs the intent's origin EIP-712 data
+ * itself and pays gas on the source chain.
+ *
+ * Flow:
+ *   1. Build a Rhinestone `type: 'eoa'` account from the connected EOA.
+ *   2. Prepare a same-token transfer to the EOA on the target chain, sourced
+ *      from the L2 stable (`sourceChains` + `tokenRequests`).
+ *   3. If the prepared intent reports an outstanding Permit2 approval on the
+ *      source chain, send a one-time on-chain `approve(Permit2, max)` (EOA gas)
+ *      and re-prepare.
+ *   4. Sign + submit the intent and wait for the relayer fill.
+ *
+ * After this resolves, the EOA holds the bridged destination token on L1, and
+ * the existing same-chain owner-key registration (permit + register) runs
+ * unchanged in {@link submitPermitAndRegistrationActor}.
+ */
+export function bridgeViaEoaIntentActor(input: {
+  /** EOA signer that owns the source funds and signs the bridge intent. */
+  eoaSigner: Signer
+  /** Source chain id (e.g. Base Sepolia). */
+  sourceChainId: number
+  /** Source token address on `sourceChainId`. */
+  sourceTokenAddress: Address
+  /** Destination (L1) token the funds are bridged into. */
+  destinationToken: Address
+  /** Amount of destination token to deliver to the EOA (matches permit value). */
+  amount: bigint
+  /** Rhinestone API key (same key used by the HCA path). */
+  rhinestoneApiKey: string
+  /** Target (L1) chain id the registration executes on. */
+  targetChainId?: number
+}): ResultAsync<Hash, Error> {
+  return fromPromise(
+    (async (): Promise<Hash> => {
+      if (input.eoaSigner.type !== 'eoa') {
+        throw new Error(
+          'bridgeViaEoaIntentActor requires an EOA signer: Rhinestone cross-chain ' +
+            'deposits funded from a user balance must be EOA-signed (not HCA/session).',
+        )
+      }
+      if (!input.rhinestoneApiKey) {
+        throw new Error(
+          'rhinestoneApiKey is required for the EOA bridge intent',
+        )
+      }
+
+      const walletClient: WalletClient = input.eoaSigner.walletClient
+      const eoaAddress = getSignerAddress(input.eoaSigner)
+
+      const targetChainId = input.targetChainId ?? sepolia.id
+      const sourceChain =
+        BRIDGE_SOURCE_CHAINS[
+          input.sourceChainId as keyof typeof BRIDGE_SOURCE_CHAINS
+        ]
+      const targetChain =
+        BRIDGE_SOURCE_CHAINS[targetChainId as keyof typeof BRIDGE_SOURCE_CHAINS]
+      if (!sourceChain) {
+        throw new Error(
+          `Unsupported bridge source chain id: ${input.sourceChainId}`,
+        )
+      }
+      if (!targetChain) {
+        throw new Error(`Unsupported bridge target chain id: ${targetChainId}`)
+      }
+
+      // Plain-EOA Rhinestone account: no smart account is deployed, the EOA
+      // address is used directly, and the EOA signs each origin intent.
+      const rhinestone = new RhinestoneSDK({ apiKey: input.rhinestoneApiKey })
+      const eoaAccount = walletClientToAccount(walletClient)
+      const account = await rhinestone.createAccount({
+        account: { type: 'eoa' },
+        eoa: eoaAccount,
+      })
+
+      // Deliver the bridged stable to the EOA itself on L1. A bare transfer to
+      // `eoaAddress` is the canonical "bridge funds to me" intent.
+      const transferCall: Call = {
+        to: input.destinationToken,
+        data: encodeFunctionData({
+          abi: erc20Abi,
+          functionName: 'transfer',
+          args: [eoaAddress, input.amount],
+        }),
+        value: 0n,
+      }
+
+      const prepareParams = {
+        sourceChains: [sourceChain],
+        targetChain,
+        calls: [transferCall],
+        tokenRequests: [
+          { address: input.destinationToken, amount: input.amount },
+        ],
+        // Plain EOAs cannot be sponsored — the EOA pays source-chain gas.
+        sponsored: false,
+      }
+
+      const prepared = await account.prepareTransaction(prepareParams)
+
+      // EOA intents surface outstanding ERC-20 approvals (always to Permit2) and
+      // ETH wraps via `tokenRequirements`. Satisfy any approval with a one-time
+      // on-chain `approve(Permit2, max)` on the source chain, then re-prepare so
+      // the intent is built against the live allowance.
+      const tokenRequirements = (
+        prepared as { tokenRequirements?: TokenRequirements }
+      ).tokenRequirements
+      const needsApproval = hasPermit2ApprovalRequirement(
+        tokenRequirements,
+        input.sourceChainId,
+        input.sourceTokenAddress,
+      )
+
+      let finalPrepared = prepared
+      if (needsApproval) {
+        await writeContract(walletClient, {
+          chain: sourceChain,
+          account: walletClient.account ?? null,
+          address: input.sourceTokenAddress,
+          abi: erc20Abi,
+          functionName: 'approve',
+          // max approval to Permit2 — one-time, avoids re-prompting on future
+          // cross-chain deposits. Permit2 (not Rhinestone) holds the allowance.
+          args: [PERMIT2_ADDRESS, maxUint256],
+        })
+        finalPrepared = await account.prepareTransaction(prepareParams)
+      }
+
+      const signed = await account.signTransaction(finalPrepared)
+      const result = await account.submitTransaction(signed)
+      const receipt = await account.waitForExecution(result, false)
+
+      const txHash = receipt?.fill?.hash as Hash | undefined
+      if (!txHash) {
+        throw new Error('No fill hash returned from the EOA bridge intent')
+      }
+      return txHash
+    })(),
+    (error: unknown) =>
+      error instanceof Error ? error : new Error(String(error)),
+  )
+}
+
+/**
+ * Shape of the `tokenRequirements` block on a prepared EOA intent.
+ * Keyed by CAIP-2 chain id → token address → requirement.
+ */
+type TokenRequirements = Record<
+  string,
+  Record<
+    string,
+    { type: 'approval' | 'wrap'; amount: string; spender?: string }
+  >
+>
+
+/**
+ * Whether the prepared EOA intent still needs an on-chain Permit2 approval for
+ * the given source token. Tolerant of the requirement map being keyed by either
+ * CAIP-2 (`eip155:84532`) or bare chain id, and matches the token
+ * case-insensitively.
+ */
+function hasPermit2ApprovalRequirement(
+  requirements: TokenRequirements | undefined,
+  sourceChainId: number,
+  sourceTokenAddress: Address,
+): boolean {
+  if (!requirements) return false
+  const wantToken = sourceTokenAddress.toLowerCase()
+  for (const [chainKey, tokens] of Object.entries(requirements)) {
+    const keyChainId = chainKey.includes(':')
+      ? Number(chainKey.split(':')[1])
+      : Number(chainKey)
+    if (keyChainId !== sourceChainId) continue
+    for (const [tokenAddr, req] of Object.entries(tokens)) {
+      if (tokenAddr.toLowerCase() === wantToken && req.type === 'approval') {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 /**
  * Submit permit + register as a single batched, Warp-sponsored Rhinestone
  * intent. Only valid for rhinestone signers — the two calls execute atomically
  * in order, so the allowance set by `permit` is visible to `register` in the
  * same tx. The EOA paid no gas and sent no tx; it only signed the permit.
+ *
+ * For cross-chain (L2) payment sources the EOA's funds are bridged to L1 first
+ * by {@link bridgeViaEoaIntentActor} (a separate EOA-signed intent); by the time
+ * this runs the EOA already holds the destination token on L1, so registration
+ * is a normal same-chain owner-key flow.
  */
 export function submitPermitAndRegistrationActor(input: {
   permit: PermitSignature
@@ -1341,42 +1556,15 @@ export function submitPermitAndRegistrationActor(input: {
 
       const targetChainId = input.publicClient.chain?.id ?? sepolia.id
 
-      // Cross-chain payment: when the selected source lives on another chain,
-      // fund the registration intent from that L2 stable. Warp bridges the
-      // source token to the EOA on the target chain (the registrar pulls rent
-      // from the EOA via `_msgSender()` HCA→EOA unwrap, and the EIP-2612 permit
-      // sets `allowance[EOA][registrar]`), then runs the batched permit+register.
-      // The permit's signed `value` already includes the standard headroom
-      // (authorizedPaymentAmount), so reuse it as the tokenRequest amount.
-      const isCrossChain =
-        input.paymentSource !== undefined &&
-        input.paymentSource.sourceChainId !== targetChainId
-
-      const crossChainParams = isCrossChain
-        ? {
-            tokenRequests: [
-              {
-                address: normalizedPaymentToken,
-                amount: input.permit.value,
-              },
-            ] as RhinestoneTransactionRequest['rhinestoneParams']['tokenRequests'],
-            sourceChains: [
-              (input.paymentSource as CrossChainPaymentSource).sourceChainId,
-            ],
-            sourceAssets: [
-              {
-                chainId: (input.paymentSource as CrossChainPaymentSource)
-                  .sourceChainId,
-                address: (input.paymentSource as CrossChainPaymentSource)
-                  .sourceTokenAddress,
-              },
-            ],
-            // Deliver bridged funds to the EOA (where rent is pulled from and
-            // the permit allowance lives), not the default account recipient.
-            recipient: input.owner,
-          }
-        : {}
-
+      // Registration is always a SAME-CHAIN, owner-key (HCA) intent. For a
+      // cross-chain payment source the EOA's L2 stable has already been bridged
+      // to the destination L1 token at the EOA by `bridgeViaEoaIntentActor` (a
+      // separate, EOA-signed intent that runs before this). By the time we get
+      // here the EOA holds `normalizedPaymentToken` on L1, so the gasless
+      // EIP-2612 permit (signed against that token) + `register` execute as a
+      // normal sponsored, owner-signed bundle — NO `sourceChains`/`sourceAssets`
+      // here. Rhinestone does not allow bridging a user EOA's funds inside an
+      // HCA/session/sponsored intent; that is why the bridge is split out.
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
@@ -1386,7 +1574,6 @@ export function submitPermitAndRegistrationActor(input: {
           { to: registrarAddress, data: registrationData, value: 0n },
         ],
         sponsored: input.sponsored ?? true,
-        ...crossChainParams,
       })
 
       const txId = transactionManager.startTransaction(
