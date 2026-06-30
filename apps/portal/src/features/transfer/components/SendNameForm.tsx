@@ -11,7 +11,6 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { useRecipientResolution } from '../hooks/useRecipientResolution'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
@@ -63,7 +62,7 @@ export const SendNameForm = ({
   } = useRecipientResolution(recipientInput)
 
   const { openModal } = useTransactionModal()
-  const { startTransfer, transactions, isPreparing, prepError, hasFlow } =
+  const { startTransfer, transactions, isPreparing, prepError } =
     useTransferName({ name, registryAddress, owner })
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
@@ -78,8 +77,7 @@ export const SendNameForm = ({
     !isSelf &&
     !isResolving &&
     !needsResolverForDefaultAddress &&
-    !isPreparing &&
-    !hasFlow
+    !isPreparing
 
   const toggleOption = (key: keyof TransferOptions) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -104,14 +102,12 @@ export const SendNameForm = ({
         </AlertDescription>
       </Alert>
 
-      {/* Recipient */}
       <div className="flex flex-col gap-1">
         <span className="font-medium">Recipient</span>
         <Input
           value={recipientInput}
           onChange={(e) => setRecipientInput(e.target.value)}
           placeholder="ENS name or address"
-          disabled={hasFlow}
           autoComplete="off"
           spellCheck={false}
           className="h-9"
@@ -145,7 +141,6 @@ export const SendNameForm = ({
             <Switch
               id={`transfer-option-${option.key}`}
               checked={options[option.key]}
-              disabled={hasFlow}
               onCheckedChange={() => toggleOption(option.key)}
               className="mt-1 shrink-0"
             />
@@ -181,7 +176,7 @@ const RecipientPreview = ({ address }: { address: Address }) => {
   const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(address))
 
   return (
-    <div className="flex bg-muted items-start gap-3 rounded-sm p-2.5">
+    <div className="flex bg-muted items-center gap-3 rounded-sm p-2.5">
       <NameAvatar
         name={primaryName ?? address}
         width="48px"
@@ -194,8 +189,8 @@ const RecipientPreview = ({ address }: { address: Address }) => {
         )}
         <CopyableRecord
           value={address}
-          displayValue={truncateAddress(address)}
-          textClassName="text-muted-foreground"
+          displayValue={address}
+          textClassName="text-muted-foreground sm:text-xs"
           truncate={false}
         />
       </div>
