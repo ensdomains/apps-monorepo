@@ -481,10 +481,6 @@ msgstr "Close dialog"
 msgid "Coming Soon"
 msgstr "Coming Soon"
 
-#: src/features/migration/components/MigrationModal.tsx
-msgid "Commemorative NFT"
-msgstr "Commemorative NFT"
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Commit-reveal prevents front-running"
 msgstr "Commit-reveal prevents front-running"
@@ -682,9 +678,9 @@ msgstr "Credit card payments via MoonPay will be available soon. Please use cryp
 msgid "Custom duration in years"
 msgstr "Custom duration in years"
 
-#: src/features/migration/components/MigrationModal.tsx
-msgid "Custom Profiles"
-msgstr "Custom Profiles"
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Custom profiles"
+msgstr "Custom profiles"
 
 #: src/features/landing/ProfilesShowcase.tsx
 msgid "Customize your profile to share what matters"
@@ -835,10 +831,6 @@ msgstr "ENS names can be up to 255 characters"
 msgid "ENS Support Docs"
 msgstr "ENS Support Docs"
 
-#: src/features/migration/components/MigrationModal.tsx
-msgid "ENS v2 Names"
-msgstr "ENS v2 Names"
-
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "ENSv1 only"
 msgstr "ENSv1 only"
@@ -974,8 +966,8 @@ msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Failed to set primary name. Please try again."
-msgstr "Failed to set primary name. Please try again."
+msgid "Failed to set primary name"
+msgstr "Failed to set primary name"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -1146,6 +1138,10 @@ msgstr "Join the community"
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Keep your names safe with notifications"
+msgstr "Keep your names safe with notifications"
+
 #: src/features/navigation/Header/account/LanguageSection.tsx
 msgid "Language"
 msgstr "Language"
@@ -1213,6 +1209,10 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
 
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Manage everything in one place"
+msgstr "Manage everything in one place"
+
 #: src/features/notifications/inbox/list.tsx
 msgid "Manage notification settings"
 msgstr "Manage notification settings"
@@ -1244,6 +1244,10 @@ msgstr "Marking..."
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Migration failed"
 msgstr "Migration failed"
+
+#: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
+msgid "Migration value propositions"
+msgstr "Migration value propositions"
 
 #: src/features/payment/components/add.tsx
 msgid "MM/YY"
@@ -1304,10 +1308,6 @@ msgstr "Need help?"
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr "Never lose your name to expiry."
-
-#: src/features/migration/components/MigrationModal.tsx
-msgid "New Experience"
-msgstr "New Experience"
 
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Next card"
@@ -1502,6 +1502,10 @@ msgstr "people have favorited this name"
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Permission missing. Please try again."
 msgstr "Permission missing. Please try again."
+
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Personalized NFT"
+msgstr "Personalized NFT"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
@@ -2017,6 +2021,10 @@ msgstr "Share profile"
 msgid "Should I register now or wait?"
 msgstr "Should I register now or wait?"
 
+#: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
+msgid "Show {label}"
+msgstr "Show {label}"
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 msgid "Show less"
 msgstr "Show less"
@@ -2082,11 +2090,6 @@ msgstr "Skip for now"
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
-
-#. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx
-msgid "Slide {0}"
-msgstr "Slide {0}"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart Account"
@@ -2314,6 +2317,10 @@ msgstr "TOTAL"
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Total Paid"
 msgstr "Total Paid"
+
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Track your favorite names"
+msgstr "Track your favorite names"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Trademark Guidelines"
