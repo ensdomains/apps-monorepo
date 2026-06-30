@@ -33,7 +33,7 @@ import { isMigrationQueryKey } from './MigrationPage.helpers'
 const ResultLayout = ({ children }: { children: ReactNode }) => (
   <motion.div
     animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-    className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-5"
+    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 px-5"
     initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
     transition={{ duration: 0.5, ease: 'easeOut' }}
   >
@@ -179,7 +179,7 @@ export const MigrationPage = () => {
   }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
 
   return (
-    <div className="relative flex min-h-0 flex-1 overflow-hidden">
+    <div className="relative flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 flex-col overflow-hidden">
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (

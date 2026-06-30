@@ -8,9 +8,11 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { RegistryCardsGrid } from '@/features/registry/components/RegistryCardsGrid'
 import { V2RegistryInfo } from '@/features/registry/components/v2/RegistryInfo'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { NotFoundMessage } from '../../components/NotFoundMessage'
 
 const v1LegacyRegistryAddress = getChainContractAddress({
@@ -81,6 +83,11 @@ function RouteComponent() {
     data: ownerData,
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
+  const availabilityQuery = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: isRegistrable(name),
+  })
+
   if (error)
     return (
       <ErrorMessage
@@ -88,8 +95,20 @@ function RouteComponent() {
         description={error.cause.message}
       />
     )
-  if (isLoading) return <LoadingSpinner title="Loading owner info" />
-  if (!ownerData)
+  if (isLoading || (availabilityQuery.isLoading && isRegistrable(name)))
+    return <LoadingSpinner title="Loading owner info" />
+
+  if (availabilityQuery.error)
+    return (
+      <ErrorMessage
+        title="Error checking availability"
+        description={
+          availabilityQuery.error.cause?.message ||
+          availabilityQuery.error.message
+        }
+      />
+    )
+  if (availabilityQuery.data?.isAvailable || !ownerData)
     return (
       <NotFoundMessage
         title="Name not registered"

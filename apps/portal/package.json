@@ -22,6 +22,9 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@base-ui/react": "^1.1.0",
+    "@ens-apps/dev-migration-tool": "workspace:*",
+    "@ens-apps/dev-time-travel": "workspace:*",
+    "@ens-apps/dev-tools": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
