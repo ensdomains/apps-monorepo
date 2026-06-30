@@ -1,52 +1,57 @@
+import { generatePatternDataURI } from '@ensdomains/etherloom'
 import { describe, expect, it } from 'vitest'
 
 import { render } from '@/utils/test-utils'
 import { PatternAvatar } from './PatternAvatar'
 
-const getRectSignature = (container: HTMLElement) =>
-  Array.from(container.querySelectorAll('rect'))
-    .map((rect) => ({
-      x: rect.getAttribute('x'),
-      y: rect.getAttribute('y'),
-      width: rect.getAttribute('width'),
-      height: rect.getAttribute('height'),
-    }))
-    .sort((a, b) => `${a.x}-${a.y}`.localeCompare(`${b.x}-${b.y}`))
+const etherloomOptions = {
+  cellSize: 10,
+  height: 96,
+  width: 96,
+  padding: 10,
+} as const
+const defaultEtherloomColor = '#0082BB'
 
-const getStopColors = (container: HTMLElement) =>
-  Array.from(container.querySelectorAll('stop')).map((stop) =>
-    stop.getAttribute('stop-color'),
+const getExpectedPatternSrc = (name: string) =>
+  generatePatternDataURI(
+    name,
+    'ENS Vertical Pairs',
+    defaultEtherloomColor,
+    etherloomOptions,
   )
 
-describe('PatternAvatar', () => {
-  it('renders an accessible pattern svg', () => {
-    const { getByRole } = render(<PatternAvatar name="vitalik.eth" />)
+const getImageSrc = (container: HTMLElement) =>
+  container.querySelector('img')?.getAttribute('src')
 
-    expect(
-      getByRole('img', { name: 'vitalik.eth pattern' }),
-    ).toBeInTheDocument()
+describe('PatternAvatar', () => {
+  it('renders an accessible Etherloom pattern image', () => {
+    const { container, getByRole } = render(
+      <PatternAvatar name="vitalik.eth" />,
+    )
+
+    const image = getByRole('img', { name: 'vitalik.eth pattern' })
+
+    expect(image).toHaveAttribute('src', getExpectedPatternSrc('vitalik.eth'))
+    expect(container.querySelector('svg')).not.toBeInTheDocument()
   })
 
   it('is deterministic for the same name', () => {
     const first = render(<PatternAvatar name="coderoaster.eth" />)
-    const firstRects = getRectSignature(first.container)
-    const firstColors = getStopColors(first.container)
+    const firstSrc = getImageSrc(first.container)
     first.unmount()
 
     const second = render(<PatternAvatar name="coderoaster.eth" />)
-    const secondRects = getRectSignature(second.container)
-    const secondColors = getStopColors(second.container)
+    const secondSrc = getImageSrc(second.container)
 
-    expect(secondRects).toEqual(firstRects)
-    expect(secondColors).toEqual(firstColors)
+    expect(secondSrc).toEqual(firstSrc)
   })
 
-  it('changes pattern for a different name', () => {
+  it('changes image for a different name', () => {
     const first = render(<PatternAvatar name="coderoaster.eth" />)
     const second = render(<PatternAvatar name="ens.eth" />)
 
-    expect(getRectSignature(second.container)).not.toEqual(
-      getRectSignature(first.container),
+    expect(getImageSrc(second.container)).not.toEqual(
+      getImageSrc(first.container),
     )
   })
 })

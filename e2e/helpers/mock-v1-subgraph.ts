@@ -42,6 +42,7 @@ function buildV1Domain(params: {
   ownerAddress: string
   type?: V1NameType
   hasRecords?: boolean
+  fuses?: number
   registrationDate?: number
   expiryDate?: number
 }) {
@@ -96,7 +97,15 @@ function buildV1Domain(params: {
     wrappedDomain: isWrapped
       ? {
           expiryDate: String(expiry),
-          fuses: type === 'locked' ? LOCKED_2LD_FUSES : UNLOCKED_2LD_FUSES,
+          // If caller provides explicit owner-controlled fuses, OR in the
+          // auto-set parent fuses (PARENT_CANNOT_CONTROL + IS_DOT_ETH).
+          // Otherwise fall back to the defaults derived from type.
+          fuses:
+            params.fuses !== undefined
+              ? (params.fuses | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH)
+              : type === 'locked'
+                ? LOCKED_2LD_FUSES
+                : UNLOCKED_2LD_FUSES,
         }
       : null,
   }
@@ -109,6 +118,16 @@ export type MockV1Name = {
   ownerAddress: string
   /** V1 name type — must match what was passed to makeV1Name */
   type?: V1NameType
+  /**
+   * Override the full fuse bitmap injected into the subgraph mock.
+   * When provided, overrides the default fuses derived from `type`.
+   * The NameWrapper always auto-adds PARENT_CANNOT_CONTROL | IS_DOT_ETH for .eth
+   * 2LDs, so pass only the owner-controlled bits (e.g. FUSES.CANNOT_UNWRAP | FUSES.CANNOT_BURN_FUSES).
+   * The mock will OR in PARENT_CANNOT_CONTROL and IS_DOT_ETH automatically.
+   */
+  fuses?: number
+  /** Registration expiry timestamp (Unix seconds). Defaults to now + 1 year. */
+  expiryDate?: number
   /** V1 records set on this name (used to mock getProfilesForDomains) */
   records?: {
     texts?: V1TextRecord[]
@@ -197,7 +216,9 @@ export async function mockV1Subgraph(
         label,
         ownerAddress: n.ownerAddress,
         type: n.type,
+        fuses: n.fuses,
         hasRecords: Boolean(n.records),
+        expiryDate: n.expiryDate,
       })
     })
 

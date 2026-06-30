@@ -7,8 +7,8 @@ packages:
 autoInstallPeers: false
 
 catalog:
-  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@614da62"
-  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da62"
+  "@ensdomains/ensjs": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@f2a5d7c"
+  "@ensdomains/ensjs-abi": "https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f2a5d7c"
   xstate: ^5.24.0
   "@typescript/native-preview": 7.0.0-dev.20260421.2
   vite: ^8.0.10

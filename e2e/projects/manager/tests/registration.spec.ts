@@ -55,27 +55,36 @@ test.describe('ENS name registration', () => {
 
     await authorizeHeadlessConnection(page, wallet)
 
-    // Dismiss the SIWE modal that appears once connected.
+    // Dismiss the SIWE modal before continuing to payment.
     await dismissBackendAuthModal(page)
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
-    // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false, the CI
-    // default) clicking "Pay with stablecoins" opens the EnableSessions modal
-    // BEFORE the token picker. Click through it (the single ENABLE intent is
-    // auto-authorized via PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
+    // On the smart-account / HCA path, "Pay with stablecoins" opens the
+    // EnableSessions modal BEFORE the token picker, which blocks the USDC click.
+    // Click through it (auto-authorized via PERMITTED_SIGN_KINDS). The helper is
+    // idempotent — a no-op in EOA mode where the modal never appears.
     await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
     await page.getByRole('button', { name: /buy name/i }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
-    // On the HCA path (CI default, VITE_FF_USE_EOA=false) the USDC approval is
-    // an EIP-2612 permit (eth_signTypedData_v4, auto-authorized by
-    // PERMITTED_SIGN_KINDS) — no eth_sendTransaction is queued. Fire the
-    // authorization in the background for EOA-mode compatibility; the .catch
-    // absorbs the timeout so neither path blocks the success assertion.
-    void authorizeTransaction(wallet, 60_000).catch(() => {})
-    await expect(successBanner).toContainText('Registration Complete', {
-      timeout: 180_000,
-    })
+    // Authorize the EOA registration transactions (deploy-resolver? → commit →
+    // approve USDC → register) while waiting for completion. Break early once
+    // no further transaction appears.
+    const authorizeAll = (async () => {
+      for (let i = 0; i < 4; i++) {
+        try {
+          await authorizeTransaction(wallet, 120_000)
+        } catch {
+          break
+        }
+      }
+    })()
+    await Promise.all([
+      authorizeAll,
+      expect(successBanner).toContainText('Registration Complete', {
+        timeout: 180_000,
+      }),
+    ])
   })
 })

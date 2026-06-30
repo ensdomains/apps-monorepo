@@ -19,6 +19,7 @@ export interface ProfileImageFieldProps {
   readonly onImageUploadPrepared?: (upload: PreparedProfileImageUpload) => void
   readonly owner?: Address
   readonly preparedImagePreviewUrl?: string
+  readonly themeColor?: string | null
 }
 
 export interface ProfileImageSize {

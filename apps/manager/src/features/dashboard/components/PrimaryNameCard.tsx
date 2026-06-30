@@ -92,7 +92,8 @@ export const PrimaryNameCard = ({
     : formatDashboardDate(displayExpiryDate)
   const canViewProfile = Boolean(primaryName)
 
-  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor)
+  const profileThemeColor = isInGrace ? undefined : themeVars['--theme-color']
 
   return (
     <Card
@@ -100,7 +101,7 @@ export const PrimaryNameCard = ({
         'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:p-6',
         isInGrace && 'opacity-70',
       )}
-      style={isInGrace ? undefined : themeVars}
+      style={isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
       <PrimaryBadge className="self-start bg-ens-lapis-tint" />
 
@@ -128,6 +129,7 @@ export const PrimaryNameCard = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-20 rounded-sm border-none bg-transparent p-0 shadow-none md:size-full"
+                  color={profileThemeColor}
                   name={primaryName ?? ''}
                 />
               </ImageFallback.Fallback>

@@ -262,6 +262,7 @@ export const GeneralTab = ({
             onImageUploadPrepared={onImageUploadPrepared}
             owner={owner}
             preparedImagePreviewUrl={getPreparedImagePreviewUrl('avatar')}
+            themeColor={values.base.theme}
           />
         )}
 

@@ -16,6 +16,7 @@ interface ViewHeaderSectionProps {
   owner?: Address
   isInGrace?: boolean
   isOwner?: boolean
+  themeColor?: string
 }
 
 export const ViewHeaderSection = ({
@@ -23,6 +24,7 @@ export const ViewHeaderSection = ({
   owner,
   isInGrace = false,
   isOwner,
+  themeColor,
 }: ViewHeaderSectionProps) => {
   const avatarUrl = isInGrace
     ? undefined
@@ -79,6 +81,7 @@ export const ViewHeaderSection = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
+                  color={themeColor}
                   name={name}
                 />
               </ImageFallback.Fallback>
