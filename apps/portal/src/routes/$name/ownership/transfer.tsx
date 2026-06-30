@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, ShieldX } from 'lucide-react'
-import { type Address, zeroAddress } from 'viem'
+import { match, P } from 'ts-pattern'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { ErrorMessage } from '@/components/ErrorMessage'
@@ -54,22 +55,31 @@ function RouteComponent() {
           Back
         </Link>
 
-        <h1 className="text-4xl font-medium leading-tight">Send name</h1>
+        <h1 className="text-3xl font-medium leading-tight">
+          Transfer ownership
+        </h1>
 
-        {data?.protocolVersion !== 'ENSv2' ? (
-          <NotV2Message />
-        ) : !address ? (
-          <ConnectWalletMessage />
-        ) : address.toLowerCase() !== data.owner.toLowerCase() ? (
-          <NotOwnerMessage />
-        ) : (
-          <SendNameForm
-            name={name}
-            registryAddress={data.registryAddress}
-            owner={data.owner}
-            currentResolverAddress={normalizeResolver(resolverQuery.data)}
-          />
-        )}
+        {match({ data, address })
+          .with({ data: P.nullish }, () => <NotV2Message />)
+          .with({ data: { protocolVersion: P.not('ENSv2') } }, () => (
+            <NotV2Message />
+          ))
+          .with({ address: P.nullish }, () => <ConnectWalletMessage />)
+          .with(
+            { data: P.nonNullable, address: P.string },
+            ({ data, address }) =>
+              isAddressEqual(address, data.owner) ? (
+                <SendNameForm
+                  name={name}
+                  registryAddress={data.registryAddress}
+                  owner={data.owner}
+                  currentResolverAddress={normalizeResolver(resolverQuery.data)}
+                />
+              ) : (
+                <NotOwnerMessage />
+              ),
+          )
+          .exhaustive()}
       </div>
     </div>
   )

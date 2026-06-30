@@ -1,26 +1,16 @@
-import { AlertTriangle, CheckCircle, Loader2, Send } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
+import { type Address, isAddressEqual } from 'viem'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { useRecipientResolution } from '../hooks/useRecipientResolution'
 import { useTransferName } from '../hooks/useTransferName'
-import {
-  buildTransferPlan,
-  getTransferStepLabel,
-  type TransferOptions,
-  type TransferStepKind,
-} from '../utils/buildTransferPlan'
+import type { TransferOptions } from '../utils/buildTransferPlan'
 
 type SendNameFormProps = {
   readonly name: string
@@ -68,7 +58,6 @@ export const SendNameForm = ({
     deployResolver: false,
     deployRegistry: false,
   })
-  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const {
     address: recipient,
@@ -76,11 +65,11 @@ export const SendNameForm = ({
     error: resolveError,
   } = useRecipientResolution(recipientInput)
 
-  const { startTransfer, status, plan, currentStep, error, goToOwnership } =
+  const { openModal } = useTransactionModal()
+  const { startTransfer, transactions, isPreparing, prepError, hasFlow } =
     useTransferName({ name, registryAddress, owner })
 
-  const isSelf = !!recipient && recipient.toLowerCase() === owner.toLowerCase()
-  const isRunning = status === 'running'
+  const isSelf = !!recipient && isAddressEqual(recipient, owner)
 
   // The default-address step needs a resolver. If the name has none, the user
   // must also deploy one in the same flow.
@@ -94,43 +83,32 @@ export const SendNameForm = ({
     !isSelf &&
     !isResolving &&
     !needsResolverForDefaultAddress &&
-    !isRunning
+    !isPreparing &&
+    !hasFlow
 
   const toggleOption = (key: keyof TransferOptions) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
-  const previewPlan = buildTransferPlan(options)
-
-  const handleConfirm = async () => {
+  const handleStart = async () => {
     if (!recipient) return
-    setConfirmOpen(false)
-    await startTransfer({
+    const ready = await startTransfer({
       recipient,
       currentResolverAddress,
       options,
     })
-  }
-
-  if (status === 'success') {
-    return (
-      <TransferSuccess
-        name={name}
-        recipient={recipient}
-        onBack={goToOwnership}
-      />
-    )
+    if (ready) openModal()
   }
 
   return (
     <div className="flex flex-col gap-6 max-w-2xl w-full">
-      <div className="bg-muted rounded-sm p-6 flex gap-4 items-start">
-        <AlertTriangle className="w-8 h-8 shrink-0" />
-        <p className="text-foreground">
+      <Alert variant="warning">
+        <AlertTriangle />
+        <AlertDescription>
           Transferring a name hands over ownership of the ERC-1155 token to the
-          recipient. This cannot be undone — only the new owner can transfer it
+          recipient. This cannot be undone - only the new owner can transfer it
           back.
-        </p>
-      </div>
+        </AlertDescription>
+      </Alert>
 
       {/* Recipient */}
       <div className="flex flex-col gap-1">
@@ -139,7 +117,7 @@ export const SendNameForm = ({
           value={recipientInput}
           onChange={(e) => setRecipientInput(e.target.value)}
           placeholder="ENS name or address"
-          disabled={isRunning}
+          disabled={hasFlow}
           autoComplete="off"
           spellCheck={false}
         />
@@ -163,28 +141,26 @@ export const SendNameForm = ({
         </div>
       </div>
 
-      {/* Options */}
       <div className="flex flex-col gap-3">
-        <span className="font-medium">Options</span>
         {OPTIONS.map((option) => (
           <label
             key={option.key}
             htmlFor={`transfer-option-${option.key}`}
-            className="flex gap-3 items-start cursor-pointer"
+            className="flex gap-3 items-start justify-between cursor-pointer"
           >
-            <Checkbox
-              id={`transfer-option-${option.key}`}
-              checked={options[option.key]}
-              disabled={isRunning}
-              onCheckedChange={() => toggleOption(option.key)}
-              className="mt-1"
-            />
             <span className="flex flex-col">
               <span className="text-foreground">{option.label}</span>
               <span className="text-muted-foreground text-sm">
                 {option.description}
               </span>
             </span>
+            <Switch
+              id={`transfer-option-${option.key}`}
+              checked={options[option.key]}
+              disabled={hasFlow}
+              onCheckedChange={() => toggleOption(option.key)}
+              className="mt-1 shrink-0"
+            />
           </label>
         ))}
         {needsResolverForDefaultAddress && (
@@ -195,126 +171,20 @@ export const SendNameForm = ({
         )}
       </div>
 
-      {(isRunning || status === 'error') && (
-        <TransferProgress
-          plan={plan}
-          currentStep={currentStep}
-          isRunning={isRunning}
-          error={status === 'error' ? error : null}
-        />
-      )}
-
       <Button
         variant="default"
-        onClick={() => setConfirmOpen(true)}
+        onClick={handleStart}
         disabled={!canStart}
         className="flex items-center justify-center gap-2 w-fit"
       >
-        <Send className="w-4 h-4" />
-        {isRunning ? 'Transferring…' : 'Start transfer'}
+        {isPreparing ? 'Preparing…' : 'Transfer'}
       </Button>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm transfer</DialogTitle>
-            <DialogDescription>
-              {recipient && (
-                <>
-                  Transfer <strong>{name}</strong> to{' '}
-                  <span className="font-mono">
-                    {truncateAddress(recipient)}
-                  </span>
-                  . You’ll be asked to sign {previewPlan.length} transaction
-                  {previewPlan.length === 1 ? '' : 's'}:
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <ol className="flex flex-col gap-1 list-decimal list-inside text-sm">
-            {previewPlan.map((step) => (
-              <li key={step}>{getTransferStepLabel(step)}</li>
-            ))}
-          </ol>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="default" onClick={handleConfirm}>
-              Confirm transfer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {prepError && (
+        <span className="text-destructive text-sm">{prepError.message}</span>
+      )}
+
+      <TransactionModal transactions={transactions} />
     </div>
   )
 }
-
-const TransferSuccess = ({
-  name,
-  recipient,
-  onBack,
-}: {
-  name: string
-  recipient: Address | null
-  onBack: () => void
-}) => (
-  <div className="flex flex-col gap-4 items-start">
-    <div className="flex items-center gap-2 text-foreground">
-      <CheckCircle className="w-6 h-6" />
-      <p className="font-medium">Transfer submitted</p>
-    </div>
-    <p className="text-muted-foreground text-sm">
-      {recipient && (
-        <>
-          <strong>{name}</strong> is being transferred to{' '}
-          <span className="font-mono">{truncateAddress(recipient)}</span>.
-          Ownership will update once the network confirms.
-        </>
-      )}
-    </p>
-    <Button variant="default" onClick={onBack}>
-      Back to ownership
-    </Button>
-  </div>
-)
-
-const TransferProgress = ({
-  plan,
-  currentStep,
-  isRunning,
-  error,
-}: {
-  plan: readonly TransferStepKind[]
-  currentStep: number
-  isRunning: boolean
-  error: Error | null
-}) => (
-  <div className="flex flex-col gap-2 border border-border rounded p-4">
-    {plan.map((step, index) => {
-      const done = index < currentStep
-      const active = index === currentStep && isRunning
-      return (
-        <div key={step} className="flex items-center gap-2 text-sm">
-          {done ? (
-            <CheckCircle className="w-4 h-4 text-foreground" />
-          ) : active ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <span className="w-4 h-4 rounded-full border border-border" />
-          )}
-          <span
-            className={
-              done || active ? 'text-foreground' : 'text-muted-foreground'
-            }
-          >
-            {getTransferStepLabel(step)}
-          </span>
-        </div>
-      )
-    })}
-    {error && (
-      <span className="text-destructive text-sm mt-2">{error.message}</span>
-    )}
-  </div>
-)

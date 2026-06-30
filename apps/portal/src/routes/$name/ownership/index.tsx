@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Send } from 'lucide-react'
+import { isAddress, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -80,12 +80,11 @@ function RouteComponent() {
       />
     )
 
-  // Transferring a name is a V2-only feature and only the current owner can do
-  // it (the ERC-1155 token holder). Hide the entry point otherwise.
   const canTransfer =
     data.protocolVersion === 'ENSv2' &&
     !!address &&
-    address.toLowerCase() === data.owner.toLowerCase()
+    isAddress(address) &&
+    isAddressEqual(address, data.owner)
 
   return (
     <div className="flex flex-col gap-8">
@@ -98,10 +97,9 @@ function RouteComponent() {
       <div className="flex flex-row items-center justify-between">
         <h1 className="text-h1">Ownership</h1>
         {canTransfer && (
-          <Button asChild className="gap-2" variant="default">
+          <Button asChild className="gap-2">
             <Link params={{ name }} to="/$name/ownership/transfer">
-              <Send className="h-4 w-4" />
-              Send name
+              Transfer
             </Link>
           </Button>
         )}
