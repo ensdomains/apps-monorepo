@@ -7,6 +7,7 @@ import { GeneralTab } from './GeneralTab'
 
 const profileImageFieldMock = vi.hoisted(() => ({
   removeHandlers: new Map<string, () => void>(),
+  themeColors: new Map<string, string | null | undefined>(),
 }))
 
 vi.mock('../../EditProfileDialog.context', () => ({
@@ -22,11 +23,14 @@ vi.mock('./ProfileImageField', () => ({
   ProfileImageField: ({
     kind,
     onImageRemove,
+    themeColor,
   }: {
     readonly kind: string
     readonly onImageRemove: () => void
+    readonly themeColor?: string | null
   }) => {
     profileImageFieldMock.removeHandlers.set(kind, onImageRemove)
+    profileImageFieldMock.themeColors.set(kind, themeColor)
 
     return (
       <button
@@ -45,6 +49,7 @@ const ProfileImageRemovalHarness = () => {
     base: {
       avatar: 'https://example.com/avatar.png',
       header: 'https://example.com/banner.png',
+      theme: '#984D1B',
     },
   })
 
@@ -75,6 +80,13 @@ const getBaseRecords = () =>
 describe('GeneralTab image removal', () => {
   beforeEach(() => {
     profileImageFieldMock.removeHandlers.clear()
+    profileImageFieldMock.themeColors.clear()
+  })
+
+  it('passes the profile theme to the avatar image field', () => {
+    render(<ProfileImageRemovalHarness />)
+
+    expect(profileImageFieldMock.themeColors.get('avatar')).toBe('#984D1B')
   })
 
   it('keeps the avatar removed when removing the banner afterwards', () => {
@@ -84,6 +96,7 @@ describe('GeneralTab image removal', () => {
     expect(getBaseRecords()).toEqual({
       avatar: '',
       header: 'https://example.com/banner.png',
+      theme: '#984D1B',
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'remove header' }))
@@ -91,6 +104,7 @@ describe('GeneralTab image removal', () => {
     expect(getBaseRecords()).toEqual({
       avatar: '',
       header: '',
+      theme: '#984D1B',
     })
   })
 })

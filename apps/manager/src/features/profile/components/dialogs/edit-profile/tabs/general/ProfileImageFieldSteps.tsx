@@ -3,6 +3,7 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { AvatarNft } from '@/features/profile/service/profileNfts'
 import { safeImageSrc } from '@/features/profile/utils/safeUrl'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 import {
   fieldShellClassName,
@@ -368,6 +369,7 @@ interface RemoveConfirmationStepProps {
   readonly name: string
   readonly onBack: () => void
   readonly onConfirm: () => void
+  readonly themeColor?: string | null
 }
 
 export const RemoveConfirmationStep = ({
@@ -377,80 +379,87 @@ export const RemoveConfirmationStep = ({
   name,
   onBack,
   onConfirm,
-}: RemoveConfirmationStepProps) => (
-  <StepPanel backDisabled={disabled} onBack={onBack}>
-    <p className="max-w-80 text-center text-ens-quartz-400 text-xs leading-ens-normal">
-      Remove current {getTitle(kind)} and replace it with your generated profile
-      default.
-    </p>
-    <div className="flex items-center gap-8">
-      <DisplayImage
-        alt={`Current ${getTitle(kind)}`}
-        className={cn(
-          kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
-          'object-cover',
-        )}
-        fallback={
-          kind === 'avatar' ? (
+  themeColor,
+}: RemoveConfirmationStepProps) => {
+  const avatarThemeColor = getThemeVars(themeColor)['--theme-color']
+
+  return (
+    <StepPanel backDisabled={disabled} onBack={onBack}>
+      <p className="max-w-80 text-center text-ens-quartz-400 text-xs leading-ens-normal">
+        Remove current {getTitle(kind)} and replace it with your generated
+        profile default.
+      </p>
+      <div className="flex items-center gap-8">
+        <DisplayImage
+          alt={`Current ${getTitle(kind)}`}
+          className={cn(
+            kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
+            'object-cover',
+          )}
+          fallback={
+            kind === 'avatar' ? (
+              <PatternAvatar
+                className="size-25 rounded-xl border-none bg-transparent p-0 shadow-none"
+                color={avatarThemeColor}
+                name={name}
+              />
+            ) : (
+              <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
+                <MSymbol
+                  aria-hidden="true"
+                  style={{ fontSize: 28 }}
+                  symbol="wall_art"
+                />
+              </div>
+            )
+          }
+          src={displayImage}
+        />
+        <MSymbol
+          aria-hidden="true"
+          className="text-ens-quartz-400"
+          style={{ fontSize: 22 }}
+          symbol="arrow_forward"
+        />
+        <div
+          className={cn(
+            kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
+            'bg-ens-quartz-100',
+          )}
+        >
+          {kind === 'avatar' ? (
             <PatternAvatar
-              className="size-25 rounded-xl border-none bg-transparent p-0 shadow-none"
+              className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
+              color={avatarThemeColor}
               name={name}
             />
-          ) : (
-            <div className="flex size-25 items-center justify-center rounded-sm bg-ens-quartz-100 text-ens-quartz-400">
-              <MSymbol
-                aria-hidden="true"
-                style={{ fontSize: 28 }}
-                symbol="wall_art"
-              />
-            </div>
-          )
-        }
-        src={displayImage}
-      />
-      <MSymbol
-        aria-hidden="true"
-        className="text-ens-quartz-400"
-        style={{ fontSize: 22 }}
-        symbol="arrow_forward"
-      />
-      <div
-        className={cn(
-          kind === 'avatar' ? 'size-25 rounded-xl' : 'h-21 w-37.5 rounded-sm',
-          'bg-ens-quartz-100',
-        )}
-      >
-        {kind === 'avatar' ? (
-          <PatternAvatar
-            className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
-            name={name}
-          />
-        ) : null}
+          ) : null}
+        </div>
       </div>
-    </div>
-    <div className="flex items-center gap-3">
-      <button
-        className={cn(
-          'h-10 rounded-sm px-5 font-mono text-ens-quartz-700 text-xs uppercase tracking-widest transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50',
-          focusVisibleRingClassName,
-        )}
-        disabled={disabled}
-        onClick={onBack}
-        type="button"
-      >
-        Cancel
-      </button>
-      <button
-        className={cn(
-          'h-10 rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
-          focusVisibleRingClassName,
-        )}
-        disabled={disabled}
-        onClick={onConfirm}
-        type="button"
-      >
-        Remove
-      </button>
-    </div>
-  </StepPanel>
-)
+      <div className="flex items-center gap-3">
+        <button
+          className={cn(
+            'h-10 rounded-sm px-5 font-mono text-ens-quartz-700 text-xs uppercase tracking-widest transition-colors hover:bg-ens-quartz-100 disabled:pointer-events-none disabled:opacity-50',
+            focusVisibleRingClassName,
+          )}
+          disabled={disabled}
+          onClick={onBack}
+          type="button"
+        >
+          Cancel
+        </button>
+        <button
+          className={cn(
+            'h-10 rounded-sm bg-ens-lapis-100 px-5 font-mono text-ens-lapis-500 text-xs uppercase tracking-widest transition-colors hover:bg-ens-lapis-100/80 disabled:pointer-events-none disabled:opacity-50',
+            focusVisibleRingClassName,
+          )}
+          disabled={disabled}
+          onClick={onConfirm}
+          type="button"
+        >
+          Remove
+        </button>
+      </div>
+    </StepPanel>
+  )
+}

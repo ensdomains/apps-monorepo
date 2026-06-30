@@ -139,6 +139,9 @@ importers:
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@f2a5d7c
+      '@ensdomains/etherloom':
+        specifier: 0.1.0-alpha.2
+        version: 0.1.0-alpha.2
       '@icons-pack/react-simple-icons':
         specifier: ^13.11.2
         version: 13.11.2(react@19.2.5)
@@ -1491,6 +1494,10 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       viem: ^2.9.2
+
+  '@ensdomains/etherloom@0.1.0-alpha.2':
+    resolution: {integrity: sha512-O/2HAxZXgaHBJKLNAJblcv4C4n0MXt51oUiH8zLDB0wrnHdoqCIOTiBZDFf6BMOwkBXJPCHNJF/aWAlAHsCJ6Q==}
+    engines: {node: '>=18'}
 
   '@ensdomains/headless-web3-provider@1.0.8':
     resolution: {integrity: sha512-whBFtO8i7N2cPW19yJNXjwZpuaGgjdePjAWJThsTpWK5JEc6EGj7Ox3Jcxi8+NtNAt9I5KV5aj94Cn3+cJsplg==}
@@ -9546,6 +9553,8 @@ snapshots:
       graphql-request: 7.2.0(graphql@16.12.0)
       ts-pattern: 5.9.0
       viem: 2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
+
+  '@ensdomains/etherloom@0.1.0-alpha.2': {}
 
   '@ensdomains/headless-web3-provider@1.0.8(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
