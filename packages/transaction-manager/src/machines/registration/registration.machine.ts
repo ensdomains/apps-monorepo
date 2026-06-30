@@ -2,7 +2,6 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
-import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
   authorizedPaymentAmount,
@@ -357,33 +356,6 @@ export const registrationMachine = setup({
       })
     },
 
-    recordTransition: ({ context, self, event }) => {
-      try {
-        const state = self.getSnapshot()
-        auditTrail.recordTransition({
-          machineId: 'registration',
-          fromState:
-            state.status === 'active' ? String(state.value) : 'unknown',
-          toState: String(state.value),
-          event: event?.type || 'unknown',
-          context: {
-            name: context.name,
-            duration: context.duration.toString(),
-            resolverTxId: context.resolverTxId,
-            resolverAddress: context.resolverAddress,
-            commitmentTxId: context.commitmentTxId,
-            approvalTxId: context.approvalTxId,
-            registrationTxId: context.registrationTxId,
-          },
-          metadata: {
-            chainId: context.chainId,
-          },
-        })
-      } catch (auditError) {
-        console.warn('Audit service error (non-fatal):', auditError)
-      }
-    },
-
     clearSnapshot: async () => {
       // TODO: Implement via persistence service
       // await persistenceService.clearRegistrationSnapshot()
@@ -524,7 +496,7 @@ export const registrationMachine = setup({
     },
 
     submittingSetupBundle: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitResolverAndCommitment',
         input: ({ context }) => ({
@@ -577,7 +549,7 @@ export const registrationMachine = setup({
     },
 
     deployingResolver: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'deployResolver',
         input: ({ context }) => ({
@@ -627,7 +599,7 @@ export const registrationMachine = setup({
     },
 
     waitingForResolverDeployment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'resolveResolverDeployment',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -660,7 +632,7 @@ export const registrationMachine = setup({
     },
 
     preparingCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'generateCommitment',
         input: ({ context }) => {
@@ -710,7 +682,7 @@ export const registrationMachine = setup({
     },
 
     ensuringHcaDeployed: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'ensureHcaDeployed',
         input: ({ context }) => ({
@@ -742,7 +714,7 @@ export const registrationMachine = setup({
     },
 
     committingTransaction: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitCommitment',
         input: ({ context }) => ({
@@ -785,7 +757,7 @@ export const registrationMachine = setup({
     },
 
     waitingForCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -817,7 +789,7 @@ export const registrationMachine = setup({
     },
 
     fetchingCommitmentAge: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'readMinCommitmentAge',
         input: ({ context }) => ({
@@ -846,7 +818,7 @@ export const registrationMachine = setup({
     },
 
     validatingCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'validateCommitment',
         input: ({ context }) => ({
@@ -890,7 +862,7 @@ export const registrationMachine = setup({
     },
 
     commitmentCooldown: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
@@ -924,11 +896,7 @@ export const registrationMachine = setup({
     },
 
     submittingRhinestoneBundle: {
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'clearRegisterReadyTimestamp',
-      ],
+      entry: ['logTransition', 'clearRegisterReadyTimestamp'],
       invoke: {
         src: 'submitPermitAndRegistration',
         input: ({ context }) => ({
@@ -978,7 +946,7 @@ export const registrationMachine = setup({
     },
 
     waitingForRhinestoneBundle: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1006,7 +974,7 @@ export const registrationMachine = setup({
     },
 
     checkingAllowance: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'readPaymentTokenAllowance',
         input: ({ context }) => ({
@@ -1052,7 +1020,7 @@ export const registrationMachine = setup({
     },
 
     signingPermit: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'signPermit',
         input: ({ context }) => ({
@@ -1098,7 +1066,7 @@ export const registrationMachine = setup({
     },
 
     approvingToken: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({
@@ -1144,7 +1112,7 @@ export const registrationMachine = setup({
     },
 
     waitingForApproval: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1172,7 +1140,7 @@ export const registrationMachine = setup({
     },
 
     registeringDomain: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitRegistration',
         input: ({ context }) => ({
@@ -1220,7 +1188,7 @@ export const registrationMachine = setup({
     },
 
     waitingForRegistration: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1242,7 +1210,7 @@ export const registrationMachine = setup({
     },
 
     verifyingRegistration: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'verifyRegistration',
         input: ({ context }) => ({
@@ -1300,12 +1268,7 @@ export const registrationMachine = setup({
     success: {
       // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
       // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'logRegistrationDuration',
-        'clearSnapshot',
-      ],
+      entry: ['logTransition', 'logRegistrationDuration', 'clearSnapshot'],
       on: {
         CANCEL: {
           target: 'idle',
@@ -1316,7 +1279,6 @@ export const registrationMachine = setup({
     error: {
       entry: [
         'logTransition',
-        'recordTransition',
         'logRegistrationFailureDuration',
         ({ context }) => {
           console.error('❌ [REGISTRATION MACHINE] Entered error state:', {

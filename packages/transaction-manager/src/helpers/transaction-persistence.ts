@@ -1,3 +1,4 @@
+import { logger } from '@ens-apps/utils/logger'
 import { type IDBPDatabase, openDB } from 'idb'
 import type { Hash } from 'viem'
 
@@ -48,27 +49,20 @@ class StorageManager {
     const existingType = this.getStorageTypeMarker()
     if (existingType) {
       this.storageType = existingType
-      console.log(
-        `💾 [PERSISTENCE] Using existing storage type: ${existingType}`,
-      )
 
       if (existingType === 'indexeddb') {
         try {
           this.db = await this.initIndexedDB()
           return 'indexeddb'
         } catch (_error) {
-          console.error(
-            '❌ [PERSISTENCE] IndexedDB marked but unavailable, migrating...',
-          )
+          logger.warn('IndexedDB marked but unavailable, migrating')
           // Fall through to try other storage
         }
       } else if (existingType === 'localstorage') {
         if (this.isLocalStorageAvailable()) {
           return 'localstorage'
         }
-        console.error(
-          '❌ [PERSISTENCE] localStorage marked but unavailable, migrating...',
-        )
+        logger.warn('localStorage marked but unavailable, migrating')
       }
     }
 
@@ -79,25 +73,21 @@ class StorageManager {
       this.db = await this.initIndexedDB()
       this.storageType = 'indexeddb'
       this.setStorageTypeMarker('indexeddb')
-      console.log('✅ [PERSISTENCE] Using IndexedDB')
       return 'indexeddb'
     } catch (error) {
-      console.warn('⚠️ [PERSISTENCE] IndexedDB unavailable:', error)
+      logger.warn('IndexedDB unavailable', error)
     }
 
     // Try localStorage second
     if (this.isLocalStorageAvailable()) {
       this.storageType = 'localstorage'
       this.setStorageTypeMarker('localstorage')
-      console.log('✅ [PERSISTENCE] Using localStorage')
       return 'localstorage'
     }
 
     // Fall back to memory storage
     this.storageType = 'memory'
-    console.warn(
-      '⚠️ [PERSISTENCE] Using in-memory storage (data will not persist)',
-    )
+    logger.warn('Using in-memory transaction storage (data will not persist)')
     return 'memory'
   }
 
@@ -482,9 +472,8 @@ export async function saveTransaction(
 ): Promise<void> {
   try {
     await storage.save(id, transaction)
-    console.log('💾 [PERSISTENCE] Saved transaction:', id)
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to save transaction:', error)
+    logger.error('Failed to save transaction', error)
     throw error
   }
 }
@@ -498,7 +487,7 @@ export async function getTransaction(
   try {
     return await storage.get(id)
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to get transaction:', error)
+    logger.error('Failed to get transaction', error)
     return null
   }
 }
@@ -510,7 +499,7 @@ export async function getAllTransactions(): Promise<PersistedTransaction[]> {
   try {
     return await storage.getAll()
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to get all transactions:', error)
+    logger.error('Failed to get all transactions', error)
     return []
   }
 }
@@ -530,7 +519,7 @@ export async function getPendingTransactions(): Promise<
         tx.state === 'preparing',
     )
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to get pending transactions:', error)
+    logger.error('Failed to get pending transactions', error)
     return []
   }
 }
@@ -541,9 +530,8 @@ export async function getPendingTransactions(): Promise<
 export async function removeTransaction(id: string): Promise<void> {
   try {
     await storage.remove(id)
-    console.log('🗑️ [PERSISTENCE] Removed transaction:', id)
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to remove transaction:', error)
+    logger.error('Failed to remove transaction', error)
     throw error
   }
 }
@@ -554,9 +542,8 @@ export async function removeTransaction(id: string): Promise<void> {
 export async function clearAllTransactions(): Promise<void> {
   try {
     await storage.clearActive()
-    console.log('🧹 [PERSISTENCE] Cleared all transactions')
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to clear transactions:', error)
+    logger.error('Failed to clear transactions', error)
     throw error
   }
 }
@@ -569,9 +556,8 @@ export async function archiveTransaction(
 ): Promise<void> {
   try {
     await storage.archive(transaction)
-    console.log('📦 [PERSISTENCE] Archived transaction:', transaction.id)
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to archive transaction:', error)
+    logger.error('Failed to archive transaction', error)
     throw error
   }
 }
@@ -585,10 +571,7 @@ export async function getArchivedTransactions(): Promise<
   try {
     return await storage.getHistory()
   } catch (error) {
-    console.error(
-      '❌ [PERSISTENCE] Failed to get archived transactions:',
-      error,
-    )
+    logger.error('Failed to get archived transactions', error)
     return []
   }
 }
@@ -609,9 +592,8 @@ export async function getTransactionHistory(
 export async function clearTransactionHistory(): Promise<void> {
   try {
     await storage.clearHistory()
-    console.log('🧹 [PERSISTENCE] Cleared transaction history')
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to clear history:', error)
+    logger.error('Failed to clear history', error)
     throw error
   }
 }
@@ -624,7 +606,7 @@ export async function getHistoryCount(): Promise<number> {
     const history = await storage.getHistory()
     return history.length
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to get history count:', error)
+    logger.error('Failed to get history count', error)
     return 0
   }
 }
@@ -637,7 +619,7 @@ export async function getActiveCount(): Promise<number> {
     const active = await storage.getAll()
     return active.length
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to get active count:', error)
+    logger.error('Failed to get active count', error)
     return 0
   }
 }
@@ -657,7 +639,7 @@ export async function exportAllData(): Promise<{
 
     return { active, history }
   } catch (error) {
-    console.error('❌ [PERSISTENCE] Failed to export data:', error)
+    logger.error('Failed to export data', error)
     return { active: [], history: [] }
   }
 }
