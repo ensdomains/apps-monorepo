@@ -259,7 +259,7 @@ export const useTransferName = ({
     return steps.map((step, i) => ({
       id: `transfer-${name}-${step}`,
       title: getTransferStepLabel(step),
-      transactionName: `${getTransferStepLabel(step)} — ${name}`,
+      transactionName: `${getTransferStepLabel(step)} - ${name}`,
       estimatedGasCost: GAS_BY_STEP[step],
       onStart: runners[i],
       onDone: i < runners.length - 1 ? runners[i + 1] : finishFlow,

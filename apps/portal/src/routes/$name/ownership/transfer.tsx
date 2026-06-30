@@ -4,15 +4,13 @@ import { AlertTriangle, ArrowLeft, ShieldX } from 'lucide-react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
-import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
-import { universalResolverAddress } from '@/lib/constants/universalResolver'
-import { wagmiConfig } from '@/lib/wagmi'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
@@ -24,12 +22,7 @@ function RouteComponent() {
   const { address } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const resolverQuery = useQuery({
-    ...getEnsResolverQueryOptions(wagmiConfig, {
-      name,
-      universalResolverAddress,
-    }),
-  })
+  const resolverQuery = useNameResolverAddress({ name })
 
   if (ownerQuery.isLoading) return <LoadingMessage />
 
