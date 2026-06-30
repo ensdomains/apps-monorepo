@@ -7,8 +7,11 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { DEFAULT_REVERSE_REGISTRAR_ABI } from '@ens-apps/transaction-manager/contracts/abis/DefaultReverseRegistrar.abi'
-import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs/contracts'
+import {
+  defaultReverseRegistrarSetNameForAddrWithSignatureSnippet,
+  defaultReverseRegistrarSetNameSnippet,
+  reverseRegistrarSetNameSnippet,
+} from '@ensdomains/ensjs/contracts'
 import {
   type Address,
   encodeFunctionData,
@@ -124,7 +127,7 @@ function submitWithSignature(input: {
   const reverseRegistrar = ENS_SEPOLIA_CONTRACTS.ReverseRegistrar
 
   const defaultData = encodeFunctionData({
-    abi: DEFAULT_REVERSE_REGISTRAR_ABI,
+    abi: defaultReverseRegistrarSetNameForAddrWithSignatureSnippet,
     functionName: 'setNameForAddrWithSignature',
     args: [
       input.eoaAddress,
@@ -176,7 +179,7 @@ function submitForward(input: {
 }): string {
   const cleanName = withEthSuffix(input.name)
   const data = encodeFunctionData({
-    abi: DEFAULT_REVERSE_REGISTRAR_ABI,
+    abi: defaultReverseRegistrarSetNameSnippet,
     functionName: 'setName',
     args: [cleanName],
   })
