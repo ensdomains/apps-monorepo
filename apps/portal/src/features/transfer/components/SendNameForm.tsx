@@ -182,15 +182,8 @@ const RecipientPreview = ({ address }: { address: Address }) => {
         />
       )}
       <div className="flex flex-col gap-1 min-w-0">
-        {isLoading ? (
-          <Skeleton className="h-4 w-28" />
-        ) : (
-          primaryName && (
-            <CopyableRecord
-              value={primaryName}
-              textClassName="text-foreground"
-            />
-          )
+        {primaryName && (
+          <CopyableRecord value={primaryName} textClassName="text-foreground" />
         )}
         <CopyableRecord
           value={address}
