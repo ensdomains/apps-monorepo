@@ -1,9 +1,13 @@
 import { ArrowUpCircle, CircleAlert } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { MANAGER_APP_URL } from '@/lib/constants/domain'
+import {
+  LANDING_PAGE_BASE_URL,
+  MANAGER_APP_BASE_URL,
+} from '@/lib/constants/domain'
 
-const MANAGER_MIGRATE_URL = `${MANAGER_APP_URL}/migration`
+const MANAGER_MIGRATE_URL = `${MANAGER_APP_BASE_URL}/migration`
+const LEARN_MORE_URL = `${LANDING_PAGE_BASE_URL}/ensv2`
 
 /**
  * Prompts the connected owner of a migratable v1 name to upgrade it to ENSv2 in
@@ -34,7 +38,7 @@ export const UpgradeBanner = ({ name }: { name: string }) => (
         >
           {/** biome-ignore lint/a11y/noAmbiguousAnchorText: aria-label is used */}
           <a
-            href={MANAGER_MIGRATE_URL}
+            href={LEARN_MORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`Learn more about migrating ${name} to ENS v2`}
