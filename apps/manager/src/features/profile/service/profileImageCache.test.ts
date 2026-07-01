@@ -1,3 +1,4 @@
+import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
@@ -54,5 +55,32 @@ describe('profile image cache helpers', () => {
     expect(queryClient.getQueryData(imageRecordQuery(imageUrl).queryKey)).toBe(
       cacheBustedImageUrl,
     )
+  })
+
+  it('stores cache-busting versions for name metadata image URLs after signed upload save', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1234)
+
+    const queryClient = new QueryClient()
+    const name = 'vitalik.eth'
+
+    await refreshProfileImageCaches({
+      images: [
+        { kind: 'avatar', imageUrl: `${AVATAR_UPLOAD_BASE_URL}/${name}` },
+        { kind: 'header', imageUrl: `${AVATAR_UPLOAD_BASE_URL}/${name}/h` },
+      ],
+      name,
+      queryClient,
+    })
+
+    expect(
+      queryClient.getQueryData(
+        qk('profile', 'image_version', { kind: 'avatar', name }),
+      ),
+    ).toBe(1234)
+    expect(
+      queryClient.getQueryData(
+        qk('profile', 'image_version', { kind: 'header', name }),
+      ),
+    ).toBe(1234)
   })
 })

@@ -3,6 +3,7 @@ import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
+import { useProfileImageVersion } from '@/features/profile/hooks/useProfileImageVersion'
 import {
   buildNameAvatarUrl,
   buildNameHeaderUrl,
@@ -62,6 +63,8 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   })
   const records = transformProfileRecords(profileRecords)
   const themeVars = getThemeVars(records.base.theme)
+  const avatarVersion = useProfileImageVersion({ kind: 'avatar', name })
+  const headerVersion = useProfileImageVersion({ kind: 'header', name })
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
@@ -103,8 +106,12 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     )
   }
 
-  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
-  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
+  const avatarUrl = expiry.isInGrace
+    ? undefined
+    : buildNameAvatarUrl(name, avatarVersion)
+  const headerUrl = expiry.isInGrace
+    ? undefined
+    : buildNameHeaderUrl(name, headerVersion)
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']

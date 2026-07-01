@@ -11,6 +11,7 @@ import {
   type SortField,
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
+import { useProfileImageVersion } from '@/features/profile/hooks/useProfileImageVersion'
 import {
   type ProfileRecordsResult,
   profileRecordsQuery,
@@ -84,7 +85,9 @@ const AnimatedNameRow = ({
     isInGrace,
     expiryCta,
   } = metadata
+  const avatarVersion = useProfileImageVersion({ kind: 'avatar', name })
   const profilePreview = getNameRowProfilePreview({
+    avatarVersion,
     label,
     name,
     records: profileRecords,

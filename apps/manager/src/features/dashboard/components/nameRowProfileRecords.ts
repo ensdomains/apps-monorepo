@@ -16,6 +16,7 @@ const getTextRecordValue = (
 }
 
 export const getNameRowProfilePreview = (params: {
+  readonly avatarVersion?: number
   readonly label: string
   readonly name?: string
   readonly records?: ProfileRecordsResult | null
@@ -26,7 +27,9 @@ export const getNameRowProfilePreview = (params: {
   const avatarName = params.name ?? params.label
 
   return {
-    avatarUrl: avatarRecord ? buildNameAvatarUrl(avatarName) : undefined,
+    avatarUrl: avatarRecord
+      ? buildNameAvatarUrl(avatarName, params.avatarVersion)
+      : undefined,
     themeColor,
     isAvatarPending: params.isLoading === true && !params.records,
   }

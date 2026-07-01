@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
+import { useProfileImageVersion } from '../../hooks/useProfileImageVersion'
 import {
   buildNameAvatarUrl,
   buildNameHeaderUrl,
@@ -26,12 +27,14 @@ export const ViewHeaderSection = ({
   isOwner,
   themeColor,
 }: ViewHeaderSectionProps) => {
+  const avatarVersion = useProfileImageVersion({ kind: 'avatar', name })
+  const headerVersion = useProfileImageVersion({ kind: 'header', name })
   const avatarUrl = isInGrace
     ? undefined
-    : safeImageSrc(buildNameAvatarUrl(name))
+    : safeImageSrc(buildNameAvatarUrl(name, avatarVersion))
   const headerUrl = isInGrace
     ? undefined
-    : safeImageSrc(buildNameHeaderUrl(name))
+    : safeImageSrc(buildNameHeaderUrl(name, headerVersion))
 
   const url = `${
     typeof window === 'undefined'

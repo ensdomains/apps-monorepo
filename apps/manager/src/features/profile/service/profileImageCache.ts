@@ -1,5 +1,9 @@
-import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import type { QueryClient, QueryKey } from '@tanstack/react-query'
+import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import {
+  type QueryClient,
+  type QueryKey,
+  queryOptions,
+} from '@tanstack/react-query'
 import { AVATAR_UPLOAD_BASE_URL } from '@/features/profile/constants'
 import type { ProfileRecords } from '@/features/profile/types'
 import type { ImageType } from './profileImageUpload'
@@ -8,6 +12,11 @@ import { profileRecordsQuery } from './profileRecords'
 export interface SignedProfileImageUpload {
   readonly kind: ImageType
   readonly imageUrl: string
+}
+
+interface ProfileImageVersionQueryParams {
+  readonly kind: ImageType
+  readonly name: string
 }
 
 interface RefreshProfileImageCachesParams {
@@ -50,6 +59,17 @@ const getCacheBustedImageUrl = (imageUrl: string, version: number) => {
   url.searchParams.set('v', String(version))
   return url.toString()
 }
+
+export const profileImageVersionQuery = ({
+  kind,
+  name,
+}: ProfileImageVersionQueryParams) =>
+  queryOptions({
+    queryKey: qk('profile', 'image_version', { kind, name }),
+    queryFn: (): number | undefined => undefined,
+    enabled: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  })
 
 export const getActiveSignedProfileImageUploads = <
   TImage extends SignedProfileImageUpload,
@@ -96,6 +116,25 @@ const refreshParsedAvatarCaches = ({
   }
 }
 
+const refreshNameMetadataImageVersions = ({
+  images,
+  name,
+  queryClient,
+  version,
+}: {
+  readonly images: readonly SignedProfileImageUpload[]
+  readonly name: string
+  readonly queryClient: QueryClient
+  readonly version: number
+}) => {
+  for (const image of images) {
+    queryClient.setQueryData(
+      profileImageVersionQuery({ kind: image.kind, name }).queryKey,
+      version,
+    )
+  }
+}
+
 export const refreshProfileImageCaches = async ({
   images,
   name,
@@ -119,6 +158,12 @@ export const refreshProfileImageCaches = async ({
   ])
 
   const version = Date.now()
+  refreshNameMetadataImageVersions({
+    images: gaslessImages,
+    name,
+    queryClient,
+    version,
+  })
   refreshParsedAvatarCaches({
     images: gaslessImages,
     queryClient,

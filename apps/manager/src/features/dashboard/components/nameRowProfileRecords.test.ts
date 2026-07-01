@@ -66,4 +66,17 @@ describe('getNameRowProfilePreview', () => {
 
     expect(preview.avatarUrl).toBe(buildNameAvatarUrl('normalized.eth'))
   })
+
+  it('uses the provided avatar version for metadata avatar URLs', () => {
+    const preview = getNameRowProfilePreview({
+      avatarVersion: 1234,
+      label: 'alaska.eth',
+      name: 'alaska.eth',
+      records: profileRecords([
+        { key: 'avatar', value: 'https://example.com/avatar.png' },
+      ]),
+    })
+
+    expect(preview.avatarUrl).toBe(buildNameAvatarUrl('alaska.eth', 1234))
+  })
 })

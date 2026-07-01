@@ -11,6 +11,7 @@ import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { useProfileImageVersion } from '@/features/profile/hooks/useProfileImageVersion'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
@@ -52,7 +53,13 @@ export const DashboardPage = () => {
   )?.value
 
   const defaultName = reverseName ?? null
-  const avatarUrl = reverseName ? buildNameAvatarUrl(reverseName) : null
+  const avatarVersion = useProfileImageVersion({
+    kind: 'avatar',
+    name: reverseName,
+  })
+  const avatarUrl = reverseName
+    ? buildNameAvatarUrl(reverseName, avatarVersion)
+    : null
   const hasProfile = Boolean(defaultName)
 
   return (
