@@ -75,7 +75,7 @@ describe('syncEthAddressRecord', () => {
         type: 'custom',
         request: expect.objectContaining({
           type: 'eoa',
-          from: ACCOUNT,
+          from: OWNER,
           to: RESOLVER,
           value: 0n,
           chainId: CHAIN_ID,

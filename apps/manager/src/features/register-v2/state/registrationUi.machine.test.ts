@@ -250,20 +250,22 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
   })
 
   it('enters explicit post-registration states when setup exists', async () => {
-    const ethSubmit = deferred<string>()
-    startSyncEthRecord.mockReturnValueOnce(ethSubmit.promise)
+    const fwdWait = deferred()
+    waitForKnownTransaction.mockReturnValueOnce(fwdWait.promise as never)
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: false }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush()
 
+    const snap = actor.getSnapshot()
     expect(
-      actor
-        .getSnapshot()
-        .matches({ registering: { transaction: 'settingPrimaryNameForward' } }),
+      snap.matches({
+        registering: { transaction: 'waitingForPrimaryNameForward' },
+      }),
     ).toBe(true)
     expect(startSyncEthRecord).not.toHaveBeenCalled()
+    expect(startPrimaryNameForward).toHaveBeenCalled()
   })
 
   it('stores the ETH record tx id before waiting for confirmation', async () => {
