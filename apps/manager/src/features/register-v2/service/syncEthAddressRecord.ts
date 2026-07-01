@@ -73,9 +73,6 @@ export async function startSyncEthAddressRecordTransaction(
       : {
           type: 'rhinestone-intent',
           from,
-          to: resolverAddress,
-          data,
-          value: 0n,
           chainId,
           rhinestoneParams: {
             calls: [{ to: resolverAddress, data, value: 0n }],

@@ -128,8 +128,6 @@ describe('syncEthAddressRecord', () => {
       request: expect.objectContaining({
         type: 'rhinestone-intent',
         from: SMART_ACCOUNT,
-        to: RESOLVER,
-        value: 0n,
         chainId: CHAIN_ID,
         rhinestoneParams: {
           calls: [
