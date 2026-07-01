@@ -162,9 +162,6 @@ export const ConnectWalletDialog = ({
       <DialogContent className="sm:max-w-100">
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
-          <DialogDescription>
-            Choose how you'd like to connect to ENS.
-          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
