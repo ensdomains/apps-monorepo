@@ -230,11 +230,11 @@ export const MigrationValuePropsCarousel = () => {
         >
           {MIGRATION_VALUE_PROP_SLIDES.map((slide) => (
             <div
-              className="flex w-full shrink-0 snap-center flex-col items-center gap-4 px-5"
+              className="flex w-full shrink-0 snap-center flex-col items-center gap-3 px-5 max-[700px]:gap-2.5"
               key={slide.id}
             >
               <MigrationValuePropMediaCard
-                className="max-w-88"
+                className="max-w-[clamp(11rem,43dvh,15.5rem)]"
                 media={slide.media}
               />
               <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
