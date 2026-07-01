@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { match, P } from 'ts-pattern'
 import { type Address, isAddress } from 'viem'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { useDebouncedValue } from '@/hooks/useDebounce'
@@ -39,20 +40,35 @@ export const useRecipientResolution = (input: string): RecipientResolution => {
     enabled: isValid && !isDebouncing,
   })
 
-  if (!trimmed) return { address: null, isResolving: false, error: null }
-  if (!isValid)
-    return {
+  return match({
+    trimmed,
+    isValid,
+    isPending: isDebouncing || isFetching,
+    resolved,
+  })
+    .with({ trimmed: '' }, () => ({
+      address: null,
+      isResolving: false,
+      error: null,
+    }))
+    .with({ isValid: false }, () => ({
       address: null,
       isResolving: false,
       error: 'Enter a valid ENS name or address',
-    }
-  if (isDebouncing || isFetching)
-    return { address: null, isResolving: true, error: null }
-  if (!resolved)
-    return {
+    }))
+    .with({ isPending: true }, () => ({
+      address: null,
+      isResolving: true,
+      error: null,
+    }))
+    .with({ resolved: P.nonNullable }, ({ resolved }) => ({
+      address: resolved,
+      isResolving: false,
+      error: null,
+    }))
+    .otherwise(() => ({
       address: null,
       isResolving: false,
       error: 'Could not resolve a name or address',
-    }
-  return { address: resolved, isResolving: false, error: null }
+    }))
 }
