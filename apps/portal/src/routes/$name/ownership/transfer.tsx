@@ -60,18 +60,19 @@ function RouteComponent() {
           .with({ address: P.nullish }, () => <ConnectWalletMessage />)
           .with(
             { data: P.nonNullable, address: P.string },
-            ({ data, address }) =>
-              isAddressEqual(address, data.owner) ? (
-                <SendNameForm
-                  name={name}
-                  registryAddress={data.registryAddress}
-                  owner={data.owner}
-                  currentResolverAddress={normalizeResolver(resolverQuery.data)}
-                />
-              ) : (
-                <NotOwnerMessage />
-              ),
+            ({ data, address }) => isAddressEqual(address, data.owner),
+            ({ data }) => (
+              <SendNameForm
+                name={name}
+                registryAddress={data.registryAddress}
+                owner={data.owner}
+                currentResolverAddress={normalizeResolver(resolverQuery.data)}
+              />
+            ),
           )
+          .with({ data: P.nonNullable, address: P.string }, () => (
+            <NotOwnerMessage />
+          ))
           .exhaustive()}
       </div>
     </div>
