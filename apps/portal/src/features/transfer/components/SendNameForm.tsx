@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
+import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
@@ -24,16 +26,21 @@ type SendNameFormProps = {
 type OptionConfig = {
   readonly key: keyof TransferOptions
   readonly label: string
+  readonly description: string
 }
 
 const OPTIONS: readonly OptionConfig[] = [
   {
     key: 'deployResolver',
     label: 'Deploy a new resolver',
+    description:
+      'Gives the recipient a fresh resolver they fully control. This name’s current records aren’t carried over.',
   },
   {
     key: 'deployRegistry',
     label: 'Deploy a new registry',
+    description:
+      'Gives the recipient a fresh registry to manage subnames. Existing subnames aren’t carried over.',
   },
 ]
 
@@ -59,8 +66,9 @@ export const SendNameForm = ({
     useTransferName({ name, registryAddress, owner })
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
+  const hasValidRecipient = !!recipient && !isSelf
 
-  const canStart = !!recipient && !isSelf && !isResolving && !isPreparing
+  const canStart = hasValidRecipient && !isResolving && !isPreparing
 
   const toggleOption = (key: keyof TransferOptions) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -92,40 +100,51 @@ export const SendNameForm = ({
           className="h-9"
         />
         <div className="text-sm">
-          {isResolving && (
-            <span className="text-muted-foreground">Resolving…</span>
-          )}
-          {!isResolving && resolveError && (
-            <span className="text-destructive">{resolveError}</span>
-          )}
-          {!isResolving && recipient && isSelf && (
-            <span className="text-destructive">
-              The recipient already owns this name.
-            </span>
-          )}
-          {!isResolving && recipient && !isSelf && (
-            <RecipientPreview address={recipient} />
-          )}
+          {match({ isResolving, resolveError, recipient, isSelf })
+            .with({ isResolving: true }, () => (
+              <span className="text-muted-foreground">Resolving…</span>
+            ))
+            .with({ resolveError: P.string }, ({ resolveError }) => (
+              <span className="text-destructive">{resolveError}</span>
+            ))
+            .with({ recipient: P.nonNullable, isSelf: true }, () => (
+              <span className="text-destructive">
+                The recipient already owns this name.
+              </span>
+            ))
+            .with({ recipient: P.nonNullable }, ({ recipient }) => (
+              <RecipientPreview address={recipient} />
+            ))
+            .otherwise(() => null)}
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {OPTIONS.map((option) => (
-          <label
-            key={option.key}
-            htmlFor={`transfer-option-${option.key}`}
-            className="flex flex-col items-start justify-between cursor-pointer"
-          >
-            <span className="text-foreground font-medium">{option.label}</span>
-            <Switch
-              id={`transfer-option-${option.key}`}
-              checked={options[option.key]}
-              onCheckedChange={() => toggleOption(option.key)}
-              className="mt-1 shrink-0"
-            />
-          </label>
-        ))}
-      </div>
+      {hasValidRecipient && (
+        <div className="flex flex-col gap-3">
+          {OPTIONS.map((option) => (
+            <label
+              key={option.key}
+              htmlFor={`transfer-option-${option.key}`}
+              className="flex items-start justify-between gap-3 cursor-pointer"
+            >
+              <span className="flex flex-col">
+                <span className="text-foreground font-medium">
+                  {option.label}
+                </span>
+                <span className="text-muted-foreground text-sm">
+                  {option.description}
+                </span>
+              </span>
+              <Switch
+                id={`transfer-option-${option.key}`}
+                checked={options[option.key]}
+                onCheckedChange={() => toggleOption(option.key)}
+                className="mt-1 shrink-0"
+              />
+            </label>
+          ))}
+        </div>
+      )}
 
       <Button
         variant="default"
@@ -146,19 +165,32 @@ export const SendNameForm = ({
 }
 
 const RecipientPreview = ({ address }: { address: Address }) => {
-  const { data: primaryName } = useQuery(getPrimaryNameQueryOptions(address))
+  const { data: primaryName, isLoading } = useQuery(
+    getPrimaryNameQueryOptions(address),
+  )
 
   return (
     <div className="flex bg-muted items-center gap-3 rounded-sm p-2.5">
-      <NameAvatar
-        name={primaryName ?? address}
-        width="48px"
-        height="48px"
-        rounded="rounded-sm"
-      />
-      <div className="flex flex-col min-w-0">
-        {primaryName && (
-          <CopyableRecord value={primaryName} textClassName="text-foreground" />
+      {isLoading ? (
+        <Skeleton className="size-12 rounded-sm shrink-0" />
+      ) : (
+        <NameAvatar
+          name={primaryName ?? address}
+          width="48px"
+          height="48px"
+          rounded="rounded-sm"
+        />
+      )}
+      <div className="flex flex-col gap-1 min-w-0">
+        {isLoading ? (
+          <Skeleton className="h-4 w-28" />
+        ) : (
+          primaryName && (
+            <CopyableRecord
+              value={primaryName}
+              textClassName="text-foreground"
+            />
+          )
         )}
         <CopyableRecord
           value={address}

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { type Address, isAddress } from 'viem'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
+import { useDebouncedValue } from '@/hooks/useDebounce'
 import { wagmiConfig } from '@/lib/wagmi'
 import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 
@@ -22,55 +23,36 @@ export type RecipientResolution = {
  * universal resolver (falling back to the ENS owner if no address record).
  */
 export const useRecipientResolution = (input: string): RecipientResolution => {
-  const [address, setAddress] = useState<Address | null>(null)
-  const [isResolving, setIsResolving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const trimmed = input.trim()
+  // Addresses resolve instantly; names are debounced.
+  const debounced = useDebouncedValue(
+    trimmed,
+    isAddress(trimmed, { strict: false }) ? 0 : DEBOUNCE_MS,
+  )
 
-  useEffect(() => {
-    const trimmed = input.trim()
-    setError(null)
+  const isValid = trimmed.length > 0 && isNameOrAddress(trimmed)
+  const isDebouncing = debounced !== trimmed
 
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+  const { data: resolved = null, isFetching } = useQuery({
+    queryKey: ['recipient-resolution', debounced],
+    queryFn: () => resolveAddressOrName({ client, nameOrAddress: debounced }),
+    enabled: isValid && !isDebouncing,
+  })
 
-    if (!trimmed) {
-      setAddress(null)
-      setIsResolving(false)
-      return
+  if (!trimmed) return { address: null, isResolving: false, error: null }
+  if (!isValid)
+    return {
+      address: null,
+      isResolving: false,
+      error: 'Enter a valid ENS name or address',
     }
-
-    if (!isNameOrAddress(trimmed)) {
-      setAddress(null)
-      setIsResolving(false)
-      setError('Enter a valid ENS name or address')
-      return
+  if (isDebouncing || isFetching)
+    return { address: null, isResolving: true, error: null }
+  if (!resolved)
+    return {
+      address: null,
+      isResolving: false,
+      error: 'Could not resolve a name or address',
     }
-
-    setIsResolving(true)
-    let cancelled = false
-
-    const run = async () => {
-      const resolved = await resolveAddressOrName({
-        client,
-        nameOrAddress: trimmed,
-      })
-      if (cancelled) return
-      setAddress(resolved)
-      setIsResolving(false)
-      if (!resolved) setError('Could not resolve a name or address')
-    }
-
-    // Addresses don't need debouncing; names do.
-    timeoutRef.current = setTimeout(
-      run,
-      isAddress(trimmed, { strict: false }) ? 0 : DEBOUNCE_MS,
-    )
-
-    return () => {
-      cancelled = true
-      if (timeoutRef.current) clearTimeout(timeoutRef.current)
-    }
-  }, [input])
-
-  return { address, isResolving, error }
+  return { address: resolved, isResolving: false, error: null }
 }

@@ -20,7 +20,7 @@ import {
 import type { WalletClientWithAccount } from '@/utils/types'
 import {
   extractDeployedAddress,
-  generateResolverSalt,
+  generateProxySalt,
 } from '../utils/proxyDeployment'
 
 export interface DeployRegistryParameters {
@@ -63,7 +63,7 @@ export const deployRegistry = async ({
     factoryAddress,
     implAddress,
     adminAddress: recipient,
-    salt: generateResolverSalt(name),
+    salt: generateProxySalt(name),
   })
 
   const data = encodeFunctionData({
