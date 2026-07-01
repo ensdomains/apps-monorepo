@@ -197,7 +197,7 @@ const machineSetup = setup({
         }
       }) =>
         startSmartPrimaryNameTransaction({
-          name: input.label,
+          name: `${input.label}.eth`,
           signer: input.signer,
           accountAddress: input.accountAddress,
           eoaAddress: input.ownerAddress,
@@ -279,15 +279,15 @@ const machineSetup = setup({
       lastErrorMessage: () => undefined,
     }),
     invalidateNameQueries: ({ context }) => {
-      const name = context.confirmedData?.label
+      const label = context.confirmedData?.label
       const ownerAddress = context.postRegistrationData?.ownerAddress
       const queryClient = getQueryClient()
       if (!queryClient) return
 
-      if (name) {
+      if (label) {
         queryClient.invalidateQueries({
           queryKey: $qk({
-            name: `${name}.eth`,
+            name: `${label}.eth`,
           }),
         })
       }
@@ -453,7 +453,7 @@ const startRegistrationAction = machineSetup.createAction(
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
-        name: event.label,
+        name: `${event.label}.eth`,
         duration: event.duration,
         token: event.token,
         price: event.totalPrice,
@@ -483,7 +483,7 @@ const submitPrimaryNameForwardAction = machineSetup.createAction(
 
     try {
       const txId = submitPrimaryNameForward({
-        name: context.postRegistrationData.label,
+        name: `${context.postRegistrationData.label}.eth`,
         signer: context.postRegistrationData.signer,
         accountAddress: context.postRegistrationData.accountAddress,
         publicClient: context.postRegistrationData.publicClient,
@@ -513,7 +513,7 @@ const submitPrimaryNameReverseAction = machineSetup.createAction(
 
     try {
       const txId = submitPrimaryNameReverse({
-        name: context.postRegistrationData.label,
+        name: `${context.postRegistrationData.label}.eth`,
         signer: context.postRegistrationData.signer,
         accountAddress: context.postRegistrationData.accountAddress,
         publicClient: context.postRegistrationData.publicClient,
