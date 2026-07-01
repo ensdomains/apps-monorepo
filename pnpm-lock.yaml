@@ -849,6 +849,12 @@ importers:
         specifier: 'catalog:'
         version: 5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)
     devDependencies:
+      '@types/react':
+        specifier: ^19.1.12
+        version: 19.2.7
+      react:
+        specifier: ^19.2.5
+        version: 19.2.5
       typescript:
         specifier: catalog:typescript6
         version: 6.0.3
@@ -858,6 +864,9 @@ importers:
 
   packages/weave-loader:
     dependencies:
+      '@ens-apps/utils':
+        specifier: workspace:*
+        version: link:../utils
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -1428,7 +1437,7 @@ packages:
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da629474dd9c5025931bb10fc6d7a5398738f':
-    resolution: {integrity: sha512-m2JpCgZoF/28fNV9rS8uW1rNCUZ4evMl0CSHv/c5bY12HBUWrwAApHouH7UdN7tY0jF8QDrtrD4CydB1OiVcgA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da629474dd9c5025931bb10fc6d7a5398738f}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@614da629474dd9c5025931bb10fc6d7a5398738f}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 

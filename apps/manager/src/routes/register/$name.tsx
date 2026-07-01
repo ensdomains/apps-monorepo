@@ -4,7 +4,6 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import {
   FailureStep,
@@ -14,10 +13,8 @@ import {
   RegisteringStep,
   RegistrationV2UiProvider,
   SuccessStep,
-  useRegistrationStep,
-  useRegistrationV2Context,
 } from '@/features/register-v2'
-import { useRegistrationFillProgress } from '@/features/weave-registration'
+import { useRegistrationFlowController } from '@/features/weave-registration'
 
 export const Route = createFileRoute('/register/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -79,64 +76,17 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   )
 }
 
-function resetWeaveFlowState(
-  sawWeaveFlowRef: { current: boolean },
-  setSawWeaveFlow: (value: boolean) => void,
-  setCompletionAnimationDone: (value: boolean) => void,
-) {
-  sawWeaveFlowRef.current = false
-  setSawWeaveFlow(false)
-  setCompletionAnimationDone(false)
-}
-
 function PageContent() {
-  const { uiActor } = useRegistrationV2Context()
-  const step = useRegistrationStep(uiActor)
-  const sawWeaveFlowRef = useRef(false)
-  const [sawWeaveFlow, setSawWeaveFlow] = useState(false)
-  const [completionAnimationDone, setCompletionAnimationDone] = useState(false)
-  const [fillGeneration, setFillGeneration] = useState(0)
-  const prevStepRef = useRef(step)
-
-  const bumpFillGeneration = useCallback(() => {
-    setFillGeneration((generation) => generation + 1)
-  }, [])
-
-  useEffect(() => {
-    const prevStep = prevStepRef.current
-    if (step === 'registering' && prevStep !== 'registering') {
-      resetWeaveFlowState(
-        sawWeaveFlowRef,
-        setSawWeaveFlow,
-        setCompletionAnimationDone,
-      )
-      bumpFillGeneration()
-    }
-    if (step === 'pricing' && prevStep !== 'pricing') {
-      resetWeaveFlowState(
-        sawWeaveFlowRef,
-        setSawWeaveFlow,
-        setCompletionAnimationDone,
-      )
-      bumpFillGeneration()
-    }
-    prevStepRef.current = step
-  }, [step, bumpFillGeneration])
-
-  const markWeaveFlow = useCallback(() => {
-    if (sawWeaveFlowRef.current) return
-    sawWeaveFlowRef.current = true
-    setSawWeaveFlow(true)
-  }, [])
-
   const {
-    progress: fillProgress,
+    step,
+    sawWeaveFlow,
+    fillProgress,
     fillDone,
     isRegistrationComplete,
-  } = useRegistrationFillProgress(sawWeaveFlow, fillGeneration)
-
-  const showRegisteringCompletion =
-    step === 'success' && sawWeaveFlowRef.current && !completionAnimationDone
+    showRegisteringCompletion,
+    markWeaveFlow,
+    markCompletionAnimationDone,
+  } = useRegistrationFlowController()
 
   if (step === 'registering' || showRegisteringCompletion) {
     return (
@@ -144,7 +94,7 @@ function PageContent() {
         fillDone={fillDone}
         fillProgress={fillProgress}
         isRegistrationComplete={isRegistrationComplete}
-        onCompletionAnimationFinished={() => setCompletionAnimationDone(true)}
+        onCompletionAnimationFinished={markCompletionAnimationDone}
         onWeaveFlowEntered={markWeaveFlow}
         sawWeaveFlow={sawWeaveFlow}
       />

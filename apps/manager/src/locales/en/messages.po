@@ -1200,7 +1200,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx
+#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Loading..."
@@ -1691,7 +1691,7 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx
+#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
 msgid "Registering name"
 msgstr "Registering name"
 

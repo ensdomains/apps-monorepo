@@ -3,6 +3,7 @@ export { WeaveRegistration } from './components/WeaveRegistration'
 export type { ForwardProgress } from './lib/useForwardProgress'
 export { useForwardProgress } from './lib/useForwardProgress'
 export { useRegistrationFillProgress } from './lib/useRegistrationFillProgress'
+export { useRegistrationFlowController } from './lib/useRegistrationFlowController'
 export type { WeaveStep } from './lib/weaveSteps'
 export {
   stepMessageForProgress,

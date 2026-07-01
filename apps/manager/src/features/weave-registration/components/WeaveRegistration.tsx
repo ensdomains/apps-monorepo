@@ -1,3 +1,4 @@
+import { usePrefersReducedMotion } from '@ens-apps/weave-loader/hooks/usePrefersReducedMotion'
 import { NameFill } from '@ens-apps/weave-loader/NameFill'
 import { JACQUARD_PATTERN6_DYE_BLEED_OPTIONS } from '@ens-apps/weave-loader/presets'
 import type { WeaveShaderOptions } from '@ens-apps/weave-loader/shader/useWeaveShader'
@@ -11,7 +12,6 @@ import {
 import { useLingui } from '@lingui/react/macro'
 import { Calligraph } from 'calligraph'
 import { type ReactNode, useState } from 'react'
-import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { cn } from '@/lib/utils'
 import {
   stepMessageForProgress,
@@ -35,22 +35,37 @@ const WeaveRegistrationStepLabel = ({
 }: {
   label: string
   className?: string
-}) => (
-  <Calligraph
-    animation="smooth"
-    aria-live="polite"
-    as="p"
-    autoSize={false}
-    className={cn(
-      'flex min-w-0 shrink-0 flex-wrap font-medium font-sans',
-      className,
-    )}
-    initial
-    trend={1}
-  >
-    {label}
-  </Calligraph>
-)
+}) => {
+  // Render one Calligraph per word so the line can only break between words,
+  // never mid-word. Calligraph lays each grapheme out as an inline-flex item,
+  // so a single instance under `flex-wrap` breaks at any character; making the
+  // whole word the flex item fixes that. The column gap stands in for the
+  // spaces we split on.
+  const words = label.split(' ').filter(Boolean)
+  return (
+    <p
+      aria-live="polite"
+      className={cn(
+        'flex min-w-0 shrink-0 flex-wrap gap-x-[0.28em] font-medium font-sans',
+        className,
+      )}
+    >
+      {words.map((word, index) => (
+        <Calligraph
+          animation="smooth"
+          as="span"
+          autoSize={false}
+          initial
+          // biome-ignore lint/suspicious/noArrayIndexKey: positional key keeps character diffing stable as the step message changes
+          key={index}
+          trend={1}
+        >
+          {word}
+        </Calligraph>
+      ))}
+    </p>
+  )
+}
 
 export const WeaveRegistration = ({
   name,

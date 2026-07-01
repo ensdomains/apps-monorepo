@@ -14,12 +14,14 @@
     "./WeaveName": "./src/WeaveName.tsx",
     "./WeaveProgressBar": "./src/WeaveProgressBar.tsx",
     "./hooks/useRafProgress": "./src/hooks/useRafProgress.ts",
+    "./hooks/usePrefersReducedMotion": "./src/hooks/usePrefersReducedMotion.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ens-apps/utils": "workspace:*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.3.1"
   },

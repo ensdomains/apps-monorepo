@@ -1,37 +1,17 @@
-import { JACQUARD_PATTERN6_DYE_BLEED_OPTIONS } from '@ens-apps/weave-loader/presets'
 import { useLingui } from '@lingui/react/macro'
 import { useBlocker } from '@tanstack/react-router'
-import { Calligraph } from 'calligraph'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { match, P } from 'ts-pattern'
 import { useCountdown } from '@/hooks/useCountdown'
 import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
+import { CenteredWeaveLoader } from './components/CenteredWeaveLoader'
 import { NotificationSettings } from './components/NotificationSettings'
-import { RegistrationCompletionBanner } from './components/RegistrationCompletionBanner'
+import { RegisteringHeader } from './components/RegisteringHeader'
 import { RegistrationDetails } from './components/RegistrationDetails'
-import { RegistrationProgressBar } from './components/RegistrationProgressBar'
+import { useRegisteringCompletion } from './hooks/useRegisteringCompletion'
 import { getRegistrationStageMessages } from './lib/txStageMessages'
 import { useRegistrationTxState } from './lib/txState'
-
-const LazyWeaveRegistration = lazy(() =>
-  import('@/features/weave-registration').then((m) => ({
-    default: m.WeaveRegistration,
-  })),
-)
-const WeaveProgressBar = lazy(() =>
-  import('@ens-apps/weave-loader/WeaveProgressBar').then((m) => ({
-    default: m.WeaveProgressBar,
-  })),
-)
-
-function WeaveTrackPlaceholder({ className }: { className?: string }) {
-  return (
-    <div
-      className={`h-3 w-full rounded-full bg-ens-gray-two ${className ?? ''}`}
-    />
-  )
-}
 
 const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
   value: state?.value ?? 'idle',
@@ -45,38 +25,6 @@ const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
 const useMaxProgress = RegisterV2Context.createSelector(
   (state) => state.context.maxProgressReached ?? null,
 )
-
-const REGISTERING_DOTS_INTERVAL_MS = 700
-
-/** Pause on a fully filled name before handing off to SuccessStep. */
-const COMPLETION_BEAT_MS = 200
-
-const useTrailingDots = (max = 3) => {
-  const [count, setCount] = useState(0)
-  useEffect(() => {
-    const timer = setInterval(
-      () => setCount((c) => (c + 1) % (max + 1)),
-      REGISTERING_DOTS_INTERVAL_MS,
-    )
-    return () => clearInterval(timer)
-  }, [max])
-  return '.'.repeat(count)
-}
-
-const RegisteringTitle = () => {
-  const { t } = useLingui()
-  const dots = useTrailingDots()
-  return (
-    <Calligraph
-      animation="smooth"
-      as="p"
-      className="text-base text-ens-blue"
-      initial
-    >
-      {`${t`Registering name`}${dots}`}
-    </Calligraph>
-  )
-}
 
 export interface RegisteringStepProps {
   fillProgress: number
@@ -119,74 +67,33 @@ export const RegisteringStep = ({
       ? i18n._(stageMessages.stageDescription)
       : undefined
 
+  const notificationsCompleted = uiStage?.notifications === 'completed'
   const showWeaveLoader =
     !isRegistrationComplete &&
-    uiStage?.notifications === 'completed' &&
+    notificationsCompleted &&
     uiStage?.transaction === 'pending'
 
+  // Single source of truth for entering the weave flow: the notifications step
+  // reaching `completed` (a superset of the loader being shown, and the state
+  // that `advanceNotificationsStep` transitions into).
   useEffect(() => {
-    if (showWeaveLoader) {
+    if (notificationsCompleted) {
       onWeaveFlowEntered?.()
     }
-  }, [onWeaveFlowEntered, showWeaveLoader])
-
-  useEffect(() => {
-    if (uiStage?.notifications === 'completed') {
-      onWeaveFlowEntered?.()
-    }
-  }, [onWeaveFlowEntered, uiStage?.notifications])
+  }, [notificationsCompleted, onWeaveFlowEntered])
 
   const fullName = `${label}.eth`
-  const [exitLoaderReady, setExitLoaderReady] = useState(false)
-  const completionFinishedRef = useRef(false)
-
-  const prevCompleteRef = useRef(isRegistrationComplete)
-  useEffect(() => {
-    if (isRegistrationComplete && !prevCompleteRef.current) {
-      setExitLoaderReady(false)
-      completionFinishedRef.current = false
-    }
-    if (!isRegistrationComplete) {
-      setExitLoaderReady(false)
-      completionFinishedRef.current = false
-    }
-    prevCompleteRef.current = isRegistrationComplete
-  }, [isRegistrationComplete])
-
-  useEffect(() => {
-    if (!isRegistrationComplete || !sawWeaveFlow || !fillDone) return undefined
-
-    const id = window.setTimeout(
-      () => setExitLoaderReady(true),
-      COMPLETION_BEAT_MS,
-    )
-    return () => window.clearTimeout(id)
-  }, [fillDone, isRegistrationComplete, sawWeaveFlow])
-
-  useEffect(() => {
-    if (
-      !exitLoaderReady ||
-      !isRegistrationComplete ||
-      !sawWeaveFlow ||
-      completionFinishedRef.current
-    ) {
-      return
-    }
-    completionFinishedRef.current = true
-    onCompletionAnimationFinished?.()
-  }, [
-    exitLoaderReady,
+  const { exitLoaderReady } = useRegisteringCompletion({
     isRegistrationComplete,
-    onCompletionAnimationFinished,
     sawWeaveFlow,
-  ])
+    fillDone,
+    onCompletionAnimationFinished,
+  })
 
   const holdForFill = isRegistrationComplete && sawWeaveFlow && !exitLoaderReady
-
   const showCenteredLoader = showWeaveLoader || holdForFill
 
   const advanceNotificationsStep = () => {
-    onWeaveFlowEntered?.()
     uiActor.send({ type: 'notifications.step.next' })
   }
 
@@ -209,47 +116,22 @@ export const RegisteringStep = ({
 
   if (showCenteredLoader) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4 max-md:bg-white">
-        <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
-          <LazyWeaveRegistration
-            animate={false}
-            description={holdForFill ? undefined : stageDescription}
-            name={fullName}
-            progress={fillProgress}
-            weaveOptions={JACQUARD_PATTERN6_DYE_BLEED_OPTIONS}
-          />
-        </Suspense>
-      </div>
+      <CenteredWeaveLoader
+        description={holdForFill ? undefined : stageDescription}
+        name={fullName}
+        progress={fillProgress}
+      />
     )
   }
 
   return (
     <div className="h-full space-y-6 pb-4 max-md:bg-white md:space-y-4 md:pt-5">
       <div className="mx-auto max-w-6xl pt-3 md:w-full-[32px]">
-        {isRegistrationComplete ? (
-          <RegistrationCompletionBanner />
-        ) : (
-          match(uiStage?.transaction)
-            .with('pending', () => (
-              <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
-                <RegisteringTitle />
-                <Suspense
-                  fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}
-                >
-                  <WeaveProgressBar
-                    animate={false}
-                    className="w-full max-w-2xl"
-                    progress={fillProgress / 100}
-                  />
-                </Suspense>
-              </div>
-            ))
-            .with('success', () => <RegistrationCompletionBanner />)
-            .with(undefined, () => (
-              <RegistrationProgressBar label={t`Loading...`} progress={0} />
-            ))
-            .exhaustive()
-        )}
+        <RegisteringHeader
+          fillProgress={fillProgress}
+          isRegistrationComplete={isRegistrationComplete}
+          uiStage={uiStage}
+        />
       </div>
       <div className="mx-auto w-full-[32px] max-w-6xl space-y-6.5">
         {match(uiStage)
