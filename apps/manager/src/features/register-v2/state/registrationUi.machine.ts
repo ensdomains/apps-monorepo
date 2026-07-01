@@ -184,7 +184,7 @@ const machineSetup = setup({
           ownerAddress: input.ownerAddress,
           resolverAddress: input.resolverAddress,
           signer: input.signer,
-          walletClient: input.walletClient,
+          accountAddress: input.accountAddress,
           publicClient: input.publicClient,
           chainId: input.chainId,
         }),
