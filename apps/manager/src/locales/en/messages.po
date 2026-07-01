@@ -2021,10 +2021,6 @@ msgstr "Share profile"
 msgid "Should I register now or wait?"
 msgstr "Should I register now or wait?"
 
-#: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
-msgid "Show {label}"
-msgstr "Show {label}"
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 msgid "Show less"
 msgstr "Show less"

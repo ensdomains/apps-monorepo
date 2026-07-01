@@ -1,6 +1,10 @@
-import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react/macro'
-import { motion, useReducedMotion } from 'motion/react'
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from 'motion/react'
 import type { KeyboardEvent } from 'react'
 import { useCallback, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -15,6 +19,7 @@ const clampIndex = (index: number, length: number) =>
 
 const dragThreshold = 48
 const swipeVelocityThreshold = 350
+const desktopCardOffset = 96
 
 const getDesktopSlideState = (index: number, activeIndex: number) => {
   const offset = index - activeIndex
@@ -29,10 +34,13 @@ const getDesktopSlideState = (index: number, activeIndex: number) => {
   }
 }
 
+const getDesktopCardPosition = (offset: number) => offset * desktopCardOffset
+
 type DesktopSlideButtonProps = {
   readonly ariaLabel: string
   readonly index: number
   readonly isActive: boolean
+  readonly isVisible: boolean
   readonly label: string
   readonly media: MigrationValuePropSlide['media']
   readonly offset: number
@@ -47,6 +55,7 @@ const DesktopSlideButton = ({
   ariaLabel,
   index,
   isActive,
+  isVisible,
   label,
   media,
   offset,
@@ -55,59 +64,76 @@ const DesktopSlideButton = ({
   onKeyDown,
   shouldReduceMotion,
   zIndex,
-}: DesktopSlideButtonProps) => (
-  <motion.button
-    animate={{
-      filter: shouldReduceMotion
-        ? 'blur(0px)'
-        : isActive
+}: DesktopSlideButtonProps) => {
+  const dragX = useMotionValue(0)
+  const dragRotate = useTransform(dragX, [-180, 0, 180], [-5, 0, 5])
+  const dragScale = useTransform(dragX, [-180, 0, 180], [0.985, 1, 0.985])
+
+  return (
+    <motion.div
+      animate={{
+        filter: shouldReduceMotion
           ? 'blur(0px)'
-          : 'blur(4px)',
-      opacity: isActive ? 1 : 0.5,
-      scale: shouldReduceMotion ? 1 : isActive ? 1 : 0.92,
-      x: offset * 88,
-      zIndex,
-    }}
-    aria-label={ariaLabel}
-    className="absolute top-0 left-1/2 flex w-[228px] -translate-x-1/2 flex-col items-center gap-4 rounded-[28px] pt-2 outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-    drag={isActive && !shouldReduceMotion ? 'x' : false}
-    dragConstraints={{ left: 0, right: 0 }}
-    onClick={() => onActivate(index)}
-    onDragEnd={(_, info) => onDragEnd(info.offset.x, info.velocity.x)}
-    onKeyDown={onKeyDown}
-    transition={
-      shouldReduceMotion
-        ? { duration: 0 }
-        : {
-            type: 'spring',
-            stiffness: 260,
-            damping: 28,
-            mass: 0.9,
-          }
-    }
-    type="button"
-  >
-    <MigrationValuePropMediaCard media={media} />
-    <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
-      {label}
-    </p>
-  </motion.button>
-)
+          : isActive
+            ? 'blur(0px)'
+            : 'blur(4px)',
+        opacity: isVisible ? (isActive ? 1 : 0.52) : 0,
+        x: getDesktopCardPosition(offset),
+        y: isActive ? 0 : 14,
+        zIndex,
+      }}
+      className="absolute top-0 left-1/2 w-[228px] -translate-x-1/2"
+      initial={false}
+      transition={
+        shouldReduceMotion
+          ? { duration: 0 }
+          : {
+              damping: 28,
+              mass: 0.9,
+              stiffness: 260,
+              type: 'spring',
+            }
+      }
+    >
+      <motion.button
+        aria-label={ariaLabel}
+        className={cn(
+          'flex w-full flex-col items-center gap-4 rounded-[28px] pt-2 outline-none focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+          isActive ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer',
+          !isVisible && 'pointer-events-none',
+        )}
+        drag={isActive && !shouldReduceMotion ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.08}
+        dragMomentum={false}
+        onClick={() => onActivate(index)}
+        onDragEnd={(_, info) => onDragEnd(info.offset.x, info.velocity.x)}
+        onKeyDown={onKeyDown}
+        style={
+          shouldReduceMotion || !isActive
+            ? undefined
+            : {
+                rotate: dragRotate,
+                scale: dragScale,
+                x: dragX,
+              }
+        }
+        type="button"
+      >
+        <MigrationValuePropMediaCard media={media} />
+        <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
+          {label}
+        </p>
+      </motion.button>
+    </motion.div>
+  )
+}
 
 export const MigrationValuePropsCarousel = () => {
-  const { i18n, t } = useLingui()
+  const { t } = useLingui()
   const shouldReduceMotion = useReducedMotion() ?? false
   const [activeIndex, setActiveIndex] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const resolveSlideAriaLabel = useCallback(
-    (label: string) => i18n._(msg`Show ${label}`),
-    [i18n],
-  )
-  const resolvedSlides = MIGRATION_VALUE_PROP_SLIDES.map((slide) => ({
-    ...slide,
-    ariaLabel: resolveSlideAriaLabel(i18n._(slide.label)),
-    resolvedLabel: t(slide.label),
-  }))
 
   const goToIndex = useCallback(
     (nextIndex: number) => {
@@ -178,10 +204,10 @@ export const MigrationValuePropsCarousel = () => {
   return (
     <section aria-label={t`Migration value propositions`} className="w-full">
       <div className="mb-2 flex items-center justify-center gap-0.5">
-        {resolvedSlides.map((slide, index) => (
+        {MIGRATION_VALUE_PROP_SLIDES.map((slide, index) => (
           <button
             aria-current={index === activeIndex ? 'true' : undefined}
-            aria-label={slide.ariaLabel}
+            aria-label={t(slide.label)}
             className={cn(
               'rounded-full outline-none transition-all focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
               index === activeIndex
@@ -202,51 +228,46 @@ export const MigrationValuePropsCarousel = () => {
           onScroll={handleScroll}
           ref={scrollRef}
         >
-          {resolvedSlides.map((slide) => (
+          {MIGRATION_VALUE_PROP_SLIDES.map((slide) => (
             <div
               className="flex w-full shrink-0 snap-center flex-col items-center gap-4 px-5"
               key={slide.id}
             >
               <MigrationValuePropMediaCard
-                className="max-w-[376px]"
+                className="max-w-88"
                 media={slide.media}
               />
               <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
-                {slide.resolvedLabel}
+                {t(slide.label)}
               </p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="relative hidden min-h-[24rem] w-full overflow-hidden md:block">
-        {resolvedSlides
-          .map((slide, index) => ({
-            index,
-            slide,
-            state: getDesktopSlideState(index, activeIndex),
-          }))
-          .filter(({ state }) => state.isVisible)
-          .map(({ index, slide, state }) => {
-            const { distance, isActive, offset } = state
+      <div className="relative hidden min-h-94 w-full overflow-hidden pt-1 md:block">
+        {MIGRATION_VALUE_PROP_SLIDES.map((slide, index) => {
+          const { distance, isActive, isVisible, offset } =
+            getDesktopSlideState(index, activeIndex)
 
-            return (
-              <DesktopSlideButton
-                ariaLabel={slide.ariaLabel}
-                index={index}
-                isActive={isActive}
-                key={slide.id}
-                label={slide.resolvedLabel}
-                media={slide.media}
-                offset={offset}
-                onActivate={goToIndex}
-                onDragEnd={handleDesktopDragEnd}
-                onKeyDown={handleKeyDown}
-                shouldReduceMotion={shouldReduceMotion}
-                zIndex={resolvedSlides.length - distance}
-              />
-            )
-          })}
+          return (
+            <DesktopSlideButton
+              ariaLabel={t(slide.label)}
+              index={index}
+              isActive={isActive}
+              isVisible={isVisible}
+              key={slide.id}
+              label={t(slide.label)}
+              media={slide.media}
+              offset={offset}
+              onActivate={goToIndex}
+              onDragEnd={handleDesktopDragEnd}
+              onKeyDown={handleKeyDown}
+              shouldReduceMotion={shouldReduceMotion}
+              zIndex={MIGRATION_VALUE_PROP_SLIDES.length - distance}
+            />
+          )
+        })}
       </div>
     </section>
   )

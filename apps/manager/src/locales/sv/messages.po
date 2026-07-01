@@ -2026,10 +2026,6 @@ msgstr ""
 msgid "Should I register now or wait?"
 msgstr ""
 
-#: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
-msgid "Show {label}"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBanner.tsx
 msgid "Show less"
 msgstr ""
