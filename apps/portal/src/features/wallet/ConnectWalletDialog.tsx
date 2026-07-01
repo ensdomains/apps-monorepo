@@ -23,7 +23,7 @@ type WalletRowProps = {
   readonly icon: ReactNode
   readonly name: string
   readonly badge?: string
-  readonly pending?: boolean
+  readonly isPending?: boolean
   readonly disabled?: boolean
 } & (
   | { readonly onClick: () => void; readonly href?: never }
@@ -34,7 +34,7 @@ const WalletRow = ({
   icon,
   name,
   badge,
-  pending,
+  isPending,
   disabled,
   onClick,
   href,
@@ -46,7 +46,7 @@ const WalletRow = ({
       </span>
       <span className="font-medium text-sm">{name}</span>
       <span className="ml-auto text-muted-foreground text-xs">
-        {pending ? 'Connecting…' : badge}
+        {isPending ? 'Connecting…' : badge}
       </span>
     </>
   )
@@ -75,7 +75,7 @@ const WalletRow = ({
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled || pending}
+      disabled={disabled || isPending}
       className={className}
     >
       {content}
@@ -123,7 +123,13 @@ export const ConnectWalletDialog = ({
     })
   }, [connectors])
 
+  // A connection is mid-flight for an in-dialog wallet (injected/Coinbase).
+  const isConnecting = pendingId !== null
+
   const connect = async (connector: Connector) => {
+    // Guard against a second concurrent attempt: two in-flight connects would
+    // let each one's `finally` clear the other's pending indicator.
+    if (isConnecting) return
     setError(null)
 
     // WalletConnect renders its own full-screen QR modal, so close ours first
@@ -169,7 +175,8 @@ export const ConnectWalletDialog = ({
               icon={<MetaMaskIcon className="size-8" />}
               name="MetaMask"
               badge="Detected"
-              pending={pendingId === metaMask.uid}
+              isPending={pendingId === metaMask.uid}
+              disabled={isConnecting}
               onClick={() => connect(metaMask)}
             />
           ) : (
@@ -185,7 +192,8 @@ export const ConnectWalletDialog = ({
             <WalletRow
               icon={<CoinbaseIcon className="size-8" />}
               name="Coinbase Wallet"
-              pending={pendingId === coinbase.uid}
+              isPending={pendingId === coinbase.uid}
+              disabled={isConnecting}
               onClick={() => connect(coinbase)}
             />
           )}
@@ -194,7 +202,8 @@ export const ConnectWalletDialog = ({
             <WalletRow
               icon={<WalletConnectIcon className="size-8" />}
               name="WalletConnect"
-              pending={pendingId === walletConnect.uid}
+              isPending={pendingId === walletConnect.uid}
+              disabled={isConnecting}
               onClick={() => connect(walletConnect)}
             />
           )}
@@ -222,7 +231,8 @@ export const ConnectWalletDialog = ({
                 )
               }
               name={connector.name}
-              pending={pendingId === connector.uid}
+              isPending={pendingId === connector.uid}
+              disabled={isConnecting}
               onClick={() => connect(connector)}
             />
           ))}
