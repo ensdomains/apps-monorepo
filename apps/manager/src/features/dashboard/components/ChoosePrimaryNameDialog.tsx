@@ -10,7 +10,7 @@ import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { getAddress } from 'viem'
 import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
@@ -135,7 +135,10 @@ const useUpdateEthAddressMutation = ({
   return useMutation({
     mutationFn: async () => {
       if (!selectedName || !account.ownerAddress) return
-      if (!account.signer || !account.accountAddress) return
+      // EOA route only: writing the ETH address record is a self-paid EOA tx to
+      // the resolver, never a gas-sponsored HCA intent (the resolver's EACL
+      // grants write roles to the owner EOA).
+      if (!account.walletClient) return
 
       const walletAddress = account.ownerAddress as Address
 
@@ -167,8 +170,11 @@ const useUpdateEthAddressMutation = ({
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: account.signer,
-        accountAddress: account.accountAddress,
+        signer: {
+          type: 'eoa',
+          walletClient: account.walletClient as WalletClient,
+        },
+        accountAddress: walletAddress,
         publicClient: publicClient as PublicClient,
         chainId,
         resolverAddress,

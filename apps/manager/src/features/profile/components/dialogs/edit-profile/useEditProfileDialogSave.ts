@@ -1,11 +1,12 @@
+import type { Signer } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import {
   type QueryClient,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
-import type { Address, PublicClient } from 'viem'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
 import {
@@ -135,6 +136,20 @@ export const useEditProfileDialogSave = ({
   const chainId = useChainId()
   const queryClient = useQueryClient()
   const { signTypedDataAsync } = useSignTypedData()
+
+  // Profile record writes always go through the EOA — they are NOT gas-sponsored
+  // and must not be routed through the HCA/Rhinestone intent path. The dedicated
+  // resolver's EACL grants write roles to the owner EOA, so the record setters
+  // are authored directly by the EOA (a plain, self-paid transaction), never
+  // sponsored via the orchestrator. Build an EOA signer from the connected
+  // wallet client regardless of whether the account is an HCA smart account.
+  const eoaSigner = useMemo<Signer | null>(
+    () =>
+      account.walletClient
+        ? { type: 'eoa', walletClient: account.walletClient as WalletClient }
+        : null,
+    [account.walletClient],
+  )
   const [preparedImageUploads, setPreparedImageUploads] = useState<
     readonly PreparedProfileImageUpload[]
   >([])
@@ -241,14 +256,18 @@ export const useEditProfileDialogSave = ({
         type: 'SAVE_REQUESTED',
         values: currentRecords,
         deps: {
-          accountAddress: account.accountAddress as Address | null,
+          // EOA route only: record writes are self-paid EOA txs to the
+          // resolver (owner EOA is the resolver's EACL grantee), never HCA
+          // intents. `accountAddress`/`ownerAddress` both resolve to the EOA
+          // owner so the tx `from` is the EOA.
+          accountAddress: account.ownerAddress as Address | null,
           chainId,
           name,
           owner,
           ownerAddress: account.ownerAddress as Address | null,
           publicClient: publicClient as PublicClient,
           retryCount: 0,
-          signer: account.signer,
+          signer: eoaSigner,
         },
       })
 
@@ -262,15 +281,7 @@ export const useEditProfileDialogSave = ({
 
       return snapshot.context.pendingSave
     },
-    [
-      account.accountAddress,
-      account.ownerAddress,
-      account.signer,
-      chainId,
-      dialogActor,
-      name,
-      owner,
-    ],
+    [account.ownerAddress, eoaSigner, chainId, dialogActor, name, owner],
   )
 
   const submitPreparedImageUploadsForSave = useCallback(
