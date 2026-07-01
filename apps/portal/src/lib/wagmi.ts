@@ -1,12 +1,6 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import {
-  frameWallet,
-  injectedWallet,
-  metaMaskWallet,
-  walletConnectWallet,
-} from '@rainbow-me/rainbowkit/wallets'
+import { coinbaseWallet, walletConnect } from '@wagmi/connectors'
 import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
@@ -38,25 +32,22 @@ export const customSepolia = {
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
+// Injected wallets (MetaMask, Rabby, Frame, …) are surfaced automatically via
+// EIP-6963 (`multiInjectedProviderDiscovery: true`), so they don't need to be
+// listed here. We only configure the two connectors that aren't
+// injected-provider based: Coinbase Wallet (SDK: extension + mobile) and
+// WalletConnect (QR / mobile linking). The connect modal
+// (`ConnectWalletDialog`) curates MetaMask / Coinbase / WalletConnect and lists
+// any other discovered wallets beneath them.
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [
-          injectedWallet,
-          metaMaskWallet,
-          walletConnectWallet,
-          frameWallet,
-        ],
-      },
-    ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Portal' },
-  ),
+  connectors: [
+    coinbaseWallet({ appName: 'ENS Explorer' }),
+    walletConnect({ projectId: WALLETCONNECT_PROJECT_ID }),
+  ],
   client: ({ chain }) =>
     createClient({
       chain,
