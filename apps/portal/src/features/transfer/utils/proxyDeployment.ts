@@ -1,11 +1,11 @@
 /**
- * Shared helpers for deploying VerifiableFactory proxies (dedicated resolvers)
- * during a transfer.
+ * Shared helpers for deploying VerifiableFactory proxies (dedicated resolvers
+ * and subregistries) during a transfer.
  *
  * Mirrors the registration flow's resolver deployment
  * (`packages/transaction-manager/src/machines/registration/registration.actors.ts`):
- * the new resolver is initialised with the *recipient* as admin so the new
- * owner — not the sender — controls it after the transfer.
+ * the new proxy is initialised with the *recipient* as admin so the new owner —
+ * not the sender — controls it after the transfer.
  */
 
 import {
@@ -34,7 +34,7 @@ const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
  * `Math.random()` — the CREATE2 address is bound to the deployer + salt, so the
  * salt should be unpredictable.
  */
-export const generateResolverSalt = (name: string): bigint => {
+export const generateProxySalt = (name: string): bigint => {
   const randomBytes = crypto.getRandomValues(new Uint8Array(32))
   return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
 }
