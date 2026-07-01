@@ -10,6 +10,7 @@ export function createClient(env: Env) {
   return createPublicClient({
     chain: sepoliaWithEns,
     transport: http(env.SEPOLIA_RPC_URL || FALLBACK_SEPOLIA_RPC_URL),
+    batch: { multicall: true },
   })
 }
 

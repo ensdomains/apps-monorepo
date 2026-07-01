@@ -26,6 +26,13 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
+    // Force a single instance of @rhinestone/sdk. pnpm installs two physically
+    // distinct copies (one paired with zod@3 via the WalletConnect peer chain in
+    // this app, one with zod@4 in @ens-apps/smart-account). Without deduping,
+    // `vi.mock('@rhinestone/sdk')` in a test only patches this app's copy, while
+    // the inlined @ens-apps/smart-account source imports the other copy and runs
+    // the real SDK. Deduping makes both resolve to one mockable module.
+    dedupe: ['@rhinestone/sdk'],
   },
   define: {
     global: 'globalThis',
