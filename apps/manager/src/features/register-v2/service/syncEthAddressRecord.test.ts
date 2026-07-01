@@ -1,4 +1,4 @@
-import type { PublicClient } from 'viem'
+import type { Address, PublicClient } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ensdomains/ensjs/wallet', () => ({
@@ -35,7 +35,6 @@ import {
   syncEthAddressRecord,
 } from './syncEthAddressRecord'
 
-const ACCOUNT = '0x1111111111111111111111111111111111111111' as Address
 const SMART_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
 const OWNER = '0x3333333333333333333333333333333333333333' as Address
 const RESOLVER = '0x4444444444444444444444444444444444444444' as Address
