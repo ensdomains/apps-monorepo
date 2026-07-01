@@ -2,13 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, ShieldX } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import { isAddressEqual } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
@@ -21,6 +22,7 @@ function RouteComponent() {
   const { address } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
+  const resolverQuery = useNameResolverAddress({ name })
 
   if (ownerQuery.isLoading) return <LoadingMessage />
 
@@ -64,6 +66,7 @@ function RouteComponent() {
                   name={name}
                   registryAddress={data.registryAddress}
                   owner={data.owner}
+                  currentResolverAddress={normalizeResolver(resolverQuery.data)}
                 />
               ) : (
                 <NotOwnerMessage />
@@ -74,6 +77,11 @@ function RouteComponent() {
     </div>
   )
 }
+
+const normalizeResolver = (
+  resolver: Address | null | undefined,
+): Address | undefined =>
+  !resolver || resolver === zeroAddress ? undefined : resolver
 
 const NotV2Message = () => (
   <MessageCard

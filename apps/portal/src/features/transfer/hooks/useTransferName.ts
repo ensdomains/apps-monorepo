@@ -4,7 +4,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useRef, useState } from 'react'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import {
+  type Address,
+  type PublicClient,
+  type WalletClient,
+  zeroAddress,
+} from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
@@ -16,6 +21,7 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { deployRegistry } from '../helpers/deployRegistry'
 import { deployResolver } from '../helpers/deployResolver'
+import { setDefaultAddress } from '../helpers/setDefaultAddress'
 import { setNameResolver } from '../helpers/setNameResolver'
 import { transferToken } from '../helpers/transferToken'
 import {
@@ -35,6 +41,8 @@ type UseTransferNameParams = {
 
 export type StartTransferParams = {
   readonly recipient: Address
+  /** The name's current resolver — where "set default address" writes. */
+  readonly currentResolverAddress: Address | undefined
   readonly options: TransferOptions
 }
 
@@ -45,6 +53,7 @@ type SavedParams = {
 }
 
 const GAS_BY_STEP: Record<TransferStepKind, number> = {
+  'set-default-address': 0.0002,
   'deploy-resolver': 0.0008,
   'set-resolver': 0.0001,
   'deploy-registry': 0.0008,
@@ -116,6 +125,7 @@ export const useTransferName = ({
   // the modal opens) and hands the built transactions to the caller's modal.
   const startTransfer = async ({
     recipient,
+    currentResolverAddress,
     options,
   }: StartTransferParams): Promise<boolean> => {
     setPrepError(null)
@@ -125,7 +135,9 @@ export const useTransferName = ({
       const tokenIdResult = await getEnsTokenId({ label, registryAddress })
       if (tokenIdResult.isErr()) throw tokenIdResult.error
 
-      activeResolverRef.current = undefined
+      // Starts as the current resolver (where "set default address" writes),
+      // and is replaced if a fresh resolver is deployed later in the flow.
+      activeResolverRef.current = currentResolverAddress
       deployedRegistryRef.current = undefined
       startedStepsRef.current = new Set()
       setSavedParams({ recipient, tokenId: tokenIdResult.value, options })
@@ -191,6 +203,22 @@ export const useTransferName = ({
           label,
           parentRegistry: registryAddress,
           subregistryAddress: deployedRegistryRef.current,
+          id,
+        })
+        return
+      }
+      case 'set-default-address': {
+        if (
+          !activeResolverRef.current ||
+          activeResolverRef.current === zeroAddress
+        )
+          throw new Error(
+            'This name has no resolver — can’t set the default address',
+          )
+        await setDefaultAddress({
+          ...common,
+          resolverAddress: activeResolverRef.current,
+          recipient,
           id,
         })
         return
