@@ -164,7 +164,7 @@ export const ConnectWalletDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-100">
+      <DialogContent className="gap-5 p-8 sm:max-w-100">
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
         </DialogHeader>
