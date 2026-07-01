@@ -29,12 +29,13 @@ import {
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
 import { setRecordsWriteParameters } from '@ensdomains/ensjs/wallet'
-import { checksumAddress, type WalletClient } from 'viem'
+import { checksumAddress } from 'viem'
 import {
   startSyncEthAddressRecordTransaction,
   syncEthAddressRecord,
 } from './syncEthAddressRecord'
 
+const ACCOUNT = '0x1111111111111111111111111111111111111111' as Address
 const SMART_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
 const OWNER = '0x3333333333333333333333333333333333333333' as Address
 const RESOLVER = '0x4444444444444444444444444444444444444444' as Address
@@ -58,6 +59,7 @@ describe('syncEthAddressRecord', () => {
       ownerAddress: OWNER,
       resolverAddress: RESOLVER,
       signer: { type: 'eoa', walletClient: {} as never },
+      accountAddress: ACCOUNT,
       publicClient,
       chainId: CHAIN_ID,
       onTxId,
@@ -74,7 +76,7 @@ describe('syncEthAddressRecord', () => {
         type: 'custom',
         request: expect.objectContaining({
           type: 'eoa',
-          from: OWNER,
+          from: ACCOUNT,
           to: RESOLVER,
           value: 0n,
           chainId: CHAIN_ID,
@@ -98,6 +100,7 @@ describe('syncEthAddressRecord', () => {
       ownerAddress: OWNER,
       resolverAddress: RESOLVER,
       signer: { type: 'eoa', walletClient: {} as never },
+      accountAddress: ACCOUNT,
       publicClient,
       chainId: CHAIN_ID,
     })
@@ -105,9 +108,7 @@ describe('syncEthAddressRecord', () => {
     expect(wait).toHaveBeenCalledWith('tx-record')
   })
 
-  it('uses the owner EOA wallet for smart-account record sync', async () => {
-    const walletClient = { account: { address: OWNER } } as WalletClient
-
+  it('submits a sponsored rhinestone intent with a single call', async () => {
     await startSyncEthAddressRecordTransaction({
       name: 'leon.eth',
       ownerAddress: OWNER,
@@ -117,7 +118,7 @@ describe('syncEthAddressRecord', () => {
         account: {} as never,
         config: { accountAddress: SMART_ACCOUNT, rhinestoneApiKey: 'k' },
       },
-      walletClient,
+      accountAddress: ACCOUNT,
       publicClient,
       chainId: CHAIN_ID,
     })
@@ -125,16 +126,21 @@ describe('syncEthAddressRecord', () => {
     expect(start.mock.calls[0]?.[0]).toEqual({
       type: 'custom',
       request: expect.objectContaining({
-        type: 'eoa',
-        from: OWNER,
+        type: 'rhinestone-intent',
+        from: SMART_ACCOUNT,
         to: RESOLVER,
         value: 0n,
         chainId: CHAIN_ID,
+        rhinestoneParams: {
+          calls: [
+            expect.objectContaining({
+              to: RESOLVER,
+              value: 0n,
+            }),
+          ],
+          sponsored: true,
+        },
       }),
-    })
-    expect(start.mock.calls[0]?.[1]).toEqual({
-      type: 'eoa',
-      walletClient,
     })
   })
 })

@@ -1,4 +1,5 @@
 import {
+  getSmartAccountAddress,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -10,7 +11,6 @@ import {
   checksumAddress,
   encodeFunctionData,
   type PublicClient,
-  type WalletClient,
 } from 'viem'
 
 type SyncEthAddressRecordParams = {
@@ -18,7 +18,7 @@ type SyncEthAddressRecordParams = {
   ownerAddress: Address
   resolverAddress: Address
   signer: Signer
-  walletClient?: WalletClient | null
+  accountAddress: Address
   publicClient: PublicClient
   chainId: number
   onTxId?: (txId: string) => void
@@ -35,7 +35,7 @@ export async function startSyncEthAddressRecordTransaction(
     ownerAddress,
     resolverAddress,
     signer,
-    walletClient,
+    accountAddress,
     publicClient,
     chainId,
     onTxId,
@@ -57,31 +57,35 @@ export async function startSyncEthAddressRecordTransaction(
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  const eoaSigner =
+  const from =
+    signer.type === 'eoa' ? accountAddress : getSmartAccountAddress(signer)
+
+  const request: TransactionRequest =
     signer.type === 'eoa'
-      ? signer
-      : walletClient
-        ? { type: 'eoa' as const, walletClient }
-        : undefined
-
-  if (!eoaSigner) {
-    throw new Error(
-      'Cannot sync ETH address record - owner wallet is unavailable.',
-    )
-  }
-
-  const request: TransactionRequest = {
-    type: 'eoa',
-    from: ownerAddress,
-    to: resolverAddress,
-    data,
-    value: 0n,
-    chainId,
-  }
+      ? {
+          type: 'eoa',
+          from,
+          to: resolverAddress,
+          data,
+          value: 0n,
+          chainId,
+        }
+      : {
+          type: 'rhinestone-intent',
+          from,
+          to: resolverAddress,
+          data,
+          value: 0n,
+          chainId,
+          rhinestoneParams: {
+            calls: [{ to: resolverAddress, data, value: 0n }],
+            sponsored: true,
+          },
+        }
 
   const txId = transactionManager.startTransaction(
     { type: 'custom', request },
-    eoaSigner,
+    signer,
     {
       description: `Set ETH address record for ${cleanName}`,
       publicClient,

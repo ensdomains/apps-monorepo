@@ -7,7 +7,7 @@ export type RegistrationPostRegistrationSetup = {
   }
 }
 
-export const AUTO_SYNC_ETH_RECORD_DURING_REGISTRATION = false
+export const AUTO_SYNC_ETH_RECORD_DURING_REGISTRATION = true
 
 export function getManagerRegistrationPostRegistrationSetup(params: {
   ownerAddress?: Address | null

@@ -131,6 +131,8 @@ const shouldSetPrimaryName = (context: Context) =>
 const hasPostRegistrationSetup = (context: Context) =>
   !!context.postRegistrationSetup
 
+const asEthName = (label: string) => `${label}.eth`
+
 const hasPrimaryNameForwardRemaining = (context: Context) =>
   shouldSetPrimaryName(context) &&
   !hasSmartPrimaryNameFlow(context) &&
@@ -178,7 +180,7 @@ const machineSetup = setup({
     submitEthRecordTransaction: fromPromise(
       async ({ input }: { input: Required<PostRegistrationData> }) =>
         startSyncEthAddressRecordTransaction({
-          name: input.label,
+          name: asEthName(input.label),
           ownerAddress: input.ownerAddress,
           resolverAddress: input.resolverAddress,
           signer: input.signer,
@@ -287,7 +289,7 @@ const machineSetup = setup({
       if (label) {
         queryClient.invalidateQueries({
           queryKey: $qk({
-            name: `${label}.eth`,
+            name: asEthName(label),
           }),
         })
       }
@@ -453,7 +455,7 @@ const startRegistrationAction = machineSetup.createAction(
     enqueue(
       machineSetup.sendTo(REGISTRATION_V2_ACTOR_ID, {
         type: 'START_REGISTRATION',
-        name: `${event.label}.eth`,
+        name: asEthName(event.label),
         duration: event.duration,
         token: event.token,
         price: event.totalPrice,
@@ -483,7 +485,7 @@ const submitPrimaryNameForwardAction = machineSetup.createAction(
 
     try {
       const txId = submitPrimaryNameForward({
-        name: `${context.postRegistrationData.label}.eth`,
+        name: asEthName(context.postRegistrationData.label),
         signer: context.postRegistrationData.signer,
         accountAddress: context.postRegistrationData.accountAddress,
         publicClient: context.postRegistrationData.publicClient,
@@ -513,7 +515,7 @@ const submitPrimaryNameReverseAction = machineSetup.createAction(
 
     try {
       const txId = submitPrimaryNameReverse({
-        name: `${context.postRegistrationData.label}.eth`,
+        name: asEthName(context.postRegistrationData.label),
         signer: context.postRegistrationData.signer,
         accountAddress: context.postRegistrationData.accountAddress,
         publicClient: context.postRegistrationData.publicClient,

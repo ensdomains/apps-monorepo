@@ -279,6 +279,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     await flush()
 
     expect(actor.getSnapshot().context.ethRecordSyncTxId).toBe('tx-eth-record')
+    expect(startSyncEthRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'example.eth',
+      }),
+    )
     expect(
       actor
         .getSnapshot()

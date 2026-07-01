@@ -29,7 +29,7 @@ describe('getManagerRegistrationPostRegistrationSetup', () => {
     ).toEqual({
       primaryName: {
         enabled: true,
-        syncEthRecord: false,
+        syncEthRecord: true,
       },
     })
   })
