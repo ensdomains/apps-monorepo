@@ -27,6 +27,9 @@ import { reserveSponsorship, SPONSOR_RATE_LIMIT } from './rate-limit'
 
 const ORCHESTRATOR_BASE = 'https://v1.orchestrator.rhinestone.dev'
 
+/** Max accepted request body size (bytes) for proxied orchestrator calls. */
+const MAX_BODY_BYTES = 100_000
+
 /** Strip the route prefix to recover the upstream orchestrator path. */
 function upstreamUrl(request: Request, splat: string | undefined): string {
   const { search } = new URL(request.url)
@@ -67,10 +70,9 @@ export async function handleOrchestratorRequest(
 ): Promise<Response> {
   const method = request.method
 
-  if (method !== 'POST' && method !== 'PUT') {
-    return forward(request, splat)
-  }
-
+  // Fail fast for every method (incl. GET status polling) when the key is
+  // missing — otherwise `forward` would send an empty `x-api-key` upstream and
+  // the caller sees an opaque 401 instead of a clear misconfiguration error.
   if (!env.RHINESTONE_API_KEY) {
     console.error(
       '[orchestrator-proxy] RHINESTONE_API_KEY secret not configured',
@@ -81,12 +83,23 @@ export async function handleOrchestratorRequest(
     )
   }
 
+  if (method !== 'POST' && method !== 'PUT') {
+    return forward(request, splat)
+  }
+
+  // Reject oversized bodies. The Content-Length check is a cheap early-out, but
+  // it's an optional header (chunked encoding / omitted length would skip it),
+  // so re-check the actual byte length after buffering to close the bypass.
   const contentLength = request.headers.get('content-length')
-  if (contentLength && parseInt(contentLength, 10) > 100_000) {
+  if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
     return Response.json({ error: 'Request too large' }, { status: 413 })
   }
 
   const text = await request.text()
+  if (text.length > MAX_BODY_BYTES) {
+    return Response.json({ error: 'Request too large' }, { status: 413 })
+  }
+
   let body: unknown
   try {
     body = JSON.parse(text)

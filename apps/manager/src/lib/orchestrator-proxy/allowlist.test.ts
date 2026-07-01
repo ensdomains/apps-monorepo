@@ -80,6 +80,23 @@ describe('ALLOWED_SELECTORS', () => {
   })
 })
 
+describe('buildContractAllowlist', () => {
+  it('builds the sepolia allowlist', async () => {
+    const list = await buildContractAllowlist('sepolia')
+    expect(list.length).toBeGreaterThan(0)
+    // Sanity: the registrar (static, ensjs-derived) is present + checksummed.
+    expect(list).toContain(REGISTRAR_CHECKSUMMED)
+  })
+
+  it('throws for mainnet until V2 mainnet addresses exist (no silent mixed allowlist)', async () => {
+    // The Sepolia-only DefaultReverseRegistrar / ENS_HCA_MODULE constants must
+    // not leak into a mainnet allowlist — fail loudly instead.
+    await expect(buildContractAllowlist('mainnet')).rejects.toThrow(
+      /only supports 'sepolia'/,
+    )
+  })
+})
+
 describe('extractCalls', () => {
   it('reads the `calls` array', () => {
     expect(extractCalls({ calls: [{ to: '0xabc' }] })).toEqual([

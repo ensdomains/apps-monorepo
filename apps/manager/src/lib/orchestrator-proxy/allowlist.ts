@@ -70,6 +70,17 @@ export const ALLOWED_SELECTORS: ReadonlySet<string> = new Set(
 export async function buildContractAllowlist(
   chain: 'sepolia' | 'mainnet',
 ): Promise<readonly Address[]> {
+  // DEFAULT_REVERSE_REGISTRAR and ENS_HCA_MODULE below are Sepolia-only V2
+  // deployments (not yet in ensjs). Appending them for any other chain would
+  // silently produce a mixed/wrong allowlist, so fail loudly until mainnet V2
+  // addresses exist and can be chain-derived. See TODO(mainnet) above.
+  if (chain !== 'sepolia') {
+    throw new Error(
+      `Orchestrator proxy allowlist only supports 'sepolia'; ` +
+        `'${chain}' requires mainnet V2 addresses (DefaultReverseRegistrar, ENS_HCA_MODULE) first.`,
+    )
+  }
+
   const { ensL1Contracts, supportedL1Chains } = await import(
     '@ensdomains/ensjs/chain'
   )
