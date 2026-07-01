@@ -60,14 +60,23 @@ const getSetDefaultDisabledReason = ({
   deployResolver: boolean
   hasResolver: boolean
   canEdit: boolean | undefined
-}): string | null => {
-  if (deployResolver)
-    return 'Can’t set the address on a resolver you’re handing to the recipient — turn off “Deploy a new resolver”.'
-  if (!hasResolver) return 'This name has no resolver to set an address on.'
-  if (canEdit === false)
-    return 'You don’t control this name’s resolver, so you can’t set its address.'
-  return null
-}
+}): string | null =>
+  match({ deployResolver, hasResolver, canEdit })
+    .with(
+      { deployResolver: true },
+      () =>
+        'Can’t set the address on a resolver you’re handing to the recipient — turn off “Deploy a new resolver”.',
+    )
+    .with(
+      { hasResolver: false },
+      () => 'This name has no resolver to set an address on.',
+    )
+    .with(
+      { canEdit: false },
+      () =>
+        'You don’t control this name’s resolver, so you can’t set its address.',
+    )
+    .otherwise(() => null)
 
 export const SendNameForm = ({
   name,
@@ -252,13 +261,11 @@ const RecipientPreview = ({ address }: { address: Address }) => {
         />
       )}
       <div className="flex flex-col gap-1 min-w-0">
-        {/* Address is known immediately, so it's the stable anchor; the primary
-            name (a reverse lookup) fades in above it once resolved. No skeleton
-            name line — it would collapse and shove the address up when the
-            address has no primary name. */}
-        {primaryName && (
-          <CopyableRecord value={primaryName} textClassName="text-foreground" />
-        )}
+        {match(primaryName)
+          .with(P.string.minLength(1), (value) => (
+            <CopyableRecord value={value} textClassName="text-foreground" />
+          ))
+          .otherwise(() => null)}
         <CopyableRecord
           value={address}
           displayValue={address}
