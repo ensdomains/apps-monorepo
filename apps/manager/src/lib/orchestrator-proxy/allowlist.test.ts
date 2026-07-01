@@ -95,6 +95,19 @@ describe('buildContractAllowlist', () => {
       /only supports 'sepolia'/,
     )
   })
+
+  it('caches the resolved allowlist per chain (same reference on repeat calls)', async () => {
+    const a = await buildContractAllowlist('sepolia')
+    const b = await buildContractAllowlist('sepolia')
+    expect(b).toBe(a)
+  })
+
+  it('does not cache rejections (mainnet keeps throwing, not a poisoned entry)', async () => {
+    await expect(buildContractAllowlist('mainnet')).rejects.toThrow()
+    await expect(buildContractAllowlist('mainnet')).rejects.toThrow(
+      /only supports 'sepolia'/,
+    )
+  })
 })
 
 describe('extractCalls', () => {

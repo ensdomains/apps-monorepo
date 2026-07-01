@@ -59,6 +59,44 @@ export const ALLOWED_SELECTORS: ReadonlySet<string> = new Set(
   SPONSORED_SIGNATURES.map((sig) => toFunctionSelector(sig)),
 )
 
+type Chain = 'sepolia' | 'mainnet'
+
+/**
+ * Per-chain cache of resolved allowlists. Cloudflare Worker isolates keep
+ * module-level state across requests while warm, so each allowlist (a dynamic
+ * `import('@ensdomains/ensjs/chain')` + array build) only runs once per isolate
+ * instead of on every sponsored request.
+ *
+ * We cache the Promise (not just the value) to also dedupe concurrent in-flight
+ * builds, and evict on rejection so a transient failure never poisons the cache.
+ */
+function memoizeByChain(
+  build: (chain: Chain) => Promise<readonly Address[]>,
+): (chain: Chain) => Promise<readonly Address[]> {
+  const cache = new Map<Chain, Promise<readonly Address[]>>()
+  return (chain) => {
+    const cached = cache.get(chain)
+    if (cached) return cached
+    const pending = build(chain).catch((error) => {
+      cache.delete(chain)
+      throw error
+    })
+    cache.set(chain, pending)
+    return pending
+  }
+}
+
+async function loadEnsContracts(chain: Chain) {
+  const { ensL1Contracts, supportedL1Chains } = await import(
+    '@ensdomains/ensjs/chain'
+  )
+  const chainId = supportedL1Chains[chain]
+  if (chainId === undefined) {
+    throw new Error(`Unknown chain: ${chain}`)
+  }
+  return ensL1Contracts[chainId]
+}
+
 /**
  * Build the list of allowlisted contract addresses for the given chain.
  *
@@ -66,10 +104,10 @@ export const ALLOWED_SELECTORS: ReadonlySet<string> = new Set(
  * non-ensjs addresses above are appended. Every address is normalised to its
  * EIP-55 checksum via `getAddress` (ensjs does not guarantee checksummed
  * output) so comparisons can use `isAddressEqual` rather than case folding.
+ *
+ * Cached per chain (see `memoizeByChain`).
  */
-export async function buildContractAllowlist(
-  chain: 'sepolia' | 'mainnet',
-): Promise<readonly Address[]> {
+export const buildContractAllowlist = memoizeByChain(async (chain) => {
   // DEFAULT_REVERSE_REGISTRAR and ENS_HCA_MODULE below are Sepolia-only V2
   // deployments (not yet in ensjs). Appending them for any other chain would
   // silently produce a mixed/wrong allowlist, so fail loudly until mainnet V2
@@ -81,14 +119,7 @@ export async function buildContractAllowlist(
     )
   }
 
-  const { ensL1Contracts, supportedL1Chains } = await import(
-    '@ensdomains/ensjs/chain'
-  )
-  const chainId = supportedL1Chains[chain]
-  if (chainId === undefined) {
-    throw new Error(`Unknown chain: ${chain}`)
-  }
-  const contracts = ensL1Contracts[chainId]
+  const contracts = await loadEnsContracts(chain)
 
   return [
     contracts.ensRegistry.address, // setResolver
@@ -101,22 +132,19 @@ export async function buildContractAllowlist(
     DEFAULT_REVERSE_REGISTRAR, // setName / setNameForAddrWithSignature
     ENS_HCA_MODULE, // updateConfig (session enable)
   ].map((address) => getAddress(address))
-}
+})
 
 /**
  * Contracts where any selector is allowed. The HCA factory is invoked with
  * opaque, SDK-generated `factoryData` (the account-deploy call), so its
  * selector is not statically knowable and must not be selector-checked.
+ *
+ * Cached per chain (see `memoizeByChain`).
  */
-export async function buildAnySelectorAllowlist(
-  chain: 'sepolia' | 'mainnet',
-): Promise<readonly Address[]> {
-  const { ensL1Contracts, supportedL1Chains } = await import(
-    '@ensdomains/ensjs/chain'
-  )
-  const contracts = ensL1Contracts[supportedL1Chains[chain]]
+export const buildAnySelectorAllowlist = memoizeByChain(async (chain) => {
+  const contracts = await loadEnsContracts(chain)
   return [contracts.ensHcaFactory.address].map((address) => getAddress(address))
-}
+})
 
 type Call = { to: string; data?: string }
 
