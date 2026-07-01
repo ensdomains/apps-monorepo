@@ -19,7 +19,6 @@ type SendNameFormProps = {
   readonly name: string
   readonly registryAddress: Address
   readonly owner: Address
-  readonly currentResolverAddress: Address | undefined
 }
 
 type OptionConfig = {
@@ -28,10 +27,6 @@ type OptionConfig = {
 }
 
 const OPTIONS: readonly OptionConfig[] = [
-  {
-    key: 'setDefaultAddress',
-    label: 'Set the default address to the recipient',
-  },
   {
     key: 'deployResolver',
     label: 'Deploy a new resolver',
@@ -46,11 +41,9 @@ export const SendNameForm = ({
   name,
   registryAddress,
   owner,
-  currentResolverAddress,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
-    setDefaultAddress: false,
     deployResolver: false,
     deployRegistry: false,
   })
@@ -67,28 +60,14 @@ export const SendNameForm = ({
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
 
-  const needsResolverForDefaultAddress =
-    options.setDefaultAddress &&
-    !options.deployResolver &&
-    !currentResolverAddress
-
-  const canStart =
-    !!recipient &&
-    !isSelf &&
-    !isResolving &&
-    !needsResolverForDefaultAddress &&
-    !isPreparing
+  const canStart = !!recipient && !isSelf && !isResolving && !isPreparing
 
   const toggleOption = (key: keyof TransferOptions) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const handleStart = async () => {
     if (!recipient) return
-    const ready = await startTransfer({
-      recipient,
-      currentResolverAddress,
-      options,
-    })
+    const ready = await startTransfer({ recipient, options })
     if (ready) openModal()
   }
 
@@ -146,12 +125,6 @@ export const SendNameForm = ({
             />
           </label>
         ))}
-        {needsResolverForDefaultAddress && (
-          <span className="text-destructive text-sm">
-            This name has no resolver. Enable “Deploy a new resolver” to set the
-            default address.
-          </span>
-        )}
       </div>
 
       <Button
