@@ -13,6 +13,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { useCanSetResolverRecord } from '../hooks/useCanSetResolverRecord'
 import { useRecipientResolution } from '../hooks/useRecipientResolution'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
@@ -21,6 +22,7 @@ type SendNameFormProps = {
   readonly name: string
   readonly registryAddress: Address
   readonly owner: Address
+  readonly currentResolverAddress: Address | undefined
 }
 
 type OptionConfig = {
@@ -30,6 +32,12 @@ type OptionConfig = {
 }
 
 const OPTIONS: readonly OptionConfig[] = [
+  {
+    key: 'setDefaultAddress',
+    label: 'Set the default address to the recipient',
+    description:
+      'Points the name’s ETH address at the recipient so it resolves to them right after the transfer.',
+  },
   {
     key: 'deployResolver',
     label: 'Deploy a new resolver',
@@ -44,13 +52,32 @@ const OPTIONS: readonly OptionConfig[] = [
   },
 ]
 
+const getSetDefaultDisabledReason = ({
+  deployResolver,
+  hasResolver,
+  canEdit,
+}: {
+  deployResolver: boolean
+  hasResolver: boolean
+  canEdit: boolean | undefined
+}): string | null => {
+  if (deployResolver)
+    return 'Can’t set the address on a resolver you’re handing to the recipient — turn off “Deploy a new resolver”.'
+  if (!hasResolver) return 'This name has no resolver to set an address on.'
+  if (canEdit === false)
+    return 'You don’t control this name’s resolver, so you can’t set its address.'
+  return null
+}
+
 export const SendNameForm = ({
   name,
   registryAddress,
   owner,
+  currentResolverAddress,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
+    setDefaultAddress: false,
     deployResolver: false,
     deployRegistry: false,
   })
@@ -65,8 +92,33 @@ export const SendNameForm = ({
   const { startTransfer, transactions, isPreparing, prepError } =
     useTransferName({ name, registryAddress, owner })
 
+  // Can the connected sender write records on the name's current resolver?
+  // (Gas-estimates a setAddr.) Gates the "set default address" option so it
+  // doesn't revert at signing time.
+  const { data: canEditCurrentResolver } = useCanSetResolverRecord({
+    name,
+    resolverAddress: currentResolverAddress,
+    account: owner,
+  })
+
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
   const hasValidRecipient = !!recipient && !isSelf
+
+  // "Set default address" writes to the *current* resolver, so it can't be
+  // combined with deploying a new (recipient-owned) one, and only works if the
+  // sender controls that resolver.
+  const setDefaultDisabledReason = getSetDefaultDisabledReason({
+    deployResolver: options.deployResolver,
+    hasResolver: !!currentResolverAddress,
+    canEdit: canEditCurrentResolver,
+  })
+  const setDefaultDisabled = setDefaultDisabledReason !== null
+  const effectiveSetDefault = options.setDefaultAddress && !setDefaultDisabled
+
+  const effectiveOptions: TransferOptions = {
+    ...options,
+    setDefaultAddress: effectiveSetDefault,
+  }
 
   const canStart = hasValidRecipient && !isResolving && !isPreparing
 
@@ -75,7 +127,11 @@ export const SendNameForm = ({
 
   const handleStart = async () => {
     if (!recipient) return
-    const ready = await startTransfer({ recipient, options })
+    const ready = await startTransfer({
+      recipient,
+      currentResolverAddress,
+      options: effectiveOptions,
+    })
     if (ready) openModal()
   }
 
@@ -121,28 +177,42 @@ export const SendNameForm = ({
 
       {hasValidRecipient && (
         <div className="flex flex-col gap-3">
-          {OPTIONS.map((option) => (
-            <label
-              key={option.key}
-              htmlFor={`transfer-option-${option.key}`}
-              className="flex items-start justify-between gap-3 cursor-pointer"
-            >
-              <span className="flex flex-col">
-                <span className="text-foreground font-medium">
-                  {option.label}
-                </span>
-                <span className="text-muted-foreground text-sm">
-                  {option.description}
-                </span>
-              </span>
-              <Switch
-                id={`transfer-option-${option.key}`}
-                checked={options[option.key]}
-                onCheckedChange={() => toggleOption(option.key)}
-                className="mt-1 shrink-0"
-              />
-            </label>
-          ))}
+          {OPTIONS.map((option) => {
+            const isSetDefault = option.key === 'setDefaultAddress'
+            const disabled = isSetDefault && setDefaultDisabled
+            const checked = isSetDefault
+              ? effectiveSetDefault
+              : options[option.key]
+            return (
+              <div key={option.key} className="flex flex-col gap-1">
+                <label
+                  htmlFor={`transfer-option-${option.key}`}
+                  className="flex items-start justify-between gap-3 cursor-pointer"
+                >
+                  <span className="flex flex-col">
+                    <span className="text-foreground font-medium">
+                      {option.label}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      {option.description}
+                    </span>
+                  </span>
+                  <Switch
+                    id={`transfer-option-${option.key}`}
+                    checked={checked}
+                    disabled={disabled}
+                    onCheckedChange={() => toggleOption(option.key)}
+                    className="mt-1 shrink-0"
+                  />
+                </label>
+                {isSetDefault && setDefaultDisabledReason && (
+                  <span className="text-muted-foreground text-sm">
+                    {setDefaultDisabledReason}
+                  </span>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -182,6 +252,10 @@ const RecipientPreview = ({ address }: { address: Address }) => {
         />
       )}
       <div className="flex flex-col gap-1 min-w-0">
+        {/* Address is known immediately, so it's the stable anchor; the primary
+            name (a reverse lookup) fades in above it once resolved. No skeleton
+            name line — it would collapse and shove the address up when the
+            address has no primary name. */}
         {primaryName && (
           <CopyableRecord value={primaryName} textClassName="text-foreground" />
         )}
