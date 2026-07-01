@@ -14,16 +14,12 @@ type MigrationValuePropMediaCardProps = {
   readonly media: MigrationValuePropMedia
 }
 
+// These arbitrary values match the exported migration card art frame and its
+// subtle Figma border/shadow treatment rather than existing app tokens.
 const cardClassName =
   'relative aspect-[228/320] w-full overflow-hidden rounded-2xl border border-[rgba(25,87,128,0.12)] bg-white shadow-[0px_5.7px_8.2px_0px_rgba(90,0,36,0.18)]'
 
-const inferMimeType = (src: string, type: 'image' | 'video') => {
-  if (type === 'image') {
-    if (src.endsWith('.webp')) return 'image/webp'
-    if (src.endsWith('.png')) return 'image/png'
-    if (src.endsWith('.jpg') || src.endsWith('.jpeg')) return 'image/jpeg'
-  }
-
+const inferVideoMimeType = (src: string) => {
   if (src.endsWith('.webm')) return 'video/webm'
   if (src.endsWith('.mp4')) return 'video/mp4'
 
@@ -38,6 +34,7 @@ export const MigrationValuePropMediaCard = ({
 
   if (media.type === 'video') {
     return (
+      // This background color fills letterboxed video edges to match the card art.
       <div className={cn(cardClassName, 'bg-[#f5f1ef]', className)}>
         {shouldReduceMotion && media.poster ? (
           <img
@@ -61,7 +58,7 @@ export const MigrationValuePropMediaCard = ({
             >
               <source
                 src={media.src}
-                type={media.mimeType ?? inferMimeType(media.src, media.type)}
+                type={media.mimeType ?? inferVideoMimeType(media.src)}
               />
             </video>
           </div>
@@ -71,6 +68,7 @@ export const MigrationValuePropMediaCard = ({
   }
 
   return (
+    // This background color fills any uncovered image edges to match the card art.
     <div className={cn(cardClassName, 'bg-[#f5f1ef]', className)}>
       <div className="relative h-full w-full">
         <img

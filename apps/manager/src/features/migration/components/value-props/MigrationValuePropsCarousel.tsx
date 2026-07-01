@@ -17,9 +17,9 @@ import {
 const clampIndex = (index: number, length: number) =>
   Math.max(0, Math.min(index, length - 1))
 
-const dragThreshold = 48
-const swipeVelocityThreshold = 350
-const desktopCardOffset = 96
+const DRAG_THRESHOLD = 48
+const SWIPE_VELOCITY_THRESHOLD = 350
+const DESKTOP_CARD_OFFSET = 96
 
 const getDesktopSlideState = (index: number, activeIndex: number) => {
   const offset = index - activeIndex
@@ -34,7 +34,7 @@ const getDesktopSlideState = (index: number, activeIndex: number) => {
   }
 }
 
-const getDesktopCardPosition = (offset: number) => offset * desktopCardOffset
+const getDesktopCardPosition = (offset: number) => offset * DESKTOP_CARD_OFFSET
 
 type DesktopSlideButtonProps = {
   readonly ariaLabel: string
@@ -82,6 +82,7 @@ const DesktopSlideButton = ({
         y: isActive ? 0 : 14,
         zIndex,
       }}
+      // The fixed width and radius match the exported value-prop card assets.
       className="absolute top-0 left-1/2 w-[228px] -translate-x-1/2"
       initial={false}
       transition={
@@ -174,12 +175,15 @@ export const MigrationValuePropsCarousel = () => {
 
   const handleDesktopDragEnd = useCallback(
     (offsetX: number, velocityX: number) => {
-      if (offsetX <= -dragThreshold || velocityX <= -swipeVelocityThreshold) {
+      if (
+        offsetX <= -DRAG_THRESHOLD ||
+        velocityX <= -SWIPE_VELOCITY_THRESHOLD
+      ) {
         goToNext()
         return
       }
 
-      if (offsetX >= dragThreshold || velocityX >= swipeVelocityThreshold) {
+      if (offsetX >= DRAG_THRESHOLD || velocityX >= SWIPE_VELOCITY_THRESHOLD) {
         goToPrevious()
       }
     },
@@ -209,6 +213,7 @@ export const MigrationValuePropsCarousel = () => {
             aria-current={index === activeIndex ? 'true' : undefined}
             aria-label={t(slide.label)}
             className={cn(
+              // Dot widths match the Figma active/inactive indicator sizes.
               'rounded-full outline-none transition-all focus-visible:ring-2 focus-visible:ring-ens-lapis-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
               index === activeIndex
                 ? 'h-1.5 w-[19px] bg-ens-garnet-500'
@@ -234,6 +239,8 @@ export const MigrationValuePropsCarousel = () => {
               key={slide.id}
             >
               <MigrationValuePropMediaCard
+                // This clamp keeps the mobile card close to the Figma size while
+                // still shrinking on short viewports so the CTA remains reachable.
                 className="max-w-[clamp(11rem,43dvh,15.5rem)]"
                 media={slide.media}
               />
