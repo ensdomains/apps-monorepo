@@ -77,7 +77,7 @@ export const TokenPickerContent = () => {
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  const startRegistration = () => {
+  const startRegistration = (existingPrimaryName?: string | null) => {
     if (!pricingQuery.data || !selectedToken) return
     uiActor.send({
       type: 'registration.start',
@@ -121,7 +121,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      startRegistration()
+      startRegistration(existingPrimaryName)
     },
   })
 
