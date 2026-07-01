@@ -1,4 +1,4 @@
-import type { Address, PublicClient } from 'viem'
+import type { PublicClient } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ensdomains/ensjs/wallet', () => ({
