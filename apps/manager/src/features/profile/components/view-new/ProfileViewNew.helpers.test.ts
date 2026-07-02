@@ -19,6 +19,7 @@ const makeRecords = (
   links: [],
   social: [],
   unknown: [],
+  agentRegistrations: [],
   ...overrides,
 })
 

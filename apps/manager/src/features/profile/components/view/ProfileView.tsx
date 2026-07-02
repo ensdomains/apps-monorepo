@@ -20,6 +20,7 @@ import { transformProfileRecords } from '../../utils/transformRecords'
 import { EditProfileDialog } from '../dialogs/edit-profile/EditProfileDialog'
 import { ProfileViewNew } from '../view-new/ProfileViewNew'
 import { isConnectedProfileOwner } from './ProfileView.helpers'
+import { ViewAgentSection } from './ViewAgentSection'
 import { ViewBioSection } from './ViewBioSection'
 import { ViewCryptoSection } from './ViewCryptoSection'
 import { ViewDynamicSection } from './ViewDynamicSection'
@@ -144,6 +145,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
               section={section}
             />
           ))}
+          <ViewAgentSection records={records} />
         </div>
 
         {/* Right/side column */}

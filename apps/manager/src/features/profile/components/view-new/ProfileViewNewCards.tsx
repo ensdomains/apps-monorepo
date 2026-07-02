@@ -1,5 +1,6 @@
 import type { ProfileRecords } from '@/features/profile/types'
 import { ProfileAddressesSection } from './ProfileViewNewAddresses'
+import { ProfileAgentSection } from './ProfileViewNewAgents'
 import { ProfileContactSection } from './ProfileViewNewContacts'
 import { ProfileLinksSection } from './ProfileViewNewLinks'
 import { ProfileSocialSection } from './ProfileViewNewSocial'
@@ -24,5 +25,6 @@ export const ProfileViewNewCards = ({
     />
     <ProfileSocialSection records={records} />
     <ProfileLinksSection records={records} />
+    <ProfileAgentSection records={records} />
   </div>
 )

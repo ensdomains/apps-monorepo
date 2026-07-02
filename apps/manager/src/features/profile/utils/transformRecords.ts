@@ -12,6 +12,10 @@ import type {
 } from '../data/records/types'
 import type { ProfileRecordsResult } from '../service/profileRecords'
 import type { LinkItem, ProfileRecords, TextRecordValue } from '../types'
+import {
+  isAgentRegistrationKey,
+  transformAgentRegistrationRecord,
+} from './agentRegistration'
 import { createSafeUrlSchema, isSafeHttpUrl } from './safeUrl'
 
 const emptyProfileRecords = (): ProfileRecords => ({
@@ -21,6 +25,7 @@ const emptyProfileRecords = (): ProfileRecords => ({
   contentHash: undefined,
   abi: undefined,
   unknown: [],
+  agentRegistrations: [],
   ...allSections.reduce(
     (acc, key) => {
       acc[key] = []
@@ -119,6 +124,19 @@ export const transformProfileRecords = (
     acc: ProfileRecords,
     { key, value }: TextRecordInput,
   ): ProfileRecords => {
+    // Agent-registration records (ENSIP-25) are matched by the fixed
+    // `agent-registration` key prefix and routed to the agent transform.
+    // Records that fail to parse fall through to the standard handling below.
+    if (isAgentRegistrationKey(key)) {
+      const agentRecord = transformAgentRegistrationRecord({ key, value })
+      if (agentRecord) {
+        return {
+          ...acc,
+          agentRegistrations: [...acc.agentRegistrations, agentRecord],
+        }
+      }
+    }
+
     const record = getRecordDef(key)
 
     if (record) {
