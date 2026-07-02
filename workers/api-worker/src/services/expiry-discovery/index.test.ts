@@ -33,7 +33,7 @@ type CursorState = Record<string, { expiry_timestamp: number }>
 
 describe('runExpiryDiscoveryCron', () => {
   beforeEach(() => {
-    vi.mocked(fetchExpiringNamesPage).mockClear()
+    vi.mocked(fetchExpiringNamesPage).mockReset()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-02-11T12:00:00Z'))
   })
