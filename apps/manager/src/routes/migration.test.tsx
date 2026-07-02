@@ -159,7 +159,7 @@ describe('/migration route auth', () => {
     expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
-  it('does not redirect settled disconnected wallets away from migration', () => {
+  it('redirects settled disconnected wallets to home', async () => {
     mockConnection({
       status: 'disconnected',
       isConnecting: false,
@@ -173,9 +173,13 @@ describe('/migration route auth', () => {
 
     renderRoute()
 
-    expect(navigateMock).not.toHaveBeenCalled()
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith({
+        to: '/',
+        replace: true,
+      }),
+    )
     expect(screen.queryByTestId('migration-page')).toBeNull()
-    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
   })
 
   it('redirects connected wallets without migration access to the dashboard', async () => {

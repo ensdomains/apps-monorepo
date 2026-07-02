@@ -51,7 +51,7 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const redirectTo = (() => {
     if (isRestoringConnection) return null
 
-    if (status === 'disconnected') return null
+    if (status === 'disconnected') return '/'
 
     if (!ownerAddress) return null
 
@@ -75,11 +75,11 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
     })
   }, [navigate, redirectTo])
 
-  if (isRestoringConnection || status === 'disconnected' || !ownerAddress) {
+  if (redirectTo) return null
+
+  if (isRestoringConnection || !ownerAddress) {
     return <MigrationRouteLoading />
   }
-
-  if (redirectTo) return null
 
   return <>{children}</>
 }
