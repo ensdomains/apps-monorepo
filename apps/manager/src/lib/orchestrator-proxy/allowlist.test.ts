@@ -6,7 +6,7 @@
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAddress, toFunctionSelector } from 'viem'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   ALLOWED_SELECTORS,
   buildAnySelectorAllowlist,
@@ -21,21 +21,13 @@ const REGISTRAR = sepolia.ensEthRegistrar.address
 const REGISTRAR_CHECKSUMMED = getAddress(REGISTRAR)
 const COMMIT = toFunctionSelector('function commit(bytes32 commitment)')
 
-let contracts: Awaited<ReturnType<typeof buildContractAllowlist>>
-let anySelectorContracts: Awaited<ReturnType<typeof buildAnySelectorAllowlist>>
-let opts: {
+const contracts = buildContractAllowlist('sepolia')
+const anySelectorContracts = buildAnySelectorAllowlist('sepolia')
+const opts: {
   contracts: typeof contracts
   selectors: typeof ALLOWED_SELECTORS
   anySelectorContracts?: typeof anySelectorContracts
-}
-
-beforeAll(async () => {
-  ;[contracts, anySelectorContracts] = await Promise.all([
-    buildContractAllowlist('sepolia'),
-    buildAnySelectorAllowlist('sepolia'),
-  ])
-  opts = { contracts, selectors: ALLOWED_SELECTORS }
-})
+} = { contracts, selectors: ALLOWED_SELECTORS }
 
 describe('ALLOWED_SELECTORS', () => {
   it.each([
@@ -81,30 +73,17 @@ describe('ALLOWED_SELECTORS', () => {
 })
 
 describe('buildContractAllowlist', () => {
-  it('builds the sepolia allowlist', async () => {
-    const list = await buildContractAllowlist('sepolia')
+  it('builds the sepolia allowlist', () => {
+    const list = buildContractAllowlist('sepolia')
     expect(list.length).toBeGreaterThan(0)
     // Sanity: the registrar (static, ensjs-derived) is present + checksummed.
     expect(list).toContain(REGISTRAR_CHECKSUMMED)
   })
 
-  it('throws for mainnet until V2 mainnet addresses exist (no silent mixed allowlist)', async () => {
+  it('throws for mainnet until V2 mainnet addresses exist (no silent mixed allowlist)', () => {
     // The Sepolia-only DefaultReverseRegistrar / ENS_HCA_MODULE constants must
     // not leak into a mainnet allowlist — fail loudly instead.
-    await expect(buildContractAllowlist('mainnet')).rejects.toThrow(
-      /only supports 'sepolia'/,
-    )
-  })
-
-  it('caches the resolved allowlist per chain (same reference on repeat calls)', async () => {
-    const a = await buildContractAllowlist('sepolia')
-    const b = await buildContractAllowlist('sepolia')
-    expect(b).toBe(a)
-  })
-
-  it('does not cache rejections (mainnet keeps throwing, not a poisoned entry)', async () => {
-    await expect(buildContractAllowlist('mainnet')).rejects.toThrow()
-    await expect(buildContractAllowlist('mainnet')).rejects.toThrow(
+    expect(() => buildContractAllowlist('mainnet')).toThrow(
       /only supports 'sepolia'/,
     )
   })
