@@ -100,9 +100,11 @@ export const FaqSection = () => (
         </Collapsible>
       ))}
     </div>
+    {/* has-[>svg]:px-0 neutralises the default button size's has-[>svg]:px-3,
+        which p-0 can't override, so the link sits flush-left with the FAQ text. */}
     <Button
       asChild
-      className="mt-4 h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover md:text-sm md:leading-[1.8]"
+      className="mt-4 h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover has-[>svg]:px-0 md:text-sm md:leading-[1.8]"
       variant="link"
     >
       <a
