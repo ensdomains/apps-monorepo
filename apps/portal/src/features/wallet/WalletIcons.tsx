@@ -9,7 +9,7 @@ import type { SVGProps } from 'react'
 
 export const MetaMaskIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" {...props}>
-    <rect width="32" height="32" rx="7" fill="#FFF5EE" />
+    <rect width="32" height="32" rx="4" fill="#FFF5EE" />
     <svg
       x="4"
       y="4.5"
@@ -52,7 +52,7 @@ export const MetaMaskIcon = (props: SVGProps<SVGSVGElement>) => (
 
 export const CoinbaseIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" {...props}>
-    <rect width="32" height="32" rx="7" fill="#0052FF" />
+    <rect width="32" height="32" rx="4" fill="#0052FF" />
     <circle cx="16" cy="16" r="9.5" fill="#fff" />
     <rect x="12.4" y="12.4" width="7.2" height="7.2" rx="1.3" fill="#0052FF" />
   </svg>
@@ -60,7 +60,7 @@ export const CoinbaseIcon = (props: SVGProps<SVGSVGElement>) => (
 
 export const WalletConnectIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg viewBox="0 0 32 32" fill="none" aria-hidden="true" {...props}>
-    <rect width="32" height="32" rx="7" fill="#3396FF" />
+    <rect width="32" height="32" rx="4" fill="#3396FF" />
     <path
       d="M10.2 13.1c3.2-3.13 8.4-3.13 11.6 0l.39.38c.16.16.16.41 0 .57l-1.32 1.29a.21.21 0 0 1-.3 0l-.53-.52c-2.24-2.19-5.87-2.19-8.11 0l-.57.56a.21.21 0 0 1-.3 0l-1.32-1.3a.4.4 0 0 1 0-.56l.38-.42Zm14.33 2.67 1.17 1.15c.16.16.16.41 0 .57l-5.3 5.19a.42.42 0 0 1-.58 0l-3.77-3.68a.1.1 0 0 0-.15 0l-3.76 3.68a.42.42 0 0 1-.59 0l-5.3-5.19a.4.4 0 0 1 0-.57l1.17-1.15a.42.42 0 0 1 .59 0l3.77 3.69a.1.1 0 0 0 .14 0l3.77-3.69a.42.42 0 0 1 .58 0l3.77 3.69a.1.1 0 0 0 .15 0l3.77-3.69a.42.42 0 0 1 .58 0Z"
       fill="#fff"
