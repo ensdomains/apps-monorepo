@@ -24,7 +24,7 @@ function RouteComponent() {
   )
 }
 
-function MigrationRouteLoading() {
+const MigrationRouteLoading = () => {
   return (
     <div
       aria-label="Loading migration"
@@ -39,7 +39,7 @@ function MigrationRouteLoading() {
   )
 }
 
-function RequireMigrationAccess({ children }: { children: ReactNode }) {
+const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate()
   const isHydrated = useHydrated()
   const { status, isConnecting, isReconnecting } = useConnection()
