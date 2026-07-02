@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { ArrowRight, CircleArrowDown } from 'lucide-react'
+import { CircleArrowDown, ExternalLink } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -79,25 +79,9 @@ const faqItems: { id: string; question: ReactNode; answer: ReactNode }[] = [
 
 export const FaqSection = () => (
   <div className="border-[0.25px] border-border bg-white px-4 py-6 md:rounded-xl md:px-6 md:py-8">
-    <div className="mb-3 flex flex-col items-start gap-3 md:gap-3">
-      <h2 className="text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
-        <Trans>Frequently Asked Questions</Trans>
-      </h2>
-      <Button
-        asChild
-        className="h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue uppercase leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover md:text-sm md:leading-[1.8]"
-        variant="link"
-      >
-        <a
-          href="https://support.ens.domains"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <Trans>ENS Support Docs</Trans>
-          <ArrowRight className="size-[7px] md:size-2" strokeWidth={2} />
-        </a>
-      </Button>
-    </div>
+    <h2 className="mb-3 text-[24px] text-foreground leading-[0.96] tracking-[0.24px] md:text-[28px] md:tracking-[0.28px]">
+      <Trans>Frequently Asked Questions</Trans>
+    </h2>
     <div className="flex flex-col">
       {faqItems.map(({ id, question, answer }) => (
         <Collapsible key={id}>
@@ -116,5 +100,19 @@ export const FaqSection = () => (
         </Collapsible>
       ))}
     </div>
+    <Button
+      asChild
+      className="mt-4 h-auto w-auto gap-[4.92px] bg-transparent p-0 font-sans text-[13px] text-ens-blue leading-[1.6] tracking-normal hover:bg-transparent hover:text-ens-blue-hover md:text-sm md:leading-[1.8]"
+      variant="link"
+    >
+      <a
+        href="https://support.ens.domains"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <Trans>Need more help? Visit ENS Support Docs</Trans>
+        <ExternalLink className="size-3 md:size-4" strokeWidth={2} />
+      </a>
+    </Button>
   </div>
 )
