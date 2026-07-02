@@ -70,6 +70,7 @@ interface ImagePreviewProps {
   readonly hasImage: boolean
   readonly kind: ProfileImageKind
   readonly name: string
+  readonly themeColor?: string | null
 }
 
 interface DefaultImageFieldProps extends ImagePreviewProps {
@@ -88,6 +89,7 @@ export const DefaultImageField = ({
   onActivate,
   onDragOver,
   onDrop,
+  themeColor,
 }: DefaultImageFieldProps) => (
   <button
     className={cn(
@@ -104,12 +106,13 @@ export const DefaultImageField = ({
     type="button"
   >
     {kind === 'avatar' ? (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 py-3 md:w-43.5 md:gap-3.5">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2.5 md:w-43.5 md:gap-3.5">
         <ProfileImagePreview
           displayImage={displayImage}
           hasImage={hasImage}
           kind={kind}
           name={name}
+          themeColor={themeColor}
         />
         <span className="flex items-center gap-1 text-ens-quartz-400 text-xs md:gap-2 md:text-sm">
           {hasImage ? getChangeLabel(kind) : getEmptyLabel(kind)}
@@ -127,6 +130,7 @@ export const DefaultImageField = ({
         hasImage={hasImage}
         kind={kind}
         name={name}
+        themeColor={themeColor}
       />
     )}
   </button>
@@ -148,6 +152,7 @@ const CancelPreviewButton = ({
   onCancel,
   onDragOver,
   onDrop,
+  themeColor,
 }: CancelPreviewButtonProps) => {
   if (kind === 'avatar') {
     return (
@@ -165,6 +170,7 @@ const CancelPreviewButton = ({
           hasImage={hasImage}
           kind={kind}
           name={name}
+          themeColor={themeColor}
         />
         <span className="flex items-center gap-2 text-xs md:text-sm">
           Cancel
@@ -193,6 +199,7 @@ const CancelPreviewButton = ({
           hasImage={hasImage}
           kind={kind}
           name={name}
+          themeColor={themeColor}
         />
       ) : (
         <span className="flex items-center gap-2 text-xs md:text-sm">
@@ -285,6 +292,7 @@ export const ActiveImageOptions = ({
   onNft,
   onRemove,
   onUpload,
+  themeColor,
 }: ActiveImageOptionsProps) => (
   <div className="flex w-full flex-col gap-3 md:flex-row">
     <CancelPreviewButton
@@ -296,6 +304,7 @@ export const ActiveImageOptions = ({
       onCancel={onCancel}
       onDragOver={onDragOver}
       onDrop={onDrop}
+      themeColor={themeColor}
     />
     <ImageActionPanel
       disabled={disabled}

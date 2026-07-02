@@ -1,3 +1,4 @@
+import { useHydrated } from '@tanstack/react-router'
 import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
@@ -6,6 +7,10 @@ import { useOnDisconnected } from './useOnDisconnected'
 
 vi.mock('wagmi', () => ({
   useConnection: vi.fn(),
+}))
+
+vi.mock('@tanstack/react-router', () => ({
+  useHydrated: vi.fn(),
 }))
 
 vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
@@ -31,6 +36,7 @@ const mockInitialized = (hasInitialized: boolean) => {
 describe('useOnDisconnected', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useHydrated).mockReturnValue(true)
     mockInitialized(true)
   })
 
@@ -87,7 +93,8 @@ describe('useOnDisconnected', () => {
     expect(onDisconnect).not.toHaveBeenCalled()
   })
 
-  it('fires exactly once when settled-disconnected (no duplicate paths)', () => {
+  it('does not fire before hydration, even if wagmi initially reports disconnected', () => {
+    vi.mocked(useHydrated).mockReturnValue(false)
     mockConnection({
       status: 'disconnected',
       isConnecting: false,
@@ -96,6 +103,40 @@ describe('useOnDisconnected', () => {
     const onDisconnect = vi.fn()
 
     renderHook(() => useOnDisconnected(onDisconnect))
+
+    expect(onDisconnect).not.toHaveBeenCalled()
+  })
+
+  it('does not fire on an initial settled-disconnected frame', () => {
+    mockConnection({
+      status: 'disconnected',
+      isConnecting: false,
+      isReconnecting: false,
+    })
+    const onDisconnect = vi.fn()
+
+    renderHook(() => useOnDisconnected(onDisconnect))
+
+    expect(onDisconnect).not.toHaveBeenCalled()
+  })
+
+  it('fires exactly once when a previously connected wallet disconnects', () => {
+    mockConnection({
+      status: 'connected',
+      isConnecting: false,
+      isReconnecting: false,
+    })
+    const onDisconnect = vi.fn()
+
+    const { rerender } = renderHook(() => useOnDisconnected(onDisconnect))
+    expect(onDisconnect).not.toHaveBeenCalled()
+
+    mockConnection({
+      status: 'disconnected',
+      isConnecting: false,
+      isReconnecting: false,
+    })
+    rerender()
 
     expect(onDisconnect).toHaveBeenCalledTimes(1)
   })

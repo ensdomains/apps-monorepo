@@ -3,16 +3,19 @@
  *
  * Shared smart-account helpers for ENS apps. Today this is a
  * Rhinestone-only implementation covering HCA (Hidden Contract Account)
- * initialization (`initializeRhinestoneAccount`) and the smart-session
- * lifecycle (`createRhinestoneSession`, session storage, the scoped
- * registration policy).
+ * initialization (`initializeRhinestoneAccount`) and the prompt-free
+ * registration session lifecycle (`createRhinestoneSession`, session storage,
+ * the add-owner registration policy).
  *
- * The HCA model (`@rhinestone/sdk`) installs an ENS ownership validator at
- * construction and permanently locks its module set. Smart sessions are
- * therefore reached not via an installed module but via the HCA's
- * preinstalled SmartSessionEmissary: the owner signs ENABLE once, then an
- * ephemeral session key authorizes subsequent relayer-sponsored Intents
- * without re-prompting.
+ * The HCA model (`@rhinestone/sdk`) installs an ENS ownership validator
+ * (HCAModule, an OwnableValidator) at construction and permanently locks its
+ * module set. It does NOT use ERC-7579 SmartSessions/Emissary (those modules
+ * are not installed; verified on-chain). Prompt-free registration is instead
+ * achieved by adding an ephemeral key as a time-boxed OWNER of the
+ * OwnableValidator: the owner signs ENABLE once (the add-owner Intent), then
+ * the ephemeral key authorizes subsequent relayer-sponsored Intents without
+ * re-prompting until it expires. See
+ * apps/manager/src/lib/smart-account/HCA_SESSION.md.
  *
  * App-specific concerns (Para wallet wrapping, wagmi chain config,
  * toaster, i18n, env vars) stay in the consuming app. Initialization

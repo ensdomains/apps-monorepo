@@ -71,17 +71,3 @@ export interface RhinestoneSigner {
  * Union type of all supported signers
  */
 export type Signer = EOASigner | RhinestoneSigner
-
-/**
- * Type guard to check if signer is EOA
- */
-export function isEOASigner(signer: Signer): signer is EOASigner {
-  return signer.type === 'eoa'
-}
-
-/**
- * Type guard to check if signer is Rhinestone
- */
-export function isRhinestoneSigner(signer: Signer): signer is RhinestoneSigner {
-  return signer.type === 'rhinestone'
-}

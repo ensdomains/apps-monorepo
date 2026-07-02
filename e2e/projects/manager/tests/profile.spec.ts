@@ -274,13 +274,17 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        // In Rhinestone mode: USDC approve is eth_sendTransaction (1 tx),
-        // renew is a Rhinestone intent (auto-authorized). Catch timeout in
-        // case allowance is already sufficient and the approve is skipped.
-        const [expiry] = await Promise.all([
-            renewFor28Days(page),
-            authorizeTransaction(wallet, 240_000).catch(() => { }),
-        ])
+        // renewFor28Days clicks "Pay with stablecoins", dismisses the
+        // EnableSessions modal (HCA path), selects USDC, and awaits
+        // "Renewal Complete!". On the HCA path USDC is authorized via an
+        // EIP-2612 permit (eth_signTypedData_v4, auto-authorized) — no
+        // eth_sendTransaction. Fire authorization in the background for
+        // EOA-mode compatibility; the .catch absorbs the timeout.
+        // 120 s budget: clickThroughEnableSessions inside renewFor28Days
+        // blocks for up to 30 s in EOA mode before no-oping, so 60 s was
+        // too tight — the USDC sendTransaction arrives ~35 s in.
+        void authorizeTransaction(wallet, 120_000).catch(() => {})
+        const expiry = await renewFor28Days(page)
         console.log(`[profile] ✅ Extend owned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 
@@ -303,13 +307,12 @@ test.describe('ENS profile', () => {
         await page.waitForLoadState('networkidle')
         await page.waitForTimeout(2_000)
 
-        // In Rhinestone mode: USDC approve is eth_sendTransaction (1 tx),
-        // renew is a Rhinestone intent (auto-authorized). Catch timeout in
-        // case allowance is already sufficient and the approve is skipped.
-        const [expiry] = await Promise.all([
-            renewFor28Days(page),
-            authorizeTransaction(wallet, 240_000).catch(() => { }),
-        ])
+        // Same as the owned-name extend test: HCA path uses a permit (no
+        // eth_sendTransaction). Fire authorization in the background for EOA
+        // compatibility; 120 s for the same reason as above (extra navigation
+        // via ThirdPartyRenewalDialog tightens the budget further).
+        void authorizeTransaction(wallet, 120_000).catch(() => {})
+        const expiry = await renewFor28Days(page)
         console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
 })

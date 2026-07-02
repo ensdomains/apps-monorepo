@@ -22,6 +22,9 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@base-ui/react": "^1.1.0",
+    "@ens-apps/dev-migration-tool": "workspace:*",
+    "@ens-apps/dev-time-travel": "workspace:*",
+    "@ens-apps/dev-tools": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
@@ -56,6 +59,7 @@
     "@testing-library/user-event": "^14.6.1",
     "@wagmi/connectors": "^7.1.1",
     "@wagmi/core": "^3.0.0",
+    "@walletconnect/ethereum-provider": "catalog:",
     "@xstate/react": "^6.0.0",
     "@xstate/store-react": "^1.0.1",
     "class-variance-authority": "^0.7.1",

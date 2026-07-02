@@ -55,14 +55,14 @@ test.describe('ENS name registration', () => {
 
     await authorizeHeadlessConnection(page, wallet)
 
-    // Dismiss the SIWE modal that appears once connected.
+    // Dismiss the SIWE modal before continuing to payment.
     await dismissBackendAuthModal(page)
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
-    // Smart-session gate: on the HCA path (VITE_FF_USE_EOA=false, the CI
-    // default) clicking "Pay with stablecoins" opens the EnableSessions modal
-    // BEFORE the token picker. Click through it (the single ENABLE intent is
-    // auto-authorized via PERMITTED_SIGN_KINDS); idempotent no-op in EOA mode.
+    // On the smart-account / HCA path, "Pay with stablecoins" opens the
+    // EnableSessions modal BEFORE the token picker, which blocks the USDC click.
+    // Click through it (auto-authorized via PERMITTED_SIGN_KINDS). The helper is
+    // idempotent — a no-op in EOA mode where the modal never appears.
     await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
     await page.getByRole('button', { name: /buy name/i }).click()

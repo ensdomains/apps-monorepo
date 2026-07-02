@@ -1,10 +1,11 @@
 /**
  * HCA session-owner call builders.
  *
- * The ENS HCA "smart session" is implemented by adding an EPHEMERAL KEY as an
- * additional, time-boxed OWNER of the HCA's validator (HCAModule, an
- * OwnableValidator), per Rhinestone's guidance. The ephemeral key then signs
- * registration Intents prompt-free as a valid owner, until its expiration.
+ * The ENS HCA prompt-free registration "session" (NOT ERC-7579 SmartSessions)
+ * is implemented by adding an EPHEMERAL KEY as an additional, time-boxed OWNER
+ * of the HCA's validator (HCAModule, an OwnableValidator), per Rhinestone's
+ * guidance. The ephemeral key then signs registration Intents prompt-free as a
+ * valid owner, until its expiration.
  *
  * This is NOT a SmartSessions/Emissary scoped session: the SDK rejects
  * `experimental_sessions` for HCA accounts. The HCA's module set is locked
