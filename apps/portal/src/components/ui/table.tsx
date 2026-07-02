@@ -6,10 +6,7 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
   return (
     <div
       data-slot="table-container"
-      // `isolate` contains the table's stacking context so cell content with
-      // its own z-index (e.g. EntityBadge) can never paint above a page's
-      // sticky header. Applied here so every table shares the guard.
-      className="relative isolate w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto"
     >
       <table
         data-slot="table"

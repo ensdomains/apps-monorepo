@@ -365,10 +365,7 @@ export const EntityBadge = ({
   return (
     <div
       className={cn(
-        // `isolate` keeps the badge's internal z-index (the pill's z-10 and the
-        // hover chip's z-50) private to this component so it can never paint
-        // above a page's sticky header or other positioned layout.
-        'relative isolate group/entity inline-flex -ml-2',
+        'relative group/entity inline-flex -ml-2',
         // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
         // sits flush with the container's left edge.
       )}
