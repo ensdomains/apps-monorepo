@@ -42,7 +42,9 @@ export const ExtendNameSettings = ({
         expiryDate={selectedName.expiryDate}
         spanType={spanType}
         setSpanType={setSpanType}
-        name={selectedName.name}
+        // Per-year discount preset chips are v2-only; omit `name` for v1 so the
+        // picker renders the length/date selector without pricing chips.
+        name={selectedName.isV2 ? selectedName.name : undefined}
       />
       <ExtendNameCheckoutSummary
         selectedName={selectedName}

@@ -38,6 +38,12 @@ type PaymentTokenPickerProps = {
   readonly duration: number
   readonly isRegistering?: boolean
   readonly isRenewal?: boolean
+  /**
+   * Renewer contract (renewal only): the ERC-20 spender for allowance/approval
+   * and the address renew pricing is quoted against. Defaults to the v2
+   * `ETHRegistrar`; pass `ETHRenewerV1` for unmigrated v1 names.
+   */
+  readonly renewer?: Address
   readonly onSelectionChange: (token: TokenWithPriceAndBalance | null) => void
 }
 
@@ -46,6 +52,7 @@ export const PaymentTokenPicker = ({
   duration,
   isRegistering = false,
   isRenewal = false,
+  renewer = ethRegistrar,
   onSelectionChange,
 }: PaymentTokenPickerProps) => {
   const config = useConfig()
@@ -71,7 +78,7 @@ export const PaymentTokenPicker = ({
         address: token.address,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [address as Address, ethRegistrar],
+        args: [address as Address, renewer],
       })),
     }),
     enabled: Boolean(address),
@@ -87,6 +94,8 @@ export const PaymentTokenPicker = ({
         name,
         duration,
         token: token.address,
+        // Ignored for registration pricing; scopes renew pricing to the renewer.
+        renewerAddress: isRenewal ? renewer : undefined,
       }),
     ),
   })

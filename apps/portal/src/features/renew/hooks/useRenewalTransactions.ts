@@ -1,17 +1,20 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
+import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { type Address, encodeFunctionData, erc20Abi } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
+import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
+import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { getLabel } from '@/utils/token/getLabel'
+import { getRenewerAddress } from '../utils/renewer'
 
 export type SelectedName = {
   readonly name: string
@@ -25,11 +28,6 @@ export const RENEWAL_TX_IDS = {
   approve: 'renewal-approve',
   renew: (name: string) => `renewal-renew-${name}`,
 } as const
-
-const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensEthRegistrar',
-})
 
 type SavedRenewalParams = {
   readonly name: SelectedName
@@ -77,6 +75,8 @@ type ApproveParams = {
   readonly tokenPrice: bigint
   readonly tokenSymbol: string | undefined
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  /** ERC-20 spender = the renewer contract (ETHRegistrar or ETHRenewerV1). */
+  readonly renewer: Address
 }
 
 type RenewParams = {
@@ -85,6 +85,8 @@ type RenewParams = {
   readonly tokenAddress: Address
   readonly from: Address
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  /** Renewer contract to call: ETHRegistrar (v2) or ETHRenewerV1 (v1). */
+  readonly renewer: Address
 }
 
 type BuildMultiTransactionsParams = {
@@ -108,7 +110,7 @@ function buildApproveTransaction(
   const approveData = encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
-    args: [ethRegistrar, params.tokenPrice * 2n],
+    args: [params.renewer, params.tokenPrice * 2n],
   })
 
   transactionManager.clear()
@@ -156,7 +158,7 @@ function buildRenewTransaction(
       request: {
         type: 'eoa',
         from: params.from,
-        to: ethRegistrar,
+        to: params.renewer,
         data: renewData,
         value: 0n,
         chainId: sepoliaWithEns.id,
@@ -192,6 +194,7 @@ function buildMultiTransactions({
         tokenAddress,
         from,
         publicClient,
+        renewer: getRenewerAddress(renewal.selectedName.isV2),
       },
       signer,
     )
@@ -226,6 +229,9 @@ function buildMultiTransactions({
           tokenPrice,
           tokenSymbol,
           publicClient,
+          // Multi-renew is v2-only (startMultiFlow filters to isV2), so a single
+          // approval to the v2 ETHRegistrar covers the whole batch.
+          renewer: getRenewerAddress(true),
         },
         signer,
       )
@@ -242,6 +248,7 @@ export const useRenewalTransactions = ({
   const config = useConfig()
   const connection = useConnection()
   const publicClient = usePublicClient()
+  const queryClient = useQueryClient()
   const { closeModal, clearTransaction } = useTransactionModal()
   const [savedParams, setSavedParams] = useState<SavedRenewalParams | null>(
     null,
@@ -273,10 +280,25 @@ export const useRenewalTransactions = ({
 
   const handleDone = () => {
     const flowType: RenewalFlowType = savedParams ? 'single' : 'multi'
+    const renewedName = savedParams?.name.name
     closeModal()
     clearTransaction()
     setSavedParams(null)
     setMultiSavedParams(null)
+    // Renewing pushes the name's expiry forward. Invalidate the expiry queries
+    // so the grace banner clears and the new expiry shows on return. For v1
+    // names this also re-qualifies the name for v1→v2 migration; the migration
+    // eligibility query (on the migration-banner branch) reads this expiry and
+    // re-runs on the refreshed data.
+    if (renewedName) {
+      queryClient.invalidateQueries({
+        queryKey: getV1ExpiryQueryOptions({ name: renewedName }).queryKey,
+      })
+      queryClient.invalidateQueries({
+        queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
+          .queryKey,
+      })
+    }
     onComplete?.(flowType)
   }
 
@@ -293,6 +315,7 @@ export const useRenewalTransactions = ({
         tokenPrice: savedParams.tokenPrice,
         tokenSymbol: savedParams.tokenSymbol,
         publicClient: runtime.publicClient,
+        renewer: getRenewerAddress(savedParams.name.isV2),
       },
       runtime.signer,
     )
@@ -311,6 +334,7 @@ export const useRenewalTransactions = ({
         tokenAddress: savedParams.tokenAddress,
         from: runtime.from,
         publicClient: runtime.publicClient,
+        renewer: getRenewerAddress(savedParams.name.isV2),
       },
       runtime.signer,
     )
@@ -363,8 +387,6 @@ export const useRenewalTransactions = ({
         })
 
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
-    if (!name.isV2) return
-
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
