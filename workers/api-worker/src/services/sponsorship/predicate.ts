@@ -1,5 +1,6 @@
 import type { SponsorshipFilter } from '@rhinestone/sdk/jwt-server'
 import { logger } from '#utils/logger.js'
+import { resolveAllowlist, validateCalls } from './allowlist'
 
 /**
  * Parse a comma-separated list of chain ids (e.g. `"1,11155111"`) into a Set.
@@ -23,12 +24,14 @@ export function parseSponsorshipChainIds(
  * The `shouldSponsor` predicate Rhinestone evaluates when minting an extension
  * token (AND-combined `chain` / `account` / `calls` checks).
  *
- * FET-3334 (foundation) ships the chain allowlist only. `account` and `calls`
- * are intentionally permissive stubs. The real records + primary-name predicate
- * — decode the calls, then re-derive `floor(5 × years) − spent` for the name and
- * the global 40k budget from the Bigname `gas_sponsorship` projection at
- * decision time — lands in FET-3337 and replaces these two stubs. It must always
- * re-derive from the projection, never read a mutable counter.
+ * `chain` enforces the sponsorable-chain allowlist and `calls` enforces the
+ * ENS-only contract + function-selector allowlist (FET-3337, structural gate —
+ * see ./allowlist). `account` stays permissive: sponsorship is gated per *name*,
+ * not per caller identity. The remaining, semantic half of FET-3337 — decode the
+ * calls, then re-derive `floor(5 × years) − spent` for the name and the global
+ * 40k budget from the Bigname `gas_sponsorship` projection at decision time —
+ * layers on top of this and is not yet implemented. It must always re-derive
+ * from the projection, never read a mutable counter.
  *
  * Returns Rhinestone's `SponsorshipFilter`, i.e. the value passed as the SDK's
  * `shouldSponsor` config key. "Predicate" is our (and the design doc's) name for it.
@@ -57,11 +60,15 @@ export function createSponsorshipPredicate(
         'RHINESTONE_SPONSORSHIP_CHAIN_IDS is set but has no valid chain ids.',
     )
   }
+  // Derived once here (from the static per-chain allowlists in ./allowlist),
+  // not per call. `calls` then closes over it as a pure, synchronous check.
+  const allowlist = resolveAllowlist(chainIds)
   return {
     chain: ({ id }) => chainIds.has(id),
-    // TODO(FET-3337): re-derive per-name allowance + global 40k budget from the
-    // Bigname gas_sponsorship projection; decode setRecords/setPrimary calls.
+    // Per-name allowance + global 40k budget (re-derived from the Bigname
+    // gas_sponsorship projection) is the remaining semantic gate — see the
+    // predicate docstring; it layers on top of the structural allowlist below.
     account: () => true,
-    calls: () => true,
+    calls: (calls) => validateCalls(calls, allowlist).ok,
   }
 }

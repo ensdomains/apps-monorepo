@@ -1,3 +1,4 @@
+import { toFunctionSelector } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   createSponsorshipPredicate,
@@ -42,10 +43,76 @@ describe('createSponsorshipPredicate', () => {
     expect(chain({ id: 1 })).toBe(false)
   })
 
-  it('stubs account and calls to true (real gating is FET-3337)', () => {
-    const { account, calls } = createSponsorshipPredicate(makeEnv('1'))
-    if (!account || !calls) throw new Error('stub filters should be defined')
+  it('keeps account permissive (sponsorship is gated per name, not caller)', () => {
+    const { account } = createSponsorshipPredicate(makeEnv('1'))
+    if (!account) throw new Error('account filter should be defined')
     expect(account('0x0000000000000000000000000000000000000000')).toBe(true)
+  })
+
+  it('calls: sponsors an allowlisted ENS call, denies a non-ENS contract', () => {
+    const { calls } = createSponsorshipPredicate(makeEnv('11155111'))
+    if (!calls) throw new Error('calls filter should be defined')
+
+    // Empty intent: nothing to deny.
     expect(calls([])).toBe(true)
+
+    // Allowlisted: setName on the Sepolia DefaultReverseRegistrar. Passed
+    // lowercase to also exercise checksum-insensitive matching.
+    const setName = toFunctionSelector('function setName(string name)')
+    expect(
+      calls([
+        {
+          to: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
+          value: 0n,
+          data: setName,
+        },
+      ]),
+    ).toBe(true)
+
+    // A non-ENS contract is denied even with an allowlisted selector.
+    expect(
+      calls([
+        {
+          to: '0x1111111111111111111111111111111111111111',
+          value: 0n,
+          data: setName,
+        },
+      ]),
+    ).toBe(false)
+  })
+
+  it('calls: denies an allowlisted contract called with a non-allowlisted selector', () => {
+    const { calls } = createSponsorshipPredicate(makeEnv('11155111'))
+    if (!calls) throw new Error('calls filter should be defined')
+
+    // transfer() is not in the sponsored set, even on an allowlisted contract.
+    const transfer = toFunctionSelector(
+      'function transfer(address to, uint256 amount)',
+    )
+    expect(
+      calls([
+        {
+          to: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
+          value: 0n,
+          data: transfer,
+        },
+      ]),
+    ).toBe(false)
+  })
+
+  it('calls: denies everything when no sponsorable chain has an allowlist', () => {
+    // Mainnet (id 1) has no allowlist yet, so its calls are denied by default.
+    const { calls } = createSponsorshipPredicate(makeEnv('1'))
+    if (!calls) throw new Error('calls filter should be defined')
+    const setName = toFunctionSelector('function setName(string name)')
+    expect(
+      calls([
+        {
+          to: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
+          value: 0n,
+          data: setName,
+        },
+      ]),
+    ).toBe(false)
   })
 })
