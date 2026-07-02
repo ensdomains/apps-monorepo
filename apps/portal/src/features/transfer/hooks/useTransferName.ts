@@ -19,6 +19,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
+import { getLabel } from '@/utils/token/getLabel'
 import { deployRegistry } from '../helpers/deployRegistry'
 import { deployResolver } from '../helpers/deployResolver'
 import { setDefaultAddress } from '../helpers/setDefaultAddress'
@@ -33,15 +34,12 @@ import {
 
 type UseTransferNameParams = {
   readonly name: string
-  /** Leaf registry holding the name's ERC-1155 token (from `resolveEnsOwner`). */
   readonly registryAddress: Address
-  /** Current owner / connected sender. */
   readonly owner: Address
 }
 
 export type StartTransferParams = {
   readonly recipient: Address
-  /** The name's current resolver — where "set default address" writes. */
   readonly currentResolverAddress: Address | undefined
   readonly options: TransferOptions
 }
@@ -61,6 +59,20 @@ const GAS_BY_STEP: Record<TransferStepKind, number> = {
   'transfer-token': 0.0003,
 }
 
+const chainId = sepoliaWithEns.id
+const factoryAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+const resolverImplAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensPermissionedResolverImpl',
+})
+const registryImplAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensUserRegistryImpl',
+})
+
 export const useTransferName = ({
   name,
   registryAddress,
@@ -71,7 +83,6 @@ export const useTransferName = ({
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { closeModal, clearTransaction } = useTransactionModal()
-  const chainId = sepoliaWithEns.id
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
   const [prepError, setPrepError] = useState<Error | null>(null)
@@ -84,19 +95,6 @@ export const useTransferName = ({
   const activeResolverRef = useRef<Address | undefined>(undefined)
   const deployedRegistryRef = useRef<Address | undefined>(undefined)
   const startedStepsRef = useRef<Set<string>>(new Set())
-
-  const factoryAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensVerifiableFactory',
-  })
-  const resolverImplAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensPermissionedResolverImpl',
-  })
-  const registryImplAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensUserRegistryImpl',
-  })
 
   const getRuntime = async (): Promise<{
     walletClient: WalletClient
@@ -131,7 +129,7 @@ export const useTransferName = ({
     setPrepError(null)
     setIsPreparing(true)
     try {
-      const label = name.split('.')[0]
+      const label = getLabel(name)
       const tokenIdResult = await getEnsTokenId({ label, registryAddress })
       if (tokenIdResult.isErr()) throw tokenIdResult.error
 
@@ -158,7 +156,7 @@ export const useTransferName = ({
   ): Promise<void> => {
     const { walletClient, publicClient: pc, signer } = await getRuntime()
     const common = { name, walletClient, publicClient: pc, signer, chainId }
-    const label = name.split('.')[0]
+    const label = getLabel(name)
 
     switch (step) {
       case 'deploy-resolver': {
