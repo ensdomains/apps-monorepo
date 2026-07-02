@@ -12,6 +12,11 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
 
+const normalizeResolver = (
+  resolver: Address | null | undefined,
+): Address | undefined =>
+  !resolver || resolver === zeroAddress ? undefined : resolver
+
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
@@ -53,11 +58,28 @@ function RouteComponent() {
         </h1>
 
         {match({ data, address })
-          .with({ data: P.nullish }, () => <NotV2Message />)
-          .with({ data: { protocolVersion: P.not('ENSv2') } }, () => (
-            <NotV2Message />
+          .with(
+            { data: P.nullish },
+            { data: { protocolVersion: P.not('ENSv2') } },
+            () => (
+              <MessageCard
+                icon={<AlertTriangle className="size-8" />}
+                title="Transfer not available"
+                description={
+                  <p>Sending a name is only available for ENSv2 names.</p>
+                }
+              />
+            ),
+          )
+          .with({ address: P.nullish }, () => (
+            <MessageCard
+              icon={<ShieldX className="size-8" />}
+              title="Connect your wallet"
+              description={
+                <p>Connect the wallet that owns this name to transfer it.</p>
+              }
+            />
           ))
-          .with({ address: P.nullish }, () => <ConnectWalletMessage />)
           .with(
             { data: P.nonNullable, address: P.string },
             ({ data, address }) => isAddressEqual(address, data.owner),
@@ -71,46 +93,21 @@ function RouteComponent() {
             ),
           )
           .with({ data: P.nonNullable, address: P.string }, () => (
-            <NotOwnerMessage />
+            <MessageCard
+              icon={<ShieldX className="size-8" />}
+              title="Not authorized"
+              description={
+                <>
+                  <p>You are not the owner of this name.</p>
+                  <p className="text-quartz-900/60 text-sm mt-2">
+                    Only the current owner can transfer it.
+                  </p>
+                </>
+              }
+            />
           ))
           .exhaustive()}
       </div>
     </div>
   )
 }
-
-const normalizeResolver = (
-  resolver: Address | null | undefined,
-): Address | undefined =>
-  !resolver || resolver === zeroAddress ? undefined : resolver
-
-const NotV2Message = () => (
-  <MessageCard
-    icon={<AlertTriangle className="size-8" />}
-    title="Transfer not available"
-    description={<p>Sending a name is only available for ENSv2 names.</p>}
-  />
-)
-
-const NotOwnerMessage = () => (
-  <MessageCard
-    icon={<ShieldX className="size-8" />}
-    title="Not authorized"
-    description={
-      <>
-        <p>You are not the owner of this name.</p>
-        <p className="text-quartz-900/60 text-sm mt-2">
-          Only the current owner can transfer it.
-        </p>
-      </>
-    }
-  />
-)
-
-const ConnectWalletMessage = () => (
-  <MessageCard
-    icon={<ShieldX className="size-8" />}
-    title="Connect your wallet"
-    description={<p>Connect the wallet that owns this name to transfer it.</p>}
-  />
-)
