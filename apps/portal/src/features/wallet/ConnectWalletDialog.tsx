@@ -83,6 +83,18 @@ const WalletRow = ({
   )
 }
 
+// A single row in the connect list: either a connectable wallet (has a
+// `connector`) or a link out to install one (has an `href`).
+type WalletOption = {
+  readonly key: string
+  readonly icon: ReactNode
+  readonly name: string
+  readonly badge?: string
+} & (
+  | { readonly connector: Connector; readonly href?: never }
+  | { readonly href: string; readonly connector?: never }
+)
+
 type ConnectWalletDialogProps = {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
@@ -168,6 +180,84 @@ export const ConnectWalletDialog = ({
     }
   }
 
+  // Curated wallets first, in priority order; MetaMask falls back to an install
+  // link when it isn't detected.
+  const prioritizedWallets: WalletOption[] = [
+    metaMask
+      ? {
+          key: 'metamask',
+          icon: <MetaMaskIcon className="size-8" />,
+          name: 'MetaMask',
+          badge: 'Detected',
+          connector: metaMask,
+        }
+      : {
+          key: 'metamask',
+          icon: <MetaMaskIcon className="size-8" />,
+          name: 'MetaMask',
+          badge: 'Install',
+          href: METAMASK_DOWNLOAD_URL,
+        },
+    ...(coinbase
+      ? [
+          {
+            key: 'coinbase',
+            icon: <CoinbaseIcon className="size-8" />,
+            name: 'Coinbase Wallet',
+            connector: coinbase,
+          },
+        ]
+      : []),
+    ...(walletConnect
+      ? [
+          {
+            key: 'walletconnect',
+            icon: <WalletConnectIcon className="size-8" />,
+            name: 'WalletConnect',
+            connector: walletConnect,
+          },
+        ]
+      : []),
+  ]
+
+  // EIP-6963-discovered injected wallets, shown after the curated ones.
+  const discoveredWallets: WalletOption[] = otherWallets.map((connector) => ({
+    key: connector.uid,
+    icon: connector.icon ? (
+      <img src={connector.icon} alt="" className="size-8 rounded-xs" />
+    ) : (
+      <Wallet className="size-5 text-muted-foreground" />
+    ),
+    name: connector.name,
+    connector,
+  }))
+
+  const renderWallet = (option: WalletOption) => {
+    if (!option.connector) {
+      return (
+        <WalletRow
+          key={option.key}
+          icon={option.icon}
+          name={option.name}
+          badge={option.badge}
+          href={option.href}
+        />
+      )
+    }
+    const { connector } = option
+    return (
+      <WalletRow
+        key={option.key}
+        icon={option.icon}
+        name={option.name}
+        badge={option.badge}
+        isPending={pendingId === connector.uid}
+        disabled={isConnecting}
+        onClick={() => connect(connector)}
+      />
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="gap-5 p-8 sm:max-w-100">
@@ -176,45 +266,9 @@ export const ConnectWalletDialog = ({
         </DialogHeader>
 
         <div className="flex flex-col gap-2">
-          {metaMask ? (
-            <WalletRow
-              icon={<MetaMaskIcon className="size-8" />}
-              name="MetaMask"
-              badge="Detected"
-              isPending={pendingId === metaMask.uid}
-              disabled={isConnecting}
-              onClick={() => connect(metaMask)}
-            />
-          ) : (
-            <WalletRow
-              icon={<MetaMaskIcon className="size-8" />}
-              name="MetaMask"
-              badge="Install"
-              href={METAMASK_DOWNLOAD_URL}
-            />
-          )}
+          {prioritizedWallets.map(renderWallet)}
 
-          {coinbase && (
-            <WalletRow
-              icon={<CoinbaseIcon className="size-8" />}
-              name="Coinbase Wallet"
-              isPending={pendingId === coinbase.uid}
-              disabled={isConnecting}
-              onClick={() => connect(coinbase)}
-            />
-          )}
-
-          {walletConnect && (
-            <WalletRow
-              icon={<WalletConnectIcon className="size-8" />}
-              name="WalletConnect"
-              isPending={pendingId === walletConnect.uid}
-              disabled={isConnecting}
-              onClick={() => connect(walletConnect)}
-            />
-          )}
-
-          {otherWallets.length > 0 && (
+          {discoveredWallets.length > 0 && (
             <div className="mt-1 flex items-center gap-2 px-1">
               <span className="h-px flex-1 bg-border" />
               <span className="text-muted-foreground text-xs">Detected</span>
@@ -222,26 +276,7 @@ export const ConnectWalletDialog = ({
             </div>
           )}
 
-          {otherWallets.map((connector) => (
-            <WalletRow
-              key={connector.uid}
-              icon={
-                connector.icon ? (
-                  <img
-                    src={connector.icon}
-                    alt=""
-                    className="size-8 rounded-xs"
-                  />
-                ) : (
-                  <Wallet className="size-5 text-muted-foreground" />
-                )
-              }
-              name={connector.name}
-              isPending={pendingId === connector.uid}
-              disabled={isConnecting}
-              onClick={() => connect(connector)}
-            />
-          ))}
+          {discoveredWallets.map(renderWallet)}
         </div>
 
         {error && (
