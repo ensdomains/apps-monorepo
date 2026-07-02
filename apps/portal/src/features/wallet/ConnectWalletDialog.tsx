@@ -97,13 +97,15 @@ export const ConnectWalletDialog = ({
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  // Clear transient state when the dialog closes so the next open starts fresh.
-  // We must NOT clear on open: reopening after a WalletConnect *failure* needs
-  // to preserve the error message set in the connect handler.
+  // Clear the error when the dialog closes so the next open starts fresh. We
+  // must NOT clear on open: reopening after a WalletConnect *failure* needs to
+  // preserve the error set in the connect handler. `pendingId` is intentionally
+  // left to connect()'s `finally` so it stays set while a WalletConnect pairing
+  // is in flight (our dialog is closed then), keeping the concurrency guard
+  // active if the dialog is reopened from elsewhere.
   useEffect(() => {
     if (!open) {
       setError(null)
-      setPendingId(null)
     }
   }, [open])
 
@@ -123,7 +125,8 @@ export const ConnectWalletDialog = ({
     })
   }, [connectors])
 
-  // A connection is mid-flight for an in-dialog wallet (injected/Coinbase).
+  // A connection is mid-flight (any connector, including a WalletConnect
+  // pairing while our dialog is closed).
   const isConnecting = pendingId !== null
 
   const connect = async (connector: Connector) => {
@@ -131,6 +134,11 @@ export const ConnectWalletDialog = ({
     // let each one's `finally` clear the other's pending indicator.
     if (isConnecting) return
     setError(null)
+    // Set pending first so the guard above holds for the whole attempt. For
+    // WalletConnect this stays set while its own QR modal is open (our dialog
+    // is closed), so reopening the dialog from elsewhere can't start a second
+    // connect. Cleared in `finally`.
+    setPendingId(connector.uid)
 
     // WalletConnect renders its own full-screen QR modal, so close ours first
     // to avoid stacking; injected/Coinbase keep ours open with a per-row
@@ -138,8 +146,6 @@ export const ConnectWalletDialog = ({
     const usesOwnModal = connector.id === WALLETCONNECT_ID
     if (usesOwnModal) {
       onOpenChange(false)
-    } else {
-      setPendingId(connector.uid)
     }
 
     try {
