@@ -10,6 +10,7 @@ import {
   getRenewPrice,
 } from '@ensdomains/ensjs/public/v2'
 import { err, fromPromise, ok } from 'neverthrow'
+import type { Address } from 'viem'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -37,6 +38,11 @@ export type RegistrationPriceParameters = {
   readonly name: string
   readonly duration: number
   readonly token?: SupportedTokenAddresses
+  /**
+   * Renewer contract to price against (renew mode only). Defaults to the v2
+   * `ETHRegistrar`; pass `ETHRenewerV1` for unmigrated v1 names.
+   */
+  readonly renewerAddress?: Address
 }
 
 export type RegistrationPriceResult = {
@@ -57,6 +63,7 @@ const getNamePrice = (mode: PriceMode) =>
     name,
     duration,
     token,
+    renewerAddress,
   }: RegistrationPriceParameters) {
     const client = yield* safeGetClient()
     const resolvedToken = token ?? SUPPORTED_TOKENS.USDC
@@ -78,7 +85,7 @@ const getNamePrice = (mode: PriceMode) =>
     if (mode === 'renew') {
       const { amount } = yield* fromPromise(
         getRenewPrice(client, {
-          renewerAddress: ethRegistrar,
+          renewerAddress: renewerAddress ?? ethRegistrar,
           label,
           duration: durationBigint,
           paymentToken: resolvedToken,

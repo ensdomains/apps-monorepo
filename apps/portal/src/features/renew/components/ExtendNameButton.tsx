@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
-import { V1ExtendModal } from '@/features/renew/components/V1ExtendModal'
+import { useIsRenewable } from '@/features/renew/hooks/useIsRenewable'
 import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
-import { useV1RenewalTransactions } from '@/features/renew/hooks/useV1RenewalTransactions'
 import { isExtendable2LD } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
@@ -24,115 +23,89 @@ type ExtendNameButtonProps = {
 }
 
 /**
- * Extend/renew entry point on the name page. ENSv1 and ENSv2 names use entirely
- * different renewal mechanics (legacy ETH `renew` vs. ENSv2 ERC-20 `renew`), so
- * each protocol has its own self-contained button + modal below.
+ * Extend/renew entry point on the name page. v1 and v2 names share the same
+ * ERC-20 renewal flow (approve + `renew(label,duration,token,referrer)`); they
+ * differ only in the renewer contract (v2 `ETHRegistrar` vs `ETHRenewerV1` for
+ * unmigrated v1 names) and where the current expiry is read from. The renewer is
+ * resolved from `isV2` inside the flow.
  */
 export const ExtendNameButton = ({
   name,
   protocolVersion,
-}: ExtendNameButtonProps) =>
-  protocolVersion === 'ENSv1' ? (
-    <V1ExtendButton name={name} />
-  ) : (
-    <V2ExtendButton name={name} />
-  )
-
-/** Opens the tx modal for an in-flight tx, else clears stale terminal state. */
-const useOpenExtendFlow = () => {
-  const activeTxState = useActiveTransactionState()
-  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
-
-  const beginFlow = (openSettings: () => void) => {
-    if (isTransactionInFlight(activeTxState)) {
-      openModal()
-      return
-    }
-    // Stale terminal-state transactions (success/error) block the modal;
-    // remove only that entry so a fresh extend flow can start without
-    // touching any other in-flight transactions in the manager.
-    if (activeTxState) {
-      transactionManager.cancelTransaction(activeTxState.txId)
-    }
-    openSettings()
-  }
-
-  return { beginFlow, isTransactionModalOpen, openModal }
-}
-
-const V1ExtendButton = ({ name }: { name: string }) => {
+}: ExtendNameButtonProps) => {
   const [open, setOpen] = useState(false)
+  const isV2 = protocolVersion === 'ENSv2'
 
-  const { data: v1Expiry } = useQuery(getV1ExpiryQueryOptions({ name }))
-  const expiryDate = v1Expiry?.expiry
-    ? new Date(Number(v1Expiry.expiry) * 1000)
-    : undefined
-
-  const { transactions, startFlow } = useV1RenewalTransactions({
-    onComplete: () => setOpen(false),
+  const v1ExpiryQuery = useQuery({
+    ...getV1ExpiryQueryOptions({ name }),
+    enabled: protocolVersion === 'ENSv1',
+  })
+  const v2DataQuery = useQuery({
+    ...getV2RegistrationDataQueryOptions({ name }),
+    enabled: isV2,
   })
 
-  const { beginFlow, isTransactionModalOpen, openModal } = useOpenExtendFlow()
-
-  if (!isExtendable2LD({ name, isV2: false, expiryDate })) return null
-
-  return (
-    <>
-      <Button variant="default" onClick={() => beginFlow(() => setOpen(true))}>
-        <FastForward className="size-4" />
-        Extend
-      </Button>
-      <V1ExtendModal
-        open={open && !isTransactionModalOpen}
-        onClose={() => setOpen(false)}
-        name={name}
-        expiryDate={expiryDate}
-        onExtend={(config) => {
-          startFlow(name, config)
-          openModal()
-        }}
-      />
-      <TransactionModal transactions={transactions} />
-    </>
-  )
-}
-
-const V2ExtendButton = ({ name }: { name: string }) => {
-  const [open, setOpen] = useState(false)
-
-  const { data: v2Data } = useQuery(getV2RegistrationDataQueryOptions({ name }))
-  const expirySeconds = v2Data?.expiry ?? null
+  const expirySeconds = isV2
+    ? (v2DataQuery.data?.expiry ?? null)
+    : v1ExpiryQuery.data?.expiry
+      ? Number(v1ExpiryQuery.data.expiry)
+      : null
   const expiryDate =
     expirySeconds !== null ? new Date(expirySeconds * 1000) : undefined
 
-  const selectedName = { name, isV2: true, expiryDate }
+  const selectedName = { name, isV2, expiryDate }
+
+  // v1 names renew via ETHRenewerV1, which only renews RESERVED (premigrated) or
+  // in-grace names. Gate on its on-chain `isRenewable` so we don't offer Extend
+  // (and then fail to load the price) for active/not-yet-migrated v1 names. v2
+  // keeps the cheaper client-side `isExtendable2LD` gate.
+  const { data: v1Renewable } = useIsRenewable({
+    name,
+    isV2,
+    enabled: !isV2,
+  })
 
   const { transactions, startFlow, clearIncompatibleRenewalState } =
     useRenewalTransactions({
-      onComplete: () => setOpen(false),
+      onComplete: () => {
+        setOpen(false)
+      },
     })
 
-  const { beginFlow, isTransactionModalOpen, openModal } = useOpenExtendFlow()
+  const activeTxState = useActiveTransactionState()
+  const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
 
   if (!isExtendable2LD(selectedName)) return null
+  // For v1, wait for and require on-chain renewability (hides while loading).
+  if (!isV2 && !v1Renewable) return null
 
   return (
     <>
       <Button
         variant="default"
-        onClick={() =>
-          beginFlow(() => {
-            clearIncompatibleRenewalState('single')
-            setOpen(true)
-          })
-        }
+        onClick={() => {
+          if (isTransactionInFlight(activeTxState)) {
+            openModal()
+            return
+          }
+          // Stale terminal-state transactions (success/error) block the modal;
+          // remove only that entry so a fresh extend flow can start without
+          // touching any other in-flight transactions in the manager.
+          if (activeTxState) {
+            transactionManager.cancelTransaction(activeTxState.txId)
+          }
+          clearIncompatibleRenewalState('single')
+          setOpen(true)
+        }}
       >
         <FastForward className="size-4" />
         Extend
       </Button>
       <ExtendNameModal
         open={open && !isTransactionModalOpen}
-        onClose={() => setOpen(false)}
+        onClose={() => {
+          setOpen(false)
+        }}
         selectedName={selectedName}
         onExtend={(config) => {
           startFlow(selectedName, config)

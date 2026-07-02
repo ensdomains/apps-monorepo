@@ -10,6 +10,7 @@ import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
+import { getRenewerAddress } from '../utils/renewer'
 import { getRenewalDurationSeconds } from './useMultiNamePricing'
 import type { SelectedName } from './useRenewalTransactions'
 
@@ -39,6 +40,7 @@ export function useNamePricing(
     ...getRenewalPriceQueryOptions({
       name: selectedName.name,
       duration: durationSeconds,
+      renewerAddress: getRenewerAddress(selectedName.isV2),
     }),
     enabled: enabled && durationSeconds > 0,
   })
