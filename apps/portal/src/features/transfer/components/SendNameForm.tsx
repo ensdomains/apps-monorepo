@@ -1,8 +1,9 @@
+import { addrPart, computeResolverResource } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual } from 'viem'
+import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -11,9 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { useCanSetResolverRecord } from '../hooks/useCanSetResolverRecord'
 import { useRecipientResolution } from '../hooks/useRecipientResolution'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
@@ -101,17 +102,20 @@ export const SendNameForm = ({
   const { startTransfer, transactions, isPreparing, prepError } =
     useTransferName({ name, registryAddress, owner })
 
-  // Can the connected sender write records on the name's current resolver?
-  // (Gas-estimates a setAddr.) Gates the "set default address" option so it
-  // doesn't revert at signing time.
-  const { data: canEditCurrentResolver } = useCanSetResolverRecord({
-    name,
-    resolverAddress: currentResolverAddress,
-    account: owner,
-  })
-
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
   const hasValidRecipient = !!recipient && !isSelf
+
+  const ethAddrRecord = computeResolverResource(namehash(name), addrPart(60n))
+
+  const { data: canEditCurrentResolver } = useQuery({
+    ...getHasRolesQueryOptions({
+      resolverAddress: currentResolverAddress ?? zeroAddress,
+      resource: ethAddrRecord,
+      roles: ['ROLE_SET_ADDR'],
+      account: owner,
+    }),
+    enabled: !!currentResolverAddress,
+  })
 
   // "Set default address" writes to the *current* resolver, so it can't be
   // combined with deploying a new (recipient-owned) one, and only works if the
