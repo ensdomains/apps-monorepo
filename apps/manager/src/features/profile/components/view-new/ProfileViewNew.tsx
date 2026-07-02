@@ -25,6 +25,7 @@ import { ProfileViewNewCards } from './ProfileViewNewCards'
 import { ProfileViewNewHeader } from './ProfileViewNewHeader'
 import { ProfileViewNewLoading } from './ProfileViewNewLoading'
 import { ProfileViewNewStatusBanners } from './ProfileViewNewStatusBanners'
+import { ProfileViewNewThemeColorProvider } from './ProfileViewNewThemeColor'
 
 type ProfileViewNewProps = {
   readonly name: string
@@ -60,7 +61,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
-  const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
+  const themeVars = getThemeVars(records.base.theme)
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
@@ -104,53 +105,58 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
 
   const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
   const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
+  const profileThemeColor = expiry.isInGrace
+    ? undefined
+    : themeVars['--theme-color']
 
   return (
     <div
       className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:pb-28.5"
-      style={expiry.isInGrace ? undefined : themeVars}
+      style={expiry.isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
-      <ProfileViewNewBanner
-        headerLoading={false}
-        headerUrl={headerUrl}
-        name={name}
-      />
-      <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
-        <div>
-          <ProfileViewNewStatusBanners
-            expiry={expiry}
-            isMigrationEnabled={migrationEnabled}
-            name={name}
-          />
-          <ProfileViewNewHeader
-            avatarLoading={false}
-            avatarUrl={avatarUrl}
-            displayExpiryDate={expiry.displayExpiryDate}
-            name={name}
-            owner={owner}
-            ownerReverseName={ownerReverseName.data}
-            records={records}
-            registrationDate={registration.data?.registrationDate}
-          />
-          <div className="space-y-0">
-            <ProfileViewNewCards
-              avatarUrl={avatarUrl}
+      <ProfileViewNewThemeColorProvider value={profileThemeColor}>
+        <ProfileViewNewBanner
+          headerLoading={false}
+          headerUrl={headerUrl}
+          name={name}
+        />
+        <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
+          <div>
+            <ProfileViewNewStatusBanners
+              expiry={expiry}
+              isMigrationEnabled={migrationEnabled}
               name={name}
-              records={records}
             />
+            <ProfileViewNewHeader
+              avatarLoading={false}
+              avatarUrl={avatarUrl}
+              displayExpiryDate={expiry.displayExpiryDate}
+              name={name}
+              owner={owner}
+              ownerReverseName={ownerReverseName.data}
+              records={records}
+              registrationDate={registration.data?.registrationDate}
+            />
+            <div className="space-y-0">
+              <ProfileViewNewCards
+                avatarUrl={avatarUrl}
+                name={name}
+                records={records}
+              />
+            </div>
           </div>
         </div>
-      </div>
-      <ProfileViewNewActions
-        avatarUrl={avatarUrl}
-        isInGrace={expiry.isInGrace}
-        isOwner={isOwnerPending ? undefined : isOwner}
-        name={name}
-        onUpdated={refetchRecords}
-        owner={owner}
-        records={records}
-        url={getProfileUrl(name)}
-      />
+        <ProfileViewNewActions
+          avatarUrl={avatarUrl}
+          isInGrace={expiry.isInGrace}
+          isOwner={isOwnerPending ? undefined : isOwner}
+          name={name}
+          onUpdated={refetchRecords}
+          owner={owner}
+          records={records}
+          url={getProfileUrl(name)}
+        />
+      </ProfileViewNewThemeColorProvider>
     </div>
   )
 }

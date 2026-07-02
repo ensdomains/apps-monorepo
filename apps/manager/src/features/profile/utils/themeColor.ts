@@ -1,28 +1,40 @@
+import type { CSSProperties } from 'react'
 import {
   DEFAULT_THEME_COLOR,
-  THEME_COLOR_ALIASES,
-  THEME_COLORS,
-  type ThemeColorValue,
+  PROFILE_THEMES,
+  type ProfileTheme,
 } from '../constants'
 
 const HEX_COLOR_REGEX = /^#[\da-f]{6}$/i
 const DEFAULT_BUTTON_TEXT_COLOR = '#191919'
-const THEME_COLORS_BY_HEX = new Map<string, ThemeColorValue>(
-  THEME_COLORS.map((theme) => [theme.value.toLowerCase(), theme.value]),
+
+export type ThemeVars = CSSProperties & {
+  readonly '--theme-bg': string
+  readonly '--theme-button-bg': string
+  readonly '--theme-button-hover-bg': string
+  readonly '--theme-button-text': string
+  readonly '--theme-color': string
+  readonly '--theme-hover-bg': string
+  readonly '--theme-surface': string
+}
+
+const DEFAULT_PROFILE_THEME =
+  PROFILE_THEMES.find((theme) => theme.value === DEFAULT_THEME_COLOR) ??
+  PROFILE_THEMES[0]
+const PROFILE_THEMES_BY_HEX = new Map<string, ProfileTheme>(
+  PROFILE_THEMES.map((theme) => [theme.value.toLowerCase(), theme]),
 )
-const THEME_ALIASES_BY_HEX = new Map<string, ThemeColorValue>(
-  Object.entries(THEME_COLOR_ALIASES).map(([from, to]) => [
-    from.toLowerCase(),
-    to,
-  ]),
+const PROFILE_THEME_ALIASES_BY_HEX = new Map<string, ProfileTheme>(
+  PROFILE_THEMES.flatMap((theme) =>
+    theme.aliases.map((alias) => [alias.toLowerCase(), theme] as const),
+  ),
 )
-const THEME_BUTTON_TEXT_COLORS = {
-  '#02293B': '#02293B',
-  '#E72A96': '#5A0024',
-  '#0082BB': '#02293B',
-  '#007C20': '#033010',
-  '#984D1B': '#441B03',
-} as const satisfies Record<ThemeColorValue, string>
+
+const getKnownProfileTheme = (
+  normalizedHex: string,
+): ProfileTheme | undefined =>
+  PROFILE_THEMES_BY_HEX.get(normalizedHex) ??
+  PROFILE_THEME_ALIASES_BY_HEX.get(normalizedHex)
 
 const mix = (channel: number, whiteRatio: number): number =>
   Math.round(channel + (255 - channel) * whiteRatio)
@@ -40,14 +52,19 @@ export const resolveThemeColor = (hex?: string | null): string => {
   }
 
   const normalizedHex = trimmedHex.toLowerCase()
-  return (
-    THEME_COLORS_BY_HEX.get(normalizedHex) ??
-    THEME_ALIASES_BY_HEX.get(normalizedHex) ??
-    trimmedHex
-  )
+  return getKnownProfileTheme(normalizedHex)?.value ?? trimmedHex
 }
 
-export const getThemeVars = (hex?: string | null): Record<string, string> => {
+export const getProfileTheme = (hex?: string | null): ProfileTheme => {
+  const trimmedHex = hex?.trim()
+  if (!trimmedHex || !HEX_COLOR_REGEX.test(trimmedHex)) {
+    return DEFAULT_PROFILE_THEME
+  }
+
+  return getKnownProfileTheme(trimmedHex.toLowerCase()) ?? DEFAULT_PROFILE_THEME
+}
+
+export const getThemeVars = (hex?: string | null): ThemeVars => {
   const safeHex = resolveThemeColor(hex)
   const r = parseInt(safeHex.slice(1, 3), 16)
   const g = parseInt(safeHex.slice(3, 5), 16)
@@ -59,10 +76,9 @@ export const getThemeVars = (hex?: string | null): Record<string, string> => {
     `#${toHex(mixFloor(r, ratio))}${toHex(mixFloor(g, ratio))}${toHex(
       mixFloor(b, ratio),
     )}`
+  const profileTheme = PROFILE_THEMES_BY_HEX.get(safeHex.toLowerCase())
   const buttonTextColor =
-    THEME_BUTTON_TEXT_COLORS[
-      safeHex as keyof typeof THEME_BUTTON_TEXT_COLORS
-    ] ?? DEFAULT_BUTTON_TEXT_COLOR
+    profileTheme?.buttonTextColor ?? DEFAULT_BUTTON_TEXT_COLOR
 
   return {
     '--theme-color': safeHex,

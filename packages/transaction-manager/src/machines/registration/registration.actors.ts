@@ -27,7 +27,6 @@ import {
   parseAbi,
   parseSignature,
   stringToBytes,
-  toHex,
   zeroAddress,
 } from 'viem'
 import {
@@ -184,7 +183,14 @@ function generateCommitment(
   registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
-  const secret = keccak256(toHex(Math.random().toString()) as Hash)
+  if (
+    typeof crypto === 'undefined' ||
+    typeof crypto.getRandomValues !== 'function'
+  ) {
+    return errAsync(new Error('crypto.getRandomValues is not available'))
+  }
+  const secretBytes = crypto.getRandomValues(new Uint8Array(32))
+  const secret = bytesToHex(secretBytes) as Hash
 
   return fromPromise(
     (async () => {

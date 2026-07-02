@@ -1,3 +1,4 @@
+import { DevDrawer } from '@ens-apps/dev-tools'
 import {
   TransactionManagerProvider,
   transactionManager,
@@ -53,6 +54,7 @@ export const Route = createRootRoute({
                 </PHProvider>
               </TransactionManagerSetup>
             </RainbowKitProvider>
+            {import.meta.env.DEV && <DevDrawer />}
           </QueryClientProvider>
         </WagmiProvider>
 

@@ -257,9 +257,14 @@ hook/decision so behaviour is identical:
   `EnableSessionModal` and resumes via its session-gate hook.
 
 > ⚠️ **Render-path gotcha.** The live register-v2 dispatcher is reached via
-> `PaymentCard` → `TokenPickerContent` (rendered from `PricingStep`).
-> `register-v2/.../ConfirmPurchase.tsx` is **dead code** (no importers) — do not
-> wire gates there. Always verify the render path before adding a UI gate.
+> `PaymentCard` → `TokenPickerContent` (rendered from `PricingStep`). The
+> **`ConfirmPurchase` component** in
+> `register-v2/workflow/pricing/components/ConfirmPurchase.tsx` has **no
+> importers** and is off the live render path — do not wire gates into it. Note
+> that the _same file_ also exports `ConfirmPurchaseBase`, which **is** imported
+> by the renew flow (`features/renew/workflow/pricing/components/ConfirmPurchase.tsx`),
+> so the file itself is not dead — only the `ConfirmPurchase` export. Always
+> verify the render path before adding a UI gate.
 
 ### Gate flow
 

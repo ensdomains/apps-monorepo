@@ -831,10 +831,6 @@ msgstr "ENS names are stored on-chain as NFTs"
 msgid "ENS names can be up to 255 characters"
 msgstr "ENS names can be up to 255 characters"
 
-#: src/features/dashboard/components/FaqSection.tsx
-msgid "ENS Support Docs"
-msgstr "ENS Support Docs"
-
 #: src/features/migration/components/MigrationModal.tsx
 msgid "ENS v2 Names"
 msgstr "ENS v2 Names"
@@ -974,8 +970,8 @@ msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Failed to set primary name. Please try again."
-msgstr "Failed to set primary name. Please try again."
+msgid "Failed to set primary name"
+msgstr "Failed to set primary name"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -1300,6 +1296,10 @@ msgstr "Need ${0}"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Need help?"
 msgstr "Need help?"
+
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "Need more help? Visit ENS Support Docs"
+msgstr "Need more help? Visit ENS Support Docs"
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."

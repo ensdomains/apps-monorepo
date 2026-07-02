@@ -1,6 +1,7 @@
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { cn } from '@/lib/utils'
+import { useProfileViewNewThemeColor } from './ProfileViewNewThemeColor'
 
 type ProfileViewNewAvatarProps = {
   readonly avatarLoading: boolean
@@ -14,28 +15,33 @@ export const ProfileViewNewAvatar = ({
   avatarUrl,
   className,
   name,
-}: ProfileViewNewAvatarProps) => (
-  <div
-    className={cn(
-      'relative size-45.5 shrink-0 overflow-hidden rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]',
-      className,
-    )}
-  >
-    <ImageFallback.Root className="contents">
-      <ImageFallback.Image
-        alt={`${name} avatar`}
-        className="size-full object-cover"
-        src={avatarUrl}
-      />
-      <ImageFallback.Fallback>
-        <PatternAvatar
-          className="size-full rounded-[18.889px] border-none bg-transparent p-0 shadow-none"
-          name={name}
+}: ProfileViewNewAvatarProps) => {
+  const themeColor = useProfileViewNewThemeColor()
+
+  return (
+    <div
+      className={cn(
+        'relative size-45.5 shrink-0 overflow-hidden rounded-[18.889px] bg-ens-quartz-100 shadow-[0_4px_16px_rgba(0,0,0,0.12)]',
+        className,
+      )}
+    >
+      <ImageFallback.Root className="contents">
+        <ImageFallback.Image
+          alt={`${name} avatar`}
+          className="size-full object-cover"
+          src={avatarUrl}
         />
-        {avatarLoading ? (
-          <div className="absolute inset-0 animate-pulse rounded-[18.889px] bg-ens-quartz-100/70" />
-        ) : null}
-      </ImageFallback.Fallback>
-    </ImageFallback.Root>
-  </div>
-)
+        <ImageFallback.Fallback>
+          <PatternAvatar
+            className="size-full rounded-[18.889px] border-none bg-transparent p-0 shadow-none"
+            color={themeColor}
+            name={name}
+          />
+          {avatarLoading ? (
+            <div className="absolute inset-0 animate-pulse rounded-[18.889px] bg-ens-quartz-100/70" />
+          ) : null}
+        </ImageFallback.Fallback>
+      </ImageFallback.Root>
+    </div>
+  )
+}

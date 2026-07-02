@@ -3,11 +3,9 @@ import {
   type DomainsQuery,
   OrderDirection,
 } from '@ens-apps/indexer'
-import { primaryNameMachine } from '@ens-apps/transaction-manager'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useActorRef, useSelector } from '@xstate/react'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
@@ -26,6 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -40,11 +39,7 @@ import { getDomainsQuery } from '../service/queries/getDashboardDomains'
 import { resolveDomainLabel } from '../utils'
 import {
   getEthAddressFromRecords,
-  handlePrimaryNameCancel,
-  handleSetPrimaryName,
   hasMatchingEthAddress,
-  type PrimaryNameOptions,
-  type PrimaryNameParams,
 } from './ChoosePrimaryNameDialog.handlers'
 
 interface ChoosePrimaryNameDialogProps {
@@ -55,14 +50,6 @@ interface ChoosePrimaryNameDialogProps {
 type PrimaryNameDomain = DomainsQuery['domains'][number]
 type PrimaryNameQueryVariables = Parameters<typeof getDomainsQuery>[0]
 type SelectedNameRecords = Parameters<typeof getEthAddressFromRecords>[0]
-type PrimaryNameSubmittingState =
-  | 'submittingUpdate'
-  | 'waitingForUpdate'
-  | 'submittingReverse'
-  | 'waitingForReverse'
-interface PrimaryNameStateMatcher {
-  matches: (value: PrimaryNameSubmittingState) => boolean
-}
 
 const PrimaryNameSkeletonList = () => (
   <div className="flex flex-col gap-2">
@@ -194,16 +181,6 @@ const useUpdateEthAddressMutation = ({
   })
 }
 
-const isPrimaryNameSubmitting = (state: PrimaryNameStateMatcher) =>
-  (
-    [
-      'submittingUpdate',
-      'waitingForUpdate',
-      'submittingReverse',
-      'waitingForReverse',
-    ] as const
-  ).some((value) => state.matches(value))
-
 const shouldUpdateEthAddress = ({
   selectedName,
   isLoadingRecords,
@@ -246,14 +223,25 @@ export const ChoosePrimaryNameDialog = ({
   const queryClient = useQueryClient()
   const chainId = useChainId()
 
-  const primaryNameActor = useActorRef(primaryNameMachine, {
-    input: { chainId },
+  const {
+    submit: submitPrimaryName,
+    isSubmitting,
+    isError,
+    error: primaryNameError,
+  } = useSetPrimaryName({
+    onSuccess: () => {
+      toast.success(t`Primary name set successfully`)
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
+      })
+      setOpen(false)
+      onUpdated?.()
+    },
   })
 
-  const primaryNameState = useSelector(primaryNameActor, (state) => state)
-
-  const isSubmitting = isPrimaryNameSubmitting(primaryNameState)
-  const isError = primaryNameState.matches('error')
+  const primaryNameErrorMessage =
+    (isError && (primaryNameError?.message || t`Failed to set primary name`)) ||
+    undefined
 
   // Fetch current primary name from reverse resolver
   const { data: reverseName } = useQuery({
@@ -310,25 +298,6 @@ export const ChoosePrimaryNameDialog = ({
     }
   }, [reverseName, selectedName])
 
-  // Subscribe to actor state changes
-  useEffect(() => {
-    const subscription = primaryNameActor.subscribe((snapshot) => {
-      if (snapshot.matches('success')) {
-        toast.success(t`Primary name set successfully`)
-        queryClient.invalidateQueries({
-          queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
-        })
-        setOpen(false)
-        onUpdated?.()
-        setTimeout(() => {
-          handlePrimaryNameCancel(primaryNameActor)
-        }, 300)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [primaryNameActor, queryClient, onUpdated, t])
-
   const handleSelectName = (name: string) => {
     if (!isSubmitting) {
       setSelectedName(name)
@@ -349,20 +318,13 @@ export const ChoosePrimaryNameDialog = ({
       return
     }
 
-    const params: PrimaryNameParams = {
-      name: selectedName,
-      owner: account.ownerAddress as Address,
-    }
-
-    const options: PrimaryNameOptions = {
-      account,
-      primaryNameActor,
-      publicClient: publicClient as PublicClient,
-    }
-
-    const error = handleSetPrimaryName(params, options)
-    if (error) {
-      console.error(error)
+    try {
+      await submitPrimaryName({
+        name: selectedName,
+        owner: account.ownerAddress as Address,
+      })
+    } catch {
+      // Error surfaced via isError / primaryNameErrorMessage.
     }
   }
 
@@ -415,9 +377,10 @@ export const ChoosePrimaryNameDialog = ({
           </div>
 
           {/* Error Message */}
-          {isError && (
-            <div className="rounded-sm border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
-              <Trans>Failed to set primary name. Please try again.</Trans>
+          {primaryNameErrorMessage && (
+            <div className="flex items-start gap-2 rounded-sm border border-red-200 bg-red-50 p-3 text-red-600 text-sm">
+              <AlertCircle className="mt-0.5 size-4 shrink-0 text-red-600" />
+              <p>{primaryNameErrorMessage}</p>
             </div>
           )}
           {/* ETH Address Mismatch/Missing Info */}

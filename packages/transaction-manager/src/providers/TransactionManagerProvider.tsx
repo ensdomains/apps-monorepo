@@ -1,3 +1,4 @@
+import { logger } from '@ens-apps/utils/logger'
 import {
   createContext,
   type ReactNode,
@@ -30,9 +31,7 @@ const TransactionManagerContext =
  * Transaction Manager Provider
  *
  * React wrapper for the singleton TransactionManager.
- * Provides:
- * - React state subscriptions for UI components
- * - Auto-recovery of pending transactions
+ * Provides React state subscriptions for UI components.
  *
  * Note: startTransaction() should be called directly from the singleton,
  * passing publicClient in options.
@@ -53,36 +52,6 @@ export const TransactionManagerProvider = ({
     })
 
     return unsubscribe
-  }, [])
-
-  // Auto-recover pending transactions on mount
-  useEffect(() => {
-    getPendingTransactions()
-      .then((pending) => {
-        if (pending.length === 0) {
-          console.log('🔵 [PROVIDER] No pending transactions to recover')
-          return
-        }
-
-        console.log(
-          `🔄 [PROVIDER] Found ${pending.length} pending transactions to recover`,
-        )
-
-        // For now, just log them - we'll implement auto-recovery when we have clients
-        pending.forEach((persisted) => {
-          console.log('📦 [PROVIDER] Pending transaction:', {
-            id: persisted.id,
-            state: persisted.state,
-            hash: persisted.hash,
-          })
-        })
-      })
-      .catch((error) => {
-        console.error(
-          '❌ [PROVIDER] Failed to recover pending transactions:',
-          error,
-        )
-      })
   }, [])
 
   const contextValue: TransactionManagerContextValue = {
@@ -118,20 +87,6 @@ export function useTransactionManager(): TransactionManagerContextValue {
 }
 
 /**
- * @deprecated Use useTransactionManager instead
- */
-export function useTransactionActorManager(): TransactionManagerContextValue {
-  return useTransactionManager()
-}
-
-/**
- * @deprecated Use useTransactionManager instead
- */
-export function useTransactionRegistry(): TransactionManagerContextValue {
-  return useTransactionManager()
-}
-
-/**
  * Hook to get a specific transaction actor by ID
  */
 export function useTransaction(
@@ -163,7 +118,7 @@ export function useRecoveredTransactions(): PersistedTransaction[] {
         setRecovered(pending)
       })
       .catch((error) => {
-        console.error('❌ [HOOK] Failed to get recovered transactions:', error)
+        logger.error('Failed to get recovered transactions', error)
       })
   }, [])
 

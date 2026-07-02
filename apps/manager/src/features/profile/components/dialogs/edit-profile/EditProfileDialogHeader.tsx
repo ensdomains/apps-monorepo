@@ -31,11 +31,12 @@ export const EditProfileDialogHeader = ({
     enabled: !!avatarUrl && !avatarPreviewUrl,
   })
   const displayAvatarUrl = avatarPreviewUrl ?? resolvedAvatar.data ?? avatarUrl
+  const themeVars = getEditProfileDialogHeaderStyle(themeColor)
 
   return (
     <div
       className="flex shrink-0 items-center justify-between px-4 pt-6 pb-1 md:p-6"
-      style={getEditProfileDialogHeaderStyle(themeColor)}
+      style={themeVars}
     >
       <div className="flex min-w-0 items-center gap-1">
         <div className="size-9.75 shrink-0 overflow-hidden rounded-sm">
@@ -50,6 +51,7 @@ export const EditProfileDialogHeader = ({
             <ImageFallback.Fallback>
               <PatternAvatar
                 className="border-none p-0 shadow-none"
+                color={themeVars['--theme-color']}
                 name={name}
               />
             </ImageFallback.Fallback>
