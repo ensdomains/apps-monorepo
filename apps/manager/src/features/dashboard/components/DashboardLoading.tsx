@@ -1,13 +1,14 @@
-import { Trans } from '@lingui/react/macro'
-
 export const DashboardLoading = () => {
   return (
-    <div className="mx-auto max-w-md space-y-4">
-      <div className="flex items-center justify-center py-8">
-        <div className="text-gray-600">
-          <Trans>Loading dashboard...</Trans>
-        </div>
-      </div>
+    <div
+      aria-label="Loading dashboard"
+      className="flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 items-center justify-center"
+      role="status"
+    >
+      <div
+        className="size-5 animate-spin rounded-full border-2 border-ens-blue/20 border-t-ens-blue"
+        data-testid="dashboard-loading-spinner"
+      />
     </div>
   )
 }
