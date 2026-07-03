@@ -12,6 +12,7 @@ import { ParentName } from '@/features/profile/components/ParentName'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership')({
@@ -32,6 +33,14 @@ function RouteComponent() {
   const grace = useGraceStatus({
     name,
     protocolVersion: data?.protocolVersion,
+  })
+
+  // Only promise an extension in the grace banner when the name is actually
+  // renewable on-chain (shared source of truth with ExtendNameButton).
+  const { canExtend: graceCanExtend } = useCanExtend({
+    name,
+    protocolVersion: data?.protocolVersion ?? 'ENSv1',
+    enabled: grace.isInGrace,
   })
 
   if (error)
@@ -74,7 +83,7 @@ function RouteComponent() {
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
-          protocolVersion={data.protocolVersion}
+          canExtend={graceCanExtend}
         />
       )}
       <div className="flex flex-row justify-between">

@@ -1,10 +1,20 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
+import {
+  renewNameV1WriteParameters,
+  renewNameWriteParameters,
+} from '@ensdomains/ensjs/wallet/v2'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
-import { type Address, encodeFunctionData, erc20Abi } from 'viem'
+import {
+  type Account,
+  type Address,
+  encodeFunctionData,
+  erc20Abi,
+  type Transport,
+  type WalletClient,
+} from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
@@ -13,8 +23,16 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
-import { getLabel } from '@/utils/token/getLabel'
 import { getRenewerAddress } from '../utils/renewer'
+
+// Account-bearing wallet client typed against the ENS-extended Sepolia chain, so
+// its `contracts` satisfy the ensjs renew write-params (`renewName` /
+// `renewNameV1` resolve the renewer address from `client.chain`).
+type RenewerWalletClient = WalletClient<
+  Transport,
+  typeof sepoliaWithEns,
+  Account
+>
 
 export type SelectedName = {
   readonly name: string
@@ -85,15 +103,17 @@ type RenewParams = {
   readonly tokenAddress: Address
   readonly from: Address
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-  /** Renewer contract to call: ETHRegistrar (v2) or ETHRenewerV1 (v1). */
-  readonly renewer: Address
+  /** Whether the name is v2 — selects the ensjs renew action (registrar vs ETHRenewerV1). */
+  readonly isV2: boolean
+  /** Account-bearing client the ensjs renew write-params are built against. */
+  readonly walletClient: RenewerWalletClient
 }
 
 type BuildMultiTransactionsParams = {
   readonly multiSavedParams: MultiSavedRenewalParams
   readonly from: Address
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-  readonly getSigner: () => Promise<ReturnType<typeof createEOASigner>>
+  readonly getRuntime: () => Promise<RenewalRuntime>
   readonly handleDone: () => void
 }
 
@@ -101,6 +121,7 @@ type RenewalRuntime = {
   readonly from: Address
   readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
   readonly signer: ReturnType<typeof createEOASigner>
+  readonly walletClient: RenewerWalletClient
 }
 
 function buildApproveTransaction(
@@ -140,16 +161,22 @@ function buildRenewTransaction(
   params: RenewParams,
   signer: ReturnType<typeof createEOASigner>,
 ) {
-  const label = getLabel(params.name)
+  // v2 names renew on the ETHRegistrar; unmigrated v1 names on ETHRenewerV1.
+  // Both are ensjs write-param builders (label extraction, arg encoding, and
+  // renewer address all resolved by ensjs) — no hand-rolled ABI/address here.
+  const renewParams = {
+    name: params.name,
+    duration: params.duration,
+    paymentToken: params.tokenAddress,
+    referrer: REFERER_ADDRESS,
+  }
+  const writeParams = params.isV2
+    ? renewNameWriteParameters(params.walletClient, renewParams)
+    : renewNameV1WriteParameters(params.walletClient, renewParams)
   const renewData = encodeFunctionData({
-    abi: l2EthRegistrarRenewSnippet,
-    functionName: 'renew',
-    args: [
-      label,
-      BigInt(params.duration),
-      params.tokenAddress,
-      REFERER_ADDRESS,
-    ],
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
   })
 
   transactionManager.startTransaction(
@@ -158,7 +185,7 @@ function buildRenewTransaction(
       request: {
         type: 'eoa',
         from: params.from,
-        to: params.renewer,
+        to: writeParams.address,
         data: renewData,
         value: 0n,
         chainId: sepoliaWithEns.id,
@@ -177,7 +204,7 @@ function buildMultiTransactions({
   multiSavedParams,
   from,
   publicClient,
-  getSigner,
+  getRuntime,
   handleDone,
 }: BuildMultiTransactionsParams): Transaction[] {
   const { renewals, tokenAddress, tokenSymbol, tokenPrice, tokenAllowance } =
@@ -186,7 +213,7 @@ function buildMultiTransactions({
   if (renewals.length === 0) return []
 
   const makeRenewFn = (renewal: MultiRenewalEntry) => async () => {
-    const signer = await getSigner()
+    const { signer, walletClient } = await getRuntime()
     buildRenewTransaction(
       {
         name: renewal.selectedName.name,
@@ -194,7 +221,8 @@ function buildMultiTransactions({
         tokenAddress,
         from,
         publicClient,
-        renewer: getRenewerAddress(renewal.selectedName.isV2),
+        isV2: renewal.selectedName.isV2,
+        walletClient,
       },
       signer,
     )
@@ -221,7 +249,7 @@ function buildMultiTransactions({
     transactionName: `Approve ${tokenSymbol} for renewal`,
     estimatedGasCost: 0.0003,
     onStart: async () => {
-      const signer = await getSigner()
+      const { signer } = await getRuntime()
       buildApproveTransaction(
         {
           from,
@@ -269,13 +297,14 @@ export const useRenewalTransactions = ({
       from: connection.address,
       publicClient,
       signer: createEOASigner(walletClient),
+      walletClient: walletClient as unknown as RenewerWalletClient,
     }
   }
 
-  const getSigner = async () => {
+  const getRuntimeOrThrow = async (): Promise<RenewalRuntime> => {
     const runtime = await getRuntime()
     if (!runtime) throw new Error('No connected wallet')
-    return runtime.signer
+    return runtime
   }
 
   const handleDone = () => {
@@ -334,7 +363,8 @@ export const useRenewalTransactions = ({
         tokenAddress: savedParams.tokenAddress,
         from: runtime.from,
         publicClient: runtime.publicClient,
-        renewer: getRenewerAddress(savedParams.name.isV2),
+        isV2: savedParams.name.isV2,
+        walletClient: runtime.walletClient,
       },
       runtime.signer,
     )
@@ -382,7 +412,7 @@ export const useRenewalTransactions = ({
           multiSavedParams,
           from: connection.address,
           publicClient,
-          getSigner,
+          getRuntime: getRuntimeOrThrow,
           handleDone,
         })
 

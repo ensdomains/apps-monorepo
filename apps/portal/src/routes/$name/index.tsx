@@ -29,6 +29,7 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RegistrationSuccessBanner } from '@/features/register/components/RegistrationSuccessBanner'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
+import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
@@ -139,6 +140,14 @@ const Profile = ({
     enabled: isV1Name && !!connectedAddress,
   })
 
+  // Drives the grace banner's copy: only promise an extension when the name is
+  // actually renewable on-chain (shared source of truth with ExtendNameButton).
+  const { canExtend: graceCanExtend } = useCanExtend({
+    name,
+    protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+    enabled: grace.isInGrace,
+  })
+
   // Loading states
   if (ownerQuery.isLoading) {
     return <LoadingSpinner title="Loading owner..." />
@@ -239,7 +248,7 @@ const Profile = ({
         <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
           <GraceBanner
             graceEndDate={grace.graceEndDate}
-            protocolVersion="ENSv2"
+            canExtend={graceCanExtend}
           />
           <div className="flex flex-row justify-between items-center">
             <h1 className="font-serif text-4xl font-medium leading-none">
@@ -333,7 +342,7 @@ const Profile = ({
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
-          protocolVersion={resolvedProtocolVersion}
+          canExtend={graceCanExtend}
         />
       )}
 
