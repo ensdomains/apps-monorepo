@@ -58,7 +58,13 @@ export type L2ChainId = (typeof L2_CHAINS)[number]['id']
  * supported, a WC-connected user hitting an L2 reverse-name write fails fast in
  * `useEnsureL2Connection` ("No matching L2 connector") instead of double-pairing.
  */
-const connectors = [coinbaseWallet({ appName: 'ENS Explorer' })]
+const connectors = [
+  // EOA-only (see `wagmi.ts`): avoid the Coinbase Smart Wallet path.
+  coinbaseWallet({
+    appName: 'ENS Explorer',
+    preference: { options: 'eoaOnly' },
+  }),
+]
 
 export const l2WagmiConfig = createConfig({
   // Don't pull wagmi's connected-chain state into the global app state — this

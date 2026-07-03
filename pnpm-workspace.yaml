@@ -23,6 +23,12 @@ catalog:
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
   "@walletconnect/ethereum-provider": ~2.21.1
+  wagmi: ^3.0.2
+  "@wagmi/core": ^3.0.0
+  "@wagmi/connectors": ^7.1.1
+  # Optional peer dep of @wagmi/connectors (coinbaseWallet connector), same
+  # rationale as @walletconnect/ethereum-provider above.
+  "@coinbase/wallet-sdk": ^4.3.6
 
 catalogs:
   typescript6:

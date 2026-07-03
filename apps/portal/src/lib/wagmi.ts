@@ -45,7 +45,15 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
   connectors: [
-    coinbaseWallet({ appName: 'ENS Explorer' }),
+    // `eoaOnly` forces the Coinbase browser-extension EOA and disables the
+    // Smart Wallet flow. Smart Wallet connects a contract account on real
+    // Sepolia (different address, its own RPC), which the dev auto-funder never
+    // tops up and the EOA-based registration flow can't use — so it hangs with
+    // "insufficient funds". EOA mode makes Coinbase behave like MetaMask.
+    coinbaseWallet({
+      appName: 'ENS Explorer',
+      preference: { options: 'eoaOnly' },
+    }),
     walletConnect({ projectId: WALLETCONNECT_PROJECT_ID }),
   ],
   client: ({ chain }) =>
