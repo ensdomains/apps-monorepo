@@ -21,13 +21,6 @@
  * time safety that we can only target L2s through it.
  */
 
-import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import {
-  frameWallet,
-  injectedWallet,
-  metaMaskWallet,
-} from '@rainbow-me/rainbowkit/wallets'
 import { createClient, http } from 'viem'
 import {
   arbitrumSepolia,
@@ -49,10 +42,12 @@ export const L2_CHAINS = [
 export type L2ChainId = (typeof L2_CHAINS)[number]['id']
 
 /**
- * Fresh connector instances bound to this config. For injected wallets the
- * underlying EIP-1193 provider is shared with the global config's connectors,
- * so the user does not need to approve a second connection (re-`connect()` on
- * this config is silent).
+ * No connectors are listed explicitly. Injected wallets (MetaMask, the Coinbase
+ * extension, Rabby, Frame, …) are surfaced by EIP-6963 discovery
+ * (`multiInjectedProviderDiscovery: true`) with the same connector ids as the
+ * global config, and their underlying EIP-1193 provider is shared, so
+ * `useEnsureL2Connection` can silently re-`connect()` by id without a second
+ * approval.
  *
  * WalletConnect is intentionally omitted here, even though the global config
  * offers it: WC connections are per-config (a separate session per connector
@@ -61,16 +56,6 @@ export type L2ChainId = (typeof L2_CHAINS)[number]['id']
  * supported, a WC-connected user hitting an L2 reverse-name write fails fast in
  * `useEnsureL2Connection` ("No matching L2 connector") instead of double-pairing.
  */
-const connectors = connectorsForWallets(
-  [
-    {
-      groupName: 'Popular',
-      wallets: [injectedWallet, metaMaskWallet, frameWallet],
-    },
-  ],
-  { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Portal' },
-)
-
 export const l2WagmiConfig = createConfig({
   // Don't pull wagmi's connected-chain state into the global app state — this
   // config is purely a vehicle for per-hook overrides on the L2 setName path.
@@ -78,7 +63,6 @@ export const l2WagmiConfig = createConfig({
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: L2_CHAINS,
-  connectors,
   client: ({ chain }) =>
     createClient({
       chain,
