@@ -2,13 +2,6 @@ import { AssuredWorkloadIcon } from '@/assets/icons'
 
 type GraceBannerProps = {
   readonly graceEndDate: Date
-  /**
-   * Whether the name can actually be renewed right now (authoritative on-chain
-   * `isRenewable`). Only then do we surface the "extend before this date" call to
-   * action; otherwise the banner stays informational, since promising an
-   * extension the renewer would revert (e.g. a v1 name with no premigration
-   * reservation) is misleading.
-   */
   readonly canExtend: boolean
 }
 
