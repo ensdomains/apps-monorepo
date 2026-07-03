@@ -34,11 +34,6 @@ export function useAutoFundOnLowBalance() {
       abi: erc20Abi,
       functionName: 'balanceOf',
       args: address ? [address] : undefined,
-      // Pin to the app's chain so the read (and therefore the auto-fund
-      // trigger) works regardless of which chain the connected wallet reports.
-      // Coinbase can connect on a non-Sepolia default chain, which otherwise
-      // leaves this read unresolved and skips the top-up.
-      chainId: sepolia.id,
     })),
     query: { enabled: Boolean(address) },
   })
