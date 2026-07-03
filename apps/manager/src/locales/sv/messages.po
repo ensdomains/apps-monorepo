@@ -836,10 +836,6 @@ msgstr ""
 msgid "ENS names can be up to 255 characters"
 msgstr ""
 
-#: src/features/dashboard/components/FaqSection.tsx
-msgid "ENS Support Docs"
-msgstr "ENS Support Docs"
-
 #: src/features/migration/components/MigrationModal.tsx
 msgid "ENS v2 Names"
 msgstr ""
@@ -1173,10 +1169,6 @@ msgstr ""
 msgid "Load more"
 msgstr ""
 
-#: src/features/dashboard/components/DashboardLoading.tsx
-msgid "Loading dashboard..."
-msgstr "Laddar översikten..."
-
 #: src/features/register/components/Pricing/Pricing.tsx
 msgid "Loading prices..."
 msgstr ""
@@ -1304,6 +1296,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Need help?"
+msgstr ""
+
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx

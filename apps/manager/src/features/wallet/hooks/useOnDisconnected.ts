@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useHydrated } from '@tanstack/react-router'
+import { useEffect, useRef } from 'react'
 import { useConnection } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 
@@ -14,22 +15,38 @@ import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
  * that raced TanStack Router and blanked the page (`Outlet` throwing
  * `undefined`).
  *
- * It is still *gated* on the connection having settled — wagmi not
- * (re)connecting and the smart-account provider having finished its initial
- * restoration (`hasInitialized`) — so a session that is still being restored
- * on load is never bounced to the landing page. `status` alone drives the
- * single call, so a real disconnect fires `onDisconnect` exactly once.
+ * It is still *gated* on hydration, wagmi not (re)connecting, and the
+ * smart-account provider having finished its initial restoration
+ * (`hasInitialized`) — so a session that is still being restored on load is
+ * never bounced to the landing page. The hook also waits until it has observed
+ * an active connection/reconnection before firing, so the initial hard-load
+ * `disconnected` frame is not treated as a user disconnect.
  *
  * @param onDisconnect Callback to call when the wallet is disconnected.
  */
 export const useOnDisconnected = (onDisconnect: () => void) => {
+  const isHydrated = useHydrated()
   const { status, isConnecting, isReconnecting } = useConnection()
   const { hasInitialized } = useSmartAccountContext()
+  const hasSeenActiveConnectionRef = useRef(false)
 
   useEffect(() => {
-    if (isConnecting || isReconnecting || !hasInitialized) return
-    if (status === 'disconnected') {
+    if (status === 'connected' || isConnecting || isReconnecting) {
+      hasSeenActiveConnectionRef.current = true
+    }
+
+    if (!isHydrated || isConnecting || isReconnecting || !hasInitialized) {
+      return
+    }
+    if (status === 'disconnected' && hasSeenActiveConnectionRef.current) {
       onDisconnect()
     }
-  }, [status, isConnecting, isReconnecting, hasInitialized, onDisconnect])
+  }, [
+    status,
+    isHydrated,
+    isConnecting,
+    isReconnecting,
+    hasInitialized,
+    onDisconnect,
+  ])
 }
