@@ -1,24 +1,19 @@
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Suspense } from 'react'
 import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
-import { isWalletConnectedCookie } from '@/lib/connection-cookie'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,
-  beforeLoad: () => {
-    // Cookie based check for wallet connection which allows server side redirects and faster loading times
-    if (!isWalletConnectedCookie()) throw redirect({ to: '/' })
-  },
 })
 
 function RouteComponent() {
   const navigate = useNavigate()
   const { isLoading, hasInitialized, isConnected } = useSmartAccountContext()
 
-  // Fallback to event listener to watch for disconnects post load.
+  // Client-side only so external handoffs can hydrate wallet state first.
   useOnDisconnected(() => {
     navigate({ to: '/' })
   })
