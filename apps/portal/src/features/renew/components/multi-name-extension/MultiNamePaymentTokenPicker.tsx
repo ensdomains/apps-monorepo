@@ -1,4 +1,3 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
@@ -7,7 +6,7 @@ import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
-import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import {
@@ -16,13 +15,10 @@ import {
   USDC_DECIMALS,
 } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
-import { sepoliaWithEns } from '@/lib/wagmi'
 import type { MultiRenewalEntry } from '../../hooks/useRenewalTransactions'
+import { getRenewerAddress } from '../../utils/renewer'
 
-const ethRegistrar = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensEthRegistrar',
-})
+const renewer = getRenewerAddress(true)
 
 const Skeleton = () => (
   <div className="space-y-4">
@@ -70,7 +66,7 @@ export const MultiNamePaymentTokenPicker = ({
         address: token.address,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [address as Address, ethRegistrar],
+        args: [address as Address, renewer],
       })),
     }),
     enabled: hasAddress,
@@ -82,6 +78,7 @@ export const MultiNamePaymentTokenPicker = ({
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.USDC,
+        renewerAddress: renewer,
       }),
     ),
   })
@@ -92,6 +89,7 @@ export const MultiNamePaymentTokenPicker = ({
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.DAI,
+        renewerAddress: renewer,
       }),
     ),
   })
