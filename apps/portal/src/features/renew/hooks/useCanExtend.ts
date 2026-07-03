@@ -3,7 +3,8 @@ import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import type { ProtocolVersion } from '@/utils/types'
 import { isExtendable2LD } from '../utils/nameExtension'
-import { useIsRenewable } from './useIsRenewable'
+import { getRenewerAddress } from '../utils/renewer'
+import { getIsRenewableQueryOptions } from './useIsRenewable'
 import type { SelectedName } from './useRenewalTransactions'
 
 type UseCanExtendParameters = {
@@ -60,9 +61,11 @@ export const useCanExtend = ({
 
   const selectedName: SelectedName = { name, isV2, expiryDate }
 
-  const { data: v1Renewable } = useIsRenewable({
-    name,
-    isV2,
+  const { data: v1Renewable } = useQuery({
+    ...getIsRenewableQueryOptions({
+      renewerAddress: getRenewerAddress(isV2),
+      name,
+    }),
     enabled: enabled && !isV2,
   })
 
