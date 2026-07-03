@@ -8,6 +8,14 @@ export const WALLETCONNECT_ID = 'walletConnect'
 export const METAMASK_RDNS = 'io.metamask'
 export const METAMASK_DOWNLOAD_URL = 'https://metamask.io/download/'
 
+// Keep the wallet's current chain if the app supports it, else the app's first
+// chain — so wallets that default to mainnet still land on the right chain.
+export const resolveConnectChainId = (
+  walletChainId: number,
+  chains: readonly { readonly id: number }[],
+): number =>
+  chains.some((c) => c.id === walletChainId) ? walletChainId : chains[0].id
+
 export const isMetaMask = (connector: Connector) =>
   connector.id === METAMASK_RDNS || connector.name === 'MetaMask'
 

@@ -9,12 +9,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { wagmiConfig } from '@/lib/wagmi'
 import {
   isCoinbase,
   isConnectionCancelled,
   isMetaMask,
   METAMASK_DOWNLOAD_URL,
   normalizeConnectError,
+  resolveConnectChainId,
   WALLETCONNECT_ID,
 } from './connect.helpers'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
@@ -161,7 +163,11 @@ export const ConnectWalletDialog = ({
     }
 
     try {
-      await connectAsync({ connector })
+      // Connect on a supported chain so wallets that default to mainnet land on
+      // the right chain from the first connect.
+      const walletChainId = await connector.getChainId()
+      const chainId = resolveConnectChainId(walletChainId, wagmiConfig.chains)
+      await connectAsync({ connector, chainId })
       onOpenChange(false)
     } catch (e) {
       if (usesOwnModal) {

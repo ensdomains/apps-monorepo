@@ -5,6 +5,7 @@ import {
   isConnectionCancelled,
   isMetaMask,
   normalizeConnectError,
+  resolveConnectChainId,
 } from './connect.helpers'
 
 // Minimal stand-in for a wagmi Connector — only the fields the matchers read.
@@ -80,5 +81,17 @@ describe('normalizeConnectError', () => {
     expect(normalizeConnectError(new Error('RPC 500: rug'))).toBe(
       'Unable to connect wallet',
     )
+  })
+})
+
+describe('resolveConnectChainId', () => {
+  const chains = [{ id: 11155111 }] as const
+
+  it("keeps the wallet's chain when the app supports it", () => {
+    expect(resolveConnectChainId(11155111, chains)).toBe(11155111)
+  })
+
+  it('forces the first app chain when the wallet is elsewhere (e.g. mainnet)', () => {
+    expect(resolveConnectChainId(1, chains)).toBe(11155111)
   })
 })

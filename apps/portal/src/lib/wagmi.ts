@@ -1,6 +1,6 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { coinbaseWallet, walletConnect } from '@wagmi/connectors'
+import { walletConnect } from '@wagmi/connectors'
 import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
@@ -32,30 +32,15 @@ export const customSepolia = {
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
-// Injected wallets (MetaMask, Rabby, Frame, …) are surfaced automatically via
-// EIP-6963 (`multiInjectedProviderDiscovery: true`), so they don't need to be
-// listed here. We only configure the two connectors that aren't
-// injected-provider based: Coinbase Wallet (SDK: extension + mobile) and
-// WalletConnect (QR / mobile linking). The connect modal
-// (`ConnectWalletDialog`) curates MetaMask / Coinbase / WalletConnect and lists
-// any other discovered wallets beneath them.
+// Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
+// EIP-6963, so WalletConnect is the only explicit connector. We skip the
+// Coinbase SDK connector: its Smart Wallet is mainnet-only and breaks on Sepolia.
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
-  connectors: [
-    // `eoaOnly` forces the Coinbase browser-extension EOA and disables the
-    // Smart Wallet flow. Smart Wallet connects a contract account on real
-    // Sepolia (different address, its own RPC), which the dev auto-funder never
-    // tops up and the EOA-based registration flow can't use — so it hangs with
-    // "insufficient funds". EOA mode makes Coinbase behave like MetaMask.
-    coinbaseWallet({
-      appName: 'ENS Explorer',
-      preference: { options: 'eoaOnly' },
-    }),
-    walletConnect({ projectId: WALLETCONNECT_PROJECT_ID }),
-  ],
+  connectors: [walletConnect({ projectId: WALLETCONNECT_PROJECT_ID })],
   client: ({ chain }) =>
     createClient({
       chain,

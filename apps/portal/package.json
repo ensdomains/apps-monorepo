@@ -22,7 +22,6 @@
   "dependencies": {
     "@adraffy/ens-normalize": "^1.11.1",
     "@base-ui/react": "^1.1.0",
-    "@coinbase/wallet-sdk": "catalog:",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
     "@ens-apps/dev-tools": "workspace:*",

@@ -26,9 +26,6 @@ catalog:
   wagmi: ^3.0.2
   "@wagmi/core": ^3.0.0
   "@wagmi/connectors": ^7.1.1
-  # Optional peer dep of @wagmi/connectors (coinbaseWallet connector), same
-  # rationale as @walletconnect/ethereum-provider above.
-  "@coinbase/wallet-sdk": ^4.3.6
 
 catalogs:
   typescript6:
