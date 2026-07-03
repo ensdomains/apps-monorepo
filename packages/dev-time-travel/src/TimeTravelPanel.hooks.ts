@@ -1,6 +1,4 @@
-import {
-  getBlockTimestampMs,
-} from '@ens-apps/utils/time-travel/anvilTime'
+import { getBlockTimestampMs } from '@ens-apps/utils/time-travel/anvilTime'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -12,9 +10,9 @@ import {
   useState,
 } from 'react'
 import {
-  type Pos,
-  POSITION_STORAGE_KEY,
   clampPos,
+  POSITION_STORAGE_KEY,
+  type Pos,
   readStoredPos,
 } from './TimeTravelPanel.helpers'
 
