@@ -1,7 +1,11 @@
 import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
-import { format, formatDuration } from 'date-fns'
-import { secondsToDuration } from '@/features/register-v2/utils/time'
+import { format } from 'date-fns'
+import {
+  formatDurationSecondsForDisplay,
+  getDurationExpiryDateForDisplay,
+  getStartOfDay,
+} from '@/features/register-v2/utils/time'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 
 export const PricingSummaryCard = () => {
@@ -10,10 +14,14 @@ export const PricingSummaryCard = () => {
     uiActor,
     (state) =>
       [
-        formatDuration(secondsToDuration(state.context.duration), {
-          format: ['years', 'months', 'weeks', 'days'],
-        }),
-        new Date(Date.now() + state.context.duration * 1000),
+        formatDurationSecondsForDisplay(
+          state.context.duration,
+          getStartOfDay(),
+        ),
+        getDurationExpiryDateForDisplay(
+          state.context.duration,
+          getStartOfDay(),
+        ),
       ] as const,
     (a, b) => a[0] === b[0] && a[1].getTime() === b[1].getTime(),
   )

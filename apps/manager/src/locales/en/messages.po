@@ -63,11 +63,6 @@ msgstr "{count} names migrated"
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr "{duration, plural, one {# year} other {# years}}"
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
-msgid "{durationYears} years"
-msgstr "{durationYears} years"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/dashboard/components/NameRow.tsx
 msgid "{label} avatar"
@@ -333,7 +328,7 @@ msgstr "base price"
 msgid "Base price"
 msgstr "Base price"
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Best yearly price"
 msgstr "Best yearly price"
 
@@ -493,7 +488,7 @@ msgstr "Commit-reveal prevents front-running"
 msgid "Commitment hides your registration intent"
 msgstr "Commitment hides your registration intent"
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Committed"
 msgstr "Committed"
 
@@ -1164,10 +1159,6 @@ msgstr "Links"
 msgid "Load more"
 msgstr "Load more"
 
-#: src/features/dashboard/components/DashboardLoading.tsx
-msgid "Loading dashboard..."
-msgstr "Loading dashboard..."
-
 #: src/features/register/components/Pricing/Pricing.tsx
 msgid "Loading prices..."
 msgstr "Loading prices..."
@@ -1189,7 +1180,7 @@ msgstr "Loading your stablecoin balances..."
 msgid "Loading..."
 msgstr "Loading..."
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Long-term identity"
 msgstr "Long-term identity"
 
@@ -1197,7 +1188,7 @@ msgstr "Long-term identity"
 msgid "Main receiving address"
 msgstr "Main receiving address"
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
 msgstr "Make it yours"
 
@@ -2135,7 +2126,7 @@ msgstr "Stables accepted"
 msgid "Start typing to check if your perfect name is available"
 msgstr "Start typing to check if your perfect name is available"
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Starter"
 msgstr "Starter"
 
@@ -2331,7 +2322,7 @@ msgstr "Transfer your name to any wallet"
 msgid "Try Again"
 msgstr "Try Again"
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
 msgstr "Try it out"
 

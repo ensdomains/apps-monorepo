@@ -5,7 +5,11 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import {
+  formatDurationSecondsForDisplay,
+  getDurationExpiryDateForDisplay,
+  getStartOfDay,
+} from '@/features/register-v2/utils/time'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { useBaseRate } from '../../../data/queries/baseRates.query'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
@@ -40,7 +44,11 @@ export const RegistrationDetails = () => {
   const baseRate = useBaseRate(label)
 
   const expirationDate = useMemo(
-    () => new Date(Date.now() + Number(details?.duration ?? 0n) * 1000),
+    () =>
+      getDurationExpiryDateForDisplay(
+        Number(details?.duration ?? 0n),
+        getStartOfDay(),
+      ),
     [details?.duration],
   )
 
@@ -51,12 +59,10 @@ export const RegistrationDetails = () => {
   const { discountAmount, discountPercentage, basePriceWithoutDiscount } =
     calculateDiscount(details.basePriceNumber, baseRate, details.duration)
 
-  const durationYears = (
-    Number(details.duration) / SECONDS_IN_YEAR
-  ).toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3,
-  })
+  const durationLabel = formatDurationSecondsForDisplay(
+    Number(details.duration),
+    getStartOfDay(),
+  )
   const totalPrice =
     basePriceWithoutDiscount + details.premiumPriceNumber - discountAmount
 
@@ -78,9 +84,7 @@ export const RegistrationDetails = () => {
                 <p className="text-base text-ens-gray">
                   <Trans>Registration Period</Trans>
                 </p>
-                <p className="text-base text-ens-blue-dark">
-                  <Trans>{durationYears} years</Trans>
-                </p>
+                <p className="text-base text-ens-blue-dark">{durationLabel}</p>
               </div>
 
               <div className="flex items-center justify-between">

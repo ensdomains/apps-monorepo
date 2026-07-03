@@ -1,5 +1,11 @@
 import type { Duration } from 'date-fns'
 import {
+  addYears,
+  differenceInCalendarDays,
+  formatDuration as formatDateFnsDuration,
+  startOfDay,
+} from 'date-fns'
+import {
   secondsInDay,
   secondsInHour,
   secondsInMinute,
@@ -14,6 +20,76 @@ import {
 export const DAYS_IN_YEAR = 365.25
 
 export const SECONDS_IN_YEAR = DAYS_IN_YEAR * secondsInDay
+export const MAX_DURATION_YEARS = 100
+
+const clampDurationYears = (years: number) =>
+  Math.min(Math.max(1, Math.floor(years)), MAX_DURATION_YEARS)
+
+export const getStartOfDay = (referenceDate: Date = new Date()) =>
+  startOfDay(referenceDate)
+
+export const getDurationInSecondsFromYears = (
+  years: number,
+  referenceDate: Date = new Date(),
+) => {
+  const normalizedReferenceDate = getStartOfDay(referenceDate)
+  const normalizedYears = clampDurationYears(years)
+  const thresholdDuration = normalizedYears * SECONDS_IN_YEAR
+  const calendarDuration =
+    differenceInCalendarDays(
+      addYears(normalizedReferenceDate, normalizedYears),
+      normalizedReferenceDate,
+    ) * secondsInDay
+
+  return Math.max(thresholdDuration, calendarDuration)
+}
+
+export const getCanonicalDurationYears = (
+  duration: number,
+  referenceDate: Date = new Date(),
+) => {
+  const normalizedDuration = Math.round(duration)
+  const candidateYears = clampDurationYears(duration / SECONDS_IN_YEAR)
+
+  if (
+    getDurationInSecondsFromYears(candidateYears, referenceDate) !==
+    normalizedDuration
+  ) {
+    return null
+  }
+
+  return candidateYears
+}
+
+export const formatDurationSecondsForDisplay = (
+  duration: number,
+  referenceDate: Date = new Date(),
+) => {
+  const canonicalYears = getCanonicalDurationYears(duration, referenceDate)
+
+  if (canonicalYears) {
+    return canonicalYears === 1
+      ? '1 year'
+      : `${canonicalYears.toString()} years`
+  }
+
+  return formatDateFnsDuration(secondsToDuration(duration), {
+    format: ['years', 'months', 'weeks', 'days'],
+  })
+}
+
+export const getDurationExpiryDateForDisplay = (
+  duration: number,
+  referenceDate: Date = new Date(),
+) => {
+  const canonicalYears = getCanonicalDurationYears(duration, referenceDate)
+
+  if (canonicalYears) {
+    return addYears(getStartOfDay(referenceDate), canonicalYears)
+  }
+
+  return new Date(referenceDate.getTime() + duration * 1000)
+}
 
 export const durationToSeconds = ({
   years,
