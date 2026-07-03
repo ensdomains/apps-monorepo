@@ -4,6 +4,7 @@ import { walletConnect } from '@wagmi/connectors'
 import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { getResolvedThemeMode } from '@/hooks/useTheme'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -40,7 +41,14 @@ export const wagmiConfig = createConfig({
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
-  connectors: [walletConnect({ projectId: WALLETCONNECT_PROJECT_ID })],
+  connectors: [
+    walletConnect({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      // Match the app's light/dark preference on load. The modal theme is fixed
+      // at connector creation, so a mid-session toggle won't restyle it.
+      qrModalOptions: { themeMode: getResolvedThemeMode() },
+    }),
+  ],
   client: ({ chain }) =>
     createClient({
       chain,

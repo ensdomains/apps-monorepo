@@ -8,11 +8,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
   isCoinbase,
-  isConnectionCancelled,
   isMetaMask,
   METAMASK_DOWNLOAD_URL,
   normalizeConnectError,
@@ -20,6 +20,17 @@ import {
   WALLETCONNECT_ID,
 } from './connect.helpers'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
+
+// The WalletConnect (reown) modal's theme is fixed at connector creation, so a
+// mid-session theme toggle wouldn't apply. Reach the modal instance on the
+// provider (untyped: `modal?: any`) and set the current app theme before it
+// opens. No-ops if the modal isn't ready.
+const syncWalletConnectTheme = async (connector: Connector) => {
+  const provider = (await connector.getProvider()) as {
+    modal?: { setThemeMode?: (mode: 'light' | 'dark') => void }
+  }
+  provider.modal?.setThemeMode?.(getResolvedThemeMode())
+}
 
 type WalletRowProps = {
   readonly icon: ReactNode
@@ -167,18 +178,11 @@ export const ConnectWalletDialog = ({
       // the right chain from the first connect.
       const walletChainId = await connector.getChainId()
       const chainId = resolveConnectChainId(walletChainId, wagmiConfig.chains)
+      if (usesOwnModal) await syncWalletConnectTheme(connector)
       await connectAsync({ connector, chainId })
       onOpenChange(false)
     } catch (e) {
-      if (usesOwnModal) {
-        // Reopen the wallet list; show an error only for a genuine failure, not
-        // a user cancel.
-        onOpenChange(true)
-        if (!isConnectionCancelled(e)) {
-          setError(normalizeConnectError(e))
-        }
-        return
-      }
+      if (usesOwnModal) return
 
       setError(normalizeConnectError(e))
     } finally {
