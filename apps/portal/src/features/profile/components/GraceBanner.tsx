@@ -1,27 +1,26 @@
 import { AssuredWorkloadIcon } from '@/assets/icons'
-import type { ProtocolVersion } from '@/utils/types'
 
 type GraceBannerProps = {
   readonly graceEndDate: Date
-  readonly protocolVersion: ProtocolVersion
+  /**
+   * Whether the name can actually be renewed right now (authoritative on-chain
+   * `isRenewable`). Only then do we surface the "extend before this date" call to
+   * action; otherwise the banner stays informational, since promising an
+   * extension the renewer would revert (e.g. a v1 name with no premigration
+   * reservation) is misleading.
+   */
+  readonly canExtend: boolean
 }
 
-export const GraceBanner = ({
-  graceEndDate,
-  protocolVersion,
-}: GraceBannerProps) => {
+export const GraceBanner = ({ graceEndDate, canExtend }: GraceBannerProps) => {
   const formattedDate = graceEndDate.toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'long',
   })
 
-  // V1 names can still be renewed during the grace window — surface the call to
-  // action. V2 contract reverts on renew() once expired, so the banner is
-  // informational only.
-  const description =
-    protocolVersion === 'ENSv1'
-      ? `The grace period for this name ends on ${formattedDate}. If it isn't extended before this date, it will become available for registration.`
-      : `The grace period for this name ends on ${formattedDate}. After this date, it will become available for registration.`
+  const description = canExtend
+    ? `The grace period for this name ends on ${formattedDate}. If it isn't extended before this date, it will become available for registration.`
+    : `The grace period for this name ends on ${formattedDate}. After this date, it will become available for registration.`
 
   return (
     <div className="flex items-start gap-3 p-6 self-stretch rounded-sm bg-message-danger-fill">

@@ -1,4 +1,4 @@
-import { l2EthRegistrarIsRenewableSnippet } from '@ensdomains/ensjs/contracts'
+import { isRenewable } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { usePublicClient } from 'wagmi'
 import { getLabel } from '@/utils/token/getLabel'
@@ -34,11 +34,9 @@ export const useIsRenewable = ({
         return false
       }
       try {
-        return await client.readContract({
-          address: getRenewerAddress(isV2),
-          abi: l2EthRegistrarIsRenewableSnippet,
-          functionName: 'isRenewable',
-          args: [label],
+        return await isRenewable(client, {
+          renewerAddress: getRenewerAddress(isV2),
+          label,
         })
       } catch {
         // A revert here (e.g. name unknown to the renewer) means "not renewable".

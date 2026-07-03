@@ -1,14 +1,10 @@
 import { transactionManager } from '@ens-apps/transaction-manager'
-import { useQuery } from '@tanstack/react-query'
 import { FastForward } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
-import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
-import { useIsRenewable } from '@/features/renew/hooks/useIsRenewable'
+import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
-import { isExtendable2LD } from '@/features/renew/utils/nameExtension'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
   isTransactionInFlight,
@@ -34,36 +30,9 @@ export const ExtendNameButton = ({
   protocolVersion,
 }: ExtendNameButtonProps) => {
   const [open, setOpen] = useState(false)
-  const isV2 = protocolVersion === 'ENSv2'
 
-  const v1ExpiryQuery = useQuery({
-    ...getV1ExpiryQueryOptions({ name }),
-    enabled: protocolVersion === 'ENSv1',
-  })
-  const v2DataQuery = useQuery({
-    ...getV2RegistrationDataQueryOptions({ name }),
-    enabled: isV2,
-  })
-
-  const expirySeconds = isV2
-    ? (v2DataQuery.data?.expiry ?? null)
-    : v1ExpiryQuery.data?.expiry
-      ? Number(v1ExpiryQuery.data.expiry)
-      : null
-  const expiryDate =
-    expirySeconds !== null ? new Date(expirySeconds * 1000) : undefined
-
-  const selectedName = { name, isV2, expiryDate }
-
-  // v1 names renew via ETHRenewerV1, which only renews RESERVED (premigrated) or
-  // in-grace names. Gate on its on-chain `isRenewable` so we don't offer Extend
-  // (and then fail to load the price) for active/not-yet-migrated v1 names. v2
-  // keeps the cheaper client-side `isExtendable2LD` gate.
-  const { data: v1Renewable } = useIsRenewable({
-    name,
-    isV2,
-    enabled: !isV2,
-  })
+  // Single source of truth for renewability, shared with the grace banner.
+  const { canExtend, selectedName } = useCanExtend({ name, protocolVersion })
 
   const { transactions, startFlow, clearIncompatibleRenewalState } =
     useRenewalTransactions({
@@ -75,9 +44,9 @@ export const ExtendNameButton = ({
   const activeTxState = useActiveTransactionState()
   const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
 
-  if (!isExtendable2LD(selectedName)) return null
-  // For v1, wait for and require on-chain renewability (hides while loading).
-  if (!isV2 && !v1Renewable) return null
+  // Hides for non-renewable names (incl. v1 names with no premigration
+  // reservation) and while renewability is still loading.
+  if (!canExtend) return null
 
   return (
     <>
