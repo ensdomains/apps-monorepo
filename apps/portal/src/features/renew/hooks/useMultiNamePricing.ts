@@ -4,7 +4,7 @@ import {
   getBaseRateForName,
   getBaseRatesQueryOptions,
 } from '@/features/register/hooks/useBaseRate'
-import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import {
   getDurationFromPickerDate,
   getDurationInSecondsFromYears,
@@ -19,6 +19,7 @@ import {
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
 import { getExtensionTargetDate } from '../utils/extensionDurationPicker'
+import { getRenewerAddress } from '../utils/renewer'
 import type { SelectedName } from './useRenewalTransactions'
 
 export type { NamePricingDisplay }
@@ -120,6 +121,7 @@ export function useMultiNamePricing(
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.USDC,
+        renewerAddress: getRenewerAddress(true),
       }),
     ),
   })

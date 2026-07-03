@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useBaseRate } from '@/features/register/hooks/useBaseRate'
-import {
-  getRenewalPriceQueryOptions,
-  type RegistrationPriceResult,
-} from '@/features/register/hooks/useRegistrationPrice'
+import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
+import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
 import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
 import {
