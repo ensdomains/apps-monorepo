@@ -2,7 +2,9 @@ import type { Duration } from 'date-fns'
 import {
   addYears,
   differenceInCalendarDays,
+  differenceInCalendarYears,
   formatDuration as formatDateFnsDuration,
+  isSameDay,
   startOfDay,
 } from 'date-fns'
 import {
@@ -61,11 +63,38 @@ export const getCanonicalDurationYears = (
   return candidateYears
 }
 
+export const getCalendarYearDurationYears = (
+  duration: number,
+  referenceDate: Date = new Date(),
+) => {
+  const normalizedReferenceDate = getStartOfDay(referenceDate)
+  const expiryDate = new Date(referenceDate.getTime() + duration * 1000)
+  const normalizedExpiryDate = getStartOfDay(expiryDate)
+  const calendarYears = differenceInCalendarYears(
+    normalizedExpiryDate,
+    normalizedReferenceDate,
+  )
+
+  if (calendarYears < 1) {
+    return null
+  }
+
+  const expectedExpiryDate = addYears(normalizedReferenceDate, calendarYears)
+
+  if (!isSameDay(normalizedExpiryDate, expectedExpiryDate)) {
+    return null
+  }
+
+  return calendarYears
+}
+
 export const formatDurationSecondsForDisplay = (
   duration: number,
   referenceDate: Date = new Date(),
 ) => {
-  const canonicalYears = getCanonicalDurationYears(duration, referenceDate)
+  const canonicalYears =
+    getCanonicalDurationYears(duration, referenceDate) ??
+    getCalendarYearDurationYears(duration, referenceDate)
 
   if (canonicalYears) {
     return canonicalYears === 1

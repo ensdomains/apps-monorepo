@@ -10,6 +10,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
+import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
 import { cn } from '@/lib/utils'
 
 export const DurationCustomRow = ({
@@ -33,8 +34,9 @@ export const DurationCustomRow = ({
     return value
   })
   const referenceDate = referenceDateProp ?? defaultReferenceDate
-  const expirationDate = new Date(
-    referenceDate.getTime() + selectedDuration * 1000,
+  const expirationDate = getDurationExpiryDateForDisplay(
+    selectedDuration,
+    referenceDate,
   )
 
   const minSelectableDate = addSeconds(

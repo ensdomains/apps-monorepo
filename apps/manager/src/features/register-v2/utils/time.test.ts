@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatDurationSecondsForDisplay,
+  getCalendarYearDurationYears,
   getCanonicalDurationYears,
   getDurationExpiryDateForDisplay,
   getDurationInSecondsFromYears,
@@ -50,6 +51,25 @@ describe('register-v2 time utils', () => {
       const duration = getDurationInSecondsFromYears(2, referenceDate) - 43_200
 
       expect(getCanonicalDurationYears(duration, referenceDate)).toBeNull()
+    })
+
+    it('still recognizes a manual selection on the same calendar anniversary as whole years for labels', () => {
+      const referenceDate = new Date('2026-07-29T18:00:00.000Z')
+      const manualDuration = Math.round(
+        (new Date('2027-07-29T00:00:00.000Z').getTime() -
+          referenceDate.getTime()) /
+          1000,
+      )
+
+      expect(
+        getCanonicalDurationYears(manualDuration, referenceDate),
+      ).toBeNull()
+      expect(getCalendarYearDurationYears(manualDuration, referenceDate)).toBe(
+        1,
+      )
+      expect(
+        formatDurationSecondsForDisplay(manualDuration, referenceDate),
+      ).toBe('1 year')
     })
 
     it('keeps preset expiry display on the same calendar date', () => {
