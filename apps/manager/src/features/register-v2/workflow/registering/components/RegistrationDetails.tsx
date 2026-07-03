@@ -6,13 +6,13 @@ import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import {
-  formatDurationSecondsForDisplay,
   getDurationExpiryDateForDisplay,
   getStartOfDay,
 } from '@/features/register-v2/utils/time'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { useBaseRate } from '../../../data/queries/baseRates.query'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
+import { DurationLabel } from '../../pricing/components/DurationLabel'
 
 const useDetails = RegisterV2Context.createSelector(
   (state) => state.context.confirmedData,
@@ -59,10 +59,6 @@ export const RegistrationDetails = () => {
   const { discountAmount, discountPercentage, basePriceWithoutDiscount } =
     calculateDiscount(details.basePriceNumber, baseRate, details.duration)
 
-  const durationLabel = formatDurationSecondsForDisplay(
-    Number(details.duration),
-    getStartOfDay(),
-  )
   const totalPrice =
     basePriceWithoutDiscount + details.premiumPriceNumber - discountAmount
 
@@ -84,7 +80,12 @@ export const RegistrationDetails = () => {
                 <p className="text-base text-ens-gray">
                   <Trans>Registration Period</Trans>
                 </p>
-                <p className="text-base text-ens-blue-dark">{durationLabel}</p>
+                <p className="text-base text-ens-blue-dark">
+                  <DurationLabel
+                    duration={Number(details.duration)}
+                    referenceDate={getStartOfDay()}
+                  />
+                </p>
               </div>
 
               <div className="flex items-center justify-between">

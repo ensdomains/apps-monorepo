@@ -5,18 +5,18 @@ import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time
 type DurationPresetStyle = 'citrine' | 'peridot' | 'garnet'
 
 export type DurationPresetOption = {
-  years: number
-  title: MessageDescriptor
-  subtitle: MessageDescriptor
-  kind: 'default' | 'mostPopular'
-  color: DurationPresetStyle
+  readonly years: number
+  readonly title: MessageDescriptor
+  readonly subtitle: MessageDescriptor
+  readonly kind: 'default' | 'mostPopular'
+  readonly color: DurationPresetStyle
 }
 
 export type DurationPresetData = DurationPresetOption & {
-  duration: number
+  readonly duration: number
 }
 
-export const PRESET_YEAR_OPTIONS: DurationPresetOption[] = [
+export const PRESET_YEAR_OPTIONS: readonly DurationPresetOption[] = [
   {
     years: 1,
     title: msg`Starter`,

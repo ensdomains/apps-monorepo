@@ -1,5 +1,5 @@
 import { useLingui } from '@lingui/react'
-import { Trans } from '@lingui/react/macro'
+import { Plural, Trans } from '@lingui/react/macro'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
@@ -26,7 +26,6 @@ export const DurationPresetRow = ({
   const { _ } = useLingui()
 
   const yearlyPrice = price ? price / data.years : undefined
-  const durationLabel = data.years === 1 ? '1 year' : `${data.years} years`
 
   return (
     <button
@@ -49,7 +48,7 @@ export const DurationPresetRow = ({
 
       <div className="flex items-center gap-6">
         <span className="font-normal text-base text-ens-quartz-900 leading-none tracking-tighter md:text-2xl">
-          {durationLabel}
+          <Plural one="# year" other="# years" value={data.years} />
         </span>
 
         <div

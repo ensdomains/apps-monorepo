@@ -2,10 +2,8 @@ import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/react'
 import { format } from 'date-fns'
 import { useMemo } from 'react'
-import {
-  formatDurationSecondsForDisplay,
-  getDurationExpiryDateForDisplay,
-} from '@/features/register-v2/utils/time'
+import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
+import { DurationLabel } from '@/features/register-v2/workflow/pricing/components/DurationLabel'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 
 export const PricingSummaryCard = () => {
@@ -25,7 +23,10 @@ export const PricingSummaryCard = () => {
       <div>
         <Trans>Renewing for</Trans>{' '}
         <span className="font-normal text-[#024A70]">
-          {formatDurationSecondsForDisplay(duration, currentExpirationDate)}
+          <DurationLabel
+            duration={duration}
+            referenceDate={currentExpirationDate}
+          />
         </span>
       </div>
       <div>

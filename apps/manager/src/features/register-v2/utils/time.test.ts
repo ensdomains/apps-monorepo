@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  formatDurationSecondsForDisplay,
   getCalendarYearDurationYears,
   getCanonicalDurationYears,
+  getDurationDisplayParts,
   getDurationExpiryDateForDisplay,
   getDurationInSecondsFromYears,
   SECONDS_IN_YEAR,
@@ -41,9 +41,12 @@ describe('register-v2 time utils', () => {
       const referenceDate = new Date('2026-01-01T18:30:00.000Z')
       const duration = getDurationInSecondsFromYears(3, referenceDate)
 
-      expect(formatDurationSecondsForDisplay(duration, referenceDate)).toBe(
-        '3 years',
-      )
+      expect(getDurationDisplayParts(duration, referenceDate)).toEqual({
+        years: 3,
+        months: 0,
+        weeks: 0,
+        days: 0,
+      })
     })
 
     it('does not treat a manual duration just below the threshold as a preset', () => {
@@ -67,9 +70,12 @@ describe('register-v2 time utils', () => {
       expect(getCalendarYearDurationYears(manualDuration, referenceDate)).toBe(
         1,
       )
-      expect(
-        formatDurationSecondsForDisplay(manualDuration, referenceDate),
-      ).toBe('1 year')
+      expect(getDurationDisplayParts(manualDuration, referenceDate)).toEqual({
+        years: 1,
+        months: 0,
+        weeks: 0,
+        days: 0,
+      })
     })
 
     it('keeps preset expiry display on the same calendar date', () => {

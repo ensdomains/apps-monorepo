@@ -3,7 +3,6 @@ import {
   addYears,
   differenceInCalendarDays,
   differenceInCalendarYears,
-  formatDuration as formatDateFnsDuration,
   isSameDay,
   startOfDay,
 } from 'date-fns'
@@ -88,7 +87,14 @@ export const getCalendarYearDurationYears = (
   return calendarYears
 }
 
-export const formatDurationSecondsForDisplay = (
+export type DurationDisplayParts = {
+  readonly years: number
+  readonly months: number
+  readonly weeks: number
+  readonly days: number
+}
+
+export const getDurationDisplayParts = (
   duration: number,
   referenceDate: Date = new Date(),
 ) => {
@@ -97,14 +103,22 @@ export const formatDurationSecondsForDisplay = (
     getCalendarYearDurationYears(duration, referenceDate)
 
   if (canonicalYears) {
-    return canonicalYears === 1
-      ? '1 year'
-      : `${canonicalYears.toString()} years`
+    return {
+      years: canonicalYears,
+      months: 0,
+      weeks: 0,
+      days: 0,
+    } satisfies DurationDisplayParts
   }
 
-  return formatDateFnsDuration(secondsToDuration(duration), {
-    format: ['years', 'months', 'weeks', 'days'],
-  })
+  const parsedDuration = secondsToDuration(duration)
+
+  return {
+    years: parsedDuration.years ?? 0,
+    months: parsedDuration.months ?? 0,
+    weeks: parsedDuration.weeks ?? 0,
+    days: parsedDuration.days ?? 0,
+  } satisfies DurationDisplayParts
 }
 
 export const getDurationExpiryDateForDisplay = (
