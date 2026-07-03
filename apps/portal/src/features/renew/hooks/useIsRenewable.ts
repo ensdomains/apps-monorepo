@@ -1,47 +1,53 @@
-import { isRenewable } from '@ensdomains/ensjs/public/v2'
-import { useQuery } from '@tanstack/react-query'
-import { usePublicClient } from 'wagmi'
+import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
+import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { isRenewable as ensjs_isRenewable } from '@ensdomains/ensjs/public/v2'
+import { fromPromise, ok } from 'neverthrow'
+import type { Address } from 'viem'
+import { safeGetClient } from '@/lib/wagmi/helpers'
 import { getLabel } from '@/utils/token/getLabel'
-import { getRenewerAddress } from '../utils/renewer'
+
+export type GetIsRenewableParameters = {
+  /** Renewer contract to query — v2 `ETHRegistrar` or v1 `ETHRenewerV1`. */
+  readonly renewerAddress: Address
+  /** Full 2LD .eth name; the bare label is derived for the contract call. */
+  readonly name: string
+}
+
+class IsRenewableError extends TaggedError('IsRenewableError')<{
+  cause: unknown
+}> {}
 
 /**
- * Whether the renewer contract will actually renew this name right now, via its
- * on-chain `isRenewable(label)`. For unmigrated v1 names this is `ETHRenewerV1`,
- * which only renews RESERVED (premigrated) or in-grace names — so an active v1
- * name returns `false` and must not be offered an Extend action (calling
- * `getRenewPrice`/`renew` on it reverts `NameNotRenewable`).
+ * Whether the renewer will renew this name right now, via its on-chain
+ * `isRenewable`. For unmigrated v1 names the renewer is `ETHRenewerV1`, which only
+ * renews RESERVED (premigrated) or in-grace names, so a name with no reservation
+ * returns `false`. Any read/normalization failure surfaces as the query error;
+ * callers treat that (and `false`) as "not renewable" and hide the Extend flow.
  */
-export const useIsRenewable = ({
+const getIsRenewable = ResultFn(async function* ({
+  renewerAddress,
   name,
-  isV2,
-  enabled = true,
-}: {
-  name: string
-  isV2: boolean
-  enabled?: boolean
-}) => {
-  const client = usePublicClient()
+}: GetIsRenewableParameters) {
+  const client = yield* safeGetClient()
+  const label = yield* fromSync(
+    () => getLabel(name),
+    (cause) => new IsRenewableError({ cause }),
+  )
+  const renewable = yield* await fromPromise(
+    ensjs_isRenewable(client, { renewerAddress, label }),
+    (cause) => new IsRenewableError({ cause }),
+  )
+  return ok(renewable)
+})
 
-  return useQuery({
-    queryKey: ['is-renewable', name, isV2],
-    enabled: enabled && !!client && !!name,
-    queryFn: async (): Promise<boolean> => {
-      if (!client) return false
-      let label: string
-      try {
-        label = getLabel(name)
-      } catch {
-        return false
-      }
-      try {
-        return await isRenewable(client, {
-          renewerAddress: getRenewerAddress(isV2),
-          label,
-        })
-      } catch {
-        // A revert here (e.g. name unknown to the renewer) means "not renewable".
-        return false
-      }
-    },
+const getIsRenewableQueryKey = createQueryKey<
+  'is-renewable',
+  GetIsRenewableParameters
+>('is-renewable')
+
+export const getIsRenewableQueryOptions = (params: GetIsRenewableParameters) =>
+  resultQueryOptions({
+    queryKey: getIsRenewableQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getIsRenewable(params),
   })
-}
