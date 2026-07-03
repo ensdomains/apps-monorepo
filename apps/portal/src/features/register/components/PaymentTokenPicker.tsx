@@ -37,27 +37,25 @@ type PaymentTokenPickerProps = {
   readonly name: string
   readonly duration: number
   readonly isRegistering?: boolean
-  readonly isRenewal?: boolean
-  /**
-   * Renewer contract (renewal only): the ERC-20 spender for allowance/approval
-   * and the address renew pricing is quoted against. Defaults to the v2
-   * `ETHRegistrar`; pass `ETHRenewerV1` for unmigrated v1 names.
-   */
-  readonly renewer?: Address
   readonly onSelectionChange: (token: TokenWithPriceAndBalance | null) => void
-}
+} & (
+  | {
+      readonly isRenewal: true
+      readonly renewer: Address
+    }
+  | {
+      readonly isRenewal?: false
+      readonly renewer?: never
+    }
+)
 
-export const PaymentTokenPicker = ({
-  name,
-  duration,
-  isRegistering = false,
-  isRenewal = false,
-  renewer = ethRegistrar,
-  onSelectionChange,
-}: PaymentTokenPickerProps) => {
+export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
+  const { name, duration, isRegistering = false, onSelectionChange } = props
   const config = useConfig()
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
+
+  const spender = props.isRenewal ? props.renewer : ethRegistrar
 
   const balancesQuery = useQuery({
     ...readContractsQueryOptions(config, {
@@ -78,14 +76,14 @@ export const PaymentTokenPicker = ({
         address: token.address,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [address as Address, renewer],
+        args: [address as Address, spender],
       })),
     }),
     enabled: Boolean(address),
     staleTime: 0,
   })
 
-  const getPriceQueryOptions = isRenewal
+  const getPriceQueryOptions = props.isRenewal
     ? getRenewalPriceQueryOptions
     : getRegistrationPriceQueryOptions
   const priceQueries = useQueries({
@@ -95,7 +93,7 @@ export const PaymentTokenPicker = ({
         duration,
         token: token.address,
         // Ignored for registration pricing; scopes renew pricing to the renewer.
-        renewerAddress: isRenewal ? renewer : undefined,
+        renewerAddress: props.isRenewal ? props.renewer : undefined,
       }),
     ),
   })

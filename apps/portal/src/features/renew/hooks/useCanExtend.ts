@@ -10,15 +10,10 @@ import type { SelectedName } from './useRenewalTransactions'
 type UseCanExtendParameters = {
   name: string
   protocolVersion: ProtocolVersion
-  /** Skip the queries when the answer isn't needed yet (e.g. name not in grace). */
   enabled?: boolean
 }
 
 type UseCanExtendReturnType = {
-  /**
-   * Whether the name can actually be renewed right now. Single source of truth
-   * for both the Extend button and the grace-banner copy so they never disagree.
-   */
   canExtend: boolean
   selectedName: SelectedName
   expiryDate: Date | undefined
