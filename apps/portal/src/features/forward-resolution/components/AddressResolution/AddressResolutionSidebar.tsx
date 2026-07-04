@@ -70,14 +70,14 @@ const Banner = ({
     <div className="flex items-center gap-3">
       {isPrimary ? (
         <>
-          <CheckCircle2 className="w-6 h-6 shrink-0" />
+          <CheckCircle2 className="size-6 shrink-0" />
           <span className="font-medium">
             This is the primary name on {label}
           </span>
         </>
       ) : (
         <>
-          <XCircle className="w-6 h-6 shrink-0" />
+          <XCircle className="size-6 shrink-0" />
           <span className="text-sm">
             The set address does not resolve back to this name on {label}
           </span>
@@ -149,6 +149,7 @@ const AddressField = ({
             className="font-mono"
           />
           <Button
+            type="button"
             onClick={onSave}
             disabled={saveDisabled}
             className="h-9 shrink-0"
@@ -182,9 +183,9 @@ const PrimaryNameRow = ({
         className={isPrimary ? 'text-xs' : 'text-xs text-muted-foreground'}
       >
         {isPrimary ? (
-          <CheckCircle2 className="w-4 h-4" />
+          <CheckCircle2 className="size-4" />
         ) : (
-          <XCircle className="w-4 h-4" />
+          <XCircle className="size-4" />
         )}
         <span>{isPrimary ? 'True' : 'False'}</span>
       </Badge>
@@ -278,6 +279,7 @@ const ResolutionDetails = ({
           action={
             !isPrimary && canSetPrimaryName ? (
               <Button
+                type="button"
                 variant="link"
                 size="sm"
                 className="h-auto p-0 text-primary font-medium shrink-0"
