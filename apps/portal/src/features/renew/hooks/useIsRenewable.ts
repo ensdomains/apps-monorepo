@@ -1,7 +1,11 @@
 import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { isRenewable as ensjs_isRenewable } from '@ensdomains/ensjs/public/v2'
+import type { UnsupportedNameTypeError } from '@ensdomains/ensjs'
+import {
+  isRenewable as ensjs_isRenewable,
+  type IsRenewableErrorType,
+} from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
@@ -15,7 +19,7 @@ export type GetIsRenewableParameters = {
 }
 
 class IsRenewableError extends TaggedError('IsRenewableError')<{
-  cause: unknown
+  readonly cause: IsRenewableErrorType | UnsupportedNameTypeError
 }> {}
 
 /**
@@ -32,11 +36,12 @@ const getIsRenewable = ResultFn(async function* ({
   const client = yield* safeGetClient()
   const label = yield* fromSync(
     () => getLabel(name),
-    (cause) => new IsRenewableError({ cause }),
+    (cause) =>
+      new IsRenewableError({ cause: cause as UnsupportedNameTypeError }),
   )
   const renewable = yield* await fromPromise(
     ensjs_isRenewable(client, { renewerAddress, label }),
-    (cause) => new IsRenewableError({ cause }),
+    (cause) => new IsRenewableError({ cause: cause as IsRenewableErrorType }),
   )
   return ok(renewable)
 })

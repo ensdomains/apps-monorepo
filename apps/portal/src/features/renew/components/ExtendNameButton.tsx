@@ -31,7 +31,6 @@ export const ExtendNameButton = ({
 }: ExtendNameButtonProps) => {
   const [open, setOpen] = useState(false)
 
-  // Single source of truth for renewability, shared with the grace banner.
   const { canExtend, selectedName } = useCanExtend({ name, protocolVersion })
 
   const { transactions, startFlow, clearIncompatibleRenewalState } =
@@ -44,8 +43,6 @@ export const ExtendNameButton = ({
   const activeTxState = useActiveTransactionState()
   const { isOpen: isTransactionModalOpen, openModal } = useTransactionModal()
 
-  // Hides for non-renewable names (incl. v1 names with no premigration
-  // reservation) and while renewability is still loading.
   if (!canExtend) return null
 
   return (
