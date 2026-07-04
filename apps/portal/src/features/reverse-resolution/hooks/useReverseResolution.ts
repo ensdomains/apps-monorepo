@@ -16,14 +16,21 @@ import { ok } from 'neverthrow'
 import type { Address, Client, Transport } from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
+import { toCoinType } from '@/lib/utils'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
+import {
+  DEFAULT_REVERSE_COIN_TYPE,
+  MAINNET_COIN_TYPE,
+  type ReverseResolutionNetwork,
+} from '../config'
 
 type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
 
 export type ReverseResolutionResult = {
-  reverseRegistrarChainId: number
+  coinType: number
+  reverseRegistrarChainId?: ReverseRegistrarChainId
   label: string
   icon: string
   name: string | null
@@ -34,11 +41,7 @@ export type ReverseResolutionResult = {
   defaultName: string | null
 }
 
-type Network = {
-  reverseRegistrarChainId: number
-  label: string
-  icon: string
-}
+type Network = ReverseResolutionNetwork
 
 const REVERSE_RESOLUTION_NETWORK = 'sepolia' as const
 
@@ -54,18 +57,28 @@ function createEmptyResult(network: Network): ReverseResolutionResult {
   }
 }
 
+/**
+ * Read an L1 reverse record for a coin type via `getName`:
+ * - `60` → `addr.reverse` (mainnet ETH), with a registry fallback for records
+ *   whose forward resolution is broken/unset.
+ * - `0x80000000` → `default.reverse` (ENSIP-19 cross-chain fallback).
+ */
 async function getL1ReverseRecord(
   client: EnsV1Client,
   address: Address,
   network: Network,
+  coinType: number,
 ): Promise<ReverseResolutionResult> {
   let nameResult = await getName(client, {
     address,
-    coinType: 60,
+    coinType,
     allowMismatch: true,
   })
 
-  if (!nameResult) {
+  // The registry fallback only applies to `addr.reverse` (coin 60): it reads
+  // the ENSv1 ReverseRegistrar's resolver directly when `getName` can't verify
+  // a forward match. `default.reverse` has no such registry shortcut.
+  if (!nameResult && coinType === MAINNET_COIN_TYPE) {
     const direct = await getReverseRecordFromRegistry(client, { address })
 
     if (direct) {
@@ -95,8 +108,11 @@ async function getL2ReverseRecord(
   address: Address,
   network: Network,
 ): Promise<ReverseResolutionResult> {
+  const reverseRegistrarChainId =
+    network.reverseRegistrarChainId as ReverseRegistrarChainId
+
   const registrarAddress = getRegistrarAddress(
-    network.reverseRegistrarChainId as ReverseRegistrarChainId,
+    reverseRegistrarChainId,
     REVERSE_RESOLUTION_NETWORK,
   )
 
@@ -105,7 +121,7 @@ async function getL2ReverseRecord(
   }
 
   const chainId = getChainIdForReverseRegistrarChainId(
-    network.reverseRegistrarChainId as ReverseRegistrarChainId,
+    reverseRegistrarChainId,
     REVERSE_RESOLUTION_NETWORK,
   )
 
@@ -138,12 +154,12 @@ async function getL2ReverseRecord(
   let forwardMatch = true
   try {
     // Per ENSIP-19, an L2 reverse record's forward verification reads the
-    // chain-specific address record on the name's resolver, not the default
-    // ETH (coin 60) record. The `reverseRegistrarChainId` is exactly the
-    // ENSIP-11 coin type the L2 reverse registrar is keyed on.
+    // chain-specific address record on the name's resolver. `getAddressRecord`
+    // expects the ENSIP-11 coin type (`0x80000000 | chainId`), NOT the raw
+    // chain id — passing the raw id throws "unsupported coin type".
     const addrRecord = await getAddressRecord(l1Client, {
       name,
-      coin: network.reverseRegistrarChainId,
+      coin: toCoinType(reverseRegistrarChainId),
     })
     forwardMatch =
       !!addrRecord?.value &&
@@ -168,12 +184,20 @@ async function getReverseRecordForNetwork(
   address: Address,
   network: Network,
 ): Promise<ReverseResolutionResult> {
-  const isL1 =
-    network.reverseRegistrarChainId === 60 ||
-    network.reverseRegistrarChainId === 1
+  // Route by coin type: Default (`default.reverse`) and Mainnet (`addr.reverse`)
+  // are both L1 `getName` reads on different coin types; everything else is an
+  // L2 `nameForAddr` read.
+  if (network.coinType === DEFAULT_REVERSE_COIN_TYPE) {
+    return getL1ReverseRecord(
+      l1Client,
+      address,
+      network,
+      DEFAULT_REVERSE_COIN_TYPE,
+    )
+  }
 
-  if (isL1) {
-    return getL1ReverseRecord(l1Client, address, network)
+  if (network.coinType === MAINNET_COIN_TYPE) {
+    return getL1ReverseRecord(l1Client, address, network, MAINNET_COIN_TYPE)
   }
 
   return getL2ReverseRecord(l1Client, address, network)
@@ -205,8 +229,17 @@ const getReverseResolution = ResultFn(async function* ({
     },
   )
 
-  const defaultName =
-    resolvedResults.find((r) => r.reverseRegistrarChainId === 60)?.name ?? null
+  // The name L2s inherit is the `default.reverse` record (coin type
+  // `0x80000000`), NOT the coin-60 `addr.reverse` record. coin-60 ⊇
+  // default.reverse, so a set coin-60 name does not mean the default is set —
+  // deriving `defaultName` from coin 60 over-reports the L1 ETH primary name
+  // onto every L2 that has no reverse record of its own.
+  const defaultResult = await getName(l1Client, {
+    address,
+    coinType: DEFAULT_REVERSE_COIN_TYPE,
+    allowMismatch: true,
+  })
+  const defaultName = defaultResult?.name ?? null
 
   return ok(resolvedResults.map((r) => ({ ...r, defaultName })))
 })
