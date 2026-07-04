@@ -1,3 +1,5 @@
+import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
+import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
@@ -33,7 +35,12 @@ import { fromCoinType } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ProtocolVersion } from '@/utils/types'
+import { MAINNET_COIN_TYPE } from './networks'
 import type { AddressResolutionRow } from './types'
+
+// The sidebar's history covers the name's resolution records only — address
+// record writes and (v1) reverse-name changes — not transfers/registrations.
+const ADDRESS_HISTORY_EVENT_TYPES = ['AddressChanged', 'NameChanged'] as const
 
 const coinNetworkName = (coinType: number, fallback: string) => {
   try {
@@ -304,7 +311,11 @@ const ResolutionDetails = ({
         />
         {protocolVersion && (
           <div className="border-t pt-6">
-            <RecentActivity name={name} protocolVersion={protocolVersion} />
+            <RecentActivity
+              name={name}
+              protocolVersion={protocolVersion}
+              eventTypes={ADDRESS_HISTORY_EVENT_TYPES}
+            />
           </div>
         )}
       </div>
@@ -347,12 +358,15 @@ const useAddressRecordEditor = (
     switchToRequiredNetwork,
   } = useSaveRecords()
 
-  // "Set primary name" writes the ENSIP-19 `default.reverse` record (coin type
-  // 0x80000000) via the standalone ENSv1 `DefaultReverseRegistrar.setName` —
-  // the caller's own reverse, which is primary on EVERY chain unless a
-  // per-chain L2 record overrides it (strictly better than the mainnet-only
-  // coin-60 `addr.reverse`). `setName(string)` sets `msg.sender`'s record, so
-  // it's offered only when the connected wallet *is* this address, on any row.
+  // "Set primary name" sets the reverse record for the selected row's
+  // namespace via `setName(string)` (which sets `msg.sender`'s own record):
+  //   - Default row (0x80000000) → ENSv1 `DefaultReverseRegistrar` (default.reverse)
+  //   - Mainnet row (coin 60)    → ENSv1 `ReverseRegistrar` (addr.reverse)
+  // The default is the cross-chain fallback (covers L2s), but a pre-existing
+  // coin-60 `addr.reverse` shadows it — so Mainnet needs its own write to
+  // overwrite that record rather than being silently shadowed.
+  // Offered only when the connected wallet *is* this address (setName is
+  // msg.sender-scoped).
   const canSetPrimaryName =
     !!connectedAddress &&
     !!data?.address &&
@@ -418,11 +432,28 @@ const useAddressRecordEditor = (
   }
 
   const startSetPrimaryName = () => {
+    // Mainnet (coin 60) writes `addr.reverse` via the ENSv1 `ReverseRegistrar`;
+    // every other row writes `default.reverse` (the cross-chain fallback that
+    // also covers L2s). Both are `setName(string)` on Sepolia L1.
+    if (data?.coinType === MAINNET_COIN_TYPE) {
+      const registrarAddress = getRegistrarAddress(60, 'sepolia')
+      if (!registrarAddress) return
+      setReverseResolution({
+        name,
+        request: {
+          address: registrarAddress,
+          abi: reverseRegistrarSetNameSnippet,
+          functionName: 'setName',
+          args: [name],
+        },
+      })
+      return
+    }
     setReverseResolution({
       name,
       request: {
         address: DEFAULT_REVERSE_REGISTRAR_ADDRESS,
-        abi: reverseRegistrarSetNameSnippet,
+        abi: defaultReverseRegistrarSetNameSnippet,
         functionName: 'setName',
         args: [name],
       },

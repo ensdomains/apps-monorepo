@@ -16,6 +16,8 @@ type GetV2NameHistoryParameters = {
   name: string
   first?: number
   orderDirection?: 'asc' | 'desc'
+  /** Restrict the history to these event types (e.g. `AddressChanged`). */
+  eventTypes?: readonly string[]
 }
 
 export type V2NameHistoryEvent = {
@@ -34,7 +36,16 @@ const getV2NameHistory = ResultFn(async function* ({
   name,
   first,
   orderDirection,
+  eventTypes,
 }: GetV2NameHistoryParameters) {
+  // The indexer silently ignores `type_in` when the list arrives as a GraphQL
+  // variable (nested `EventFilter` variable coercion bug), so the filter has
+  // to be inlined into the document. `eventTypes` values are app constants,
+  // never user input.
+  const typeFilter = eventTypes?.length
+    ? `, where: { type_in: [${eventTypes.map((t) => JSON.stringify(t)).join(', ')}] }`
+    : ''
+
   const { domains } = yield* fromPromise(
     graphqlIndexerClient.request<{
       domains: V2DomainWithEvents[]
@@ -42,7 +53,7 @@ const getV2NameHistory = ResultFn(async function* ({
       gql`
         query getV2NameHistory($name: String!, $first: Int, $orderDirection: OrderDirection) {
           domains(where: { name: $name }) {
-            events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
+            events(first: $first, orderBy: timestamp, orderDirection: $orderDirection${typeFilter}) {
               name
               type
               transactionHash

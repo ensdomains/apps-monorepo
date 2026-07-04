@@ -112,13 +112,7 @@ function RouteComponent() {
       networks: FORWARD_RESOLUTION_NETWORKS.flatMap((network) => {
         const address = forwardAddress(network, addressByCoinType)
         return address
-          ? [
-              {
-                coinType: network.coinType,
-                address: address as Address,
-                l2ChainId: network.l2ChainId,
-              },
-            ]
+          ? [{ coinType: network.coinType, address: address as Address }]
           : []
       }),
     }),
