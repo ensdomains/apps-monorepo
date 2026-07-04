@@ -36,7 +36,7 @@ vi.mock('#core/database/index.js', async (importOriginal) => {
 import namesApp from './index'
 
 const env = {
-  JWT_SECRET: 'test-secret',
+  SEARCHER_HASH_SALT: 'test-salt',
 } as CloudflareBindings
 
 beforeEach(() => {
@@ -70,6 +70,16 @@ describe('GET /names/:name/stats', () => {
       favorites: 0,
       unique_searches_last_30d: 0,
     })
+  })
+
+  it('rejects names longer than the max length', async () => {
+    const res = await namesApp.request(
+      `/names/${'a'.repeat(256)}.eth/stats`,
+      {},
+      env,
+    )
+
+    expect(res.status).toBe(400)
   })
 })
 
@@ -109,5 +119,32 @@ describe('POST /names/:name/searches', () => {
     expect(insertedValues[0]?.searcher_hash).not.toBe(
       insertedValues[2]?.searcher_hash,
     )
+  })
+
+  it('uses only the leftmost x-forwarded-for IP so proxy chains do not fragment searchers', async () => {
+    await request({
+      'x-forwarded-for': '203.0.113.7, 10.0.0.1',
+      'user-agent': 'ua',
+    })
+    await request({
+      'x-forwarded-for': '203.0.113.7, 172.16.0.9, 10.0.0.2',
+      'user-agent': 'ua',
+    })
+
+    expect(insertedValues).toHaveLength(2)
+    expect(insertedValues[0]?.searcher_hash).toBe(
+      insertedValues[1]?.searcher_hash,
+    )
+  })
+
+  it('rejects names longer than the max length', async () => {
+    const res = await namesApp.request(
+      `/names/${'a'.repeat(256)}.eth/searches`,
+      { method: 'POST' },
+      env,
+    )
+
+    expect(res.status).toBe(400)
+    expect(insertedValues).toHaveLength(0)
   })
 })

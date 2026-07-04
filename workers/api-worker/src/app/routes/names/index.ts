@@ -6,10 +6,11 @@ import { logger } from '#utils/logger.js'
 
 const SEARCH_STATS_WINDOW_DAYS = 30
 
-/** UTC date (YYYY-MM-DD) marking the start of the search-stats window. */
+const MAX_NAME_LENGTH = 255
+
 function searchWindowStart(): string {
   const d = new Date()
-  d.setUTCDate(d.getUTCDate() - SEARCH_STATS_WINDOW_DAYS)
+  d.setUTCDate(d.getUTCDate() - (SEARCH_STATS_WINDOW_DAYS - 1))
   return d.toISOString().slice(0, 10)
 }
 
@@ -28,6 +29,10 @@ export default createApp()
   // No auth: only anonymous aggregate counts are exposed.
   .get('/:name/stats', injectDb, async (c) => {
     const { name } = c.req.param()
+
+    if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
+      return c.json({ error: 'Invalid name' }, 400)
+    }
 
     const [[favoriteCount], [searchCount]] = await Promise.all([
       c.var.db
@@ -57,14 +62,18 @@ export default createApp()
   .post('/:name/searches', injectDb, async (c) => {
     const { name } = c.req.param()
 
+    if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
+      return c.json({ error: 'Invalid name' }, 400)
+    }
+
     const ip =
       c.req.header('cf-connecting-ip') ??
-      c.req.header('x-forwarded-for') ??
+      c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
       'unknown'
     const userAgent = c.req.header('user-agent') ?? ''
     const searcher_hash = await hashSearcher(
       `${ip}:${userAgent}`,
-      c.env.JWT_SECRET,
+      c.env.SEARCHER_HASH_SALT,
     )
 
     logger.debug('Recording name search', { name })
