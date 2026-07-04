@@ -35,8 +35,6 @@ function RouteComponent() {
     protocolVersion: data?.protocolVersion,
   })
 
-  // Only promise an extension in the grace banner when the name is actually
-  // renewable on-chain (shared source of truth with ExtendNameButton).
   const { canExtend: graceCanExtend } = useCanExtend({
     name,
     protocolVersion: data?.protocolVersion ?? 'ENSv1',
