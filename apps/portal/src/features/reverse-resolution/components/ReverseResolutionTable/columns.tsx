@@ -2,7 +2,15 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, SquareUser, XCircle } from 'lucide-react'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
+import { DEFAULT_REVERSE_COIN_TYPE, MAINNET_COIN_TYPE } from '../../config'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
+
+/**
+ * The `default.reverse` name is inherited only by L2 rows — mainnet
+ * (`addr.reverse`) and the Default row itself are their own records.
+ */
+const canInheritDefault = (coinType: number) =>
+  coinType !== DEFAULT_REVERSE_COIN_TYPE && coinType !== MAINNET_COIN_TYPE
 
 export const columns: ColumnDef<ReverseResolutionResult>[] = [
   {
@@ -18,7 +26,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     cell: ({ row }) => {
       const label = row.original.label
       const icon = row.original.icon
-      const isDefault = row.original.reverseRegistrarChainId === 60
+      const isDefault = row.original.coinType === DEFAULT_REVERSE_COIN_TYPE
 
       return (
         <div className="flex flex-row items-center gap-2">
@@ -41,10 +49,9 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     cell: ({ row }) => {
       const name = row.original.name
       const defaultName = row.original.defaultName
-      const isDefaultCoin = row.original.reverseRegistrarChainId === 60
 
-      // If no name but has defaultName and is not the default coin itself
-      if (!name && defaultName && !isDefaultCoin) {
+      // No own record, but an L2 row inherits the `default.reverse` name.
+      if (!name && defaultName && canInheritDefault(row.original.coinType)) {
         return (
           <div className="flex flex-row items-center gap-2">
             <span>{defaultName}</span>
@@ -85,9 +92,8 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
       const name = row.original.name
       const forwardMatch = row.original.forwardMatch
       const defaultName = row.original.defaultName
-      const isDefaultCoin = row.original.reverseRegistrarChainId === 60
 
-      if (!name && defaultName && !isDefaultCoin) {
+      if (!name && defaultName && canInheritDefault(row.original.coinType)) {
         return (
           <div className="flex flex-row items-center gap-2">
             <Badge variant="outline" className="text-xs">
