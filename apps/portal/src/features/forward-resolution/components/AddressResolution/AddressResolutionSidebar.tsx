@@ -198,7 +198,7 @@ const PrimaryNameRow = ({
           ) : (
             <span className="text-muted-foreground">null</span>
           )}
-          <ArrowLeftRight className="w-4 h-4" />
+          <ArrowLeftRight className="size-4" />
           {icon && <img src={icon} alt={label} className="w-5 h-5" />}
           <CopyableRecord
             value={address}
