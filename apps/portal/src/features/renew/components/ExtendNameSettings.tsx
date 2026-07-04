@@ -42,9 +42,6 @@ export const ExtendNameSettings = ({
         expiryDate={selectedName.expiryDate}
         spanType={spanType}
         setSpanType={setSpanType}
-        // Per-year discount preset chips price off the shared rent-price oracle
-        // (base rate by length + duration discount) — renewer-independent, so the
-        // same discounts apply to v1 (ETHRenewerV1) and v2 renewals alike.
         name={selectedName.name}
       />
       <ExtendNameCheckoutSummary
