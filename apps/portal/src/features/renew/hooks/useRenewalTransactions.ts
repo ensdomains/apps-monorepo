@@ -1,19 +1,15 @@
-import { transactionManager } from '@ens-apps/transaction-manager'
+import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import {
-  renewNameV1WriteParameters,
-  renewNameWriteParameters,
-} from '@ensdomains/ensjs/wallet/v2'
+import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
+import { match, P } from 'ts-pattern'
 import {
-  type Account,
   type Address,
   encodeFunctionData,
   erc20Abi,
-  type Transport,
-  type WalletClient,
+  type PublicClient,
 } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
@@ -23,21 +19,18 @@ import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import { getLabel } from '@/utils/token/getLabel'
 import { getRenewerAddress } from '../utils/renewer'
-
-// Account-bearing wallet client typed against the ENS-extended Sepolia chain, so
-// its `contracts` satisfy the ensjs renew write-params (`renewName` /
-// `renewNameV1` resolve the renewer address from `client.chain`).
-type RenewerWalletClient = WalletClient<
-  Transport,
-  typeof sepoliaWithEns,
-  Account
->
 
 export type SelectedName = {
   readonly name: string
   readonly isV2: boolean
   readonly expiryDate?: Date | null
+}
+
+export type MultiRenewalEntry = {
+  readonly selectedName: SelectedName
+  readonly duration: number
 }
 
 export type RenewalFlowType = 'single' | 'multi'
@@ -47,27 +40,30 @@ export const RENEWAL_TX_IDS = {
   renew: (name: string) => `renewal-renew-${name}`,
 } as const
 
-type SavedRenewalParams = {
-  readonly name: SelectedName
-  readonly duration: number
+// The resolved payment for a flow: token + prices + the human symbol we derive
+// once at start time (from the pre-resolution `Start*Config` the caller passes).
+type TokenPayment = {
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
   readonly tokenAllowance: bigint
   readonly tokenSymbol: 'USDC' | 'DAI'
 }
 
-export type MultiRenewalEntry = {
+// One flow is active at a time — either a single name or a batch. Modelling it as
+// a discriminated union (rather than two nullable slots) makes "which flow" a
+// stored fact, so illegal "both set" states are unrepresentable.
+type SingleFlow = TokenPayment & {
+  readonly kind: 'single'
   readonly selectedName: SelectedName
   readonly duration: number
 }
 
-type MultiSavedRenewalParams = {
+type MultiFlow = TokenPayment & {
+  readonly kind: 'multi'
   readonly renewals: readonly MultiRenewalEntry[]
-  readonly tokenAddress: Address
-  readonly tokenPrice: bigint
-  readonly tokenAllowance: bigint
-  readonly tokenSymbol: 'USDC' | 'DAI'
 }
+
+type RenewalFlow = SingleFlow | MultiFlow
 
 export type StartFlowConfig = {
   readonly duration: number
@@ -87,12 +83,18 @@ type UseRenewalTransactionsOptions = {
   readonly onComplete?: (flowType: RenewalFlowType) => void
 }
 
+type RenewalRuntime = {
+  readonly from: Address
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+}
+
 type ApproveParams = {
   readonly from: Address
   readonly tokenAddress: Address
   readonly tokenPrice: bigint
-  readonly tokenSymbol: string | undefined
-  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  readonly tokenSymbol: string
+  readonly publicClient: PublicClient
   /** ERC-20 spender = the renewer contract (ETHRegistrar or ETHRenewerV1). */
   readonly renewer: Address
 }
@@ -102,32 +104,20 @@ type RenewParams = {
   readonly duration: number
   readonly tokenAddress: Address
   readonly from: Address
-  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-  /** Whether the name is v2 — selects the ensjs renew action (registrar vs ETHRenewerV1). */
+  readonly publicClient: PublicClient
+  /** Selects the renewer address — v2 ETHRegistrar vs v1 ETHRenewerV1. */
   readonly isV2: boolean
-  /** Account-bearing client the ensjs renew write-params are built against. */
-  readonly walletClient: RenewerWalletClient
 }
 
 type BuildMultiTransactionsParams = {
-  readonly multiSavedParams: MultiSavedRenewalParams
+  readonly multiFlow: MultiFlow
   readonly from: Address
-  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-  readonly getRuntime: () => Promise<RenewalRuntime>
+  readonly publicClient: PublicClient
+  readonly getSigner: () => Promise<Signer>
   readonly handleDone: () => void
 }
 
-type RenewalRuntime = {
-  readonly from: Address
-  readonly publicClient: NonNullable<ReturnType<typeof usePublicClient>>
-  readonly signer: ReturnType<typeof createEOASigner>
-  readonly walletClient: RenewerWalletClient
-}
-
-function buildApproveTransaction(
-  params: ApproveParams,
-  signer: ReturnType<typeof createEOASigner>,
-) {
+function buildApproveTransaction(params: ApproveParams, signer: Signer) {
   const approveData = encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
@@ -157,26 +147,19 @@ function buildApproveTransaction(
   )
 }
 
-function buildRenewTransaction(
-  params: RenewParams,
-  signer: ReturnType<typeof createEOASigner>,
-) {
-  // v2 names renew on the ETHRegistrar; unmigrated v1 names on ETHRenewerV1.
-  // Both are ensjs write-param builders (label extraction, arg encoding, and
-  // renewer address all resolved by ensjs) — no hand-rolled ABI/address here.
-  const renewParams = {
-    name: params.name,
-    duration: params.duration,
-    paymentToken: params.tokenAddress,
-    referrer: REFERER_ADDRESS,
-  }
-  const writeParams = params.isV2
-    ? renewNameWriteParameters(params.walletClient, renewParams)
-    : renewNameV1WriteParameters(params.walletClient, renewParams)
+function buildRenewTransaction(params: RenewParams, signer: Signer) {
+  // The v2 ETHRegistrar and the v1 ETHRenewerV1 share the identical
+  // `renew(label, duration, paymentToken, referrer)` selector, so one ensjs
+  // snippet encodes both; only the target address differs (getRenewerAddress).
   const renewData = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
+    abi: l2EthRegistrarRenewSnippet,
+    functionName: 'renew',
+    args: [
+      getLabel(params.name),
+      BigInt(params.duration),
+      params.tokenAddress,
+      REFERER_ADDRESS,
+    ],
   })
 
   transactionManager.startTransaction(
@@ -185,7 +168,7 @@ function buildRenewTransaction(
       request: {
         type: 'eoa',
         from: params.from,
-        to: writeParams.address,
+        to: getRenewerAddress(params.isV2),
         data: renewData,
         value: 0n,
         chainId: sepoliaWithEns.id,
@@ -201,19 +184,19 @@ function buildRenewTransaction(
 }
 
 function buildMultiTransactions({
-  multiSavedParams,
+  multiFlow,
   from,
   publicClient,
-  getRuntime,
+  getSigner,
   handleDone,
 }: BuildMultiTransactionsParams): Transaction[] {
   const { renewals, tokenAddress, tokenSymbol, tokenPrice, tokenAllowance } =
-    multiSavedParams
+    multiFlow
 
   if (renewals.length === 0) return []
 
   const makeRenewFn = (renewal: MultiRenewalEntry) => async () => {
-    const { signer, walletClient } = await getRuntime()
+    const signer = await getSigner()
     buildRenewTransaction(
       {
         name: renewal.selectedName.name,
@@ -222,7 +205,6 @@ function buildMultiTransactions({
         from,
         publicClient,
         isV2: renewal.selectedName.isV2,
-        walletClient,
       },
       signer,
     )
@@ -249,7 +231,7 @@ function buildMultiTransactions({
     transactionName: `Approve ${tokenSymbol} for renewal`,
     estimatedGasCost: 0.0003,
     onStart: async () => {
-      const { signer } = await getRuntime()
+      const signer = await getSigner()
       buildApproveTransaction(
         {
           from,
@@ -278,11 +260,7 @@ export const useRenewalTransactions = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const { closeModal, clearTransaction } = useTransactionModal()
-  const [savedParams, setSavedParams] = useState<SavedRenewalParams | null>(
-    null,
-  )
-  const [multiSavedParams, setMultiSavedParams] =
-    useState<MultiSavedRenewalParams | null>(null)
+  const [flow, setFlow] = useState<RenewalFlow | null>(null)
 
   const getRuntime = async (): Promise<RenewalRuntime | null> => {
     if (!connection.address || !publicClient) return null
@@ -297,23 +275,22 @@ export const useRenewalTransactions = ({
       from: connection.address,
       publicClient,
       signer: createEOASigner(walletClient),
-      walletClient: walletClient as RenewerWalletClient,
     }
   }
 
-  const getRuntimeOrThrow = async (): Promise<RenewalRuntime> => {
+  const getSigner = async (): Promise<Signer> => {
     const runtime = await getRuntime()
     if (!runtime) throw new Error('No connected wallet')
-    return runtime
+    return runtime.signer
   }
 
   const handleDone = () => {
-    const flowType: RenewalFlowType = savedParams ? 'single' : 'multi'
-    const renewedName = savedParams?.name.name
+    const flowType: RenewalFlowType = flow?.kind ?? 'single'
+    const renewedName =
+      flow?.kind === 'single' ? flow.selectedName.name : undefined
     closeModal()
     clearTransaction()
-    setSavedParams(null)
-    setMultiSavedParams(null)
+    setFlow(null)
     // Renewing pushes the name's expiry forward. Invalidate the expiry queries
     // so the grace banner clears and the new expiry shows on return. For v1
     // names this also re-qualifies the name for v1→v2 migration; the migration
@@ -332,7 +309,7 @@ export const useRenewalTransactions = ({
   }
 
   const handleApproveStart = async () => {
-    if (!savedParams) return
+    if (flow?.kind !== 'single') return
 
     const runtime = await getRuntime()
     if (!runtime) return
@@ -340,90 +317,80 @@ export const useRenewalTransactions = ({
     buildApproveTransaction(
       {
         from: runtime.from,
-        tokenAddress: savedParams.tokenAddress,
-        tokenPrice: savedParams.tokenPrice,
-        tokenSymbol: savedParams.tokenSymbol,
+        tokenAddress: flow.tokenAddress,
+        tokenPrice: flow.tokenPrice,
+        tokenSymbol: flow.tokenSymbol,
         publicClient: runtime.publicClient,
-        renewer: getRenewerAddress(savedParams.name.isV2),
+        renewer: getRenewerAddress(flow.selectedName.isV2),
       },
       runtime.signer,
     )
   }
 
   const handleRenewStart = async () => {
-    if (!savedParams) return
+    if (flow?.kind !== 'single') return
 
     const runtime = await getRuntime()
     if (!runtime) return
 
     buildRenewTransaction(
       {
-        name: savedParams.name.name,
-        duration: savedParams.duration,
-        tokenAddress: savedParams.tokenAddress,
+        name: flow.selectedName.name,
+        duration: flow.duration,
+        tokenAddress: flow.tokenAddress,
         from: runtime.from,
         publicClient: runtime.publicClient,
-        isV2: savedParams.name.isV2,
-        walletClient: runtime.walletClient,
+        isV2: flow.selectedName.isV2,
       },
       runtime.signer,
     )
   }
 
-  const needsApprove =
-    savedParams !== null && savedParams.tokenAllowance < savedParams.tokenPrice
+  const transactions: Transaction[] = match(flow)
+    .with(P.nullish, () => [])
+    .with({ kind: 'multi' }, (multiFlow) => {
+      if (!connection.address || !publicClient) return []
+      return buildMultiTransactions({
+        multiFlow,
+        from: connection.address,
+        publicClient,
+        getSigner,
+        handleDone,
+      })
+    })
+    .with({ kind: 'single' }, (single) => {
+      const renewTx: Transaction = {
+        id: RENEWAL_TX_IDS.renew(single.selectedName.name),
+        title: `Extend ${single.selectedName.name}`,
+        transactionName: `Extend ${single.selectedName.name}`,
+        estimatedGasCost: 0.001,
+        onStart: handleRenewStart,
+        onDone: handleDone,
+      }
 
-  const singleTransactions: Transaction[] = !savedParams
-    ? []
-    : needsApprove
-      ? [
-          {
-            id: RENEWAL_TX_IDS.approve,
-            title: 'Approve payment',
-            transactionName: `Approve ${savedParams.tokenSymbol} for renewal`,
-            estimatedGasCost: 0.0003,
-            onStart: handleApproveStart,
-            onDone: handleRenewStart,
-          },
-          {
-            id: RENEWAL_TX_IDS.renew(savedParams.name.name),
-            title: `Extend ${savedParams.name.name}`,
-            transactionName: `Extend ${savedParams.name.name}`,
-            estimatedGasCost: 0.001,
-            onStart: handleRenewStart,
-            onDone: handleDone,
-          },
-        ]
-      : [
-          {
-            id: RENEWAL_TX_IDS.renew(savedParams.name.name),
-            title: `Extend ${savedParams.name.name}`,
-            transactionName: `Extend ${savedParams.name.name}`,
-            estimatedGasCost: 0.001,
-            onStart: handleRenewStart,
-            onDone: handleDone,
-          },
-        ]
+      if (single.tokenAllowance >= single.tokenPrice) return [renewTx]
 
-  const multiTransactions: Transaction[] =
-    !multiSavedParams || !connection.address || !publicClient
-      ? []
-      : buildMultiTransactions({
-          multiSavedParams,
-          from: connection.address,
-          publicClient,
-          getRuntime: getRuntimeOrThrow,
-          handleDone,
-        })
+      const approveTx: Transaction = {
+        id: RENEWAL_TX_IDS.approve,
+        title: 'Approve payment',
+        transactionName: `Approve ${single.tokenSymbol} for renewal`,
+        estimatedGasCost: 0.0003,
+        onStart: handleApproveStart,
+        onDone: handleRenewStart,
+      }
+
+      return [approveTx, renewTx]
+    })
+    .exhaustive()
 
   const startFlow = (name: SelectedName, flowConfig: StartFlowConfig) => {
     const tokenSymbol = getTokenMetadataWithAddress(
       flowConfig.tokenAddress,
     ).symbol
 
-    setMultiSavedParams(null)
-    setSavedParams({
-      name,
+    setFlow({
+      kind: 'single',
+      selectedName: name,
       duration: flowConfig.duration,
       tokenAddress: flowConfig.tokenAddress,
       tokenPrice: flowConfig.tokenPrice,
@@ -437,8 +404,8 @@ export const useRenewalTransactions = ({
       flowConfig.tokenAddress,
     ).symbol
 
-    setSavedParams(null)
-    setMultiSavedParams({
+    setFlow({
+      kind: 'multi',
       renewals: flowConfig.renewals.filter((r) => r.selectedName.isV2),
       tokenAddress: flowConfig.tokenAddress,
       tokenPrice: flowConfig.tokenPrice,
@@ -447,13 +414,18 @@ export const useRenewalTransactions = ({
     })
   }
 
+  // Called before opening a flow's modal: drop any active flow of the other kind
+  // so its stale transactions don't linger. No-op if the active flow matches.
   const clearIncompatibleRenewalState = (mode: RenewalFlowType) => {
-    if (mode === 'single') setMultiSavedParams(null)
-    else setSavedParams(null)
+    setFlow((current) =>
+      match(current)
+        .with({ kind: P.not(mode) }, () => null)
+        .otherwise((flow) => flow),
+    )
   }
 
   return {
-    transactions: multiSavedParams ? multiTransactions : singleTransactions,
+    transactions,
     startFlow,
     startMultiFlow,
     clearIncompatibleRenewalState,

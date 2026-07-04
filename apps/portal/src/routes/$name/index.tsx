@@ -140,8 +140,6 @@ const Profile = ({
     enabled: isV1Name && !!connectedAddress,
   })
 
-  // Drives the grace banner's copy: only promise an extension when the name is
-  // actually renewable on-chain (shared source of truth with ExtendNameButton).
   const { canExtend: graceCanExtend } = useCanExtend({
     name,
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
