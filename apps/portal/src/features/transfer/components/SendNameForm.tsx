@@ -22,6 +22,7 @@ type SendNameFormProps = {
   readonly registryAddress: Address
   readonly owner: Address
   readonly currentResolverAddress: Address | undefined
+  readonly isResolverLoading: boolean
 }
 
 type OptionConfig = {
@@ -47,18 +48,22 @@ const OPTIONS: readonly OptionConfig[] = [
 
 const getResetResolverDisabledReason = ({
   hasResolver,
+  isLoading,
 }: {
   hasResolver: boolean
-}): string | null =>
-  match({ hasResolver })
-    .with({ hasResolver: false }, () => 'This name has no resolver to remove.')
-    .otherwise(() => null)
+  isLoading: boolean
+}): string | null => {
+  if (isLoading) return 'Checking for a resolver…'
+  if (!hasResolver) return 'This name has no resolver to remove.'
+  return null
+}
 
 export const SendNameForm = ({
   name,
   registryAddress,
   owner,
   currentResolverAddress,
+  isResolverLoading,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
@@ -80,9 +85,12 @@ export const SendNameForm = ({
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
   const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
-  // "Reset the resolver" is only meaningful when the name has one to remove.
+  // "Reset the resolver" is only meaningful when the name has one to remove, and
+  // stays disabled until the resolver lookup resolves so we don't flash "no
+  // resolver" for a name that actually has one.
   const resetResolverDisabledReason = getResetResolverDisabledReason({
     hasResolver: !!currentResolverAddress,
+    isLoading: isResolverLoading,
   })
 
   const disabledReasonByKey: Record<keyof TransferOptions, string | null> = {
