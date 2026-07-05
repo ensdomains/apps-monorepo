@@ -103,7 +103,8 @@ export const SendNameForm = ({
     useTransferName({ name, registryAddress, owner })
 
   const isSelf = !!recipient && isAddressEqual(recipient, owner)
-  const hasValidRecipient = !!recipient && !isSelf
+  const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
+  const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
   const ethAddrRecord = computeResolverResource(namehash(name), addrPart(60n))
 
@@ -169,7 +170,13 @@ export const SendNameForm = ({
           className="h-9"
         />
         <div className="text-sm">
-          {match({ isResolving, resolveError, recipient, isSelf })
+          {match({
+            isResolving,
+            resolveError,
+            recipient,
+            isSelf,
+            isZeroAddress,
+          })
             .with({ isResolving: true }, () => (
               <span className="text-muted-foreground">Resolving…</span>
             ))
@@ -179,6 +186,11 @@ export const SendNameForm = ({
             .with({ recipient: P.nonNullable, isSelf: true }, () => (
               <span className="text-destructive">
                 The recipient already owns this name.
+              </span>
+            ))
+            .with({ recipient: P.nonNullable, isZeroAddress: true }, () => (
+              <span className="text-destructive">
+                Can’t transfer to the zero address.
               </span>
             ))
             .with({ recipient: P.nonNullable }, ({ recipient }) => (
