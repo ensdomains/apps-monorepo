@@ -1,9 +1,8 @@
-import { addrPart, computeResolverResource } from '@ensdomains/ensjs/public/v2'
 import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -12,7 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useRecipientResolution } from '../hooks/useRecipientResolution'
@@ -34,16 +32,10 @@ type OptionConfig = {
 
 const OPTIONS: readonly OptionConfig[] = [
   {
-    key: 'setDefaultAddress',
-    label: 'Set the default address to the recipient',
+    key: 'resetResolver',
+    label: 'Reset the resolver',
     description:
-      'Points the name’s ETH address at the recipient so it resolves to them right after the transfer.',
-  },
-  {
-    key: 'deployResolver',
-    label: 'Deploy a new resolver',
-    description:
-      'Gives the recipient a fresh resolver they fully control. This name’s current records aren’t carried over.',
+      'Removes this name’s resolver so it stops resolving to your records. The recipient starts clean and sets up their own.',
   },
   {
     key: 'deployRegistry',
@@ -53,30 +45,13 @@ const OPTIONS: readonly OptionConfig[] = [
   },
 ]
 
-const getSetDefaultDisabledReason = ({
-  deployResolver,
+const getResetResolverDisabledReason = ({
   hasResolver,
-  canEdit,
 }: {
-  deployResolver: boolean
   hasResolver: boolean
-  canEdit: boolean | undefined
 }): string | null =>
-  match({ deployResolver, hasResolver, canEdit })
-    .with(
-      { deployResolver: true },
-      () =>
-        'Can’t set the address on a resolver you’re handing to the recipient — turn off “Deploy a new resolver”.',
-    )
-    .with(
-      { hasResolver: false },
-      () => 'This name has no resolver to set an address on.',
-    )
-    .with(
-      { canEdit: false },
-      () =>
-        'You don’t control this name’s resolver, so you can’t set its address.',
-    )
+  match({ hasResolver })
+    .with({ hasResolver: false }, () => 'This name has no resolver to remove.')
     .otherwise(() => null)
 
 export const SendNameForm = ({
@@ -87,8 +62,7 @@ export const SendNameForm = ({
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
-    setDefaultAddress: false,
-    deployResolver: false,
+    resetResolver: false,
     deployRegistry: false,
   })
 
@@ -106,32 +80,21 @@ export const SendNameForm = ({
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
   const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
-  const ethAddrRecord = computeResolverResource(namehash(name), addrPart(60n))
-
-  const { data: canEditCurrentResolver } = useQuery({
-    ...getHasRolesQueryOptions({
-      resolverAddress: currentResolverAddress ?? zeroAddress,
-      resource: ethAddrRecord,
-      roles: ['ROLE_SET_ADDR'],
-      account: owner,
-    }),
-    enabled: !!currentResolverAddress,
-  })
-
-  // "Set default address" writes to the *current* resolver, so it can't be
-  // combined with deploying a new (recipient-owned) one, and only works if the
-  // sender controls that resolver.
-  const setDefaultDisabledReason = getSetDefaultDisabledReason({
-    deployResolver: options.deployResolver,
+  // "Reset the resolver" is only meaningful when the name has one to remove.
+  const resetResolverDisabledReason = getResetResolverDisabledReason({
     hasResolver: !!currentResolverAddress,
-    canEdit: canEditCurrentResolver,
   })
-  const setDefaultDisabled = setDefaultDisabledReason !== null
-  const effectiveSetDefault = options.setDefaultAddress && !setDefaultDisabled
 
+  const disabledReasonByKey: Record<keyof TransferOptions, string | null> = {
+    resetResolver: resetResolverDisabledReason,
+    deployRegistry: null,
+  }
+
+  // A disabled option never contributes to the plan, regardless of its stored
+  // toggle value, so fold the disabled state into the options we hand off.
   const effectiveOptions: TransferOptions = {
-    ...options,
-    setDefaultAddress: effectiveSetDefault,
+    resetResolver: options.resetResolver && !resetResolverDisabledReason,
+    deployRegistry: options.deployRegistry,
   }
 
   const canStart = hasValidRecipient && !isResolving && !isPreparing
@@ -141,11 +104,7 @@ export const SendNameForm = ({
 
   const handleStart = async () => {
     if (!recipient) return
-    const ready = await startTransfer({
-      recipient,
-      currentResolverAddress,
-      options: effectiveOptions,
-    })
+    const ready = await startTransfer({ recipient, options: effectiveOptions })
     if (ready) openModal()
   }
 
@@ -203,11 +162,10 @@ export const SendNameForm = ({
       {hasValidRecipient && (
         <div className="flex flex-col gap-3">
           {OPTIONS.map((option) => {
-            const isSetDefault = option.key === 'setDefaultAddress'
-            const disabled = isSetDefault && setDefaultDisabled
-            const checked = isSetDefault
-              ? effectiveSetDefault
-              : options[option.key]
+            const disabledReason = disabledReasonByKey[option.key]
+            const disabled = disabledReason !== null
+            // A disabled option always reads as off, matching effectiveOptions.
+            const checked = !disabled && options[option.key]
             return (
               <div key={option.key} className="flex flex-col gap-1">
                 <label
@@ -230,9 +188,9 @@ export const SendNameForm = ({
                     className="mt-1 shrink-0"
                   />
                 </label>
-                {isSetDefault && setDefaultDisabledReason && (
+                {disabledReason && (
                   <span className="text-muted-foreground text-sm">
-                    {setDefaultDisabledReason}
+                    {disabledReason}
                   </span>
                 )}
               </div>

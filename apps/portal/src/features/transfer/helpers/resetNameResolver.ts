@@ -1,6 +1,12 @@
 /**
- * Point a v2 name at a resolver (`registry.setResolver(tokenId, resolver)`).
- * Used after deploying a fresh resolver during a transfer.
+ * Detach a v2 name from its resolver (`registry.setResolver(tokenId, 0x0)`).
+ *
+ * Used during a transfer to hand the recipient a clean name: afterwards the name
+ * resolves to nothing, so the sender's stale records are no longer served. This
+ * is a *registry* operation authorized by the name owner (the sender still holds
+ * the token at this point), NOT a resolver-role write — so it can't revert on
+ * permissions. It also never touches the resolver contract itself, which may be
+ * shared by the sender's other names.
  */
 
 import {
@@ -15,15 +21,15 @@ import {
   type Hex,
   type PublicClient,
   type WalletClient,
+  zeroAddress,
 } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
 
-export interface SetNameResolverParameters {
+export interface ResetNameResolverParameters {
   readonly name: string
   readonly label: string
   /** The registry the name's token lives in. */
   readonly registryAddress: Address
-  readonly resolverAddress: Address
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly signer: Signer
@@ -31,22 +37,21 @@ export interface SetNameResolverParameters {
   readonly id: string
 }
 
-export interface SetNameResolverResult {
+export interface ResetNameResolverResult {
   readonly txId: string
   readonly hash: Hex
 }
 
-export const setNameResolver = async ({
+export const resetNameResolver = async ({
   name,
   label,
   registryAddress,
-  resolverAddress,
   walletClient,
   publicClient,
   signer,
   chainId,
   id,
-}: SetNameResolverParameters): Promise<SetNameResolverResult> => {
+}: ResetNameResolverParameters): Promise<ResetNameResolverResult> => {
   if (!walletClient.account) {
     throw new Error('Wallet client must have account configured')
   }
@@ -56,7 +61,7 @@ export const setNameResolver = async ({
   const writeParams = setResolverWriteParameters(walletWithAccount, {
     label,
     registryAddress,
-    resolverAddress,
+    resolverAddress: zeroAddress,
   })
 
   const data = encodeFunctionData({
@@ -79,7 +84,7 @@ export const setNameResolver = async ({
     signer,
     {
       id,
-      description: `Set resolver for ${name}`,
+      description: `Reset resolver for ${name}`,
       publicClient,
       timeout: 120_000,
     },
