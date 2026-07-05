@@ -89,6 +89,7 @@ function RouteComponent() {
                 registryAddress={data.registryAddress}
                 owner={data.owner}
                 currentResolverAddress={normalizeResolver(resolverQuery.data)}
+                isResolverLoading={resolverQuery.isLoading}
               />
             ),
           )
