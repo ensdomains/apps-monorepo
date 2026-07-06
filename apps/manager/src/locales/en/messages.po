@@ -1164,10 +1164,6 @@ msgstr "Links"
 msgid "Load more"
 msgstr "Load more"
 
-#: src/features/dashboard/components/DashboardLoading.tsx
-msgid "Loading dashboard..."
-msgstr "Loading dashboard..."
-
 #: src/features/register/components/Pricing/Pricing.tsx
 msgid "Loading prices..."
 msgstr "Loading prices..."
