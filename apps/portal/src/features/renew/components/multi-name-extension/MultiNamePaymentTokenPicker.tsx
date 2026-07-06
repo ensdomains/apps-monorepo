@@ -8,12 +8,7 @@ import { MessageCard } from '@/components/ui/message-card'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
-import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
-import {
-  DAI_DECIMALS,
-  SUPPORTED_TOKENS,
-  USDC_DECIMALS,
-} from '@/lib/constants/tokens'
+import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { cn } from '@/lib/utils'
 import type {
   MultiRenewalEntry,
@@ -25,12 +20,19 @@ import {
   distinctRenewers,
 } from '../../utils/renewerPayments'
 
-// The selected token plus its per-renewer approval breakdown. A mixed v1+v2
-// batch yields two payments (ETHRenewerV1 + v2 ETHRegistrar); a same-kind batch
-// yields one. Threaded up to seed the renewal flow's approval step(s).
+// The chosen payment token plus its per-renewer approval breakdown. A mixed
+// v1+v2 batch yields two payments (ETHRenewerV1 + v2 ETHRegistrar); a same-kind
+// batch yields one. Threaded up to seed the renewal flow's approval step(s).
 export type MultiNameTokenSelection = {
-  readonly token: TokenWithPriceAndBalance
+  readonly tokenAddress: Address
   readonly payments: readonly RenewerPayment[]
+}
+
+// A rendered token row only needs its total price and balance; the per-renewer
+// allowances that actually gate approvals live in `payments`, not here.
+type DisplayToken = (typeof PAYMENT_TOKENS)[number] & {
+  readonly balance: bigint
+  readonly total: bigint
 }
 
 const Skeleton = () => (
@@ -146,21 +148,11 @@ export const MultiNamePaymentTokenPicker = ({
   const allowanceFor = (tokenIndex: number, renewerIndex: number): bigint =>
     allowanceResults[tokenIndex * renewers.length + renewerIndex] ?? 0n
 
-  const sumPrice = (queries: typeof usdcPriceQueries) =>
+  const sumTotal = (queries: typeof usdcPriceQueries): bigint =>
     queries.reduce(
-      (sum, q) => {
-        if (!q.data || !isPriceResult(q.data)) return sum
-        return {
-          base: sum.base + q.data.base,
-          premium: sum.premium + q.data.premium,
-          total: sum.total + q.data.total,
-        }
-      },
-      { base: 0n, premium: 0n, total: 0n },
+      (sum, q) => (q.data && isPriceResult(q.data) ? sum + q.data.total : sum),
+      0n,
     )
-
-  const usdcPrice = sumPrice(usdcPriceQueries)
-  const daiPrice = sumPrice(daiPriceQueries)
 
   // Per-renewer approval breakdown for a token: group each name's charge by its
   // renewer, then attach that renewer's current allowance (by position in the
@@ -185,42 +177,29 @@ export const MultiNamePaymentTokenPicker = ({
     buildPayments(daiPriceQueries, 1),
   ]
 
-  const tokenData: TokenWithPriceAndBalance[] = [
+  const tokenData: DisplayToken[] = [
     {
       ...PAYMENT_TOKENS[0],
-      price: {
-        base: usdcPrice.base,
-        premium: usdcPrice.premium,
-        total: usdcPrice.total,
-        decimals: USDC_DECIMALS,
-        hasPremium: usdcPrice.premium > 0n,
-      },
       balance: balances[0] ?? 0n,
-      // Per-renewer allowances live in paymentsByToken; this aggregate field is
-      // unused by the multi-renew flow (kept to satisfy the token type).
-      allowance: 0n,
+      total: sumTotal(usdcPriceQueries),
     },
     {
       ...PAYMENT_TOKENS[1],
-      price: {
-        base: daiPrice.base,
-        premium: daiPrice.premium,
-        total: daiPrice.total,
-        decimals: DAI_DECIMALS,
-        hasPremium: daiPrice.premium > 0n,
-      },
       balance: balances[1] ?? 0n,
-      allowance: 0n,
+      total: sumTotal(daiPriceQueries),
     },
   ]
 
   const noSupportedTokenHasSufficientBalance = tokenData.every(
-    (token) => token.balance < token.price.total,
+    (token) => token.balance < token.total,
   )
 
-  const handleSelect = (token: TokenWithPriceAndBalance, index: number) => {
+  const handleSelect = (token: DisplayToken, index: number) => {
     setSelectedToken(token.address)
-    onSelectionChange({ token, payments: paymentsByToken[index] })
+    onSelectionChange({
+      tokenAddress: token.address,
+      payments: paymentsByToken[index],
+    })
   }
 
   return (
@@ -239,7 +218,7 @@ export const MultiNamePaymentTokenPicker = ({
       ) : (
         <div className="space-y-2">
           {tokenData.map((token, index) => {
-            const hasSufficientBalance = token.balance >= token.price.total
+            const hasSufficientBalance = token.balance >= token.total
 
             return (
               <button

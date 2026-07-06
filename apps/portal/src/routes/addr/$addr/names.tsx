@@ -414,7 +414,7 @@ function RouteComponent() {
           onExtend={(config) => {
             startMultiFlow({
               renewals: config.renewals,
-              tokenAddress: config.selection.token.address,
+              tokenAddress: config.selection.tokenAddress,
               payments: config.selection.payments,
             })
             openModal()
