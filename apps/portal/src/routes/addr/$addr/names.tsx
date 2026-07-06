@@ -331,8 +331,6 @@ function RouteComponent() {
             <Button
               variant="default"
               size="sm"
-              // Disabled while v1 renewability is still resolving so the flow
-              // opens against a fully-resolved selection (see useRenewableNames).
               disabled={extendableNames.length === 0 || renewabilityLoading}
               onClick={() => {
                 if (isTransactionInFlight(activeTxState)) {

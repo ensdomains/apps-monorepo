@@ -343,9 +343,6 @@ const Profile = ({
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
-          // While the v1 renewability check is still resolving, show the
-          // extendable copy optimistically rather than flashing the alarming
-          // "will become available for registration" wording, then correct it.
           canExtend={graceCanExtend || graceCanExtendLoading}
         />
       )}
