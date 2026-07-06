@@ -231,11 +231,11 @@ const ShareActionButton = ({
 )
 
 interface ShareProfileDialogProps {
-  name: string
-  url: string
-  avatarUrl?: string
-  themeColor?: string | null
-  trigger?: ReactNode
+  readonly name: string
+  readonly url: string
+  readonly avatarUrl?: string
+  readonly themeColor?: string | null
+  readonly trigger?: ReactNode
 }
 
 export const ShareProfileDialog = ({
