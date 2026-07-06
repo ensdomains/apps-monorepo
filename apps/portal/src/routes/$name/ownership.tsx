@@ -37,7 +37,7 @@ function RouteComponent() {
 
   const { canExtend: graceCanExtend } = useCanExtend({
     name,
-    protocolVersion: data?.protocolVersion ?? 'ENSv1',
+    protocolVersion: data?.protocolVersion ?? 'ENSv2',
     enabled: grace.isInGrace,
   })
 
