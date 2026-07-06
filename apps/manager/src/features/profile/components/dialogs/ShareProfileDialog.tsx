@@ -171,6 +171,7 @@ const ShareNameplate = ({
 const ShareCardHeader = () => (
   <div className="relative h-[59px] shrink-0">
     <EnsMobileIcon className="absolute top-[17px] left-[17px] h-[22px] w-[19px] text-(--share-close-color)" />
+    {/* text-[#353535] / text-[16px]: design-specified exact values, no token equivalent */}
     <DialogTitle className="absolute top-5 left-1/2 w-[121px] -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
       <Trans>Share profile link</Trans>
     </DialogTitle>
@@ -328,6 +329,7 @@ export const ShareProfileDialog = ({
         ) : null}
       </div>
       <div className="mx-5 mt-7 grid h-[50px] grid-cols-2 gap-2">
+        {/* text-[#f6fbfd] / bg-[#1A1919] / text-[#EEEDED] / hover:bg-[#333333]: design-specified exact values, no token equivalent */}
         <ShareActionButton
           className={
             isDefaultTheme
@@ -342,6 +344,7 @@ export const ShareProfileDialog = ({
           />
           {copied ? <Trans>Copied</Trans> : <Trans>Copy Link</Trans>}
         </ShareActionButton>
+        {/* bg-(--share-button-bg) / text-(--share-button-text) / hover:bg-(--share-button-hover-bg): theme-specific CSS variables, no static token equivalent */}
         <ShareActionButton
           className={
             isDefaultTheme
