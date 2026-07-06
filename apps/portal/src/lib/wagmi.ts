@@ -1,15 +1,10 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import {
-  frameWallet,
-  injectedWallet,
-  metaMaskWallet,
-  walletConnectWallet,
-} from '@rainbow-me/rainbowkit/wallets'
+import { walletConnect } from '@wagmi/connectors'
 import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { getResolvedThemeMode } from '@/hooks/useTheme'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -38,25 +33,22 @@ export const customSepolia = {
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
+// Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
+// EIP-6963, so WalletConnect is the only explicit connector. We skip the
+// Coinbase SDK connector: its Smart Wallet is mainnet-only and breaks on Sepolia.
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: false,
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [
-          injectedWallet,
-          metaMaskWallet,
-          walletConnectWallet,
-          frameWallet,
-        ],
-      },
-    ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Portal' },
-  ),
+  connectors: [
+    walletConnect({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      // Match the app's light/dark preference on load. The modal theme is fixed
+      // at connector creation, so a mid-session toggle won't restyle it.
+      qrModalOptions: { themeMode: getResolvedThemeMode() },
+    }),
+  ],
   client: ({ chain }) =>
     createClient({
       chain,

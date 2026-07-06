@@ -1,4 +1,3 @@
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Wallet } from 'lucide-react'
@@ -6,6 +5,7 @@ import { useConnection, useDisconnect } from 'wagmi'
 import { AccountCircleIcon, ChipNameIcon, DisconnectIcon } from '@/assets/icons'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { Button } from './ui/button'
 import {
