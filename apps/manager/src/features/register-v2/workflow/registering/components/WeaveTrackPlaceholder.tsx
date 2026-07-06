@@ -2,7 +2,7 @@
 export function WeaveTrackPlaceholder({ className }: { className?: string }) {
   return (
     <div
-      className={`h-3 w-full rounded-full bg-ens-gray-two ${className ?? ''}`}
+      className={`h-[19px] w-full rounded-[2px] bg-ens-gray-two ${className ?? ''}`}
     />
   )
 }

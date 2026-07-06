@@ -45,24 +45,18 @@ export const JACQUARD_SHADERBOX_2_OPTIONS: WeaveShaderOptions = {
   skipWeaveInReveal: true,
   colorwayAnimLoop: true,
   colorwayAnimRandomizeOnLoop: true,
+  animated: true,
 }
 
-/**
- * Jacquard pattern 6 export — dye bleed, high bleed anisotropy, bias + noise X play.
- * @see https://github.com/ali-rasheed/Jacquard
- */
-export const JACQUARD_PATTERN6_DYE_BLEED_OPTIONS: WeaveShaderOptions = {
+const JACQUARD_PATTERN6_DYE_BLEED_BASE: WeaveShaderOptions = {
   pattern: 6,
   palette: 0,
   bgShade: 2,
   warpShade: 1,
   weftShade: 3,
-  gridSize: 32,
   warpGradientEnabled: true,
   weftGradientEnabled: true,
   gradSteps: 0,
-  rectAspect: 0.9,
-  cornerRadius: 0.18,
   shimmer: false,
   useAllColorways: true,
   colorwaySeed: 78.2,
@@ -79,18 +73,62 @@ export const JACQUARD_PATTERN6_DYE_BLEED_OPTIONS: WeaveShaderOptions = {
   colorwayBleedDraftCoupled: true,
   colorwayIncludeMask: 15,
   animateColorwayBias: true,
-  animateColorwayNoiseX: true,
   skipWeaveInReveal: true,
   colorwayAnimLoop: true,
+  animated: true,
+}
+
+/**
+ * Jacquard pattern 6 export — dye bleed, high bleed anisotropy, bias + noise X play.
+ * @see https://github.com/ali-rasheed/Jacquard
+ */
+export const JACQUARD_PATTERN6_DYE_BLEED_OPTIONS: WeaveShaderOptions = {
+  ...JACQUARD_PATTERN6_DYE_BLEED_BASE,
+  gridSize: 32,
+  rectAspect: 0.9,
+  cornerRadius: 0.18,
+  animateColorwayNoiseX: true,
   colorwayAnimRandomizeOnLoop: true,
 }
 
-export const WEAVE_PROGRESS_BAR_OPTIONS: WeaveShaderOptions = {
-  pattern: 13,
-  useAllColorways: true,
-  gridSize: 10,
+export const JACQUARD_PATTERN3_DYE_BLEED_OPTIONS: WeaveShaderOptions = {
+  pattern: 3,
+  palette: 4,
+  bgShade: 2,
+  warpShade: 1,
+  weftShade: 3,
+  gridSize: 64,
+  warpGradientEnabled: true,
+  weftGradientEnabled: true,
+  gradSteps: 0,
+  rectAspect: 0.9,
+  cornerRadius: 0.18,
   shimmer: false,
-  bgShade: 4,
-  animated: false,
+  useAllColorways: true,
+  colorwaySeed: 78.2,
+  colorwayNoiseScale: 0.005,
+  colorwayNoiseMode: 2,
+  colorwayNoiseOctaves: 3,
+  colorwayNoisePersistence: 0.6,
+  colorwayNoiseLacunarity: 2.1,
+  colorwayNoiseBias: 1.8128295454546408,
+  colorwayNoiseX: 0,
+  colorwayBleedAnisotropy: 0.6,
+  colorwayBleedRotation: 0.5,
+  colorwayBleedCrossFiber: 0,
+  colorwayBleedDraftCoupled: true,
+  colorwayIncludeMask: 31,
+  animateColorwayBias: true,
   skipWeaveInReveal: true,
+  colorwayAnimLoop: true,
+  colorwayAnimRandomizeOnLoop: false,
+  animated: true,
+}
+
+export const WEAVE_PROGRESS_BAR_OPTIONS: WeaveShaderOptions = {
+  ...JACQUARD_PATTERN6_DYE_BLEED_BASE,
+  gridSize: 2,
+  rectAspect: 1,
+  cornerRadius: 0,
+  colorwayNoiseOctaves: 2,
 }

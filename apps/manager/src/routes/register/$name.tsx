@@ -97,6 +97,7 @@ function PageContent() {
         onCompletionAnimationFinished={markCompletionAnimationDone}
         onWeaveFlowEntered={markWeaveFlow}
         sawWeaveFlow={sawWeaveFlow}
+        showRegisteringCompletion={showRegisteringCompletion}
       />
     )
   }

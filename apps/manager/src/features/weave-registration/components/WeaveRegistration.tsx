@@ -1,6 +1,6 @@
 import { usePrefersReducedMotion } from '@ens-apps/weave-loader/hooks/usePrefersReducedMotion'
 import { NameFill } from '@ens-apps/weave-loader/NameFill'
-import { JACQUARD_PATTERN6_DYE_BLEED_OPTIONS } from '@ens-apps/weave-loader/presets'
+import { JACQUARD_PATTERN3_DYE_BLEED_OPTIONS } from '@ens-apps/weave-loader/presets'
 import type { WeaveShaderOptions } from '@ens-apps/weave-loader/shader/useWeaveShader'
 import { WeaveCanvas } from '@ens-apps/weave-loader/WeaveCanvas'
 import {
@@ -73,7 +73,7 @@ export const WeaveRegistration = ({
   description,
   animate = true,
   footer,
-  weaveOptions = JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
+  weaveOptions = JACQUARD_PATTERN3_DYE_BLEED_OPTIONS,
   onFillSettled,
 }: WeaveRegistrationProps) => {
   const { i18n } = useLingui()

@@ -3,6 +3,9 @@ import { WEAVE_PROGRESS_BAR_OPTIONS } from './presets'
 import type { WeaveShaderOptions } from './shader/useWeaveShader'
 import { WeaveCanvas } from './WeaveCanvas'
 
+export const WEAVE_PROGRESS_BAR_HEIGHT = 19
+export const WEAVE_PROGRESS_BAR_RADIUS = 2
+
 export interface WeaveProgressBarProps {
   progress: number
   options?: WeaveShaderOptions
@@ -15,7 +18,7 @@ export interface WeaveProgressBarProps {
 export function WeaveProgressBar({
   progress,
   options = WEAVE_PROGRESS_BAR_OPTIONS,
-  height = 12,
+  height = WEAVE_PROGRESS_BAR_HEIGHT,
   animate = true,
   className,
 }: WeaveProgressBarProps) {
@@ -24,10 +27,13 @@ export function WeaveProgressBar({
   return (
     <div
       className={cn(
-        'relative w-full overflow-hidden rounded-full bg-ens-gray-two',
+        'relative w-full overflow-hidden bg-ens-gray-two',
         className,
       )}
-      style={{ height }}
+      style={{
+        height,
+        borderRadius: WEAVE_PROGRESS_BAR_RADIUS,
+      }}
     >
       <div
         className="absolute inset-y-0 left-0 overflow-hidden"

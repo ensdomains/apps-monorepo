@@ -1,4 +1,5 @@
 import {
+  JACQUARD_PATTERN3_DYE_BLEED_OPTIONS,
   WEAVE_REGISTRATION_LONG_NAME as LONG_NAME,
   JACQUARD_PATTERN6_DYE_BLEED_OPTIONS as LONG_NAME_WEAVE_OPTIONS,
 } from '@ens-apps/weave-loader'
@@ -36,6 +37,13 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {}
+
+export const Pattern3Preset: Story = {
+  args: {
+    progress: 45,
+    weaveOptions: JACQUARD_PATTERN3_DYE_BLEED_OPTIONS,
+  },
+}
 
 export const Start: Story = {
   args: { progress: 2 },

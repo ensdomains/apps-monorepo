@@ -32,6 +32,7 @@ export interface RegisteringStepProps {
   isRegistrationComplete: boolean
   /** Parent latch — user dismissed notification settings and entered the weave flow. */
   sawWeaveFlow?: boolean
+  showRegisteringCompletion?: boolean
   onWeaveFlowEntered?: () => void
   /** Fired after fill progress reaches 100% and the completion beat finishes. */
   onCompletionAnimationFinished?: () => void
@@ -42,6 +43,7 @@ export const RegisteringStep = ({
   fillDone,
   isRegistrationComplete,
   sawWeaveFlow = false,
+  showRegisteringCompletion = false,
   onWeaveFlowEntered,
   onCompletionAnimationFinished,
 }: RegisteringStepProps) => {
@@ -91,7 +93,11 @@ export const RegisteringStep = ({
   })
 
   const holdForFill = isRegistrationComplete && sawWeaveFlow && !exitLoaderReady
-  const showCenteredLoader = showWeaveLoader || holdForFill
+  const inWeaveCompletion =
+    sawWeaveFlow &&
+    (showRegisteringCompletion || (isRegistrationComplete && !exitLoaderReady))
+  const showCenteredLoader = showWeaveLoader || inWeaveCompletion
+  const animateNameFill = inWeaveCompletion && isRegistrationComplete
 
   const advanceNotificationsStep = () => {
     uiActor.send({ type: 'notifications.step.next' })
@@ -117,6 +123,7 @@ export const RegisteringStep = ({
   if (showCenteredLoader) {
     return (
       <CenteredWeaveLoader
+        animate={animateNameFill}
         description={holdForFill ? undefined : stageDescription}
         name={fullName}
         progress={fillProgress}

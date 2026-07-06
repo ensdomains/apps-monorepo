@@ -12,6 +12,7 @@ export {
 export { NameFill, type NameFillProps } from './NameFill'
 export {
   HOUNDSTOOTH_SHIMMER_OPTIONS,
+  JACQUARD_PATTERN3_DYE_BLEED_OPTIONS,
   JACQUARD_PATTERN6_DYE_BLEED_OPTIONS,
   JACQUARD_SHADERBOX_2_OPTIONS,
   WEAVE_PROGRESS_BAR_OPTIONS,
@@ -27,6 +28,8 @@ export {
 } from './WeaveLoader'
 export { WeaveName, type WeaveNameProps } from './WeaveName'
 export {
+  WEAVE_PROGRESS_BAR_HEIGHT,
+  WEAVE_PROGRESS_BAR_RADIUS,
   WeaveProgressBar,
   type WeaveProgressBarProps,
 } from './WeaveProgressBar'

@@ -1,3 +1,16 @@
+function triangleWave01(phase: number): number {
+  const p = phase - Math.floor(phase)
+  return p < 0.5 ? p * 2 : 2 * (1 - p)
+}
+
+function trianglePhaseForOrigin(u: number, lo: number, hi: number): number {
+  if (hi <= lo) return 0
+  const tri = Math.max(0, Math.min(1, (u - lo) / (hi - lo)))
+  return tri <= 0.5 ? tri / 2 : 1 - tri / 2
+}
+
+export type ColorwayOscWaveform = 'sine' | 'triangle'
+
 /** Ported from Jacquard App.jsx — sinusoidal loop through [minV, maxV] from a captured origin. */
 export function colorwayOscFromOrigin(
   tMs: number,
@@ -5,13 +18,27 @@ export function colorwayOscFromOrigin(
   minV: number,
   maxV: number,
   origin: number,
+  peakFraction = 1,
+  waveform: ColorwayOscWaveform = 'sine',
 ): number {
   const span = maxV - minV
   if (span <= 0) return origin
+
   const u = Math.max(0, Math.min(1, (Number(origin) - minV) / span))
+  const amp = Math.max(0, Math.min(1, peakFraction)) * 0.5
+  const lo = 0.5 - amp
+  const hi = 0.5 + amp
+
+  if (waveform === 'triangle') {
+    const uClamped = Math.max(lo, Math.min(hi, u))
+    const phase0 = trianglePhaseForOrigin(uClamped, lo, hi)
+    const tri = triangleWave01(phase0 + tMs / periodMs)
+    return minV + span * (lo + (hi - lo) * tri)
+  }
+
   const phi = Math.asin(2 * u - 1)
   const tau = 2 * Math.PI
-  return minV + span * (0.5 + 0.5 * Math.sin(phi + (tMs / periodMs) * tau))
+  return minV + span * (0.5 + amp * Math.sin(phi + (tMs / periodMs) * tau))
 }
 
 export function colorwayOscClamped(
@@ -20,19 +47,31 @@ export function colorwayOscClamped(
   minV: number,
   maxV: number,
   origin: number,
+  peakFraction = 1,
+  waveform: ColorwayOscWaveform = 'sine',
 ): number {
   const o = Number(origin)
   const clamped = Number.isFinite(o)
     ? Math.max(minV, Math.min(maxV, o))
     : (minV + maxV) * 0.5
-  return colorwayOscFromOrigin(tMs, periodMs, minV, maxV, clamped)
+  return colorwayOscFromOrigin(
+    tMs,
+    periodMs,
+    minV,
+    maxV,
+    clamped,
+    peakFraction,
+    waveform,
+  )
 }
 
-/** Jacquard bias play toggle: 44s loop between 0.25 and 4. */
+/** Jacquard bias play toggle: 44s loop between 0.25 and 2.8. */
 export const COLORWAY_BIAS_ANIM = {
   periodMs: 44_000,
   min: 0.25,
-  max: 4,
+  max: 2.8,
+  peakFraction: 0.75,
+  waveform: 'triangle' as const,
 } as const
 
 /** Jacquard noise X play toggle: ~50min loop between -500 and 500. */
@@ -46,6 +85,8 @@ type ColorwayOscAnim = {
   periodMs: number
   min: number
   max: number
+  peakFraction?: number
+  waveform?: ColorwayOscWaveform
 }
 
 function resolveAnimatedColorwayField(
@@ -61,6 +102,8 @@ function resolveAnimatedColorwayField(
     anim.min,
     anim.max,
     origin,
+    anim.peakFraction ?? 1,
+    anim.waveform ?? 'sine',
   )
 }
 
