@@ -286,17 +286,23 @@ export const useRenewalTransactions = ({
 
   const handleDone = () => {
     const flowType: RenewalFlowType = flow?.kind ?? 'single'
-    const renewedName =
-      flow?.kind === 'single' ? flow.selectedName.name : undefined
+    // Names renewed by this flow — one for single, all entries for multi.
+    const renewedNames =
+      flow?.kind === 'multi'
+        ? flow.renewals.map((r) => r.selectedName.name)
+        : flow?.kind === 'single'
+          ? [flow.selectedName.name]
+          : []
     closeModal()
     clearTransaction()
     setFlow(null)
-    // Renewing pushes the name's expiry forward. Invalidate the expiry queries
-    // so the grace banner clears and the new expiry shows on return. For v1
-    // names this also re-qualifies the name for v1→v2 migration; the migration
+    // Renewing pushes each name's expiry forward. Invalidate the expiry queries
+    // so grace banners clear and the new expiry shows on return. For v1 names
+    // this also re-qualifies the name for v1→v2 migration; the migration
     // eligibility query (on the migration-banner branch) reads this expiry and
-    // re-runs on the refreshed data.
-    if (renewedName) {
+    // re-runs on the refreshed data. (Multi-renew is v2-only, but invalidating
+    // the v1 expiry there is a harmless no-op.)
+    for (const renewedName of renewedNames) {
       queryClient.invalidateQueries({
         queryKey: getV1ExpiryQueryOptions({ name: renewedName }).queryKey,
       })
