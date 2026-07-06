@@ -14,6 +14,7 @@ import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -204,7 +205,7 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-muted border-b border-border px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-10">
+      <header className="bg-muted border-b border-border px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-[30px] font-medium leading-tight flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
@@ -382,8 +383,7 @@ export const SubnamesTable = ({
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
                     className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
+                      stripedRowClassName(tableView.strippedRows),
                       isPendingTx && 'opacity-50 pointer-events-none',
                     )}
                   >

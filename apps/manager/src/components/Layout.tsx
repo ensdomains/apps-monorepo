@@ -18,6 +18,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const { pathname } = useLocation()
   const profileViewNewEnabled = useFeatureFlag('PROFILE_VIEW_NEW')
   const isMigrationPage = pathname === '/migration'
+  const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = /^\/[^/]+\.[^/]+\/?$/.test(pathname)
   const isNewProfileViewPage = profileViewNewEnabled && isEnsNameProfilePage
   const isSepoliaBannerVisible = !isMigrationPage && !isNewProfileViewPage
@@ -42,14 +43,16 @@ export const Layout = ({ children }: LayoutProps) => {
     >
       <div
         className={tw(
-          isNewProfileViewPage &&
-            'sticky inset-x-0 top-0 z-50 -mb-[54px] lg:landscape:-mb-20',
+          'sticky inset-x-0 top-0 z-50',
+          isNewProfileViewPage && '-mb-13.5 lg:landscape:-mb-20',
         )}
       >
         <Header
           desktopBreakpoint={isNewProfileViewPage ? 'lg-landscape' : 'md'}
-          profileThemeColor={profileThemeColor}
-          transparentBackground={isNewProfileViewPage}
+          profileThemeColor={
+            isMigrationPage ? migrationHeaderColor : profileThemeColor
+          }
+          transparentBackground={isNewProfileViewPage || isMigrationPage}
         />
       </div>
 

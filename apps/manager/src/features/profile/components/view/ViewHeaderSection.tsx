@@ -1,39 +1,37 @@
-import { useQueries } from '@tanstack/react-query'
-import clsx from 'clsx'
 import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
-import { parseAvatarQuery } from '../../service/profileAvatar'
-import type { ProfileRecords } from '../../types'
+import {
+  buildNameAvatarUrl,
+  buildNameHeaderUrl,
+} from '../../service/profileAvatar'
+import { safeImageSrc } from '../../utils/safeUrl'
 import { ProfileHeaderInfo } from '../common/ProfileHeaderInfo'
 import { ShareProfileDialog } from '../dialogs/ShareProfileDialog'
 import { FavoriteButton } from './FavoriteButton'
 
 interface ViewHeaderSectionProps {
   name: string
-  records: ProfileRecords
   owner?: Address
   isInGrace?: boolean
   isOwner?: boolean
+  themeColor?: string
 }
 
 export const ViewHeaderSection = ({
   name,
-  records,
   owner,
   isInGrace = false,
   isOwner,
+  themeColor,
 }: ViewHeaderSectionProps) => {
-  const [avatar, header] = useQueries({
-    queries: [
-      parseAvatarQuery(records.base.avatar),
-      parseAvatarQuery(records.base.header),
-    ],
-  })
-
-  const avatarUrl = isInGrace ? undefined : (avatar.data ?? records.base.avatar)
-  const headerUrl = isInGrace ? undefined : (header.data ?? records.base.header)
+  const avatarUrl = isInGrace
+    ? undefined
+    : safeImageSrc(buildNameAvatarUrl(name))
+  const headerUrl = isInGrace
+    ? undefined
+    : safeImageSrc(buildNameHeaderUrl(name))
 
   const url = `${
     typeof window === 'undefined'
@@ -55,7 +53,7 @@ export const ViewHeaderSection = ({
           )}
           <ImageFallback.Fallback>
             <div
-              className={clsx('size-full', header.isLoading && 'animate-pulse')}
+              className="size-full"
               style={{
                 backgroundImage:
                   'linear-gradient(162deg, transparent 21.72%, var(--color-muted) 62.7%)',
@@ -82,15 +80,10 @@ export const ViewHeaderSection = ({
               )}
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className={clsx(
-                    'size-full rounded-xl border-none bg-transparent p-0 shadow-none',
-                    avatar.isLoading && 'opacity-50',
-                  )}
+                  className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
+                  color={themeColor}
                   name={name}
                 />
-                {avatar.isLoading && (
-                  <div className="absolute inset-0 animate-pulse rounded-xl bg-gray-100" />
-                )}
               </ImageFallback.Fallback>
             </ImageFallback.Root>
           </div>

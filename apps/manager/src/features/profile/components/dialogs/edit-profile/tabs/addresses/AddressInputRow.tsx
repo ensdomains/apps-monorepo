@@ -1,5 +1,6 @@
-import { CircleAlert, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useId } from 'react'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { cn } from '@/lib/utils'
 import { AddressIcon } from './AddressIcon'
 
@@ -53,13 +54,13 @@ export const AddressInputRow = ({
         />
         {errorMessage ? (
           <p
-            className="flex items-center gap-1.5 text-[14px] text-red-700 leading-[1.2]"
+            className="flex items-start gap-1 text-ens-signal-danger-600 text-xs leading-[1.2]"
             role="alert"
           >
-            <CircleAlert
+            <MSymbol
               aria-hidden="true"
-              className="size-4.5 shrink-0 text-red-700"
-              strokeWidth={2}
+              className="ms-opsz-12 ms-wght-400 mt-px shrink-0"
+              symbol="warning"
             />
             <span>{errorMessage}</span>
           </p>

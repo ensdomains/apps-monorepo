@@ -6,13 +6,15 @@ import {
 } from '@tanstack/react-router'
 import { MobileHeader } from '@/components/MobileHeader'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { PageContainer } from '@/components/PageContainer'
 import { ProfileSidebar } from '@/components/ProfileSidebar'
 import { SepoliaNoticeBanner } from '@/components/SepoliaNoticeBanner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { getDnsSecEnabled } from '@/features/profile/hooks/useDnsSecEnabled'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import { isTLD } from '@/utils/ens/tldHelpers'
+import { isRegistrable, isTLD } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
@@ -42,11 +44,18 @@ export const Route = createFileRoute('/$name')({
     }
   },
   loader: ({ params }) =>
-    queryClient.prefetchQuery(
-      getNameRegistriesQueryOptions({
-        name: params.name,
-      }),
-    ),
+    Promise.all([
+      queryClient.prefetchQuery(
+        getNameRegistriesQueryOptions({ name: params.name }),
+      ),
+      ...(isRegistrable(params.name)
+        ? [
+            queryClient.prefetchQuery(
+              getNameAvailabilityQueryOptions({ name: params.name }),
+            ),
+          ]
+        : []),
+    ]),
 })
 
 function RouteComponent() {
@@ -57,7 +66,9 @@ function RouteComponent() {
       <SidebarInset className="w-full min-w-0">
         <MobileHeader />
         <SepoliaNoticeBanner />
-        <Outlet />
+        <PageContainer>
+          <Outlet />
+        </PageContainer>
       </SidebarInset>
     </SidebarProvider>
   )

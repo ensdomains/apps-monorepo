@@ -90,8 +90,8 @@ export const GameStep = () => {
   const giantTransition = giantTransitionFor(giantMode)
 
   return (
-    <div className="relative z-10 mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-5">
-      <div className="flex h-[400px] w-full flex-col items-center">
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center px-5 md:px-8">
+      <div className="flex h-full w-full flex-col items-center justify-center">
         <motion.div
           animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
           className="flex h-11 shrink-0 items-center"
@@ -133,14 +133,14 @@ export const GameStep = () => {
           </motion.div>
         )}
 
-        <div className="relative mt-2 h-[280px] w-full shrink-0">
+        <div className="relative mt-4 h-[360px] w-full max-w-[1040px] shrink-0">
           <motion.div
             animate={{ opacity: done ? 0 : 1 }}
             className="absolute inset-0"
             transition={{ duration: 0.5, ease: 'easeOut' }}
           >
             <div
-              className="absolute right-[90px] bottom-[42px] left-0 z-10"
+              className="absolute right-[120px] bottom-[70px] left-0 z-10"
               ref={trackRef}
             >
               <motion.div
@@ -164,7 +164,7 @@ export const GameStep = () => {
                         ? { y: [0, -12, 0], rotate: [0, -5, 5, 0] }
                         : { y: 0, rotate: 0 }
                     }
-                    className="h-[44px] shrink-0"
+                    className="h-[54px] shrink-0"
                     src="/frens/peanut.svg"
                     transition={
                       isExcited
@@ -183,7 +183,7 @@ export const GameStep = () => {
                         ? { y: [0, -16, 0], rotate: [0, 4, -4, 0] }
                         : { y: 0, rotate: 0 }
                     }
-                    className="h-[60px] shrink-0"
+                    className="h-[72px] shrink-0"
                     src="/frens/lili.svg"
                     transition={
                       isExcited
@@ -204,7 +204,7 @@ export const GameStep = () => {
                           ? { y: [0, -20, -10, 0], x: [0, 5, -5, 0] }
                           : { y: [0, -6, -3, 0] }
                       }
-                      className="absolute top-[-30px] left-1/2 h-[24px] -translate-x-1/2"
+                      className="absolute top-[-36px] left-1/2 h-[30px] -translate-x-1/2"
                       src="/frens/bittu.svg"
                       transition={
                         isExcited
@@ -227,7 +227,7 @@ export const GameStep = () => {
                           ? { y: [0, -10, 0], rotate: [0, -3, 3, 0] }
                           : { y: 0, rotate: 0 }
                       }
-                      className="h-[50px] shrink-0"
+                      className="h-[60px] shrink-0"
                       src="/frens/kuzco.svg"
                       transition={
                         isExcited
@@ -247,10 +247,10 @@ export const GameStep = () => {
 
             <motion.div
               animate={giantAnimate}
-              className="absolute right-0 bottom-[10px]"
+              className="absolute right-0 bottom-6"
               transition={giantTransition}
             >
-              <img alt="" className="h-[93px]" src="/frens/giant.svg" />
+              <img alt="" className="h-28" src="/frens/giant.svg" />
             </motion.div>
 
             <motion.div
@@ -259,7 +259,7 @@ export const GameStep = () => {
                   ? { y: 300, opacity: 0, rotate: 3 }
                   : { y: 0, opacity: 1, rotate: 0 }
               }
-              className="absolute right-[90px] bottom-[10px] left-0 origin-bottom overflow-hidden"
+              className="absolute right-[120px] bottom-6 left-0 origin-bottom overflow-hidden"
               transition={hasCollapsed ? collapseTransition : { duration: 0 }}
             >
               <div className="mb-[2px] h-[2px] rounded-full bg-ens-garnet-900/30" />
@@ -314,7 +314,7 @@ export const GameStep = () => {
                             stepDone ? { scaleX: 1, opacity: 1 } : undefined
                           }
                           className={cn(
-                            'h-[22px] flex-1 origin-left rounded-[3px] border-x-[3px]',
+                            'h-6 flex-1 origin-left rounded-[3px] border-x-[3px]',
                             stepDone
                               ? 'border-ens-garnet-900/50 bg-ens-garnet-900/45 shadow-[inset_0_-3px_0_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.1)]'
                               : 'border-ens-garnet-900/8 bg-ens-garnet-900/4',
@@ -363,7 +363,7 @@ export const GameStep = () => {
 
             <motion.div
               animate={hasCollapsed ? { opacity: 0 } : { opacity: 1 }}
-              className="absolute right-[90px] bottom-[9px] left-0 h-px bg-ens-garnet-900/5"
+              className="absolute right-[120px] bottom-[23px] left-0 h-px bg-ens-garnet-900/5"
               transition={hasCollapsed ? { duration: 0.3 } : { duration: 0 }}
             />
           </motion.div>
@@ -379,7 +379,7 @@ export const GameStep = () => {
                 : { duration: 0 }
             }
           >
-            <img alt="" className="h-[180px]" src="/frens/together.svg" />
+            <img alt="" className="h-[216px]" src="/frens/together.svg" />
           </motion.div>
         </div>
       </div>

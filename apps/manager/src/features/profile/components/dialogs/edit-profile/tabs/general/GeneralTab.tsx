@@ -16,17 +16,12 @@ import {
   generalShortcuts,
   getGeneralUrlErrorMessage,
   getTextRecordValue,
+  removeGeneralFieldValue,
 } from './fields'
 import { ProfileImageField, type ProfileImageKind } from './ProfileImageField'
 import { profileLanguageOptions } from './profileLanguages'
 
-type BaseGeneralField =
-  | 'avatar'
-  | 'header'
-  | 'url'
-  | 'name'
-  | 'description'
-  | 'language'
+type BaseGeneralField = Extract<GeneralField, keyof ProfileRecords['base']>
 
 const timezoneSelectOptions = Array.from({ length: 27 }, (_, index) => {
   const offset = index - 12
@@ -171,6 +166,18 @@ export const GeneralTab = ({
   const isVisible = (field: GeneralField) => visibleFields.has(field)
   const setBaseValue = (key: BaseGeneralField, value: string) =>
     onBaseChange({ ...values.base, [key]: value })
+  const removeFieldValue = (field: GeneralField) => {
+    const currentValues = values
+    const nextValues = removeGeneralFieldValue(currentValues, field)
+
+    if (nextValues.base !== currentValues.base) {
+      onBaseChange(nextValues.base)
+    }
+
+    if (nextValues.contact !== currentValues.contact) {
+      onContactChange(nextValues.contact)
+    }
+  }
   const getPreparedImagePreviewUrl = (kind: ProfileImageKind) =>
     preparedImageUploads.find(
       (upload) => upload.kind === kind && upload.imageUrl === values.base[kind],
@@ -227,6 +234,9 @@ export const GeneralTab = ({
               key={field}
               label={getShortcutLabel(field, label)}
               onClick={() => {
+                if (active) {
+                  removeFieldValue(field)
+                }
                 toggleField(field)
                 if (field === activeImageField) {
                   setActiveImageField(null)
@@ -252,6 +262,7 @@ export const GeneralTab = ({
             onImageUploadPrepared={onImageUploadPrepared}
             owner={owner}
             preparedImagePreviewUrl={getPreparedImagePreviewUrl('avatar')}
+            themeColor={values.base.theme}
           />
         )}
 

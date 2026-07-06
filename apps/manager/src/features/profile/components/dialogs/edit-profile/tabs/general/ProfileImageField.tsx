@@ -16,7 +16,7 @@ import { useProfileImageField } from './useProfileImageField'
 export type { ProfileImageKind } from './ProfileImageField.types'
 
 export const ProfileImageField = (props: ProfileImageFieldProps) => {
-  const { isActive, disabled, kind, name, onActivate } = props
+  const { isActive, disabled, kind, name, onActivate, themeColor } = props
   const editor = useProfileImageField(props)
 
   const renderActiveContent = () => {
@@ -106,8 +106,10 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
           disabled={disabled}
           displayImage={editor.displayImage}
           kind={kind}
+          name={name}
           onBack={() => editor.send({ type: 'BACK' })}
           onConfirm={() => editor.send({ type: 'CONFIRM_REMOVAL' })}
+          themeColor={themeColor}
         />
       )
     }
@@ -127,6 +129,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
         onNft={editor.handleNftClick}
         onRemove={editor.handleRemoveClick}
         onUpload={editor.handleUploadClick}
+        themeColor={themeColor}
       />
     )
   }
@@ -145,6 +148,7 @@ export const ProfileImageField = (props: ProfileImageFieldProps) => {
           onActivate={onActivate}
           onDragOver={editor.handleDragOver}
           onDrop={editor.handleDrop}
+          themeColor={themeColor}
         />
       )}
       <input

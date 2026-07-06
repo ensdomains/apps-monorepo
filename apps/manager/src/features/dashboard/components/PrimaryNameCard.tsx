@@ -2,7 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useQuery } from '@tanstack/react-query'
 import { Calendar, ChevronDown, History } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { match } from 'ts-pattern'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -92,7 +92,8 @@ export const PrimaryNameCard = ({
     : formatDashboardDate(displayExpiryDate)
   const canViewProfile = Boolean(primaryName)
 
-  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor)
+  const profileThemeColor = isInGrace ? undefined : themeVars['--theme-color']
 
   return (
     <Card
@@ -100,7 +101,7 @@ export const PrimaryNameCard = ({
         'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:p-6',
         isInGrace && 'opacity-70',
       )}
-      style={isInGrace ? undefined : themeVars}
+      style={isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
       <PrimaryBadge className="self-start bg-ens-lapis-tint" />
 
@@ -119,20 +120,20 @@ export const PrimaryNameCard = ({
                   },
                 })}
           >
-            {match(hasAvatar)
-              .with(true, () => (
-                <img
-                  alt={displayName}
-                  className="size-20 object-cover md:size-full"
-                  src={avatarUrl as string}
-                />
-              ))
-              .otherwise(() => (
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
+                alt={displayName}
+                className="size-20 object-cover md:size-full"
+                src={hasAvatar ? (avatarUrl as string) : undefined}
+              />
+              <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-20 rounded-sm border-none bg-transparent p-0 shadow-none md:size-full"
+                  color={profileThemeColor}
                   name={primaryName ?? ''}
                 />
-              ))}
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
           </motion.div>
           <div className="flex min-h-0 flex-col justify-between gap-4 md:h-50">
             <ChoosePrimaryNameDialog>

@@ -114,6 +114,15 @@ export type NameConfig = {
    * has permission to call setText.
    */
   records?: { key: string; value: string }[]
+  /**
+   * Which test account owns the registered name. Defaults to `user2` so the
+   * connected wallet (`user`) is NOT the previous owner — the
+   * StandardRentPriceOracle exempts the previous owner from the temporary
+   * premium, which would hide premium-state testing. Use `user` when the
+   * connected wallet should own the name (e.g. to see grace-period banners
+   * on your own profile / dashboard).
+   */
+  owner?: string
 }
 
 type Dependencies = {
@@ -149,11 +158,13 @@ export function createMakeName({ accounts, time }: Dependencies) {
     config: NameConfig,
     options: { timeOffset?: number } = {},
   ): Promise<string> {
-    // Register with 'user2' so the connected wallet ('user') is NOT the
-    // previous owner. The StandardRentPriceOracle exempts the previous
-    // owner from the temporary premium.
-    const ownerAddress = accounts.getAddress('user2')
-    const ownerAccount = privateKeyToAccount(accounts.getPrivateKey('user2'))
+    // Default to 'user2' so the connected wallet ('user') is NOT the previous
+    // owner. The StandardRentPriceOracle exempts the previous owner from the
+    // temporary premium. Callers can override via `config.owner` (e.g. 'user'
+    // to own a grace-period name on the connected wallet's profile).
+    const ownerKey = config.owner ?? 'user2'
+    const ownerAddress = accounts.getAddress(ownerKey)
+    const ownerAccount = privateKeyToAccount(accounts.getPrivateKey(ownerKey))
     const timestamp = Math.floor(Date.now() / 1000)
     const uniqueLabel = `${config.label}-${timestamp}`
 

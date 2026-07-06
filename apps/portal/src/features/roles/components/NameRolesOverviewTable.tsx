@@ -1,4 +1,3 @@
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Fragment, useState } from 'react'
@@ -8,19 +7,12 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
-import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getNameLabels } from '@/features/registry/utils/nameUtils'
 import { RolesAddUserSheet } from '@/features/roles/components/RolesAddUserSheet'
 import { RolesTable } from '@/features/roles/components/RolesTable'
 import { getNameRolesAccountsQueryOptions } from '@/features/roles/hooks/useNameRoleAccounts'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { isAdminRole } from '@/lib/roles/permissions'
-import { sepoliaWithEns } from '@/lib/wagmi'
-
-const ensRegistryAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensRegistry',
-})
 
 const ROLES_FROM_BLOCK = 9783977n
 
@@ -88,47 +80,30 @@ const AddUserButton = ({
   )
 }
 
-export const NameRolesOverviewTable = ({ name }: { name: string }) => {
+export const NameRolesOverviewTable = ({
+  name,
+  registryAddress,
+}: {
+  name: string
+  registryAddress: Address
+}) => {
   const [addUserOpen, setAddUserOpen] = useState(false)
 
   const { address } = useConnection()
-  const labels = name.split('.')
-  const label = labels[0]
-
-  const { data, isLoading, error } = useQuery({
-    ...getEnsOwnerQueryOptions({ name }),
-    enabled: name.endsWith('.eth'),
-  })
-
-  const registryAddress = data?.registryAddress
+  const label = name.split('.')[0]
 
   const { data: currentAccountRoles } = useQuery({
     ...getNameRolesForAccountQueryOptions({
-      registryAddress: registryAddress ?? ensRegistryAddress,
+      registryAddress,
       label,
       account: address ?? zeroAddress,
     }),
-    enabled:
-      Boolean(address) &&
-      Boolean(registryAddress) &&
-      data?.protocolVersion === 'ENSv2',
+    enabled: Boolean(address),
   })
 
   const canManageRoles = Boolean(
     currentAccountRoles?.decoded?.find(isAdminRole),
   )
-
-  if (isLoading) return <LoadingSpinner title="Loading name owner" />
-
-  if (error)
-    return (
-      <ErrorMessage
-        title={error.cause?.name}
-        description={error.cause?.message}
-      />
-    )
-
-  if (!registryAddress) return null
 
   return (
     <Fragment>

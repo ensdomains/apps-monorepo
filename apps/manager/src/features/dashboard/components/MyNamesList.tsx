@@ -1,10 +1,9 @@
 import { Trans } from '@lingui/react/macro'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import type { Address } from 'viem'
 import {
   buildMergedNamesList,
   mergedRowMetadata,
@@ -13,13 +12,14 @@ import {
 } from '@/features/dashboard/mergedNames'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import {
-  type AvatarLookupEntry,
-  namesAvatarsQuery,
-} from '@/features/profile/service/profileAvatar'
+  type ProfileRecordsResult,
+  profileRecordsQuery,
+} from '@/features/profile/service/profileRecords'
 import { tw } from '@/utils/tailwind'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
+import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
 const PAGE_SIZE = 5
 
@@ -51,23 +51,25 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
   return { field, dir }
 }
 
-type MergedNameItem = ReturnType<typeof buildMergedNamesList>[number]
+type MergedNameRowMetadata = ReturnType<typeof mergedRowMetadata>
 
 const AnimatedNameRow = ({
-  item,
+  metadata,
+  name,
   index,
+  profileRecords,
+  isProfileRecordsLoading,
   shouldReduceMotion,
-  primaryLabel,
-  avatarUrl,
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
 }: {
-  readonly item: MergedNameItem
+  readonly metadata: MergedNameRowMetadata
+  readonly name: string
   readonly index: number
+  readonly profileRecords?: ProfileRecordsResult | null
+  readonly isProfileRecordsLoading: boolean
   readonly shouldReduceMotion: boolean | null
-  readonly primaryLabel?: string | null
-  readonly avatarUrl?: string
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
@@ -79,15 +81,19 @@ const AnimatedNameRow = ({
     formattedExpiryDate,
     isV1,
     isPrimary,
-    avatarUrl: fallbackAvatarUrl,
     isInGrace,
     expiryCta,
-  } = mergedRowMetadata(item, primaryLabel, avatarUrl)
+  } = metadata
+  const profilePreview = getNameRowProfilePreview({
+    label,
+    name,
+    records: profileRecords,
+    isLoading: isProfileRecordsLoading,
+  })
 
   return (
     <motion.div
       className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
-      key={item.key}
       {...(shouldReduceMotion
         ? {}
         : {
@@ -101,7 +107,8 @@ const AnimatedNameRow = ({
           })}
     >
       <NameRow
-        avatarUrl={fallbackAvatarUrl}
+        avatarPending={profilePreview.isAvatarPending}
+        avatarUrl={profilePreview.avatarUrl}
         cta={isV1 ? null : expiryCta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
@@ -114,6 +121,7 @@ const AnimatedNameRow = ({
         onToggleFavorite={() => onToggleFavorite(label)}
         showFavoriteButton
         status={isV1 ? 'eligibleUpgrade' : null}
+        themeColor={profilePreview.themeColor}
         verified={isPrimary}
       />
     </motion.div>
@@ -176,23 +184,27 @@ export const MyNamesList = ({
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
-  const avatarLookups = useMemo<AvatarLookupEntry[]>(
-    () =>
-      pageItems.flatMap((item) => {
-        if (item.kind !== 'v2') return []
-        const resolverAddress = item.domain.resolver?.address as
-          | Address
-          | undefined
-        if (!resolverAddress) return []
-        return [{ name: item.sortName, resolverAddress }]
-      }),
-    [pageItems],
-  )
-
-  const { data: pageAvatars } = useQuery(namesAvatarsQuery(avatarLookups))
-
   const isPending = isV2Pending || (migrationEnabled && isV1Pending)
   const hasPartialV2Error = isV2Error && v2Names.length > 0
+  const pageRows = pageItems.map((item) => ({
+    item,
+    metadata: mergedRowMetadata(item, primaryLabel),
+    name:
+      item.kind === 'v2'
+        ? (item.domain.normalizedName ?? item.sortName)
+        : item.sortName,
+  }))
+  const pageProfileRecords = useQueries({
+    queries: pageRows.map(({ item, metadata, name }) => ({
+      ...profileRecordsQuery(name),
+      enabled: item.kind === 'v2' && !metadata.isInGrace,
+    })),
+    combine: (results) =>
+      results.map((result) => ({
+        records: result.data,
+        isLoading: result.isLoading,
+      })),
+  })
 
   if (isV2Error && v2Names.length === 0) {
     return (
@@ -239,20 +251,27 @@ export const MyNamesList = ({
               </span>
             </div>
           ))
-          .otherwise(({ pageItems }) =>
-            pageItems.map((item, index) => (
-              <AnimatedNameRow
-                avatarUrl={pageAvatars?.[item.sortName]}
-                favoriteLabels={favoriteLabels}
-                index={index}
-                isAuthenticated={isAuthenticated}
-                item={item}
-                key={item.key}
-                onToggleFavorite={onToggleFavorite}
-                primaryLabel={primaryLabel}
-                shouldReduceMotion={shouldReduceMotion}
-              />
-            )),
+          .otherwise(() =>
+            pageRows.map((row, index) => {
+              const profileRecordState = pageProfileRecords[index]
+
+              return (
+                <AnimatedNameRow
+                  favoriteLabels={favoriteLabels}
+                  index={index}
+                  isAuthenticated={isAuthenticated}
+                  isProfileRecordsLoading={
+                    profileRecordState?.isLoading ?? false
+                  }
+                  key={row.item.key}
+                  metadata={row.metadata}
+                  name={row.name}
+                  onToggleFavorite={onToggleFavorite}
+                  profileRecords={profileRecordState?.records}
+                  shouldReduceMotion={shouldReduceMotion}
+                />
+              )
+            }),
           )}
       </div>
 

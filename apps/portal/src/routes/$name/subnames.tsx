@@ -14,6 +14,7 @@ import {
   SubnamesTable,
 } from '@/features/names/components/SubnamesTable'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -21,6 +22,7 @@ import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useName
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
 const deleteTxId = (subnameName: string) =>
@@ -57,7 +59,7 @@ const NoSubregistryMessage = ({
       canDeploy
         ? {
             label: 'Deploy subregistry',
-            href: `/${encodeURIComponent(name)}/deploy-registry`,
+            href: `/${encodeURIComponent(name)}/registry`,
           }
         : undefined
     }
@@ -419,6 +421,14 @@ function RouteComponent() {
     error,
   } = useQuery(getEnsOwnerQueryOptions({ name }))
 
+  // The v2 registry keeps returning the previous owner (latestOwner) after
+  // expiry, so registration is read from the registrar's availability (true
+  // only past grace) rather than owner presence.
+  const availabilityQuery = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: isRegistrable(name),
+  })
+
   if (error) {
     return (
       <ErrorMessage
@@ -428,11 +438,23 @@ function RouteComponent() {
     )
   }
 
-  if (isLoading) {
+  if (isLoading || (availabilityQuery.isLoading && isRegistrable(name))) {
     return <LoadingMessage title="Loading name data..." />
   }
 
-  if (!ownerData) {
+  if (availabilityQuery.error) {
+    return (
+      <ErrorMessage
+        title="Error checking availability"
+        description={
+          availabilityQuery.error.cause?.message ||
+          availabilityQuery.error.message
+        }
+      />
+    )
+  }
+
+  if (availabilityQuery.data?.isAvailable || !ownerData) {
     return (
       <NotFoundMessage
         title="Name not registered"

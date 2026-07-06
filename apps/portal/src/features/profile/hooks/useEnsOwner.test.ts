@@ -8,12 +8,12 @@ vi.mock('@/lib/wagmi/helpers', () => ({
   safeGetClient: () => ok(mockClient),
 }))
 
-// Mock chain contract address lookup used by the shared resolveEnsOwner
+// Mock chain contract address lookup used by the shared resolveEnsOwner (V1
+// fallback only — the V2 path reads everything by name via the UR).
 const V2_ETH_REGISTRY = '0x00000000000000000000000000000000000e2000'
 const V1_ETH_REGISTRY = '0x00000000000000000000000000000000000e1000'
 vi.mock('@ensdomains/ensjs/chain', () => ({
-  getChainContractAddress: ({ contract }: { contract: string }) =>
-    contract === 'ensRegistry' ? V2_ETH_REGISTRY : V1_ETH_REGISTRY,
+  getChainContractAddress: () => V1_ETH_REGISTRY,
 }))
 
 // Mock ensjs v1
@@ -24,10 +24,10 @@ vi.mock('@ensdomains/ensjs/public/v1', () => ({
 
 // Mock ensjs v2
 const mockV2GetOwner = vi.fn()
-const mockGetNameRegistryAddress = vi.fn()
+const mockGetNameRegistries = vi.fn()
 vi.mock('@ensdomains/ensjs/public/v2', () => ({
   getOwner: mockV2GetOwner,
-  getNameRegistryAddress: mockGetNameRegistryAddress,
+  getNameRegistries: mockGetNameRegistries,
 }))
 
 // Dynamic import after mocking
@@ -36,6 +36,12 @@ const { getEnsOwner } = await import('./useEnsOwner')
 describe('getEnsOwner', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Leaf-first ancestry: index 1 (the leaf's containing registry) is non-zero.
+    mockGetNameRegistries.mockResolvedValue([
+      zeroAddress,
+      V2_ETH_REGISTRY,
+      '0x0000000000000000000000000000000000007007',
+    ])
   })
 
   it('returns a V2 owner for a V2 name without calling V1', async () => {

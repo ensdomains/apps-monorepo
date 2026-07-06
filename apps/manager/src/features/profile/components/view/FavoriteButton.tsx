@@ -1,7 +1,6 @@
 import { useLingui } from '@lingui/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
-import clsx from 'clsx'
 import { Heart } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'
@@ -20,6 +19,7 @@ import {
 } from '@/features/profile/components/common/favoriteAction.helpers'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { isBackendAuthed } from '@/utils/backend-client'
+import { tw } from '@/utils/tailwind'
 
 interface FavoriteButtonProps {
   readonly name: string
@@ -84,7 +84,7 @@ export const FavoriteButton = ({ name }: FavoriteButtonProps) => {
       }
     >
       <Heart
-        className={clsx(
+        className={tw(
           'size-5',
           isFavorite ? 'fill-[#f53293] text-[#f53293]' : 'text-gray-500',
           !isAuthed && 'opacity-50',

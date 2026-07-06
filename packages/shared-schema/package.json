@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./notifications": "./src/notifications/index.ts",
-    "./telegram": "./src/telegram/index.ts"
+    "./telegram": "./src/telegram/index.ts",
+    "./transactions": "./src/transactions/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

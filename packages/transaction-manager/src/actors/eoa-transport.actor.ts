@@ -1,3 +1,4 @@
+import { logger } from '@ens-apps/utils/logger'
 import type { ResultAsync } from 'neverthrow'
 import { type Hash, UserRejectedRequestError } from 'viem'
 import {
@@ -28,13 +29,6 @@ export function submitEOATransaction(input: {
   const { walletClient } = signer
   const eoaRequest = request as EOATransactionRequest
 
-  console.log('🔧 [EOA TRANSPORT] Submitting EOA transaction:', {
-    from: eoaRequest.from,
-    to: eoaRequest.to,
-    value: eoaRequest.value?.toString(),
-    hasData: !!eoaRequest.data,
-  })
-
   // Build transaction params - either legacy (gasPrice) or EIP-1559 (maxFeePerGas)
   // biome-ignore lint/suspicious/noExplicitAny: txParams is built dynamically with conditional gas fields, not expressible as a single static type
   const txParams: any = {
@@ -55,25 +49,15 @@ export function submitEOATransaction(input: {
     txParams.gasPrice = eoaRequest.gasPrice
   }
 
-  console.log('🔧 [EOA TRANSPORT] Transaction params prepared:', {
-    hasMaxFeePerGas: !!txParams.maxFeePerGas,
-    hasGasPrice: !!txParams.gasPrice,
-    gas: txParams.gas?.toString(),
-  })
-
   return safeSendTransaction(walletClient, txParams).mapErr((error) => {
     if (
       error.name === 'TransactionExecutionError' &&
       error.cause instanceof UserRejectedRequestError
     ) {
-      console.error(
-        '❌ [EOA TRANSPORT] User rejected transaction:',
-        error.cause,
-      )
       return new TransactionUserRejectedError(eoaRequest, error.cause)
     }
 
-    console.error('❌ [EOA TRANSPORT] Transaction submission failed:', error)
+    logger.error('EOA transaction submission failed', error)
     return new TransactionSubmissionError(eoaRequest, error)
   })
 }

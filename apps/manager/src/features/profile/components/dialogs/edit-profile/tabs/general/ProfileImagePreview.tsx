@@ -1,6 +1,8 @@
 import type React from 'react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { getEmptyLabel } from './ProfileImageField.helpers'
 import type { ProfileImageKind } from './ProfileImageField.types'
 
@@ -27,15 +29,18 @@ export const DisplayImage = ({
   </ImageFallback.Root>
 )
 
-const AvatarFallback = () => (
-  <div className="flex size-25 items-center justify-center rounded-sm border border-ens-quartz-250 border-dashed bg-ens-quartz-50">
-    <MSymbol
-      aria-hidden="true"
-      className="text-ens-quartz-380"
-      style={{ fontSize: 32 }}
-      symbol="face"
-    />
-  </div>
+const AvatarFallback = ({
+  name,
+  themeColor,
+}: {
+  readonly name: string
+  readonly themeColor?: string | null
+}) => (
+  <PatternAvatar
+    className="size-25 rounded-xl border-none bg-transparent p-0 shadow-none"
+    color={getThemeVars(themeColor)['--theme-color']}
+    name={name}
+  />
 )
 
 interface ProfileImagePreviewProps {
@@ -43,6 +48,7 @@ interface ProfileImagePreviewProps {
   readonly hasImage: boolean
   readonly kind: ProfileImageKind
   readonly name: string
+  readonly themeColor?: string | null
 }
 
 export const ProfileImagePreview = ({
@@ -50,17 +56,18 @@ export const ProfileImagePreview = ({
   hasImage,
   kind,
   name,
+  themeColor,
 }: ProfileImagePreviewProps) => {
   if (kind === 'avatar') {
     return hasImage ? (
       <DisplayImage
         alt={`${name} avatar`}
         className="block size-25 rounded-xl object-cover"
-        fallback={<AvatarFallback />}
+        fallback={<AvatarFallback name={name} themeColor={themeColor} />}
         src={displayImage}
       />
     ) : (
-      <AvatarFallback />
+      <AvatarFallback name={name} themeColor={themeColor} />
     )
   }
 

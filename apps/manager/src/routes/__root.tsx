@@ -1,3 +1,4 @@
+import { DevDrawer } from '@ens-apps/dev-tools'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   createRootRouteWithContext,
@@ -8,7 +9,7 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
 import { Toaster } from 'sonner'
 import { Layout } from '@/components/Layout'
-import { MATERIAL_SYMBOLS_URL } from '@/components/ui/material-symbol'
+import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
 import appCss from '@/styles/index.css?url'
@@ -16,6 +17,9 @@ import appCss from '@/styles/index.css?url'
 type RootRouterContext = {
   queryClient: QueryClient
 }
+
+const toastIconClassName =
+  'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-2xl leading-none'
 
 export const Route = createRootRouteWithContext<RootRouterContext>()({
   head: () => ({
@@ -57,7 +61,36 @@ function RootComponent() {
           <Layout>
             <Outlet />
           </Layout>
-          <Toaster position="bottom-center" />
+          <Toaster
+            icons={{
+              error: (
+                <MSymbol className={toastIconClassName} symbol="warning" />
+              ),
+              info: <MSymbol className={toastIconClassName} symbol="info" />,
+              loading: (
+                <MSymbol className={toastIconClassName} symbol="hourglass" />
+              ),
+              success: (
+                <MSymbol className={toastIconClassName} symbol="check" />
+              ),
+              warning: (
+                <MSymbol className={toastIconClassName} symbol="warning" />
+              ),
+            }}
+            position="bottom-right"
+            toastOptions={{
+              classNames: {
+                actionButton: 'ens-sonner-action-button',
+                cancelButton: 'ens-sonner-cancel-button',
+                closeButton: 'ens-sonner-close-button',
+                description: 'ens-sonner-description',
+                icon: 'ens-sonner-icon-slot',
+                title: 'ens-sonner-title',
+                toast: 'ens-sonner-toast',
+              },
+            }}
+          />
+          {import.meta.env.DEV && <DevDrawer />}
         </RootProviders>
 
         <TanStackRouterDevtools position="bottom-right" />

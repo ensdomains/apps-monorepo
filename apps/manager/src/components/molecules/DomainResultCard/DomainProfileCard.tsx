@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { ArrowRight, Calendar, Clock } from 'lucide-react'
-import placeholderAvatar from '@/assets/placeholder-avatar.svg'
+import * as ImageFallback from '@/components/atoms/ImageFallback'
+import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 
@@ -39,7 +40,7 @@ export const DomainProfileCard = ({
 }: DomainProfileCardProps) => {
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
-  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor)
 
   return (
     <div
@@ -51,18 +52,27 @@ export const DomainProfileCard = ({
           'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0px_4px_6px_-1px_rgba(14,61,104,0.08),0px_20px_28px_-12px_rgba(15,23,42,0.24)]',
         className,
       )}
-      style={themeVars}
+      style={themeVars as React.CSSProperties}
     >
       {/* Left section: Avatar and Domain Info */}
       <div className="flex h-full items-center gap-4">
         {/* Avatar */}
         <div className="relative size-[113px] shrink-0">
           <div className="size-[113px] overflow-clip rounded-[5.215px] bg-ens-white">
-            <img
-              alt={`${domainName} avatar`}
-              className="size-full object-cover"
-              src={avatarUrl || placeholderAvatar}
-            />
+            <ImageFallback.Root className="contents">
+              <ImageFallback.Image
+                alt={`${domainName} avatar`}
+                className="size-full object-cover"
+                src={avatarUrl ?? undefined}
+              />
+              <ImageFallback.Fallback>
+                <PatternAvatar
+                  className="size-full rounded-[5.215px] border-none bg-transparent p-0 shadow-none"
+                  color={themeVars['--theme-color']}
+                  name={domainName}
+                />
+              </ImageFallback.Fallback>
+            </ImageFallback.Root>
           </div>
         </div>
 

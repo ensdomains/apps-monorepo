@@ -1,6 +1,7 @@
 import { SupervisorAccountIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { BlockCard } from '@/features/dashboard/components'
+import { InfoRow } from './InfoRow'
 import { NameAvatar } from './NameAvatar'
 
 export const ParentName = ({
@@ -15,23 +16,16 @@ export const ParentName = ({
   if (asRow) {
     if (parent === name)
       return (
-        <div className="flex items-center gap-4 py-3">
-          <span className="text-sm text-muted-foreground w-24 shrink-0">
-            Parent
-          </span>
+        <InfoRow label="Parent">
           <span className="text-sm">Root</span>
-        </div>
+        </InfoRow>
       )
     return (
-      <div className="flex items-center gap-4 w-full">
-        <SupervisorAccountIcon className="size-4 shrink-0 text-neutral-7" />
-        <span className="text-sm text-muted-foreground w-24 shrink-0">
-          Parent
-        </span>
+      <InfoRow icon={SupervisorAccountIcon} label="Parent">
         <EntityBadge variant="name" name={parent}>
           {parent}
         </EntityBadge>
-      </div>
+      </InfoRow>
     )
   }
 
@@ -57,7 +51,7 @@ export const ParentName = ({
           />
           <span className="text-sm truncate">Parent</span>
         </div>
-        <EntityBadge inline variant="name" name={parent}>
+        <EntityBadge variant="name" name={parent}>
           {parent}
         </EntityBadge>
       </div>

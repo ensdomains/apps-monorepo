@@ -1,7 +1,6 @@
 import { Trans, useLingui } from '@lingui/react/macro'
 import { keepPreviousData, useQueries } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import clsx from 'clsx'
 import {
   ArrowUpRight,
   CircleArrowLeft,
@@ -25,7 +24,8 @@ import {
   toDateFromSeconds,
 } from '@/features/dashboard/utils'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
-import { useAvatarFromName } from '../../service/profileAvatar'
+import { tw } from '@/utils/tailwind'
+import { buildNameAvatarUrl } from '../../service/profileAvatar'
 import {
   PROFILE_NAMES_PAGE_SIZE,
   profileOwnedNamesQuery,
@@ -45,7 +45,7 @@ const formatExpiry = (
 }
 
 const NameAvatar = ({ name }: { name: string }) => {
-  const { data: avatarUrl, isLoading } = useAvatarFromName({ name })
+  const avatarUrl = buildNameAvatarUrl(name)
 
   return (
     <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-[#faf9f6] md:size-[36.9px]">
@@ -60,9 +60,6 @@ const NameAvatar = ({ name }: { name: string }) => {
             className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
             name={name}
           />
-          {isLoading && (
-            <div className="absolute inset-0 animate-pulse rounded-full bg-gray-100" />
-          )}
         </ImageFallback.Fallback>
       </ImageFallback.Root>
     </div>
@@ -166,9 +163,9 @@ export const AddressProfileView = ({
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-center gap-2 md:max-w-full-[180px] md:gap-3">
                   <NameAvatar name={label} />
-                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 md:px-2 md:py-[4px]">
+                  <div className="flex min-w-0 items-center rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 md:px-2 md:py-1">
                     <Link
-                      className="mr-1 min-w-0 break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] [text-wrap:pretty] md:mr-2 md:tracking-[-0.32px]"
+                      className="mr-1 min-w-0 text-pretty break-all font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:mr-2 md:tracking-[-0.32px]"
                       params={{ name: label }}
                       to="/$name"
                     >
@@ -214,7 +211,7 @@ export const AddressProfileView = ({
                   Primary name
                 </span>
                 <Link
-                  className="inline-flex items-center gap-1 rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-2 md:py-[4px]"
+                  className="inline-flex items-center gap-1 rounded-[2.8px] bg-ens-lapis-bg px-2 py-1 font-medium font-mono text-ens-blue text-sm tracking-[-0.28px] md:px-2 md:py-1"
                   params={{ name: primaryName }}
                   to="/$name"
                 >
@@ -227,7 +224,7 @@ export const AddressProfileView = ({
               </div>
             ) : (
               <div className="flex items-start gap-2 rounded-lg bg-ens-white p-3 text-muted-foreground text-sm">
-                <Info className="mt-[2px] size-4 shrink-0" />
+                <Info className="mt-0.5 size-4 shrink-0" />
                 <p>
                   <Trans>This address does not have a primary ENS name.</Trans>
                 </p>
@@ -238,7 +235,7 @@ export const AddressProfileView = ({
       </Card>
 
       <Card className="rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:px-6 md:py-8">
-        <div className="mb-[20px] flex items-center justify-between gap-3">
+        <div className="mb-5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="text-[20px] text-foreground leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
               <Trans>Registered ENS names</Trans>
@@ -253,14 +250,14 @@ export const AddressProfileView = ({
         </div>
 
         <div
-          className={clsx(isPlaceholderData && 'opacity-50 transition-opacity')}
+          className={tw(isPlaceholderData && 'opacity-50 transition-opacity')}
         >
           {namesContent}
         </div>
 
         {!isPending && !isError && names.length > 0 && (
-          <div className="mt-[32px] flex flex-col gap-3 md:h-[56px] md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center justify-center gap-[12px]">
+          <div className="mt-8 flex flex-col gap-3 md:h-14 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center justify-center gap-3">
               <button
                 aria-label={t`Previous page`}
                 className="flex size-8 items-center justify-center text-ens-gray-three disabled:text-border"
@@ -281,9 +278,7 @@ export const AddressProfileView = ({
               </button>
             </div>
             <span className="flex items-center justify-center gap-1.5 font-sans text-[16px] text-muted-foreground leading-[1.2] tracking-[0.14px]">
-              {isPlaceholderData && (
-                <Loader2 className="size-[12px] animate-spin" />
-              )}
+              {isPlaceholderData && <Loader2 className="size-3 animate-spin" />}
               Showing registered names
             </span>
           </div>

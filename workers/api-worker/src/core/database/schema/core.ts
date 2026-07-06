@@ -3,6 +3,7 @@ import { index, pgTable, text, uuid } from 'drizzle-orm/pg-core'
 import { randomUUIDv7 } from '../utils/schemaHelpers'
 import { favorites } from './favorites'
 import { notifications, userChannels } from './notifications'
+import { transactions } from './transactions'
 
 export const users = pgTable(
   'users',
@@ -17,4 +18,5 @@ export const usersRelations = relations(users, ({ many }) => ({
   favorites: many(favorites),
   notifications: many(notifications),
   userChannels: many(userChannels),
+  transactions: many(transactions),
 }))
