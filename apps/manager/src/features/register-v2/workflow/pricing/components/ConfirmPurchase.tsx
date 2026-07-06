@@ -102,7 +102,7 @@ export const ConfirmPurchase = () => {
       }
       errorMessage={errorMessage}
       label={label}
-      nextMessage={<Trans>Buy Name</Trans>}
+      nextMessage={<Trans>Register name</Trans>}
       onNext={() => availabilityMutation.mutate()}
       pricingData={pricingQuery.data?.totalPriceNumber}
       selectedToken={selectedToken}
