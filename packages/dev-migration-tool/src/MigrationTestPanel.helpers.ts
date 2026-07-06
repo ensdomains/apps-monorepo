@@ -1,26 +1,40 @@
 // Pure helpers and domain logic for MigrationTestPanel — no React, fully testable.
 
-import { concat, encodeFunctionData, hexToBytes, keccak256, toBytes } from 'viem'
+import {
+  concat,
+  encodeFunctionData,
+  hexToBytes,
+  keccak256,
+  toBytes,
+} from 'viem'
 
 // --- V1 contract addresses --------------------------------------------------
 // Official Sepolia V1 contracts (match preflightChecks.ts / ensjs chain config).
-export const V1_BASE_REGISTRAR = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const
-export const V1_NAME_WRAPPER = '0x0635513f179D50A207757E05759CbD106d7dFcE8' as const
+export const V1_BASE_REGISTRAR =
+  '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const
+export const V1_NAME_WRAPPER =
+  '0x0635513f179D50A207757E05759CbD106d7dFcE8' as const
 // Owner of the official Sepolia BaseRegistrar — impersonated to re-authorize
 // DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers at ~block
 // 10927919 as part of the V2 migration cutover.
-export const V1_BASE_REGISTRAR_OWNER = '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
-export const V1_PUBLIC_RESOLVER = '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
+export const V1_BASE_REGISTRAR_OWNER =
+  '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
+export const V1_PUBLIC_RESOLVER =
+  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
 
 // V2 contracts — sourced from ensjs Sepolia chain config (same source as addresses.ts).
-export const V2_ETH_REGISTRY_ADDR = '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
-export const V2_ETH_REGISTRAR_ADDR = '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
+export const V2_ETH_REGISTRY_ADDR =
+  '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
+export const V2_ETH_REGISTRAR_ADDR =
+  '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
 
 /** Anvil account #0 — always has 10 000 ETH on a fresh fork. */
-export const DEFAULT_ACCOUNT = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const
+export const DEFAULT_ACCOUNT =
+  '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const
 
 export const ONE_YEAR = 365 * 24 * 3600
-export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
+export const ZERO_ADDRESS =
+  '0x0000000000000000000000000000000000000000' as const
 
 // --- Fuse bit masks (NameWrapper) -------------------------------------------
 export const CANNOT_UNWRAP = 1 as const
@@ -69,10 +83,26 @@ export type Pos = { left: number; top: number }
 export const PRESETS: { type: PresetType; label: string; title: string }[] = [
   { type: 'unwrapped', label: 'Unwrapped', title: 'ERC-721 on BaseRegistrar' },
   { type: 'wrapped', label: 'Wrapped', title: 'NameWrapper, no fuses' },
-  { type: 'locked', label: 'Locked', title: 'NameWrapper, CANNOT_UNWRAP fuse burned' },
-  { type: 'locked-all', label: 'Locked+All', title: 'NameWrapper, all 7 child fuses burned' },
-  { type: 'grace', label: 'Grace Period', title: 'Locked name expired 45 days ago (clock advanced)' },
-  { type: 'emancipated', label: 'Emancipated', title: 'Locked subname with PARENT_CANNOT_CONTROL' },
+  {
+    type: 'locked',
+    label: 'Locked',
+    title: 'NameWrapper, CANNOT_UNWRAP fuse burned',
+  },
+  {
+    type: 'locked-all',
+    label: 'Locked+All',
+    title: 'NameWrapper, all 7 child fuses burned',
+  },
+  {
+    type: 'grace',
+    label: 'Grace Period',
+    title: 'Locked name expired 45 days ago (clock advanced)',
+  },
+  {
+    type: 'emancipated',
+    label: 'Emancipated',
+    title: 'Locked subname with PARENT_CANNOT_CONTROL',
+  },
 ]
 
 export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
@@ -212,7 +242,10 @@ export async function rpcCall(
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   })
   if (!res.ok) throw new Error(`RPC HTTP ${res.status}: ${res.statusText}`)
-  const json = (await res.json()) as { result?: unknown; error?: { message: string } }
+  const json = (await res.json()) as {
+    result?: unknown
+    error?: { message: string }
+  }
   if (json.error) throw new Error(`RPC error: ${json.error.message}`)
   return json.result
 }
@@ -236,7 +269,10 @@ export async function sendTx(
   await rpcCall(endpoint, 'evm_mine', [])
 }
 
-export async function increaseTime(endpoint: string, seconds: number): Promise<void> {
+export async function increaseTime(
+  endpoint: string,
+  seconds: number,
+): Promise<void> {
   await rpcCall(endpoint, 'evm_increaseTime', [seconds])
   await rpcCall(endpoint, 'evm_mine', [])
 }
@@ -324,7 +360,11 @@ export async function setNameFuses(
   await sendTx(
     endpoint,
     V1_NAME_WRAPPER,
-    encodeFunctionData({ abi: WRAPPER_ABI, functionName: 'setFuses', args: [node, fuses] }),
+    encodeFunctionData({
+      abi: WRAPPER_ABI,
+      functionName: 'setFuses',
+      args: [node, fuses],
+    }),
   )
 }
 
@@ -363,7 +403,10 @@ export async function ensureFunded(endpoint: string): Promise<void> {
   // Clear EOF code so Anvil treats the account as a plain EOA
   await rpcCall(endpoint, 'anvil_setCode', [DEFAULT_ACCOUNT, '0x'])
   await rpcCall(endpoint, 'anvil_setBalance', [DEFAULT_ACCOUNT, TARGET])
-  const actual = (await rpcCall(endpoint, 'eth_getBalance', [DEFAULT_ACCOUNT, 'latest'])) as string
+  const actual = (await rpcCall(endpoint, 'eth_getBalance', [
+    DEFAULT_ACCOUNT,
+    'latest',
+  ])) as string
   if (BigInt(actual) < BigInt('0x16345785D8A0000') /* 0.1 ETH */) {
     throw new Error(
       `anvil_setBalance did not work — balance is ${actual} (hex). Try running fund-account.sh manually.`,
@@ -384,7 +427,9 @@ export async function ensureFunded(endpoint: string): Promise<void> {
       }),
     )
   } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [V1_BASE_REGISTRAR_OWNER])
+    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
+      V1_BASE_REGISTRAR_OWNER,
+    ])
   }
 
   // Grant ROLE_REGISTRAR (bit 0 = 0x01) to the V2 migration controllers on the
@@ -401,7 +446,8 @@ export async function ensureFunded(endpoint: string): Promise<void> {
   //   intermediate = 0xac33ff75c19e70fe83507db0d683fd3465c996598dc972688b7ace676c89077b
   //   UnlockedMigrationController slot = 0xd59cccd6b2c921fc9fa11f4c3ac64743360eafac52cb11cbdb0de007a5831390
   //   LockedMigrationController slot   = 0xbd1b859b6507af3d538d435c6450a599eddca774c570dbcce49bbc071ef23a73
-  const ROLE_VALUE = '0x0000000000000000000000000000000000000000000000000000000000000011'
+  const ROLE_VALUE =
+    '0x0000000000000000000000000000000000000000000000000000000000000011'
   await rpcCall(endpoint, 'anvil_setStorageAt', [
     V2_ETH_REGISTRY_ADDR,
     '0xd59cccd6b2c921fc9fa11f4c3ac64743360eafac52cb11cbdb0de007a5831390',
@@ -433,14 +479,32 @@ export async function reserveInV2(
     const data = encodeFunctionData({
       abi: V2_REGISTRY_ABI,
       functionName: 'register',
-      args: [label, ZERO_ADDRESS, ZERO_ADDRESS, V1_PUBLIC_RESOLVER, 0n, BigInt(expiryDate)],
+      args: [
+        label,
+        ZERO_ADDRESS,
+        ZERO_ADDRESS,
+        V1_PUBLIC_RESOLVER,
+        0n,
+        BigInt(expiryDate),
+      ],
     })
-    await sendTxFrom(endpoint, V2_ETH_REGISTRAR_ADDR, V2_ETH_REGISTRY_ADDR, data)
+    await sendTxFrom(
+      endpoint,
+      V2_ETH_REGISTRAR_ADDR,
+      V2_ETH_REGISTRY_ADDR,
+      data,
+    )
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    if (!msg.includes('LabelAlreadyReserved') && !msg.includes('AlreadyRegistered')) throw err
+    if (
+      !msg.includes('LabelAlreadyReserved') &&
+      !msg.includes('AlreadyRegistered')
+    )
+      throw err
   } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [V2_ETH_REGISTRAR_ADDR])
+    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
+      V2_ETH_REGISTRAR_ADDR,
+    ])
   }
 }
 
@@ -520,7 +584,8 @@ export function buildMockDomain(name: ActiveName): unknown {
   const now = Math.floor(Date.now() / 1000)
 
   let fuses = PARENT_CANNOT_CONTROL | IS_DOT_ETH
-  if (name.type !== 'unwrapped' && name.type !== 'wrapped') fuses |= CANNOT_UNWRAP
+  if (name.type !== 'unwrapped' && name.type !== 'wrapped')
+    fuses |= CANNOT_UNWRAP
   if (name.type === 'locked-all') fuses |= ALL_CHILD_FUSES
 
   return {
@@ -531,7 +596,9 @@ export function buildMockDomain(name: ActiveName): unknown {
     isMigrated: false,
     createdAt: String(now - 3600),
     resolvedAddress: null,
-    resolver: isWrapped ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER } : null,
+    resolver: isWrapped
+      ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
+      : null,
     owner: { id: isWrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
     registrant: { id: owner },
     wrappedOwner: isWrapped ? { id: owner } : null,
@@ -553,7 +620,10 @@ export function buildMockDomain(name: ActiveName): unknown {
  * the Anvil fork (ownerOf returns a non-zero address). This is the same
  * contract preflightChecks.ts uses for eligibility, so alignment is critical.
  */
-export async function isNameOnAnvil(endpoint: string, label: string): Promise<boolean> {
+export async function isNameOnAnvil(
+  endpoint: string,
+  label: string,
+): Promise<boolean> {
   const lh = labelhash(label)
   const tokenIdPadded = lh.slice(2).padStart(64, '0')
   const data = `0x6352211e${tokenIdPadded}` as `0x${string}` // ownerOf(uint256)
@@ -582,7 +652,11 @@ export async function ensureNamesOnAnvil(
     if (exists) {
       result.push(name)
     } else {
-      const { label, expiryDate } = await createV1NameOnAnvil(endpoint, name.label, name.type)
+      const { label, expiryDate } = await createV1NameOnAnvil(
+        endpoint,
+        name.label,
+        name.type,
+      )
       result.push({ ...name, label, expiryDate })
     }
   }
@@ -604,7 +678,9 @@ export function readStoredNames(): ActiveName[] {
 export function writeStoredNames(names: ActiveName[]): void {
   try {
     localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify(names))
-  } catch { /* storage disabled */ }
+  } catch {
+    /* storage disabled */
+  }
 }
 
 export function readStoredPos(): Pos | null {
