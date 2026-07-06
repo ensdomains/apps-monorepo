@@ -7,7 +7,7 @@ import { getRenewerAddress } from './renewer'
 
 // One name's contribution to a batch's approvals: which renewer (ERC-20 spender)
 // must be paid, and how much it owes for this name in the chosen token.
-export type RenewerCharge = {
+type RenewerCharge = {
   readonly renewer: Address
   readonly total: bigint
 }
