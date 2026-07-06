@@ -3,8 +3,7 @@ import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import type { ProtocolVersion } from '@/utils/types'
 import { isExtendable2LD } from '../utils/nameExtension'
-import { getRenewerAddress } from '../utils/renewer'
-import { getIsRenewableQueryOptions } from './useIsRenewable'
+import { useV1Renewable } from './useIsRenewable'
 import type { SelectedName } from './useRenewalTransactions'
 
 type UseCanExtendParameters = {
@@ -17,18 +16,21 @@ type UseCanExtendReturnType = {
   canExtend: boolean
   selectedName: SelectedName
   expiryDate: Date | undefined
+  /** True while the v1 on-chain renewability check is still resolving. */
+  isLoading: boolean
 }
 
 /**
  * "Can this name be renewed right now?" — combines the client-side
  * `isExtendable2LD` window check with the renewer's authoritative on-chain
- * `isRenewable`.
+ * `isRenewable` (via the shared {@link useV1Renewable}).
  *
- * For v1 names this is decisive: `ETHRenewerV1` only renews RESERVED
- * (premigrated) or in-grace names, so a v1 name with no premigration reservation
- * is NOT renewable even while it sits in its BaseRegistrar grace window — the
- * banner must not promise an extension the renewer would revert. v2 relies on the
- * client-side window (the v2 registrar renews throughout registered + grace).
+ * For v1 names the on-chain check is decisive: `ETHRenewerV1` renews a name only
+ * if it is premigration-RESERVED or within the renewer's own grace definition, so
+ * an unreserved v1 name can be non-renewable even though the coarse client-side
+ * window (`isExtendable2LD`) still passes — the banner must not promise an
+ * extension the renewer would revert. v2 relies solely on the client-side window
+ * (the v2 registrar renews throughout registered + grace).
  */
 export const useCanExtend = ({
   name,
@@ -56,16 +58,13 @@ export const useCanExtend = ({
 
   const selectedName: SelectedName = { name, isV2, expiryDate }
 
-  const { data: v1Renewable } = useQuery({
-    ...getIsRenewableQueryOptions({
-      renewerAddress: getRenewerAddress(isV2),
-      name,
-    }),
-    enabled: enabled && !isV2,
-  })
+  // v2 renews throughout registered + grace, so the client-side window is
+  // authoritative; v1 additionally requires the renewer's on-chain isRenewable.
+  const { isRenewable, isLoading } = useV1Renewable(
+    enabled && !isV2 ? [name] : [],
+  )
 
-  const canExtend =
-    isExtendable2LD(selectedName) && (isV2 || Boolean(v1Renewable))
+  const canExtend = isExtendable2LD(selectedName) && (isV2 || isRenewable(name))
 
-  return { canExtend, selectedName, expiryDate }
+  return { canExtend, selectedName, expiryDate, isLoading }
 }

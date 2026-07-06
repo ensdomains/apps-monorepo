@@ -21,6 +21,8 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { getLabel } from '@/utils/token/getLabel'
 import { getRenewerAddress } from '../utils/renewer'
+import { planMultiRenewSteps } from '../utils/renewerPayments'
+import { getIsRenewableQueryOptions } from './useIsRenewable'
 
 export type SelectedName = {
   readonly name: string
@@ -223,65 +225,61 @@ function buildMultiTransactions({
 }: BuildMultiTransactionsParams): Transaction[] {
   const { renewals, tokenAddress, tokenSymbol, payments } = multiFlow
 
-  if (renewals.length === 0) return []
-
-  // Approvals: one per renewer group whose current allowance can't cover the
-  // group total. ERC-20 allowance is per-spender, so a mixed v1+v2 batch needs
-  // an approval to each renewer. Only the first approval clears the manager.
-  const approveSteps: FlowStep[] = payments
-    .filter((payment) => payment.allowance < payment.total)
-    .map((payment, index) => ({
-      id: RENEWAL_TX_IDS.approve(payment.renewer),
-      title: 'Approve payment',
-      transactionName: `Approve ${tokenSymbol} for renewal`,
-      estimatedGasCost: 0.0003,
-      action: async () => {
-        const signer = await getSigner()
-        buildApproveTransaction(
-          {
-            from,
-            tokenAddress,
-            tokenPrice: payment.total,
-            tokenSymbol,
-            publicClient,
-            renewer: payment.renewer,
+  // Pure planner decides the ordered approve-then-renew steps (and which
+  // approvals are needed / skipClear); we only wrap each into a Transaction.
+  const flowSteps: FlowStep[] = planMultiRenewSteps(renewals, payments).map(
+    (step) =>
+      step.kind === 'approve'
+        ? {
+            id: RENEWAL_TX_IDS.approve(step.renewer),
+            title: 'Approve payment',
+            transactionName: `Approve ${tokenSymbol} for renewal`,
+            estimatedGasCost: 0.0003,
+            action: async () => {
+              const signer = await getSigner()
+              buildApproveTransaction(
+                {
+                  from,
+                  tokenAddress,
+                  tokenPrice: step.total,
+                  tokenSymbol,
+                  publicClient,
+                  renewer: step.renewer,
+                },
+                signer,
+                { skipClear: step.skipClear },
+              )
+            },
+          }
+        : {
+            id: RENEWAL_TX_IDS.renew(step.name),
+            title: `Extend ${step.name}`,
+            transactionName: `Extend ${step.name}`,
+            estimatedGasCost: 0.001,
+            action: async () => {
+              const signer = await getSigner()
+              buildRenewTransaction(
+                {
+                  name: step.name,
+                  duration: step.duration,
+                  tokenAddress,
+                  from,
+                  publicClient,
+                  isV2: step.isV2,
+                },
+                signer,
+              )
+            },
           },
-          signer,
-          { skipClear: index > 0 },
-        )
-      },
-    }))
+  )
 
-  const renewSteps: FlowStep[] = renewals.map((renewal) => ({
-    id: RENEWAL_TX_IDS.renew(renewal.selectedName.name),
-    title: `Extend ${renewal.selectedName.name}`,
-    transactionName: `Extend ${renewal.selectedName.name}`,
-    estimatedGasCost: 0.001,
-    action: async () => {
-      const signer = await getSigner()
-      buildRenewTransaction(
-        {
-          name: renewal.selectedName.name,
-          duration: renewal.duration,
-          tokenAddress,
-          from,
-          publicClient,
-          isV2: renewal.selectedName.isV2,
-        },
-        signer,
-      )
-    },
-  }))
-
-  const steps = [...approveSteps, ...renewSteps]
-
-  return steps.map((step, i) => ({
+  return flowSteps.map((step, i) => ({
     id: step.id,
     title: step.title,
     transactionName: step.transactionName,
     estimatedGasCost: step.estimatedGasCost,
     onStart: step.action,
-    onDone: i < steps.length - 1 ? steps[i + 1].action : handleDone,
+    onDone: i < flowSteps.length - 1 ? flowSteps[i + 1].action : handleDone,
   }))
 }
 
@@ -335,7 +333,9 @@ export const useRenewalTransactions = ({
     // eligibility query (on the migration-banner branch) reads this expiry and
     // re-runs on the refreshed data. A batch may mix v1 and v2 names, so we
     // invalidate both queries for every name — the query for the name's other
-    // protocol version is simply a harmless no-op.
+    // protocol version is simply a harmless no-op. We also invalidate the v1
+    // is-renewable query: a just-renewed v1 name leaves its grace window, so its
+    // cached isRenewable=true is now stale and must not gate a future flow.
     for (const renewedName of renewedNames) {
       queryClient.invalidateQueries({
         queryKey: getV1ExpiryQueryOptions({ name: renewedName }).queryKey,
@@ -343,6 +343,12 @@ export const useRenewalTransactions = ({
       queryClient.invalidateQueries({
         queryKey: getV2RegistrationDataQueryOptions({ name: renewedName })
           .queryKey,
+      })
+      queryClient.invalidateQueries({
+        queryKey: getIsRenewableQueryOptions({
+          renewerAddress: getRenewerAddress(false),
+          name: renewedName,
+        }).queryKey,
       })
     }
     onComplete?.(flowType)

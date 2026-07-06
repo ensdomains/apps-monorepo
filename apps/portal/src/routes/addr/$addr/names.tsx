@@ -33,7 +33,7 @@ import {
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
-import { getIsRenewableQueryOptions } from '@/features/renew/hooks/useIsRenewable'
+import { useV1Renewable } from '@/features/renew/hooks/useIsRenewable'
 import {
   type SelectedName,
   useRenewalTransactions,
@@ -45,7 +45,6 @@ import {
   isExtendable2LD,
   MS_PER_SECOND,
 } from '@/features/renew/utils/nameExtension'
-import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
   isTransactionInFlight,
@@ -111,32 +110,28 @@ export const Route = createFileRoute('/addr/$addr/names')({
  * `isExtendable2LD` is a coarse grace-window pre-filter and is NOT authoritative
  * for v1: ETHRenewerV1 only renews reserved/in-grace names and reverts
  * otherwise. So each selected v1 name is checked against the renewer's on-chain
- * `isRenewable`; non-renewable ones are dropped (silently excluded) so they
- * never enter a single- or multi-renew flow. v2 is fully covered by
- * `isExtendable2LD` and passes through untouched. While a v1 check is still
- * loading it's excluded (conservative — same as the name page's gate).
+ * `isRenewable` (shared with the name page via {@link useV1Renewable});
+ * non-renewable ones are dropped so they never enter a single- or multi-renew
+ * flow. v2 is fully covered by `isExtendable2LD` and passes through untouched.
+ *
+ * `isLoading` is true while any selected v1 name's check is still resolving —
+ * callers must gate the Extend action on it so the flow opens against a
+ * fully-resolved selection (otherwise a still-loading renewable v1 name would be
+ * momentarily excluded, flipping the single↔multi modal choice mid-interaction).
  */
-function useRenewableNames(
-  candidates: readonly SelectedName[],
-): readonly SelectedName[] {
+function useRenewableNames(candidates: readonly SelectedName[]): {
+  readonly names: readonly SelectedName[]
+  readonly isLoading: boolean
+} {
   const v1Names = candidates
     .filter((name) => !name.isV2)
     .map((name) => name.name)
 
-  const v1RenewableQueries = useQueries({
-    queries: v1Names.map((name) =>
-      getIsRenewableQueryOptions({
-        renewerAddress: getRenewerAddress(false),
-        name,
-      }),
-    ),
-  })
+  const { isRenewable, isLoading } = useV1Renewable(v1Names)
 
-  const renewableV1 = new Set(
-    v1Names.filter((_, i) => v1RenewableQueries[i]?.data === true),
-  )
+  const names = candidates.filter((name) => name.isV2 || isRenewable(name.name))
 
-  return candidates.filter((name) => name.isV2 || renewableV1.has(name.name))
+  return { names, isLoading }
 }
 
 function RouteComponent() {
@@ -273,7 +268,8 @@ function RouteComponent() {
   const coarseExtendable = getSelectedNames(rowSelection, filteredData).filter(
     isExtendable2LD,
   )
-  const extendableNames = useRenewableNames(coarseExtendable)
+  const { names: extendableNames, isLoading: renewabilityLoading } =
+    useRenewableNames(coarseExtendable)
 
   const searchNamesId = useId()
 
@@ -335,7 +331,9 @@ function RouteComponent() {
             <Button
               variant="default"
               size="sm"
-              disabled={extendableNames.length === 0}
+              // Disabled while v1 renewability is still resolving so the flow
+              // opens against a fully-resolved selection (see useRenewableNames).
+              disabled={extendableNames.length === 0 || renewabilityLoading}
               onClick={() => {
                 if (isTransactionInFlight(activeTxState)) {
                   openModal()
