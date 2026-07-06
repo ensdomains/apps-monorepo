@@ -121,7 +121,9 @@ export function useMultiNamePricing(
         name: renewal.selectedName.name,
         duration: renewal.duration,
         token: SUPPORTED_TOKENS.USDC,
-        renewerAddress: getRenewerAddress(true),
+        // Price each name against its own renewer: unmigrated v1 names are priced
+        // by ETHRenewerV1, migrated / v2-native names by the v2 ETHRegistrar.
+        renewerAddress: getRenewerAddress(renewal.selectedName.isV2),
       }),
     ),
   })
