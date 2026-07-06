@@ -33,7 +33,11 @@ import {
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
-import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
+import { getIsRenewableQueryOptions } from '@/features/renew/hooks/useIsRenewable'
+import {
+  type SelectedName,
+  useRenewalTransactions,
+} from '@/features/renew/hooks/useRenewalTransactions'
 import {
   getNameLength,
   getNameStatus,
@@ -41,6 +45,7 @@ import {
   isExtendable2LD,
   MS_PER_SECOND,
 } from '@/features/renew/utils/nameExtension'
+import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import {
   isTransactionInFlight,
@@ -99,6 +104,40 @@ export const Route = createFileRoute('/addr/$addr/names')({
       ),
     ]),
 })
+
+/**
+ * Narrows a coarse-filtered selection to names actually renewable right now.
+ *
+ * `isExtendable2LD` is a coarse grace-window pre-filter and is NOT authoritative
+ * for v1: ETHRenewerV1 only renews reserved/in-grace names and reverts
+ * otherwise. So each selected v1 name is checked against the renewer's on-chain
+ * `isRenewable`; non-renewable ones are dropped (silently excluded) so they
+ * never enter a single- or multi-renew flow. v2 is fully covered by
+ * `isExtendable2LD` and passes through untouched. While a v1 check is still
+ * loading it's excluded (conservative — same as the name page's gate).
+ */
+function useRenewableNames(
+  candidates: readonly SelectedName[],
+): readonly SelectedName[] {
+  const v1Names = candidates
+    .filter((name) => !name.isV2)
+    .map((name) => name.name)
+
+  const v1RenewableQueries = useQueries({
+    queries: v1Names.map((name) =>
+      getIsRenewableQueryOptions({
+        renewerAddress: getRenewerAddress(false),
+        name,
+      }),
+    ),
+  })
+
+  const renewableV1 = new Set(
+    v1Names.filter((_, i) => v1RenewableQueries[i]?.data === true),
+  )
+
+  return candidates.filter((name) => name.isV2 || renewableV1.has(name.name))
+}
 
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
@@ -229,10 +268,12 @@ function RouteComponent() {
     [rowSelection],
   )
 
-  const extendableNames = useMemo(
-    () => getSelectedNames(rowSelection, filteredData).filter(isExtendable2LD),
-    [rowSelection, filteredData],
+  // Coarse grace-window pre-filter, then narrow to names that are actually
+  // renewable now (drops non-renewable v1 names — see useRenewableNames).
+  const coarseExtendable = getSelectedNames(rowSelection, filteredData).filter(
+    isExtendable2LD,
   )
+  const extendableNames = useRenewableNames(coarseExtendable)
 
   const searchNamesId = useId()
 
@@ -373,9 +414,8 @@ function RouteComponent() {
           onExtend={(config) => {
             startMultiFlow({
               renewals: config.renewals,
-              tokenAddress: config.token.address,
-              tokenPrice: config.token.price.total,
-              tokenAllowance: config.token.allowance,
+              tokenAddress: config.selection.token.address,
+              payments: config.selection.payments,
             })
             openModal()
           }}

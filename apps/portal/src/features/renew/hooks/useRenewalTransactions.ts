@@ -36,7 +36,9 @@ export type MultiRenewalEntry = {
 export type RenewalFlowType = 'single' | 'multi'
 
 export const RENEWAL_TX_IDS = {
-  approve: 'renewal-approve',
+  // Keyed by renewer (spender) so a mixed batch's two approvals — one to the v2
+  // ETHRegistrar, one to ETHRenewerV1 — get distinct ids and don't collide.
+  approve: (renewer: Address) => `renewal-approve-${renewer}`,
   renew: (name: string) => `renewal-renew-${name}`,
 } as const
 
@@ -58,9 +60,22 @@ type SingleFlow = TokenPayment & {
   readonly duration: number
 }
 
-type MultiFlow = TokenPayment & {
+// One approval target within a multi-renew batch: the renewer contract (ERC-20
+// spender), the total owed to it in the chosen token, and the current allowance.
+// A batch has one entry per distinct renewer among its names (1 for a same-kind
+// batch, 2 for a mixed v1+v2 batch).
+export type RenewerPayment = {
+  readonly renewer: Address
+  readonly total: bigint
+  readonly allowance: bigint
+}
+
+type MultiFlow = {
   readonly kind: 'multi'
   readonly renewals: readonly MultiRenewalEntry[]
+  readonly tokenAddress: Address
+  readonly tokenSymbol: 'USDC' | 'DAI'
+  readonly payments: readonly RenewerPayment[]
 }
 
 type RenewalFlow = SingleFlow | MultiFlow
@@ -75,8 +90,7 @@ export type StartFlowConfig = {
 export type StartMultiFlowConfig = {
   readonly renewals: readonly MultiRenewalEntry[]
   readonly tokenAddress: Address
-  readonly tokenPrice: bigint
-  readonly tokenAllowance?: bigint
+  readonly payments: readonly RenewerPayment[]
 }
 
 type UseRenewalTransactionsOptions = {
@@ -117,14 +131,20 @@ type BuildMultiTransactionsParams = {
   readonly handleDone: () => void
 }
 
-function buildApproveTransaction(params: ApproveParams, signer: Signer) {
+function buildApproveTransaction(
+  params: ApproveParams,
+  signer: Signer,
+  // A mixed batch emits two approvals; only the first resets the manager. Later
+  // approvals pass skipClear so they don't stop/clear the already-completed one.
+  { skipClear = false }: { skipClear?: boolean } = {},
+) {
   const approveData = encodeFunctionData({
     abi: erc20Abi,
     functionName: 'approve',
     args: [params.renewer, params.tokenPrice * 2n],
   })
 
-  transactionManager.clear()
+  if (!skipClear) transactionManager.clear()
 
   transactionManager.startTransaction(
     {
@@ -140,7 +160,7 @@ function buildApproveTransaction(params: ApproveParams, signer: Signer) {
     },
     signer,
     {
-      id: RENEWAL_TX_IDS.approve,
+      id: RENEWAL_TX_IDS.approve(params.renewer),
       publicClient: params.publicClient,
       description: `Approve ${params.tokenSymbol} for renewal`,
     },
@@ -183,6 +203,17 @@ function buildRenewTransaction(params: RenewParams, signer: Signer) {
   )
 }
 
+// One ordered step of a multi-renew batch: its display metadata plus the action
+// that starts the underlying transaction. Steps run in array order; each step's
+// onDone triggers the next step's action, and the last step's onDone finishes.
+type FlowStep = {
+  readonly id: string
+  readonly title: string
+  readonly transactionName: string
+  readonly estimatedGasCost: number
+  readonly action: () => Promise<void>
+}
+
 function buildMultiTransactions({
   multiFlow,
   from,
@@ -190,66 +221,68 @@ function buildMultiTransactions({
   getSigner,
   handleDone,
 }: BuildMultiTransactionsParams): Transaction[] {
-  const { renewals, tokenAddress, tokenSymbol, tokenPrice, tokenAllowance } =
-    multiFlow
+  const { renewals, tokenAddress, tokenSymbol, payments } = multiFlow
 
   if (renewals.length === 0) return []
 
-  const makeRenewFn = (renewal: MultiRenewalEntry) => async () => {
-    const signer = await getSigner()
-    buildRenewTransaction(
-      {
-        name: renewal.selectedName.name,
-        duration: renewal.duration,
-        tokenAddress,
-        from,
-        publicClient,
-        isV2: renewal.selectedName.isV2,
+  // Approvals: one per renewer group whose current allowance can't cover the
+  // group total. ERC-20 allowance is per-spender, so a mixed v1+v2 batch needs
+  // an approval to each renewer. Only the first approval clears the manager.
+  const approveSteps: FlowStep[] = payments
+    .filter((payment) => payment.allowance < payment.total)
+    .map((payment, index) => ({
+      id: RENEWAL_TX_IDS.approve(payment.renewer),
+      title: 'Approve payment',
+      transactionName: `Approve ${tokenSymbol} for renewal`,
+      estimatedGasCost: 0.0003,
+      action: async () => {
+        const signer = await getSigner()
+        buildApproveTransaction(
+          {
+            from,
+            tokenAddress,
+            tokenPrice: payment.total,
+            tokenSymbol,
+            publicClient,
+            renewer: payment.renewer,
+          },
+          signer,
+          { skipClear: index > 0 },
+        )
       },
-      signer,
-    )
-  }
+    }))
 
-  const renewFns = renewals.map((renewal) => makeRenewFn(renewal))
-
-  const renewTxs: Transaction[] = renewals.map((renewal, i) => ({
+  const renewSteps: FlowStep[] = renewals.map((renewal) => ({
     id: RENEWAL_TX_IDS.renew(renewal.selectedName.name),
     title: `Extend ${renewal.selectedName.name}`,
     transactionName: `Extend ${renewal.selectedName.name}`,
     estimatedGasCost: 0.001,
-    onStart: renewFns[i],
-    onDone: i < renewals.length - 1 ? renewFns[i + 1] : handleDone,
-  }))
-
-  if (tokenAllowance >= tokenPrice) {
-    return renewTxs
-  }
-
-  const approveTx: Transaction = {
-    id: RENEWAL_TX_IDS.approve,
-    title: 'Approve payment',
-    transactionName: `Approve ${tokenSymbol} for renewal`,
-    estimatedGasCost: 0.0003,
-    onStart: async () => {
+    action: async () => {
       const signer = await getSigner()
-      buildApproveTransaction(
+      buildRenewTransaction(
         {
-          from,
+          name: renewal.selectedName.name,
+          duration: renewal.duration,
           tokenAddress,
-          tokenPrice,
-          tokenSymbol,
+          from,
           publicClient,
-          // Multi-renew is v2-only (startMultiFlow filters to isV2), so a single
-          // approval to the v2 ETHRegistrar covers the whole batch.
-          renewer: getRenewerAddress(true),
+          isV2: renewal.selectedName.isV2,
         },
         signer,
       )
     },
-    onDone: renewFns[0],
-  }
+  }))
 
-  return [approveTx, ...renewTxs]
+  const steps = [...approveSteps, ...renewSteps]
+
+  return steps.map((step, i) => ({
+    id: step.id,
+    title: step.title,
+    transactionName: step.transactionName,
+    estimatedGasCost: step.estimatedGasCost,
+    onStart: step.action,
+    onDone: i < steps.length - 1 ? steps[i + 1].action : handleDone,
+  }))
 }
 
 export const useRenewalTransactions = ({
@@ -377,7 +410,7 @@ export const useRenewalTransactions = ({
       if (single.tokenAllowance >= single.tokenPrice) return [renewTx]
 
       const approveTx: Transaction = {
-        id: RENEWAL_TX_IDS.approve,
+        id: RENEWAL_TX_IDS.approve(getRenewerAddress(single.selectedName.isV2)),
         title: 'Approve payment',
         transactionName: `Approve ${single.tokenSymbol} for renewal`,
         estimatedGasCost: 0.0003,
@@ -412,10 +445,12 @@ export const useRenewalTransactions = ({
 
     setFlow({
       kind: 'multi',
-      renewals: flowConfig.renewals.filter((r) => r.selectedName.isV2),
+      // No v1 filter here anymore: the caller (names table) already excludes v1
+      // names that aren't on-chain renewable, and each renew targets its own
+      // renewer. v1 + v2 names can share a batch.
+      renewals: flowConfig.renewals,
       tokenAddress: flowConfig.tokenAddress,
-      tokenPrice: flowConfig.tokenPrice,
-      tokenAllowance: flowConfig.tokenAllowance ?? 0n,
+      payments: flowConfig.payments,
       tokenSymbol,
     })
   }
