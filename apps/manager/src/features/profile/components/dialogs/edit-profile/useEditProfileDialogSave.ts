@@ -14,6 +14,7 @@ import {
   type SignedProfileImageUpload,
 } from '@/features/profile/service/profileImageCache'
 import {
+  getProfileImageUploadVerificationAddress,
   type PreparedProfileImageUpload,
   submitPreparedProfileImageUpload,
 } from '@/features/profile/service/profileImageUpload'
@@ -200,13 +201,16 @@ export const useEditProfileDialogSave = ({
 
       for (const upload of uploads) {
         await submitPreparedProfileImageUpload({
-          address,
+          address: getProfileImageUploadVerificationAddress({
+            connectedAddress: address as Address,
+            owner,
+          }),
           signTypedDataAsync,
           upload,
         })
       }
     },
-    [address, isConnected, signTypedDataAsync],
+    [address, isConnected, owner, signTypedDataAsync],
   )
 
   const finalizeImageOnlySave = useCallback(

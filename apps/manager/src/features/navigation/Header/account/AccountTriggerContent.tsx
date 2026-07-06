@@ -2,6 +2,7 @@ import { Loader2Icon } from 'lucide-react'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { MSymbol } from '@/components/ui/material-symbol'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { useConnectedAvatar } from '@/features/wallet/hooks/useConnectedAvatar'
 import { useConnectedReverseName } from '@/features/wallet/hooks/useConnectedReverseName'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
@@ -10,7 +11,11 @@ import { getHeaderDisplayName } from './displayName'
 export const AccountTriggerContent = () => {
   const { ownerAddress, isLoading } = useSmartAccountContext()
   const reverseNameQuery = useConnectedReverseName()
-  const avatar = useConnectedAvatar()
+  const avatar = useConnectedAvatar({
+    isLoading: reverseNameQuery.isLoading,
+    name: reverseNameQuery.data ?? undefined,
+  })
+  const avatarThemeColor = getThemeVars(avatar.themeColor)['--theme-color']
 
   return (
     <>
@@ -22,12 +27,13 @@ export const AccountTriggerContent = () => {
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt="ENS Avatar"
-                className="size-full rounded-full object-cover"
+                className="size-full rounded-sm object-cover"
                 src={avatar.url ?? undefined}
               />
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                  className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+                  color={avatarThemeColor}
                   name={reverseNameQuery.data ?? ownerAddress ?? 'wallet'}
                 />
               </ImageFallback.Fallback>
