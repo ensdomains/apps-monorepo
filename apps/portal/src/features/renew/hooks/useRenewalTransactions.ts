@@ -333,8 +333,9 @@ export const useRenewalTransactions = ({
     // so grace banners clear and the new expiry shows on return. For v1 names
     // this also re-qualifies the name for v1→v2 migration; the migration
     // eligibility query (on the migration-banner branch) reads this expiry and
-    // re-runs on the refreshed data. (Multi-renew is v2-only, but invalidating
-    // the v1 expiry there is a harmless no-op.)
+    // re-runs on the refreshed data. A batch may mix v1 and v2 names, so we
+    // invalidate both queries for every name — the query for the name's other
+    // protocol version is simply a harmless no-op.
     for (const renewedName of renewedNames) {
       queryClient.invalidateQueries({
         queryKey: getV1ExpiryQueryOptions({ name: renewedName }).queryKey,
