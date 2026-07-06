@@ -177,7 +177,7 @@ const ShareCardHeader = () => (
     <DialogClose asChild>
       <button
         aria-label="Close"
-        className="absolute top-0 right-0 flex size-[52px] appearance-none items-center justify-center border-0 bg-transparent p-0 text-(--share-close-color) shadow-none outline-none transition-opacity hover:opacity-75 focus-visible:ring-0 md:size-[60px]"
+        className="absolute top-0 right-0 flex size-[52px] appearance-none items-center justify-center border-0 bg-transparent p-0 text-(--share-close-color) shadow-none outline-none transition-opacity hover:opacity-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:size-[60px]"
         type="button"
       >
         <MSymbol
