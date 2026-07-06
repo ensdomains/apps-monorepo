@@ -140,11 +140,12 @@ const Profile = ({
     enabled: isV1Name && !!connectedAddress,
   })
 
-  const { canExtend: graceCanExtend } = useCanExtend({
-    name,
-    protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
-    enabled: grace.isInGrace,
-  })
+  const { canExtend: graceCanExtend, isLoading: graceCanExtendLoading } =
+    useCanExtend({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+      enabled: grace.isInGrace,
+    })
 
   // Loading states
   if (ownerQuery.isLoading) {
@@ -316,7 +317,9 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
+  // Match the grace/canExtend default above: a missing protocolVersion means the
+  // owner query hasn't resolved, and 'ENSv2' is the safe conservative choice.
+  const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
   const migration = migrationQuery.data
   // Migration status is owner-only: surface it (both the banner and the
@@ -340,7 +343,10 @@ const Profile = ({
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
-          canExtend={graceCanExtend}
+          // While the v1 renewability check is still resolving, show the
+          // extendable copy optimistically rather than flashing the alarming
+          // "will become available for registration" wording, then correct it.
+          canExtend={graceCanExtend || graceCanExtendLoading}
         />
       )}
 

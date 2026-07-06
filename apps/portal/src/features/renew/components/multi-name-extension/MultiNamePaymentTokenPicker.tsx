@@ -1,15 +1,17 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
-import { type Address, erc20Abi, formatUnits } from 'viem'
+import { type Address, erc20Abi } from 'viem'
 import { useConfig, useConnection } from 'wagmi'
 import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
+import {
+  type PaymentTokenDisplay,
+  PaymentTokenList,
+} from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
-import { cn } from '@/lib/utils'
 import type {
   MultiRenewalEntry,
   RenewerPayment,
@@ -28,19 +30,12 @@ export type MultiNameTokenSelection = {
   readonly payments: readonly RenewerPayment[]
 }
 
-// A rendered token row only needs its total price and balance; the per-renewer
-// allowances that actually gate approvals live in `payments`, not here.
-type DisplayToken = (typeof PAYMENT_TOKENS)[number] & {
-  readonly balance: bigint
-  readonly total: bigint
-}
-
 const Skeleton = () => (
   <div className="space-y-4">
     <div className="h-5 w-40 bg-muted animate-pulse rounded-md" />
     <div className="space-y-2">
-      <div className="h-16 w-full bg-muted animate-pulse rounded-lg" />
-      <div className="h-16 w-full bg-muted animate-pulse rounded-lg" />
+      <div className="h-16 w-full bg-muted animate-pulse rounded-sm" />
+      <div className="h-16 w-full bg-muted animate-pulse rounded-sm" />
     </div>
   </div>
 )
@@ -66,20 +61,16 @@ export const MultiNamePaymentTokenPicker = ({
   // mixed v1+v2 batch).
   const renewers = distinctRenewers(renewals)
 
-  const [balancesQuery] = useQueries({
-    queries: [
-      {
-        ...readContractsQueryOptions(config, {
-          contracts: PAYMENT_TOKENS.map((token) => ({
-            address: token.address,
-            abi: erc20Abi,
-            functionName: 'balanceOf',
-            args: [address as Address],
-          })),
-        }),
-        enabled: hasAddress,
-      },
-    ],
+  const balancesQuery = useQuery({
+    ...readContractsQueryOptions(config, {
+      contracts: PAYMENT_TOKENS.map((token) => ({
+        address: token.address,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address as Address],
+      })),
+    }),
+    enabled: hasAddress,
   })
 
   // Allowance per (payment token × renewer), flattened so a mixed batch reads
@@ -100,26 +91,20 @@ export const MultiNamePaymentTokenPicker = ({
 
   // Price each name against its own renewer so v1 names are quoted by
   // ETHRenewerV1 and v2 names by the v2 ETHRegistrar.
+  const priceQueriesFor = (token: (typeof PAYMENT_TOKENS)[number]) =>
+    renewals.map((renewal) =>
+      getRenewalPriceQueryOptions({
+        name: renewal.selectedName.name,
+        duration: renewal.duration,
+        token: token.address,
+        renewerAddress: getRenewerAddress(renewal.selectedName.isV2),
+      }),
+    )
   const usdcPriceQueries = useQueries({
-    queries: renewals.map((renewal) =>
-      getRenewalPriceQueryOptions({
-        name: renewal.selectedName.name,
-        duration: renewal.duration,
-        token: SUPPORTED_TOKENS.USDC,
-        renewerAddress: getRenewerAddress(renewal.selectedName.isV2),
-      }),
-    ),
+    queries: priceQueriesFor(PAYMENT_TOKENS[0]),
   })
-
   const daiPriceQueries = useQueries({
-    queries: renewals.map((renewal) =>
-      getRenewalPriceQueryOptions({
-        name: renewal.selectedName.name,
-        duration: renewal.duration,
-        token: SUPPORTED_TOKENS.DAI,
-        renewerAddress: getRenewerAddress(renewal.selectedName.isV2),
-      }),
-    ),
+    queries: priceQueriesFor(PAYMENT_TOKENS[1]),
   })
 
   const isLoading =
@@ -130,14 +115,33 @@ export const MultiNamePaymentTokenPicker = ({
 
   if (isLoading) return <Skeleton />
 
-  const rawBalances = balancesQuery.data
-  const balances = Array.isArray(rawBalances)
-    ? rawBalances.map((balance) =>
-        balance.status === 'success' && balance.result !== undefined
-          ? BigInt(balance.result)
-          : 0n,
-      )
-    : []
+  // A settled-but-errored price read must NOT be treated as 0: that would
+  // understate a renewer's approval total (risking an on-chain revert) and make
+  // a token look affordable when it isn't. If any name's price failed to resolve,
+  // block selection and prompt a retry rather than price the batch wrong.
+  const pricesResolved =
+    usdcPriceQueries.every((q) => q.data && isPriceResult(q.data)) &&
+    daiPriceQueries.every((q) => q.data && isPriceResult(q.data))
+
+  if (!pricesResolved) {
+    return (
+      <MessageCard
+        variant="warning"
+        icon={<AlertTriangle className="size-6" />}
+        title="Couldn't load renewal prices"
+        className="xl:min-w-none"
+        titleClassName="text-base text-inherit font-medium"
+        descriptionClassName="text-sm text-inherit"
+        description="We couldn't fetch the renewal price for one or more names. Please try again in a moment."
+      />
+    )
+  }
+
+  const balances = (balancesQuery.data ?? []).map((balance) =>
+    balance.status === 'success' && balance.result !== undefined
+      ? BigInt(balance.result)
+      : 0n,
+  )
 
   const allowanceResults = (allowancesQuery.data ?? []).map((allowance) =>
     allowance.status === 'success' && allowance.result !== undefined
@@ -177,24 +181,25 @@ export const MultiNamePaymentTokenPicker = ({
     buildPayments(daiPriceQueries, 1),
   ]
 
-  const tokenData: DisplayToken[] = [
+  const tokenData: PaymentTokenDisplay[] = [
     {
       ...PAYMENT_TOKENS[0],
       balance: balances[0] ?? 0n,
-      total: sumTotal(usdcPriceQueries),
+      price: { total: sumTotal(usdcPriceQueries) },
     },
     {
       ...PAYMENT_TOKENS[1],
       balance: balances[1] ?? 0n,
-      total: sumTotal(daiPriceQueries),
+      price: { total: sumTotal(daiPriceQueries) },
     },
   ]
 
   const noSupportedTokenHasSufficientBalance = tokenData.every(
-    (token) => token.balance < token.total,
+    (token) => token.balance < token.price.total,
   )
 
-  const handleSelect = (token: DisplayToken, index: number) => {
+  const handleSelect = (token: PaymentTokenDisplay) => {
+    const index = PAYMENT_TOKENS.findIndex((t) => t.address === token.address)
     setSelectedToken(token.address)
     onSelectionChange({
       tokenAddress: token.address,
@@ -216,48 +221,12 @@ export const MultiNamePaymentTokenPicker = ({
           description="You'll need to hold USDC or DAI in your connected wallet to complete the renewal."
         />
       ) : (
-        <div className="space-y-2">
-          {tokenData.map((token, index) => {
-            const hasSufficientBalance = token.balance >= token.total
-
-            return (
-              <button
-                key={token.symbol}
-                type="button"
-                onClick={() => handleSelect(token, index)}
-                disabled={!hasSufficientBalance}
-                className={cn(
-                  'flex w-full cursor-pointer items-center justify-between rounded-lg border border-border p-4 text-left transition-colors',
-                  selectedToken === token.address
-                    ? 'bg-muted'
-                    : 'hover:bg-muted/30',
-                  !hasSufficientBalance && 'cursor-not-allowed opacity-60',
-                )}
-              >
-                <div className="flex items-center gap-1">
-                  <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden">
-                    <token.Icon className="size-8 min-w-0 shrink-0" />
-                  </div>
-                  <p className="font-medium">{token.symbol}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-normal">
-                    {Number(
-                      formatUnits(token.balance, token.decimals),
-                    ).toLocaleString()}
-                  </p>
-                  {hasSufficientBalance ? (
-                    <p className="text-muted-foreground text-xs">available</p>
-                  ) : (
-                    <p className="text-destructive text-xs">
-                      Insufficient balance
-                    </p>
-                  )}
-                </div>
-              </button>
-            )
-          })}
-        </div>
+        <PaymentTokenList
+          tokenData={tokenData}
+          selectedToken={selectedToken}
+          isRegistering={false}
+          onSelect={handleSelect}
+        />
       )}
     </>
   )

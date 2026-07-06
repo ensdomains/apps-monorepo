@@ -31,7 +31,8 @@ export const ExtendNameSummaryCards = ({
     baseDate ? dateToPlainDate(baseDate) : undefined,
   )
 
-  // Renewal only charges `base` (ETHRegistrar.renew) — no premium.
+  // Renewal only charges `base` (the renewer's `renew` — v2 ETHRegistrar or v1
+  // ETHRenewerV1) — no premium.
   const totalCost = formatPriceDisplay(price.base, price.decimals)
 
   const roundedYears = Math.round(durationSeconds / CONTRACT_SECONDS_PER_YEAR)
