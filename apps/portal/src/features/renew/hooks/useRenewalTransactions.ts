@@ -133,6 +133,15 @@ type BuildMultiTransactionsParams = {
   readonly handleDone: () => void
 }
 
+// A mixed v1+v2 batch emits one approval per renewer (ERC-20 allowance is
+// per-spender), so two rows would otherwise both read "Approve USDC for
+// renewal". Tag each with the protocol version — derived from the spender
+// address — so the user can tell the two approvals apart.
+function approveLabel(tokenSymbol: string, renewer: Address): string {
+  const isV2 = renewer === getRenewerAddress(true)
+  return `Approve ${tokenSymbol} for ${isV2 ? 'v2' : 'v1'} renewal`
+}
+
 function buildApproveTransaction(
   params: ApproveParams,
   signer: Signer,
@@ -164,7 +173,7 @@ function buildApproveTransaction(
     {
       id: RENEWAL_TX_IDS.approve(params.renewer),
       publicClient: params.publicClient,
-      description: `Approve ${params.tokenSymbol} for renewal`,
+      description: approveLabel(params.tokenSymbol, params.renewer),
     },
   )
 }
@@ -233,7 +242,7 @@ function buildMultiTransactions({
         ? {
             id: RENEWAL_TX_IDS.approve(step.renewer),
             title: 'Approve payment',
-            transactionName: `Approve ${tokenSymbol} for renewal`,
+            transactionName: approveLabel(tokenSymbol, step.renewer),
             estimatedGasCost: 0.0003,
             action: async () => {
               const signer = await getSigner()
@@ -419,7 +428,10 @@ export const useRenewalTransactions = ({
       const approveTx: Transaction = {
         id: RENEWAL_TX_IDS.approve(getRenewerAddress(single.selectedName.isV2)),
         title: 'Approve payment',
-        transactionName: `Approve ${single.tokenSymbol} for renewal`,
+        transactionName: approveLabel(
+          single.tokenSymbol,
+          getRenewerAddress(single.selectedName.isV2),
+        ),
         estimatedGasCost: 0.0003,
         onStart: handleApproveStart,
         onDone: handleRenewStart,
