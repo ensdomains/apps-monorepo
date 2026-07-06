@@ -39,7 +39,7 @@ const getIsRenewable = ResultFn(async function* ({
     (cause) =>
       new IsRenewableError({ cause: cause as UnsupportedNameTypeError }),
   )
-  const renewable = yield* await fromPromise(
+  const renewable = yield* fromPromise(
     ensjs_isRenewable(client, { renewerAddress, label }),
     (cause) => new IsRenewableError({ cause: cause as IsRenewableErrorType }),
   )
