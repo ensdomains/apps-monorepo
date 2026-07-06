@@ -7,8 +7,6 @@ export type RegistrationPostRegistrationSetup = {
   }
 }
 
-export const AUTO_SYNC_ETH_RECORD_DURING_REGISTRATION = true
-
 export function getManagerRegistrationPostRegistrationSetup(params: {
   ownerAddress?: Address | null
   existingPrimaryName?: string | null
@@ -20,7 +18,7 @@ export function getManagerRegistrationPostRegistrationSetup(params: {
   return {
     primaryName: {
       enabled: true,
-      syncEthRecord: AUTO_SYNC_ETH_RECORD_DURING_REGISTRATION,
+      syncEthRecord: true,
     },
   }
 }

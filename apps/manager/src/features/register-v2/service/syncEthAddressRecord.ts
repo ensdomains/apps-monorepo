@@ -42,20 +42,20 @@ export async function startSyncEthAddressRecordTransaction(
   } = params
 
   const cleanName = withEthSuffix(name)
+
+  // Use ensjs to build the write parameters
+  // publicClient is used only for chain metadata — ensjs doesn't send transactions here
   const client = publicClient as unknown as Parameters<
     typeof setRecordsWriteParameters
   >[0]
-  const writeParams = await setRecordsWriteParameters(client, {
-    name: cleanName,
-    resolverAddress,
-    coins: [{ coin: 60, value: checksumAddress(ownerAddress) }],
-  })
 
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
+  const data = encodeFunctionData(
+    (await setRecordsWriteParameters(client, {
+      name: cleanName,
+      resolverAddress,
+      coins: [{ coin: 60, value: checksumAddress(ownerAddress) }],
+    })) as Parameters<typeof encodeFunctionData>[0],
+  )
 
   const from =
     signer.type === 'eoa' ? accountAddress : getSmartAccountAddress(signer)
