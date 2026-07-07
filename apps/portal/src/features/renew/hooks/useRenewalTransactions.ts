@@ -1,6 +1,7 @@
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { l2EthRegistrarRenewSnippet } from '@ensdomains/ensjs/contracts'
+import { renewNameWriteParameters as renewNameV1WriteParameters } from '@ensdomains/ensjs/wallet'
+import { renewNameWriteParameters as renewNameV2WriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
@@ -179,19 +180,33 @@ function buildApproveTransaction(
 }
 
 function buildRenewTransaction(params: RenewParams, signer: Signer) {
-  // The v2 ETHRegistrar and the v1 ETHRenewerV1 share the identical
-  // `renew(label, duration, paymentToken, referrer)` selector, so one ensjs
-  // snippet encodes both; only the target address differs (getRenewerAddress).
+  // ensjs splits the label without normalizing, so pass a normalized 2LD name.
+  const renewArgs = {
+    name: `${getLabel(params.name)}.eth`,
+    duration: BigInt(params.duration),
+    paymentToken: params.tokenAddress,
+    referrer: REFERER_ADDRESS,
+  }
+
+  const writeParams = params.isV2
+    ? renewNameV2WriteParameters(
+        params.publicClient as unknown as Parameters<
+          typeof renewNameV2WriteParameters
+        >[0],
+        renewArgs,
+      )
+    : renewNameV1WriteParameters(
+        params.publicClient as unknown as Parameters<
+          typeof renewNameV1WriteParameters
+        >[0],
+        renewArgs,
+      )
+
   const renewData = encodeFunctionData({
-    abi: l2EthRegistrarRenewSnippet,
-    functionName: 'renew',
-    args: [
-      getLabel(params.name),
-      BigInt(params.duration),
-      params.tokenAddress,
-      REFERER_ADDRESS,
-    ],
-  })
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
 
   transactionManager.startTransaction(
     {
@@ -199,7 +214,7 @@ function buildRenewTransaction(params: RenewParams, signer: Signer) {
       request: {
         type: 'eoa',
         from: params.from,
-        to: getRenewerAddress(params.isV2),
+        to: writeParams.address,
         data: renewData,
         value: 0n,
         chainId: sepoliaWithEns.id,
