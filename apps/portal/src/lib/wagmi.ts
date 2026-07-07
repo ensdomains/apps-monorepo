@@ -5,7 +5,7 @@ import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
-import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet'
+import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 export { WALLETCONNECT_PROJECT_ID }
 

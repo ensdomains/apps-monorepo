@@ -11,7 +11,7 @@ import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
-import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet'
+import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 export { WALLETCONNECT_PROJECT_ID }
 

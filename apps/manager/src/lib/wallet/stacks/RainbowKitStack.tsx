@@ -1,6 +1,6 @@
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit'
 import { WagmiProvider } from 'wagmi'
-import { isMockWalletEnabled } from '@/lib/mockWallet'
+import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { wagmiConfig } from '@/lib/wagmi'
 import { MockWalletAutoConnect } from '../MockWalletAutoConnect'
 import '@rainbow-me/rainbowkit/styles.css'

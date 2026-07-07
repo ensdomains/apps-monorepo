@@ -14,7 +14,7 @@ import { useTransactionModalRouteReset } from '@/features/transaction-manager/ho
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
 import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
-import { isMockWalletEnabled } from '@/lib/mockWallet'
+import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
