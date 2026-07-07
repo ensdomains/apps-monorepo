@@ -3,10 +3,11 @@ import {
   useHydrated,
   useNavigate,
 } from '@tanstack/react-router'
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useCallback, useEffect } from 'react'
 import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
+import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 
@@ -42,8 +43,14 @@ const MigrationRouteLoading = () => {
 const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate()
   const isHydrated = useHydrated()
-  const { status, isConnecting, isReconnecting } = useConnection()
+  const { isConnecting, isReconnecting } = useConnection()
   const { hasInitialized, ownerAddress } = useSmartAccountContext()
+
+  const handleDisconnect = useCallback(() => {
+    navigate({ to: '/', replace: true })
+  }, [navigate])
+
+  useOnDisconnected(handleDisconnect)
 
   const isRestoringConnection =
     !isHydrated || isConnecting || isReconnecting || !hasInitialized
@@ -51,15 +58,13 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const redirectTo = (() => {
     if (isRestoringConnection) return null
 
-    if (status === 'disconnected') return '/'
-
     if (!ownerAddress) return null
 
-    if (
-      !isFeatureEnabled('MIGRATION', {
-        walletAddress: ownerAddress,
-      })
-    ) {
+    const migrationAccessEnabled = isFeatureEnabled('MIGRATION', {
+      walletAddress: ownerAddress,
+    })
+
+    if (!migrationAccessEnabled) {
       return '/dashboard'
     }
 

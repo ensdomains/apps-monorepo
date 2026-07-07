@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
+import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { Route } from './migration'
@@ -18,6 +19,10 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('wagmi', () => ({
   useConnection: vi.fn(),
+}))
+
+vi.mock('@/features/wallet/hooks/useOnDisconnected', () => ({
+  useOnDisconnected: vi.fn(),
 }))
 
 vi.mock('@/lib/smart-account', () => ({
@@ -70,6 +75,7 @@ describe('/migration route auth', () => {
     vi.clearAllMocks()
     vi.mocked(useHydrated).mockReturnValue(true)
     vi.mocked(isFeatureEnabled).mockReturnValue(true)
+    vi.mocked(useOnDisconnected).mockImplementation(() => undefined)
     mockConnection({
       status: 'connected',
       isConnecting: false,
@@ -123,6 +129,19 @@ describe('/migration route auth', () => {
     expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
+  it('renders migration when the smart account is connected even if wagmi reports the initial hard-load disconnected frame', () => {
+    mockConnection({
+      status: 'disconnected',
+      isConnecting: false,
+      isReconnecting: false,
+    })
+
+    renderRoute()
+
+    expect(screen.getByTestId('migration-page')).not.toBeNull()
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
   it('renders migration for a settled connected wallet with migration access', () => {
     renderRoute()
 
@@ -159,7 +178,7 @@ describe('/migration route auth', () => {
     expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
-  it('redirects settled disconnected wallets to home', async () => {
+  it('waits instead of redirecting on the initial hard-load disconnected frame', () => {
     mockConnection({
       status: 'disconnected',
       isConnecting: false,
@@ -173,13 +192,22 @@ describe('/migration route auth', () => {
 
     renderRoute()
 
-    await waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith({
-        to: '/',
-        replace: true,
-      }),
-    )
+    expect(navigateMock).not.toHaveBeenCalled()
     expect(screen.queryByTestId('migration-page')).toBeNull()
+    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
+  })
+
+  it('redirects through the reconnect-aware disconnect hook', () => {
+    vi.mocked(useOnDisconnected).mockImplementation((onDisconnect) => {
+      onDisconnect()
+    })
+
+    renderRoute()
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/',
+      replace: true,
+    })
   })
 
   it('redirects connected wallets without migration access to the dashboard', async () => {
