@@ -14,8 +14,18 @@
     "test:run": "vitest run --typecheck"
   },
   "devDependencies": {
+    "@types/react": "^19.1.12",
+    "react": "^19.2.5",
     "typescript": "catalog:typescript6",
     "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "keywords": [],
   "dependencies": {

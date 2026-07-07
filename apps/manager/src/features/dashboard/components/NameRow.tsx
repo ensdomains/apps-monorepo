@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useLingui as useCoreLingui } from '@lingui/react'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
@@ -26,7 +27,6 @@ import {
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
