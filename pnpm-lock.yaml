@@ -975,7 +975,7 @@ importers:
     devDependencies:
       '@storybook/tanstack-react':
         specifier: ^10.4.2
-        version: 10.4.2(@tanstack/react-router@1.168.23(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(@tanstack/react-start@1.167.42(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2)))(@tanstack/router-core@1.168.15)(@tanstack/start-client-core@1.167.17)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(esbuild@0.27.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(storybook@10.4.2(@testing-library/dom@10.4.1)(@types/react@19.2.7)(bufferutil@4.0.9)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(utf-8-validate@5.0.10))(typescript@6.0.3)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2))
+        version: 10.4.2(@tanstack/react-router@1.168.23(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(@tanstack/react-start@1.167.42(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2)))(@tanstack/router-core@1.168.15)(@tanstack/start-client-core@1.167.17)(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(esbuild@0.28.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(storybook@10.4.2(@testing-library/dom@10.4.1)(@types/react@19.2.7)(bufferutil@4.0.9)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(utf-8-validate@5.0.10))(typescript@6.0.3)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2))
       '@types/react':
         specifier: ^19.1.12
         version: 19.2.7
@@ -987,7 +987,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: 'catalog:'
-        version: 8.0.16(@types/node@24.10.2)(esbuild@0.27.3)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2)
+        version: 8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2)
 
   workers/api-worker:
     dependencies:
