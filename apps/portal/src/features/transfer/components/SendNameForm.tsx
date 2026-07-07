@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import { type Address, isAddress, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -14,10 +14,11 @@ import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryN
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { useRecipientResolution } from '../hooks/useRecipientResolution'
+import { useDebouncedValue } from '@/hooks/useDebounce'
+import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
+import { getRecipientAddressQueryOptions } from '../utils/getRecipientAddress'
 
 type SendNameFormProps = {
   readonly name: string
@@ -73,7 +74,6 @@ export const SendNameForm = ({
     error: resolveError,
   } = useRecipientResolution(recipientInput)
 
-  const { openModal } = useTransactionModal()
   const { startTransfer, transactions, isPreparing, prepError } =
     useTransferName({ name, registryAddress, owner })
 
@@ -103,10 +103,9 @@ export const SendNameForm = ({
   const toggleOption = (key: keyof TransferOptions) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
-  const handleStart = async () => {
+  const handleStart = () => {
     if (!recipient) return
-    const ready = await startTransfer({ recipient, options: effectiveOptions })
-    if (ready) openModal()
+    startTransfer({ recipient, options: effectiveOptions })
   }
 
   return (
@@ -203,6 +202,68 @@ export const SendNameForm = ({
       <TransactionModal transactions={transactions} />
     </div>
   )
+}
+
+const DEBOUNCE_MS = 500
+
+type RecipientResolution = {
+  /** Resolved recipient address, or null while empty / invalid / unresolved. */
+  readonly address: Address | null
+  readonly isResolving: boolean
+  readonly error: string | null
+}
+
+/**
+ * Resolve a recipient input to an address, with debouncing and UI state.
+ * Addresses resolve immediately; names are debounced.
+ */
+const useRecipientResolution = (input: string): RecipientResolution => {
+  const trimmed = input.trim()
+  // Addresses resolve instantly; names are debounced.
+  const debounced = useDebouncedValue(
+    trimmed,
+    isAddress(trimmed, { strict: false }) ? 0 : DEBOUNCE_MS,
+  )
+
+  const isValid = trimmed.length > 0 && isNameOrAddress(trimmed)
+  const isDebouncing = debounced !== trimmed
+
+  const { data: resolved = null, isFetching } = useQuery({
+    ...getRecipientAddressQueryOptions({ nameOrAddress: debounced }),
+    enabled: isValid && !isDebouncing,
+  })
+
+  return match({
+    trimmed,
+    isValid,
+    isPending: isDebouncing || isFetching,
+    resolved,
+  })
+    .with({ trimmed: '' }, () => ({
+      address: null,
+      isResolving: false,
+      error: null,
+    }))
+    .with({ isValid: false }, () => ({
+      address: null,
+      isResolving: false,
+      error: 'Enter a valid ENS name or address',
+    }))
+    .with({ isPending: true }, () => ({
+      address: null,
+      isResolving: true,
+      error: null,
+    }))
+    .with({ resolved: P.nonNullable }, ({ resolved }) => ({
+      address: resolved,
+      isResolving: false,
+      error: null,
+    }))
+    .otherwise(() => ({
+      address: null,
+      isResolving: false,
+      error: 'Could not resolve a name or address',
+    }))
 }
 
 const RecipientPreview = ({ address }: { address: Address }) => {

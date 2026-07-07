@@ -1,5 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useRef, useState } from 'react'
@@ -57,11 +57,9 @@ export const useTransferName = ({
   const publicClient = usePublicClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { closeModal, clearTransaction } = useTransactionModal()
+  const { openModal, closeModal, clearTransaction } = useTransactionModal()
 
   const [savedParams, setSavedParams] = useState<SavedParams | null>(null)
-  const [prepError, setPrepError] = useState<Error | null>(null)
-  const [isPreparing, setIsPreparing] = useState(false)
 
   // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
   // the previous step's auto-fired `onDone` route into it (see
@@ -91,29 +89,31 @@ export const useTransferName = ({
     void navigate({ to: '/$name/ownership', params: { name } })
   }
 
-  // Prepares the flow (reads the token id up front so a bad name fails before
-  // the modal opens) and hands the built transactions to the caller's modal.
-  const startTransfer = async ({
-    recipient,
-    options,
-  }: StartTransferParams): Promise<boolean> => {
-    setPrepError(null)
-    setIsPreparing(true)
-    try {
-      const label = getLabel(name)
-      const tokenIdResult = await getEnsTokenId({ label, registryAddress })
-      if (tokenIdResult.isErr()) throw tokenIdResult.error
-
+  // Prepares the flow: reads the token id up front (so a bad name fails before
+  // the modal opens), then stores the plan and opens the modal. Loading and error
+  // state come straight from the mutation — no manual bookkeeping.
+  const prepareMutation = useMutation({
+    mutationFn: async ({
+      recipient,
+      options,
+    }: StartTransferParams): Promise<SavedParams> => {
+      const tokenId = await getEnsTokenId({
+        label: getLabel(name),
+        registryAddress,
+      }).match(
+        (value) => value,
+        (error) => {
+          throw error
+        },
+      )
+      return { recipient, tokenId, options }
+    },
+    onSuccess: (params) => {
       startedStepsRef.current = new Set()
-      setSavedParams({ recipient, tokenId: tokenIdResult.value, options })
-      return true
-    } catch (err) {
-      setPrepError(err instanceof Error ? err : new Error(String(err)))
-      return false
-    } finally {
-      setIsPreparing(false)
-    }
-  }
+      setSavedParams(params)
+      openModal()
+    },
+  })
 
   const runStep = async (
     step: TransferStepKind,
@@ -196,9 +196,9 @@ export const useTransferName = ({
   const transactions = buildTransactions()
 
   return {
-    startTransfer,
+    startTransfer: prepareMutation.mutate,
     transactions,
-    isPreparing,
-    prepError,
+    isPreparing: prepareMutation.isPending,
+    prepError: prepareMutation.error,
   }
 }
