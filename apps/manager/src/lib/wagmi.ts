@@ -11,6 +11,7 @@ import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -94,20 +95,24 @@ export const wagmiConfig = createConfig({
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
   },
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [
-          injectedWallet,
-          metaMaskWallet,
-          walletConnectWallet,
-          frameWallet,
-        ],
-      },
-    ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
-  ),
+  connectors: [
+    ...connectorsForWallets(
+      [
+        {
+          groupName: 'Popular',
+          wallets: [
+            injectedWallet,
+            metaMaskWallet,
+            walletConnectWallet,
+            frameWallet,
+          ],
+        },
+      ],
+      { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
+    ),
+    // Test-only: auto-signing wallet for Playwright/agents. Off in production.
+    ...(isMockWalletEnabled ? [mockConnector] : []),
+  ],
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>

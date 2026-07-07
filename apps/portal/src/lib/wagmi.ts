@@ -5,6 +5,7 @@ import { createClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
+import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -48,6 +49,8 @@ export const wagmiConfig = createConfig({
       // at connector creation, so a mid-session toggle won't restyle it.
       qrModalOptions: { themeMode: getResolvedThemeMode() },
     }),
+    // Test-only: auto-signing wallet for Playwright/agents. Off in production.
+    ...(isMockWalletEnabled ? [mockConnector] : []),
   ],
   client: ({ chain }) =>
     createClient({
