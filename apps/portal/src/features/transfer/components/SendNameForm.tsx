@@ -112,7 +112,7 @@ export const SendNameForm = ({
   return (
     <div className="flex flex-col gap-6 max-w-2xl w-full">
       <Alert variant="warning">
-        <AlertTriangle />
+        <AlertTriangle className="size-4" />
         <AlertDescription>
           Transferring ownership of an ENS name is irreversible. Make sure you
           check the recipient address before proceeding.
