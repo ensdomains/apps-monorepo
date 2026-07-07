@@ -3,7 +3,7 @@ import { buildTransferPlan, type TransferOptions } from './buildTransferPlan'
 
 const NO_OPTIONS: TransferOptions = {
   resetResolver: false,
-  deployRegistry: false,
+  resetRegistry: false,
 }
 
 describe('buildTransferPlan', () => {
@@ -17,22 +17,17 @@ describe('buildTransferPlan', () => {
     expect(plan).toEqual(['reset-resolver', 'transfer-token'])
   })
 
-  it('deploys then sets the registry before transferring', () => {
-    const plan = buildTransferPlan({ ...NO_OPTIONS, deployRegistry: true })
-    expect(plan).toEqual(['deploy-registry', 'set-registry', 'transfer-token'])
+  it('resets the registry (setSubregistry 0x0) before transferring', () => {
+    const plan = buildTransferPlan({ ...NO_OPTIONS, resetRegistry: true })
+    expect(plan).toEqual(['reset-registry', 'transfer-token'])
   })
 
-  it('combines resetting the resolver with deploying a registry', () => {
+  it('combines resetting the resolver and the registry', () => {
     const plan = buildTransferPlan({
       ...NO_OPTIONS,
       resetResolver: true,
-      deployRegistry: true,
+      resetRegistry: true,
     })
-    expect(plan).toEqual([
-      'reset-resolver',
-      'deploy-registry',
-      'set-registry',
-      'transfer-token',
-    ])
+    expect(plan).toEqual(['reset-resolver', 'reset-registry', 'transfer-token'])
   })
 })
