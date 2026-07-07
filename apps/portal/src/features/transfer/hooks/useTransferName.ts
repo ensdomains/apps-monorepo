@@ -149,7 +149,6 @@ export const useTransferName = ({
           ...common,
           registryAddress,
           tokenId,
-          from: owner,
           recipient,
           id,
         })
