@@ -409,6 +409,10 @@ msgstr "Card number"
 msgid "Card security code"
 msgstr "Card security code"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Carving your name into the blockchain"
+msgstr "Carving your name into the blockchain"
+
 #: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
 msgid "Chain-specific addresses"
 msgstr "Chain-specific addresses"
@@ -831,10 +835,6 @@ msgstr "ENS names are stored on-chain as NFTs"
 msgid "ENS names can be up to 255 characters"
 msgstr "ENS names can be up to 255 characters"
 
-#: src/features/dashboard/components/FaqSection.tsx
-msgid "ENS Support Docs"
-msgstr "ENS Support Docs"
-
 #: src/features/migration/components/MigrationModal.tsx
 msgid "ENS v2 Names"
 msgstr "ENS v2 Names"
@@ -974,8 +974,8 @@ msgid "Failed to set ETH address record"
 msgstr "Failed to set ETH address record"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Failed to set primary name. Please try again."
-msgstr "Failed to set primary name. Please try again."
+msgid "Failed to set primary name"
+msgstr "Failed to set primary name"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -993,6 +993,10 @@ msgstr "Failed to update preferences"
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Farming aura"
+msgstr "Farming aura"
 
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "Favorites"
@@ -1085,6 +1089,10 @@ msgstr "Go to slide {0}"
 msgid "Grace period"
 msgstr "Grace period"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Growing your corner of the decentralized web"
+msgstr "Growing your corner of the decentralized web"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How can I secure my ENS name?"
 msgstr "How can I secure my ENS name?"
@@ -1168,10 +1176,6 @@ msgstr "Links"
 msgid "Load more"
 msgstr "Load more"
 
-#: src/features/dashboard/components/DashboardLoading.tsx
-msgid "Loading dashboard..."
-msgstr "Loading dashboard..."
-
 #: src/features/register/components/Pricing/Pricing.tsx
 msgid "Loading prices..."
 msgstr "Loading prices..."
@@ -1188,7 +1192,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx
+#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Loading..."
@@ -1212,6 +1216,10 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Making your name work everywhere"
+msgstr "Making your name work everywhere"
 
 #: src/features/notifications/inbox/list.tsx
 msgid "Manage notification settings"
@@ -1300,6 +1308,10 @@ msgstr "Need ${0}"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Need help?"
 msgstr "Need help?"
+
+#: src/features/dashboard/components/FaqSection.tsx
+msgid "Need more help? Visit ENS Support Docs"
+msgstr "Need more help? Visit ENS Support Docs"
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
@@ -1503,6 +1515,14 @@ msgstr "people have favorited this name"
 msgid "Permission missing. Please try again."
 msgstr "Permission missing. Please try again."
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Placing your new identity in your wallet"
+msgstr "Placing your new identity in your wallet"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Planting your name in the infinite garden"
+msgstr "Planting your name in the infinite garden"
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
@@ -1667,6 +1687,10 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
+#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
+msgid "Registering name"
+msgstr "Registering name"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Registration"
 msgstr "Registration"
@@ -1824,6 +1848,10 @@ msgstr "Resending email verification"
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Reserving your name"
+msgstr "Reserving your name"
 
 #. placeholder {0}: index + 1
 #: src/features/migration/components/GameStep.tsx
@@ -2008,10 +2036,13 @@ msgstr "Settings"
 msgid "Share"
 msgstr "Share"
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
 msgid "Share profile"
 msgstr "Share profile"
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+msgid "Share profile link"
+msgstr "Share profile link"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Should I register now or wait?"

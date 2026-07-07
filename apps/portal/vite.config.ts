@@ -54,6 +54,9 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@ens-apps/dev-time-travel': fileURLToPath(
+        new URL('../../packages/dev-time-travel/src', import.meta.url),
+      ),
       '@ens-apps/utils': fileURLToPath(
         new URL('../../packages/utils/src', import.meta.url),
       ),
@@ -77,6 +80,7 @@ export default defineConfig(({ mode }) => ({
       '@wagmi/core',
       '@wagmi/connectors',
       'viem',
+      '@tanstack/react-query',
     ],
   },
   optimizeDeps: {

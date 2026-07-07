@@ -246,6 +246,7 @@ export const test = base.extend<ManagerFixtures>({
 
 export { expect } from '@playwright/test'
 export {
+  authorizeApproveIfRequested,
   authorizeTransaction,
   authorizeTransactions,
 } from '../helpers/manager-auth.js'

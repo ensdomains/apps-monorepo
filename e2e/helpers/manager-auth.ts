@@ -346,3 +346,34 @@ export async function authorizeTransactions(
     await authorizeTransaction(wallet)
   }
 }
+
+/**
+ * Authorize the USDC approve `eth_sendTransaction` only if the flow actually
+ * requests one, stopping as soon as `isDone()` reports the flow has finished.
+ *
+ * When the payment-token allowance is already sufficient no approve tx is sent,
+ * so a plain `wallet.authorize(SendTransaction)` would block until a fixed
+ * timeout — the cause of multi-minute tails in the renew tests. This polls the
+ * pending-request queue instead, and never leaves a dangling `authorize` that
+ * could swallow the next test's transaction (specs run with a single worker).
+ */
+export async function authorizeApproveIfRequested(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  isDone: () => boolean,
+  pollMs = 250,
+): Promise<void> {
+  while (!isDone()) {
+    if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) >= 1) {
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      return
+    }
+    try {
+      await page.waitForTimeout(pollMs)
+    } catch {
+      // Page/context torn down (e.g. the renewal step failed and the test is
+      // tearing down) — stop polling rather than throw an unhandled rejection.
+      return
+    }
+  }
+}

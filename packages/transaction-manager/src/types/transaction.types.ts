@@ -158,6 +158,15 @@ export interface TransactionOptions {
   walletClient?: WalletClient
   /** Override the infrastructure for this transaction (Warp-only today) */
   infrastructure?: TransactionInfra
+  /**
+   * Operation kind for transaction-history reporting, e.g. 'ens-renewal',
+   * 'registration', 'set-resolver', 'set-primary-name', 'custom'. The semantic
+   * operation is known by the caller (app/feature flow), not the core machine,
+   * so it is supplied here and surfaced on the archived record.
+   */
+  operation?: string
+  /** ENS name involved, for transaction-history display. */
+  name?: string
 }
 
 export interface TransactionResult {

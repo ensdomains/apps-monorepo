@@ -40,7 +40,7 @@ export const DomainProfileCard = ({
 }: DomainProfileCardProps) => {
   const formattedRegisteredDate = formatDate(registeredDate) || 'N/A'
   const formattedExpiryDate = formatDate(expiryDate) || 'N/A'
-  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor)
 
   return (
     <div
@@ -52,7 +52,7 @@ export const DomainProfileCard = ({
           'cursor-pointer hover:-translate-y-0.5 hover:shadow-[0px_4px_6px_-1px_rgba(14,61,104,0.08),0px_20px_28px_-12px_rgba(15,23,42,0.24)]',
         className,
       )}
-      style={themeVars}
+      style={themeVars as React.CSSProperties}
     >
       {/* Left section: Avatar and Domain Info */}
       <div className="flex h-full items-center gap-4">
@@ -68,6 +68,7 @@ export const DomainProfileCard = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-full rounded-[5.215px] border-none bg-transparent p-0 shadow-none"
+                  color={themeVars['--theme-color']}
                   name={domainName}
                 />
               </ImageFallback.Fallback>

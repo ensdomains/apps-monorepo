@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { THEME_COLORS } from '@/features/profile/constants'
-import { getThemeVars } from './themeColor'
+import {
+  PROFILE_THEMES,
+  THEME_COLOR_ALIASES,
+  THEME_COLORS,
+} from '@/features/profile/constants'
+import { getProfileTheme, getThemeVars, resolveThemeColor } from './themeColor'
 
 const hexToRgb = (hex: string): readonly [number, number, number] => [
   parseInt(hex.slice(1, 3), 16),
@@ -54,6 +58,39 @@ const expectedButtonThemes = {
 } as const
 
 describe('getThemeVars', () => {
+  it('derives exported theme colors from the profile theme registry', () => {
+    expect(THEME_COLORS).toEqual(
+      PROFILE_THEMES.map(({ label, value }) => ({ label, value })),
+    )
+  })
+
+  it('resolves profile themes from canonical values and aliases', () => {
+    for (const theme of PROFILE_THEMES) {
+      expect(getProfileTheme(theme.value)).toBe(theme)
+      for (const alias of theme.aliases) {
+        expect(getProfileTheme(alias)).toBe(theme)
+      }
+    }
+  })
+
+  it('keeps the legacy alias export in sync with the registry', () => {
+    expect(THEME_COLOR_ALIASES).toEqual({
+      '#000000': '#02293B',
+      '#191919': '#02293B',
+      '#ED2496': '#E72A96',
+      '#0080BC': '#0082BB',
+      '#007C23': '#007C20',
+    })
+  })
+
+  it('resolves legacy saved theme aliases to canonical values', () => {
+    expect(resolveThemeColor('#000000')).toBe('#02293B')
+    expect(resolveThemeColor('#191919')).toBe('#02293B')
+    expect(resolveThemeColor('#ED2496')).toBe('#E72A96')
+    expect(resolveThemeColor('#0080BC')).toBe('#0082BB')
+    expect(resolveThemeColor('#007C23')).toBe('#007C20')
+  })
+
   it('returns accessible profile action button colors for every theme', () => {
     for (const theme of THEME_COLORS) {
       const vars = getThemeVars(theme.value)

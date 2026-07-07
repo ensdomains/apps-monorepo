@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useLingui as useCoreLingui } from '@lingui/react'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Link } from '@tanstack/react-router'
@@ -25,7 +26,7 @@ import {
   getFavoriteActionDisabled,
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { cn } from '@/lib/utils'
 import {
   EligibleForUpgradePill,
@@ -41,6 +42,8 @@ export type NameRowCta = 'renew' | 'remindMe' | 'manageExplorer'
 interface NameRowProps {
   readonly label: string
   readonly avatarUrl?: string
+  readonly avatarPending?: boolean
+  readonly themeColor?: string | null
   readonly nameVariant?: 'primary' | 'secondary'
   readonly verified?: boolean
   readonly nameRole?: NameRole | null
@@ -300,11 +303,24 @@ const NameRowTop = ({
 const NameAvatar = ({
   label,
   avatarUrl,
+  isPending,
+  themeColor,
 }: {
   readonly label: string
   readonly avatarUrl?: string
+  readonly isPending?: boolean
+  readonly themeColor?: string
 }) => {
   const { t } = useLingui()
+
+  if (isPending) {
+    return (
+      <div
+        aria-hidden="true"
+        className="relative size-8.5 shrink-0 animate-pulse overflow-hidden rounded-sm bg-gray-200"
+      />
+    )
+  }
 
   return (
     <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
@@ -317,6 +333,7 @@ const NameAvatar = ({
         <ImageFallback.Fallback>
           <PatternAvatar
             className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+            color={themeColor}
             name={label}
           />
         </ImageFallback.Fallback>
@@ -407,6 +424,8 @@ const ExpiryDetails = ({
 export const NameRow = ({
   label,
   avatarUrl,
+  avatarPending = false,
+  themeColor,
   nameVariant = 'secondary',
   verified = false,
   nameRole = null,
@@ -420,6 +439,10 @@ export const NameRow = ({
   isAuthenticated = true,
   isInGrace = false,
 }: NameRowProps) => {
+  const themeVars =
+    themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
+  const resolvedThemeColor = themeVars?.['--theme-color']
+
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       <NameRowTop
@@ -438,7 +461,12 @@ export const NameRow = ({
             onToggleFavorite={onToggleFavorite}
             showFavoriteButton={showFavoriteButton}
           />
-          <NameAvatar avatarUrl={avatarUrl} label={label} />
+          <NameAvatar
+            avatarUrl={avatarUrl}
+            isPending={avatarPending}
+            label={label}
+            themeColor={resolvedThemeColor}
+          />
           <NamePill label={label} variant={nameVariant} />
           {verified && <VerifiedCheck />}
         </div>

@@ -1,4 +1,3 @@
-import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { useQuery } from '@tanstack/react-query'
 import { useBlocker } from '@tanstack/react-router'
 import { AlertCircle, UserCheck } from 'lucide-react'
@@ -15,6 +14,7 @@ import { useRegistrationTransactions } from '@/features/register/hooks/useRegist
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import {

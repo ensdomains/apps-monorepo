@@ -1,6 +1,6 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useConnectModal } from '@/lib/wallet'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'

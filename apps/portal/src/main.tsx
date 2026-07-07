@@ -1,3 +1,6 @@
+// Dev-only: install the Anvil-tracking browser clock before any app module
+// captures `Date` (no-op unless DEV + VITE_TIME_TRAVEL).
+import '@ens-apps/dev-time-travel/setup'
 import './lib/temporal-shim'
 
 import { createRouter, RouterProvider } from '@tanstack/react-router'
@@ -6,7 +9,6 @@ import ReactDOM from 'react-dom/client'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
-import '@rainbow-me/rainbowkit/styles.css'
 import '@/styles/index.css'
 import resources from 'virtual:i18next-loader'
 import i18n from 'i18next'

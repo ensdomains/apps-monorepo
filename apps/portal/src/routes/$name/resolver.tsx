@@ -19,6 +19,7 @@ import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
+import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -31,6 +32,7 @@ import {
 } from '@/lib/constants/resolverInterfaceIds'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import { wagmiConfig } from '@/lib/wagmi'
+import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 import { NameSubgraphHistory } from '../../components/table/NameSubgraphHistory/NameSubgraphHistory'
@@ -477,6 +479,14 @@ function RouteComponent() {
     ],
   })
 
+  // Whether the name is registered is a chain-state question: the v2 registry
+  // keeps returning the previous owner (latestOwner) after expiry, so use the
+  // registrar's availability (true only past grace) instead of owner presence.
+  const availabilityQuery = useQuery({
+    ...getNameAvailabilityQueryOptions({ name }),
+    enabled: isRegistrable(name),
+  })
+
   if (ownerQuery.error) {
     return (
       <ErrorMessage
@@ -497,10 +507,26 @@ function RouteComponent() {
     )
   }
 
-  if (ownerQuery.isLoading) return <LoadingMessage />
-  if (resolverQuery.isLoading) return <LoadingMessage />
+  if (
+    ownerQuery.isLoading ||
+    resolverQuery.isLoading ||
+    (availabilityQuery.isLoading && isRegistrable(name))
+  )
+    return <LoadingMessage />
 
-  if (!ownerQuery.data)
+  if (availabilityQuery.error) {
+    return (
+      <ErrorMessage
+        title="Error checking availability"
+        description={
+          availabilityQuery.error.cause?.message ||
+          availabilityQuery.error.message
+        }
+      />
+    )
+  }
+
+  if (availabilityQuery.data?.isAvailable || !ownerQuery.data)
     return (
       <NotFoundMessage
         title="Name not registered"

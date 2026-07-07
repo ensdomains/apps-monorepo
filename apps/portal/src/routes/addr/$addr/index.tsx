@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
-import type { Address } from 'viem'
-import { useAccount, useDisconnect, useEnsName } from 'wagmi'
+import { type Address, isAddress, isAddressEqual } from 'viem'
+import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -96,8 +96,13 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
 
 function RouteComponent() {
   const { disconnect } = useDisconnect()
-  const { isConnected } = useAccount()
+  const { address: connectedAddress } = useConnection()
   const { addr } = Route.useParams() as { addr: Address }
+
+  const isViewingConnectedWallet =
+    !!connectedAddress &&
+    isAddress(addr) &&
+    isAddressEqual(connectedAddress, addr)
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
@@ -105,7 +110,7 @@ function RouteComponent() {
         <h1 className="text-2xl md:text-heading font-medium leading-none break-all">
           {addr}
         </h1>
-        {isConnected && (
+        {isViewingConnectedWallet && (
           <Button variant="default" onClick={() => disconnect()}>
             Disconnect
           </Button>

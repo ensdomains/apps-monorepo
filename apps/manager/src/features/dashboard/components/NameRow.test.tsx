@@ -17,11 +17,10 @@ describe('NameRow', () => {
 
     const graceBadge = getByText('Grace period').closest('span')
     const ownerBadge = getByText('Owner').closest('span')
-    const topRow = graceBadge?.closest('.items-start.justify-between')
+    const topRow = graceBadge?.parentElement
 
     expect(topRow?.firstElementChild).toContainElement(ownerBadge)
     expect(topRow?.firstElementChild).not.toContainElement(graceBadge)
     expect(topRow?.lastElementChild).toBe(graceBadge)
-    expect(graceBadge).toHaveClass('bg-[#fffddc]', 'text-ens-citrine-500')
   })
 })

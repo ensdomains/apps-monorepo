@@ -16,6 +16,7 @@ interface ViewHeaderSectionProps {
   owner?: Address
   isInGrace?: boolean
   isOwner?: boolean
+  themeColor?: string
 }
 
 export const ViewHeaderSection = ({
@@ -23,6 +24,7 @@ export const ViewHeaderSection = ({
   owner,
   isInGrace = false,
   isOwner,
+  themeColor,
 }: ViewHeaderSectionProps) => {
   const avatarUrl = isInGrace
     ? undefined
@@ -64,7 +66,12 @@ export const ViewHeaderSection = ({
         </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <FavoriteButton name={name} />
-          <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
+          <ShareProfileDialog
+            avatarUrl={avatarUrl}
+            name={name}
+            themeColor={themeColor}
+            url={url}
+          />
         </div>
         <div className="absolute -bottom-10 left-1/2 size-24 -translate-x-1/2 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
@@ -79,6 +86,7 @@ export const ViewHeaderSection = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-full rounded-xl border-none bg-transparent p-0 shadow-none"
+                  color={themeColor}
                   name={name}
                 />
               </ImageFallback.Fallback>
