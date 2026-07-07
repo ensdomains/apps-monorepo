@@ -1,5 +1,4 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
@@ -8,14 +7,13 @@ import type { Address, PublicClient, WalletClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
-import { setSubregistry } from '@/features/registry/helpers/setSubregistry'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
-import { deployRegistry } from '../helpers/deployRegistry'
+import { resetNameRegistry } from '../helpers/resetNameRegistry'
 import { resetNameResolver } from '../helpers/resetNameResolver'
 import { transferToken } from '../helpers/transferToken'
 import {
@@ -44,20 +42,11 @@ type SavedParams = {
 
 const GAS_BY_STEP: Record<TransferStepKind, number> = {
   'reset-resolver': 0.0001,
-  'deploy-registry': 0.0008,
-  'set-registry': 0.0001,
+  'reset-registry': 0.0001,
   'transfer-token': 0.0003,
 }
 
 const chainId = sepoliaWithEns.id
-const factoryAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensVerifiableFactory',
-})
-const registryImplAddress = getChainContractAddress({
-  chain: sepoliaWithEns,
-  contract: 'ensUserRegistryImpl',
-})
 
 export const useTransferName = ({
   name,
@@ -74,12 +63,9 @@ export const useTransferName = ({
   const [prepError, setPrepError] = useState<Error | null>(null)
   const [isPreparing, setIsPreparing] = useState(false)
 
-  // `deploy-registry` produces an address the `set-registry` step consumes; held
-  // in a ref so the step closure reads the latest value. `startedSteps` makes
-  // each step's `onStart` idempotent — both the modal UI and the previous step's
-  // auto-fired `onDone` route into it (see ConfigureRegistryForm for the same
-  // pattern).
-  const deployedRegistryRef = useRef<Address | undefined>(undefined)
+  // `startedSteps` makes each step's `onStart` idempotent — both the modal UI and
+  // the previous step's auto-fired `onDone` route into it (see
+  // ConfigureRegistryForm for the same pattern).
   const startedStepsRef = useRef<Set<string>>(new Set())
 
   const getRuntime = async (): Promise<{
@@ -118,7 +104,6 @@ export const useTransferName = ({
       const tokenIdResult = await getEnsTokenId({ label, registryAddress })
       if (tokenIdResult.isErr()) throw tokenIdResult.error
 
-      deployedRegistryRef.current = undefined
       startedStepsRef.current = new Set()
       setSavedParams({ recipient, tokenId: tokenIdResult.value, options })
       return true
@@ -150,25 +135,11 @@ export const useTransferName = ({
         })
         return
       }
-      case 'deploy-registry': {
-        const result = await deployRegistry({
-          ...common,
-          recipient,
-          factoryAddress,
-          implAddress: registryImplAddress,
-          id,
-        })
-        deployedRegistryRef.current = result.deployedAddress
-        return
-      }
-      case 'set-registry': {
-        if (!deployedRegistryRef.current)
-          throw new Error('No registry address to set on the name')
-        await setSubregistry({
+      case 'reset-registry': {
+        await resetNameRegistry({
           ...common,
           label,
-          parentRegistry: registryAddress,
-          subregistryAddress: deployedRegistryRef.current,
+          registryAddress,
           id,
         })
         return
