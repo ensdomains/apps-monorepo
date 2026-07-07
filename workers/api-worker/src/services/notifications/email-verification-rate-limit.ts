@@ -9,8 +9,8 @@ type RateLimitWindow = {
 }
 
 export type EmailVerificationRateLimitResult =
-  | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number }
+  | { isAllowed: true }
+  | { isAllowed: false; retryAfterSeconds: number }
 
 export const normalizeEmailForRateLimit = (email: string) =>
   email.trim().toLowerCase()
@@ -19,7 +19,7 @@ export const formatEmailVerificationRateLimitError = (
   retryAfterSeconds: number,
 ) => {
   const retryAfterMinutes = Math.max(1, Math.ceil(retryAfterSeconds / 60))
-  return `Too many verification emails sent to this address. Try again in ${retryAfterMinutes} minutes.`
+  return `Too many verification emails sent to this address. Try again in ${retryAfterMinutes} minute${retryAfterMinutes === 1 ? '' : 's'}.`
 }
 
 export const checkAndConsumeEmailVerificationRateLimit = async (
@@ -31,6 +31,9 @@ export const checkAndConsumeEmailVerificationRateLimit = async (
   const now = Date.now()
   const windowMs = EMAIL_VERIFICATION_RATE_LIMIT_WINDOW_SECONDS * 1000
 
+  // NOTE: non-atomic read-modify-write on KV.
+  // Concurrent requests may both read the same count and increment past the limit.
+  // Overshoot is bounded; a Durable Object is not warranted here.
   const raw = await kv.get(key)
   let state: RateLimitWindow | null = null
 
@@ -49,7 +52,7 @@ export const checkAndConsumeEmailVerificationRateLimit = async (
   if (state.count >= EMAIL_VERIFICATION_RATE_LIMIT_MAX_SENDS) {
     const windowEndMs = state.windowStartMs + windowMs
     const retryAfterSeconds = Math.max(1, Math.ceil((windowEndMs - now) / 1000))
-    return { allowed: false, retryAfterSeconds }
+    return { isAllowed: false, retryAfterSeconds }
   }
 
   state.count += 1
@@ -57,5 +60,5 @@ export const checkAndConsumeEmailVerificationRateLimit = async (
     expirationTtl: EMAIL_VERIFICATION_RATE_LIMIT_WINDOW_SECONDS,
   })
 
-  return { allowed: true }
+  return { isAllowed: true }
 }

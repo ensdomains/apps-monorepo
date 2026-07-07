@@ -31,7 +31,7 @@ describe('normalizeEmailForRateLimit', () => {
 
 describe('formatEmailVerificationRateLimitError', () => {
   it('returns a user-facing message with at least one minute', () => {
-    expect(formatEmailVerificationRateLimitError(30)).toContain('1 minutes')
+    expect(formatEmailVerificationRateLimitError(30)).toContain('1 minute')
     expect(formatEmailVerificationRateLimitError(120)).toContain('2 minutes')
   })
 })
@@ -45,12 +45,12 @@ describe('checkAndConsumeEmailVerificationRateLimit', () => {
 
     for (let i = 0; i < EMAIL_VERIFICATION_RATE_LIMIT_MAX_SENDS; i++) {
       const result = await checkAndConsumeEmailVerificationRateLimit(kv, email)
-      expect(result).toEqual({ allowed: true })
+      expect(result).toEqual({ isAllowed: true })
     }
 
     const blocked = await checkAndConsumeEmailVerificationRateLimit(kv, email)
-    expect(blocked.allowed).toBe(false)
-    if (!blocked.allowed) {
+    expect(blocked.isAllowed).toBe(false)
+    if (!blocked.isAllowed) {
       expect(blocked.retryAfterSeconds).toBeGreaterThan(0)
       expect(blocked.retryAfterSeconds).toBeLessThanOrEqual(
         EMAIL_VERIFICATION_RATE_LIMIT_WINDOW_SECONDS,
@@ -69,7 +69,7 @@ describe('checkAndConsumeEmailVerificationRateLimit', () => {
       kv,
       '  A@B.COM ',
     )
-    expect(blocked.allowed).toBe(false)
+    expect(blocked.isAllowed).toBe(false)
   })
 
   it('stores state under the notifications KV key', async () => {

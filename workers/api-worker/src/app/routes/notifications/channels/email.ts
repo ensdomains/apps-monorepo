@@ -71,22 +71,6 @@ export default createApp()
         )
       }
 
-      const rateLimit = await checkAndConsumeEmailVerificationRateLimit(
-        c.env.KV,
-        email,
-      )
-
-      if (!rateLimit.allowed) {
-        return c.json(
-          {
-            error: formatEmailVerificationRateLimitError(
-              rateLimit.retryAfterSeconds,
-            ),
-          },
-          429,
-        )
-      }
-
       // Upsert the channel
       const channel = await c.var.db
         .insert(TABLE.userChannels)
@@ -137,6 +121,22 @@ export default createApp()
 
       if (!verification) {
         return c.json({ error: 'Failed to create verification' }, 500)
+      }
+
+      const rateLimit = await checkAndConsumeEmailVerificationRateLimit(
+        c.env.KV,
+        email,
+      )
+
+      if (!rateLimit.isAllowed) {
+        return c.json(
+          {
+            error: formatEmailVerificationRateLimitError(
+              rateLimit.retryAfterSeconds,
+            ),
+          },
+          429,
+        )
       }
 
       // Send verification email

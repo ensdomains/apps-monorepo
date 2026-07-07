@@ -175,7 +175,7 @@ export default createApp()
       channel.target,
     )
 
-    if (!rateLimit.allowed) {
+    if (!rateLimit.isAllowed) {
       return c.json(
         {
           error: formatEmailVerificationRateLimitError(
