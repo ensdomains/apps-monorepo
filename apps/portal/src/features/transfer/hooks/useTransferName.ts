@@ -176,9 +176,9 @@ export const useTransferName = ({
         await runStep(step, id, recipient, tokenId)
       } catch (err) {
         // Tx reverts surface via the modal's machine state. Non-tx failures
-        // (e.g. a deploy receipt without an address) aren't tracked there, so
-        // log them rather than swallow silently. Clearing the guard allows a
-        // retry from the modal.
+        // (e.g. the wallet resolving without a connected account) aren't tracked
+        // there, so log them rather than swallow silently. Clearing the guard
+        // allows a retry from the modal.
         console.error(`Transfer step "${step}" failed:`, err)
         startedStepsRef.current.delete(id)
       }
