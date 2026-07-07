@@ -28,7 +28,7 @@ const mockAccount =
 
 // `reconnect: true` lets wagmi treat the connector as authorized once it has
 // connected (see `MockWalletAutoConnect` for why that isn't enough on reload).
-export const mockConnector = mock({
+export const mockConnector = /*#__PURE__*/ mock({
   accounts: [mockAccount],
   features: { reconnect: true },
 })
