@@ -2,21 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft, ShieldX } from 'lucide-react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddressEqual, zeroAddress } from 'viem'
+import { isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
-import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
-
-const normalizeAddress = (
-  address: Address | null | undefined,
-): Address | undefined =>
-  !address || address === zeroAddress ? undefined : address
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
@@ -28,8 +21,6 @@ function RouteComponent() {
   const { address } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
-  const resolverQuery = useNameResolverAddress({ name })
-  const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
 
   if (ownerQuery.isLoading) return <LoadingMessage />
 
@@ -90,12 +81,6 @@ function RouteComponent() {
                 name={name}
                 registryAddress={data.registryAddress}
                 owner={data.owner}
-                currentResolverAddress={normalizeAddress(resolverQuery.data)}
-                isResolverLoading={resolverQuery.isLoading}
-                currentSubregistryAddress={normalizeAddress(
-                  registriesQuery.data?.[0],
-                )}
-                isSubregistryLoading={registriesQuery.isLoading}
               />
             ),
           )

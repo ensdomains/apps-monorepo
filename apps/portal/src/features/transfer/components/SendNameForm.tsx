@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
+import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
+import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useRecipientResolution } from '../hooks/useRecipientResolution'
@@ -21,10 +23,6 @@ type SendNameFormProps = {
   readonly name: string
   readonly registryAddress: Address
   readonly owner: Address
-  readonly currentResolverAddress: Address | undefined
-  readonly isResolverLoading: boolean
-  readonly currentSubregistryAddress: Address | undefined
-  readonly isSubregistryLoading: boolean
 }
 
 type OptionConfig = {
@@ -52,16 +50,22 @@ export const SendNameForm = ({
   name,
   registryAddress,
   owner,
-  currentResolverAddress,
-  isResolverLoading,
-  currentSubregistryAddress,
-  isSubregistryLoading,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
     resetResolver: false,
     resetRegistry: false,
   })
+
+  // `useNameResolverAddress` already maps empty/zero → null, so a truthy check is
+  // enough. `getNameRegistries` returns the name's own subregistry at [0] (or the
+  // zero address when unset), so that one still needs an explicit zero check.
+  const resolverQuery = useNameResolverAddress({ name })
+  const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
+  const subregistryAddress = registriesQuery.data?.[0]
+  const hasResolver = !!resolverQuery.data
+  const hasSubregistry =
+    !!subregistryAddress && subregistryAddress !== zeroAddress
 
   const {
     address: recipient,
@@ -81,8 +85,8 @@ export const SendNameForm = ({
   // target set — nothing to reset means nothing to show, and we stay hidden
   // while the lookup is in flight rather than flashing a row we may remove.
   const optionIsVisible: Record<keyof TransferOptions, boolean> = {
-    resetResolver: !isResolverLoading && !!currentResolverAddress,
-    resetRegistry: !isSubregistryLoading && !!currentSubregistryAddress,
+    resetResolver: !resolverQuery.isLoading && hasResolver,
+    resetRegistry: !registriesQuery.isLoading && hasSubregistry,
   }
 
   // A hidden option never contributes to the plan, regardless of its stored
