@@ -5,6 +5,11 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* WalletConnect (reown) modal reads `z-index: var(--w3m-z-index)`; when we use
+     the bare wagmi walletConnect connector nothing defines it, so it collapses
+     to auto and the app's own z-indexed elements (sidebar, headers, badges)
+     stack over the QR modal. Define it high so the modal sits above everything. */
+  --w3m-z-index: 2147483646;
   --radius: 0.625rem;
   --background: #ffffff;
   --foreground: #191919;

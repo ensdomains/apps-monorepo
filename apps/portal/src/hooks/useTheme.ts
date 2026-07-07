@@ -11,6 +11,19 @@ function applyTheme(theme: Theme) {
   root.classList.toggle('dark', isDark)
 }
 
+/**
+ * The effective light/dark mode from the stored preference, resolved outside
+ * React (e.g. to theme the WalletConnect modal at connector-creation time).
+ */
+export function getResolvedThemeMode(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light'
+  const stored = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? 'system'
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  return stored === 'dark' || (stored === 'system' && prefersDark)
+    ? 'dark'
+    : 'light'
+}
+
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(
     () => (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? 'system',
