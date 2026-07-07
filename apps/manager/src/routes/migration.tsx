@@ -3,7 +3,7 @@ import {
   useHydrated,
   useNavigate,
 } from '@tanstack/react-router'
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useCallback, useEffect } from 'react'
 import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
@@ -46,9 +46,11 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const { isConnecting, isReconnecting } = useConnection()
   const { hasInitialized, ownerAddress } = useSmartAccountContext()
 
-  useOnDisconnected(() => {
+  const handleDisconnect = useCallback(() => {
     navigate({ to: '/', replace: true })
-  })
+  }, [navigate])
+
+  useOnDisconnected(handleDisconnect)
 
   const isRestoringConnection =
     !isHydrated || isConnecting || isReconnecting || !hasInitialized
