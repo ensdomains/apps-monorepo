@@ -1,5 +1,6 @@
 'use client'
 
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -23,7 +24,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { formatYears } from '@/features/register/components/Pricing/utils'
 import { getPremiumLabel, STABLECOINS } from '@/features/register/utils'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
 import {

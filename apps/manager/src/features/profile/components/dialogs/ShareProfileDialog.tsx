@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { Share as ShareIcon } from 'lucide-react'
 import { type CSSProperties, type ReactNode, useMemo, useState } from 'react'
@@ -14,6 +15,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from '@/components/ui/drawer'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
   DEFAULT_THEME_COLOR,
@@ -23,7 +31,6 @@ import {
   getProfileTheme,
   getThemeVars,
 } from '@/features/profile/utils/themeColor'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { resolveDefaultExport } from './ShareProfileDialog.helpers'
 
@@ -168,14 +175,19 @@ const ShareNameplate = ({
   )
 }
 
-const ShareCardHeader = () => (
+type ShareCardHeaderProps = {
+  readonly Close: typeof DialogClose | typeof DrawerClose
+  readonly Title: typeof DialogTitle | typeof DrawerTitle
+}
+
+const ShareCardHeader = ({ Close, Title }: ShareCardHeaderProps) => (
   <div className="relative h-[59px] shrink-0">
     <EnsMobileIcon className="absolute top-[17px] left-[17px] h-[22px] w-[19px] text-(--share-close-color)" />
     {/* text-[#353535] / text-[16px]: design-specified exact values, no token equivalent */}
-    <DialogTitle className="absolute top-5 left-1/2 w-[121px] -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
+    <Title className="absolute top-5 left-1/2 w-[121px] -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
       <Trans>Share profile link</Trans>
-    </DialogTitle>
-    <DialogClose asChild>
+    </Title>
+    <Close asChild>
       <button
         aria-label="Close"
         className="absolute top-0 right-0 flex size-[52px] appearance-none items-center justify-center border-0 bg-transparent p-0 text-(--share-close-color) shadow-none outline-none transition-opacity hover:opacity-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:size-[60px]"
@@ -186,7 +198,7 @@ const ShareCardHeader = () => (
           symbol="close"
         />
       </button>
-    </DialogClose>
+    </Close>
   </div>
 )
 
@@ -306,9 +318,9 @@ export const ShareProfileDialog = ({
     </Button>
   )
 
-  const profileCard = (
+  const profileCard = ({ Close, Title }: ShareCardHeaderProps): ReactNode => (
     <>
-      <ShareCardHeader />
+      <ShareCardHeader Close={Close} Title={Title} />
       <div
         className={cn(
           'mx-auto flex w-full flex-col items-center gap-0.5',
@@ -360,17 +372,31 @@ export const ShareProfileDialog = ({
     </>
   )
 
+  if (isDesktop) {
+    return (
+      <Dialog onOpenChange={handleOpenChange} open={open}>
+        <DialogTrigger asChild>{triggerButton}</DialogTrigger>
+        <DialogContent
+          aria-describedby={undefined}
+          className="w-[320px] max-w-[320px] gap-0 overflow-y-auto rounded-[24px] border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)]"
+          showCloseButton={false}
+          style={shareDialogStyle}
+        >
+          {profileCard({ Close: DialogClose, Title: DialogTitle })}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
-      <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-      <DialogContent
-        aria-describedby={undefined}
-        className="w-[calc(100vw-20px)] max-w-[380px] gap-0 overflow-y-auto rounded-[24px] border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)] md:w-[320px] md:max-w-[320px]"
-        showCloseButton={false}
+    <Drawer onOpenChange={handleOpenChange} open={open}>
+      <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
+      <DrawerContent
+        className="max-h-[calc(100dvh-20px)] gap-0 overflow-y-auto rounded-t-[24px] border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)] [&>div:first-child]:hidden"
         style={shareDialogStyle}
       >
-        {profileCard}
-      </DialogContent>
-    </Dialog>
+        {profileCard({ Close: DrawerClose, Title: DrawerTitle })}
+      </DrawerContent>
+    </Drawer>
   )
 }

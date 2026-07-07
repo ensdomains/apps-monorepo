@@ -1,25 +1,38 @@
-import { ClientError, type GraphQLResponse } from 'graphql-request'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('graphql-request', async () => {
-  const actual =
-    await vi.importActual<typeof import('graphql-request')>('graphql-request')
+const { mockRequest, MockClientError } = vi.hoisted(() => {
+  class MockClientError extends Error {
+    response: { status: number; headers: Headers }
+    request: { query: string; variables: Record<string, unknown> }
+
+    constructor(
+      response: { status: number; headers: Headers },
+      request: { query: string; variables: Record<string, unknown> },
+    ) {
+      super('GraphQL Client Error')
+      this.response = response
+      this.request = request
+    }
+  }
 
   return {
-    ...actual,
-    request: vi.fn(),
+    mockRequest: vi.fn(),
+    MockClientError,
   }
 })
 
-import { request } from 'graphql-request'
+vi.mock('graphql-request', () => ({
+  request: mockRequest,
+  gql: String.raw,
+  ClientError: MockClientError,
+}))
+
 import { fetchExpiringNamesPage, PAGE_SIZE } from './indexer.js'
 import { STAGES } from './stages.js'
 
-const mockRequest = vi.mocked(request)
-
 describe('fetchExpiringNamesPage', () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
+    mockRequest.mockReset()
     vi.useFakeTimers()
   })
 
@@ -81,11 +94,11 @@ describe('fetchExpiringNamesPage', () => {
   })
 
   it('does not retry non-retryable client errors', async () => {
-    const nonRetryableError = new ClientError(
+    const nonRetryableError = new MockClientError(
       {
         status: 400,
         headers: new Headers(),
-      } as unknown as GraphQLResponse,
+      },
       { query: 'q', variables: {} },
     )
 
