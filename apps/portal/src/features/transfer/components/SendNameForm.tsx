@@ -23,6 +23,8 @@ type SendNameFormProps = {
   readonly owner: Address
   readonly currentResolverAddress: Address | undefined
   readonly isResolverLoading: boolean
+  readonly currentSubregistryAddress: Address | undefined
+  readonly isSubregistryLoading: boolean
 }
 
 type OptionConfig = {
@@ -39,24 +41,12 @@ const OPTIONS: readonly OptionConfig[] = [
       'Removes this name’s resolver so it stops resolving to your records. The recipient starts clean and sets up their own.',
   },
   {
-    key: 'deployRegistry',
-    label: 'Deploy a new registry',
+    key: 'resetRegistry',
+    label: 'Reset the registry',
     description:
-      'Gives the recipient a fresh registry to manage subnames. Existing subnames aren’t carried over.',
+      'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean and deploys their own.',
   },
 ]
-
-const getResetResolverDisabledReason = ({
-  hasResolver,
-  isLoading,
-}: {
-  hasResolver: boolean
-  isLoading: boolean
-}): string | null => {
-  if (isLoading) return 'Checking for a resolver…'
-  if (!hasResolver) return 'This name has no resolver to remove.'
-  return null
-}
 
 export const SendNameForm = ({
   name,
@@ -64,11 +54,13 @@ export const SendNameForm = ({
   owner,
   currentResolverAddress,
   isResolverLoading,
+  currentSubregistryAddress,
+  isSubregistryLoading,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
     resetResolver: false,
-    deployRegistry: false,
+    resetRegistry: false,
   })
 
   const {
@@ -85,25 +77,22 @@ export const SendNameForm = ({
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
   const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
-  // "Reset the resolver" is only meaningful when the name has one to remove, and
-  // stays disabled until the resolver lookup resolves so we don't flash "no
-  // resolver" for a name that actually has one.
-  const resetResolverDisabledReason = getResetResolverDisabledReason({
-    hasResolver: !!currentResolverAddress,
-    isLoading: isResolverLoading,
-  })
-
-  const disabledReasonByKey: Record<keyof TransferOptions, string | null> = {
-    resetResolver: resetResolverDisabledReason,
-    deployRegistry: null,
+  // A reset option only appears once we've confirmed the name actually has that
+  // target set — nothing to reset means nothing to show, and we stay hidden
+  // while the lookup is in flight rather than flashing a row we may remove.
+  const optionIsVisible: Record<keyof TransferOptions, boolean> = {
+    resetResolver: !isResolverLoading && !!currentResolverAddress,
+    resetRegistry: !isSubregistryLoading && !!currentSubregistryAddress,
   }
 
-  // A disabled option never contributes to the plan, regardless of its stored
-  // toggle value, so fold the disabled state into the options we hand off.
+  // A hidden option never contributes to the plan, regardless of its stored
+  // toggle value, so fold visibility into the options we hand off.
   const effectiveOptions: TransferOptions = {
-    resetResolver: options.resetResolver && !resetResolverDisabledReason,
-    deployRegistry: options.deployRegistry,
+    resetResolver: options.resetResolver && optionIsVisible.resetResolver,
+    resetRegistry: options.resetRegistry && optionIsVisible.resetRegistry,
   }
+
+  const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
   const canStart = hasValidRecipient && !isResolving && !isPreparing
 
@@ -167,43 +156,30 @@ export const SendNameForm = ({
         </div>
       </div>
 
-      {hasValidRecipient && (
+      {hasValidRecipient && visibleOptions.length > 0 && (
         <div className="flex flex-col gap-3">
-          {OPTIONS.map((option) => {
-            const disabledReason = disabledReasonByKey[option.key]
-            const disabled = disabledReason !== null
-            // A disabled option always reads as off, matching effectiveOptions.
-            const checked = !disabled && options[option.key]
-            return (
-              <div key={option.key} className="flex flex-col gap-1">
-                <label
-                  htmlFor={`transfer-option-${option.key}`}
-                  className="flex items-start justify-between gap-3 cursor-pointer"
-                >
-                  <span className="flex flex-col">
-                    <span className="text-foreground font-medium">
-                      {option.label}
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      {option.description}
-                    </span>
-                  </span>
-                  <Switch
-                    id={`transfer-option-${option.key}`}
-                    checked={checked}
-                    disabled={disabled}
-                    onCheckedChange={() => toggleOption(option.key)}
-                    className="mt-1 shrink-0"
-                  />
-                </label>
-                {disabledReason && (
-                  <span className="text-muted-foreground text-sm">
-                    {disabledReason}
-                  </span>
-                )}
-              </div>
-            )
-          })}
+          {visibleOptions.map((option) => (
+            <label
+              key={option.key}
+              htmlFor={`transfer-option-${option.key}`}
+              className="flex items-start justify-between gap-3 cursor-pointer"
+            >
+              <span className="flex flex-col">
+                <span className="text-foreground font-medium">
+                  {option.label}
+                </span>
+                <span className="text-muted-foreground text-sm">
+                  {option.description}
+                </span>
+              </span>
+              <Switch
+                id={`transfer-option-${option.key}`}
+                checked={options[option.key]}
+                onCheckedChange={() => toggleOption(option.key)}
+                className="mt-1 shrink-0"
+              />
+            </label>
+          ))}
         </div>
       )}
 
