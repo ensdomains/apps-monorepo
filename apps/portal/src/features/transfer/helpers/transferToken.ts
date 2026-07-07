@@ -4,7 +4,7 @@
  * In ENS v2 a name is an ERC-1155 token held in its leaf `PermissionedRegistry`
  * (`getState(tokenId).latestOwner` is the owner). There is no dedicated
  * "transfer name" contract call — ownership moves via the standard ERC-1155
- * `safeTransferFrom`. The token id is the versioned id from `getTokenId(label)`.
+ * `safeTransferFrom`. The token id is the *versioned* id from `getTokenId(label)`.
  *
  * Note: the registry gates transfers on a transfer role/observer, so the sender
  * must hold the token and be allowed to move it.
@@ -15,25 +15,21 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
+import { transferNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
   type Hex,
   type PublicClient,
-  parseAbi,
   type WalletClient,
 } from 'viem'
-
-const erc1155SafeTransferFromSnippet = parseAbi([
-  'function safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes data)',
-])
+import type { WalletClientWithAccount } from '@/utils/types'
 
 export interface TransferTokenParameters {
   readonly name: string
   /** The registry the name's token lives in (the leaf subregistry). */
   readonly registryAddress: Address
   readonly tokenId: bigint
-  readonly from: Address
   readonly recipient: Address
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
@@ -51,7 +47,6 @@ export const transferToken = async ({
   name,
   registryAddress,
   tokenId,
-  from,
   recipient,
   walletClient,
   publicClient,
@@ -63,10 +58,18 @@ export const transferToken = async ({
     throw new Error('Wallet client must have account configured')
   }
 
+  const walletWithAccount = walletClient as WalletClientWithAccount
+
+  const writeParams = transferNameWriteParameters(walletWithAccount, {
+    registryAddress,
+    tokenId,
+    newOwnerAddress: recipient,
+  })
+
   const data = encodeFunctionData({
-    abi: erc1155SafeTransferFromSnippet,
-    functionName: 'safeTransferFrom',
-    args: [from, recipient, tokenId, 1n, '0x'],
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
   })
 
   const txId = transactionManager.startTransaction(
@@ -74,8 +77,8 @@ export const transferToken = async ({
       type: 'custom',
       request: {
         type: 'eoa',
-        from,
-        to: registryAddress,
+        from: walletWithAccount.account.address,
+        to: writeParams.address,
         data,
         value: 0n,
         chainId,
