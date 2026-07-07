@@ -42,7 +42,7 @@ function RouteComponent() {
           params={{ name }}
           className="flex items-center gap-1 text-muted-foreground hover:text-muted-foreground text-sm font-medium"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="size-4" />
           Back
         </Link>
 
