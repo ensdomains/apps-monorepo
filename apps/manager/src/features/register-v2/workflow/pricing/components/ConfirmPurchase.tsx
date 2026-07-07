@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { STABLECOINS } from '@/features/register/utils'
+import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
@@ -59,19 +60,23 @@ export const ConfirmPurchase = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async () => {
-      const [availability, existingPrimaryName] = await Promise.all([
-        queryClient.fetchQuery({
-          ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
-          staleTime: 0,
-        }),
-        queryClient.fetchQuery(
-          profileReverseNameQuery(account.ownerAddress ?? undefined),
-        ),
-      ])
+      const [availability, existingPrimaryName, ownedNamesCount] =
+        await Promise.all([
+          queryClient.fetchQuery({
+            ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
+            staleTime: 0,
+          }),
+          queryClient.fetchQuery(
+            profileReverseNameQuery(account.ownerAddress ?? undefined),
+          ),
+          queryClient.fetchQuery(
+            ownedNamesCountQueryOptions(account.ownerAddress ?? undefined),
+          ),
+        ])
 
-      return { availability, existingPrimaryName }
+      return { availability, existingPrimaryName, ownedNamesCount }
     },
-    onSuccess: ({ availability, existingPrimaryName }) => {
+    onSuccess: ({ availability, existingPrimaryName, ownedNamesCount }) => {
       if (!pricingQuery.data || !selectedToken) {
         return
       }
@@ -97,6 +102,7 @@ export const ConfirmPurchase = () => {
         postRegistrationSetup: getManagerRegistrationPostRegistrationSetup({
           ownerAddress: account.ownerAddress,
           existingPrimaryName,
+          ownedNamesCount,
         }),
       })
     },
@@ -201,9 +207,9 @@ export const ConfirmPurchaseBase = ({
 
         <p className="text-center text-ens-gray-three text-sm">
           <Trans>
-            If you don&apos;t already have a primary name, ENS may set this name
-            as your primary name and link it to your connected wallet
-            automatically.
+            If your connected wallet has fewer than two names and no primary
+            name yet, ENS may set this name as your primary name and link it to
+            your connected wallet automatically.
           </Trans>
         </p>
       </div>

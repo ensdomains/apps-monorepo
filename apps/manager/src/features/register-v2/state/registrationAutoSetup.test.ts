@@ -7,6 +7,7 @@ describe('getManagerRegistrationPostRegistrationSetup', () => {
       getManagerRegistrationPostRegistrationSetup({
         ownerAddress: undefined,
         existingPrimaryName: null,
+        ownedNamesCount: 0,
       }),
     ).toBeUndefined()
   })
@@ -16,15 +17,40 @@ describe('getManagerRegistrationPostRegistrationSetup', () => {
       getManagerRegistrationPostRegistrationSetup({
         ownerAddress: '0x1111111111111111111111111111111111111111',
         existingPrimaryName: 'existing.eth',
+        ownedNamesCount: 0,
       }),
     ).toBeUndefined()
   })
 
-  it('enables setup when the user has an owner address and no primary name', () => {
+  it('returns undefined when ownedNamesCount is missing', () => {
     expect(
       getManagerRegistrationPostRegistrationSetup({
         ownerAddress: '0x1111111111111111111111111111111111111111',
         existingPrimaryName: null,
+      }),
+    ).toBeUndefined()
+  })
+
+  it.each([
+    2, 3,
+  ])('returns undefined when the user already owns %i names', (ownedNamesCount) => {
+    expect(
+      getManagerRegistrationPostRegistrationSetup({
+        ownerAddress: '0x1111111111111111111111111111111111111111',
+        existingPrimaryName: null,
+        ownedNamesCount,
+      }),
+    ).toBeUndefined()
+  })
+
+  it.each([
+    0, 1,
+  ])('enables setup when the user owns %i names and has no primary name', (ownedNamesCount) => {
+    expect(
+      getManagerRegistrationPostRegistrationSetup({
+        ownerAddress: '0x1111111111111111111111111111111111111111',
+        existingPrimaryName: null,
+        ownedNamesCount,
       }),
     ).toEqual({
       primaryName: {

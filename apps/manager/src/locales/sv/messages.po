@@ -1121,7 +1121,7 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-msgid "If you don't already have a primary name, ENS may set this name as your primary name and link it to your connected wallet automatically."
+msgid "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
 msgstr ""
 
 #: src/features/payment/components/index.tsx

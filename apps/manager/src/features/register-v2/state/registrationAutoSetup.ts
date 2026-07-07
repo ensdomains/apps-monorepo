@@ -10,8 +10,14 @@ export type RegistrationPostRegistrationSetup = {
 export function getManagerRegistrationPostRegistrationSetup(params: {
   ownerAddress?: Address | null
   existingPrimaryName?: string | null
+  ownedNamesCount?: number | null
 }): RegistrationPostRegistrationSetup | undefined {
-  if (!params.ownerAddress || params.existingPrimaryName) {
+  if (
+    !params.ownerAddress ||
+    params.existingPrimaryName ||
+    params.ownedNamesCount == null ||
+    params.ownedNamesCount >= 2
+  ) {
     return undefined
   }
 
