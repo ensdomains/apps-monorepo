@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { Trans, useLingui } from '@lingui/react/macro'
 import {
   Check as CheckIcon,
@@ -25,7 +26,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from '@/components/ui/drawer'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { resolveDefaultExport } from './ShareProfileDialog.helpers'
 
 const QRCode = resolveDefaultExport(QRCodeImport)
