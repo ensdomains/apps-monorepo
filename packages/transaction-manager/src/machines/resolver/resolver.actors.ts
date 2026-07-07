@@ -3,7 +3,6 @@ import { fromPromise, type ResultAsync } from 'neverthrow'
 import {
   type Address,
   encodeFunctionData,
-  type Hex,
   labelhash,
   type PublicClient,
 } from 'viem'
@@ -15,21 +14,29 @@ import type { Call, TransactionRequest } from '../../types/transaction.types'
 function createTransactionRequest(params: {
   signer: import('../..').Signer
   from: Address
-  to: Address
-  data: Hex
-  value: bigint
   chainId: number
   calls: Call[]
 }): TransactionRequest {
-  const { signer, chainId, from, to, data, value, calls } = params
+  const { signer, chainId, from, calls } = params
+
+  if (calls.length === 0) {
+    throw new Error('createTransactionRequest requires at least one call')
+  }
 
   if (signer.type === 'eoa') {
+    if (calls.length > 1) {
+      throw new Error(
+        'EOA transaction requests support a single call; received a batch.',
+      )
+    }
+    // biome-ignore lint/style/noNonNullAssertion: length checked above
+    const call = calls[0]!
     return {
       type: 'eoa',
       from,
-      to,
-      data,
-      value,
+      to: call.to,
+      data: call.data,
+      value: call.value,
       chainId,
     }
   }
@@ -38,9 +45,6 @@ function createTransactionRequest(params: {
     return {
       type: 'rhinestone-intent',
       from,
-      to,
-      data,
-      value,
       chainId,
       rhinestoneParams: {
         calls,
@@ -82,9 +86,6 @@ export function submitResolverUpdateActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: fromAddress,
-        to: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-        data,
-        value: 0n,
         chainId: input.chainId,
         calls: [
           {

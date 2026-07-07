@@ -69,23 +69,14 @@ test.describe('ENS name registration', () => {
     await page.getByRole('button', { name: /buy name/i }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
-    // Authorize the EOA registration transactions (deploy-resolver? → commit →
-    // approve USDC → register) while waiting for completion. Break early once
-    // no further transaction appears.
-    const authorizeAll = (async () => {
-      for (let i = 0; i < 4; i++) {
-        try {
-          await authorizeTransaction(wallet, 120_000)
-        } catch {
-          break
-        }
-      }
-    })()
-    await Promise.all([
-      authorizeAll,
-      expect(successBanner).toContainText('Registration Complete', {
-        timeout: 180_000,
-      }),
-    ])
+    // On the HCA path (CI default, VITE_FF_USE_EOA=false) the USDC approval is
+    // an EIP-2612 permit (eth_signTypedData_v4, auto-authorized by
+    // PERMITTED_SIGN_KINDS) — no eth_sendTransaction is queued. Fire the
+    // authorization in the background for EOA-mode compatibility; the .catch
+    // absorbs the timeout so neither path blocks the success assertion.
+    void authorizeTransaction(wallet, 60_000).catch(() => {})
+    await expect(successBanner).toContainText('Registration Complete', {
+      timeout: 180_000,
+    })
   })
 })

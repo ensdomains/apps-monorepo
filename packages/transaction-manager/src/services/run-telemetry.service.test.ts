@@ -1,5 +1,7 @@
+import type { Address, Hex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 import type { Signer } from '../types/signer.types'
+import type { RhinestoneTransactionRequest } from '../types/transaction.types'
 import {
   createRunTelemetryService,
   estimateTelemetryBytes,
@@ -95,6 +97,91 @@ describe('run telemetry service v2', () => {
     expect(payload?.initial.request?.dataSelector).toBe('0x12345678')
     expect(payload?.initial.smartAccount.enabled).toBe(true)
     expect(payload?.summary.requestFingerprint).toBeTruthy()
+  })
+
+  it('summarizes every call of a multi-call rhinestone intent', () => {
+    const service = createRunTelemetryService()
+
+    // permit + register batched intent: top-level call data no longer exists,
+    // so telemetry must derive its summary from rhinestoneParams.calls.
+    const request: RhinestoneTransactionRequest = {
+      type: 'rhinestone-intent',
+      from: '0xfrom' as Address,
+      chainId: 11155111,
+      rhinestoneParams: {
+        calls: [
+          {
+            to: '0xToken000000000000000000000000000000000000' as Address,
+            data: '0xd505accf' as Hex, // permit selector
+            value: 0n,
+          },
+          {
+            to: '0xRegistrar00000000000000000000000000000000' as Address,
+            data: '0x12345678abcdef' as Hex, // register selector
+            value: 5n,
+          },
+        ],
+        sponsored: true,
+      },
+    }
+
+    service.startRun({
+      txId: 'tx-multicall',
+      chainId: 11155111,
+      request,
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      useSmartAccount: true,
+    })
+
+    service.recordSnapshot('tx-multicall', createSnapshot('submitting'))
+    service.recordSnapshot(
+      'tx-multicall',
+      createSnapshot({ error: 'submission' }, { error: new Error('boom') }),
+    )
+
+    const payload = service.completeRun('tx-multicall', 'error')
+    const snapshotRequest = payload?.initial.request
+
+    // The full batch is represented, not a single top-level call.
+    expect(snapshotRequest?.callCount).toBe(2)
+    // Primary (first) call drives the representative top-level summary.
+    expect(snapshotRequest?.to).toBe(
+      '0xToken000000000000000000000000000000000000',
+    )
+    expect(snapshotRequest?.dataSelector).toBe('0xd505accf')
+    // Per-call breakdown surfaces the second (register) call too.
+    expect(snapshotRequest?.calls).toHaveLength(2)
+    expect(snapshotRequest?.calls?.[1]).toMatchObject({
+      to: '0xRegistrar00000000000000000000000000000000',
+      value: '5',
+      dataSelector: '0x12345678',
+    })
+  })
+
+  it('omits per-call breakdown for single-call requests', () => {
+    const service = createRunTelemetryService()
+    service.startRun({
+      txId: 'tx-single',
+      chainId: 11155111,
+      request: {
+        type: 'eoa',
+        chainId: 11155111,
+        from: '0xfrom' as Address,
+        to: '0xto' as Address,
+        data: '0x12345678abcdef' as Hex,
+      },
+      signer: { type: 'eoa' } as unknown as Signer,
+    })
+
+    service.recordSnapshot('tx-single', createSnapshot('submitting'))
+    service.recordSnapshot(
+      'tx-single',
+      createSnapshot({ error: 'submission' }, { error: new Error('boom') }),
+    )
+
+    const payload = service.completeRun('tx-single', 'error')
+    expect(payload?.initial.request?.callCount).toBe(1)
+    expect(payload?.initial.request?.calls).toBeUndefined()
   })
 
   it('suppresses unchanged sticky error on non-error phases', () => {

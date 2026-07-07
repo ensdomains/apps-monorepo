@@ -39,7 +39,11 @@ describe('prepareCreateSubnameTransaction', () => {
     expect(result.isOk()).toBe(true)
     if (result.isErr()) throw result.error
 
-    const { data } = result.value.request
+    const { request } = result.value
+    expect(request.type).toBe('eoa')
+    if (request.type !== 'eoa') throw new Error('expected an EOA request')
+
+    const { data } = request
     expect(data).toBeDefined()
     expect(decodeRoleBitmap(data as `0x${string}`)).toBe(DEFAULT_ROLE_BITMAP)
     expect(DEFAULT_ROLE_BITMAP).not.toBe(0n)
