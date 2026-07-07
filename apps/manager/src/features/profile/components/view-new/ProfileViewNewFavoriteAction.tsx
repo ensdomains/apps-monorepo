@@ -1,3 +1,4 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { msg } from '@lingui/core/macro'
 import { useLingui } from '@lingui/react'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -17,7 +18,6 @@ import {
   getFavoriteActionDisabled,
   getFavoriteActionIntent,
 } from '@/features/profile/components/common/favoriteAction.helpers'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/utils'
 import { isBackendAuthed } from '@/utils/backend-client'
 import { iconActionClassName } from './ProfileViewNewAction.styles'

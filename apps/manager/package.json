@@ -23,6 +23,7 @@
     "lint:fix": "biome check --fix"
   },
   "dependencies": {
+    "@ens-apps/weave-loader": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
     "@ens-apps/dev-tools": "workspace:*",
