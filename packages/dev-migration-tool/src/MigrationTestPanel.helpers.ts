@@ -1,5 +1,19 @@
 // Pure helpers and domain logic for MigrationTestPanel — no React, fully testable.
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { registrySetApprovalForAllSnippet } from '@ensdomains/ensjs-abi/registry'
+import {
+  baseRegistrarAddControllerSnippet,
+  baseRegistrarControllersSnippet,
+  baseRegistrarOwnerSnippet,
+  baseRegistrarRegisterSnippet,
+} from '@ensdomains/ensjs-abi/v1/baseRegistrar'
+import {
+  nameWrapperSetFusesSnippet,
+  nameWrapperSetSubnodeOwnerSnippet,
+  nameWrapperWrapEth2ldSnippet,
+} from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import {
   concat,
   encodeFunctionData,
@@ -8,12 +22,14 @@ import {
   toBytes,
 } from 'viem'
 
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+
 // --- V1 contract addresses --------------------------------------------------
-// Official Sepolia V1 contracts (match preflightChecks.ts / ensjs chain config).
+// V1 contracts sourced from the ensjs Sepolia chain config (same source as
+// preflightChecks.ts) so they can't drift from the canonical deployment.
 export const V1_BASE_REGISTRAR =
-  '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const
-export const V1_NAME_WRAPPER =
-  '0x0635513f179D50A207757E05759CbD106d7dFcE8' as const
+  ensjsSepolia.ensBaseRegistrarImplementation.address
+export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
 // Fallback owner of the official Sepolia BaseRegistrar — impersonated to
 // re-authorize DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers
 // at ~block 10927919 as part of the V2 migration cutover.
@@ -123,116 +139,12 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
 }
 
 // --- ABI fragments ----------------------------------------------------------
-export const WRAPPER_ABI = [
-  {
-    name: 'wrapETH2LD',
-    type: 'function',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'wrappedOwner', type: 'address' },
-      { name: 'ownerControlledFuses', type: 'uint16' },
-      { name: 'resolver', type: 'address' },
-    ],
-    outputs: [{ name: 'tokenId', type: 'uint64' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setFuses',
-    type: 'function',
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'ownerControlledFuses', type: 'uint16' },
-    ],
-    outputs: [{ name: 'newFuses', type: 'uint32' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setSubnodeOwner',
-    type: 'function',
-    inputs: [
-      { name: 'parentNode', type: 'bytes32' },
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'fuses', type: 'uint32' },
-      { name: 'expiry', type: 'uint64' },
-    ],
-    outputs: [{ name: 'node', type: 'bytes32' }],
-    stateMutability: 'nonpayable',
-  },
-] as const
-
-export const BASE_REGISTRAR_ABI = [
-  {
-    name: 'register',
-    type: 'function',
-    inputs: [
-      { name: 'id', type: 'uint256' },
-      { name: 'owner', type: 'address' },
-      { name: 'duration', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setApprovalForAll',
-    type: 'function',
-    inputs: [
-      { name: 'operator', type: 'address' },
-      { name: 'approved', type: 'bool' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'addController',
-    type: 'function',
-    inputs: [{ name: 'controller', type: 'address' }],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'owner',
-    type: 'function',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
-  },
-  {
-    name: 'controllers',
-    type: 'function',
-    inputs: [{ name: '', type: 'address' }],
-    outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'view',
-  },
-] as const
-
-export const V2_REGISTRY_ABI = [
-  {
-    name: 'register',
-    type: 'function',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'subregistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'flags', type: 'uint256' },
-      { name: 'expires', type: 'uint64' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'grantRoles',
-    type: 'function',
-    inputs: [
-      { name: 'resource', type: 'uint256' },
-      { name: 'roles', type: 'uint256' },
-      { name: 'account', type: 'address' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const
+// All contract ABIs are sourced from @ensdomains/ensjs-abi per-function
+// snippets (imported above). NameWrapper: wrapETH2LD / setFuses /
+// setSubnodeOwner. BaseRegistrar: register / addController / owner /
+// controllers. setApprovalForAll from the registry snippet (standard
+// ERC-721/1155 method, encodes identically). V2 registry register from
+// v2/userRegistry (identical param types; only names differ).
 
 // --- Crypto helpers ---------------------------------------------------------
 
@@ -341,7 +253,7 @@ export async function registerV1Name(
     endpoint,
     V1_BASE_REGISTRAR,
     encodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
+      abi: baseRegistrarRegisterSnippet,
       functionName: 'register',
       args: [tokenId, DEFAULT_ACCOUNT, BigInt(ONE_YEAR)],
     }),
@@ -354,7 +266,7 @@ export async function registerV1Name(
     endpoint,
     V1_BASE_REGISTRAR,
     encodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
+      abi: registrySetApprovalForAllSnippet,
       functionName: 'setApprovalForAll',
       args: [V1_NAME_WRAPPER, true],
     }),
@@ -365,7 +277,7 @@ export async function registerV1Name(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperWrapEth2ldSnippet,
       functionName: 'wrapETH2LD',
       args: [label, DEFAULT_ACCOUNT, 0, ZERO_ADDRESS],
     }),
@@ -383,7 +295,7 @@ export async function setNameFuses(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperSetFusesSnippet,
       functionName: 'setFuses',
       args: [node, fuses],
     }),
@@ -405,7 +317,7 @@ export async function createEmancipatedSubname(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperSetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
       args: [parentNode, sublabel, DEFAULT_ACCOUNT, subFuses, expiry],
     }),
@@ -421,7 +333,7 @@ export async function readRegistrarOwner(
       {
         to: V1_BASE_REGISTRAR,
         data: encodeFunctionData({
-          abi: BASE_REGISTRAR_ABI,
+          abi: baseRegistrarOwnerSnippet,
           functionName: 'owner',
         }),
       },
@@ -444,7 +356,7 @@ export async function isController(
       {
         to: V1_BASE_REGISTRAR,
         data: encodeFunctionData({
-          abi: BASE_REGISTRAR_ABI,
+          abi: baseRegistrarControllersSnippet,
           functionName: 'controllers',
           args: [account as `0x${string}`],
         }),
@@ -502,7 +414,7 @@ export async function ensureFunded(endpoint: string): Promise<void> {
       registrarOwner,
       V1_BASE_REGISTRAR,
       encodeFunctionData({
-        abi: BASE_REGISTRAR_ABI,
+        abi: baseRegistrarAddControllerSnippet,
         functionName: 'addController',
         args: [DEFAULT_ACCOUNT],
       }),
@@ -568,7 +480,7 @@ export async function reserveInV2(
   await rpcCall(endpoint, 'anvil_impersonateAccount', [V2_ETH_REGISTRAR_ADDR])
   try {
     const data = encodeFunctionData({
-      abi: V2_REGISTRY_ABI,
+      abi: userRegistryRegisterSnippet,
       functionName: 'register',
       args: [
         label,
