@@ -14,9 +14,17 @@ export const V1_BASE_REGISTRAR =
   '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const
 export const V1_NAME_WRAPPER =
   '0x0635513f179D50A207757E05759CbD106d7dFcE8' as const
-// Owner of the official Sepolia BaseRegistrar — impersonated to re-authorize
-// DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers at ~block
-// 10927919 as part of the V2 migration cutover.
+// Fallback owner of the official Sepolia BaseRegistrar — impersonated to
+// re-authorize DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers
+// at ~block 10927919 as part of the V2 migration cutover.
+//
+// The registrar's `owner()` has since been transferred on Sepolia, so this
+// constant is only a last-resort fallback: `ensureFunded()` reads the live
+// `owner()` off the fork and impersonates THAT. Hardcoding the owner is what
+// silently broke name creation once ownership moved — impersonating a non-owner
+// makes `addController` revert, so DEFAULT_ACCOUNT never becomes a controller
+// and every `register()` reverts, leaving phantom names that only exist in the
+// subgraph mock.
 export const V1_BASE_REGISTRAR_OWNER =
   '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
 export const V1_PUBLIC_RESOLVER =
@@ -181,6 +189,20 @@ export const BASE_REGISTRAR_ABI = [
     inputs: [{ name: 'controller', type: 'address' }],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    name: 'owner',
+    type: 'function',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    name: 'controllers',
+    type: 'function',
+    inputs: [{ name: '', type: 'address' }],
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
   },
 ] as const
 
@@ -390,6 +412,51 @@ export async function createEmancipatedSubname(
   )
 }
 
+/** Read the live BaseRegistrar `owner()` off the fork; null if the call fails. */
+export async function readRegistrarOwner(
+  endpoint: string,
+): Promise<`0x${string}` | null> {
+  try {
+    const result = (await rpcCall(endpoint, 'eth_call', [
+      {
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: BASE_REGISTRAR_ABI,
+          functionName: 'owner',
+        }),
+      },
+      'latest',
+    ])) as string
+    if (typeof result !== 'string' || result.length < 66) return null
+    return `0x${result.slice(-40)}` as `0x${string}`
+  } catch {
+    return null
+  }
+}
+
+/** True if `account` is an authorized controller on the BaseRegistrar. */
+export async function isController(
+  endpoint: string,
+  account: string,
+): Promise<boolean> {
+  try {
+    const result = (await rpcCall(endpoint, 'eth_call', [
+      {
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: BASE_REGISTRAR_ABI,
+          functionName: 'controllers',
+          args: [account as `0x${string}`],
+        }),
+      },
+      'latest',
+    ])) as string
+    return typeof result === 'string' && /[1-9a-f]/.test(result.slice(2))
+  } catch {
+    return false
+  }
+}
+
 /**
  * Ensure DEFAULT_ACCOUNT is ready: fund it, clear any EOF contract code, and
  * re-authorize it as a controller on the official BaseRegistrar.
@@ -397,6 +464,12 @@ export async function createEmancipatedSubname(
  * ENS revoked all V1 controllers at ~block 10927919 as part of the V2 migration
  * cutover, so on a fresh Anvil fork no one can call BaseRegistrar.register().
  * We fix this by impersonating the BaseRegistrar owner and calling addController().
+ *
+ * The owner is read live off the fork (`owner()`) rather than hardcoded: it was
+ * transferred on Sepolia, and impersonating a stale owner makes `addController`
+ * revert silently, so DEFAULT_ACCOUNT never becomes a controller and every
+ * `register()` reverts — producing phantom names that exist only in the
+ * subgraph mock. We verify the grant landed and throw loudly if it didn't.
  */
 export async function ensureFunded(endpoint: string): Promise<void> {
   const TARGET = '0x56BC75E2D63100000' // 100 ETH in wei
@@ -413,12 +486,20 @@ export async function ensureFunded(endpoint: string): Promise<void> {
     )
   }
 
+  // Short-circuit if DEFAULT_ACCOUNT is already an authorized controller.
+  if (await isController(endpoint, DEFAULT_ACCOUNT)) return
+
+  // Read the LIVE registrar owner off the fork — it has been transferred on
+  // Sepolia, so the hardcoded constant is only a fallback if the read fails.
+  const registrarOwner =
+    (await readRegistrarOwner(endpoint)) ?? V1_BASE_REGISTRAR_OWNER
+
   // Impersonate the BaseRegistrar owner to re-authorize DEFAULT_ACCOUNT as a controller
-  await rpcCall(endpoint, 'anvil_impersonateAccount', [V1_BASE_REGISTRAR_OWNER])
+  await rpcCall(endpoint, 'anvil_impersonateAccount', [registrarOwner])
   try {
     await sendTxFrom(
       endpoint,
-      V1_BASE_REGISTRAR_OWNER,
+      registrarOwner,
       V1_BASE_REGISTRAR,
       encodeFunctionData({
         abi: BASE_REGISTRAR_ABI,
@@ -427,9 +508,19 @@ export async function ensureFunded(endpoint: string): Promise<void> {
       }),
     )
   } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
-      V1_BASE_REGISTRAR_OWNER,
-    ])
+    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [registrarOwner])
+  }
+
+  // Anvil includes reverted impersonated txs without throwing, so verify the
+  // grant actually landed rather than trusting the send. If it didn't, the
+  // owner we impersonated is wrong for this fork — fail loudly instead of
+  // silently registering phantom names later.
+  if (!(await isController(endpoint, DEFAULT_ACCOUNT))) {
+    throw new Error(
+      `Failed to authorize ${DEFAULT_ACCOUNT} as a BaseRegistrar controller ` +
+        `(impersonated owner ${registrarOwner}). The registrar owner on this ` +
+        `fork may have changed again — check BaseRegistrar.owner().`,
+    )
   }
 
   // Grant ROLE_REGISTRAR (bit 0 = 0x01) to the V2 migration controllers on the
