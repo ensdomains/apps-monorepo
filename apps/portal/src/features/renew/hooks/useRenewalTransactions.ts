@@ -1,7 +1,6 @@
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { renewNameWriteParameters as renewNameV1WriteParameters } from '@ensdomains/ensjs/wallet'
-import { renewNameWriteParameters as renewNameV2WriteParameters } from '@ensdomains/ensjs/wallet/v2'
+import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
 import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
@@ -188,19 +187,15 @@ function buildRenewTransaction(params: RenewParams, signer: Signer) {
     referrer: REFERER_ADDRESS,
   }
 
-  const writeParams = params.isV2
-    ? renewNameV2WriteParameters(
-        params.publicClient as unknown as Parameters<
-          typeof renewNameV2WriteParameters
-        >[0],
-        renewArgs,
-      )
-    : renewNameV1WriteParameters(
-        params.publicClient as unknown as Parameters<
-          typeof renewNameV1WriteParameters
-        >[0],
-        renewArgs,
-      )
+  const writeParams = renewNameWriteParameters(
+    params.publicClient as unknown as Parameters<
+      typeof renewNameWriteParameters
+    >[0],
+    {
+      ...renewArgs,
+      contract: params.isV2 ? 'ensEthRegistrar' : 'ensEthRenewerV1',
+    },
+  )
 
   const renewData = encodeFunctionData({
     abi: writeParams.abi,
