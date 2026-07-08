@@ -1,0 +1,89 @@
+// Shared domain types for the DQA server. Type-only module (erased at runtime
+// by Node's native TypeScript stripping).
+
+export type StyleEdit = {
+  prop: string
+  from: string
+  to: string
+}
+
+export type Inspect = {
+  tag: string
+  id: string | null
+  classes: string[]
+  styles: Record<string, string>
+  props: Record<string, string> | null
+  componentPath: string | null
+  viewport: string | null
+  text: string | null
+}
+
+export type Anchor = {
+  selector: string
+  label?: string
+  offsetX?: number
+  offsetY?: number
+  pageXPct?: number
+  pageYPct?: number
+}
+
+export type Reply = {
+  id: string
+  author: string
+  body: string
+  createdAt: string
+}
+
+/** A pushed Linear comment or issue reference stored on a comment. */
+export type LinearRef = {
+  id?: string
+  identifier?: string
+  url?: string
+  commentId?: string
+  issueId?: string
+  team?: { id: string }
+}
+
+export type Comment = {
+  id: string
+  url: string
+  author: string
+  authorId: string
+  body: string
+  anchor: Anchor | null
+  imageUrl: string | null
+  afterImageUrl: string | null
+  issueRef: string | null
+  inspect: Inspect | null
+  styleEdits: StyleEdit[] | null
+  status: 'open' | 'resolved'
+  replies: Reply[]
+  linear: LinearRef | null
+  linearDeleted?: boolean
+  linearCheckedAt?: number
+  createdAt: string
+}
+
+/** DQA session payload embedded in the signed JWT. */
+export type Session = {
+  sub: string
+  name: string
+  email: string | null
+  orgId: string | null
+  color: string
+  /** Encrypted Linear access token (server-only), or null for dev sessions. */
+  lt: string | null
+  dev: boolean
+  iat?: number
+  exp?: number
+}
+
+export type LinearViewer = {
+  id: string
+  name: string
+  email?: string | null
+  organization?: { id: string; name?: string; urlKey?: string } | null
+  teamMemberships?: { nodes: { team: { id: string; key: string; name: string } }[] }
+}
+
+export type LinearPushMode = 'comment' | 'subissue' | 'issue'

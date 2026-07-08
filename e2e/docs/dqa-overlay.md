@@ -1,0 +1,127 @@
+# DQA Overlay — design QA on the live apps
+
+DQA lets reviewers pin comments to any element on a **running** app (including
+flows needing a connected wallet or the forked chain), see each other's cursors
+live, and push feedback to Linear. It beats snapshot tools because we QA the
+live thing, not a screenshot.
+
+Two pieces:
+
+- **`packages/dqa-server`** (`@ens-apps/dqa-server`) — small Node service:
+  comment persistence, image uploads, WebSocket cursor relay, "Sign in with
+  Linear" (OAuth2), push-to-Linear. Serves `public/overlay.js`. Runs as the
+  `dqa` service in `e2e/infra/docker-compose.yml` (port **4000**).
+- **`packages/dev-dqa-overlay`** (`@ens-apps/dev-dqa-overlay`) — React panel +
+  loader used by `@ens-apps/dev-tools` **DevDrawer**. When `VITE_DQA=1` the
+  drawer loads `overlay.js` in **embed mode** (`data-embed="drawer"`): pins,
+  cursors, and comment popovers stay full-screen; sign-in and toolbar controls
+  live in the bottom **Dev Tools** drawer instead of a floating bottom-right
+  widget.
+
+- **`packages/dev-tools`** (`@ens-apps/dev-tools`) — unified bottom **DevDrawer**
+  tab (time travel, migration tool, DQA). Mounted when any enabled tool flag is
+  set — including **DQA-only on PR previews** (no `import.meta.env.DEV`
+  required).
+
+## Never in production
+
+Gating works like `VITE_TIME_TRAVEL`, with one deliberate difference: it is
+**not** limited to `import.meta.env.DEV`, because QA and PR-preview deployments
+are production-mode builds. Safety comes from `VITE_DQA` being a build-time
+constant: Vite inlines it, so in any build where it isn't set (all production
+pipelines — `build.yml`, `deploy-portal.yml`, release builds) the guard
+compiles to statically-false and the injector can never run.
+**Never set `VITE_DQA` in a production deploy.**
+
+## Local usage
+
+```bash
+pnpm e2e:infra:up          # E2E stack now includes the dqa service on :4000
+```
+
+Add to the app's `.env` and restart the dev server:
+
+```bash
+VITE_DQA=1
+VITE_DQA_URL=http://localhost:4000
+# optional: thread comments onto a ticket
+VITE_DQA_LINEAR_ISSUE=ENG-123
+```
+
+With no Linear OAuth configured the server runs in dev mode ("Dev mode" sign-in
+in the DevDrawer DQA section, dry-run Linear pushes) — instant for local use.
+
+Open the **Dev Tools** tab at the bottom of the screen (`▲ Dev Tools 📌`) to
+sign in, toggle comment mode, and sign out. Time travel is optional — DQA works
+in the drawer on its own when only `VITE_DQA=1` is set.
+
+To enable real Linear auth/pushes, copy `e2e/infra/.env.example` to
+`e2e/infra/.env` (gitignored) and fill in the `LINEAR_*` / `DQA_*` values —
+docker compose auto-loads that file and passes them into the `dqa` service.
+(Running the server bare via `pnpm --filter @ens-apps/dqa-server dev` instead
+reads `packages/dqa-server/.env`.)
+
+## Hosted QA environment
+
+Deploy the e2e stack (or just the `dqa` service) on a server so the whole team
+shares one comment store:
+
+```bash
+docker compose -f e2e/infra/docker-compose.yml up -d dqa
+```
+
+Configure real auth via `e2e/infra/.env` on the host (template:
+`e2e/infra/.env.example`; Linear OAuth walkthrough:
+`packages/dqa-server/AUTH_PLAN.md`):
+
+- `LINEAR_CLIENT_ID` / `LINEAR_CLIENT_SECRET` / `LINEAR_REDIRECT_URI`
+  (`https://<dqa-host>/auth/callback`)
+- `LINEAR_WORKSPACE_ID` (+ optional team/project whitelists)
+- `DQA_SESSION_SECRET`, `DQA_TOKEN_ENCRYPTION_KEY`
+- `DQA_DEV_AUTH=false` (default) so dev-mode sign-in is disabled
+
+Comments and uploads persist in the `dqa-data` volume. QA app builds then use
+`VITE_DQA=1` + `VITE_DQA_URL=https://<dqa-host>`.
+
+## PR preview deployments
+
+Add the **`preview`** label to a PR. `.github/workflows/preview-deploy.yml`
+builds portal + manager with `VITE_DQA=1` and `VITE_DQA_URL=vars.DQA_SERVER_URL`,
+uploads a Cloudflare Workers preview version (`wrangler versions upload` —
+`preview_urls` is enabled in both wrangler configs), and comments the preview
+URL on the PR. Anyone opening the preview sees the **Dev Tools** drawer (DQA
+section only unless other dev flags are set), can sign in with Linear, and drop
+DQA comments; branches named `linear/<ticket>` thread comments onto that ticket
+automatically.
+
+Required repo config: `secrets.CLOUDFLARE_API_TOKEN`,
+`secrets.CLOUDFLARE_ACCOUNT_ID`, `vars.DQA_SERVER_URL`.
+
+## Env reference (app side)
+
+| Var | Meaning |
+| --- | --- |
+| `VITE_DQA` | `1`/`true` → enable DQA in DevDrawer + load overlay. Unset in prod (build-time constant, tree-shaken). |
+| `VITE_DQA_URL` | Origin of the dqa-server (default `http://localhost:4000`). |
+| `VITE_DQA_LINEAR_ISSUE` | Optional `ENG-123`-style ticket that comments thread onto. |
+| `VITE_DQA_MOCK_UI` | `1`/`true` → skip the DQA server; show the full Design QA inbox with sample comments and presence (for layout/UI work). |
+
+## Design QA panel (DevDrawer)
+
+When signed in (or in mock UI mode), the **Design QA** tab shows:
+
+- **Toolbar** — Comment mode toggle, live presence avatars (“N viewing”), page Linear ticket link, sign out.
+- **Filters** — Open / Resolved / All with counts.
+- **Comment inbox** — Cards with pin number, anchored component label, excerpt, author, reply count, Linear badge, and **Focus on page** (scrolls to the element and opens the overlay thread popover).
+
+When not signed in, the sign-in row is shown and the comment inbox stays empty until you authenticate.
+
+Mock-only mode (`VITE_DQA_MOCK_UI=1`) needs no running DQA server — useful for designing the drawer UI in isolation.
+
+Standalone embed (legacy — floating sign-in + toolbar at bottom-right):
+
+```html
+<script src="http://localhost:4000/overlay.js" data-linear-issue="ENG-123"></script>
+```
+
+ENS apps use **DevDrawer embed mode** instead — no floating DQA chrome.

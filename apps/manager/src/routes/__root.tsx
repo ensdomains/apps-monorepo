@@ -90,9 +90,9 @@ function RootComponent() {
               },
             }}
           />
-          {import.meta.env.DEV && <DevDrawer />}
         </RootProviders>
 
+        <DevDrawer />
         <TanStackRouterDevtools position="bottom-right" />
         <Scripts />
       </body>

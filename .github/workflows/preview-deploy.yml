@@ -1,0 +1,106 @@
+name: PR Preview Deploy (with DQA overlay)
+
+# Deploys a Cloudflare Workers *preview version* of the changed app(s) for a PR,
+# built with the DQA overlay injected (VITE_DQA=1) so anyone on the team can do
+# design QA (pinned comments, live cursors, push to Linear) directly on the
+# preview URL. Production deploys (deploy-portal.yml / release builds) never set
+# VITE_DQA, so the overlay is dead-code-eliminated from production bundles.
+#
+# Opt-in per PR via the "preview" label.
+#
+# Required repo configuration:
+#   secrets.CLOUDFLARE_API_TOKEN   – token with Workers Scripts:Edit
+#   secrets.CLOUDFLARE_ACCOUNT_ID
+#   vars.DQA_SERVER_URL            – origin of the hosted @ens-apps/dqa-server
+#                                    (the `dqa` service in e2e/infra/docker-compose.yml),
+#                                    e.g. https://dqa.ens.dev
+# Preview URLs require `preview_urls: true` in the app's wrangler config
+# (already enabled for portal and manager).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+concurrency:
+  group: preview-deploy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: contains(github.event.pull_request.labels.*.name, 'preview')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [portal, manager]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Derive Linear ticket from branch name
+        id: ticket
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          # Branch convention: linear/<ticket-id> (e.g. linear/ENG-123).
+          # When present, DQA comments thread onto that ticket.
+          ticket=""
+          if [[ "$HEAD_REF" =~ ^linear/([A-Za-z]+-[0-9]+) ]]; then
+            ticket="${BASH_REMATCH[1]^^}"
+          fi
+          echo "id=$ticket" >> "$GITHUB_OUTPUT"
+
+      - name: Build ${{ matrix.app }} (DQA enabled)
+        run: pnpm build:${{ matrix.app }}
+        env:
+          # QA-only: inject the DQA overlay into this preview build.
+          VITE_DQA: "1"
+          VITE_DQA_URL: ${{ vars.DQA_SERVER_URL }}
+          VITE_DQA_LINEAR_ISSUE: ${{ steps.ticket.outputs.id }}
+
+      - name: Upload preview version
+        id: upload
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          output=$(pnpm exec wrangler versions upload --message "PR #${{ github.event.pull_request.number }} (${{ github.sha }})" 2>&1)
+          echo "$output"
+          url=$(echo "$output" | grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev\S*' | head -1 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comment preview URL on PR
+        if: steps.upload.outputs.url != ''
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const app = '${{ matrix.app }}'
+            const url = '${{ steps.upload.outputs.url }}'
+            const marker = `<!-- preview-deploy:${app} -->`
+            const body = `${marker}\n**${app} preview (DQA overlay enabled)**: ${url}\n\nDesign QA: click **Comment** in the bottom-right toolbar to pin feedback; it can be pushed straight to Linear.`
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo, issue_number: context.issue.number,
+            })
+            const existing = comments.find(c => c.body?.includes(marker))
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body })
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body })
+            }
