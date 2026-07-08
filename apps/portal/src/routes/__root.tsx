@@ -12,7 +12,9 @@ import { usePublicClient, WagmiProvider } from 'wagmi'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { useTransactionModalRouteReset } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { ConnectModalProvider } from '@/features/wallet/ConnectModalProvider'
+import { MockWalletAutoConnect } from '@/features/wallet/MockWalletAutoConnect'
 import { useAutoFundOnLowBalance } from '@/hooks/useAutoFundOnLowBalance'
+import { isMockWalletEnabled } from '@/lib/mockWallet.mock'
 import { PHProvider } from '@/lib/posthog/provider'
 import { sepoliaWithEns, wagmiConfig } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
@@ -47,6 +49,7 @@ export const Route = createRootRoute({
       <>
         <WagmiProvider config={wagmiConfig}>
           <QueryClientProvider client={queryClient}>
+            {isMockWalletEnabled && <MockWalletAutoConnect />}
             <ConnectModalProvider>
               <TransactionManagerSetup>
                 <PHProvider>

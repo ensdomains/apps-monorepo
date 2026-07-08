@@ -409,6 +409,10 @@ msgstr "Card number"
 msgid "Card security code"
 msgstr "Card security code"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Carving your name into the blockchain"
+msgstr "Carving your name into the blockchain"
+
 #: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
 msgid "Chain-specific addresses"
 msgstr "Chain-specific addresses"
@@ -990,6 +994,10 @@ msgstr "Failed to update preferences"
 msgid "Failed to verify email"
 msgstr "Failed to verify email"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Farming aura"
+msgstr "Farming aura"
+
 #: src/features/dashboard/components/NamesTable.tsx
 msgid "Favorites"
 msgstr "Favorites"
@@ -1080,6 +1088,10 @@ msgstr "Go to slide {0}"
 #: src/features/grace/components/GracePeriodBadge.tsx
 msgid "Grace period"
 msgstr "Grace period"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Growing your corner of the decentralized web"
+msgstr "Growing your corner of the decentralized web"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How can I secure my ENS name?"
@@ -1180,7 +1192,7 @@ msgstr "Loading your stablecoin balances..."
 #: src/components/atoms/ImageFallback/ImageFallback.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/notifications/inbox/list.tsx
-#: src/features/register-v2/workflow/registering/RegisteringStep.tsx
+#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Loading..."
 msgstr "Loading..."
@@ -1204,6 +1216,10 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Making your name work everywhere"
+msgstr "Making your name work everywhere"
 
 #: src/features/notifications/inbox/list.tsx
 msgid "Manage notification settings"
@@ -1499,6 +1515,14 @@ msgstr "people have favorited this name"
 msgid "Permission missing. Please try again."
 msgstr "Permission missing. Please try again."
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Placing your new identity in your wallet"
+msgstr "Placing your new identity in your wallet"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Planting your name in the infinite garden"
+msgstr "Planting your name in the infinite garden"
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
@@ -1663,6 +1687,10 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
+#: src/features/register-v2/workflow/registering/components/RegisteringHeader.tsx
+msgid "Registering name"
+msgstr "Registering name"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Registration"
 msgstr "Registration"
@@ -1820,6 +1848,10 @@ msgstr "Resending email verification"
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resending email verification for {0}"
 msgstr "Resending email verification for {0}"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Reserving your name"
+msgstr "Reserving your name"
 
 #. placeholder {0}: index + 1
 #: src/features/migration/components/GameStep.tsx
