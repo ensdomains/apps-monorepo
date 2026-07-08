@@ -66,7 +66,12 @@ export const ViewHeaderSection = ({
         </div>
         <div className="absolute top-4 right-4 flex items-center gap-2">
           <FavoriteButton name={name} />
-          <ShareProfileDialog avatarUrl={avatarUrl} name={name} url={url} />
+          <ShareProfileDialog
+            avatarUrl={avatarUrl}
+            name={name}
+            themeColor={themeColor}
+            url={url}
+          />
         </div>
         <div className="absolute -bottom-10 left-1/2 size-24 -translate-x-1/2 md:size-36 lg:size-40">
           <div className="size-full overflow-hidden rounded-xl bg-gray-200 shadow-md ring-2 ring-white">
