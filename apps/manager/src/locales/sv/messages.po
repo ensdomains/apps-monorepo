@@ -2057,9 +2057,12 @@ msgstr ""
 msgid "Share"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 #: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
 msgid "Share profile"
+msgstr ""
+
+#: src/features/profile/components/dialogs/ShareProfileDialog.tsx
+msgid "Share profile link"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx

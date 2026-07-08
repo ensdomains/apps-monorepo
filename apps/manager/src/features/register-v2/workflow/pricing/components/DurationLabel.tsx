@@ -1,22 +1,16 @@
 import { Plural } from '@lingui/react/macro'
-import { Fragment } from 'react'
 import {
   type DurationDisplayParts,
   getDurationDisplayParts,
 } from '@/features/register-v2/utils/time'
 
-const renderPart = (
-  unit: keyof DurationDisplayParts,
-  value: number,
-  index: number,
-) => {
+const renderPart = (unit: keyof DurationDisplayParts, value: number) => {
   if (value <= 0) {
     return null
   }
 
   return (
-    <Fragment key={`${unit}-${value.toString()}`}>
-      {index > 0 ? ' ' : null}
+    <span className="whitespace-nowrap" key={`${unit}-${value.toString()}`}>
       {unit === 'years' ? (
         <Plural one="# year" other="# years" value={value} />
       ) : null}
@@ -29,7 +23,7 @@ const renderPart = (
       {unit === 'days' ? (
         <Plural one="# day" other="# days" value={value} />
       ) : null}
-    </Fragment>
+    </span>
   )
 }
 
@@ -49,7 +43,9 @@ export const DurationLabel = ({
   ] as const
   const nonZeroParts = orderedParts.filter(([, value]) => value > 0)
 
-  return nonZeroParts.map(([unit, value], index) =>
-    renderPart(unit, value, index),
+  return (
+    <span className="inline-flex flex-wrap justify-center gap-x-1 gap-y-0 align-baseline">
+      {nonZeroParts.map(([unit, value]) => renderPart(unit, value))}
+    </span>
   )
 }

@@ -3,16 +3,9 @@ import {
   addYears,
   differenceInCalendarDays,
   differenceInCalendarYears,
-  isSameDay,
   startOfDay,
 } from 'date-fns'
-import {
-  secondsInDay,
-  secondsInHour,
-  secondsInMinute,
-  secondsInMonth,
-  secondsInWeek,
-} from 'date-fns/constants'
+import { secondsInDay } from 'date-fns/constants'
 
 /**
  * Days in a year.
@@ -67,7 +60,7 @@ export const getCalendarYearDurationYears = (
   referenceDate: Date = new Date(),
 ) => {
   const normalizedReferenceDate = getStartOfDay(referenceDate)
-  const expiryDate = new Date(referenceDate.getTime() + duration * 1000)
+  const expiryDate = getDurationExpiryDateForDisplay(duration, referenceDate)
   const normalizedExpiryDate = getStartOfDay(expiryDate)
   const calendarYears = differenceInCalendarYears(
     normalizedExpiryDate,
@@ -78,9 +71,12 @@ export const getCalendarYearDurationYears = (
     return null
   }
 
-  const expectedExpiryDate = addYears(normalizedReferenceDate, calendarYears)
+  const remainingDays = differenceInCalendarDays(
+    normalizedExpiryDate,
+    addYears(normalizedReferenceDate, calendarYears),
+  )
 
-  if (!isSameDay(normalizedExpiryDate, expectedExpiryDate)) {
+  if (remainingDays !== 0) {
     return null
   }
 
@@ -98,26 +94,26 @@ export const getDurationDisplayParts = (
   duration: number,
   referenceDate: Date = new Date(),
 ) => {
-  const canonicalYears =
-    getCanonicalDurationYears(duration, referenceDate) ??
-    getCalendarYearDurationYears(duration, referenceDate)
-
-  if (canonicalYears) {
-    return {
-      years: canonicalYears,
-      months: 0,
-      weeks: 0,
-      days: 0,
-    } satisfies DurationDisplayParts
-  }
-
-  const parsedDuration = secondsToDuration(duration)
+  const normalizedReferenceDate = getStartOfDay(referenceDate)
+  const normalizedExpiryDate = getStartOfDay(
+    getDurationExpiryDateForDisplay(duration, referenceDate),
+  )
+  const years = Math.max(
+    0,
+    differenceInCalendarYears(normalizedExpiryDate, normalizedReferenceDate),
+  )
+  const remainingDays = differenceInCalendarDays(
+    normalizedExpiryDate,
+    addYears(normalizedReferenceDate, years),
+  )
+  const weeks = Math.floor(remainingDays / 7)
+  const days = remainingDays % 7
 
   return {
-    years: parsedDuration.years ?? 0,
-    months: parsedDuration.months ?? 0,
-    weeks: parsedDuration.weeks ?? 0,
-    days: parsedDuration.days ?? 0,
+    years,
+    months: 0,
+    weeks,
+    days,
   } satisfies DurationDisplayParts
 }
 
@@ -157,36 +153,4 @@ export const durationToSeconds = ({
   if (seconds) totalSeconds += seconds
 
   return totalSeconds
-}
-
-export const secondsToDuration = (seconds: number): Duration => {
-  let remainder = seconds
-
-  const years = Math.floor(remainder / SECONDS_IN_YEAR)
-  remainder -= years * SECONDS_IN_YEAR
-
-  const months = Math.floor(remainder / secondsInMonth)
-  remainder -= months * secondsInMonth
-
-  const weeks = Math.floor(remainder / secondsInWeek)
-  remainder -= weeks * secondsInWeek
-
-  const days = Math.floor(remainder / secondsInDay)
-  remainder -= days * secondsInDay
-
-  const hours = Math.floor(remainder / secondsInHour)
-  remainder -= hours * secondsInHour
-
-  const minutes = Math.floor(remainder / secondsInMinute)
-  remainder -= minutes * secondsInMinute
-
-  return {
-    years,
-    months,
-    weeks,
-    days,
-    hours,
-    minutes,
-    seconds: remainder,
-  }
 }
