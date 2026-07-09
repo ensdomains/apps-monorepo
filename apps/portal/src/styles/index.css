@@ -297,6 +297,8 @@
   --color-message-success-text: var(--message-success-text);
   --color-message-warning-fill: var(--message-warning-fill);
   --color-message-warning-text: var(--message-warning-text);
+  --color-type-entity-fill: var(--type-entity-fill);
+  --color-type-entity-text: var(--type-entity-text);
 }
 
 .dark {

@@ -1,4 +1,4 @@
-import type { Address, PublicClient } from 'viem'
+import type { Address } from 'viem'
 import type { ClassifiedName } from '../classifyNames'
 import type { V1Domain } from '../v1SubgraphClient'
 
@@ -6,8 +6,6 @@ export const OWNER: Address = '0x0000000000000000000000000000000000000001'
 export const OTHER: Address = '0x0000000000000000000000000000000000000002'
 export const DEFAULT_RESOLVER: Address =
   '0x000000000000000000000000000000000000dddd'
-
-export const publicClient = {} as PublicClient
 
 export const ok = <T>(result: T) => ({ status: 'success' as const, result })
 export const fail = () => ({
@@ -22,11 +20,11 @@ export type DomainOverrides = {
   labelName?: string | null
   labelhash?: string
   parentName?: string | null
-  parentFuses?: number | null
+  parentFuses?: bigint | null
   registrantId?: string | null
   wrappedOwnerId?: string | null
   ownerId?: string
-  fuses?: number
+  fuses?: bigint
   resolverAddress?: string | null
   registrationExpiry?: string | null
   wrappedExpiry?: string | null
@@ -41,7 +39,7 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
       : {
           name: o.parentName ?? 'eth',
           wrappedDomain:
-            o.parentFuses == null ? null : { fuses: o.parentFuses },
+            o.parentFuses == null ? null : { fuses: Number(o.parentFuses) },
         }
   return {
     id: o.id ?? '0xabc',
@@ -66,7 +64,10 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
       ? { expiryDate: o.registrationExpiry }
       : null,
     wrappedDomain: isWrapped
-      ? { expiryDate: o.wrappedExpiry ?? '99999999999', fuses: o.fuses ?? 0 }
+      ? {
+          expiryDate: o.wrappedExpiry ?? '99999999999',
+          fuses: Number(o.fuses ?? 0n),
+        }
       : null,
   }
 }
@@ -79,7 +80,7 @@ export type ClassifiedOverrides = {
   name?: string
   labelhash?: string
   id?: string
-  fuses?: number
+  fuses?: bigint
   label?: string
   managerAddress?: Address | null
   tokenHolder?: Address
@@ -91,7 +92,7 @@ export const makeClassified = (
   tokenType: o.tokenType ?? 'unwrapped',
   label: o.label ?? 'alice',
   parentName: o.parentName === undefined ? 'eth' : o.parentName,
-  fuses: o.fuses ?? 0,
+  fuses: o.fuses ?? 0n,
   tokenHolder: o.tokenHolder ?? OWNER,
   v1ResolverAddress:
     o.v1ResolverAddress === undefined ? null : o.v1ResolverAddress,

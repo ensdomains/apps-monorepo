@@ -22,7 +22,9 @@ export const getReverseName = ResultFn(async function* (address?: Address) {
   ).orElse(() => okAsync<(string | null)[], never>([]))
 
   if (name) {
-    const { ethAddress } = yield* getProfileEthAddressSnapshot(name)
+    const { ethAddress } = yield* getProfileEthAddressSnapshot(name).orElse(
+      () => okAsync({ ethAddress: undefined }),
+    )
 
     if (ethAddress?.toLowerCase() === address.toLowerCase()) {
       return ok(name)

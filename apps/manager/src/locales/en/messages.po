@@ -762,6 +762,10 @@ msgstr "Disconnect Wallet"
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr "Do I have to upgrade my names? What happens if I don't?"
 
+#: src/features/dashboard/components/NameRow.tsx
+msgid "Does not expire"
+msgstr "Does not expire"
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
