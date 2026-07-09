@@ -751,6 +751,10 @@ msgstr ""
 msgid "Do I have to upgrade my names? What happens if I don't?"
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx
+msgid "Does not expire"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Domain transfer & expiry notifications"
 msgstr ""

@@ -11,7 +11,7 @@ const pillVariants = cva(
         eligibleUpgrade: 'bg-ens-garnet-100 text-ens-garnet-500',
         ensv1Only: 'border-[0.5px] border-ens-peridot-500 text-ens-peridot-500',
         owner: 'border-[0.5px] border-ens-peridot-900 text-ens-peridot-900',
-        manager: 'border-[0.5px] border-ens-quartz-400 text-ens-quartz-500',
+        manager: 'border-[0.5px] border-ens-peridot-900 text-ens-peridot-900',
         expiring: 'bg-ens-citrine-50 text-ens-citrine-450',
       },
     },
