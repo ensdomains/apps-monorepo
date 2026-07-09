@@ -120,21 +120,6 @@ const SelectedCheck = () => (
   </span>
 )
 
-const RowRenewButton = ({ label }: { readonly label: string }) => (
-  <Link
-    className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded border-none bg-ens-quartz-0 px-4 font-semi-mono text-ens-quartz-900 text-xs uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50"
-    params={{ name: label }}
-    to="/renew/$name"
-  >
-    <Trans>Renew</Trans>
-    <MSymbol
-      aria-hidden="true"
-      className="ms-opsz-20 text-base leading-none"
-      symbol="double_arrow"
-    />
-  </Link>
-)
-
 const ctaVariants = cva(
   'flex items-center gap-1.5 font-normal font-semi-mono text-base uppercase leading-none tracking-[-0.16px] hover:opacity-80',
   {
@@ -569,10 +554,7 @@ export const NameRow = ({
           {isSelected ? <SelectedCheck /> : verified && <VerifiedCheck />}
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
-          {selectable && <RowRenewButton label={label} />}
-          <NameOptionsMenu canRenew={canRenew} label={label} />
-        </div>
+        <NameOptionsMenu canRenew={canRenew} label={label} />
       </div>
 
       <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />

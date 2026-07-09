@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
+import { MSymbol } from '@/components/ui/material-symbol'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
   buildMergedNamesList,
@@ -92,23 +93,17 @@ export const NamesTable = ({
     new Set(),
   )
 
+  // Only v2 names are selectable — v1 names are ignored for selection/renewal.
   const allOwnedLabels = useMemo(
     () =>
       buildMergedNamesList({
         v2Names,
-        v1Classified: migrationEnabled ? v1Names : [],
+        v1Classified: [],
         searchQuery,
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
       }).map((item) => item.sortName.toLowerCase()),
-    [
-      v2Names,
-      v1Names,
-      migrationEnabled,
-      searchQuery,
-      ownedSortState.field,
-      ownedSortState.dir,
-    ],
+    [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
   )
 
   const selectedCount = selectedLabels.size
@@ -247,22 +242,37 @@ export const NamesTable = ({
         </div>
 
         {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
-          <div className="flex w-full items-center gap-3">
-            <SelectionCheckbox
-              ariaLabel={
-                allSelected ? t`Deselect all names` : t`Select all names`
-              }
-              checked={allSelected}
-              indeterminate={someSelected && !allSelected}
-              onToggle={onToggleSelectAll}
-            />
-            <span className="font-sans text-ens-quartz-550 text-sm">
-              {selectedCount > 0 ? (
-                <Trans>{selectedCount} selected</Trans>
-              ) : (
-                <Trans>Select all</Trans>
-              )}
-            </span>
+          <div className="flex w-full items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <SelectionCheckbox
+                ariaLabel={
+                  allSelected ? t`Deselect all names` : t`Select all names`
+                }
+                checked={allSelected}
+                indeterminate={someSelected && !allSelected}
+                onToggle={onToggleSelectAll}
+              />
+              <span className="font-sans text-ens-quartz-550 text-sm">
+                {selectedCount > 0 ? (
+                  <Trans>{selectedCount} selected</Trans>
+                ) : (
+                  <Trans>Select all</Trans>
+                )}
+              </span>
+            </div>
+            {someSelected && (
+              <button
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded border-none bg-ens-quartz-0 px-4 font-semi-mono text-ens-quartz-900 text-xs uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50"
+                type="button"
+              >
+                <Trans>Renew</Trans>
+                <MSymbol
+                  aria-hidden="true"
+                  className="ms-opsz-20 text-base leading-none"
+                  symbol="double_arrow"
+                />
+              </button>
+            )}
           </div>
         )}
       </div>

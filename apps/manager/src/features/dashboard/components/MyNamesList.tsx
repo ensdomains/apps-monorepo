@@ -162,7 +162,7 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
-        selectable
+        selectable={!isV1}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}
