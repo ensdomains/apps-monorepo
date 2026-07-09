@@ -16,6 +16,7 @@ import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '@/features/profile/service/profileRecords'
+import { isRenewableName } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
@@ -162,7 +163,7 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
-        selectable={!isV1}
+        selectable={!isV1 && isRenewableName(name)}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}

@@ -8,6 +8,11 @@ import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  BulkRenewDialog,
+  type BulkRenewName,
+} from '@/features/renew/components/BulkRenewDialog'
+import { isRenewableName } from '@/features/renew/utils/renewableName'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
   buildMergedNamesList,
@@ -20,6 +25,7 @@ import { removeFavoriteMutationOptions } from '../service/mutations/removeFavori
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
+import { resolveDomainLabel } from '../utils'
 import {
   FavoritesList,
   type FavoritesSort,
@@ -94,7 +100,8 @@ export const NamesTable = ({
     new Set(),
   )
 
-  // Only v2 names are selectable — v1 names are ignored for selection/renewal.
+  // Only renewable v2 2LD .eth names are selectable — v1 names and subnames are
+  // ignored for selection/renewal (subnames have no renewal price).
   const allOwnedLabels = useMemo(
     () =>
       buildMergedNamesList({
@@ -103,15 +110,44 @@ export const NamesTable = ({
         searchQuery,
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
-      }).map((item) => item.sortName.toLowerCase()),
+      }).flatMap((item) =>
+        item.kind === 'v2' &&
+        isRenewableName(item.domain.normalizedName ?? item.domain.name ?? '')
+          ? [item.sortName.toLowerCase()]
+          : [],
+      ),
     [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
   )
+
+  const [isRenewOpen, setIsRenewOpen] = useState(false)
 
   const selectedCount = selectedLabels.size
   const allSelected =
     allOwnedLabels.length > 0 &&
     allOwnedLabels.every((label) => selectedLabels.has(label))
   const someSelected = selectedCount > 0
+
+  const selectedNames = useMemo<BulkRenewName[]>(
+    () =>
+      v2Names
+        .filter((domain) =>
+          selectedLabels.has(resolveDomainLabel(domain).toLowerCase()),
+        )
+        .filter((domain) => domain.expiryDate != null)
+        .filter((domain) =>
+          isRenewableName(domain.normalizedName ?? domain.name ?? ''),
+        )
+        .map((domain) => {
+          const displayName = resolveDomainLabel(domain)
+          return {
+            displayName,
+            label: displayName.replace(/\.eth$/i, ''),
+            name: domain.normalizedName ?? displayName,
+            currentExpiry: domain.expiryDate as number,
+          }
+        }),
+    [v2Names, selectedLabels],
+  )
 
   const onToggleSelect = (label: string) => {
     const key = label.toLowerCase()
@@ -262,7 +298,12 @@ export const NamesTable = ({
               </span>
             </div>
             {someSelected && (
-              <Button size="sm" type="button" variant="outline">
+              <Button
+                onClick={() => setIsRenewOpen(true)}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
                 <Trans>Renew</Trans>
                 <MSymbol
                   aria-hidden="true"
@@ -329,6 +370,12 @@ export const NamesTable = ({
           ))
           .exhaustive()}
       </AnimatePresence>
+
+      <BulkRenewDialog
+        names={selectedNames}
+        onOpenChange={setIsRenewOpen}
+        open={isRenewOpen}
+      />
     </div>
   )
 }
