@@ -59,6 +59,9 @@ interface NameRowProps {
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
   readonly canRenew?: boolean
+  readonly selectable?: boolean
+  readonly isSelected?: boolean
+  readonly onToggleSelect?: () => void
 }
 
 const explorerUrl = (label: string) => `https://explorer.ens.dev/${label}`
@@ -78,11 +81,16 @@ const namePillVariants = cva(
 const NamePill = ({
   label,
   variant,
+  selected = false,
 }: {
   readonly label: string
   readonly variant: 'primary' | 'secondary'
+  readonly selected?: boolean
 }) => {
-  const className = namePillVariants({ variant })
+  const className = cn(
+    namePillVariants({ variant }),
+    selected && 'bg-ens-lapis-core text-ens-quartz-0',
+  )
   const textClassName =
     'min-w-0 break-all font-medium font-semi-mono text-base leading-none tracking-[-0.32px] [text-wrap:pretty]'
 
@@ -104,6 +112,27 @@ const VerifiedCheck = () => (
   <span className="flex size-3.5 shrink-0 items-center justify-center rounded-sm bg-ens-lapis-500">
     <Check className="size-[9px] text-white" strokeWidth={4} />
   </span>
+)
+
+const SelectedCheck = () => (
+  <span className="flex size-5.5 shrink-0 items-center justify-center rounded-full bg-ens-lapis-core">
+    <Check className="size-3.5 text-ens-quartz-0" strokeWidth={3} />
+  </span>
+)
+
+const RowRenewButton = ({ label }: { readonly label: string }) => (
+  <Link
+    className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded border-none bg-ens-quartz-0 px-4 font-semi-mono text-ens-quartz-900 text-xs uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50"
+    params={{ name: label }}
+    to="/renew/$name"
+  >
+    <Trans>Renew</Trans>
+    <MSymbol
+      aria-hidden="true"
+      className="ms-opsz-20 text-base leading-none"
+      symbol="double_arrow"
+    />
+  </Link>
 )
 
 const ctaVariants = cva(
@@ -319,11 +348,17 @@ const NameAvatar = ({
   avatarUrl,
   isPending,
   themeColor,
+  selectable = false,
+  selected = false,
+  onToggleSelect,
 }: {
   readonly label: string
   readonly avatarUrl?: string
   readonly isPending?: boolean
   readonly themeColor?: string
+  readonly selectable?: boolean
+  readonly selected?: boolean
+  readonly onToggleSelect?: () => void
 }) => {
   const { t } = useLingui()
 
@@ -336,8 +371,8 @@ const NameAvatar = ({
     )
   }
 
-  return (
-    <div className="relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
+  const inner = (
+    <>
       <ImageFallback.Root className="contents">
         <ImageFallback.Image
           alt={t`${label} avatar`}
@@ -352,8 +387,32 @@ const NameAvatar = ({
           />
         </ImageFallback.Fallback>
       </ImageFallback.Root>
-    </div>
+      {selected && (
+        <div className="absolute inset-0 flex items-center justify-center rounded-sm bg-ens-lapis-500/60">
+          <Check className="size-5 text-ens-quartz-0" strokeWidth={3} />
+        </div>
+      )}
+    </>
   )
+
+  const containerClassName =
+    'relative size-8.5 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50'
+
+  if (selectable) {
+    return (
+      <button
+        aria-label={selected ? t`Deselect ${label}` : t`Select ${label}`}
+        aria-pressed={selected}
+        className={containerClassName}
+        onClick={onToggleSelect}
+        type="button"
+      >
+        {inner}
+      </button>
+    )
+  }
+
+  return <div className={containerClassName}>{inner}</div>
 }
 
 const NameOptionsMenu = ({
@@ -470,6 +529,9 @@ export const NameRow = ({
   isAuthenticated = true,
   isInGrace = false,
   canRenew = true,
+  selectable = false,
+  isSelected = false,
+  onToggleSelect,
 }: NameRowProps) => {
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
@@ -498,13 +560,19 @@ export const NameRow = ({
             avatarUrl={avatarUrl}
             isPending={avatarPending}
             label={label}
+            onToggleSelect={onToggleSelect}
+            selectable={selectable}
+            selected={isSelected}
             themeColor={resolvedThemeColor}
           />
-          <NamePill label={label} variant={nameVariant} />
-          {verified && <VerifiedCheck />}
+          <NamePill label={label} selected={isSelected} variant={nameVariant} />
+          {isSelected ? <SelectedCheck /> : verified && <VerifiedCheck />}
         </div>
 
-        <NameOptionsMenu canRenew={canRenew} label={label} />
+        <div className="flex shrink-0 items-center gap-3">
+          {selectable && <RowRenewButton label={label} />}
+          <NameOptionsMenu canRenew={canRenew} label={label} />
+        </div>
       </div>
 
       <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />

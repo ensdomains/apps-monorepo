@@ -8,6 +8,7 @@ import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
+  buildMergedNamesList,
   getMergedNamesCount,
   type SortDir,
   type SortField,
@@ -24,6 +25,7 @@ import {
 } from './FavoritesList'
 import { type FilterChipDef, FilterChips } from './FilterChips'
 import { MyNamesList, type Sort } from './MyNamesList'
+import { SelectionCheckbox } from './SelectionCheckbox'
 import { SortMenu, type SortOption } from './SortMenu'
 
 type FilterKey = 'owned' | 'favorites'
@@ -85,6 +87,57 @@ export const NamesTable = ({
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),
     [favorites],
   )
+
+  const [selectedLabels, setSelectedLabels] = useState<ReadonlySet<string>>(
+    new Set(),
+  )
+
+  const allOwnedLabels = useMemo(
+    () =>
+      buildMergedNamesList({
+        v2Names,
+        v1Classified: migrationEnabled ? v1Names : [],
+        searchQuery,
+        sortField: ownedSortState.field,
+        sortDir: ownedSortState.dir,
+      }).map((item) => item.sortName.toLowerCase()),
+    [
+      v2Names,
+      v1Names,
+      migrationEnabled,
+      searchQuery,
+      ownedSortState.field,
+      ownedSortState.dir,
+    ],
+  )
+
+  const selectedCount = selectedLabels.size
+  const allSelected =
+    allOwnedLabels.length > 0 &&
+    allOwnedLabels.every((label) => selectedLabels.has(label))
+  const someSelected = selectedCount > 0
+
+  const onToggleSelect = (label: string) => {
+    const key = label.toLowerCase()
+    setSelectedLabels((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
+
+  const onToggleSelectAll = () => {
+    setSelectedLabels((prev) => {
+      const allIn =
+        allOwnedLabels.length > 0 &&
+        allOwnedLabels.every((label) => prev.has(label))
+      return allIn ? new Set() : new Set(allOwnedLabels)
+    })
+  }
 
   const addMutation = useMutation(addFavoriteMutationOptions)
   const removeMutation = useMutation(removeFavoriteMutationOptions)
@@ -192,6 +245,26 @@ export const NamesTable = ({
             value={activeFilter}
           />
         </div>
+
+        {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
+          <div className="flex w-full items-center gap-3">
+            <SelectionCheckbox
+              ariaLabel={
+                allSelected ? t`Deselect all names` : t`Select all names`
+              }
+              checked={allSelected}
+              indeterminate={someSelected && !allSelected}
+              onToggle={onToggleSelectAll}
+            />
+            <span className="font-sans text-ens-quartz-550 text-sm">
+              {selectedCount > 0 ? (
+                <Trans>{selectedCount} selected</Trans>
+              ) : (
+                <Trans>Select all</Trans>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       <AnimatePresence mode="popLayout">
@@ -216,8 +289,10 @@ export const NamesTable = ({
                 isAuthenticated={isAuthed}
                 migrationEnabled={migrationEnabled}
                 onToggleFavorite={onToggleFavorite}
+                onToggleSelect={onToggleSelect}
                 primaryLabel={primaryLabel}
                 searchQuery={searchQuery}
+                selectedLabels={selectedLabels}
                 sort={ownedSort}
               />
             </motion.div>
