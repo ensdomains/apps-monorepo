@@ -129,6 +129,14 @@ describe('compareMerged', () => {
     expect(compareMerged(a, noExpiry, 'expiry', 'asc')).toBeLessThan(0)
     expect(compareMerged(a, noExpiry, 'expiry', 'desc')).toBeLessThan(0)
   })
+  it('pushes zero expiry to the end like null expiry', () => {
+    const nonExpiring = makeMergedV1({
+      sortName: 'non-expiring.eth',
+      sortExpiry: 0,
+    })
+    expect(compareMerged(a, nonExpiring, 'expiry', 'asc')).toBeLessThan(0)
+    expect(compareMerged(a, nonExpiring, 'expiry', 'desc')).toBeLessThan(0)
+  })
   it('returns 0 when both expiries are null', () => {
     const c = makeMergedV1({ sortName: 'delta.eth', sortExpiry: null })
     expect(compareMerged(noExpiry, c, 'expiry', 'asc')).toBe(0)

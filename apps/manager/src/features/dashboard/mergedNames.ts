@@ -58,6 +58,9 @@ const getIsMigrationEligible = (item: MergedItem): boolean =>
 const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
   expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
 
+const getExpirySortValue = (expirySeconds: number | null): number | null =>
+  expirySeconds === 0 ? null : expirySeconds
+
 const formatMergedExpiryDate = (
   displayExpiryDate: Date | null,
   expirySeconds: number | null,
@@ -86,8 +89,10 @@ export const compareMerged = (
   if (field === 'name') {
     return a.sortName.localeCompare(b.sortName) * mul
   }
-  const ax = field === 'created' ? a.sortCreated : a.sortExpiry
-  const bx = field === 'created' ? b.sortCreated : b.sortExpiry
+  const ax =
+    field === 'created' ? a.sortCreated : getExpirySortValue(a.sortExpiry)
+  const bx =
+    field === 'created' ? b.sortCreated : getExpirySortValue(b.sortExpiry)
   if (ax === null && bx === null) return 0
   if (ax === null) return 1
   if (bx === null) return -1
