@@ -5,6 +5,7 @@ import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { isBackendAuthed } from '@/utils/backend-client'
@@ -261,17 +262,14 @@ export const NamesTable = ({
               </span>
             </div>
             {someSelected && (
-              <button
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded border-none bg-ens-quartz-0 px-4 font-semi-mono text-ens-quartz-900 text-xs uppercase tracking-[0.96px] shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50"
-                type="button"
-              >
+              <Button size="sm" type="button" variant="outline">
                 <Trans>Renew</Trans>
                 <MSymbol
                   aria-hidden="true"
                   className="ms-opsz-20 text-base leading-none"
                   symbol="double_arrow"
                 />
-              </button>
+              </Button>
             )}
           </div>
         )}
