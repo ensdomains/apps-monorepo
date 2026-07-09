@@ -56,8 +56,34 @@ describe('getExpiry', () => {
     })
   })
 
-  it('returns V2 expiry without probing registration date when V2 expiry exists', async () => {
+  it('uses V1 registrar expiry when V2 expiry exists without V2 registration date', async () => {
     mocks.getV2Expiry.mockResolvedValue(1_801_218_936n)
+    mocks.getV1Expiry.mockResolvedValue({
+      expiry: 1_793_442_936n,
+      gracePeriod: 7_776_000,
+      status: 'active',
+    })
+
+    const result = await getExpiry('fgeorgescu.eth')
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: 1_793_442_936n,
+      isNonExpiring: false,
+      protocol: 'v1',
+    })
+    expect(mocks.getV2RegistrationDate).toHaveBeenCalledWith(mocks.client, {
+      label: 'fgeorgescu',
+      registryAddress: expect.any(String),
+    })
+    expect(mocks.getV1Expiry).toHaveBeenCalledWith(mocks.client, {
+      name: 'fgeorgescu.eth',
+    })
+  })
+
+  it('uses V2 expiry when V2 expiry exists with V2 registration date', async () => {
+    mocks.getV2Expiry.mockResolvedValue(1_801_218_936n)
+    mocks.getV2RegistrationDate.mockResolvedValue(1_760_000_000n)
 
     const result = await getExpiry('fgeorgescu.eth')
 
@@ -67,7 +93,10 @@ describe('getExpiry', () => {
       isNonExpiring: false,
       protocol: 'v2',
     })
-    expect(mocks.getV2RegistrationDate).not.toHaveBeenCalled()
+    expect(mocks.getV2RegistrationDate).toHaveBeenCalledWith(mocks.client, {
+      label: 'fgeorgescu',
+      registryAddress: expect.any(String),
+    })
     expect(mocks.getV1Expiry).not.toHaveBeenCalled()
   })
 

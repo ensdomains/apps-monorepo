@@ -86,22 +86,6 @@ export const getExpiry = ResultFn(async function* (name: string) {
 
   const client = yield* safeGetClient()
 
-  const expiry = yield* fromPromise(
-    ensjsv2_getExpiry(client, {
-      name: ethName.name,
-      registryAddress: ENS_REGISTRY,
-    }),
-    (e) => new GetProfileExpiryError({ cause: e as GetV2ExpiryErrorType }),
-  )
-
-  if (expiry !== 0n) {
-    return ok({
-      expiry,
-      isNonExpiring: false,
-      protocol: 'v2',
-    } satisfies ProfileExpiryResult)
-  }
-
   const registrationDate = yield* fromPromise(
     ensjsv2_getRegistrationDate(client, {
       label: ethName.label,
@@ -123,6 +107,22 @@ export const getExpiry = ResultFn(async function* (name: string) {
     )
 
     return ok(normalizeV1Expiry(v1Expiry))
+  }
+
+  const expiry = yield* fromPromise(
+    ensjsv2_getExpiry(client, {
+      name: ethName.name,
+      registryAddress: ENS_REGISTRY,
+    }),
+    (e) => new GetProfileExpiryError({ cause: e as GetV2ExpiryErrorType }),
+  )
+
+  if (expiry !== 0n) {
+    return ok({
+      expiry,
+      isNonExpiring: false,
+      protocol: 'v2',
+    } satisfies ProfileExpiryResult)
   }
 
   return ok({
