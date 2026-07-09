@@ -4,6 +4,11 @@ import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecord
 import { render } from '@/utils/test-utils'
 import { ProfileLinksSection } from './ProfileViewNewLinks'
 
+const getLinkPatternSourceId = (link: HTMLElement) =>
+  link
+    .querySelector('[data-figma-pattern-source-id]')
+    ?.getAttribute('data-figma-pattern-source-id')
+
 describe('ProfileLinksSection', () => {
   it('does not render placeholder cards when there are no links', () => {
     const { container } = render(
@@ -50,5 +55,41 @@ describe('ProfileLinksSection', () => {
     expect(firstLink.querySelector('img')).not.toBeInTheDocument()
     expect(firstLink.querySelector('.lucide-link')).not.toBeInTheDocument()
     expect(container.querySelectorAll('a')).toHaveLength(3)
+  })
+
+  it('selects the same Figma pattern for the same URL regardless of card order', () => {
+    const targetLink = { name: 'Same URL', url: 'https://same.example' }
+    const first = render(
+      <ProfileLinksSection
+        records={{
+          ...newEmptyProfileRecords(),
+          links: [
+            targetLink,
+            { name: 'Other URL', url: 'https://other.example' },
+          ],
+        }}
+      />,
+    )
+
+    const firstPatternSourceId = getLinkPatternSourceId(
+      screen.getByRole('link', { name: /Same URL/ }),
+    )
+    first.unmount()
+
+    render(
+      <ProfileLinksSection
+        records={{
+          ...newEmptyProfileRecords(),
+          links: [
+            { name: 'Other URL', url: 'https://other.example' },
+            targetLink,
+          ],
+        }}
+      />,
+    )
+
+    expect(
+      getLinkPatternSourceId(screen.getByRole('link', { name: /Same URL/ })),
+    ).toBe(firstPatternSourceId)
   })
 })

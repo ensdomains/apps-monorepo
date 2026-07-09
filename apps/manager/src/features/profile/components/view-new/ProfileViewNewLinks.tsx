@@ -33,20 +33,24 @@ const linkPreviewPatternVariants = [
   { sourceId: '3749:30577', src: linkPatternCitrineSrc },
 ] satisfies readonly [LinkPreviewPatternVariant, ...LinkPreviewPatternVariant[]]
 
+const getLinkPreviewPatternIndex = (href: string) => {
+  let hash = 0
+
+  for (const character of href.toLowerCase()) {
+    hash = (hash * 31 + character.charCodeAt(0)) >>> 0
+  }
+
+  return hash % linkPreviewPatternVariants.length
+}
+
 const getLinkPreviewPatternVariant = (
-  index: number,
+  href: string,
 ): LinkPreviewPatternVariant =>
-  linkPreviewPatternVariants[index % linkPreviewPatternVariants.length] ??
+  linkPreviewPatternVariants[getLinkPreviewPatternIndex(href)] ??
   linkPreviewPatternVariants[0]
 
-const LinkPreview = ({
-  index,
-  link,
-}: {
-  readonly index: number
-  readonly link: SafeProfileLink
-}) => {
-  const pattern = getLinkPreviewPatternVariant(index)
+const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
+  const pattern = getLinkPreviewPatternVariant(link.href)
 
   return (
     <a
@@ -96,12 +100,8 @@ export const ProfileLinksSection = ({
   return (
     <ProfileCard title={<Trans>Links</Trans>}>
       <div className="grid gap-4 lg:landscape:grid-cols-3 lg:landscape:gap-6">
-        {links.map((link, index) => (
-          <LinkPreview
-            index={index}
-            key={`${link.name}-${link.href}`}
-            link={link}
-          />
+        {links.map((link) => (
+          <LinkPreview key={`${link.name}-${link.href}`} link={link} />
         ))}
       </div>
     </ProfileCard>
