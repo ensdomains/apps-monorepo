@@ -1,3 +1,4 @@
+import type { DomainFragment } from '@ens-apps/indexer'
 import { screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
@@ -56,6 +57,27 @@ const makeV1Domain = (overrides: Partial<V1Domain> = {}): V1Domain => ({
   registration: overrides.registration ?? null,
   wrappedDomain: overrides.wrappedDomain ?? null,
 })
+
+const makeV2Domain = (
+  overrides: Partial<DomainFragment> & {
+    readonly nameRoles?: readonly string[]
+  } = {},
+) =>
+  ({
+    __typename: 'Domain',
+    id: overrides.id ?? '0xv2',
+    name: overrides.name ?? 'alaska.eth',
+    normalizedName: overrides.normalizedName ?? overrides.name ?? 'alaska.eth',
+    tokenId: overrides.tokenId ?? null,
+    createdAt: overrides.createdAt ?? 0,
+    expiryDate: overrides.expiryDate ?? 1811808000,
+    owner: overrides.owner ?? {
+      __typename: 'Account',
+      id: '0xowner',
+    },
+    resolver: overrides.resolver ?? null,
+    nameRoles: overrides.nameRoles,
+  }) as DomainFragment & { readonly nameRoles?: readonly string[] }
 
 describe('MyNamesList', () => {
   beforeEach(() => {
@@ -158,5 +180,37 @@ describe('MyNamesList', () => {
       'owner,manager',
     ])
     expect(rows.every((row) => row.dataset.role === '')).toBe(true)
+  })
+
+  it('passes V2 manager roles through to the name row', () => {
+    ownedDomainsMock.useOwnedDomains.mockReturnValue({
+      v2Names: [
+        makeV2Domain({
+          id: '0xalaska',
+          name: 'alaska.eth',
+          nameRoles: ['owner', 'manager'],
+        }),
+      ],
+      isPending: false,
+      isError: false,
+    })
+    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
+      v1Names: [],
+      isPending: false,
+      isError: false,
+    })
+
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        onToggleFavorite={() => undefined}
+        sort="name-asc"
+      />,
+    )
+
+    const row = screen.getByTestId('name-row')
+    expect(row).toHaveTextContent('alaska.eth')
+    expect(row.dataset.roles).toBe('owner,manager')
   })
 })

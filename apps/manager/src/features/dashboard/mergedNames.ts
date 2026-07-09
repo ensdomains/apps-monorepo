@@ -22,7 +22,7 @@ export type MergedItem =
       readonly sortName: string
       readonly sortExpiry: number | null
       readonly sortCreated: number | null
-      readonly domain: DomainFragment
+      readonly domain: DashboardV2Name
     }
   | {
       readonly kind: 'v1'
@@ -41,6 +41,10 @@ export type DashboardV1Name = {
 }
 
 export type DashboardNameRole = 'owner' | 'manager'
+
+export type DashboardV2Name = DomainFragment & {
+  readonly nameRoles?: readonly DashboardNameRole[]
+}
 
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
@@ -91,7 +95,7 @@ export const compareMerged = (
 }
 
 export const buildMergedNamesList = (params: {
-  v2Names: readonly DomainFragment[]
+  v2Names: readonly DashboardV2Name[]
   v1Classified: readonly DashboardV1Name[]
   searchQuery: string
   sortField: SortField

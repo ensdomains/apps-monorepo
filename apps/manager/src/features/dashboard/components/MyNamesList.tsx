@@ -104,7 +104,7 @@ const AnimatedNameRow = ({
   const nameRoles: readonly NameRole[] =
     item.kind === 'v1'
       ? (item.classified.nameRoles ?? OWNER_NAME_ROLES)
-      : OWNER_NAME_ROLES
+      : (item.domain.nameRoles ?? OWNER_NAME_ROLES)
   const { cta, status } = match({ isV1, isMigrationEligible })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
