@@ -1,5 +1,19 @@
 // Pure helpers and domain logic for MigrationTestPanel — no React, fully testable.
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { registrySetApprovalForAllSnippet } from '@ensdomains/ensjs-abi/registry'
+import {
+  baseRegistrarAddControllerSnippet,
+  baseRegistrarControllersSnippet,
+  baseRegistrarOwnerSnippet,
+  baseRegistrarRegisterSnippet,
+} from '@ensdomains/ensjs-abi/v1/baseRegistrar'
+import {
+  nameWrapperSetFusesSnippet,
+  nameWrapperSetSubnodeOwnerSnippet,
+  nameWrapperWrapEth2ldSnippet,
+} from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
 import {
   concat,
   encodeFunctionData,
@@ -8,15 +22,25 @@ import {
   toBytes,
 } from 'viem'
 
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+
 // --- V1 contract addresses --------------------------------------------------
-// Official Sepolia V1 contracts (match preflightChecks.ts / ensjs chain config).
+// V1 contracts sourced from the ensjs Sepolia chain config (same source as
+// preflightChecks.ts) so they can't drift from the canonical deployment.
 export const V1_BASE_REGISTRAR =
-  '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const
-export const V1_NAME_WRAPPER =
-  '0x0635513f179D50A207757E05759CbD106d7dFcE8' as const
-// Owner of the official Sepolia BaseRegistrar — impersonated to re-authorize
-// DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers at ~block
-// 10927919 as part of the V2 migration cutover.
+  ensjsSepolia.ensBaseRegistrarImplementation.address
+export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
+// Fallback owner of the official Sepolia BaseRegistrar — impersonated to
+// re-authorize DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers
+// at ~block 10927919 as part of the V2 migration cutover.
+//
+// The registrar's `owner()` has since been transferred on Sepolia, so this
+// constant is only a last-resort fallback: `ensureFunded()` reads the live
+// `owner()` off the fork and impersonates THAT. Hardcoding the owner is what
+// silently broke name creation once ownership moved — impersonating a non-owner
+// makes `addController` revert, so DEFAULT_ACCOUNT never becomes a controller
+// and every `register()` reverts, leaving phantom names that only exist in the
+// subgraph mock.
 export const V1_BASE_REGISTRAR_OWNER =
   '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
 export const V1_PUBLIC_RESOLVER =
@@ -115,102 +139,12 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
 }
 
 // --- ABI fragments ----------------------------------------------------------
-export const WRAPPER_ABI = [
-  {
-    name: 'wrapETH2LD',
-    type: 'function',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'wrappedOwner', type: 'address' },
-      { name: 'ownerControlledFuses', type: 'uint16' },
-      { name: 'resolver', type: 'address' },
-    ],
-    outputs: [{ name: 'tokenId', type: 'uint64' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setFuses',
-    type: 'function',
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'ownerControlledFuses', type: 'uint16' },
-    ],
-    outputs: [{ name: 'newFuses', type: 'uint32' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setSubnodeOwner',
-    type: 'function',
-    inputs: [
-      { name: 'parentNode', type: 'bytes32' },
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'fuses', type: 'uint32' },
-      { name: 'expiry', type: 'uint64' },
-    ],
-    outputs: [{ name: 'node', type: 'bytes32' }],
-    stateMutability: 'nonpayable',
-  },
-] as const
-
-export const BASE_REGISTRAR_ABI = [
-  {
-    name: 'register',
-    type: 'function',
-    inputs: [
-      { name: 'id', type: 'uint256' },
-      { name: 'owner', type: 'address' },
-      { name: 'duration', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setApprovalForAll',
-    type: 'function',
-    inputs: [
-      { name: 'operator', type: 'address' },
-      { name: 'approved', type: 'bool' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'addController',
-    type: 'function',
-    inputs: [{ name: 'controller', type: 'address' }],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const
-
-export const V2_REGISTRY_ABI = [
-  {
-    name: 'register',
-    type: 'function',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'subregistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'flags', type: 'uint256' },
-      { name: 'expires', type: 'uint64' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'grantRoles',
-    type: 'function',
-    inputs: [
-      { name: 'resource', type: 'uint256' },
-      { name: 'roles', type: 'uint256' },
-      { name: 'account', type: 'address' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const
+// All contract ABIs are sourced from @ensdomains/ensjs-abi per-function
+// snippets (imported above). NameWrapper: wrapETH2LD / setFuses /
+// setSubnodeOwner. BaseRegistrar: register / addController / owner /
+// controllers. setApprovalForAll from the registry snippet (standard
+// ERC-721/1155 method, encodes identically). V2 registry register from
+// v2/userRegistry (identical param types; only names differ).
 
 // --- Crypto helpers ---------------------------------------------------------
 
@@ -319,7 +253,7 @@ export async function registerV1Name(
     endpoint,
     V1_BASE_REGISTRAR,
     encodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
+      abi: baseRegistrarRegisterSnippet,
       functionName: 'register',
       args: [tokenId, DEFAULT_ACCOUNT, BigInt(ONE_YEAR)],
     }),
@@ -332,7 +266,7 @@ export async function registerV1Name(
     endpoint,
     V1_BASE_REGISTRAR,
     encodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
+      abi: registrySetApprovalForAllSnippet,
       functionName: 'setApprovalForAll',
       args: [V1_NAME_WRAPPER, true],
     }),
@@ -343,7 +277,7 @@ export async function registerV1Name(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperWrapEth2ldSnippet,
       functionName: 'wrapETH2LD',
       args: [label, DEFAULT_ACCOUNT, 0, ZERO_ADDRESS],
     }),
@@ -361,7 +295,7 @@ export async function setNameFuses(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperSetFusesSnippet,
       functionName: 'setFuses',
       args: [node, fuses],
     }),
@@ -383,11 +317,56 @@ export async function createEmancipatedSubname(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperSetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
       args: [parentNode, sublabel, DEFAULT_ACCOUNT, subFuses, expiry],
     }),
   )
+}
+
+/** Read the live BaseRegistrar `owner()` off the fork; null if the call fails. */
+export async function readRegistrarOwner(
+  endpoint: string,
+): Promise<`0x${string}` | null> {
+  try {
+    const result = (await rpcCall(endpoint, 'eth_call', [
+      {
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: baseRegistrarOwnerSnippet,
+          functionName: 'owner',
+        }),
+      },
+      'latest',
+    ])) as string
+    if (typeof result !== 'string' || result.length < 66) return null
+    return `0x${result.slice(-40)}` as `0x${string}`
+  } catch {
+    return null
+  }
+}
+
+/** True if `account` is an authorized controller on the BaseRegistrar. */
+export async function isController(
+  endpoint: string,
+  account: string,
+): Promise<boolean> {
+  try {
+    const result = (await rpcCall(endpoint, 'eth_call', [
+      {
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: baseRegistrarControllersSnippet,
+          functionName: 'controllers',
+          args: [account as `0x${string}`],
+        }),
+      },
+      'latest',
+    ])) as string
+    return typeof result === 'string' && /[1-9a-f]/.test(result.slice(2))
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -397,6 +376,12 @@ export async function createEmancipatedSubname(
  * ENS revoked all V1 controllers at ~block 10927919 as part of the V2 migration
  * cutover, so on a fresh Anvil fork no one can call BaseRegistrar.register().
  * We fix this by impersonating the BaseRegistrar owner and calling addController().
+ *
+ * The owner is read live off the fork (`owner()`) rather than hardcoded: it was
+ * transferred on Sepolia, and impersonating a stale owner makes `addController`
+ * revert silently, so DEFAULT_ACCOUNT never becomes a controller and every
+ * `register()` reverts — producing phantom names that exist only in the
+ * subgraph mock. We verify the grant landed and throw loudly if it didn't.
  */
 export async function ensureFunded(endpoint: string): Promise<void> {
   const TARGET = '0x56BC75E2D63100000' // 100 ETH in wei
@@ -413,23 +398,41 @@ export async function ensureFunded(endpoint: string): Promise<void> {
     )
   }
 
+  // Short-circuit if DEFAULT_ACCOUNT is already an authorized controller.
+  if (await isController(endpoint, DEFAULT_ACCOUNT)) return
+
+  // Read the LIVE registrar owner off the fork — it has been transferred on
+  // Sepolia, so the hardcoded constant is only a fallback if the read fails.
+  const registrarOwner =
+    (await readRegistrarOwner(endpoint)) ?? V1_BASE_REGISTRAR_OWNER
+
   // Impersonate the BaseRegistrar owner to re-authorize DEFAULT_ACCOUNT as a controller
-  await rpcCall(endpoint, 'anvil_impersonateAccount', [V1_BASE_REGISTRAR_OWNER])
+  await rpcCall(endpoint, 'anvil_impersonateAccount', [registrarOwner])
   try {
     await sendTxFrom(
       endpoint,
-      V1_BASE_REGISTRAR_OWNER,
+      registrarOwner,
       V1_BASE_REGISTRAR,
       encodeFunctionData({
-        abi: BASE_REGISTRAR_ABI,
+        abi: baseRegistrarAddControllerSnippet,
         functionName: 'addController',
         args: [DEFAULT_ACCOUNT],
       }),
     )
   } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
-      V1_BASE_REGISTRAR_OWNER,
-    ])
+    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [registrarOwner])
+  }
+
+  // Anvil includes reverted impersonated txs without throwing, so verify the
+  // grant actually landed rather than trusting the send. If it didn't, the
+  // owner we impersonated is wrong for this fork — fail loudly instead of
+  // silently registering phantom names later.
+  if (!(await isController(endpoint, DEFAULT_ACCOUNT))) {
+    throw new Error(
+      `Failed to authorize ${DEFAULT_ACCOUNT} as a BaseRegistrar controller ` +
+        `(impersonated owner ${registrarOwner}). The registrar owner on this ` +
+        `fork may have changed again — check BaseRegistrar.owner().`,
+    )
   }
 
   // Grant ROLE_REGISTRAR (bit 0 = 0x01) to the V2 migration controllers on the
@@ -477,7 +480,7 @@ export async function reserveInV2(
   await rpcCall(endpoint, 'anvil_impersonateAccount', [V2_ETH_REGISTRAR_ADDR])
   try {
     const data = encodeFunctionData({
-      abi: V2_REGISTRY_ABI,
+      abi: userRegistryRegisterSnippet,
       functionName: 'register',
       args: [
         label,
