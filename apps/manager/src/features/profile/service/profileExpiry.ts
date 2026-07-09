@@ -3,8 +3,15 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import {
+  getExpiry as ensjsv1_getExpiry,
+  type GetExpiryErrorType as GetV1ExpiryErrorType,
+  type GetExpiryReturnType as GetV1ExpiryReturnType,
+} from '@ensdomains/ensjs/public/v1'
+import {
   getExpiry as ensjsv2_getExpiry,
-  type GetExpiryErrorType,
+  getRegistrationDate as ensjsv2_getRegistrationDate,
+  type GetRegistrationDateErrorType,
+  type GetExpiryErrorType as GetV2ExpiryErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import {
@@ -30,13 +37,19 @@ export const getProfileNameExpiryStatus = (
   getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), isV2)
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
-  cause: GetExpiryErrorType
+  cause:
+    | GetV1ExpiryErrorType
+    | GetV2ExpiryErrorType
+    | GetRegistrationDateErrorType
 }> {}
 
 const ENS_REGISTRY = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensRegistry',
 })
+
+const normalizeV1Expiry = (expiry: GetV1ExpiryReturnType): bigint | null =>
+  expiry?.expiry === 0n ? null : (expiry?.expiry ?? null)
 
 export const getExpiry = ResultFn(async function* (name: string) {
   const ethName = normalizeEth2LdName(name)
@@ -47,12 +60,35 @@ export const getExpiry = ResultFn(async function* (name: string) {
 
   const client = yield* safeGetClient()
 
+  const registrationDate = yield* fromPromise(
+    ensjsv2_getRegistrationDate(client, {
+      label: ethName.label,
+      registryAddress: ENS_REGISTRY,
+    }),
+    (e) =>
+      new GetProfileExpiryError({
+        cause: e as GetRegistrationDateErrorType,
+      }),
+  )
+
+  if (registrationDate === null) {
+    const v1Expiry = yield* fromPromise(
+      ensjsv1_getExpiry(client, { name: ethName.name }),
+      (e) =>
+        new GetProfileExpiryError({
+          cause: e as GetV1ExpiryErrorType,
+        }),
+    )
+
+    return ok({ expiry: normalizeV1Expiry(v1Expiry) })
+  }
+
   const expiry = yield* fromPromise(
     ensjsv2_getExpiry(client, {
       name: ethName.name,
       registryAddress: ENS_REGISTRY,
     }),
-    (e) => new GetProfileExpiryError({ cause: e as GetExpiryErrorType }),
+    (e) => new GetProfileExpiryError({ cause: e as GetV2ExpiryErrorType }),
   )
 
   if (expiry === 0n) {

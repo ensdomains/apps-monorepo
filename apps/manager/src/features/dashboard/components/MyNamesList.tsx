@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import {
   buildMergedNamesList,
+  type MergedItem,
   mergedRowMetadata,
   type SortDir,
   type SortField,
@@ -18,10 +19,12 @@ import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
+import type { NameRole } from './DashboardPills'
 import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
 const PAGE_SIZE = 5
+const OWNER_NAME_ROLES = ['owner'] as const satisfies readonly NameRole[]
 
 export type Sort = `${SortField}-${SortDir}`
 
@@ -60,6 +63,7 @@ type NameRowActionState = {
 
 const AnimatedNameRow = ({
   metadata,
+  item,
   name,
   index,
   profileRecords,
@@ -70,6 +74,7 @@ const AnimatedNameRow = ({
   isAuthenticated,
 }: {
   readonly metadata: MergedNameRowMetadata
+  readonly item: MergedItem
   readonly name: string
   readonly index: number
   readonly profileRecords?: ProfileRecordsResult | null
@@ -96,6 +101,10 @@ const AnimatedNameRow = ({
     records: profileRecords,
     isLoading: isProfileRecordsLoading,
   })
+  const nameRoles: readonly NameRole[] =
+    item.kind === 'v1'
+      ? (item.classified.nameRoles ?? OWNER_NAME_ROLES)
+      : OWNER_NAME_ROLES
   const { cta, status } = match({ isV1, isMigrationEligible })
     .returnType<NameRowActionState>()
     .with({ isV1: false }, () => ({
@@ -137,7 +146,7 @@ const AnimatedNameRow = ({
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
         label={label}
-        nameRole="owner"
+        nameRoles={nameRoles}
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         showFavoriteButton
@@ -280,6 +289,7 @@ export const MyNamesList = ({
                   isProfileRecordsLoading={
                     profileRecordState?.isLoading ?? false
                   }
+                  item={row.item}
                   key={row.item.key}
                   metadata={row.metadata}
                   name={row.name}

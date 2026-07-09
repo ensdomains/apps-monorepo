@@ -4,11 +4,41 @@ import { useConnection } from 'wagmi'
 import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import { classifyNames } from '@/features/migration/service/classifyNames'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import type { DashboardV1Name } from './mergedNames'
+import type { DashboardNameRole, DashboardV1Name } from './mergedNames'
 
 type UseDashboardV1NamesOptions = {
   readonly migrationEnabled?: boolean
+}
+
+const addressMatches = (
+  candidate: string | null | undefined,
+  ownerAddress: string | null | undefined,
+) => !!candidate && !!ownerAddress && candidate.toLowerCase() === ownerAddress
+
+const getV1NameRoles = (
+  domain: V1Domain,
+  ownerAddress: string | null | undefined,
+): readonly DashboardNameRole[] => {
+  const normalizedOwnerAddress = ownerAddress?.toLowerCase()
+  const isRegistrant = addressMatches(
+    domain.registrant?.id,
+    normalizedOwnerAddress,
+  )
+  const isWrappedOwner = addressMatches(
+    domain.wrappedOwner?.id,
+    normalizedOwnerAddress,
+  )
+  const isRegistryOwner = addressMatches(
+    domain.owner.id,
+    normalizedOwnerAddress,
+  )
+
+  const roles: DashboardNameRole[] = []
+  if (isRegistrant || isWrappedOwner) roles.push('owner')
+  if (isRegistryOwner || isWrappedOwner) roles.push('manager')
+  return roles
 }
 
 export const useDashboardV1Names = (
@@ -44,8 +74,9 @@ export const useDashboardV1Names = (
         domain,
         label: domain.labelName ?? domain.name,
         isMigrationEligible: eligibleIds.has(domain.id),
+        nameRoles: getV1NameRoles(domain, resolvedOwnerAddress),
       })),
-    [eligibleIds, v1NamesRaw],
+    [eligibleIds, resolvedOwnerAddress, v1NamesRaw],
   )
 
   return {

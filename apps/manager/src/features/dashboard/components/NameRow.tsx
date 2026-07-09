@@ -48,6 +48,7 @@ interface NameRowProps {
   readonly nameVariant?: 'primary' | 'secondary'
   readonly verified?: boolean
   readonly nameRole?: NameRole | null
+  readonly nameRoles?: readonly NameRole[] | null
   readonly status?: NameStatus | null
   readonly expiringInDays?: number | null
   readonly expiryLabel?: string | null
@@ -271,14 +272,15 @@ const FavoriteControl = ({
 
 const NameRowTop = ({
   status,
-  nameRole,
+  nameRoles,
   isInGrace,
   expiringInDays,
-}: Pick<
-  NameRowProps,
-  'status' | 'nameRole' | 'isInGrace' | 'expiringInDays'
->) => {
-  const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
+}: Pick<NameRowProps, 'status' | 'isInGrace' | 'expiringInDays'> & {
+  readonly nameRoles: readonly NameRole[]
+}) => {
+  const hasTopRow = Boolean(
+    isInGrace || status || nameRoles.length > 0 || expiringInDays,
+  )
   if (!hasTopRow) return null
 
   return (
@@ -286,7 +288,9 @@ const NameRowTop = ({
       <div className="flex flex-wrap items-center gap-2">
         {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
         {status === 'ensv1Only' && <Ensv1OnlyPill />}
-        {nameRole && <RolePill role={nameRole} />}
+        {nameRoles.map((role) => (
+          <RolePill key={role} role={role} />
+        ))}
       </div>
       {isInGrace ? (
         <GracePeriodBadge />
@@ -299,6 +303,14 @@ const NameRowTop = ({
       )}
     </div>
   )
+}
+
+const getNameRoles = ({
+  nameRole,
+  nameRoles,
+}: Pick<NameRowProps, 'nameRole' | 'nameRoles'>): readonly NameRole[] => {
+  const roles = nameRoles ?? (nameRole ? [nameRole] : [])
+  return Array.from(new Set(roles))
 }
 
 const NameAvatar = ({
@@ -438,6 +450,7 @@ export const NameRow = ({
   nameVariant = 'secondary',
   verified = false,
   nameRole = null,
+  nameRoles = null,
   status = null,
   expiringInDays = null,
   expiryLabel = null,
@@ -451,13 +464,14 @@ export const NameRow = ({
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
   const resolvedThemeColor = themeVars?.['--theme-color']
+  const resolvedNameRoles = getNameRoles({ nameRole, nameRoles })
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       <NameRowTop
         expiringInDays={expiringInDays}
         isInGrace={isInGrace}
-        nameRole={nameRole}
+        nameRoles={resolvedNameRoles}
         status={status}
       />
 

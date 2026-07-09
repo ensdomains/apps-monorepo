@@ -21,13 +21,23 @@ vi.mock('./NameRow', () => ({
   NameRow: ({
     cta,
     label,
+    nameRole,
+    nameRoles,
     status,
   }: {
     readonly cta?: string | null
     readonly label: string
+    readonly nameRole?: string | null
+    readonly nameRoles?: readonly string[] | null
     readonly status?: string | null
   }) => (
-    <div data-cta={cta ?? ''} data-status={status ?? ''} data-testid="name-row">
+    <div
+      data-cta={cta ?? ''}
+      data-role={nameRole ?? ''}
+      data-roles={nameRoles?.join(',') ?? ''}
+      data-status={status ?? ''}
+      data-testid="name-row"
+    >
       {label}
     </div>
   ),
@@ -102,5 +112,51 @@ describe('MyNamesList', () => {
     ])
     expect(rows.every((row) => row.dataset.status === 'ensv1Only')).toBe(true)
     expect(rows.every((row) => row.dataset.cta === 'manageExplorer')).toBe(true)
+  })
+
+  it('passes V1 manager roles through to the name row', () => {
+    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
+      v1Names: [
+        {
+          domain: makeV1Domain({
+            id: '0xmanager',
+            labelName: 'manager-only',
+            name: 'manager-only.eth',
+          }),
+          label: 'manager-only',
+          isMigrationEligible: false,
+          nameRoles: ['manager'],
+        },
+        {
+          domain: makeV1Domain({
+            id: '0xboth',
+            labelName: 'wrapped',
+            name: 'wrapped.eth',
+          }),
+          label: 'wrapped',
+          isMigrationEligible: false,
+          nameRoles: ['owner', 'manager'],
+        },
+      ],
+      isPending: false,
+      isError: false,
+    })
+
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        migrationEnabled={false}
+        onToggleFavorite={() => undefined}
+        sort="name-asc"
+      />,
+    )
+
+    const rows = screen.getAllByTestId('name-row')
+    expect(rows.map((row) => row.dataset.roles)).toEqual([
+      'manager',
+      'owner,manager',
+    ])
+    expect(rows.every((row) => row.dataset.role === '')).toBe(true)
   })
 })

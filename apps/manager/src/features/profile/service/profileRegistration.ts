@@ -6,7 +6,12 @@ import {
   getRegistrationDate as ensjsv2_getRegistrationDate,
   type GetRegistrationDateErrorType,
 } from '@ensdomains/ensjs/public/v2'
+import {
+  getNameHistory as ensjs_getNameHistory,
+  type GetNameHistoryErrorType,
+} from '@ensdomains/ensjs/subgraph'
 import { err, fromPromise, ok } from 'neverthrow'
+import { type GetBlockErrorType, getBlock } from 'viem/actions'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
@@ -14,7 +19,10 @@ import { normalizeEth2LdName } from './profileName'
 class GetProfileRegistrationError extends TaggedError(
   'GetProfileRegistrationError',
 )<{
-  cause: GetRegistrationDateErrorType
+  cause:
+    | GetRegistrationDateErrorType
+    | GetNameHistoryErrorType
+    | GetBlockErrorType
 }> {}
 
 class UnsafeRegistrationDateError extends TaggedError(
@@ -47,6 +55,9 @@ const ENS_REGISTRY = getChainContractAddress({
   contract: 'ensRegistry',
 })
 
+const blockNumberToBigInt = (blockNumber: number | bigint) =>
+  typeof blockNumber === 'bigint' ? blockNumber : BigInt(blockNumber)
+
 export const getRegistration = ResultFn(async function* (name: string) {
   const ethName = normalizeEth2LdName(name)
 
@@ -68,7 +79,41 @@ export const getRegistration = ResultFn(async function* (name: string) {
   )
 
   if (registrationDate === null) {
-    return ok({ registrationDate: null })
+    const nameHistory = yield* fromPromise(
+      ensjs_getNameHistory(client, {
+        name: ethName.name,
+        orderDirection: 'asc',
+        first: 1,
+      }),
+      (e) =>
+        new GetProfileRegistrationError({
+          cause: e as GetNameHistoryErrorType,
+        }),
+    )
+
+    const registrationBlockNumber = nameHistory?.registrationEvents?.find(
+      (event) => event.type === 'NameRegistered',
+    )?.blockNumber
+
+    if (registrationBlockNumber == null) {
+      return ok({ registrationDate: null })
+    }
+
+    const block = yield* fromPromise(
+      getBlock(client, {
+        blockNumber: blockNumberToBigInt(registrationBlockNumber),
+      }),
+      (e) =>
+        new GetProfileRegistrationError({
+          cause: e as GetBlockErrorType,
+        }),
+    )
+
+    const safeRegistrationDate = yield* registrationDateToNumber(
+      block.timestamp,
+    )
+
+    return ok({ registrationDate: safeRegistrationDate })
   }
 
   const safeRegistrationDate = yield* registrationDateToNumber(registrationDate)

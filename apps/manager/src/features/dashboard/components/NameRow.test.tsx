@@ -37,6 +37,15 @@ describe('NameRow', () => {
     )
   })
 
+  it('renders each supplied name role', () => {
+    const { getByText } = render(
+      <NameRow label="wrapped.eth" nameRoles={['owner', 'manager']} />,
+    )
+
+    expect(getByText('Owner')).toBeInTheDocument()
+    expect(getByText('Manager')).toBeInTheDocument()
+  })
+
   it('shows non-expiring names without the expires-on prefix', () => {
     const { getByText, queryByText } = render(
       <NameRow expiryLabel="Does not expire" label="pokemon.fgeorgescu.eth" />,

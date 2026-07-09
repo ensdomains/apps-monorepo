@@ -37,7 +37,10 @@ export type DashboardV1Name = {
   readonly domain: V1Domain
   readonly label: string
   readonly isMigrationEligible?: boolean
+  readonly nameRoles?: readonly DashboardNameRole[]
 }
+
+export type DashboardNameRole = 'owner' | 'manager'
 
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
