@@ -54,7 +54,7 @@ const makeClassified = (d: V1Domain): ClassifiedName => ({
   tokenType: 'unwrapped',
   label: d.labelName ?? '',
   parentName: 'eth',
-  fuses: 0,
+  fuses: 0n,
   tokenHolder: OWNER,
   v1ResolverAddress: null,
   resolverStrategy: 'to-owned-permres',

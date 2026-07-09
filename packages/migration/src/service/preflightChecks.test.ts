@@ -122,7 +122,12 @@ describe('checkFrozenApproval', () => {
 describe('runEligibilityChecks', () => {
   it('returns empty buckets for empty input and issues no RPC', async () => {
     const result = await runEligibilityChecks(publicClient, [], OWNER)
-    expect(result).toEqual({ eligible: [], frozen: [], alreadyMigrated: [] })
+    expect(result).toEqual({
+      eligible: [],
+      frozen: [],
+      alreadyMigrated: [],
+      failed: [],
+    })
     expect(multicallMock).not.toHaveBeenCalled()
   })
 
@@ -151,6 +156,19 @@ describe('runEligibilityChecks', () => {
     expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xa1'])
     expect(result.frozen.map((n) => n.domain.id)).toEqual(['0xb1'])
     expect(result.eligible.map((n) => n.domain.id)).toEqual(['0xc1'])
+    expect(result.failed).toEqual([])
     expect(multicallMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports unreadable ownership checks in `failed` (and keeps them out of eligible)', async () => {
+    const A = makeClassified({ id: '0xa1', label: 'a', name: 'a.eth' })
+    multicallMock.mockResolvedValueOnce([fail()]) // ownership read failed
+
+    const result = await runEligibilityChecks(publicClient, [A], OWNER)
+
+    expect(result.failed.map((n) => n.domain.id)).toEqual(['0xa1'])
+    expect(result.eligible).toEqual([])
+    // stays fail-closed for the mutation path
+    expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xa1'])
   })
 })
