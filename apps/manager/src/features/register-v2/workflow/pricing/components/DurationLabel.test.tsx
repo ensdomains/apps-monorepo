@@ -10,11 +10,7 @@ i18n.loadAndActivate({ locale: 'en', messages: {} })
 describe('DurationLabel', () => {
   it('renders 1 year 1 day for the day after a calendar-year anniversary', () => {
     const referenceDate = new Date('2026-07-29T18:00:00.000Z')
-    const duration = Math.round(
-      (new Date('2027-07-30T00:00:00.000Z').getTime() -
-        referenceDate.getTime()) /
-        1000,
-    )
+    const duration = 366 * 86_400
 
     render(
       <I18nProvider i18n={i18n}>
@@ -28,11 +24,7 @@ describe('DurationLabel', () => {
 
   it('renders 4 weeks 2 days for short manual renewals from a non-midnight expiry', () => {
     const referenceDate = new Date('2029-10-31T18:00:00.000Z')
-    const duration = Math.round(
-      (new Date('2029-11-30T00:00:00.000Z').getTime() -
-        referenceDate.getTime()) /
-        1000,
-    )
+    const duration = 30 * 86_400
 
     render(
       <I18nProvider i18n={i18n}>

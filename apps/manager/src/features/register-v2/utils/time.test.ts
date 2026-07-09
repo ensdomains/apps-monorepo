@@ -58,11 +58,7 @@ describe('register-v2 time utils', () => {
 
     it('still recognizes a manual selection on the same calendar anniversary as whole years for labels', () => {
       const referenceDate = new Date('2026-07-29T18:00:00.000Z')
-      const manualDuration = Math.round(
-        (new Date('2027-07-29T00:00:00.000Z').getTime() -
-          referenceDate.getTime()) /
-          1000,
-      )
+      const manualDuration = 365 * 86_400
 
       expect(
         getCanonicalDurationYears(manualDuration, referenceDate),
@@ -80,11 +76,7 @@ describe('register-v2 time utils', () => {
 
     it('shows one extra calendar day when a user picks the day after a one-year anniversary', () => {
       const referenceDate = new Date('2026-07-29T18:00:00.000Z')
-      const manualDuration = Math.round(
-        (new Date('2027-07-30T00:00:00.000Z').getTime() -
-          referenceDate.getTime()) /
-          1000,
-      )
+      const manualDuration = 366 * 86_400
 
       expect(getDurationDisplayParts(manualDuration, referenceDate)).toEqual({
         years: 1,
@@ -96,11 +88,19 @@ describe('register-v2 time utils', () => {
 
     it('uses calendar-day math for short manual durations with a non-midnight reference', () => {
       const referenceDate = new Date('2029-10-31T18:00:00.000Z')
-      const manualDuration = Math.round(
-        (new Date('2029-11-30T00:00:00.000Z').getTime() -
-          referenceDate.getTime()) /
-          1000,
-      )
+      const manualDuration = 30 * 86_400
+
+      expect(getDurationDisplayParts(manualDuration, referenceDate)).toEqual({
+        years: 0,
+        months: 0,
+        weeks: 4,
+        days: 2,
+      })
+    })
+
+    it('does not overcount years when a short duration crosses a calendar year boundary', () => {
+      const referenceDate = new Date('2026-12-31T18:00:00.000Z')
+      const manualDuration = 30 * 86_400
 
       expect(getDurationDisplayParts(manualDuration, referenceDate)).toEqual({
         years: 0,

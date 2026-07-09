@@ -98,10 +98,15 @@ export const getDurationDisplayParts = (
   const normalizedExpiryDate = getStartOfDay(
     getDurationExpiryDateForDisplay(duration, referenceDate),
   )
-  const years = Math.max(
+  const rawYears = Math.max(
     0,
     differenceInCalendarYears(normalizedExpiryDate, normalizedReferenceDate),
   )
+  const years =
+    addYears(normalizedReferenceDate, rawYears).getTime() >
+    normalizedExpiryDate.getTime()
+      ? rawYears - 1
+      : rawYears
   const remainingDays = differenceInCalendarDays(
     normalizedExpiryDate,
     addYears(normalizedReferenceDate, years),
