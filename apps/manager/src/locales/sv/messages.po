@@ -490,10 +490,6 @@ msgstr ""
 msgid "Coming Soon"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx
-msgid "Commemorative NFT"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Commit-reveal prevents front-running"
 msgstr ""
@@ -691,8 +687,8 @@ msgstr ""
 msgid "Custom duration in years"
 msgstr ""
 
-#: src/features/migration/components/MigrationModal.tsx
-msgid "Custom Profiles"
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Custom profiles"
 msgstr ""
 
 #: src/features/landing/ProfilesShowcase.tsx
@@ -838,10 +834,6 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "ENS names can be up to 255 characters"
-msgstr ""
-
-#: src/features/migration/components/MigrationModal.tsx
-msgid "ENS v2 Names"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -1159,6 +1151,10 @@ msgstr ""
 msgid "Keep ownership in a cold wallet (a wallet you do not use every day). Then use a hot wallet (your daily wallet) to manage records and use the name."
 msgstr "Behåll ägandet i en kall plånbok (en plånbok du inte använder varje dag). Använd sedan en varm plånbok (din dagliga plånbok) för att hantera poster och använda namnet."
 
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Keep your names safe with notifications"
+msgstr ""
+
 #: src/features/navigation/Header/account/LanguageSection.tsx
 msgid "Language"
 msgstr "Språk"
@@ -1222,8 +1218,8 @@ msgstr ""
 msgid "Makes crypto addresses human-readable"
 msgstr ""
 
-#: src/features/weave-registration/lib/weaveSteps.ts
-msgid "Making your name work everywhere"
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Manage everything in one place"
 msgstr ""
 
 #: src/features/notifications/inbox/list.tsx
@@ -1256,6 +1252,10 @@ msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Migration failed"
+msgstr ""
+
+#: src/features/migration/components/value-props/MigrationValuePropsCarousel.tsx
+msgid "Migration value propositions"
 msgstr ""
 
 #: src/features/payment/components/add.tsx
@@ -1320,10 +1320,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
-msgstr ""
-
-#: src/features/migration/components/MigrationModal.tsx
-msgid "New Experience"
 msgstr ""
 
 #: src/features/dashboard/components/EducationCarousel.tsx
@@ -1520,12 +1516,8 @@ msgstr ""
 msgid "Permission missing. Please try again."
 msgstr ""
 
-#: src/features/weave-registration/lib/weaveSteps.ts
-msgid "Placing your new identity in your wallet"
-msgstr ""
-
-#: src/features/weave-registration/lib/weaveSteps.ts
-msgid "Planting your name in the infinite garden"
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Personalized NFT"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
@@ -2119,11 +2111,6 @@ msgstr ""
 msgid "Skipping SIWE verification means you won't get notifications about your domains or be able to save favorites while browsing."
 msgstr ""
 
-#. placeholder {0}: i + 1
-#: src/features/migration/components/MigrationModal.tsx
-msgid "Slide {0}"
-msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart Account"
 msgstr ""
@@ -2349,6 +2336,10 @@ msgstr ""
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Total Paid"
+msgstr ""
+
+#: src/features/migration/components/value-props/migrationValueProps.ts
+msgid "Track your favorite names"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
