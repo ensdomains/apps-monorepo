@@ -6,12 +6,12 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
-import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { isBackendAuthed } from '@/utils/backend-client'
 import type { SortDir, SortField } from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
+import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
 import {
   FavoritesList,
@@ -68,12 +68,12 @@ export const NamesTable = ({
     enabled: isAuthed,
   })
 
-  const { eligible: eligibleV1Names } = useEligibleV1Names({
-    enabled: migrationEnabled,
+  const { v1Names } = useDashboardV1Names({
+    migrationEnabled,
   })
 
   const favoritesCount = favorites.length
-  const ownedCount = v2Names.length + eligibleV1Names.length
+  const ownedCount = v2Names.length + v1Names.length
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),

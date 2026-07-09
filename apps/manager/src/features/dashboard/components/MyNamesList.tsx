@@ -10,12 +10,12 @@ import {
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
-import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '@/features/profile/service/profileRecords'
 import { tw } from '@/utils/tailwind'
+import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
 import { NameRow } from './NameRow'
@@ -83,6 +83,7 @@ const AnimatedNameRow = ({
     isPrimary,
     isInGrace,
     expiryCta,
+    isMigrationEligible,
   } = metadata
   const profilePreview = getNameRowProfilePreview({
     label,
@@ -109,7 +110,7 @@ const AnimatedNameRow = ({
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
-        cta={isV1 ? null : expiryCta}
+        cta={isV1 ? (isMigrationEligible ? null : 'manageExplorer') : expiryCta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
         isAuthenticated={isAuthenticated}
@@ -120,7 +121,9 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         showFavoriteButton
-        status={isV1 ? 'eligibleUpgrade' : null}
+        status={
+          isV1 ? (isMigrationEligible ? 'eligibleUpgrade' : 'ensv1Only') : null
+        }
         themeColor={profilePreview.themeColor}
         verified={isPrimary}
       />
@@ -148,13 +151,9 @@ export const MyNamesList = ({
     setPage(1)
   }
 
-  const { eligible: v1Classified, isPending: isV1Pending } = useEligibleV1Names(
-    { enabled: migrationEnabled },
-  )
-  const visibleV1Classified = useMemo(
-    () => (migrationEnabled ? v1Classified : []),
-    [migrationEnabled, v1Classified],
-  )
+  const { v1Names, isPending: isV1Pending } = useDashboardV1Names({
+    migrationEnabled,
+  })
 
   const {
     v2Names,
@@ -166,12 +165,12 @@ export const MyNamesList = ({
     () =>
       buildMergedNamesList({
         v2Names,
-        v1Classified: visibleV1Classified,
+        v1Classified: v1Names,
         searchQuery,
         sortField,
         sortDir,
       }),
-    [v2Names, visibleV1Classified, searchQuery, sortField, sortDir],
+    [v2Names, v1Names, searchQuery, sortField, sortDir],
   )
 
   const total = mergedSortedFiltered.length
@@ -184,7 +183,7 @@ export const MyNamesList = ({
   const rangeStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
-  const isPending = isV2Pending || (migrationEnabled && isV1Pending)
+  const isPending = isV2Pending || isV1Pending
   const hasPartialV2Error = isV2Error && v2Names.length > 0
   const pageRows = pageItems.map((item) => ({
     item,

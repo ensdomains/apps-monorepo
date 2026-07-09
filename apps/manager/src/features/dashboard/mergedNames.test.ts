@@ -276,6 +276,19 @@ describe('mergedRowMetadata', () => {
     expect(meta.daysUntilExpiry).toBe(10)
   })
 
+  it('labels zero expiry timestamps as non-expiring', () => {
+    const item = makeMergedV1({
+      sortName: 'pokemon.fgeorgescu.eth',
+      sortExpiry: 0,
+    })
+
+    const meta = mergedRowMetadata(item, null)
+
+    expect(meta.expiryDate).toBeNull()
+    expect(meta.formattedExpiryDate).toBe('Does not expire')
+    expect(meta.daysUntilExpiry).toBeNull()
+  })
+
   it('uses reminder CTA for names expiring more than 7 days out', () => {
     const tenDaysFromNow = Math.floor(
       new Date('2024-01-11T00:00:00Z').getTime() / 1000,

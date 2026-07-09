@@ -58,7 +58,7 @@ interface NameRowProps {
   readonly isInGrace?: boolean
 }
 
-const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
+const explorerUrl = (label: string) => `https://explorer.ens.dev/${label}`
 
 const namePillVariants = cva(
   'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',

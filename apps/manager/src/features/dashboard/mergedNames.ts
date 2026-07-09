@@ -5,11 +5,12 @@ import {
   getGraceEndDate,
   isInGracePeriod,
 } from '@/features/grace/utils/gracePeriod'
-import type { ClassifiedName } from '@/features/migration/service/classifyNames'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import {
   formatDashboardDate,
   getDaysUntil,
   isExpiringSoon,
+  NON_EXPIRING_DATE_LABEL,
   resolveDomainLabel,
   toDateFromSeconds,
 } from './utils'
@@ -29,8 +30,14 @@ export type MergedItem =
       readonly sortName: string
       readonly sortExpiry: number | null
       readonly sortCreated: number | null
-      readonly classified: ClassifiedName
+      readonly classified: DashboardV1Name
     }
+
+export type DashboardV1Name = {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly isMigrationEligible?: boolean
+}
 
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
@@ -38,7 +45,10 @@ export type ExpiryCta = 'renew' | 'remindMe'
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
 
-export const v1ExpirySeconds = (classified: ClassifiedName): number | null => {
+const getIsMigrationEligible = (item: MergedItem): boolean =>
+  item.kind === 'v1' && item.classified.isMigrationEligible === true
+
+export const v1ExpirySeconds = (classified: DashboardV1Name): number | null => {
   const raw =
     classified.domain.registration?.expiryDate ??
     classified.domain.wrappedDomain?.expiryDate ??
@@ -68,7 +78,7 @@ export const compareMerged = (
 
 export const buildMergedNamesList = (params: {
   v2Names: readonly DomainFragment[]
-  v1Classified: readonly ClassifiedName[]
+  v1Classified: readonly DashboardV1Name[]
   searchQuery: string
   sortField: SortField
   sortDir: SortDir
@@ -129,6 +139,7 @@ export type MergedRowMetadata = {
   readonly expiryCta: ExpiryCta | null
   readonly useDefaultAvatar: boolean
   readonly avatarUrl: string | undefined
+  readonly isMigrationEligible: boolean
 }
 
 export const mergedRowMetadata = (
@@ -138,13 +149,15 @@ export const mergedRowMetadata = (
   now: Date = new Date(),
 ): MergedRowMetadata => {
   const label = item.sortName
-  const expiryDate = toDateFromSeconds(item.sortExpiry)
+  const isNonExpiring = item.sortExpiry === 0
+  const expiryDate = isNonExpiring ? null : toDateFromSeconds(item.sortExpiry)
   const isV1 = item.kind === 'v1'
   const isV2 = !isV1
   const isInGrace = isInGracePeriod(expiryDate, isV2, now)
   const graceEndDate =
     expiryDate && isInGrace ? getGraceEndDate(expiryDate, isV2) : null
   const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, now)
+  const isMigrationEligible = getIsMigrationEligible(item)
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry =
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
@@ -171,7 +184,9 @@ export const mergedRowMetadata = (
     daysUntilExpiry,
     daysSinceExpiry,
     expiringSoon,
-    formattedExpiryDate: formatDashboardDate(displayExpiryDate),
+    formattedExpiryDate: isNonExpiring
+      ? NON_EXPIRING_DATE_LABEL
+      : formatDashboardDate(displayExpiryDate),
     isV1,
     isPrimary,
     isInGrace,
@@ -179,5 +194,6 @@ export const mergedRowMetadata = (
     expiryCta,
     useDefaultAvatar: isInGrace,
     avatarUrl,
+    isMigrationEligible,
   }
 }

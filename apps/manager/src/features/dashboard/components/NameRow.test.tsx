@@ -23,4 +23,26 @@ describe('NameRow', () => {
     expect(topRow?.firstElementChild).not.toContainElement(graceBadge)
     expect(topRow?.lastElementChild).toBe(graceBadge)
   })
+
+  it('links the manage explorer CTA to the ENS explorer app', () => {
+    const { getByText } = render(
+      <NameRow cta="manageExplorer" label="fgeorgescu.eth" />,
+    )
+
+    const link = getByText('Manage on explorer').closest('a')
+
+    expect(link).toHaveAttribute(
+      'href',
+      'https://explorer.ens.dev/fgeorgescu.eth',
+    )
+  })
+
+  it('shows non-expiring names without the expires-on prefix', () => {
+    const { getByText, queryByText } = render(
+      <NameRow expiryLabel="Does not expire" label="pokemon.fgeorgescu.eth" />,
+    )
+
+    expect(getByText('Does not expire')).toBeInTheDocument()
+    expect(queryByText('Expires on')).not.toBeInTheDocument()
+  })
 })
