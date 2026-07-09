@@ -38,6 +38,7 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
         data-link-pattern-id={pattern.patternId}
         data-link-pattern-palette-id={pattern.paletteId}
         data-link-pattern-variant={pattern.variant}
+        data-testid="link-pattern-panel"
         style={{
           backgroundImage: pattern.backgroundImage,
           backgroundPosition: 'left top',

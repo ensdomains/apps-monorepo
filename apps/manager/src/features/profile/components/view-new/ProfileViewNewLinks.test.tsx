@@ -1,11 +1,11 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { newEmptyProfileRecords } from '@/features/profile/utils/transformRecords'
 import { render } from '@/utils/test-utils'
 import { ProfileLinksSection } from './ProfileViewNewLinks'
 
 const getLinkPatternPanel = (link: HTMLElement) =>
-  link.querySelector('[data-link-pattern-id]') as HTMLElement | null
+  within(link).getByTestId('link-pattern-panel')
 
 describe('ProfileLinksSection', () => {
   it('does not render placeholder cards when there are no links', () => {
@@ -42,12 +42,8 @@ describe('ProfileLinksSection', () => {
       backgroundRepeat: 'repeat',
       backgroundSize: '80px 80px',
     })
-    expect((patternPanel as HTMLElement).style.backgroundImage).toContain(
-      'data:image/svg+xml',
-    )
-    expect((patternPanel as HTMLElement).style.backgroundImage).not.toContain(
-      'link-pattern',
-    )
+    expect(patternPanel.style.backgroundImage).toContain('data:image/svg+xml')
+    expect(patternPanel.style.backgroundImage).not.toContain('link-pattern')
     expect(patternPanel).toHaveAttribute('data-link-pattern-palette-id')
     expect(firstLink.querySelector('img')).not.toBeInTheDocument()
     expect(firstLink.querySelector('.lucide-link')).not.toBeInTheDocument()
@@ -71,11 +67,11 @@ describe('ProfileLinksSection', () => {
     const firstPatternPanel = getLinkPatternPanel(
       screen.getByRole('link', { name: /Same URL/ }),
     )
-    const firstPattern = firstPatternPanel?.style.backgroundImage
-    const firstPatternId = firstPatternPanel?.getAttribute(
+    const firstPattern = firstPatternPanel.style.backgroundImage
+    const firstPatternId = firstPatternPanel.getAttribute(
       'data-link-pattern-id',
     )
-    const firstPaletteId = firstPatternPanel?.getAttribute(
+    const firstPaletteId = firstPatternPanel.getAttribute(
       'data-link-pattern-palette-id',
     )
     first.unmount()
@@ -96,12 +92,12 @@ describe('ProfileLinksSection', () => {
       screen.getByRole('link', { name: /Same URL/ }),
     )
 
-    expect(secondPatternPanel?.style.backgroundImage).toBe(firstPattern)
-    expect(secondPatternPanel?.getAttribute('data-link-pattern-id')).toBe(
+    expect(secondPatternPanel.style.backgroundImage).toBe(firstPattern)
+    expect(secondPatternPanel.getAttribute('data-link-pattern-id')).toBe(
       firstPatternId,
     )
     expect(
-      secondPatternPanel?.getAttribute('data-link-pattern-palette-id'),
+      secondPatternPanel.getAttribute('data-link-pattern-palette-id'),
     ).toBe(firstPaletteId)
   })
 
@@ -125,11 +121,11 @@ describe('ProfileLinksSection', () => {
       screen.getByRole('link', { name: /Hey/ }),
     )
 
-    expect(githubPatternPanel?.style.backgroundImage).not.toBe(
-      heyPatternPanel?.style.backgroundImage,
+    expect(githubPatternPanel.style.backgroundImage).not.toBe(
+      heyPatternPanel.style.backgroundImage,
     )
-    expect(githubPatternPanel?.getAttribute('data-link-pattern-id')).not.toBe(
-      heyPatternPanel?.getAttribute('data-link-pattern-id'),
+    expect(githubPatternPanel.getAttribute('data-link-pattern-id')).not.toBe(
+      heyPatternPanel.getAttribute('data-link-pattern-id'),
     )
   })
 })
