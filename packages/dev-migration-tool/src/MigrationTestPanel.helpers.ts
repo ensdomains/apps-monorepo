@@ -82,7 +82,6 @@ export const ALL_CHILD_FUSES =
 
 // --- Storage keys -----------------------------------------------------------
 export const POSITION_STORAGE_KEY = 'ens:migration-tool:pos'
-export const NAMES_STORAGE_KEY = 'ens:migration-tool:v1-names'
 
 // --- Types ------------------------------------------------------------------
 export type PresetType =
@@ -668,9 +667,28 @@ export async function ensureNamesOnAnvil(
 
 // --- localStorage helpers ---------------------------------------------------
 
+// Panel-created names are persisted in a COOKIE rather than localStorage so the
+// list is shared across the portal (:3001) and manager (:3000) dev servers —
+// cookies are scoped by host, not port, whereas localStorage is per-origin.
+// This lets the subgraph mock in one app inject names created in the other,
+// which is required for the manager migration list to see portal-created names.
+// Cookie-safe name (no colons — those are separators the cookie grammar
+// disallows in a name, even though some browsers tolerate them).
+const NAMES_COOKIE_NAME = 'ens_migration_tool_v1_names'
+const NAMES_COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
+
+function readNamesCookie(): string | null {
+  const prefix = `${NAMES_COOKIE_NAME}=`
+  for (const part of document.cookie.split('; ')) {
+    if (part.startsWith(prefix))
+      return decodeURIComponent(part.slice(prefix.length))
+  }
+  return null
+}
+
 export function readStoredNames(): ActiveName[] {
   try {
-    const raw = localStorage.getItem(NAMES_STORAGE_KEY)
+    const raw = readNamesCookie()
     if (!raw) return []
     return JSON.parse(raw) as ActiveName[]
   } catch {
@@ -680,7 +698,10 @@ export function readStoredNames(): ActiveName[] {
 
 export function writeStoredNames(names: ActiveName[]): void {
   try {
-    localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify(names))
+    // No domain attribute → defaults to the current host (localhost), shared
+    // across ports. SameSite=Lax keeps it same-site only.
+    const value = encodeURIComponent(JSON.stringify(names))
+    document.cookie = `${NAMES_COOKIE_NAME}=${value}; path=/; max-age=${NAMES_COOKIE_MAX_AGE}; SameSite=Lax`
   } catch {
     /* storage disabled */
   }
