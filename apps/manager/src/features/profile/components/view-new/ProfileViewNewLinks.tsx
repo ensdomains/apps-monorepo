@@ -1,36 +1,89 @@
 import { Trans } from '@lingui/react/macro'
-import { ExternalLink, Link as LinkIcon } from 'lucide-react'
+import { ExternalLink } from 'lucide-react'
+import linkPatternCitrineSrc from '@/assets/profile/link-pattern-citrine.png'
+import linkPatternGarnetSrc from '@/assets/profile/link-pattern-garnet.png'
+import linkPatternPeridotSrc from '@/assets/profile/link-pattern-peridot.png'
 import type { ProfileRecords } from '@/features/profile/types'
+import { cn } from '@/lib/utils'
 import {
   getSafeProfileLinks,
   type SafeProfileLink,
 } from './ProfileViewNew.helpers'
-import { ProfileCard, valueClassName } from './ProfileViewNewCard'
+import {
+  cardSurfaceClassName,
+  ProfileCard,
+  profileCardTrailingIconStrokeWidth,
+  valueClassName,
+} from './ProfileViewNewCard'
 
-const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => (
-  <a
-    className="group flex h-51.25 min-w-0 flex-col overflow-hidden rounded-[14px] border-[0.692px] border-[rgba(199,198,196,0.25)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.06)] transition hover:bg-ens-quartz-50 lg:landscape:rounded-xl lg:landscape:border-[#C7C6C4] lg:landscape:border-[0.25px]"
-    href={link.href}
-    rel="noopener noreferrer"
-    target="_blank"
-    title={link.href}
-  >
-    <div className="flex h-30 shrink-0 items-center justify-center bg-(--theme-bg)">
-      <div className="flex size-14 items-center justify-center rounded-xl bg-white/80 text-(--theme-color) shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-        <LinkIcon className="size-6" strokeWidth={1.8} />
-      </div>
-    </div>
-    <div className="min-w-0 px-6 py-5">
-      <div className="truncate text-ens-quartz-900 text-sm leading-normal">
-        {link.name}
-      </div>
-      <div className="mt-1 flex min-w-0 items-center gap-1 text-ens-quartz-500">
-        <span className={`${valueClassName} truncate`}>{link.displayHost}</span>
-        <ExternalLink className="size-4 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-      </div>
-    </div>
-  </a>
+const linkPreviewClassName = cn(
+  cardSurfaceClassName,
+  'group flex h-51.25 min-w-0 flex-col overflow-hidden p-0 text-left',
 )
+const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
+
+type LinkPreviewPatternVariant = {
+  readonly sourceId: string
+  readonly src: string
+}
+
+const linkPreviewPatternVariants = [
+  { sourceId: '3749:29667', src: linkPatternPeridotSrc },
+  { sourceId: '3749:35715', src: linkPatternGarnetSrc },
+  { sourceId: '3749:30577', src: linkPatternCitrineSrc },
+] satisfies readonly [LinkPreviewPatternVariant, ...LinkPreviewPatternVariant[]]
+
+const getLinkPreviewPatternVariant = (
+  index: number,
+): LinkPreviewPatternVariant =>
+  linkPreviewPatternVariants[index % linkPreviewPatternVariants.length] ??
+  linkPreviewPatternVariants[0]
+
+const LinkPreview = ({
+  index,
+  link,
+}: {
+  readonly index: number
+  readonly link: SafeProfileLink
+}) => {
+  const pattern = getLinkPreviewPatternVariant(index)
+
+  return (
+    <a
+      className={linkPreviewClassName}
+      href={link.href}
+      rel="noopener noreferrer"
+      target="_blank"
+      title={link.href}
+    >
+      <div
+        aria-hidden="true"
+        className={linkPreviewPanelClassName}
+        data-figma-pattern-source-id={pattern.sourceId}
+        style={{
+          backgroundImage: `url(${pattern.src})`,
+          backgroundPosition: 'left top',
+          backgroundRepeat: 'repeat',
+          backgroundSize: '80px 80px',
+        }}
+      />
+      <div className="min-w-0 px-6 py-5">
+        <div className="truncate text-ens-quartz-900 text-sm leading-normal">
+          {link.name}
+        </div>
+        <div className="mt-1 flex min-w-0 items-center gap-1 text-ens-quartz-500">
+          <span className={`${valueClassName} truncate`}>
+            {link.displayHost}
+          </span>
+          <ExternalLink
+            className="size-4 shrink-0 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            strokeWidth={profileCardTrailingIconStrokeWidth}
+          />
+        </div>
+      </div>
+    </a>
+  )
+}
 
 export const ProfileLinksSection = ({
   records,
@@ -43,8 +96,12 @@ export const ProfileLinksSection = ({
   return (
     <ProfileCard title={<Trans>Links</Trans>}>
       <div className="grid gap-4 lg:landscape:grid-cols-3 lg:landscape:gap-6">
-        {links.map((link) => (
-          <LinkPreview key={`${link.name}-${link.href}`} link={link} />
+        {links.map((link, index) => (
+          <LinkPreview
+            index={index}
+            key={`${link.name}-${link.href}`}
+            link={link}
+          />
         ))}
       </div>
     </ProfileCard>
