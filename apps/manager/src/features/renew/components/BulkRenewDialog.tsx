@@ -242,8 +242,8 @@ export const BulkRenewDialog = ({
                 className={cn(
                   'flex items-center justify-between gap-3 rounded-lg border bg-ens-quartz-50 px-4 py-3 text-left transition-colors',
                   isSelected
-                    ? 'border-ens-lapis-core'
-                    : 'border-transparent hover:border-ens-quartz-250',
+                    ? 'border-ens-lapis-900'
+                    : 'border-ens-quartz-200 hover:border-ens-lapis-900',
                 )}
                 key={preset.years}
                 onClick={() =>
@@ -343,8 +343,7 @@ export const BulkRenewDialog = ({
           </Popover>
         </div>
 
-        {/* Per-name breakdown */}
-        <div className="flex flex-col gap-0 overflow-y-auto rounded-lg border border-ens-quartz-150">
+        <div className="flex max-h-[280px] flex-col gap-0 overflow-y-auto rounded-lg border border-ens-quartz-150">
           {names.map((n, i) => {
             const preview = getNameRowProfilePreview({
               label: n.label,
@@ -404,7 +403,6 @@ export const BulkRenewDialog = ({
           })}
         </div>
 
-        {/* Total */}
         <div className="flex items-center justify-between">
           <span className="font-sans text-ens-quartz-900 text-lg">
             <Trans>Total:</Trans>
