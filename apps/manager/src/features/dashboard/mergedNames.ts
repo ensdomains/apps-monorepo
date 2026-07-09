@@ -69,6 +69,18 @@ const formatMergedExpiryDate = (
     ? NON_EXPIRING_DATE_LABEL
     : formatDashboardDate(displayExpiryDate)
 
+const normalizeMergedName = (name: string | null | undefined): string | null =>
+  name ? name.toLowerCase() : null
+
+const getV2NameSet = (
+  v2Names: readonly DashboardV2Name[],
+): ReadonlySet<string> =>
+  new Set(
+    v2Names
+      .map((domain) => normalizeMergedName(resolveDomainLabel(domain)))
+      .filter((name): name is string => !!name),
+  )
+
 export const v1ExpirySeconds = (classified: DashboardV1Name): number | null => {
   const raw =
     classified.domain.registration?.expiryDate ??
@@ -109,6 +121,7 @@ export const buildMergedNamesList = (params: {
   const { v2Names, v1Classified, searchQuery, sortField, sortDir } = params
   const q = searchQuery.trim().toLowerCase()
   const items: MergedItem[] = []
+  const v2NameSet = getV2NameSet(v2Names)
 
   for (const domain of v2Names) {
     const label = resolveDomainLabel(domain)
@@ -125,6 +138,7 @@ export const buildMergedNamesList = (params: {
 
   for (const classified of v1Classified) {
     const label = classified.domain.name
+    if (v2NameSet.has(label.toLowerCase())) continue
     if (
       q &&
       !label.toLowerCase().includes(q) &&
@@ -144,6 +158,18 @@ export const buildMergedNamesList = (params: {
 
   items.sort((a, b) => compareMerged(a, b, sortField, sortDir))
   return items
+}
+
+export const getMergedNamesCount = (params: {
+  v2Names: readonly DashboardV2Name[]
+  v1Classified: readonly DashboardV1Name[]
+}): number => {
+  const v2NameSet = getV2NameSet(params.v2Names)
+  const v1OnlyCount = params.v1Classified.filter(
+    (classified) => !v2NameSet.has(classified.domain.name.toLowerCase()),
+  ).length
+
+  return params.v2Names.length + v1OnlyCount
 }
 
 export type MergedRowMetadata = {

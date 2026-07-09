@@ -36,6 +36,17 @@ export const getProfileNameExpiryStatus = (
 ): NameExpiryStatus =>
   getNameExpiryStatus(profileExpiryDateFromSeconds(expirySeconds), isV2)
 
+export type ProfileExpiryResult = {
+  readonly expiry: bigint | null
+  readonly isNonExpiring: boolean
+  readonly protocol: 'v1' | 'v2'
+}
+
+export const getProfileExpiryResultStatus = (
+  expiry: ProfileExpiryResult | null | undefined,
+): NameExpiryStatus =>
+  getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol !== 'v1')
+
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
   cause:
     | GetV1ExpiryErrorType
@@ -48,17 +59,48 @@ const ENS_REGISTRY = getChainContractAddress({
   contract: 'ensRegistry',
 })
 
-const normalizeV1Expiry = (expiry: GetV1ExpiryReturnType): bigint | null =>
-  expiry?.expiry === 0n ? null : (expiry?.expiry ?? null)
+const normalizeV1Expiry = (
+  expiry: GetV1ExpiryReturnType,
+): ProfileExpiryResult => {
+  if (expiry?.expiry === 0n) {
+    return { expiry: null, isNonExpiring: true, protocol: 'v1' }
+  }
+
+  return {
+    expiry: expiry?.expiry ?? null,
+    isNonExpiring: false,
+    protocol: 'v1',
+  }
+}
 
 export const getExpiry = ResultFn(async function* (name: string) {
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {
-    return ok({ expiry: null })
+    return ok({
+      expiry: null,
+      isNonExpiring: false,
+      protocol: 'v2',
+    } satisfies ProfileExpiryResult)
   }
 
   const client = yield* safeGetClient()
+
+  const expiry = yield* fromPromise(
+    ensjsv2_getExpiry(client, {
+      name: ethName.name,
+      registryAddress: ENS_REGISTRY,
+    }),
+    (e) => new GetProfileExpiryError({ cause: e as GetV2ExpiryErrorType }),
+  )
+
+  if (expiry !== 0n) {
+    return ok({
+      expiry,
+      isNonExpiring: false,
+      protocol: 'v2',
+    } satisfies ProfileExpiryResult)
+  }
 
   const registrationDate = yield* fromPromise(
     ensjsv2_getRegistrationDate(client, {
@@ -80,22 +122,14 @@ export const getExpiry = ResultFn(async function* (name: string) {
         }),
     )
 
-    return ok({ expiry: normalizeV1Expiry(v1Expiry) })
+    return ok(normalizeV1Expiry(v1Expiry))
   }
 
-  const expiry = yield* fromPromise(
-    ensjsv2_getExpiry(client, {
-      name: ethName.name,
-      registryAddress: ENS_REGISTRY,
-    }),
-    (e) => new GetProfileExpiryError({ cause: e as GetV2ExpiryErrorType }),
-  )
-
-  if (expiry === 0n) {
-    return ok({ expiry: null })
-  }
-
-  return ok({ expiry })
+  return ok({
+    expiry: null,
+    isNonExpiring: true,
+    protocol: 'v2',
+  } satisfies ProfileExpiryResult)
 })
 
 export const profileExpiryQuery = (name: string) =>

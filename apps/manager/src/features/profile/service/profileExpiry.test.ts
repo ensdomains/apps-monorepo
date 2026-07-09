@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   client: {},
@@ -23,16 +23,20 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   }
 })
 
-import { getExpiry } from './profileExpiry'
+import { getExpiry, getProfileExpiryResultStatus } from './profileExpiry'
 
 describe('getExpiry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.getV2Expiry.mockResolvedValue(0n)
+    mocks.getV2RegistrationDate.mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('uses V1 registrar expiry when V2 has no registration date', async () => {
-    mocks.getV2RegistrationDate.mockResolvedValue(null)
-    mocks.getV2Expiry.mockResolvedValue(1_801_218_936n)
     mocks.getV1Expiry.mockResolvedValue({
       expiry: 1_793_442_936n,
       gracePeriod: 7_776_000,
@@ -42,10 +46,60 @@ describe('getExpiry', () => {
     const result = await getExpiry('fgeorgescu.eth')
 
     expect(result.isOk()).toBe(true)
-    expect(result._unsafeUnwrap()).toEqual({ expiry: 1_793_442_936n })
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: 1_793_442_936n,
+      isNonExpiring: false,
+      protocol: 'v1',
+    })
     expect(mocks.getV1Expiry).toHaveBeenCalledWith(mocks.client, {
       name: 'fgeorgescu.eth',
     })
-    expect(mocks.getV2Expiry).not.toHaveBeenCalled()
+  })
+
+  it('returns V2 expiry without probing registration date when V2 expiry exists', async () => {
+    mocks.getV2Expiry.mockResolvedValue(1_801_218_936n)
+
+    const result = await getExpiry('fgeorgescu.eth')
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: 1_801_218_936n,
+      isNonExpiring: false,
+      protocol: 'v2',
+    })
+    expect(mocks.getV2RegistrationDate).not.toHaveBeenCalled()
+    expect(mocks.getV1Expiry).not.toHaveBeenCalled()
+  })
+
+  it('preserves non-expiring V1 fallback state', async () => {
+    mocks.getV1Expiry.mockResolvedValue({
+      expiry: 0n,
+      gracePeriod: 7_776_000,
+      status: 'active',
+    })
+
+    const result = await getExpiry('pokemon.eth')
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual({
+      expiry: null,
+      isNonExpiring: true,
+      protocol: 'v1',
+    })
+  })
+
+  it('uses V1 grace rules for V1 fallback expiry results', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2024-02-15T00:00:00Z'))
+
+    const status = getProfileExpiryResultStatus({
+      expiry: BigInt(
+        Math.floor(new Date('2024-01-01T00:00:00Z').getTime() / 1000),
+      ),
+      isNonExpiring: false,
+      protocol: 'v1',
+    })
+
+    expect(status.isInGrace).toBe(true)
   })
 })

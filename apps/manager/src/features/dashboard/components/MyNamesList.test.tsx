@@ -213,4 +213,53 @@ describe('MyNamesList', () => {
     expect(row).toHaveTextContent('alaska.eth')
     expect(row.dataset.roles).toBe('owner,manager')
   })
+
+  it('shows an error when V1 names fail and no other names are available', () => {
+    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
+      v1Names: [],
+      isPending: false,
+      isError: true,
+    })
+
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        migrationEnabled={false}
+        onToggleFavorite={() => undefined}
+        sort="name-asc"
+      />,
+    )
+
+    expect(screen.getByText('Error loading names')).toBeInTheDocument()
+    expect(screen.queryByText('No names to display')).not.toBeInTheDocument()
+  })
+
+  it('shows a partial error when V1 names fail but V2 names are available', () => {
+    ownedDomainsMock.useOwnedDomains.mockReturnValue({
+      v2Names: [makeV2Domain({ id: '0xalaska', name: 'alaska.eth' })],
+      isPending: false,
+      isError: false,
+    })
+    dashboardV1NamesMock.useDashboardV1Names.mockReturnValue({
+      v1Names: [],
+      isPending: false,
+      isError: true,
+    })
+
+    render(
+      <MyNamesList
+        favoriteLabels={new Set()}
+        isAuthenticated
+        migrationEnabled={false}
+        onToggleFavorite={() => undefined}
+        sort="name-asc"
+      />,
+    )
+
+    expect(
+      screen.getByText('Some names could not be loaded'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('alaska.eth')).toBeInTheDocument()
+  })
 })

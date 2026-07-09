@@ -65,4 +65,12 @@ describe('NameRow', () => {
     expect(getByText('Does not expire')).toBeInTheDocument()
     expect(queryByText('Expires on')).not.toBeInTheDocument()
   })
+
+  it('does not render the renew menu item when the name cannot be renewed', () => {
+    const { queryByText } = render(
+      <NameRow canRenew={false} label="pokemon.fgeorgescu.eth" />,
+    )
+
+    expect(queryByText('Renew name')).not.toBeInTheDocument()
+  })
 })

@@ -82,8 +82,8 @@ export const getRegistration = ResultFn(async function* (name: string) {
     const nameHistory = yield* fromPromise(
       ensjs_getNameHistory(client, {
         name: ethName.name,
-        orderDirection: 'asc',
-        first: 1,
+        orderDirection: 'desc',
+        first: 25,
       }),
       (e) =>
         new GetProfileRegistrationError({

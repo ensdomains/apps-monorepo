@@ -4,6 +4,7 @@ import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
   buildMergedNamesList,
   compareMerged,
+  getMergedNamesCount,
   type MergedItem,
   mergedRowMetadata,
   v1ExpirySeconds,
@@ -211,6 +212,33 @@ describe('buildMergedNamesList', () => {
       sortDir: 'asc',
     })
     expect(items.map((i) => i.sortExpiry)).toEqual([50, 100, 200, null])
+  })
+
+  it('prefers the v2 row when the same name exists in v1 and v2', () => {
+    const items = buildMergedNamesList({
+      v2Names: [makeV2({ id: '0xv2', name: 'migrated.eth' })],
+      v1Classified: [
+        makeV1({ id: '0xv1', name: 'MIGRATED.eth', label: 'MIGRATED' }),
+      ],
+      searchQuery: '',
+      sortField: 'name',
+      sortDir: 'asc',
+    })
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.kind).toBe('v2')
+  })
+
+  it('counts merged names without double-counting v1 names that exist in v2', () => {
+    expect(
+      getMergedNamesCount({
+        v2Names: [makeV2({ id: '0xv2', name: 'migrated.eth' })],
+        v1Classified: [
+          makeV1({ id: '0xv1', name: 'migrated.eth', label: 'migrated' }),
+          makeV1({ id: '0xv1-only', name: 'v1-only.eth', label: 'v1-only' }),
+        ],
+      }),
+    ).toBe(2)
   })
 
   it('sorts by created date desc with unknowns last', () => {

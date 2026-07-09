@@ -7,7 +7,11 @@ import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { isBackendAuthed } from '@/utils/backend-client'
-import type { SortDir, SortField } from '../mergedNames'
+import {
+  getMergedNamesCount,
+  type SortDir,
+  type SortField,
+} from '../mergedNames'
 import { addFavoriteMutationOptions } from '../service/mutations/addFavorite'
 import { removeFavoriteMutationOptions } from '../service/mutations/removeFavorite'
 import { favoritesQueryOptions } from '../service/queries/getFavorites'
@@ -68,12 +72,14 @@ export const NamesTable = ({
     enabled: isAuthed,
   })
 
-  const { v1Names } = useDashboardV1Names({
+  const { v1Names, isError: isV1Error } = useDashboardV1Names({
     migrationEnabled,
   })
 
   const favoritesCount = favorites.length
-  const ownedCount = v2Names.length + v1Names.length
+  const ownedCount = isV1Error
+    ? undefined
+    : getMergedNamesCount({ v2Names, v1Classified: v1Names })
 
   const favoriteLabels = useMemo(
     () => new Set(favorites.map((entry) => entry.name.toLowerCase())),

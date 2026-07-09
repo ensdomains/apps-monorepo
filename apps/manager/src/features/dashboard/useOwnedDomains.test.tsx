@@ -98,4 +98,24 @@ describe('useOwnedDomains', () => {
       '0x0000000000000000000000000000000000000002',
     ])
   })
+
+  it('surfaces role assignment query failures as dashboard errors', () => {
+    reactQueryMock.useInfiniteQuery.mockReturnValue({
+      data: [makeDomain()],
+      isPending: false,
+      isError: false,
+      fetchNextPage: vi.fn(),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+    })
+    reactQueryMock.useQuery.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: true,
+    })
+
+    const { result } = renderHook(() => useOwnedDomains())
+
+    expect(result.current.isError).toBe(true)
+  })
 })

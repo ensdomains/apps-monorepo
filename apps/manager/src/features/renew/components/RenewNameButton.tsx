@@ -19,7 +19,7 @@ export const RenewNameButton = ({ isOwner, name }: RenewNameButtonProps) => {
   })
   const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
 
-  if (!canRenewV2Name(name, expiryDate)) {
+  if (expiryData?.protocol !== 'v2' || !canRenewV2Name(name, expiryDate)) {
     return null
   }
 

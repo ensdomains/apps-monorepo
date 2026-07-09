@@ -53,11 +53,42 @@ describe('getRegistration', () => {
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_761_906_936 })
     expect(mocks.getNameHistory).toHaveBeenCalledWith(mocks.client, {
       name: 'fgeorgescu.eth',
-      orderDirection: 'asc',
-      first: 1,
+      orderDirection: 'desc',
+      first: 25,
     })
     expect(mocks.getBlock).toHaveBeenCalledWith(mocks.client, {
       blockNumber: 9529458n,
+    })
+  })
+
+  it('uses the latest V1 registration event when history contains older registrations', async () => {
+    mocks.getRegistrationDate.mockResolvedValue(null)
+    mocks.getNameHistory.mockResolvedValue({
+      domainEvents: [],
+      registrationEvents: [
+        {
+          blockNumber: 20,
+          type: 'NameRenewed',
+        },
+        {
+          blockNumber: 15,
+          type: 'NameRegistered',
+        },
+        {
+          blockNumber: 5,
+          type: 'NameRegistered',
+        },
+      ],
+      resolverEvents: [],
+    })
+    mocks.getBlock.mockResolvedValue({ timestamp: 1_800_000_000n })
+
+    const result = await getRegistration('fgeorgescu.eth')
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
+    expect(mocks.getBlock).toHaveBeenCalledWith(mocks.client, {
+      blockNumber: 15n,
     })
   })
 })

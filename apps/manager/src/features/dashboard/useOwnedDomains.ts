@@ -75,7 +75,7 @@ export const useOwnedDomains = () => {
     v2Names,
     hasOwnerAddresses,
     isPending: (isPending && hasOwnerAddresses) || isRoleAssignmentsPending,
-    isError,
+    isError: isError || roleAssignmentsQuery.isError === true,
     isAllPagesLoaded,
   }
 }

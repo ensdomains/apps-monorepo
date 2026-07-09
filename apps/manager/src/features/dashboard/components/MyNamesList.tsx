@@ -11,6 +11,7 @@ import {
   type SortDir,
   type SortField,
 } from '@/features/dashboard/mergedNames'
+import { isRenewableV2EthName } from '@/features/grace/utils/gracePeriod'
 import {
   type ProfileRecordsResult,
   profileRecordsQuery,
@@ -139,6 +140,7 @@ const AnimatedNameRow = ({
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
+        canRenew={!isV1 && isRenewableV2EthName(label, metadata.expiryDate)}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
@@ -178,7 +180,11 @@ export const MyNamesList = ({
     setPage(1)
   }
 
-  const { v1Names, isPending: isV1Pending } = useDashboardV1Names({
+  const {
+    v1Names,
+    isPending: isV1Pending,
+    isError: isV1Error,
+  } = useDashboardV1Names({
     migrationEnabled,
   })
 
@@ -211,7 +217,9 @@ export const MyNamesList = ({
   const rangeEnd = Math.min(currentPage * PAGE_SIZE, total)
 
   const isPending = isV2Pending || isV1Pending
-  const hasPartialV2Error = isV2Error && v2Names.length > 0
+  const hasNames = v2Names.length > 0 || v1Names.length > 0
+  const hasError = isV2Error || isV1Error
+  const hasPartialError = hasError && hasNames
   const pageRows = pageItems.map((item) => ({
     item,
     metadata: mergedRowMetadata(item, primaryLabel),
@@ -232,7 +240,7 @@ export const MyNamesList = ({
       })),
   })
 
-  if (isV2Error && v2Names.length === 0) {
+  if (hasError && !hasNames) {
     return (
       <div className="py-8 text-center font-sans text-red-500 text-sm">
         <Trans>Error loading names</Trans>
@@ -242,7 +250,7 @@ export const MyNamesList = ({
 
   return (
     <div className="w-full">
-      {hasPartialV2Error ? (
+      {hasPartialError ? (
         <div
           className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 font-sans text-red-600 text-sm"
           role="alert"

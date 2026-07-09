@@ -58,6 +58,7 @@ interface NameRowProps {
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
+  readonly canRenew?: boolean
 }
 
 const explorerUrl = (label: string) => `https://explorer.ens.dev/${label}`
@@ -355,7 +356,13 @@ const NameAvatar = ({
   )
 }
 
-const NameOptionsMenu = ({ label }: { readonly label: string }) => {
+const NameOptionsMenu = ({
+  canRenew,
+  label,
+}: {
+  readonly canRenew: boolean
+  readonly label: string
+}) => {
   const { t } = useLingui()
 
   return (
@@ -377,19 +384,21 @@ const NameOptionsMenu = ({ label }: { readonly label: string }) => {
         className="w-67 rounded-xl border-none bg-white p-4 shadow-[0px_4px_4px_rgba(200,200,200,0.25)]"
         sideOffset={10}
       >
-        <DropdownMenuItem asChild>
-          <Link
-            className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
-            params={{ name: label }}
-            to="/renew/$name"
-          >
-            <Trans>Renew name</Trans>
-            <MSymbol
-              className="ms-opsz-20 text-xl leading-none"
-              symbol="double_arrow"
-            />
-          </Link>
-        </DropdownMenuItem>
+        {canRenew && (
+          <DropdownMenuItem asChild>
+            <Link
+              className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
+              params={{ name: label }}
+              to="/renew/$name"
+            >
+              <Trans>Renew name</Trans>
+              <MSymbol
+                className="ms-opsz-20 text-xl leading-none"
+                symbol="double_arrow"
+              />
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link
             className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
@@ -460,6 +469,7 @@ export const NameRow = ({
   onToggleFavorite,
   isAuthenticated = true,
   isInGrace = false,
+  canRenew = true,
 }: NameRowProps) => {
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
@@ -494,7 +504,7 @@ export const NameRow = ({
           {verified && <VerifiedCheck />}
         </div>
 
-        <NameOptionsMenu label={label} />
+        <NameOptionsMenu canRenew={canRenew} label={label} />
       </div>
 
       <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />
