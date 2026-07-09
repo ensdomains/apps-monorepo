@@ -342,10 +342,12 @@ const Profile = ({
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
-        <ExtendNameButton
-          name={name}
-          protocolVersion={resolvedProtocolVersion}
-        />
+        {resolvedProtocolVersion !== 'ENSv1' && (
+          <ExtendNameButton
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
+        )}
       </div>
 
       {/* Main section: profile | metadata rows | counters */}
