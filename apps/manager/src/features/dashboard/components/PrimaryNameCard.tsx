@@ -161,9 +161,7 @@ export const PrimaryNameCard = ({
                   <span className="text-ens-quartz-400">
                     <Trans>Registered</Trans>
                   </span>
-                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
-                    {registeredLabel}
-                  </span>
+                  <span className="text-ens-quartz-700">{registeredLabel}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -175,9 +173,7 @@ export const PrimaryNameCard = ({
                   <span className="text-ens-quartz-400">
                     <Trans>Expires</Trans>
                   </span>
-                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
-                    {expiryLabel}
-                  </span>
+                  <span className="text-ens-quartz-700">{expiryLabel}</span>
                 </div>
               </div>
             </div>
