@@ -1,8 +1,6 @@
 import { Trans } from '@lingui/react/macro'
 import { ExternalLink } from 'lucide-react'
-import linkPatternCitrineSrc from '@/assets/profile/link-pattern-citrine.png'
-import linkPatternGarnetSrc from '@/assets/profile/link-pattern-garnet.png'
-import linkPatternPeridotSrc from '@/assets/profile/link-pattern-peridot.png'
+import { useMemo } from 'react'
 import type { ProfileRecords } from '@/features/profile/types'
 import { cn } from '@/lib/utils'
 import {
@@ -15,6 +13,7 @@ import {
   profileCardTrailingIconStrokeWidth,
   valueClassName,
 } from './ProfileViewNewCard'
+import { getGeneratedLinkPattern } from './ProfileViewNewLinks.helpers'
 
 const linkPreviewClassName = cn(
   cardSurfaceClassName,
@@ -22,35 +21,8 @@ const linkPreviewClassName = cn(
 )
 const linkPreviewPanelClassName = 'h-30 shrink-0 overflow-hidden bg-white'
 
-type LinkPreviewPatternVariant = {
-  readonly sourceId: string
-  readonly src: string
-}
-
-const linkPreviewPatternVariants = [
-  { sourceId: '3749:29667', src: linkPatternPeridotSrc },
-  { sourceId: '3749:35715', src: linkPatternGarnetSrc },
-  { sourceId: '3749:30577', src: linkPatternCitrineSrc },
-] satisfies readonly [LinkPreviewPatternVariant, ...LinkPreviewPatternVariant[]]
-
-const getLinkPreviewPatternIndex = (href: string) => {
-  let hash = 0
-
-  for (const character of href.toLowerCase()) {
-    hash = (hash * 31 + character.charCodeAt(0)) >>> 0
-  }
-
-  return hash % linkPreviewPatternVariants.length
-}
-
-const getLinkPreviewPatternVariant = (
-  href: string,
-): LinkPreviewPatternVariant =>
-  linkPreviewPatternVariants[getLinkPreviewPatternIndex(href)] ??
-  linkPreviewPatternVariants[0]
-
 const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
-  const pattern = getLinkPreviewPatternVariant(link.href)
+  const pattern = useMemo(() => getGeneratedLinkPattern(link.href), [link.href])
 
   return (
     <a
@@ -63,9 +35,11 @@ const LinkPreview = ({ link }: { readonly link: SafeProfileLink }) => {
       <div
         aria-hidden="true"
         className={linkPreviewPanelClassName}
-        data-figma-pattern-source-id={pattern.sourceId}
+        data-link-pattern-id={pattern.patternId}
+        data-link-pattern-palette-id={pattern.paletteId}
+        data-link-pattern-variant={pattern.variant}
         style={{
-          backgroundImage: `url(${pattern.src})`,
+          backgroundImage: pattern.backgroundImage,
           backgroundPosition: 'left top',
           backgroundRepeat: 'repeat',
           backgroundSize: '80px 80px',
