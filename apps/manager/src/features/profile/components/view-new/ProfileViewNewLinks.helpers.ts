@@ -1,3 +1,6 @@
+import { PROFILE_THEMES, type ProfileTheme } from '@/features/profile/constants'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
+
 const LINK_PATTERN_SIZE = 320
 const LINK_PATTERN_CELL_SIZE = 40
 const LINK_PATTERN_COLUMNS = LINK_PATTERN_SIZE / LINK_PATTERN_CELL_SIZE
@@ -51,26 +54,19 @@ export type GeneratedLinkPattern = {
   readonly variant: number
 }
 
-const linkPatternPalettes = [
-  {
-    id: 'peridot',
-    surface: '#E6F9EB',
-    primary: '#1CBF46',
-    secondary: '#65D388',
-  },
-  {
-    id: 'garnet',
-    surface: '#FDE3F1',
-    primary: '#F03793',
-    secondary: '#FCB4CF',
-  },
-  {
-    id: 'citrine',
-    surface: '#F4E7D4',
-    primary: '#984D1B',
-    secondary: '#DAB986',
-  },
-] satisfies readonly [LinkPatternPalette, ...LinkPatternPalette[]]
+const getLinkPatternPalette = (theme: ProfileTheme): LinkPatternPalette => {
+  const themeVars = getThemeVars(theme.value)
+
+  return {
+    id: theme.label.toLowerCase(),
+    surface: themeVars['--theme-bg'],
+    primary: themeVars['--theme-color'],
+    secondary: themeVars['--theme-surface'],
+  }
+}
+
+const linkPatternPalettes = PROFILE_THEMES.map(getLinkPatternPalette)
+const fallbackLinkPatternPalette = getLinkPatternPalette(PROFILE_THEMES[0])
 
 const linkPatternFamilies = [
   'matt-rib-irregular',
@@ -257,9 +253,8 @@ export const getGeneratedLinkPattern = (href: string): GeneratedLinkPattern => {
     linkPatternFamilies[hash % linkPatternFamilies.length] ??
     linkPatternFamilies[0]
   const palette =
-    linkPatternPalettes[
-      Math.floor(hash / linkPatternFamilies.length) % linkPatternPalettes.length
-    ] ?? linkPatternPalettes[0]
+    linkPatternPalettes[hash % linkPatternPalettes.length] ??
+    fallbackLinkPatternPalette
   const variant = Math.floor(hash / 97) % LINK_PATTERN_COLUMNS
   const svg = createLinkPatternSvg(patternId, palette, variant)
 
