@@ -44,6 +44,36 @@ type ToolTab = {
 
 export function DevDrawer() {
   if (!isDevDrawerEnabled()) return null
+  return <DevDrawerGate />
+}
+
+/**
+ * Defer mounting until the app is actually ready — like the TanStack devtools
+ * button, which doesn't pop in over a still-loading page. We wait for the load
+ * event (if not already fired) plus an idle/settle tick.
+ */
+function DevDrawerGate() {
+  const [ready, setReady] = useState(
+    () => typeof document !== 'undefined' && document.readyState === 'complete',
+  )
+  useEffect(() => {
+    if (ready) return
+    let done = false
+    const settle = () => {
+      if (done) return
+      done = true
+      // One extra idle tick so first data/paint has a chance to land.
+      const idle =
+        (window as { requestIdleCallback?: (cb: () => void) => number })
+          .requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300))
+      idle(() => setReady(true))
+    }
+    if (document.readyState === 'complete') settle()
+    else window.addEventListener('load', settle, { once: true })
+    return () => window.removeEventListener('load', settle)
+  }, [ready])
+
+  if (!ready) return null
   return <DevDrawerInner />
 }
 

@@ -9,6 +9,23 @@ export type DqaAuthConfig = {
   readonly devAllowed: boolean
 }
 
+/** A page (route) that has DQA comments. */
+export type DqaPageSummary = {
+  readonly url: string
+  readonly open: number
+  readonly total: number
+}
+
+/** A node in the page's element hierarchy (DevTools-style tree). */
+export type DqaElementNode = {
+  readonly uid: number
+  readonly tag: string
+  readonly label: string
+  readonly component: string | null
+  readonly hidden: boolean
+  readonly children: readonly DqaElementNode[]
+}
+
 export type DqaCommentSummary = {
   readonly id: string
   readonly pinIndex: number
@@ -38,10 +55,14 @@ export type DqaState = {
   readonly comments: readonly DqaCommentSummary[]
   readonly activeCommentId: string | null
   readonly pageIssueRef: string | null
+  /** The current page (origin + pathname) comments are scoped to. */
+  readonly pageUrl?: string
   /** Overlay chrome theme (popovers, pins). Dark by default. */
   readonly theme?: 'dark' | 'light'
   /** Whether resolved comments' pins render on the page. */
   readonly showResolved?: boolean
+  /** Whether all commentable elements are outlined on the page. */
+  readonly outlineAll?: boolean
 }
 
 export type DqaApi = {
@@ -63,6 +84,16 @@ export type DqaApi = {
   readonly deleteComment?: (id: string) => Promise<void>
   /** Optional (newer overlay versions): toggle resolved pins on the page. */
   readonly setShowResolved?: (on: boolean) => void
+  /** Optional (newer overlay versions): outline all commentable elements. */
+  readonly setHighlightAll?: (on: boolean) => void
+  /** Optional (newer overlay versions): element-hierarchy navigator. */
+  readonly getElementTree?: () => DqaElementNode[]
+  readonly hoverElement?: (uid: number) => void
+  readonly clearHoverElement?: () => void
+  readonly commentOnElement?: (uid: number) => void
+  /** Optional (newer overlay versions): pages navigator. */
+  readonly getPages?: () => Promise<DqaPageSummary[]>
+  readonly navigateTo?: (url: string) => void
 }
 
 declare global {

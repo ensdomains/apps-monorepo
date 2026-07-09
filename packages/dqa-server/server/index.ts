@@ -6,6 +6,7 @@ import { networkInterfaces } from "node:os";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
+import type { Request, Response } from "express";
 import multer from "multer";
 import { WebSocketServer } from "ws";
 
@@ -16,10 +17,10 @@ import {
 } from "./auth.ts";
 import { addComment, addReply, listComments, removeComment, updateComment } from "./db.ts";
 import { checkLinearStatus, pushToLinear, searchIssues } from "./linear.ts";
-import type { Comment, Inspect, StyleEdit } from "./types.ts";
+import type { Comment, Inspect, OAuthState, StyleEdit } from "./types.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 const PUBLIC_DIR = resolve(__dirname, "../public");
 const UPLOAD_DIR = resolve(__dirname, "../data/uploads");
 if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -45,7 +46,7 @@ app.use((req, res, next) => {
 // Uploads: images only, with a server-forced safe extension. Prevents an
 // attacker uploading e.g. .html and having it served (as text/html) from the
 // DQA origin — the filename never derives from client input.
-const ALLOWED_IMAGE_EXT = { "image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp" };
+const ALLOWED_IMAGE_EXT: Record<string, string> = { "image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp" };
 const upload = multer({
   storage: multer.diskStorage({
     destination: UPLOAD_DIR,
@@ -55,7 +56,7 @@ const upload = multer({
   fileFilter: (_req, file, cb) => cb(null, !!ALLOWED_IMAGE_EXT[file.mimetype]),
 });
 
-const baseUrl = (req: any): string => `${req.protocol}://${req.get("host")}`;
+const baseUrl = (req: Request): string => `${req.protocol}://${req.get("host")}`;
 const esc = (s: unknown): string => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 
 // ======================================================================
@@ -68,7 +69,7 @@ app.get("/auth/config", (_req, res) => {
 
 // Resolve + validate the caller-supplied origin/returnUrl against the
 // allowlist so a crafted `?returnUrl=` can never redirect the token elsewhere.
-function resolveReturn(req) {
+function resolveReturn(req: Request): { origin: string | null; returnUrl: string | null } {
   const origin = safeOrigin(req.query.origin) || safeOrigin(req.headers.referer);
   const returnUrl =
     safeReturnUrl(req.query.returnUrl) ||
@@ -108,7 +109,12 @@ try { localStorage.removeItem("dqa_token"); } catch (e) {}
 </body>`);
 });
 
-function popupResult(res, payload, targetOrigin, returnUrl) {
+function popupResult(
+  res: Response,
+  payload: { token?: string; error?: string },
+  targetOrigin: string | null,
+  returnUrl: string | null,
+) {
   // targetOrigin/returnUrl are pre-validated against the allowlist by callers.
   // Never fall back to "*": that would broadcast the token to any opener.
   res.set("Content-Type", "text/html").send(`<!doctype html><meta charset=utf-8>
@@ -134,8 +140,8 @@ ${payload.token ? "Signed in. Returning…" : "Access denied: " + esc(payload.er
 }
 
 app.get("/auth/callback", async (req, res) => {
-  const { code, state } = req.query;
-  const st = verifyJWT(state);
+  const code = typeof req.query.code === "string" ? req.query.code : "";
+  const st = verifyJWT<OAuthState>(req.query.state);
   if (!code || !st) return popupResult(res, { error: "invalid state" }, null, null);
   // Re-validate the state's origin/returnUrl at redemption: the token is only
   // ever posted to / redirected to an allowlisted origin, never a bare "*".
@@ -150,7 +156,7 @@ app.get("/auth/callback", async (req, res) => {
     const token = makeSession(viewer, tok.access_token);
     return popupResult(res, { token }, origin, returnUrl);
   } catch (e) {
-    console.error("[auth] callback", e.message);
+    console.error("[auth] callback", (e as Error).message);
     return popupResult(res, { error: "sign-in failed" }, origin, returnUrl);
   }
 });
@@ -180,8 +186,22 @@ app.get("/auth/me", requireAuth, (req, res) => {
 // How often we re-verify that pushed comments/issues still exist in Linear.
 const LINEAR_CHECK_INTERVAL_MS = 60_000;
 
+// Distinct pages that have comments, with open/total counts — powers the
+// DevDrawer "Pages" navigator.
+app.get("/api/pages", requireAuth, (_req, res) => {
+  const byUrl = new Map<string, { url: string; open: number; total: number }>();
+  for (const c of listComments()) {
+    const e = byUrl.get(c.url) ?? { url: c.url, open: 0, total: 0 };
+    e.total += 1;
+    if (c.status !== "resolved") e.open += 1;
+    byUrl.set(c.url, e);
+  }
+  res.json([...byUrl.values()].sort((a, b) => b.open - a.open || b.total - a.total));
+});
+
 app.get("/api/comments", requireAuth, async (req, res) => {
-  const comments = listComments(req.query.url);
+  const pageUrl = typeof req.query.url === "string" ? req.query.url : undefined;
+  const comments = listComments(pageUrl);
   // Lazily detect Linear-side deletions using the reviewer's token (no-op for
   // dev sessions). Throttled per comment; failures leave the state untouched.
   const token = decrypt(req.session.lt);
@@ -199,7 +219,7 @@ app.get("/api/comments", requireAuth, async (req, res) => {
       if (status === "deleted") broadcast(c.url, { type: "comment:update", comment: c });
     }));
   }
-  res.json(listComments(req.query.url));
+  res.json(listComments(pageUrl));
 });
 
 app.delete("/api/comments/:id", requireAuth, (req, res) => {
@@ -210,38 +230,59 @@ app.delete("/api/comments/:id", requireAuth, (req, res) => {
 });
 
 // Cap client-supplied inspection payloads (component snapshot + style edits).
-function sanitizeInspect(inspect: any): Inspect | null {
+function sanitizeInspect(inspect: unknown): Inspect | null {
   if (!inspect || typeof inspect !== "object") return null;
   try { if (JSON.stringify(inspect).length > 8000) return null; } catch { return null; }
+  const o = inspect as Record<string, unknown>;
   return {
-    tag: String(inspect.tag || "").slice(0, 40),
-    id: inspect.id ? String(inspect.id).slice(0, 120) : null,
-    classes: Array.isArray(inspect.classes) ? inspect.classes.slice(0, 60).map((c) => String(c).slice(0, 120)) : [],
-    styles: inspect.styles && typeof inspect.styles === "object"
-      ? Object.fromEntries(Object.entries(inspect.styles).slice(0, 30).map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 200)]))
+    tag: String(o.tag || "").slice(0, 40),
+    id: o.id ? String(o.id).slice(0, 120) : null,
+    classes: Array.isArray(o.classes) ? o.classes.slice(0, 60).map((c) => String(c).slice(0, 120)) : [],
+    styles: o.styles && typeof o.styles === "object"
+      ? Object.fromEntries(Object.entries(o.styles as Record<string, unknown>).slice(0, 30).map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 200)]))
       : {},
-    props: inspect.props && typeof inspect.props === "object"
-      ? Object.fromEntries(Object.entries(inspect.props).slice(0, 30).map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 200)]))
+    props: o.props && typeof o.props === "object"
+      ? Object.fromEntries(Object.entries(o.props as Record<string, unknown>).slice(0, 30).map(([k, v]) => [String(k).slice(0, 60), String(v).slice(0, 200)]))
       : null,
-    componentPath: inspect.componentPath ? String(inspect.componentPath).slice(0, 200) : null,
-    viewport: inspect.viewport ? String(inspect.viewport).slice(0, 60) : null,
-    text: inspect.text ? String(inspect.text).slice(0, 120) : null,
+    componentPath: o.componentPath ? String(o.componentPath).slice(0, 200) : null,
+    viewport: o.viewport ? String(o.viewport).slice(0, 60) : null,
+    text: o.text ? String(o.text).slice(0, 120) : null,
   };
 }
-function sanitizeStyleEdits(edits: any): StyleEdit[] | null {
+// A CSS value we're willing to persist / put in a Linear issue. Blocks tokens
+// that could smuggle a payload (url() trackers, extra declarations, imports).
+// The `class` edit carries a class list, which is checked with the same rule.
+function isSafeCssValue(v: string): boolean {
+  return v.length <= 300 && !/[<>{};]|url\(|expression|javascript:|@import|\\/i.test(v);
+}
+function sanitizeStyleEdits(edits: unknown): StyleEdit[] | null {
   if (!Array.isArray(edits)) return null;
-  const out = edits.slice(0, 40).map((e: any) => ({
-    prop: String(e?.prop ?? "").slice(0, 60),
-    from: String(e?.from ?? "").slice(0, 300),
-    to: String(e?.to ?? "").slice(0, 300),
-  })).filter((e) => e.prop);
+  const out = edits
+    .slice(0, 40)
+    .map((e) => {
+      const o = (e ?? {}) as Record<string, unknown>;
+      return {
+        prop: String(o.prop ?? "").slice(0, 60),
+        from: String(o.from ?? "").slice(0, 300),
+        to: String(o.to ?? "").slice(0, 300),
+      };
+    })
+    .filter((e) => {
+      // prop must be a CSS property name or the literal "class".
+      if (!/^(class|[a-z][a-z-]{0,59})$/.test(e.prop)) return false;
+      // The class list can't inject (escaped on display, code-fenced in Linear)
+      // and legitimately contains `>` etc. in Tailwind arbitrary variants —
+      // length-cap only. CSS *values* get the strict token check.
+      if (e.prop === "class") return true;
+      return isSafeCssValue(e.from) && isSafeCssValue(e.to);
+    });
   return out.length ? out : null;
 }
 
 app.post("/api/comments", requireAuth, (req, res) => {
   const { url, body, anchor, imageUrl, afterImageUrl, issueRef, inspect, styleEdits } = req.body || {};
   if (!url || !body) return res.status(400).json({ error: "url and body required" });
-  const comment = {
+  const comment: Comment = {
     id: randomUUID(),
     url,
     author: req.session.name,        // identity comes from the session, not the client
@@ -292,22 +333,31 @@ app.post("/api/upload", requireAuth, upload.single("image"), (req, res) => {
 app.get("/api/linear/issues", requireAuth, async (req, res) => {
   try {
     const userToken = decrypt(req.session.lt);
-    const issues = await searchIssues((req.query.term || "").toString().trim(), userToken);
+    const term = typeof req.query.term === "string" ? req.query.term.trim() : "";
+    const issues = await searchIssues(term, userToken);
     res.json({ issues, dev: !userToken });
   } catch (e) {
-    console.error("[linear] search", e.message);
-    res.status(502).json({ error: e.message });
+    console.error("[linear] search", (e as Error).message);
+    res.status(502).json({ error: (e as Error).message });
   }
 });
+
+const PUSH_ACTIONS = ["comment", "subissue", "issue"] as const;
+type PushAction = (typeof PUSH_ACTIONS)[number];
 
 app.post("/api/comments/:id/linear", requireAuth, async (req, res) => {
   const comment = listComments().find((c) => c.id === req.params.id);
   if (!comment) return res.status(404).json({ error: "not found" });
+  const body = (req.body ?? {}) as { issueRef?: string; action?: string; priority?: number };
   // A ticket chosen in the picker overrides the page's default data-linear-issue.
-  const issueRef = req.body?.issueRef || comment.issueRef || null;
-  const action = ["comment", "subissue", "issue"].includes(req.body?.action) ? req.body.action : null;
-  const priority = Number.isInteger(req.body?.priority) && req.body.priority >= 0 && req.body.priority <= 4
-    ? req.body.priority : null;
+  const issueRef = body.issueRef || comment.issueRef || null;
+  const action: PushAction | null = PUSH_ACTIONS.includes(body.action as PushAction)
+    ? (body.action as PushAction)
+    : null;
+  const priority =
+    typeof body.priority === "number" && Number.isInteger(body.priority) && body.priority >= 0 && body.priority <= 4
+      ? body.priority
+      : null;
   try {
     const userToken = decrypt(req.session.lt); // reviewer's Linear token (actor=user)
     const result = await pushToLinear({ ...comment, issueRef }, { userToken, baseUrl: baseUrl(req), action, priority });
@@ -315,8 +365,8 @@ app.post("/api/comments/:id/linear", requireAuth, async (req, res) => {
     broadcast(comment.url, { type: "comment:update", comment: updated });
     res.json(result);
   } catch (e) {
-    console.error("[linear]", e.message);
-    res.status(502).json({ error: e.message });
+    console.error("[linear]", (e as Error).message);
+    res.status(502).json({ error: (e as Error).message });
   }
 });
 
@@ -341,7 +391,7 @@ const wss = new WebSocketServer({
   path: "/ws",
   // Reject cross-origin WS handshakes from non-allowlisted origins up front.
   // (Every message is still token-gated below; this is defence in depth.)
-  verifyClient: ({ origin }) => !origin || isAllowedOrigin(origin),
+  verifyClient: (info: { origin?: string }) => !info.origin || isAllowedOrigin(info.origin),
 });
 type PeerMeta = {
   url: string | null;
@@ -363,19 +413,20 @@ wss.on("connection", (rawWs) => {
   ws.meta = { url: null, user: null, authed: false };
 
   ws.on("message", (raw) => {
-    let msg: any;
+    let msg: { type?: string; token?: unknown; url?: string; x?: number; y?: number };
     try { msg = JSON.parse(raw.toString()); } catch { return; }
 
     if (msg.type === "join") {
       // identity + auth come from the verified token, never from client-supplied fields
       const session = verifyJWT(msg.token);
-      if (!session) { ws.send(JSON.stringify({ type: "unauthorized" })); return ws.close(); }
+      if (!session || !msg.url) { ws.send(JSON.stringify({ type: "unauthorized" })); return ws.close(); }
       ws.meta.authed = true;
       ws.meta.url = msg.url;
       ws.meta.user = { id: session.sub, name: session.name, color: session.color };
-      if (!rooms.has(msg.url)) rooms.set(msg.url, new Set());
-      rooms.get(msg.url).add(ws);
-      const others = [...rooms.get(msg.url)].filter((p) => p !== ws && p.meta.user).map((p) => p.meta.user);
+      const room = rooms.get(msg.url) ?? new Set<Peer>();
+      rooms.set(msg.url, room);
+      room.add(ws);
+      const others = [...room].filter((p) => p !== ws && p.meta.user).map((p) => p.meta.user);
       ws.send(JSON.stringify({ type: "presence", users: others }));
       broadcast(msg.url, { type: "join", user: ws.meta.user }, ws);
       return;
@@ -390,17 +441,18 @@ wss.on("connection", (rawWs) => {
 
   ws.on("close", () => {
     const { url, user } = ws.meta;
-    if (url && rooms.has(url)) {
-      rooms.get(url).delete(ws);
+    const room = url ? rooms.get(url) : undefined;
+    if (url && room) {
+      room.delete(ws);
       broadcast(url, { type: "leave", user });
-      if (rooms.get(url).size === 0) rooms.delete(url);
+      if (room.size === 0) rooms.delete(url);
     }
   });
 });
 
-function lanIp() {
+function lanIp(): string | null {
   for (const ifaces of Object.values(networkInterfaces())) {
-    for (const i of ifaces || []) {
+    for (const i of ifaces ?? []) {
       if (i.family === "IPv4" && !i.internal) return i.address;
     }
   }

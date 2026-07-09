@@ -98,8 +98,25 @@ the client, and unauthenticated access to the API.
 
 ## 6. Production-exposure guarantee
 
-`VITE_DQA` is inlined by Vite at build time. Production pipelines
-(`build.yml`, `deploy-portal.yml`, release builds) never set it, so
-`isDQAEnabled()` compiles to a constant `false` and the injector — and any path
-that would contact the DQA server — is eliminated from production bundles.
-Confirmed by building the injector with the repo's Vite and inspecting output.
+`VITE_DQA` is inlined by Vite at build time. Production builds never set it
+(it lives only in gitignored `.env.local` for local dev, or in the dedicated
+Cloudflare **DQA preview** projects' build variables — see below), so
+`isDQAEnabled()` compiles to a constant `return false`. Consequences in a
+production bundle, confirmed by building with the repo's Vite and inspecting
+output:
+
+- The DevDrawer **never renders** and the overlay script is **never loaded** —
+  the guard is a compile-time constant `false`, not a runtime config value.
+- No secrets, URLs, or DQA server calls are reachable at runtime.
+- A small amount of DQA/DevDrawer code remains present-but-unreachable in the
+  bundle (the minifier folds the guard to `false` but does not always drop the
+  dead block). This is bundle weight only — never executed. If full dead-code
+  elimination is desired, gate the DevDrawer mount site on the inlined
+  expression directly (e.g. `import.meta.env.VITE_DQA === '1' || …`) so the
+  branch is statically dropped.
+
+DQA is enabled only on the apps' **preview (non-production)** Cloudflare builds,
+via a preview-scoped build command (`build:dqa`, which forces `VITE_DQA=1`) or a
+preview-only build variable. The **production** environment uses the normal
+`build` with no `VITE_DQA`, so it cannot enable DQA. The flag is never present
+in a committed `.env`.

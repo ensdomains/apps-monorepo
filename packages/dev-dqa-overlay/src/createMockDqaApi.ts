@@ -1,7 +1,7 @@
 import {
   createMockAuthenticatedState,
   mockComments,
-} from './dqaMockData'
+} from './dqaMockData.mock'
 import type { DqaApi, DqaState } from './types'
 
 /** In-memory mock API for UI development without a DQA server. */

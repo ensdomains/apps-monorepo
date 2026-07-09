@@ -85,17 +85,19 @@ Comments and uploads persist in the `dqa-data` volume. QA app builds then use
 
 ## PR preview deployments
 
-Add the **`preview`** label to a PR. `.github/workflows/preview-deploy.yml`
-builds portal + manager with `VITE_DQA=1` and `VITE_DQA_URL=vars.DQA_SERVER_URL`,
-uploads a Cloudflare Workers preview version (`wrangler versions upload` —
-`preview_urls` is enabled in both wrangler configs), and comments the preview
-URL on the PR. Anyone opening the preview sees the **Dev Tools** drawer (DQA
-section only unless other dev flags are set), can sign in with Linear, and drop
-DQA comments; branches named `linear/<ticket>` thread comments onto that ticket
-automatically.
+DQA rides the app's **existing** Cloudflare per-PR preview deployment (Workers
+Builds Git integration) — no separate project, no GitHub Actions workflow. It is
+enabled only for **preview (non-production) builds**.
 
-Required repo config: `secrets.CLOUDFLARE_API_TOKEN`,
-`secrets.CLOUDFLARE_ACCOUNT_ID`, `vars.DQA_SERVER_URL`.
+In each app's Workers Builds project, on the **preview environment** set the
+build command to `pnpm --filter <app> build:dqa` (forces `VITE_DQA=1`) — or keep
+`build` and add a preview-only `VITE_DQA=1` build variable — plus
+`VITE_DQA_URL=https://<dqa-host>`. The **production** environment stays on the
+normal `build` with no `VITE_DQA`. Add the preview host to the dqa-server's
+`DQA_ALLOWED_ORIGINS` (wildcards allowed, e.g. `https://*.workers.dev`).
+
+Cloudflare already builds a preview per PR; this flips DQA on for those builds.
+Full setup: `packages/dqa-server/MANUAL.md` §3.
 
 ## Env reference (app side)
 

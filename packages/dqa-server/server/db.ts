@@ -30,32 +30,33 @@ export function listComments(url?: string): Comment[] {
 }
 
 export function addComment(comment: Comment): Comment {
-  state.comments.push(comment);
+  state = { comments: [...state.comments, comment] };
   persist();
   return comment;
 }
 
 export function addReply(commentId: string, reply: Reply): Comment | null {
-  const c = state.comments.find((x) => x.id === commentId);
-  if (!c) return null;
-  c.replies = c.replies || [];
-  c.replies.push(reply);
+  const existing = state.comments.find((x) => x.id === commentId);
+  if (!existing) return null;
+  const updated: Comment = { ...existing, replies: [...(existing.replies ?? []), reply] };
+  state = { comments: state.comments.map((c) => (c.id === commentId ? updated : c)) };
   persist();
-  return c;
+  return updated;
 }
 
 export function updateComment(commentId: string, patch: Partial<Comment>): Comment | null {
-  const c = state.comments.find((x) => x.id === commentId);
-  if (!c) return null;
-  Object.assign(c, patch);
+  const existing = state.comments.find((x) => x.id === commentId);
+  if (!existing) return null;
+  const updated: Comment = { ...existing, ...patch };
+  state = { comments: state.comments.map((c) => (c.id === commentId ? updated : c)) };
   persist();
-  return c;
+  return updated;
 }
 
 export function removeComment(commentId: string): Comment | null {
-  const idx = state.comments.findIndex((x) => x.id === commentId);
-  if (idx === -1) return null;
-  const [removed] = state.comments.splice(idx, 1);
+  const existing = state.comments.find((x) => x.id === commentId);
+  if (!existing) return null;
+  state = { comments: state.comments.filter((c) => c.id !== commentId) };
   persist();
-  return removed ?? null;
+  return existing;
 }

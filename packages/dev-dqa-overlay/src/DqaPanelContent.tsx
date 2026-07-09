@@ -11,16 +11,21 @@ import {
   type CommentOwnership,
 } from './panel/DqaCommentFilters'
 import { DqaCommentList } from './panel/DqaCommentList'
+import { DqaElementTree } from './panel/DqaElementTree'
+import { DqaPagesList } from './panel/DqaPagesList'
 import { DqaPreviewBanner } from './panel/DqaPreviewBanner'
 import { DqaToolbar } from './panel/DqaToolbar'
 import { PANEL } from './panel/panelTheme'
 import { useDqaPanel } from './panel/useDqaPanel'
 import { toggleDqaTheme } from './theme'
 
+type PanelView = 'comments' | 'elements' | 'pages'
+
 export function DqaPanelContent() {
   const { state, api, loadError, isMockMode } = useDqaPanel()
   const [filter, setFilter] = useState<CommentFilter>('open')
   const [ownership, setOwnership] = useState<CommentOwnership>('all')
+  const [view, setView] = useState<PanelView>('comments')
   const [devName, setDevName] = useState('')
 
   if (!state.ready || state.loading) {
@@ -106,48 +111,104 @@ export function DqaPanelContent() {
             api?.setCommentMode(!state.commentMode)
           }
           onToggleTheme={() => toggleDqaTheme()}
+          onToggleHighlightAll={
+            canInteract && api?.setHighlightAll
+              ? () => api.setHighlightAll?.(!state.outlineAll)
+              : undefined
+          }
           showCommentMode={canInteract}
           state={state}
         />
       )}
 
-      <DqaCommentFilters
-        comments={visibleComments}
-        filter={filter}
-        onFilterChange={setFilter}
-        onOwnershipChange={state.user ? setOwnership : undefined}
-        onToggleResolvedPins={
-          api?.setShowResolved
-            ? () => api.setShowResolved?.(!state.showResolved)
-            : undefined
-        }
-        ownership={ownership}
-        showResolvedPins={state.showResolved ?? false}
-      />
+      {canInteract && api?.getElementTree && (
+        <div style={viewToggleStyle} role="tablist" aria-label="Panel view">
+          {(['comments', 'elements', 'pages'] as const).map((v) => (
+            <button
+              aria-selected={view === v}
+              key={v}
+              onClick={() => setView(v)}
+              role="tab"
+              style={{
+                ...viewTabStyle,
+                ...(view === v ? viewTabActiveStyle : undefined),
+              }}
+              type="button"
+            >
+              {v === 'comments' ? 'Comments' : v === 'elements' ? 'Elements' : 'Pages'}
+            </button>
+          ))}
+        </div>
+      )}
 
-      <DqaCommentList
-        activeCommentId={state.activeCommentId}
-        comments={visibleComments}
-        filter={filter}
-        onFocus={handleFocus}
-        onResolve={
-          canInteract && api?.resolveComment
-            ? (id) => void api.resolveComment?.(id)
-            : undefined
-        }
-        onDelete={
-          canInteract && api?.deleteComment
-            ? (id) => {
-                if (window.confirm('Delete this DQA comment? (does not touch Linear)')) {
-                  void api.deleteComment?.(id)
-                }
-              }
-            : undefined
-        }
-        showFocusAction={canInteract}
-      />
+      {view === 'pages' ? (
+        <DqaPagesList api={api} currentUrl={state.pageUrl} />
+      ) : view === 'elements' ? (
+        <DqaElementTree api={api} />
+      ) : (
+        <>
+          <DqaCommentFilters
+            comments={visibleComments}
+            filter={filter}
+            onFilterChange={setFilter}
+            onOwnershipChange={state.user ? setOwnership : undefined}
+            onToggleResolvedPins={
+              api?.setShowResolved
+                ? () => api.setShowResolved?.(!state.showResolved)
+                : undefined
+            }
+            ownership={ownership}
+            showResolvedPins={state.showResolved ?? false}
+          />
+
+          <DqaCommentList
+            activeCommentId={state.activeCommentId}
+            comments={visibleComments}
+            filter={filter}
+            onFocus={handleFocus}
+            onResolve={
+              canInteract && api?.resolveComment
+                ? (id) => void api.resolveComment?.(id)
+                : undefined
+            }
+            onDelete={
+              canInteract && api?.deleteComment
+                ? (id) => {
+                    if (window.confirm('Delete this DQA comment? (does not touch Linear)')) {
+                      void api.deleteComment?.(id)
+                    }
+                  }
+                : undefined
+            }
+            showFocusAction={canInteract}
+          />
+        </>
+      )}
     </div>
   )
+}
+
+const viewToggleStyle: CSSProperties = {
+  display: 'flex',
+  gap: 4,
+  marginBottom: 10,
+}
+
+const viewTabStyle: CSSProperties = {
+  border: `1px solid ${PANEL.border}`,
+  background: PANEL.surface,
+  color: PANEL.muted,
+  borderRadius: 6,
+  padding: '4px 12px',
+  font: PANEL.font,
+  cursor: 'pointer',
+}
+
+const viewTabActiveStyle: CSSProperties = {
+  borderColor: PANEL.accent,
+  background: PANEL.accentBg,
+  color: PANEL.accentDense,
+  fontWeight: 600,
 }
 
 const rootStyle: CSSProperties = {

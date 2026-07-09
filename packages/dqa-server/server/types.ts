@@ -64,6 +64,15 @@ export type Comment = {
   createdAt: string
 }
 
+/** Short-lived signed JWT carrying the OAuth round-trip origin/returnUrl. */
+export type OAuthState = {
+  origin: string | null
+  returnUrl: string | null
+  n: string
+  iat?: number
+  exp?: number
+}
+
 /** DQA session payload embedded in the signed JWT. */
 export type Session = {
   sub: string

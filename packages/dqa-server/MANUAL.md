@@ -51,6 +51,22 @@ button issues a throwaway local identity instead.)
    image.
 6. Click **Comment**. The pin appears; everyone viewing the page sees it live.
 
+### Finding hard-to-reach elements
+
+Two aids for elements that are invisible or hard to hover:
+
+- **Highlight all** (toolbar) outlines every commentable element at once; click
+  an outline to comment on it.
+- **Elements** tab (the Comments / Elements / Pages toggle) is a DevTools-style
+  hierarchy of the page. Hover a row to highlight that element on the page,
+  click it to start a comment — even for hidden/zero-size nodes. **Refresh**
+  re-reads the live DOM.
+
+Comments are **scoped per page** — you only see pins/comments for the route
+you're on (this holds across client-side SPA navigation). The **Pages** tab
+lists every route that has comments with open/total counts; click one to
+navigate there.
+
 ### Pins
 
 - Click a pin (or a card in the drawer) to open its thread.
@@ -176,9 +192,28 @@ Comments and uploads persist in the `dqa-data` volume.
 
 ### PR previews
 
-Label a PR **`preview`**. `.github/workflows/preview-deploy.yml` builds
-portal + manager with `VITE_DQA=1` and `VITE_DQA_URL=${{ vars.DQA_SERVER_URL }}`,
-uploads Cloudflare Workers preview versions, and comments the URLs on the PR.
+DQA rides the app's **existing** Cloudflare per-PR preview deployment (Workers
+Builds Git integration) — no separate project, no GitHub Actions workflow. It's
+enabled only for **preview (non-production) builds**; the production branch
+never sets the flag.
+
+In each app's Cloudflare Workers Builds project, set the **preview
+environment** (non-production branches) to either:
+
+- build command `pnpm --filter <app> build:dqa` (the script forces
+  `VITE_DQA=1`), **or**
+- keep the normal `build` command and add a **preview-only build variable**
+  `VITE_DQA=1`.
+
+Then add the preview build variable `VITE_DQA_URL=https://<dqa-host>` (and
+optionally `VITE_DQA_LINEAR_ISSUE`). Leave the **production** environment on the
+normal `build` command with no `VITE_DQA`, so production never enables DQA.
+
+Finally, on the dqa-server add the preview host to `DQA_ALLOWED_ORIGINS`
+(wildcards allowed, e.g. `https://*.workers.dev`).
+
+That's it — Cloudflare already builds a preview per PR; this just flips DQA on
+for those preview builds.
 
 ---
 

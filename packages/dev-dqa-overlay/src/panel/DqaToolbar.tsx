@@ -10,6 +10,7 @@ type DqaToolbarProps = {
   readonly onToggleCommentMode: () => void
   readonly onSignOut: () => void
   readonly onToggleTheme?: () => void
+  readonly onToggleHighlightAll?: () => void
   readonly showCommentMode?: boolean
 }
 
@@ -18,9 +19,10 @@ export function DqaToolbar({
   onToggleCommentMode,
   onSignOut,
   onToggleTheme,
+  onToggleHighlightAll,
   showCommentMode = true,
 }: DqaToolbarProps) {
-  const { user, commentMode, presence, pageIssueRef, theme } = state
+  const { user, commentMode, presence, pageIssueRef, theme, outlineAll } = state
   const visible = presence.slice(0, MAX_VISIBLE_AVATARS)
   const overflow = presence.length - visible.length
   const pageLinearUrl = pageIssueRef ? linearIssueUrl(pageIssueRef) : null
@@ -35,6 +37,17 @@ export function DqaToolbar({
             type="button"
           >
             {commentMode ? 'Pick an element' : 'Inspect'}
+          </button>
+        )}
+
+        {showCommentMode && onToggleHighlightAll && (
+          <button
+            onClick={onToggleHighlightAll}
+            style={outlineAll ? activeBtnStyle : secondaryBtnStyle}
+            title="Outline every commentable element on the page — click one to comment (helps find hard-to-hover elements)"
+            type="button"
+          >
+            {outlineAll ? 'Hide outlines' : 'Highlight all'}
           </button>
         )}
 

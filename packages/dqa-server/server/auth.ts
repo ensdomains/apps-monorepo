@@ -39,11 +39,22 @@ export function cfg() {
  * - If DQA_ALLOWED_ORIGINS is set, only those exact origins are allowed.
  * - Otherwise (local dev), private/loopback origins are allowed so the LAN
  *   workflow keeps working without configuration.
+ *
+ * Entries may use `*` as a wildcard (matches any run of characters), so PR
+ * previews on dynamically-named hosts work with a single entry, e.g.
+ * `https://*.workers.dev` or `https://pr-*.preview.ens.dev`.
  */
+function originMatches(pattern: string, origin: string): boolean {
+  if (!pattern.includes("*")) return pattern === origin;
+  const re = new RegExp(
+    "^" + pattern.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$",
+  );
+  return re.test(origin);
+}
 export function isAllowedOrigin(origin: string | undefined | null): boolean {
   if (!origin) return false;
   const list = cfg().allowedOrigins;
-  if (list.length) return list.includes(origin);
+  if (list.length) return list.some((p) => originMatches(p, origin));
   try {
     const { hostname, protocol } = new URL(origin);
     if (protocol !== "http:" && protocol !== "https:") return false;
@@ -95,7 +106,10 @@ const ENC_KEY = crypto.createHash("sha256")
   .digest(); // always 32 bytes
 
 // ---- base64url + JWT (HS256) ------------------------------------------
-const b64url = (buf: Buffer | string): string => Buffer.from(buf as any).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64url = (buf: Buffer | string): string => {
+  const b = typeof buf === "string" ? Buffer.from(buf, "utf8") : buf;
+  return b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+};
 const b64urlDecode = (str: string): Buffer => Buffer.from(str.replace(/-/g, "+").replace(/_/g, "/"), "base64");
 
 export function signJWT(payload: Record<string, unknown>, expSec = 60 * 60 * 12): string {
@@ -106,16 +120,20 @@ export function signJWT(payload: Record<string, unknown>, expSec = 60 * 60 * 12)
   return `${data}.${sig}`;
 }
 
-export function verifyJWT(token: unknown): Session | null {
+// Generic over the payload shape: sessions decode as `Session` (default),
+// OAuth round-trips as `OAuthState`. Signature + expiry are verified the same
+// way regardless of shape.
+export function verifyJWT<T = Session>(token: unknown): T | null {
   if (!token || typeof token !== "string" || token.split(".").length !== 3) return null;
   const [header, body, sig] = token.split(".");
   const expected = b64url(crypto.createHmac("sha256", SESSION_SECRET).update(`${header}.${body}`).digest());
   const sigBuf = Buffer.from(sig), expBuf = Buffer.from(expected);
   if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
-  let payload: Session;
+  let payload: Record<string, unknown>;
   try { payload = JSON.parse(b64urlDecode(body).toString()); } catch { return null; }
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
-  return payload;
+  const exp = payload.exp;
+  if (typeof exp === "number" && exp < Math.floor(Date.now() / 1000)) return null;
+  return payload as T;
 }
 
 // ---- AES-256-GCM for the embedded Linear token -------------------------
@@ -173,19 +191,21 @@ export async function exchangeCode(code: string): Promise<{ access_token: string
   return res.json() as Promise<{ access_token: string; token_type: string; expires_in: number; scope: string }>;
 }
 
-async function gql(query: string, token: string, variables?: Record<string, unknown>): Promise<any> {
+// Generic over the caller-declared response shape; each caller supplies the
+// GraphQL selection's type so no `any` leaks out.
+async function gql<T>(query: string, token: string, variables?: Record<string, unknown>): Promise<T> {
   const res = await fetch(LINEAR_GQL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ query, variables }),
   });
-  const json = (await res.json()) as { data?: any; errors?: unknown };
+  const json = (await res.json()) as { data?: T; errors?: unknown };
   if (json.errors) throw new Error("Linear GraphQL: " + JSON.stringify(json.errors));
-  return json.data;
+  return json.data as T;
 }
 
 export async function fetchViewer(token: string): Promise<LinearViewer> {
-  const data = await gql(
+  const data = await gql<{ viewer: LinearViewer }>(
     `{ viewer { id name email organization { id name urlKey }
         teamMemberships { nodes { team { id key name } } } } }`,
     token
@@ -206,7 +226,7 @@ export async function checkWhitelist(viewer: LinearViewer, token: string): Promi
     }
   }
   if (c.allowedProjectIds.length) {
-    const data = await gql(
+    const data = await gql<{ projects?: { nodes?: unknown[] } }>(
       `query($ids:[ID!],$uid:ID){ projects(filter:{ id:{ in:$ids }, members:{ id:{ eq:$uid } } }){ nodes { id } } }`,
       token,
       { ids: c.allowedProjectIds, uid: viewer.id }
