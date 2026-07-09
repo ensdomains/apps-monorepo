@@ -18,7 +18,7 @@ import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
 import { DashboardPagination } from './DashboardPagination'
-import { NameRow } from './NameRow'
+import { NameRow, type NameRowCta, type NameStatus } from './NameRow'
 import { getNameRowProfilePreview } from './nameRowProfileRecords'
 
 const PAGE_SIZE = 5
@@ -52,6 +52,11 @@ const parseSort = (sort: Sort): { field: SortField; dir: SortDir } => {
 }
 
 type MergedNameRowMetadata = ReturnType<typeof mergedRowMetadata>
+
+type NameRowActionState = {
+  readonly cta: NameRowCta | null
+  readonly status: NameStatus | null
+}
 
 const AnimatedNameRow = ({
   metadata,
@@ -91,6 +96,21 @@ const AnimatedNameRow = ({
     records: profileRecords,
     isLoading: isProfileRecordsLoading,
   })
+  const { cta, status } = match({ isV1, isMigrationEligible })
+    .returnType<NameRowActionState>()
+    .with({ isV1: false }, () => ({
+      cta: expiryCta,
+      status: null,
+    }))
+    .with({ isV1: true, isMigrationEligible: true }, () => ({
+      cta: null,
+      status: 'eligibleUpgrade',
+    }))
+    .with({ isV1: true, isMigrationEligible: false }, () => ({
+      cta: 'manageExplorer',
+      status: 'ensv1Only',
+    }))
+    .exhaustive()
 
   return (
     <motion.div
@@ -110,7 +130,7 @@ const AnimatedNameRow = ({
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
-        cta={isV1 ? (isMigrationEligible ? null : 'manageExplorer') : expiryCta}
+        cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
         isAuthenticated={isAuthenticated}
@@ -121,9 +141,7 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         showFavoriteButton
-        status={
-          isV1 ? (isMigrationEligible ? 'eligibleUpgrade' : 'ensv1Only') : null
-        }
+        status={status}
         themeColor={profilePreview.themeColor}
         verified={isPrimary}
       />
