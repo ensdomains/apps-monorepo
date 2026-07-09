@@ -104,4 +104,32 @@ describe('ProfileLinksSection', () => {
       secondPatternPanel?.getAttribute('data-link-pattern-palette-id'),
     ).toBe(firstPaletteId)
   })
+
+  it('generates different pattern output for different URLs', () => {
+    render(
+      <ProfileLinksSection
+        records={{
+          ...newEmptyProfileRecords(),
+          links: [
+            { name: 'GitHub', url: 'https://github.com' },
+            { name: 'Hey', url: 'https://hey.com' },
+          ],
+        }}
+      />,
+    )
+
+    const githubPatternPanel = getLinkPatternPanel(
+      screen.getByRole('link', { name: /GitHub/ }),
+    )
+    const heyPatternPanel = getLinkPatternPanel(
+      screen.getByRole('link', { name: /Hey/ }),
+    )
+
+    expect(githubPatternPanel?.style.backgroundImage).not.toBe(
+      heyPatternPanel?.style.backgroundImage,
+    )
+    expect(githubPatternPanel?.getAttribute('data-link-pattern-id')).not.toBe(
+      heyPatternPanel?.getAttribute('data-link-pattern-id'),
+    )
+  })
 })
