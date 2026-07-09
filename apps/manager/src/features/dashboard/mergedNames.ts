@@ -48,6 +48,17 @@ const RENEW_CTA_THRESHOLD_DAYS = 7
 const getIsMigrationEligible = (item: MergedItem): boolean =>
   item.kind === 'v1' && item.classified.isMigrationEligible === true
 
+const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
+  expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
+
+const formatMergedExpiryDate = (
+  displayExpiryDate: Date | null,
+  expirySeconds: number | null,
+): string =>
+  expirySeconds === 0
+    ? NON_EXPIRING_DATE_LABEL
+    : formatDashboardDate(displayExpiryDate)
+
 export const v1ExpirySeconds = (classified: DashboardV1Name): number | null => {
   const raw =
     classified.domain.registration?.expiryDate ??
@@ -149,8 +160,7 @@ export const mergedRowMetadata = (
   now: Date = new Date(),
 ): MergedRowMetadata => {
   const label = item.sortName
-  const isNonExpiring = item.sortExpiry === 0
-  const expiryDate = isNonExpiring ? null : toDateFromSeconds(item.sortExpiry)
+  const expiryDate = getMergedExpiryDate(item.sortExpiry)
   const isV1 = item.kind === 'v1'
   const isV2 = !isV1
   const isInGrace = isInGracePeriod(expiryDate, isV2, now)
@@ -184,9 +194,10 @@ export const mergedRowMetadata = (
     daysUntilExpiry,
     daysSinceExpiry,
     expiringSoon,
-    formattedExpiryDate: isNonExpiring
-      ? NON_EXPIRING_DATE_LABEL
-      : formatDashboardDate(displayExpiryDate),
+    formattedExpiryDate: formatMergedExpiryDate(
+      displayExpiryDate,
+      item.sortExpiry,
+    ),
     isV1,
     isPrimary,
     isInGrace,

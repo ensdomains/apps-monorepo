@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { NON_EXPIRING_DATE_LABEL } from '@/features/dashboard/utils'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
   favoriteAuthPromptMessage,
@@ -401,17 +402,25 @@ const ExpiryDetails = ({
 }: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label'>) => {
   if (!expiryLabel && !cta) return null
 
+  const isNonExpiring = expiryLabel === NON_EXPIRING_DATE_LABEL
+
   return (
     <div className="flex items-center justify-between gap-3">
       {expiryLabel ? (
         <div className="flex items-center gap-2">
           <History className="size-4 shrink-0 text-ens-quartz-360" />
           <span className="font-sans text-ens-quartz-380 text-sm">
-            <Trans>Expires on</Trans>
+            {isNonExpiring ? (
+              <Trans>Does not expire</Trans>
+            ) : (
+              <Trans>Expires on</Trans>
+            )}
           </span>
-          <span className="font-sans text-ens-quartz-550 text-sm">
-            {expiryLabel}
-          </span>
+          {!isNonExpiring && (
+            <span className="font-sans text-ens-quartz-550 text-sm">
+              {expiryLabel}
+            </span>
+          )}
         </div>
       ) : (
         <span />
