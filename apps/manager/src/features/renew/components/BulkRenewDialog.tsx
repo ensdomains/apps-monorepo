@@ -215,7 +215,7 @@ export const BulkRenewDialog = ({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
-        className="flex max-h-[90vh] flex-col gap-5 overflow-hidden p-6 sm:max-w-[540px]"
+        className="flex max-h-[90vh] flex-col gap-5 overflow-hidden p-6 sm:max-w-[520px]"
         showCloseButton
       >
         <DialogHeader>
@@ -343,76 +343,78 @@ export const BulkRenewDialog = ({
           </Popover>
         </div>
 
-        <div className="flex max-h-[280px] flex-col gap-0 overflow-y-auto rounded-lg border border-ens-quartz-150">
-          {names.map((n, i) => {
-            const preview = getNameRowProfilePreview({
-              label: n.label,
-              name: n.name,
-              records: profilePreviews[i]?.records,
-              isLoading: profilePreviews[i]?.isLoading,
-            })
-            const subtotal = activeQueries[i]?.data
-            const startDate = new Date(n.currentExpiry * 1000)
-            const endDate = new Date(
-              newExpirySeconds(selection, n.currentExpiry) * 1000,
-            )
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-ens-quartz-150">
+          <div className="flex max-h-[280px] flex-col gap-0 overflow-y-auto">
+            {names.map((n, i) => {
+              const preview = getNameRowProfilePreview({
+                label: n.label,
+                name: n.name,
+                records: profilePreviews[i]?.records,
+                isLoading: profilePreviews[i]?.isLoading,
+              })
+              const subtotal = activeQueries[i]?.data
+              const startDate = new Date(n.currentExpiry * 1000)
+              const endDate = new Date(
+                newExpirySeconds(selection, n.currentExpiry) * 1000,
+              )
 
-            return (
-              <div
-                className="flex flex-col gap-2 border-ens-quartz-150 border-b p-4 last:border-none"
-                key={n.name}
-              >
-                <div className="flex items-center gap-2 font-sans text-ens-quartz-380 text-xs">
-                  <span className="font-normal font-sans text-ens-quartz-400 text-xs">
-                    {format(startDate, 'MMMM d, yyyy')}
-                  </span>
-                  <ArrowRight
-                    className="size-3.5 text-ens-quartz-400"
-                    strokeWidth={2}
-                  />
-                  <span className="font-normal font-sans text-ens-quartz-700 text-xs">
-                    {format(endDate, 'MMMM d, yyyy')}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="relative size-9 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
-                      <ImageFallback.Root className="contents">
-                        <ImageFallback.Image
-                          alt=""
-                          className="size-full object-cover"
-                          src={preview.avatarUrl}
-                        />
-                        <ImageFallback.Fallback>
-                          <PatternAvatar
-                            className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
-                            color={preview.themeColor}
-                            name={n.label}
-                          />
-                        </ImageFallback.Fallback>
-                      </ImageFallback.Root>
-                    </div>
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate font-medium font-semi-mono text-base text-ens-quartz-900">
-                        {n.displayName}
-                      </span>
-                      <span className="font-sans text-ens-quartz-350 text-sm">
-                        <Trans>Subtotal:</Trans>
-                      </span>
-                    </div>
+              return (
+                <div
+                  className="flex flex-col gap-2 border-ens-quartz-150 border-b p-4 last:border-none"
+                  key={n.name}
+                >
+                  <div className="flex items-center gap-2 font-sans text-ens-quartz-380 text-xs">
+                    <span className="font-normal font-sans text-ens-quartz-400 text-xs">
+                      {format(startDate, 'MMMM d, yyyy')}
+                    </span>
+                    <ArrowRight
+                      className="size-3.5 text-ens-quartz-400"
+                      strokeWidth={2}
+                    />
+                    <span className="font-normal font-sans text-ens-quartz-700 text-xs">
+                      {format(endDate, 'MMMM d, yyyy')}
+                    </span>
                   </div>
-                  <span className="shrink-0 font-sans text-ens-quartz-900 text-sm">
-                    {subtotal === undefined ? '—' : usd(subtotal)}
-                  </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="relative size-9 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
+                        <ImageFallback.Root className="contents">
+                          <ImageFallback.Image
+                            alt=""
+                            className="size-full object-cover"
+                            src={preview.avatarUrl}
+                          />
+                          <ImageFallback.Fallback>
+                            <PatternAvatar
+                              className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+                              color={preview.themeColor}
+                              name={n.label}
+                            />
+                          </ImageFallback.Fallback>
+                        </ImageFallback.Root>
+                      </div>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium font-semi-mono text-base text-ens-quartz-900">
+                          {n.displayName}
+                        </span>
+                        <span className="font-sans text-ens-quartz-350 text-sm">
+                          <Trans>Subtotal:</Trans>
+                        </span>
+                      </div>
+                    </div>
+                    <span className="shrink-0 font-sans text-ens-quartz-900 text-sm">
+                      {subtotal === undefined ? '—' : usd(subtotal)}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
 
-        <div className="flex items-center justify-between font-medium font-sans text-ens-lapis-900 text-xl">
-          <Trans>Total:</Trans>
-          <span className="block">{usd(grandTotal)} USD</span>
+          <div className="flex items-center justify-between border-ens-quartz-150 border-t px-4 py-3 font-medium font-sans text-ens-lapis-900 text-xl">
+            <Trans>Total:</Trans>
+            <span className="block">{usd(grandTotal)} USD</span>
+          </div>
         </div>
 
         <Button className="w-full" size="lg" type="button" variant="lightBlue">
