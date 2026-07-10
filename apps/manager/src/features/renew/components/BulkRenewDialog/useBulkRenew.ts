@@ -24,6 +24,7 @@ import {
 import type {
   BulkRenewName,
   PresetSummary,
+  RenewItem,
   Selection,
   SummaryRow,
 } from './types'
@@ -42,7 +43,11 @@ type BulkRenewPayment = {
 export type UseBulkRenewResult = {
   readonly minSelectableDate: Date
   readonly grandTotal: number
+  /** Summed quoted price in token units (for the allowance/permit). */
+  readonly sumPriceRaw: bigint
   readonly summaryRows: readonly SummaryRow[]
+  /** Per-name renewal inputs for submission. */
+  readonly renewItems: readonly RenewItem[]
   /** Aggregate totals per `PRESETS` entry (aligned by index). */
   readonly presetSummaries: readonly PresetSummary[]
   readonly payment: BulkRenewPayment
@@ -128,7 +133,8 @@ export const useBulkRenew = ({
     },
   )
 
-  // Price of each name at the ACTIVE selection → breakdown list + grand total.
+  // Price of each name at the ACTIVE selection → breakdown list, totals, and
+  // the raw token amounts needed to submit the renewals.
   const activeQueries = useQueries({
     queries: names.map((n) => {
       const duration = durationForName(selection, n.currentExpiry)
@@ -136,11 +142,26 @@ export const useBulkRenew = ({
         ...getRenewPriceQueryOptions(n.label, duration, USDC.symbol),
         enabled: open && duration > 0,
         placeholderData: keepPreviousData,
-        select: selectUsdcAmount,
+        select: (data: { amount: bigint }) => ({
+          amount: data.amount,
+          usd: decimalBigintToNumber(data.amount, USDC.decimals),
+        }),
       }
     }),
   })
-  const grandTotal = activeQueries.reduce((sum, q) => sum + (q.data ?? 0), 0)
+  const grandTotal = activeQueries.reduce(
+    (sum, q) => sum + (q.data?.usd ?? 0),
+    0,
+  )
+  const sumPriceRaw = activeQueries.reduce(
+    (sum, q) => sum + (q.data?.amount ?? 0n),
+    0n,
+  )
+  const renewItems: readonly RenewItem[] = names.map((n, i) => ({
+    label: n.label,
+    duration: BigInt(durationForName(selection, n.currentExpiry)),
+    priceRaw: activeQueries[i]?.data?.amount ?? 0n,
+  }))
 
   // Avatars/theme for the breakdown rows.
   const profilePreviews = useQueries({
@@ -162,7 +183,7 @@ export const useBulkRenew = ({
       records: profilePreviews[i]?.records,
       isLoading: profilePreviews[i]?.isLoading,
     }),
-    subtotal: activeQueries[i]?.data,
+    subtotal: activeQueries[i]?.data?.usd,
     startDate: new Date(n.currentExpiry * 1000),
     endDate: new Date(newExpirySeconds(selection, n.currentExpiry) * 1000),
   }))
@@ -180,7 +201,9 @@ export const useBulkRenew = ({
   return {
     minSelectableDate,
     grandTotal,
+    sumPriceRaw,
     summaryRows,
+    renewItems,
     presetSummaries,
     payment: {
       isConnected,

@@ -38,3 +38,23 @@ export type PresetSummary = {
   readonly discountAmount: number
   readonly discountPercentage: number
 }
+
+/** Everything needed to submit one name's renewal on-chain. */
+export type RenewItem = {
+  readonly label: string
+  readonly duration: bigint
+  /** Quoted price in token units, used to size the allowance/permit. */
+  readonly priceRaw: bigint
+}
+
+/** Per-name status while the sequential renewals run. */
+export type RowStatus = 'pending' | 'active' | 'done' | 'error'
+
+/** Overall progress of the bulk-renewal submission. */
+export type BulkRenewPhase =
+  | 'idle'
+  | 'preparing'
+  | 'authorizing'
+  | 'renewing'
+  | 'success'
+  | 'error'

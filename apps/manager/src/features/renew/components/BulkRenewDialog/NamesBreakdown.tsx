@@ -1,8 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { ArrowRight } from 'lucide-react'
-import * as ImageFallback from '@/components/atoms/ImageFallback'
-import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
+import { NameAvatar } from './NameAvatar'
 import { formatUsdAmount } from './pricing'
 import type { SummaryRow } from './types'
 
@@ -35,22 +34,7 @@ export const NamesBreakdown = ({
           </div>
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="relative size-9 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
-                <ImageFallback.Root className="contents">
-                  <ImageFallback.Image
-                    alt=""
-                    className="size-full object-cover"
-                    src={row.preview.avatarUrl}
-                  />
-                  <ImageFallback.Fallback>
-                    <PatternAvatar
-                      className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
-                      color={row.preview.themeColor}
-                      name={row.label}
-                    />
-                  </ImageFallback.Fallback>
-                </ImageFallback.Root>
-              </div>
+              <NameAvatar name={row.label} preview={row.preview} />
               <div className="flex min-w-0 flex-col">
                 <span className="truncate font-medium font-semi-mono text-base text-ens-quartz-900">
                   {row.displayName}
