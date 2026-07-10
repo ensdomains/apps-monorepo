@@ -3,7 +3,7 @@ import { Trans } from '@lingui/react/macro'
 import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
@@ -16,7 +16,6 @@ import { tw } from '@/utils/tailwind'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { AnimatedPrice } from './AnimatedPrice'
-import { CrossmintCheckoutDialog } from './CrossmintCheckoutDialog'
 import {
   PaymentCardBaseLine,
   PaymentCardPremiumLine,
@@ -26,6 +25,16 @@ import {
 // card option is disabled with a warning (per WEB-7).
 const CARD_LIMIT_USD = 1500
 
+// Load the Crossmint dialog client-only: the @crossmint SDK performs disallowed
+// operations (async I/O / random values) at module top-level, which crash SSR
+// in the Cloudflare Workers runtime. Lazy import + a mount guard keep it off the
+// server entirely.
+const CrossmintCheckoutDialog = lazy(() =>
+  import('./CrossmintCheckoutDialog').then((m) => ({
+    default: m.CrossmintCheckoutDialog,
+  })),
+)
+
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
   const [duration, canNext] = useSelector(uiActor, (state) => [
@@ -34,6 +43,10 @@ export const PaymentCard = () => {
   ])
   const { ownerAddress } = useSmartAccountContext()
   const [cardOpen, setCardOpen] = useState(false)
+  // Gate the client-only Crossmint dialog on mount so it never renders (and its
+  // SDK never imports) during SSR.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   const baseRate = useBaseRate(label)
 
@@ -76,15 +89,17 @@ export const PaymentCard = () => {
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
       />
-      {showCardOption && ownerAddress && (
-        <CrossmintCheckoutDialog
-          durationSeconds={duration}
-          label={label}
-          onOpenChange={setCardOpen}
-          open={cardOpen}
-          ownerAddress={ownerAddress as Address}
-          totalPriceUsd={totalPriceUsd}
-        />
+      {mounted && showCardOption && ownerAddress && (
+        <Suspense fallback={null}>
+          <CrossmintCheckoutDialog
+            durationSeconds={duration}
+            label={label}
+            onOpenChange={setCardOpen}
+            open={cardOpen}
+            ownerAddress={ownerAddress as Address}
+            totalPriceUsd={totalPriceUsd}
+          />
+        </Suspense>
       )}
     </>
   )
