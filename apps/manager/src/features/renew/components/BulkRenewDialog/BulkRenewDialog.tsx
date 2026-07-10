@@ -1,6 +1,7 @@
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
+import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -68,6 +69,16 @@ export const BulkRenewDialog = ({
     submit.phase === 'preparing' ||
     submit.phase === 'authorizing' ||
     submit.phase === 'renewing'
+
+  // Drives both which body renders and the crossfade key.
+  const view =
+    submit.phase === 'success'
+      ? 'success'
+      : submit.phase === 'error'
+        ? 'error'
+        : isSubmitting
+          ? 'renewing'
+          : step
 
   const handleOpenChange = (next: boolean) => {
     // Allow closing while renewing (the txs continue), but only reset the flow
@@ -185,10 +196,21 @@ export const BulkRenewDialog = ({
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogContent
-        className="flex max-h-[90vh] flex-col gap-5 overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
+        className="flex max-h-[90vh] flex-col overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
         showCloseButton
       >
-        {renderBody()}
+        <AnimatePresence initial={false} mode="wait">
+          <motion.div
+            animate={{ opacity: 1 }}
+            className="flex min-h-0 flex-col gap-5"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            key={view}
+            transition={{ duration: 0.2 }}
+          >
+            {renderBody()}
+          </motion.div>
+        </AnimatePresence>
       </DialogContent>
     </Dialog>
   )

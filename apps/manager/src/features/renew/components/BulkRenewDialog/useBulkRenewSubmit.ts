@@ -202,6 +202,8 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       }
 
       invalidateRenewedNames(items)
+      // Let the bar settle at 100% before flipping to the success view.
+      await new Promise((resolve) => setTimeout(resolve, 600))
       setPhase('success')
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Renewal failed')
