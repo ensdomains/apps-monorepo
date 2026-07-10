@@ -28,6 +28,11 @@ msgstr ""
 msgid "{0, plural, one {# ENS name is expiring without auto-renewal} other {# ENS names are expiring without auto-renewal}}"
 msgstr ""
 
+#. placeholder {0}: data.years
+#: src/features/register-v2/workflow/pricing/components/DurationPresetRow.tsx
+msgid "{0, plural, one {# year} other {# years}}"
+msgstr ""
+
 #. placeholder {0}: Number(formattedDurationYears)
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 msgid "{0, plural, one {# Year} other {# Years}}"
@@ -68,11 +73,6 @@ msgstr ""
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
 
-#: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
-msgid "{durationYears} years"
-msgstr ""
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/dashboard/components/NameRow.tsx
 msgid "{label} avatar"
@@ -84,6 +84,22 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "{totalSelected, plural, one {Upgrade # name} other {Upgrade # names}}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
+msgid "{value, plural, one {# day} other {# days}}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
+msgid "{value, plural, one {# month} other {# months}}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
+msgid "{value, plural, one {# week} other {# weeks}}"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
+msgid "{value, plural, one {# year} other {# years}}"
 msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx
@@ -338,7 +354,7 @@ msgstr ""
 msgid "Base price"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Best yearly price"
 msgstr ""
 
@@ -498,7 +514,7 @@ msgstr ""
 msgid "Commitment hides your registration intent"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Committed"
 msgstr ""
 
@@ -1202,7 +1218,7 @@ msgstr ""
 msgid "Loading..."
 msgstr "Laddar..."
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Long-term identity"
 msgstr ""
 
@@ -1210,7 +1226,7 @@ msgstr ""
 msgid "Main receiving address"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
 msgstr ""
 
@@ -2162,7 +2178,7 @@ msgstr ""
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Starter"
 msgstr ""
 
@@ -2362,7 +2378,7 @@ msgstr ""
 msgid "Try Again"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/DurationSelector.tsx
+#: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
 msgstr ""
 
