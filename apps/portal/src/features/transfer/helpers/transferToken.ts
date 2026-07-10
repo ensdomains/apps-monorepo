@@ -15,10 +15,10 @@ import {
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import { transferNameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import {
   type Address,
   encodeFunctionData,
+  erc1155Abi,
   type Hex,
   type PublicClient,
   type WalletClient,
@@ -60,16 +60,14 @@ export const transferToken = async ({
 
   const walletWithAccount = walletClient as WalletClientWithAccount
 
-  const writeParams = transferNameWriteParameters(walletWithAccount, {
-    registryAddress,
-    tokenId,
-    newOwnerAddress: recipient,
-  })
-
+  // ENS v2 names are ERC-1155 tokens held in their leaf `PermissionedRegistry`,
+  // so ownership moves via the standard `safeTransferFrom` on that registry —
+  // there is no dedicated transfer entrypoint. Amount is always 1 (names are
+  // non-fungible) and no callback data is passed.
   const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
+    abi: erc1155Abi,
+    functionName: 'safeTransferFrom',
+    args: [walletWithAccount.account.address, recipient, tokenId, 1n, '0x'],
   })
 
   const txId = transactionManager.startTransaction(
@@ -78,7 +76,7 @@ export const transferToken = async ({
       request: {
         type: 'eoa',
         from: walletWithAccount.account.address,
-        to: writeParams.address,
+        to: registryAddress,
         data,
         value: 0n,
         chainId,
