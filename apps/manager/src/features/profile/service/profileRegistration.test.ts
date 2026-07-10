@@ -47,7 +47,7 @@ describe('getRegistration', () => {
     })
     mocks.getBlock.mockResolvedValue({ timestamp: 1_761_906_936n })
 
-    const result = await getRegistration('fgeorgescu.eth')
+    const result = await getRegistration('fgeorgescu.eth', 'v1')
 
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_761_906_936 })
@@ -83,12 +83,22 @@ describe('getRegistration', () => {
     })
     mocks.getBlock.mockResolvedValue({ timestamp: 1_800_000_000n })
 
-    const result = await getRegistration('fgeorgescu.eth')
+    const result = await getRegistration('fgeorgescu.eth', 'v1')
 
     expect(result.isOk()).toBe(true)
     expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
     expect(mocks.getBlock).toHaveBeenCalledWith(mocks.client, {
       blockNumber: 15n,
     })
+  })
+
+  it('uses V2 registration data directly for a V2 name', async () => {
+    mocks.getRegistrationDate.mockResolvedValue(1_800_000_000n)
+
+    const result = await getRegistration('figma.eth', 'v2')
+
+    expect(result.isOk()).toBe(true)
+    expect(result._unsafeUnwrap()).toEqual({ registrationDate: 1_800_000_000 })
+    expect(mocks.getNameHistory).not.toHaveBeenCalled()
   })
 })

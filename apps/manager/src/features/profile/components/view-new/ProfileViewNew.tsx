@@ -72,10 +72,10 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     isError: isExpiryError,
     error: expiryError,
   } = useQuery({
-    ...profileExpiryQuery(name),
+    ...profileExpiryQuery(name, ownerData?.protocol),
   })
   const registration = useQuery({
-    ...profileRegistrationQuery(name),
+    ...profileRegistrationQuery(name, ownerData?.protocol),
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)

@@ -15,6 +15,7 @@ import { type GetBlockErrorType, getBlock } from 'viem/actions'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
+import { getOwner, type ProfileProtocol } from './profileOwner'
 
 class GetProfileRegistrationError extends TaggedError(
   'GetProfileRegistrationError',
@@ -58,27 +59,22 @@ const ENS_REGISTRY = getChainContractAddress({
 const blockNumberToBigInt = (blockNumber: number | bigint) =>
   typeof blockNumber === 'bigint' ? blockNumber : BigInt(blockNumber)
 
-export const getRegistration = ResultFn(async function* (name: string) {
+export const getRegistration = ResultFn(async function* (
+  name: string,
+  protocol?: ProfileProtocol,
+) {
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {
     return ok({ registrationDate: null })
   }
 
+  const resolvedProtocol =
+    protocol ?? (yield* getOwner({ name: ethName.name }))?.protocol ?? 'v2'
+
   const client = yield* safeGetClient()
 
-  const registrationDate = yield* fromPromise(
-    ensjsv2_getRegistrationDate(client, {
-      label: ethName.label,
-      registryAddress: ENS_REGISTRY,
-    }),
-    (e) =>
-      new GetProfileRegistrationError({
-        cause: e as GetRegistrationDateErrorType,
-      }),
-  )
-
-  if (registrationDate === null) {
+  if (resolvedProtocol === 'v1') {
     const nameHistory = yield* fromPromise(
       ensjs_getNameHistory(client, {
         name: ethName.name,
@@ -116,13 +112,30 @@ export const getRegistration = ResultFn(async function* (name: string) {
     return ok({ registrationDate: safeRegistrationDate })
   }
 
-  const safeRegistrationDate = yield* registrationDateToNumber(registrationDate)
+  const registrationDate = yield* fromPromise(
+    ensjsv2_getRegistrationDate(client, {
+      label: ethName.label,
+      registryAddress: ENS_REGISTRY,
+    }),
+    (e) =>
+      new GetProfileRegistrationError({
+        cause: e as GetRegistrationDateErrorType,
+      }),
+  )
+
+  const safeRegistrationDate =
+    registrationDate === null
+      ? null
+      : yield* registrationDateToNumber(registrationDate)
 
   return ok({ registrationDate: safeRegistrationDate })
 })
 
-export const profileRegistrationQuery = (name: string) =>
+export const profileRegistrationQuery = (
+  name: string,
+  protocol?: ProfileProtocol,
+) =>
   resultQueryOptions({
     queryKey: qk('profile', 'registration', { name }),
-    queryFn: ({ queryKey: [{ name }] }) => getRegistration(name),
+    queryFn: ({ queryKey: [{ name }] }) => getRegistration(name, protocol),
   })
