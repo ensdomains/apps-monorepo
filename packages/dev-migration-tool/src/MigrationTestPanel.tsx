@@ -30,6 +30,16 @@ import {
 // V1 subgraph URL pattern — intercepted to inject panel-created names
 const V1_SUBGRAPH_PATTERN = 'ensnode.io/subgraph'
 
+/** Extract the `name` GraphQL variable from a subgraph request body. */
+function migrationLookupName(body: string): string | undefined {
+  try {
+    const parsed = JSON.parse(body) as { variables?: { name?: string } }
+    return parsed.variables?.name
+  } catch {
+    return undefined
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Module-level fetch interceptor — installed at import time so it's active
 // before React Query fires its first request (useEffect is too late: RQ fires
@@ -65,8 +75,22 @@ export function setInjectedNames(names: ActiveName[]): void {
 
     if (!url.includes(V1_SUBGRAPH_PATTERN)) return origFetch(input, init)
 
+    // Two v1-subgraph queries need panel-created names injected:
+    //  - getNamesForAddress: the dashboard name list (returns all names).
+    //  - getV1DomainForMigration: the migration-status lookup, which filters
+    //    domains(where: { name: $name }) and must therefore be narrowed to just
+    //    the requested name — otherwise the upgrade banner never resolves for
+    //    Anvil-only names, since the real hosted subgraph can't see them.
     const body = typeof init?.body === 'string' ? init.body : ''
-    if (!body.includes('getNamesForAddress')) return origFetch(input, init)
+    const isNameList = body.includes('getNamesForAddress')
+    const isMigrationLookup = body.includes('getV1DomainForMigration')
+    if (!isNameList && !isMigrationLookup) return origFetch(input, init)
+
+    const injected = isNameList
+      ? _injectedNames
+      : _injectedNames.filter(
+          (n) => `${n.label}.eth` === migrationLookupName(body),
+        )
 
     let realDomains: unknown[] = []
     try {
@@ -80,7 +104,7 @@ export function setInjectedNames(names: ActiveName[]): void {
     return new Response(
       JSON.stringify({
         data: {
-          domains: [...realDomains, ..._injectedNames.map(buildMockDomain)],
+          domains: [...realDomains, ...injected.map(buildMockDomain)],
         },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },

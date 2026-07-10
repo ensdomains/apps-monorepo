@@ -1,6 +1,5 @@
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Trans } from '@lingui/react/macro'
 import { X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -8,19 +7,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { ProfileCardPreview } from '@/features/migration/components/ProfileCardPreview'
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
+import { MigrationValuePropsCarousel } from '@/features/migration/components/value-props/MigrationValuePropsCarousel'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useOpenModalOnFirstVisit } from '@/features/migration/hooks/useOpenModalOnFirstVisit'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
-const AUTO_SCROLL_INTERVAL_MS = 5000
-
-const SLIDE_DATA = [{ id: 'profiles' }] as const
-
 export const MigrationModal = () => {
-  const { t } = useLingui()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isEligibleV1NamesPending } =
     useEligibleV1Names({ fallbackToClassified: false })
@@ -36,37 +30,6 @@ export const MigrationModal = () => {
     isConnected,
     hasUnstartedMigration,
   )
-  const [activeSlide, setActiveSlide] = useState(0)
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const slideLabels: Record<string, string> = {
-    profiles: t`Custom Profiles`,
-    nft: t`Commemorative NFT`,
-    v2: t`ENS v2 Names`,
-    experience: t`New Experience`,
-  }
-
-  const scrollToSlide = useCallback((index: number) => {
-    setActiveSlide(index)
-    const el = scrollRef.current
-    if (!el) return
-    el.scrollTo({ left: index * el.offsetWidth, behavior: 'smooth' })
-  }, [])
-
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const index = Math.round(el.scrollLeft / el.offsetWidth)
-    setActiveSlide(index)
-  }, [])
-
-  useEffect(() => {
-    if (!open || SLIDE_DATA.length <= 1) return
-    const timer = setInterval(() => {
-      scrollToSlide((activeSlide + 1) % SLIDE_DATA.length)
-    }, AUTO_SCROLL_INTERVAL_MS)
-    return () => clearInterval(timer)
-  }, [open, activeSlide, scrollToSlide])
 
   return (
     <Dialog
@@ -76,7 +39,7 @@ export const MigrationModal = () => {
       open={open}
     >
       <DialogContent
-        className="overflow-hidden border-0 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 p-0 sm:max-w-[726px]"
+        className="max-h-[calc(100dvh-1rem)] overflow-y-auto overflow-x-hidden border-0 bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 p-0 sm:max-h-none sm:max-w-[726px] sm:overflow-hidden"
         showCloseButton={false}
       >
         <GrainOverlay />
@@ -92,57 +55,18 @@ export const MigrationModal = () => {
           </span>
         </button>
 
-        <div className="relative z-10 mx-auto flex w-full max-w-[486px] flex-col items-center gap-4 px-5 pt-7 pb-7">
-          <DialogTitle className="w-full pt-4 font-normal text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
+        <div className="relative z-10 mx-auto flex w-full max-w-[640px] flex-col items-center gap-3 px-5 pt-5 pb-5 sm:gap-4 sm:pt-7 sm:pb-7">
+          <DialogTitle className="w-full pt-2 font-normal text-[28px] text-ens-garnet-900 leading-[1.05] tracking-[-0.56px] sm:pt-4 sm:text-[32px] sm:leading-[1.1] sm:tracking-[-0.64px]">
             <Trans>Welcome to the new ENS app!</Trans>
           </DialogTitle>
-          <DialogDescription className="w-full text-base text-ens-garnet-500 leading-[1.2] tracking-[-0.24px]">
+          <DialogDescription className="w-full text-[15px] text-ens-garnet-500 leading-[1.15] tracking-[-0.2px] sm:text-base sm:leading-[1.2] sm:tracking-[-0.24px]">
             <Trans>
               Upgrade your name(s) in just a couple steps to unlock your new ENS
               profile and claim your commemorative NFT.
             </Trans>
           </DialogDescription>
 
-          {SLIDE_DATA.length > 1 && (
-            <div className="flex items-center gap-0.5">
-              {SLIDE_DATA.map((slide, i) => (
-                <button
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === activeSlide
-                      ? 'w-[19px] bg-ens-garnet-500'
-                      : 'w-[7px] bg-ens-garnet-500/50'
-                  }`}
-                  key={slide.id}
-                  onClick={() => scrollToSlide(i)}
-                  type="button"
-                >
-                  <span className="sr-only">
-                    <Trans>Slide {i + 1}</Trans>
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="w-full overflow-hidden">
-            <div
-              className="flex snap-x snap-mandatory overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              onScroll={handleScroll}
-              ref={scrollRef}
-            >
-              {SLIDE_DATA.map((slide) => (
-                <div
-                  className="flex w-full shrink-0 snap-center flex-col items-center gap-4 px-5"
-                  key={slide.id}
-                >
-                  <ProfileCardPreview />
-                  <p className="font-semi-mono text-ens-garnet-500 text-xs uppercase leading-[1.2] tracking-[0.12px]">
-                    {slideLabels[slide.id]}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <MigrationValuePropsCarousel />
 
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: dismiss wrapper, button inside handles keyboard */}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: dismiss wrapper, button inside handles keyboard */}

@@ -5,31 +5,31 @@ import { FUSES, hasFuse, is2LD } from './classifyNames'
 describe('FUSES constants', () => {
   it('matches NameWrapper fuse bit layout', () => {
     expect({ ...FUSES }).toEqual({
-      CAN_DO_EVERYTHING: 0,
-      CANNOT_UNWRAP: 1,
-      CANNOT_BURN_FUSES: 2,
-      CANNOT_TRANSFER: 4,
-      CANNOT_SET_RESOLVER: 8,
-      CANNOT_SET_TTL: 16,
-      CANNOT_CREATE_SUBDOMAIN: 32,
-      CANNOT_APPROVE: 64,
-      PARENT_CANNOT_CONTROL: 1 << 16,
-      IS_DOT_ETH: 1 << 17,
-      CAN_EXTEND_EXPIRY: 1 << 18,
+      CAN_DO_EVERYTHING: 0n,
+      CANNOT_UNWRAP: 1n,
+      CANNOT_BURN_FUSES: 2n,
+      CANNOT_TRANSFER: 4n,
+      CANNOT_SET_RESOLVER: 8n,
+      CANNOT_SET_TTL: 16n,
+      CANNOT_CREATE_SUBDOMAIN: 32n,
+      CANNOT_APPROVE: 64n,
+      PARENT_CANNOT_CONTROL: 1n << 16n,
+      IS_DOT_ETH: 1n << 17n,
+      CAN_EXTEND_EXPIRY: 1n << 18n,
     })
   })
 
   it('uses non-overlapping bits for each fuse', () => {
-    const bits = Object.values(FUSES).filter((v) => v !== 0)
-    expect(bits.reduce((a, b) => a | b, 0)).toBe(
-      bits.reduce((a, b) => a + b, 0),
+    const bits = Object.values(FUSES).filter((v) => v !== 0n)
+    expect(bits.reduce((a, b) => a | b, 0n)).toBe(
+      bits.reduce((a, b) => a + b, 0n),
     )
   })
 })
 
 describe('hasFuse', () => {
   it.each([
-    [0, FUSES.CANNOT_UNWRAP, false],
+    [0n, FUSES.CANNOT_UNWRAP, false],
     [FUSES.CANNOT_TRANSFER, FUSES.CANNOT_UNWRAP, false],
     [FUSES.CANNOT_UNWRAP, FUSES.CANNOT_UNWRAP, true],
     [

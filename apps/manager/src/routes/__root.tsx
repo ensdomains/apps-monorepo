@@ -34,6 +34,7 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
       {
         title: 'ENS App',
       },
+      { name: 'theme-color', content: '#0082BB' },
     ],
     links: [
       {
@@ -44,6 +45,9 @@ export const Route = createRootRouteWithContext<RootRouterContext>()({
         rel: 'stylesheet',
         href: MATERIAL_SYMBOLS_URL,
       },
+      { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+      { rel: 'apple-touch-icon', href: '/apple-icon-180x180.png' },
+      { rel: 'manifest', href: '/manifest.json' },
     ],
   }),
   component: RootComponent,

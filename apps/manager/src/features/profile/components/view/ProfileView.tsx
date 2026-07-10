@@ -10,7 +10,7 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
@@ -76,7 +76,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   } = useQuery({
     ...profileExpiryQuery(name),
   })
-  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const expiry = getProfileExpiryResultStatus(expiryData)
 
   const owner = ownerData?.owner as Address | undefined
   const profileThemeColor = expiry.isInGrace

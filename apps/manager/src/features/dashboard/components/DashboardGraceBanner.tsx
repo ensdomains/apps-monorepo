@@ -5,7 +5,7 @@ import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner
 import { resolveDashboardGraceBanner } from '@/features/grace/utils/resolveDashboardGraceBanner'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -34,17 +34,14 @@ export const DashboardGraceBanner = ({
     () =>
       resolveDashboardGraceBanner({
         primaryLabel,
-        primaryGrace: getProfileNameExpiryStatus(
-          primaryExpiryData?.expiry,
-          true,
-        ),
+        primaryGrace: getProfileExpiryResultStatus(primaryExpiryData),
         // Wait for all indexer pages before scanning for non-primary grace names.
         v2Names: isAllPagesLoaded ? v2Names : [],
         v1Classified: migrationEnabled ? v1Classified : [],
       }),
     [
       primaryLabel,
-      primaryExpiryData?.expiry,
+      primaryExpiryData,
       v1Classified,
       v2Names,
       isAllPagesLoaded,

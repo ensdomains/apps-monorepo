@@ -8,7 +8,7 @@ import {
   buildNameHeaderUrl,
 } from '@/features/profile/service/profileAvatar'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
@@ -78,7 +78,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     ...profileRegistrationQuery(name),
   })
 
-  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const expiry = getProfileExpiryResultStatus(expiryData)
   const owner = ownerData?.owner as Address | undefined
   const ownerReverseName = useQuery({
     ...profileReverseNameQuery(owner),

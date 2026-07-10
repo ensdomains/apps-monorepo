@@ -1,5 +1,11 @@
 import { Trans } from '@lingui/react/macro'
-import { addMonths, addSeconds, format } from 'date-fns'
+import {
+  addMonths,
+  addSeconds,
+  differenceInCalendarDays,
+  format,
+  startOfDay,
+} from 'date-fns'
 import { useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -10,7 +16,15 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
+import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
 import { cn } from '@/lib/utils'
+
+const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
+  Math.max(
+    MIN_REGISTER_DURATION_SECONDS,
+    differenceInCalendarDays(startOfDay(date), startOfDay(referenceDate)) *
+      86_400,
+  )
 
 export const DurationCustomRow = ({
   selectedDuration,
@@ -33,8 +47,9 @@ export const DurationCustomRow = ({
     return value
   })
   const referenceDate = referenceDateProp ?? defaultReferenceDate
-  const expirationDate = new Date(
-    referenceDate.getTime() + selectedDuration * 1000,
+  const expirationDate = getDurationExpiryDateForDisplay(
+    selectedDuration,
+    referenceDate,
   )
 
   const minSelectableDate = addSeconds(
@@ -89,22 +104,14 @@ export const DurationCustomRow = ({
           onMinimum={() => {
             const minDate = new Date(minSelectableDate)
             minDate.setHours(0, 0, 0, 0)
-            const duration = Math.max(
-              MIN_REGISTER_DURATION_SECONDS,
-              Math.round((minDate.getTime() - referenceDate.getTime()) / 1000),
-            )
-            onDurationSet(duration)
+            onDurationSet(getDurationFromSelectedDate(minDate, referenceDate))
           }}
           onSelect={(date) => {
             if (!date) {
               return
             }
             date.setHours(0, 0, 0, 0)
-            const duration = Math.max(
-              MIN_REGISTER_DURATION_SECONDS,
-              Math.round((date.getTime() - referenceDate.getTime()) / 1000),
-            )
-            onDurationSet(duration)
+            onDurationSet(getDurationFromSelectedDate(date, referenceDate))
           }}
           selected={expirationDate}
           showMinimumButton

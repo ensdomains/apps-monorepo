@@ -1,18 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import type { Address } from 'viem'
-import { useEnsResolver } from 'wagmi'
+import { type Address, isAddressEqual } from 'viem'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
+import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
@@ -121,6 +124,19 @@ const Profile = ({
   const grace = useGraceStatus({
     name,
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+  })
+
+  const { address: connectedAddress } = useConnection()
+
+  // Migration eligibility is only meaningful for v1 names, and the verdict is
+  // owner-scoped (evaluated for the connected wallet). Gate the query on both so
+  // non-v1 names and disconnected viewers skip the on-chain checks and see no
+  // migration status.
+  const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
+
+  const migrationQuery = useQuery({
+    ...getMigrationStatusQueryOptions({ name, address: connectedAddress }),
+    enabled: isV1Name && !!connectedAddress,
   })
 
   // Loading states
@@ -295,6 +311,19 @@ const Profile = ({
 
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
 
+  const migration = migrationQuery.data
+  // Migration status is owner-only: surface it (both the banner and the
+  // Protocol-row label) only when the name is migratable AND the connected
+  // wallet holds the v1 token. Non-owners and disconnected viewers see no
+  // migration text.
+  const isMigratableByConnectedOwner =
+    migration?.migratable === true &&
+    !!connectedAddress &&
+    isAddressEqual(connectedAddress, migration.tokenHolder)
+
+  const showUpgradeBanner =
+    resolvedProtocolVersion === 'ENSv1' && isMigratableByConnectedOwner
+
   return (
     <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
       {registrationBanner && (
@@ -308,13 +337,17 @@ const Profile = ({
         />
       )}
 
+      {showUpgradeBanner && <UpgradeBanner name={name} />}
+
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
-        <ExtendNameButton
-          name={name}
-          protocolVersion={resolvedProtocolVersion}
-        />
+        {resolvedProtocolVersion !== 'ENSv1' && (
+          <ExtendNameButton
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
+        )}
       </div>
 
       {/* Main section: profile | metadata rows | counters */}
@@ -342,6 +375,11 @@ const Profile = ({
             registryAddress={ownerQuery.data.registryAddress}
             asRow
             protocolVersion={resolvedProtocolVersion}
+          />
+          <ProtocolRow
+            protocolVersion={resolvedProtocolVersion}
+            migration={isMigratableByConnectedOwner ? migration : undefined}
+            isLoading={migrationQuery.isLoading}
           />
         </div>
 
