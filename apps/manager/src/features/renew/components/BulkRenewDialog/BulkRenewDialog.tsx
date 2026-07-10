@@ -21,11 +21,11 @@ import { useBulkRenew } from './useBulkRenew'
 import { useBulkRenewSubmit } from './useBulkRenewSubmit'
 
 // ─── TEMP STUB ────────────────────────────────────────────────────────────
-// Force the dialog open in an infinitely-looping "renewing" state with mock
-// data so the design can be tuned in the real app UI without on-chain work.
-// Set to `false` (or delete this block + its usages) to restore normal flow.
-const SIMULATE_RENEWING = true
-const MOCK_RENEW_ROWS: readonly SummaryRow[] = [
+// Force the dialog open in the "success" state with mock data so the design
+// can be tuned in the real app UI without on-chain work. Set to `false` (or
+// delete this block + its usages) to restore the normal flow.
+const SIMULATE_SUCCESS = true
+const MOCK_ROWS: readonly SummaryRow[] = [
   'erni.eth',
   'jooooe.eth',
   'aliasger.eth',
@@ -41,6 +41,7 @@ const MOCK_RENEW_ROWS: readonly SummaryRow[] = [
   startDate: new Date(2026, 5, 25),
   endDate: new Date(2029, 5, 25),
 }))
+const MOCK_TOTAL = MOCK_ROWS.reduce((sum, r) => sum + (r.subtotal ?? 0), 0)
 // ──────────────────────────────────────────────────────────────────────────
 
 type Step = 'summary' | 'confirm'
@@ -106,14 +107,9 @@ export const BulkRenewDialog = ({
     submit.submit({ items: renewItems, token: selectedToken, sumPriceRaw })
 
   const renderBody = (): ReactNode => {
-    if (SIMULATE_RENEWING) {
+    if (SIMULATE_SUCCESS) {
       return (
-        <RenewingStep
-          rows={MOCK_RENEW_ROWS}
-          simulate
-          statuses={{}}
-          total={MOCK_RENEW_ROWS.reduce((sum, r) => sum + (r.subtotal ?? 0), 0)}
-        />
+        <SuccessStep onDone={() => {}} rows={MOCK_ROWS} total={MOCK_TOTAL} />
       )
     }
     if (submit.phase === 'success') {
@@ -216,7 +212,7 @@ export const BulkRenewDialog = ({
   }
 
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open || SIMULATE_RENEWING}>
+    <Dialog onOpenChange={handleOpenChange} open={open || SIMULATE_SUCCESS}>
       <DialogContent
         className="flex max-h-[90vh] flex-col gap-5 overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
         showCloseButton

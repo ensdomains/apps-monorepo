@@ -1,14 +1,12 @@
 import { Trans } from '@lingui/react/macro'
-import { CheckCircle2 } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { BeadProgressBar } from './BeadProgressBar'
 import { NamesBreakdown } from './NamesBreakdown'
 import type { SummaryRow } from './types'
 
-const dialogTitleClassName =
-  'text-left font-normal font-sans text-ens-quartz-900 text-xl tracking-[-0.4px]'
-
-/** Terminal success view: completion banner + receipt + done button. */
+/** Terminal success view: green check + title + full bead bar + receipt. */
 export const SuccessStep = ({
   rows,
   total,
@@ -19,26 +17,17 @@ export const SuccessStep = ({
   readonly onDone: () => void
 }) => (
   <>
-    <DialogHeader>
-      <DialogTitle className={dialogTitleClassName}>
-        <Trans>Renewal complete</Trans>
+    <DialogHeader className="items-center gap-4">
+      <span className="flex size-12 items-center justify-center rounded-full bg-ens-peridot-400">
+        <Check className="size-6 text-ens-quartz-0" strokeWidth={3} />
+      </span>
+      <DialogTitle className="text-center font-normal font-sans text-2xl text-ens-quartz-900 tracking-[-0.4px]">
+        <Trans>Renewal Complete</Trans>
       </DialogTitle>
-    </DialogHeader>
-
-    <div className="flex items-start gap-3 rounded-lg border border-ens-peridot-border bg-ens-peridot-bg p-4">
-      <CheckCircle2
-        aria-hidden
-        className="mt-0.5 size-4 shrink-0 text-ens-peridot-text-dark"
-      />
-      <div className="flex flex-col gap-1">
-        <p className="font-medium font-sans text-ens-peridot-text-dark text-sm">
-          <Trans>Renewal complete!</Trans>
-        </p>
-        <p className="font-sans text-ens-peridot-text-medium text-sm">
-          <Trans>Your names have been successfully renewed.</Trans>
-        </p>
+      <div className="mx-auto w-full max-w-sm">
+        <BeadProgressBar progress={100} />
       </div>
-    </div>
+    </DialogHeader>
 
     <NamesBreakdown rows={rows} total={total} />
 
