@@ -16,9 +16,32 @@ import { PaymentMethodSection } from './PaymentMethodSection'
 import { RenewingStep } from './RenewingStep'
 import { RenewToDatePopover } from './RenewToDatePopover'
 import { SuccessStep } from './SuccessStep'
-import type { BulkRenewName, Selection } from './types'
+import type { BulkRenewName, Selection, SummaryRow } from './types'
 import { useBulkRenew } from './useBulkRenew'
 import { useBulkRenewSubmit } from './useBulkRenewSubmit'
+
+// ─── TEMP STUB ────────────────────────────────────────────────────────────
+// Force the dialog open in an infinitely-looping "renewing" state with mock
+// data so the design can be tuned in the real app UI without on-chain work.
+// Set to `false` (or delete this block + its usages) to restore normal flow.
+const SIMULATE_RENEWING = true
+const MOCK_RENEW_ROWS: readonly SummaryRow[] = [
+  'erni.eth',
+  'jooooe.eth',
+  'aliasger.eth',
+].map((name, i) => ({
+  key: name,
+  displayName: name,
+  label: name.replace(/\.eth$/, ''),
+  preview: {
+    isAvatarPending: false,
+    themeColor: ['#f53293', '#e7a259', '#0080bc'][i],
+  },
+  subtotal: 1320,
+  startDate: new Date(2026, 5, 25),
+  endDate: new Date(2029, 5, 25),
+}))
+// ──────────────────────────────────────────────────────────────────────────
 
 type Step = 'summary' | 'confirm'
 
@@ -83,6 +106,16 @@ export const BulkRenewDialog = ({
     submit.submit({ items: renewItems, token: selectedToken, sumPriceRaw })
 
   const renderBody = (): ReactNode => {
+    if (SIMULATE_RENEWING) {
+      return (
+        <RenewingStep
+          rows={MOCK_RENEW_ROWS}
+          simulate
+          statuses={{}}
+          total={MOCK_RENEW_ROWS.reduce((sum, r) => sum + (r.subtotal ?? 0), 0)}
+        />
+      )
+    }
     if (submit.phase === 'success') {
       return (
         <SuccessStep
@@ -183,7 +216,7 @@ export const BulkRenewDialog = ({
   }
 
   return (
-    <Dialog onOpenChange={handleOpenChange} open={open}>
+    <Dialog onOpenChange={handleOpenChange} open={open || SIMULATE_RENEWING}>
       <DialogContent
         className="flex max-h-[90vh] flex-col gap-5 overflow-hidden px-6 py-4 sm:max-w-[588px] sm:px-11 sm:py-8"
         showCloseButton
