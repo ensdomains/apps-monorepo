@@ -215,7 +215,7 @@ export const BulkRenewDialog = ({
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent
-        className="flex max-h-[90vh] flex-col gap-5 overflow-hidden p-6 sm:max-w-[440px]"
+        className="flex max-h-[90vh] flex-col gap-5 overflow-hidden p-6 sm:max-w-[540px]"
         showCloseButton
       >
         <DialogHeader>
@@ -279,7 +279,7 @@ export const BulkRenewDialog = ({
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 font-mono text-ens-quartz-550 text-sm">
+                <span className="shrink-0 text-base text-ens-quartz-400">
                   {usd(total)}
                 </span>
               </button>
@@ -293,7 +293,7 @@ export const BulkRenewDialog = ({
             <PopoverTrigger asChild>
               <button
                 className={cn(
-                  'flex items-center gap-1.5 font-sans text-sm',
+                  'flex items-center gap-1.5 font-sans text-xs',
                   selection.kind === 'custom'
                     ? 'text-ens-lapis-core'
                     : 'text-ens-lapis-core hover:opacity-80',
@@ -302,11 +302,11 @@ export const BulkRenewDialog = ({
               >
                 {selection.kind === 'custom' ? (
                   <Trans>
-                    Renewing to{' '}
+                    Register to{' '}
                     {format(new Date(selection.targetMs), 'MMM d, yyyy')}
                   </Trans>
                 ) : (
-                  <Trans>Renew to date instead</Trans>
+                  <Trans>Register to date instead</Trans>
                 )}
                 <MSymbol
                   className="ms-opsz-18 text-lg leading-none"
@@ -363,13 +363,20 @@ export const BulkRenewDialog = ({
                 key={n.name}
               >
                 <div className="flex items-center gap-2 font-sans text-ens-quartz-380 text-xs">
-                  <span>{format(startDate, 'MMMM d, yyyy')}</span>
-                  <ArrowRight className="size-3.5" strokeWidth={2} />
-                  <span>{format(endDate, 'MMMM d, yyyy')}</span>
+                  <span className="font-normal font-sans text-ens-quartz-400 text-xs">
+                    {format(startDate, 'MMMM d, yyyy')}
+                  </span>
+                  <ArrowRight
+                    className="size-3.5 text-ens-quartz-400"
+                    strokeWidth={2}
+                  />
+                  <span className="font-normal font-sans text-ens-quartz-700 text-xs">
+                    {format(endDate, 'MMMM d, yyyy')}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
-                    <div className="relative size-7 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
+                    <div className="relative size-9 shrink-0 overflow-hidden rounded-sm bg-ens-quartz-50">
                       <ImageFallback.Root className="contents">
                         <ImageFallback.Image
                           alt=""
@@ -386,15 +393,15 @@ export const BulkRenewDialog = ({
                       </ImageFallback.Root>
                     </div>
                     <div className="flex min-w-0 flex-col">
-                      <span className="truncate font-semi-mono text-ens-quartz-900 text-sm">
+                      <span className="truncate font-medium font-semi-mono text-base text-ens-quartz-900">
                         {n.displayName}
                       </span>
-                      <span className="font-sans text-ens-quartz-380 text-xs">
+                      <span className="font-sans text-ens-quartz-350 text-sm">
                         <Trans>Subtotal:</Trans>
                       </span>
                     </div>
                   </div>
-                  <span className="shrink-0 font-mono text-ens-quartz-900 text-sm">
+                  <span className="shrink-0 font-sans text-ens-quartz-900 text-sm">
                     {subtotal === undefined ? '—' : usd(subtotal)}
                   </span>
                 </div>
@@ -403,13 +410,9 @@ export const BulkRenewDialog = ({
           })}
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="font-sans text-ens-quartz-900 text-lg">
-            <Trans>Total:</Trans>
-          </span>
-          <span className="font-mono text-ens-quartz-900 text-lg">
-            {usd(grandTotal)} <span className="text-ens-quartz-380">USD</span>
-          </span>
+        <div className="flex items-center justify-between font-medium font-sans text-ens-lapis-900 text-xl">
+          <Trans>Total:</Trans>
+          <span className="block">{usd(grandTotal)} USD</span>
         </div>
 
         <Button className="w-full" size="lg" type="button" variant="lightBlue">
