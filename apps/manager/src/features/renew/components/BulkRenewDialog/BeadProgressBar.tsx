@@ -1,6 +1,9 @@
-// Bead grid geometry: ~4 rows in an 18px-tall bar → 4.5px vertical cell.
+// Bead grid geometry: ~4 rows in an 18px-tall bar → 4.5px vertical cell. The
+// bead is the cell minus a small margin (the white gap between beads).
 const H_CELL = 5
 const V_CELL = 4.5
+const H_MARGIN = 0.4
+const V_MARGIN = 0.35
 
 /**
  * The continuous colour field, before it's masked into beads: light-blue tiles
@@ -16,10 +19,10 @@ const COLOR_FIELD = [
   'linear-gradient(to bottom, color-mix(in srgb, var(--color-ens-lapis-300), var(--color-ens-lapis-core) 18%) 0 55%, color-mix(in srgb, var(--color-ens-garnet-200), var(--color-ens-garnet-core) 18%) 55%)', // tile base (light tones nudged darker)
 ].join(', ')
 
-// Rounded-square bead mask: a 5×4.5 tile holds a rounded rect (the bead); the
-// transparent margin around it becomes the white gap between beads.
-const BEAD_MASK =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='4.5'%3E%3Crect x='0.4' y='0.35' width='4.2' height='3.8' rx='1' fill='%23000'/%3E%3C/svg%3E\")"
+// Rounded-square bead mask: each cell holds a rounded rect (the bead); the
+// transparent margin around it becomes the white gap between beads. Built from
+// the cell constants so the SVG viewport and maskSize can't drift.
+const BEAD_MASK = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${H_CELL}' height='${V_CELL}'%3E%3Crect x='${H_MARGIN}' y='${V_MARGIN}' width='${H_CELL - 2 * H_MARGIN}' height='${V_CELL - 2 * V_MARGIN}' rx='1' fill='%23000'/%3E%3C/svg%3E")`
 
 /** Quilted bead-grid progress bar used by the renewing and success screens. */
 export const BeadProgressBar = ({
@@ -27,7 +30,7 @@ export const BeadProgressBar = ({
 }: {
   readonly progress: number
 }) => (
-  <div className="h-[18px] w-full overflow-hidden rounded-md bg-ens-quartz-150">
+  <div className="h-[18px] w-full overflow-hidden rounded-xs bg-ens-quartz-150">
     <div
       className="relative h-full bg-ens-quartz-0 transition-[width] duration-500 ease-out"
       style={{ width: `${Math.min(100, Math.max(4, progress))}%` }}

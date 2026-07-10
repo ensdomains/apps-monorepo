@@ -2,7 +2,7 @@ import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/en
 import { Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { PaymentMethodSection } from './PaymentMethodSection'
 import { RenewingStep } from './RenewingStep'
 import { RenewToDatePopover } from './RenewToDatePopover'
 import { SuccessStep } from './SuccessStep'
+import { dialogTitleClassName } from './styles'
 import type { BulkRenewName, Selection } from './types'
 import { useBulkRenew } from './useBulkRenew'
 import { useBulkRenewSubmit } from './useBulkRenewSubmit'
@@ -27,15 +28,15 @@ interface BulkRenewDialogProps {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly names: readonly BulkRenewName[]
+  /** Called once the batch has successfully renewed (e.g. to clear selection). */
+  readonly onRenewed?: () => void
 }
-
-const dialogTitleClassName =
-  'text-left font-normal font-sans text-ens-quartz-900 text-xl tracking-[-0.4px]'
 
 export const BulkRenewDialog = ({
   open,
   onOpenChange,
   names,
+  onRenewed,
 }: BulkRenewDialogProps) => {
   const { t } = useLingui()
   const [step, setStep] = useState<Step>('summary')
@@ -64,6 +65,16 @@ export const BulkRenewDialog = ({
         ? t`1 year`
         : t`${selection.years} years`
       : format(new Date(selection.targetMs), 'MMM d, yyyy')
+
+  // Start every fresh open from a clean slate — otherwise a leftover terminal
+  // phase (success/error) from a previous run would render over a new selection.
+  const { reset } = submit
+  useEffect(() => {
+    if (open) {
+      setStep('summary')
+      reset()
+    }
+  }, [open, reset])
 
   const isSubmitting =
     submit.phase === 'preparing' ||
@@ -97,7 +108,10 @@ export const BulkRenewDialog = ({
     if (submit.phase === 'success') {
       return (
         <SuccessStep
-          onDone={() => handleOpenChange(false)}
+          onDone={() => {
+            onRenewed?.()
+            handleOpenChange(false)
+          }}
           rows={summaryRows}
           total={grandTotal}
         />

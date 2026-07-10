@@ -1,4 +1,7 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import {
+  type SUPPORTED_TOKEN,
+  TOKENS,
+} from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { addDays } from 'date-fns'
 import { useMemo } from 'react'
@@ -133,18 +136,20 @@ export const useBulkRenew = ({
     },
   )
 
-  // Price of each name at the ACTIVE selection → breakdown list, totals, and
-  // the raw token amounts needed to submit the renewals.
+  // Price of each name at the ACTIVE selection, quoted in the SELECTED token
+  // (its decimals) so the raw amounts match what `renew` charges → breakdown
+  // list, totals, and the sum used to size the allowance/permit.
+  const tokenDecimals = TOKENS[selectedToken].decimals
   const activeQueries = useQueries({
     queries: names.map((n) => {
       const duration = durationForName(selection, n.currentExpiry)
       return {
-        ...getRenewPriceQueryOptions(n.label, duration, USDC.symbol),
+        ...getRenewPriceQueryOptions(n.label, duration, selectedToken),
         enabled: open && duration > 0,
         placeholderData: keepPreviousData,
         select: (data: { amount: bigint }) => ({
           amount: data.amount,
-          usd: decimalBigintToNumber(data.amount, USDC.decimals),
+          usd: decimalBigintToNumber(data.amount, tokenDecimals),
         }),
       }
     }),
@@ -157,10 +162,12 @@ export const useBulkRenew = ({
     (sum, q) => sum + (q.data?.amount ?? 0n),
     0n,
   )
-  const renewItems: readonly RenewItem[] = names.map((n, i) => ({
+  // Every active price must resolve before we size the allowance and submit —
+  // otherwise sumPriceRaw would undercount still-loading names.
+  const pricesReady = activeQueries.every((q) => q.data !== undefined)
+  const renewItems: readonly RenewItem[] = names.map((n) => ({
     label: n.label,
     duration: BigInt(durationForName(selection, n.currentExpiry)),
-    priceRaw: activeQueries[i]?.data?.amount ?? 0n,
   }))
 
   // Avatars/theme for the breakdown rows.
@@ -212,6 +219,7 @@ export const useBulkRenew = ({
       canConfirm:
         isConnected &&
         !isLoadingBalances &&
+        pricesReady &&
         grandTotal > 0 &&
         !hasInsufficientBalance(selectedBalanceUsd, grandTotal),
     },

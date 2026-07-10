@@ -139,10 +139,14 @@ export const NamesTable = ({
         )
         .map((domain) => {
           const displayName = resolveDomainLabel(domain)
+          // Use the canonical normalized name for the on-chain label — the
+          // display name may be unnormalized (e.g. mixed case) and would hash
+          // to the wrong label.
+          const name = domain.normalizedName ?? displayName
           return {
             displayName,
-            label: displayName.replace(/\.eth$/i, ''),
-            name: domain.normalizedName ?? displayName,
+            label: name.replace(/\.eth$/i, ''),
+            name,
             currentExpiry: domain.expiryDate as number,
           }
         }),
@@ -162,12 +166,19 @@ export const NamesTable = ({
     })
   }
 
+  // Toggle only the currently-visible names, preserving any selections made
+  // under a different search/filter.
   const onToggleSelectAll = () => {
     setSelectedLabels((prev) => {
       const allIn =
         allOwnedLabels.length > 0 &&
         allOwnedLabels.every((label) => prev.has(label))
-      return allIn ? new Set() : new Set(allOwnedLabels)
+      const next = new Set(prev)
+      for (const label of allOwnedLabels) {
+        if (allIn) next.delete(label)
+        else next.add(label)
+      }
+      return next
     })
   }
 
@@ -374,6 +385,7 @@ export const NamesTable = ({
       <BulkRenewDialog
         names={selectedNames}
         onOpenChange={setIsRenewOpen}
+        onRenewed={() => setSelectedLabels(new Set())}
         open={isRenewOpen}
       />
     </div>

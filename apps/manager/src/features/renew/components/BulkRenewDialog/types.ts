@@ -43,8 +43,6 @@ export type PresetSummary = {
 export type RenewItem = {
   readonly label: string
   readonly duration: bigint
-  /** Quoted price in token units, used to size the allowance/permit. */
-  readonly priceRaw: bigint
 }
 
 /** Per-name status while the sequential renewals run. */
