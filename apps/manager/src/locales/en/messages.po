@@ -1233,10 +1233,6 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
 
-#: src/features/weave-registration/lib/weaveSteps.ts
-msgid "Making your name work everywhere"
-msgstr "Making your name work everywhere"
-
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr "Manage everything in one place"
@@ -1538,14 +1534,6 @@ msgstr "Permission missing. Please try again."
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Personalized NFT"
 msgstr "Personalized NFT"
-
-#: src/features/weave-registration/lib/weaveSteps.ts
-msgid "Placing your new identity in your wallet"
-msgstr "Placing your new identity in your wallet"
-
-#: src/features/weave-registration/lib/weaveSteps.ts
-msgid "Planting your name in the infinite garden"
-msgstr "Planting your name in the infinite garden"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
