@@ -21,7 +21,24 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   }
 })
 
-import { getExpiry, getProfileExpiryResultStatus } from './profileExpiry'
+import {
+  getExpiry,
+  getProfileExpiryResultStatus,
+  profileExpiryQuery,
+} from './profileExpiry'
+
+describe('profileExpiryQuery', () => {
+  it('includes protocol in the query key', () => {
+    expect(profileExpiryQuery('foo.eth', 'v1').queryKey).toEqual([
+      {
+        $scope: 'profile',
+        $action: 'expiry',
+        name: 'foo.eth',
+        protocol: 'v1',
+      },
+    ])
+  })
+})
 
 describe('getExpiry', () => {
   beforeEach(() => {

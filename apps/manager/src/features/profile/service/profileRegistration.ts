@@ -136,6 +136,7 @@ export const profileRegistrationQuery = (
   protocol?: ProfileProtocol,
 ) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'registration', { name }),
-    queryFn: ({ queryKey: [{ name }] }) => getRegistration(name, protocol),
+    queryKey: qk('profile', 'registration', { name, protocol }),
+    queryFn: ({ queryKey: [{ name, protocol }] }) =>
+      getRegistration(name, protocol),
   })

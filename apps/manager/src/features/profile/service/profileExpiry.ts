@@ -125,6 +125,6 @@ export const getExpiry = ResultFn(async function* (
 
 export const profileExpiryQuery = (name: string, protocol?: ProfileProtocol) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'expiry', { name }),
-    queryFn: ({ queryKey: [{ name }] }) => getExpiry(name, protocol),
+    queryKey: qk('profile', 'expiry', { name, protocol }),
+    queryFn: ({ queryKey: [{ name, protocol }] }) => getExpiry(name, protocol),
   })

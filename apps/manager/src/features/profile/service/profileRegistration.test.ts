@@ -26,7 +26,23 @@ vi.mock('@/lib/wagmi/helpers', async () => {
   }
 })
 
-import { getRegistration } from './profileRegistration'
+import {
+  getRegistration,
+  profileRegistrationQuery,
+} from './profileRegistration'
+
+describe('profileRegistrationQuery', () => {
+  it('includes protocol in the query key', () => {
+    expect(profileRegistrationQuery('foo.eth', 'v1').queryKey).toEqual([
+      {
+        $scope: 'profile',
+        $action: 'registration',
+        name: 'foo.eth',
+        protocol: 'v1',
+      },
+    ])
+  })
+})
 
 describe('getRegistration', () => {
   beforeEach(() => {
