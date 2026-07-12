@@ -36,13 +36,6 @@
       "when": 1781817619597,
       "tag": "0004_add_transactions",
       "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1783022315826,
-      "tag": "0005_add_name_searches",
-      "breakpoints": true
     }
   ]
 }

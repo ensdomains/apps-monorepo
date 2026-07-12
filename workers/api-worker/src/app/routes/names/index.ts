@@ -1,87 +1,102 @@
-import { and, count, countDistinct, eq, gte } from 'drizzle-orm'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
+import { getAvailable } from '@ensdomains/ensjs/public/v2'
+import { count, eq } from 'drizzle-orm'
+import { fromPromise } from 'neverthrow'
 import { injectDb } from '#app/middleware/database.js'
+import { injectEthClient } from '#app/middleware/eth.js'
 import { createApp } from '#app/middleware/hono.js'
-import { schema } from '#core/database/index.js'
+import { intoDbResult, schema } from '#core/database/index.js'
+import { getUniqueSearchesLast30dFromPostHog } from '#services/posthog/name-search-stats.js'
 import { logger } from '#utils/logger.js'
 
-const SEARCH_STATS_WINDOW_DAYS = 30
-
 const MAX_NAME_LENGTH = 255
+const INVALID_ASCII_CHARS = /[&*@#$%^()[\]{}|\\:;"'<>?,=+~`!]/
 
-function searchWindowStart(): string {
-  const d = new Date()
-  d.setUTCDate(d.getUTCDate() - (SEARCH_STATS_WINDOW_DAYS - 1))
-  return d.toISOString().slice(0, 10)
-}
+class NameStatsRouteError extends TaggedError('NAME_STATS_ROUTE_ERROR')<{
+  cause: unknown
+}> {}
 
-/** Salted SHA-256 hex digest of a searcher identity — avoids storing raw PII. */
-async function hashSearcher(identity: string, salt: string): Promise<string> {
-  const bytes = new TextEncoder().encode(`${salt}:${identity}`)
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('')
+const isValidName = (name: string): boolean => {
+  if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
+    return false
+  }
+
+  if (!name.endsWith('.eth') || name.includes(' ') || name.includes('..')) {
+    return false
+  }
+
+  const label = name.slice(0, -4)
+
+  if (label.length === 0 || label.includes('.')) {
+    return false
+  }
+
+  if ([...label].length < 3 || INVALID_ASCII_CHARS.test(label)) {
+    return false
+  }
+
+  return true
 }
 
 export default createApp()
   .basePath('/names')
-  // Public aggregate stats for the price-cooldown "name stats" panel.
-  // No auth: only anonymous aggregate counts are exposed.
-  .get('/:name/stats', injectDb, async (c) => {
-    const { name } = c.req.param()
+  .get('/:name/stats', injectDb, injectEthClient, async (c) => {
+    const { name: requestedName } = c.req.param()
+    const name = requestedName.trim().toLowerCase()
 
-    if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
+    if (!isValidName(name)) {
       return c.json({ error: 'Invalid name' }, 400)
     }
 
-    const [[favoriteCount], [searchCount]] = await Promise.all([
-      c.var.db
-        .select({ value: count() })
-        .from(schema.favorites)
-        .where(eq(schema.favorites.name, name)),
-      c.var.db
-        .select({ value: countDistinct(schema.nameSearches.searcher_hash) })
-        .from(schema.nameSearches)
-        .where(
-          and(
-            eq(schema.nameSearches.name, name),
-            gte(schema.nameSearches.searched_on, searchWindowStart()),
-          ),
-        ),
+    const availabilityResult = await fromPromise(
+      getAvailable(c.var.ethClient, { name }),
+      (cause) => new NameStatsRouteError({ cause }),
+    )
+
+    if (availabilityResult.isErr()) {
+      logger.error('Failed to check name availability for stats', {
+        error: availabilityResult.error,
+        name,
+      })
+      return c.json({ error: 'Failed to fetch name stats' }, 500)
+    }
+
+    if (!availabilityResult.value) {
+      return c.json(
+        { error: 'Name stats are only available for unregistered names' },
+        404,
+      )
+    }
+
+    const [favoriteCountResult, uniqueSearchesResult] = await Promise.all([
+      intoDbResult(
+        c.var.db
+          .select({ value: count() })
+          .from(schema.favorites)
+          .where(eq(schema.favorites.name, name)),
+      ),
+      getUniqueSearchesLast30dFromPostHog(c.env, name),
     ])
+
+    if (favoriteCountResult.isErr()) {
+      logger.error('Failed to fetch favorite count for name stats', {
+        error: favoriteCountResult.error,
+        name,
+      })
+      return c.json({ error: 'Failed to fetch name stats' }, 500)
+    }
+
+    if (uniqueSearchesResult.isErr()) {
+      logger.error('Failed to fetch unique search count for name stats', {
+        error: uniqueSearchesResult.error,
+        name,
+      })
+      return c.json({ error: 'Failed to fetch name stats' }, 500)
+    }
 
     return c.json({
       name,
-      favorites: favoriteCount?.value ?? 0,
-      unique_searches_last_30d: searchCount?.value ?? 0,
+      favorites: favoriteCountResult.value[0]?.value ?? 0,
+      unique_searches_last_30d: uniqueSearchesResult.value,
     })
-  })
-  // Record a search for a name. Public; deduped per searcher per day via the
-  // (name, searcher_hash, searched_on) PK, so it is safe to call on every
-  // search without inflating counts.
-  .post('/:name/searches', injectDb, async (c) => {
-    const { name } = c.req.param()
-
-    if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
-      return c.json({ error: 'Invalid name' }, 400)
-    }
-
-    const ip =
-      c.req.header('cf-connecting-ip') ??
-      c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ??
-      'unknown'
-    const userAgent = c.req.header('user-agent') ?? ''
-    const searcher_hash = await hashSearcher(
-      `${ip}:${userAgent}`,
-      c.env.SEARCHER_HASH_SALT,
-    )
-
-    logger.debug('Recording name search', { name })
-
-    await c.var.db
-      .insert(schema.nameSearches)
-      .values({ name, searcher_hash })
-      .onConflictDoNothing()
-
-    return c.json({ message: 'Search recorded' }, 200)
   })

@@ -1,5 +1,4 @@
 export * from './core'
 export * from './favorites'
 export * from './notifications'
-export * from './searches'
 export * from './transactions'
