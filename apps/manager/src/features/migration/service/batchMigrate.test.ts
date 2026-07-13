@@ -26,7 +26,7 @@ const makeName = (
     tokenType,
     label,
     parentName,
-    fuses: 0,
+    fuses: 0n,
     tokenHolder: owner,
     v1ResolverAddress: null,
     resolverStrategy: 'to-owned-permres',

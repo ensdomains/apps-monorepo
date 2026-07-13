@@ -1,7 +1,6 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { secondsInDay } from 'date-fns/constants'
 import { useMemo } from 'react'
 import {
   type GetRenewPriceError,
@@ -10,7 +9,7 @@ import {
 } from '@/features/register-v2/data/queries/pricing.query'
 import { DurationCustomRow } from '@/features/register-v2/workflow/pricing/components/DurationCustomRow'
 import { DurationPresetRow } from '@/features/register-v2/workflow/pricing/components/DurationPresetRow'
-import { PRESET_DURATIONS } from '@/features/register-v2/workflow/pricing/components/DurationSelector'
+import { getComputedDurationPresets } from '@/features/register-v2/workflow/pricing/components/durationPresets'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 
@@ -26,18 +25,22 @@ export const DurationSelector = () => {
     () => new Date(Number(currentExpiry) * 1000),
     [currentExpiry],
   )
+  const presetDurations = useMemo(
+    () => getComputedDurationPresets(referenceDate),
+    [referenceDate],
+  )
   const selectedDuration = useSelector(
     uiActor,
     (state) => state.context.duration,
   )
 
   const presetPricingQueries = useQueries({
-    queries: PRESET_DURATIONS.map(({ duration }) =>
+    queries: presetDurations.map(({ duration }) =>
       getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {
-        const source = PRESET_DURATIONS[idx]
+        const source = presetDurations[idx]
         if (!source) {
           throw new Error('Invalid preset duration index')
         }
@@ -52,13 +55,13 @@ export const DurationSelector = () => {
       }),
   })
 
-  const selectedPresetIdx = PRESET_DURATIONS.findIndex(
-    ({ duration }) => Math.abs(selectedDuration - duration) < secondsInDay,
+  const selectedPresetIdx = presetDurations.findIndex(
+    ({ duration }) => selectedDuration === duration,
   )
 
   return (
     <div className="flex h-full flex-col justify-between gap-3 rounded-xl border border-[#DDDDDE] bg-white p-3 shadow-temp-card">
-      {PRESET_DURATIONS.map((data, idx) => {
+      {presetDurations.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
           throw new Error('Invalid preset duration index')

@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { NON_EXPIRING_DATE_LABEL } from '@/features/dashboard/utils'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
   favoriteAuthPromptMessage,
@@ -47,6 +48,7 @@ interface NameRowProps {
   readonly nameVariant?: 'primary' | 'secondary'
   readonly verified?: boolean
   readonly nameRole?: NameRole | null
+  readonly nameRoles?: readonly NameRole[] | null
   readonly status?: NameStatus | null
   readonly expiringInDays?: number | null
   readonly expiryLabel?: string | null
@@ -56,9 +58,10 @@ interface NameRowProps {
   readonly onToggleFavorite?: () => void
   readonly isAuthenticated?: boolean
   readonly isInGrace?: boolean
+  readonly canRenew?: boolean
 }
 
-const explorerUrl = (label: string) => `https://app.ens.domains/${label}`
+const explorerUrl = (label: string) => `https://explorer.ens.dev/${label}`
 
 const namePillVariants = cva(
   'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',
@@ -270,14 +273,15 @@ const FavoriteControl = ({
 
 const NameRowTop = ({
   status,
-  nameRole,
+  nameRoles,
   isInGrace,
   expiringInDays,
-}: Pick<
-  NameRowProps,
-  'status' | 'nameRole' | 'isInGrace' | 'expiringInDays'
->) => {
-  const hasTopRow = Boolean(isInGrace || status || nameRole || expiringInDays)
+}: Pick<NameRowProps, 'status' | 'isInGrace' | 'expiringInDays'> & {
+  readonly nameRoles: readonly NameRole[]
+}) => {
+  const hasTopRow = Boolean(
+    isInGrace || status || nameRoles.length > 0 || expiringInDays,
+  )
   if (!hasTopRow) return null
 
   return (
@@ -285,7 +289,9 @@ const NameRowTop = ({
       <div className="flex flex-wrap items-center gap-2">
         {status === 'eligibleUpgrade' && <EligibleForUpgradePill />}
         {status === 'ensv1Only' && <Ensv1OnlyPill />}
-        {nameRole && <RolePill role={nameRole} />}
+        {nameRoles.map((role) => (
+          <RolePill key={role} role={role} />
+        ))}
       </div>
       {isInGrace ? (
         <GracePeriodBadge />
@@ -298,6 +304,14 @@ const NameRowTop = ({
       )}
     </div>
   )
+}
+
+const getNameRoles = ({
+  nameRole,
+  nameRoles,
+}: Pick<NameRowProps, 'nameRole' | 'nameRoles'>): readonly NameRole[] => {
+  const roles = nameRoles ?? (nameRole ? [nameRole] : [])
+  return Array.from(new Set(roles))
 }
 
 const NameAvatar = ({
@@ -342,7 +356,13 @@ const NameAvatar = ({
   )
 }
 
-const NameOptionsMenu = ({ label }: { readonly label: string }) => {
+const NameOptionsMenu = ({
+  canRenew,
+  label,
+}: {
+  readonly canRenew: boolean
+  readonly label: string
+}) => {
   const { t } = useLingui()
 
   return (
@@ -364,19 +384,21 @@ const NameOptionsMenu = ({ label }: { readonly label: string }) => {
         className="w-67 rounded-xl border-none bg-white p-4 shadow-[0px_4px_4px_rgba(200,200,200,0.25)]"
         sideOffset={10}
       >
-        <DropdownMenuItem asChild>
-          <Link
-            className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
-            params={{ name: label }}
-            to="/renew/$name"
-          >
-            <Trans>Renew name</Trans>
-            <MSymbol
-              className="ms-opsz-20 text-xl leading-none"
-              symbol="double_arrow"
-            />
-          </Link>
-        </DropdownMenuItem>
+        {canRenew && (
+          <DropdownMenuItem asChild>
+            <Link
+              className="flex h-12 items-center justify-between rounded-[10px] bg-ens-quartz-50 px-4 py-3 font-semi-mono text-[14px] text-ens-quartz-900 uppercase focus:bg-ens-quartz-50 focus:text-ens-quartz-900"
+              params={{ name: label }}
+              to="/renew/$name"
+            >
+              <Trans>Renew name</Trans>
+              <MSymbol
+                className="ms-opsz-20 text-xl leading-none"
+                symbol="double_arrow"
+              />
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link
             className="flex h-12 items-center justify-between rounded-[10px] px-4 py-3 font-semi-mono text-[14px] text-ens-lapis-900 uppercase focus:bg-transparent focus:text-ens-lapis-900"
@@ -401,17 +423,25 @@ const ExpiryDetails = ({
 }: Pick<NameRowProps, 'expiryLabel' | 'cta' | 'label'>) => {
   if (!expiryLabel && !cta) return null
 
+  const isNonExpiring = expiryLabel === NON_EXPIRING_DATE_LABEL
+
   return (
     <div className="flex items-center justify-between gap-3">
       {expiryLabel ? (
         <div className="flex items-center gap-2">
           <History className="size-4 shrink-0 text-ens-quartz-360" />
           <span className="font-sans text-ens-quartz-380 text-sm">
-            <Trans>Expires on</Trans>
+            {isNonExpiring ? (
+              <Trans>Does not expire</Trans>
+            ) : (
+              <Trans>Expires on</Trans>
+            )}
           </span>
-          <span className="font-sans text-ens-quartz-550 text-sm">
-            {expiryLabel}
-          </span>
+          {!isNonExpiring && (
+            <span className="font-sans text-ens-quartz-550 text-sm">
+              {expiryLabel}
+            </span>
+          )}
         </div>
       ) : (
         <span />
@@ -429,6 +459,7 @@ export const NameRow = ({
   nameVariant = 'secondary',
   verified = false,
   nameRole = null,
+  nameRoles = null,
   status = null,
   expiringInDays = null,
   expiryLabel = null,
@@ -438,17 +469,19 @@ export const NameRow = ({
   onToggleFavorite,
   isAuthenticated = true,
   isInGrace = false,
+  canRenew = true,
 }: NameRowProps) => {
   const themeVars =
     themeColor && !isInGrace ? getThemeVars(themeColor) : undefined
   const resolvedThemeColor = themeVars?.['--theme-color']
+  const resolvedNameRoles = getNameRoles({ nameRole, nameRoles })
 
   return (
     <div className="flex w-full flex-col gap-4 md:gap-6">
       <NameRowTop
         expiringInDays={expiringInDays}
         isInGrace={isInGrace}
-        nameRole={nameRole}
+        nameRoles={resolvedNameRoles}
         status={status}
       />
 
@@ -471,7 +504,7 @@ export const NameRow = ({
           {verified && <VerifiedCheck />}
         </div>
 
-        <NameOptionsMenu label={label} />
+        <NameOptionsMenu canRenew={canRenew} label={label} />
       </div>
 
       <ExpiryDetails cta={cta} expiryLabel={expiryLabel} label={label} />

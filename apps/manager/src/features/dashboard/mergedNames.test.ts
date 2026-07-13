@@ -4,6 +4,7 @@ import type { ClassifiedName } from '@/features/migration/service/classifyNames'
 import {
   buildMergedNamesList,
   compareMerged,
+  getMergedNamesCount,
   type MergedItem,
   mergedRowMetadata,
   v1ExpirySeconds,
@@ -129,6 +130,14 @@ describe('compareMerged', () => {
     expect(compareMerged(a, noExpiry, 'expiry', 'asc')).toBeLessThan(0)
     expect(compareMerged(a, noExpiry, 'expiry', 'desc')).toBeLessThan(0)
   })
+  it('pushes zero expiry to the end like null expiry', () => {
+    const nonExpiring = makeMergedV1({
+      sortName: 'non-expiring.eth',
+      sortExpiry: 0,
+    })
+    expect(compareMerged(a, nonExpiring, 'expiry', 'asc')).toBeLessThan(0)
+    expect(compareMerged(a, nonExpiring, 'expiry', 'desc')).toBeLessThan(0)
+  })
   it('returns 0 when both expiries are null', () => {
     const c = makeMergedV1({ sortName: 'delta.eth', sortExpiry: null })
     expect(compareMerged(noExpiry, c, 'expiry', 'asc')).toBe(0)
@@ -205,6 +214,33 @@ describe('buildMergedNamesList', () => {
     expect(items.map((i) => i.sortExpiry)).toEqual([50, 100, 200, null])
   })
 
+  it('prefers the v2 row when the same name exists in v1 and v2', () => {
+    const items = buildMergedNamesList({
+      v2Names: [makeV2({ id: '0xv2', name: 'migrated.eth' })],
+      v1Classified: [
+        makeV1({ id: '0xv1', name: 'MIGRATED.eth', label: 'MIGRATED' }),
+      ],
+      searchQuery: '',
+      sortField: 'name',
+      sortDir: 'asc',
+    })
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.kind).toBe('v2')
+  })
+
+  it('counts merged names without double-counting v1 names that exist in v2', () => {
+    expect(
+      getMergedNamesCount({
+        v2Names: [makeV2({ id: '0xv2', name: 'migrated.eth' })],
+        v1Classified: [
+          makeV1({ id: '0xv1', name: 'migrated.eth', label: 'migrated' }),
+          makeV1({ id: '0xv1-only', name: 'v1-only.eth', label: 'v1-only' }),
+        ],
+      }),
+    ).toBe(2)
+  })
+
   it('sorts by created date desc with unknowns last', () => {
     const items = buildMergedNamesList({
       v2Names: [
@@ -274,6 +310,19 @@ describe('mergedRowMetadata', () => {
     const meta = mergedRowMetadata(item, null)
     expect(meta.expiringSoon).toBe(true)
     expect(meta.daysUntilExpiry).toBe(10)
+  })
+
+  it('labels zero expiry timestamps as non-expiring', () => {
+    const item = makeMergedV1({
+      sortName: 'pokemon.fgeorgescu.eth',
+      sortExpiry: 0,
+    })
+
+    const meta = mergedRowMetadata(item, null)
+
+    expect(meta.expiryDate).toBeNull()
+    expect(meta.formattedExpiryDate).toBe('Does not expire')
+    expect(meta.daysUntilExpiry).toBeNull()
   })
 
   it('uses reminder CTA for names expiring more than 7 days out', () => {

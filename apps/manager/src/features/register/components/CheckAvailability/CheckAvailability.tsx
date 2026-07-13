@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -263,10 +263,7 @@ export const CheckAvailability = ({
                         clickable
                         domainName={state.domainName}
                         status={domainResultStatusFromGrace(
-                          getProfileNameExpiryStatus(
-                            profileExpiry?.expiry,
-                            true,
-                          ).isInGrace,
+                          getProfileExpiryResultStatus(profileExpiry).isInGrace,
                         )}
                       />
                     </Link>

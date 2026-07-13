@@ -67,7 +67,7 @@ describe('classifyName — expired wrap', () => {
       }),
     )
     expect(n.tokenType).toBe('unwrapped')
-    expect(n.fuses).toBe(0)
+    expect(n.fuses).toBe(0n)
     expect(n.tokenHolder.toLowerCase()).toBe(OWNER.toLowerCase())
   })
 
@@ -125,7 +125,7 @@ describe('classifyName — token type', () => {
   it.each([
     [
       'unlocked when wrapped and CANNOT_UNWRAP not burnt',
-      { isWrapped: true, fuses: 0 },
+      { isWrapped: true, fuses: 0n },
       'unlocked' as const,
     ],
     [
@@ -161,7 +161,7 @@ describe('classifyName — ineligible reasons', () => {
   it.each([
     [
       'unlocked-subname',
-      { isWrapped: true, parentName: 'raffy.eth', fuses: 0 },
+      { isWrapped: true, parentName: 'raffy.eth', fuses: 0n },
     ],
     [
       'not-transferable',
@@ -188,7 +188,7 @@ describe('classifyName — ineligible reasons', () => {
         classify({
           isWrapped: true,
           parentName: 'raffy.eth',
-          parentFuses: 0,
+          parentFuses: 0n,
           fuses: FUSES.PARENT_CANNOT_CONTROL,
         }),
       ),
@@ -243,7 +243,7 @@ describe('classifyNames', () => {
         id: '0x3',
         isWrapped: true,
         parentName: 'raffy.eth',
-        fuses: 0,
+        fuses: 0n,
       }),
       makeDomain({ id: '0x4', labelName: null }),
     ]
@@ -266,7 +266,7 @@ describe('groupClassifiedNames', () => {
     tokenType,
     label: 'x',
     parentName,
-    fuses: 0,
+    fuses: 0n,
     tokenHolder: OWNER,
     v1ResolverAddress: null,
     resolverStrategy: 'to-owned-permres',

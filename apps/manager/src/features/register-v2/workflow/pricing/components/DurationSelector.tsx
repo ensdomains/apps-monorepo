@@ -1,9 +1,8 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { msg } from '@lingui/core/macro'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { secondsInDay } from 'date-fns/constants'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import { useMemo } from 'react'
+import { getStartOfDay } from '@/features/register-v2/utils/time'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
   type GetRegisterPriceError,
@@ -12,31 +11,8 @@ import {
 } from '../../../data/queries/pricing.query'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { DurationCustomRow } from './DurationCustomRow'
-import { type DurationPresetData, DurationPresetRow } from './DurationPresetRow'
-
-export const PRESET_DURATIONS: DurationPresetData[] = [
-  {
-    duration: SECONDS_IN_YEAR,
-    title: msg`Starter`,
-    subtitle: msg`Try it out`,
-    kind: 'default',
-    color: 'citrine',
-  },
-  {
-    duration: SECONDS_IN_YEAR * 3,
-    title: msg`Committed`,
-    subtitle: msg`Make it yours`,
-    kind: 'mostPopular',
-    color: 'peridot',
-  },
-  {
-    duration: SECONDS_IN_YEAR * 6,
-    title: msg`Long-term identity`,
-    subtitle: msg`Best yearly price`,
-    kind: 'default',
-    color: 'garnet',
-  },
-]
+import { DurationPresetRow } from './DurationPresetRow'
+import { getComputedDurationPresets } from './durationPresets'
 
 type PresetPricingQuery = {
   isPending: boolean
@@ -53,14 +29,18 @@ export const DurationSelector = () => {
     uiActor,
     (state) => state.context.duration,
   )
+  const presetDurations = useMemo(
+    () => getComputedDurationPresets(getStartOfDay()),
+    [],
+  )
 
   const presetPricingQueries = useQueries({
-    queries: PRESET_DURATIONS.map(({ duration }) =>
+    queries: presetDurations.map(({ duration }) =>
       getRegisterPriceQueryOptions(label, duration, TOKENS.USDC.symbol),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {
-        const source = PRESET_DURATIONS[idx]
+        const source = presetDurations[idx]
         if (!source) {
           throw new Error('Invalid preset duration index')
         }
@@ -84,13 +64,13 @@ export const DurationSelector = () => {
       }),
   })
 
-  const selectedPresetIdx = PRESET_DURATIONS.findIndex(
-    ({ duration }) => Math.abs(selectedDuration - duration) < secondsInDay,
+  const selectedPresetIdx = presetDurations.findIndex(
+    ({ duration }) => selectedDuration === duration,
   )
 
   return (
     <div className="flex h-full flex-col justify-between gap-3 rounded-xl border-[#DDDDDE] border-[0.5px] bg-white p-3 shadow-temp-card">
-      {PRESET_DURATIONS.map((data, idx) => {
+      {presetDurations.map((data, idx) => {
         const query = presetPricingQueries[idx]
         if (!query) {
           throw new Error('Invalid preset duration index')
