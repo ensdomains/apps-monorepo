@@ -841,10 +841,10 @@ importers:
     dependencies:
       '@ensdomains/ensjs':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@d946c1f(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@727e33b(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@d946c1f
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@727e33b
       viem:
         specifier: 'catalog:'
         version: 2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13)
@@ -1607,7 +1607,7 @@ packages:
     engines: {node: '>=22'}
 
   '@ensdomains/ensjs-abi@https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@727e33b5999ff2d805aacc75efa2d9fb83f32903':
-    resolution: {integrity: sha512-vYblfvOqLMAq+feXEIwiY1WffTgm7gyPW1eXmvScDif9dg8VwYfZ9RWzK7LTxLSzOQpL+AN+33WEuizl1rjBjA==, tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@727e33b5999ff2d805aacc75efa2d9fb83f32903}
+    resolution: {tarball: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@727e33b5999ff2d805aacc75efa2d9fb83f32903}
     version: 5.0.0-alpha.1
     engines: {node: '>=22'}
 
