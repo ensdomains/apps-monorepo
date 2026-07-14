@@ -15,9 +15,7 @@ describe('recordNameSearch', () => {
 
     expect(mocks.track).toHaveBeenCalledWith('name:search_selected', {
       name: 'vitalik.eth',
-      label: 'vitalik',
       source: 'header_search',
-      build_env: import.meta.env.MODE,
     })
   })
 

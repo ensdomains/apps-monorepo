@@ -26,37 +26,26 @@ const normalizeCount = (value: unknown): number | null => {
 }
 
 const extractUniqueSearchCount = (payload: unknown): number => {
-  const direct = normalizeCount(payload)
-  if (direct !== null) return direct
-
-  const queue: unknown[] = [payload]
-
-  while (queue.length > 0) {
-    const current = queue.shift()
-    const normalized = normalizeCount(current)
-
-    if (normalized !== null) {
-      return normalized
-    }
-
-    if (Array.isArray(current)) {
-      queue.push(...current)
-      continue
-    }
-
-    if (current && typeof current === 'object') {
-      const record = current as Record<string, unknown>
-      const namedCount = normalizeCount(record.unique_searches_last_30d)
-
-      if (namedCount !== null) {
-        return namedCount
-      }
-
-      queue.push(...Object.values(record))
-    }
+  if (!payload || typeof payload !== 'object') {
+    return 0
   }
 
-  return 0
+  const record = payload as Record<string, unknown>
+  const results = record.results
+
+  if (
+    !Array.isArray(results) ||
+    !results[0] ||
+    typeof results[0] !== 'object'
+  ) {
+    return 0
+  }
+
+  return (
+    normalizeCount(
+      (results[0] as Record<string, unknown>).unique_searches_last_30d,
+    ) ?? 0
+  )
 }
 
 const resolveEndpointUrl = ResultFn(async function* (env: CloudflareBindings) {

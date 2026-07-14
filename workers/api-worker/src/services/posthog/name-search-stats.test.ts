@@ -44,6 +44,33 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
     )
   })
 
+  it('reads the labelled unique search count instead of unrelated numeric fields', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          count: 1,
+          results: [{ unique_searches_last_30d: 42 }],
+        }),
+      }),
+    )
+
+    await expect(
+      getUniqueSearchesLast30dFromPostHog(
+        {
+          POSTHOG: {
+            host: 'https://posthog.example',
+            unique_searches_endpoint:
+              'api/environments/test/query_endpoints/unique-searches/run/',
+          },
+          POSTHOG_PERSONAL_API_KEY: 'secret',
+        } as CloudflareBindings,
+        'vitalik.eth',
+      ),
+    ).resolves.toMatchObject({ value: 42 })
+  })
+
   it('returns zero when PostHog fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')))
 
