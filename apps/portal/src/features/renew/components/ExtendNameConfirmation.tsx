@@ -6,7 +6,6 @@ import { PaymentTokenPicker } from '@/features/register/components/PaymentTokenP
 import type { RegistrationPriceResult } from '@/features/register/hooks/useRegistrationPrice'
 import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import type { SelectedName } from '../hooks/useRenewalTransactions'
-import { getRenewerAddress } from '../utils/renewer'
 import { ExtendNameSummaryCards } from './ExtendNameSummaryCards'
 
 type ExtendNameConfirmationProps = {
@@ -15,7 +14,6 @@ type ExtendNameConfirmationProps = {
   readonly price: RegistrationPriceResult
   readonly onBack: () => void
   readonly onConfirm: (token: TokenWithPriceAndBalance) => void
-  readonly isRegistering: boolean
 }
 
 export const ExtendNameConfirmation = ({
@@ -24,7 +22,6 @@ export const ExtendNameConfirmation = ({
   price,
   onBack,
   onConfirm,
-  isRegistering,
 }: ExtendNameConfirmationProps) => {
   const [selectedTokenData, setSelectedTokenData] =
     useState<TokenWithPriceAndBalance | null>(null)
@@ -45,9 +42,8 @@ export const ExtendNameConfirmation = ({
       <PaymentTokenPicker
         name={selectedName.name}
         duration={durationSeconds}
-        isRegistering={isRegistering}
-        isRenewal
-        renewer={getRenewerAddress(selectedName.isV2)}
+        mode="renew"
+        isV2={selectedName.isV2}
         onSelectionChange={setSelectedTokenData}
       />
       <div className="flex gap-2">
