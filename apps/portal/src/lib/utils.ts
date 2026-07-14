@@ -8,6 +8,10 @@ export function cn(...inputs: CxOptions) {
 
 const SLIP44_MSB = 0x80000000
 
+// The chainId → coinType direction has no local counterpart: use
+// `evmChainIdToCoinType` from `@ensdomains/address-encoder/utils`. This inverse
+// stays local because it special-cases mainnet (coin 60 → chain 1), which the
+// library util deliberately does not.
 export function fromCoinType(coinType: bigint): number {
   if (coinType === 60n) return 1 // Special case for Ethereum mainnet
 
@@ -16,10 +20,4 @@ export function fromCoinType(coinType: bigint): number {
     throw new EnsInvalidChainIdError({ chainId })
 
   return chainId
-}
-
-/** Inverse of {@link fromCoinType}: maps an EVM chain id to its ENSIP-11 coin type. */
-export function toCoinType(chainId: number): number {
-  if (chainId === 1 || chainId === 60) return 60 // Ethereum mainnet
-  return (SLIP44_MSB | chainId) >>> 0
 }

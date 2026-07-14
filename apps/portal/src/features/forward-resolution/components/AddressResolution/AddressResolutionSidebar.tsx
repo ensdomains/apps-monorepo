@@ -10,7 +10,9 @@ import {
   type ReactNode,
   useState,
 } from 'react'
-import type { Address } from 'viem'
+import { toast } from 'sonner'
+import { match } from 'ts-pattern'
+import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Badge } from '@/components/ui/badge'
@@ -26,16 +28,17 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { names } from '@/lib/reverseRegistrarChainId'
 import { fromCoinType } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ProtocolVersion } from '@/utils/types'
-import { MAINNET_COIN_TYPE } from './networks'
 import type { AddressResolutionRow } from './types'
 
 // The sidebar's history covers the name's resolution records only — address
@@ -223,14 +226,14 @@ const saveButtonLabel = (s: {
   isWrongChain: boolean
   isWriting: boolean
   isSyncing: boolean
-}) => {
-  if (!s.isConnected) return 'Connect Wallet'
-  if (s.isSwitchingChain) return 'Switching…'
-  if (s.isWrongChain) return 'Switch Network'
-  if (s.isWriting) return 'Saving…'
-  if (s.isSyncing) return 'Syncing…'
-  return 'Save'
-}
+}) =>
+  match(s)
+    .with({ isConnected: false }, () => 'Connect Wallet')
+    .with({ isSwitchingChain: true }, () => 'Switching…')
+    .with({ isWrongChain: true }, () => 'Switch Network')
+    .with({ isWriting: true }, () => 'Saving…')
+    .with({ isSyncing: true }, () => 'Syncing…')
+    .otherwise(() => 'Save')
 
 const ResolutionDetails = ({
   row,
@@ -245,6 +248,7 @@ const ResolutionDetails = ({
   onSave,
   protocolVersion,
   canSetPrimaryName,
+  isSettingPrimaryName,
   onSetPrimaryName,
 }: {
   row: AddressResolutionRow
@@ -259,6 +263,7 @@ const ResolutionDetails = ({
   onSave: () => void
   protocolVersion: ProtocolVersion | undefined
   canSetPrimaryName: boolean
+  isSettingPrimaryName: boolean
   onSetPrimaryName: () => void
 }) => {
   const { label, icon, coinType, reverseMatch, reverseName } = row
@@ -283,9 +288,10 @@ const ResolutionDetails = ({
                 variant="link"
                 size="sm"
                 className="h-auto p-0 text-primary font-medium shrink-0"
+                disabled={isSettingPrimaryName}
                 onClick={onSetPrimaryName}
               >
-                Set primary name
+                {isSettingPrimaryName ? 'Setting…' : 'Set primary name'}
               </Button>
             ) : undefined
           }
@@ -360,42 +366,51 @@ const useAddressRecordEditor = (
     switchToRequiredNetwork,
   } = useSaveRecords()
 
-  // "Set primary name" sets the reverse record for the selected row's
-  // namespace via `setName(string)` (which sets `msg.sender`'s own record):
+  // "Set primary name" sets the reverse record that actually controls the
+  // selected row via `setName(string)` (which sets `msg.sender`'s own record):
   //   - Default row (0x80000000) → ENSv1 `DefaultReverseRegistrar` (default.reverse)
   //   - Mainnet row (coin 60)    → ENSv1 `ReverseRegistrar` (addr.reverse)
-  // The default is the cross-chain fallback (covers L2s), but a pre-existing
-  // coin-60 `addr.reverse` shadows it — so Mainnet needs its own write to
-  // overwrite that record rather than being silently shadowed.
+  //   - L2 rows                  → that chain's L2 reverse registrar
+  // Per-row routing matters because a chain-specific record shadows
+  // `default.reverse` (ENSIP-19) — a default write could succeed on-chain
+  // while leaving the selected row unresolved.
   // Offered only when the connected wallet *is* this address (setName is
   // msg.sender-scoped).
   const canSetPrimaryName =
     !!connectedAddress &&
     !!data?.address &&
-    connectedAddress.toLowerCase() === data.address.toLowerCase()
+    isAddress(data.address, { strict: false }) &&
+    isAddressEqual(connectedAddress, data.address)
 
   const { setReverseResolution } = useSetReverseResolution({
     chainId: sepoliaWithEns.id,
     id: SET_PRIMARY_TX_ID,
   })
+  const { setL2ReverseNameAsync, isPending: isSettingL2PrimaryName } =
+    useSetL2ReverseName()
   const [activeFlow, setActiveFlow] = useState<'addr' | 'primary'>('addr')
 
-  // Re-seed the input with the selected network's current address when the
-  // selected row changes — React's "adjust state during render" pattern. When
-  // the record is unset, fall back to the connected wallet so owners setting
-  // their own address don't have to copy-paste it. The edit UI only renders for
-  // owners, so non-owners never see this default.
-  const [addressInput, setAddressInput] = useState('')
-  const [seededCoinType, setSeededCoinType] = useState<number | undefined>()
-  if (data && seededCoinType !== data.coinType) {
-    setSeededCoinType(data.coinType)
-    setAddressInput(data.address ?? connectedAddress ?? '')
+  // The address input is fully derived — no state writes during render and no
+  // effect needed: an edit applies only to the row (coin type) it was typed
+  // on, so switching rows implicitly falls back to that row's current address.
+  // When the record is unset, fall back to the connected wallet so owners
+  // setting their own address don't have to copy-paste it. The edit UI only
+  // renders for owners, so non-owners never see this default.
+  const [edit, setEdit] = useState<{ coinType: number; value: string } | null>(
+    null,
+  )
+  const addressInput =
+    edit && edit.coinType === data?.coinType
+      ? edit.value
+      : (data?.address ?? connectedAddress ?? '')
+  const setAddressInput = (value: string) => {
+    if (data) setEdit({ coinType: data.coinType, value })
   }
 
   const isOwner =
     !!connectedAddress &&
     !!owner?.owner &&
-    connectedAddress.toLowerCase() === owner.owner.toLowerCase()
+    isAddressEqual(connectedAddress, owner.owner)
 
   const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
   const onTransactionDone = () => {
@@ -434,9 +449,10 @@ const useAddressRecordEditor = (
   }
 
   const startSetPrimaryName = () => {
-    // Mainnet (coin 60) writes `addr.reverse` via the ENSv1 `ReverseRegistrar`;
-    // every other row writes `default.reverse` (the cross-chain fallback that
-    // also covers L2s). Both are `setName(string)` on Sepolia L1.
+    // Only the two L1 rows reach this transaction-modal flow (L2 rows go
+    // through `setL2PrimaryName` below). Mainnet (coin 60) writes
+    // `addr.reverse` via the ENSv1 `ReverseRegistrar`; the Default row writes
+    // `default.reverse`. Both are `setName(string)` on Sepolia L1.
     if (data?.coinType === MAINNET_COIN_TYPE) {
       const registrarAddress = getRegistrarAddress(60, 'sepolia')
       if (!registrarAddress) return
@@ -460,6 +476,30 @@ const useAddressRecordEditor = (
         args: [name],
       },
     })
+  }
+
+  // L2 rows write `setName` on that chain's reverse registrar through the
+  // isolated `l2WagmiConfig` (connection re-attach + chain switch handled by
+  // the hook), mirroring the reverse-view sidebar — so no transaction modal,
+  // toasts instead.
+  const setL2PrimaryName = async (row: AddressResolutionRow) => {
+    if (row.l2ChainId == null) return
+    const toastId = toast.loading(`Setting primary name on ${row.label}…`)
+    try {
+      await setL2ReverseNameAsync({
+        name,
+        reverseRegistrarChainId: row.l2ChainId,
+      })
+      queryClient.invalidateQueries({ queryKey: ['get-reverse-matches'] })
+      toast.success(`${name} set as the primary name on ${row.label}`, {
+        id: toastId,
+      })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to set primary name',
+        { id: toastId },
+      )
+    }
   }
 
   const openFlow = (flow: 'addr' | 'primary') => {
@@ -510,7 +550,14 @@ const useAddressRecordEditor = (
       if (!addressInput || !resolverAddress) return
       openFlow('addr')
     },
-    onSetPrimaryName: () => openFlow('primary'),
+    isSettingPrimaryName: isSettingL2PrimaryName,
+    onSetPrimaryName: () => {
+      if (data?.l2ChainId != null) {
+        void setL2PrimaryName(data)
+        return
+      }
+      openFlow('primary')
+    },
     transactions,
   }
 }
@@ -556,6 +603,7 @@ export const AddressResolutionSidebar: FC<
             onSave={editor.onSave}
             protocolVersion={editor.protocolVersion}
             canSetPrimaryName={editor.canSetPrimaryName}
+            isSettingPrimaryName={editor.isSettingPrimaryName}
             onSetPrimaryName={editor.onSetPrimaryName}
           />
         ) : (

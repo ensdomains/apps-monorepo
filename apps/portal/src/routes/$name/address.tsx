@@ -20,7 +20,6 @@ import {
 import { AddressResolutionTable } from '@/features/forward-resolution/components/AddressResolution/AddressResolutionTable'
 import { columns } from '@/features/forward-resolution/components/AddressResolution/columns'
 import {
-  DEFAULT_COIN_TYPE,
   FORWARD_RESOLUTION_NETWORKS,
   type ForwardResolutionNetwork,
 } from '@/features/forward-resolution/components/AddressResolution/networks'
@@ -32,6 +31,7 @@ import {
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 export const Route = createFileRoute('/$name/address')({
@@ -62,7 +62,7 @@ function forwardAddress(
   const own = addressByCoinType.get(network.coinType) ?? null
   if (own) return own
   return network.l2ChainId != null
-    ? (addressByCoinType.get(DEFAULT_COIN_TYPE) ?? null)
+    ? (addressByCoinType.get(DEFAULT_EVM_COIN_TYPE) ?? null)
     : null
 }
 
@@ -79,6 +79,7 @@ function buildRow(
     coinType: network.coinType,
     label: network.label,
     icon: network.icon,
+    l2ChainId: network.l2ChainId,
     address,
     reverseMatch: resolveField(address, pending, result?.reverseMatch),
     reverseName: resolveField(address, pending, result?.reverseName),

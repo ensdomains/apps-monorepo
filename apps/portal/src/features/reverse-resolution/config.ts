@@ -1,6 +1,7 @@
 import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
+import { evmChainIdToCoinType } from '@ensdomains/address-encoder/utils'
+import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
-import { toCoinType } from '@/lib/utils'
 
 /**
  * Configuration for reverse resolution (ENSIP-19 / ENSIP-23)
@@ -15,11 +16,6 @@ import { toCoinType } from '@/lib/utils'
  * coin 60 does not imply the default is set, and vice versa. They are shown as
  * distinct rows.
  */
-
-/** ENSIP-19 `default.reverse` coin type. */
-export const DEFAULT_REVERSE_COIN_TYPE = 0x80000000
-/** SLIP-44 coin type for mainnet ETH (`addr.reverse`). */
-export const MAINNET_COIN_TYPE = 60
 
 /**
  * Chain/network configuration for reverse resolution display
@@ -43,7 +39,7 @@ export type ReverseResolutionNetwork = {
  * in this view for now (writes go through the `DefaultReverseRegistrar`).
  */
 const DEFAULT_REVERSE_RECORD: ReverseResolutionNetwork = {
-  coinType: DEFAULT_REVERSE_COIN_TYPE,
+  coinType: DEFAULT_EVM_COIN_TYPE,
   label: 'Default',
   icon: '/icons/Link.svg',
 }
@@ -79,7 +75,7 @@ function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
     if (reverseRegistrarChainId === 60) continue
     if (reverseRegistrarChainId === 1) continue
     networks.push({
-      coinType: toCoinType(reverseRegistrarChainId),
+      coinType: evmChainIdToCoinType(reverseRegistrarChainId),
       reverseRegistrarChainId,
       label: names[reverseRegistrarChainId],
       icon: icons[reverseRegistrarChainId],

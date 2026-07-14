@@ -35,10 +35,10 @@ import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecord
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
-import { DEFAULT_REVERSE_COIN_TYPE } from '../../config'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useSetForwardResolution } from '../../hooks/useSetForwardResolution'
 import { useSetL2ReverseName } from '../../hooks/useSetL2ReverseName'
@@ -282,7 +282,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   } = useMemo(() => {
     const r = row?.original
     return {
-      coinType: r?.coinType ?? DEFAULT_REVERSE_COIN_TYPE,
+      coinType: r?.coinType ?? DEFAULT_EVM_COIN_TYPE,
       // The Default (`default.reverse`) row has no reverse-registrar chain; it
       // falls back to `60` here purely to satisfy the write hooks, which never
       // fire for it — its write UI is hidden below (read-only for now).
@@ -299,7 +299,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   // The Default (`default.reverse`) row is read-only in this view for now:
   // writes go through the `DefaultReverseRegistrar`, handled on the name-view
   // Address Resolution page.
-  const isDefaultRow = coinType === DEFAULT_REVERSE_COIN_TYPE
+  const isDefaultRow = coinType === DEFAULT_EVM_COIN_TYPE
 
   const { displayName, isInheritingDefault, isPrimaryName, canSetAsPrimary } =
     computeDisplayNameState({
