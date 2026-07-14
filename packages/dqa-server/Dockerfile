@@ -19,9 +19,10 @@ RUN npm pkg delete devDependencies && npm install --omit=dev --no-audit --no-fun
 COPY server ./server
 COPY public ./public
 
-# Comments + uploads live here; mount a volume to persist across restarts.
+# Comments + uploads live here; mount a volume (docker run -v / compose
+# volumes / Railway Volumes) to persist across restarts. No VOLUME
+# instruction: Railway rejects it, and mounts don't need it declared.
 RUN mkdir -p /app/data/uploads
-VOLUME /app/data
 
 ENV PORT=4000
 EXPOSE 4000
