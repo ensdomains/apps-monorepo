@@ -6,7 +6,7 @@ import type { Address } from 'viem'
 import { Highlight } from '@/components/atoms/Highlight'
 import { PrimaryBadge } from '@/features/dashboard/components/PrimaryBadge'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '../../service/profileExpiry'
 import { profileRegistrationQuery } from '../../service/profileRegistration'
@@ -41,9 +41,8 @@ export const ProfileHeaderInfo = ({ name, owner }: ProfileHeaderInfoProps) => {
   const [copied, setCopied] = useState(false)
   const isPrimaryName = ownerReverseName.data === name
 
-  const { isInGrace, displayExpiryDate } = getProfileNameExpiryStatus(
-    expiry.data?.expiry,
-    true,
+  const { isInGrace, displayExpiryDate } = getProfileExpiryResultStatus(
+    expiry.data,
   )
 
   return (

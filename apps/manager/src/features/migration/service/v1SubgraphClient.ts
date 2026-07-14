@@ -1,29 +1,10 @@
+import type { V1Domain } from '@ens-apps/migration'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { fromPromise, ok } from 'neverthrow'
 
-const V1_SUBGRAPH_URL = 'https://api.sepolia.ensnode.io/subgraph'
+export type { V1Domain }
 
-export type V1Domain = {
-  id: string
-  labelName: string | null
-  labelhash: string
-  name: string
-  resolver: { address: string } | null
-  owner: { id: string }
-  registrant: { id: string } | null
-  wrappedOwner: { id: string } | null
-  parent: {
-    name: string
-    wrappedDomain: { fuses: number } | null
-  } | null
-  registration: {
-    expiryDate: string
-  } | null
-  wrappedDomain: {
-    expiryDate: string
-    fuses: number
-  } | null
-}
+const V1_SUBGRAPH_URL = 'https://api.sepolia.ensnode.io/subgraph'
 
 type V1SubgraphResponse = {
   data: {

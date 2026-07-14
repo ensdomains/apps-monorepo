@@ -170,7 +170,7 @@ export const TokenPickerContentBase = ({
   stablecoinBalances,
   isLoadingBalances,
   isConnected,
-  nextMessage = <Trans>Buy Name</Trans>,
+  nextMessage = <Trans>Register name</Trans>,
 }: {
   label: string
   pricingLoading: boolean

@@ -91,7 +91,7 @@ export const CryptoPaymentConfirmationContent = ({
         className="h-20 w-full rounded bg-ens-blue font-medium font-mono text-sm text-white uppercase tracking-wider hover:bg-ens-blue-hover"
         onClick={onConfirm}
       >
-        <Trans>Buy Name</Trans>
+        <Trans>Register name</Trans>
       </Button>
     </div>
   )

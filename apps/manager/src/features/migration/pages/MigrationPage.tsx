@@ -179,7 +179,9 @@ export const MigrationPage = () => {
   }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
 
   return (
-    <div className="relative flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 flex-col overflow-hidden">
+    <div
+      className="relative flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 flex-col overflow-hidden" // 80px is the md+ Manager header height.
+    >
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (

@@ -4,6 +4,8 @@ const dashboardDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
 })
 
+export const NON_EXPIRING_DATE_LABEL = 'Does not expire'
+
 const hasValidDate = (value?: Date | null): value is Date =>
   value instanceof Date && !Number.isNaN(value.getTime())
 

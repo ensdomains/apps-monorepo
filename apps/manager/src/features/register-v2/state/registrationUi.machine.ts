@@ -30,7 +30,7 @@ import {
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
 import { startSyncEthAddressRecordTransaction } from '../service/syncEthAddressRecord'
-import { SECONDS_IN_YEAR } from '../utils/time'
+import { getDurationInSecondsFromYears } from '../utils/time'
 import {
   getRegistrationStageProgress,
   type MaxProgressReached,
@@ -237,7 +237,7 @@ const machineSetup = setup({
       duration: ({ event }) =>
         event.type === 'pricing.duration.set'
           ? event.duration
-          : SECONDS_IN_YEAR,
+          : getDurationInSecondsFromYears(1),
     }),
     setToken: assign({
       selectedToken: ({ event, context }) =>
@@ -566,7 +566,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
-    duration: SECONDS_IN_YEAR * 3,
+    duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,

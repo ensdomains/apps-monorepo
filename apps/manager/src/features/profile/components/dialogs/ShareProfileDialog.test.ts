@@ -54,4 +54,21 @@ describe('ShareProfileDialog', () => {
 
     expect(await screen.findByText('Copy Link')).toBeInTheDocument()
   })
+
+  it('renders the new profile sharing card header', async () => {
+    render(
+      createElement(
+        I18nProvider,
+        { i18n },
+        createElement(ShareProfileDialog, {
+          name: 'bigint.eth',
+          url: 'https://app.ens.domains/bigint.eth',
+        }),
+      ),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+
+    expect(await screen.findByText('Share profile link')).toBeInTheDocument()
+  })
 })

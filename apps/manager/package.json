@@ -23,11 +23,13 @@
     "lint:fix": "biome check --fix"
   },
   "dependencies": {
+    "@ens-apps/weave-loader": "workspace:*",
     "@ens-apps/dev-migration-tool": "workspace:*",
     "@ens-apps/dev-time-travel": "workspace:*",
     "@ens-apps/dev-tools": "workspace:*",
     "@ens-apps/indexer": "workspace:*",
     "@ens-apps/l2-primary": "workspace:*",
+    "@ens-apps/migration": "workspace:*",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/transaction-manager": "workspace:*",
@@ -61,7 +63,7 @@
     "@tanstack/react-router": "^1.168.23",
     "@tanstack/react-router-devtools": "^1.166.13",
     "@tanstack/react-start": "^1.167.42",
-    "@wagmi/core": "^3.0.0",
+    "@wagmi/core": "catalog:",
     "@walletconnect/ethereum-provider": "catalog:",
     "@xstate/react": "^6.0.0",
     "@xstate/store-react": "^1.0.1",
@@ -89,7 +91,7 @@
     "valibot": "^1.1.0",
     "vaul": "^1.1.2",
     "viem": "catalog:",
-    "wagmi": "^3.0.2",
+    "wagmi": "catalog:",
     "xstate": "catalog:"
   },
   "devDependencies": {
