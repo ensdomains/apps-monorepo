@@ -9,8 +9,6 @@ import {
 } from '@ensdomains/ensjs/public/v1'
 import {
   getExpiry as ensjsv2_getExpiry,
-  getRegistrationDate as ensjsv2_getRegistrationDate,
-  type GetRegistrationDateErrorType,
   type GetExpiryErrorType as GetV2ExpiryErrorType,
 } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
@@ -21,6 +19,7 @@ import {
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEth2LdName } from './profileName'
+import { getOwner, type ProfileProtocol } from './profileOwner'
 
 export const profileExpiryDateFromSeconds = (
   expirySeconds: number | bigint | null | undefined,
@@ -48,10 +47,7 @@ export const getProfileExpiryResultStatus = (
   getProfileNameExpiryStatus(expiry?.expiry, expiry?.protocol !== 'v1')
 
 class GetProfileExpiryError extends TaggedError('GetProfileExpiryError')<{
-  cause:
-    | GetV1ExpiryErrorType
-    | GetV2ExpiryErrorType
-    | GetRegistrationDateErrorType
+  cause: GetV1ExpiryErrorType | GetV2ExpiryErrorType
 }> {}
 
 const ENS_REGISTRY = getChainContractAddress({
@@ -73,7 +69,10 @@ const normalizeV1Expiry = (
   }
 }
 
-export const getExpiry = ResultFn(async function* (name: string) {
+export const getExpiry = ResultFn(async function* (
+  name: string,
+  protocol?: ProfileProtocol,
+) {
   const ethName = normalizeEth2LdName(name)
 
   if (!ethName) {
@@ -84,20 +83,12 @@ export const getExpiry = ResultFn(async function* (name: string) {
     } satisfies ProfileExpiryResult)
   }
 
+  const resolvedProtocol =
+    protocol ?? (yield* getOwner({ name: ethName.name }))?.protocol ?? 'v2'
+
   const client = yield* safeGetClient()
 
-  const registrationDate = yield* fromPromise(
-    ensjsv2_getRegistrationDate(client, {
-      label: ethName.label,
-      registryAddress: ENS_REGISTRY,
-    }),
-    (e) =>
-      new GetProfileExpiryError({
-        cause: e as GetRegistrationDateErrorType,
-      }),
-  )
-
-  if (registrationDate === null) {
+  if (resolvedProtocol === 'v1') {
     const v1Expiry = yield* fromPromise(
       ensjsv1_getExpiry(client, { name: ethName.name }),
       (e) =>
@@ -132,8 +123,8 @@ export const getExpiry = ResultFn(async function* (name: string) {
   } satisfies ProfileExpiryResult)
 })
 
-export const profileExpiryQuery = (name: string) =>
+export const profileExpiryQuery = (name: string, protocol?: ProfileProtocol) =>
   resultQueryOptions({
-    queryKey: qk('profile', 'expiry', { name }),
-    queryFn: ({ queryKey: [{ name }] }) => getExpiry(name),
+    queryKey: qk('profile', 'expiry', { name, protocol }),
+    queryFn: ({ queryKey: [{ name, protocol }] }) => getExpiry(name, protocol),
   })
