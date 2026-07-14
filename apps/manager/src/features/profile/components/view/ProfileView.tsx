@@ -74,7 +74,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
     isError: isExpiryError,
     error: expiryError,
   } = useQuery({
-    ...profileExpiryQuery(name),
+    ...profileExpiryQuery(name, ownerData?.protocol),
   })
   const expiry = getProfileExpiryResultStatus(expiryData)
 
@@ -126,6 +126,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         )
         .otherwise(() => null)}
       <ViewHeaderSection
+        hasHeader={Boolean(records.base.header?.trim())}
         isInGrace={expiry.isInGrace}
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}

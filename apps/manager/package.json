@@ -37,7 +37,7 @@
     "@ensdomains/address-encoder": "^1.1.2",
     "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
-    "@ensdomains/etherloom": "0.1.0-alpha.2",
+    "@ensdomains/etherloom": "0.1.0-alpha.4",
     "@icons-pack/react-simple-icons": "^13.11.2",
     "@intercom/messenger-js-sdk": "^0.0.18",
     "@lingui/core": "6.3.0",

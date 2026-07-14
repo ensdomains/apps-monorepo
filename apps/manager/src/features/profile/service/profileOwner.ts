@@ -1,6 +1,7 @@
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { getOwner as ensjsv1_getOwner } from '@ensdomains/ensjs/public/v1'
 import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
 import { zeroAddress } from 'viem'
@@ -11,6 +12,8 @@ class GetOwnerError extends TaggedError('GetOwnerError')<{
   cause: unknown
 }> {}
 
+export type ProfileProtocol = 'v1' | 'v2'
+
 export const getOwner = ResultFn(async function* (params: { name: string }) {
   const ethName = normalizeEthName(params.name)
 
@@ -20,13 +23,22 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
 
   const client = yield* safeGetClient()
 
-  const owner = yield* fromPromise(
+  const v2Owner = yield* fromPromise(
     ensjsv2_getOwner(client, { name: ethName.name }),
     (e) => new GetOwnerError({ cause: e }),
   )
 
-  if (owner && owner !== zeroAddress) {
-    return ok({ owner })
+  if (v2Owner && v2Owner !== zeroAddress) {
+    return ok({ owner: v2Owner, protocol: 'v2' as const })
+  }
+
+  const v1Owner = yield* fromPromise(
+    ensjsv1_getOwner(client, { name: ethName.name }),
+    (e) => new GetOwnerError({ cause: e }),
+  )
+
+  if (v1Owner?.owner && v1Owner.owner !== zeroAddress) {
+    return ok({ owner: v1Owner.owner, protocol: 'v1' as const })
   }
 
   return ok(null)
