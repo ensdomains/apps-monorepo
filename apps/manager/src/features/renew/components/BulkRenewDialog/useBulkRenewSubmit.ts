@@ -7,9 +7,7 @@ import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
   signPermitActor,
-  submitApprovalActor,
   submitBatchRenewActor,
-  submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
@@ -23,6 +21,14 @@ import type { BulkRenewPhase, RenewItem, RowStatus } from './types'
 // How long to hold the completed progress bar before showing the success view.
 const SETTLE_MS = 600
 
+// WEB-427 requires the whole batch to renew in ONE transaction, which only a
+// smart account can do (atomic multi-call intents). A plain EOA — the dev-only
+// `USE_EOA` fork — physically can't (the registrar isn't Multicallable), so bulk
+// renewal is unsupported there rather than silently fanning out into one tx per
+// name. The dialog gates on this too; this is the transaction-boundary backstop.
+export const EOA_UNSUPPORTED_MESSAGE =
+  'Bulk renewal requires a smart account and is unavailable in EOA mode.'
+
 type Context = {
   readonly signer: Signer
   readonly approvalSigner: Signer | undefined
@@ -32,10 +38,9 @@ type Context = {
 }
 
 /**
- * Authorize the whole batch once. `renew` charges the EOA owner, so the
- * allowance is always keyed to it. Resolves to a permit (HCA path) to bundle
- * into the batch transaction, or `undefined` (already authorized, or the EOA
- * path's on-chain `approve`).
+ * Authorize the whole batch once, gaslessly. Resolves to an EIP-2612 permit
+ * (signed by the EOA owner, sized to cover the batch) to bundle into the batch
+ * transaction, or `undefined` when the existing allowance already covers it.
  */
 const authorizeSpend = (
   ctx: Context,
@@ -51,49 +56,20 @@ const authorizeSpend = (
     .andThen((allowance): ResultAsync<PermitSignature | undefined, Error> => {
       if (allowance >= sumPriceRaw) return okAsync(undefined)
 
-      if (ctx.isHca) {
-        // Gasless EIP-2612 permit (signed by the EOA), sized to cover the batch.
-        return signPermitActor({
-          owner: ctx.ownerAddress,
-          selectedToken: ctx.token,
-          value: authorizedPaymentAmount(sumPriceRaw),
-          approvalSigner: ctx.approvalSigner ?? ctx.signer,
-          publicClient,
-        })
-      }
-
-      // Pure-EOA: one on-chain approve covering the summed amount.
-      return submitApprovalActor({
-        tokenPrice: sumPriceRaw,
+      return signPermitActor({
+        owner: ctx.ownerAddress,
         selectedToken: ctx.token,
-        signer: ctx.approvalSigner ?? ctx.signer,
+        value: authorizedPaymentAmount(sumPriceRaw),
+        approvalSigner: ctx.approvalSigner ?? ctx.signer,
         publicClient,
-        sponsored: false,
       })
-        .andThen((txId) => pollTransactionStatusActor({ txId }))
-        .map(() => undefined)
     })
 
 /**
- * Submit and confirm a single renewal. Only used on the EOA fallback path
- * (dev-only `USE_EOA` fork), which can't batch and never carries a permit — the
- * spend is authorized up front with a plain on-chain `approve`.
- */
-const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
-  submitRenewActor({
-    label: item.label,
-    duration: item.duration,
-    selectedToken: ctx.token,
-    signer: ctx.signer,
-    publicClient,
-    sponsored: ctx.isHca,
-  }).andThen((txId) => pollTransactionStatusActor({ txId }))
-
-/**
- * Submit and confirm the WHOLE batch as one transaction (smart-account path):
- * a single intent of `[permit?, renew, renew, …]` that executes atomically, per
- * WEB-427. Because it's atomic, the batch either fully renews or fully fails —
- * there's no partial-completion state to resume.
+ * Submit and confirm the WHOLE batch as one transaction: a single smart-account
+ * intent of `[permit?, renew, renew, …]` that executes atomically, per WEB-427.
+ * Because it's atomic, the batch either fully renews or fully fails — there's no
+ * partial-completion state to resume.
  */
 const renewBatch = (
   ctx: Context,
@@ -113,10 +89,9 @@ const renewBatch = (
   }).andThen((txId) => pollTransactionStatusActor({ txId }))
 
 /**
- * Run the renewing phase and report per-row progress. Smart accounts renew the
- * whole batch in one atomic transaction (all rows advance together); the EOA
- * fallback renews one name per transaction. `onActive`/`onDone` drive the row
- * status UI and record completions so a retry resumes correctly.
+ * Run the renewing phase and report per-row progress. The batch renews in one
+ * atomic transaction, so all rows advance together. `onActive`/`onDone` drive
+ * the row status UI and record completions.
  */
 const runRenewals = async (
   ctx: Context,
@@ -125,20 +100,10 @@ const runRenewals = async (
   onActive: (label: string) => void,
   onDone: (label: string) => void,
 ): Promise<Result<void, Error>> => {
-  if (ctx.isHca) {
-    for (const item of remaining) onActive(item.label)
-    const renewed = await renewBatch(ctx, remaining, permit)
-    if (renewed.isErr()) return renewed
-    for (const item of remaining) onDone(item.label)
-    return ok(undefined)
-  }
-
-  for (const item of remaining) {
-    onActive(item.label)
-    const renewed = await renewOne(ctx, item)
-    if (renewed.isErr()) return renewed
-    onDone(item.label)
-  }
+  for (const item of remaining) onActive(item.label)
+  const renewed = await renewBatch(ctx, remaining, permit)
+  if (renewed.isErr()) return renewed
+  for (const item of remaining) onDone(item.label)
   return ok(undefined)
 }
 
@@ -193,11 +158,11 @@ export type UseBulkRenewSubmit = {
 }
 
 /**
- * Drives the bulk renewal: authorize the summed spend once, then renew. Smart
- * accounts submit the whole batch as a single atomic transaction (WEB-427); the
- * dev-only EOA fork falls back to one `renew` per name. Each row's status feeds
- * the progress UI, and names that already renewed are remembered so a retry only
- * resumes the ones that failed.
+ * Drives the bulk renewal: authorize the summed spend once, then submit the
+ * whole batch as a single atomic smart-account transaction (WEB-427). Requires a
+ * smart account — the EOA path is refused up front (see `EOA_UNSUPPORTED_MESSAGE`).
+ * Each row's status feeds the progress UI, and names that already renewed are
+ * remembered so a retry resumes the batch.
  */
 export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const account = useSmartAccountContext()
@@ -234,6 +199,14 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const ctx = resolveContext(account, token)
     if (!ctx) {
       setErrorMessage('Wallet not connected')
+      setPhase('error')
+      return
+    }
+
+    // Enforce the one-transaction invariant: refuse the EOA path outright rather
+    // than submitting a renew tx per name.
+    if (!ctx.isHca) {
+      setErrorMessage(EOA_UNSUPPORTED_MESSAGE)
       setPhase('error')
       return
     }

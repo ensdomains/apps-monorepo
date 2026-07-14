@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
 import { NamesBreakdown } from './NamesBreakdown'
@@ -102,7 +103,28 @@ export const BulkRenewDialog = ({
   const handleConfirm = () =>
     submit.submit({ items: renewItems, token: selectedToken, sumPriceRaw })
 
+  // Bulk renewal needs a smart account to renew every name in one transaction;
+  // the dev-only EOA fork can't, so it's gated off with an explicit message.
+  const isUnsupported = isFeatureEnabled('USE_EOA')
+
   const renderBody = (): ReactNode => {
+    if (isUnsupported) {
+      return (
+        <>
+          <DialogHeader>
+            <DialogTitle className={dialogTitleClassName}>
+              <Trans>Bulk renewal unavailable</Trans>
+            </DialogTitle>
+          </DialogHeader>
+          <p className="font-sans text-ens-quartz-550 text-sm">
+            <Trans>
+              Bulk renewal requires a smart account so every name renews in a
+              single transaction. It isn’t available in EOA mode.
+            </Trans>
+          </p>
+        </>
+      )
+    }
     if (submit.phase === 'success') {
       return (
         <SuccessStep
