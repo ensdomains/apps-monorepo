@@ -7,9 +7,22 @@ import { createApp } from '#app/middleware/hono.js'
 import { TABLE } from '#core/database/index.js'
 import { sendVerificationEmail } from '#services/email/verification.js'
 import { sendWelcomeEmail } from '#services/email/welcome.js'
+import {
+  checkAndConsumeEmailVerificationRateLimit,
+  formatEmailVerificationRateLimitError,
+  normalizeEmailForRateLimit,
+} from '#services/notifications/email-verification-rate-limit.js'
 import { generateToken } from '#services/notifications/helpers.js'
 import { addContactToList } from '#services/sendgrid/contacts.js'
 import { logger } from '#utils/logger.js'
+
+export const addEmailChannelBodySchema = v.object({
+  email: v.pipe(v.string(), v.trim(), v.minLength(1), v.email()),
+})
+
+export const verifyEmailChannelBodySchema = v.object({
+  token: v.pipe(v.string(), v.minLength(1)),
+})
 
 export default createApp()
   .basePath('/email')
@@ -17,15 +30,11 @@ export default createApp()
     '/',
     ...requireAuth,
     injectDb,
-    vValidator(
-      'json',
-      v.object({
-        email: v.pipe(v.string(), v.email()),
-      }),
-    ),
+    vValidator('json', addEmailChannelBodySchema),
     async (c) => {
       const userId = c.var.user_id
-      const { email } = c.req.valid('json')
+      const { email: rawEmail } = c.req.valid('json')
+      const email = normalizeEmailForRateLimit(rawEmail)
 
       // Check if email is already linked to this user
       const existingChannel = await c.var.db.query.userChannels.findFirst({
@@ -114,6 +123,22 @@ export default createApp()
         return c.json({ error: 'Failed to create verification' }, 500)
       }
 
+      const rateLimit = await checkAndConsumeEmailVerificationRateLimit(
+        c.env.KV,
+        email,
+      )
+
+      if (!rateLimit.isAllowed) {
+        return c.json(
+          {
+            error: formatEmailVerificationRateLimitError(
+              rateLimit.retryAfterSeconds,
+            ),
+          },
+          429,
+        )
+      }
+
       // Send verification email
       const emailResult = await sendVerificationEmail(
         c.env.SENDGRID_API_KEY,
@@ -146,12 +171,7 @@ export default createApp()
   )
   .post(
     '/verify',
-    vValidator(
-      'json',
-      v.object({
-        token: v.string(),
-      }),
-    ),
+    vValidator('json', verifyEmailChannelBodySchema),
     injectDb,
     async (c) => {
       const { token } = c.req.valid('json')

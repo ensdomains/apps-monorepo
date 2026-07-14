@@ -15,6 +15,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
@@ -72,10 +73,10 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     isError: isExpiryError,
     error: expiryError,
   } = useQuery({
-    ...profileExpiryQuery(name),
+    ...profileExpiryQuery(name, ownerData?.protocol),
   })
   const registration = useQuery({
-    ...profileRegistrationQuery(name),
+    ...profileRegistrationQuery(name, ownerData?.protocol),
   })
 
   const expiry = getProfileExpiryResultStatus(expiryData)
@@ -104,7 +105,14 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   }
 
   const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
-  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
+  const headerUrl =
+    expiry.isInGrace || !records.base.header?.trim()
+      ? undefined
+      : buildNameHeaderUrl(name)
+  const defaultHeaderUrl = getDefaultHeaderCover({
+    isInGrace: expiry.isInGrace,
+    themeColor: records.base.theme,
+  })
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']
@@ -116,6 +124,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     >
       <ProfileViewNewThemeColorProvider value={profileThemeColor}>
         <ProfileViewNewBanner
+          defaultHeaderUrl={defaultHeaderUrl}
           headerLoading={false}
           headerUrl={headerUrl}
           name={name}
