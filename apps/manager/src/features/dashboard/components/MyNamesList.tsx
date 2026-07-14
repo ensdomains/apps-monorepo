@@ -16,7 +16,6 @@ import {
   type ProfileRecordsResult,
   profileRecordsQuery,
 } from '@/features/profile/service/profileRecords'
-import { isRenewableName } from '@/features/renew/utils/renewableName'
 import { tw } from '@/utils/tailwind'
 import { useDashboardV1Names } from '../useDashboardV1Names'
 import { useOwnedDomains } from '../useOwnedDomains'
@@ -132,6 +131,10 @@ const AnimatedNameRow = ({
     }))
     .exhaustive()
 
+  // A v2 .eth 2LD still within its grace window is eligible for renewal — which
+  // drives both the row's "Renew" menu action and its bulk-selection checkbox.
+  const isRenewable = !isV1 && isRenewableV2EthName(label, metadata.expiryDate)
+
   return (
     <motion.div
       className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
@@ -150,7 +153,7 @@ const AnimatedNameRow = ({
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
-        canRenew={!isV1 && isRenewableV2EthName(label, metadata.expiryDate)}
+        canRenew={isRenewable}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
@@ -163,7 +166,7 @@ const AnimatedNameRow = ({
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
         onToggleSelect={() => onToggleSelect(label)}
-        selectable={!isV1 && isRenewableName(name)}
+        selectable={isRenewable}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}

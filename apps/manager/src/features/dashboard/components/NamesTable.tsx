@@ -12,7 +12,7 @@ import {
   BulkRenewDialog,
   type BulkRenewName,
 } from '@/features/renew/components/BulkRenewDialog'
-import { isRenewableName } from '@/features/renew/utils/renewableName'
+import { isRenewableV2Domain } from '@/features/renew/utils/renewableName'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {
   buildMergedNamesList,
@@ -112,7 +112,10 @@ export const NamesTable = ({
         sortDir: ownedSortState.dir,
       }).flatMap((item) =>
         item.kind === 'v2' &&
-        isRenewableName(item.domain.normalizedName ?? item.domain.name ?? '')
+        isRenewableV2Domain(
+          item.domain.normalizedName ?? item.domain.name ?? '',
+          item.domain.expiryDate,
+        )
           ? [item.sortName.toLowerCase()]
           : [],
       ),
@@ -135,7 +138,10 @@ export const NamesTable = ({
         )
         .filter((domain) => domain.expiryDate != null)
         .filter((domain) =>
-          isRenewableName(domain.normalizedName ?? domain.name ?? ''),
+          isRenewableV2Domain(
+            domain.normalizedName ?? domain.name ?? '',
+            domain.expiryDate,
+          ),
         )
         .map((domain) => {
           const displayName = resolveDomainLabel(domain)

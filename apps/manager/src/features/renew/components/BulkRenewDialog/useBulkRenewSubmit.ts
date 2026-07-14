@@ -8,11 +8,11 @@ import {
   readPaymentTokenAllowanceActor,
   signPermitActor,
   submitApprovalActor,
-  submitPermitAndRenewActor,
+  submitBatchRenewActor,
   submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { okAsync, type ResultAsync } from 'neverthrow'
+import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useCallback, useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -34,7 +34,8 @@ type Context = {
 /**
  * Authorize the whole batch once. `renew` charges the EOA owner, so the
  * allowance is always keyed to it. Resolves to a permit (HCA path) to bundle
- * into the first renewal, or `undefined` (already authorized, or EOA `approve`).
+ * into the batch transaction, or `undefined` (already authorized, or the EOA
+ * path's on-chain `approve`).
  */
 const authorizeSpend = (
   ctx: Context,
@@ -73,31 +74,73 @@ const authorizeSpend = (
         .map(() => undefined)
     })
 
-/** Submit and confirm a single renewal, bundling the permit if one is given. */
-const renewOne = (
+/**
+ * Submit and confirm a single renewal. Only used on the EOA fallback path
+ * (dev-only `USE_EOA` fork), which can't batch and never carries a permit — the
+ * spend is authorized up front with a plain on-chain `approve`.
+ */
+const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
+  submitRenewActor({
+    label: item.label,
+    duration: item.duration,
+    selectedToken: ctx.token,
+    signer: ctx.signer,
+    publicClient,
+    sponsored: ctx.isHca,
+  }).andThen((txId) => pollTransactionStatusActor({ txId }))
+
+/**
+ * Submit and confirm the WHOLE batch as one transaction (smart-account path):
+ * a single intent of `[permit?, renew, renew, …]` that executes atomically, per
+ * WEB-427. Because it's atomic, the batch either fully renews or fully fails —
+ * there's no partial-completion state to resume.
+ */
+const renewBatch = (
   ctx: Context,
-  item: RenewItem,
+  items: readonly RenewItem[],
   permit: PermitSignature | undefined,
 ): ResultAsync<void, Error> =>
-  (permit
-    ? submitPermitAndRenewActor({
-        permit,
-        selectedToken: ctx.token,
-        label: item.label,
-        duration: item.duration,
-        signer: ctx.signer,
-        publicClient,
-        sponsored: true,
-      })
-    : submitRenewActor({
-        label: item.label,
-        duration: item.duration,
-        selectedToken: ctx.token,
-        signer: ctx.signer,
-        publicClient,
-        sponsored: ctx.isHca,
-      })
-  ).andThen((txId) => pollTransactionStatusActor({ txId }))
+  submitBatchRenewActor({
+    items: items.map((item) => ({
+      label: item.label,
+      duration: item.duration,
+    })),
+    selectedToken: ctx.token,
+    signer: ctx.signer,
+    publicClient,
+    permit,
+    sponsored: true,
+  }).andThen((txId) => pollTransactionStatusActor({ txId }))
+
+/**
+ * Run the renewing phase and report per-row progress. Smart accounts renew the
+ * whole batch in one atomic transaction (all rows advance together); the EOA
+ * fallback renews one name per transaction. `onActive`/`onDone` drive the row
+ * status UI and record completions so a retry resumes correctly.
+ */
+const runRenewals = async (
+  ctx: Context,
+  remaining: readonly RenewItem[],
+  permit: PermitSignature | undefined,
+  onActive: (label: string) => void,
+  onDone: (label: string) => void,
+): Promise<Result<void, Error>> => {
+  if (ctx.isHca) {
+    for (const item of remaining) onActive(item.label)
+    const renewed = await renewBatch(ctx, remaining, permit)
+    if (renewed.isErr()) return renewed
+    for (const item of remaining) onDone(item.label)
+    return ok(undefined)
+  }
+
+  for (const item of remaining) {
+    onActive(item.label)
+    const renewed = await renewOne(ctx, item)
+    if (renewed.isErr()) return renewed
+    onDone(item.label)
+  }
+  return ok(undefined)
+}
 
 type SmartAccount = ReturnType<typeof useSmartAccountContext>
 
@@ -150,10 +193,11 @@ export type UseBulkRenewSubmit = {
 }
 
 /**
- * Drives the sequential bulk renewal: authorize the summed spend once, then
- * submit and confirm one `renew` per name, tracking each row's status for the
- * progress UI. Mirrors the single-name `renewalUiMachine`. Names that already
- * renewed are remembered so a retry only resumes the ones that failed.
+ * Drives the bulk renewal: authorize the summed spend once, then renew. Smart
+ * accounts submit the whole batch as a single atomic transaction (WEB-427); the
+ * dev-only EOA fork falls back to one `renew` per name. Each row's status feeds
+ * the progress UI, and names that already renewed are remembered so a retry only
+ * resumes the ones that failed.
  */
 export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const account = useSmartAccountContext()
@@ -218,19 +262,18 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const permit = authorized.value
 
     setPhase('renewing')
-    for (const [index, item] of remaining.entries()) {
-      markStatus(item.label, 'active')
-      // The permit must ride in a transaction — bundle it with the first renew.
-      const renewed = await renewOne(
-        ctx,
-        item,
-        index === 0 ? permit : undefined,
-      )
-      if (renewed.isErr()) return failWith(renewed.error)
-      completed.add(item.label)
-      invalidateName(item.label)
-      markStatus(item.label, 'done')
-    }
+    const renewed = await runRenewals(
+      ctx,
+      remaining,
+      permit,
+      (label) => markStatus(label, 'active'),
+      (label) => {
+        completed.add(label)
+        invalidateName(label)
+        markStatus(label, 'done')
+      },
+    )
+    if (renewed.isErr()) return failWith(renewed.error)
 
     invalidateDashboardNames()
     // Let the bar settle at 100% before flipping to the success view.

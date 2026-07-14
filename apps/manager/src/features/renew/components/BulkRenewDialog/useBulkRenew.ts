@@ -163,8 +163,13 @@ export const useBulkRenew = ({
     0n,
   )
   // Every active price must resolve before we size the allowance and submit —
-  // otherwise sumPriceRaw would undercount still-loading names.
-  const pricesReady = activeQueries.every((q) => q.data !== undefined)
+  // otherwise sumPriceRaw would undercount still-loading names. `isPlaceholderData`
+  // guards the `keepPreviousData` case: a just-changed duration/token still shows
+  // the prior quote, which must NOT count as ready or the permit/total would be
+  // sized off stale raw units while renewItems already uses the new duration.
+  const pricesReady = activeQueries.every(
+    (q) => q.data !== undefined && !q.isPlaceholderData,
+  )
   const renewItems: readonly RenewItem[] = names.map((n) => ({
     label: n.label,
     duration: BigInt(durationForName(selection, n.currentExpiry)),
