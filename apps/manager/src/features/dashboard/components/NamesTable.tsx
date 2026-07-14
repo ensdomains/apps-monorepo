@@ -60,6 +60,42 @@ const toDirectionalSort = <Field extends string>(
 const reverseSortDir = (dir: SortDir): SortDir =>
   dir === 'asc' ? 'desc' : 'asc'
 
+type SelectableDomain = {
+  readonly id: string
+  readonly name?: string | null
+  readonly normalizedName?: string | null
+  readonly expiryDate?: number | null
+}
+
+// Single source of truth for bulk selection, shared by the select-all set and
+// the selected-names lookup so they can't drift apart.
+
+/** The canonical key a selection is stored under. */
+const selectionKey = (domain: SelectableDomain): string =>
+  resolveDomainLabel(domain).toLowerCase()
+
+/** A domain is selectable when it's a renewable v2 `.eth` 2LD (within grace). */
+const isSelectableDomain = (domain: SelectableDomain): boolean =>
+  isRenewableV2Domain(
+    domain.normalizedName ?? domain.name ?? '',
+    domain.expiryDate,
+  )
+
+/** Map a selectable domain to its bulk-renew payload, or `null` if ineligible. */
+const toBulkRenewName = (domain: SelectableDomain): BulkRenewName | null => {
+  if (!isSelectableDomain(domain)) return null
+  const displayName = resolveDomainLabel(domain)
+  // Use the canonical normalized name for the on-chain label — the display name
+  // may be unnormalized (e.g. mixed case) and would hash to the wrong label.
+  const name = domain.normalizedName ?? displayName
+  return {
+    displayName,
+    label: name.replace(/\.eth$/i, ''),
+    name,
+    currentExpiry: BigInt(domain.expiryDate as number),
+  }
+}
+
 export const NamesTable = ({
   migrationEnabled = false,
   primaryLabel,
@@ -111,12 +147,8 @@ export const NamesTable = ({
         sortField: ownedSortState.field,
         sortDir: ownedSortState.dir,
       }).flatMap((item) =>
-        item.kind === 'v2' &&
-        isRenewableV2Domain(
-          item.domain.normalizedName ?? item.domain.name ?? '',
-          item.domain.expiryDate,
-        )
-          ? [item.sortName.toLowerCase()]
+        item.kind === 'v2' && isSelectableDomain(item.domain)
+          ? [selectionKey(item.domain)]
           : [],
       ),
     [v2Names, searchQuery, ownedSortState.field, ownedSortState.dir],
@@ -133,29 +165,9 @@ export const NamesTable = ({
   const selectedNames = useMemo<BulkRenewName[]>(
     () =>
       v2Names
-        .filter((domain) =>
-          selectedLabels.has(resolveDomainLabel(domain).toLowerCase()),
-        )
-        .filter((domain) => domain.expiryDate != null)
-        .filter((domain) =>
-          isRenewableV2Domain(
-            domain.normalizedName ?? domain.name ?? '',
-            domain.expiryDate,
-          ),
-        )
-        .map((domain) => {
-          const displayName = resolveDomainLabel(domain)
-          // Use the canonical normalized name for the on-chain label — the
-          // display name may be unnormalized (e.g. mixed case) and would hash
-          // to the wrong label.
-          const name = domain.normalizedName ?? displayName
-          return {
-            displayName,
-            label: name.replace(/\.eth$/i, ''),
-            name,
-            currentExpiry: BigInt(domain.expiryDate as number),
-          }
-        }),
+        .filter((domain) => selectedLabels.has(selectionKey(domain)))
+        .map(toBulkRenewName)
+        .filter((name): name is BulkRenewName => name !== null),
     [v2Names, selectedLabels],
   )
 
