@@ -13,6 +13,10 @@ export const KV_KEY = {
     // calls don't double-mint tokens (or race the funder's nonce).
     FUND_LOCK: (address: string) => `wallet:fund-lock:${address.toLowerCase()}`,
   },
+  NOTIFICATIONS: {
+    EMAIL_VERIFICATION: (normalizedEmail: string) =>
+      `notifications:email-verification:${normalizedEmail}`,
+  },
 } as const
 
 export const intoKVError = (err: unknown) => {
