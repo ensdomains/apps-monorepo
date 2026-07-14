@@ -3,6 +3,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useEffect, useState } from 'react'
+import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -82,14 +83,11 @@ export const BulkRenewDialog = ({
     submit.phase === 'renewing'
 
   // Drives both which body renders and the crossfade key.
-  const view =
-    submit.phase === 'success'
-      ? 'success'
-      : submit.phase === 'error'
-        ? 'error'
-        : isSubmitting
-          ? 'renewing'
-          : step
+  const view = match(submit.phase)
+    .with('success', () => 'success' as const)
+    .with('error', () => 'error' as const)
+    .with('preparing', 'authorizing', 'renewing', () => 'renewing' as const)
+    .otherwise(() => step)
 
   const handleOpenChange = (next: boolean) => {
     // Allow closing while renewing (the txs continue), but only reset the flow

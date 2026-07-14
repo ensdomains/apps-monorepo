@@ -43,9 +43,9 @@ export const RenewToDatePopover = ({
           type="button"
         >
           {targetDate ? (
-            <Trans>Register to {format(targetDate, 'MMM d, yyyy')}</Trans>
+            <Trans>Renew to {format(targetDate, 'MMM d, yyyy')}</Trans>
           ) : (
-            <Trans>Register to date instead</Trans>
+            <Trans>Renew to date instead</Trans>
           )}
           <MSymbol
             className="ms-opsz-18 text-lg leading-none"

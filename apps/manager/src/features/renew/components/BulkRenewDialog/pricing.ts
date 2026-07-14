@@ -30,20 +30,28 @@ export const formatUsdAmount = (value: number): string =>
 export const yearsToSeconds = (years: number): number =>
   Math.round(years * SECONDS_IN_YEAR)
 
-/** Per-name renewal duration (seconds) for the active selection. */
+/**
+ * Per-name renewal duration in seconds for the active selection. On-chain
+ * durations are `bigint`; `targetMs` (a JS `Date` value) is converted to whole
+ * seconds at this boundary before the `bigint` arithmetic.
+ */
 export const durationForName = (
   selection: Selection,
-  currentExpiry: number,
-): number =>
-  selection.kind === 'preset'
-    ? yearsToSeconds(selection.years)
-    : Math.max(0, Math.round(selection.targetMs / 1000 - currentExpiry))
+  currentExpiry: bigint,
+): bigint => {
+  if (selection.kind === 'preset')
+    return BigInt(yearsToSeconds(selection.years))
+  // Clamp to 0 so a target before the name's expiry never yields a negative
+  // duration (the date picker prevents it, but stay defensive).
+  const seconds = BigInt(Math.round(selection.targetMs / 1000)) - currentExpiry
+  return seconds > 0n ? seconds : 0n
+}
 
 /** The name's new expiry (seconds) after applying the active selection. */
 export const newExpirySeconds = (
   selection: Selection,
-  currentExpiry: number,
-): number =>
+  currentExpiry: bigint,
+): bigint =>
   selection.kind === 'preset'
-    ? currentExpiry + yearsToSeconds(selection.years)
-    : Math.round(selection.targetMs / 1000)
+    ? currentExpiry + BigInt(yearsToSeconds(selection.years))
+    : BigInt(Math.round(selection.targetMs / 1000))

@@ -153,7 +153,7 @@ export const NamesTable = ({
             displayName,
             label: name.replace(/\.eth$/i, ''),
             name,
-            currentExpiry: domain.expiryDate as number,
+            currentExpiry: BigInt(domain.expiryDate as number),
           }
         }),
     [v2Names, selectedLabels],

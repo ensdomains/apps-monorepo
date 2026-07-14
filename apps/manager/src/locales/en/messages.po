@@ -1838,18 +1838,9 @@ msgstr "Reconnect Wallet"
 msgid "Register name"
 msgstr "Register name"
 
-#. placeholder {0}: format(targetDate, 'MMM d, yyyy')
-#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
-msgid "Register to {0}"
-msgstr "Register to {0}"
-
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Register to date"
 msgstr "Register to date"
-
-#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
-msgid "Register to date instead"
-msgstr "Register to date instead"
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/components/molecules/DomainResultCard/DomainResultCard.tsx
@@ -2002,9 +1993,18 @@ msgstr "Renew name"
 msgid "Renew Name"
 msgstr "Renew Name"
 
+#. placeholder {0}: format(targetDate, 'MMM d, yyyy')
+#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
+msgid "Renew to {0}"
+msgstr "Renew to {0}"
+
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Renew to date"
 msgstr "Renew to date"
+
+#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
+msgid "Renew to date instead"
+msgstr "Renew to date instead"
 
 #: src/features/renew/components/BulkRenewDialog/SuccessStep.tsx
 msgid "Renewal Complete"

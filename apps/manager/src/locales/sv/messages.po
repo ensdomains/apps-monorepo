@@ -1843,17 +1843,8 @@ msgstr ""
 msgid "Register name"
 msgstr ""
 
-#. placeholder {0}: format(targetDate, 'MMM d, yyyy')
-#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
-msgid "Register to {0}"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Register to date"
-msgstr ""
-
-#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
-msgid "Register to date instead"
 msgstr ""
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
@@ -2007,8 +1998,17 @@ msgstr ""
 msgid "Renew Name"
 msgstr ""
 
+#. placeholder {0}: format(targetDate, 'MMM d, yyyy')
+#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
+msgid "Renew to {0}"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Renew to date"
+msgstr ""
+
+#: src/features/renew/components/BulkRenewDialog/RenewToDatePopover.tsx
+msgid "Renew to date instead"
 msgstr ""
 
 #: src/features/renew/components/BulkRenewDialog/SuccessStep.tsx

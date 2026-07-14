@@ -9,7 +9,7 @@ export type BulkRenewName = {
   /** Label shown in the UI. */
   readonly displayName: string
   /** Current on-chain expiry in seconds. */
-  readonly currentExpiry: number
+  readonly currentExpiry: bigint
 }
 
 /**

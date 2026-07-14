@@ -79,10 +79,10 @@ export const useBulkRenew = ({
   // The custom "renew to date" target must land after every name's expiry.
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
-      (max, n) => Math.max(max, n.currentExpiry),
-      0,
+      (max, n) => (n.currentExpiry > max ? n.currentExpiry : max),
+      0n,
     )
-    const day = addDays(new Date(latestExpiry * 1000), 1)
+    const day = addDays(new Date(Number(latestExpiry) * 1000), 1)
     day.setHours(0, 0, 0, 0)
     return day
   }, [names])
@@ -144,8 +144,10 @@ export const useBulkRenew = ({
     queries: names.map((n) => {
       const duration = durationForName(selection, n.currentExpiry)
       return {
-        ...getRenewPriceQueryOptions(n.label, duration, selectedToken),
-        enabled: open && duration > 0,
+        // The price query is a number-based boundary — convert the bigint
+        // duration to seconds for it.
+        ...getRenewPriceQueryOptions(n.label, Number(duration), selectedToken),
+        enabled: open && duration > 0n,
         placeholderData: keepPreviousData,
         select: (data: { amount: bigint }) => ({
           amount: data.amount,
@@ -172,7 +174,7 @@ export const useBulkRenew = ({
   )
   const renewItems: readonly RenewItem[] = names.map((n) => ({
     label: n.label,
-    duration: BigInt(durationForName(selection, n.currentExpiry)),
+    duration: durationForName(selection, n.currentExpiry),
   }))
 
   // Avatars/theme for the breakdown rows.
@@ -196,8 +198,10 @@ export const useBulkRenew = ({
       isLoading: profilePreviews[i]?.isLoading,
     }),
     subtotal: activeQueries[i]?.data?.usd,
-    startDate: new Date(n.currentExpiry * 1000),
-    endDate: new Date(newExpirySeconds(selection, n.currentExpiry) * 1000),
+    startDate: new Date(Number(n.currentExpiry) * 1000),
+    endDate: new Date(
+      Number(newExpirySeconds(selection, n.currentExpiry)) * 1000,
+    ),
   }))
 
   const selectedBalance = stablecoinBalances.find(
