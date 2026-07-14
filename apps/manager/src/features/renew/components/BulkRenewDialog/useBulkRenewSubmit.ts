@@ -107,6 +107,33 @@ const runRenewals = async (
   return ok(undefined)
 }
 
+/** Sentinel returned by `prepareSpend` when the run was superseded mid-flight. */
+const STALE = Symbol('stale-run')
+
+/**
+ * Drive the `preparing`/`authorizing` phases: ensure the HCA is deployed and the
+ * batch spend is authorized. Returns the permit to bundle (or `undefined` when
+ * already authorized), an `Error` to fail with, or `STALE` if the run was
+ * superseded (dialog reset) while awaiting.
+ */
+const prepareSpend = async (
+  ctx: Context,
+  sumPriceRaw: bigint,
+  isCurrent: () => boolean,
+  setPhase: (phase: BulkRenewPhase) => void,
+): Promise<PermitSignature | undefined | Error | typeof STALE> => {
+  setPhase('preparing')
+  const deployed = await ensureHcaDeployedActor({ signer: ctx.signer })
+  if (!isCurrent()) return STALE
+  if (deployed.isErr()) return deployed.error
+
+  setPhase('authorizing')
+  const authorized = await authorizeSpend(ctx, sumPriceRaw)
+  if (!isCurrent()) return STALE
+  if (authorized.isErr()) return authorized.error
+  return authorized.value
+}
+
 type SmartAccount = ReturnType<typeof useSmartAccountContext>
 
 /** Resolve the signer/owner context, or `null` if the wallet isn't ready. */
@@ -170,8 +197,14 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const [statuses, setStatuses] = useState<Record<string, RowStatus>>({})
   const [errorMessage, setErrorMessage] = useState<string | undefined>()
   const completedRef = useRef<Set<string>>(new Set())
+  // Monotonic id for the active submission. Bumped on every `submit` and on
+  // `reset`, so a submission that resolves after the dialog was closed/reopened
+  // (which calls `reset`) can detect it's stale and skip its UI updates — e.g.
+  // no phantom "success" screen landing on a freshly reopened dialog.
+  const runIdRef = useRef(0)
 
   const reset = useCallback(() => {
+    runIdRef.current += 1
     completedRef.current = new Set()
     setPhase('idle')
     setStatuses({})
@@ -196,6 +229,12 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   }
 
   const submit = async ({ items, token, sumPriceRaw }: SubmitArgs) => {
+    // Claim this run; if `reset` (or another submit) bumps the id while we await,
+    // `isCurrent()` turns false and we stop touching the now-stale UI state.
+    runIdRef.current += 1
+    const runId = runIdRef.current
+    const isCurrent = () => runIdRef.current === runId
+
     const ctx = resolveContext(account, token)
     if (!ctx) {
       setErrorMessage('Wallet not connected')
@@ -225,32 +264,32 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
       ),
     )
 
-    setPhase('preparing')
-    const deployed = await ensureHcaDeployedActor({ signer: ctx.signer })
-    if (deployed.isErr()) return failWith(deployed.error)
-
-    setPhase('authorizing')
-    const authorized = await authorizeSpend(ctx, sumPriceRaw)
-    if (authorized.isErr()) return failWith(authorized.error)
-    const permit = authorized.value
+    const prepared = await prepareSpend(ctx, sumPriceRaw, isCurrent, setPhase)
+    if (prepared === STALE) return
+    if (prepared instanceof Error) return failWith(prepared)
+    const permit = prepared
 
     setPhase('renewing')
     const renewed = await runRenewals(
       ctx,
       remaining,
       permit,
-      (label) => markStatus(label, 'active'),
+      (label) => isCurrent() && markStatus(label, 'active'),
       (label) => {
+        // The renewal landed on-chain, so record it and refresh data even if the
+        // dialog was reset mid-flight; only the row-status UI is run-scoped.
         completed.add(label)
         invalidateName(label)
-        markStatus(label, 'done')
+        if (isCurrent()) markStatus(label, 'done')
       },
     )
+    if (!isCurrent()) return
     if (renewed.isErr()) return failWith(renewed.error)
 
     invalidateDashboardNames()
     // Let the bar settle at 100% before flipping to the success view.
     await wait(SETTLE_MS)
+    if (!isCurrent()) return
     setPhase('success')
   }
 

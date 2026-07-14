@@ -1,6 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
 import { act, renderHook } from '@testing-library/react'
-import { errAsync, okAsync } from 'neverthrow'
+import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RenewItem } from './types'
 
@@ -176,6 +176,43 @@ describe('useBulkRenewSubmit', () => {
     expect(
       mocks.submitBatchRenewActor.mock.calls.at(-1)?.[0]?.items,
     ).toHaveLength(3)
+  })
+
+  it('ignores a stale submission after the dialog is reset mid-flight', async () => {
+    // Allowance covers the batch → straight to the renewing await, no permit.
+    mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(9_999_999n))
+    // Gate the batch confirmation so we can reset while it's in-flight.
+    let releaseBatch: () => void = () => {}
+    mocks.pollTransactionStatusActor.mockReturnValue(
+      ResultAsync.fromSafePromise(
+        new Promise<void>((resolve) => {
+          releaseBatch = resolve
+        }),
+      ),
+    )
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    let submitPromise!: Promise<void>
+    await act(async () => {
+      submitPromise = result.current.submit(args)
+      // Flush pre-batch microtasks so we park at the gated renewing await.
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+    expect(result.current.phase).toBe('renewing')
+
+    // User closes and reopens the dialog — its effect calls reset().
+    act(() => {
+      result.current.reset()
+    })
+    expect(result.current.phase).toBe('idle')
+
+    // The in-flight batch now confirms; it must NOT flip the reset dialog to
+    // 'success' — the run is stale.
+    await act(async () => {
+      releaseBatch()
+      await submitPromise
+    })
+    expect(result.current.phase).toBe('idle')
   })
 
   it('reset() clears status and returns to idle', async () => {
