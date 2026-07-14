@@ -1,0 +1,133 @@
+# Per-PR e2e infra on Railway.
+#
+# On PR open/reopen: duplicates the Railway base environment into `pr-<number>`
+# (anvil snapshot, alto, paymaster, panoptes, mockestrator, dqa), points the
+# dqa service at the PR branch, generates public domains, and posts the URLs
+# as a PR comment.
+# On PR close/merge: deletes the environment.
+#
+# Required repo secrets/vars (see e2e/infra/railway/README.md for setup):
+#   secrets.RAILWAY_API_TOKEN   - account-scoped API token (NOT a project token).
+#                                 NOTE: accounts with 2FA can't delete envs
+#                                 non-interactively; use a CI/bot account.
+#   vars.RAILWAY_PROJECT_ID     - the ens-pr-infra project ID
+#   vars.RAILWAY_BASE_ENV_ID    - the base environment ID to duplicate
+#
+# Cost lever: to only deploy for labeled PRs, uncomment the `railway-infra`
+# label checks below.
+
+name: Railway PR infra
+
+on:
+  pull_request:
+    types: [opened, reopened, closed]
+
+concurrency:
+  group: railway-pr-infra-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+  PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+  BASE_ENV_ID: ${{ vars.RAILWAY_BASE_ENV_ID }}
+  ENV_NAME: pr-${{ github.event.pull_request.number }}
+
+jobs:
+  create:
+    name: Create pr-${{ github.event.pull_request.number }} environment
+    if: github.event.action != 'closed'
+    # && contains(github.event.pull_request.labels.*.name, 'railway-infra')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Link project
+        run: railway link --project "$PROJECT_ID" --environment "$BASE_ENV_ID"
+
+      - name: Create environment from base
+        # `|| true` keeps reopened PRs idempotent if the env already exists.
+        # dqa builds from the repo, so pin it to the PR branch; the other
+        # services are image-based and just get copied as-is.
+        run: |
+          railway environment new "$ENV_NAME" \
+            --copy "$BASE_ENV_ID" \
+            --service-config dqa "source.branch" "${{ github.head_ref }}" \
+            || echo "environment may already exist, continuing"
+
+      - name: Generate public domains and collect URLs
+        id: domains
+        run: |
+          railway environment "$ENV_NAME"
+          {
+            echo "urls<<EOF"
+            for svc in anvil alto paymaster panoptes mockestrator dqa; do
+              # Creates a domain if the service has none, prints it otherwise.
+              url=$(railway domain --service "$svc" 2>/dev/null | grep -oE 'https?://[^ ]+' | head -1 || echo "pending")
+              echo "| $svc | $url |"
+            done
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment PR with environment URLs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const urls = `${{ steps.domains.outputs.urls }}`;
+            const body = [
+              `### Railway PR infra: \`${process.env.ENV_NAME}\``,
+              '',
+              '| Service | URL |',
+              '|---|---|',
+              urls,
+              '',
+              'Point a local build at this environment:',
+              '```bash',
+              '# in apps/portal or apps/manager .env.local',
+              'VITE_SEPOLIA_RPC_URL=<anvil url>',
+              'VITE_INDEXER_GRAPHQL_URL=<panoptes url>/graphql',
+              'VITE_DQA=1',
+              'VITE_DQA_URL=<dqa url>',
+              '```',
+              '',
+              '_Environment is deleted automatically when this PR closes._',
+            ].join('\n');
+
+            const marker = '### Railway PR infra:';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body?.startsWith(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  destroy:
+    name: Delete pr-${{ github.event.pull_request.number }} environment
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Link project
+        run: railway link --project "$PROJECT_ID" --environment "$BASE_ENV_ID"
+
+      - name: Delete environment
+        run: railway environment delete "$ENV_NAME" || true

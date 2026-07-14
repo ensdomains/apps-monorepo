@@ -7,6 +7,8 @@ export type DqaUser = {
 export type DqaAuthConfig = {
   readonly oauthConfigured: boolean
   readonly devAllowed: boolean
+  /** Delegated-auth origin sign-in popups open against (per-PR envs); null/absent = own origin. */
+  readonly authOrigin?: string | null
 }
 
 /** A page (route) that has DQA comments. */
@@ -104,5 +106,3 @@ declare global {
     __DQA_OVERLAY__?: boolean
   }
 }
-
-export {}
