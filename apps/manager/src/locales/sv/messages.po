@@ -393,8 +393,8 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
-msgid "Buy Name"
-msgstr ""
+#~ msgid "Buy Name"
+#~ msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
@@ -1673,6 +1673,12 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Reconnect Wallet"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
+msgid "Register name"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx

@@ -388,8 +388,8 @@ msgstr "Bug bounty"
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
-msgid "Buy Name"
-msgstr "Buy Name"
+#~ msgid "Buy Name"
+#~ msgstr "Buy Name"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
@@ -1669,6 +1669,12 @@ msgstr "Reconnect the wallet used for notifications, then sign in again."
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Reconnect Wallet"
 msgstr "Reconnect Wallet"
+
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
+msgid "Register name"
+msgstr "Register name"
 
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Register to date"

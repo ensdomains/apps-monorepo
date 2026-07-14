@@ -53,7 +53,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       },
     })
 
-    await page.getByRole('button', { name: /buy name/i }).click()
+    await page.getByRole('button', { name: /register name/i }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
