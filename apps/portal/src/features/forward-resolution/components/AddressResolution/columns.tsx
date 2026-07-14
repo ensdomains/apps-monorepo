@@ -2,13 +2,13 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
+import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { cn } from '@/lib/utils'
-import { DEFAULT_COIN_TYPE, MAINNET_COIN_TYPE } from './networks'
 import type { AddressResolutionRow } from './types'
 
 // Default first, Mainnet second, L2s after (then alphabetical).
 const sortRank = (coinType: number) => {
-  if (coinType === DEFAULT_COIN_TYPE) return 0
+  if (coinType === DEFAULT_EVM_COIN_TYPE) return 0
   if (coinType === MAINNET_COIN_TYPE) return 1
   return 2
 }
@@ -26,7 +26,7 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
     ),
     cell: ({ row }) => {
       const { icon, label, coinType } = row.original
-      const isDefault = coinType === DEFAULT_COIN_TYPE
+      const isDefault = coinType === DEFAULT_EVM_COIN_TYPE
       return (
         <div className="flex items-center gap-3">
           {icon ? (

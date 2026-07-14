@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, SquareUser, XCircle } from 'lucide-react'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
-import { DEFAULT_REVERSE_COIN_TYPE, MAINNET_COIN_TYPE } from '../../config'
+import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 
 /**
@@ -10,7 +10,7 @@ import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
  * (`addr.reverse`) and the Default row itself are their own records.
  */
 const canInheritDefault = (coinType: number) =>
-  coinType !== DEFAULT_REVERSE_COIN_TYPE && coinType !== MAINNET_COIN_TYPE
+  coinType !== DEFAULT_EVM_COIN_TYPE && coinType !== MAINNET_COIN_TYPE
 
 export const columns: ColumnDef<ReverseResolutionResult>[] = [
   {
@@ -26,7 +26,7 @@ export const columns: ColumnDef<ReverseResolutionResult>[] = [
     cell: ({ row }) => {
       const label = row.original.label
       const icon = row.original.icon
-      const isDefault = row.original.coinType === DEFAULT_REVERSE_COIN_TYPE
+      const isDefault = row.original.coinType === DEFAULT_EVM_COIN_TYPE
 
       return (
         <div className="flex flex-row items-center gap-2">

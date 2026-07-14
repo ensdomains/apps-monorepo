@@ -7,24 +7,27 @@ import {
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
+import { evmChainIdToCoinType } from '@ensdomains/address-encoder/utils'
 import {
   getAddressRecord,
   getName,
   getReverseRecordFromRegistry,
 } from '@ensdomains/ensjs/public'
 import { ok } from 'neverthrow'
-import type { Address, Client, Transport } from 'viem'
+import {
+  type Address,
+  type Client,
+  isAddress,
+  isAddressEqual,
+  type Transport,
+} from 'viem'
 import { readContract } from 'viem/actions'
 import { getAction } from 'viem/utils'
-import { toCoinType } from '@/lib/utils'
+import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import type { sepoliaWithEns } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { l2WagmiConfig } from '@/lib/wagmiL2'
-import {
-  DEFAULT_REVERSE_COIN_TYPE,
-  MAINNET_COIN_TYPE,
-  type ReverseResolutionNetwork,
-} from '../config'
+import type { ReverseResolutionNetwork } from '../config'
 
 type EnsV1Client = Client<Transport, typeof sepoliaWithEns>
 
@@ -159,11 +162,12 @@ async function getL2ReverseRecord(
     // chain id — passing the raw id throws "unsupported coin type".
     const addrRecord = await getAddressRecord(l1Client, {
       name,
-      coin: toCoinType(reverseRegistrarChainId),
+      coin: evmChainIdToCoinType(reverseRegistrarChainId),
     })
     forwardMatch =
       !!addrRecord?.value &&
-      addrRecord.value.toLowerCase() === address.toLowerCase()
+      isAddress(addrRecord.value, { strict: false }) &&
+      isAddressEqual(addrRecord.value, address)
   } catch {
     forwardMatch = false
   }
@@ -187,13 +191,8 @@ async function getReverseRecordForNetwork(
   // Route by coin type: Default (`default.reverse`) and Mainnet (`addr.reverse`)
   // are both L1 `getName` reads on different coin types; everything else is an
   // L2 `nameForAddr` read.
-  if (network.coinType === DEFAULT_REVERSE_COIN_TYPE) {
-    return getL1ReverseRecord(
-      l1Client,
-      address,
-      network,
-      DEFAULT_REVERSE_COIN_TYPE,
-    )
+  if (network.coinType === DEFAULT_EVM_COIN_TYPE) {
+    return getL1ReverseRecord(l1Client, address, network, DEFAULT_EVM_COIN_TYPE)
   }
 
   if (network.coinType === MAINNET_COIN_TYPE) {
@@ -236,7 +235,7 @@ const getReverseResolution = ResultFn(async function* ({
   // onto every L2 that has no reverse record of its own.
   const defaultResult = await getName(l1Client, {
     address,
-    coinType: DEFAULT_REVERSE_COIN_TYPE,
+    coinType: DEFAULT_EVM_COIN_TYPE,
     allowMismatch: true,
   })
   const defaultName = defaultResult?.name ?? null
