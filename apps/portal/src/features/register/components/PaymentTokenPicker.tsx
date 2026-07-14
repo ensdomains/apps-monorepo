@@ -10,6 +10,7 @@ import { PaymentTokenList } from '@/features/register/components/PaymentTokenLis
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
 import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   buildTokenData,
@@ -34,26 +35,33 @@ const Skeleton = () => (
 type PaymentTokenPickerProps = {
   readonly name: string
   readonly duration: number
-  readonly isRegistering?: boolean
+  /**
+   * A submit transaction is in flight — disables token selection while it runs.
+   * Only the register flow sets this; renewals leave it unset. This is a pending
+   * flag, not the register/renew discriminant — that's `mode`.
+   */
+  readonly isSubmitting?: boolean
   readonly onSelectionChange: (token: TokenWithPriceAndBalance | null) => void
 } & (
   | {
-      readonly isRenewal: true
-      readonly renewer: Address
+      readonly mode: 'renew'
+      /** Whether the name is v2-native/migrated; selects the renewer contract. */
+      readonly isV2: boolean
     }
   | {
-      readonly isRenewal?: false
-      readonly renewer?: never
+      readonly mode?: 'register'
+      readonly isV2?: never
     }
 )
 
 export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
-  const { name, duration, isRegistering = false, onSelectionChange } = props
+  const { name, duration, isSubmitting = false, onSelectionChange } = props
   const config = useConfig()
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
 
-  const spender = props.isRenewal ? props.renewer : ethRegistrar
+  const spender =
+    props.mode === 'renew' ? getRenewerAddress(props.isV2) : ethRegistrar
 
   const balancesQuery = useQuery({
     ...readContractsQueryOptions(config, {
@@ -83,12 +91,12 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
 
   const priceQueries = useQueries({
     queries: PAYMENT_TOKENS.map((token) =>
-      props.isRenewal
+      props.mode === 'renew'
         ? getRenewalPriceQueryOptions({
             name,
             duration,
             token: token.address,
-            renewerAddress: props.renewer,
+            renewerAddress: spender,
           })
         : getRegistrationPriceQueryOptions({
             name,
@@ -165,16 +173,16 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
           titleClassName="text-base text-inherit font-medium"
           descriptionClassName="text-sm text-inherit"
           description={
-            isRegistering
-              ? "You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
-              : "You'll need to hold USDC or DAI in your connected wallet in order to extend your ENS name."
+            props.mode === 'renew'
+              ? "You'll need to hold USDC or DAI in your connected wallet in order to extend your ENS name."
+              : "You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
           }
         />
       ) : (
         <PaymentTokenList
           tokenData={tokenData}
           selectedToken={selectedToken}
-          isRegistering={isRegistering}
+          isRegistering={isSubmitting}
           onSelect={handleSelect}
         />
       )}
