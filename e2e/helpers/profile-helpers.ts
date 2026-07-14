@@ -57,7 +57,13 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await page.locator('body').click({ position: { x: 10, y: 10 } })
   await page.waitForTimeout(500)
 
-  const expiringOnText = await page.getByText(/expiring on /i).first().textContent()
+  // "expiring on" and the date are rendered as separate sibling elements
+  // (spaced via CSS gap, not a text node), so read the date from the label's
+  // next sibling rather than relying on a space in the concatenated text.
+  const expiringOnValue = page
+    .getByText('expiring on', { exact: true })
+    .locator('xpath=following-sibling::*[1]')
+  const expiringOnText = await expiringOnValue.textContent()
   const dateMatch = expiringOnText?.match(
     /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/,
   )
