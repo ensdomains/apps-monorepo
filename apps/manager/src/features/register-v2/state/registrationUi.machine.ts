@@ -20,7 +20,7 @@ import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pr
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
-import { SECONDS_IN_YEAR } from '../utils/time'
+import { getDurationInSecondsFromYears } from '../utils/time'
 import {
   getRegistrationStageProgress,
   type MaxProgressReached,
@@ -112,7 +112,7 @@ const machineSetup = setup({
       duration: ({ event }) =>
         event.type === 'pricing.duration.set'
           ? event.duration
-          : SECONDS_IN_YEAR,
+          : getDurationInSecondsFromYears(1),
     }),
     setToken: assign({
       selectedToken: ({ event, context }) =>
@@ -313,7 +313,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
   initial: 'pricing',
   context: ({ input }) => ({
     chainId: input.chainId,
-    duration: SECONDS_IN_YEAR * 3,
+    duration: getDurationInSecondsFromYears(3),
     selectedToken: undefined,
     lastErrorMessage: undefined,
     maxProgressReached: undefined,

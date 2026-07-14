@@ -7,10 +7,11 @@ import type {
   TransactionRunStatus,
 } from '../types/audit.types'
 import type { Signer } from '../types/signer.types'
-import type {
-  TransactionIntent,
-  TransactionOptions,
-  TransactionRequest,
+import {
+  getPrimaryCall,
+  type TransactionIntent,
+  type TransactionOptions,
+  type TransactionRequest,
 } from '../types/transaction.types'
 
 const MAX_TELEMETRY_BYTES = 900 * 1024
@@ -79,7 +80,15 @@ function randomId(): string {
   ) {
     return crypto.randomUUID()
   }
-
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.getRandomValues === 'function'
+  ) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    return `run-${Date.now()}-${Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')}`
+  }
   return `run-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
 }
 
@@ -349,22 +358,41 @@ function getPhaseContext(
   }
 }
 
+function dataByteLength(data: string | undefined): number | undefined {
+  if (!data) return undefined
+  return data.startsWith('0x')
+    ? Math.max(0, (data.length - 2) / 2)
+    : data.length
+}
+
+function dataSelector(data: string | undefined): string | undefined {
+  return data?.startsWith('0x') && data.length >= 10
+    ? data.slice(0, 10)
+    : undefined
+}
+
 function buildRequestSnapshot(
   request: TransactionRequest | undefined,
 ): TransactionRunInitialSnapshot['request'] {
   if (!request) return undefined
 
-  const data = request.data
-  const dataBytes = data
-    ? data.startsWith('0x')
-      ? Math.max(0, (data.length - 2) / 2)
-      : data.length
-    : undefined
+  // `calls` is the single source of truth for what executes on-chain. For an
+  // EOA request the primary call is the top-level tx; for a Rhinestone intent
+  // it is the first call in the batch. Summaries below derive from this rather
+  // than from a second, divergence-prone copy of the call data.
+  const primary = getPrimaryCall(request)
+  const data = primary?.data
+
+  const calls =
+    request.type === 'rhinestone-intent'
+      ? request.rhinestoneParams.calls
+      : undefined
+  const callCount = calls ? calls.length : 1
 
   return {
     from: request.from,
-    to: request.to,
-    value: toBigIntString(request.value),
+    to: primary?.to,
+    value: toBigIntString(primary?.value),
     nonce:
       typeof (request as { nonce?: unknown }).nonce === 'number'
         ? (request as { nonce?: number }).nonce
@@ -381,10 +409,19 @@ function buildRequestSnapshot(
         ? toBigIntString(request.maxPriorityFeePerGas)
         : undefined,
     data,
-    dataBytes,
-    dataSelector:
-      data?.startsWith('0x') && data.length >= 10
-        ? data.slice(0, 10)
+    dataBytes: dataByteLength(data),
+    dataSelector: dataSelector(data),
+    callCount,
+    // Only emit the per-call breakdown for genuine batches so single-call
+    // requests stay compact (the top-level fields already describe them).
+    calls:
+      calls && calls.length > 1
+        ? calls.map((call) => ({
+            to: call.to,
+            value: toBigIntString(call.value),
+            dataBytes: dataByteLength(call.data),
+            dataSelector: dataSelector(call.data),
+          }))
         : undefined,
   }
 }

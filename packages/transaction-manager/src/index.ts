@@ -1,39 +1,3 @@
-// Types
-
-// Actors
-export { submitRhinestoneTransaction } from './actors/rhinestone-transport.actor'
-export {
-  type SubmitWarpTransactionInput,
-  submitWarpTransaction,
-} from './actors/warp-transport.actor'
-export {
-  GlobalTransactionToasts,
-  type GlobalTransactionToastsProps,
-  type Toast,
-} from './components/GlobalTransactionToasts'
-// Components
-export {
-  PaymentSelector,
-  type PaymentSelectorProps,
-  TransactionDetails,
-  type TransactionDetailsProps,
-  TransactionModal,
-  TransactionModalHeader,
-  type TransactionModalHeaderProps,
-  type TransactionModalProps,
-  TransactionSteps,
-  type TransactionStepsProps,
-} from './components/TransactionModal'
-export {
-  TransactionRecoveryNotification,
-  type TransactionRecoveryNotificationProps,
-} from './components/TransactionRecoveryNotification'
-export {
-  type TransactionStatus,
-  TransactionStatusPanel,
-  type TransactionStatusPanelProps,
-} from './components/TransactionStatusPanel'
-export { ETH_REGISTRAR_CONTROLLER_ABI } from './contracts/abis/ETHRegistrarController.abi'
 // Contracts
 export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 // Errors
@@ -41,18 +5,6 @@ export { TransactionSubmissionError } from './errors/transaction.errors'
 // Helpers
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
-export {
-  type ENSRenewalParams,
-  executeENSRenewal,
-  type GasPriceTier,
-  getENSRenewalPrice as getRhinestoneRenewalPrice,
-  getENSRenewalPrice,
-  getRhinestoneAccountAddress,
-  initializeRhinestoneAccount,
-  prepareENSRenewalTransaction,
-  type RhinestoneAccountConfig,
-  RhinestoneAccountError,
-} from './helpers/rhinestone-account.helpers'
 // Persistence
 export {
   archiveTransaction,
@@ -76,12 +28,6 @@ export {
   waitForTransaction,
 } from './helpers/waitForTransaction'
 export type {
-  PrimaryNameContext,
-  PrimaryNameEvent,
-  PrimaryNameInput,
-} from './machines/primary-name/primaryName.machine'
-export { primaryNameMachine } from './machines/primary-name/primaryName.machine'
-export type {
   RegistrationContext,
   RegistrationEvent,
   RegistrationInput,
@@ -95,12 +41,6 @@ export type {
   RegistrationMachineEvent,
   RegistrationMachineState,
 } from './machines/registration/registration.types'
-export type {
-  ResolverContext,
-  ResolverEvent,
-  ResolverInput,
-} from './machines/resolver/resolver.machine'
-export { resolverMachine } from './machines/resolver/resolver.machine'
 // Machines
 export { transactionMachine } from './machines/transaction.machine'
 export type {
@@ -111,39 +51,22 @@ export type {
 // Providers
 export {
   TransactionManagerProvider,
-  TransactionManagerProvider as TransactionRegistryProvider,
   useActiveTransactions,
   useRecoveredTransactions,
   useTransaction,
-  // Backward compatibility - deprecated
-  useTransactionActorManager,
   useTransactionManager,
-  useTransactionRegistry,
 } from './providers/TransactionManagerProvider'
 // Services
 export {
-  estimateTelemetryBytes,
+  type ArchivedTransaction,
+  buildArchivedTransaction,
   transactionManager,
 } from './providers/transactionManager'
-export {
-  addAuditEntry,
-  clearAuditTrail,
-  exportToJson,
-  generateDebugReport,
-  getTransitionHistory,
-  importFromJson,
-  recordTransition,
-} from './services/audit-trail.service'
 export type {
-  AuditEntry,
-  DebugReport,
-  ErrorSummary,
   FailedRunPayloadV2,
-  PerformanceMetrics,
   RunTelemetryEventSubscriber,
   RunTelemetrySubscriber,
   SerializedRunError,
-  StateTransition,
   TransactionPhase,
   TransactionRunEventV2,
   TransactionRunInitialSnapshot,
@@ -151,11 +74,11 @@ export type {
 } from './types/audit.types'
 export type {
   EOASigner,
+  RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,
   TransactionInfra,
 } from './types/signer.types'
-export { isEOASigner, isRhinestoneSigner } from './types/signer.types'
 export type {
   Call,
   CustomTransactionIntent,
@@ -175,3 +98,4 @@ export type {
   TransactionStep,
   TransactionType,
 } from './types/transaction.types'
+export { getPrimaryCall } from './types/transaction.types'

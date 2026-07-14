@@ -71,6 +71,24 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
+  // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
+  // PaymentCard, before this chooser opens), so on the HCA path a session is
+  // already active here and `account.signer` carries it — no signer override
+  // or enable prompt is needed at this step.
+  const startRegistration = () => {
+    if (!pricingQuery.data || !selectedToken) return
+    uiActor.send({
+      type: 'registration.start',
+      label,
+      duration: BigInt(Math.ceil(duration)),
+      token: selectedToken,
+      totalPrice: pricingQuery.data.rawPrice,
+      account,
+      basePriceNumber: pricingQuery.data.basePriceNumber,
+      premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
+    })
+  }
+
   const availabilityMutation = useMutation({
     mutationFn: async () => {
       return queryClient.fetchQuery({
@@ -90,16 +108,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      uiActor.send({
-        type: 'registration.start',
-        label,
-        duration: BigInt(Math.ceil(duration)),
-        token: selectedToken,
-        totalPrice: pricingQuery.data.rawPrice,
-        account,
-        basePriceNumber: pricingQuery.data.basePriceNumber,
-        premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
-      })
+      startRegistration()
     },
   })
 
@@ -139,7 +148,7 @@ export const TokenPickerContentBase = ({
   stablecoinBalances,
   isLoadingBalances,
   isConnected,
-  nextMessage = <Trans>Buy Name</Trans>,
+  nextMessage = <Trans>Register name</Trans>,
 }: {
   label: string
   pricingLoading: boolean

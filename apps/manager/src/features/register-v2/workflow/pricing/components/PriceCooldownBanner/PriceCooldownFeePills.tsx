@@ -52,8 +52,8 @@ const FeePill = ({
       </span>
       {showDecayIcon && (
         <MSymbol
-          className="ms-opsz-20 ms-wght-300 rotate-180 text-ens-lapis-400"
-          symbol="keyboard_arrow_down"
+          className="ms-opsz-20 ms-wght-300 animate-fee-decay text-ens-lapis-400"
+          symbol="arrow_shape_up_stack"
         />
       )}
     </div>

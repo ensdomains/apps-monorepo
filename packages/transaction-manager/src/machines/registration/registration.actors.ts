@@ -14,6 +14,7 @@ import {
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
 import {
+  bytesToHex,
   concatHex,
   decodeEventLog,
   encodeAbiParameters,
@@ -26,7 +27,6 @@ import {
   parseAbi,
   parseSignature,
   stringToBytes,
-  toHex,
   zeroAddress,
 } from 'viem'
 import {
@@ -54,10 +54,7 @@ import {
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
 import { transactionManager } from '../../providers/transactionManager'
-import type {
-  RhinestoneTransactionRequest,
-  TransactionRequest,
-} from '../../types/transaction.types'
+import type { Call, TransactionRequest } from '../../types/transaction.types'
 
 type CommitmentData = {
   commitment: Hash
@@ -135,8 +132,12 @@ export async function predictResolverAddress(input: {
 // ============================================================================
 
 function generateResolverSalt(name: string): bigint {
-  const timestamp = new Date().toISOString()
-  return BigInt(keccak256(stringToBytes(`${name}:${timestamp}`)))
+  // Use CSPRNG (not `Date.now()`/`Math.random()`) so the resolver salt is
+  // unpredictable. The CREATE2 address is also bound to the deployer via
+  // `keccak256(abi.encode(msg.sender, salt))`, but unpredictable randomness is
+  // the correct hygiene for any on-chain-influencing value.
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32))
+  return BigInt(keccak256(stringToBytes(`${name}:${bytesToHex(randomBytes)}`)))
 }
 
 function getResolverInitCalldata(ownerAddress: Address): Hex {
@@ -182,7 +183,14 @@ function generateCommitment(
   registrarAddress: Address = ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
 ): ResultAsync<CommitmentData, Error> {
   const cleanName = name.replace('.eth', '')
-  const secret = keccak256(toHex(Math.random().toString()) as Hash)
+  if (
+    typeof crypto === 'undefined' ||
+    typeof crypto.getRandomValues !== 'function'
+  ) {
+    return errAsync(new Error('crypto.getRandomValues is not available'))
+  }
+  const secretBytes = crypto.getRandomValues(new Uint8Array(32))
+  const secret = bytesToHex(secretBytes) as Hash
 
   return fromPromise(
     (async () => {
@@ -364,28 +372,44 @@ export function getSignerAddress(signer: Signer): Address {
 }
 
 /**
- * Create transaction request based on signer type.
- * Returns either an EOA request or a rhinestone-intent request.
+ * Create a transaction request based on signer type.
+ *
+ * `calls` is the single source of truth for the call data. For an EOA signer
+ * the request is a single on-chain transaction, so exactly one call is allowed
+ * and its `{ to, data, value }` become the request's top-level fields. For a
+ * Rhinestone signer the calls are submitted as a batched intent and stored
+ * verbatim in `rhinestoneParams.calls`; there is no separate top-level copy to
+ * keep in sync. This removes the previous "two sources of truth" footgun where
+ * callers passed a top-level call that could disagree with `calls`.
  */
 export function createTransactionRequest(params: {
   signer: Signer
   from: Address
-  to: Address
-  data: Hex
-  value: bigint
   chainId: number
-  calls: Array<{ to: Address; data: Hex; value: bigint }>
+  calls: Call[]
   sponsored?: boolean
 }): TransactionRequest {
-  const { signer, from, to, data, value, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls, sponsored } = params
+
+  if (calls.length === 0) {
+    throw new Error('createTransactionRequest requires at least one call')
+  }
 
   if (signer.type === 'eoa') {
+    if (calls.length > 1) {
+      throw new Error(
+        'EOA transaction requests support a single call; received a batch. ' +
+          'Use a Rhinestone signer for multi-call intents.',
+      )
+    }
+    // biome-ignore lint/style/noNonNullAssertion: length checked above
+    const call = calls[0]!
     return {
       type: 'eoa',
       from,
-      to,
-      data,
-      value,
+      to: call.to,
+      data: call.data,
+      value: call.value,
       chainId,
     }
   }
@@ -394,15 +418,12 @@ export function createTransactionRequest(params: {
     return {
       type: 'rhinestone-intent',
       from,
-      to,
-      data,
-      value,
       chainId,
       rhinestoneParams: {
         calls,
         sponsored: sponsored ?? true,
       },
-    } as RhinestoneTransactionRequest
+    }
   }
 
   signer satisfies never
@@ -439,9 +460,6 @@ export function submitResolverDeploymentActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
-        data: deployCalldata,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
@@ -558,9 +576,6 @@ export function submitCommitmentActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: registrarAddress,
-        data: commitmentData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
@@ -665,9 +680,6 @@ export function submitResolverAndCommitmentActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: registrarAddress,
-        data: commitmentData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         // One Intent, two calls: deploy the resolver, then commit. Order matters
         // only for atomicity here (commit doesn't read the resolver on-chain),
@@ -968,9 +980,6 @@ export function submitApprovalActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: normalizedTokenAddress,
-        data: approvalData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
@@ -1051,9 +1060,6 @@ export function submitRegistrationActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: registrarAddress,
-        data: registrationData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           {
@@ -1267,9 +1273,6 @@ export function submitPermitAndRegistrationActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: registrarAddress,
-        data: registrationData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           { to: normalizedPaymentToken, data: permitData, value: 0n },
@@ -1470,9 +1473,6 @@ export function submitRenewActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: registrarAddress,
-        data: renewData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [{ to: registrarAddress, data: renewData, value: 0n }],
         sponsored: input.sponsored ?? true,
@@ -1538,9 +1538,6 @@ export function submitPermitAndRenewActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        to: registrarAddress,
-        data: renewData,
-        value: 0n,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           { to: normalizedPaymentToken, data: permitData, value: 0n },

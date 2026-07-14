@@ -8,9 +8,10 @@ import {
   walletConnectWallet,
 } from '@rainbow-me/rainbowkit/wallets'
 import { createIsomorphicFn } from '@tanstack/react-start'
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -48,11 +49,31 @@ const resolveRpcUrl = createIsomorphicFn()
 export const SEPOLIA_RPC_URL: string =
   resolveRpcUrl() || MANAGER_SEPOLIA_RPC_URL
 
+// Public Sepolia fallback endpoints. dRPC intermittently returns HTTP 500s on
+// otherwise-valid `eth_call`s (e.g. `nonces`, `MIN_COMMITMENT_AGE`); viem's
+// `fallback()` transport transparently fails over so a single provider blip
+// doesn't break a registration. The manager's own RPC URL stays the preferred
+// (primary) endpoint so quota/usage is still attributed to the manager app.
+const SEPOLIA_FALLBACK_RPC_URLS = [
+  'https://ethereum-sepolia-rpc.publicnode.com',
+  'https://1rpc.io/sepolia',
+] as const
+
+const SEPOLIA_RPC_URLS: readonly string[] = [
+  SEPOLIA_RPC_URL,
+  ...SEPOLIA_FALLBACK_RPC_URLS.filter((url) => url !== SEPOLIA_RPC_URL),
+]
+
+export const sepoliaFallbackTransport = fallback(
+  SEPOLIA_RPC_URLS.map((url) => http(url, { retryCount: 2 })),
+  { rank: false, retryCount: 2 },
+)
+
 export const customSepolia = {
   ...sepolia,
   rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
+    default: { http: [...SEPOLIA_RPC_URLS] },
+    public: { http: [...SEPOLIA_RPC_URLS] },
   },
 }
 
@@ -60,7 +81,7 @@ export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
-  transport: http(SEPOLIA_RPC_URL),
+  transport: sepoliaFallbackTransport,
   batch: {
     multicall: true,
   },
@@ -72,22 +93,26 @@ export const wagmiConfig = createConfig({
   multiInjectedProviderDiscovery: true,
   chains: [sepoliaWithEns],
   transports: {
-    [sepoliaWithEns.id]: http(SEPOLIA_RPC_URL, { batch: { batchSize: 30 } }),
+    [sepoliaWithEns.id]: sepoliaFallbackTransport,
   },
-  connectors: connectorsForWallets(
-    [
-      {
-        groupName: 'Popular',
-        wallets: [
-          injectedWallet,
-          metaMaskWallet,
-          walletConnectWallet,
-          frameWallet,
-        ],
-      },
-    ],
-    { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
-  ),
+  connectors: [
+    ...connectorsForWallets(
+      [
+        {
+          groupName: 'Popular',
+          wallets: [
+            injectedWallet,
+            metaMaskWallet,
+            walletConnectWallet,
+            frameWallet,
+          ],
+        },
+      ],
+      { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
+    ),
+    // Test-only: auto-signing wallet for Playwright/agents. Off in production.
+    ...(isMockWalletEnabled ? [mockConnector] : []),
+  ],
 })
 
 export type ClientType = ReturnType<typeof wagmiConfig.getClient>

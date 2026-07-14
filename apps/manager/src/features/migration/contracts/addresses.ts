@@ -4,16 +4,13 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 export const V2_DEPLOY_BLOCK = 10462885n
 
-// V2 contracts — sourced from ensjs's sepolia chain config where available
-// (the three migration controllers landed in ensjs in commit 1d4334e).
+// V2 contracts — all sourced from ensjs's sepolia chain config.
 //
-// `DefaultResolver` is the V2 PublicResolver and is written into each
-// migrated name's registry slot as a fallback (used by the migration plan
-// when a name's existing v1 resolver is unknown, or when the owner doesn't
-// yet have a dedicated PermissionedResolver instance). The address matches
-// `LockedWrapperReceiver.PUBLIC_RESOLVER` on-chain — read it via
-// `cast call <LockedMigrationController> 'PUBLIC_RESOLVER()'` to verify.
-// ensjs doesn't export this address yet; remove the hardcode once it does.
+// `DefaultResolver` is the V2 PublicResolver (`ensPublicResolver`), written into
+// each migrated name's registry slot as a fallback (used by the migration plan
+// when a name's existing v1 resolver is unknown, or when the owner doesn't yet
+// have a dedicated PermissionedResolver instance). It matches
+// `LockedMigrationController.PUBLIC_RESOLVER()` on-chain.
 export const V2_CONTRACTS = {
   ETHRegistry: ensjsSepolia.ensRegistry.address,
   VerifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
@@ -22,5 +19,5 @@ export const V2_CONTRACTS = {
     ensjsSepolia.ensUnlockedMigrationController.address,
   LockedMigrationController: ensjsSepolia.ensLockedMigrationController.address,
   MigrationHelper: ensjsSepolia.ensMigrationHelper.address,
-  DefaultResolver: '0x5239a812ec9a62f46dbb5de8f346c8efe7553a9f',
+  DefaultResolver: ensjsSepolia.ensPublicResolver.address,
 } as const

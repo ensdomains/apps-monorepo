@@ -14,6 +14,7 @@ import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -304,10 +305,7 @@ export const ResolverEventsTable = ({
                 <Fragment key={row.id}>
                   <TableRow
                     key={row.id}
-                    className={cn(
-                      'hover:bg-muted',
-                      tableView.strippedRows && 'odd:bg-muted',
-                    )}
+                    className={stripedRowClassName(tableView.strippedRows)}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cellClassName}>

@@ -5,11 +5,12 @@ import {
   getGraceEndDate,
   isInGracePeriod,
 } from '@/features/grace/utils/gracePeriod'
-import type { ClassifiedName } from '@/features/migration/service/classifyNames'
+import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import {
   formatDashboardDate,
   getDaysUntil,
   isExpiringSoon,
+  NON_EXPIRING_DATE_LABEL,
   resolveDomainLabel,
   toDateFromSeconds,
 } from './utils'
@@ -21,7 +22,7 @@ export type MergedItem =
       readonly sortName: string
       readonly sortExpiry: number | null
       readonly sortCreated: number | null
-      readonly domain: DomainFragment
+      readonly domain: DashboardV2Name
     }
   | {
       readonly kind: 'v1'
@@ -29,8 +30,21 @@ export type MergedItem =
       readonly sortName: string
       readonly sortExpiry: number | null
       readonly sortCreated: number | null
-      readonly classified: ClassifiedName
+      readonly classified: DashboardV1Name
     }
+
+export type DashboardV1Name = {
+  readonly domain: V1Domain
+  readonly label: string
+  readonly isMigrationEligible?: boolean
+  readonly nameRoles?: readonly DashboardNameRole[]
+}
+
+export type DashboardNameRole = 'owner' | 'manager'
+
+export type DashboardV2Name = DomainFragment & {
+  readonly nameRoles?: readonly DashboardNameRole[]
+}
 
 export type SortField = 'name' | 'created' | 'expiry'
 export type SortDir = 'asc' | 'desc'
@@ -38,7 +52,36 @@ export type ExpiryCta = 'renew' | 'remindMe'
 
 const RENEW_CTA_THRESHOLD_DAYS = 7
 
-export const v1ExpirySeconds = (classified: ClassifiedName): number | null => {
+const getIsMigrationEligible = (item: MergedItem): boolean =>
+  item.kind === 'v1' && item.classified.isMigrationEligible === true
+
+const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
+  expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
+
+const getExpirySortValue = (expirySeconds: number | null): number | null =>
+  expirySeconds === 0 ? null : expirySeconds
+
+const formatMergedExpiryDate = (
+  displayExpiryDate: Date | null,
+  expirySeconds: number | null,
+): string =>
+  expirySeconds === 0
+    ? NON_EXPIRING_DATE_LABEL
+    : formatDashboardDate(displayExpiryDate)
+
+const normalizeMergedName = (name: string | null | undefined): string | null =>
+  name ? name.toLowerCase() : null
+
+const getV2NameSet = (
+  v2Names: readonly DashboardV2Name[],
+): ReadonlySet<string> =>
+  new Set(
+    v2Names
+      .map((domain) => normalizeMergedName(resolveDomainLabel(domain)))
+      .filter((name): name is string => !!name),
+  )
+
+export const v1ExpirySeconds = (classified: DashboardV1Name): number | null => {
   const raw =
     classified.domain.registration?.expiryDate ??
     classified.domain.wrappedDomain?.expiryDate ??
@@ -58,8 +101,10 @@ export const compareMerged = (
   if (field === 'name') {
     return a.sortName.localeCompare(b.sortName) * mul
   }
-  const ax = field === 'created' ? a.sortCreated : a.sortExpiry
-  const bx = field === 'created' ? b.sortCreated : b.sortExpiry
+  const ax =
+    field === 'created' ? a.sortCreated : getExpirySortValue(a.sortExpiry)
+  const bx =
+    field === 'created' ? b.sortCreated : getExpirySortValue(b.sortExpiry)
   if (ax === null && bx === null) return 0
   if (ax === null) return 1
   if (bx === null) return -1
@@ -67,8 +112,8 @@ export const compareMerged = (
 }
 
 export const buildMergedNamesList = (params: {
-  v2Names: readonly DomainFragment[]
-  v1Classified: readonly ClassifiedName[]
+  v2Names: readonly DashboardV2Name[]
+  v1Classified: readonly DashboardV1Name[]
   searchQuery: string
   sortField: SortField
   sortDir: SortDir
@@ -76,6 +121,7 @@ export const buildMergedNamesList = (params: {
   const { v2Names, v1Classified, searchQuery, sortField, sortDir } = params
   const q = searchQuery.trim().toLowerCase()
   const items: MergedItem[] = []
+  const v2NameSet = getV2NameSet(v2Names)
 
   for (const domain of v2Names) {
     const label = resolveDomainLabel(domain)
@@ -92,6 +138,7 @@ export const buildMergedNamesList = (params: {
 
   for (const classified of v1Classified) {
     const label = classified.domain.name
+    if (v2NameSet.has(label.toLowerCase())) continue
     if (
       q &&
       !label.toLowerCase().includes(q) &&
@@ -113,6 +160,18 @@ export const buildMergedNamesList = (params: {
   return items
 }
 
+export const getMergedNamesCount = (params: {
+  v2Names: readonly DashboardV2Name[]
+  v1Classified: readonly DashboardV1Name[]
+}): number => {
+  const v2NameSet = getV2NameSet(params.v2Names)
+  const v1OnlyCount = params.v1Classified.filter(
+    (classified) => !v2NameSet.has(classified.domain.name.toLowerCase()),
+  ).length
+
+  return params.v2Names.length + v1OnlyCount
+}
+
 export type MergedRowMetadata = {
   readonly label: string
   readonly expiryDate: Date | null
@@ -129,6 +188,7 @@ export type MergedRowMetadata = {
   readonly expiryCta: ExpiryCta | null
   readonly useDefaultAvatar: boolean
   readonly avatarUrl: string | undefined
+  readonly isMigrationEligible: boolean
 }
 
 export const mergedRowMetadata = (
@@ -138,13 +198,14 @@ export const mergedRowMetadata = (
   now: Date = new Date(),
 ): MergedRowMetadata => {
   const label = item.sortName
-  const expiryDate = toDateFromSeconds(item.sortExpiry)
+  const expiryDate = getMergedExpiryDate(item.sortExpiry)
   const isV1 = item.kind === 'v1'
   const isV2 = !isV1
   const isInGrace = isInGracePeriod(expiryDate, isV2, now)
   const graceEndDate =
     expiryDate && isInGrace ? getGraceEndDate(expiryDate, isV2) : null
   const displayExpiryDate = getDisplayExpiryDate(expiryDate, isV2, now)
+  const isMigrationEligible = getIsMigrationEligible(item)
   const daysUntilExpiry = getDaysUntil(expiryDate)
   const daysSinceExpiry =
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
@@ -171,7 +232,10 @@ export const mergedRowMetadata = (
     daysUntilExpiry,
     daysSinceExpiry,
     expiringSoon,
-    formattedExpiryDate: formatDashboardDate(displayExpiryDate),
+    formattedExpiryDate: formatMergedExpiryDate(
+      displayExpiryDate,
+      item.sortExpiry,
+    ),
     isV1,
     isPrimary,
     isInGrace,
@@ -179,5 +243,6 @@ export const mergedRowMetadata = (
     expiryCta,
     useDefaultAvatar: isInGrace,
     avatarUrl,
+    isMigrationEligible,
   }
 }

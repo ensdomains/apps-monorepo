@@ -1,5 +1,6 @@
 import { flexRender, type Row, type RowData } from '@tanstack/react-table'
 import { ArrowRightFromLineIcon } from 'lucide-react'
+import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
 import type { TableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
@@ -22,7 +23,7 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
 }) => {
   return (
     <TableRow
-      className={cn('hover:bg-muted', tableView.strippedRows && 'odd:bg-muted')}
+      className={stripedRowClassName(tableView.strippedRows)}
       key={row.id}
       data-state={row.getIsSelected() && 'selected'}
     >

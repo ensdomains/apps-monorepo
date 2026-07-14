@@ -7,9 +7,12 @@ import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { LinkButton } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MSymbol } from '@/components/ui/material-symbol'
-import { formatDashboardDate } from '@/features/dashboard/utils'
 import {
-  getProfileNameExpiryStatus,
+  formatDashboardDate,
+  NON_EXPIRING_DATE_LABEL,
+} from '@/features/dashboard/utils'
+import {
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
@@ -56,6 +59,17 @@ const PrimaryNameNameplate = ({
   )
 }
 
+const getExpiryLabel = (params: {
+  readonly displayExpiryDate: Date | null
+  readonly isLoading: boolean
+  readonly isNonExpiring?: boolean
+  readonly loadingLabel: string
+}) => {
+  if (params.isLoading) return params.loadingLabel
+  if (params.isNonExpiring) return NON_EXPIRING_DATE_LABEL
+  return formatDashboardDate(params.displayExpiryDate)
+}
+
 export const PrimaryNameCard = ({
   primaryName,
   avatarUrl,
@@ -73,10 +87,8 @@ export const PrimaryNameCard = ({
     ...profileExpiryQuery(primaryName ?? ''),
     enabled: !!primaryName,
   })
-  const { isInGrace, displayExpiryDate } = getProfileNameExpiryStatus(
-    reverseExpiry?.expiry,
-    true,
-  )
+  const { isInGrace, displayExpiryDate } =
+    getProfileExpiryResultStatus(reverseExpiry)
 
   const registeredDate =
     registration?.registrationDate == null
@@ -87,12 +99,16 @@ export const PrimaryNameCard = ({
   const registeredLabel = isRegistrationLoading
     ? t`Loading...`
     : formatDashboardDate(registeredDate)
-  const expiryLabel = isReverseExpiryLoading
-    ? t`Loading...`
-    : formatDashboardDate(displayExpiryDate)
+  const expiryLabel = getExpiryLabel({
+    displayExpiryDate,
+    isLoading: isReverseExpiryLoading,
+    isNonExpiring: reverseExpiry?.isNonExpiring,
+    loadingLabel: t`Loading...`,
+  })
   const canViewProfile = Boolean(primaryName)
 
-  const themeVars = getThemeVars(themeColor) as React.CSSProperties
+  const themeVars = getThemeVars(themeColor)
+  const profileThemeColor = isInGrace ? undefined : themeVars['--theme-color']
 
   return (
     <Card
@@ -100,7 +116,7 @@ export const PrimaryNameCard = ({
         'flex flex-col gap-4 rounded-none border-[0.25px] border-border bg-white p-4 shadow-none md:rounded-xl md:p-6',
         isInGrace && 'opacity-70',
       )}
-      style={isInGrace ? undefined : themeVars}
+      style={isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
       <PrimaryBadge className="self-start bg-ens-lapis-tint" />
 
@@ -128,6 +144,7 @@ export const PrimaryNameCard = ({
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-20 rounded-sm border-none bg-transparent p-0 shadow-none md:size-full"
+                  color={profileThemeColor}
                   name={primaryName ?? ''}
                 />
               </ImageFallback.Fallback>
@@ -159,9 +176,7 @@ export const PrimaryNameCard = ({
                   <span className="text-ens-quartz-400">
                     <Trans>Registered</Trans>
                   </span>
-                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
-                    {registeredLabel}
-                  </span>
+                  <span className="text-ens-quartz-700">{registeredLabel}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -173,9 +188,7 @@ export const PrimaryNameCard = ({
                   <span className="text-ens-quartz-400">
                     <Trans>Expires</Trans>
                   </span>
-                  <span className="font-semi-mono text-[13px] text-ens-quartz-700 tracking-[0.91px]">
-                    {expiryLabel}
-                  </span>
+                  <span className="text-ens-quartz-700">{expiryLabel}</span>
                 </div>
               </div>
             </div>

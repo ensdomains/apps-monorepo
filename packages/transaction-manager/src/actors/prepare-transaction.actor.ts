@@ -1,9 +1,10 @@
-import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
+import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import type { Hex, PublicClient } from 'viem'
 import { prepareENSRenewalTransaction } from '../helpers/rhinestone-account.helpers'
-import type {
-  TransactionIntent,
-  TransactionRequest,
+import {
+  getPrimaryCall,
+  type TransactionIntent,
+  type TransactionRequest,
 } from '../types/transaction.types'
 
 export class TransactionPreparationError extends Error {
@@ -36,12 +37,6 @@ export function prepareTransaction(input: {
 }): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
   const { intent, publicClient, chainId, useSmartAccount } = input
 
-  console.log('🔧 [PREPARE] Preparing transaction:', {
-    intentType: intent.type,
-    useSmartAccount,
-    chainId,
-  })
-
   // Route based on intent type
   switch (intent.type) {
     case 'ens-renewal':
@@ -51,11 +46,13 @@ export function prepareTransaction(input: {
       return prepareETHTransfer(intent, publicClient, chainId, useSmartAccount)
 
     case 'custom':
-      // Custom intent already has a prepared request
+      // Custom intent already has a prepared request. Derive the estimated cost
+      // from the primary call so it works for both EOA (top-level value) and
+      // Rhinestone intents (value lives in rhinestoneParams.calls).
       return ResultAsync.fromSafePromise(
         Promise.resolve({
           request: intent.request,
-          estimatedCost: intent.request.value || 0n,
+          estimatedCost: getPrimaryCall(intent.request)?.value ?? 0n,
         }),
       )
 
@@ -78,35 +75,17 @@ function prepareENSRenewal(
   chainId: number,
   useSmartAccount: boolean,
 ): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
-  return fromPromise(
-    (async () => {
-      const { name, duration, from } = intent
+  const { name, duration, from } = intent
 
-      console.log('📋 [PREPARE] Preparing ENS renewal:', {
-        name,
-        duration: duration.toString(),
-      })
-
-      // Use the existing helper to prepare the transaction
-      const txResult = await prepareENSRenewalTransaction(publicClient, {
-        name,
-        duration,
-      })
-
-      if (txResult.isErr()) {
-        throw txResult.error
-      }
-
-      const { to, data, value } = txResult.value
-
+  // prepareENSRenewalTransaction already returns a ResultAsync, so chain it
+  // directly rather than unwrapping-and-rethrowing (see package CLAUDE.md).
+  return prepareENSRenewalTransaction(publicClient, { name, duration })
+    .map(({ to, data, value }) => {
       // Create the appropriate request type based on account type
       const request: TransactionRequest = useSmartAccount
         ? {
             type: 'rhinestone-intent',
             from,
-            to,
-            data,
-            value,
             chainId,
             rhinestoneParams: {
               calls: [
@@ -128,24 +107,19 @@ function prepareENSRenewal(
             chainId,
           }
 
-      console.log('✅ [PREPARE] Transaction prepared:', {
-        type: request.type,
-        to,
-        value: value.toString(),
-      })
-
       return {
         request,
         estimatedCost: value, // For ENS renewal, the cost is just the renewal price (gas will be added during execution)
       }
-    })(),
-    (error) =>
-      new TransactionPreparationError(
-        intent,
-        `Failed to prepare ENS renewal: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error : undefined,
-      ),
-  )
+    })
+    .mapErr(
+      (error) =>
+        new TransactionPreparationError(
+          intent,
+          `Failed to prepare ENS renewal: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          error instanceof Error ? error : undefined,
+        ),
+    )
 }
 
 /**
@@ -157,57 +131,37 @@ function prepareETHTransfer(
   chainId: number,
   useSmartAccount: boolean,
 ): ResultAsync<PreparedTransactionData, TransactionPreparationError> {
-  return fromPromise(
-    (async () => {
-      const { to, value, from, data } = intent
+  const { to, value, from, data } = intent
 
-      console.log('📋 [PREPARE] Preparing ETH transfer:', {
-        to,
-        value: value.toString(),
+  // Pure request construction — no async work, so return okAsync rather than
+  // wrapping sync code in a Promise (see package CLAUDE.md).
+  const request: TransactionRequest = useSmartAccount
+    ? {
+        type: 'rhinestone-intent',
         from,
-      })
-
-      // Create the appropriate request type based on account type
-      const request: TransactionRequest = useSmartAccount
-        ? {
-            type: 'rhinestone-intent',
-            from,
-            to,
-            data: data || ('0x' as Hex),
-            value,
-            chainId,
-            rhinestoneParams: {
-              calls: [
-                {
-                  to,
-                  data: data || ('0x' as Hex),
-                  value,
-                },
-              ],
-              sponsored: true,
+        chainId,
+        rhinestoneParams: {
+          calls: [
+            {
+              to,
+              data: data || ('0x' as Hex),
+              value,
             },
-          }
-        : {
-            type: 'eoa',
-            from,
-            to,
-            data: data || ('0x' as Hex),
-            value,
-            chainId,
-          }
-
-      console.log('✅ [PREPARE] ETH transfer prepared')
-
-      return {
-        request,
-        estimatedCost: value,
+          ],
+          sponsored: true,
+        },
       }
-    })(),
-    (error) =>
-      new TransactionPreparationError(
-        intent,
-        `Failed to prepare ETH transfer: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        error instanceof Error ? error : undefined,
-      ),
-  )
+    : {
+        type: 'eoa',
+        from,
+        to,
+        data: data || ('0x' as Hex),
+        value,
+        chainId,
+      }
+
+  return okAsync({
+    request,
+    estimatedCost: value,
+  })
 }

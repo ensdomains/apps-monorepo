@@ -10,7 +10,7 @@ import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
@@ -63,7 +63,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
     ...profileRecordsQuery(name),
   })
   const records = transformProfileRecords(profileRecords)
-  const themeVars = getThemeVars(records.base.theme) as React.CSSProperties
+  const themeVars = getThemeVars(records.base.theme)
 
   const { data: ownerData, isPending: isOwnerPending } = useQuery({
     ...profileOwnerQuery(name),
@@ -76,9 +76,12 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   } = useQuery({
     ...profileExpiryQuery(name),
   })
-  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const expiry = getProfileExpiryResultStatus(expiryData)
 
   const owner = ownerData?.owner as Address | undefined
+  const profileThemeColor = expiry.isInGrace
+    ? undefined
+    : themeVars['--theme-color']
 
   const isOwner = useIsOwner({
     owner,
@@ -127,6 +130,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}
         owner={owner}
+        themeColor={profileThemeColor}
       />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}

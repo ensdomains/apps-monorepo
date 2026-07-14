@@ -14,12 +14,14 @@
   },
   "dependencies": {
     "@ens-apps/transaction-manager": "workspace:*",
+    "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
     "neverthrow": "^8.1.1",
     "viem": "catalog:"
   },
   "devDependencies": {
+    "happy-dom": "^18.0.1",
     "typescript": "catalog:typescript6",
     "vitest": "catalog:"
   }

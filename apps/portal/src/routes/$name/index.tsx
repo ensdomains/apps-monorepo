@@ -1,18 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, useParams } from '@tanstack/react-router'
-import type { Address } from 'viem'
-import { useEnsResolver } from 'wagmi'
+import { type Address, isAddressEqual } from 'viem'
+import { useConnection, useEnsResolver } from 'wagmi'
 import { AvailableNameMessage } from '@/components/AvailableNameMessage'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
+import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { NameProfileCard } from '@/features/profile/components/NameProfileCard'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
+import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { ProtocolVersionWithCounter } from '@/features/profile/components/ProtocolVersionWithCounter'
 import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { RecordCount } from '@/features/profile/components/RecordCount'
@@ -103,17 +106,13 @@ const Profile = ({
   // For non-.eth TLDs, we need to wait for DNSSEC check
   const isTldValid = isEthTld || dnsSecQuery.data === true
 
-  // Check availability for 2LDs when:
-  // - TLD is valid (either .eth or DNSSEC-enabled)
-  // - It's a 2LD (not a TLD or 3LD+)
-  // For .eth 2LDs, fire in parallel with owner query to avoid waterfall.
-  // For non-.eth, we still need to wait for DNSSEC check.
-  // The result is only used when ownerQuery returns null.
-  const shouldCheckAvailability = isTldValid && is2LD(name)
-
+  // `getAvailable` only supports .eth 2LDs (it re-appends `.eth`, so a non-.eth
+  // 2LD like `alice.xyz` would query an unrelated `alice.xyz.eth` and throw).
+  // Gate on isRegistrable so `enabled` matches the guards that consume it; fires
+  // in parallel with the owner query to avoid a waterfall.
   const availabilityQuery = useQuery({
     ...getNameAvailabilityQueryOptions({ name }),
-    enabled: shouldCheckAvailability,
+    enabled: isRegistrable(name),
   })
 
   // When ownerQuery returns null, the registry has gated ownerOf on _isExpired,
@@ -125,6 +124,19 @@ const Profile = ({
   const grace = useGraceStatus({
     name,
     protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+  })
+
+  const { address: connectedAddress } = useConnection()
+
+  // Migration eligibility is only meaningful for v1 names, and the verdict is
+  // owner-scoped (evaluated for the connected wallet). Gate the query on both so
+  // non-v1 names and disconnected viewers skip the on-chain checks and see no
+  // migration status.
+  const isV1Name = ownerQuery.data?.protocolVersion === 'ENSv1'
+
+  const migrationQuery = useQuery({
+    ...getMigrationStatusQueryOptions({ name, address: connectedAddress }),
+    enabled: isV1Name && !!connectedAddress,
   })
 
   // Loading states
@@ -250,13 +262,13 @@ const Profile = ({
     }
 
     if (availabilityQuery.error) {
-      const errorMessage =
-        (availabilityQuery.error.cause as Error | undefined)?.message ??
-        'Failed to check name availability'
       return (
         <ErrorMessage
           title="Error checking availability"
-          description={errorMessage}
+          description={
+            availabilityQuery.error.cause?.message ||
+            availabilityQuery.error.message
+          }
         />
       )
     }
@@ -270,6 +282,26 @@ const Profile = ({
     )
   }
 
+  if (availabilityQuery.isLoading && isRegistrable(name)) {
+    return <LoadingSpinner title="Checking availability..." />
+  }
+
+  if (availabilityQuery.error && isRegistrable(name)) {
+    return (
+      <ErrorMessage
+        title="Error checking availability"
+        description={
+          availabilityQuery.error.cause?.message ||
+          availabilityQuery.error.message
+        }
+      />
+    )
+  }
+
+  if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
+    return <AvailableNameMessage name={name} />
+  }
+
   // Profile query error - but we have owner, so name exists
   if (profileQuery.error) {
     // Don't show error for profile fetch failures on existing names
@@ -278,6 +310,19 @@ const Profile = ({
   }
 
   const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
+
+  const migration = migrationQuery.data
+  // Migration status is owner-only: surface it (both the banner and the
+  // Protocol-row label) only when the name is migratable AND the connected
+  // wallet holds the v1 token. Non-owners and disconnected viewers see no
+  // migration text.
+  const isMigratableByConnectedOwner =
+    migration?.migratable === true &&
+    !!connectedAddress &&
+    isAddressEqual(connectedAddress, migration.tokenHolder)
+
+  const showUpgradeBanner =
+    resolvedProtocolVersion === 'ENSv1' && isMigratableByConnectedOwner
 
   return (
     <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
@@ -292,13 +337,17 @@ const Profile = ({
         />
       )}
 
+      {showUpgradeBanner && <UpgradeBanner name={name} />}
+
       {/* Header */}
       <div className="flex flex-row justify-between items-center">
         <h1 className="font-serif text-4xl font-medium leading-none">{name}</h1>
-        <ExtendNameButton
-          name={name}
-          protocolVersion={resolvedProtocolVersion}
-        />
+        {resolvedProtocolVersion !== 'ENSv1' && (
+          <ExtendNameButton
+            name={name}
+            protocolVersion={resolvedProtocolVersion}
+          />
+        )}
       </div>
 
       {/* Main section: profile | metadata rows | counters */}
@@ -326,6 +375,11 @@ const Profile = ({
             registryAddress={ownerQuery.data.registryAddress}
             asRow
             protocolVersion={resolvedProtocolVersion}
+          />
+          <ProtocolRow
+            protocolVersion={resolvedProtocolVersion}
+            migration={isMigratableByConnectedOwner ? migration : undefined}
+            isLoading={migrationQuery.isLoading}
           />
         </div>
 

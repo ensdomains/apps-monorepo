@@ -6,6 +6,7 @@ import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
 import notificationsApp from './routes/notifications'
+import transactionsApp from './routes/transactions'
 import walletApp from './routes/wallet'
 import webhookApp from './routes/webhook'
 
@@ -14,6 +15,7 @@ const app = createApp()
   .route('/', authApp)
   .route('/', favoritesApp)
   .route('/', notificationsApp)
+  .route('/', transactionsApp)
   .route('/', webhookApp)
   .route('/', walletApp)
   .onError((err, c) => {

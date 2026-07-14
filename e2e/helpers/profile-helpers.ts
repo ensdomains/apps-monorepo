@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+import { clickThroughEnableSessions } from './manager-auth.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -56,7 +57,13 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await page.locator('body').click({ position: { x: 10, y: 10 } })
   await page.waitForTimeout(500)
 
-  const expiringOnText = await page.getByText(/expiring on /i).first().textContent()
+  // "expiring on" and the date are rendered as separate sibling elements
+  // (spaced via CSS gap, not a text node), so read the date from the label's
+  // next sibling rather than relying on a space in the concatenated text.
+  const expiringOnValue = page
+    .getByText('expiring on', { exact: true })
+    .locator('xpath=following-sibling::*[1]')
+  const expiringOnText = await expiringOnValue.textContent()
   const dateMatch = expiringOnText?.match(
     /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/,
   )
@@ -64,6 +71,10 @@ export async function renewFor28Days(page: Page): Promise<string> {
   const expectedExpiry = dateMatch[0]
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
+  // Smart-session gate: on the HCA path clicking "Pay with stablecoins" opens the
+  // EnableSessions modal BEFORE the token picker — same gate as registration.
+  // Idempotent no-op in EOA mode or when sessions are already active.
+  await clickThroughEnableSessions(page)
   await page.getByText('USDC', { exact: true }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()

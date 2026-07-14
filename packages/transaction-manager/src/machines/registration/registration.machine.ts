@@ -1,7 +1,7 @@
+import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
-import * as auditTrail from '../../services/audit-trail.service'
 import type { Signer } from '../../types/signer.types'
 import {
   authorizedPaymentAmount,
@@ -285,9 +285,28 @@ export const registrationMachine = setup({
       return pollTransactionStatusActor(input)
     }),
     waitAfterCommitment: fromPromise(
-      async ({ input }: { input: { delayMs: number } }) => {
-        const safeDelay = Math.max(0, input.delayMs)
-        await new Promise<void>((resolve) => setTimeout(resolve, safeDelay))
+      async ({
+        input,
+        signal,
+      }: {
+        input: { targetMs: number }
+        signal: AbortSignal
+      }) => {
+        if (getChainClock()) {
+          // Time-travel dev mode: poll Date.now() so a clock warp releases the
+          // cooldown early. The chain clock patches Date.now() but NOT
+          // setTimeout, so a single setTimeout would ignore the warp.
+          const POLL_INTERVAL_MS = 250
+          while (Date.now() < input.targetMs) {
+            if (signal.aborted) return
+            await new Promise<void>((resolve) =>
+              setTimeout(resolve, POLL_INTERVAL_MS),
+            )
+          }
+        } else {
+          const delayMs = Math.max(0, input.targetMs - Date.now())
+          await new Promise<void>((resolve) => setTimeout(resolve, delayMs))
+        }
       },
     ),
     validateCommitment: fromResultAsync(
@@ -335,33 +354,6 @@ export const registrationMachine = setup({
         approvalTxId: context.approvalTxId,
         registrationTxId: context.registrationTxId,
       })
-    },
-
-    recordTransition: ({ context, self, event }) => {
-      try {
-        const state = self.getSnapshot()
-        auditTrail.recordTransition({
-          machineId: 'registration',
-          fromState:
-            state.status === 'active' ? String(state.value) : 'unknown',
-          toState: String(state.value),
-          event: event?.type || 'unknown',
-          context: {
-            name: context.name,
-            duration: context.duration.toString(),
-            resolverTxId: context.resolverTxId,
-            resolverAddress: context.resolverAddress,
-            commitmentTxId: context.commitmentTxId,
-            approvalTxId: context.approvalTxId,
-            registrationTxId: context.registrationTxId,
-          },
-          metadata: {
-            chainId: context.chainId,
-          },
-        })
-      } catch (auditError) {
-        console.warn('Audit service error (non-fatal):', auditError)
-      }
     },
 
     clearSnapshot: async () => {
@@ -504,7 +496,7 @@ export const registrationMachine = setup({
     },
 
     submittingSetupBundle: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitResolverAndCommitment',
         input: ({ context }) => ({
@@ -513,10 +505,10 @@ export const registrationMachine = setup({
           owner: context.ownerAddress ?? context.accountAddress!,
           // The resolver's EACL grantee must be the address the resolver sees at
           // write time (EOA after SCA→EOA unwrap). Mirrors `deployingResolver`.
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverOwner:
             context.resolverOwnerAddress ??
             context.ownerAddress ??
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             context.accountAddress!,
           duration: context.duration,
           selectedToken: context.selectedToken,
@@ -557,7 +549,7 @@ export const registrationMachine = setup({
     },
 
     deployingResolver: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'deployResolver',
         input: ({ context }) => ({
@@ -566,10 +558,10 @@ export const registrationMachine = setup({
           // resolver unwraps SCA→EOA at write time, so the grantee must be the
           // EOA (not the SCA) or `setText`/etc. will revert with
           // EACUnauthorizedAccountRoles. See discussion in this file's history.
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner:
             context.resolverOwnerAddress ??
             context.ownerAddress ??
+            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
             context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
@@ -607,7 +599,7 @@ export const registrationMachine = setup({
     },
 
     waitingForResolverDeployment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'resolveResolverDeployment',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -640,7 +632,7 @@ export const registrationMachine = setup({
     },
 
     preparingCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'generateCommitment',
         input: ({ context }) => {
@@ -690,7 +682,7 @@ export const registrationMachine = setup({
     },
 
     ensuringHcaDeployed: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'ensureHcaDeployed',
         input: ({ context }) => ({
@@ -722,7 +714,7 @@ export const registrationMachine = setup({
     },
 
     committingTransaction: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitCommitment',
         input: ({ context }) => ({
@@ -765,7 +757,7 @@ export const registrationMachine = setup({
     },
 
     waitingForCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -797,7 +789,7 @@ export const registrationMachine = setup({
     },
 
     fetchingCommitmentAge: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'readMinCommitmentAge',
         input: ({ context }) => ({
@@ -826,7 +818,7 @@ export const registrationMachine = setup({
     },
 
     validatingCommitment: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'validateCommitment',
         input: ({ context }) => ({
@@ -870,16 +862,16 @@ export const registrationMachine = setup({
     },
 
     commitmentCooldown: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'waitAfterCommitment',
         input: ({ context }) => {
-          // If the ready timestamp is missing (for example after restoring an
-          // older snapshot), do not reintroduce an artificial cooldown when the
-          // commitment has already been validated as old enough on-chain.
-          const targetTimestamp = context.registerReadyTimestamp ?? Date.now()
-          const delayMs = Math.max(0, targetTimestamp - Date.now())
-          return { delayMs }
+          // Wait until the wall-clock (or dev time-travel) clock reaches this
+          // timestamp. If it's missing (for example after restoring an older
+          // snapshot), fall back to now so we don't reintroduce an artificial
+          // cooldown when the commitment is already old enough on-chain.
+          const targetMs = context.registerReadyTimestamp ?? Date.now()
+          return { targetMs }
         },
         onDone: [
           {
@@ -904,11 +896,7 @@ export const registrationMachine = setup({
     },
 
     submittingRhinestoneBundle: {
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'clearRegisterReadyTimestamp',
-      ],
+      entry: ['logTransition', 'clearRegisterReadyTimestamp'],
       invoke: {
         src: 'submitPermitAndRegistration',
         input: ({ context }) => ({
@@ -958,7 +946,7 @@ export const registrationMachine = setup({
     },
 
     waitingForRhinestoneBundle: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -986,7 +974,7 @@ export const registrationMachine = setup({
     },
 
     checkingAllowance: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'readPaymentTokenAllowance',
         input: ({ context }) => ({
@@ -1032,7 +1020,7 @@ export const registrationMachine = setup({
     },
 
     signingPermit: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'signPermit',
         input: ({ context }) => ({
@@ -1078,7 +1066,7 @@ export const registrationMachine = setup({
     },
 
     approvingToken: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitApproval',
         input: ({ context }) => ({
@@ -1124,7 +1112,7 @@ export const registrationMachine = setup({
     },
 
     waitingForApproval: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1152,7 +1140,7 @@ export const registrationMachine = setup({
     },
 
     registeringDomain: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'submitRegistration',
         input: ({ context }) => ({
@@ -1200,7 +1188,7 @@ export const registrationMachine = setup({
     },
 
     waitingForRegistration: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'pollTransactionStatus',
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1222,7 +1210,7 @@ export const registrationMachine = setup({
     },
 
     verifyingRegistration: {
-      entry: ['logTransition', 'recordTransition'],
+      entry: ['logTransition'],
       invoke: {
         src: 'verifyRegistration',
         input: ({ context }) => ({
@@ -1280,12 +1268,7 @@ export const registrationMachine = setup({
     success: {
       // Not `type: 'final'` so `CANCEL` can return to `idle` for a new registration
       // (e.g. register-v2 after another name); `START_REGISTRATION` only runs from `idle`.
-      entry: [
-        'logTransition',
-        'recordTransition',
-        'logRegistrationDuration',
-        'clearSnapshot',
-      ],
+      entry: ['logTransition', 'logRegistrationDuration', 'clearSnapshot'],
       on: {
         CANCEL: {
           target: 'idle',
@@ -1296,7 +1279,6 @@ export const registrationMachine = setup({
     error: {
       entry: [
         'logTransition',
-        'recordTransition',
         'logRegistrationFailureDuration',
         ({ context }) => {
           console.error('❌ [REGISTRATION MACHINE] Entered error state:', {
