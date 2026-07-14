@@ -90,22 +90,23 @@ export const MultiNamePaymentTokenPicker = ({
   })
 
   // Price each name against its own renewer so v1 names are quoted by
-  // ETHRenewerV1 and v2 names by the v2 ETHRegistrar.
-  const priceQueriesFor = (token: (typeof PAYMENT_TOKENS)[number]) =>
-    renewals.map((renewal) =>
-      getRenewalPriceQueryOptions({
-        name: renewal.selectedName.name,
-        duration: renewal.duration,
-        token: token.address,
-        renewerAddress: getRenewerAddress(renewal.selectedName.isV2),
-      }),
-    )
-  const usdcPriceQueries = useQueries({
-    queries: priceQueriesFor(PAYMENT_TOKENS[0]),
+  // ETHRenewerV1 and v2 names by the v2 ETHRegistrar. One useQueries over both
+  // payment tokens, flattened (USDC block then DAI block) the same way as the
+  // allowance reads above, then sliced back into per-token views.
+  const priceQueries = useQueries({
+    queries: PAYMENT_TOKENS.flatMap((token) =>
+      renewals.map((renewal) =>
+        getRenewalPriceQueryOptions({
+          name: renewal.selectedName.name,
+          duration: renewal.duration,
+          token: token.address,
+          renewerAddress: getRenewerAddress(renewal.selectedName.isV2),
+        }),
+      ),
+    ),
   })
-  const daiPriceQueries = useQueries({
-    queries: priceQueriesFor(PAYMENT_TOKENS[1]),
-  })
+  const usdcPriceQueries = priceQueries.slice(0, renewals.length)
+  const daiPriceQueries = priceQueries.slice(renewals.length)
 
   const isLoading =
     balancesQuery.isLoading ||
