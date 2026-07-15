@@ -1,6 +1,7 @@
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
+import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1SubgraphClient'
 
 const toAddress = (s: string | null | undefined): Address | null => {
@@ -105,9 +106,12 @@ const hasExpiredDotEthRegistration = (
   nowSeconds: bigint,
 ): boolean => {
   if (parentName !== 'eth') return false
-  const expiryDate = domain.registration?.expiryDate
-  if (!expiryDate) return false
-  return BigInt(expiryDate) <= nowSeconds
+  const registrationExpiry = domain.registration?.expiryDate
+  if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
+  const wrappedExpiry = domain.wrappedDomain?.expiryDate
+  if (wrappedExpiry)
+    return BigInt(wrappedExpiry) - GRACE_PERIOD_SECONDS <= nowSeconds
+  return false
 }
 
 export const classifyName = (

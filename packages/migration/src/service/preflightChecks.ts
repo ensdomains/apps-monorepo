@@ -5,6 +5,7 @@ import { sepoliaWithEns } from '../chain'
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { batchedMulticall } from './batchedMulticall'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import { GRACE_PERIOD_SECONDS } from './constants'
 
 const BASE_REGISTRAR = getChainContractAddress({
   chain: sepoliaWithEns,
@@ -14,6 +15,20 @@ const NAME_WRAPPER = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensNameWrapper',
 })
+
+// Whether a NameWrapper token can actually be transferred right now, matching
+// `NameWrapper._beforeTransfer`: `.eth` 2LDs (`IS_DOT_ETH`) become non-transferable
+// at the start of their grace period, i.e. `wrapperExpiry - GRACE_PERIOD`.
+const isWrappedTokenTransferable = (
+  fuses: number,
+  wrapperExpiry: bigint,
+  nowSeconds: bigint,
+): boolean => {
+  const transferExpiry = hasFuse(BigInt(fuses), FUSES.IS_DOT_ETH)
+    ? wrapperExpiry - GRACE_PERIOD_SECONDS
+    : wrapperExpiry
+  return transferExpiry > nowSeconds
+}
 
 export type EligibilityResult = {
   eligible: ClassifiedName[]
@@ -64,7 +79,10 @@ export const checkOwnership = async (
     const result = r.result
     const isWrappedToken = typeof result !== 'string'
     const currentOwner = isWrappedToken ? result[0] : result
-    if (isWrappedToken && result[2] <= nowSeconds) {
+    if (
+      isWrappedToken &&
+      !isWrappedTokenTransferable(result[1], result[2], nowSeconds)
+    ) {
       ids.add(name.domain.id)
       continue
     }
