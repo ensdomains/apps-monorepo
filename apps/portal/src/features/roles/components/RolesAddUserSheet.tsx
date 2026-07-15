@@ -1,14 +1,12 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, isAddress, zeroAddress } from 'viem'
-import { normalize } from 'viem/ens'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { type Address, zeroAddress } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -16,7 +14,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
+import { AddressNameInput } from '@/features/address/components/AddressNameInput'
+import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRoles'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
@@ -31,7 +30,6 @@ import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 const GRANT_ROLES_TX_ID = 'tx-grant-roles'
-const RESOLVE_DEBOUNCE_MS = 300
 
 type RolesAddUserSheetProps = {
   readonly open: boolean
@@ -46,7 +44,6 @@ export const RolesAddUserSheet = ({
   name,
   registryAddress,
 }: RolesAddUserSheetProps) => {
-  const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
   const callerAddress = walletClient?.account?.address
 
@@ -73,60 +70,23 @@ export const RolesAddUserSheet = ({
     readonly roles: Role[]
   } | null>(null)
 
-  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const {
-    mutate: resolveAddress,
-    reset: resetResolve,
-    data: resolvedAddress,
-    isPending: isResolving,
-    error: resolveError,
-  } = useMutation({
-    mutationFn: async (nameOrAddress: string) => {
-      if (!publicClient) throw new Error('Public client not available')
-      const resolved = await resolveAddressOrName({
-        client: publicClient,
-        nameOrAddress: normalize(nameOrAddress),
-      })
-      if (!resolved)
-        throw new Error(`Could not resolve an address for "${nameOrAddress}"`)
-      return resolved
-    },
-  })
-
-  const address: Address | null = isAddress(userInput, { strict: false })
-    ? userInput
-    : (resolvedAddress ?? null)
+  const resolution = useAddressResolution(userInput)
+  const address = resolution.address
+  const isResolving = resolution.isResolving
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRoles, isPending, isSuccess, reset } = useGrantRoles()
 
-  // Reset form + both mutations when the sheet closes, otherwise `isSuccess`
-  // sticks across re-opens and leaves the input disabled / Save permanently
-  // gated. Also clears any in-flight resolve debounce so it can't fire late.
+  // Reset form + mutation when the sheet closes, otherwise `isSuccess` sticks
+  // across re-opens and leaves the input disabled / Save permanently gated.
+  // Clearing `userInput` also resets the derived resolution state.
   useEffect(() => {
     if (open) return
-    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
     setUserInput('')
     setSelectedRoles(new Set())
     setPendingGrant(null)
-    resetResolve()
     reset()
-  }, [open, reset, resetResolve])
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.currentTarget.value.trim()
-    setUserInput(value)
-    resetResolve()
-
-    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
-    if (!value || isAddress(value, { strict: false }) || !value.includes('.'))
-      return
-
-    resolveTimeoutRef.current = setTimeout(
-      () => resolveAddress(value),
-      RESOLVE_DEBOUNCE_MS,
-    )
-  }
+  }, [open, reset])
 
   const toggleRole = (role: Role, checked: boolean) => {
     setSelectedRoles((prev) => {
@@ -180,34 +140,18 @@ export const RolesAddUserSheet = ({
               className="flex flex-col gap-6 flex-1"
             >
               <Field>
-                <Input
+                <AddressNameInput
                   id="user"
                   name="user"
                   aria-label="User name or address"
                   placeholder="User name or address"
                   required
                   value={userInput}
+                  onChange={setUserInput}
+                  resolution={resolution}
                   disabled={isPending || isSuccess}
-                  onChange={handleInputChange}
                   className="h-12 bg-background border"
                 />
-                {isResolving && (
-                  <p className="text-sm mt-1.5 text-muted-foreground">
-                    Resolving address...
-                  </p>
-                )}
-                {!isResolving && address && (
-                  <p className="text-sm mt-1.5 text-muted-foreground">
-                    {isAddress(userInput, { strict: false })
-                      ? `Using address: ${truncateAddress(address, 6, 4)}`
-                      : `Resolved: ${truncateAddress(address, 6, 4)}`}
-                  </p>
-                )}
-                {resolveError && (
-                  <p className="text-sm mt-1.5 text-danger">
-                    {resolveError.message}
-                  </p>
-                )}
               </Field>
 
               <Field>
