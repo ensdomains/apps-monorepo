@@ -332,12 +332,28 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
+  // The forward (`setAddr`) write always runs on L1, whatever the row: the
+  // name's resolver lives on L1 and L2 forward records (`addr(node,
+  // l2CoinType)`) are written there too (ENSIP-19). So the primary-name flow
+  // gets its own L1-scoped chain requirement, independent of the row's
+  // reverse-registrar chain.
+  const {
+    isWrongChain: isWrongChainForForward,
+    isSwitchingChain: isSwitchingChainForForward,
+    requiredChainId: forwardChainId,
+    switchChainAsync: switchChainForForwardAsync,
+    getSwitchToRequiredNetworkRequest: getSwitchToL1Request,
+  } = useSwitchToRequiredNetwork({
+    reverseRegistrarChainId: 60,
+  })
+
   const {
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     isEnsOwnerLoading,
   } = useReverseResolutionMutations({
     reverseRegistrarChainId,
+    coinType,
     displayName,
   })
 
@@ -361,7 +377,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     setForwardResolution: submitForwardResolution,
     isPending: isForwardResolutionPending,
   } = useSetForwardResolution({
-    chainId: requiredChainId,
+    chainId: forwardChainId,
     id: SET_PRIMARY_NAME_TX_ID,
   })
 
@@ -520,9 +536,25 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     setNameInput('')
   }
 
+  // The forward write is an L1 transaction for every row (the resolver lives
+  // on L1), so switch to L1 — not to the row's reverse-registrar chain.
+  const switchToL1IfNeeded = async (): Promise<boolean> => {
+    if (!isWrongChainForForward) return true
+    try {
+      await switchChainForForwardAsync(getSwitchToL1Request())
+      return true
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to switch network'
+      toast.error(message)
+      console.error('Failed to switch network', error)
+      return false
+    }
+  }
+
   const handleSetPrimaryName = () => {
     void (async () => {
-      const switched = await switchChainIfNeeded()
+      const switched = await switchToL1IfNeeded()
       if (!switched) return
       setActiveFlow('primary')
       openTransactionModal()
@@ -569,13 +601,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     !isConnected ||
                     isEnsOwnerLoading ||
                     isForwardResolutionPending ||
-                    isSwitchingChain
+                    isSwitchingChainForForward
                   }
                 >
                   {match({
                     isConnected,
-                    isSwitchingChain,
-                    isWrongChain,
+                    isSwitchingChain: isSwitchingChainForForward,
+                    isWrongChain: isWrongChainForForward,
                   })
                     .with({ isConnected: false }, () => 'Connect Wallet')
                     .with({ isSwitchingChain: true }, () => 'Switching...')

@@ -20,6 +20,11 @@ import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 
 type UseReverseResolutionMutationsParams = {
   reverseRegistrarChainId: ReverseRegistrarChainId
+  /**
+   * ENSIP-9/11 coin type of the selected row (`60`, `0x80000000 | l2ChainId`,
+   * …) — the coin the forward `addr(node, coinType)` record is keyed on.
+   */
+  coinType: number
   displayName: string | undefined
 }
 
@@ -40,6 +45,7 @@ type ReverseResolutionWriteRequest =
 
 export function useReverseResolutionMutations({
   reverseRegistrarChainId,
+  coinType,
   displayName,
 }: UseReverseResolutionMutationsParams) {
   const queryClient = useQueryClient()
@@ -57,11 +63,13 @@ export function useReverseResolutionMutations({
     enabled: Boolean(displayName),
   })
 
+  // The name's resolver lives on L1 for every row — L2 forward records
+  // (`addr(node, l2CoinType)`) are set on the same L1 resolver as coin 60.
   const { data: resolverAddress } = useQuery({
     ...getNameResolverAddressQueryOptions({
       name: displayName ?? '',
     }),
-    enabled: isL1 && Boolean(displayName),
+    enabled: Boolean(displayName),
   })
 
   const invalidateReverseResolutionQuery = useCallback(() => {
@@ -106,21 +114,20 @@ export function useReverseResolutionMutations({
     [chain, isL1, l1WalletClient, reverseRegistrarChainId],
   )
 
+  // Builds the forward `setAddr(node, coinType, address)` request against the
+  // name's L1 resolver. Valid for L1 and L2 rows alike — the coin type keys
+  // which chain's address record is written (ENSIP-19), the tx itself is
+  // always an L1 transaction.
   const getForwardResolutionRequest = useCallback(
     (address: Address): SetForwardResolutionRequest => {
-      if (!isL1)
-        throw new Error(
-          'Forward resolution is only for Ethereum (reverseRegistrarChainId 60)',
-        )
-
       return createSetForwardResolutionRequest({
         name: displayName,
-        reverseRegistrarChainId,
+        coinType,
         resolverAddress,
         targetAddress: address,
       })
     },
-    [displayName, isL1, resolverAddress, reverseRegistrarChainId],
+    [displayName, coinType, resolverAddress],
   )
 
   return {
