@@ -73,18 +73,18 @@ export const handleQueue = async (
   })
 
   // A production deploy consumes queues under exactly their bound names.
-  const production = handlers.get(batch.queue)
-  if (production) {
-    await production(batch, env)
+  const productionHandler = handlers.get(batch.queue)
+  if (productionHandler) {
+    await productionHandler(batch, env)
     return
   }
 
   // A staging deploy — an isolated staging environment or a PR build —
   // consumes renamed copies of the production queues; resolve each to the
   // production queue it mirrors and route identically.
-  const staging = handlerFor(stagingEquivalent(batch.queue))
-  if (staging) {
-    await staging(batch, env)
+  const stagingHandler = handlerFor(stagingEquivalent(batch.queue))
+  if (stagingHandler) {
+    await stagingHandler(batch, env)
     return
   }
 
