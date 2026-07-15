@@ -7,6 +7,8 @@ export const POSTHOG_FEATURE_FLAGS = {
 export type PostHogFeatureFlag =
   (typeof POSTHOG_FEATURE_FLAGS)[keyof typeof POSTHOG_FEATURE_FLAGS]
 
-export function usePostHogFeatureFlag(flag: PostHogFeatureFlag): boolean {
-  return useFeatureFlagEnabled(flag, false) ?? false
+export function usePostHogFeatureFlag(
+  flag: PostHogFeatureFlag,
+): boolean | undefined {
+  return useFeatureFlagEnabled(flag)
 }

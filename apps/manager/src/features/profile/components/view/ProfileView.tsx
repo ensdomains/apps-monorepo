@@ -56,6 +56,8 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
   )
 
+  if (profileViewNewEnabled === undefined) return null
+
   return profileViewNewEnabled ? (
     <ProfileViewNew name={name} />
   ) : (

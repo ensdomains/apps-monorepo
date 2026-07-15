@@ -25,7 +25,10 @@ export const Layout = ({ children }: LayoutProps) => {
   const isMigrationPage = pathname === '/migration'
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = /^\/[^/]+\.[^/]+\/?$/.test(pathname)
-  const isNewProfileViewPage = profileViewNewEnabled && isEnsNameProfilePage
+  const isProfileViewFlagLoading =
+    profileViewNewEnabled === undefined && isEnsNameProfilePage
+  const isNewProfileViewPage =
+    profileViewNewEnabled === true && isEnsNameProfilePage
   const isSepoliaBannerVisible = !isMigrationPage && !isNewProfileViewPage
   const profileName = isEnsNameProfilePage
     ? pathname.replace(/^\/|\/$/g, '')
@@ -37,6 +40,8 @@ export const Layout = ({ children }: LayoutProps) => {
   const profileThemeColor = getThemeVars(
     profileRecords.data?.texts.find((record) => record.key === 'theme')?.value,
   )['--theme-color']
+
+  if (isProfileViewFlagLoading) return null
 
   return (
     <div

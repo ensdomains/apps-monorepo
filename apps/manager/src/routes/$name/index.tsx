@@ -95,6 +95,8 @@ function ProfileRoutePending() {
     POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
   )
 
+  if (profileViewNewEnabled === undefined) return null
+
   return profileViewNewEnabled ? (
     <ProfileViewNewLoading name={name} />
   ) : (
