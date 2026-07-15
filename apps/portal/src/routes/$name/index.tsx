@@ -331,8 +331,13 @@ const Profile = ({
     !!connectedAddress &&
     isAddressEqual(connectedAddress, migration.tokenHolder)
 
+  // Suppress the upgrade prompt whenever the name is expired (grace period or
+  // fully expired past grace) — the user must extend/renew first. The upgrade
+  // banner reappears once the name is active again.
   const showUpgradeBanner =
-    resolvedProtocolVersion === 'ENSv1' && isMigratableByConnectedOwner
+    resolvedProtocolVersion === 'ENSv1' &&
+    isMigratableByConnectedOwner &&
+    !grace.isExpired
 
   return (
     <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
