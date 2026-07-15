@@ -15,9 +15,9 @@ type CarouselState = {
 }
 
 const INITIAL_CAROUSEL_STATE: CarouselState = {
-  canScrollNext: FEATURE_CARDS.length > 1,
+  canScrollNext: false,
   canScrollPrevious: false,
-  isScrollable: FEATURE_CARDS.length > 1,
+  isScrollable: false,
 }
 
 const getCarouselState = (carousel: HTMLElement): CarouselState => {
