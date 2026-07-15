@@ -57,6 +57,14 @@ export const DEFAULT_ACCOUNT =
   '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const
 
 export const ONE_YEAR = 365 * 24 * 3600
+
+// Bonus added to a name's v1 expiry when it's reserved on v2 during pre-migration
+// (contracts-v2 `PREMIGRATION_BONUS_PERIOD = 1 + (GRACE_PERIOD_V1 - GRACE_PERIOD_V2)`
+// = ~62 days). The v2 slot stays RESERVED for this window, then AVAILABLE-renewable
+// for another GRACE_PERIOD_V2 (28d) — 62 + 28 = 90 days = the full v1 grace, so a
+// reserved v1 name is renewable throughout grace. Match it so seeded names have the
+// SAME renewable window as production (rather than staying renewable indefinitely).
+export const PREMIGRATION_BONUS_PERIOD = 1 + (90 - 28) * 24 * 3600
 export const ZERO_ADDRESS =
   '0x0000000000000000000000000000000000000000' as const
 
@@ -90,6 +98,8 @@ export type PresetType =
   | 'locked'
   | 'locked-all'
   | 'grace'
+  | 'grace-renewable-wrapped'
+  | 'grace-renewable-unwrapped'
   | 'emancipated'
 
 export interface ActiveName {
@@ -122,6 +132,18 @@ export const PRESETS: { type: PresetType; label: string; title: string }[] = [
     title: 'Locked name expired 45 days ago (clock advanced)',
   },
   {
+    type: 'grace-renewable-wrapped',
+    label: 'Grace RW (wrapped)',
+    title:
+      'Wrapped name in grace, v2 reservation active → isRenewable=true. NOTE: after renewal the NameWrapper token stays expired, so migration reverts with ERC1155 insufficient balance.',
+  },
+  {
+    type: 'grace-renewable-unwrapped',
+    label: 'Grace RW (unwrapped)',
+    title:
+      'Unwrapped name in grace, v2 reservation active → isRenewable=true. Renew then migrate works end-to-end (ERC-721 in BaseRegistrar).',
+  },
+  {
     type: 'emancipated',
     label: 'Emancipated',
     title: 'Locked subname with PARENT_CANNOT_CONTROL',
@@ -134,6 +156,8 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   locked: '#7c3aed',
   'locked-all': '#9333ea',
   grace: '#b45309',
+  'grace-renewable-wrapped': '#c2410c',
+  'grace-renewable-unwrapped': '#ea580c',
   emancipated: '#065f46',
 }
 
@@ -559,6 +583,38 @@ export async function createV1NameOnAnvil(
       await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
       return { label, expiryDate }
     }
+    case 'grace-renewable-wrapped': {
+      // Like `grace` (v1 name pushed 45 days into its 90-day grace window), but
+      // the v2 slot is RESERVED with an expiry that OUTLASTS the v1 expiry.
+      // `ETHRenewerV1.isRenewable` gates on the v2 reservation, not the v1 grace
+      // clock, so this is the only state that is BOTH in-grace AND renewable.
+      // WRAPPED variant: renewal extends the BaseRegistrar but NOT the
+      // NameWrapper's stored expiry, so after renewal the ERC-1155 token stays
+      // expired and migration reverts (ERC1155 insufficient balance) — use this
+      // to reproduce that; use the unwrapped variant for the migrate happy-path.
+      await registerV1Name(endpoint, label, true)
+      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR // true v1 expiry (in the past after the advance below)
+      // Reserve at v1 expiry + bonus, exactly as production pre-migration does, so
+      // the renewable window is the real 90 days (not indefinite).
+      await reserveInV2(endpoint, label, expiryDate + PREMIGRATION_BONUS_PERIOD)
+      await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
+      return { label, expiryDate }
+    }
+    case 'grace-renewable-unwrapped': {
+      // Unwrapped counterpart of `grace-renewable-wrapped`: renewable in grace
+      // (v2 reservation outlasts the v1 expiry) but held directly as the ERC-721
+      // in the BaseRegistrar — so renewal revives the same token migration
+      // transfers, and renew→migrate completes end-to-end.
+      await registerV1Name(endpoint, label, false)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      // Reserve at v1 expiry + bonus, matching production pre-migration.
+      await reserveInV2(endpoint, label, expiryDate + PREMIGRATION_BONUS_PERIOD)
+      await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
+      return { label, expiryDate }
+    }
     case 'emancipated': {
       const sublabel = `sub-${label}`
       await registerV1Name(endpoint, label, true)
@@ -581,7 +637,8 @@ export async function createV1NameOnAnvil(
 export function buildMockDomain(name: ActiveName): unknown {
   const lh = labelhash(name.label)
   const node = namehashFromLabelAndParent(lh, ETH_NODE)
-  const isWrapped = name.type !== 'unwrapped'
+  const isWrapped =
+    name.type !== 'unwrapped' && name.type !== 'grace-renewable-unwrapped'
   const owner = DEFAULT_ACCOUNT.toLowerCase()
   const now = Math.floor(Date.now() / 1000)
 
@@ -637,6 +694,35 @@ export async function isNameOnAnvil(
     return typeof result === 'string' && result.length > 2 && result !== '0x'
   } catch {
     return false // reverted → not registered
+  }
+}
+
+/**
+ * Live BaseRegistrar expiry (unix seconds) for a .eth label on the Anvil fork,
+ * or null if unregistered/unreadable. The panel stores each name's expiryDate at
+ * creation, which goes STALE after an in-app renewal (or time-travel) — and the
+ * subgraph mock feeds `registration.expiryDate` into migration eligibility
+ * (`classifyName` → `hasExpiredDotEthRegistration`). Reading it live keeps the
+ * mock in step with on-chain state so a renewed grace name correctly becomes
+ * migratable instead of staying classified `expired-registration`.
+ */
+export async function getOnchainExpiry(
+  endpoint: string,
+  label: string,
+): Promise<number | null> {
+  const lh = labelhash(label)
+  const tokenIdPadded = lh.slice(2).padStart(64, '0')
+  const data = `0xd6e4fa86${tokenIdPadded}` as `0x${string}` // nameExpires(uint256)
+  try {
+    const result = await rpcCall(endpoint, 'eth_call', [
+      { to: V1_BASE_REGISTRAR, data },
+      'latest',
+    ])
+    if (typeof result !== 'string' || result === '0x') return null
+    const expiry = Number(BigInt(result))
+    return expiry > 0 ? expiry : null
+  } catch {
+    return null // reverted / unreadable → fall back to stored expiry
   }
 }
 
