@@ -2,7 +2,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { CircleArrowLeft, CircleArrowRight } from 'lucide-react'
 import { useReducedMotion } from 'motion/react'
 import type { KeyboardEvent } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { FEATURE_CARDS } from '@/features/landing/FeaturesCarousel'
 import { cn } from '@/lib/utils'
 
@@ -112,10 +112,7 @@ const useEducationCarousel = () => {
       ) {
         targetScrollLeft = maxScrollLeft
       }
-      if (
-        direction === -1 &&
-        targetScrollLeft <= trailingSpace + SCROLL_TOLERANCE
-      ) {
+      if (direction === -1 && targetScrollLeft <= SCROLL_TOLERANCE) {
         targetScrollLeft = 0
       }
 
@@ -155,6 +152,9 @@ const useEducationCarousel = () => {
 
 export const EducationCarousel = () => {
   const { t } = useLingui()
+  const carouselId = useId()
+  const headingId = `${carouselId}-heading`
+  const trackId = `${carouselId}-track`
   const { carouselRef, carouselState, handleKeyDown, scrollByCard } =
     useEducationCarousel()
 
@@ -163,14 +163,14 @@ export const EducationCarousel = () => {
       <div className="flex items-center justify-between gap-4">
         <h2
           className="text-[28px] text-foreground leading-[0.96] tracking-[0.28px]"
-          id="education-carousel-heading"
+          id={headingId}
         >
           <Trans>Did You Know?</Trans>
         </h2>
         {carouselState.isScrollable ? (
           <div className="flex shrink-0 items-center gap-1">
             <button
-              aria-controls="education-carousel-track"
+              aria-controls={trackId}
               aria-label={t`Previous card`}
               className="flex size-11 items-center justify-center rounded-full text-ens-blue outline-none transition-[color,background-color,transform] duration-150 hover:bg-ens-blue/5 focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2 active:scale-95 disabled:text-border disabled:active:scale-100 disabled:hover:bg-transparent"
               disabled={!carouselState.canScrollPrevious}
@@ -180,7 +180,7 @@ export const EducationCarousel = () => {
               <CircleArrowLeft className="size-8" strokeWidth={1} />
             </button>
             <button
-              aria-controls="education-carousel-track"
+              aria-controls={trackId}
               aria-label={t`Next card`}
               className="flex size-11 items-center justify-center rounded-full text-ens-blue outline-none transition-[color,background-color,transform] duration-150 hover:bg-ens-blue/5 focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-offset-2 active:scale-95 disabled:text-border disabled:active:scale-100 disabled:hover:bg-transparent"
               disabled={!carouselState.canScrollNext}
@@ -194,9 +194,9 @@ export const EducationCarousel = () => {
       </div>
 
       <section
-        aria-labelledby="education-carousel-heading"
+        aria-labelledby={headingId}
         className="w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain pb-1 outline-none [-webkit-overflow-scrolling:touch] [scrollbar-width:none] focus-visible:ring-2 focus-visible:ring-ens-blue focus-visible:ring-inset [&::-webkit-scrollbar]:hidden"
-        id="education-carousel-track"
+        id={trackId}
         onKeyDown={handleKeyDown}
         ref={carouselRef}
         tabIndex={carouselState.isScrollable ? 0 : -1}
@@ -204,7 +204,7 @@ export const EducationCarousel = () => {
         <div className="flex w-full min-w-0 items-stretch">
           {FEATURE_CARDS.map((card, index) => (
             <article
-              aria-labelledby={`education-card-title-${index}`}
+              aria-labelledby={`${carouselId}-card-title-${index}`}
               aria-posinset={index + 1}
               aria-setsize={FEATURE_CARDS.length}
               className={cn(
@@ -218,7 +218,7 @@ export const EducationCarousel = () => {
             >
               <h3
                 className="font-medium text-[25px] leading-[0.96] tracking-[-0.5px]"
-                id={`education-card-title-${index}`}
+                id={`${carouselId}-card-title-${index}`}
               >
                 {card.title}
               </h3>
