@@ -89,6 +89,6 @@ export default createApp()
     return c.json({
       name,
       favorites: favoriteCountResult.value[0]?.value ?? 0,
-      unique_searches_last_30d: uniqueSearchesResult.value,
+      unique_searches_last_30d: uniqueSearchesResult.unwrapOr(0),
     })
   })
