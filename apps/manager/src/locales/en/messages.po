@@ -45,11 +45,6 @@ msgstr "{0} are expiring without auto-renewal with the earliest expiring on <0>{
 msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
-#. placeholder {0}: currentPage + 1
-#: src/features/dashboard/components/EducationCarousel.tsx
-msgid "{0} of {totalPages}"
-msgstr "{0} of {totalPages}"
-
 #. placeholder {0}: autoRenewal.price
 #: src/features/auto-renewal/components/index.tsx
 msgid "{0} USD/year"
@@ -140,8 +135,8 @@ msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
 #: src/features/landing/FeaturesCarousel.tsx
-msgid "A simpler way to<0/><1>get paid.</1>"
-msgstr "A simpler way to<0/><1>get paid.</1>"
+msgid "A simpler way to get paid."
+msgstr "A simpler way to get paid."
 
 #: src/features/profile/components/view-new/ProfileViewNewAbout.tsx
 msgid "About"
@@ -384,12 +379,6 @@ msgstr "Browser notifications enabled"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Bug bounty"
 msgstr "Bug bounty"
-
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
-#~ msgid "Buy Name"
-#~ msgstr "Buy Name"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
@@ -1242,6 +1231,10 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Making your name work everywhere"
+msgstr "Making your name work everywhere"
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr "Manage everything in one place"
@@ -1543,6 +1536,14 @@ msgstr "Permission missing. Please try again."
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Personalized NFT"
 msgstr "Personalized NFT"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Placing your new identity in your wallet"
+msgstr "Placing your new identity in your wallet"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Planting your name in the infinite garden"
+msgstr "Planting your name in the infinite garden"
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx

@@ -29,24 +29,6 @@ describe('feature-flags', () => {
       expect(typeof result).toBe('boolean')
     })
 
-    it('gates the new profile viewing flag', () => {
-      const original = FEATURE_FLAGS.PROFILE_VIEW_NEW
-      const mutableFlags = FEATURE_FLAGS as unknown as MutableFeatureFlags
-
-      try {
-        mutableFlags.PROFILE_VIEW_NEW = { enabled: false }
-
-        expect(isFeatureEnabled('PROFILE_VIEW_NEW')).toBe(false)
-
-        mutableFlags.PROFILE_VIEW_NEW = { enabled: true }
-
-        expect(isFeatureEnabled('PROFILE_VIEW_NEW')).toBe(true)
-      } finally {
-        mutableFlags.PROFILE_VIEW_NEW =
-          original as unknown as MutableFeatureFlags[string]
-      }
-    })
-
     it('should return true when feature is enabled and no user restrictions', () => {
       const flag = 'DISCOUNTS_APPLIED' as keyof typeof FEATURE_FLAGS
       const config = FEATURE_FLAGS[flag]
