@@ -1,9 +1,7 @@
+import { ok } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Queue of results returned by successive `select().from().where()` chains,
-// in call order (stats route: favorites count first, search count second).
 const selectResults: Array<Array<{ value: number }>> = []
-const insertedValues: Array<Record<string, unknown>> = []
 
 const mockDb = {
   select: vi.fn(() => {
@@ -14,15 +12,13 @@ const mockDb = {
     }
     return chain
   }),
-  insert: vi.fn(() => ({
-    values: vi.fn((values: Record<string, unknown>) => {
-      insertedValues.push(values)
-      return {
-        onConflictDoNothing: vi.fn(() => Promise.resolve()),
-      }
-    }),
-  })),
 }
+
+const mocks = vi.hoisted(() => ({
+  getAvailable: vi.fn(),
+  getUniqueSearchesLast30dFromPostHog: vi.fn(),
+  createEnsClient: vi.fn(),
+}))
 
 vi.mock('#core/database/index.js', async (importOriginal) => {
   const actual =
@@ -33,21 +29,43 @@ vi.mock('#core/database/index.js', async (importOriginal) => {
   }
 })
 
+vi.mock('#core/eth/client.js', () => ({
+  createEnsClient: mocks.createEnsClient,
+}))
+
+vi.mock('@ensdomains/ensjs/public/v2', () => ({
+  getAvailable: mocks.getAvailable,
+}))
+
+vi.mock('#services/posthog/name-search-stats.js', () => ({
+  getUniqueSearchesLast30dFromPostHog:
+    mocks.getUniqueSearchesLast30dFromPostHog,
+}))
+
 import namesApp from './index'
 
 const env = {
-  SEARCHER_HASH_SALT: 'test-salt',
+  CHAIN: 'sepolia',
+  SEPOLIA_RPC_URL: 'https://rpc.example',
+  POSTHOG: {
+    host: 'https://posthog.example',
+    unique_searches_endpoint:
+      'api/environments/test/query_endpoints/unique-searches/run/',
+  },
+  POSTHOG_PERSONAL_API_KEY: 'secret',
 } as CloudflareBindings
 
 beforeEach(() => {
   selectResults.length = 0
-  insertedValues.length = 0
   vi.clearAllMocks()
+  mocks.createEnsClient.mockReturnValue(ok({}))
 })
 
 describe('GET /names/:name/stats', () => {
-  it('returns favorite and unique-search counts for the name', async () => {
-    selectResults.push([{ value: 425 }], [{ value: 40 }])
+  it('returns favorite count and PostHog unique searches for an unregistered name', async () => {
+    selectResults.push([{ value: 425 }])
+    mocks.getAvailable.mockResolvedValue(true)
+    mocks.getUniqueSearchesLast30dFromPostHog.mockResolvedValue(ok(40))
 
     const res = await namesApp.request('/names/vitalik.eth/stats', {}, env)
 
@@ -57,94 +75,32 @@ describe('GET /names/:name/stats', () => {
       favorites: 425,
       unique_searches_last_30d: 40,
     })
+    expect(mocks.getUniqueSearchesLast30dFromPostHog).toHaveBeenCalledWith(
+      env,
+      'vitalik.eth',
+    )
   })
 
-  it('returns zero counts when the name has no rows', async () => {
-    selectResults.push([], [])
+  it('returns 404 for registered names and does not call PostHog', async () => {
+    mocks.getAvailable.mockResolvedValue(false)
 
-    const res = await namesApp.request('/names/unknown.eth/stats', {}, env)
+    const res = await namesApp.request('/names/vitalik.eth/stats', {}, env)
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     expect(await res.json()).toEqual({
-      name: 'unknown.eth',
-      favorites: 0,
-      unique_searches_last_30d: 0,
+      error: 'Name stats are only available for unregistered names',
     })
+    expect(mockDb.select).not.toHaveBeenCalled()
+    expect(mocks.getUniqueSearchesLast30dFromPostHog).not.toHaveBeenCalled()
   })
 
-  it('rejects names longer than the max length', async () => {
-    const res = await namesApp.request(
-      `/names/${'a'.repeat(256)}.eth/stats`,
-      {},
-      env,
-    )
+  it('returns 400 for invalid names', async () => {
+    const res = await namesApp.request('/names/ab.eth/stats', {}, env)
 
     expect(res.status).toBe(400)
-  })
-})
-
-describe('POST /names/:name/searches', () => {
-  const request = (headers: Record<string, string>) =>
-    namesApp.request(
-      '/names/vitalik.eth/searches',
-      { method: 'POST', headers },
-      env,
-    )
-
-  it('records a search with a hashed searcher identity', async () => {
-    const res = await request({
-      'cf-connecting-ip': '203.0.113.7',
-      'user-agent': 'test-agent',
-    })
-
-    expect(res.status).toBe(200)
-    expect(insertedValues).toHaveLength(1)
-    expect(insertedValues[0]?.name).toBe('vitalik.eth')
-    // Salted SHA-256 hex digest — raw IP / user agent must not be stored
-    expect(insertedValues[0]?.searcher_hash).toMatch(/^[0-9a-f]{64}$/)
-    expect(String(insertedValues[0]?.searcher_hash)).not.toContain(
-      '203.0.113.7',
-    )
-  })
-
-  it('hashes identical searchers to the same value and distinct ones apart', async () => {
-    await request({ 'cf-connecting-ip': '203.0.113.7', 'user-agent': 'ua' })
-    await request({ 'cf-connecting-ip': '203.0.113.7', 'user-agent': 'ua' })
-    await request({ 'cf-connecting-ip': '198.51.100.9', 'user-agent': 'ua' })
-
-    expect(insertedValues).toHaveLength(3)
-    expect(insertedValues[0]?.searcher_hash).toBe(
-      insertedValues[1]?.searcher_hash,
-    )
-    expect(insertedValues[0]?.searcher_hash).not.toBe(
-      insertedValues[2]?.searcher_hash,
-    )
-  })
-
-  it('uses only the leftmost x-forwarded-for IP so proxy chains do not fragment searchers', async () => {
-    await request({
-      'x-forwarded-for': '203.0.113.7, 10.0.0.1',
-      'user-agent': 'ua',
-    })
-    await request({
-      'x-forwarded-for': '203.0.113.7, 172.16.0.9, 10.0.0.2',
-      'user-agent': 'ua',
-    })
-
-    expect(insertedValues).toHaveLength(2)
-    expect(insertedValues[0]?.searcher_hash).toBe(
-      insertedValues[1]?.searcher_hash,
-    )
-  })
-
-  it('rejects names longer than the max length', async () => {
-    const res = await namesApp.request(
-      `/names/${'a'.repeat(256)}.eth/searches`,
-      { method: 'POST' },
-      env,
-    )
-
-    expect(res.status).toBe(400)
-    expect(insertedValues).toHaveLength(0)
+    expect(await res.json()).toEqual({ error: 'Invalid name' })
+    expect(mocks.getAvailable).not.toHaveBeenCalled()
+    expect(mockDb.select).not.toHaveBeenCalled()
+    expect(mocks.getUniqueSearchesLast30dFromPostHog).not.toHaveBeenCalled()
   })
 })

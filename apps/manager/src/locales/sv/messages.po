@@ -1169,10 +1169,6 @@ msgstr ""
 msgid "Load more"
 msgstr ""
 
-#: src/features/dashboard/components/DashboardLoading.tsx
-#~ msgid "Loading dashboard..."
-#~ msgstr "Laddar översikten..."
-
 #: src/features/register/components/Pricing/Pricing.tsx
 msgid "Loading prices..."
 msgstr ""

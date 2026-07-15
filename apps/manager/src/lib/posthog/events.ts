@@ -2,6 +2,11 @@ import type { FailedRunPayloadV2 } from '@ens-apps/transaction-manager'
 import posthog, { type CaptureOptions } from 'posthog-js'
 
 export type PostHogEvents = {
+  'name:search_selected': {
+    name: string
+    source: 'header_search'
+  }
+
   'wallet:connect': {
     wallet_address: string
     chain_id: number
