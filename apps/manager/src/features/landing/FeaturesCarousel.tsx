@@ -111,13 +111,7 @@ export const FEATURE_CARDS: FeatureCard[] = [
   {
     className: tw`bg-ens-lapis-dust text-ens-lapis-core`,
     indicatorClass: tw`border-ens-lapis-core data-active:bg-ens-lapis-core`,
-    title: (
-      <Trans>
-        A simpler way to
-        <br />
-        <span className="font-normal font-serif italic">get paid.</span>
-      </Trans>
-    ),
+    title: <Trans>A simpler way to get paid.</Trans>,
     description: (
       <Trans>
         Your ENS name replaces your wallet addresses so friends and clients can
