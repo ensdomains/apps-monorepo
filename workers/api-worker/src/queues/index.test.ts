@@ -19,7 +19,7 @@ vi.mock('./dlq.js', () => ({
 import { handleDlqQueue } from './dlq.js'
 import { handleEmailQueue } from './email.js'
 import { handleEventIngestionQueue } from './event-ingestion.js'
-import { handleQueue, queueSuffix } from './index.js'
+import { handleQueue, stagingEquivalent } from './index.js'
 import { handlePushQueue } from './push.js'
 import { handleTelegramQueue } from './telegram.js'
 
@@ -34,23 +34,27 @@ function batch(queue: string): MessageBatch {
   } as unknown as MessageBatch
 }
 
-describe('queueSuffix', () => {
-  it('strips the production worker prefix', () => {
-    expect(queueSuffix('app-api-worker-telegram-delivery')).toBe(
-      'telegram-delivery',
+describe('stagingEquivalent', () => {
+  it('resolves a PR-build queue name to its production queue', () => {
+    expect(stagingEquivalent('app-api-worker-pr-123-telegram-delivery')).toBe(
+      'app-api-worker-telegram-delivery',
     )
-    expect(queueSuffix('app-api-worker-dlq')).toBe('dlq')
+    expect(stagingEquivalent('app-api-worker-pr-7-dlq')).toBe(
+      'app-api-worker-dlq',
+    )
   })
 
-  it('strips a per-branch (pr-<N>) prefix to the same suffix', () => {
-    expect(queueSuffix('app-api-worker-pr-123-telegram-delivery')).toBe(
-      'telegram-delivery',
+  it('resolves an isolated-staging queue name to its production queue', () => {
+    expect(stagingEquivalent('app-api-worker-staging-email-delivery')).toBe(
+      'app-api-worker-email-delivery',
     )
-    expect(queueSuffix('app-api-worker-pr-7-dlq')).toBe('dlq')
   })
 
-  it('leaves a non-matching name unchanged', () => {
-    expect(queueSuffix('some-other-queue')).toBe('some-other-queue')
+  it('returns undefined for a name that is not a staging copy', () => {
+    expect(
+      stagingEquivalent('app-api-worker-telegram-delivery'),
+    ).toBeUndefined()
+    expect(stagingEquivalent('some-other-queue')).toBeUndefined()
   })
 })
 
@@ -64,27 +68,34 @@ describe('handleQueue', () => {
     expect(handleEventIngestionQueue).toHaveBeenCalledTimes(1)
   })
 
-  it('routes existing delivery + dlq queues', async () => {
+  it('routes each delivery + dlq queue to its own handler', async () => {
     await handleQueue(batch('app-api-worker-email-delivery'), env)
-    await handleQueue(batch('app-api-worker-telegram-delivery'), env)
-    await handleQueue(batch('app-api-worker-push-delivery'), env)
-    await handleQueue(batch('app-api-worker-dlq'), env)
-
     expect(handleEmailQueue).toHaveBeenCalledTimes(1)
+    expect(handleTelegramQueue).not.toHaveBeenCalled()
+
+    await handleQueue(batch('app-api-worker-telegram-delivery'), env)
     expect(handleTelegramQueue).toHaveBeenCalledTimes(1)
+
+    await handleQueue(batch('app-api-worker-push-delivery'), env)
     expect(handlePushQueue).toHaveBeenCalledTimes(1)
+
+    await handleQueue(batch('app-api-worker-dlq'), env)
     expect(handleDlqQueue).toHaveBeenCalledTimes(1)
+    expect(handleEmailQueue).toHaveBeenCalledTimes(1)
   })
 
-  it('routes per-branch (pr-<N>) queues to the same handler as production', async () => {
+  it('routes staging and PR-build queues to the same handlers as production', async () => {
     await handleQueue(batch('app-api-worker-pr-42-telegram-delivery'), env)
-    await handleQueue(batch('app-api-worker-pr-42-event-ingestion'), env)
-
     expect(handleTelegramQueue).toHaveBeenCalledTimes(1)
+
+    await handleQueue(batch('app-api-worker-staging-event-ingestion'), env)
     expect(handleEventIngestionQueue).toHaveBeenCalledTimes(1)
   })
 
   it('throws on an unknown queue instead of dropping the batch', async () => {
+    await expect(handleQueue(batch('some-other-queue'), env)).rejects.toThrow(
+      /Unhandled queue/,
+    )
     await expect(
       handleQueue(batch('app-api-worker-pr-9-does-not-exist'), env),
     ).rejects.toThrow(/Unhandled queue/)

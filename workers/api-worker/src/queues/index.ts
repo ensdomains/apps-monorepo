@@ -11,14 +11,57 @@ import { handleEventIngestionQueue } from './event-ingestion.js'
 import { handlePushQueue } from './push.js'
 import { handleTelegramQueue } from './telegram.js'
 
+type QueueHandler = (
+  batch: MessageBatch,
+  env: CloudflareBindings,
+) => Promise<void>
+
 /**
- * The queue's logical suffix, with the worker-name prefix stripped so a
- * per-branch/preview deploy's queue (`app-api-worker-pr-123-telegram-delivery`)
- * routes to the same handler as production (`app-api-worker-telegram-delivery`).
- * Names that don't carry the prefix are returned unchanged.
+ * Production queue bindings, exactly as named in wrangler.jsonc
+ * `queues.consumers`.
  */
-export const queueSuffix = (queueName: string): string =>
-  queueName.replace(/^app-api-worker(-pr-\d+)?-/, '')
+const handlers: ReadonlyMap<string, QueueHandler> = new Map<
+  string,
+  QueueHandler
+>([
+  [
+    'app-api-worker-telegram-delivery',
+    (batch, env) =>
+      handleTelegramQueue(batch as MessageBatch<TelegramDeliveryJob>, env),
+  ],
+  [
+    'app-api-worker-email-delivery',
+    (batch, env) =>
+      handleEmailQueue(batch as MessageBatch<EmailDeliveryJob>, env),
+  ],
+  [
+    'app-api-worker-push-delivery',
+    (batch, env) =>
+      handlePushQueue(batch as MessageBatch<PushDeliveryJob>, env),
+  ],
+  ['app-api-worker-event-ingestion', handleEventIngestionQueue],
+  [
+    'app-api-worker-dlq',
+    (batch, env) => handleDlqQueue(batch as MessageBatch<BaseDeliveryJob>, env),
+  ],
+])
+
+/**
+ * Resolves a staging queue name to the production queue it mirrors —
+ * "staging" meaning any non-production deploy: an isolated staging
+ * environment (`app-api-worker-staging-…`) or a PR build
+ * (`app-api-worker-pr-<N>-…`). Both bind renamed copies of the production
+ * queues. Returns `undefined` for a name that is not a staging copy.
+ */
+export const stagingEquivalent = (queueName: string): string | undefined => {
+  const suffix = queueName.match(
+    /^app-api-worker-(?:staging|pr-\d+)-(.+)$/,
+  )?.[1]
+  return suffix === undefined ? undefined : `app-api-worker-${suffix}`
+}
+
+const handlerFor = (queueName: string | undefined): QueueHandler | undefined =>
+  queueName === undefined ? undefined : handlers.get(queueName)
 
 export const handleQueue = async (
   batch: MessageBatch,
@@ -29,28 +72,25 @@ export const handleQueue = async (
     messageCount: batch.messages.length,
   })
 
-  // Route by the logical suffix rather than the full queue name, so per-branch
-  // deploys route identically to production.
-  switch (queueSuffix(batch.queue)) {
-    case 'telegram-delivery':
-      await handleTelegramQueue(batch as MessageBatch<TelegramDeliveryJob>, env)
-      break
-    case 'email-delivery':
-      await handleEmailQueue(batch as MessageBatch<EmailDeliveryJob>, env)
-      break
-    case 'push-delivery':
-      await handlePushQueue(batch as MessageBatch<PushDeliveryJob>, env)
-      break
-    case 'event-ingestion':
-      await handleEventIngestionQueue(batch, env)
-      break
-    case 'dlq':
-      await handleDlqQueue(batch as MessageBatch<BaseDeliveryJob>, env)
-      break
-    default:
-      // Throw rather than silently ack-and-drop the batch: an unrecognised
-      // queue is a misconfiguration, and returning here would lose the
-      // messages. Throwing lets the batch retry and surfaces the error.
-      throw new Error(`Unhandled queue: ${batch.queue}`)
+  // A production deploy consumes queues under exactly their bound names.
+  const production = handlers.get(batch.queue)
+  if (production) {
+    await production(batch, env)
+    return
   }
+
+  // A staging deploy — an isolated staging environment or a PR build —
+  // consumes renamed copies of the production queues; resolve each to the
+  // production queue it mirrors and route identically.
+  const staging = handlerFor(stagingEquivalent(batch.queue))
+  if (staging) {
+    await staging(batch, env)
+    return
+  }
+
+  // Neither a production queue nor a staging copy of one: a
+  // misconfiguration. Throw rather than silently ack-and-drop the batch —
+  // returning here would lose the messages, throwing lets the batch retry
+  // and surfaces the error.
+  throw new Error(`Unhandled queue: ${batch.queue}`)
 }
