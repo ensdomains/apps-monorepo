@@ -7,6 +7,10 @@ import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import {
+  POSTHOG_FEATURE_FLAGS,
+  usePostHogFeatureFlag,
+} from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import {
@@ -48,7 +52,9 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const profileViewNewEnabled = useFeatureFlag('PROFILE_VIEW_NEW')
+  const profileViewNewEnabled = usePostHogFeatureFlag(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+  )
 
   return profileViewNewEnabled ? (
     <ProfileViewNew name={name} />

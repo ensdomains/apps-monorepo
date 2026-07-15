@@ -46,6 +46,42 @@ const localSepolia = {
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
 
+const PROFILE_VIEW_FEATURE_FLAG = 'profile-view-new'
+
+async function overrideManagerFeatureFlags(page: Page): Promise<void> {
+  await page.addInitScript((profileViewFeatureFlag) => {
+    type PostHogWindow = Window & {
+      posthog?: {
+        __loaded?: boolean
+        featureFlags?: {
+          overrideFeatureFlags(options: {
+            flags: Record<string, boolean>
+          }): void
+        }
+      }
+    }
+
+    const applyOverride = () => {
+      const posthog = (window as PostHogWindow).posthog
+
+      if (!posthog?.__loaded || !posthog.featureFlags) return false
+
+      posthog.featureFlags.overrideFeatureFlags({
+        flags: { [profileViewFeatureFlag]: true },
+      })
+      return true
+    }
+
+    if (applyOverride()) return
+
+    const interval = window.setInterval(() => {
+      if (applyOverride()) window.clearInterval(interval)
+    }, 10)
+
+    window.setTimeout(() => window.clearInterval(interval), 10_000)
+  }, PROFILE_VIEW_FEATURE_FLAG)
+}
+
 // ---------------------------------------------------------------------------
 // Accounts — derived from the default Anvil mnemonic
 // ---------------------------------------------------------------------------
@@ -160,6 +196,7 @@ export const test = base.extend<ManagerFixtures>({
   // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
   // This prevents connection-refused errors in CI where Panoptes isn't running.
   page: async ({ page }, use) => {
+    await overrideManagerFeatureFlags(page)
     await indexerMock.installIfEnabled(page)
     await use(page)
   },

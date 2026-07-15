@@ -7,7 +7,10 @@ import { Header } from '@/features/navigation/Header/Header'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import {
+  POSTHOG_FEATURE_FLAGS,
+  usePostHogFeatureFlag,
+} from '@/lib/posthog/feature-flags'
 import { tw } from '@/utils/tailwind'
 
 interface LayoutProps {
@@ -16,7 +19,9 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const { pathname } = useLocation()
-  const profileViewNewEnabled = useFeatureFlag('PROFILE_VIEW_NEW')
+  const profileViewNewEnabled = usePostHogFeatureFlag(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+  )
   const isMigrationPage = pathname === '/migration'
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = /^\/[^/]+\.[^/]+\/?$/.test(pathname)

@@ -12,6 +12,10 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import {
+  POSTHOG_FEATURE_FLAGS,
+  usePostHogFeatureFlag,
+} from '@/lib/posthog/feature-flags'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
@@ -87,8 +91,11 @@ export const Route = createFileRoute('/$name/')({
 
 function ProfileRoutePending() {
   const name = Route.useParams({ select: (params) => params.name })
+  const profileViewNewEnabled = usePostHogFeatureFlag(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+  )
 
-  return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
+  return profileViewNewEnabled ? (
     <ProfileViewNewLoading name={name} />
   ) : (
     <ProfileLoading />
