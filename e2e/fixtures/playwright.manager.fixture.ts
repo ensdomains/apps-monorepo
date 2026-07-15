@@ -47,10 +47,12 @@ const localSepolia = {
 } as const
 
 const PROFILE_VIEW_FEATURE_FLAG = 'profile-view-new'
+const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
 
 async function overrideManagerFeatureFlags(page: Page): Promise<void> {
   await page.addInitScript((profileViewFeatureFlag) => {
     type PostHogWindow = Window & {
+      managerFeatureFlagsOverridden?: boolean
       posthog?: {
         __loaded?: boolean
         featureFlags?: {
@@ -62,13 +64,15 @@ async function overrideManagerFeatureFlags(page: Page): Promise<void> {
     }
 
     const applyOverride = () => {
-      const posthog = (window as PostHogWindow).posthog
+      const postHogWindow = window as PostHogWindow
+      const posthog = postHogWindow.posthog
 
       if (!posthog?.__loaded || !posthog.featureFlags) return false
 
       posthog.featureFlags.overrideFeatureFlags({
         flags: { [profileViewFeatureFlag]: true },
       })
+      postHogWindow.managerFeatureFlagsOverridden = true
       return true
     }
 
@@ -77,9 +81,25 @@ async function overrideManagerFeatureFlags(page: Page): Promise<void> {
     const interval = window.setInterval(() => {
       if (applyOverride()) window.clearInterval(interval)
     }, 10)
-
-    window.setTimeout(() => window.clearInterval(interval), 10_000)
   }, PROFILE_VIEW_FEATURE_FLAG)
+}
+
+async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () =>
+        (window as Window & {
+          managerFeatureFlagsOverridden?: boolean
+        }).managerFeatureFlagsOverridden === true,
+      undefined,
+      { timeout: FEATURE_FLAG_OVERRIDE_TIMEOUT },
+    )
+    .catch((cause: unknown) => {
+      throw new Error(
+        `PostHog feature flag override was not applied within ${FEATURE_FLAG_OVERRIDE_TIMEOUT}ms`,
+        { cause },
+      )
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +204,7 @@ async function connectHeadless(
 ): Promise<void> {
   const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
   await page.goto(baseURL)
+  await waitForManagerFeatureFlagOverride(page)
   await Promise.race([
     page.waitForLoadState('networkidle'),
     page.waitForTimeout(5_000),
