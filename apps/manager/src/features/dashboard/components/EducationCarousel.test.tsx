@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@/utils/test-utils'
 import { EducationCarousel } from './EducationCarousel'
 
@@ -14,18 +14,22 @@ vi.mock('motion/react', () => ({
 let resizeObserverCallback: ResizeObserverCallback | undefined
 
 class ResizeObserverMock {
-  disconnect = vi.fn()
-  observe = vi.fn()
-  unobserve = vi.fn()
-
   constructor(callback: ResizeObserverCallback) {
     resizeObserverCallback = callback
   }
+
+  disconnect = vi.fn()
+  observe = vi.fn()
 }
 
 const setElementMetric = (
   element: HTMLElement,
-  property: string,
+  property:
+    | 'clientWidth'
+    | 'offsetLeft'
+    | 'offsetWidth'
+    | 'scrollLeft'
+    | 'scrollWidth',
   value: number,
   writable = false,
 ) => {
@@ -37,79 +41,62 @@ const setElementMetric = (
 }
 
 const triggerResize = () => {
-  const callback = resizeObserverCallback
-  if (!callback) throw new Error('ResizeObserver was not initialized')
-
-  act(() => callback([], {} as ResizeObserver))
+  act(() => resizeObserverCallback?.([], {} as ResizeObserver))
 }
 
 const setupCarouselLayout = ({
   cardWidth,
   clientWidth,
   gap,
-  inset = 0,
+  trailingSpace = 0,
 }: {
   readonly cardWidth: number
   readonly clientWidth: number
   readonly gap: number
-  readonly inset?: number
+  readonly trailingSpace?: number
 }) => {
   const carousel = screen.getByRole('region', { name: 'Did You Know?' })
-  const cards = within(carousel).getAllByRole('article')
+  const track = carousel.firstElementChild
+  if (!(track instanceof HTMLElement)) {
+    throw new Error('Education carousel track was not rendered')
+  }
+
+  const cards = Array.from(track.querySelectorAll<HTMLElement>('article'))
   const scrollWidth =
-    inset * 2 + cards.length * cardWidth + (cards.length - 1) * gap
+    cards.length * cardWidth + (cards.length - 1) * gap + trailingSpace
+  const maxScrollLeft = Math.max(0, scrollWidth - clientWidth)
 
   setElementMetric(carousel, 'clientWidth', clientWidth)
+  setElementMetric(carousel, 'scrollLeft', 0, true)
   setElementMetric(carousel, 'scrollWidth', scrollWidth)
-  setElementMetric(carousel, 'scrollLeft', inset, true)
-  Object.defineProperty(carousel, 'getBoundingClientRect', {
-    configurable: true,
-    value: () => ({
-      bottom: 0,
-      height: 0,
-      left: 0,
-      right: clientWidth,
-      top: 0,
-      width: clientWidth,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    }),
-  })
 
-  cards.forEach((card, index) => {
+  for (const [index, card] of cards.entries()) {
+    setElementMetric(card, 'offsetLeft', index * (cardWidth + gap))
     setElementMetric(card, 'offsetWidth', cardWidth)
-    Object.defineProperty(card, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => {
-        const left = inset + index * (cardWidth + gap) - carousel.scrollLeft
+  }
 
-        return {
-          bottom: 0,
-          height: 0,
-          left,
-          right: left + cardWidth,
-          top: 0,
-          width: cardWidth,
-          x: left,
-          y: 0,
-          toJSON: () => ({}),
-        }
-      },
-    })
-  })
+  const trailingElement = track.lastElementChild
+  if (
+    trailingElement instanceof HTMLElement &&
+    !trailingElement.matches('article')
+  ) {
+    setElementMetric(trailingElement, 'offsetWidth', trailingSpace)
+  }
 
-  const scrollTo = vi.fn((options: ScrollToOptions) => {
-    carousel.scrollLeft = options.left ?? carousel.scrollLeft
+  const scrollBy = vi.fn((options: ScrollToOptions) => {
+    carousel.scrollLeft = Math.max(
+      0,
+      Math.min(maxScrollLeft, carousel.scrollLeft + (options.left ?? 0)),
+    )
   })
-  Object.defineProperty(carousel, 'scrollTo', {
+  Object.defineProperty(carousel, 'scrollBy', {
     configurable: true,
-    value: scrollTo,
+    value: scrollBy,
   })
 
   triggerResize()
 
-  return { carousel, scrollTo }
+  return { carousel, scrollBy }
 }
 
 describe('EducationCarousel', () => {
@@ -120,7 +107,19 @@ describe('EducationCarousel', () => {
     vi.stubGlobal('ResizeObserver', ResizeObserverMock)
   })
 
-  it('renders every card and hides navigation when all cards fit', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('contains the scroll rail overflow at the component boundary', () => {
+    render(<EducationCarousel />)
+    const heading = screen.getByRole('heading', { name: 'Did You Know?' })
+    const carouselRoot = heading.parentElement?.parentElement
+
+    expect(carouselRoot).toHaveClass('overflow-x-clip', '[contain:inline-size]')
+  })
+
+  it('renders every card and hides controls when all cards fit', () => {
     render(<EducationCarousel />)
     const { carousel } = setupCarouselLayout({
       cardWidth: 480,
@@ -142,94 +141,122 @@ describe('EducationCarousel', () => {
     expect(carousel).toHaveAttribute('tabindex', '-1')
   })
 
-  it('shows two-card ranges and advances by one card on medium widths', () => {
+  it('scrolls by one card and clamps the final arrow movement', () => {
     render(<EducationCarousel />)
-    const { carousel, scrollTo } = setupCarouselLayout({
-      cardWidth: 490,
-      clientWidth: 1000,
+    const { carousel, scrollBy } = setupCarouselLayout({
+      cardWidth: 480,
+      clientWidth: 600,
       gap: 20,
+      trailingSpace: 16,
     })
     const previousButton = screen.getByRole('button', {
       name: 'Previous card',
     })
     const nextButton = screen.getByRole('button', { name: 'Next card' })
 
-    expect(screen.getByText('1\u20132 of 3')).toBeInTheDocument()
     expect(previousButton).toBeDisabled()
     expect(nextButton).toBeEnabled()
 
     fireEvent.click(nextButton)
-    expect(scrollTo).toHaveBeenLastCalledWith({
+    expect(scrollBy).toHaveBeenLastCalledWith({
       behavior: 'smooth',
-      left: 510,
+      left: 500,
     })
     fireEvent.scroll(carousel)
 
-    expect(screen.getByText('2\u20133 of 3')).toBeInTheDocument()
+    expect(previousButton).toBeEnabled()
+    expect(nextButton).toBeEnabled()
+
+    fireEvent.click(nextButton)
+    expect(scrollBy).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      left: 396,
+    })
+    fireEvent.scroll(carousel)
+
+    expect(carousel.scrollLeft).toBe(896)
     expect(previousButton).toBeEnabled()
     expect(nextButton).toBeDisabled()
-
-    fireEvent.click(previousButton)
-    expect(scrollTo).toHaveBeenLastCalledWith({
-      behavior: 'smooth',
-      left: 0,
-    })
   })
 
-  it('supports keyboard navigation through the single-card mobile layout', () => {
+  it('keeps a manually selected free-scroll position', () => {
     render(<EducationCarousel />)
-    const { carousel, scrollTo } = setupCarouselLayout({
+    const { carousel, scrollBy } = setupCarouselLayout({
       cardWidth: 480,
       clientWidth: 600,
       gap: 20,
-      inset: 16,
+      trailingSpace: 16,
     })
 
-    expect(screen.getByText('1 of 3')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Previous card' })).toBeDisabled()
+    carousel.scrollLeft = 137
+    fireEvent.scroll(carousel)
+
+    expect(scrollBy).not.toHaveBeenCalled()
+    expect(carousel.scrollLeft).toBe(137)
+    expect(screen.getByRole('button', { name: 'Previous card' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Next card' })).toBeEnabled()
+  })
+
+  it('includes the trailing space in the final tablet arrow movement', () => {
+    render(<EducationCarousel />)
+    const { carousel, scrollBy } = setupCarouselLayout({
+      cardWidth: 490,
+      clientWidth: 1000,
+      gap: 20,
+      trailingSpace: 24,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next card' }))
+    expect(scrollBy).toHaveBeenLastCalledWith({
+      behavior: 'smooth',
+      left: 534,
+    })
+    fireEvent.scroll(carousel)
+
+    expect(carousel.scrollLeft).toBe(534)
+    expect(screen.getByRole('button', { name: 'Next card' })).toBeDisabled()
+  })
+
+  it('supports Left and Right keyboard navigation', () => {
+    render(<EducationCarousel />)
+    const { carousel, scrollBy } = setupCarouselLayout({
+      cardWidth: 480,
+      clientWidth: 600,
+      gap: 20,
+      trailingSpace: 16,
+    })
+
+    expect(carousel).toHaveAttribute('tabindex', '0')
 
     fireEvent.keyDown(carousel, { key: 'ArrowRight' })
-    expect(scrollTo).toHaveBeenLastCalledWith({
+    expect(scrollBy).toHaveBeenLastCalledWith({
       behavior: 'smooth',
-      left: 516,
+      left: 500,
     })
+
     fireEvent.scroll(carousel)
-    expect(screen.getByText('2 of 3')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next card' }))
-    expect(scrollTo).toHaveBeenLastCalledWith({
-      behavior: 'smooth',
-      left: 912,
-    })
-    fireEvent.scroll(carousel)
-
-    expect(screen.getByText('3 of 3')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next card' })).toBeDisabled()
-
     fireEvent.keyDown(carousel, { key: 'ArrowLeft' })
-    expect(scrollTo).toHaveBeenLastCalledWith({
+    expect(scrollBy).toHaveBeenLastCalledWith({
       behavior: 'smooth',
-      left: 516,
+      left: -500,
     })
-    fireEvent.scroll(carousel)
-    expect(screen.getByText('2 of 3')).toBeInTheDocument()
   })
 
-  it('uses immediate scrolling when reduced motion is enabled', () => {
+  it('uses immediate arrow movement when reduced motion is enabled', () => {
     motionMock.shouldReduceMotion = true
     render(<EducationCarousel />)
-    const { scrollTo } = setupCarouselLayout({
+    const { scrollBy } = setupCarouselLayout({
       cardWidth: 480,
       clientWidth: 600,
       gap: 20,
-      inset: 16,
+      trailingSpace: 16,
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Next card' }))
 
-    expect(scrollTo).toHaveBeenLastCalledWith({
+    expect(scrollBy).toHaveBeenLastCalledWith({
       behavior: 'auto',
-      left: 516,
+      left: 500,
     })
   })
 })
