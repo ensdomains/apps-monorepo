@@ -1,13 +1,7 @@
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
-import {
-  type ChangeEvent,
-  type FormEvent,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
-import { type Address, isAddress } from 'viem'
+import type { Address } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,7 +14,6 @@ import {
   ComboboxList,
 } from '@/components/ui/combobox'
 import { Field, FieldError } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Sheet,
@@ -28,21 +21,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { AddressNameInput } from '@/features/address/components/AddressNameInput'
+import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { prepareGrantResolverRolesTransaction } from '@/features/resolver/helpers/grantResolverRoles'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import type { ResolverNode } from '@/features/resolver/hooks/useResolverOverview'
-import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { resolverPermissions } from '@/lib/roles/resolverRoles'
 import { cn } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 
 const GRANT_RESOLVER_ROLES_TX_ID = 'tx-grant-resolver-roles'
-const RESOLVE_DEBOUNCE_MS = 500
 // Empty string = root resource (roles apply to all names).
 const ROOT_NODE_VALUE = ''
 
@@ -146,11 +138,11 @@ export const ResolverAddUserSheet = ({
     message: string
   } | null>(null)
 
-  const [address, setAddress] = useState<Address | null>(null)
-  const [isResolvingAddress, setIsResolvingAddress] = useState(false)
-  const [resolveError, setResolveError] = useState<string | null>(null)
-  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const latestResolveRef = useRef<string>('')
+  const resolution = useAddressResolution(nameOrAddressInput)
+  const address = resolution.address
+  const isResolvingAddress = resolution.isResolving
+  const isRecipientInvalid =
+    resolution.status === 'invalid' || resolution.status === 'unresolved'
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const {
@@ -168,73 +160,17 @@ export const ResolverAddUserSheet = ({
 
   useEffect(() => {
     if (open) return
-    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
-    latestResolveRef.current = ''
     setNameOrAddressInput('')
     setSelectedNode(ROOT_NODE_VALUE)
     setSelectedRoles(new Set())
     setPendingGrant(null)
     setFormError(null)
-    setAddress(null)
-    setIsResolvingAddress(false)
-    setResolveError(null)
     reset()
   }, [open, reset])
 
-  const resolveInput = async (value: string) => {
-    if (!publicClient) {
-      setIsResolvingAddress(false)
-      setResolveError('Public client not available')
-      return
-    }
-    try {
-      const resolved = await resolveAddressOrName({
-        client: publicClient,
-        nameOrAddress: value,
-      })
-      if (latestResolveRef.current !== value) return
-      setAddress(resolved)
-      setIsResolvingAddress(false)
-      if (!resolved) setResolveError(`Could not resolve address for ${value}`)
-    } catch (error) {
-      if (latestResolveRef.current !== value) return
-      setAddress(null)
-      setIsResolvingAddress(false)
-      setResolveError(
-        error instanceof Error ? error.message : 'Failed to resolve ENS name',
-      )
-    }
-  }
-
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.currentTarget.value.trim()
-    latestResolveRef.current = value
+  const handleInputChange = (value: string) => {
     setNameOrAddressInput(value)
     setFormError(null)
-    setResolveError(null)
-
-    if (resolveTimeoutRef.current) clearTimeout(resolveTimeoutRef.current)
-
-    // Only a valid 0x address or ENSIP-15-normalized name resolves; anything
-    // else (incl. empty) is treated as not-yet-valid input.
-    if (!isNameOrAddress(value)) {
-      setAddress(null)
-      setIsResolvingAddress(false)
-      return
-    }
-
-    if (isAddress(value)) {
-      setAddress(value)
-      setIsResolvingAddress(false)
-      return
-    }
-
-    setAddress(null)
-    setIsResolvingAddress(true)
-    resolveTimeoutRef.current = setTimeout(
-      () => resolveInput(value),
-      RESOLVE_DEBOUNCE_MS,
-    )
   }
 
   const toggleRole = (role: ResolverRole, checked: boolean) => {
@@ -297,39 +233,18 @@ export const ResolverAddUserSheet = ({
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field
-              data-invalid={
-                nameOrAddressInput.length > 0 && !isResolvingAddress && !address
-              }
-            >
-              <Input
+            <Field data-invalid={isRecipientInvalid}>
+              <AddressNameInput
                 id="user"
                 name="user"
                 placeholder="User name or address"
                 required
                 value={nameOrAddressInput}
-                disabled={isPending || isSuccess}
-                aria-invalid={
-                  nameOrAddressInput.length > 0 &&
-                  !isResolvingAddress &&
-                  !address
-                }
                 onChange={handleInputChange}
+                resolution={resolution}
+                disabled={isPending || isSuccess}
                 className="h-12 bg-background border"
               />
-              {isResolvingAddress && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolving address...
-                </p>
-              )}
-              {!isResolvingAddress && address && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolved: {truncateAddress(address, 6, 4)}
-                </p>
-              )}
-              {!isResolvingAddress && resolveError && (
-                <p className="text-sm mt-1.5 text-danger">{resolveError}</p>
-              )}
             </Field>
 
             <Field>

@@ -6,17 +6,17 @@ import type { Address } from 'viem'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
-interface GetRecipientAddressParams {
+interface GetResolvedAddressParams {
   readonly nameOrAddress: string
 }
 
 /**
- * Resolve a recipient input (an ENS name or a 0x address) to an address.
+ * Resolve a name/address input (an ENS name or a 0x address) to an address.
  * Addresses pass through; names go through the universal resolver, falling
  * back to the ENS owner when the name has no address record.
  */
-export const getRecipientAddress = ResultFn(async function* (
-  params: GetRecipientAddressParams,
+export const getResolvedAddress = ResultFn(async function* (
+  params: GetResolvedAddressParams,
 ) {
   const client = yield* safeGetClient()
 
@@ -31,16 +31,15 @@ export const getRecipientAddress = ResultFn(async function* (
   return ok<Address | null>(address)
 })
 
-const getRecipientAddressQueryKey = createQueryKey<
-  'recipient-address',
-  GetRecipientAddressParams
->('recipient-address')
+const getResolvedAddressQueryKey = createQueryKey<
+  'resolved-address',
+  GetResolvedAddressParams
+>('resolved-address')
 
-export const getRecipientAddressQueryOptions = (
-  params: GetRecipientAddressParams,
+export const getResolvedAddressQueryOptions = (
+  params: GetResolvedAddressParams,
 ) =>
   resultQueryOptions({
-    queryKey: getRecipientAddressQueryKey(params),
-    queryFn: ({ queryKey: [, queryParams] }) =>
-      getRecipientAddress(queryParams),
+    queryKey: getResolvedAddressQueryKey(params),
+    queryFn: ({ queryKey: [, queryParams] }) => getResolvedAddress(queryParams),
   })
