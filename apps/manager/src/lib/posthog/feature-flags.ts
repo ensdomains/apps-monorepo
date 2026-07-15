@@ -8,5 +8,5 @@ export type PostHogFeatureFlag =
   (typeof POSTHOG_FEATURE_FLAGS)[keyof typeof POSTHOG_FEATURE_FLAGS]
 
 export function usePostHogFeatureFlag(flag: PostHogFeatureFlag): boolean {
-  return useFeatureFlagEnabled(flag, false)
+  return useFeatureFlagEnabled(flag, false) ?? false
 }

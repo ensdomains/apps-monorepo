@@ -36,4 +36,14 @@ describe('usePostHogFeatureFlag', () => {
 
     expect(result.current).toBe(true)
   })
+
+  it('returns false while PostHog is loading feature flags', () => {
+    useFeatureFlagEnabled.mockReturnValue(undefined)
+
+    const { result } = renderHook(() =>
+      usePostHogFeatureFlag(POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW),
+    )
+
+    expect(result.current).toBe(false)
+  })
 })
