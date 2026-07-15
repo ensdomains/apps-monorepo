@@ -1,5 +1,7 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
-import { evmChainIdToCoinType } from '@ensdomains/address-encoder/utils'
+import {
+  getCoinTypeForReverseRegistrarChainId,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
 
@@ -75,7 +77,13 @@ function createReverseResolutionNetworks(): ReverseResolutionNetwork[] {
     if (reverseRegistrarChainId === 60) continue
     if (reverseRegistrarChainId === 1) continue
     networks.push({
-      coinType: evmChainIdToCoinType(reverseRegistrarChainId),
+      // The explorer runs against Sepolia, where L2 reverse namespaces are
+      // keyed on TESTNET chain-id coin types (e.g. `0x80000000 | 84532` for
+      // Base Sepolia) — the mainnet-derived namespaces don't exist there.
+      coinType: getCoinTypeForReverseRegistrarChainId(
+        reverseRegistrarChainId,
+        'sepolia',
+      ),
       reverseRegistrarChainId,
       label: names[reverseRegistrarChainId],
       icon: icons[reverseRegistrarChainId],

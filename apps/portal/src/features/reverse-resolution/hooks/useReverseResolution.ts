@@ -7,7 +7,6 @@ import {
 import { ResultFn } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
-import { evmChainIdToCoinType } from '@ensdomains/address-encoder/utils'
 import {
   getAddressRecord,
   getName,
@@ -157,12 +156,13 @@ async function getL2ReverseRecord(
   let forwardMatch = true
   try {
     // Per ENSIP-19, an L2 reverse record's forward verification reads the
-    // chain-specific address record on the name's resolver. `getAddressRecord`
-    // expects the ENSIP-11 coin type (`0x80000000 | chainId`), NOT the raw
-    // chain id — passing the raw id throws "unsupported coin type".
+    // chain-specific address record on the name's resolver. `network.coinType`
+    // is the ENSIP-11 coin type for this environment — on Sepolia that's
+    // derived from the TESTNET chain id (`0x80000000 | 84532` for Base
+    // Sepolia, etc.), matching what the UniversalResolver verifies against.
     const addrRecord = await getAddressRecord(l1Client, {
       name,
-      coin: evmChainIdToCoinType(reverseRegistrarChainId),
+      coin: network.coinType,
     })
     forwardMatch =
       !!addrRecord?.value &&

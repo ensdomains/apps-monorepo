@@ -1,5 +1,7 @@
-import type { ReverseRegistrarChainId } from '@ens-apps/l2-primary/v1'
-import { evmChainIdToCoinType } from '@ensdomains/address-encoder/utils'
+import {
+  getCoinTypeForReverseRegistrarChainId,
+  type ReverseRegistrarChainId,
+} from '@ens-apps/l2-primary/v1'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
 
@@ -7,7 +9,12 @@ import { icons, names } from '@/lib/reverseRegistrarChainId'
 export type L2ReverseRegistrarChainId = Exclude<ReverseRegistrarChainId, 1 | 60>
 
 export type ForwardResolutionNetwork = {
-  /** ENSIP-11 / SLIP-44 coin type the address record is keyed on. */
+  /**
+   * ENSIP-11 / SLIP-44 coin type the address record is keyed on. The explorer
+   * runs against Sepolia, so L2 coin types derive from the TESTNET chain ids
+   * (e.g. Base → `0x80000000 | 84532`) — that's what the deployed Sepolia
+   * UniversalResolver / L2 reverse registrars verify against.
+   */
   coinType: number
   label: string
   icon: string
@@ -35,7 +42,7 @@ export const FORWARD_RESOLUTION_NETWORKS: ForwardResolutionNetwork[] = [
   },
   { coinType: MAINNET_COIN_TYPE, label: 'Mainnet', icon: icons[60] },
   ...L2_CHAIN_IDS.map((chainId) => ({
-    coinType: evmChainIdToCoinType(chainId),
+    coinType: getCoinTypeForReverseRegistrarChainId(chainId, 'sepolia'),
     label: names[chainId],
     icon: icons[chainId],
     l2ChainId: chainId,
