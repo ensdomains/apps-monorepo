@@ -2,23 +2,21 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddress, isAddressEqual, zeroAddress } from 'viem'
+import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
-import { useDebouncedValue } from '@/hooks/useDebounce'
-import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 import { useTransferName } from '../hooks/useTransferName'
 import type { TransferOptions } from '../utils/buildTransferPlan'
-import { getRecipientAddressQueryOptions } from '../utils/getRecipientAddress'
 
 type SendNameFormProps = {
   readonly name: string
@@ -68,11 +66,9 @@ export const SendNameForm = ({
   const hasSubregistry =
     !!subregistryAddress && subregistryAddress !== zeroAddress
 
-  const {
-    address: recipient,
-    isResolving,
-    error: resolveError,
-  } = useRecipientResolution(recipientInput)
+  const resolution = useAddressResolution(recipientInput)
+  const recipient = resolution.address
+  const isResolving = resolution.isResolving
 
   const { startTransfer, transactions, isPreparing, prepError } =
     useTransferName({ name, registryAddress, owner })
@@ -130,17 +126,23 @@ export const SendNameForm = ({
         />
         <div className="text-sm">
           {match({
-            isResolving,
-            resolveError,
+            status: resolution.status,
             recipient,
             isSelf,
             isZeroAddress,
           })
-            .with({ isResolving: true }, () => (
+            .with({ status: 'resolving' }, () => (
               <span className="text-muted-foreground">Resolving…</span>
             ))
-            .with({ resolveError: P.string }, ({ resolveError }) => (
-              <span className="text-destructive">{resolveError}</span>
+            .with({ status: 'invalid' }, () => (
+              <span className="text-destructive">
+                Enter a valid ENS name or address
+              </span>
+            ))
+            .with({ status: 'unresolved' }, () => (
+              <span className="text-destructive">
+                Could not resolve a name or address
+              </span>
             ))
             .with({ recipient: P.nonNullable, isSelf: true }, () => (
               <span className="text-destructive">
@@ -202,68 +204,6 @@ export const SendNameForm = ({
       <TransactionModal transactions={transactions} />
     </div>
   )
-}
-
-const DEBOUNCE_MS = 500
-
-type RecipientResolution = {
-  /** Resolved recipient address, or null while empty / invalid / unresolved. */
-  readonly address: Address | null
-  readonly isResolving: boolean
-  readonly error: string | null
-}
-
-/**
- * Resolve a recipient input to an address, with debouncing and UI state.
- * Addresses resolve immediately; names are debounced.
- */
-const useRecipientResolution = (input: string): RecipientResolution => {
-  const trimmed = input.trim()
-  // Addresses resolve instantly; names are debounced.
-  const debounced = useDebouncedValue(
-    trimmed,
-    isAddress(trimmed, { strict: false }) ? 0 : DEBOUNCE_MS,
-  )
-
-  const isValid = trimmed.length > 0 && isNameOrAddress(trimmed)
-  const isDebouncing = debounced !== trimmed
-
-  const { data: resolved = null, isFetching } = useQuery({
-    ...getRecipientAddressQueryOptions({ nameOrAddress: debounced }),
-    enabled: isValid && !isDebouncing,
-  })
-
-  return match({
-    trimmed,
-    isValid,
-    isPending: isDebouncing || isFetching,
-    resolved,
-  })
-    .with({ trimmed: '' }, () => ({
-      address: null,
-      isResolving: false,
-      error: null,
-    }))
-    .with({ isValid: false }, () => ({
-      address: null,
-      isResolving: false,
-      error: 'Enter a valid ENS name or address',
-    }))
-    .with({ isPending: true }, () => ({
-      address: null,
-      isResolving: true,
-      error: null,
-    }))
-    .with({ resolved: P.nonNullable }, ({ resolved }) => ({
-      address: resolved,
-      isResolving: false,
-      error: null,
-    }))
-    .otherwise(() => ({
-      address: null,
-      isResolving: false,
-      error: 'Could not resolve a name or address',
-    }))
 }
 
 const RecipientPreview = ({ address }: { address: Address }) => {
