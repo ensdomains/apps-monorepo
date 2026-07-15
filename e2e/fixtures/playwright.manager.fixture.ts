@@ -163,12 +163,16 @@ type ManagerFixtures = {
    * that don't need backend-gated state.
    */
   connectedPage: Page
+  /** `connectedPage` with the new profile view feature flag applied. */
+  profileConnectedPage: Page
   /**
    * Same as `connectedPage` but completes the BackendAuthModal SIWE prompt
    * instead of dismissing it. Required for backend-gated features
    * (notification settings, favorites, etc). Hits the deployed worker.
    */
   authenticatedPageWithBackend: Page
+  /** Backend-authenticated page with the new profile view feature flag applied. */
+  profileAuthenticatedPageWithBackend: Page
   /** Time fixture for syncing anvil block time with the browser clock. */
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
@@ -204,7 +208,6 @@ async function connectHeadless(
 ): Promise<void> {
   const baseURL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
   await page.goto(baseURL)
-  await waitForManagerFeatureFlagOverride(page)
   await Promise.race([
     page.waitForLoadState('networkidle'),
     page.waitForTimeout(5_000),
@@ -255,10 +258,23 @@ export const test = base.extend<ManagerFixtures>({
     await use(page)
   },
 
+  profileConnectedPage: async ({ connectedPage }, use) => {
+    await waitForManagerFeatureFlagOverride(connectedPage)
+    await use(connectedPage)
+  },
+
   authenticatedPageWithBackend: async ({ page, wallet }, use) => {
     await connectHeadless(page, wallet)
     await signInBackendAuthModal(page)
     await use(page)
+  },
+
+  profileAuthenticatedPageWithBackend: async (
+    { authenticatedPageWithBackend },
+    use,
+  ) => {
+    await waitForManagerFeatureFlagOverride(authenticatedPageWithBackend)
+    await use(authenticatedPageWithBackend)
   },
 
   time: async ({ page }, use) => {
