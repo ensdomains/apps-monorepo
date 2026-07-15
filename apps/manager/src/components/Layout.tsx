@@ -1,3 +1,4 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -7,10 +8,7 @@ import { Header } from '@/features/navigation/Header/Header'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { BackendAuthModal } from '@/features/wallet/components/BackendAuthModal'
-import {
-  POSTHOG_FEATURE_FLAGS,
-  usePostHogFeatureFlag,
-} from '@/lib/posthog/feature-flags'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { tw } from '@/utils/tailwind'
 
 interface LayoutProps {
@@ -19,14 +17,13 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const { pathname } = useLocation()
-  const profileViewNewEnabled = usePostHogFeatureFlag(
+  const profileViewNewEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    false,
   )
   const isMigrationPage = pathname === '/migration'
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = /^\/[^/]+\.[^/]+\/?$/.test(pathname)
-  const isProfileViewFlagLoading =
-    profileViewNewEnabled === undefined && isEnsNameProfilePage
   const isNewProfileViewPage =
     profileViewNewEnabled === true && isEnsNameProfilePage
   const isSepoliaBannerVisible = !isMigrationPage && !isNewProfileViewPage
@@ -40,8 +37,6 @@ export const Layout = ({ children }: LayoutProps) => {
   const profileThemeColor = getThemeVars(
     profileRecords.data?.texts.find((record) => record.key === 'theme')?.value,
   )['--theme-color']
-
-  if (isProfileViewFlagLoading) return null
 
   return (
     <div

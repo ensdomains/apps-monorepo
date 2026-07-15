@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -7,10 +8,7 @@ import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
-import {
-  POSTHOG_FEATURE_FLAGS,
-  usePostHogFeatureFlag,
-} from '@/lib/posthog/feature-flags'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import {
@@ -52,11 +50,10 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const profileViewNewEnabled = usePostHogFeatureFlag(
+  const profileViewNewEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    false,
   )
-
-  if (profileViewNewEnabled === undefined) return null
 
   return profileViewNewEnabled ? (
     <ProfileViewNew name={name} />
