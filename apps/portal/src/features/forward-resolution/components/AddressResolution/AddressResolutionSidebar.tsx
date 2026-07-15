@@ -493,6 +493,13 @@ const useAddressRecordEditor = (
       queryClient.invalidateQueries({ queryKey: ['get-reverse-matches'] })
       toast.success(`${name} set as the primary name on ${row.label}`, {
         id: toastId,
+        // The reverse-match check resolves through the L1 UniversalResolver,
+        // which can only see L2 state whose root has been proven to L1. The
+        // write itself is confirmed on the L2 instantly, but this page's
+        // verified badge lags by the chain's state-root cadence (roughly:
+        // Scroll ~1–2h, Linea ~4h, Arbitrum ~6h, OP up to days on Sepolia).
+        description:
+          'Confirmed on the L2. Verified resolution here can take a while to update — the L2 state must first be proven to L1.',
       })
     } catch (error) {
       toast.error(
