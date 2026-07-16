@@ -64,7 +64,7 @@ export const ONE_YEAR = 365 * 24 * 3600
 // for another GRACE_PERIOD_V2 (28d) — 62 + 28 = 90 days = the full v1 grace, so a
 // reserved v1 name is renewable throughout grace. Match it so seeded names have the
 // SAME renewable window as production (rather than staying renewable indefinitely).
-export const PREMIGRATION_BONUS_PERIOD = 1 + (90 - 28) * 24 * 3600
+export const PREMIGRATION_BONUS_PERIOD = 1n + BigInt((90 - 28) * 24 * 3600)
 export const ZERO_ADDRESS =
   '0x0000000000000000000000000000000000000000' as const
 
