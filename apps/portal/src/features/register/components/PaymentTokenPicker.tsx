@@ -8,10 +8,9 @@ import { readContractsQueryOptions } from 'wagmi/query'
 import { MessageCard } from '@/components/ui/message-card'
 import { PaymentTokenList } from '@/features/register/components/PaymentTokenList'
 import { PAYMENT_TOKENS } from '@/features/register/constants/paymentTokens'
-import {
-  getRegistrationPriceQueryOptions,
-  getRenewalPriceQueryOptions,
-} from '@/features/register/hooks/useRegistrationPrice'
+import { getRegistrationPriceQueryOptions } from '@/features/register/hooks/useRegistrationPrice'
+import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
+import { getRenewerAddress } from '@/features/renew/utils/renewer'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import {
   buildTokenData,
@@ -36,21 +35,33 @@ const Skeleton = () => (
 type PaymentTokenPickerProps = {
   readonly name: string
   readonly duration: number
-  readonly isRegistering?: boolean
-  readonly isRenewal?: boolean
+  /**
+   * A submit transaction is in flight — disables token selection while it runs.
+   * Only the register flow sets this; renewals leave it unset. This is a pending
+   * flag, not the register/renew discriminant — that's `mode`.
+   */
+  readonly isSubmitting?: boolean
   readonly onSelectionChange: (token: TokenWithPriceAndBalance | null) => void
-}
+} & (
+  | {
+      readonly mode: 'renew'
+      /** Whether the name is v2-native/migrated; selects the renewer contract. */
+      readonly isV2: boolean
+    }
+  | {
+      readonly mode?: 'register'
+      readonly isV2?: never
+    }
+)
 
-export const PaymentTokenPicker = ({
-  name,
-  duration,
-  isRegistering = false,
-  isRenewal = false,
-  onSelectionChange,
-}: PaymentTokenPickerProps) => {
+export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
+  const { name, duration, isSubmitting = false, onSelectionChange } = props
   const config = useConfig()
   const { address } = useConnection()
   const [selectedToken, setSelectedToken] = useState<Address | null>(null)
+
+  const spender =
+    props.mode === 'renew' ? getRenewerAddress(props.isV2) : ethRegistrar
 
   const balancesQuery = useQuery({
     ...readContractsQueryOptions(config, {
@@ -58,7 +69,7 @@ export const PaymentTokenPicker = ({
         address: token.address,
         abi: erc20Abi,
         functionName: 'balanceOf',
-        args: [address as Address],
+        args: [address],
       })),
     }),
     enabled: Boolean(address),
@@ -71,23 +82,27 @@ export const PaymentTokenPicker = ({
         address: token.address,
         abi: erc20Abi,
         functionName: 'allowance',
-        args: [address as Address, ethRegistrar],
+        args: [address, spender],
       })),
     }),
     enabled: Boolean(address),
     staleTime: 0,
   })
 
-  const getPriceQueryOptions = isRenewal
-    ? getRenewalPriceQueryOptions
-    : getRegistrationPriceQueryOptions
   const priceQueries = useQueries({
     queries: PAYMENT_TOKENS.map((token) =>
-      getPriceQueryOptions({
-        name,
-        duration,
-        token: token.address,
-      }),
+      props.mode === 'renew'
+        ? getRenewalPriceQueryOptions({
+            name,
+            duration,
+            token: token.address,
+            renewerAddress: spender,
+          })
+        : getRegistrationPriceQueryOptions({
+            name,
+            duration,
+            token: token.address,
+          }),
     ),
   })
 
@@ -158,16 +173,16 @@ export const PaymentTokenPicker = ({
           titleClassName="text-base text-inherit font-medium"
           descriptionClassName="text-sm text-inherit"
           description={
-            isRegistering
-              ? "You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
-              : "You'll need to hold USDC or DAI in your connected wallet in order to extend your ENS name."
+            props.mode === 'renew'
+              ? "You'll need to hold USDC or DAI in your connected wallet in order to extend your ENS name."
+              : "You'll need to hold USDC or DAI in your connected wallet in order to complete the registration of your ENS name."
           }
         />
       ) : (
         <PaymentTokenList
           tokenData={tokenData}
           selectedToken={selectedToken}
-          isRegistering={isRegistering}
+          isRegistering={isSubmitting}
           onSelect={handleSelect}
         />
       )}

@@ -29,6 +29,7 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RegistrationSuccessBanner } from '@/features/register/components/RegistrationSuccessBanner'
 import { ExtendNameButton } from '@/features/renew/components/ExtendNameButton'
+import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
 import {
   getTLD,
@@ -139,6 +140,13 @@ const Profile = ({
     enabled: isV1Name && !!connectedAddress,
   })
 
+  const { canExtend: graceCanExtend, isLoading: graceCanExtendLoading } =
+    useCanExtend({
+      name,
+      protocolVersion: ownerQuery.data?.protocolVersion ?? 'ENSv2',
+      enabled: grace.isInGrace,
+    })
+
   // Loading states
   if (ownerQuery.isLoading) {
     return <LoadingSpinner title="Loading owner..." />
@@ -239,7 +247,7 @@ const Profile = ({
         <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
           <GraceBanner
             graceEndDate={grace.graceEndDate}
-            protocolVersion="ENSv2"
+            canExtend={graceCanExtend}
           />
           <div className="flex flex-row justify-between items-center">
             <h1 className="font-serif text-4xl font-medium leading-none">
@@ -309,7 +317,9 @@ const Profile = ({
     console.warn('Profile fetch failed:', profileQuery.error.cause?.message)
   }
 
-  const resolvedProtocolVersion = ownerQuery.data.protocolVersion || 'ENSv1'
+  // Match the grace/canExtend default above: a missing protocolVersion means the
+  // owner query hasn't resolved, and 'ENSv2' is the safe conservative choice.
+  const resolvedProtocolVersion = ownerQuery.data.protocolVersion ?? 'ENSv2'
 
   const migration = migrationQuery.data
   // Migration status is owner-only: surface it (both the banner and the
@@ -321,8 +331,13 @@ const Profile = ({
     !!connectedAddress &&
     isAddressEqual(connectedAddress, migration.tokenHolder)
 
+  // Suppress the upgrade prompt whenever the name is expired (grace period or
+  // fully expired past grace) — the user must extend/renew first. The upgrade
+  // banner reappears once the name is active again.
   const showUpgradeBanner =
-    resolvedProtocolVersion === 'ENSv1' && isMigratableByConnectedOwner
+    resolvedProtocolVersion === 'ENSv1' &&
+    isMigratableByConnectedOwner &&
+    !grace.isExpired
 
   return (
     <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
@@ -333,7 +348,7 @@ const Profile = ({
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
-          protocolVersion={resolvedProtocolVersion}
+          canExtend={graceCanExtend || graceCanExtendLoading}
         />
       )}
 
