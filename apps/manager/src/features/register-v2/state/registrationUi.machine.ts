@@ -128,9 +128,6 @@ const shouldSyncEthRecord = (context: Context) =>
 const shouldSetPrimaryName = (context: Context) =>
   context.postRegistrationSetup?.primaryName?.enabled === true
 
-const hasPostRegistrationSetup = (context: Context) =>
-  !!context.postRegistrationSetup
-
 const asEthName = (label: string) => `${label}.eth`
 
 const hasPrimaryNameForwardRemaining = (context: Context) =>
@@ -216,10 +213,6 @@ const machineSetup = setup({
   guards: {
     isDurationValid: ({ context }) =>
       context.duration >= MIN_REGISTER_DURATION_SECONDS,
-    canRetryPostRegistrationSetup: ({ context }) =>
-      !!context.registrationCompleted &&
-      hasPostRegistrationSetup(context) &&
-      !!context.postRegistrationData?.resolverAddress,
     hasEthRecordSyncRemaining: ({ context }) =>
       shouldSyncEthRecord(context) &&
       !context.postRegistrationProgress.ethRecordSynced,
@@ -274,11 +267,6 @@ const machineSetup = setup({
       registrationCompleted: () => false,
       ethRecordSyncTxId: () => undefined,
       primaryNameTxId: () => undefined,
-    }),
-    resetPostRegistrationTracking: assign({
-      ethRecordSyncTxId: () => undefined,
-      primaryNameTxId: () => undefined,
-      lastErrorMessage: () => undefined,
     }),
     invalidateNameQueries: ({ context }) => {
       const label = context.confirmedData?.label
@@ -345,6 +333,13 @@ const machineSetup = setup({
       maxProgressReached: ({ context }) =>
         updateMaxProgress(context.maxProgressReached, 'success'),
     }),
+    logPostRegistrationSetupError: ({ event }) => {
+      const error = (event as { error?: unknown }).error
+      console.warn(
+        '[REGISTRATION] Optional post-registration setup step did not complete; the name is already registered:',
+        error,
+      )
+    },
     setPostRegistrationDecisionStage: assign({
       maxProgressReached: ({ context }) =>
         updateMaxProgress(context.maxProgressReached, 'postRegistrationSetup'),
@@ -681,8 +676,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: ['storeEthRecordSyncTxId'],
                 },
                 onError: {
-                  target: '#registrationV2Ui.failure',
-                  actions: ['setInvokeError'],
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                  ],
                 },
               },
             },
@@ -701,8 +699,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: ['markEthRecordSynced'],
                 },
                 onError: {
-                  target: '#registrationV2Ui.failure',
-                  actions: ['setInvokeError'],
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                  ],
                 },
               },
             },
@@ -730,8 +731,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: ['markPrimaryNameForwardConfirmed'],
                 },
                 onError: {
-                  target: '#registrationV2Ui.failure',
-                  actions: ['setInvokeError'],
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                  ],
                 },
               },
             },
@@ -759,8 +763,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: ['setRegistrationSuccessStage'],
                 },
                 onError: {
-                  target: '#registrationV2Ui.failure',
-                  actions: ['setInvokeError'],
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                  ],
                 },
               },
             },
@@ -792,8 +799,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: ['storePrimaryNameTxId'],
                 },
                 onError: {
-                  target: '#registrationV2Ui.failure',
-                  actions: ['setInvokeError'],
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                  ],
                 },
               },
             },
@@ -812,8 +822,11 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: ['setRegistrationSuccessStage'],
                 },
                 onError: {
-                  target: '#registrationV2Ui.failure',
-                  actions: ['setInvokeError'],
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                  ],
                 },
               },
             },
@@ -846,21 +859,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     success: {},
     failure: {
       on: {
-        retry: [
-          {
-            guard: 'canRetryPostRegistrationSetup',
-            target: 'registering',
-            actions: [
-              'clearError',
-              'resetPostRegistrationTracking',
-              raise({ type: 'registration.completed' }),
-            ],
-          },
-          {
-            target: 'registering',
-            actions: ['clearError', 'forwardRetry'],
-          },
-        ],
+        retry: {
+          target: 'registering',
+          actions: ['clearError', 'forwardRetry'],
+        },
         cancel: {
           target: 'pricing',
           actions: ['clearRegistrationData', 'clearError', 'forwardCancel'],

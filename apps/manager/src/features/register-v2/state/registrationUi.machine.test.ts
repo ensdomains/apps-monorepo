@@ -356,7 +356,9 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
   })
 
-  it('transitions to failure when post-registration setup fails', async () => {
+  it('completes successfully when post-registration setup fails', async () => {
+    // The name is already registered, so a failed optional setup step must not
+    // surface as a failed registration.
     startSyncEthRecord.mockRejectedValueOnce(new Error('post setup failed'))
 
     const actor = startActorInTokens()
@@ -364,41 +366,29 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush()
 
-    expect(actor.getSnapshot().matches('failure')).toBe(true)
-    expect(actor.getSnapshot().context.lastErrorMessage).toBe(
-      'post setup failed',
-    )
+    expect(actor.getSnapshot().matches('failure')).toBe(false)
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
   })
 
-  it('retries post-registration setup only, without retrying registration', async () => {
-    startSyncEthRecord
-      .mockRejectedValueOnce(new Error('post setup failed'))
-      .mockResolvedValueOnce('tx-eth-record')
-    waitForKnownTransaction
-      .mockResolvedValueOnce({ hash: '0xeth' } as never)
-      .mockResolvedValueOnce({ hash: '0xforward' } as never)
-      .mockResolvedValueOnce({ hash: '0xreverse' } as never)
+  it('completes successfully when the primary-name signature is rejected', async () => {
+    // Regression: rejecting the final primary-name signature must not fail the
+    // (already successful) registration or loop.
+    isSmartFlow.mockImplementation(() => true)
+    startSmartPrimaryName.mockRejectedValueOnce(
+      new Error('User rejected the request'),
+    )
 
     const actor = startActorInTokens()
-    actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
-    const child = getChild(actor)
+    actor.send(startEvent(smartAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush(16)
 
-    child.send({ type: 'FORCE_SUCCESS' } as any)
-    await flush()
-
-    expect(actor.getSnapshot().matches('failure')).toBe(true)
+    expect(startSmartPrimaryName).toHaveBeenCalledTimes(1)
+    expect(actor.getSnapshot().matches('failure')).toBe(false)
     expect(
-      (child.getSnapshot().context as unknown as { retryCount: number })
-        .retryCount,
-    ).toBe(0)
-
-    actor.send({ type: 'retry' })
-    await flush(20)
-
-    expect(startSyncEthRecord).toHaveBeenCalledTimes(2)
-    expect(
-      (child.getSnapshot().context as unknown as { retryCount: number })
-        .retryCount,
-    ).toBe(0)
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
   })
 })
