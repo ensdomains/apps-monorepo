@@ -110,7 +110,8 @@ const CreateSubnameForm = ({
   const ownerAddress = ownerResolution.address
   const ownerInvalid =
     ownerResolution.status === 'invalid' ||
-    ownerResolution.status === 'unresolved'
+    ownerResolution.status === 'unresolved' ||
+    ownerResolution.status === 'error'
 
   useSyncOwnerWithConnectedAddress(
     connectedAddress,
