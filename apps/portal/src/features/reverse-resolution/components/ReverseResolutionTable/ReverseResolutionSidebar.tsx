@@ -163,7 +163,6 @@ interface ReverseNameFieldProps {
   isL2ReverseNamePending: boolean
   isSwitchingChain: boolean
   isWrongChain: boolean
-  isL2Target: boolean
 }
 
 /**
@@ -183,7 +182,6 @@ const ReverseNameField = ({
   isL2ReverseNamePending,
   isSwitchingChain,
   isWrongChain,
-  isL2Target,
 }: ReverseNameFieldProps) => {
   const inputDisabled =
     !isConnected ||
@@ -221,13 +219,12 @@ const ReverseNameField = ({
             placeholder={match(isConnected)
               .with(false, () => 'Connect wallet to update')
               .otherwise(() => undefined)}
-            // L1 (Default/Ethereum) requires a real ENS `.eth` name because we
-            // look up its protocol version to decide on the right
-            // setReverseName flow. L2 registrars accept any string, so we don't
-            // gate the input there.
-            {...(isL2Target
-              ? {}
-              : { pattern: '.*\\.eth$', title: 'Name must end with .eth' })}
+            // No name-format gating: `setName(string)` on both the L1 and L2
+            // reverse registrars accepts any name — `.eth` names, subnames,
+            // and DNS-imported names (e.g. `v1rtl.site`) are all valid
+            // ENSIP-19 primaries. Existence is checked non-blockingly
+            // (`warnIfNameNotRegistered`) and normalization happens in the
+            // request builders.
             required
           />
           <Button
@@ -660,7 +657,6 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                 isL2ReverseNamePending={isL2ReverseNamePending}
                 isSwitchingChain={isSwitchingChain}
                 isWrongChain={isWrongChain}
-                isL2Target={isL2Target}
               />
             </div>
 
