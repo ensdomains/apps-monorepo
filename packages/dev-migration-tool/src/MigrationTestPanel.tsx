@@ -16,6 +16,7 @@ import {
   buildMockDomain,
   createV1NameOnAnvil,
   ensureNamesOnAnvil,
+  getOnchainExpiry,
   PRESETS,
   type PresetType,
   readStoredNames,
@@ -101,10 +102,22 @@ export function setInjectedNames(names: ActiveName[]): void {
       /* subgraph unreachable */
     }
 
+    // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
+    // the value captured at creation — otherwise a renewed grace name still reads
+    // as expired and migration eligibility keeps hiding the upgrade banner.
+    const mockDomains = await Promise.all(
+      injected.map(async (n) => {
+        const liveExpiry = await getOnchainExpiry(MIGRATION_TOOL_RPC, n.label)
+        return buildMockDomain(
+          liveExpiry != null ? { ...n, expiryDate: liveExpiry } : n,
+        )
+      }),
+    )
+
     return new Response(
       JSON.stringify({
         data: {
-          domains: [...realDomains, ...injected.map(buildMockDomain)],
+          domains: [...realDomains, ...mockDomains],
         },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
