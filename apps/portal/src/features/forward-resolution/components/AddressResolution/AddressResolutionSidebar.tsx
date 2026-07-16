@@ -97,8 +97,7 @@ const Banner = ({
             <Clock className="size-6 shrink-0" />
             <span className="text-sm">
               Primary name is set on {label} — waiting for L1 verification
-              {lagEstimate ? ` (${lagEstimate})` : ''}. The L2 state must first
-              be proven to L1 before it is visible here.
+              {lagEstimate ? ` (${lagEstimate})` : ''}.
             </span>
           </>
         ))
