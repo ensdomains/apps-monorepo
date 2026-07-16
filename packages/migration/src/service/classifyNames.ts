@@ -108,9 +108,16 @@ const hasExpiredDotEthRegistration = (
   if (parentName !== 'eth') return false
   const registrationExpiry = domain.registration?.expiryDate
   if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
+  // Fall back to the wrapper expiry only while the name is genuinely in its
+  // grace period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
+  // expiry fully in the past means the wrapper is stale/expired (the name has
+  // reverted to its registrant) — not a grace-period registration — so it must
+  // not be flagged here.
   const wrappedExpiry = domain.wrappedDomain?.expiryDate
-  if (wrappedExpiry)
-    return BigInt(wrappedExpiry) - GRACE_PERIOD_SECONDS <= nowSeconds
+  if (wrappedExpiry) {
+    const expiry = BigInt(wrappedExpiry)
+    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
+  }
   return false
 }
 
