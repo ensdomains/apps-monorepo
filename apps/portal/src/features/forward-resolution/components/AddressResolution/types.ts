@@ -1,3 +1,4 @@
+import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import type { L2ReverseRegistrarChainId } from './networks'
 
 export type AddressResolutionRow = {
@@ -14,11 +15,13 @@ export type AddressResolutionRow = {
   /** Resolved address for this network (chain-specific record, else the default). */
   address: string | null
   /**
-   * Whether the resolved address reverse-resolves back to this name on this
-   * network. `null` when there's no address to check; `undefined` while the
-   * reverse lookup is in flight.
+   * Verification state of the reverse half for this network (see
+   * {@link ReverseMatchStatus}). `null` when there's no address to check;
+   * `undefined` while the reverse lookup is in flight.
    */
-  reverseMatch: boolean | null | undefined
-  /** The name the resolved address reverse-resolves to, if any. */
+  reverseMatch: ReverseMatchStatus | null | undefined
+  /** The name backing `reverseMatch`, if any (see `ReverseMatchResult`). */
   reverseName: string | null | undefined
+  /** For `unverifiable`: the decoded reason the verification path failed. */
+  reverseError: string | null | undefined
 }

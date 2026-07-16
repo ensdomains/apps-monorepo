@@ -48,3 +48,19 @@ export const FORWARD_RESOLUTION_NETWORKS: ForwardResolutionNetwork[] = [
     l2ChainId: chainId,
   })),
 ]
+
+/**
+ * Rough time until an L2 reverse-registrar write becomes visible through the
+ * L1 UniversalResolver on Sepolia — the L2 state root / rollup assertion must
+ * first be posted to L1 before the verifying gateway can prove it.
+ */
+export const L1_VERIFICATION_LAG_ESTIMATES: Record<
+  L2ReverseRegistrarChainId,
+  string
+> = {
+  10: 'up to a few days',
+  8453: 'up to a few days',
+  42161: 'about 7.6 hours',
+  59144: 'about 4 hours',
+  534352: 'about 1–2 hours',
+}

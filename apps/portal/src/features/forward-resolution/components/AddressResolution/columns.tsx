@@ -1,10 +1,27 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import {
+  CheckCircle2,
+  Clock,
+  Loader2,
+  TriangleAlert,
+  XCircle,
+} from 'lucide-react'
 import { SortButton } from '@/components/table/SortButton'
 import { Badge } from '@/components/ui/badge'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { cn } from '@/lib/utils'
+import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import type { AddressResolutionRow } from './types'
+
+const REVERSE_MATCH_BADGES: Record<
+  ReverseMatchStatus,
+  { icon: typeof CheckCircle2; label: string; muted: boolean }
+> = {
+  verified: { icon: CheckCircle2, label: 'True', muted: false },
+  pending: { icon: Clock, label: 'Pending', muted: false },
+  mismatch: { icon: XCircle, label: 'False', muted: true },
+  unverifiable: { icon: TriangleAlert, label: 'Unverifiable', muted: true },
+}
 
 // Default first, Mainnet second, L2s after (then alphabetical).
 const sortRank = (coinType: number) => {
@@ -93,15 +110,14 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
       if (reverseMatch === undefined)
         return <Loader2 className="size-4 animate-spin text-muted-foreground" />
 
-      return reverseMatch ? (
-        <Badge variant="outline" className="text-xs">
-          <CheckCircle2 className="size-4" />
-          <span>True</span>
-        </Badge>
-      ) : (
-        <Badge variant="outline" className="text-xs text-muted-foreground">
-          <XCircle className="size-4" />
-          <span>False</span>
+      const { icon: Icon, label, muted } = REVERSE_MATCH_BADGES[reverseMatch]
+      return (
+        <Badge
+          variant="outline"
+          className={cn('text-xs', muted && 'text-muted-foreground')}
+        >
+          <Icon className="size-4" />
+          <span>{label}</span>
         </Badge>
       )
     },

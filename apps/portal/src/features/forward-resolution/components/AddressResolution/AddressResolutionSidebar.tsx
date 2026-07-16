@@ -3,7 +3,13 @@ import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/def
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Row } from '@tanstack/react-table'
-import { ArrowLeftRight, CheckCircle2, XCircle } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  CheckCircle2,
+  Clock,
+  TriangleAlert,
+  XCircle,
+} from 'lucide-react'
 import {
   type FC,
   type PropsWithChildren,
@@ -39,6 +45,8 @@ import { fromCoinType } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ProtocolVersion } from '@/utils/types'
+import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
+import { L1_VERIFICATION_LAG_ESTIMATES } from './networks'
 import type { AddressResolutionRow } from './types'
 
 // The sidebar's history covers the name's resolution records only — address
@@ -61,31 +69,63 @@ const RowLabel = ({ children }: PropsWithChildren) => (
 )
 
 const Banner = ({
-  isPrimary,
+  status,
   label,
+  lagEstimate,
+  errorDetail,
   action,
 }: {
-  isPrimary: boolean
+  status: ReverseMatchStatus
   label: string
+  lagEstimate?: string
+  errorDetail?: string | null
   action?: ReactNode
 }) => (
   <div className="flex items-center justify-between gap-3 bg-muted p-4 rounded-md">
     <div className="flex items-center gap-3">
-      {isPrimary ? (
-        <>
-          <CheckCircle2 className="size-6 shrink-0" />
-          <span className="font-medium">
-            This is the primary name on {label}
-          </span>
-        </>
-      ) : (
-        <>
-          <XCircle className="size-6 shrink-0" />
-          <span className="text-sm">
-            The set address does not resolve back to this name on {label}
-          </span>
-        </>
-      )}
+      {match(status)
+        .with('verified', () => (
+          <>
+            <CheckCircle2 className="size-6 shrink-0" />
+            <span className="font-medium">
+              This is the primary name on {label}
+            </span>
+          </>
+        ))
+        .with('pending', () => (
+          <>
+            <Clock className="size-6 shrink-0" />
+            <span className="text-sm">
+              Primary name is set on {label} — waiting for L1 verification
+              {lagEstimate ? ` (${lagEstimate})` : ''}. The L2 state must first
+              be proven to L1 before it is visible here.
+            </span>
+          </>
+        ))
+        .with('unverifiable', () => (
+          <>
+            <TriangleAlert className="size-6 shrink-0" />
+            <div className="flex flex-col gap-1 min-w-0">
+              <span className="text-sm">
+                Can't verify reverse resolution on {label} right now
+              </span>
+              {errorDetail && (
+                <code className="font-mono text-xs text-muted-foreground break-all">
+                  {errorDetail}
+                </code>
+              )}
+            </div>
+          </>
+        ))
+        .with('mismatch', () => (
+          <>
+            <XCircle className="size-6 shrink-0" />
+            <span className="text-sm">
+              The set address does not resolve back to this name on {label}
+            </span>
+          </>
+        ))
+        .exhaustive()}
     </div>
     {action}
   </div>
@@ -166,13 +206,13 @@ const AddressField = ({
 )
 
 const PrimaryNameRow = ({
-  isPrimary,
+  status,
   address,
   reverseName,
   icon,
   label,
 }: {
-  isPrimary: boolean
+  status: ReverseMatchStatus | null | undefined
   address: string | null
   reverseName: string | null | undefined
   icon: string
@@ -183,14 +223,26 @@ const PrimaryNameRow = ({
     <div className="flex items-center gap-2 flex-wrap">
       <Badge
         variant="outline"
-        className={isPrimary ? 'text-xs' : 'text-xs text-muted-foreground'}
+        className={
+          status === 'verified' || status === 'pending'
+            ? 'text-xs'
+            : 'text-xs text-muted-foreground'
+        }
       >
-        {isPrimary ? (
-          <CheckCircle2 className="size-4" />
-        ) : (
-          <XCircle className="size-4" />
-        )}
-        <span>{isPrimary ? 'True' : 'False'}</span>
+        {match(status)
+          .with('verified', () => <CheckCircle2 className="size-4" />)
+          .with('pending', () => <Clock className="size-4" />)
+          .with('unverifiable', () => <TriangleAlert className="size-4" />)
+          .otherwise(() => (
+            <XCircle className="size-4" />
+          ))}
+        <span>
+          {match(status)
+            .with('verified', () => 'True')
+            .with('pending', () => 'Pending')
+            .with('unverifiable', () => 'Unverifiable')
+            .otherwise(() => 'False')}
+        </span>
       </Badge>
       {address && (
         <div className="flex flex-row items-center gap-2">
@@ -267,7 +319,18 @@ const ResolutionDetails = ({
   onSetPrimaryName: () => void
 }) => {
   const { label, icon, coinType, reverseMatch, reverseName } = row
-  const isPrimary = reverseMatch === true
+  // `null`/`undefined` = nothing to check / still loading — no banner.
+  const status = reverseMatch ?? null
+  const lagEstimate =
+    row.l2ChainId != null
+      ? L1_VERIFICATION_LAG_ESTIMATES[row.l2ChainId]
+      : undefined
+  // Setting the primary name only makes sense for a genuine mismatch:
+  // `pending` means the write already landed on the L2 and just awaits proof,
+  // and `unverifiable` means the L1 verification path is down — a new write
+  // couldn't be verified either, so offering it would just mint another
+  // unverifiable record.
+  const offerSetPrimary = status === 'mismatch' && canSetPrimaryName
 
   return (
     <div className="p-6 flex flex-col gap-6">
@@ -277,12 +340,14 @@ const ResolutionDetails = ({
         </SheetTitle>
       </SheetHeader>
 
-      {address && (
+      {address && status && (
         <Banner
-          isPrimary={isPrimary}
+          status={status}
           label={label}
+          lagEstimate={lagEstimate}
+          errorDetail={row.reverseError}
           action={
-            !isPrimary && canSetPrimaryName ? (
+            offerSetPrimary ? (
               <Button
                 type="button"
                 variant="link"
@@ -311,7 +376,7 @@ const ResolutionDetails = ({
           onSave={onSave}
         />
         <PrimaryNameRow
-          isPrimary={isPrimary}
+          status={status}
           address={address}
           reverseName={reverseName}
           icon={icon}
@@ -497,7 +562,7 @@ const useAddressRecordEditor = (
         // which can only see L2 state whose root has been proven to L1. The
         // write itself is confirmed on the L2 instantly, but this page's
         // verified badge lags by the chain's state-root cadence (roughly:
-        // Scroll ~1–2h, Linea ~4h, Arbitrum ~6h, OP up to days on Sepolia).
+        // Scroll ~1–2h, Linea ~4h, Arbitrum ~7.6h, OP up to days on Sepolia).
         description:
           'Confirmed on the L2. Verified resolution here can take a while to update — the L2 state must first be proven to L1.',
       })

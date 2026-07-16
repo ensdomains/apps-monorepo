@@ -81,8 +81,9 @@ function buildRow(
     icon: network.icon,
     l2ChainId: network.l2ChainId,
     address,
-    reverseMatch: resolveField(address, pending, result?.reverseMatch),
+    reverseMatch: resolveField(address, pending, result?.status),
     reverseName: resolveField(address, pending, result?.reverseName),
+    reverseError: resolveField(address, pending, result?.error),
   }
 }
 
@@ -113,7 +114,13 @@ function RouteComponent() {
       networks: FORWARD_RESOLUTION_NETWORKS.flatMap((network) => {
         const address = forwardAddress(network, addressByCoinType)
         return address
-          ? [{ coinType: network.coinType, address: address as Address }]
+          ? [
+              {
+                coinType: network.coinType,
+                address: address as Address,
+                l2ChainId: network.l2ChainId,
+              },
+            ]
           : []
       }),
     }),
