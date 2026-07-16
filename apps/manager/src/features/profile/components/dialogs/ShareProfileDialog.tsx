@@ -159,9 +159,7 @@ const ShareNameplate = ({
       className={cn(
         'flex h-11.25 items-center justify-center gap-1.25 rounded p-1.5',
         'md:h-8.75 md:gap-2',
-        hasQrCode
-          ? 'w-full max-w-65.75 md:max-w-55.5'
-          : 'w-fit max-w-65.75',
+        hasQrCode ? 'w-full max-w-65.75 md:max-w-55.5' : 'w-fit max-w-65.75',
         badgeClassName,
       )}
     >
@@ -241,6 +239,7 @@ const ShareActionButton = ({
   <button
     className={cn(
       'flex h-12.5 min-w-0 appearance-none items-center justify-center gap-2 rounded border-0 px-4 shadow-none',
+      // tracking-[0.12em]: design-specified exact value, no token equivalent
       'font-medium font-mono text-xs uppercase leading-none tracking-[0.12em] transition-colors',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       className,
@@ -360,6 +359,7 @@ export const ShareProfileDialog = ({
           }
           onClick={handleCopy}
         >
+          {/* tracking-[0.12em]: design-specified exact value, no token equivalent */}
           <MSymbol
             className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em]"
             symbol={copied ? 'check' : 'link'}
@@ -375,6 +375,7 @@ export const ShareProfileDialog = ({
           }
           onClick={handleNativeShare}
         >
+          {/* tracking-[0.12em]: design-specified exact value, no token equivalent */}
           <MSymbol
             className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em]"
             symbol="share"
