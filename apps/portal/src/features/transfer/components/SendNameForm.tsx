@@ -144,6 +144,11 @@ export const SendNameForm = ({
                 Could not resolve a name or address
               </span>
             ))
+            .with({ status: 'error' }, () => (
+              <span className="text-destructive">
+                Something went wrong resolving this address. Please try again.
+              </span>
+            ))
             .with({ recipient: P.nonNullable, isSelf: true }, () => (
               <span className="text-destructive">
                 The recipient already owns this name.
