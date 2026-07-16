@@ -193,7 +193,7 @@ const ShareCardHeader = ({ Close, Title }: ShareCardHeaderProps) => (
   <div className="relative h-14.75 shrink-0">
     <EnsMobileIcon className="absolute top-4.25 left-4.25 h-5.5 w-4.75 text-(--share-close-color)" />
     {/* text-[#353535] / text-[16px]: design-specified exact values, no token equivalent */}
-    <Title className="absolute top-5 left-1/2 w-[121px] -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
+    <Title className="absolute top-5 left-1/2 w-30.25 -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
       <Trans>Share profile link</Trans>
     </Title>
     <Close asChild>
