@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { match, P } from 'ts-pattern'
 import { type Address, isAddress } from 'viem'
 import { useDebouncedValue } from '@/hooks/useDebounce'
 import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
@@ -17,6 +18,8 @@ export type AddressResolutionStatus =
   | 'resolved'
   /** Valid input, but no address could be resolved for it. */
   | 'unresolved'
+  /** Valid input, but the resolution query threw (network/client error). */
+  | 'error'
 
 export type AddressResolution = {
   /** Resolved address; non-null only when `status === 'resolved'`. */
@@ -34,13 +37,16 @@ const deriveStatus = (args: {
   isEmpty: boolean
   isValid: boolean
   isResolving: boolean
+  isError: boolean
   resolved: Address | null
-}): AddressResolutionStatus => {
-  if (args.isEmpty) return 'empty'
-  if (!args.isValid) return 'invalid'
-  if (args.isResolving) return 'resolving'
-  return args.resolved ? 'resolved' : 'unresolved'
-}
+}): AddressResolutionStatus =>
+  match(args)
+    .with({ isEmpty: true }, () => 'empty' as const)
+    .with({ isValid: false }, () => 'invalid' as const)
+    .with({ isResolving: true }, () => 'resolving' as const)
+    .with({ resolved: P.nonNullable }, () => 'resolved' as const)
+    .with({ isError: true }, () => 'error' as const)
+    .otherwise(() => 'unresolved' as const)
 
 /**
  * Resolve a name/address input to an address, with debouncing and derived UI
@@ -60,7 +66,11 @@ export const useAddressResolution = (input: string): AddressResolution => {
   const isValid = trimmed.length > 0 && isNameOrAddress(trimmed)
   const isDebouncing = debounced !== trimmed
 
-  const { data: resolved = null, isFetching } = useQuery({
+  const {
+    data: resolved = null,
+    isFetching,
+    isError,
+  } = useQuery({
     ...getResolvedAddressQueryOptions({ nameOrAddress: debounced }),
     enabled: isValid && !isDebouncing,
   })
@@ -71,6 +81,7 @@ export const useAddressResolution = (input: string): AddressResolution => {
     isEmpty: trimmed.length === 0,
     isValid,
     isResolving,
+    isError: isValid && isError,
     resolved,
   })
 

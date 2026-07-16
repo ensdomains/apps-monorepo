@@ -142,7 +142,9 @@ export const ResolverAddUserSheet = ({
   const address = resolution.address
   const isResolvingAddress = resolution.isResolving
   const isRecipientInvalid =
-    resolution.status === 'invalid' || resolution.status === 'unresolved'
+    resolution.status === 'invalid' ||
+    resolution.status === 'unresolved' ||
+    resolution.status === 'error'
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const {

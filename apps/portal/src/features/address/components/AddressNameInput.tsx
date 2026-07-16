@@ -1,3 +1,4 @@
+import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { AddressResolution } from '../hooks/useAddressResolution'
@@ -19,7 +20,8 @@ type AddressNameInputProps = {
 
 /**
  * Standard "ENS name or address" text field: an `<Input>` plus a status line
- * (resolving / resolved / could-not-resolve). Owns no resolution logic — the
+ * with a distinct message per resolution state (invalid / resolving / resolved /
+ * unresolved / error; nothing while empty). Owns no resolution logic — the
  * caller runs `useAddressResolution(value)` and passes the result in, so it can
  * gate its own submit button on `resolution.address` / `resolution.isResolving`.
  */
@@ -32,7 +34,8 @@ export const AddressNameInput = ({
   ...inputProps
 }: AddressNameInputProps) => {
   const { status, address, isRawAddress } = resolution
-  const isInvalid = status === 'invalid' || status === 'unresolved'
+  const isInvalid =
+    status === 'invalid' || status === 'unresolved' || status === 'error'
 
   return (
     <>
@@ -46,23 +49,39 @@ export const AddressNameInput = ({
         onChange={(e) => onChange(e.currentTarget.value)}
         className={className}
       />
-      {status === 'resolving' && (
-        <p className="text-sm mt-1.5 text-muted-foreground">
-          Resolving address…
-        </p>
-      )}
-      {status === 'resolved' && address && (
-        <p className="text-sm mt-1.5 text-muted-foreground">
-          {isRawAddress
-            ? `Using address: ${truncateAddress(address, 6, 4)}`
-            : `Resolved: ${truncateAddress(address, 6, 4)}`}
-        </p>
-      )}
-      {status === 'unresolved' && (
-        <p className="text-sm mt-1.5 text-danger">
-          Could not resolve an address for “{value.trim()}”
-        </p>
-      )}
+      {match(status)
+        .with('resolving', () => (
+          <p className="text-sm mt-1.5 text-muted-foreground">
+            Resolving address…
+          </p>
+        ))
+        .with('resolved', () =>
+          address ? (
+            <p className="text-sm mt-1.5 text-muted-foreground">
+              {isRawAddress
+                ? `Using address: ${truncateAddress(address, 6, 4)}`
+                : `Resolved: ${truncateAddress(address, 6, 4)}`}
+            </p>
+          ) : null,
+        )
+        .with('unresolved', () => (
+          <p className="text-sm mt-1.5 text-danger">
+            Could not resolve an address for “{value.trim()}”
+          </p>
+        ))
+        .with('error', () => (
+          <p className="text-sm mt-1.5 text-danger">
+            Something went wrong resolving this address. Please try again.
+          </p>
+        ))
+        .with('invalid', () => (
+          <p className="text-sm mt-1.5 text-danger">
+            Enter a valid ENS name or address
+          </p>
+        ))
+        // No message before the user has typed anything.
+        .with('empty', () => null)
+        .exhaustive()}
     </>
   )
 }

@@ -71,8 +71,7 @@ export const RolesAddUserSheet = ({
   } | null>(null)
 
   const resolution = useAddressResolution(userInput)
-  const address = resolution.address
-  const isResolving = resolution.isResolving
+  const { address, isResolving } = resolution
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRoles, isPending, isSuccess, reset } = useGrantRoles()
