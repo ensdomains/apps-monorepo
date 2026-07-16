@@ -193,13 +193,13 @@ const ShareCardHeader = ({ Close, Title }: ShareCardHeaderProps) => (
   <div className="relative h-14.75 shrink-0">
     <EnsMobileIcon className="absolute top-4.25 left-4.25 h-5.5 w-4.75 text-(--share-close-color)" />
     {/* text-[#353535] / text-[16px]: design-specified exact values, no token equivalent */}
-    <Title className="absolute top-5 left-1/2 w-30.25 -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
+    <Title className="absolute top-5 left-1/2 w-30.25 -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-normal">
       <Trans>Share profile link</Trans>
     </Title>
     <Close asChild>
       <button
         aria-label="Close"
-        className="absolute top-0 right-0 flex size-[52px] appearance-none items-center justify-center border-0 bg-transparent p-0 text-(--share-close-color) shadow-none outline-none transition-opacity hover:opacity-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:size-[60px]"
+        className="absolute top-0 right-0 flex size-13 appearance-none items-center justify-center border-0 bg-transparent p-0 text-(--share-close-color) shadow-none outline-none transition-opacity hover:opacity-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:size-15"
         type="button"
       >
         <MSymbol
@@ -217,7 +217,7 @@ type ShareQrCodeProps = {
 }
 
 const ShareQrCode = ({ isDefaultTheme, safeUrl }: ShareQrCodeProps) => (
-  <div className="flex size-[222px] items-center justify-center rounded bg-(--share-qr-bg) p-[9px]">
+  <div className="flex size-55.5 items-center justify-center rounded bg-(--share-qr-bg) p-2.25">
     <QRCode
       bgColor="transparent"
       fgColor={isDefaultTheme ? DEFAULT_QR_COLOR : 'var(--share-button-text)'}
@@ -240,7 +240,7 @@ const ShareActionButton = ({
 }: ShareActionButtonProps) => (
   <button
     className={cn(
-      'flex h-[50px] min-w-0 appearance-none items-center justify-center gap-2 rounded border-0 px-4 shadow-none',
+      'flex h-12.5 min-w-0 appearance-none items-center justify-center gap-2 rounded border-0 px-4 shadow-none',
       'font-medium font-mono text-xs uppercase leading-none tracking-[0.12em] transition-colors',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       className,
@@ -334,8 +334,8 @@ export const ShareProfileDialog = ({
         className={cn(
           'mx-auto flex w-full flex-col items-center gap-0.5',
           isDesktop
-            ? cn('max-w-[222px]', isLongName ? 'h-[395px]' : 'h-[259px]')
-            : 'h-[223px] max-w-[340px] justify-center',
+            ? cn('max-w-55.5', isLongName ? 'h-98.75' : 'h-64.75')
+            : 'h-55.75 max-w-85 justify-center',
         )}
       >
         <ShareNameplate
@@ -350,18 +350,18 @@ export const ShareProfileDialog = ({
           <ShareQrCode isDefaultTheme={isDefaultTheme} safeUrl={safeUrl} />
         ) : null}
       </div>
-      <div className="mx-5 mt-7 grid h-[50px] grid-cols-2 gap-2">
-        {/* text-[#f6fbfd] / bg-[#1A1919] / text-[#EEEDED] / hover:bg-[#333333]: design-specified exact values, no token equivalent */}
+      <div className="mx-5 mt-7 grid h-12.5 grid-cols-2 gap-2">
+        {/* text-[#f6fbfd] / bg-[#1A1919] / text-[#EEEDED]: design-specified exact values, no token equivalent */}
         <ShareActionButton
           className={
             isDefaultTheme
               ? 'bg-ens-lapis-500 text-[#f6fbfd] hover:bg-ens-lapis-core'
-              : 'bg-[#1A1919] text-[#EEEDED] hover:bg-[#333333]'
+              : 'bg-[#1A1919] text-[#EEEDED] hover:bg-ens-quartz-700'
           }
           onClick={handleCopy}
         >
           <MSymbol
-            className="ms-opsz-20 ms-wght-500 text-xs [letter-spacing:0.12em]"
+            className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em]"
             symbol={copied ? 'check' : 'link'}
           />
           {copied ? <Trans>Copied</Trans> : <Trans>Copy Link</Trans>}
@@ -376,7 +376,7 @@ export const ShareProfileDialog = ({
           onClick={handleNativeShare}
         >
           <MSymbol
-            className="ms-opsz-20 ms-wght-500 text-xs [letter-spacing:0.12em]"
+            className="ms-opsz-20 ms-wght-500 text-xs tracking-[0.12em]"
             symbol="share"
           />
           <Trans>Share</Trans>
@@ -391,7 +391,7 @@ export const ShareProfileDialog = ({
         <DialogTrigger asChild>{triggerButton}</DialogTrigger>
         <DialogContent
           aria-describedby={undefined}
-          className="w-[320px] max-w-[320px] gap-0 overflow-y-auto rounded-[24px] border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)]"
+          className="w-[320px] max-w-[320px] gap-0 overflow-y-auto rounded-3xl border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)]"
           showCloseButton={false}
           style={shareDialogStyle}
         >
@@ -406,7 +406,7 @@ export const ShareProfileDialog = ({
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent
         aria-describedby={undefined}
-        className="gap-0 overflow-hidden rounded-t-[24px] border-0 bg-white p-0 shadow-[0_4px_24px_rgba(7,28,47,0.07)] data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-20px)] [&>div:first-child]:hidden"
+        className="gap-0 overflow-hidden rounded-t-3xl border-0 bg-white p-0 shadow-[0_4px_24px_rgba(7,28,47,0.07)] data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-20px)] [&>div:first-child]:hidden"
         style={shareDialogStyle}
       >
         <div className="flex max-h-[calc(100dvh-20px)] flex-col overflow-y-auto pb-5">
