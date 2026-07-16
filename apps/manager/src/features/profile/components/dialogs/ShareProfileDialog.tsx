@@ -37,6 +37,7 @@ import { resolveDefaultExport } from './ShareProfileDialog.helpers'
 const QRCode = resolveDefaultExport(QRCodeImport)
 const DEFAULT_QR_BACKGROUND_COLOR = '#EEEDED'
 const DEFAULT_QR_COLOR = '#353535'
+const GARNET_SHARE_BUTTON_BACKGROUND_COLOR = '#FFB0D0'
 
 type ShareDialogStyle = CSSProperties & {
   readonly '--share-button-bg': string
@@ -51,7 +52,10 @@ const getShareDialogStyle = (profileTheme: ProfileTheme): ShareDialogStyle => {
   const isDefaultTheme = profileTheme.value === DEFAULT_THEME_COLOR
 
   return {
-    '--share-button-bg': themeVars['--theme-button-bg'],
+    '--share-button-bg':
+      profileTheme.label === 'Garnet'
+        ? GARNET_SHARE_BUTTON_BACKGROUND_COLOR
+        : themeVars['--theme-button-bg'],
     '--share-button-hover-bg': themeVars['--theme-button-hover-bg'],
     '--share-button-text': themeVars['--theme-button-text'],
     '--share-close-color': isDefaultTheme
@@ -103,6 +107,7 @@ const ShareAvatar = ({
 
 type ShareNameplateProps = {
   readonly avatarUrl?: string
+  readonly hasQrCode: boolean
   readonly isLongName: boolean
   readonly name: string
   readonly profileTheme: ProfileTheme
@@ -111,6 +116,7 @@ type ShareNameplateProps = {
 
 const ShareNameplate = ({
   avatarUrl,
+  hasQrCode,
   isLongName,
   name,
   profileTheme,
@@ -123,13 +129,13 @@ const ShareNameplate = ({
       <div className="flex w-full flex-col items-center gap-0.5">
         <div
           className={cn(
-            'flex size-[45px] items-center justify-center rounded-[3px] p-2',
+            'flex size-11.25 items-center justify-center rounded-[3px] p-2',
             badgeClassName,
           )}
         >
           <ShareAvatar
             avatarUrl={avatarUrl}
-            className="size-[29px]"
+            className="size-7.25"
             name={name}
             themeColor={themeColor}
           />
@@ -151,14 +157,17 @@ const ShareNameplate = ({
   return (
     <div
       className={cn(
-        'flex h-[45px] w-full max-w-[263px] items-center justify-center gap-1.25 rounded p-1.5',
-        'md:h-[35px] md:max-w-[222px] md:gap-2',
+        'flex h-11.25 items-center justify-center gap-1.25 rounded p-1.5',
+        'md:h-8.75 md:gap-2',
+        hasQrCode
+          ? 'w-full max-w-65.75 md:max-w-55.5'
+          : 'w-fit max-w-65.75',
         badgeClassName,
       )}
     >
       <ShareAvatar
         avatarUrl={avatarUrl}
-        className="size-[29px] md:size-[19px]"
+        className="size-7.25 md:size-4.75"
         name={name}
         themeColor={themeColor}
       />
@@ -181,8 +190,8 @@ type ShareCardHeaderProps = {
 }
 
 const ShareCardHeader = ({ Close, Title }: ShareCardHeaderProps) => (
-  <div className="relative h-[59px] shrink-0">
-    <EnsMobileIcon className="absolute top-[17px] left-[17px] h-[22px] w-[19px] text-(--share-close-color)" />
+  <div className="relative h-14.75 shrink-0">
+    <EnsMobileIcon className="absolute top-4.25 left-4.25 h-5.5 w-4.75 text-(--share-close-color)" />
     {/* text-[#353535] / text-[16px]: design-specified exact values, no token equivalent */}
     <Title className="absolute top-5 left-1/2 w-[121px] -translate-x-1/2 text-center font-normal font-sans text-[#353535] text-[16px] leading-[1.5]">
       <Trans>Share profile link</Trans>
@@ -232,7 +241,7 @@ const ShareActionButton = ({
   <button
     className={cn(
       'flex h-[50px] min-w-0 appearance-none items-center justify-center gap-2 rounded border-0 px-4 shadow-none',
-      'font-medium font-mono text-xs uppercase leading-none transition-colors',
+      'font-medium font-mono text-xs uppercase leading-none tracking-[0.12em] transition-colors',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
       className,
     )}
@@ -331,6 +340,7 @@ export const ShareProfileDialog = ({
       >
         <ShareNameplate
           avatarUrl={avatarUrl}
+          hasQrCode={isDesktop}
           isLongName={isLongName}
           name={name}
           profileTheme={profileTheme}
@@ -351,7 +361,7 @@ export const ShareProfileDialog = ({
           onClick={handleCopy}
         >
           <MSymbol
-            className="ms-opsz-20 ms-wght-500 text-xs"
+            className="ms-opsz-20 ms-wght-500 text-xs [letter-spacing:0.12em]"
             symbol={copied ? 'check' : 'link'}
           />
           {copied ? <Trans>Copied</Trans> : <Trans>Copy Link</Trans>}
@@ -365,7 +375,10 @@ export const ShareProfileDialog = ({
           }
           onClick={handleNativeShare}
         >
-          <MSymbol className="ms-opsz-20 ms-wght-500 text-xs" symbol="share" />
+          <MSymbol
+            className="ms-opsz-20 ms-wght-500 text-xs [letter-spacing:0.12em]"
+            symbol="share"
+          />
           <Trans>Share</Trans>
         </ShareActionButton>
       </div>
@@ -392,10 +405,13 @@ export const ShareProfileDialog = ({
     <Drawer onOpenChange={handleOpenChange} open={open}>
       <DrawerTrigger asChild>{triggerButton}</DrawerTrigger>
       <DrawerContent
-        className="max-h-[calc(100dvh-20px)] gap-0 overflow-y-auto rounded-t-[24px] border-0 bg-white p-0 pb-5 shadow-[0_4px_24px_rgba(7,28,47,0.07)] [&>div:first-child]:hidden"
+        aria-describedby={undefined}
+        className="gap-0 overflow-hidden rounded-t-[24px] border-0 bg-white p-0 shadow-[0_4px_24px_rgba(7,28,47,0.07)] data-[vaul-drawer-direction=bottom]:max-h-[calc(100dvh-20px)] [&>div:first-child]:hidden"
         style={shareDialogStyle}
       >
-        {profileCard({ Close: DrawerClose, Title: DrawerTitle })}
+        <div className="flex max-h-[calc(100dvh-20px)] flex-col overflow-y-auto pb-5">
+          {profileCard({ Close: DrawerClose, Title: DrawerTitle })}
+        </div>
       </DrawerContent>
     </Drawer>
   )
