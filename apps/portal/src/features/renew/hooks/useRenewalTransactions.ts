@@ -231,7 +231,6 @@ type FlowStep = {
   readonly id: string
   readonly title: string
   readonly transactionName: string
-  readonly estimatedGasCost: number
   readonly action: () => Promise<void>
 }
 
@@ -253,7 +252,6 @@ function buildMultiTransactions({
             id: RENEWAL_TX_IDS.approve(step.renewer),
             title: 'Approve payment',
             transactionName: approveLabel(tokenSymbol, step.renewer),
-            estimatedGasCost: 0.0003,
             action: async () => {
               const signer = await getSigner()
               buildApproveTransaction(
@@ -274,7 +272,6 @@ function buildMultiTransactions({
             id: RENEWAL_TX_IDS.renew(step.name),
             title: `Extend ${step.name}`,
             transactionName: `Extend ${step.name}`,
-            estimatedGasCost: 0.001,
             action: async () => {
               const signer = await getSigner()
               buildRenewTransaction(
@@ -296,7 +293,6 @@ function buildMultiTransactions({
     id: step.id,
     title: step.title,
     transactionName: step.transactionName,
-    estimatedGasCost: step.estimatedGasCost,
     onStart: step.action,
     onDone: i < flowSteps.length - 1 ? flowSteps[i + 1].action : handleDone,
   }))
@@ -428,7 +424,6 @@ export const useRenewalTransactions = ({
         id: RENEWAL_TX_IDS.renew(single.selectedName.name),
         title: `Extend ${single.selectedName.name}`,
         transactionName: `Extend ${single.selectedName.name}`,
-        estimatedGasCost: 0.001,
         onStart: handleRenewStart,
         onDone: handleDone,
       }
@@ -442,7 +437,6 @@ export const useRenewalTransactions = ({
           single.tokenSymbol,
           getRenewerAddress(single.selectedName.isV2),
         ),
-        estimatedGasCost: 0.0003,
         onStart: handleApproveStart,
         onDone: handleRenewStart,
       }

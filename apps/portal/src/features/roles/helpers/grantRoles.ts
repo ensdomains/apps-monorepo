@@ -6,6 +6,7 @@
  */
 
 import {
+  type CustomTransactionIntent,
   type Signer,
   transactionManager,
   waitForTransaction,
@@ -25,15 +26,18 @@ import {
 // Types
 // ============================================================================
 
-export type GrantRolesParameters = {
+export type GrantRolesTransactionParameters = {
   readonly name: string
   readonly account: Address
-  readonly roles: Role[]
+  readonly roles: readonly Role[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
   readonly registryAddress: Address
+}
+
+export type GrantRolesParameters = GrantRolesTransactionParameters & {
+  readonly publicClient: PublicClient
+  readonly signer: Signer
   readonly id: string
 }
 
@@ -45,6 +49,53 @@ export interface GrantRolesResult {
 // ============================================================================
 // Public API
 // ============================================================================
+
+/**
+ * The encoded grant-roles call — deterministic given the name, account and
+ * roles, so it can be computed at modal-open time to drive the pre-start gas
+ * estimate. Requires a walletClient with `account` and `chain` configured.
+ */
+export function prepareGrantRolesTransaction(
+  params: GrantRolesTransactionParameters,
+): CustomTransactionIntent {
+  const { name, account, roles, walletClient, chainId, registryAddress } =
+    params
+
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
+
+  const { label } = makeLabelNodeAndParent(name)
+  const resource = labelToCanonicalId(label)
+
+  const writeParams = grantRolesWriteParameters(
+    walletClient as Parameters<typeof grantRolesWriteParameters>[0],
+    {
+      registryAddress,
+      account,
+      resource,
+      roles: [...roles],
+    },
+  )
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: registryAddress,
+      data,
+      value: 0n,
+      chainId,
+    },
+  }
+}
 
 export async function grantRoles(
   params: GrantRolesParameters,
@@ -69,45 +120,21 @@ export async function grantRoles(
     throw new Error('At least one role must be selected')
   }
 
-  const { label } = makeLabelNodeAndParent(name)
-  const resource = labelToCanonicalId(label)
+  const intent = prepareGrantRolesTransaction({
+    name,
+    account,
+    roles,
+    walletClient,
+    chainId,
+    registryAddress,
+  })
 
-  const writeParams = grantRolesWriteParameters(
-    walletClient as Parameters<typeof grantRolesWriteParameters>[0],
-    {
-      registryAddress,
-      account,
-      resource,
-      roles,
-    },
-  )
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
-
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: registryAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
-    signer,
-    {
-      id,
-      description: `Grant roles for ${name}`,
-      publicClient,
-      chainId,
-    },
-  )
+  const txId = transactionManager.startTransaction(intent, signer, {
+    id,
+    description: `Grant roles for ${name}`,
+    publicClient,
+    chainId,
+  })
 
   const result = await waitForTransaction(txId)
 

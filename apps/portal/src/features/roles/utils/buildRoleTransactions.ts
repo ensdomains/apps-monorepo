@@ -9,6 +9,8 @@
 import type { Role } from '@ensdomains/ensjs/utils/v2'
 import type { Address } from 'viem'
 import type { Transaction } from '@/features/transaction-manager/types'
+import { prepareGrantRolesTransaction } from '../helpers/grantRoles'
+import { prepareRevokeRolesTransaction } from '../helpers/revokeRoles'
 import {
   buildRoleTransactionDescriptors,
   type PendingRemove,
@@ -79,7 +81,24 @@ export function buildRoleTransactions(
       id: descriptor.id,
       title: descriptor.title,
       transactionName: descriptor.transactionName,
-      estimatedGasCost: descriptor.estimatedGasCost,
+      prepareIntent: ({ walletClient, chainId }) =>
+        descriptor.type === 'grant'
+          ? prepareGrantRolesTransaction({
+              name,
+              account: descriptor.account,
+              roles: descriptor.roles,
+              walletClient,
+              chainId,
+              registryAddress,
+            })
+          : prepareRevokeRolesTransaction({
+              name,
+              account: descriptor.account,
+              roles: descriptor.roles,
+              walletClient,
+              chainId,
+              registryAddress,
+            }),
       onStart: () => runDescriptor(descriptor),
       onDone:
         nextDescriptor !== undefined

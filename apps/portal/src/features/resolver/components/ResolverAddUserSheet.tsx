@@ -29,6 +29,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { prepareGrantResolverRolesTransaction } from '@/features/resolver/helpers/grantResolverRoles'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import type { ResolverNode } from '@/features/resolver/hooks/useResolverOverview'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
@@ -403,7 +404,19 @@ export const ResolverAddUserSheet = ({
                 id: GRANT_RESOLVER_ROLES_TX_ID,
                 title: 'Grant resolver roles',
                 transactionName: `Grant resolver roles for ${pendingGrant?.name || '(root)'}`,
-                estimatedGasCost: 0.0001,
+                // Deterministic once the user has confirmed the grant, so the
+                // modal can estimate gas the moment it opens.
+                prepareIntent: pendingGrant
+                  ? ({ walletClient, chainId }) =>
+                      prepareGrantResolverRolesTransaction({
+                        resolverAddress,
+                        name: pendingGrant.name,
+                        account: pendingGrant.account,
+                        roles: pendingGrant.roles,
+                        walletClient,
+                        chainId,
+                      })
+                  : undefined,
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

@@ -28,6 +28,10 @@ import {
 } from '@/components/ui/sheet'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { grantResolverRoles } from '@/features/resolver/helpers/grantResolverRoles'
+import {
+  prepareResolverRolesIntent,
+  type ResolverRolesAction,
+} from '@/features/resolver/helpers/prepareResolverRolesIntent'
 import { revokeResolverRoles } from '@/features/resolver/helpers/revokeResolverRoles'
 import { useResetMutationsOnAccountChange } from '@/features/roles/hooks/useResetMutationsOnAccountChange'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -151,22 +155,8 @@ export const ResolverRolesSidebar = ({
   const queryClient = useQueryClient()
   const chainId = sepoliaWithEns.id
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [pendingAction, setPendingAction] = useState<
-    | {
-        readonly type: 'save'
-        readonly name: string
-        readonly account: Address
-        readonly rolesToGrant: ResolverRole[]
-        readonly rolesToRevoke: ResolverRoleKey[]
-      }
-    | {
-        readonly type: 'remove'
-        readonly name: string
-        readonly account: Address
-        readonly roles: readonly ResolverRoleKey[]
-      }
-    | null
-  >(null)
+  const [pendingAction, setPendingAction] =
+    useState<ResolverRolesAction | null>(null)
 
   const { data: walletClient } = useWalletClient({ chainId })
   const publicClient = usePublicClient({ chainId })
@@ -476,7 +466,19 @@ export const ResolverRolesSidebar = ({
           transactions={[
             {
               ...transactionMeta,
-              estimatedGasCost: 0.0001,
+              // Lazily build the intent so the modal can estimate gas the
+              // moment it opens. A "save" that both grants and revokes submits
+              // two transactions under one step id, so we can't represent it
+              // with a single intent — return undefined and let that step
+              // estimate once started.
+              prepareIntent: pendingAction
+                ? (ctx) =>
+                    prepareResolverRolesIntent(
+                      pendingAction,
+                      resolverAddress,
+                      ctx,
+                    )
+                : undefined,
               onStart: () => {
                 if (!pendingAction) return
                 if (pendingAction.type === 'remove') {

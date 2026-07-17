@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
+import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRoles'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -298,7 +299,17 @@ export const RolesAddUserSheet = ({
                 transactionName: address
                   ? `Grant roles for ${truncateAddress(address, 6, 4)}`
                   : 'Grant roles',
-                estimatedGasCost: 0.0001,
+                prepareIntent: pendingGrant
+                  ? ({ walletClient, chainId }) =>
+                      prepareGrantRolesTransaction({
+                        name,
+                        account: pendingGrant.account,
+                        roles: pendingGrant.roles,
+                        walletClient,
+                        chainId,
+                        registryAddress,
+                      })
+                  : undefined,
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

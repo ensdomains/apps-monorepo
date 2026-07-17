@@ -4,12 +4,9 @@
  * Pure functions for preparing deleteSubname transactions.
  */
 
-import type {
-  CustomTransactionIntent,
-  EOATransactionRequest,
-} from '@ens-apps/transaction-manager'
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { deleteSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { errAsync, fromThrowable, okAsync, type ResultAsync } from 'neverthrow'
+import { err, fromThrowable, ok, type Result } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
@@ -36,17 +33,19 @@ function assertWalletHasAccount(
 }
 
 /**
- * Prepares the deleteSubname transaction request.
- * Returns a CustomTransactionIntent that can be passed to the transaction manager.
+ * Prepares the deleteSubname transaction — deterministic given the registry and
+ * label, so the same intent drives the pre-start gas estimate and the actual
+ * submit (shared by {@link deleteSubname}), keeping the estimated call
+ * byte-identical to the one submitted.
  */
 export function prepareDeleteSubnameTransaction({
   registryAddress,
   label,
   walletClient,
   chainId,
-}: PrepareDeleteSubnameParams): ResultAsync<CustomTransactionIntent, Error> {
+}: PrepareDeleteSubnameParams): Result<CustomTransactionIntent, Error> {
   if (!assertWalletHasAccount(walletClient)) {
-    return errAsync(new Error('Wallet client has no connected account'))
+    return err(new Error('Wallet client has no connected account'))
   }
 
   const writeParams = deleteSubnameWriteParameters(walletClient, {
@@ -61,21 +60,17 @@ export function prepareDeleteSubnameTransaction({
   })
 
   if (dataResult.isErr()) {
-    return errAsync(dataResult.error)
+    return err(dataResult.error)
   }
 
-  const request: EOATransactionRequest = {
-    type: 'eoa',
-    from: walletClient.account.address,
-    to: writeParams.address,
-    data: dataResult.value,
-    chainId,
-  }
-
-  const intent: CustomTransactionIntent = {
+  return ok({
     type: 'custom',
-    request,
-  }
-
-  return okAsync(intent)
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: writeParams.address,
+      data: dataResult.value,
+      chainId,
+    },
+  })
 }

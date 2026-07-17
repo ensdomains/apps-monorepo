@@ -1,3 +1,4 @@
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -13,34 +14,30 @@ import {
   type WalletClient,
 } from 'viem'
 
-export interface GrantResolverRolesParameters {
+export interface GrantResolverRolesTransactionParameters {
   readonly resolverAddress: Address
   /** Dotted name (e.g. "myname.eth") or empty string for ROOT_RESOURCE (all names). */
   readonly name: string
   readonly account: Address
   readonly roles: ResolverRole[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
-  readonly id: string
 }
 
-export const grantResolverRoles = async (
-  params: GrantResolverRolesParameters,
-): Promise<Hash> => {
-  const {
-    resolverAddress,
-    name,
-    account,
-    roles,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-    id,
-  } = params
-
+/**
+ * The prepared grantRoles transaction — deterministic given the resolver, target
+ * account and roles, so it can be computed at modal-open time to drive the
+ * pre-start gas estimate. Reused by `grantResolverRoles` so the estimated call
+ * is byte-identical to the submitted one.
+ */
+export const prepareGrantResolverRolesTransaction = ({
+  resolverAddress,
+  name,
+  account,
+  roles,
+  walletClient,
+  chainId,
+}: GrantResolverRolesTransactionParameters): CustomTransactionIntent => {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -73,18 +70,50 @@ export const grantResolverRoles = async (
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: resolverAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: resolverAddress,
+      data,
+      value: 0n,
+      chainId,
     },
+  }
+}
+
+export interface GrantResolverRolesParameters
+  extends GrantResolverRolesTransactionParameters {
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly id: string
+}
+
+export const grantResolverRoles = async (
+  params: GrantResolverRolesParameters,
+): Promise<Hash> => {
+  const {
+    resolverAddress,
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    id,
+  } = params
+
+  const txId = transactionManager.startTransaction(
+    prepareGrantResolverRolesTransaction({
+      resolverAddress,
+      name,
+      account,
+      roles,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

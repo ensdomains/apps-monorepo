@@ -4,12 +4,13 @@
  * Handles both L1 (setPrimaryName) and L2 (setName/setNameForAddr) flows.
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { Hex, PublicClient, WalletClient } from 'viem'
+import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
 
@@ -18,6 +19,12 @@ interface WriteRequest {
   readonly abi: readonly unknown[]
   readonly functionName: string
   readonly args: readonly unknown[]
+}
+
+export interface PrepareSetReverseResolutionTransactionParameters {
+  readonly request: WriteRequest
+  readonly from: Address
+  readonly chainId: number
 }
 
 export interface SetReverseResolutionParameters {
@@ -35,6 +42,36 @@ export interface SetReverseResolutionResult {
   readonly hash: Hex
 }
 
+/**
+ * The prepared set-reverse-resolution transaction — deterministic given the
+ * write request, sender, and chain, so it can be built at modal-open time to
+ * drive the pre-start gas estimate, and is the same intent submitted by
+ * {@link setReverseResolution}.
+ */
+export function prepareSetReverseResolutionTransaction({
+  request,
+  from,
+  chainId,
+}: PrepareSetReverseResolutionTransactionParameters): CustomTransactionIntent {
+  const data = encodeFunctionData({
+    abi: request.abi,
+    functionName: request.functionName,
+    args: request.args,
+  })
+
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from,
+      to: request.address,
+      data,
+      value: 0n,
+      chainId,
+    },
+  }
+}
+
 export const setReverseResolution = async ({
   name,
   request,
@@ -50,32 +87,18 @@ export const setReverseResolution = async ({
 
   const walletWithAccount = walletClient as WalletClientWithAccount
 
-  const data = encodeFunctionData({
-    abi: request.abi,
-    functionName: request.functionName,
-    args: request.args,
+  const intent = prepareSetReverseResolutionTransaction({
+    request,
+    from: walletWithAccount.account.address,
+    chainId,
   })
 
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletWithAccount.account.address,
-        to: request.address,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
-    signer,
-    {
-      id,
-      description: `Set reverse resolution to ${name}`,
-      publicClient,
-      chainId,
-    },
-  )
+  const txId = transactionManager.startTransaction(intent, signer, {
+    id,
+    description: `Set reverse resolution to ${name}`,
+    publicClient,
+    chainId,
+  })
 
   const result = await waitForTransaction(txId)
 

@@ -7,6 +7,7 @@
  * 3. Submit via transaction manager
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -26,23 +27,70 @@ import {
 // Types
 // ============================================================================
 
-export interface ChangeResolverParameters {
+export interface ChangeResolverTransactionParameters {
   /** The ENS name (e.g., 'sub.parent.eth') */
   readonly name: string
   /** The registry address that manages this name (parent's registry) */
   readonly registryAddress: Address
   /** The new resolver address to set */
   readonly resolverAddress: Address
+  /** The connected account that submits the transaction */
+  readonly from: Address
+  readonly chainId: number
+}
+
+// Same call inputs as the transaction builder, but `from` is derived from the
+// wallet client at submit time rather than passed in.
+export interface ChangeResolverParameters
+  extends Omit<ChangeResolverTransactionParameters, 'from'> {
   readonly walletClient: WalletClient
   readonly publicClient: PublicClient
   readonly signer: Signer
-  readonly chainId: number
   readonly id: string
 }
 
 export interface ChangeResolverResult {
   txId: string
   hash: Hex
+}
+
+// ============================================================================
+// Transaction builder
+// ============================================================================
+
+/**
+ * The prepared setResolver transaction — deterministic given the name and the
+ * target resolver address, so it can be computed at modal-open time to drive the
+ * pre-start gas estimate. Reused by `changeResolver` so the estimated call is
+ * byte-identical to the submitted one.
+ */
+export const prepareChangeResolverTransaction = ({
+  name,
+  registryAddress,
+  resolverAddress,
+  from,
+  chainId,
+}: ChangeResolverTransactionParameters): CustomTransactionIntent => {
+  const label = name.split('.')[0]
+  const anyId = labelToCanonicalId(label)
+
+  const data = encodeFunctionData({
+    abi: permissionedRegistrySetResolverSnippet,
+    functionName: 'setResolver',
+    args: [anyId, resolverAddress],
+  })
+
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from,
+      to: registryAddress,
+      data,
+      value: 0n,
+      chainId,
+    },
+  }
 }
 
 // ============================================================================
@@ -81,27 +129,14 @@ export const changeResolver = async ({
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const label = name.split('.')[0]
-  const anyId = labelToCanonicalId(label)
-
-  const data = encodeFunctionData({
-    abi: permissionedRegistrySetResolverSnippet,
-    functionName: 'setResolver',
-    args: [anyId, resolverAddress],
-  })
-
   const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: registryAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+    prepareChangeResolverTransaction({
+      name,
+      registryAddress,
+      resolverAddress,
+      from: walletClient.account.address,
+      chainId,
+    }),
     signer,
     {
       id,

@@ -89,6 +89,7 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
                 transactions,
                 state.transactionId,
               )}
+              actor={activeTransactionsMap.get(state.transactionId)}
               setTransactionModalContentState={setTransactionModalContentState}
             />
           ))

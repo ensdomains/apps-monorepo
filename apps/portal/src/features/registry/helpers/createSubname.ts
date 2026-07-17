@@ -60,7 +60,7 @@ export async function createSubname(
     expires,
   } = params
 
-  const intentResult = await prepareCreateSubnameTransaction({
+  const intentResult = prepareCreateSubnameTransaction({
     registryAddress,
     label,
     owner,

@@ -19,6 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helpers/grantRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -264,7 +265,18 @@ export const RegistryAddUserSheet = ({
                 id: GRANT_REGISTRY_ROLES_TX_ID,
                 title: 'Grant roles',
                 transactionName: 'Grant registry roles',
-                estimatedGasCost: 0.0001,
+                // Deterministic once the user has picked an account + roles, so
+                // the modal can estimate gas the moment it opens.
+                prepareIntent: pendingGrant
+                  ? ({ walletClient, chainId }) =>
+                      prepareGrantRegistryRolesTransaction({
+                        registryAddress,
+                        account: pendingGrant.account,
+                        roles: pendingGrant.roles,
+                        walletClient,
+                        chainId,
+                      })
+                  : undefined,
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

@@ -47,7 +47,7 @@ export const deleteSubname = async (
     chainId,
   } = params
 
-  const intentResult = await prepareDeleteSubnameTransaction({
+  const intentResult = prepareDeleteSubnameTransaction({
     registryAddress,
     label,
     walletClient,

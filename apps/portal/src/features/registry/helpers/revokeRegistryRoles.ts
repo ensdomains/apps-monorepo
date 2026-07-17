@@ -5,6 +5,7 @@
  * ROOT_RESOURCE so the revoke applies registry-wide rather than per-label.
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -20,16 +21,20 @@ import {
   type WalletClient,
 } from 'viem'
 
-export type RevokeRegistryRolesParameters = {
+export type RevokeRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
   readonly account: Address
   readonly roles: Role[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
-  readonly id: string
 }
+
+export type RevokeRegistryRolesParameters =
+  RevokeRegistryRolesTransactionParameters & {
+    readonly publicClient: PublicClient
+    readonly signer: Signer
+    readonly id: string
+  }
 
 export interface RevokeRegistryRolesResult {
   txId: string
@@ -39,20 +44,19 @@ export interface RevokeRegistryRolesResult {
 // See `grantRegistryRoles.ts` — registry-wide scope.
 const ROOT_RESOURCE = 0n
 
-export async function revokeRegistryRoles(
-  params: RevokeRegistryRolesParameters,
-): Promise<RevokeRegistryRolesResult> {
-  const {
-    registryAddress,
-    account,
-    roles,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-    id,
-  } = params
-
+/**
+ * The prepared revoke-roles transaction — deterministic given the registry,
+ * account and roles, so it can be computed at modal-open time to drive the
+ * pre-start gas estimate. Shared with {@link revokeRegistryRoles} so the
+ * estimated call is byte-identical to the one actually submitted.
+ */
+export function prepareRevokeRegistryRolesTransaction({
+  registryAddress,
+  account,
+  roles,
+  walletClient,
+  chainId,
+}: RevokeRegistryRolesTransactionParameters): CustomTransactionIntent {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -76,18 +80,41 @@ export async function revokeRegistryRoles(
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: registryAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: registryAddress,
+      data,
+      value: 0n,
+      chainId,
     },
+  }
+}
+
+export async function revokeRegistryRoles(
+  params: RevokeRegistryRolesParameters,
+): Promise<RevokeRegistryRolesResult> {
+  const {
+    registryAddress,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    id,
+  } = params
+
+  const txId = transactionManager.startTransaction(
+    prepareRevokeRegistryRolesTransaction({
+      registryAddress,
+      account,
+      roles,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

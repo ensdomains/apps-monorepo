@@ -39,6 +39,8 @@ import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
+import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
+import { prepareSetReverseResolutionTransaction } from '../../helpers/setReverseResolution'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useSetForwardResolution } from '../../hooks/useSetForwardResolution'
 import { useSetL2ReverseName } from '../../hooks/useSetL2ReverseName'
@@ -717,7 +719,18 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: UPDATE_REVERSE_NAME_TX_ID,
                   title: 'Update reverse name',
                   transactionName: `Set reverse name to ${nameInput}`,
-                  estimatedGasCost: 0.0001,
+                  prepareIntent:
+                    !isL2Target && isConnected && nameInput
+                      ? ({ walletClient, chainId }) => {
+                          const { request } =
+                            getReverseResolutionRequest(nameInput)
+                          return prepareSetReverseResolutionTransaction({
+                            request,
+                            from: walletClient.account.address,
+                            chainId,
+                          })
+                        }
+                      : undefined,
                   onStart: handleUpdateReverseStart,
                   onDone: handleUpdateReverseDone,
                 },
@@ -727,7 +740,17 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: SET_PRIMARY_NAME_TX_ID,
                   title: 'Set primary name',
                   transactionName: `Set primary name to ${displayName}`,
-                  estimatedGasCost: 0.0002,
+                  prepareIntent:
+                    isConnected && displayName
+                      ? ({ walletClient, chainId }) => {
+                          const request = getForwardResolutionRequest(address)
+                          return prepareSetForwardResolutionTransaction({
+                            request,
+                            from: walletClient.account.address,
+                            chainId,
+                          })
+                        }
+                      : undefined,
                   onStart: handleSetPrimaryNameStart,
                   onDone: handleSetPrimaryNameDone,
                 },

@@ -4,12 +4,9 @@
  * Pure functions for preparing createSubname transactions.
  */
 
-import type {
-  CustomTransactionIntent,
-  EOATransactionRequest,
-} from '@ens-apps/transaction-manager'
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { createSubnameV2WriteParameters } from '@ensdomains/ensjs/wallet'
-import { errAsync, fromThrowable, okAsync, type ResultAsync } from 'neverthrow'
+import { err, fromThrowable, ok, type Result } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData, zeroAddress } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
@@ -62,8 +59,16 @@ function assertWalletHasAccount(
 }
 
 /**
- * Prepares the createSubnameV2 transaction request.
- * Returns a CustomTransactionIntent that can be passed to the transaction manager.
+ * Prepares the createSubnameV2 transaction — deterministic given the params, so
+ * the same intent drives the pre-start gas estimate and the actual submit
+ * (shared by {@link createSubname}), keeping the estimated call byte-identical
+ * to the one submitted.
+ *
+ * NOTE: `createSubnameV2WriteParameters` defaults a missing `expires` to
+ * `Date.now() + 1 year` at encode time, so callers that want the pre-start gas
+ * estimate to stay byte-identical to the submitted call MUST pass a concrete,
+ * frozen `expires` (rather than relying on the default), and pass that same
+ * value into the actual `createSubname` call.
  */
 export function prepareCreateSubnameTransaction({
   registryAddress,
@@ -75,9 +80,9 @@ export function prepareCreateSubnameTransaction({
   subregistryAddress = zeroAddress,
   roleBitmap = DEFAULT_ROLE_BITMAP,
   expires,
-}: PrepareCreateSubnameParams): ResultAsync<CustomTransactionIntent, Error> {
+}: PrepareCreateSubnameParams): Result<CustomTransactionIntent, Error> {
   if (!assertWalletHasAccount(walletClient)) {
-    return errAsync(new Error('Wallet client has no connected account'))
+    return err(new Error('Wallet client has no connected account'))
   }
 
   const writeParams = createSubnameV2WriteParameters(walletClient, {
@@ -97,21 +102,17 @@ export function prepareCreateSubnameTransaction({
   })
 
   if (dataResult.isErr()) {
-    return errAsync(dataResult.error)
+    return err(dataResult.error)
   }
 
-  const request: EOATransactionRequest = {
-    type: 'eoa',
-    from: walletClient.account.address,
-    to: writeParams.address,
-    data: dataResult.value,
-    chainId,
-  }
-
-  const intent: CustomTransactionIntent = {
+  return ok({
     type: 'custom',
-    request,
-  }
-
-  return okAsync(intent)
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: writeParams.address,
+      data: dataResult.value,
+      chainId,
+    },
+  })
 }

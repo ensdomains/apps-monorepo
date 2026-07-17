@@ -1,3 +1,4 @@
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -15,14 +16,61 @@ import {
   type WalletClient,
 } from 'viem'
 
-export interface SetAliasParameters {
+export interface SetAliasTransactionParameters {
   readonly fromName: string
   readonly toName: string
   readonly resolverAddress: Address
   readonly walletClient: WalletClient
+  readonly chainId: number
+}
+
+/**
+ * The prepared setAlias transaction — deterministic given the two names and the
+ * resolver, so it can be computed at modal-open time to drive the pre-start gas
+ * estimate. Reused by `setAlias` so the estimated call is byte-identical to the
+ * submitted one.
+ */
+export const prepareSetAliasTransaction = ({
+  fromName,
+  toName,
+  resolverAddress,
+  walletClient,
+  chainId,
+}: SetAliasTransactionParameters): CustomTransactionIntent => {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
+
+  const client = walletClient as Parameters<typeof setAliasWriteParameters>[0]
+
+  const writeParams = setAliasWriteParameters(client, {
+    fromName,
+    toName,
+    resolverAddress,
+  })
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: resolverAddress,
+      data,
+      value: 0n,
+      chainId,
+    },
+  }
+}
+
+export interface SetAliasParameters extends SetAliasTransactionParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
-  readonly chainId: number
   readonly id: string
 }
 
@@ -49,32 +97,14 @@ export const setAlias = async (
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const client = walletClient as Parameters<typeof setAliasWriteParameters>[0]
-
-  const writeParams = setAliasWriteParameters(client, {
-    fromName,
-    toName,
-    resolverAddress,
-  })
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
-
   const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: resolverAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+    prepareSetAliasTransaction({
+      fromName,
+      toName,
+      resolverAddress,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,
@@ -92,13 +122,61 @@ export const setAlias = async (
   }
 }
 
-export interface DeleteAliasParameters {
+export interface DeleteAliasTransactionParameters {
   readonly fromName: string
   readonly resolverAddress: Address
   readonly walletClient: WalletClient
+  readonly chainId: number
+}
+
+/**
+ * The prepared deleteAlias transaction — deterministic given the name and the
+ * resolver, so it can be computed at modal-open time to drive the pre-start gas
+ * estimate. Reused by `deleteAlias` so the estimated call is byte-identical to
+ * the submitted one.
+ */
+export const prepareDeleteAliasTransaction = ({
+  fromName,
+  resolverAddress,
+  walletClient,
+  chainId,
+}: DeleteAliasTransactionParameters): CustomTransactionIntent => {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
+
+  const client = walletClient as Parameters<
+    typeof deleteAliasWriteParameters
+  >[0]
+
+  const writeParams = deleteAliasWriteParameters(client, {
+    fromName,
+    resolverAddress,
+  })
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: walletClient.account.address,
+      to: resolverAddress,
+      data,
+      value: 0n,
+      chainId,
+    },
+  }
+}
+
+export interface DeleteAliasParameters
+  extends DeleteAliasTransactionParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
-  readonly chainId: number
   readonly id: string
 }
 
@@ -119,33 +197,13 @@ export const deleteAlias = async (
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  const client = walletClient as Parameters<
-    typeof deleteAliasWriteParameters
-  >[0]
-
-  const writeParams = deleteAliasWriteParameters(client, {
-    fromName,
-    resolverAddress,
-  })
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
-
   const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: resolverAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+    prepareDeleteAliasTransaction({
+      fromName,
+      resolverAddress,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

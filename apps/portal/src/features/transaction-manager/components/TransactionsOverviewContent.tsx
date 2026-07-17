@@ -23,6 +23,7 @@ import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
+import { EstimatedGasCost } from './EstimatedGasCost'
 import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
 type TransactionsOverviewContentProps = {
@@ -201,7 +202,10 @@ export const TransactionsOverviewContent = ({
                     <dl className="grid grid-cols-2 gap-1 place-items-start">
                       <dt className="text-base font-medium">Est. Cost</dt>
                       <dd className="text-base">
-                        {transaction.estimatedGasCost} ETH
+                        <EstimatedGasCost
+                          actor={activeTransactionsMap.get(transaction.id)}
+                          prepareIntent={transaction.prepareIntent}
+                        />
                       </dd>
                     </dl>
                   </div>

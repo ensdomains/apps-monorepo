@@ -6,14 +6,21 @@
  */
 
 import type { SetForwardResolutionRequest } from '@ens-apps/l2-primary/utils'
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { Hex, PublicClient, WalletClient } from 'viem'
+import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
+
+export interface PrepareSetForwardResolutionTransactionParameters {
+  readonly request: SetForwardResolutionRequest
+  readonly from: Address
+  readonly chainId: number
+}
 
 export interface SetForwardResolutionParameters {
   readonly name: string
@@ -28,6 +35,36 @@ export interface SetForwardResolutionParameters {
 export interface SetForwardResolutionResult {
   readonly txId: string
   readonly hash: Hex
+}
+
+/**
+ * The prepared set-forward-resolution transaction — deterministic given the
+ * write request, sender, and chain, so it can be built at modal-open time to
+ * drive the pre-start gas estimate, and is the same intent submitted by
+ * {@link setForwardResolution}.
+ */
+export function prepareSetForwardResolutionTransaction({
+  request,
+  from,
+  chainId,
+}: PrepareSetForwardResolutionTransactionParameters): CustomTransactionIntent {
+  const data = encodeFunctionData({
+    abi: request.abi,
+    functionName: request.functionName,
+    args: request.args,
+  })
+
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from,
+      to: request.address,
+      data,
+      value: 0n,
+      chainId,
+    },
+  }
 }
 
 export const setForwardResolution = async ({
@@ -45,32 +82,18 @@ export const setForwardResolution = async ({
 
   const walletWithAccount = walletClient as WalletClientWithAccount
 
-  const data = encodeFunctionData({
-    abi: request.abi,
-    functionName: request.functionName,
-    args: request.args,
+  const intent = prepareSetForwardResolutionTransaction({
+    request,
+    from: walletWithAccount.account.address,
+    chainId,
   })
 
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletWithAccount.account.address,
-        to: request.address,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
-    signer,
-    {
-      id,
-      description: `Set primary name for ${name}`,
-      publicClient,
-      chainId,
-    },
-  )
+  const txId = transactionManager.startTransaction(intent, signer, {
+    id,
+    description: `Set primary name for ${name}`,
+    publicClient,
+    chainId,
+  })
 
   const result = await waitForTransaction(txId)
 
