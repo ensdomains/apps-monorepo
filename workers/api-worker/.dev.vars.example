@@ -4,3 +4,11 @@ TELEGRAM_BOT_TOKEN=""
 TELEGRAM_WEBHOOK_SECRET=""
 SENDGRID_API_KEY=""
 EMAIL_FROM_ADDRESS=""
+# Server wallet for Crossmint fulfilment (and the faucet). In Zodiac Roles mode
+# this key is only a role member paying gas — the Safe below holds the funds.
+ETH_PRIVATE_KEY=""
+# Zodiac Roles hardening (optional; leave unset for direct-EOA dev mode).
+# Set BOTH or NEITHER — partial config fails loudly. Setup runbook:
+# docs/zodiac-roles.md + scripts/setup-zodiac-roles.ts.
+REGISTRAR_SAFE_ADDRESS=""
+REGISTRAR_ROLES_MODULE_ADDRESS=""

@@ -18,5 +18,16 @@ declare global {
     CROSSMINT_DB: D1Database
     /** Svix signing secret for verifying Crossmint webhooks (`whsec_...`). */
     CROSSMINT_WEBHOOK_SECRET?: string
+    /**
+     * Zodiac Roles hardening (see services/crossmint/roles.ts). When set, the
+     * treasury Safe is the payer and all fulfilment writes are routed through
+     * the Roles modifier; when unset, the worker runs in direct-EOA mode.
+     * Public addresses (not secrets) — set both or neither.
+     */
+    REGISTRAR_SAFE_ADDRESS?: string
+    /** Zodiac Roles v2 modifier enabled on the treasury Safe. */
+    REGISTRAR_ROLES_MODULE_ADDRESS?: string
+    /** Optional bytes32 role-key override (defaults to "ens-crossmint-registrar"). */
+    REGISTRAR_ROLES_ROLE_KEY?: string
   }
 }

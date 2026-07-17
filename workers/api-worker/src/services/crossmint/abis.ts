@@ -45,6 +45,12 @@ export const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
 ])
 
 /**
+ * The BYOC voucher's burn entrypoint, called after delivery by the payer
+ * (which must hold the voucher's BURNER_ROLE).
+ */
+export const VOUCHER_ABI = parseAbi(['function burn(uint256 tokenId)'])
+
+/**
  * Grants the resolver owner every role (mirrors the manager's
  * `DEDICATED_RESOLVER_ROLE_BITMAP`).
  */

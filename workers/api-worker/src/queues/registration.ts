@@ -82,18 +82,19 @@ async function runCommitPhase(
   await updateOrder(db, orderId, { status: 'committing' })
 
   const client = createServerWalletClient(env)
-  // The registrar charges the `owner`, so the SERVER registers to itself
-  // (it holds the payment token) and transfers to the buyer in the register
-  // phase. The commitment must bind the same owner used at register (server).
+  // The registration is charged to the PAYER (the treasury Safe in Roles mode,
+  // the server EOA in direct mode — see createServerWalletClient), so we
+  // register to the payer and transfer to the buyer in the register phase.
+  // The commitment must bind the same owner used at register (the payer).
   // The resolver is deployed buyer-owned so the buyer controls records after
   // delivery (resolver ownership is independent of name ownership).
-  const server = client.account.address
+  const payer = client.payer
   const buyer = order.owner_address as Address
 
   const resolver = await deployDedicatedResolver(client, buyer)
   const commitment = await makeCommitment(client, {
     label: order.name,
-    owner: server,
+    owner: payer,
     secret: order.secret as `0x${string}`,
     resolver,
     duration: BigInt(order.duration),
@@ -122,8 +123,8 @@ async function runCommitPhase(
 }
 
 /**
- * Phase 2 (delayed): approve the payment token from the server wallet and submit
- * `register`, delivering the name to the buyer, then burn the voucher.
+ * Phase 2 (delayed): approve the payment token from the payer (Safe or EOA) and
+ * submit `register`, delivering the name to the buyer, then burn the voucher.
  */
 async function runRegisterPhase(
   db: CrossmintDb,
@@ -149,7 +150,7 @@ async function runRegisterPhase(
   await updateOrder(db, orderId, { status: 'registering' })
 
   const client = createServerWalletClient(env)
-  const server = client.account.address
+  const payer = client.payer
   const buyer = order.owner_address as Address
   const resolver = order.resolver_address as Address
   const paymentToken = (order.payment_token ?? 'USDC') as PaymentToken
@@ -165,10 +166,10 @@ async function runRegisterPhase(
     amount: authorizedPaymentAmount(price),
   })
 
-  // Register to the server (the payer), then deliver the name to the buyer.
+  // Register to the payer, then deliver the name to the buyer.
   const { hash: registerTxHash, tokenId } = await submitRegister(client, {
     label: order.name,
-    owner: server,
+    owner: payer,
     secret: order.secret as `0x${string}`,
     resolver,
     duration: BigInt(order.duration),

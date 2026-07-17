@@ -25,7 +25,9 @@ import {
   ENS_REGISTRY_ABI,
   ETH_REGISTRAR_ABI,
   VERIFIABLE_FACTORY_ABI,
+  VOUCHER_ABI,
 } from './abis.js'
+import { getRolesConfig, ROLES_MODULE_ABI } from './roles.js'
 import type { PaymentToken } from './types.js'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
@@ -57,6 +59,14 @@ export type ServerWalletClient = ReturnType<typeof createServerWalletClient>
  * The server wallet that registers names on a buyer's behalf after a card
  * payment. Mirrors the faucet wallet in `routes/wallet`, but on the
  * ENS-extended Sepolia chain so `getRegisterPrice` resolves chain contracts.
+ *
+ * Two execution modes (see `roles.ts`):
+ * - Zodiac Roles mode (Safe + Roles modifier configured): writes go through
+ *   `execTransactionWithRole`, so the treasury SAFE is `msg.sender` at every
+ *   target and `payer` is the Safe. The EOA key only triggers role-scoped
+ *   calls and pays gas for the outer tx.
+ * - Direct mode (legacy / local dev): writes are plain EOA txs and `payer`
+ *   is the EOA itself.
  */
 export function createServerWalletClient(env: CloudflareBindings) {
   const privateKey = env.ETH_PRIVATE_KEY
@@ -65,13 +75,38 @@ export function createServerWalletClient(env: CloudflareBindings) {
       message: 'Server is not configured to register names',
     })
   }
+  const roles = getRolesConfig(env)
+  const account = privateKeyToAccount(privateKey as Hex)
   return createClient({
     chain: sepoliaWithEns,
     transport: http(SEPOLIA_RPC_URL),
-    account: privateKeyToAccount(privateKey as Hex),
+    account,
   })
     .extend(publicActions)
     .extend(walletActions)
+    .extend((client) => ({
+      /**
+       * The identity that funds registrations: holds the payment-token float,
+       * grants the registrar allowance, owns freshly-registered names until
+       * delivery. The Safe in Roles mode, the EOA in direct mode.
+       */
+      payer: (roles ? roles.safe : account.address) as Address,
+      /**
+       * Submit an on-chain write as the payer. Single chokepoint for every
+       * mutating call in the fulfilment flow, so the two execution modes
+       * cannot drift apart. `shouldRevert=true` bubbles inner failures into
+       * the outer tx, keeping receipt.status meaningful in Roles mode.
+       */
+      async execWrite(tx: { to: Address; data: Hex }): Promise<Hex> {
+        if (!roles) return client.sendTransaction(tx)
+        return client.writeContract({
+          address: roles.module,
+          abi: ROLES_MODULE_ABI,
+          functionName: 'execTransactionWithRole',
+          args: [tx.to, 0n, tx.data, 0, roles.roleKey, true],
+        })
+      },
+    }))
 }
 
 /** 32-byte commit-reveal secret from a CSPRNG (never Math.random server-side). */
@@ -123,12 +158,17 @@ export async function deployDedicatedResolver(
     functionName: 'initialize',
     args: [owner, DEDICATED_RESOLVER_ROLE_BITMAP],
   })
-  const hash = await client.writeContract({
-    address: CONTRACTS.VerifiableFactory,
-    abi: VERIFIABLE_FACTORY_ABI,
-    functionName: 'deployProxy',
-    args: [CONTRACTS.DedicatedResolverImpl, salt, initData],
+  const hash = await client.execWrite({
+    to: CONTRACTS.VerifiableFactory,
+    data: encodeFunctionData({
+      abi: VERIFIABLE_FACTORY_ABI,
+      functionName: 'deployProxy',
+      args: [CONTRACTS.DedicatedResolverImpl, salt, initData],
+    }),
   })
+  // In Roles mode the receipt is for the outer module tx, but the factory's
+  // ProxyDeployed event still lands in it (module -> Safe -> factory bubble up
+  // within the same transaction), so the parse below is mode-agnostic.
   const receipt = await client.waitForTransactionReceipt({ hash })
   const resolver = parseProxyDeployedAddress(receipt)
   if (!resolver) {
@@ -168,11 +208,13 @@ export async function submitCommit(
   client: ServerWalletClient,
   commitment: Hex,
 ): Promise<Hex> {
-  const hash = await client.writeContract({
-    address: CONTRACTS.ETHRegistrar,
-    abi: ETH_REGISTRAR_ABI,
-    functionName: 'commit',
-    args: [commitment],
+  const hash = await client.execWrite({
+    to: CONTRACTS.ETHRegistrar,
+    data: encodeFunctionData({
+      abi: ETH_REGISTRAR_ABI,
+      functionName: 'commit',
+      args: [commitment],
+    }),
   })
   await client.waitForTransactionReceipt({ hash })
   return hash
@@ -216,26 +258,30 @@ export function authorizedPaymentAmount(price: bigint): bigint {
 }
 
 /**
- * Approve the registrar to pull `amount` of `token` from the server wallet
- * (skipped if the existing allowance already covers it).
+ * Approve the registrar to pull `amount` of `token` from the payer (skipped if
+ * the existing allowance already covers it). In Roles mode the allowance is the
+ * SAFE's — it doubles as the blast-radius cap for a leaked worker key, which is
+ * why the role's approve permission pins the spender to the registrar and caps
+ * the per-call amount.
  */
 export async function ensureTokenAllowance(
   client: ServerWalletClient,
   params: { token: Address; amount: bigint },
 ): Promise<void> {
-  const owner = client.account.address
   const allowance = await client.readContract({
     address: params.token,
     abi: erc20Abi,
     functionName: 'allowance',
-    args: [owner, CONTRACTS.ETHRegistrar],
+    args: [client.payer, CONTRACTS.ETHRegistrar],
   })
   if (allowance >= params.amount) return
-  const hash = await client.writeContract({
-    address: params.token,
-    abi: erc20Abi,
-    functionName: 'approve',
-    args: [CONTRACTS.ETHRegistrar, params.amount],
+  const hash = await client.execWrite({
+    to: params.token,
+    data: encodeFunctionData({
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [CONTRACTS.ETHRegistrar, params.amount],
+    }),
   })
   await client.waitForTransactionReceipt({ hash })
 }
@@ -261,9 +307,12 @@ function parseRegisteredTokenId(
 }
 
 /**
- * Submit the `register` tx. The deployed registrar charges the `owner` arg (not
- * `msg.sender`), so the server registers with `owner` = itself (it holds the
- * payment token), then transfers the name to the buyer (see {@link transferName}).
+ * Submit the `register` tx. The registration is charged to the payer identity:
+ * we register with `owner` = `client.payer` — which in Roles mode is ALSO the
+ * `msg.sender` the registrar sees (the Safe, via module execution), so the
+ * charge lands on the payer under either charging semantic (`owner`-based per
+ * the current deployment, `_msgSender()`-based per the HCA-aware contracts).
+ * The name is then transferred to the buyer (see {@link transferName}).
  * Returns the register tx hash + the minted ERC-1155 tokenId.
  */
 export async function submitRegister(
@@ -277,20 +326,22 @@ export async function submitRegister(
     paymentToken: Address
   },
 ): Promise<{ hash: Hex; tokenId: bigint }> {
-  const hash = await client.writeContract({
-    address: CONTRACTS.ETHRegistrar,
-    abi: ETH_REGISTRAR_ABI,
-    functionName: 'register',
-    args: [
-      params.label,
-      params.owner,
-      params.secret,
-      SUBREGISTRY,
-      params.resolver,
-      params.duration,
-      params.paymentToken,
-      REFERER,
-    ],
+  const hash = await client.execWrite({
+    to: CONTRACTS.ETHRegistrar,
+    data: encodeFunctionData({
+      abi: ETH_REGISTRAR_ABI,
+      functionName: 'register',
+      args: [
+        params.label,
+        params.owner,
+        params.secret,
+        SUBREGISTRY,
+        params.resolver,
+        params.duration,
+        params.paymentToken,
+        REFERER,
+      ],
+    }),
   })
   const receipt = await client.waitForTransactionReceipt({ hash })
   const tokenId = parseRegisteredTokenId(receipt)
@@ -302,18 +353,22 @@ export async function submitRegister(
 
 /**
  * Deliver a freshly-registered name to the buyer: transfer the registry's
- * ERC-1155 token from the server wallet to the buyer. Name roles move with the
- * token (registry `_update`), so the buyer ends up in full control.
+ * ERC-1155 token from the payer to the buyer. Name roles move with the token
+ * (registry `_update`), so the buyer ends up in full control. In Roles mode
+ * the Safe must have a fallback handler with ERC-1155 receiver support (the
+ * default Safe deployment does) so the register mint can land on it at all.
  */
 export async function transferName(
   client: ServerWalletClient,
   params: { tokenId: bigint; to: Address },
 ): Promise<Hex> {
-  const hash = await client.writeContract({
-    address: CONTRACTS.Registry,
-    abi: ENS_REGISTRY_ABI,
-    functionName: 'safeTransferFrom',
-    args: [client.account.address, params.to, params.tokenId, 1n, '0x'],
+  const hash = await client.execWrite({
+    to: CONTRACTS.Registry,
+    data: encodeFunctionData({
+      abi: ENS_REGISTRY_ABI,
+      functionName: 'safeTransferFrom',
+      args: [client.payer, params.to, params.tokenId, 1n, '0x'],
+    }),
   })
   await client.waitForTransactionReceipt({ hash })
   return hash
@@ -340,17 +395,20 @@ export async function verifyRegistration(
 }
 
 /** Deployed Sepolia BYOC voucher contract (public address, inlined for the POC). */
-const VOUCHER_ADDRESS = '0x4137481644498B3b91899D1491d6DbB9C155Fea3'
+export const VOUCHER_ADDRESS = '0x4137481644498B3b91899D1491d6DbB9C155Fea3'
 
 /**
  * Burn the Crossmint voucher once the name is delivered.
  *
- * No-op until the minted voucher tokenId is captured (from the `VoucherMinted`
- * event) and the server wallet is granted BURNER_ROLE. Registration is complete
- * without this; an un-burned voucher is harmless (soulbound, single-use).
+ * Requires BURNER_ROLE on the voucher contract for the payer — the SAFE in
+ * Roles mode (granted once by the voucher admin), the EOA in direct mode.
+ * Best-effort by design: registration is already complete, and an un-burned
+ * voucher is harmless (soulbound, single-use), so a failed burn must never
+ * fail the order. Skipped when no voucher tokenId was captured from the
+ * `VoucherMinted` webhook event.
  */
 export async function burnVoucher(
-  _client: ServerWalletClient,
+  client: ServerWalletClient,
   _env: CloudflareBindings,
   tokenId: string | undefined,
 ): Promise<void> {
@@ -360,9 +418,22 @@ export async function burnVoucher(
     })
     return
   }
-  // TODO: call the voucher contract's burn(tokenId) via the BURNER_ROLE wallet.
-  logger.info('Voucher burn pending contract wiring', {
-    tokenId,
-    voucher: VOUCHER_ADDRESS,
-  })
+  try {
+    const hash = await client.execWrite({
+      to: VOUCHER_ADDRESS,
+      data: encodeFunctionData({
+        abi: VOUCHER_ABI,
+        functionName: 'burn',
+        args: [BigInt(tokenId)],
+      }),
+    })
+    await client.waitForTransactionReceipt({ hash })
+    logger.info('Voucher burned', { tokenId, hash })
+  } catch (error) {
+    logger.warn('Voucher burn failed (non-fatal; voucher is single-use)', {
+      tokenId,
+      voucher: VOUCHER_ADDRESS,
+      error,
+    })
+  }
 }

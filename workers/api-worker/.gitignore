@@ -33,3 +33,6 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# setup-zodiac-roles.ts output (upload to Safe tx-builder, don't commit)
+zodiac-roles.json
