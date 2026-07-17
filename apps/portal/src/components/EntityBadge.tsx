@@ -13,11 +13,15 @@ import {
   HubIcon,
   ResolverIcon,
 } from '@/assets/icons'
+import { Spinner } from '@/components/ui/spinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { getEnsAddressQueryOptions } from '@/hooks/useEnsAddress'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
+import { isTLD } from '@/utils/ens/tldHelpers'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx' | 'default'
 
@@ -87,10 +91,13 @@ const CopyChip = ({
   value,
   label = 'Copy',
   showIcon = true,
+  icon,
 }: {
   readonly value: string
   readonly label?: string
   readonly showIcon?: boolean
+  /** Custom leading icon; defaults to ChipCopyIcon */
+  readonly icon?: ReactNode
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -122,7 +129,7 @@ const CopyChip = ({
       {copied ? (
         <CheckIcon className="size-3.25" />
       ) : (
-        showIcon && <ChipCopyIcon className="size-3.25" />
+        showIcon && (icon ?? <ChipCopyIcon className="size-3.25" />)
       )}
       {!copied && label ? label : null}
     </button>
@@ -135,7 +142,8 @@ interface EntityBadgeProps {
   readonly className?: string
   /** Optional leading label rendered inside the pill */
   readonly label?: string
-  /** ENS name — enables Name chip (→ /$name) + Copy chip */
+  /** ENS name — enables Name chip (→ /$name) + Copy chip; non-TLD names also
+   * get a forward-resolved address chip (resolved lazily on first hover) */
   readonly name?: string
   /** Owner ENS name — enables Owner chip (→ /$ownerName) */
   readonly ownerName?: string
@@ -186,6 +194,18 @@ export const EntityBadge = ({
     enabled: variant === 'contract' && !!address,
   })
   const isResolver = resolverInterfaces?.some(Boolean) ?? false
+
+  // Forward-resolved address chip for real names (not TLDs). Resolution is
+  // lazy: badges render in tables/history lists, so we only fire the RPC call
+  // once the chips are first revealed (hover or focus-within).
+  const [chipsRevealed, setChipsRevealed] = useState(false)
+  const revealChips = () => setChipsRevealed(true)
+  const isResolvableName = variant === 'name' && !!name && !isTLD(name)
+  const { data: forwardAddress, isLoading: isResolvingAddress } = useQuery({
+    ...getEnsAddressQueryOptions(name ?? ''),
+    enabled: isResolvableName && chipsRevealed,
+  })
+
   const contractName =
     variant === 'contract' && address
       ? getEnsContractName(chainId, address)
@@ -329,16 +349,16 @@ export const EntityBadge = ({
           // When a label is present its bg-background sub-chip acts as a visual
           // reference that makes the left strip read one pixel too wide, so
           // flush the x-inset to 0 in that case.
-          'inset-y-[-2px]',
+          '-inset-y-0.5',
           // No label: bg extends 1px beyond pill edge → ~5px colored strip to text (matches top)
           // With label: label sub-chip (~18px) in a 20px pill leaves only 1px above it, so
           //   push x inset 1px *inside* the pill edge → 3px strip to sub-chip (matches top)
           label
             ? 'inset-x-px'
             : resolvedAvatar
-              ? 'inset-x-[-2px]'
-              : 'inset-x-[-1px]',
-          'group-hover/entity:inset-[-12px]',
+              ? '-inset-x-0.5'
+              : '-inset-x-px',
+          'group-hover/entity:-inset-3',
           variantBgClass[variant],
         )}
         aria-hidden="true"
@@ -363,12 +383,17 @@ export const EntityBadge = ({
   )
 
   return (
+    // The handlers mirror the CSS chip reveal (group-hover / group-focus-within)
+    // so lazy queries fire exactly when the chips become visible.
+    // biome-ignore lint/a11y/noStaticElementInteractions: reveal-only handlers (no click/keyboard action); interaction lives on the chips/links inside
     <div
       className={cn(
         'relative group/entity inline-flex -ml-2',
         // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
         // sits flush with the container's left edge.
       )}
+      onMouseEnter={revealChips}
+      onFocus={revealChips}
     >
       {/*
         Chip container's bottom-left corner sits INSIDE the hover zone:
@@ -412,6 +437,21 @@ export const EntityBadge = ({
             Owner
           </Link>
         )}
+
+        {/* Forward-resolved ETH address — copies the full address on click.
+            Hidden entirely when the name has no address record. */}
+        {isResolvableName &&
+          (isResolvingAddress ? (
+            <span className={cn(chipClass, 'cursor-default')}>
+              <Spinner className="size-3.25" />
+            </span>
+          ) : forwardAddress ? (
+            <CopyChip
+              value={forwardAddress}
+              label={truncateAddress(forwardAddress, 6, 5, '...')}
+              icon={<ChipWalletIcon className="size-3.25" />}
+            />
+          ) : null)}
 
         {variant === 'address' && address && (
           <Link
