@@ -16,9 +16,13 @@ import { usePublicClient } from 'wagmi'
  */
 export type GasEstimateStatus = 'idle' | 'loading' | 'error' | 'success'
 
-// A gas estimate only goes stale as the base fee moves, which is per-block, so
-// caching for roughly one block avoids re-hitting the RPC on every render/focus.
-const ONE_BLOCK_MS = 12_000
+// Freeze the preview: the estimate is computed once when the modal opens and
+// held stable rather than silently refetched. A background refetch would flash
+// the cached number and then jump to a fresher one as the base fee moved, which
+// reads as glitchy. It's still re-estimated for real when the step starts (the
+// gas query key flips on `activeRequest`), and react-query drops the cache a few
+// minutes after the modal closes, so a later session recomputes fresh.
+const PREVIEW_STALE_TIME = Number.POSITIVE_INFINITY
 
 // Gas costs are tiny ETH amounts; `formatEther` alone yields an 18-decimal
 // string. Round to a few significant digits for a readable "Est. cost".
@@ -37,7 +41,7 @@ const useFeePerGas = (chainId: number | undefined): UseQueryResult<bigint> => {
   return useQuery({
     queryKey: ['tx-fee-per-gas', chainId],
     enabled: Boolean(publicClient),
-    staleTime: ONE_BLOCK_MS,
+    staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
     retry: false,
     queryFn: async (): Promise<bigint> => {
@@ -90,7 +94,7 @@ export const useTransactionGasEstimate = (
       Boolean(activeRequest),
     ],
     enabled: Boolean(eoa?.to && eoa?.data && publicClient && !receipt),
-    staleTime: ONE_BLOCK_MS,
+    staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
     retry: false,
     queryFn: async (): Promise<bigint> => {
