@@ -1,6 +1,7 @@
 import { ChildFuses, FullParentFuses } from '@ensdomains/ensjs/utils'
 import { type Address, isAddress } from 'viem'
 import { isKnownPublicResolver } from '../contracts/knownResolvers'
+import { GRACE_PERIOD_SECONDS } from './constants'
 import type { V1Domain } from './v1SubgraphClient'
 
 const toAddress = (s: string | null | undefined): Address | null => {
@@ -105,9 +106,19 @@ const hasExpiredDotEthRegistration = (
   nowSeconds: bigint,
 ): boolean => {
   if (parentName !== 'eth') return false
-  const expiryDate = domain.registration?.expiryDate
-  if (!expiryDate) return false
-  return BigInt(expiryDate) <= nowSeconds
+  const registrationExpiry = domain.registration?.expiryDate
+  if (registrationExpiry) return BigInt(registrationExpiry) <= nowSeconds
+  // Fall back to the wrapper expiry only while the name is genuinely in its
+  // grace period: `wrapperExpiry - GRACE <= now < wrapperExpiry`. A wrapper
+  // expiry fully in the past means the wrapper is stale/expired (the name has
+  // reverted to its registrant) — not a grace-period registration — so it must
+  // not be flagged here.
+  const wrappedExpiry = domain.wrappedDomain?.expiryDate
+  if (wrappedExpiry) {
+    const expiry = BigInt(wrappedExpiry)
+    return expiry - GRACE_PERIOD_SECONDS <= nowSeconds && nowSeconds < expiry
+  }
+  return false
 }
 
 export const classifyName = (

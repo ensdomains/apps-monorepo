@@ -53,7 +53,7 @@ export const PaymentTokenSection = ({
       <PaymentTokenPicker
         name={name}
         duration={duration}
-        isRegistering={isRegistering}
+        isSubmitting={isRegistering}
         onSelectionChange={setSelectedTokenData}
       />
       <Button
