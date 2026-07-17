@@ -10,6 +10,18 @@ const contractNameRef = vi.hoisted(() => ({
   current: undefined as string | undefined,
 }))
 
+const ensAddressRef = vi.hoisted(() => ({
+  current: { data: undefined as unknown, isLoading: false },
+}))
+
+// Captures the params of the latest useEnsAddress call so tests can assert
+// what the component asked for (normalized name, lazy `enabled` gating).
+const ensAddressParamsRef = vi.hoisted(() => ({
+  current: undefined as
+    | { name?: string; query?: { enabled?: boolean } }
+    | undefined,
+}))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({
     to,
@@ -39,7 +51,10 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('wagmi', () => ({
   useChainId: () => 1,
-  useEnsAddress: () => ({ data: undefined, isLoading: false }),
+  useEnsAddress: (params: { name?: string; query?: { enabled?: boolean } }) => {
+    ensAddressParamsRef.current = params
+    return ensAddressRef.current
+  },
 }))
 
 vi.mock('@/features/profile/components/NameAvatar', () => ({
@@ -61,6 +76,8 @@ vi.mock('@/utils/ens/ensContractNames', () => ({
 beforeEach(() => {
   queryRef.current = { data: undefined, isLoading: false }
   contractNameRef.current = undefined
+  ensAddressRef.current = { data: undefined, isLoading: false }
+  ensAddressParamsRef.current = undefined
 })
 
 const { EntityBadge } = await import('./EntityBadge')
@@ -265,6 +282,79 @@ describe('EntityBadge hover chips', () => {
     // Chip surfaces the contract name as both label and copy value.
     const contractNameChip = screen.getByText('ENS Public Resolver')
     expect(contractNameChip.closest('button')).not.toBeNull()
+  })
+})
+
+describe('EntityBadge forward-resolution address chip', () => {
+  it('resolution is disabled until the badge is hovered, then enabled', () => {
+    const { container } = render(
+      <EntityBadge variant="name" name="alice.eth">
+        alice-content
+      </EntityBadge>,
+    )
+    expect(ensAddressParamsRef.current?.name).toBe('alice.eth')
+    expect(ensAddressParamsRef.current?.query?.enabled).toBe(false)
+
+    fireEvent.mouseEnter(container.firstElementChild as Element)
+    expect(ensAddressParamsRef.current?.query?.enabled).toBe(true)
+  })
+
+  it('shows a copyable truncated address chip when the name resolves', async () => {
+    ensAddressRef.current = { data: TEST_ADDRESS, isLoading: false }
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      writable: true,
+      configurable: true,
+    })
+
+    render(
+      <EntityBadge variant="name" name="alice.eth">
+        alice-content
+      </EntityBadge>,
+    )
+    const chip = screen.getByText('0x1234...67890').closest('button')
+    expect(chip).not.toBeNull()
+
+    await act(async () => {
+      fireEvent.click(chip as HTMLButtonElement)
+    })
+    // Chip shows the truncated address but copies the full one.
+    expect(writeText).toHaveBeenCalledWith(TEST_ADDRESS)
+  })
+
+  it('shows a spinner while the address is resolving', () => {
+    ensAddressRef.current = { data: undefined, isLoading: true }
+    render(
+      <EntityBadge variant="name" name="alice.eth">
+        alice-content
+      </EntityBadge>,
+    )
+    expect(screen.getByRole('status')).toBeInTheDocument()
+  })
+
+  it('renders no address chip when the name has no address record', () => {
+    render(
+      <EntityBadge variant="name" name="alice.eth">
+        alice-content
+      </EntityBadge>,
+    )
+    // Only the name's Copy chip remains as a button.
+    const buttons = screen.getAllByRole('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]).toHaveTextContent('Copy')
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('does not resolve TLDs', () => {
+    render(
+      <EntityBadge variant="name" name="eth">
+        eth-content
+      </EntityBadge>,
+    )
+    // Query stays disabled with no name to resolve.
+    expect(ensAddressParamsRef.current?.name).toBeUndefined()
+    expect(ensAddressParamsRef.current?.query?.enabled).toBe(false)
   })
 })
 
