@@ -1,3 +1,4 @@
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import { REFERER_ADDRESS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { renewNameWriteParameters } from '@ensdomains/ensjs/wallet'
@@ -142,6 +143,32 @@ function approveLabel(tokenSymbol: string, renewer: Address): string {
   return `Approve ${tokenSymbol} for ${isV2 ? 'v2' : 'v1'} renewal`
 }
 
+// Shared builder: the ERC-20 approval intent used by BOTH the pre-start gas
+// estimate and the submit path, so the estimated call is byte-identical to what
+// gets sent. Approves 2× the price for headroom against price drift.
+function buildApproveIntent(params: {
+  from: Address
+  tokenAddress: Address
+  renewer: Address
+  tokenPrice: bigint
+}): CustomTransactionIntent {
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: params.from,
+      to: params.tokenAddress,
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: 'approve',
+        args: [params.renewer, params.tokenPrice * 2n],
+      }),
+      value: 0n,
+      chainId: sepoliaWithEns.id,
+    },
+  }
+}
+
 function buildApproveTransaction(
   params: ApproveParams,
   signer: Signer,
@@ -149,26 +176,15 @@ function buildApproveTransaction(
   // approvals pass skipClear so they don't stop/clear the already-completed one.
   { skipClear = false }: { skipClear?: boolean } = {},
 ) {
-  const approveData = encodeFunctionData({
-    abi: erc20Abi,
-    functionName: 'approve',
-    args: [params.renewer, params.tokenPrice * 2n],
-  })
-
   if (!skipClear) transactionManager.clear()
 
   transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: params.from,
-        to: params.tokenAddress,
-        data: approveData,
-        value: 0n,
-        chainId: sepoliaWithEns.id,
-      },
-    },
+    buildApproveIntent({
+      from: params.from,
+      tokenAddress: params.tokenAddress,
+      renewer: params.renewer,
+      tokenPrice: params.tokenPrice,
+    }),
     signer,
     {
       id: RENEWAL_TX_IDS.approve(params.renewer),
@@ -178,21 +194,20 @@ function buildApproveTransaction(
   )
 }
 
-function buildRenewTransaction(params: RenewParams, signer: Signer) {
+// Shared builder: the renew intent used by BOTH the pre-start gas estimate and
+// the submit path. `renewNameWriteParameters` is a pure encode (no network I/O);
+// the client only supplies chain contract addresses.
+function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
   // ensjs splits the label without normalizing, so pass a normalized 2LD name.
-  const renewArgs = {
-    name: `${getLabel(params.name)}.eth`,
-    duration: BigInt(params.duration),
-    paymentToken: params.tokenAddress,
-    referrer: REFERER_ADDRESS,
-  }
-
   const writeParams = renewNameWriteParameters(
     params.publicClient as unknown as Parameters<
       typeof renewNameWriteParameters
     >[0],
     {
-      ...renewArgs,
+      name: `${getLabel(params.name)}.eth`,
+      duration: BigInt(params.duration),
+      paymentToken: params.tokenAddress,
+      referrer: REFERER_ADDRESS,
       contract: params.isV2 ? 'ensEthRegistrar' : 'ensEthRenewerV1',
     },
   )
@@ -203,25 +218,25 @@ function buildRenewTransaction(params: RenewParams, signer: Signer) {
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: params.from,
-        to: writeParams.address,
-        data: renewData,
-        value: 0n,
-        chainId: sepoliaWithEns.id,
-      },
+  return {
+    type: 'custom',
+    request: {
+      type: 'eoa',
+      from: params.from,
+      to: writeParams.address,
+      data: renewData,
+      value: 0n,
+      chainId: sepoliaWithEns.id,
     },
-    signer,
-    {
-      id: RENEWAL_TX_IDS.renew(params.name),
-      publicClient: params.publicClient,
-      description: `Renew ${params.name}`,
-    },
-  )
+  }
+}
+
+function buildRenewTransaction(params: RenewParams, signer: Signer) {
+  transactionManager.startTransaction(buildRenewIntent(params), signer, {
+    id: RENEWAL_TX_IDS.renew(params.name),
+    publicClient: params.publicClient,
+    description: `Renew ${params.name}`,
+  })
 }
 
 // One ordered step of a multi-renew batch: its display metadata plus the action
@@ -231,6 +246,7 @@ type FlowStep = {
   readonly id: string
   readonly title: string
   readonly transactionName: string
+  readonly prepareIntent?: Transaction['prepareIntent']
   readonly action: () => Promise<void>
 }
 
@@ -245,54 +261,85 @@ function buildMultiTransactions({
 
   // Pure planner decides the ordered approve-then-renew steps (and which
   // approvals are needed / skipClear); we only wrap each into a Transaction.
-  const flowSteps: FlowStep[] = planMultiRenewSteps(renewals, payments).map(
-    (step) =>
-      step.kind === 'approve'
-        ? {
-            id: RENEWAL_TX_IDS.approve(step.renewer),
-            title: 'Approve payment',
-            transactionName: approveLabel(tokenSymbol, step.renewer),
-            action: async () => {
-              const signer = await getSigner()
-              buildApproveTransaction(
-                {
-                  from,
-                  tokenAddress,
-                  tokenPrice: step.total,
-                  tokenSymbol,
-                  publicClient,
-                  renewer: step.renewer,
-                },
-                signer,
-                { skipClear: step.skipClear },
-              )
-            },
-          }
-        : {
-            id: RENEWAL_TX_IDS.renew(step.name),
-            title: `Extend ${step.name}`,
-            transactionName: `Extend ${step.name}`,
-            action: async () => {
-              const signer = await getSigner()
-              buildRenewTransaction(
-                {
+  const plannedSteps = planMultiRenewSteps(renewals, payments)
+
+  // A renew reverts on a live estimate until its renewer is approved, so only
+  // renews whose renewer has NO pending approval in this batch are estimable
+  // up front; the rest estimate the moment their approval step completes.
+  const renewersPendingApproval = new Set(
+    plannedSteps
+      .filter((step) => step.kind === 'approve')
+      .map((step) => step.renewer),
+  )
+
+  const flowSteps: FlowStep[] = plannedSteps.map((step) =>
+    step.kind === 'approve'
+      ? {
+          id: RENEWAL_TX_IDS.approve(step.renewer),
+          title: 'Approve payment',
+          transactionName: approveLabel(tokenSymbol, step.renewer),
+          prepareIntent: ({ walletClient }) =>
+            buildApproveIntent({
+              from: walletClient.account.address,
+              tokenAddress,
+              renewer: step.renewer,
+              tokenPrice: step.total,
+            }),
+          action: async () => {
+            const signer = await getSigner()
+            buildApproveTransaction(
+              {
+                from,
+                tokenAddress,
+                tokenPrice: step.total,
+                tokenSymbol,
+                publicClient,
+                renewer: step.renewer,
+              },
+              signer,
+              { skipClear: step.skipClear },
+            )
+          },
+        }
+      : {
+          id: RENEWAL_TX_IDS.renew(step.name),
+          title: `Extend ${step.name}`,
+          transactionName: `Extend ${step.name}`,
+          prepareIntent: renewersPendingApproval.has(
+            getRenewerAddress(step.isV2),
+          )
+            ? undefined
+            : ({ walletClient }) =>
+                buildRenewIntent({
                   name: step.name,
                   duration: step.duration,
                   tokenAddress,
-                  from,
+                  from: walletClient.account.address,
                   publicClient,
                   isV2: step.isV2,
-                },
-                signer,
-              )
-            },
+                }),
+          action: async () => {
+            const signer = await getSigner()
+            buildRenewTransaction(
+              {
+                name: step.name,
+                duration: step.duration,
+                tokenAddress,
+                from,
+                publicClient,
+                isV2: step.isV2,
+              },
+              signer,
+            )
           },
+        },
   )
 
   return flowSteps.map((step, i) => ({
     id: step.id,
     title: step.title,
     transactionName: step.transactionName,
+    prepareIntent: step.prepareIntent,
     onStart: step.action,
     onDone: i < flowSteps.length - 1 ? flowSteps[i + 1].action : handleDone,
   }))
@@ -420,10 +467,27 @@ export const useRenewalTransactions = ({
       })
     })
     .with({ kind: 'single' }, (single) => {
+      const renewer = getRenewerAddress(single.selectedName.isV2)
+
       const renewTx: Transaction = {
         id: RENEWAL_TX_IDS.renew(single.selectedName.name),
         title: `Extend ${single.selectedName.name}`,
         transactionName: `Extend ${single.selectedName.name}`,
+        // Renew pulls the ERC-20 payment, so a live estimate reverts until the
+        // allowance covers the price. Estimate only when it already does;
+        // otherwise it estimates the moment the approval step completes.
+        prepareIntent:
+          publicClient && single.tokenAllowance >= single.tokenPrice
+            ? ({ walletClient }) =>
+                buildRenewIntent({
+                  name: single.selectedName.name,
+                  duration: single.duration,
+                  tokenAddress: single.tokenAddress,
+                  from: walletClient.account.address,
+                  publicClient,
+                  isV2: single.selectedName.isV2,
+                })
+            : undefined,
         onStart: handleRenewStart,
         onDone: handleDone,
       }
@@ -431,12 +495,16 @@ export const useRenewalTransactions = ({
       if (single.tokenAllowance >= single.tokenPrice) return [renewTx]
 
       const approveTx: Transaction = {
-        id: RENEWAL_TX_IDS.approve(getRenewerAddress(single.selectedName.isV2)),
+        id: RENEWAL_TX_IDS.approve(renewer),
         title: 'Approve payment',
-        transactionName: approveLabel(
-          single.tokenSymbol,
-          getRenewerAddress(single.selectedName.isV2),
-        ),
+        transactionName: approveLabel(single.tokenSymbol, renewer),
+        prepareIntent: ({ walletClient }) =>
+          buildApproveIntent({
+            from: walletClient.account.address,
+            tokenAddress: single.tokenAddress,
+            renewer,
+            tokenPrice: single.tokenPrice,
+          }),
         onStart: handleApproveStart,
         onDone: handleRenewStart,
       }
