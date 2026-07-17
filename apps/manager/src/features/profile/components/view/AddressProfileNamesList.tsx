@@ -270,6 +270,7 @@ export const AddressProfileNamesList = ({
   })
     .with({ isPending: true }, () => (
       <>
+        {/* border-b-[0.5px]: sub-pixel hairline divider per Figma — no design token */}
         <div className="border-ens-quartz-250 border-b-[0.5px] py-8">
           <NameRowSkeleton />
         </div>
@@ -311,7 +312,7 @@ export const AddressProfileNamesList = ({
 
         return (
           <motion.div
-            className="border-ens-quartz-250 border-b-[0.5px] py-8 last:border-none"
+            className="border-ens-quartz-250 border-b-[0.5px] py-8 last:border-none" // sub-pixel hairline divider per Figma — no design token
             key={name.key}
             {...(shouldReduceMotion
               ? {}
@@ -363,16 +364,20 @@ export const AddressProfileNamesList = ({
     )
 
   return (
-    <div className="w-full rounded-none border-[#dededf] border-[0.25px] bg-white px-4 py-6 shadow-none md:rounded-xl md:px-6 md:py-8">
+    <div
+      className="w-full rounded-none border-[#dededf] border-[0.25px] bg-white px-4 py-6 shadow-none md:rounded-xl md:px-6 md:py-8" // Figma-spec hairline width and border colour — no matching design tokens
+    >
       {isConnectedView ? (
         <div className="mb-5 flex w-full flex-col items-start gap-5">
           <div className="flex w-full flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <h2 className="font-sans text-[#232222] text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]">
+            <h2
+              className="font-sans text-[#232222] text-[20px] leading-[0.96] tracking-[0.2px] md:text-[28px] md:tracking-[0.28px]" // Figma-spec heading colour/size/tracking — no matching design tokens
+            >
               <Trans>Names</Trans>
             </h2>
             <div className="w-full md:w-88">
               <Input
-                className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350 focus-visible:ring-0"
+                className="h-10 rounded-full border-none bg-ens-white pl-10 text-base text-foreground tracking-[-0.32px] shadow-none placeholder:text-ens-quartz-350"
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={t`Search names`}
                 startIcon={
@@ -404,7 +409,9 @@ export const AddressProfileNamesList = ({
           </div>
 
           {showSelection ? (
-            <div className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]">
+            <div
+              className="inline-flex h-8 items-center gap-0.5 rounded-full text-[#232222]" // Figma-spec text colour — no matching design token
+            >
               <SelectionCheckbox
                 checked={allPageSelected}
                 label={t`Select all`}

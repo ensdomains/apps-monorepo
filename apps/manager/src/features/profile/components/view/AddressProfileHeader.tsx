@@ -32,7 +32,9 @@ const AddressBadge = ({ address }: { readonly address: Address }) => {
   return (
     <div className="inline-flex h-13.5 max-w-full items-center rounded border border-ens-quartz-700">
       <div className="flex h-12 items-center px-3 py-2">
-        <span className="truncate font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px]">
+        <span
+          className="truncate font-semi-mono text-[28px] text-ens-quartz-900 leading-[0.96] tracking-[-0.56px] md:text-[32px] md:tracking-[-0.64px]" // Figma-spec type size/tracking — no matching design tokens
+        >
           {truncateAddress(address)}
         </span>
         <button
@@ -75,10 +77,6 @@ const useAddressProfileHeaderData = ({
   const owner = isV1Primary
     ? address
     : (ownerData?.owner as Address | undefined)
-  const { data: ownerReverseName } = useQuery({
-    ...profileReverseNameQuery(owner),
-    enabled: useChainMetadata && !!owner,
-  })
   const { data: registration } = useQuery({
     ...profileRegistrationQuery(primaryName ?? '', ownerData?.protocol),
     enabled: useChainMetadata,
@@ -99,7 +97,6 @@ const useAddressProfileHeaderData = ({
   const registrationDate = isV1Primary
     ? primaryEntry?.createdAt
     : registration?.registrationDate
-  const resolvedOwnerReverseName = isV1Primary ? primaryName : ownerReverseName
   const records = profileRecords
     ? transformProfileRecords(profileRecords)
     : null
@@ -115,12 +112,44 @@ const useAddressProfileHeaderData = ({
     owner,
     expiry,
     registrationDate,
-    resolvedOwnerReverseName,
     records,
     themeVars,
     themeColor,
     avatarUrl,
   }
+}
+
+/**
+ * Owns the reverse-name query, which depends on the owner resolved by the
+ * parent's owner query — split into its own component to avoid a query
+ * waterfall inside a single hook.
+ */
+const AddressProfileDetailsSection = ({
+  primaryName,
+  isV1Primary,
+  owner,
+  displayExpiryDate,
+  registrationDate,
+}: {
+  readonly primaryName: string
+  readonly isV1Primary: boolean
+  readonly owner?: Address
+  readonly displayExpiryDate?: Date | null
+  readonly registrationDate?: number | null
+}) => {
+  const { data: ownerReverseName } = useQuery({
+    ...profileReverseNameQuery(owner),
+    enabled: !isV1Primary && !!owner,
+  })
+
+  return (
+    <ProfileViewNewDetails
+      displayExpiryDate={displayExpiryDate}
+      owner={owner}
+      ownerReverseName={isV1Primary ? primaryName : ownerReverseName}
+      registrationDate={registrationDate}
+    />
+  )
 }
 
 const AddressProfileAvatarSection = ({
@@ -143,7 +172,7 @@ const AddressProfileAvatarSection = ({
           <ProfileViewNewAvatar
             avatarLoading={false}
             avatarUrl={avatarUrl}
-            className="mx-auto size-38 rounded-xl shadow-none lg:landscape:mx-0 lg:landscape:size-[147px]"
+            className="mx-auto size-38 rounded-xl shadow-none lg:landscape:mx-0 lg:landscape:size-[147px]" // 147px avatar per Figma — not on the spacing scale
             name={primaryName}
           />
           <ProfileViewNewAbout records={records} />
@@ -182,7 +211,6 @@ export const AddressProfileHeader = ({
     owner,
     expiry,
     registrationDate,
-    resolvedOwnerReverseName,
     records,
     themeVars,
     themeColor,
@@ -196,7 +224,7 @@ export const AddressProfileHeader = ({
 
   return (
     <div
-      className="w-full space-y-[21.7px]"
+      className="w-full space-y-[21.7px]" // 21.7px section gap per Figma — not on the spacing scale
       style={themeVars as CSSProperties | undefined}
     >
       <div className="space-y-3.25">
@@ -204,7 +232,7 @@ export const AddressProfileHeader = ({
           <AddressBadge address={address} />
           {primaryName ? (
             <Link
-              className="inline-flex h-13.5 w-full items-center justify-center rounded border border-ens-quartz-900 px-4 font-medium font-mono text-ens-quartz-700 text-sm uppercase tracking-[1.12px] hover:bg-ens-quartz-50 sm:w-[185px]"
+              className="inline-flex h-13.5 w-full items-center justify-center rounded border border-ens-quartz-900 px-4 font-medium font-mono text-ens-quartz-700 text-sm uppercase tracking-[1.12px] hover:bg-ens-quartz-50 sm:w-[185px]" // Figma-spec tracking and fixed button width — no matching tokens
               params={{ name: primaryName }}
               to="/$name"
             >
@@ -214,10 +242,11 @@ export const AddressProfileHeader = ({
         </div>
 
         {primaryName ? (
-          <ProfileViewNewDetails
+          <AddressProfileDetailsSection
             displayExpiryDate={expiry.displayExpiryDate}
+            isV1Primary={isV1Primary}
             owner={owner}
-            ownerReverseName={resolvedOwnerReverseName}
+            primaryName={primaryName}
             registrationDate={registrationDate}
           />
         ) : null}

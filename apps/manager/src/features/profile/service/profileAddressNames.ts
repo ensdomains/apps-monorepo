@@ -33,7 +33,7 @@ const fetchAllV2DomainsForAddress = ResultFn(async function* (
   let skip = 0
 
   while (true) {
-    const page = yield* await getDomains({
+    const page = yield* getDomains({
       where: { owner: normalizedAddress },
       first: V2_NAMES_PAGE_SIZE,
       skip,
@@ -57,7 +57,7 @@ const fetchDomainsByNames = ResultFn(async function* (
   const domains: DomainFragment[] = []
   for (let i = 0; i < names.length; i += MANAGED_NAMES_CHUNK_SIZE) {
     const chunk = names.slice(i, i + MANAGED_NAMES_CHUNK_SIZE)
-    const page = yield* await getDomains({
+    const page = yield* getDomains({
       where: { name_in: [...chunk] },
       first: chunk.length,
     })
@@ -72,15 +72,15 @@ export const getProfileAddressNames = ResultFn(async function* (
 ) {
   const normalizedAddress = address.toLowerCase()
 
-  const v1Domains = yield* await getV1NamesForAddress(normalizedAddress)
-  const v2Domains = yield* await fetchAllV2DomainsForAddress(normalizedAddress)
-  const roleAssignments = yield* await fromPromise(
+  const v1Domains = yield* getV1NamesForAddress(normalizedAddress)
+  const v2Domains = yield* fetchAllV2DomainsForAddress(normalizedAddress)
+  const roleAssignments = yield* fromPromise(
     getDashboardRoleAssignments(normalizedAddress),
     (error) => new GetProfileAddressNamesError({ cause: error }),
   )
 
   const managedOnlyNames = getManagedOnlyRoleNames(v2Domains, roleAssignments)
-  const managedV2Domains = yield* await fetchDomainsByNames(managedOnlyNames)
+  const managedV2Domains = yield* fetchDomainsByNames(managedOnlyNames)
 
   const names = buildProfileAddressNames({
     address: normalizedAddress,

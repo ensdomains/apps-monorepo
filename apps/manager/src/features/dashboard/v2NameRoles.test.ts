@@ -93,4 +93,26 @@ describe('applyProfileV2RoleAssignments', () => {
       'manager',
     ])
   })
+
+  it('dedupes managed domains that overlap an owned domain under any name key', () => {
+    // Managed domain has no `name`, so resolveDomainLabel falls back to its
+    // id, while its normalizedName still matches the owned domain.
+    const managedDomain = {
+      ...makeDomain({
+        id: '0xmanaged',
+        owner: { __typename: 'Account', id: '0xother' },
+      }),
+      name: null,
+      normalizedName: 'henlo.eth',
+    } as DomainFragment
+
+    const names = applyProfileV2RoleAssignments({
+      ownedDomains: [makeDomain({ name: 'henlo.eth', id: 'owned' })],
+      managedDomains: [managedDomain],
+      assignments: [{ name: 'henlo.eth', roleBitmap: '1' }],
+    })
+
+    expect(names).toHaveLength(1)
+    expect(names[0]?.nameRoles).toEqual(['owner', 'manager'])
+  })
 })

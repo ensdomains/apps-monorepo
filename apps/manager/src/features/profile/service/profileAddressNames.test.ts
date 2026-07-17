@@ -1,4 +1,4 @@
-import { ok } from 'neverthrow'
+import { okAsync } from 'neverthrow'
 import type { Address } from 'viem'
 import { assert, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDomains } from '@/features/dashboard/service/queries/getDashboardDomains'
@@ -25,8 +25,8 @@ vi.mock(
 const fixtureAddress = testAddress as Address
 
 beforeEach(() => {
-  vi.mocked(getV1NamesForAddress).mockResolvedValue(
-    ok(
+  vi.mocked(getV1NamesForAddress).mockReturnValue(
+    okAsync(
       testV1Names.map((name) => ({
         id: `v1-${name}`,
         labelName: name.replace('.eth', ''),
@@ -42,8 +42,8 @@ beforeEach(() => {
       })),
     ),
   )
-  vi.mocked(getDomains).mockResolvedValue(
-    ok({
+  vi.mocked(getDomains).mockReturnValue(
+    okAsync({
       domains: [
         {
           __typename: 'Domain',
@@ -134,8 +134,8 @@ describe('getProfileAddressNames', () => {
       { name: 'henlo.eth', roleBitmap: '1' },
     ])
     vi.mocked(getDomains)
-      .mockResolvedValueOnce(
-        ok({
+      .mockReturnValueOnce(
+        okAsync({
           domains: [
             {
               __typename: 'Domain',
@@ -154,8 +154,8 @@ describe('getProfileAddressNames', () => {
           ],
         }),
       )
-      .mockResolvedValueOnce(
-        ok({
+      .mockReturnValueOnce(
+        okAsync({
           domains: [
             {
               __typename: 'Domain',

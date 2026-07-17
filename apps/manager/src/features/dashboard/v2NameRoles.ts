@@ -83,17 +83,17 @@ export const applyV2RoleAssignments = (
   }))
 }
 
+const getDomainNameKeys = (domain: DomainFragment): readonly string[] =>
+  [resolveDomainLabel(domain), domain.normalizedName, domain.name]
+    .map(normalizeName)
+    .filter((name): name is string => !!name)
+
 const getOwnedDomainNameSet = (
   ownedDomains: readonly DomainFragment[],
 ): ReadonlySet<string> => {
   const names = new Set<string>()
   for (const domain of ownedDomains) {
-    const label = normalizeName(resolveDomainLabel(domain))
-    if (label) names.add(label)
-    const normalized = normalizeName(domain.normalizedName)
-    if (normalized) names.add(normalized)
-    const raw = normalizeName(domain.name)
-    if (raw) names.add(raw)
+    for (const key of getDomainNameKeys(domain)) names.add(key)
   }
   return names
 }
@@ -136,7 +136,10 @@ export const applyProfileV2RoleAssignments = ({
   const managed = managedDomains
     .filter((domain) => {
       const label = normalizeName(resolveDomainLabel(domain))
-      return !!label && !ownedNames.has(label)
+      if (!label) return false
+      // Check every name key (label, normalizedName, name) so a managed
+      // domain that overlaps an owned domain under any key is deduped.
+      return !getDomainNameKeys(domain).some((key) => ownedNames.has(key))
     })
     .map((domain) => ({
       ...domain,
