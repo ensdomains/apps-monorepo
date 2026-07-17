@@ -1,5 +1,6 @@
 import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
 import {
+  encodeDeployDedicatedResolverCall,
   REGISTRATION_TX_IDS,
   registrationMachine,
   transactionManager,
@@ -8,7 +9,13 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { type Address, erc20Abi } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  erc20Abi,
+  keccak256,
+  stringToBytes,
+} from 'viem'
 import {
   useConfig,
   useConnection,
@@ -181,6 +188,25 @@ export const useRegistrationTransactions = ({
         id: REGISTRATION_TX_IDS.deployResolver,
         title: 'Deploy resolver',
         transactionName: `Deploy resolver for ${name}`,
+        // Deploys the name's dedicated resolver via the shared package builder,
+        // so the estimate is byte-identical to what the machine submits. Uses a
+        // stable throwaway salt: deploy gas is salt-independent, and a
+        // name-derived salt never collides with a real (random-salt) deploy, so
+        // estimateGas won't revert on an already-deployed address.
+        prepareIntent: connection.address
+          ? ({ walletClient }) => ({
+              type: 'custom',
+              request: {
+                type: 'eoa',
+                from: walletClient.account.address,
+                ...encodeDeployDedicatedResolverCall({
+                  owner: connection.address as Address,
+                  salt: BigInt(keccak256(stringToBytes(`estimate:${name}`))),
+                }),
+                chainId,
+              },
+            })
+          : undefined,
         onStart: handleStart,
         onDone: handleProceed,
       },
@@ -198,6 +224,27 @@ export const useRegistrationTransactions = ({
         id: REGISTRATION_TX_IDS.approve,
         title: 'Approve payment',
         transactionName: `Approve ${savedParams?.tokenSymbol ?? 'token'} for registration`,
+        // A plain ERC-20 approval of the payment token to the registrar — known
+        // upfront (no dependency on an earlier step), so the modal can estimate
+        // it the moment it opens. approve gas is amount-independent, so the
+        // estimate holds even if the submitted allowance differs slightly.
+        prepareIntent: savedParams
+          ? ({ walletClient }) => ({
+              type: 'custom',
+              request: {
+                type: 'eoa',
+                from: walletClient.account.address,
+                to: savedParams.tokenAddress,
+                data: encodeFunctionData({
+                  abi: erc20Abi,
+                  functionName: 'approve',
+                  args: [ethRegistrar, savedParams.tokenPrice],
+                }),
+                value: 0n,
+                chainId,
+              },
+            })
+          : undefined,
         onStart: handleProceed,
         onDone: handleProceed,
       })
@@ -215,7 +262,8 @@ export const useRegistrationTransactions = ({
     return steps
   }, [
     name,
-    savedParams?.tokenSymbol,
+    connection.address,
+    savedParams,
     needsApproval,
     registerWaitUntil,
     handleStart,

@@ -449,24 +449,13 @@ export function submitResolverDeploymentActor(input: {
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
-      const initCalldata = getResolverInitCalldata(input.owner)
-
-      const deployCalldata = encodeFunctionData({
-        abi: VERIFIABLE_FACTORY_ABI,
-        functionName: 'deployProxy',
-        args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
-      })
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
-          {
-            to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
-            data: deployCalldata,
-            value: 0n,
-          },
+          encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
         sponsored: input.sponsored ?? true,
       })
@@ -490,6 +479,33 @@ export function submitResolverDeploymentActor(input: {
   ).mapErr(
     (error) => new Error(`Failed to submit resolver deployment: ${error}`),
   )
+}
+
+/**
+ * The `VerifiableFactory.deployProxy` call that deploys a name's dedicated
+ * resolver. Exported so the app can build the SAME deploy call for its pre-start
+ * gas estimate (wrapped as an EOA intent), keeping the estimate byte-identical
+ * to what {@link submitResolverDeploymentActor} submits — the encoding lives in
+ * one place and can't drift. Deploy gas is independent of the salt value, so the
+ * estimate may pass a stable throwaway salt.
+ */
+export function encodeDeployDedicatedResolverCall(input: {
+  owner: Address
+  salt: bigint
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+    data: encodeFunctionData({
+      abi: VERIFIABLE_FACTORY_ABI,
+      functionName: 'deployProxy',
+      args: [
+        ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+        input.salt,
+        getResolverInitCalldata(input.owner),
+      ],
+    }),
+    value: 0n,
+  }
 }
 
 /**
