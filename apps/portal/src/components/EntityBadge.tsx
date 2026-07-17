@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { CheckIcon } from 'lucide-react'
-import { type ReactNode, useEffect, useState } from 'react'
-import type { Address } from 'viem'
-import { zeroAddress } from 'viem'
-import { useChainId } from 'wagmi'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type Address, zeroAddress } from 'viem'
+import { normalize } from 'viem/ens'
+import { useChainId, useEnsAddress } from 'wagmi'
 import {
   ChipCopyIcon,
   ChipLinkIcon,
@@ -15,7 +15,6 @@ import {
 } from '@/assets/icons'
 import { Spinner } from '@/components/ui/spinner'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { getEnsAddressQueryOptions } from '@/hooks/useEnsAddress'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
@@ -201,10 +200,23 @@ export const EntityBadge = ({
   const [chipsRevealed, setChipsRevealed] = useState(false)
   const revealChips = () => setChipsRevealed(true)
   const isResolvableName = variant === 'name' && !!name && !isTLD(name)
-  const { data: forwardAddress, isLoading: isResolvingAddress } = useQuery({
-    ...getEnsAddressQueryOptions(name ?? ''),
-    enabled: isResolvableName && chipsRevealed,
-  })
+  // Names must be ENSIP-15 normalized before resolution; `normalize` throws
+  // on invalid names (badges receive arbitrary route-derived strings), and an
+  // unnormalizable name can't resolve, so treat it as having no address.
+  const normalizedName = useMemo(() => {
+    if (!isResolvableName || !name) return undefined
+    try {
+      return normalize(name)
+    } catch {
+      return undefined
+    }
+  }, [isResolvableName, name])
+  const { data: forwardAddress, isLoading: isResolvingAddress } = useEnsAddress(
+    {
+      name: normalizedName,
+      query: { enabled: !!normalizedName && chipsRevealed },
+    },
+  )
 
   const contractName =
     variant === 'contract' && address

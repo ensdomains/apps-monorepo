@@ -39,6 +39,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('wagmi', () => ({
   useChainId: () => 1,
+  useEnsAddress: () => ({ data: undefined, isLoading: false }),
 }))
 
 vi.mock('@/features/profile/components/NameAvatar', () => ({
@@ -51,16 +52,6 @@ vi.mock('@/hooks/useSupportsInterfaces', () => ({
     queryFn: async () => [false],
   }),
 }))
-
-// Mocked at the module level (like useSupportsInterfaces above) so the test
-// doesn't transitively import lib/wagmi's real createConfig via safeGetClient.
-vi.mock('@/hooks/useEnsAddress', () => ({
-  getEnsAddressQueryOptions: () => ({
-    queryKey: ['ens-address-mock'],
-    queryFn: async () => null,
-  }),
-}))
-
 vi.mock('@/utils/ens/ensContractNames', () => ({
   getEnsContractName: () => contractNameRef.current,
 }))
