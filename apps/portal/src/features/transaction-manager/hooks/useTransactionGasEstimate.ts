@@ -63,7 +63,9 @@ export const useTransactionGasEstimate = (
   actor: TransactionMachineActor | undefined,
   fallbackRequest?: TransactionRequest,
 ): { cost: string | null; status: GasEstimateStatus } => {
-  const activeRequest = actor?.getSnapshot().context.request
+  const snapshot = actor?.getSnapshot()
+  const activeRequest = snapshot?.context.request
+  const receipt = snapshot?.context.receipt
   const candidate =
     activeRequest?.type === 'eoa' ? activeRequest : fallbackRequest
   const eoa = candidate?.type === 'eoa' ? candidate : null
@@ -87,7 +89,7 @@ export const useTransactionGasEstimate = (
       // set by an earlier step) can succeed now that the prior step has run.
       Boolean(activeRequest),
     ],
-    enabled: Boolean(eoa?.to && eoa?.data && publicClient),
+    enabled: Boolean(eoa?.to && eoa?.data && publicClient && !receipt),
     staleTime: ONE_BLOCK_MS,
     refetchOnWindowFocus: false,
     retry: false,
@@ -101,6 +103,21 @@ export const useTransactionGasEstimate = (
       })
     },
   })
+
+  // A settled step shows its ACTUAL fee (gasUsed × effectiveGasPrice) from the
+  // receipt, never a live re-estimate. Re-estimating a finished call is
+  // meaningless, and for a non-repeatable call — e.g. the deterministic CREATE2
+  // subregistry deploy — it reverts once mined (the proxy now exists), which
+  // wrongly flipped a completed step from its cost to "Unavailable". Placed
+  // after the hooks above so hook order stays stable across renders.
+  if (receipt != null) {
+    return receipt.status === 'success'
+      ? {
+          cost: formatGasCost(receipt.gasUsed * receipt.effectiveGasPrice),
+          status: 'success',
+        }
+      : { cost: null, status: 'error' }
+  }
 
   const gas = gasQuery.data
   const feePerGas = feeQuery.data
