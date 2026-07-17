@@ -115,7 +115,7 @@ export const useTransactionGasEstimate = (
     gasQuery.fetchStatus === 'idle' && gasQuery.status === 'pending'
   const status: GasEstimateStatus = isIdle
     ? 'idle'
-    : gasQuery.isError || feeQuery.isError
+    : gasQuery.isError
       ? 'error'
       : cost != null
         ? 'success'

@@ -278,8 +278,9 @@ const EditRecordsContent = ({
       isTransactionModalOpen &&
       changesCount > 0 &&
       Boolean(walletClient?.account && walletClient?.chain),
-    staleTime: 0,
-    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    retry: 2,
     queryFn: () => {
       if (!walletClient) throw new Error('Wallet not connected')
       return prepareSaveRecordsTransaction({

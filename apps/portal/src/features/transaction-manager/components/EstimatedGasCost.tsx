@@ -94,7 +94,7 @@ export const EstimatedGasCost = ({
           label="Not yet"
           tip={
             !prepareIntent
-              ? "This step's cost is estimated once it starts — its call depends on the step before it (e.g. a freshly deployed address)."
+              ? "This step's cost is estimated once it starts — it can't be worked out ahead of time."
               : !readyWalletClient
                 ? 'Connect your wallet on Sepolia to see the estimate.'
                 : 'Preparing the estimate…'
