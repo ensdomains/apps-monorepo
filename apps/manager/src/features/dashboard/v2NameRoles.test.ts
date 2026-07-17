@@ -1,6 +1,10 @@
 import type { DomainFragment } from '@ens-apps/indexer'
 import { describe, expect, it } from 'vitest'
-import { applyV2RoleAssignments } from './v2NameRoles'
+import {
+  applyProfileV2RoleAssignments,
+  applyV2RoleAssignments,
+  getManagedOnlyRoleNames,
+} from './v2NameRoles'
 
 const makeDomain = (overrides: Partial<DomainFragment> = {}): DomainFragment =>
   ({
@@ -50,5 +54,43 @@ describe('applyV2RoleAssignments', () => {
     )
 
     expect(domain?.nameRoles).toEqual(['owner'])
+  })
+})
+
+describe('getManagedOnlyRoleNames', () => {
+  it('returns role names that are not already owned', () => {
+    expect(
+      getManagedOnlyRoleNames(
+        [makeDomain({ name: 'alaska.eth' })],
+        [
+          { name: 'alaska.eth', roleBitmap: '1' },
+          { name: 'dom.eth', roleBitmap: '2' },
+          { name: 'zero.eth', roleBitmap: '0' },
+        ],
+      ),
+    ).toEqual(['dom.eth'])
+  })
+})
+
+describe('applyProfileV2RoleAssignments', () => {
+  it('labels managed-only domains as manager and owned domains as owner', () => {
+    const names = applyProfileV2RoleAssignments({
+      ownedDomains: [makeDomain({ name: 'henlo.eth', id: 'owned' })],
+      managedDomains: [
+        makeDomain({
+          name: 'dom.eth',
+          id: 'managed',
+          owner: { __typename: 'Account', id: '0xother' },
+        }),
+      ],
+      assignments: [{ name: 'dom.eth', roleBitmap: '1' }],
+    })
+
+    expect(names.find((item) => item.name === 'henlo.eth')?.nameRoles).toEqual([
+      'owner',
+    ])
+    expect(names.find((item) => item.name === 'dom.eth')?.nameRoles).toEqual([
+      'manager',
+    ])
   })
 })
