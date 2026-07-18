@@ -85,6 +85,10 @@ msgstr "{label} theme"
 msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "{label}.eth is yours!"
+msgstr "{label}.eth is yours!"
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr "{migrated} out of {total} names upgraded"
@@ -465,6 +469,10 @@ msgstr "Card expiry date"
 msgid "Card number"
 msgstr "Card number"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Card payments are limited to $1,500. Pay with stablecoins for this amount."
+msgstr "Card payments are limited to $1,500. Pay with stablecoins for this amount."
+
 #: src/features/payment/components/add.tsx
 msgid "Card security code"
 msgstr "Card security code"
@@ -492,6 +500,10 @@ msgstr "Checking wallet connection..."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
 msgstr "Checking whether a payment approval is needed"
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Checkout failed"
+msgstr "Checkout failed"
 
 #: src/features/profile/components/sections/ThemeSection.tsx
 msgid "Choose a color for your profile"
@@ -529,6 +541,7 @@ msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
 msgid "Close"
 msgstr "Close"
 
@@ -575,6 +588,10 @@ msgstr "Complete upgrade and receive a collectible marking your place in ENS his
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 msgid "Complete your profile"
 msgstr "Complete your profile"
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Completing your registration…"
+msgstr "Completing your registration…"
 
 #: src/features/payment/components/add.tsx
 #: src/routes/auto-renewal/index.tsx
@@ -835,6 +852,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
 #: src/features/migration/components/SuccessModal.tsx
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
 msgid "Done"
 msgstr "Done"
 
@@ -1588,6 +1606,10 @@ msgstr "Page not found"
 msgid "Pay with Apple"
 msgstr "Pay with Apple"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Pay with card"
+msgstr "Pay with card"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Pay with credit card"
 msgstr "Pay with credit card"
@@ -1669,6 +1691,10 @@ msgstr "Preferences updated"
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Preparing account"
 msgstr "Preparing account"
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Preparing checkout…"
+msgstr "Preparing checkout…"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx

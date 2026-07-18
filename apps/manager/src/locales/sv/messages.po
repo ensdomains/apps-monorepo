@@ -90,6 +90,10 @@ msgstr ""
 msgid "{label} theme (selected)"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "{label}.eth is yours!"
+msgstr ""
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr ""
@@ -470,6 +474,10 @@ msgstr ""
 msgid "Card number"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Card payments are limited to $1,500. Pay with stablecoins for this amount."
+msgstr ""
+
 #: src/features/payment/components/add.tsx
 msgid "Card security code"
 msgstr ""
@@ -496,6 +504,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Checkout failed"
 msgstr ""
 
 #: src/features/profile/components/sections/ThemeSection.tsx
@@ -534,6 +546,7 @@ msgstr ""
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
 msgid "Close"
 msgstr ""
 
@@ -579,6 +592,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 msgid "Complete your profile"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Completing your registration…"
 msgstr ""
 
 #: src/features/payment/components/add.tsx
@@ -840,6 +857,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
 msgid "Done"
 msgstr ""
 
@@ -1593,6 +1611,10 @@ msgstr ""
 msgid "Pay with Apple"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Pay with card"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Pay with credit card"
 msgstr ""
@@ -1673,6 +1695,10 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Preparing account"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Preparing checkout…"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
