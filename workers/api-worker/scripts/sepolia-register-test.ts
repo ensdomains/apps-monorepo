@@ -15,18 +15,18 @@
  */
 import { parseAbi, parseUnits } from 'viem'
 import {
+  assertCommitmentMatchesChain,
   authorizedPaymentAmount,
   createServerWalletClient,
   deployDedicatedResolver,
   ensureTokenAllowance,
   generateSecret,
   getRegisterPriceTotal,
-  makeCommitment,
   PAYMENT_TOKENS,
+  precomputeOrderCommitment,
   readMinCommitmentAge,
   submitCommit,
   submitRegister,
-  transferName,
   verifyRegistration,
 } from '#services/crossmint/fulfilment.js'
 
@@ -74,24 +74,36 @@ async function main() {
   await client.waitForTransactionReceipt({ hash: mintHash })
   console.log('    minted, tx:', mintHash)
 
-  // 1) Deploy the buyer's dedicated resolver (buyer-owned; independent of who
-  // owns the name).
-  console.log('\n[1] deploying dedicated resolver...')
-  const resolver = await deployDedicatedResolver(client, BUYER)
-  console.log('    resolver:', resolver)
-
-  // 2) Commitment — owner = the SERVER (payer), since the registrar charges the
-  // owner and the buyer has no on-chain funds.
-  console.log('\n[2] makeCommitment...')
+  // 1) Fix the buyer-bound commitment + counterfactual resolver at "order time"
+  // (this is what the /orders route does and stores on the voucher).
+  console.log('\n[1] precompute commitment + resolver (owner = buyer)...')
   const secret = generateSecret()
-  const commitment = await makeCommitment(client, {
+  const { resolver, commitment } = await precomputeOrderCommitment(client, {
     label,
-    owner: payer,
+    buyer: BUYER,
     secret,
-    resolver,
     duration,
   })
+  console.log('    resolver (counterfactual):', resolver)
   console.log('    commitment:', commitment)
+
+  // 2) Deploy the resolver at exactly that address; assert precompute matched.
+  console.log('\n[2] deploy dedicated resolver...')
+  const deployed = await deployDedicatedResolver(client, {
+    owner: BUYER,
+    secret,
+    expectedResolver: resolver,
+  })
+  console.log('    deployed:', deployed, '(matches precompute)')
+  await assertCommitmentMatchesChain(client, {
+    label,
+    owner: BUYER,
+    secret,
+    resolver: deployed,
+    duration,
+    expected: commitment,
+  })
+  console.log('    commitment matches on-chain makeCommitment ✓')
 
   // 3) Commit.
   console.log('\n[3] commit...')
@@ -118,21 +130,17 @@ async function main() {
   })
   console.log('    approved')
 
-  // 6) Register to the server (payer pays), then deliver the name to the buyer.
-  console.log('\n[6] register (owner = server)...')
+  // 6) Register straight to the buyer — the payer (msg.sender) funds it.
+  console.log('\n[6] register (owner = buyer, payer funds)...')
   const { hash: registerTx, tokenId } = await submitRegister(client, {
     label,
-    owner: payer,
+    owner: BUYER,
     secret,
-    resolver,
+    resolver: deployed,
     duration,
     paymentToken: usdc,
   })
   console.log('    register tx:', registerTx, 'tokenId:', tokenId.toString())
-
-  console.log('\n[6b] transferring name to buyer...')
-  const transferTx = await transferName(client, { tokenId, to: BUYER })
-  console.log('    transfer tx:', transferTx)
 
   // 7) Verify the buyer now owns the name token.
   console.log('\n[7] verify...')

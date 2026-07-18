@@ -22,17 +22,19 @@
  * the fulfilment surface:
  *
  *   ETHRegistrar.commit(bytes32)                     wildcard (harmless writes)
- *   ETHRegistrar.register(...)                       owner == Safe, duration <= cap,
+ *   ETHRegistrar.register(...)                       duration <= cap,
  *                                                    paymentToken in {USDC, DAI}
  *   USDC/DAI.approve(spender, amount)                spender == registrar, amount <= cap
- *   Registry.safeTransferFrom(from, ...)             from == Safe (name delivery)
  *   VerifiableFactory.deployProxy(...)               wildcard (resolver deploys)
  *   Voucher.burn(uint256)                            wildcard (post-delivery burn)
  *
+ * Names register straight to the buyer (the registrar charges msg.sender = the
+ * Safe, not the owner arg), so there is no registry transfer in the role and the
+ * register `owner` is unconstrained. The blast radius of a leaked worker key is
+ * the Safe's standing registrar allowance: at worst it registers junk names to
+ * arbitrary owners (recoverable value is only the allowance, capped below).
  * Everything else — token transfers out, approvals to arbitrary spenders,
- * delegatecalls, ETH value — is not in the role, so a leaked worker key can at
- * worst spend the Safe's standing registrar allowance on junk registrations
- * that land IN the Safe. Revoke = one `revokeRole` tx from the Safe.
+ * delegatecalls, ETH value — is not in the role. Revoke = one `revokeRole` tx.
  */
 import { writeFileSync } from 'node:fs'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
@@ -50,7 +52,6 @@ import {
   toHex,
 } from 'viem'
 import {
-  ENS_REGISTRY_ABI,
   ETH_REGISTRAR_ABI,
   VERIFIABLE_FACTORY_ABI,
   VOUCHER_ABI,
@@ -79,7 +80,6 @@ const TARGETS = {
   registrar: contracts.ensEthRegistrar.address,
   usdc: contracts.usdc.address,
   dai: contracts.dai.address,
-  registry: contracts.ensRegistry.address,
   factory: contracts.ensVerifiableFactory.address,
   voucher: VOUCHER_ADDRESS as Address,
 } as const
@@ -99,7 +99,6 @@ const Operator = {
   Pass: 0,
   Or: 2,
   Matches: 5,
-  EqualToAvatar: 15,
   EqualTo: 16,
   LessThan: 18,
 } as const
@@ -132,7 +131,7 @@ const DURATION_BOUND = MAX_YEARS * 365n * 24n * 60n * 60n + 1n // LessThan => du
 const registerConditions: ConditionFlat[] = [
   node(0, ParamType.Calldata, Operator.Matches), // 0: root
   node(0, ParamType.Dynamic, Operator.Pass), //     1: label (any)
-  node(0, ParamType.Static, Operator.EqualToAvatar), // 2: owner MUST be the Safe
+  node(0, ParamType.Static, Operator.Pass), //      2: owner = buyer (any; charge hits msg.sender)
   node(0, ParamType.Static, Operator.Pass), //      3: secret (any)
   node(0, ParamType.Static, Operator.Pass), //      4: subregistry (any)
   node(0, ParamType.Static, Operator.Pass), //      5: resolver (any)
@@ -151,16 +150,6 @@ const approveConditions = (cap: bigint): ConditionFlat[] => [
   node(0, ParamType.Static, Operator.LessThan, uintWord(cap + 1n)), // 2: amount <= cap
 ]
 
-// safeTransferFrom(address from, address to, uint256 id, uint256 value, bytes data)
-const transferConditions: ConditionFlat[] = [
-  node(0, ParamType.Calldata, Operator.Matches), // 0: root
-  node(0, ParamType.Static, Operator.EqualToAvatar), // 1: from MUST be the Safe
-  node(0, ParamType.Static, Operator.Pass), //      2: to (the buyer — any)
-  node(0, ParamType.Static, Operator.Pass), //      3: id (any)
-  node(0, ParamType.Static, Operator.Pass), //      4: value (any)
-  node(0, ParamType.Dynamic, Operator.Pass), //     5: data (any)
-]
-
 // --- batch assembly --------------------------------------------------------------------------------
 
 // Selectors derived from the exact ABIs the worker calls with, so the
@@ -173,9 +162,6 @@ const selector = {
     getAbiItem({ abi: ETH_REGISTRAR_ABI, name: 'register' }),
   ),
   approve: toFunctionSelector(getAbiItem({ abi: erc20Abi, name: 'approve' })),
-  safeTransferFrom: toFunctionSelector(
-    getAbiItem({ abi: ENS_REGISTRY_ABI, name: 'safeTransferFrom' }),
-  ),
   deployProxy: toFunctionSelector(
     getAbiItem({ abi: VERIFIABLE_FACTORY_ABI, name: 'deployProxy' }),
   ),
@@ -205,7 +191,6 @@ const calls: AdminCall[] = [
   },
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.usdc] },
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.dai] },
-  { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.registry] },
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.factory] },
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.voucher] },
   {
@@ -239,16 +224,6 @@ const calls: AdminCall[] = [
       TARGETS.dai,
       selector.approve,
       approveConditions(APPROVE_CAP_DAI),
-      EXEC_NONE,
-    ],
-  },
-  {
-    functionName: 'scopeFunction',
-    args: [
-      REGISTRAR_ROLE_KEY,
-      TARGETS.registry,
-      selector.safeTransferFrom,
-      transferConditions,
       EXEC_NONE,
     ],
   },

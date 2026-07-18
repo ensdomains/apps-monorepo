@@ -5,7 +5,11 @@ import { requireAuth } from '#app/middleware/auth.js'
 import { createApp } from '#app/middleware/hono.js'
 import { getCrossmintDb } from '#core/database/crossmint.js'
 import { crossmintOrders } from '#core/database/schema/crossmint.js'
-import { generateSecret } from '#services/crossmint/fulfilment.js'
+import {
+  createServerWalletClient,
+  generateSecret,
+  precomputeOrderCommitment,
+} from '#services/crossmint/fulfilment.js'
 import { CreateOrderBodySchema } from '#services/crossmint/types.js'
 import { logger } from '#utils/logger.js'
 
@@ -33,24 +37,41 @@ export default createApp()
       }
 
       const id = crypto.randomUUID()
-      await getCrossmintDb(c.env)
-        .insert(crossmintOrders)
-        .values({
-          id,
-          user_id: c.var.user_id,
-          owner_address: body.ownerAddress.toLowerCase(),
-          name: body.name.replace(/\.eth$/, ''),
-          duration: body.durationSeconds,
-          secret: generateSecret(),
-          payment_token: body.paymentToken,
-          status: 'pending',
-        })
+      const label = body.name.replace(/\.eth$/, '')
+      const secret = generateSecret()
+
+      // Fix the buyer-bound commitment + counterfactual resolver now, so the
+      // voucher is minted carrying this commitment and fulfilment can verify the
+      // paid-for artifact authorizes exactly this registration. The frontend
+      // passes `commitment` into Crossmint's BYOC mint callData.
+      const { resolver, commitment } = await precomputeOrderCommitment(
+        createServerWalletClient(c.env),
+        {
+          label,
+          buyer: body.ownerAddress as `0x${string}`,
+          secret,
+          duration: BigInt(body.durationSeconds),
+        },
+      )
+
+      await getCrossmintDb(c.env).insert(crossmintOrders).values({
+        id,
+        user_id: c.var.user_id,
+        owner_address: body.ownerAddress.toLowerCase(),
+        name: label,
+        duration: body.durationSeconds,
+        secret,
+        commitment,
+        resolver_address: resolver,
+        payment_token: body.paymentToken,
+        status: 'pending',
+      })
 
       logger.info('Crossmint order intent created', {
         orderId: id,
         user_id: c.var.user_id,
       })
-      return c.json({ orderId: id })
+      return c.json({ orderId: id, commitment })
     },
   )
   /** Poll the fulfilment status of an order (scoped to the buyer's wallet). */

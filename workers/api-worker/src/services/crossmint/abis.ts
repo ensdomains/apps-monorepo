@@ -36,6 +36,9 @@ export const ENS_REGISTRY_ABI = parseAbi([
  */
 export const VERIFIABLE_FACTORY_ABI = parseAbi([
   'function deployProxy(address implementation, uint256 salt, bytes data) returns (address)',
+  // Immutable, set in the factory constructor; used to precompute the clone
+  // (resolver) CREATE2 address at order time.
+  'function proxyLogic() view returns (address)',
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 ])
 
@@ -45,10 +48,14 @@ export const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
 ])
 
 /**
- * The BYOC voucher's burn entrypoint, called after delivery by the payer
- * (which must hold the voucher's BURNER_ROLE).
+ * The BYOC voucher surface fulfilment touches: `commitmentOf` to verify the
+ * paid-for commitment before spending, and `burn` (payer must hold BURNER_ROLE)
+ * after delivery.
  */
-export const VOUCHER_ABI = parseAbi(['function burn(uint256 tokenId)'])
+export const VOUCHER_ABI = parseAbi([
+  'function commitmentOf(uint256 tokenId) view returns (bytes32)',
+  'function burn(uint256 tokenId)',
+])
 
 /**
  * Grants the resolver owner every role (mirrors the manager's

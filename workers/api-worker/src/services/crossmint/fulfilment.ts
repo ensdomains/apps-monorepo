@@ -27,6 +27,11 @@ import {
   VERIFIABLE_FACTORY_ABI,
   VOUCHER_ABI,
 } from './abis.js'
+import {
+  computeCommitment,
+  computeResolverAddress,
+  saltToHex,
+} from './commitment.js'
 import { getRolesConfig, ROLES_MODULE_ABI } from './roles.js'
 import type { PaymentToken } from './types.js'
 
@@ -115,12 +120,39 @@ export function generateSecret(): Hex {
   return `0x${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
 }
 
-/** Random uint256 salt for the dedicated-resolver CREATE2 deploy. */
-function generateResolverSalt(): bigint {
-  const bytes = crypto.getRandomValues(new Uint8Array(32))
-  return BigInt(
-    `0x${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`,
-  )
+/**
+ * Fix the counterfactual resolver address and the buyer-bound commitment at
+ * ORDER time, so the voucher can be minted carrying that commitment and
+ * fulfilment can later verify it (see fulfilment note in commitment.ts). Reads
+ * the factory's immutable `proxyLogic` once; everything else is a pure CREATE2 /
+ * keccak derivation. `deployer` must be the identity that will call
+ * `deployProxy` during fulfilment — the payer (`client.payer`).
+ */
+export async function precomputeOrderCommitment(
+  client: ServerWalletClient,
+  params: { label: string; buyer: Address; secret: Hex; duration: bigint },
+): Promise<{ resolver: Address; commitment: Hex }> {
+  const proxyLogic = await client.readContract({
+    address: CONTRACTS.VerifiableFactory,
+    abi: VERIFIABLE_FACTORY_ABI,
+    functionName: 'proxyLogic',
+  })
+  const resolver = computeResolverAddress({
+    factory: CONTRACTS.VerifiableFactory,
+    proxyLogic,
+    deployer: client.payer,
+    secret: params.secret,
+  })
+  const commitment = computeCommitment({
+    label: params.label,
+    owner: params.buyer,
+    secret: params.secret,
+    subregistry: SUBREGISTRY,
+    resolver,
+    duration: params.duration,
+    referrer: REFERER,
+  })
+  return { resolver, commitment }
 }
 
 function parseProxyDeployedAddress(
@@ -144,26 +176,32 @@ function parseProxyDeployedAddress(
 }
 
 /**
- * Deploy a dedicated resolver proxy owned by `owner`, mirroring the manager's
- * registration flow. The commitment must bind to this resolver, so it has to
- * exist before `makeCommitment`.
+ * Deploy the buyer's dedicated resolver at its precomputed CREATE2 address,
+ * using the deterministic salt derived from the order secret (so the address
+ * matches the one baked into the order's commitment). Deploying through
+ * `client.execWrite` means the factory sees the payer as `msg.sender` — the same
+ * identity used in the precompute, so `deployed === expectedResolver` is
+ * asserted as a tripwire against any drift.
  */
 export async function deployDedicatedResolver(
   client: ServerWalletClient,
-  owner: Address,
+  params: { owner: Address; secret: Hex; expectedResolver: Address },
 ): Promise<Address> {
-  const salt = generateResolverSalt()
   const initData = encodeFunctionData({
     abi: DEDICATED_RESOLVER_INIT_ABI,
     functionName: 'initialize',
-    args: [owner, DEDICATED_RESOLVER_ROLE_BITMAP],
+    args: [params.owner, DEDICATED_RESOLVER_ROLE_BITMAP],
   })
   const hash = await client.execWrite({
     to: CONTRACTS.VerifiableFactory,
     data: encodeFunctionData({
       abi: VERIFIABLE_FACTORY_ABI,
       functionName: 'deployProxy',
-      args: [CONTRACTS.DedicatedResolverImpl, salt, initData],
+      args: [
+        CONTRACTS.DedicatedResolverImpl,
+        BigInt(saltToHex(params.secret)),
+        initData,
+      ],
     }),
   })
   // In Roles mode the receipt is for the outer module tx, but the factory's
@@ -174,10 +212,21 @@ export async function deployDedicatedResolver(
   if (!resolver) {
     throw new Error('ProxyDeployed event missing from resolver deploy receipt')
   }
+  if (!isAddressEqual(resolver, params.expectedResolver)) {
+    throw new Error(
+      `Resolver address mismatch: deployed ${resolver}, expected ${params.expectedResolver}`,
+    )
+  }
   return resolver
 }
 
-export async function makeCommitment(
+/**
+ * Assert the local commitment reconstruction matches the on-chain
+ * `makeCommitment`. Cheap insurance that {@link computeCommitment}'s ABI stays
+ * in lockstep with the registrar — a mismatch fails the order loudly instead of
+ * silently binding a wrong commitment.
+ */
+export async function assertCommitmentMatchesChain(
   client: ServerWalletClient,
   params: {
     label: string
@@ -185,9 +234,10 @@ export async function makeCommitment(
     secret: Hex
     resolver: Address
     duration: bigint
+    expected: Hex
   },
-): Promise<Hex> {
-  return client.readContract({
+): Promise<void> {
+  const onchain = await client.readContract({
     address: CONTRACTS.ETHRegistrar,
     abi: ETH_REGISTRAR_ABI,
     functionName: 'makeCommitment',
@@ -201,6 +251,11 @@ export async function makeCommitment(
       REFERER,
     ],
   })
+  if (onchain.toLowerCase() !== params.expected.toLowerCase()) {
+    throw new Error(
+      `Commitment mismatch: local ${params.expected}, on-chain ${onchain}`,
+    )
+  }
 }
 
 /** Submit the commit tx and wait for it to land. Returns the tx hash. */
@@ -307,13 +362,13 @@ function parseRegisteredTokenId(
 }
 
 /**
- * Submit the `register` tx. The registration is charged to the payer identity:
- * we register with `owner` = `client.payer` — which in Roles mode is ALSO the
- * `msg.sender` the registrar sees (the Safe, via module execution), so the
- * charge lands on the payer under either charging semantic (`owner`-based per
- * the current deployment, `_msgSender()`-based per the HCA-aware contracts).
- * The name is then transferred to the buyer (see {@link transferName}).
- * Returns the register tx hash + the minted ERC-1155 tokenId.
+ * Submit the `register` tx, minting the name straight to the BUYER. The
+ * registrar charges `msg.sender` — verified: `register` does
+ * `safeTransferFrom(paymentToken, msg.sender, BENEFICIARY, ...)`, not the
+ * `owner` arg — so the payer (the Safe, via the Roles modifier) funds the
+ * registration while `owner = buyer` receives the name. No transfer step, and
+ * the buyer-bound `owner` is exactly what the order's voucher commitment
+ * committed to. Returns the register tx hash + the minted ERC-1155 tokenId.
  */
 export async function submitRegister(
   client: ServerWalletClient,
@@ -352,26 +407,28 @@ export async function submitRegister(
 }
 
 /**
- * Deliver a freshly-registered name to the buyer: transfer the registry's
- * ERC-1155 token from the payer to the buyer. Name roles move with the token
- * (registry `_update`), so the buyer ends up in full control. In Roles mode
- * the Safe must have a fallback handler with ERC-1155 receiver support (the
- * default Safe deployment does) so the register mint can land on it at all.
+ * Verify the voucher stored the exact commitment this order will register, before
+ * spending anything. The commitment binds (label, buyer, secret, resolver,
+ * duration) — so a match proves the on-chain paid-for artifact authorizes exactly
+ * this registration and no other. `commitmentOf` returns zero after burn or for a
+ * nonexistent id, which never matches a real commitment, so this also rejects a
+ * missing/burned voucher.
  */
-export async function transferName(
+export async function assertVoucherCommitment(
   client: ServerWalletClient,
-  params: { tokenId: bigint; to: Address },
-): Promise<Hex> {
-  const hash = await client.execWrite({
-    to: CONTRACTS.Registry,
-    data: encodeFunctionData({
-      abi: ENS_REGISTRY_ABI,
-      functionName: 'safeTransferFrom',
-      args: [client.payer, params.to, params.tokenId, 1n, '0x'],
-    }),
+  params: { voucherTokenId: bigint; expected: Hex },
+): Promise<void> {
+  const stored = await client.readContract({
+    address: VOUCHER_ADDRESS,
+    abi: VOUCHER_ABI,
+    functionName: 'commitmentOf',
+    args: [params.voucherTokenId],
   })
-  await client.waitForTransactionReceipt({ hash })
-  return hash
+  if (stored.toLowerCase() !== params.expected.toLowerCase()) {
+    throw new Error(
+      `Voucher commitment mismatch: stored ${stored}, expected ${params.expected}`,
+    )
+  }
 }
 
 /**

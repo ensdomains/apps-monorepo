@@ -7,18 +7,19 @@ import {
 } from '#core/database/schema/crossmint.js'
 import { KV_KEY } from '#core/kv/index.js'
 import {
+  assertCommitmentMatchesChain,
+  assertVoucherCommitment,
   authorizedPaymentAmount,
   burnVoucher,
   createServerWalletClient,
   deployDedicatedResolver,
   ensureTokenAllowance,
   getRegisterPriceTotal,
-  makeCommitment,
   PAYMENT_TOKENS,
+  precomputeOrderCommitment,
   readMinCommitmentAge,
   submitCommit,
   submitRegister,
-  transferName,
   verifyRegistration,
 } from '#services/crossmint/fulfilment.js'
 import type {
@@ -82,22 +83,41 @@ async function runCommitPhase(
   await updateOrder(db, orderId, { status: 'committing' })
 
   const client = createServerWalletClient(env)
-  // The registration is charged to the PAYER (the treasury Safe in Roles mode,
-  // the server EOA in direct mode — see createServerWalletClient), so we
-  // register to the payer and transfer to the buyer in the register phase.
-  // The commitment must bind the same owner used at register (the payer).
-  // The resolver is deployed buyer-owned so the buyer controls records after
-  // delivery (resolver ownership is independent of name ownership).
-  const payer = client.payer
+  // The registrar charges msg.sender (the PAYER — the Safe in Roles mode), so
+  // the name is registered with owner = BUYER directly: the payer funds it, the
+  // buyer receives it, no transfer step. The resolver is deployed buyer-owned at
+  // its precomputed CREATE2 address, and the commitment — bound to the buyer —
+  // was fixed and stored at order time so the voucher carries it. We re-derive
+  // both here defensively (pre-forward-at-mint orders may lack them).
   const buyer = order.owner_address as Address
+  const secret = order.secret as `0x${string}`
+  const { resolver, commitment } =
+    order.commitment && order.resolver_address
+      ? {
+          resolver: order.resolver_address as Address,
+          commitment: order.commitment as `0x${string}`,
+        }
+      : await precomputeOrderCommitment(client, {
+          label: order.name,
+          buyer,
+          secret,
+          duration: BigInt(order.duration),
+        })
 
-  const resolver = await deployDedicatedResolver(client, buyer)
-  const commitment = await makeCommitment(client, {
+  const deployedResolver = await deployDedicatedResolver(client, {
+    owner: buyer,
+    secret,
+    expectedResolver: resolver,
+  })
+  // Belt-and-braces: the local commitment must equal the registrar's own
+  // makeCommitment for the exact tuple we're about to commit.
+  await assertCommitmentMatchesChain(client, {
     label: order.name,
-    owner: payer,
-    secret: order.secret as `0x${string}`,
-    resolver,
+    owner: buyer,
+    secret,
+    resolver: deployedResolver,
     duration: BigInt(order.duration),
+    expected: commitment,
   })
   const commitTxHash = await submitCommit(client, commitment)
   const minAge = await readMinCommitmentAge(client)
@@ -105,7 +125,7 @@ async function runCommitPhase(
   await updateOrder(db, orderId, {
     status: 'committed',
     commitment,
-    resolver_address: resolver,
+    resolver_address: deployedResolver,
     commit_tx_hash: commitTxHash,
     committed_at: new Date(),
   })
@@ -150,11 +170,22 @@ async function runRegisterPhase(
   await updateOrder(db, orderId, { status: 'registering' })
 
   const client = createServerWalletClient(env)
-  const payer = client.payer
   const buyer = order.owner_address as Address
   const resolver = order.resolver_address as Address
   const paymentToken = (order.payment_token ?? 'USDC') as PaymentToken
   const tokenAddress = PAYMENT_TOKENS[paymentToken]
+
+  // Gate spending on the voucher: its stored commitment must equal the exact
+  // (label, buyer, secret, resolver, duration) tuple we're about to register.
+  // A mismatch (or a missing/burned voucher) means this order isn't authorized
+  // to spend — fail before any approve/register. Skipped only when the webhook
+  // never captured a voucher tokenId (older/partial orders).
+  if (order.commitment && order.voucher_token_id) {
+    await assertVoucherCommitment(client, {
+      voucherTokenId: BigInt(order.voucher_token_id),
+      expected: order.commitment as `0x${string}`,
+    })
+  }
 
   const price = await getRegisterPriceTotal(client, {
     label: order.name,
@@ -166,16 +197,15 @@ async function runRegisterPhase(
     amount: authorizedPaymentAmount(price),
   })
 
-  // Register to the payer, then deliver the name to the buyer.
+  // Register straight to the buyer — the payer (msg.sender) funds it.
   const { hash: registerTxHash, tokenId } = await submitRegister(client, {
     label: order.name,
-    owner: payer,
+    owner: buyer,
     secret: order.secret as `0x${string}`,
     resolver,
     duration: BigInt(order.duration),
     paymentToken: tokenAddress,
   })
-  await transferName(client, { tokenId, to: buyer })
 
   const verified = await verifyRegistration(client, {
     tokenId,
