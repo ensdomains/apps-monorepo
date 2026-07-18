@@ -28,20 +28,28 @@ runs in direct-EOA mode — local dev and the standalone scripts are unchanged.
 | Target            | Function                | Conditions                                       |
 | ----------------- | ----------------------- | ------------------------------------------------ |
 | ETHRegistrar      | `commit`                | — (harmless)                                     |
-| ETHRegistrar      | `register`              | owner == Safe · duration ≤ cap · token ∈ {USDC, DAI} |
+| ETHRegistrar      | `register`              | duration ≤ cap · token ∈ {USDC, DAI} (owner = buyer, unconstrained) |
 | USDC, DAI         | `approve`               | spender == registrar · amount ≤ cap              |
-| Registry (1155)   | `safeTransferFrom`      | from == Safe                                     |
 | VerifiableFactory | `deployProxy`           | — (resolver deploys)                             |
-| Voucher           | `burn`                  | —                                                |
 
 No value sends, no delegatecall, no token transfers, no arbitrary approvals.
-`owner == Safe` means even junk registrations by an attacker land in the Safe
-and are recoverable by the admins.
+The registrar charges `msg.sender` (the Safe), so names register straight to the
+buyer — there is no registry transfer in the role, and `owner` is unconstrained.
+The blast radius of a leaked worker key is the standing registrar allowance
+(capped); the worker's registration path additionally gates spending on the
+voucher's stored commitment, so a bare key with no matching paid voucher spends
+nothing.
+
+**`burn` is deliberately not in the role.** A blanket `burn(uint256)` lets a
+leaked key destroy arbitrary customers' vouchers, and burning is only cosmetic
+cleanup (vouchers are soulbound and single-use). It stays an ops-only path — the
+Safe is **not** granted `BURNER_ROLE`.
 
 ## Runbook
 
-1. **Create the treasury Safe** (Sepolia). Keep the default fallback handler —
-   the Safe must accept the registrar's ERC-1155 name mints.
+1. **Create the treasury Safe** (Sepolia). Names mint straight to the buyer, so
+   the Safe no longer needs to receive ERC-1155 mints — but keeping the default
+   fallback handler is harmless.
 2. **Add the Roles Modifier (v2)** to the Safe via the Zodiac Safe App.
 3. **Scope the role**:
    ```sh
@@ -50,12 +58,9 @@ and are recoverable by the admins.
    ```
    Upload the emitted `zodiac-roles.json` in the Safe's Transaction Builder
    (URL printed by the script) and execute the batch.
-4. **Fund the Safe** with the USDC/DAI float. Keep only gas dust on the worker
-   EOA. Sweep voucher-contract proceeds to the Safe (`withdrawToken`) — same
-   asset in, same asset out, no swaps.
-5. **Grant the voucher's `BURNER_ROLE` to the Safe** (voucher admin action in
-   web-contracts), so post-delivery burns run through the role too.
-6. **Configure the worker**: set `REGISTRAR_SAFE_ADDRESS` and
+4. **Fund the Safe** with the USDC/DAI float (auto-replenished per sale by the
+   voucher's forward-at-mint). Keep only gas dust on the worker EOA.
+5. **Configure the worker**: set `REGISTRAR_SAFE_ADDRESS` and
    `REGISTRAR_ROLES_MODULE_ADDRESS` (vars — they're public addresses). Both or
    neither; partial config throws at client construction.
 

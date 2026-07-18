@@ -29,5 +29,11 @@ declare global {
     REGISTRAR_ROLES_MODULE_ADDRESS?: string
     /** Optional bytes32 role-key override (defaults to "ens-crossmint-registrar"). */
     REGISTRAR_ROLES_ROLE_KEY?: string
+    /**
+     * Explicit opt-in to direct-EOA signing when the Role vars are absent
+     * (local dev / standalone scripts). Without it, missing Role vars fail
+     * closed rather than silently signing from ETH_PRIVATE_KEY.
+     */
+    ALLOW_DIRECT_EOA_SIGNER?: string
   }
 }

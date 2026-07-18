@@ -52,16 +52,28 @@ export interface RolesConfig {
 }
 
 /**
- * Read the Roles config from the environment. Returns undefined in direct-EOA
- * mode (both vars unset); throws on partial config so a misconfigured deploy
- * fails loudly instead of silently paying from the EOA.
+ * Read the Roles config from the environment.
+ *
+ * Fails CLOSED: with both Role vars absent, direct-EOA mode (writes signed
+ * straight from `ETH_PRIVATE_KEY`, no Safe/role scoping) is only permitted when
+ * `ALLOW_DIRECT_EOA_SIGNER` is explicitly set — the local-dev / standalone-script
+ * escape hatch. A real worker deployment that loses or clears the Role vars then
+ * throws instead of silently degrading to an unrevocable, unscoped hot key.
+ * Partial config (one var set) always throws.
  */
 export function getRolesConfig(
   env: CloudflareBindings,
 ): RolesConfig | undefined {
   const safe = env.REGISTRAR_SAFE_ADDRESS
   const module = env.REGISTRAR_ROLES_MODULE_ADDRESS
-  if (!safe && !module) return undefined
+  if (!safe && !module) {
+    if (env.ALLOW_DIRECT_EOA_SIGNER) return undefined
+    throw new Error(
+      'Refusing to sign from a raw EOA: set REGISTRAR_SAFE_ADDRESS + ' +
+        'REGISTRAR_ROLES_MODULE_ADDRESS for Roles mode, or ALLOW_DIRECT_EOA_SIGNER ' +
+        '=1 to opt into direct-EOA mode (local/dev only).',
+    )
+  }
   if (!safe || !module) {
     throw new Error(
       'REGISTRAR_SAFE_ADDRESS and REGISTRAR_ROLES_MODULE_ADDRESS must be set together',

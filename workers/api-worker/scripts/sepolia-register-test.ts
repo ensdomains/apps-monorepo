@@ -46,6 +46,8 @@ async function main() {
     REGISTRAR_SAFE_ADDRESS: process.env.REGISTRAR_SAFE_ADDRESS,
     REGISTRAR_ROLES_MODULE_ADDRESS: process.env.REGISTRAR_ROLES_MODULE_ADDRESS,
     REGISTRAR_ROLES_ROLE_KEY: process.env.REGISTRAR_ROLES_ROLE_KEY,
+    // Standalone test script — allow the direct-EOA path when no Role vars given.
+    ALLOW_DIRECT_EOA_SIGNER: '1',
   } as unknown as CloudflareBindings)
   const payer = client.payer
   console.log(

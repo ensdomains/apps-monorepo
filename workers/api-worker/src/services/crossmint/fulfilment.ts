@@ -457,40 +457,22 @@ export const VOUCHER_ADDRESS = '0x4137481644498B3b91899D1491d6DbB9C155Fea3'
 /**
  * Burn the Crossmint voucher once the name is delivered.
  *
- * Requires BURNER_ROLE on the voucher contract for the payer — the SAFE in
- * Roles mode (granted once by the voucher admin), the EOA in direct mode.
- * Best-effort by design: registration is already complete, and an un-burned
- * voucher is harmless (soulbound, single-use), so a failed burn must never
- * fail the order. Skipped when no voucher tokenId was captured from the
- * `VoucherMinted` webhook event.
+ * NOT part of the worker role. A blanket `burn(uint256)` capability on the
+ * worker key is a destructive footgun: `BURNER_ROLE` can burn ANY voucher id,
+ * so a leaked worker key could destroy other customers' unfulfilled paid
+ * vouchers (there's no per-order on-chain binding the voucher can enforce, since
+ * the label — hence the name tokenId — is kept off-chain). Since an un-burned
+ * voucher is harmless (soulbound, single-use), burning is pure cosmetic cleanup
+ * and is deliberately left to a separate privileged/ops path that holds
+ * `BURNER_ROLE` — the worker Safe is NOT granted it. This is a logged no-op.
  */
 export async function burnVoucher(
-  client: ServerWalletClient,
+  _client: ServerWalletClient,
   _env: CloudflareBindings,
   tokenId: string | undefined,
 ): Promise<void> {
-  if (!tokenId) {
-    logger.info('Voucher burn skipped (no voucher tokenId tracked)', {
-      tokenId,
-    })
-    return
-  }
-  try {
-    const hash = await client.execWrite({
-      to: VOUCHER_ADDRESS,
-      data: encodeFunctionData({
-        abi: VOUCHER_ABI,
-        functionName: 'burn',
-        args: [BigInt(tokenId)],
-      }),
-    })
-    await client.waitForTransactionReceipt({ hash })
-    logger.info('Voucher burned', { tokenId, hash })
-  } catch (error) {
-    logger.warn('Voucher burn failed (non-fatal; voucher is single-use)', {
-      tokenId,
-      voucher: VOUCHER_ADDRESS,
-      error,
-    })
-  }
+  logger.info(
+    'Voucher burn is not a worker capability (ops-only); leaving voucher intact',
+    { tokenId, voucher: VOUCHER_ADDRESS },
+  )
 }

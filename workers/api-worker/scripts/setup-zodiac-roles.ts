@@ -26,7 +26,11 @@
  *                                                    paymentToken in {USDC, DAI}
  *   USDC/DAI.approve(spender, amount)                spender == registrar, amount <= cap
  *   VerifiableFactory.deployProxy(...)               wildcard (resolver deploys)
- *   Voucher.burn(uint256)                            wildcard (post-delivery burn)
+ *
+ * Voucher.burn is deliberately NOT in the role — a blanket burn(uint256) lets a
+ * leaked key destroy arbitrary customers' vouchers, and burning is only cosmetic
+ * cleanup (soulbound, single-use). It stays an ops-only path; the Safe is not
+ * granted BURNER_ROLE.
  *
  * Names register straight to the buyer (the registrar charges msg.sender = the
  * Safe, not the owner arg), so there is no registry transfer in the role and the
@@ -54,9 +58,7 @@ import {
 import {
   ETH_REGISTRAR_ABI,
   VERIFIABLE_FACTORY_ABI,
-  VOUCHER_ABI,
 } from '#services/crossmint/abis.js'
-import { VOUCHER_ADDRESS } from '#services/crossmint/fulfilment.js'
 import { REGISTRAR_ROLE_KEY } from '#services/crossmint/roles.js'
 
 // --- config ----------------------------------------------------------------------------------------
@@ -81,7 +83,6 @@ const TARGETS = {
   usdc: contracts.usdc.address,
   dai: contracts.dai.address,
   factory: contracts.ensVerifiableFactory.address,
-  voucher: VOUCHER_ADDRESS as Address,
 } as const
 
 // --- Roles v2 admin surface ------------------------------------------------------------------------
@@ -165,7 +166,6 @@ const selector = {
   deployProxy: toFunctionSelector(
     getAbiItem({ abi: VERIFIABLE_FACTORY_ABI, name: 'deployProxy' }),
   ),
-  burn: toFunctionSelector(getAbiItem({ abi: VOUCHER_ABI, name: 'burn' })),
 } as const
 
 type AdminCall =
@@ -192,7 +192,6 @@ const calls: AdminCall[] = [
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.usdc] },
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.dai] },
   { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.factory] },
-  { functionName: 'scopeTarget', args: [REGISTRAR_ROLE_KEY, TARGETS.voucher] },
   {
     functionName: 'allowFunction',
     args: [REGISTRAR_ROLE_KEY, TARGETS.registrar, selector.commit, EXEC_NONE],
@@ -235,10 +234,6 @@ const calls: AdminCall[] = [
       selector.deployProxy,
       EXEC_NONE,
     ],
-  },
-  {
-    functionName: 'allowFunction',
-    args: [REGISTRAR_ROLE_KEY, TARGETS.voucher, selector.burn, EXEC_NONE],
   },
 ]
 
@@ -285,5 +280,5 @@ console.log(
 )
 console.log(`\nAfter executing the batch, finish the runbook (docs/zodiac-roles.md):
   1. Fund the Safe with USDC/DAI float (+ keep the worker EOA on gas dust only).
-  2. Grant the voucher contract's BURNER_ROLE to the Safe (voucher admin action).
-  3. Set REGISTRAR_SAFE_ADDRESS + REGISTRAR_ROLES_MODULE_ADDRESS on the worker.`)
+  2. Set REGISTRAR_SAFE_ADDRESS + REGISTRAR_ROLES_MODULE_ADDRESS on the worker.
+  (Voucher burning is an ops-only path — do NOT grant the Safe BURNER_ROLE.)`)

@@ -16,7 +16,6 @@ import {
   ensureTokenAllowance,
   getRegisterPriceTotal,
   PAYMENT_TOKENS,
-  precomputeOrderCommitment,
   readMinCommitmentAge,
   submitCommit,
   submitRegister,
@@ -85,24 +84,24 @@ async function runCommitPhase(
   const client = createServerWalletClient(env)
   // The registrar charges msg.sender (the PAYER — the Safe in Roles mode), so
   // the name is registered with owner = BUYER directly: the payer funds it, the
-  // buyer receives it, no transfer step. The resolver is deployed buyer-owned at
-  // its precomputed CREATE2 address, and the commitment — bound to the buyer —
-  // was fixed and stored at order time so the voucher carries it. We re-derive
-  // both here defensively (pre-forward-at-mint orders may lack them).
+  // buyer receives it, no transfer step.
+  //
+  // The commitment + resolver are the order's PAID-FOR identity: fixed and stored
+  // at order time (owner = buyer), and the voucher was minted carrying that
+  // commitment. We MUST use the stored values, never re-derive here — the
+  // resolver precompute is payer-dependent (`deployer = client.payer`), so
+  // re-deriving after a Roles-mode toggle would yield a different resolver and a
+  // commitment that no longer matches the voucher, failing the order. An order
+  // past `pending` without them is a data error, not something to paper over.
   const buyer = order.owner_address as Address
   const secret = order.secret as `0x${string}`
-  const { resolver, commitment } =
-    order.commitment && order.resolver_address
-      ? {
-          resolver: order.resolver_address as Address,
-          commitment: order.commitment as `0x${string}`,
-        }
-      : await precomputeOrderCommitment(client, {
-          label: order.name,
-          buyer,
-          secret,
-          duration: BigInt(order.duration),
-        })
+  if (!order.commitment || !order.resolver_address) {
+    throw new Error(
+      `Order ${orderId} reached commit phase without a stored commitment/resolver`,
+    )
+  }
+  const resolver = order.resolver_address as Address
+  const commitment = order.commitment as `0x${string}`
 
   const deployedResolver = await deployDedicatedResolver(client, {
     owner: buyer,
