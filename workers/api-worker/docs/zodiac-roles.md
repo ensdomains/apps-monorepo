@@ -59,6 +59,37 @@ and are recoverable by the admins.
    `REGISTRAR_ROLES_MODULE_ADDRESS` (vars — they're public addresses). Both or
    neither; partial config throws at client construction.
 
+## Deployed (Sepolia staging)
+
+Deployed and E2E-validated 2026-07-17 — a full commit→register→deliver ran
+through the role with the Safe as payer (7.994534 USDC pulled by the
+registrar from the Safe), and forbidden calls (`register` with owner ≠ Safe,
+`usdc.transfer`, `approve` to a non-registrar spender) revert.
+
+| | Address |
+| --- | --- |
+| Treasury Safe (payer/avatar; owns the Roles modifier) | `0x6A15F8314393Fa816D2b8A9437fBDFd9cca9293C` |
+| Roles v2 modifier | `0x250f3a370fA3Bb0704B9998B4F0A33057b248EbD` |
+| Role key | `ens-crossmint-registrar` |
+
+Worker env for this deployment:
+
+```
+REGISTRAR_SAFE_ADDRESS=0x6A15F8314393Fa816D2b8A9437fBDFd9cca9293C
+REGISTRAR_ROLES_MODULE_ADDRESS=0x250f3a370fA3Bb0704B9998B4F0A33057b248EbD
+```
+
+E2E evidence (name `cmtestmrq8na19.eth`, delivered to the buyer):
+commit `0xe78c7aa0ebdf0e01d5c00c7875893143373431981c85cb601af7dbc76c949a7c`,
+register `0xf8fa09d51acedc32b03f3a419b1e056f27814df3d1b71d63344859f850fdeca0`,
+delivery `0x1e33365ee5ac8d1c7f640ee3926fc5875c71c859921e6f30f742b87f6f252aae`.
+
+Operational note: gas estimation immediately after a state-changing tx can
+hit a lagging backend on load-balanced RPCs and revert spuriously
+(`ModuleTransactionFailed` wrapping a stale-state inner failure). The
+registration queue's retry/backoff absorbs this; the standalone script may
+need a re-run.
+
 ## Incident response
 
 - Suspected worker-key leak: Safe executes `revokeRole`/`assignRoles(member,

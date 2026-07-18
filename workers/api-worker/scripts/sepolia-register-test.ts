@@ -4,8 +4,14 @@
  * full commit -> wait -> register flow, delivering a test .eth name to a
  * separate buyer address (payer != owner, as in the real flow).
  *
- * Run:
+ * Run (direct-EOA mode — the key itself is the payer):
  *   PRIVATE_KEY=0x<funded payer> BUYER=0x<owner> pnpm exec tsx scripts/sepolia-register-test.ts
+ *
+ * Run (Zodiac Roles mode — the key is only a role member; the SAFE is the
+ * payer and every write goes through the Roles modifier, see roles.ts):
+ *   PRIVATE_KEY=0x<role member> BUYER=0x<owner> \
+ *   REGISTRAR_SAFE_ADDRESS=0x<safe> REGISTRAR_ROLES_MODULE_ADDRESS=0x<modifier> \
+ *   pnpm exec tsx scripts/sepolia-register-test.ts
  */
 import { parseAbi, parseUnits } from 'viem'
 import {
@@ -32,11 +38,22 @@ const MOCK_MINT_ABI = parseAbi(['function mint(address to, uint256 amount)'])
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 async function main() {
-  // Build the real server wallet client (payer = msg.sender, fronts USDC).
+  // Build the real server wallet client. In direct mode the EOA is the payer;
+  // with the REGISTRAR_SAFE/ROLES vars set, the Safe is the payer and writes
+  // route through execTransactionWithRole (exactly like the worker).
   const client = createServerWalletClient({
     ETH_PRIVATE_KEY: PRIVATE_KEY,
+    REGISTRAR_SAFE_ADDRESS: process.env.REGISTRAR_SAFE_ADDRESS,
+    REGISTRAR_ROLES_MODULE_ADDRESS: process.env.REGISTRAR_ROLES_MODULE_ADDRESS,
+    REGISTRAR_ROLES_ROLE_KEY: process.env.REGISTRAR_ROLES_ROLE_KEY,
   } as unknown as CloudflareBindings)
-  const payer = client.account.address
+  const payer = client.payer
+  console.log(
+    'mode:',
+    payer === client.account.address
+      ? 'direct EOA'
+      : 'Zodiac Roles (Safe payer)',
+  )
   const usdc = PAYMENT_TOKENS.USDC
   const label = `cmtest${Date.now().toString(36)}`
   const duration = BigInt(365 * 24 * 60 * 60) // 1 year
