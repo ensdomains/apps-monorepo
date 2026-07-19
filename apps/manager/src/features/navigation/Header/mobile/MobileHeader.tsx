@@ -12,6 +12,7 @@ import {
   MobileSearchInput,
   MobileSearchPanel,
 } from '../search/MobileSearchPanel'
+import { floatingWrapperGlassClassName } from '../shared/FloatingWrapper'
 import { MobileConnectButton } from './MobileConnectButton'
 
 type MobileHeaderProps = {
@@ -51,8 +52,7 @@ export const MobileHeader = ({
       <nav
         className={tw(
           'relative flex h-[54px] min-w-0 items-center px-4 py-2',
-          hasBlurredBackground &&
-            'border border-[#E2E2E28C] bg-white/75 backdrop-blur-[6px]',
+          hasBlurredBackground && floatingWrapperGlassClassName,
           transparentBackground && !hasBlurredBackground && 'bg-transparent',
           !transparentBackground && !hasBlurredBackground && 'bg-white',
         )}
