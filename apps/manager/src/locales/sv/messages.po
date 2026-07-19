@@ -2255,6 +2255,10 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Sign in"
+msgstr ""
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
@@ -2262,6 +2266,10 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Sign in with Wallet"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Sign in with your wallet to continue."
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -2279,6 +2287,10 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Signing in…"
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx

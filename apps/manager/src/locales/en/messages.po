@@ -2250,6 +2250,10 @@ msgstr "Show less"
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr "Showing {rangeStart}-{rangeEnd} of {total}"
 
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
@@ -2258,6 +2262,10 @@ msgstr "Sign in to access notifications about your ENS domains, including transf
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Sign in with Wallet"
 msgstr "Sign in with Wallet"
+
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Sign in with your wallet to continue."
+msgstr "Sign in with your wallet to continue."
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
@@ -2275,6 +2283,10 @@ msgstr "Sign the gasless payment approval in your wallet"
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
 msgstr "Signing in..."
+
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Signing in…"
+msgstr "Signing in…"
 
 #: src/features/register/components/Autorenewal.tsx
 msgid "Skip"

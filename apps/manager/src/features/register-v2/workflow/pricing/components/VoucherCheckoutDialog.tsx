@@ -1,10 +1,12 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
+import { useMutation } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type Address, type Hex, parseUnits } from 'viem'
 import { usePublicClient, useWalletClient } from 'wagmi'
 import { Button } from '@/components/ens-consumer/button/Button'
-import { backendClient } from '@/utils/backend-client'
+import { signInBackendMutation } from '@/features/notifications/data/queries/auth'
+import { backendClient, isBackendAuthed } from '@/utils/backend-client'
 import { mintVoucherFromWallet } from '../../../utils/voucher'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
@@ -31,6 +33,7 @@ const withHeadroom = (amount: bigint) => amount + amount / 10n
 
 type Phase =
   | { kind: 'idle' }
+  | { kind: 'auth' } // backend (SIWE) sign-in required before creating the order
   | { kind: 'preparing' } // creating the order + signing/approving
   | { kind: 'minting' }
   | { kind: 'processing'; orderId: string; status: string }
@@ -93,11 +96,18 @@ export const VoucherCheckoutDialog = ({
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const publicClient = usePublicClient()
   const { data: walletClient } = useWalletClient()
+  const signIn = useMutation(signInBackendMutation)
   const startedRef = useRef(false)
 
   const start = useCallback(async () => {
     if (!publicClient || !walletClient) {
       setPhase({ kind: 'error', message: 'Wallet not connected' })
+      return
+    }
+    // The /orders endpoint is JWT-gated (SIWE backend auth). Gate on it up front
+    // so we surface a clear sign-in step instead of a 401.
+    if (!isBackendAuthed.get()) {
+      setPhase({ kind: 'auth' })
       return
     }
     setPhase({ kind: 'preparing' })
@@ -161,6 +171,21 @@ export const VoucherCheckoutDialog = ({
     totalPriceUsd,
   ])
 
+  // Run the SIWE backend sign-in, then continue into order creation.
+  const handleSignIn = useCallback(async () => {
+    if (!walletClient) return
+    try {
+      await signIn.mutateAsync({ walletClient })
+      startedRef.current = false // let the open-effect re-run `start` now that we're authed
+      void start()
+    } catch (error) {
+      setPhase({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Sign-in failed',
+      })
+    }
+  }, [walletClient, signIn, start])
+
   // Kick off once when the dialog opens.
   useEffect(() => {
     if (!open) {
@@ -199,6 +224,26 @@ export const VoucherCheckoutDialog = ({
       title="Pay with your wallet"
     >
       <div className="flex flex-1 flex-col items-center justify-center gap-6 p-4 text-center">
+        {phase.kind === 'auth' && (
+          <div className="space-y-3">
+            <p className="text-ens-gray text-sm">
+              <Trans>Sign in with your wallet to continue.</Trans>
+            </p>
+            <Button
+              color="blue"
+              disabled={signIn.isPending || !walletClient}
+              onClick={handleSignIn}
+              size="lg"
+            >
+              {signIn.isPending ? (
+                <Trans>Signing in…</Trans>
+              ) : (
+                <Trans>Sign in</Trans>
+              )}
+            </Button>
+          </div>
+        )}
+
         {(phase.kind === 'preparing' || phase.kind === 'minting') && (
           <p className="text-ens-gray text-sm">
             {phase.kind === 'minting' ? (
