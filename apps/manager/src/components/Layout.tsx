@@ -54,6 +54,7 @@ export const Layout = ({ children }: LayoutProps) => {
       >
         <Header
           desktopBreakpoint={isNewProfileViewPage ? 'lg-landscape' : 'md'}
+          mobileBlurredBackground={isNewProfileViewPage}
           profileThemeColor={
             isMigrationPage ? migrationHeaderColor : profileThemeColor
           }
