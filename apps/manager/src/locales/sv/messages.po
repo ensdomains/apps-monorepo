@@ -91,6 +91,7 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "{label}.eth is yours!"
 msgstr ""
 
@@ -507,6 +508,7 @@ msgid "Checking whether a payment approval is needed"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Checkout failed"
 msgstr ""
 
@@ -547,6 +549,7 @@ msgstr ""
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Close"
 msgstr ""
 
@@ -595,6 +598,7 @@ msgid "Complete your profile"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Completing your registration…"
 msgstr ""
 
@@ -610,6 +614,10 @@ msgstr ""
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 msgid "Confirm purchase"
+msgstr ""
+
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
+msgid "Confirm the payment in your wallet…"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -858,6 +866,7 @@ msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Done"
 msgstr ""
 
@@ -1698,6 +1707,7 @@ msgid "Preparing account"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Preparing checkout…"
 msgstr ""
 

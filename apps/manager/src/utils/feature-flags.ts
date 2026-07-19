@@ -59,6 +59,15 @@ const FEATURE_FLAGS_INTERNAL = {
   USE_EOA: {
     enabled: import.meta.env.VITE_FF_USE_EOA === 'true',
   },
+  /**
+   * Route "Pay with stablecoins" through the self-pay voucher checkout (connected
+   * wallet mints the voucher, backend registers) instead of the Rhinestone/HCA
+   * intent flow. The single-click EOA path; env-gated off by default so it's an
+   * explicit opt-in while HCA is still the default.
+   */
+  WALLET_VOUCHER_CHECKOUT: {
+    enabled: import.meta.env.VITE_FF_WALLET_VOUCHER_CHECKOUT === 'true',
+  },
 } as const satisfies Record<string, FeatureFlagConfig | boolean>
 
 export type TransactionInfra = 'warp'

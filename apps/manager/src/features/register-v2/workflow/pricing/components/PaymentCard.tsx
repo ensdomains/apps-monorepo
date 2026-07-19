@@ -35,6 +35,13 @@ const CrossmintCheckoutDialog = lazy(() =>
   })),
 )
 
+// Self-pay (connected-wallet) voucher checkout — the single-click EOA path.
+const VoucherCheckoutDialog = lazy(() =>
+  import('./VoucherCheckoutDialog').then((m) => ({
+    default: m.VoucherCheckoutDialog,
+  })),
+)
+
 export const PaymentCard = () => {
   const { uiActor, label } = useRegistrationV2Context()
   const [duration, canNext] = useSelector(uiActor, (state) => [
@@ -43,6 +50,7 @@ export const PaymentCard = () => {
   ])
   const { ownerAddress } = useSmartAccountContext()
   const [cardOpen, setCardOpen] = useState(false)
+  const [voucherOpen, setVoucherOpen] = useState(false)
   // Gate the client-only Crossmint dialog on mount so it never renders (and its
   // SDK never imports) during SSR.
   const [mounted, setMounted] = useState(false)
@@ -74,6 +82,10 @@ export const PaymentCard = () => {
   const overCardLimit =
     totalPriceUsd !== undefined && totalPriceUsd > CARD_LIMIT_USD
   const showCardOption = cardCheckoutEnabled && Boolean(ownerAddress)
+  // Self-pay voucher path: the stablecoin button mints the voucher from the
+  // connected wallet instead of advancing to the HCA/Rhinestone intent flow.
+  const voucherCheckoutEnabled =
+    isFeatureEnabled('WALLET_VOUCHER_CHECKOUT') && Boolean(ownerAddress)
 
   return (
     <>
@@ -84,7 +96,11 @@ export const PaymentCard = () => {
         cardOverLimit={overCardLimit}
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-        onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+        onNext={
+          voucherCheckoutEnabled
+            ? () => setVoucherOpen(true)
+            : () => uiActor.send({ type: 'pricing.step.next' })
+        }
         onPayWithCard={showCardOption ? () => setCardOpen(true) : undefined}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
@@ -96,6 +112,18 @@ export const PaymentCard = () => {
             label={label}
             onOpenChange={setCardOpen}
             open={cardOpen}
+            ownerAddress={ownerAddress as Address}
+            totalPriceUsd={totalPriceUsd}
+          />
+        </Suspense>
+      )}
+      {mounted && voucherCheckoutEnabled && ownerAddress && (
+        <Suspense fallback={null}>
+          <VoucherCheckoutDialog
+            durationSeconds={duration}
+            label={label}
+            onOpenChange={setVoucherOpen}
+            open={voucherOpen}
             ownerAddress={ownerAddress as Address}
             totalPriceUsd={totalPriceUsd}
           />
