@@ -1,12 +1,20 @@
 import { vValidator } from '@hono/valibot-validator'
 import { and, eq } from 'drizzle-orm'
-import { isAddressEqual } from 'viem'
+import {
+  type Address,
+  createPublicClient,
+  type Hex,
+  http,
+  isAddressEqual,
+  zeroAddress,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 import { requireAuth } from '#app/middleware/auth.js'
 import { createApp } from '#app/middleware/hono.js'
 import { getCrossmintDb } from '#core/database/crossmint.js'
 import { crossmintOrders } from '#core/database/schema/crossmint.js'
+import { SEPOLIA_RPC_URL, sepoliaWithEns } from '#core/eth/client.js'
 import {
-  createServerWalletClient,
   generateSecret,
   precomputeOrderCommitment,
 } from '#services/crossmint/fulfilment.js'
@@ -40,15 +48,33 @@ export default createApp()
       const label = body.name.replace(/\.eth$/, '')
       const secret = generateSecret()
 
+      // Read-only public client for the `proxyLogic` fetch — no wallet/roles
+      // config needed for a read.
+      const publicClient = createPublicClient({
+        chain: sepoliaWithEns,
+        transport: http(SEPOLIA_RPC_URL),
+      })
+
+      // Resolve the payer/deployer address for CREATE2 resolver precomputation.
+      // The deployer is the Safe in Roles mode, the EOA in direct mode.
+      // Falls back to zeroAddress for dev/preview workers without a configured
+      // payer (the commitment won't be fulfillable, but the route won't 500).
+      const deployer: Address =
+        (c.env.REGISTRAR_SAFE_ADDRESS as Address | undefined) ??
+        (c.env.ALLOW_DIRECT_EOA_SIGNER && c.env.ETH_PRIVATE_KEY
+          ? privateKeyToAccount(c.env.ETH_PRIVATE_KEY as Hex).address
+          : zeroAddress)
+
       // Fix the buyer-bound commitment + counterfactual resolver now, so the
       // voucher is minted carrying this commitment and fulfilment can verify the
       // paid-for artifact authorizes exactly this registration. The frontend
-      // passes `commitment` into Crossmint's BYOC mint callData.
+      // passes `commitment` into the voucher mint callData.
       const { resolver, commitment } = await precomputeOrderCommitment(
-        createServerWalletClient(c.env),
+        publicClient,
+        deployer,
         {
           label,
-          buyer: body.ownerAddress as `0x${string}`,
+          buyer: body.ownerAddress as Address,
           secret,
           duration: BigInt(body.durationSeconds),
         },

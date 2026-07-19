@@ -10,6 +10,7 @@ import {
   type Hex,
   http,
   isAddressEqual,
+  type PublicClient,
   publicActions,
   type TransactionReceipt,
   walletActions,
@@ -126,10 +127,20 @@ export function generateSecret(): Hex {
  * fulfilment can later verify it (see fulfilment note in commitment.ts). Reads
  * the factory's immutable `proxyLogic` once; everything else is a pure CREATE2 /
  * keccak derivation. `deployer` must be the identity that will call
- * `deployProxy` during fulfilment — the payer (`client.payer`).
+ * `deployProxy` during fulfilment — the payer (Safe in Roles mode, EOA in
+ * direct mode).
+ *
+ * Takes a `PublicClient` (read-only, no wallet/roles config needed) + the
+ * `deployer` address explicitly, so the `/orders` route can precompute without
+ * triggering the fail-closed guard in `createServerWalletClient`.
+ *
+ * Callers that already have a full `ServerWalletClient` pass it as the client
+ * (it satisfies `PublicClient` structurally) and extract the deployer from
+ * `client.payer`.
  */
 export async function precomputeOrderCommitment(
-  client: ServerWalletClient,
+  client: Pick<PublicClient, 'readContract'>,
+  deployer: Address,
   params: { label: string; buyer: Address; secret: Hex; duration: bigint },
 ): Promise<{ resolver: Address; commitment: Hex }> {
   const proxyLogic = await client.readContract({
@@ -140,7 +151,7 @@ export async function precomputeOrderCommitment(
   const resolver = computeResolverAddress({
     factory: CONTRACTS.VerifiableFactory,
     proxyLogic,
-    deployer: client.payer,
+    deployer,
     secret: params.secret,
   })
   const commitment = computeCommitment({

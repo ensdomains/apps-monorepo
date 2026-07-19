@@ -80,12 +80,11 @@ async function main() {
   // (this is what the /orders route does and stores on the voucher).
   console.log('\n[1] precompute commitment + resolver (owner = buyer)...')
   const secret = generateSecret()
-  const { resolver, commitment } = await precomputeOrderCommitment(client, {
-    label,
-    buyer: BUYER,
-    secret,
-    duration,
-  })
+  const { resolver, commitment } = await precomputeOrderCommitment(
+    client,
+    client.payer,
+    { label, buyer: BUYER, secret, duration },
+  )
   console.log('    resolver (counterfactual):', resolver)
   console.log('    commitment:', commitment)
 
