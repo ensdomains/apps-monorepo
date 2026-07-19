@@ -6,14 +6,14 @@ import { MobileHeader } from './mobile/MobileHeader'
 
 type HeaderProps = {
   readonly desktopBreakpoint?: 'md' | 'lg-landscape'
-  readonly mobileBlurredBackground?: boolean
+  readonly hasMobileBlurredBackground?: boolean
   readonly profileThemeColor?: string
   readonly transparentBackground?: boolean
 }
 
 export const Header = ({
   desktopBreakpoint = 'md',
-  mobileBlurredBackground = false,
+  hasMobileBlurredBackground = false,
   profileThemeColor,
   transparentBackground = false,
 }: HeaderProps) => {
@@ -36,8 +36,8 @@ export const Header = ({
   if (showMobileHeader) {
     return (
       <MobileHeader
-        blurredBackground={mobileBlurredBackground}
         connectionSettled={connectionSettled}
+        hasBlurredBackground={hasMobileBlurredBackground}
         isConnected={isConnected}
         transparentBackground={transparentBackground}
       />

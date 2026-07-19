@@ -17,14 +17,14 @@ import { MobileConnectButton } from './MobileConnectButton'
 type MobileHeaderProps = {
   readonly isConnected: boolean
   readonly connectionSettled: boolean
-  readonly blurredBackground?: boolean
+  readonly hasBlurredBackground?: boolean
   readonly transparentBackground?: boolean
 }
 
 export const MobileHeader = ({
   isConnected,
   connectionSettled,
-  blurredBackground = false,
+  hasBlurredBackground = false,
   transparentBackground = false,
 }: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -51,10 +51,10 @@ export const MobileHeader = ({
       <nav
         className={tw(
           'relative flex h-[54px] min-w-0 items-center px-4 py-2',
-          blurredBackground &&
+          hasBlurredBackground &&
             'border border-[#E2E2E28C] bg-white/75 backdrop-blur-[6px]',
-          transparentBackground && !blurredBackground && 'bg-transparent',
-          !transparentBackground && !blurredBackground && 'bg-white',
+          transparentBackground && !hasBlurredBackground && 'bg-transparent',
+          !transparentBackground && !hasBlurredBackground && 'bg-white',
         )}
       >
         <AnimatePresence initial={false} mode="popLayout">
