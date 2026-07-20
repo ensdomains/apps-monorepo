@@ -11,7 +11,7 @@ Control features via environment variables or user-specific lists. User identifi
 ```bash
 # .env
 VITE_FF_DISCOUNTS_APPLIED=false
-VITE_FF_LANGUAGE_SELECTOR=false
+VITE_FF_MIGRATION=false
 ```
 
 ### Define Flags
