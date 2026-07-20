@@ -25,7 +25,7 @@ import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intent
 export type RevokeRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
   readonly account: Address
-  readonly roles: Role[]
+  readonly roles: readonly Role[]
   readonly walletClient: WalletClient
   readonly chainId: number
 }
@@ -71,7 +71,7 @@ export function prepareRevokeRegistryRolesTransaction({
       registryAddress,
       account,
       resource: ROOT_RESOURCE,
-      roles,
+      roles: [...roles],
     },
   )
 

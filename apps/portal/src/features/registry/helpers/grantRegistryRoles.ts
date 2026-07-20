@@ -25,7 +25,7 @@ import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intent
 export type GrantRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
   readonly account: Address
-  readonly roles: Role[]
+  readonly roles: readonly Role[]
   readonly walletClient: WalletClient
   readonly chainId: number
 }
@@ -70,7 +70,7 @@ export function prepareGrantRegistryRolesTransaction({
       registryAddress,
       account,
       resource: ROOT_RESOURCE,
-      roles,
+      roles: [...roles],
     },
   )
 

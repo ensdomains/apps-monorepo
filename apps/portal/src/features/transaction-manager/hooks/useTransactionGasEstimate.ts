@@ -117,7 +117,7 @@ const useFeePerGas = (chainId: number | undefined): UseQueryResult<bigint> => {
   const publicClient = usePublicClient({ chainId })
   return useQuery({
     queryKey: ['tx-fee-per-gas', chainId],
-    enabled: Boolean(publicClient),
+    enabled: Boolean(publicClient) && chainId !== undefined,
     staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
     retry: MAX_TRANSIENT_RETRIES,
