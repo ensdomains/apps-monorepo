@@ -60,7 +60,6 @@ const getProfileUrl = (name: string) =>
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
   )
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
@@ -90,6 +89,10 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   })
   const isOwner = useIsOwner({ owner })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
+
+  if (migrationEnabled === undefined) {
+    return <ProfileViewNewLoading name={name} />
+  }
 
   if (ownerMissing && isExpiryPending) {
     return <ProfileViewNewLoading name={name} />
