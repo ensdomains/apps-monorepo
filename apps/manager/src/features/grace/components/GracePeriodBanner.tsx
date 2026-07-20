@@ -55,21 +55,23 @@ const bannerBody = ({
   variant === 'profileNotOwnedName' ? (
     <Trans>
       This name expired and can still be renewed by its previous owner until{' '}
-      {formattedGraceEnd}. If renewed, it stays with the previous owner. After
-      grace ends, it enters temporary premium and anyone can register it.
+      <span className="font-semibold">{formattedGraceEnd}</span>. If renewed, it
+      stays with the previous owner. After grace ends, it enters temporary
+      premium and anyone can register it.
     </Trans>
   ) : variant === 'primaryExpired' && daysSinceExpiry != null ? (
     <Trans>
       Your primary name expired{' '}
       <Plural one="# day" other="# days" value={daysSinceExpiry} /> ago and is
-      now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to
-      keep it. While in grace, the name won&apos;t work with its records.
+      now in its {graceDays}-day grace period. Renew by{' '}
+      <span className="font-semibold">{formattedGraceEnd}</span> to keep it.
+      While in grace, the name won&apos;t work with its records.
     </Trans>
   ) : (
     <Trans>
       Your expired name is now in its {graceDays}-day grace period. Renew by{' '}
-      {formattedGraceEnd} to keep it. While in grace, the name won&apos;t work
-      with its records.
+      <span className="font-semibold">{formattedGraceEnd}</span> to keep it.
+      While in grace, the name won&apos;t work with its records.
     </Trans>
   )
 
