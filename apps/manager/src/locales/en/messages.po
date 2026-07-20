@@ -684,10 +684,6 @@ msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Could not find resolver for {name}"
-msgstr "Could not find resolver for {name}"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
 msgstr "Could not read ETH address record for {name}"
 
@@ -1034,10 +1030,6 @@ msgstr "Failed to remove Telegram channel"
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to resend email verification"
 msgstr "Failed to resend email verification"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Failed to set ETH address record"
-msgstr "Failed to set ETH address record"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Failed to set primary name"
@@ -2227,6 +2219,10 @@ msgstr "Set primary name"
 msgid "Set reverse record to show your name"
 msgstr "Set reverse record to show your name"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Set up a resolver on the explorer"
+msgstr "Set up a resolver on the explorer"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
 msgstr "Set up later"
@@ -2572,6 +2568,10 @@ msgstr "This name is in grace period"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
 msgstr "This name is in price cooldown"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name still uses a resolver you don’t control, so its records can’t be updated from this wallet. Set up your own resolver for this name first, then set it as your primary name."
+msgstr "This name still uses a resolver you don’t control, so its records can’t be updated from this wallet. Set up your own resolver for this name first, then set it as your primary name."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
