@@ -14,7 +14,7 @@ export const useConnectedAvatar = () => {
   const savedTheme = profileRecords.data?.texts.find(
     (record) => record.key === 'theme',
   )?.value
-  const themeColor = profileRecords.data
+  const themeColor = savedTheme
     ? getThemeVars(savedTheme)['--theme-color']
     : undefined
 

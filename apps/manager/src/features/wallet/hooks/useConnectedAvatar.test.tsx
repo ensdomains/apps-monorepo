@@ -71,4 +71,13 @@ describe('useConnectedAvatar', () => {
       expect.objectContaining({ enabled: false }),
     )
   })
+
+  it('does not override the generated avatar color without a saved theme', () => {
+    mockReverseName({ data: 'alia.eth' })
+    mockProfileRecords({ data: { texts: [] } })
+
+    const { result } = renderHook(() => useConnectedAvatar())
+
+    expect(result.current.themeColor).toBeUndefined()
+  })
 })
