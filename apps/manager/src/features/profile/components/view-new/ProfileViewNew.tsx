@@ -26,7 +26,10 @@ import { ProfileViewNewBanner } from './ProfileViewNewBanner'
 import { ProfileViewNewCards } from './ProfileViewNewCards'
 import { ProfileViewNewHeader } from './ProfileViewNewHeader'
 import { ProfileViewNewLoading } from './ProfileViewNewLoading'
-import { ProfileViewNewStatusBanners } from './ProfileViewNewStatusBanners'
+import {
+  ProfileViewNewGracePeriodBanner,
+  ProfileViewNewMigrationBanner,
+} from './ProfileViewNewStatusBanners'
 import { ProfileViewNewThemeColorProvider } from './ProfileViewNewThemeColor'
 
 type ProfileViewNewProps = {
@@ -133,11 +136,20 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
           headerUrl={headerUrl}
           name={name}
         />
+        <ProfileViewNewGracePeriodBanner
+          className="absolute inset-x-4 top-24.5 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
+          expiry={expiry}
+          name={name}
+        />
         <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
           <div>
-            <ProfileViewNewStatusBanners
-              expiry={expiry}
+            <ProfileViewNewMigrationBanner
               isMigrationEnabled={migrationEnabled}
+              name={name}
+            />
+            <ProfileViewNewGracePeriodBanner
+              className="mb-6 lg:landscape:hidden"
+              expiry={expiry}
               name={name}
             />
             <ProfileViewNewHeader

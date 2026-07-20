@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { RenewNameButton } from '@/features/renew/components/RenewNameButton'
+import { cn } from '@/lib/utils'
 import {
   buildNameAvatarUrl,
   buildNameHeaderUrl,
@@ -63,10 +64,20 @@ export const ViewHeaderSection = ({
             />
           </ImageFallback.Fallback>
         </ImageFallback.Root>
-        <div className="absolute top-4 left-4 flex items-center gap-2">
+        <div
+          className={cn(
+            'absolute top-4 left-4 flex items-center gap-2',
+            isInGrace && 'md:top-auto md:bottom-4',
+          )}
+        >
           <RenewNameButton isOwner={isOwner} name={name} />
         </div>
-        <div className="absolute top-4 right-4 flex items-center gap-2">
+        <div
+          className={cn(
+            'absolute top-4 right-4 flex items-center gap-2',
+            isInGrace && 'md:top-auto md:bottom-4',
+          )}
+        >
           <FavoriteButton name={name} />
           <ShareProfileDialog
             avatarUrl={avatarUrl}

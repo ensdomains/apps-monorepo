@@ -3,36 +3,43 @@ import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import type { getProfileNameExpiryStatus } from '@/features/profile/service/profileExpiry'
 
-type ProfileViewNewStatusBannersProps = {
+type ProfileViewNewGracePeriodBannerProps = {
+  readonly className?: string
   readonly expiry: ReturnType<typeof getProfileNameExpiryStatus>
-  readonly isMigrationEnabled: boolean
   readonly name: string
 }
 
-export const ProfileViewNewStatusBanners = ({
+export const ProfileViewNewGracePeriodBanner = ({
+  className,
   expiry,
-  isMigrationEnabled,
   name,
-}: ProfileViewNewStatusBannersProps) => {
-  const graceBanner = match(expiry)
+}: ProfileViewNewGracePeriodBannerProps) =>
+  match(expiry)
     .with(
       { isInGrace: true, graceEndDate: P.not(P.nullish) },
       ({ graceEndDate }) => (
-        <GracePeriodBanner
-          graceEndDate={graceEndDate}
-          renewName={name}
-          variant="profileOwnName"
-        />
+        <div className={className}>
+          <GracePeriodBanner
+            graceEndDate={graceEndDate}
+            renewName={name}
+            variant="profileOwnName"
+          />
+        </div>
       ),
     )
     .otherwise(() => null)
 
-  if (!isMigrationEnabled && !graceBanner) return null
-
-  return (
-    <div className="mb-6 space-y-4">
-      {isMigrationEnabled ? <UpgradeBanner profileName={name} /> : null}
-      {graceBanner}
-    </div>
-  )
+type ProfileViewNewMigrationBannerProps = {
+  readonly isMigrationEnabled: boolean
+  readonly name: string
 }
+
+export const ProfileViewNewMigrationBanner = ({
+  isMigrationEnabled,
+  name,
+}: ProfileViewNewMigrationBannerProps) =>
+  isMigrationEnabled ? (
+    <div className="mb-6">
+      <UpgradeBanner profileName={name} />
+    </div>
+  ) : null

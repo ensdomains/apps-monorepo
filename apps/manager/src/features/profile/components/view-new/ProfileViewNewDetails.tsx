@@ -23,7 +23,7 @@ export const ProfileViewNewNameBadge = ({
 }: {
   readonly name: string
 }) => (
-  <div className="inline-flex max-w-full items-center rounded-[3px] bg-(--theme-color) px-3 py-1.5 text-white">
+  <div className="inline-flex max-w-full items-center rounded-[3px] bg-[var(--theme-color,var(--color-ens-lapis-500))] px-3 py-1.5 text-white">
     <h1 className="truncate font-semi-mono text-[32px] leading-[1.12]">
       {name}
     </h1>
