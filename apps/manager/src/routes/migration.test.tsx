@@ -1,13 +1,14 @@
 import { useHydrated } from '@tanstack/react-router'
 import { render, screen } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { Route } from './migration'
 
 const navigateMock = vi.hoisted(() => vi.fn())
+const getFeatureFlagMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
@@ -26,6 +27,10 @@ vi.mock('@/features/wallet/hooks/useOnDisconnected', () => ({
 
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: vi.fn(),
+}))
+
+vi.mock('@/lib/posthog/get-feature-flag', () => ({
+  getFeatureFlag: getFeatureFlagMock,
 }))
 
 vi.mock('@/features/migration/pages/MigrationPage', () => ({
@@ -65,6 +70,14 @@ const renderRoute = () => {
   return render(<Component />)
 }
 
+const runBeforeLoad = () => {
+  const beforeLoad = Route.options.beforeLoad
+
+  if (!beforeLoad) throw new Error('Expected migration beforeLoad guard')
+
+  return beforeLoad({} as never)
+}
+
 describe('/migration route auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -82,8 +95,40 @@ describe('/migration route auth', () => {
     })
   })
 
-  it('does not define a beforeLoad guard so external handoffs can hydrate first', () => {
-    expect(Route.options.beforeLoad).toBeUndefined()
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('allows direct server requests when the migration flag is enabled', async () => {
+    vi.stubGlobal('window', undefined)
+    getFeatureFlagMock.mockResolvedValue(true)
+
+    await expect(runBeforeLoad()).resolves.toBeUndefined()
+    expect(getFeatureFlagMock).toHaveBeenCalledWith({
+      data: { flag: 'migration' },
+    })
+  })
+
+  it('redirects direct server requests when the migration flag is disabled', async () => {
+    vi.stubGlobal('window', undefined)
+    getFeatureFlagMock.mockResolvedValue(false)
+
+    await expect(runBeforeLoad()).rejects.toEqual({
+      options: { to: '/dashboard', replace: true },
+    })
+  })
+
+  it('allows direct server requests when migration access cannot be evaluated', async () => {
+    vi.stubGlobal('window', undefined)
+    getFeatureFlagMock.mockResolvedValue(null)
+
+    await expect(runBeforeLoad()).resolves.toBeUndefined()
+  })
+
+  it('does not consult PostHog during client-side navigation', async () => {
+    await expect(runBeforeLoad()).resolves.toBeUndefined()
+
+    expect(getFeatureFlagMock).not.toHaveBeenCalled()
   })
 
   it('waits during wallet restoration before rendering or redirecting', () => {

@@ -1,5 +1,6 @@
 import {
   createFileRoute,
+  redirect,
   useHydrated,
   useNavigate,
 } from '@tanstack/react-router'
@@ -8,9 +9,24 @@ import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { getFeatureFlag } from '@/lib/posthog/get-feature-flag'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/migration')({
+  beforeLoad: async () => {
+    // Gate direct requests during SSR without adding a PostHog round trip to
+    // client-side navigation. This flag controls rollout, not authorization.
+    if (typeof window !== 'undefined') return
+
+    const migrationAccess = await getFeatureFlag({
+      data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
+    })
+
+    if (migrationAccess === false) {
+      throw redirect({ to: '/dashboard', replace: true })
+    }
+  },
   component: RouteComponent,
 })
 
