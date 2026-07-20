@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Info } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
@@ -137,6 +137,18 @@ export const SendNameForm = ({
             .otherwise(() => null)}
         />
       </div>
+
+      {hasValidRecipient && (
+        <Alert>
+          <Info className="size-4" />
+          <AlertDescription>
+            After the transfer, the recipient must set up their own resolver on
+            this name before they can manage its records or use it as their
+            primary name. Records set with your resolver don’t carry over to the
+            new owner.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {hasValidRecipient && visibleOptions.length > 0 && (
         <div className="flex flex-col gap-3">
