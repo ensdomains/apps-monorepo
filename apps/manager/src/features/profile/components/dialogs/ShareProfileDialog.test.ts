@@ -131,7 +131,7 @@ describe('ShareProfileDialog', () => {
       .closest('[data-slot="dialog-content"]')
 
     expect(copyButton).toHaveClass('tracking-[0.12em]')
-    expect(copyIcon).toHaveClass('[letter-spacing:0.12em]')
+    expect(copyIcon).toHaveClass('tracking-[0.12em]')
     expect(dialog).toHaveStyle({
       '--share-button-bg': '#FFB0D0',
       '--share-button-text': '#5A0024',
