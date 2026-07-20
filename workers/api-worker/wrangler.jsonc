@@ -114,6 +114,13 @@
 
   "vars": {
     "CHAIN": "sepolia",
+    // Zodiac Roles v2 fulfilment config (public addresses, not secrets — see
+    // docs/zodiac-roles.md). The treasury Safe is the payer; the worker EOA
+    // (ETH_PRIVATE_KEY) must be a member of the `ens-crossmint-registrar`
+    // role on the modifier. Both set => Roles mode; both absent => the
+    // fulfilment signer fails closed (no silent direct-EOA signing).
+    "REGISTRAR_SAFE_ADDRESS": "0x6A15F8314393Fa816D2b8A9437fBDFd9cca9293C",
+    "REGISTRAR_ROLES_MODULE_ADDRESS": "0x250f3a370fA3Bb0704B9998B4F0A33057b248EbD",
     "BASE_URL": "https://app-api.ens.dev",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",

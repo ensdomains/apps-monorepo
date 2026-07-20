@@ -35,5 +35,13 @@ declare global {
      * closed rather than silently signing from ETH_PRIVATE_KEY.
      */
     ALLOW_DIRECT_EOA_SIGNER?: string
+    /**
+     * Explicit opt-in to accepting UNSIGNED Crossmint webhooks (local dev
+     * only). Without it, a missing CROSSMINT_WEBHOOK_SECRET fails closed:
+     * the webhook rejects instead of trusting any unsigned payment claim.
+     * Self-pay orders don't need this escape hatch — they settle through
+     * `/crossmint/voucher/orders/:id/settle` with on-chain proof.
+     */
+    ALLOW_UNSIGNED_WEBHOOK?: string
   }
 }

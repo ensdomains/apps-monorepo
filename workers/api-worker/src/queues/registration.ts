@@ -177,14 +177,22 @@ async function runRegisterPhase(
   // Gate spending on the voucher: its stored commitment must equal the exact
   // (label, buyer, secret, resolver, duration) tuple we're about to register.
   // A mismatch (or a missing/burned voucher) means this order isn't authorized
-  // to spend — fail before any approve/register. Skipped only when the webhook
-  // never captured a voucher tokenId (older/partial orders).
-  if (order.commitment && order.voucher_token_id) {
-    await assertVoucherCommitment(client, {
-      voucherTokenId: BigInt(order.voucher_token_id),
-      expected: order.commitment as `0x${string}`,
-    })
+  // to spend — fail before any approve/register. FAIL-CLOSED: an order with no
+  // recorded voucher tokenId is not fulfillable, period. Every legitimate path
+  // records one (Crossmint's signed webhook carries it; self-pay settle
+  // extracts it from the mint receipt) — its absence means the paid flip came
+  // from an unverified source.
+  if (!order.commitment || !order.voucher_token_id) {
+    throw new Error(
+      `Order ${orderId} has no verified voucher (commitment=${Boolean(
+        order.commitment,
+      )}, voucherTokenId=${Boolean(order.voucher_token_id)}); refusing to spend`,
+    )
   }
+  await assertVoucherCommitment(client, {
+    voucherTokenId: BigInt(order.voucher_token_id),
+    expected: order.commitment as `0x${string}`,
+  })
 
   const price = await getRegisterPriceTotal(client, {
     label: order.name,

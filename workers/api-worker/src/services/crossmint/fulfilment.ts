@@ -18,7 +18,11 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { SEPOLIA_RPC_URL, sepoliaWithEns } from '#core/eth/client.js'
+import {
+  SEPOLIA_RPC_URL,
+  sepoliaWithEns,
+  type ViemClient,
+} from '#core/eth/client.js'
 import { logger } from '#utils/logger.js'
 import {
   DEDICATED_RESOLVER_INIT_ABI,
@@ -301,9 +305,13 @@ export async function readMinCommitmentAge(
   }
 }
 
-/** Total register price (base + premium) in the payment token's smallest unit. */
+/**
+ * Total register price (base + premium) in the payment token's smallest unit.
+ * Read-only — accepts the server wallet client (queue consumer) or a plain
+ * ens-chain public client (the settle route).
+ */
 export async function getRegisterPriceTotal(
-  client: ServerWalletClient,
+  client: ServerWalletClient | ViemClient,
   params: { label: string; duration: bigint; paymentToken: Address },
 ): Promise<bigint> {
   const { base, premium } = await ensGetRegisterPrice(client, {
@@ -462,8 +470,13 @@ export async function verifyRegistration(
   )
 }
 
-/** Deployed Sepolia BYOC voucher contract (public address, inlined for the POC). */
-export const VOUCHER_ADDRESS = '0x4137481644498B3b91899D1491d6DbB9C155Fea3'
+/**
+ * Deployed Sepolia voucher contract (public address, inlined for the POC).
+ * v2 deployment with `mintSelf`/`mintSelfWithPermit` — must match the address
+ * the manager client mints against (`getVoucherAddress()` in
+ * @ens-apps/transaction-manager registration.actors.ts).
+ */
+export const VOUCHER_ADDRESS = '0x6Fc426D667B49e3949ced241653aC2fb7721E8Ed'
 
 /**
  * Burn the Crossmint voucher once the name is delivered.

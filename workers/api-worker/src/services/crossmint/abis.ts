@@ -55,6 +55,10 @@ export const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
 export const VOUCHER_ABI = parseAbi([
   'function commitmentOf(uint256 tokenId) view returns (bytes32)',
   'function burn(uint256 tokenId)',
+  // Emitted on every mint (Crossmint `mint` and self-pay `mintSelf*`). The
+  // settle route parses this from the buyer's mint receipt to verify the
+  // on-chain payment: tokenId + the exact commitment + what was paid.
+  'event VoucherMinted(uint256 indexed tokenId, address indexed to, bytes32 indexed commitment, uint256 duration, address paymentToken, uint256 amountPaid)',
 ])
 
 /**
