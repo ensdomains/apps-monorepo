@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useRef, useState } from 'react'
+import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
@@ -18,7 +19,7 @@ import { resetNameResolver } from '../helpers/resetNameResolver'
 import { transferToken } from '../helpers/transferToken'
 import {
   buildTransferPlan,
-  getTransferStepLabel,
+  STEP_LABELS,
   type TransferOptions,
   type TransferStepKind,
 } from '../utils/buildTransferPlan'
@@ -125,36 +126,17 @@ export const useTransferName = ({
     const common = { name, walletClient, publicClient: pc, signer, chainId }
     const label = getLabel(name)
 
-    switch (step) {
-      case 'reset-resolver': {
-        await resetNameResolver({
-          ...common,
-          label,
-          registryAddress,
-          id,
-        })
-        return
-      }
-      case 'reset-registry': {
-        await resetNameRegistry({
-          ...common,
-          label,
-          registryAddress,
-          id,
-        })
-        return
-      }
-      case 'transfer-token': {
-        await transferToken({
-          ...common,
-          registryAddress,
-          tokenId,
-          recipient,
-          id,
-        })
-        return
-      }
-    }
+    await match(step)
+      .with('reset-resolver', () =>
+        resetNameResolver({ ...common, label, registryAddress, id }),
+      )
+      .with('reset-registry', () =>
+        resetNameRegistry({ ...common, label, registryAddress, id }),
+      )
+      .with('transfer-token', () =>
+        transferToken({ ...common, registryAddress, tokenId, recipient, id }),
+      )
+      .exhaustive()
   }
 
   // Built fresh each render (like useRenewalTransactions) — the modal holds the
@@ -185,8 +167,8 @@ export const useTransferName = ({
 
     return steps.map((step, i) => ({
       id: `transfer-${name}-${step}`,
-      title: getTransferStepLabel(step),
-      transactionName: `${getTransferStepLabel(step)} - ${name}`,
+      title: STEP_LABELS[step],
+      transactionName: `${STEP_LABELS[step]} - ${name}`,
       estimatedGasCost: GAS_BY_STEP[step],
       onStart: runners[i],
       onDone: i < runners.length - 1 ? runners[i + 1] : finishFlow,

@@ -64,12 +64,7 @@ export const RegistryAddUserSheet = ({
   } | null>(null)
 
   const resolution = useAddressResolution(nameOrAddressInput)
-  const address = resolution.address
-  const isResolvingAddress = resolution.isResolving
-  const isRecipientInvalid =
-    resolution.status === 'invalid' ||
-    resolution.status === 'unresolved' ||
-    resolution.status === 'error'
+  const { address, isResolving: isResolvingAddress, isInvalid } = resolution
 
   const { openModal, closeModal, clearTransaction } = useTransactionModal()
   const { grantRegistryRoles, isPending, isSuccess, reset } =
@@ -153,7 +148,7 @@ export const RegistryAddUserSheet = ({
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field data-invalid={isRecipientInvalid}>
+            <Field data-invalid={isInvalid}>
               <AddressNameInput
                 id="user"
                 name="user"
