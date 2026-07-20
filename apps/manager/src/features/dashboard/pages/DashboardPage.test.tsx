@@ -42,7 +42,7 @@ vi.mock('@/features/dashboard/components/FaqSection', () => ({
 }))
 
 vi.mock('@/features/dashboard/components/NamesTable', () => ({
-  NamesTable: () => null,
+  NamesTable: () => <div data-testid="names-table" />,
 }))
 
 vi.mock('@/features/dashboard/components/PrimaryNameCard', () => ({
@@ -50,7 +50,7 @@ vi.mock('@/features/dashboard/components/PrimaryNameCard', () => ({
 }))
 
 vi.mock('@/features/migration/components/MigrationModal', () => ({
-  MigrationModal: () => null,
+  MigrationModal: () => <div data-testid="migration-modal" />,
 }))
 
 vi.mock('@/features/migration/components/MigrationProgressBanner', () => ({
@@ -64,20 +64,23 @@ vi.mock('@/features/migration/components/UpgradeBanner', () => ({
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
-    vi.mocked(useQuery).mockReturnValue({ data: undefined } as never)
+    vi.mocked(useQuery)
+      .mockReturnValueOnce({ data: 'test.eth' } as never)
+      .mockReturnValueOnce({ data: { texts: [] } } as never)
     vi.mocked(useReducedMotion).mockReturnValue(false)
     vi.mocked(useSmartAccountContext).mockReturnValue({
       ownerAddress: '0x1111111111111111111111111111111111111111',
     } as never)
   })
 
-  it('waits while migration access is unresolved', () => {
+  it('renders the dashboard without migration UI while access is unresolved', () => {
     vi.mocked(
       useFeatureFlagEnabled as (flag: string) => boolean | undefined,
     ).mockReturnValue(undefined)
 
     render(<DashboardPage />)
 
-    expect(screen.getByTestId('dashboard-loading-spinner')).not.toBeNull()
+    expect(screen.getByTestId('names-table')).not.toBeNull()
+    expect(screen.queryByTestId('migration-modal')).toBeNull()
   })
 })
