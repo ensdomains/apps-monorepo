@@ -3,28 +3,36 @@
  *
  * Returns contract parameters for calling setAddr on the resolver.
  * Uses ensjs setAddrParameters for correct address encoding.
+ *
+ * The write always targets the name's resolver on L1, whatever coin type the
+ * record is for: per ENSIP-19 an L2 primary name is verified against the
+ * name's `addr(node, l2CoinType)` record, which lives on the L1 resolver just
+ * like the coin-60 record.
  */
 
 import { setAddrParameters } from '@ensdomains/ensjs/utils'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import type { ReverseRegistrarChainId } from '../v1/reverseRegistrarChainIds'
 
 export type SetForwardResolutionRequest = ReturnType<
   typeof createSetForwardResolutionRequest
 >
 
 /**
- * Creates contract call parameters for setting forward resolution
+ * Creates contract call parameters for setting forward resolution.
+ *
+ * @param coinType ENSIP-9/11 coin type the address record is keyed on: `60`
+ * for Ethereum, `0x80000000 | chainId` for EVM L2s (environment-derived, e.g.
+ * Scroll Sepolia → `0x8008274f`), `0x80000000` for the default record.
  */
 export function createSetForwardResolutionRequest({
   name,
-  reverseRegistrarChainId: _reverseRegistrarChainId,
+  coinType,
   resolverAddress,
   targetAddress,
 }: {
   name: string | undefined
-  reverseRegistrarChainId: ReverseRegistrarChainId
+  coinType: number
   resolverAddress: Address | null | undefined
   targetAddress: Address
 }) {
@@ -46,7 +54,7 @@ export function createSetForwardResolutionRequest({
 
   const setAddr = setAddrParameters({
     name,
-    coin: 60,
+    coin: coinType,
     value: targetAddress,
   })
 

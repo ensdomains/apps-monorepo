@@ -119,7 +119,7 @@ const getProfile = ResultFn(async function* ({
   })
 })
 
-const profileQueryKey = createQueryKey<
+export const profileQueryKey = createQueryKey<
   'profile',
   {
     name: string
