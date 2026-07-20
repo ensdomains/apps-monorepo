@@ -284,12 +284,12 @@ app.get('/api/comments', requireAuth, async (req, res) => {
     await Promise.all(
       due.map(async (c) => {
         const status = await checkLinearStatus(c.linear, token)
-        updateComment(c.id, {
+        const updated = updateComment(c.id, {
           linearCheckedAt: now,
           ...(status === 'deleted' ? { linearDeleted: true } : {}),
         })
-        if (status === 'deleted')
-          broadcast(c.url, { type: 'comment:update', comment: c })
+        if (status === 'deleted' && updated)
+          broadcast(c.url, { type: 'comment:update', comment: updated })
       }),
     )
   }
