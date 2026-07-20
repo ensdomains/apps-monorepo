@@ -14,7 +14,7 @@ type ProfileDetailsProps = {
 }
 
 const detailLabelClassName =
-  'flex items-center text-ens-quartz-400 text-xs leading-5.25 lg:landscape:text-base lg:landscape:leading-normal'
+  'relative flex items-center text-ens-quartz-400 text-xs leading-5.25 lg:landscape:text-base lg:landscape:leading-normal'
 const detailValueClassName =
   'font-sans text-[11px] text-ens-quartz-700 leading-4.5 tracking-[0.77px] lg:landscape:text-[13px] lg:landscape:leading-normal lg:landscape:tracking-[0.91px]'
 
@@ -74,17 +74,19 @@ const ProfileDetail = ({
   label,
   value,
   copyValue,
-  iconGapClassName = 'gap-3',
+  labelPaddingClassName = 'pl-8',
 }: {
   readonly icon: React.ReactNode
   readonly label: React.ReactNode
   readonly value: React.ReactNode
   readonly copyValue?: string
-  readonly iconGapClassName?: string
+  readonly labelPaddingClassName?: string
 }) => (
-  <div className="flex min-w-0 flex-col items-start gap-0 lg:landscape:flex-row lg:landscape:items-center lg:landscape:gap-1.5">
-    <div className={cn(detailLabelClassName, iconGapClassName)}>
-      {icon}
+  <div className="flex min-w-0 flex-col items-start gap-0 lg:landscape:flex-row lg:landscape:items-baseline lg:landscape:gap-1.5">
+    <div className={cn(detailLabelClassName, labelPaddingClassName)}>
+      <span className="absolute inset-y-0 left-0 flex items-center">
+        {icon}
+      </span>
       <span>{label}</span>
     </div>
     <div className="flex min-w-0 items-center gap-1 pl-6 lg:landscape:pl-0">
@@ -116,8 +118,8 @@ export const ProfileViewNewDetails = ({
           icon={
             <MSymbol className="ms-opsz-20 ms-wght-300" symbol="key_vertical" />
           }
-          iconGapClassName="gap-0.5"
           label={<Trans>Owner</Trans>}
+          labelPaddingClassName="pl-[22px]"
           value={ownerReverseName || truncateAddress(owner)}
         />
       ) : null}

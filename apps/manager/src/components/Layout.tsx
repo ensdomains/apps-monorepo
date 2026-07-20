@@ -1,6 +1,6 @@
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
-import { useLocation } from '@tanstack/react-router'
+import { useLocation, useMatches } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { GlobalBackButtonProvider } from '@/components/GlobalBackButton'
 import { LayoutBackAndNoticeRow } from '@/components/LayoutBackAndNoticeRow'
@@ -17,16 +17,24 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const { pathname } = useLocation()
+  const profileViewNewServerEnabled = useMatches({
+    select: (matches) =>
+      matches.some(
+        (routeMatch) =>
+          routeMatch.routeId === '/$name' &&
+          routeMatch.context.profileViewNewEnabled === true,
+      ),
+  })
   const profileViewNewEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
-    false,
+    profileViewNewServerEnabled,
   )
   const isMigrationPage = pathname === '/migration'
   const migrationHeaderColor = '#e72a96'
   const isEnsNameProfilePage = /^\/[^/]+\.[^/]+\/?$/.test(pathname)
   const isNewProfileViewPage =
     profileViewNewEnabled === true && isEnsNameProfilePage
-  const isSepoliaBannerVisible = !isMigrationPage && !isNewProfileViewPage
+  const isSepoliaBannerVisible = !isMigrationPage && !isEnsNameProfilePage
   const profileName = isEnsNameProfilePage
     ? pathname.replace(/^\/|\/$/g, '')
     : ''

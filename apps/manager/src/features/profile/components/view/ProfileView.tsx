@@ -29,6 +29,7 @@ import { ViewLinksSection } from './ViewLinksSection'
 
 interface ProfileViewProps {
   name: string
+  profileViewNewEnabled?: boolean
 }
 
 type UseIsOwnerParams = {
@@ -48,12 +49,10 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
   })
 }
 
-export const ProfileView = ({ name }: ProfileViewProps) => {
-  const profileViewNewEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
-    false,
-  )
-
+export const ProfileView = ({
+  name,
+  profileViewNewEnabled = false,
+}: ProfileViewProps) => {
   return profileViewNewEnabled ? (
     <ProfileViewNew name={name} />
   ) : (
