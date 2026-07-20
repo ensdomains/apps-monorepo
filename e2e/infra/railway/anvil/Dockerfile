@@ -8,9 +8,25 @@
 # Binds [::]: a dual-stack socket accepts both IPv6 and IPv4, covering
 # Railway private networking and the public proxy with one flag.
 #
-# NOTE: fork mode (live Sepolia). Once the ens-v2-snapshot image is rebuilt
-# with current contracts, switch the service back to that image (see
-# ../README.md) — snapshot needs no upstream RPC and boots in seconds.
+# SECURITY — this is an UNAUTHENTICATED, publicly-reachable dev chain:
+#   * Anvil exposes cheatcodes (evm_increaseTime, evm_mine, anvil_setBalance,
+#     state reset…) to anyone who finds the URL — they can sabotage a PR's
+#     preview chain. Acceptable only because these are throwaway per-PR
+#     environments (deleted on PR close + nightly sweep) holding testnet state
+#     with no value.
+#   * In FORK mode Anvil forwards state reads to $SEPOLIA_FORK_URL, so a public
+#     endpoint is effectively an open proxy that burns that upstream RPC key's
+#     quota. Mitigations, in order of preference:
+#       1. Prefer the ens-v2-snapshot image (below) — it needs NO upstream RPC,
+#          which removes the key-abuse vector entirely.
+#       2. If fork mode is required, use a DEDICATED, rate-limited SEPOLIA_FORK_URL
+#          key you can revoke — never the shared/production RPC key.
+#       3. Consider not generating a public Railway domain for anvil unless a
+#          browser actually needs direct RPC access.
+#
+# Once the ens-v2-snapshot image is rebuilt with current contracts, switch the
+# service back to that image (see ../README.md) — snapshot needs no upstream
+# RPC and boots in seconds.
 #
 # Railway service settings:
 #   Root Directory:  e2e/infra

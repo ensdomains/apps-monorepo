@@ -6,6 +6,9 @@ import type { Comment, LinearPushMode, LinearRef } from "./types.ts";
 
 const LINEAR_API = "https://api.linear.app/graphql";
 const UPLOAD_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../data/uploads");
+// Cap outbound Linear requests so an upstream outage can't hang a push/upload.
+const LINEAR_FETCH_TIMEOUT_MS = 10_000;
+const UPLOAD_TIMEOUT_MS = 30_000; // image PUT can be larger; allow more
 
 const FILE_UPLOAD = `
   mutation FileUpload($contentType: String!, $filename: String!, $size: Int!) {
@@ -38,7 +41,7 @@ async function uploadImageToLinear(token: string, localUrl: string | null): Prom
     // Content-Length is set automatically by fetch from the body.
     const headers: Record<string, string> = { "Content-Type": contentType };
     for (const h of uf.headers || []) headers[h.key] = h.value;
-    const put = await fetch(uf.uploadUrl, { method: "PUT", headers, body: readFileSync(file) });
+    const put = await fetch(uf.uploadUrl, { method: "PUT", headers, body: readFileSync(file), signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
     if (!put.ok) {
       console.warn("[linear] upload PUT failed:", put.status, (await put.text().catch(() => "")).slice(0, 200));
       return null;
@@ -136,6 +139,7 @@ async function gql(query: string, token: string, variables?: Record<string, unkn
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: token },
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(LINEAR_FETCH_TIMEOUT_MS),
   });
   const json = (await res.json()) as { data?: any; errors?: unknown };
   if (json.errors) throw new Error("Linear API error: " + JSON.stringify(json.errors));

@@ -568,6 +568,17 @@ wss.on('connection', (rawWs) => {
         return ws.close()
       }
       ws.meta.authed = true
+      // On SPA navigation the client re-joins with a new url. Leave the old
+      // room first so this socket stops receiving the previous page's cursor
+      // events (otherwise it lingers in both rooms).
+      if (ws.meta.url && ws.meta.url !== msg.url) {
+        const prev = rooms.get(ws.meta.url)
+        if (prev) {
+          prev.delete(ws)
+          broadcast(ws.meta.url, { type: 'leave', user: ws.meta.user })
+          if (prev.size === 0) rooms.delete(ws.meta.url)
+        }
+      }
       ws.meta.url = msg.url
       ws.meta.user = {
         id: session.sub,

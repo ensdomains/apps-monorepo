@@ -8,6 +8,10 @@ import crypto from 'node:crypto'
 import type { IncomingMessage } from 'node:http'
 import type { LinearViewer, Session } from './types.ts'
 
+// Cap every outbound Linear request so an upstream outage can't hang a DQA
+// request (auth callback, /api/comments deletion check, push, etc.) forever.
+const LINEAR_FETCH_TIMEOUT_MS = 10_000
+
 const LINEAR_AUTHORIZE = 'https://linear.app/oauth/authorize'
 const LINEAR_TOKEN = 'https://api.linear.app/oauth/token'
 const LINEAR_GQL = 'https://api.linear.app/graphql'
@@ -264,6 +268,7 @@ export async function exchangeCode(code: string): Promise<{
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
+    signal: AbortSignal.timeout(LINEAR_FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`token exchange failed (${res.status})`)
   return res.json() as Promise<{
@@ -285,6 +290,7 @@ async function gql<T>(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: token },
     body: JSON.stringify({ query, variables }),
+    signal: AbortSignal.timeout(LINEAR_FETCH_TIMEOUT_MS),
   })
   const json = (await res.json()) as { data?: T; errors?: unknown }
   if (json.errors)
@@ -340,6 +346,7 @@ export async function revoke(token: string): Promise<void> {
     await fetch(LINEAR_REVOKE, {
       method: 'POST',
       headers: { Authorization: token },
+      signal: AbortSignal.timeout(LINEAR_FETCH_TIMEOUT_MS),
     })
   } catch {}
 }

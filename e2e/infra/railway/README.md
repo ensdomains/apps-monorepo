@@ -56,8 +56,15 @@ the snapshot image first (`build-ens-v2-snapshot` workflow).
    ```bash
    SESSION_SECRET=<random string>               # signs DQA session JWTs
    TOKEN_ENCRYPTION_KEY=<random string>         # encrypts embedded Linear tokens
-   # Wildcards supported — one entry covers all preview domains:
-   DQA_ALLOWED_ORIGINS=https://*.pages.dev,https://*.up.railway.app,http://localhost:5173,http://localhost:5174
+   # SECURITY: scope wildcards to YOUR account subdomain — never bare
+   # *.workers.dev / *.pages.dev / *.up.railway.app. This list gates CORS *and*
+   # the OAuth return origin, so a bare *.workers.dev would let ANY Cloudflare
+   # worker (an attacker's included) receive a freshly-minted session token.
+   # Previews run under the ENS account subdomain (only ENS can publish there):
+   #   https://<branch>-manager-app-v4.ens-cf.workers.dev
+   #   https://<branch>-portal-app.ens-cf.workers.dev
+   # so scope to that subdomain:
+   DQA_ALLOWED_ORIGINS=https://*.ens-cf.workers.dev,http://localhost:3000,http://localhost:3001
    ```
 
    **Linear OAuth — delegated auth**: Linear requires exact registered
@@ -99,8 +106,13 @@ the snapshot image first (`build-ens-v2-snapshot` workflow).
 ## Per-PR flow
 
 1. PR opened → workflow creates `pr-<n>` by copying the base env. The `dqa`
-   service is pinned to the PR branch (`source.branch`), so DQA server changes
-   in a PR are what gets deployed.
+   service is **NOT** built from the PR branch — it runs the base (trusted)
+   code. Building PR-authored code with `LINEAR_CLIENT_SECRET` /
+   `SESSION_SECRET` / `TOKEN_ENCRYPTION_KEY` present would let a malicious PR
+   exfiltrate them at runtime. Previews therefore use the shared base dqa for
+   auth + data (`VITE_DQA_URL` → base dqa domain); `dqa-server` code changes
+   are validated via local `pnpm --filter @ens-apps/dqa-server dev` / e2e, not
+   PR previews.
 2. Public domains are generated per service and posted as a PR comment,
    including a snippet for pointing a local app build at the environment.
 3. PR closed or merged → environment deleted, all services deprovisioned.
@@ -116,7 +128,8 @@ comment:
 VITE_SEPOLIA_RPC_URL=https://anvil-pr-123.up.railway.app
 VITE_INDEXER_GRAPHQL_URL=https://panoptes-pr-123.up.railway.app/graphql
 VITE_DQA=1
-VITE_DQA_URL=https://dqa-pr-123.up.railway.app
+# Shared base dqa (fixed domain) — NOT a per-PR dqa; see Per-PR flow step 1.
+VITE_DQA_URL=https://<base-dqa-domain>
 ```
 
 Known gaps / follow-ups:
