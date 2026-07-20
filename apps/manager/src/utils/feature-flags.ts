@@ -33,9 +33,6 @@ const FEATURE_FLAGS_INTERNAL = {
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
   },
-  MIGRATION: {
-    enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
-  },
   /** Favorite/search demand stats in the temp premium price cooldown banner. */
   TEMP_PREMIUM_NAME_STATS: {
     enabled: import.meta.env.VITE_FF_TEMP_PREMIUM_NAME_STATS === 'true',
