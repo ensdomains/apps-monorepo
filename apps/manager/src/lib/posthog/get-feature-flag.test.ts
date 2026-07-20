@@ -77,10 +77,10 @@ describe('getFeatureFlag', () => {
     await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(false)
   })
 
-  it('fails open when PostHog cannot resolve the flag', async () => {
+  it('treats an omitted boolean flag as disabled', async () => {
     isFeatureEnabledMock.mockResolvedValue(undefined)
 
-    await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBeNull()
+    await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(false)
   })
 
   it('does not create a PostHog client without a connected wallet', async () => {

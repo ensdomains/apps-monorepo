@@ -15,10 +15,6 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 
 export const Route = createFileRoute('/migration')({
   beforeLoad: async () => {
-    // Gate direct requests during SSR without adding a PostHog round trip to
-    // client-side navigation. This flag controls rollout, not authorization.
-    if (typeof window !== 'undefined') return
-
     const migrationAccess = await getFeatureFlag({
       data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
     })

@@ -125,10 +125,15 @@ describe('/migration route auth', () => {
     await expect(runBeforeLoad()).resolves.toBeUndefined()
   })
 
-  it('does not consult PostHog during client-side navigation', async () => {
-    await expect(runBeforeLoad()).resolves.toBeUndefined()
+  it('redirects disabled client-side navigation through the server checker', async () => {
+    getFeatureFlagMock.mockResolvedValue(false)
 
-    expect(getFeatureFlagMock).not.toHaveBeenCalled()
+    await expect(runBeforeLoad()).rejects.toEqual({
+      options: { to: '/dashboard', replace: true },
+    })
+    expect(getFeatureFlagMock).toHaveBeenCalledWith({
+      data: { flag: 'migration' },
+    })
   })
 
   it('waits during wallet restoration before rendering or redirecting', () => {

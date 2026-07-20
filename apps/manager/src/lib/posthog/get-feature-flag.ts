@@ -55,7 +55,9 @@ export const getFeatureFlag = createServerFn({ method: 'GET' })
         sendFeatureFlagEvents: false,
       })
 
-      return enabled ?? null
+      // PostHog omits disabled boolean flags from a successful /flags response,
+      // which the Node SDK exposes as undefined.
+      return enabled ?? false
     } catch (error) {
       console.warn('[posthog] Feature flag evaluation failed', {
         error,
