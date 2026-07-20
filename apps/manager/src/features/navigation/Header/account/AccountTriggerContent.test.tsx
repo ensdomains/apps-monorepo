@@ -1,3 +1,4 @@
+import { generatePatternDataURI } from '@ensdomains/etherloom'
 import { screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -20,6 +21,12 @@ vi.mock('@/lib/smart-account/SmartAccountContext', () => ({
 }))
 
 const originalImage = window.Image
+const etherloomOptions = {
+  cellSize: 10,
+  height: 96,
+  width: 96,
+  padding: 10,
+} as const
 
 class LoadedImage extends EventTarget {
   complete = true
@@ -40,10 +47,17 @@ const mockReverseName = () => {
   } as unknown as ReturnType<typeof useConnectedReverseName>)
 }
 
-const mockAvatar = (url: string | undefined) => {
+const mockAvatar = ({
+  themeColor,
+  url,
+}: {
+  readonly themeColor?: string
+  readonly url?: string
+}) => {
   vi.mocked(useConnectedAvatar).mockReturnValue({
     error: null,
     isLoading: false,
+    themeColor,
     url,
   } as ReturnType<typeof useConnectedAvatar>)
 }
@@ -61,7 +75,7 @@ describe('AccountTriggerContent', () => {
   })
 
   it('renders uploaded navbar avatars with subtle square rounding', async () => {
-    mockAvatar('https://example.com/avatar.png')
+    mockAvatar({ url: 'https://example.com/avatar.png' })
 
     render(<AccountTriggerContent />)
 
@@ -72,7 +86,7 @@ describe('AccountTriggerContent', () => {
   })
 
   it('renders generated navbar avatars with subtle square rounding', async () => {
-    mockAvatar(undefined)
+    mockAvatar({ themeColor: '#984D1B' })
 
     render(<AccountTriggerContent />)
 
@@ -84,9 +98,18 @@ describe('AccountTriggerContent', () => {
 
     const fallbackAvatar = screen.getByRole('img', {
       name: 'fgeorgescu.eth pattern',
-    }).parentElement
+    })
 
-    expect(fallbackAvatar).toHaveClass('rounded-sm')
-    expect(fallbackAvatar).not.toHaveClass('rounded-full')
+    expect(fallbackAvatar).toHaveAttribute(
+      'src',
+      generatePatternDataURI(
+        'fgeorgescu.eth',
+        'ENS Vertical Pairs',
+        '#984D1B',
+        etherloomOptions,
+      ),
+    )
+    expect(fallbackAvatar.parentElement).toHaveClass('rounded-sm')
+    expect(fallbackAvatar.parentElement).not.toHaveClass('rounded-full')
   })
 })

@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -14,7 +15,7 @@ import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
@@ -33,7 +34,10 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
   // `reverseName ?? null`) instead of throwing into the route and crashing it.

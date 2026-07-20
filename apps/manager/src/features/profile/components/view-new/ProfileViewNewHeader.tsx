@@ -47,7 +47,7 @@ export const ProfileViewNewHeader = ({
       </div>
       <div className="mt-6 w-[calc(100%-40px)] border-ens-quartz-200 border-t lg:landscape:hidden" />
     </div>
-    <div className="mt-22.75 flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
+    <div className="mt-29 flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0">
       <ProfileViewNewAvatar
         avatarLoading={avatarLoading}
         avatarUrl={avatarUrl}

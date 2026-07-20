@@ -1,8 +1,18 @@
 /**
  * L2 Reverse Registrar contract addresses (ENSv1)
  *
- * Simple mapping of coin types to contract addresses for mainnet and Sepolia.
- * Coin types are the same across mainnet and testnet (e.g., 42161 for Arbitrum).
+ * Mapping of reverse-registrar keys (mainnet chain ids, plus the `1`/`60` L1
+ * aliases) to per-environment chain ids and contract addresses.
+ *
+ * NOTE: ENSIP-11 coin types are NOT the same across mainnet and testnet for
+ * L2s. The Sepolia deployment keys everything on the TESTNET chain-id coin
+ * type — e.g. the OP Sepolia `L2ReverseRegistrar.coinType()` returns
+ * `0x80000000 | 11155420`, and the Sepolia L1 registry only has resolvers for
+ * `<hex(0x80000000 | testnetChainId)>.reverse` namespaces (the mainnet-derived
+ * ones are unset). The one exception is L1 itself: the deployed contracts
+ * treat L1 testnets as mainnet clones, so Sepolia L1 uses coin type `60`.
+ * Use {@link getCoinTypeForReverseRegistrarChainId} to derive the coin type
+ * for an environment.
  */
 
 import type { Address, Chain } from 'viem'
@@ -101,4 +111,31 @@ export function getChainIdForReverseRegistrarChainId<
 >(coinType: CT, network?: N): (typeof REVERSE_REGISTRAR_CHAIN_IDS)[CT][N] {
   const net = (network ?? 'sepolia') as N
   return REVERSE_REGISTRAR_CHAIN_IDS[coinType][net]
+}
+
+/**
+ * ENSIP-11 / ENSIP-19 coin type for a reverse-registrar key in a given
+ * environment.
+ *
+ * - L1 keys (`1` / `60`) → `60`: the deployed contracts treat L1 testnets as
+ *   mainnet clones (Sepolia's `addr.reverse` is keyed on coin 60, NOT on
+ *   `0x80000000 | 11155111`).
+ * - L2 keys → `0x80000000 | <environment chain id>` (ENSIP-11): on Sepolia
+ *   this is derived from the TESTNET chain id (e.g. Base →
+ *   `0x80000000 | 84532`), matching the on-chain `L2ReverseRegistrar.coinType()`
+ *   and the `<hex(coinType)>.reverse` namespaces that exist in the Sepolia
+ *   registry.
+ */
+export function getCoinTypeForReverseRegistrarChainId(
+  reverseRegistrarChainId: ReverseRegistrarChainId,
+  network?: NetworkKey,
+): number {
+  if (reverseRegistrarChainId === 1 || reverseRegistrarChainId === 60) return 60
+  const chainId = getChainIdForReverseRegistrarChainId(
+    reverseRegistrarChainId,
+    network ?? 'sepolia',
+  )
+  // ENSIP-11: coinType = 0x80000000 | chainId. `>>> 0` keeps it an unsigned
+  // 32-bit number (bitwise OR would otherwise produce a negative int32).
+  return (0x80000000 | chainId) >>> 0
 }

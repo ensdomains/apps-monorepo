@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useNavigate } from '@tanstack/react-router'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { cn } from '@/lib/utils'
 
 export const UpgradeNamesButton = ({
@@ -8,7 +9,10 @@ export const UpgradeNamesButton = ({
   ...props
 }: Omit<React.ComponentProps<'button'>, 'onClick'>) => {
   const navigate = useNavigate()
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
 
   return (
     <button

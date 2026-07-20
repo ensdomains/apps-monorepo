@@ -82,6 +82,7 @@
     "motion-plus": "workspace:*",
     "neverthrow": "^8.2.0",
     "posthog-js": "catalog:",
+    "posthog-node": "^5.21.0",
     "react": "^19.2.5",
     "react-day-picker": "^9.9.0",
     "react-dom": "^19.2.5",
