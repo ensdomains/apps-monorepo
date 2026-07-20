@@ -1,3 +1,4 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { match } from 'ts-pattern'
@@ -8,7 +9,7 @@ import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useOwnedDomains } from '../useOwnedDomains'
 
 type DashboardGraceBannerProps = {
@@ -18,7 +19,10 @@ type DashboardGraceBannerProps = {
 export const DashboardGraceBanner = ({
   primaryLabel,
 }: DashboardGraceBannerProps) => {
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
   const { v2Names, isAllPagesLoaded } = useOwnedDomains()
 
   const { eligible: v1Classified } = useEligibleV1Names({

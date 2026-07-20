@@ -128,7 +128,7 @@ test.describe('ENS V1 → V2 Migration', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('migrate an unwrapped V1 name and view profile', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -151,7 +151,7 @@ test.describe('ENS V1 → V2 Migration', () => {
   })
 
   test('migrate a wrapped (unlocked) V1 name to V2', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -170,7 +170,7 @@ test.describe('ENS V1 → V2 Migration', () => {
   })
 
   test('migrate a locked V1 name to V2', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -189,7 +189,7 @@ test.describe('ENS V1 → V2 Migration', () => {
   })
 
   test('batch migrate multiple V1 names to V2', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -218,7 +218,7 @@ test.describe('ENS V1 → V2 Migration', () => {
   })
 
   test('V1 records are preserved after migration', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -296,7 +296,7 @@ test.describe('ENS V1 → V2 Migration', () => {
   })
 
   test('can edit profile after migration', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
