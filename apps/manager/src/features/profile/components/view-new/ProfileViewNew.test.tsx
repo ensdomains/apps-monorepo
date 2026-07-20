@@ -23,6 +23,10 @@ vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: vi.fn(),
 }))
 
+vi.mock('@/features/profile/utils/defaultHeaderCover', () => ({
+  getDefaultHeaderCover: () => 'default-header-url',
+}))
+
 vi.mock('@/features/profile/utils/transformRecords', () => ({
   transformProfileRecords: () => ({
     base: {
@@ -83,7 +87,15 @@ vi.mock('./ProfileViewNewHeader', () => ({
 }))
 
 vi.mock('./ProfileViewNewStatusBanners', () => ({
-  ProfileViewNewStatusBanners: () => null,
+  ProfileViewNewStatusBanners: ({
+    isMigrationEnabled,
+  }: {
+    isMigrationEnabled: boolean
+  }) => (
+    <div data-testid="profile-view-new-status-banners">
+      {String(isMigrationEnabled)}
+    </div>
+  ),
 }))
 
 vi.mock('./ProfileViewNewThemeColor', () => ({
@@ -113,13 +125,16 @@ describe('ProfileViewNew', () => {
     } as never)
   })
 
-  it('waits while migration access is unresolved', () => {
+  it('renders with migration banners disabled when migration access is unresolved', () => {
     vi.mocked(
       useFeatureFlagEnabled as (flag: string) => boolean | undefined,
     ).mockReturnValue(undefined)
 
     render(<ProfileViewNew name="test.eth" />)
 
-    expect(screen.getByTestId('profile-view-new-loading')).not.toBeNull()
+    expect(screen.queryByTestId('profile-view-new-loading')).toBeNull()
+    expect(
+      screen.getByTestId('profile-view-new-status-banners').textContent,
+    ).toBe('false')
   })
 })

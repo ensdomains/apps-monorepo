@@ -90,10 +90,6 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const isOwner = useIsOwner({ owner })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
-  if (migrationEnabled === undefined) {
-    return <ProfileViewNewLoading name={name} />
-  }
-
   if (ownerMissing && isExpiryPending) {
     return <ProfileViewNewLoading name={name} />
   }
@@ -140,7 +136,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
           <div>
             <ProfileViewNewStatusBanners
               expiry={expiry}
-              isMigrationEnabled={migrationEnabled}
+              isMigrationEnabled={migrationEnabled ?? false}
               name={name}
             />
             <ProfileViewNewHeader
