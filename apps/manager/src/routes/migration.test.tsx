@@ -1,11 +1,9 @@
-import { useFeatureFlagEnabled } from '@posthog/react'
 import { useHydrated } from '@tanstack/react-router'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { Route } from './migration'
 
@@ -20,10 +18,6 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('wagmi', () => ({
   useConnection: vi.fn(),
-}))
-
-vi.mock('@posthog/react', () => ({
-  useFeatureFlagEnabled: vi.fn(),
 }))
 
 vi.mock('@/features/wallet/hooks/useOnDisconnected', () => ({
@@ -75,7 +69,6 @@ describe('/migration route auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useHydrated).mockReturnValue(true)
-    vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     vi.mocked(useOnDisconnected).mockImplementation(() => undefined)
     mockConnection({
       status: 'connected',
@@ -87,10 +80,6 @@ describe('/migration route auth', () => {
       isConnected: true,
       ownerAddress: OWNER_ADDRESS,
     })
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
   })
 
   it('does not define a beforeLoad guard so external handoffs can hydrate first', () => {
@@ -147,43 +136,11 @@ describe('/migration route auth', () => {
     expect(navigateMock).not.toHaveBeenCalled()
   })
 
-  it('renders migration for a settled connected wallet with migration access', () => {
+  it('renders migration for a settled connected wallet', () => {
     renderRoute()
 
     expect(screen.getByTestId('migration-page')).not.toBeNull()
     expect(navigateMock).not.toHaveBeenCalled()
-    expect(useFeatureFlagEnabled).toHaveBeenCalledWith(
-      POSTHOG_FEATURE_FLAGS.MIGRATION,
-    )
-  })
-
-  it('waits while migration access is unresolved', () => {
-    vi.mocked(
-      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
-    ).mockReturnValue(undefined)
-
-    renderRoute()
-
-    expect(navigateMock).not.toHaveBeenCalled()
-    expect(screen.queryByTestId('migration-page')).toBeNull()
-    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
-  })
-
-  it('redirects after the migration feature flag times out', () => {
-    vi.useFakeTimers()
-    vi.mocked(
-      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
-    ).mockReturnValue(undefined)
-
-    renderRoute()
-
-    act(() => vi.advanceTimersByTime(3_000))
-
-    expect(navigateMock).toHaveBeenCalledWith({
-      to: '/dashboard',
-      replace: true,
-    })
-    expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
   it('does not redirect while wagmi is connected but the smart account is still catching up', () => {
@@ -242,19 +199,5 @@ describe('/migration route auth', () => {
       to: '/',
       replace: true,
     })
-  })
-
-  it('redirects connected wallets without migration access to the dashboard', async () => {
-    vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
-
-    renderRoute()
-
-    await waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith({
-        to: '/dashboard',
-        replace: true,
-      }),
-    )
-    expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 })

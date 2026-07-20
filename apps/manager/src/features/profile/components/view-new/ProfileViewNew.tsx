@@ -60,6 +60,7 @@ const getProfileUrl = (name: string) =>
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
   )
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
@@ -136,7 +137,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
           <div>
             <ProfileViewNewStatusBanners
               expiry={expiry}
-              isMigrationEnabled={migrationEnabled ?? false}
+              isMigrationEnabled={migrationEnabled}
               name={name}
             />
             <ProfileViewNewHeader

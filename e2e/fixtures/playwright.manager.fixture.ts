@@ -46,13 +46,14 @@ const localSepolia = {
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
 
-const MANAGER_FEATURE_FLAGS = {
-  migration: true,
-  'profile-view-new': true,
-} as const
+const MIGRATION_FEATURE_FLAGS = { migration: true } as const
+const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
 const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
 
-async function overrideManagerFeatureFlags(page: Page): Promise<void> {
+async function overrideManagerFeatureFlags(
+  page: Page,
+  featureFlags: Record<string, boolean>,
+): Promise<void> {
   await page.addInitScript((featureFlags) => {
     type PostHogWindow = Window & {
       managerFeatureFlagsOverridden?: boolean
@@ -84,7 +85,7 @@ async function overrideManagerFeatureFlags(page: Page): Promise<void> {
     const interval = window.setInterval(() => {
       if (applyOverride()) window.clearInterval(interval)
     }, 10)
-  }, MANAGER_FEATURE_FLAGS)
+  }, featureFlags)
 }
 
 async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
@@ -225,7 +226,6 @@ export const test = base.extend<ManagerFixtures>({
   // Install mock indexer on every page when E2E_MOCK_INDEXER=true.
   // This prevents connection-refused errors in CI where Panoptes isn't running.
   page: async ({ page }, use) => {
-    await overrideManagerFeatureFlags(page)
     await indexerMock.installIfEnabled(page)
     await use(page)
   },
@@ -263,14 +263,20 @@ export const test = base.extend<ManagerFixtures>({
     await use(page)
   },
 
-  profileConnectedPage: async ({ connectedPage }, use) => {
-    await waitForManagerFeatureFlagOverride(connectedPage)
-    await use(connectedPage)
+  profileConnectedPage: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await dismissBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
+    await use(page)
   },
 
-  migrationConnectedPage: async ({ connectedPage }, use) => {
-    await waitForManagerFeatureFlagOverride(connectedPage)
-    await use(connectedPage)
+  migrationConnectedPage: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, MIGRATION_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await dismissBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
+    await use(page)
   },
 
   authenticatedPageWithBackend: async ({ page, wallet }, use) => {
@@ -280,11 +286,14 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   profileAuthenticatedPageWithBackend: async (
-    { authenticatedPageWithBackend },
+    { page, wallet },
     use,
   ) => {
-    await waitForManagerFeatureFlagOverride(authenticatedPageWithBackend)
-    await use(authenticatedPageWithBackend)
+    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await signInBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
+    await use(page)
   },
 
   time: async ({ page }, use) => {

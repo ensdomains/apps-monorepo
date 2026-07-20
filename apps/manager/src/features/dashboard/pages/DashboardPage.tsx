@@ -36,6 +36,7 @@ export const DashboardPage = () => {
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
   )
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
