@@ -150,6 +150,9 @@
 
   --shadow-temp-card: 0 4px 24px 0 rgba(7, 28, 47, 0.07);
 
+  --color-navigation-glass-border: #e2e2e28c;
+  --blur-navigation-glass: 6px;
+
   --breakpoint-xs: 30rem;
 }
 
