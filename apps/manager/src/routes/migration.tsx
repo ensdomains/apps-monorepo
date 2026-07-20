@@ -4,7 +4,7 @@ import {
   useHydrated,
   useNavigate,
 } from '@tanstack/react-router'
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect } from 'react'
 import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
@@ -15,25 +15,6 @@ import { useSmartAccountContext } from '@/lib/smart-account'
 export const Route = createFileRoute('/migration')({
   component: RouteComponent,
 })
-
-const FEATURE_FLAG_LOADING_TIMEOUT_MS = 3_000
-
-const useMigrationAccessEnabled = (): boolean | undefined => {
-  const enabled = useFeatureFlagEnabled(POSTHOG_FEATURE_FLAGS.MIGRATION)
-  const [hasTimedOut, setHasTimedOut] = useState(false)
-
-  useEffect(() => {
-    if (enabled !== undefined || hasTimedOut) return
-
-    const timeout = window.setTimeout(
-      () => setHasTimedOut(true),
-      FEATURE_FLAG_LOADING_TIMEOUT_MS,
-    )
-    return () => window.clearTimeout(timeout)
-  }, [enabled, hasTimedOut])
-
-  return enabled ?? (hasTimedOut ? false : undefined)
-}
 
 function RouteComponent() {
   return (
@@ -65,7 +46,10 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const isHydrated = useHydrated()
   const { isConnecting, isReconnecting } = useConnection()
   const { hasInitialized, ownerAddress } = useSmartAccountContext()
-  const migrationAccessEnabled = useMigrationAccessEnabled()
+  const migrationAccessEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
 
   const handleDisconnect = useCallback(() => {
     navigate({ to: '/', replace: true })
@@ -74,11 +58,7 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   useOnDisconnected(handleDisconnect)
 
   const isRestoringConnection =
-    !isHydrated ||
-    isConnecting ||
-    isReconnecting ||
-    !hasInitialized ||
-    migrationAccessEnabled === undefined
+    !isHydrated || isConnecting || isReconnecting || !hasInitialized
 
   const redirectTo = (() => {
     if (isRestoringConnection) return null

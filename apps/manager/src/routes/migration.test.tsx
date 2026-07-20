@@ -1,8 +1,8 @@
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useHydrated } from '@tanstack/react-router'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -89,10 +89,6 @@ describe('/migration route auth', () => {
     })
   })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
   it('does not define a beforeLoad guard so external handoffs can hydrate first', () => {
     expect(Route.options.beforeLoad).toBeUndefined()
   })
@@ -154,6 +150,7 @@ describe('/migration route auth', () => {
     expect(navigateMock).not.toHaveBeenCalled()
     expect(useFeatureFlagEnabled).toHaveBeenCalledWith(
       POSTHOG_FEATURE_FLAGS.MIGRATION,
+      false,
     )
   })
 
@@ -200,35 +197,6 @@ describe('/migration route auth', () => {
     expect(navigateMock).not.toHaveBeenCalled()
     expect(screen.queryByTestId('migration-page')).toBeNull()
     expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
-  })
-
-  it('waits while the migration feature flag is unresolved', () => {
-    vi.mocked(
-      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
-    ).mockReturnValue(undefined)
-
-    renderRoute()
-
-    expect(navigateMock).not.toHaveBeenCalled()
-    expect(screen.queryByTestId('migration-page')).toBeNull()
-    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
-  })
-
-  it('redirects after the migration feature flag times out', () => {
-    vi.useFakeTimers()
-    vi.mocked(
-      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
-    ).mockReturnValue(undefined)
-
-    renderRoute()
-
-    act(() => vi.advanceTimersByTime(3_000))
-
-    expect(navigateMock).toHaveBeenCalledWith({
-      to: '/dashboard',
-      replace: true,
-    })
-    expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
   it('redirects through the reconnect-aware disconnect hook', () => {
