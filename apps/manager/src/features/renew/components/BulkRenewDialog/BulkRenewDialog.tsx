@@ -19,10 +19,12 @@ import { PaymentMethodSection } from './PaymentMethodSection'
 import { RenewingStep } from './RenewingStep'
 import { RenewToDatePopover } from './RenewToDatePopover'
 import { SuccessStep } from './SuccessStep'
-import { dialogTitleClassName } from './styles'
 import type { BulkRenewName, Selection } from './types'
 import { useBulkRenew } from './useBulkRenew'
 import { useBulkRenewSubmit } from './useBulkRenewSubmit'
+
+const dialogTitleClassName =
+  'text-left font-normal font-sans text-ens-quartz-900 text-xl tracking-[-0.4px]'
 
 type Step = 'summary' | 'confirm'
 

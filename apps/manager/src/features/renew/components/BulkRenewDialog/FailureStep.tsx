@@ -2,7 +2,9 @@ import { Trans } from '@lingui/react/macro'
 import { XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { dialogTitleClassName } from './styles'
+
+const dialogTitleClassName =
+  'text-left font-normal font-sans text-ens-quartz-900 text-xl tracking-[-0.4px]'
 
 /** Terminal failure view: error banner + retry / back-to-confirm actions. */
 export const FailureStep = ({
