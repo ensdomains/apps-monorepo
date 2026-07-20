@@ -109,32 +109,6 @@ const deriveStatus = (
 }
 
 /**
- * Fee-per-gas for a chain. Chain-global (independent of the specific call), so
- * it's a single shared query keyed on chainId — an N-step modal reuses one fee
- * lookup instead of fetching it once per step.
- */
-const useFeePerGas = (chainId: number | undefined): UseQueryResult<bigint> => {
-  const publicClient = usePublicClient({ chainId })
-  return useQuery({
-    queryKey: ['tx-fee-per-gas', chainId],
-    enabled: Boolean(publicClient) && chainId !== undefined,
-    staleTime: PREVIEW_STALE_TIME,
-    refetchOnWindowFocus: false,
-    retry: MAX_TRANSIENT_RETRIES,
-    queryFn: async (): Promise<bigint> => {
-      if (!publicClient) throw new Error('No public client')
-      // Use the current gas price (base fee + tip) rather than viem's
-      // `maxFeePerGas`, which pads the base fee (~1.2×) as headroom for future
-      // blocks. A settled step reports its ACTUAL fee as gasUsed ×
-      // effectiveGasPrice (base fee + tip), so pricing the preview off
-      // maxFeePerGas made the number visibly drop once the tx mined. Gas price
-      // keeps the preview on the same basis as the settled cost.
-      return publicClient.getGasPrice()
-    },
-  })
-}
-
-/**
  * Live gas cost (in ETH) for a transaction, via a single `eth_estimateGas` on
  * its encoded call. Prefers the call the machine holds in its context once the
  * step is started; before that it falls back to `fallbackRequest` — the call
@@ -160,7 +134,18 @@ export const useTransactionGasEstimate = (
   // chain the wallet happens to be on. Returns undefined (→ disabled) when the
   // target chain isn't in the wagmi config, so we never show a wrong-chain cost.
   const publicClient = usePublicClient({ chainId: eoa?.chainId })
-  const feeQuery = useFeePerGas(eoa?.chainId)
+
+  const feeQuery = useQuery({
+    queryKey: ['tx-fee-per-gas', eoa?.chainId],
+    enabled: Boolean(publicClient) && eoa?.chainId !== undefined,
+    staleTime: PREVIEW_STALE_TIME,
+    refetchOnWindowFocus: false,
+    retry: MAX_TRANSIENT_RETRIES,
+    queryFn: (): Promise<bigint> => {
+      if (!publicClient) throw new Error('No public client')
+      return publicClient.getGasPrice()
+    },
+  })
 
   const gasQuery = useQuery({
     queryKey: [

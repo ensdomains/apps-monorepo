@@ -25,12 +25,7 @@ export interface SetAliasTransactionParameters {
   readonly chainId: number
 }
 
-/**
- * The prepared setAlias transaction — deterministic given the two names and the
- * resolver, so it can be computed at modal-open time to drive the pre-start gas
- * estimate. Reused by `setAlias` so the estimated call is byte-identical to the
- * submitted one.
- */
+/** The setAlias intent, shared by the gas estimate and `setAlias`. */
 export const prepareSetAliasTransaction = ({
   fromName,
   toName,
@@ -89,10 +84,6 @@ export const setAlias = async (
     id,
   } = params
 
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
-
   const txId = transactionManager.startTransaction(
     prepareSetAliasTransaction({
       fromName,
@@ -125,12 +116,7 @@ export interface DeleteAliasTransactionParameters {
   readonly chainId: number
 }
 
-/**
- * The prepared deleteAlias transaction — deterministic given the name and the
- * resolver, so it can be computed at modal-open time to drive the pre-start gas
- * estimate. Reused by `deleteAlias` so the estimated call is byte-identical to
- * the submitted one.
- */
+/** The deleteAlias intent, shared by the gas estimate and `deleteAlias`. */
 export const prepareDeleteAliasTransaction = ({
   fromName,
   resolverAddress,
@@ -183,10 +169,6 @@ export const deleteAlias = async (
     chainId,
     id,
   } = params
-
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
 
   const txId = transactionManager.startTransaction(
     prepareDeleteAliasTransaction({

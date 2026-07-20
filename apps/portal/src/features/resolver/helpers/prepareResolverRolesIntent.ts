@@ -1,5 +1,6 @@
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import type { ResolverRole } from '@ensdomains/ensjs/public/v2'
+import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import type { IntentContext } from '@/features/transaction-manager/types'
 import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
@@ -32,39 +33,44 @@ export const prepareResolverRolesIntent = (
   action: ResolverRolesAction,
   resolverAddress: Address,
   { walletClient, chainId }: IntentContext,
-): CustomTransactionIntent | undefined => {
-  if (action.type === 'remove') {
-    return prepareRevokeResolverRolesTransaction({
-      resolverAddress,
-      name: action.name,
-      account: action.account,
-      roles: action.roles,
-      walletClient,
-      chainId,
-    })
-  }
-
-  const { rolesToGrant, rolesToRevoke } = action
-  if (rolesToGrant.length > 0 && rolesToRevoke.length > 0) return undefined
-  if (rolesToGrant.length > 0) {
-    return prepareGrantResolverRolesTransaction({
-      resolverAddress,
-      name: action.name,
-      account: action.account,
-      roles: rolesToGrant,
-      walletClient,
-      chainId,
-    })
-  }
-  if (rolesToRevoke.length > 0) {
-    return prepareRevokeResolverRolesTransaction({
-      resolverAddress,
-      name: action.name,
-      account: action.account,
-      roles: rolesToRevoke,
-      walletClient,
-      chainId,
-    })
-  }
-  return undefined
-}
+): CustomTransactionIntent | undefined =>
+  match(action)
+    .with({ type: 'remove' }, ({ name, account, roles }) =>
+      prepareRevokeResolverRolesTransaction({
+        resolverAddress,
+        name,
+        account,
+        roles,
+        walletClient,
+        chainId,
+      }),
+    )
+    .with(
+      { type: 'save' },
+      ({ name, account, rolesToGrant, rolesToRevoke }) => {
+        if (rolesToGrant.length > 0 && rolesToRevoke.length > 0)
+          return undefined
+        if (rolesToGrant.length > 0) {
+          return prepareGrantResolverRolesTransaction({
+            resolverAddress,
+            name,
+            account,
+            roles: rolesToGrant,
+            walletClient,
+            chainId,
+          })
+        }
+        if (rolesToRevoke.length > 0) {
+          return prepareRevokeResolverRolesTransaction({
+            resolverAddress,
+            name,
+            account,
+            roles: rolesToRevoke,
+            walletClient,
+            chainId,
+          })
+        }
+        return undefined
+      },
+    )
+    .exhaustive()

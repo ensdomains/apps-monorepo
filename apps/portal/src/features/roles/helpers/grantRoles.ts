@@ -52,16 +52,17 @@ export interface GrantRolesResult {
 // ============================================================================
 
 /**
- * The encoded grant-roles call — deterministic given the name, account and
- * roles, so it can be computed at modal-open time to drive the pre-start gas
- * estimate. Requires a walletClient with `account` and `chain` configured.
+ * The grant-roles intent, shared by the gas estimate and {@link grantRoles}.
+ * Requires a walletClient with `account` and `chain` configured.
  */
-export function prepareGrantRolesTransaction(
-  params: GrantRolesTransactionParameters,
-): CustomTransactionIntent {
-  const { name, account, roles, walletClient, chainId, registryAddress } =
-    params
-
+export function prepareGrantRolesTransaction({
+  name,
+  account,
+  roles,
+  walletClient,
+  chainId,
+  registryAddress,
+}: GrantRolesTransactionParameters): CustomTransactionIntent {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -96,34 +97,13 @@ export function prepareGrantRolesTransaction(
 export async function grantRoles(
   params: GrantRolesParameters,
 ): Promise<GrantRolesResult> {
-  const {
-    name,
-    account,
-    roles,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-    registryAddress,
-    id,
-  } = params
+  const { name, publicClient, signer, chainId, id } = params
 
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
-
-  if (roles.length === 0) {
+  if (params.roles.length === 0) {
     throw new Error('At least one role must be selected')
   }
 
-  const intent = prepareGrantRolesTransaction({
-    name,
-    account,
-    roles,
-    walletClient,
-    chainId,
-    registryAddress,
-  })
+  const intent = prepareGrantRolesTransaction(params)
 
   const txId = transactionManager.startTransaction(intent, signer, {
     id,

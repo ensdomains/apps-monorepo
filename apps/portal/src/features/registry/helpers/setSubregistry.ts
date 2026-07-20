@@ -39,15 +39,9 @@ export interface SetSubregistryResult {
 }
 
 /**
- * The prepared setSubregistry transaction — deterministic given the parent
- * registry, label and target subregistry address, so it can be computed at
- * modal-open time to drive the pre-start gas estimate. Shared with
- * {@link setSubregistry} so the estimated call is byte-identical to the one
- * actually submitted.
- *
+ * The setSubregistry intent, shared by the gas estimate and {@link setSubregistry}.
  * Only usable for the custom (user-provided) subregistry branch: in the
- * deploy-then-set flow the target address is only known once the deploy
- * transaction has been mined.
+ * deploy-then-set flow the target address is only known once the deploy mines.
  */
 export function prepareSetSubregistryTransaction({
   label,

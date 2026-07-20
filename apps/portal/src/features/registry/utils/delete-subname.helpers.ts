@@ -33,12 +33,7 @@ function assertWalletHasAccount(
   return walletClient.account !== undefined
 }
 
-/**
- * Prepares the deleteSubname transaction — deterministic given the registry and
- * label, so the same intent drives the pre-start gas estimate and the actual
- * submit (shared by {@link deleteSubname}), keeping the estimated call
- * byte-identical to the one submitted.
- */
+/** The deleteSubname intent, shared by the gas estimate and {@link deleteSubname}. */
 export function prepareDeleteSubnameTransaction({
   registryAddress,
   label,

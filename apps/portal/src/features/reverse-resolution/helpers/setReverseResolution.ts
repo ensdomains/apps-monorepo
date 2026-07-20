@@ -43,12 +43,7 @@ export interface SetReverseResolutionResult {
   readonly hash: Hex
 }
 
-/**
- * The prepared set-reverse-resolution transaction — deterministic given the
- * write request, sender, and chain, so it can be built at modal-open time to
- * drive the pre-start gas estimate, and is the same intent submitted by
- * {@link setReverseResolution}.
- */
+/** The set-reverse-resolution intent, shared by the gas estimate and {@link setReverseResolution}. */
 export function prepareSetReverseResolutionTransaction({
   request,
   from,

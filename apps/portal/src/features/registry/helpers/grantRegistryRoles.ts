@@ -44,12 +44,7 @@ export interface GrantRegistryRolesResult {
 
 const ROOT_RESOURCE = 0n
 
-/**
- * The prepared grant-roles transaction — deterministic given the registry,
- * account and roles, so it can be computed at modal-open time to drive the
- * pre-start gas estimate. Shared with {@link grantRegistryRoles} so the
- * estimated call is byte-identical to the one actually submitted.
- */
+/** The grant-roles intent, shared by the gas estimate and {@link grantRegistryRoles}. */
 export function prepareGrantRegistryRolesTransaction({
   registryAddress,
   account,

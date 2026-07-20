@@ -56,11 +56,7 @@ export interface DeployPermissionedResolverTransactionParameters {
   readonly salt: bigint
 }
 
-/**
- * The prepared `deployProxy` transaction for a permissioned resolver —
- * deterministic given the deployer and salt, so it can drive the pre-start gas
- * estimate and is the same shape submitted by `deployPermissionedResolver`.
- */
+/** The `deployProxy` intent, shared by the gas estimate and `deployPermissionedResolver`. */
 export const prepareDeployPermissionedResolverTransaction = ({
   from,
   chainId,

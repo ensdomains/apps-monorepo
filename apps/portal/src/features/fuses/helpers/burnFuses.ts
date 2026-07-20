@@ -75,11 +75,7 @@ export interface BurnFusesResult {
  * })
  * ```
  */
-/**
- * The prepared burn-fuses transaction — deterministic given the name and the
- * selected fuses, so it can be built at modal-open time to drive the pre-start
- * gas estimate, and is the same intent submitted by {@link burnFuses}.
- */
+/** The burn-fuses intent, shared by the gas estimate and {@link burnFuses}. */
 export function prepareBurnFusesTransaction({
   name,
   fuses,

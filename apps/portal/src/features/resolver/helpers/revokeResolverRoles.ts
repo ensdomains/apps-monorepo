@@ -25,12 +25,7 @@ export interface RevokeResolverRolesTransactionParameters {
   readonly chainId: number
 }
 
-/**
- * The prepared revokeRoles transaction — deterministic given the resolver, target
- * account and roles, so it can be computed at modal-open time to drive the
- * pre-start gas estimate. Reused by `revokeResolverRoles` so the estimated call
- * is byte-identical to the submitted one.
- */
+/** The revokeRoles intent, shared by the gas estimate and `revokeResolverRoles`. */
 export const prepareRevokeResolverRolesTransaction = ({
   resolverAddress,
   name,

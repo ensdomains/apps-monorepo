@@ -59,12 +59,7 @@ export interface ChangeResolverResult {
 // Transaction builder
 // ============================================================================
 
-/**
- * The prepared setResolver transaction — deterministic given the name and the
- * target resolver address, so it can be computed at modal-open time to drive the
- * pre-start gas estimate. Reused by `changeResolver` so the estimated call is
- * byte-identical to the submitted one.
- */
+/** The setResolver intent, shared by the gas estimate and `changeResolver`. */
 export const prepareChangeResolverTransaction = ({
   name,
   registryAddress,

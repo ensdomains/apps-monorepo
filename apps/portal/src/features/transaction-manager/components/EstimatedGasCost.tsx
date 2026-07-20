@@ -5,6 +5,7 @@ import type {
 import { AlertCircle, Info } from 'lucide-react'
 import { fromThrowable } from 'neverthrow'
 import { type ComponentType, useMemo } from 'react'
+import { match } from 'ts-pattern'
 import { useWalletClient } from 'wagmi'
 import {
   Tooltip,
@@ -12,9 +13,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { sepoliaWithEns } from '@/lib/wagmi'
+import type { WalletClientWithAccount } from '@/utils/types'
 import { useTransactionGasEstimate } from '../hooks/useTransactionGasEstimate'
 import type { IntentContext } from '../types'
-import { walletClientIfReady } from '../utils/walletClientIfReady'
 
 /** An icon + label that reveals an explanation on hover/focus. */
 const EstimateHint = ({
@@ -64,15 +65,18 @@ export const EstimatedGasCost = ({
   readonly prepareIntentError?: boolean
 }) => {
   const { data: walletClient } = useWalletClient()
-  // Require the wallet to be on the estimate's target chain: an intent built for
-  // Sepolia can't be estimated against a wallet scoped to another network.
-  const readyWalletClient = walletClientIfReady(walletClient, sepoliaWithEns.id)
+  // Only estimate against a wallet that's ready (account + chain) and on the
+  // estimate's target chain: an intent built for Sepolia can't be estimated
+  // against a wallet scoped to another network, and the builders throw without a
+  // resolved chain. `undefined` otherwise, so we skip estimation instead.
+  const readyWalletClient =
+    walletClient?.account && walletClient.chain?.id === sepoliaWithEns.id
+      ? (walletClient as WalletClientWithAccount)
+      : undefined
 
-  // Building the intent runs `encodeFunctionData` (and, for some flows, ensjs
-  // write-param encoding). The modal re-renders on every actor-snapshot change,
-  // so memoize on the inputs that actually change the intent to avoid re-encoding
-  // on each render. `prepareIntent`'s identity is stable across those snapshot
-  // re-renders (the owning hook doesn't re-run), so it's a sound cache key.
+  // Memoize on the inputs that change the intent so the modal's actor-snapshot
+  // re-renders don't re-run `encodeFunctionData` (and, some flows, ensjs
+  // write-param encoding) on every render.
   const intent = useMemo(
     () =>
       readyWalletClient && prepareIntent
@@ -98,12 +102,21 @@ export const EstimatedGasCost = ({
   // exists. Only applies before the step starts (the machine holds the real
   // request once running), so skip the override once the actor drives the call.
   const hasActiveRequest = actor?.getSnapshot()?.context.request?.type === 'eoa'
-  const status =
-    !hasActiveRequest && prepareIntentError
-      ? 'error'
-      : !hasActiveRequest && prepareIntentPending && !intent
-        ? 'loading'
-        : gasStatus
+  const status = match({
+    hasActiveRequest,
+    prepareIntentError,
+    prepareIntentPending,
+    hasIntent: intent !== undefined,
+  })
+    .with(
+      { hasActiveRequest: false, prepareIntentError: true },
+      () => 'error' as const,
+    )
+    .with(
+      { hasActiveRequest: false, prepareIntentPending: true, hasIntent: false },
+      () => 'loading' as const,
+    )
+    .otherwise(() => gasStatus)
 
   switch (status) {
     case 'success':
@@ -123,13 +136,20 @@ export const EstimatedGasCost = ({
         <EstimateHint
           icon={Info}
           label="Not yet"
-          tip={
-            !prepareIntent
-              ? "This step's cost is estimated once it starts — it can't be worked out ahead of time."
-              : !readyWalletClient
-                ? 'Connect your wallet on Sepolia to see the estimate.'
-                : 'Preparing the estimate…'
-          }
+          tip={match({
+            hasPrepareIntent: Boolean(prepareIntent),
+            hasReadyWallet: Boolean(readyWalletClient),
+          })
+            .with(
+              { hasPrepareIntent: false },
+              () =>
+                "This step's cost is estimated once it starts — it can't be worked out ahead of time.",
+            )
+            .with(
+              { hasReadyWallet: false },
+              () => 'Connect your wallet on Sepolia to see the estimate.',
+            )
+            .otherwise(() => 'Preparing the estimate…')}
         />
       )
   }

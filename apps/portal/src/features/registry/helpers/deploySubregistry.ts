@@ -52,11 +52,7 @@ export interface DeploySubregistryResult {
   readonly deployedAddress: Address
 }
 
-/**
- * The prepared subregistry-deploy transaction — deterministic given the factory
- * and implementation addresses, so it can drive the pre-start gas estimate and
- * is the same intent submitted by `deploySubregistry`.
- */
+/** The subregistry-deploy intent, shared by the gas estimate and `deploySubregistry`. */
 export const prepareDeploySubregistryTransaction = ({
   factoryAddress,
   implAddress,

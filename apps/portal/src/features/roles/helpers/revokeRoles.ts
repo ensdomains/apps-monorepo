@@ -52,16 +52,17 @@ export interface RevokeRolesResult {
 // ============================================================================
 
 /**
- * The encoded revoke-roles call — deterministic given the name, account and
- * roles, so it can be computed at modal-open time to drive the pre-start gas
- * estimate. Requires a walletClient with `account` and `chain` configured.
+ * The revoke-roles intent, shared by the gas estimate and {@link revokeRoles}.
+ * Requires a walletClient with `account` and `chain` configured.
  */
-export function prepareRevokeRolesTransaction(
-  params: RevokeRolesTransactionParameters,
-): CustomTransactionIntent {
-  const { name, account, roles, walletClient, chainId, registryAddress } =
-    params
-
+export function prepareRevokeRolesTransaction({
+  name,
+  account,
+  roles,
+  walletClient,
+  chainId,
+  registryAddress,
+}: RevokeRolesTransactionParameters): CustomTransactionIntent {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -96,34 +97,13 @@ export function prepareRevokeRolesTransaction(
 export async function revokeRoles(
   params: RevokeRolesParameters,
 ): Promise<RevokeRolesResult> {
-  const {
-    name,
-    account,
-    roles,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-    registryAddress,
-    id,
-  } = params
+  const { name, publicClient, signer, chainId, id } = params
 
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
-
-  if (roles.length === 0) {
+  if (params.roles.length === 0) {
     throw new Error('No roles found to revoke')
   }
 
-  const intent = prepareRevokeRolesTransaction({
-    name,
-    account,
-    roles,
-    walletClient,
-    chainId,
-    registryAddress,
-  })
+  const intent = prepareRevokeRolesTransaction(params)
 
   const txId = transactionManager.startTransaction(intent, signer, {
     id,

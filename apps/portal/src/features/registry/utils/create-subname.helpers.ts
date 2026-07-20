@@ -60,16 +60,12 @@ function assertWalletHasAccount(
 }
 
 /**
- * Prepares the createSubnameV2 transaction — deterministic given the params, so
- * the same intent drives the pre-start gas estimate and the actual submit
- * (shared by {@link createSubname}), keeping the estimated call byte-identical
- * to the one submitted.
+ * The createSubnameV2 intent, shared by the gas estimate and {@link createSubname}.
  *
  * NOTE: `createSubnameV2WriteParameters` defaults a missing `expires` to
- * `Date.now() + 1 year` at encode time, so callers that want the pre-start gas
- * estimate to stay byte-identical to the submitted call MUST pass a concrete,
- * frozen `expires` (rather than relying on the default), and pass that same
- * value into the actual `createSubname` call.
+ * `Date.now() + 1 year` at encode time, so a caller that wants the estimate to
+ * stay byte-identical to the submitted call MUST pass a concrete, frozen
+ * `expires` and reuse that same value in the actual `createSubname` call.
  */
 export function prepareCreateSubnameTransaction({
   registryAddress,

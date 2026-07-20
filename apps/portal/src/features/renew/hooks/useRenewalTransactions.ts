@@ -13,7 +13,7 @@ import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import {
-  buildApproveIntent as buildErc20ApproveIntent,
+  buildApproveIntent,
   toEoaCustomIntent,
 } from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -142,17 +142,15 @@ function approveLabel(tokenSymbol: string, renewer: Address): string {
   return `Approve ${tokenSymbol} for ${isV2 ? 'v2' : 'v1'} renewal`
 }
 
-// The ERC-20 approval intent used by BOTH the pre-start gas estimate and the
-// submit path, so the estimated call is byte-identical to what gets sent.
-// Approves 2× the price for headroom against price drift; delegates the encoding
-// to the shared builder so registration and renewal stay in lockstep.
-function buildApproveIntent(params: {
+// Renewal approves 2× the price for headroom against price drift; the shared
+// builder handles the encoding so registration and renewal stay in lockstep.
+function buildRenewalApproveIntent(params: {
   from: Address
   tokenAddress: Address
   renewer: Address
   tokenPrice: bigint
 }): CustomTransactionIntent {
-  return buildErc20ApproveIntent({
+  return buildApproveIntent({
     from: params.from,
     token: params.tokenAddress,
     spender: params.renewer,
@@ -171,7 +169,7 @@ function buildApproveTransaction(
   if (!skipClear) transactionManager.clear()
 
   transactionManager.startTransaction(
-    buildApproveIntent({
+    buildRenewalApproveIntent({
       from: params.from,
       tokenAddress: params.tokenAddress,
       renewer: params.renewer,
@@ -266,7 +264,7 @@ function buildMultiTransactions({
           title: 'Approve payment',
           transactionName: approveLabel(tokenSymbol, step.renewer),
           prepareIntent: ({ walletClient }) =>
-            buildApproveIntent({
+            buildRenewalApproveIntent({
               from: walletClient.account.address,
               tokenAddress,
               renewer: step.renewer,
@@ -486,7 +484,7 @@ export const useRenewalTransactions = ({
         title: 'Approve payment',
         transactionName: approveLabel(single.tokenSymbol, renewer),
         prepareIntent: ({ walletClient }) =>
-          buildApproveIntent({
+          buildRenewalApproveIntent({
             from: walletClient.account.address,
             tokenAddress: single.tokenAddress,
             renewer,

@@ -38,12 +38,7 @@ export interface SetForwardResolutionResult {
   readonly hash: Hex
 }
 
-/**
- * The prepared set-forward-resolution transaction — deterministic given the
- * write request, sender, and chain, so it can be built at modal-open time to
- * drive the pre-start gas estimate, and is the same intent submitted by
- * {@link setForwardResolution}.
- */
+/** The set-forward-resolution intent, shared by the gas estimate and {@link setForwardResolution}. */
 export function prepareSetForwardResolutionTransaction({
   request,
   from,

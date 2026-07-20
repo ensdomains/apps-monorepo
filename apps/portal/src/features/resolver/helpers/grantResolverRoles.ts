@@ -25,12 +25,7 @@ export interface GrantResolverRolesTransactionParameters {
   readonly chainId: number
 }
 
-/**
- * The prepared grantRoles transaction — deterministic given the resolver, target
- * account and roles, so it can be computed at modal-open time to drive the
- * pre-start gas estimate. Reused by `grantResolverRoles` so the estimated call
- * is byte-identical to the submitted one.
- */
+/** The grantRoles intent, shared by the gas estimate and `grantResolverRoles`. */
 export const prepareGrantResolverRolesTransaction = ({
   resolverAddress,
   name,
