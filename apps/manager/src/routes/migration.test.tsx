@@ -1,8 +1,8 @@
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useHydrated } from '@tanstack/react-router'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -89,6 +89,10 @@ describe('/migration route auth', () => {
     })
   })
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('does not define a beforeLoad guard so external handoffs can hydrate first', () => {
     expect(Route.options.beforeLoad).toBeUndefined()
   })
@@ -163,6 +167,23 @@ describe('/migration route auth', () => {
     expect(navigateMock).not.toHaveBeenCalled()
     expect(screen.queryByTestId('migration-page')).toBeNull()
     expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
+  })
+
+  it('redirects after the migration feature flag times out', () => {
+    vi.useFakeTimers()
+    vi.mocked(
+      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
+    ).mockReturnValue(undefined)
+
+    renderRoute()
+
+    act(() => vi.advanceTimersByTime(3_000))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/dashboard',
+      replace: true,
+    })
+    expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
   it('does not redirect while wagmi is connected but the smart account is still catching up', () => {
