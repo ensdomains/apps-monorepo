@@ -1,11 +1,12 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useHydrated } from '@tanstack/react-router'
 import { render, screen, waitFor } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { Route } from './migration'
 
 const navigateMock = vi.hoisted(() => vi.fn())
@@ -21,16 +22,16 @@ vi.mock('wagmi', () => ({
   useConnection: vi.fn(),
 }))
 
+vi.mock('@posthog/react', () => ({
+  useFeatureFlagEnabled: vi.fn(),
+}))
+
 vi.mock('@/features/wallet/hooks/useOnDisconnected', () => ({
   useOnDisconnected: vi.fn(),
 }))
 
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: vi.fn(),
-}))
-
-vi.mock('@/utils/feature-flags', () => ({
-  isFeatureEnabled: vi.fn(),
 }))
 
 vi.mock('@/features/migration/pages/MigrationPage', () => ({
@@ -74,7 +75,7 @@ describe('/migration route auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useHydrated).mockReturnValue(true)
-    vi.mocked(isFeatureEnabled).mockReturnValue(true)
+    vi.mocked(useFeatureFlagEnabled).mockReturnValue(true)
     vi.mocked(useOnDisconnected).mockImplementation(() => undefined)
     mockConnection({
       status: 'connected',
@@ -147,9 +148,9 @@ describe('/migration route auth', () => {
 
     expect(screen.getByTestId('migration-page')).not.toBeNull()
     expect(navigateMock).not.toHaveBeenCalled()
-    expect(isFeatureEnabled).toHaveBeenCalledWith('MIGRATION', {
-      walletAddress: OWNER_ADDRESS,
-    })
+    expect(useFeatureFlagEnabled).toHaveBeenCalledWith(
+      POSTHOG_FEATURE_FLAGS.MIGRATION,
+    )
   })
 
   it('does not redirect while wagmi is connected but the smart account is still catching up', () => {
@@ -197,6 +198,18 @@ describe('/migration route auth', () => {
     expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
   })
 
+  it('waits while the migration feature flag is unresolved', () => {
+    vi.mocked(
+      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
+    ).mockReturnValue(undefined)
+
+    renderRoute()
+
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('migration-page')).toBeNull()
+    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
+  })
+
   it('redirects through the reconnect-aware disconnect hook', () => {
     vi.mocked(useOnDisconnected).mockImplementation((onDisconnect) => {
       onDisconnect()
@@ -211,7 +224,7 @@ describe('/migration route auth', () => {
   })
 
   it('redirects connected wallets without migration access to the dashboard', async () => {
-    vi.mocked(isFeatureEnabled).mockReturnValue(false)
+    vi.mocked(useFeatureFlagEnabled).mockReturnValue(false)
 
     renderRoute()
 

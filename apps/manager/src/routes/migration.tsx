@@ -1,3 +1,4 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   createFileRoute,
   useHydrated,
@@ -8,8 +9,8 @@ import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
 import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/migration')({
   component: RouteComponent,
@@ -45,6 +46,9 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const isHydrated = useHydrated()
   const { isConnecting, isReconnecting } = useConnection()
   const { hasInitialized, ownerAddress } = useSmartAccountContext()
+  const migrationAccessEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+  )
 
   const handleDisconnect = useCallback(() => {
     navigate({ to: '/', replace: true })
@@ -53,16 +57,16 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   useOnDisconnected(handleDisconnect)
 
   const isRestoringConnection =
-    !isHydrated || isConnecting || isReconnecting || !hasInitialized
+    !isHydrated ||
+    isConnecting ||
+    isReconnecting ||
+    !hasInitialized ||
+    migrationAccessEnabled === undefined
 
   const redirectTo = (() => {
     if (isRestoringConnection) return null
 
     if (!ownerAddress) return null
-
-    const migrationAccessEnabled = isFeatureEnabled('MIGRATION', {
-      walletAddress: ownerAddress,
-    })
 
     if (!migrationAccessEnabled) {
       return '/dashboard'

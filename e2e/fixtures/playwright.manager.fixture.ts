@@ -46,11 +46,14 @@ const localSepolia = {
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
 
-const PROFILE_VIEW_FEATURE_FLAG = 'profile-view-new'
+const MANAGER_FEATURE_FLAGS = {
+  migration: true,
+  'profile-view-new': true,
+} as const
 const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
 
 async function overrideManagerFeatureFlags(page: Page): Promise<void> {
-  await page.addInitScript((profileViewFeatureFlag) => {
+  await page.addInitScript((featureFlags) => {
     type PostHogWindow = Window & {
       managerFeatureFlagsOverridden?: boolean
       posthog?: {
@@ -70,7 +73,7 @@ async function overrideManagerFeatureFlags(page: Page): Promise<void> {
       if (!posthog?.__loaded || !posthog.featureFlags) return false
 
       posthog.featureFlags.overrideFeatureFlags({
-        flags: { [profileViewFeatureFlag]: true },
+        flags: featureFlags,
       })
       postHogWindow.managerFeatureFlagsOverridden = true
       return true
@@ -81,7 +84,7 @@ async function overrideManagerFeatureFlags(page: Page): Promise<void> {
     const interval = window.setInterval(() => {
       if (applyOverride()) window.clearInterval(interval)
     }, 10)
-  }, PROFILE_VIEW_FEATURE_FLAG)
+  }, MANAGER_FEATURE_FLAGS)
 }
 
 async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
@@ -165,6 +168,8 @@ type ManagerFixtures = {
   connectedPage: Page
   /** `connectedPage` with the new profile view feature flag applied. */
   profileConnectedPage: Page
+  /** `connectedPage` with the migration feature flag applied. */
+  migrationConnectedPage: Page
   /**
    * Same as `connectedPage` but completes the BackendAuthModal SIWE prompt
    * instead of dismissing it. Required for backend-gated features
@@ -259,6 +264,11 @@ export const test = base.extend<ManagerFixtures>({
   },
 
   profileConnectedPage: async ({ connectedPage }, use) => {
+    await waitForManagerFeatureFlagOverride(connectedPage)
+    await use(connectedPage)
+  },
+
+  migrationConnectedPage: async ({ connectedPage }, use) => {
     await waitForManagerFeatureFlagOverride(connectedPage)
     await use(connectedPage)
   },
