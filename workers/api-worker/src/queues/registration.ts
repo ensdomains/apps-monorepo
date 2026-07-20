@@ -81,7 +81,27 @@ async function runCommitPhase(
 
   await updateOrder(db, orderId, { status: 'committing' })
 
+  // FAIL-CLOSED before ANY spend (the resolver deploy + commit below are
+  // Roles-executed txs): a paid order must carry a verified voucher tokenId
+  // (recorded by the Svix-verified webhook or the self-pay settle route).
+  // Its absence means the paid flip came from an unverified source — refuse
+  // before the first on-chain action, not just before register.
+  if (!order.commitment || !order.voucher_token_id) {
+    throw new Error(
+      `Order ${orderId} has no verified voucher (commitment=${Boolean(
+        order.commitment,
+      )}, voucherTokenId=${Boolean(order.voucher_token_id)}); refusing to spend`,
+    )
+  }
+
   const client = createServerWalletClient(env)
+
+  // The voucher must still exist and carry this order's exact commitment
+  // (burned/missing vouchers read as bytes32(0) and never match).
+  await assertVoucherCommitment(client, {
+    voucherTokenId: BigInt(order.voucher_token_id),
+    expected: order.commitment as `0x${string}`,
+  })
   // The registrar charges msg.sender (the PAYER — the Safe in Roles mode), so
   // the name is registered with owner = BUYER directly: the payer funds it, the
   // buyer receives it, no transfer step.
