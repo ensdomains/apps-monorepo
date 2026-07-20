@@ -1,26 +1,38 @@
 import {
   createFileRoute,
+  redirect,
   useHydrated,
   useNavigate,
 } from '@tanstack/react-router'
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useCallback } from 'react'
 import { useConnection } from 'wagmi'
 import { MigrationPage } from '@/features/migration/pages/MigrationPage'
 import { MigrationUiProvider } from '@/features/migration/state/migrationUi.context'
+import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { getFeatureFlag } from '@/lib/posthog/get-feature-flag'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const Route = createFileRoute('/migration')({
+  beforeLoad: async () => {
+    const migrationAccess = await getFeatureFlag({
+      data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
+    })
+
+    if (migrationAccess !== true) {
+      throw redirect({ to: '/dashboard', replace: true })
+    }
+  },
   component: RouteComponent,
 })
 
 function RouteComponent() {
   return (
-    <RequireMigrationAccess>
+    <RequireConnectedWallet>
       <MigrationUiProvider>
         <MigrationPage />
       </MigrationUiProvider>
-    </RequireMigrationAccess>
+    </RequireConnectedWallet>
   )
 }
 
@@ -39,43 +51,20 @@ const MigrationRouteLoading = () => {
   )
 }
 
-const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
+const RequireConnectedWallet = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate()
   const isHydrated = useHydrated()
-  const { status, isConnecting, isReconnecting } = useConnection()
+  const { isConnecting, isReconnecting } = useConnection()
   const { hasInitialized, ownerAddress } = useSmartAccountContext()
+
+  const handleDisconnect = useCallback(() => {
+    navigate({ to: '/', replace: true })
+  }, [navigate])
+
+  useOnDisconnected(handleDisconnect)
 
   const isRestoringConnection =
     !isHydrated || isConnecting || isReconnecting || !hasInitialized
-
-  const redirectTo = (() => {
-    if (isRestoringConnection) return null
-
-    if (status === 'disconnected') return '/'
-
-    if (!ownerAddress) return null
-
-    if (
-      !isFeatureEnabled('MIGRATION', {
-        walletAddress: ownerAddress,
-      })
-    ) {
-      return '/dashboard'
-    }
-
-    return null
-  })()
-
-  useEffect(() => {
-    if (!redirectTo) return
-
-    navigate({
-      to: redirectTo,
-      replace: true,
-    })
-  }, [navigate, redirectTo])
-
-  if (redirectTo) return null
 
   if (isRestoringConnection || !ownerAddress) {
     return <MigrationRouteLoading />

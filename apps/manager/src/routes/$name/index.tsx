@@ -1,3 +1,4 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   createFileRoute,
   type ErrorComponentProps,
@@ -12,16 +13,24 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
-    const [profileRecords, ownerData, expiryData] = await Promise.all([
+    const [profileRecords, ownerData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(name)),
       queryClient.ensureQueryData(profileOwnerQuery(name)),
-      queryClient.ensureQueryData(profileExpiryQuery(name)),
-      queryClient.prefetchQuery(profileRegistrationQuery(name)),
+    ])
+
+    const [expiryData] = await Promise.all([
+      queryClient.ensureQueryData(
+        profileExpiryQuery(name, ownerData?.protocol),
+      ),
+      queryClient.prefetchQuery(
+        profileRegistrationQuery(name, ownerData?.protocol),
+      ),
     ])
 
     const expiryDate =
@@ -80,8 +89,12 @@ export const Route = createFileRoute('/$name/')({
 
 function ProfileRoutePending() {
   const name = Route.useParams({ select: (params) => params.name })
+  const profileViewNewEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    false,
+  )
 
-  return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
+  return profileViewNewEnabled ? (
     <ProfileViewNewLoading name={name} />
   ) : (
     <ProfileLoading />

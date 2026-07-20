@@ -37,7 +37,10 @@ export type DisplayNameState = {
  * - L1: Always uses the directly set name
  * - L2: Can inherit defaultName from L1 if no name is set
  * - Primary name: Either has forwardMatch OR is inheriting default
- * - Can set as primary: Only on L1 when name exists but isn't primary
+ * - Can set as primary: a name is set on this chain's reverse registrar but
+ *   doesn't forward-match. Applies to L1 and L2 alike — the missing half is
+ *   the forward `addr(node, coinType)` record, which is written on the name's
+ *   L1 resolver for every chain (ENSIP-19).
  *
  * @param params - Display name computation parameters
  * @returns Computed display state
@@ -79,9 +82,10 @@ export const computeDisplayNameState = ({
   // Primary name: either matches forward resolution OR inherits default
   const isPrimaryName = forwardMatch || isInheritingDefault
 
-  // Can set as primary: L1 only, has displayName, not primary, and name is set
-  const canSetAsPrimary =
-    isL1 && !!displayName && !isPrimaryName && name !== null
+  // Can set as primary: has displayName, not primary, and a name is actually
+  // set on this chain's registrar (not just inherited from the default). The
+  // forward record completing the pair is written on L1 for every chain.
+  const canSetAsPrimary = !!displayName && !isPrimaryName && name !== null
 
   return {
     displayName,

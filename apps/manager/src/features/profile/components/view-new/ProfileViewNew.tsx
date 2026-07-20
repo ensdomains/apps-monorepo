@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
@@ -8,16 +9,17 @@ import {
   buildNameHeaderUrl,
 } from '@/features/profile/service/profileAvatar'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileViewNewActions } from './ProfileViewNewActions'
 import { ProfileViewNewBanner } from './ProfileViewNewBanner'
@@ -56,7 +58,10 @@ const getProfileUrl = (name: string) =>
   }/p/${name}`
 
 export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -72,13 +77,13 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     isError: isExpiryError,
     error: expiryError,
   } = useQuery({
-    ...profileExpiryQuery(name),
+    ...profileExpiryQuery(name, ownerData?.protocol),
   })
   const registration = useQuery({
-    ...profileRegistrationQuery(name),
+    ...profileRegistrationQuery(name, ownerData?.protocol),
   })
 
-  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const expiry = getProfileExpiryResultStatus(expiryData)
   const owner = ownerData?.owner as Address | undefined
   const ownerReverseName = useQuery({
     ...profileReverseNameQuery(owner),
@@ -104,7 +109,14 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   }
 
   const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
-  const headerUrl = expiry.isInGrace ? undefined : buildNameHeaderUrl(name)
+  const headerUrl =
+    expiry.isInGrace || !records.base.header?.trim()
+      ? undefined
+      : buildNameHeaderUrl(name)
+  const defaultHeaderUrl = getDefaultHeaderCover({
+    isInGrace: expiry.isInGrace,
+    themeColor: records.base.theme,
+  })
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']
@@ -116,6 +128,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
     >
       <ProfileViewNewThemeColorProvider value={profileThemeColor}>
         <ProfileViewNewBanner
+          defaultHeaderUrl={defaultHeaderUrl}
           headerLoading={false}
           headerUrl={headerUrl}
           name={name}

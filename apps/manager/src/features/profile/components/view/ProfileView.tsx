@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
@@ -6,11 +7,11 @@ import { useConnection } from 'wagmi'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '../../service/profileExpiry'
 import { profileOwnerQuery } from '../../service/profileOwner'
@@ -48,7 +49,10 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
 }
 
 export const ProfileView = ({ name }: ProfileViewProps) => {
-  const profileViewNewEnabled = useFeatureFlag('PROFILE_VIEW_NEW')
+  const profileViewNewEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    false,
+  )
 
   return profileViewNewEnabled ? (
     <ProfileViewNew name={name} />
@@ -58,7 +62,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 }
 
 const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -74,9 +81,9 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
     isError: isExpiryError,
     error: expiryError,
   } = useQuery({
-    ...profileExpiryQuery(name),
+    ...profileExpiryQuery(name, ownerData?.protocol),
   })
-  const expiry = getProfileNameExpiryStatus(expiryData?.expiry, true)
+  const expiry = getProfileExpiryResultStatus(expiryData)
 
   const owner = ownerData?.owner as Address | undefined
   const profileThemeColor = expiry.isInGrace
@@ -126,6 +133,7 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         )
         .otherwise(() => null)}
       <ViewHeaderSection
+        hasHeader={Boolean(records.base.header?.trim())}
         isInGrace={expiry.isInGrace}
         isOwner={isOwnerPending ? undefined : isOwner}
         name={name}

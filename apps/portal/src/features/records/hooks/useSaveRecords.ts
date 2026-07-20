@@ -12,7 +12,7 @@ import {
   useSwitchChain,
   useWalletClient,
 } from 'wagmi'
-import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
+import { profileQueryKey } from '@/features/profile/hooks/useProfile'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
@@ -59,8 +59,12 @@ export function useSaveRecords(options: UseSaveRecordsOptions = {}) {
       try {
         await pollForIndexerSync({
           invalidateQueries: () =>
+            // Name-only key so this matches the active profile query
+            // regardless of its `protocolVersion` — a `{ name, protocolVersion:
+            // undefined }` key does NOT partial-match `{ name, protocolVersion:
+            // 'ENSv2' }`, so the profile never refetched.
             queryClient.invalidateQueries({
-              queryKey: getProfileQueryOptions({ name }).queryKey,
+              queryKey: profileQueryKey({ name }),
               refetchType: 'all',
             }),
         })

@@ -68,7 +68,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('locked + CANNOT_BURN_FUSES migrates and produces locked V2 state', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -100,7 +100,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   })
 
   test('locked + CANNOT_TRANSFER migrates and produces locked V2 state', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -130,7 +130,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   })
 
   test('locked + CANNOT_SET_RESOLVER migrates and preserves V1 resolver', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -165,7 +165,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   })
 
   test('locked + CANNOT_CREATE_SUBDOMAIN migrates and produces locked V2 state', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -195,7 +195,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   })
 
   test('locked + CAN_EXTEND_EXPIRY migrates and produces locked V2 state', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {
@@ -225,7 +225,7 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
   })
 
   test('locked + all child fuses migrates and produces locked V2 state', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
   }) => {

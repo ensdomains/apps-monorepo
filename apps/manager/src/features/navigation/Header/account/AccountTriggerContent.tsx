@@ -22,12 +22,13 @@ export const AccountTriggerContent = () => {
             <ImageFallback.Root className="contents">
               <ImageFallback.Image
                 alt="ENS Avatar"
-                className="size-full rounded-full object-cover"
+                className="size-full rounded-sm object-cover"
                 src={avatar.url ?? undefined}
               />
               <ImageFallback.Fallback>
                 <PatternAvatar
-                  className="size-full rounded-full border-none bg-transparent p-0 shadow-none"
+                  className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+                  color={avatar.themeColor}
                   name={reverseNameQuery.data ?? ownerAddress ?? 'wallet'}
                 />
               </ImageFallback.Fallback>

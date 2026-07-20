@@ -11,7 +11,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import {
@@ -110,10 +110,7 @@ export const NameSuggestionItem = ({
       isRegistered !== undefined &&
       !(needsSelfCheck ? activeQuery.isLoading : isLoadingProp),
   })
-  const { isInGrace } = getProfileNameExpiryStatus(
-    registeredExpiryQuery.data?.expiry,
-    true,
-  )
+  const { isInGrace } = getProfileExpiryResultStatus(registeredExpiryQuery.data)
   const isCheckingGrace =
     !isSubname && isRegistered === false && registeredExpiryQuery.isLoading
   const isLoading =

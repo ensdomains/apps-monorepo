@@ -1,12 +1,14 @@
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 
 type ProfileViewNewBannerProps = {
+  readonly defaultHeaderUrl: string
   readonly headerLoading: boolean
   readonly headerUrl?: string
   readonly name: string
 }
 
 export const ProfileViewNewBanner = ({
+  defaultHeaderUrl,
   headerLoading,
   headerUrl,
   name,
@@ -20,7 +22,12 @@ export const ProfileViewNewBanner = ({
           src={headerUrl}
         />
         <ImageFallback.Fallback>
-          <div className="absolute top-14 h-60 w-full bg-[linear-gradient(145deg,var(--theme-bg)_0%,#ffffff_58%,var(--theme-surface)_100%)] lg:landscape:top-0 lg:landscape:h-full" />
+          <img
+            alt=""
+            aria-hidden="true"
+            className="absolute top-14 h-60 w-full object-cover lg:landscape:top-0 lg:landscape:h-130"
+            src={defaultHeaderUrl}
+          />
           {headerLoading ? (
             <div className="absolute inset-0 animate-pulse bg-white/30" />
           ) : null}

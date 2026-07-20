@@ -1,17 +1,19 @@
+import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { useHydrated } from '@tanstack/react-router'
 import { useConnection } from 'wagmi'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { DesktopHeader } from './desktop/Desktop'
 import { MobileHeader } from './mobile/MobileHeader'
 
 type HeaderProps = {
   readonly desktopBreakpoint?: 'md' | 'lg-landscape'
+  readonly hasMobileBlurredBackground?: boolean
   readonly profileThemeColor?: string
   readonly transparentBackground?: boolean
 }
 
 export const Header = ({
   desktopBreakpoint = 'md',
+  hasMobileBlurredBackground = false,
   profileThemeColor,
   transparentBackground = false,
 }: HeaderProps) => {
@@ -35,6 +37,7 @@ export const Header = ({
     return (
       <MobileHeader
         connectionSettled={connectionSettled}
+        hasBlurredBackground={hasMobileBlurredBackground}
         isConnected={isConnected}
         transparentBackground={transparentBackground}
       />

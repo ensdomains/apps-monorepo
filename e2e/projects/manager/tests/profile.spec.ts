@@ -14,7 +14,7 @@ test.describe('ENS profile', () => {
     test.describe.configure({ timeout: 300_000 })
 
     test('add lots of records to profile', async ({
-        connectedPage: page,
+        profileConnectedPage: page,
         makeV2Name,
     }) => {
         const name = await makeV2Name({ label: 'profileadd' })
@@ -50,7 +50,7 @@ test.describe('ENS profile', () => {
     })
 
     test('remove records from profile', async ({
-        connectedPage: page,
+        profileConnectedPage: page,
         makeV2Name,
     }) => {
         const name = await makeV2Name({ label: 'profilerem' })
@@ -92,7 +92,7 @@ test.describe('ENS profile', () => {
     })
 
     test('shows validation errors for invalid records', async ({
-        connectedPage: page,
+        profileConnectedPage: page,
         makeV2Name,
     }) => {
         const name = await makeV2Name({ label: 'profileval' })
@@ -140,7 +140,7 @@ test.describe('ENS profile', () => {
         // `disabled` prop is bound to `useAtom(isBackendAuthed)` and
         // the API mutations call the deployed worker. Use the
         // sign-in fixture variant so the heart button is interactive.
-        authenticatedPageWithBackend: page,
+        profileAuthenticatedPageWithBackend: page,
         makeV2Name,
     }) => {
         test.skip(process.env.E2E_MOCK_INDEXER === 'true', 'Requires real indexer (SSR bypasses Playwright mock)')
@@ -211,7 +211,7 @@ test.describe('ENS profile', () => {
     test('can favourite a name not owned by the user', async ({
         // Same backend-auth requirement as the owned-name favorites
         // test above — see comment there.
-        authenticatedPageWithBackend: page,
+        profileAuthenticatedPageWithBackend: page,
         makeV2Name,
     }) => {
         // Skip when indexer is mocked — page.goto('/dashboard') triggers SSR which
@@ -262,7 +262,7 @@ test.describe('ENS profile', () => {
     })
 
     test('extend owned name by 28 days', async ({
-        connectedPage: page,
+        profileConnectedPage: page,
         makeV2Name,
         wallet,
     }) => {
@@ -289,7 +289,7 @@ test.describe('ENS profile', () => {
     })
 
     test('extend unowned name by 28 days', async ({
-        connectedPage: page,
+        profileConnectedPage: page,
         makeV2Name,
         wallet,
     }) => {

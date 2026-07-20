@@ -15,7 +15,7 @@ import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address } from 'viem'
 import { assign, setup } from 'xstate'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
@@ -191,7 +191,10 @@ export const renewalUiMachine = setup({
   id: 'renewalUi',
   context: ({ input }) => ({
     currentExpiry: input.currentExpiry,
-    duration: SECONDS_IN_YEAR,
+    duration: getDurationInSecondsFromYears(
+      1,
+      new Date(Number(input.currentExpiry) * 1000),
+    ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
   }),

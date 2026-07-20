@@ -1,13 +1,14 @@
 import { useHydrated } from '@tanstack/react-router'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { ComponentType, ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useConnection } from 'wagmi'
+import { useOnDisconnected } from '@/features/wallet/hooks/useOnDisconnected'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { Route } from './migration'
 
 const navigateMock = vi.hoisted(() => vi.fn())
+const getFeatureFlagMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
@@ -20,12 +21,16 @@ vi.mock('wagmi', () => ({
   useConnection: vi.fn(),
 }))
 
+vi.mock('@/features/wallet/hooks/useOnDisconnected', () => ({
+  useOnDisconnected: vi.fn(),
+}))
+
 vi.mock('@/lib/smart-account', () => ({
   useSmartAccountContext: vi.fn(),
 }))
 
-vi.mock('@/utils/feature-flags', () => ({
-  isFeatureEnabled: vi.fn(),
+vi.mock('@/lib/posthog/get-feature-flag', () => ({
+  getFeatureFlag: getFeatureFlagMock,
 }))
 
 vi.mock('@/features/migration/pages/MigrationPage', () => ({
@@ -65,11 +70,19 @@ const renderRoute = () => {
   return render(<Component />)
 }
 
+const runBeforeLoad = () => {
+  const beforeLoad = Route.options.beforeLoad
+
+  if (!beforeLoad) throw new Error('Expected migration beforeLoad guard')
+
+  return beforeLoad({} as never)
+}
+
 describe('/migration route auth', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useHydrated).mockReturnValue(true)
-    vi.mocked(isFeatureEnabled).mockReturnValue(true)
+    vi.mocked(useOnDisconnected).mockImplementation(() => undefined)
     mockConnection({
       status: 'connected',
       isConnecting: false,
@@ -82,8 +95,47 @@ describe('/migration route auth', () => {
     })
   })
 
-  it('does not define a beforeLoad guard so external handoffs can hydrate first', () => {
-    expect(Route.options.beforeLoad).toBeUndefined()
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('allows direct server requests when the migration flag is enabled', async () => {
+    vi.stubGlobal('window', undefined)
+    getFeatureFlagMock.mockResolvedValue(true)
+
+    await expect(runBeforeLoad()).resolves.toBeUndefined()
+    expect(getFeatureFlagMock).toHaveBeenCalledWith({
+      data: { flag: 'migration' },
+    })
+  })
+
+  it('redirects direct server requests when the migration flag is disabled', async () => {
+    vi.stubGlobal('window', undefined)
+    getFeatureFlagMock.mockResolvedValue(false)
+
+    await expect(runBeforeLoad()).rejects.toEqual({
+      options: { to: '/dashboard', replace: true },
+    })
+  })
+
+  it('redirects direct server requests when migration access cannot be evaluated', async () => {
+    vi.stubGlobal('window', undefined)
+    getFeatureFlagMock.mockResolvedValue(null)
+
+    await expect(runBeforeLoad()).rejects.toEqual({
+      options: { to: '/dashboard', replace: true },
+    })
+  })
+
+  it('redirects disabled client-side navigation through the server checker', async () => {
+    getFeatureFlagMock.mockResolvedValue(false)
+
+    await expect(runBeforeLoad()).rejects.toEqual({
+      options: { to: '/dashboard', replace: true },
+    })
+    expect(getFeatureFlagMock).toHaveBeenCalledWith({
+      data: { flag: 'migration' },
+    })
   })
 
   it('waits during wallet restoration before rendering or redirecting', () => {
@@ -123,14 +175,24 @@ describe('/migration route auth', () => {
     expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
-  it('renders migration for a settled connected wallet with migration access', () => {
+  it('renders migration when the smart account is connected even if wagmi reports the initial hard-load disconnected frame', () => {
+    mockConnection({
+      status: 'disconnected',
+      isConnecting: false,
+      isReconnecting: false,
+    })
+
     renderRoute()
 
     expect(screen.getByTestId('migration-page')).not.toBeNull()
     expect(navigateMock).not.toHaveBeenCalled()
-    expect(isFeatureEnabled).toHaveBeenCalledWith('MIGRATION', {
-      walletAddress: OWNER_ADDRESS,
-    })
+  })
+
+  it('renders migration for a settled connected wallet', () => {
+    renderRoute()
+
+    expect(screen.getByTestId('migration-page')).not.toBeNull()
+    expect(navigateMock).not.toHaveBeenCalled()
   })
 
   it('does not redirect while wagmi is connected but the smart account is still catching up', () => {
@@ -159,7 +221,7 @@ describe('/migration route auth', () => {
     expect(screen.queryByTestId('migration-page')).toBeNull()
   })
 
-  it('redirects settled disconnected wallets to home', async () => {
+  it('waits instead of redirecting on the initial hard-load disconnected frame', () => {
     mockConnection({
       status: 'disconnected',
       isConnecting: false,
@@ -173,26 +235,21 @@ describe('/migration route auth', () => {
 
     renderRoute()
 
-    await waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith({
-        to: '/',
-        replace: true,
-      }),
-    )
+    expect(navigateMock).not.toHaveBeenCalled()
     expect(screen.queryByTestId('migration-page')).toBeNull()
+    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
   })
 
-  it('redirects connected wallets without migration access to the dashboard', async () => {
-    vi.mocked(isFeatureEnabled).mockReturnValue(false)
+  it('redirects through the reconnect-aware disconnect hook', () => {
+    vi.mocked(useOnDisconnected).mockImplementation((onDisconnect) => {
+      onDisconnect()
+    })
 
     renderRoute()
 
-    await waitFor(() =>
-      expect(navigateMock).toHaveBeenCalledWith({
-        to: '/dashboard',
-        replace: true,
-      }),
-    )
-    expect(screen.queryByTestId('migration-page')).toBeNull()
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/',
+      replace: true,
+    })
   })
 })

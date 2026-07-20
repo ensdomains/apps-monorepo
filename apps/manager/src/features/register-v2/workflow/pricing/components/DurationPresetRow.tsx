@@ -1,25 +1,15 @@
-import type { MessageDescriptor } from '@lingui/core'
 import { useLingui } from '@lingui/react'
-import { Trans } from '@lingui/react/macro'
-import { formatDuration } from 'date-fns'
+import { Plural, Trans } from '@lingui/react/macro'
 import { cn } from '@/lib/utils'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
-import { SECONDS_IN_YEAR, secondsToDuration } from '../../../utils/time'
+import type { DurationPresetData } from './durationPresets'
 
 const YEARLY_PRICE_STYLE = {
   citrine: tw`text-ens-citrine-500 bg-ens-citrine-100`,
   peridot: tw`text-ens-peridot-500 bg-ens-peridot-100`,
   garnet: tw`text-ens-garnet-500 bg-ens-garnet-100`,
 } as const
-
-export type DurationPresetData = {
-  duration: number
-  title: MessageDescriptor
-  subtitle: MessageDescriptor
-  kind: 'default' | 'mostPopular'
-  color: keyof typeof YEARLY_PRICE_STYLE
-}
 
 export const DurationPresetRow = ({
   data,
@@ -35,9 +25,7 @@ export const DurationPresetRow = ({
 }) => {
   const { _ } = useLingui()
 
-  const yearlyPrice = price
-    ? price / (data.duration / SECONDS_IN_YEAR)
-    : undefined
+  const yearlyPrice = price ? price / data.years : undefined
 
   return (
     <button
@@ -60,7 +48,7 @@ export const DurationPresetRow = ({
 
       <div className="flex items-center gap-6">
         <span className="font-normal text-base text-ens-quartz-900 leading-none tracking-tighter md:text-2xl">
-          {formatDuration(secondsToDuration(data.duration))}
+          <Plural one="# year" other="# years" value={data.years} />
         </span>
 
         <div

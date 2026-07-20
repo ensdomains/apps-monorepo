@@ -1,21 +1,34 @@
+import type { JSX, SVGProps } from 'react'
 import type { Address } from 'viem'
 import { formatUnits } from 'viem'
 import { cn } from '@/lib/utils'
-import type { TokenWithPriceAndBalance } from '../utils/tokenData'
 
-type PaymentTokenListProps = {
-  readonly tokenData: readonly TokenWithPriceAndBalance[]
-  readonly selectedToken: Address | null
-  readonly isRegistering: boolean
-  readonly onSelect: (token: TokenWithPriceAndBalance) => void
+// The minimal token shape this list renders: an icon/symbol, a balance, and a
+// total price to compare against it. Broader token models (e.g.
+// TokenWithPriceAndBalance) are structurally assignable, so both the register
+// and renewal pickers can reuse this list without carrying extra fields.
+export type PaymentTokenDisplay = {
+  readonly symbol: string
+  readonly address: Address
+  readonly decimals: number
+  readonly Icon: (props: SVGProps<SVGSVGElement>) => JSX.Element
+  readonly balance: bigint
+  readonly price: { readonly total: bigint }
 }
 
-export const PaymentTokenList = ({
+type PaymentTokenListProps<T extends PaymentTokenDisplay> = {
+  readonly tokenData: readonly T[]
+  readonly selectedToken: Address | null
+  readonly isRegistering: boolean
+  readonly onSelect: (token: T) => void
+}
+
+export const PaymentTokenList = <T extends PaymentTokenDisplay>({
   tokenData,
   selectedToken,
   isRegistering,
   onSelect,
-}: PaymentTokenListProps) => (
+}: PaymentTokenListProps<T>) => (
   <div className="space-y-2">
     {tokenData.map((token) => {
       const hasSufficientBalance = token.balance >= token.price.total

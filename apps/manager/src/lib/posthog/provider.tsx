@@ -32,6 +32,12 @@ export const PHProvider = ({
         person_profiles: 'identified_only',
       })
 
+      // The ESM `posthog-js` build keeps the singleton in an internal
+      // registry and never attaches it to `window` (unlike the script-tag
+      // snippet). Expose it so e2e can reach `window.posthog.featureFlags`
+      // to override flags, and for debugging in the console.
+      ;(window as Window & { posthog?: typeof posthog }).posthog = posthog
+
       bootIntercom({
         app_id: 're9q5yti',
         posthog_distinct_id: posthog.get_distinct_id(),

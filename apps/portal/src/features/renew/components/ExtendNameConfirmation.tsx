@@ -14,7 +14,6 @@ type ExtendNameConfirmationProps = {
   readonly price: RegistrationPriceResult
   readonly onBack: () => void
   readonly onConfirm: (token: TokenWithPriceAndBalance) => void
-  readonly isRegistering: boolean
 }
 
 export const ExtendNameConfirmation = ({
@@ -23,7 +22,6 @@ export const ExtendNameConfirmation = ({
   price,
   onBack,
   onConfirm,
-  isRegistering,
 }: ExtendNameConfirmationProps) => {
   const [selectedTokenData, setSelectedTokenData] =
     useState<TokenWithPriceAndBalance | null>(null)
@@ -44,8 +42,8 @@ export const ExtendNameConfirmation = ({
       <PaymentTokenPicker
         name={selectedName.name}
         duration={durationSeconds}
-        isRegistering={isRegistering}
-        isRenewal
+        mode="renew"
+        isV2={selectedName.isV2}
         onSelectionChange={setSelectedTokenData}
       />
       <div className="flex gap-2">

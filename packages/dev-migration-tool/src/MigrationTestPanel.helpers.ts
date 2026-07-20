@@ -1,26 +1,72 @@
 // Pure helpers and domain logic for MigrationTestPanel — no React, fully testable.
 
-import { concat, encodeFunctionData, hexToBytes, keccak256, toBytes } from 'viem'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { registrySetApprovalForAllSnippet } from '@ensdomains/ensjs-abi/registry'
+import {
+  baseRegistrarAddControllerSnippet,
+  baseRegistrarControllersSnippet,
+  baseRegistrarOwnerSnippet,
+  baseRegistrarRegisterSnippet,
+} from '@ensdomains/ensjs-abi/v1/baseRegistrar'
+import {
+  nameWrapperSetFusesSnippet,
+  nameWrapperSetSubnodeOwnerSnippet,
+  nameWrapperWrapEth2ldSnippet,
+} from '@ensdomains/ensjs-abi/v1/nameWrapper'
+import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegistry'
+import {
+  concat,
+  encodeFunctionData,
+  hexToBytes,
+  keccak256,
+  toBytes,
+} from 'viem'
+
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 // --- V1 contract addresses --------------------------------------------------
-// Official Sepolia V1 contracts (match preflightChecks.ts / ensjs chain config).
-export const V1_BASE_REGISTRAR = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85' as const
-export const V1_NAME_WRAPPER = '0x0635513f179D50A207757E05759CbD106d7dFcE8' as const
-// Owner of the official Sepolia BaseRegistrar — impersonated to re-authorize
-// DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers at ~block
-// 10927919 as part of the V2 migration cutover.
-export const V1_BASE_REGISTRAR_OWNER = '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
-export const V1_PUBLIC_RESOLVER = '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
+// V1 contracts sourced from the ensjs Sepolia chain config (same source as
+// preflightChecks.ts) so they can't drift from the canonical deployment.
+export const V1_BASE_REGISTRAR =
+  ensjsSepolia.ensBaseRegistrarImplementation.address
+export const V1_NAME_WRAPPER = ensjsSepolia.ensNameWrapper.address
+// Fallback owner of the official Sepolia BaseRegistrar — impersonated to
+// re-authorize DEFAULT_ACCOUNT as a controller. ENS revoked all V1 controllers
+// at ~block 10927919 as part of the V2 migration cutover.
+//
+// The registrar's `owner()` has since been transferred on Sepolia, so this
+// constant is only a last-resort fallback: `ensureFunded()` reads the live
+// `owner()` off the fork and impersonates THAT. Hardcoding the owner is what
+// silently broke name creation once ownership moved — impersonating a non-owner
+// makes `addController` revert, so DEFAULT_ACCOUNT never becomes a controller
+// and every `register()` reverts, leaving phantom names that only exist in the
+// subgraph mock.
+export const V1_BASE_REGISTRAR_OWNER =
+  '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
+export const V1_PUBLIC_RESOLVER =
+  '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
 
 // V2 contracts — sourced from ensjs Sepolia chain config (same source as addresses.ts).
-export const V2_ETH_REGISTRY_ADDR = '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
-export const V2_ETH_REGISTRAR_ADDR = '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
+export const V2_ETH_REGISTRY_ADDR =
+  '0xdedb92913a25abe1f7bcdd85d8a344a43b398b67' as const
+export const V2_ETH_REGISTRAR_ADDR =
+  '0x8c2e866b439358c41ae05de9cbe8a00bfefaffca' as const
 
 /** Anvil account #0 — always has 10 000 ETH on a fresh fork. */
-export const DEFAULT_ACCOUNT = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const
+export const DEFAULT_ACCOUNT =
+  '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266' as const
 
 export const ONE_YEAR = 365 * 24 * 3600
-export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
+
+// Bonus added to a name's v1 expiry when it's reserved on v2 during pre-migration
+// (contracts-v2 `PREMIGRATION_BONUS_PERIOD = 1 + (GRACE_PERIOD_V1 - GRACE_PERIOD_V2)`
+// = ~62 days). The v2 slot stays RESERVED for this window, then AVAILABLE-renewable
+// for another GRACE_PERIOD_V2 (28d) — 62 + 28 = 90 days = the full v1 grace, so a
+// reserved v1 name is renewable throughout grace. Match it so seeded names have the
+// SAME renewable window as production (rather than staying renewable indefinitely).
+export const PREMIGRATION_BONUS_PERIOD = 1 + (90 - 28) * 24 * 3600
+export const ZERO_ADDRESS =
+  '0x0000000000000000000000000000000000000000' as const
 
 // --- Fuse bit masks (NameWrapper) -------------------------------------------
 export const CANNOT_UNWRAP = 1 as const
@@ -44,7 +90,6 @@ export const ALL_CHILD_FUSES =
 
 // --- Storage keys -----------------------------------------------------------
 export const POSITION_STORAGE_KEY = 'ens:migration-tool:pos'
-export const NAMES_STORAGE_KEY = 'ens:migration-tool:v1-names'
 
 // --- Types ------------------------------------------------------------------
 export type PresetType =
@@ -53,6 +98,8 @@ export type PresetType =
   | 'locked'
   | 'locked-all'
   | 'grace'
+  | 'grace-renewable-wrapped'
+  | 'grace-renewable-unwrapped'
   | 'emancipated'
 
 export interface ActiveName {
@@ -69,10 +116,38 @@ export type Pos = { left: number; top: number }
 export const PRESETS: { type: PresetType; label: string; title: string }[] = [
   { type: 'unwrapped', label: 'Unwrapped', title: 'ERC-721 on BaseRegistrar' },
   { type: 'wrapped', label: 'Wrapped', title: 'NameWrapper, no fuses' },
-  { type: 'locked', label: 'Locked', title: 'NameWrapper, CANNOT_UNWRAP fuse burned' },
-  { type: 'locked-all', label: 'Locked+All', title: 'NameWrapper, all 7 child fuses burned' },
-  { type: 'grace', label: 'Grace Period', title: 'Locked name expired 45 days ago (clock advanced)' },
-  { type: 'emancipated', label: 'Emancipated', title: 'Locked subname with PARENT_CANNOT_CONTROL' },
+  {
+    type: 'locked',
+    label: 'Locked',
+    title: 'NameWrapper, CANNOT_UNWRAP fuse burned',
+  },
+  {
+    type: 'locked-all',
+    label: 'Locked+All',
+    title: 'NameWrapper, all 7 child fuses burned',
+  },
+  {
+    type: 'grace',
+    label: 'Grace Period',
+    title: 'Locked name expired 45 days ago (clock advanced)',
+  },
+  {
+    type: 'grace-renewable-wrapped',
+    label: 'Grace RW (wrapped)',
+    title:
+      'Wrapped name in grace, v2 reservation active → isRenewable=true. NOTE: after renewal the NameWrapper token stays expired, so migration reverts with ERC1155 insufficient balance.',
+  },
+  {
+    type: 'grace-renewable-unwrapped',
+    label: 'Grace RW (unwrapped)',
+    title:
+      'Unwrapped name in grace, v2 reservation active → isRenewable=true. Renew then migrate works end-to-end (ERC-721 in BaseRegistrar).',
+  },
+  {
+    type: 'emancipated',
+    label: 'Emancipated',
+    title: 'Locked subname with PARENT_CANNOT_CONTROL',
+  },
 ]
 
 export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
@@ -81,106 +156,18 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   locked: '#7c3aed',
   'locked-all': '#9333ea',
   grace: '#b45309',
+  'grace-renewable-wrapped': '#c2410c',
+  'grace-renewable-unwrapped': '#ea580c',
   emancipated: '#065f46',
 }
 
 // --- ABI fragments ----------------------------------------------------------
-export const WRAPPER_ABI = [
-  {
-    name: 'wrapETH2LD',
-    type: 'function',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'wrappedOwner', type: 'address' },
-      { name: 'ownerControlledFuses', type: 'uint16' },
-      { name: 'resolver', type: 'address' },
-    ],
-    outputs: [{ name: 'tokenId', type: 'uint64' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setFuses',
-    type: 'function',
-    inputs: [
-      { name: 'node', type: 'bytes32' },
-      { name: 'ownerControlledFuses', type: 'uint16' },
-    ],
-    outputs: [{ name: 'newFuses', type: 'uint32' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setSubnodeOwner',
-    type: 'function',
-    inputs: [
-      { name: 'parentNode', type: 'bytes32' },
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'fuses', type: 'uint32' },
-      { name: 'expiry', type: 'uint64' },
-    ],
-    outputs: [{ name: 'node', type: 'bytes32' }],
-    stateMutability: 'nonpayable',
-  },
-] as const
-
-export const BASE_REGISTRAR_ABI = [
-  {
-    name: 'register',
-    type: 'function',
-    inputs: [
-      { name: 'id', type: 'uint256' },
-      { name: 'owner', type: 'address' },
-      { name: 'duration', type: 'uint256' },
-    ],
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'setApprovalForAll',
-    type: 'function',
-    inputs: [
-      { name: 'operator', type: 'address' },
-      { name: 'approved', type: 'bool' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'addController',
-    type: 'function',
-    inputs: [{ name: 'controller', type: 'address' }],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const
-
-export const V2_REGISTRY_ABI = [
-  {
-    name: 'register',
-    type: 'function',
-    inputs: [
-      { name: 'label', type: 'string' },
-      { name: 'owner', type: 'address' },
-      { name: 'subregistry', type: 'address' },
-      { name: 'resolver', type: 'address' },
-      { name: 'flags', type: 'uint256' },
-      { name: 'expires', type: 'uint64' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    name: 'grantRoles',
-    type: 'function',
-    inputs: [
-      { name: 'resource', type: 'uint256' },
-      { name: 'roles', type: 'uint256' },
-      { name: 'account', type: 'address' },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-] as const
+// All contract ABIs are sourced from @ensdomains/ensjs-abi per-function
+// snippets (imported above). NameWrapper: wrapETH2LD / setFuses /
+// setSubnodeOwner. BaseRegistrar: register / addController / owner /
+// controllers. setApprovalForAll from the registry snippet (standard
+// ERC-721/1155 method, encodes identically). V2 registry register from
+// v2/userRegistry (identical param types; only names differ).
 
 // --- Crypto helpers ---------------------------------------------------------
 
@@ -212,7 +199,10 @@ export async function rpcCall(
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   })
   if (!res.ok) throw new Error(`RPC HTTP ${res.status}: ${res.statusText}`)
-  const json = (await res.json()) as { result?: unknown; error?: { message: string } }
+  const json = (await res.json()) as {
+    result?: unknown
+    error?: { message: string }
+  }
   if (json.error) throw new Error(`RPC error: ${json.error.message}`)
   return json.result
 }
@@ -236,7 +226,10 @@ export async function sendTx(
   await rpcCall(endpoint, 'evm_mine', [])
 }
 
-export async function increaseTime(endpoint: string, seconds: number): Promise<void> {
+export async function increaseTime(
+  endpoint: string,
+  seconds: number,
+): Promise<void> {
   await rpcCall(endpoint, 'evm_increaseTime', [seconds])
   await rpcCall(endpoint, 'evm_mine', [])
 }
@@ -283,7 +276,7 @@ export async function registerV1Name(
     endpoint,
     V1_BASE_REGISTRAR,
     encodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
+      abi: baseRegistrarRegisterSnippet,
       functionName: 'register',
       args: [tokenId, DEFAULT_ACCOUNT, BigInt(ONE_YEAR)],
     }),
@@ -296,7 +289,7 @@ export async function registerV1Name(
     endpoint,
     V1_BASE_REGISTRAR,
     encodeFunctionData({
-      abi: BASE_REGISTRAR_ABI,
+      abi: registrySetApprovalForAllSnippet,
       functionName: 'setApprovalForAll',
       args: [V1_NAME_WRAPPER, true],
     }),
@@ -307,7 +300,7 @@ export async function registerV1Name(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperWrapEth2ldSnippet,
       functionName: 'wrapETH2LD',
       args: [label, DEFAULT_ACCOUNT, 0, ZERO_ADDRESS],
     }),
@@ -324,7 +317,11 @@ export async function setNameFuses(
   await sendTx(
     endpoint,
     V1_NAME_WRAPPER,
-    encodeFunctionData({ abi: WRAPPER_ABI, functionName: 'setFuses', args: [node, fuses] }),
+    encodeFunctionData({
+      abi: nameWrapperSetFusesSnippet,
+      functionName: 'setFuses',
+      args: [node, fuses],
+    }),
   )
 }
 
@@ -343,11 +340,56 @@ export async function createEmancipatedSubname(
     endpoint,
     V1_NAME_WRAPPER,
     encodeFunctionData({
-      abi: WRAPPER_ABI,
+      abi: nameWrapperSetSubnodeOwnerSnippet,
       functionName: 'setSubnodeOwner',
       args: [parentNode, sublabel, DEFAULT_ACCOUNT, subFuses, expiry],
     }),
   )
+}
+
+/** Read the live BaseRegistrar `owner()` off the fork; null if the call fails. */
+export async function readRegistrarOwner(
+  endpoint: string,
+): Promise<`0x${string}` | null> {
+  try {
+    const result = (await rpcCall(endpoint, 'eth_call', [
+      {
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: baseRegistrarOwnerSnippet,
+          functionName: 'owner',
+        }),
+      },
+      'latest',
+    ])) as string
+    if (typeof result !== 'string' || result.length < 66) return null
+    return `0x${result.slice(-40)}` as `0x${string}`
+  } catch {
+    return null
+  }
+}
+
+/** True if `account` is an authorized controller on the BaseRegistrar. */
+export async function isController(
+  endpoint: string,
+  account: string,
+): Promise<boolean> {
+  try {
+    const result = (await rpcCall(endpoint, 'eth_call', [
+      {
+        to: V1_BASE_REGISTRAR,
+        data: encodeFunctionData({
+          abi: baseRegistrarControllersSnippet,
+          functionName: 'controllers',
+          args: [account as `0x${string}`],
+        }),
+      },
+      'latest',
+    ])) as string
+    return typeof result === 'string' && /[1-9a-f]/.test(result.slice(2))
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -357,34 +399,63 @@ export async function createEmancipatedSubname(
  * ENS revoked all V1 controllers at ~block 10927919 as part of the V2 migration
  * cutover, so on a fresh Anvil fork no one can call BaseRegistrar.register().
  * We fix this by impersonating the BaseRegistrar owner and calling addController().
+ *
+ * The owner is read live off the fork (`owner()`) rather than hardcoded: it was
+ * transferred on Sepolia, and impersonating a stale owner makes `addController`
+ * revert silently, so DEFAULT_ACCOUNT never becomes a controller and every
+ * `register()` reverts — producing phantom names that exist only in the
+ * subgraph mock. We verify the grant landed and throw loudly if it didn't.
  */
 export async function ensureFunded(endpoint: string): Promise<void> {
   const TARGET = '0x56BC75E2D63100000' // 100 ETH in wei
   // Clear EOF code so Anvil treats the account as a plain EOA
   await rpcCall(endpoint, 'anvil_setCode', [DEFAULT_ACCOUNT, '0x'])
   await rpcCall(endpoint, 'anvil_setBalance', [DEFAULT_ACCOUNT, TARGET])
-  const actual = (await rpcCall(endpoint, 'eth_getBalance', [DEFAULT_ACCOUNT, 'latest'])) as string
+  const actual = (await rpcCall(endpoint, 'eth_getBalance', [
+    DEFAULT_ACCOUNT,
+    'latest',
+  ])) as string
   if (BigInt(actual) < BigInt('0x16345785D8A0000') /* 0.1 ETH */) {
     throw new Error(
       `anvil_setBalance did not work — balance is ${actual} (hex). Try running fund-account.sh manually.`,
     )
   }
 
+  // Short-circuit if DEFAULT_ACCOUNT is already an authorized controller.
+  if (await isController(endpoint, DEFAULT_ACCOUNT)) return
+
+  // Read the LIVE registrar owner off the fork — it has been transferred on
+  // Sepolia, so the hardcoded constant is only a fallback if the read fails.
+  const registrarOwner =
+    (await readRegistrarOwner(endpoint)) ?? V1_BASE_REGISTRAR_OWNER
+
   // Impersonate the BaseRegistrar owner to re-authorize DEFAULT_ACCOUNT as a controller
-  await rpcCall(endpoint, 'anvil_impersonateAccount', [V1_BASE_REGISTRAR_OWNER])
+  await rpcCall(endpoint, 'anvil_impersonateAccount', [registrarOwner])
   try {
     await sendTxFrom(
       endpoint,
-      V1_BASE_REGISTRAR_OWNER,
+      registrarOwner,
       V1_BASE_REGISTRAR,
       encodeFunctionData({
-        abi: BASE_REGISTRAR_ABI,
+        abi: baseRegistrarAddControllerSnippet,
         functionName: 'addController',
         args: [DEFAULT_ACCOUNT],
       }),
     )
   } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [V1_BASE_REGISTRAR_OWNER])
+    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [registrarOwner])
+  }
+
+  // Anvil includes reverted impersonated txs without throwing, so verify the
+  // grant actually landed rather than trusting the send. If it didn't, the
+  // owner we impersonated is wrong for this fork — fail loudly instead of
+  // silently registering phantom names later.
+  if (!(await isController(endpoint, DEFAULT_ACCOUNT))) {
+    throw new Error(
+      `Failed to authorize ${DEFAULT_ACCOUNT} as a BaseRegistrar controller ` +
+        `(impersonated owner ${registrarOwner}). The registrar owner on this ` +
+        `fork may have changed again — check BaseRegistrar.owner().`,
+    )
   }
 
   // Grant ROLE_REGISTRAR (bit 0 = 0x01) to the V2 migration controllers on the
@@ -401,7 +472,8 @@ export async function ensureFunded(endpoint: string): Promise<void> {
   //   intermediate = 0xac33ff75c19e70fe83507db0d683fd3465c996598dc972688b7ace676c89077b
   //   UnlockedMigrationController slot = 0xd59cccd6b2c921fc9fa11f4c3ac64743360eafac52cb11cbdb0de007a5831390
   //   LockedMigrationController slot   = 0xbd1b859b6507af3d538d435c6450a599eddca774c570dbcce49bbc071ef23a73
-  const ROLE_VALUE = '0x0000000000000000000000000000000000000000000000000000000000000011'
+  const ROLE_VALUE =
+    '0x0000000000000000000000000000000000000000000000000000000000000011'
   await rpcCall(endpoint, 'anvil_setStorageAt', [
     V2_ETH_REGISTRY_ADDR,
     '0xd59cccd6b2c921fc9fa11f4c3ac64743360eafac52cb11cbdb0de007a5831390',
@@ -431,16 +503,34 @@ export async function reserveInV2(
   await rpcCall(endpoint, 'anvil_impersonateAccount', [V2_ETH_REGISTRAR_ADDR])
   try {
     const data = encodeFunctionData({
-      abi: V2_REGISTRY_ABI,
+      abi: userRegistryRegisterSnippet,
       functionName: 'register',
-      args: [label, ZERO_ADDRESS, ZERO_ADDRESS, V1_PUBLIC_RESOLVER, 0n, BigInt(expiryDate)],
+      args: [
+        label,
+        ZERO_ADDRESS,
+        ZERO_ADDRESS,
+        V1_PUBLIC_RESOLVER,
+        0n,
+        BigInt(expiryDate),
+      ],
     })
-    await sendTxFrom(endpoint, V2_ETH_REGISTRAR_ADDR, V2_ETH_REGISTRY_ADDR, data)
+    await sendTxFrom(
+      endpoint,
+      V2_ETH_REGISTRAR_ADDR,
+      V2_ETH_REGISTRY_ADDR,
+      data,
+    )
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    if (!msg.includes('LabelAlreadyReserved') && !msg.includes('AlreadyRegistered')) throw err
+    if (
+      !msg.includes('LabelAlreadyReserved') &&
+      !msg.includes('AlreadyRegistered')
+    )
+      throw err
   } finally {
-    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [V2_ETH_REGISTRAR_ADDR])
+    await rpcCall(endpoint, 'anvil_stopImpersonatingAccount', [
+      V2_ETH_REGISTRAR_ADDR,
+    ])
   }
 }
 
@@ -493,6 +583,38 @@ export async function createV1NameOnAnvil(
       await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
       return { label, expiryDate }
     }
+    case 'grace-renewable-wrapped': {
+      // Like `grace` (v1 name pushed 45 days into its 90-day grace window), but
+      // the v2 slot is RESERVED with an expiry that OUTLASTS the v1 expiry.
+      // `ETHRenewerV1.isRenewable` gates on the v2 reservation, not the v1 grace
+      // clock, so this is the only state that is BOTH in-grace AND renewable.
+      // WRAPPED variant: renewal extends the BaseRegistrar but NOT the
+      // NameWrapper's stored expiry, so after renewal the ERC-1155 token stays
+      // expired and migration reverts (ERC1155 insufficient balance) — use this
+      // to reproduce that; use the unwrapped variant for the migrate happy-path.
+      await registerV1Name(endpoint, label, true)
+      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR // true v1 expiry (in the past after the advance below)
+      // Reserve at v1 expiry + bonus, exactly as production pre-migration does, so
+      // the renewable window is the real 90 days (not indefinite).
+      await reserveInV2(endpoint, label, expiryDate + PREMIGRATION_BONUS_PERIOD)
+      await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
+      return { label, expiryDate }
+    }
+    case 'grace-renewable-unwrapped': {
+      // Unwrapped counterpart of `grace-renewable-wrapped`: renewable in grace
+      // (v2 reservation outlasts the v1 expiry) but held directly as the ERC-721
+      // in the BaseRegistrar — so renewal revives the same token migration
+      // transfers, and renew→migrate completes end-to-end.
+      await registerV1Name(endpoint, label, false)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      // Reserve at v1 expiry + bonus, matching production pre-migration.
+      await reserveInV2(endpoint, label, expiryDate + PREMIGRATION_BONUS_PERIOD)
+      await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
+      return { label, expiryDate }
+    }
     case 'emancipated': {
       const sublabel = `sub-${label}`
       await registerV1Name(endpoint, label, true)
@@ -515,12 +637,14 @@ export async function createV1NameOnAnvil(
 export function buildMockDomain(name: ActiveName): unknown {
   const lh = labelhash(name.label)
   const node = namehashFromLabelAndParent(lh, ETH_NODE)
-  const isWrapped = name.type !== 'unwrapped'
+  const isWrapped =
+    name.type !== 'unwrapped' && name.type !== 'grace-renewable-unwrapped'
   const owner = DEFAULT_ACCOUNT.toLowerCase()
   const now = Math.floor(Date.now() / 1000)
 
   let fuses = PARENT_CANNOT_CONTROL | IS_DOT_ETH
-  if (name.type !== 'unwrapped' && name.type !== 'wrapped') fuses |= CANNOT_UNWRAP
+  if (name.type !== 'unwrapped' && name.type !== 'wrapped')
+    fuses |= CANNOT_UNWRAP
   if (name.type === 'locked-all') fuses |= ALL_CHILD_FUSES
 
   return {
@@ -531,7 +655,9 @@ export function buildMockDomain(name: ActiveName): unknown {
     isMigrated: false,
     createdAt: String(now - 3600),
     resolvedAddress: null,
-    resolver: isWrapped ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER } : null,
+    resolver: isWrapped
+      ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
+      : null,
     owner: { id: isWrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
     registrant: { id: owner },
     wrappedOwner: isWrapped ? { id: owner } : null,
@@ -553,7 +679,10 @@ export function buildMockDomain(name: ActiveName): unknown {
  * the Anvil fork (ownerOf returns a non-zero address). This is the same
  * contract preflightChecks.ts uses for eligibility, so alignment is critical.
  */
-export async function isNameOnAnvil(endpoint: string, label: string): Promise<boolean> {
+export async function isNameOnAnvil(
+  endpoint: string,
+  label: string,
+): Promise<boolean> {
   const lh = labelhash(label)
   const tokenIdPadded = lh.slice(2).padStart(64, '0')
   const data = `0x6352211e${tokenIdPadded}` as `0x${string}` // ownerOf(uint256)
@@ -565,6 +694,35 @@ export async function isNameOnAnvil(endpoint: string, label: string): Promise<bo
     return typeof result === 'string' && result.length > 2 && result !== '0x'
   } catch {
     return false // reverted → not registered
+  }
+}
+
+/**
+ * Live BaseRegistrar expiry (unix seconds) for a .eth label on the Anvil fork,
+ * or null if unregistered/unreadable. The panel stores each name's expiryDate at
+ * creation, which goes STALE after an in-app renewal (or time-travel) — and the
+ * subgraph mock feeds `registration.expiryDate` into migration eligibility
+ * (`classifyName` → `hasExpiredDotEthRegistration`). Reading it live keeps the
+ * mock in step with on-chain state so a renewed grace name correctly becomes
+ * migratable instead of staying classified `expired-registration`.
+ */
+export async function getOnchainExpiry(
+  endpoint: string,
+  label: string,
+): Promise<number | null> {
+  const lh = labelhash(label)
+  const tokenIdPadded = lh.slice(2).padStart(64, '0')
+  const data = `0xd6e4fa86${tokenIdPadded}` as `0x${string}` // nameExpires(uint256)
+  try {
+    const result = await rpcCall(endpoint, 'eth_call', [
+      { to: V1_BASE_REGISTRAR, data },
+      'latest',
+    ])
+    if (typeof result !== 'string' || result === '0x') return null
+    const expiry = Number(BigInt(result))
+    return expiry > 0 ? expiry : null
+  } catch {
+    return null // reverted / unreadable → fall back to stored expiry
   }
 }
 
@@ -582,7 +740,11 @@ export async function ensureNamesOnAnvil(
     if (exists) {
       result.push(name)
     } else {
-      const { label, expiryDate } = await createV1NameOnAnvil(endpoint, name.label, name.type)
+      const { label, expiryDate } = await createV1NameOnAnvil(
+        endpoint,
+        name.label,
+        name.type,
+      )
       result.push({ ...name, label, expiryDate })
     }
   }
@@ -591,9 +753,28 @@ export async function ensureNamesOnAnvil(
 
 // --- localStorage helpers ---------------------------------------------------
 
+// Panel-created names are persisted in a COOKIE rather than localStorage so the
+// list is shared across the portal (:3001) and manager (:3000) dev servers —
+// cookies are scoped by host, not port, whereas localStorage is per-origin.
+// This lets the subgraph mock in one app inject names created in the other,
+// which is required for the manager migration list to see portal-created names.
+// Cookie-safe name (no colons — those are separators the cookie grammar
+// disallows in a name, even though some browsers tolerate them).
+const NAMES_COOKIE_NAME = 'ens_migration_tool_v1_names'
+const NAMES_COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
+
+function readNamesCookie(): string | null {
+  const prefix = `${NAMES_COOKIE_NAME}=`
+  for (const part of document.cookie.split('; ')) {
+    if (part.startsWith(prefix))
+      return decodeURIComponent(part.slice(prefix.length))
+  }
+  return null
+}
+
 export function readStoredNames(): ActiveName[] {
   try {
-    const raw = localStorage.getItem(NAMES_STORAGE_KEY)
+    const raw = readNamesCookie()
     if (!raw) return []
     return JSON.parse(raw) as ActiveName[]
   } catch {
@@ -603,8 +784,13 @@ export function readStoredNames(): ActiveName[] {
 
 export function writeStoredNames(names: ActiveName[]): void {
   try {
-    localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify(names))
-  } catch { /* storage disabled */ }
+    // No domain attribute → defaults to the current host (localhost), shared
+    // across ports. SameSite=Lax keeps it same-site only.
+    const value = encodeURIComponent(JSON.stringify(names))
+    document.cookie = `${NAMES_COOKIE_NAME}=${value}; path=/; max-age=${NAMES_COOKIE_MAX_AGE}; SameSite=Lax`
+  } catch {
+    /* storage disabled */
+  }
 }
 
 export function readStoredPos(): Pos | null {
