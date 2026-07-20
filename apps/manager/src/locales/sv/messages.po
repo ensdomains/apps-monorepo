@@ -660,10 +660,6 @@ msgid "Copy to clipboard"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Could not find resolver for {name}"
-msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Could not read ETH address record for {name}"
 msgstr ""
 
@@ -1006,10 +1002,6 @@ msgstr ""
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Failed to resend email verification"
 msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Failed to set ETH address record"
-msgstr "Kunde inte ange ETH-adresspost"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Failed to set primary name"
@@ -2152,6 +2144,10 @@ msgstr ""
 msgid "Set reverse record to show your name"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Set up a resolver on the explorer"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
 msgstr ""
@@ -2492,6 +2488,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name still uses a resolver you don’t control, so its records can’t be updated from this wallet. Set up your own resolver for this name first, then set it as your primary name."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
