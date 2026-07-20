@@ -1,6 +1,7 @@
 import { useMediaQuery } from '@ens-apps/utils/useMediaQuery'
 import { msg } from '@lingui/core/macro'
-import { Trans, useLingui } from '@lingui/react/macro'
+import { useLingui } from '@lingui/react'
+import { Trans } from '@lingui/react/macro'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useAtom } from '@xstate/store-react'
 import { toast } from 'sonner'
