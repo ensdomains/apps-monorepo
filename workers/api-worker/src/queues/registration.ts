@@ -69,10 +69,15 @@ async function runCommitPhase(
     logger.warn('Registration commit: order not found', { orderId })
     return
   }
-  // Idempotent: only a freshly-paid order commits. Anything else is a
-  // redelivery of an order already in-flight or done.
-  if (order.status !== 'paid') {
-    logger.debug('Registration commit: order not in paid state, skipping', {
+  // Idempotent: a freshly-paid order commits, and a `committing` order may
+  // RE-ENTER — that's a queue retry after a mid-phase throw (the first
+  // attempt flips paid→committing before doing on-chain work, so refusing
+  // re-entry would wedge the order forever with the failure never recorded).
+  // Concurrency is already serialized by the per-order KV lock; the on-chain
+  // steps tolerate re-runs (resolver deploy is CREATE2-idempotent, re-commit
+  // just refreshes the commitment timestamp).
+  if (order.status !== 'paid' && order.status !== 'committing') {
+    logger.debug('Registration commit: order not in commit state, skipping', {
       orderId,
       status: order.status,
     })
@@ -175,11 +180,18 @@ async function runRegisterPhase(
     logger.warn('Registration register: order not found', { orderId })
     return
   }
-  if (order.status !== 'committed') {
-    logger.debug('Registration register: order not committed, skipping', {
-      orderId,
-      status: order.status,
-    })
+  // Same re-entry rule as the commit phase: `registering` means a retry of a
+  // mid-phase throw, not a duplicate. The approve/register steps tolerate
+  // re-runs (allowance check short-circuits; a second register of the same
+  // commitment reverts on-chain rather than double-registering).
+  if (order.status !== 'committed' && order.status !== 'registering') {
+    logger.debug(
+      'Registration register: order not in register state, skipping',
+      {
+        orderId,
+        status: order.status,
+      },
+    )
     return
   }
   if (!order.resolver_address) {
