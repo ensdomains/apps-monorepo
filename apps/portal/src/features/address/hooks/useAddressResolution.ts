@@ -30,23 +30,10 @@ export type AddressResolution = {
   readonly isValid: boolean
   /** Whether the trimmed input is a raw 0x address (vs. a name to resolve). */
   readonly isRawAddress: boolean
+  /** True when the input is present but can't be used (invalid/unresolved/error). */
+  readonly isInvalid: boolean
   readonly status: AddressResolutionStatus
 }
-
-const deriveStatus = (args: {
-  isEmpty: boolean
-  isValid: boolean
-  isResolving: boolean
-  isError: boolean
-  resolved: Address | null
-}): AddressResolutionStatus =>
-  match(args)
-    .with({ isEmpty: true }, () => 'empty' as const)
-    .with({ isValid: false }, () => 'invalid' as const)
-    .with({ isResolving: true }, () => 'resolving' as const)
-    .with({ resolved: P.nonNullable }, () => 'resolved' as const)
-    .with({ isError: true }, () => 'error' as const)
-    .otherwise(() => 'unresolved' as const)
 
 /**
  * Resolve a name/address input to an address, with debouncing and derived UI
@@ -77,19 +64,27 @@ export const useAddressResolution = (input: string): AddressResolution => {
 
   const isResolving = isValid && (isDebouncing || isFetching)
 
-  const status = deriveStatus({
+  const status = match({
     isEmpty: trimmed.length === 0,
     isValid,
     isResolving,
     isError: isValid && isError,
     resolved,
   })
+    .with({ isEmpty: true }, () => 'empty' as const)
+    .with({ isValid: false }, () => 'invalid' as const)
+    .with({ isResolving: true }, () => 'resolving' as const)
+    .with({ resolved: P.nonNullable }, () => 'resolved' as const)
+    .with({ isError: true }, () => 'error' as const)
+    .otherwise(() => 'unresolved' as const)
 
   return {
     address: status === 'resolved' ? resolved : null,
     isResolving,
     isValid,
     isRawAddress,
+    isInvalid:
+      status === 'invalid' || status === 'unresolved' || status === 'error',
     status,
   }
 }

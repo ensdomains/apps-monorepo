@@ -6,9 +6,9 @@ import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import { AddressNameInput } from '@/features/address/components/AddressNameInput'
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
@@ -67,8 +67,7 @@ export const SendNameForm = ({
     !!subregistryAddress && subregistryAddress !== zeroAddress
 
   const resolution = useAddressResolution(recipientInput)
-  const recipient = resolution.address
-  const isResolving = resolution.isResolving
+  const { address: recipient, isResolving } = resolution
 
   const { startTransfer, transactions, isPreparing, prepError } =
     useTransferName({ name, registryAddress, owner })
@@ -116,54 +115,27 @@ export const SendNameForm = ({
 
       <div className="flex flex-col gap-1">
         <span className="font-medium">Recipient</span>
-        <Input
+        <AddressNameInput
           value={recipientInput}
-          onChange={(e) => setRecipientInput(e.target.value)}
-          placeholder="ENS name or address"
-          autoComplete="off"
-          spellCheck={false}
+          onChange={setRecipientInput}
+          resolution={resolution}
           className="h-9"
-        />
-        <div className="text-sm">
-          {match({
-            status: resolution.status,
-            recipient,
-            isSelf,
-            isZeroAddress,
-          })
-            .with({ status: 'resolving' }, () => (
-              <span className="text-muted-foreground">Resolving…</span>
-            ))
-            .with({ status: 'invalid' }, () => (
-              <span className="text-destructive">
-                Enter a valid ENS name or address
-              </span>
-            ))
-            .with({ status: 'unresolved' }, () => (
-              <span className="text-destructive">
-                Could not resolve a name or address
-              </span>
-            ))
-            .with({ status: 'error' }, () => (
-              <span className="text-destructive">
-                Something went wrong resolving this address. Please try again.
-              </span>
-            ))
-            .with({ recipient: P.nonNullable, isSelf: true }, () => (
-              <span className="text-destructive">
+          resolvedContent={match({ recipient, isSelf, isZeroAddress })
+            .with({ isSelf: true }, () => (
+              <p className="text-sm mt-1.5 text-destructive">
                 The recipient already owns this name.
-              </span>
+              </p>
             ))
-            .with({ recipient: P.nonNullable, isZeroAddress: true }, () => (
-              <span className="text-destructive">
+            .with({ isZeroAddress: true }, () => (
+              <p className="text-sm mt-1.5 text-destructive">
                 Can’t transfer to the zero address.
-              </span>
+              </p>
             ))
             .with({ recipient: P.nonNullable }, ({ recipient }) => (
               <RecipientPreview address={recipient} />
             ))
             .otherwise(() => null)}
-        </div>
+        />
       </div>
 
       {hasValidRecipient && visibleOptions.length > 0 && (

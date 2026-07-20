@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { isAddress, isAddressEqual } from 'viem'
+import { isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -83,7 +83,6 @@ function RouteComponent() {
   const canTransfer =
     data.protocolVersion === 'ENSv2' &&
     !!address &&
-    isAddress(address) &&
     isAddressEqual(address, data.owner)
 
   return (

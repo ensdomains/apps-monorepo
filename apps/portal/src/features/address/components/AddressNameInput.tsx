@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { match } from 'ts-pattern'
 import { Input } from '@/components/ui/input'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -9,6 +10,8 @@ type AddressNameInputProps = {
   readonly onChange: (value: string) => void
   /** Resolution derived from `value` via `useAddressResolution`. */
   readonly resolution: AddressResolution
+  /** Overrides the default "Resolved: 0x…" line once an address resolves. */
+  readonly resolvedContent?: ReactNode
   readonly id?: string
   readonly name?: string
   readonly placeholder?: string
@@ -29,13 +32,12 @@ export const AddressNameInput = ({
   value,
   onChange,
   resolution,
+  resolvedContent,
   className,
   placeholder = 'ENS name or address',
   ...inputProps
 }: AddressNameInputProps) => {
-  const { status, address, isRawAddress } = resolution
-  const isInvalid =
-    status === 'invalid' || status === 'unresolved' || status === 'error'
+  const { status, address, isRawAddress, isInvalid } = resolution
 
   return (
     <>
@@ -55,15 +57,16 @@ export const AddressNameInput = ({
             Resolving address…
           </p>
         ))
-        .with('resolved', () =>
-          address ? (
+        .with('resolved', () => {
+          if (resolvedContent !== undefined) return resolvedContent
+          return address ? (
             <p className="text-sm mt-1.5 text-muted-foreground">
               {isRawAddress
                 ? `Using address: ${truncateAddress(address, 6, 4)}`
                 : `Resolved: ${truncateAddress(address, 6, 4)}`}
             </p>
-          ) : null,
-        )
+          ) : null
+        })
         .with('unresolved', () => (
           <p className="text-sm mt-1.5 text-danger">
             Could not resolve an address for “{value.trim()}”
