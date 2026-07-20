@@ -19,6 +19,8 @@ const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
   approvalTxId: state?.context.approvalTxId,
   registrationTxId: state?.context.registrationTxId,
   registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
+  voucherOrderId: state?.context.voucherOrderId,
+  voucherMintTxId: state?.context.voucherMintTxId,
 }))
 
 const useMaxProgress = RegisterV2Context.createSelector(

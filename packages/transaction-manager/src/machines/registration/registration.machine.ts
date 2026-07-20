@@ -7,8 +7,11 @@ import {
   authorizedPaymentAmount,
   ensureHcaDeployedActor,
   generateCommitmentActor,
+  mintVoucherActor,
   type PermitSignature,
   pollTransactionStatusActor,
+  pollVoucherFulfilmentActor,
+  pollVoucherMintReceiptActor,
   readMinCommitmentAgeActor,
   readPaymentTokenAllowanceActor,
   resolveResolverDeploymentActor,
@@ -71,6 +74,9 @@ export type RegistrationContext = {
    * carried inside the sponsored rhinestone bundle alongside `register`, so the
    * EOA never sends a transaction or needs ETH. Everything else stays on the
    * sponsored rhinestone `signer`.
+   *
+   * For the voucher self-pay path, this signer's `walletClient` is also used
+   * to send the `mintSelfWithPermit` / `mintSelf` transaction directly.
    */
   approvalSigner?: Signer
   accountAddress?: Address
@@ -104,6 +110,36 @@ export type RegistrationContext = {
   registerReadyTimestamp?: number
   registrationStartedAt?: number
 
+  // Voucher (self-pay) flow state
+  /** Backend order ID for the voucher fulfilment pipeline. Set when the order
+   * is pre-created before START_REGISTRATION. When present, the machine routes
+   * through the voucher path (mint → poll fulfilment) instead of the normal
+   * multi-step on-chain flow. */
+  voucherOrderId?: string
+  /** The buyer-bound commitment from the backend order — what the voucher must
+   * carry to unlock fulfilment. Distinct from `commitment` (the on-chain
+   * CommitmentData used by the normal path). */
+  voucherOrderCommitment?: Hash
+  /** Payment token address for the voucher mint. */
+  voucherPaymentToken?: Address
+  /** Payment amount (in token units) for the voucher mint. */
+  voucherPaymentAmount?: bigint
+  /** Tx hash of the voucher mint transaction, used for receipt polling. */
+  voucherMintTxId?: Hash
+  /** Wallet client used to send the voucher mint transaction. */
+  voucherWalletClient?: import('viem').WalletClient
+  /** Auth-aware backend order status poll (injected by the app layer). */
+  voucherPollOrderStatus?: () => Promise<{
+    status: string
+    error?: string | null
+  }>
+  /**
+   * Backend settle nudge (injected by the app layer): receives the confirmed
+   * mint tx hash — the on-chain payment proof the backend verifies before
+   * fulfilment. Fire-and-forget.
+   */
+  voucherTriggerFulfilment?: (mintTxHash: Hash) => void
+
   // Error state
   error?: Error
   /** The state to return to on RETRY — set when entering error state */
@@ -115,6 +151,8 @@ export type RegistrationContext = {
     | 'signingPermit'
     | 'approvingToken'
     | 'registeringDomain'
+    | 'mintingVoucher'
+    | 'fulfillingRegistration'
 }
 
 export type RegistrationEvent =
@@ -137,6 +175,40 @@ export type RegistrationEvent =
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
       sponsored?: boolean
+
+      /**
+       * Voucher (self-pay) order data. When present, the machine routes through
+       * the voucher path (mint → poll fulfilment) instead of the normal
+       * multi-step on-chain flow.
+       */
+      voucherOrder?: {
+        /** Backend order ID for the fulfilment pipeline. */
+        orderId: string
+        /** The buyer-bound commitment the voucher must carry. */
+        commitment: Hash
+        /** Payment token address. */
+        paymentToken: Address
+        /** Payment amount in token units. */
+        paymentAmount: bigint
+        /** Wallet client for sending the mint transaction. */
+        walletClient: import('viem').WalletClient
+        /**
+         * Auth-aware status poll for the backend order (the endpoint is
+         * JWT-gated, so the app layer injects a callback that carries auth
+         * instead of the machine doing raw fetches).
+         */
+        pollOrderStatus: () => Promise<{
+          status: string
+          error?: string | null
+        }>
+        /**
+         * Settle nudge that triggers backend fulfilment after the mint is
+         * confirmed. Receives the mint tx hash — the on-chain payment proof
+         * the backend verifies (VoucherMinted with this order's commitment)
+         * before spending. Fire-and-forget.
+         */
+        triggerFulfilment: (mintTxHash: Hash) => void
+      }
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -319,10 +391,39 @@ export const registrationMachine = setup({
         return verifyRegistrationActor(input)
       },
     ),
+    mintVoucher: fromResultAsync(
+      (input: {
+        publicClient: PublicClient
+        walletClient: import('viem').WalletClient
+        owner: Address
+        token: Address
+        amount: bigint
+        commitment: import('viem').Hash
+        duration: bigint
+      }) => {
+        return mintVoucherActor(input)
+      },
+    ),
+    pollVoucherMintReceipt: fromResultAsync(
+      (input: { publicClient: PublicClient; txHash: Hash }) => {
+        return pollVoucherMintReceiptActor(input)
+      },
+    ),
+    pollVoucherFulfilment: fromResultAsync(
+      (input: {
+        pollOrderStatus: () => Promise<{
+          status: string
+          error?: string | null
+        }>
+      }) => {
+        return pollVoucherFulfilmentActor(input)
+      },
+    ),
   },
 
   guards: {
     isRhinestoneSigner: ({ context }) => context.signer?.type === 'rhinestone',
+    isVoucherRegistration: ({ context }) => !!context.voucherOrderId,
   },
 
   actions: {
@@ -474,6 +575,39 @@ export const registrationMachine = setup({
             permit: () => undefined,
             approvalTxId: () => undefined,
             registrationTxId: () => undefined,
+            voucherOrderId: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.orderId
+                : undefined,
+            voucherOrderCommitment: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.commitment
+                : undefined,
+            voucherPaymentToken: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.paymentToken
+                : undefined,
+            voucherPaymentAmount: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.paymentAmount
+                : undefined,
+            voucherMintTxId: () => undefined,
+            voucherWalletClient: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.walletClient
+                : undefined,
+            voucherPollOrderStatus: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.pollOrderStatus
+                : undefined,
+            voucherTriggerFulfilment: ({
+              event,
+            }: {
+              event: RegistrationEvent
+            }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.triggerFulfilment
+                : undefined,
           }),
         },
       },
@@ -486,9 +620,18 @@ export const registrationMachine = setup({
           hasAccountAddress: !!context.accountAddress,
           hasSigner: !!context.signer,
           name: context.name,
+          voucherOrderId: context.voucherOrderId,
         })
       },
       always: [
+        {
+          // Voucher (self-pay) path: the backend pre-created an order and the
+          // client has a commitment to mint against. Skip all on-chain
+          // resolver/commit/cooldown/approve steps — the backend fulfils
+          // everything after the voucher mint.
+          guard: 'isVoucherRegistration',
+          target: 'mintingVoucher',
+        },
         {
           // Rhinestone/HCA: deploy the resolver and commit in ONE sponsored
           // Intent (resolver address is predicted, so no need to wait for the
@@ -1221,6 +1364,137 @@ export const registrationMachine = setup({
       },
     },
 
+    mintingVoucher: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'mintVoucher',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          walletClient: context.voucherWalletClient!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          owner: context.ownerAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          token: context.voucherPaymentToken!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          amount: context.voucherPaymentAmount!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          commitment: context.voucherOrderCommitment!,
+          duration: context.duration,
+        }),
+        onDone: {
+          target: 'waitingForVoucherMint',
+          actions: [
+            assign({
+              voucherMintTxId: ({ event }) => event.output,
+            }),
+            () => {
+              console.log('✅ [REGISTRATION] Voucher minted')
+            },
+          ],
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'mintingVoucher' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Voucher mint failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    waitingForVoucherMint: {
+      entry: ['logTransition', 'recordTransition'],
+      invoke: {
+        src: 'pollVoucherMintReceipt',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          txHash: context.voucherMintTxId!,
+        }),
+        onDone: {
+          target: 'fulfillingRegistration',
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'mintingVoucher' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Voucher mint receipt polling failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    fulfillingRegistration: {
+      entry: [
+        'logTransition',
+        'recordTransition',
+        ({ context }) => {
+          // Fire-and-forget settle nudge: hands the backend the confirmed
+          // mint tx hash so it can verify the on-chain payment (VoucherMinted
+          // carrying this order's commitment) and start fulfilment. Runs on
+          // entry — i.e. AFTER the mint receipt is confirmed — and re-fires
+          // on RETRY of this state, which is safe: settle is idempotent
+          // (a non-pending order just reports its current status).
+          if (context.voucherMintTxId) {
+            context.voucherTriggerFulfilment?.(context.voucherMintTxId)
+          }
+        },
+      ],
+      invoke: {
+        src: 'pollVoucherFulfilment',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          pollOrderStatus: context.voucherPollOrderStatus!,
+        }),
+        onDone: {
+          target: 'success',
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'fulfillingRegistration' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Voucher fulfilment polling failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
     verifyingRegistration: {
       entry: ['logTransition', 'recordTransition'],
       invoke: {
@@ -1311,6 +1585,26 @@ export const registrationMachine = setup({
       ],
       on: {
         RETRY: [
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'fulfillingRegistration',
+            target: 'fulfillingRegistration',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) => context.retryTarget === 'mintingVoucher',
+            target: 'mintingVoucher',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              voucherMintTxId: undefined,
+            })),
+          },
           {
             guard: ({ context }) => context.retryTarget === 'registeringDomain',
             target: 'registeringDomain',

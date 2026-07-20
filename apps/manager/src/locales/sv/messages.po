@@ -91,7 +91,6 @@ msgid "{label} theme (selected)"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "{label}.eth is yours!"
 msgstr ""
 
@@ -508,7 +507,6 @@ msgid "Checking whether a payment approval is needed"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Checkout failed"
 msgstr ""
 
@@ -549,7 +547,6 @@ msgstr ""
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Close"
 msgstr ""
 
@@ -597,8 +594,11 @@ msgstr ""
 msgid "Complete your profile"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Completing your registration"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Completing your registration…"
 msgstr ""
 
@@ -616,8 +616,8 @@ msgstr ""
 msgid "Confirm purchase"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
-msgid "Confirm the payment in your wallet…"
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Confirm the payment in your wallet"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -763,6 +763,10 @@ msgstr ""
 msgid "Created"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Creating order…"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Credit Card Payment"
 msgstr ""
@@ -866,7 +870,6 @@ msgstr ""
 
 #: src/features/migration/components/SuccessModal.tsx
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Done"
 msgstr ""
 
@@ -1386,6 +1389,10 @@ msgstr ""
 msgid "Migration failed"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Minting voucher"
+msgstr ""
+
 #: src/features/payment/components/add.tsx
 msgid "MM/YY"
 msgstr ""
@@ -1707,7 +1714,6 @@ msgid "Preparing account"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
 msgid "Preparing checkout…"
 msgstr ""
 
@@ -2255,10 +2261,6 @@ msgstr ""
 msgid "Showing {rangeStart}-{rangeEnd} of {total}"
 msgstr ""
 
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
-msgid "Sign in"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Sign in to access notifications about your ENS domains, including transfers, expiry reminders, and important updates."
 msgstr ""
@@ -2266,10 +2268,6 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Sign in with Wallet"
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
-msgid "Sign in with your wallet to continue."
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -2287,10 +2285,6 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
-msgstr ""
-
-#: src/features/register-v2/workflow/pricing/components/VoucherCheckoutDialog.tsx
-msgid "Signing in…"
 msgstr ""
 
 #: src/features/register/components/Autorenewal.tsx
@@ -2415,6 +2409,10 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Terms of Use"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "The backend is processing your registration"
 msgstr ""
 
 #: src/features/payment/components/add.tsx
@@ -2729,6 +2727,10 @@ msgstr ""
 msgid "Waiting for commitment submission"
 msgstr ""
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for payment confirmation"
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for registration"
 msgstr ""
@@ -2775,6 +2777,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for the resolver deployment"
+msgstr ""
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for the transaction receipt"
 msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx

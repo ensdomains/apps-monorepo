@@ -26,6 +26,10 @@ export const REGISTRATION_STAGE_PROGRESS = {
   submittingRhinestoneBundle: 55,
   waitingForRhinestoneBundle: 85,
   verifyingRegistration: 95,
+  // Voucher (self-pay) path: replaces the multi-step on-chain flow.
+  mintingVoucher: 60,
+  waitingForVoucherMint: 75,
+  fulfillingRegistration: 90,
   success: 100,
   error: 0,
 } as const satisfies Record<RegistrationStage, number>

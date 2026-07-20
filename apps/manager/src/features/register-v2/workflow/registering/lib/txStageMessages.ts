@@ -8,6 +8,8 @@ export type RegisteringTxSnapshot = {
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  voucherOrderId?: string
+  voucherMintTxId?: string
 }
 
 export type TransactionState = string | undefined
@@ -119,6 +121,18 @@ export const getRegistrationStageMessages = (
     .with({ stage: 'verifyingRegistration' }, () => ({
       stageLabel: msg`Verifying registration on-chain`,
       stageDescription: msg`Confirming the name is now owned by your account`,
+    }))
+    .with({ stage: 'mintingVoucher' }, () => ({
+      stageLabel: msg`Minting voucher`,
+      stageDescription: msg`Confirm the payment in your wallet`,
+    }))
+    .with({ stage: 'waitingForVoucherMint' }, () => ({
+      stageLabel: msg`Waiting for payment confirmation`,
+      stageDescription: msg`Waiting for the transaction receipt`,
+    }))
+    .with({ stage: 'fulfillingRegistration' }, () => ({
+      stageLabel: msg`Completing your registration`,
+      stageDescription: msg`The backend is processing your registration`,
     }))
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,

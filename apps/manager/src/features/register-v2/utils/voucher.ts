@@ -2,7 +2,6 @@ import {
   type Address,
   type Hex,
   hexToSignature,
-  maxUint256,
   type PublicClient,
   parseAbi,
   type WalletClient,
@@ -78,6 +77,7 @@ async function mintWithPermit(params: {
     commitment,
     duration,
   } = params
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1 hour
   const [nonce, name] = await Promise.all([
     publicClient.readContract({
       address: token,
@@ -114,7 +114,7 @@ async function mintWithPermit(params: {
       spender: VOUCHER_ADDRESS,
       value: amount,
       nonce,
-      deadline: maxUint256,
+      deadline,
     },
   })
   const { r, s, v } = hexToSignature(signature)
@@ -124,7 +124,7 @@ async function mintWithPermit(params: {
     address: VOUCHER_ADDRESS,
     abi: VOUCHER_ABI,
     functionName: 'mintSelfWithPermit',
-    args: [commitment, duration, token, amount, maxUint256, Number(v), r, s],
+    args: [commitment, duration, token, amount, deadline, Number(v), r, s],
   })
 }
 

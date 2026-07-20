@@ -78,6 +78,22 @@ type Events =
       basePriceNumber: number
       /** Formatted premium price */
       premiumPriceNumber: number
+
+      /** Voucher order data (self-pay path) */
+      voucherOrder?: {
+        orderId: string
+        commitment: `0x${string}`
+        paymentToken: Address
+        paymentAmount: bigint
+        walletClient: import('viem').WalletClient
+        /** Auth-aware order status poll (JWT-gated endpoint). */
+        pollOrderStatus: () => Promise<{
+          status: string
+          error?: string | null
+        }>
+        /** Settle nudge: receives the confirmed mint tx hash (post-mint). */
+        triggerFulfilment: (mintTxHash: `0x${string}`) => void
+      }
     }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
@@ -262,6 +278,7 @@ const startRegistrationAction = machineSetup.createAction(
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
             : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true',
+        voucherOrder: event.voucherOrder,
       } satisfies RegistrationEvent),
     )
   }),
@@ -344,17 +361,18 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.dialog.dismiss': {
               target: 'duration',
             },
-            'registration.start': {
-              target: '#registrationV2Ui.registering',
-              guard: ({ event }) =>
-                event.duration >= MIN_REGISTER_DURATION_SECONDS,
-              actions: [
-                'clearError',
-                'clearMaxProgress',
-                startRegistrationAction,
-              ],
-            },
           },
+        },
+      },
+      // Handled at the `pricing` parent level so it works from BOTH substates:
+      // the token picker (`tokens`) sends it for the HCA/Rhinestone flow, and
+      // the PaymentCard voucher self-pay path sends it directly from
+      // `duration` (it skips token selection — the voucher is always USDC).
+      on: {
+        'registration.start': {
+          target: '#registrationV2Ui.registering',
+          guard: ({ event }) => event.duration >= MIN_REGISTER_DURATION_SECONDS,
+          actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
         },
       },
     },

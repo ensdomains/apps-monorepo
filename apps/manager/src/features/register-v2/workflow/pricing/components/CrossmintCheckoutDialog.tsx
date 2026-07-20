@@ -8,7 +8,7 @@ import { Trans } from '@lingui/react/macro'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { Button } from '@/components/ens-consumer/button/Button'
-import { backendClient, getBackendApiBaseUrl } from '@/utils/backend-client'
+import { backendClient } from '@/utils/backend-client'
 import { PaymentDialogBase } from './TokenPickerDialog'
 
 // Crossmint staging client (publishable) key + BYOC collection locator, inlined
@@ -264,7 +264,9 @@ export const CrossmintCheckoutDialog = ({
   const triggerLocalFulfilment = useCallback(async (orderId: string) => {
     if (!import.meta.env.DEV) return
     try {
-      await fetch(`${getBackendApiBaseUrl()}/webhook/crossmint`, {
+      // $url() normalizes the base URL (raw concat with a trailing-slash
+      // API URL yields `//webhook/…` which 404s on the worker).
+      await fetch(backendClient.webhook.crossmint.$url(), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
