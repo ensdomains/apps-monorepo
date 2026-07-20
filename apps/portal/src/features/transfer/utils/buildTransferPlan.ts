@@ -50,11 +50,8 @@ export const buildTransferPlan = (
   return steps
 }
 
-const STEP_LABELS: Record<TransferStepKind, string> = {
+export const STEP_LABELS: Record<TransferStepKind, string> = {
   'reset-resolver': 'Reset resolver',
   'reset-registry': 'Reset registry',
   'transfer-token': 'Transfer name',
 }
-
-export const getTransferStepLabel = (kind: TransferStepKind): string =>
-  STEP_LABELS[kind]
