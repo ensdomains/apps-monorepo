@@ -79,7 +79,14 @@ export type ServerWalletClient = ReturnType<typeof createServerWalletClient>
  *   is the EOA itself.
  */
 export function createServerWalletClient(env: CloudflareBindings) {
-  const privateKey = env.ETH_PRIVATE_KEY
+  // Prefer the DEDICATED role-member key. `ETH_PRIVATE_KEY` is the worker's
+  // shared ops key (it also runs the faucet in `routes/wallet` — high nonce
+  // traffic, large float) and is NOT a member of the registrar role; signing
+  // fulfilment with it bounces off the Roles modifier with NotAuthorized.
+  // The member key is the dust-only executor EOA assigned on-chain by
+  // `setup-zodiac-roles.ts` (see docs/zodiac-roles.md). The fallback keeps
+  // local-dev / direct-EOA mode working with a single key.
+  const privateKey = env.REGISTRAR_MEMBER_PRIVATE_KEY ?? env.ETH_PRIVATE_KEY
   if (!privateKey || !privateKey.startsWith('0x')) {
     throw new HTTPException(500, {
       message: 'Server is not configured to register names',

@@ -30,6 +30,14 @@ declare global {
     /** Optional bytes32 role-key override (defaults to "ens-crossmint-registrar"). */
     REGISTRAR_ROLES_ROLE_KEY?: string
     /**
+     * Private key of the DEDICATED role-member EOA (dust-only executor
+     * assigned to the registrar role on the Roles modifier). Kept separate
+     * from ETH_PRIVATE_KEY, which is the worker's shared ops/faucet key and
+     * is not a role member. Falls back to ETH_PRIVATE_KEY when unset
+     * (local dev / direct-EOA mode with a single key).
+     */
+    REGISTRAR_MEMBER_PRIVATE_KEY?: string
+    /**
      * Explicit opt-in to direct-EOA signing when the Role vars are absent
      * (local dev / standalone scripts). Without it, missing Role vars fail
      * closed rather than silently signing from ETH_PRIVATE_KEY.

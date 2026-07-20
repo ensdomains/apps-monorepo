@@ -60,13 +60,17 @@ async function createOrderIntent(
   const publicClient = createReadClient()
 
   // Resolve the payer/deployer address for CREATE2 resolver precomputation.
-  // The deployer is the Safe in Roles mode, the EOA in direct mode.
+  // The deployer is the Safe in Roles mode, the EOA in direct mode. The
+  // direct-mode key preference MUST mirror `createServerWalletClient`
+  // (dedicated member key first) or the precomputed resolver/commitment
+  // won't match the address fulfilment actually deploys from.
   // Falls back to zeroAddress for dev/preview workers without a configured
   // payer (the commitment won't be fulfillable, but the route won't 500).
+  const directKey = env.REGISTRAR_MEMBER_PRIVATE_KEY ?? env.ETH_PRIVATE_KEY
   const deployer: Address =
     (env.REGISTRAR_SAFE_ADDRESS as Address | undefined) ??
-    (env.ALLOW_DIRECT_EOA_SIGNER && env.ETH_PRIVATE_KEY
-      ? privateKeyToAccount(env.ETH_PRIVATE_KEY as Hex).address
+    (env.ALLOW_DIRECT_EOA_SIGNER && directKey
+      ? privateKeyToAccount(directKey as Hex).address
       : zeroAddress)
 
   const { resolver, commitment } = await precomputeOrderCommitment(
