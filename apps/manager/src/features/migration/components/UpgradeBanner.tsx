@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useNavigate } from '@tanstack/react-router'
 import { ArrowUpRight } from 'lucide-react'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
@@ -6,7 +7,7 @@ import { shouldShowUpgradeBanner } from '@/features/migration/components/Upgrade
 import { UpgradeNamesButton } from '@/features/migration/components/UpgradeNamesButton'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 type UpgradeBannerProps = {
@@ -15,7 +16,10 @@ type UpgradeBannerProps = {
 
 export const UpgradeBanner = ({ profileName }: UpgradeBannerProps) => {
   const navigate = useNavigate()
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
   const isProfileBanner = profileName !== undefined
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1NamesPending } =
