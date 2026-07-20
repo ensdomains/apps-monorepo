@@ -14,6 +14,7 @@ import {
 } from '@ens-apps/transaction-manager'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 export interface PrepareSetForwardResolutionTransactionParameters {
@@ -54,17 +55,12 @@ export function prepareSetForwardResolutionTransaction({
     args: request.args,
   })
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from,
-      to: request.address,
-      data,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from,
+    to: request.address,
+    data,
+    chainId,
+  })
 }
 
 export const setForwardResolution = async ({

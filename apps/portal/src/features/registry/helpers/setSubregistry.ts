@@ -14,6 +14,7 @@ import {
 import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 export interface SetSubregistryTransactionParameters {
@@ -73,17 +74,16 @@ export function prepareSetSubregistryTransaction({
     args: writeParams.args,
   })
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: walletWithAccount.account.address,
-      to: writeParams.address,
-      data,
-      chainId,
-      gas: 500000n,
-    },
-  }
+  return toEoaCustomIntent({
+    from: walletWithAccount.account.address,
+    to: writeParams.address,
+    data,
+    chainId,
+    // Explicit cap: live estimation for this call is unreliable, so the intent
+    // carries the gas limit the submit path uses (the estimator falls back to
+    // it when eth_estimateGas reverts).
+    gas: 500000n,
+  })
 }
 
 export const setSubregistry = async ({

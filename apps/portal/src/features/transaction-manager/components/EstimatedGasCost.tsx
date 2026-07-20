@@ -4,7 +4,7 @@ import type {
 } from '@ens-apps/transaction-manager'
 import { AlertCircle, Info } from 'lucide-react'
 import { fromThrowable } from 'neverthrow'
-import type { ComponentType } from 'react'
+import { type ComponentType, useMemo } from 'react'
 import { useWalletClient } from 'wagmi'
 import {
   Tooltip,
@@ -52,27 +52,58 @@ const EstimateHint = ({
 export const EstimatedGasCost = ({
   actor,
   prepareIntent,
+  prepareIntentPending = false,
+  prepareIntentError = false,
 }: {
   readonly actor: TransactionMachineActor | undefined
   readonly prepareIntent?: (
     ctx: IntentContext,
   ) => CustomTransactionIntent | undefined
+  /** See {@link Transaction.prepareIntentPending} — async-intent bridge. */
+  readonly prepareIntentPending?: boolean
+  readonly prepareIntentError?: boolean
 }) => {
   const { data: walletClient } = useWalletClient()
-  const readyWalletClient = walletClientIfReady(walletClient)
+  // Require the wallet to be on the estimate's target chain: an intent built for
+  // Sepolia can't be estimated against a wallet scoped to another network.
+  const readyWalletClient = walletClientIfReady(walletClient, sepoliaWithEns.id)
 
-  const intent =
-    readyWalletClient && prepareIntent
-      ? fromThrowable(
-          prepareIntent,
-          () => undefined,
-        )({
-          walletClient: readyWalletClient,
-          chainId: sepoliaWithEns.id,
-        }).unwrapOr(undefined)
-      : undefined
+  // Building the intent runs `encodeFunctionData` (and, for some flows, ensjs
+  // write-param encoding). The modal re-renders on every actor-snapshot change,
+  // so memoize on the inputs that actually change the intent to avoid re-encoding
+  // on each render. `prepareIntent`'s identity is stable across those snapshot
+  // re-renders (the owning hook doesn't re-run), so it's a sound cache key.
+  const intent = useMemo(
+    () =>
+      readyWalletClient && prepareIntent
+        ? fromThrowable(
+            prepareIntent,
+            () => undefined,
+          )({
+            walletClient: readyWalletClient,
+            chainId: sepoliaWithEns.id,
+          }).unwrapOr(undefined)
+        : undefined,
+    [readyWalletClient, prepareIntent],
+  )
 
-  const { cost, status } = useTransactionGasEstimate(actor, intent?.request)
+  const { cost, status: gasStatus } = useTransactionGasEstimate(
+    actor,
+    intent?.request,
+  )
+
+  // An async-intent flow (see the props above) surfaces its own resolution
+  // state: a failed resolution is "Unavailable" and a pending one is
+  // "Estimating…", overriding the gas query — which can't run until the intent
+  // exists. Only applies before the step starts (the machine holds the real
+  // request once running), so skip the override once the actor drives the call.
+  const hasActiveRequest = actor?.getSnapshot()?.context.request?.type === 'eoa'
+  const status =
+    !hasActiveRequest && prepareIntentError
+      ? 'error'
+      : !hasActiveRequest && prepareIntentPending && !intent
+        ? 'loading'
+        : gasStatus
 
   switch (status) {
     case 'success':

@@ -14,6 +14,7 @@ import {
   getResolverInitCalldata,
   parseProxyDeployedAddress,
 } from '@/features/resolver/utils/permissionedResolver'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
@@ -71,17 +72,12 @@ export const prepareDeployPermissionedResolverTransaction = ({
     args: [permissionedResolverImpl, salt, getResolverInitCalldata(from)],
   })
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from,
-      to: verifiableFactory,
-      data: deployCalldata,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from,
+    to: verifiableFactory,
+    data: deployCalldata,
+    chainId,
+  })
 }
 
 const deployPermissionedResolver = async ({

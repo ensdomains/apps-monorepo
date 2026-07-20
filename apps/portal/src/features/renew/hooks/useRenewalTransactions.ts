@@ -6,17 +6,16 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
-import {
-  type Address,
-  encodeFunctionData,
-  erc20Abi,
-  type PublicClient,
-} from 'viem'
+import { type Address, encodeFunctionData, type PublicClient } from 'viem'
 import { useConfig, useConnection, usePublicClient } from 'wagmi'
 import { getV1ExpiryQueryOptions } from '@/features/profile/hooks/useV1Expiry'
 import { getV2RegistrationDataQueryOptions } from '@/features/profile/hooks/useV2RegistrationData'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import {
+  buildApproveIntent as buildErc20ApproveIntent,
+  toEoaCustomIntent,
+} from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -143,30 +142,23 @@ function approveLabel(tokenSymbol: string, renewer: Address): string {
   return `Approve ${tokenSymbol} for ${isV2 ? 'v2' : 'v1'} renewal`
 }
 
-// Shared builder: the ERC-20 approval intent used by BOTH the pre-start gas
-// estimate and the submit path, so the estimated call is byte-identical to what
-// gets sent. Approves 2× the price for headroom against price drift.
+// The ERC-20 approval intent used by BOTH the pre-start gas estimate and the
+// submit path, so the estimated call is byte-identical to what gets sent.
+// Approves 2× the price for headroom against price drift; delegates the encoding
+// to the shared builder so registration and renewal stay in lockstep.
 function buildApproveIntent(params: {
   from: Address
   tokenAddress: Address
   renewer: Address
   tokenPrice: bigint
 }): CustomTransactionIntent {
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: params.from,
-      to: params.tokenAddress,
-      data: encodeFunctionData({
-        abi: erc20Abi,
-        functionName: 'approve',
-        args: [params.renewer, params.tokenPrice * 2n],
-      }),
-      value: 0n,
-      chainId: sepoliaWithEns.id,
-    },
-  }
+  return buildErc20ApproveIntent({
+    from: params.from,
+    token: params.tokenAddress,
+    spender: params.renewer,
+    amount: params.tokenPrice * 2n,
+    chainId: sepoliaWithEns.id,
+  })
 }
 
 function buildApproveTransaction(
@@ -218,17 +210,12 @@ function buildRenewIntent(params: RenewParams): CustomTransactionIntent {
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: params.from,
-      to: writeParams.address,
-      data: renewData,
-      value: 0n,
-      chainId: sepoliaWithEns.id,
-    },
-  }
+  return toEoaCustomIntent({
+    from: params.from,
+    to: writeParams.address,
+    data: renewData,
+    chainId: sepoliaWithEns.id,
+  })
 }
 
 function buildRenewTransaction(params: RenewParams, signer: Signer) {

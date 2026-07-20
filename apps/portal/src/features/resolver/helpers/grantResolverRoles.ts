@@ -13,6 +13,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
 export interface GrantResolverRolesTransactionParameters {
   readonly resolverAddress: Address
@@ -70,17 +71,12 @@ export const prepareGrantResolverRolesTransaction = ({
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: walletClient.account.address,
-      to: resolverAddress,
-      data,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: resolverAddress,
+    data,
+    chainId,
+  })
 }
 
 export interface GrantResolverRolesParameters

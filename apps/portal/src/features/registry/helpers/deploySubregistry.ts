@@ -20,6 +20,7 @@ import type {
   WalletClient,
 } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 function extractDeployedAddress(
@@ -79,16 +80,12 @@ export const prepareDeploySubregistryTransaction = ({
     args: writeParams.args,
   })
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: walletClient.account.address,
-      to: writeParams.address,
-      data,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: writeParams.address,
+    data,
+    chainId,
+  })
 }
 
 export const deploySubregistry = async ({

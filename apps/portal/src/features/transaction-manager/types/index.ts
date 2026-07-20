@@ -50,6 +50,16 @@ export type Transaction = {
     ctx: IntentContext,
   ) => CustomTransactionIntent | undefined
   /**
+   * Async-intent bridge. Most steps build their intent synchronously in
+   * `prepareIntent`, but a few must resolve it off-chain first (e.g. saving
+   * records resolves the resolver pattern on-chain). Those flows drive the
+   * resolution in their own query and hand its state here so the estimate can
+   * show "Estimating…" while it's pending and "Unavailable" if it fails, instead
+   * of a permanent "Not yet" when `prepareIntent` keeps returning `undefined`.
+   */
+  readonly prepareIntentPending?: boolean
+  readonly prepareIntentError?: boolean
+  /**
    * Unix timestamp (ms) at which this transaction can start. When set and in
    * the future, the modal renders a countdown on the step instead of letting
    * the user trigger it. Used for the registration commit-reveal cooldown.

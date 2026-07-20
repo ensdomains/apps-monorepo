@@ -22,6 +22,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
 // ============================================================================
 // Types
@@ -80,17 +81,12 @@ export const prepareChangeResolverTransaction = ({
     args: [anyId, resolverAddress],
   })
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from,
-      to: registryAddress,
-      data,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from,
+    to: registryAddress,
+    data,
+    chainId,
+  })
 }
 
 // ============================================================================

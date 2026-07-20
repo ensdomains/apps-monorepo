@@ -47,6 +47,8 @@ export const TransactionInfoContent = ({
               <EstimatedGasCost
                 actor={actor}
                 prepareIntent={transaction.prepareIntent}
+                prepareIntentPending={transaction.prepareIntentPending}
+                prepareIntentError={transaction.prepareIntentError}
               />
             </p>
             {transaction.steps && transaction.steps.length > 0 && (

@@ -9,13 +9,7 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  type Address,
-  encodeFunctionData,
-  erc20Abi,
-  keccak256,
-  stringToBytes,
-} from 'viem'
+import { type Address, erc20Abi, keccak256, stringToBytes } from 'viem'
 import {
   useConfig,
   useConnection,
@@ -24,6 +18,10 @@ import {
 } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import {
+  buildApproveIntent,
+  toEoaCustomIntent,
+} from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -194,18 +192,15 @@ export const useRegistrationTransactions = ({
         // name-derived salt never collides with a real (random-salt) deploy, so
         // estimateGas won't revert on an already-deployed address.
         prepareIntent: connection.address
-          ? ({ walletClient }) => ({
-              type: 'custom',
-              request: {
-                type: 'eoa',
+          ? ({ walletClient }) =>
+              toEoaCustomIntent({
                 from: walletClient.account.address,
                 ...encodeDeployDedicatedResolverCall({
                   owner: connection.address as Address,
                   salt: BigInt(keccak256(stringToBytes(`estimate:${name}`))),
                 }),
                 chainId,
-              },
-            })
+              })
           : undefined,
         onStart: handleStart,
         onDone: handleProceed,
@@ -229,21 +224,14 @@ export const useRegistrationTransactions = ({
         // it the moment it opens. approve gas is amount-independent, so the
         // estimate holds even if the submitted allowance differs slightly.
         prepareIntent: savedParams
-          ? ({ walletClient }) => ({
-              type: 'custom',
-              request: {
-                type: 'eoa',
+          ? ({ walletClient }) =>
+              buildApproveIntent({
                 from: walletClient.account.address,
-                to: savedParams.tokenAddress,
-                data: encodeFunctionData({
-                  abi: erc20Abi,
-                  functionName: 'approve',
-                  args: [ethRegistrar, savedParams.tokenPrice],
-                }),
-                value: 0n,
+                token: savedParams.tokenAddress,
+                spender: ethRegistrar,
+                amount: savedParams.tokenPrice,
                 chainId,
-              },
-            })
+              })
           : undefined,
         onStart: handleProceed,
         onDone: handleProceed,

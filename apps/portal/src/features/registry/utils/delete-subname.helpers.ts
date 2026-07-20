@@ -9,6 +9,7 @@ import { deleteSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
 import { err, fromThrowable, ok, type Result } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
@@ -63,14 +64,12 @@ export function prepareDeleteSubnameTransaction({
     return err(dataResult.error)
   }
 
-  return ok({
-    type: 'custom',
-    request: {
-      type: 'eoa',
+  return ok(
+    toEoaCustomIntent({
       from: walletClient.account.address,
       to: writeParams.address,
       data: dataResult.value,
       chainId,
-    },
-  })
+    }),
+  )
 }

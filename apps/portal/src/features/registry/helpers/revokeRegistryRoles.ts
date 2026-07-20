@@ -20,6 +20,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
 export type RevokeRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
@@ -80,17 +81,12 @@ export function prepareRevokeRegistryRolesTransaction({
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: walletClient.account.address,
-      to: registryAddress,
-      data,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: registryAddress,
+    data,
+    chainId,
+  })
 }
 
 export async function revokeRegistryRoles(

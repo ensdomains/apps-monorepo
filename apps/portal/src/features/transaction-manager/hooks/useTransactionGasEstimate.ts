@@ -1,17 +1,25 @@
 import type {
+  EOATransactionRequest,
   TransactionMachineActor,
   TransactionRequest,
 } from '@ens-apps/transaction-manager'
 import { type UseQueryResult, useQuery } from '@tanstack/react-query'
-import { formatEther } from 'viem'
+import {
+  BaseError,
+  ContractFunctionRevertedError,
+  ExecutionRevertedError,
+  formatEther,
+  type PublicClient,
+} from 'viem'
 import { usePublicClient } from 'wagmi'
 
 /**
  * The estimate's state, so callers can show honest UI:
  * - `idle` — no call to estimate yet (no descriptor intent, wallet not ready, or
- *   step not started). Nothing is being calculated.
+ *   step not started), or the estimate couldn't be produced for a transient
+ *   reason. Nothing is being calculated right now.
  * - `loading` — actively running `eth_estimateGas`.
- * - `error` — the call reverted or the fee lookup failed.
+ * - `error` — the call actually reverts on-chain (a real "this would fail").
  * - `success` — `cost` holds the estimate.
  */
 export type GasEstimateStatus = 'idle' | 'loading' | 'error' | 'success'
@@ -24,12 +32,81 @@ export type GasEstimateStatus = 'idle' | 'loading' | 'error' | 'success'
 // minutes after the modal closes, so a later session recomputes fresh.
 const PREVIEW_STALE_TIME = Number.POSITIVE_INFINITY
 
+// Transient RPC failures (timeouts, rate-limits, transport blips) are worth a
+// couple of retries; a genuine on-chain revert is deterministic and never is.
+const MAX_TRANSIENT_RETRIES = 2
+
 // Gas costs are tiny ETH amounts; `formatEther` alone yields an 18-decimal
 // string. Round to a few significant digits for a readable "Est. cost".
 const formatGasCost = (wei: bigint): string =>
   Number(formatEther(wei)).toLocaleString('en-US', {
     maximumSignificantDigits: 4,
   })
+
+/**
+ * Distinguishes an `eth_estimateGas` failure that is the call *actually
+ * reverting on-chain* (a real "this would fail" signal worth surfacing) from a
+ * transient transport problem (timeout, rate-limit, RPC blip). Only a genuine
+ * revert should be shown to the user as "Unavailable"; a transient blip must not
+ * claim the transaction would fail.
+ */
+const isRevertError = (error: unknown): boolean =>
+  error instanceof BaseError &&
+  error.walk(
+    (e) =>
+      e instanceof ExecutionRevertedError ||
+      e instanceof ContractFunctionRevertedError,
+  ) != null
+
+/**
+ * Runs `eth_estimateGas` for an EOA call. Some intents carry an explicit gas cap
+ * because live estimation is unreliable for that call (e.g. setSubregistry's
+ * 500000n). Prefer a real estimate, but if the call reverts under estimation
+ * fall back to the intent's cap — the tx submits fine with that cap, so
+ * surfacing "Unavailable" would be wrong. Transient errors still bubble up so
+ * react-query can retry them.
+ */
+const estimateGasForCall = async (
+  publicClient: PublicClient,
+  eoa: EOATransactionRequest,
+): Promise<bigint> => {
+  const runEstimate = () =>
+    publicClient.estimateGas({
+      account: eoa.from,
+      to: eoa.to,
+      data: eoa.data,
+      value: eoa.value,
+    })
+
+  if (eoa.gas == null) return runEstimate()
+
+  try {
+    return await runEstimate()
+  } catch (error) {
+    if (isRevertError(error)) return eoa.gas
+    throw error
+  }
+}
+
+/**
+ * Derives the honest {@link GasEstimateStatus} from the two queries. Only a
+ * genuine on-chain revert becomes `error` ("Unavailable"); a transient RPC
+ * failure (after retries) or a fee-lookup failure falls back to the neutral
+ * `idle` hint so the UI neither lies about a revert nor hangs on "Estimating…".
+ */
+const deriveStatus = (
+  gasQuery: UseQueryResult<bigint>,
+  feeQuery: UseQueryResult<bigint>,
+  hasCost: boolean,
+): GasEstimateStatus => {
+  if (gasQuery.fetchStatus === 'idle' && gasQuery.status === 'pending') {
+    return 'idle'
+  }
+  if (gasQuery.isError && isRevertError(gasQuery.error)) return 'error'
+  if (hasCost) return 'success'
+  const hasUnrecoverableTransientError = gasQuery.isError || feeQuery.isError
+  return hasUnrecoverableTransientError ? 'idle' : 'loading'
+}
 
 /**
  * Fee-per-gas for a chain. Chain-global (independent of the specific call), so
@@ -43,11 +120,16 @@ const useFeePerGas = (chainId: number | undefined): UseQueryResult<bigint> => {
     enabled: Boolean(publicClient),
     staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
-    retry: false,
+    retry: MAX_TRANSIENT_RETRIES,
     queryFn: async (): Promise<bigint> => {
       if (!publicClient) throw new Error('No public client')
-      const fees = await publicClient.estimateFeesPerGas().catch(() => null)
-      return fees?.maxFeePerGas ?? (await publicClient.getGasPrice())
+      // Use the current gas price (base fee + tip) rather than viem's
+      // `maxFeePerGas`, which pads the base fee (~1.2×) as headroom for future
+      // blocks. A settled step reports its ACTUAL fee as gasUsed ×
+      // effectiveGasPrice (base fee + tip), so pricing the preview off
+      // maxFeePerGas made the number visibly drop once the tx mined. Gas price
+      // keeps the preview on the same basis as the settled cost.
+      return publicClient.getGasPrice()
     },
   })
 }
@@ -88,6 +170,7 @@ export const useTransactionGasEstimate = (
       eoa?.to,
       eoa?.data,
       eoa?.value?.toString(),
+      eoa?.gas?.toString(),
       // Re-estimate once the step is actually started: a call that reverted
       // at modal-open (e.g. a renew before its approval, or any precondition
       // set by an earlier step) can succeed now that the prior step has run.
@@ -96,15 +179,13 @@ export const useTransactionGasEstimate = (
     enabled: Boolean(eoa?.to && eoa?.data && publicClient && !receipt),
     staleTime: PREVIEW_STALE_TIME,
     refetchOnWindowFocus: false,
-    retry: false,
-    queryFn: async (): Promise<bigint> => {
+    // Retry transient RPC failures, but never a genuine revert — that verdict
+    // won't change, so retrying it just delays the honest "Unavailable".
+    retry: (failureCount, error) =>
+      !isRevertError(error) && failureCount < MAX_TRANSIENT_RETRIES,
+    queryFn: (): Promise<bigint> => {
       if (!eoa || !publicClient) throw new Error('No call to estimate')
-      return publicClient.estimateGas({
-        account: eoa.from,
-        to: eoa.to,
-        data: eoa.data,
-        value: eoa.value,
-      })
+      return estimateGasForCall(publicClient, eoa)
     },
   })
 
@@ -128,19 +209,5 @@ export const useTransactionGasEstimate = (
   const cost =
     gas != null && feePerGas != null ? formatGasCost(gas * feePerGas) : null
 
-  // A disabled gas query means there's no call to estimate → idle (independent
-  // of the always-on, chain-global fee query). `error` keys off the gas call
-  // only: it's the one that reverts, and the fee query has its own getGasPrice
-  // fallback, so a transient fee blip shouldn't blank an otherwise-good estimate.
-  const isIdle =
-    gasQuery.fetchStatus === 'idle' && gasQuery.status === 'pending'
-  const status: GasEstimateStatus = isIdle
-    ? 'idle'
-    : gasQuery.isError
-      ? 'error'
-      : cost != null
-        ? 'success'
-        : 'loading'
-
-  return { cost, status }
+  return { cost, status: deriveStatus(gasQuery, feeQuery, cost != null) }
 }

@@ -21,6 +21,7 @@ import {
   type WalletClient,
 } from 'viem'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import { transformPendingChangesToSetRecords } from './transformPendingChanges'
 
@@ -140,17 +141,12 @@ export async function prepareSaveRecordsTransaction({
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: walletClient.account.address,
-      to: resolverAddress,
-      data,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: resolverAddress,
+    data,
+    chainId,
+  })
 }
 
 export async function saveRecords(

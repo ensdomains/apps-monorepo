@@ -15,6 +15,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 // ============================================================================
@@ -112,17 +113,12 @@ export function prepareBurnFusesTransaction({
     args: writeParams.args,
   })
 
-  return {
-    type: 'custom',
-    request: {
-      type: 'eoa',
-      from: walletClient.account.address,
-      to: writeParams.address as Address,
-      data,
-      value: 0n,
-      chainId,
-    },
-  }
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: writeParams.address as Address,
+    data,
+    chainId,
+  })
 }
 
 export async function burnFuses({
