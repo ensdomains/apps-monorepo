@@ -1,3 +1,4 @@
+import { namehash } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -57,8 +58,10 @@ describe('getOwner', () => {
   })
 
   it('returns V2 protocol without an owner for an expired V2 registration', async () => {
+    const domainId = namehash('gloomy.eth')
+
     mocks.getV2Domain.mockResolvedValue({
-      data: { domain: { id: 'gloomy.eth' } },
+      data: { domain: { id: domainId } },
     })
 
     const result = await getOwner({ name: 'gloomy.eth' })
@@ -69,7 +72,7 @@ describe('getOwner', () => {
       protocol: 'v2',
     })
     expect(mocks.queryV2Domain).toHaveBeenCalledWith(expect.anything(), {
-      id: 'gloomy.eth',
+      id: domainId,
     })
     expect(mocks.getV1Owner).not.toHaveBeenCalled()
   })

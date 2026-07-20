@@ -185,6 +185,11 @@ msgstr ""
 msgid "Add Payment Method"
 msgstr ""
 
+#: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/grace/components/GracePeriodFavoriteButton.tsx
+msgid "Add to favorites"
+msgstr ""
+
 #: src/features/dashboard/service/mutations/favoriteToast.tsx
 msgid "Added to your favorites!"
 msgstr ""
@@ -1782,6 +1787,10 @@ msgstr ""
 msgid "Remove favorite"
 msgstr ""
 
+#: src/features/grace/components/GracePeriodFavoriteButton.tsx
+msgid "Remove from favorites"
+msgstr ""
+
 #: src/features/notifications/shared/primitives.tsx
 msgid "Remove notification"
 msgstr ""
@@ -2310,8 +2319,16 @@ msgstr ""
 msgid "This card will be charged for your subscription."
 msgstr ""
 
+#: src/features/grace/components/GracePeriodBanner.tsx
+msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
 msgid "This name is already registered or not available for registration."
+msgstr ""
+
+#: src/features/grace/components/GracePeriodBanner.tsx
+msgid "This name is in grace period"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
@@ -2787,7 +2804,7 @@ msgid "Your ENS name works across web3"
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
-msgid "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
@@ -2807,7 +2824,7 @@ msgid "Your names, text records, and addresses will migrate automatically"
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
-msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx

@@ -6,7 +6,7 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { getOwner as ensjsv1_getOwner } from '@ensdomains/ensjs/public/v1'
 import { getOwner as ensjsv2_getOwner } from '@ensdomains/ensjs/public/v2'
 import { fromPromise, ok } from 'neverthrow'
-import { type Address, zeroAddress } from 'viem'
+import { type Address, namehash, zeroAddress } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { normalizeEthName } from './profileName'
 
@@ -45,7 +45,7 @@ export const getOwner = ResultFn(async function* (params: { name: string }) {
   if (ethName.parentLabelsRootFirst.length === 0) {
     const v2Domain = yield* fromPromise(
       indexerClient
-        .query<DomainQuery>(DomainDocument, { id: ethName.name })
+        .query<DomainQuery>(DomainDocument, { id: namehash(ethName.name) })
         .toPromise()
         .then((result) => {
           if (result.error) throw result.error
