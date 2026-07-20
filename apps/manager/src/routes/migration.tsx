@@ -19,7 +19,7 @@ export const Route = createFileRoute('/migration')({
       data: { flag: POSTHOG_FEATURE_FLAGS.MIGRATION },
     })
 
-    if (migrationAccess === false) {
+    if (migrationAccess !== true) {
       throw redirect({ to: '/dashboard', replace: true })
     }
   },

@@ -118,11 +118,13 @@ describe('/migration route auth', () => {
     })
   })
 
-  it('allows direct server requests when migration access cannot be evaluated', async () => {
+  it('redirects direct server requests when migration access cannot be evaluated', async () => {
     vi.stubGlobal('window', undefined)
     getFeatureFlagMock.mockResolvedValue(null)
 
-    await expect(runBeforeLoad()).resolves.toBeUndefined()
+    await expect(runBeforeLoad()).rejects.toEqual({
+      options: { to: '/dashboard', replace: true },
+    })
   })
 
   it('redirects disabled client-side navigation through the server checker', async () => {
