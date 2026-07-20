@@ -6,23 +6,28 @@ import type { getProfileNameExpiryStatus } from '@/features/profile/service/prof
 type ProfileViewNewGracePeriodBannerProps = {
   readonly className?: string
   readonly expiry: ReturnType<typeof getProfileNameExpiryStatus>
+  readonly isOwner?: boolean
   readonly name: string
 }
 
 export const ProfileViewNewGracePeriodBanner = ({
   className,
   expiry,
+  isOwner,
   name,
 }: ProfileViewNewGracePeriodBannerProps) =>
-  match(expiry)
+  match({ expiry, isOwner })
     .with(
-      { isInGrace: true, graceEndDate: P.not(P.nullish) },
-      ({ graceEndDate }) => (
+      {
+        expiry: { isInGrace: true, graceEndDate: P.not(P.nullish) },
+        isOwner: P.boolean,
+      },
+      ({ expiry: { graceEndDate }, isOwner }) => (
         <div className={className}>
           <GracePeriodBanner
             graceEndDate={graceEndDate}
             renewName={name}
-            variant="profileOwnName"
+            variant={isOwner ? 'profileOwnName' : 'profileNotOwnedName'}
           />
         </div>
       ),

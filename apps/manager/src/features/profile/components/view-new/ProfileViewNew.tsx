@@ -139,6 +139,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         <ProfileViewNewGracePeriodBanner
           className="absolute inset-x-4 top-24.5 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
           expiry={expiry}
+          isOwner={isOwnerPending ? undefined : isOwner}
           name={name}
         />
         <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
@@ -150,6 +151,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             <ProfileViewNewGracePeriodBanner
               className="mb-6 lg:landscape:hidden"
               expiry={expiry}
+              isOwner={isOwnerPending ? undefined : isOwner}
               name={name}
             />
             <ProfileViewNewHeader

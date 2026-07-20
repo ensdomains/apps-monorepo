@@ -97,13 +97,14 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   const gracePeriodBanner = match(expiry)
     .with(
       { isInGrace: true, graceEndDate: P.not(P.nullish) },
-      ({ graceEndDate }) => (
-        <GracePeriodBanner
-          graceEndDate={graceEndDate}
-          renewName={name}
-          variant="profileOwnName"
-        />
-      ),
+      ({ graceEndDate }) =>
+        isOwnerPending ? null : (
+          <GracePeriodBanner
+            graceEndDate={graceEndDate}
+            renewName={name}
+            variant={isOwner ? 'profileOwnName' : 'profileNotOwnedName'}
+          />
+        ),
     )
     .otherwise(() => null)
 
