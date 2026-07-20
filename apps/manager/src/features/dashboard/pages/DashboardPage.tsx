@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { ChoosePrimaryNameDialog } from '@/features/dashboard/components/ChoosePrimaryNameDialog'
 import { DashboardGraceBanner } from '@/features/dashboard/components/DashboardGraceBanner'
+import { DashboardLoading } from '@/features/dashboard/components/DashboardLoading'
 import { EducationCarousel } from '@/features/dashboard/components/EducationCarousel'
 import { FaqSection } from '@/features/dashboard/components/FaqSection'
 import { NamesTable } from '@/features/dashboard/components/NamesTable'
@@ -36,7 +37,6 @@ export const DashboardPage = () => {
   const shouldReduceMotion = useReducedMotion()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
   )
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
@@ -58,6 +58,10 @@ export const DashboardPage = () => {
   const defaultName = reverseName ?? null
   const avatarUrl = reverseName ? buildNameAvatarUrl(reverseName) : null
   const hasProfile = Boolean(defaultName)
+
+  if (migrationEnabled === undefined) {
+    return <DashboardLoading />
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 py-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:py-10">
