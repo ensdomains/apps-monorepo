@@ -21,7 +21,7 @@ export const useConnectedAvatar = () => {
   return {
     url: name ? buildNameAvatarUrl(name) : undefined,
     themeColor,
-    isLoading: reverseNameQuery.isLoading || profileRecords.isLoading,
+    isLoading: reverseNameQuery.isLoading,
     error: reverseNameQuery.error ?? profileRecords.error,
   }
 }
