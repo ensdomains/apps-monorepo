@@ -150,8 +150,19 @@ describe('/migration route auth', () => {
     expect(navigateMock).not.toHaveBeenCalled()
     expect(useFeatureFlagEnabled).toHaveBeenCalledWith(
       POSTHOG_FEATURE_FLAGS.MIGRATION,
-      false,
     )
+  })
+
+  it('waits while migration access is unresolved', () => {
+    vi.mocked(
+      useFeatureFlagEnabled as (flag: string) => boolean | undefined,
+    ).mockReturnValue(undefined)
+
+    renderRoute()
+
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('migration-page')).toBeNull()
+    expect(screen.getByTestId('migration-loading-spinner')).not.toBeNull()
   })
 
   it('does not redirect while wagmi is connected but the smart account is still catching up', () => {

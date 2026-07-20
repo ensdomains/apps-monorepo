@@ -48,7 +48,6 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
   const { hasInitialized, ownerAddress } = useSmartAccountContext()
   const migrationAccessEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
-    false,
   )
 
   const handleDisconnect = useCallback(() => {
@@ -65,7 +64,7 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
 
     if (!ownerAddress) return null
 
-    if (!migrationAccessEnabled) {
+    if (migrationAccessEnabled === false) {
       return '/dashboard'
     }
 
@@ -83,7 +82,11 @@ const RequireMigrationAccess = ({ children }: { children: ReactNode }) => {
 
   if (redirectTo) return null
 
-  if (isRestoringConnection || !ownerAddress) {
+  if (
+    isRestoringConnection ||
+    !ownerAddress ||
+    migrationAccessEnabled === undefined
+  ) {
     return <MigrationRouteLoading />
   }
 
