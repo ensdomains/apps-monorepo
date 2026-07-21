@@ -60,16 +60,16 @@ export const DashboardPage = () => {
   const hasProfile = Boolean(defaultName)
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 py-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:py-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:pb-10">
       {migrationEnabled && <MigrationModal />}
-      <div className="min-w-0 flex-1 space-y-6 md:space-y-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
         {migrationEnabled && (
           <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
             <UpgradeBanner />
           </motion.div>
         )}
         <motion.div
-          className="w-full px-4 md:px-0"
+          className="w-full px-4 empty:hidden md:px-0"
           {...stagger(1, shouldReduceMotion)}
         >
           <DashboardGraceBanner primaryLabel={defaultName} />

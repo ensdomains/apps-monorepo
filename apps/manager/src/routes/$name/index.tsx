@@ -89,9 +89,12 @@ export const Route = createFileRoute('/$name/')({
 
 function ProfileRoutePending() {
   const name = Route.useParams({ select: (params) => params.name })
+  const profileViewNewServerEnabled = Route.useRouteContext({
+    select: (context) => context.profileViewNewEnabled,
+  })
   const profileViewNewEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
-    false,
+    profileViewNewServerEnabled,
   )
 
   return profileViewNewEnabled ? (
@@ -115,6 +118,15 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
 
 function RouteComponent() {
   const name = Route.useParams({ select: (params) => params.name })
+  const profileViewNewServerEnabled = Route.useRouteContext({
+    select: (context) => context.profileViewNewEnabled,
+  })
+  const profileViewNewEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    profileViewNewServerEnabled,
+  )
 
-  return <ProfileView name={name} />
+  return (
+    <ProfileView name={name} profileViewNewEnabled={profileViewNewEnabled} />
+  )
 }
