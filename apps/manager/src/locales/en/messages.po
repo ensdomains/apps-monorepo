@@ -51,8 +51,6 @@ msgid "{0} USD/year"
 msgstr "{0} USD/year"
 
 #. placeholder {0}: preset.years
-#. placeholder {0}: selection.years
-#: src/features/renew/components/BulkRenewDialog/BulkRenewDialog.tsx
 #: src/features/renew/components/BulkRenewDialog/DurationPresets.tsx
 msgid "{0} years"
 msgstr "{0} years"
@@ -103,6 +101,10 @@ msgstr "{value, plural, one {# week} other {# weeks}}"
 #: src/features/register-v2/workflow/pricing/components/DurationLabel.tsx
 msgid "{value, plural, one {# year} other {# years}}"
 msgstr "{value, plural, one {# year} other {# years}}"
+
+#: src/features/renew/components/BulkRenewDialog/BulkRenewDialog.tsx
+msgid "{years} years"
+msgstr "{years} years"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"

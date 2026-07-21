@@ -12,7 +12,7 @@ import {
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useCallback, useRef, useState } from 'react'
-import type { Address, WalletClient } from 'viem'
+import type { Address } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -77,10 +77,7 @@ const renewBatch = (
   permit: PermitSignature | undefined,
 ): ResultAsync<void, Error> =>
   submitBatchRenewActor({
-    items: items.map((item) => ({
-      label: item.label,
-      duration: item.duration,
-    })),
+    items,
     selectedToken: ctx.token,
     signer: ctx.signer,
     publicClient,
@@ -150,7 +147,7 @@ const resolveContext = (
     token,
     isHca: signer.type === 'rhinestone',
     approvalSigner: account.walletClient
-      ? { type: 'eoa', walletClient: account.walletClient as WalletClient }
+      ? { type: 'eoa', walletClient: account.walletClient }
       : undefined,
   }
 }
@@ -166,8 +163,6 @@ const invalidateDashboardNames = () =>
   getQueryClient()?.invalidateQueries({
     queryKey: qk('dashboard', 'all_domains'),
   })
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 type SubmitArgs = {
   readonly items: readonly RenewItem[]
@@ -288,7 +283,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
     invalidateDashboardNames()
     // Let the bar settle at 100% before flipping to the success view.
-    await wait(SETTLE_MS)
+    await new Promise((resolve) => setTimeout(resolve, SETTLE_MS))
     if (!isCurrent()) return
     setPhase('success')
   }

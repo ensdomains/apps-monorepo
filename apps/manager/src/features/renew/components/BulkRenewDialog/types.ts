@@ -45,7 +45,7 @@ export type RenewItem = {
   readonly duration: bigint
 }
 
-/** Per-name status while the sequential renewals run. */
+/** Per-name status while the atomic batch renewal runs. */
 export type RowStatus = 'pending' | 'active' | 'done' | 'error'
 
 /** Overall progress of the bulk-renewal submission. */

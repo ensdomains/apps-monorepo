@@ -32,9 +32,6 @@ import type {
   SummaryRow,
 } from './types'
 
-const selectUsdcAmount = (data: { amount: bigint }) =>
-  decimalBigintToNumber(data.amount, USDC.decimals)
-
 type BulkRenewPayment = {
   readonly isConnected: boolean
   readonly isLoadingBalances: boolean
@@ -105,7 +102,8 @@ export const useBulkRenew = ({
           USDC.symbol,
         ),
         enabled: open,
-        select: selectUsdcAmount,
+        select: (data: { amount: bigint }) =>
+          decimalBigintToNumber(data.amount, USDC.decimals),
       })),
     ),
   })

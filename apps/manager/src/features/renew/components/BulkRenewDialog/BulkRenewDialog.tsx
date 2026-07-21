@@ -63,12 +63,14 @@ export const BulkRenewDialog = ({
   const submit = useBulkRenewSubmit()
 
   const count = names.length
-  const durationLabel =
-    selection.kind === 'preset'
-      ? selection.years === 1
-        ? t`1 year`
-        : t`${selection.years} years`
-      : format(new Date(selection.targetMs), 'MMM d, yyyy')
+  const durationLabel = match(selection)
+    .with({ kind: 'preset' }, ({ years }) =>
+      years === 1 ? t`1 year` : t`${years} years`,
+    )
+    .with({ kind: 'custom' }, ({ targetMs }) =>
+      format(new Date(targetMs), 'MMM d, yyyy'),
+    )
+    .exhaustive()
 
   // Start every fresh open from a clean slate — otherwise a leftover terminal
   // phase (success/error) from a previous run would render over a new selection.
