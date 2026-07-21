@@ -14,6 +14,7 @@ import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MessageCard } from '@/components/ui/message-card'
 import {
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/tooltip'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/$name/fuses/')({
   component: RouteComponent,
@@ -157,10 +159,10 @@ function RouteComponent() {
   const isOwner = address && wrapperData.owner === address
 
   return (
-    <div className="flex flex-col gap-6 max-w-screen-2xl mx-auto px-6 py-6 w-full">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-medium">Fuses</h1>
+          <h1 className="text-h1">Fuses</h1>
           {isOwner && (
             <Button asChild variant="default" className="gap-2">
               <Link to="/$name/fuses/burn" params={{ name }}>
@@ -285,18 +287,18 @@ const columns: ColumnDef<FuseRow>[] = [
     cell: ({ row }) => {
       const { isBurnt } = row.original
       return (
-        <div
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-            isBurnt ? 'bg-orange-50' : 'bg-muted'
-          }`}
-        >
-          {isBurnt ? (
-            <Flame className="w-4 h-4" />
-          ) : (
-            <Ban className="w-4 h-4" />
+        <Badge
+          variant="outline"
+          className={cn(
+            'text-xs border-transparent',
+            isBurnt
+              ? 'bg-warning-fill text-warning-text'
+              : 'bg-default-fill text-default-text',
           )}
-          {isBurnt ? 'True' : 'False'}
-        </div>
+        >
+          {isBurnt ? <Flame className="size-4" /> : <Ban className="size-4" />}
+          <span>{isBurnt ? 'True' : 'False'}</span>
+        </Badge>
       )
     },
   },

@@ -159,7 +159,7 @@ export const NameSubgraphHistory = ({
       <div className="flex flex-col gap-1 p-4 sm:p-6 w-full">
         {enableHeader && (
           <div>
-            <h2 className="text-2xl font-medium">History</h2>
+            <h2 className="text-h2">History</h2>
           </div>
         )}
         <div>No recent activity.</div>
@@ -170,7 +170,7 @@ export const NameSubgraphHistory = ({
     <div className="flex flex-col gap-1 p-4 sm:p-6w-full">
       {enableHeader && (
         <div>
-          <h2 className="text-2xl font-medium">History</h2>
+          <h2 className="text-h2">History</h2>
         </div>
       )}
       <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />

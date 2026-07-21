@@ -188,7 +188,7 @@ export const EditRecordsTable = ({
             return (
               <span className="flex flex-row items-center gap-2 font-mono">
                 {row.original.id}{' '}
-                <span className="font-sans text-muted-foreground uppercase">
+                <span className="font-sans text-caps text-muted-foreground">
                   {row.original.key}
                 </span>
               </span>
@@ -337,7 +337,7 @@ export const EditRecordsTable = ({
                         key={cell.id}
                         className={cn(
                           'px-4 sm:px-6',
-                          tableView.compact ? 'py-2' : 'py-4',
+                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                         )}
                       >
                         {flexRender(
@@ -388,7 +388,7 @@ export const EditRecordsTable = ({
             <TableRow>
               <TableCell
                 colSpan={editColumns.length}
-                className="h-24 text-center"
+                className="px-6 py-24 text-center"
               >
                 No records found.
               </TableCell>

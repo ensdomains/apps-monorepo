@@ -51,10 +51,8 @@ function RouteComponent() {
     )
 
   return (
-    <div className="max-w-360 w-full mx-auto flex flex-col gap-12 m-6 px-4 md:px-10">
-      <h1 className="text-2xl md:text-heading font-medium leading-none">
-        Roles
-      </h1>
+    <div className="flex flex-col gap-8">
+      <h1 className="text-2xl font-[425] md:text-h1">Roles</h1>
       <NameRegistryRolesOverviewTable name={name} />
       <NameResolverRolesOverviewTable name={name} />
       <NameRolesOverviewTable

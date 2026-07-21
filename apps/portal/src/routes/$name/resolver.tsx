@@ -296,7 +296,7 @@ const HistorySection = ({
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-2xl font-medium">History</h2>
+          <h2 className="text-h2">History</h2>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/$name/history" params={{ name }}>
               <ClockIcon className="size-4" />
@@ -318,7 +318,7 @@ const HistorySection = ({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-medium">History</h2>
+        <h2 className="text-h2">History</h2>
         <Button variant="ghost" size="sm" asChild>
           <Link to="/$name/history" params={{ name }}>
             <ClockIcon className="size-4" />
@@ -366,7 +366,7 @@ const ResolverView = ({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
+    <div className="flex flex-col gap-8">
       {permissionedResolverQuery.data ? (
         <ResolverBanner
           name="ENS Permissioned Resolver"
@@ -380,7 +380,7 @@ const ResolverView = ({
       ) : null}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-heading font-medium">Resolver</h1>
+        <h1 className="text-h1">Resolver</h1>
         {address ? (
           <EditButtons
             address={address}
@@ -448,8 +448,8 @@ const NoResolverSet = ({
   const { address: account } = useConnection()
 
   return (
-    <div className="mx-auto flex w-full max-w-360 flex-col gap-6 p-4 sm:p-6">
-      <h1 className="text-heading font-medium">Resolver</h1>
+    <div className="flex flex-col gap-8">
+      <h1 className="text-h1">Resolver</h1>
       <div className="flex items-center gap-4 rounded-sm bg-accent-fill/40 p-6">
         <p className="flex-1 text-base text-muted-foreground">
           This name does not have a resolver set.

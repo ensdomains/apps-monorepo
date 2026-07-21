@@ -214,9 +214,9 @@ function RouteComponent() {
     )
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-heading font-medium leading-none">
+        <h1 className="text-2xl font-[425] md:text-h1">
           {aliases.length} alias{aliases.length !== 1 ? 'es' : ''}
         </h1>
         {canSetAlias && (
@@ -377,7 +377,7 @@ function RouteComponent() {
                           key={cell.id}
                           className={cn(
                             'px-4 sm:px-6',
-                            tableView.compact ? 'py-2' : 'py-4',
+                            tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                           )}
                         >
                           {flexRender(

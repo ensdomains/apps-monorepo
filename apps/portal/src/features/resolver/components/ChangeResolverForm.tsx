@@ -207,7 +207,7 @@ export const ChangeResolverForm = ({
         </Button>
       </Link>
 
-      <h1 className="text-heading font-medium leading-none">Change resolver</h1>
+      <h1 className="text-h1">Change resolver</h1>
 
       <div className="flex items-center gap-3">
         <Switch

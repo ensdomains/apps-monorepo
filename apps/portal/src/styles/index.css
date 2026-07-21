@@ -396,4 +396,70 @@
   --font-semi-mono: "ABCMonumentGroteskSemiMono";
   --font-serif: "ABCMarist";
   --text-heading: 1.75rem;
+
+  /* Type scale — 1:1 with the ENS Builder / Figma type styles (WEB-595).
+     Weights 360/425 are real instances on the Grotesk variable wght axis
+     (see fonts.css). */
+  --text-h1: 2.125rem; /* 34px */
+  --text-h1--line-height: 2.375rem; /* 38px */
+  --text-h1--font-weight: 425;
+  --text-h2: 1.5rem; /* 24px */
+  --text-h2--line-height: 1;
+  --text-h2--font-weight: 425;
+  --text-h3: 1.125rem; /* 18px */
+  --text-h3--line-height: 1;
+  --text-h3--font-weight: 425;
+  --text-p: 0.9375rem; /* 15px */
+  --text-p--line-height: 1.375rem; /* 22px */
+  --text-p--font-weight: 360;
+  /* Figma "base" — single-line UI text. Kept off Tailwind's `text-base`
+     (16/24) so multi-line body copy doesn't collapse to a 15px line height. */
+  --text-ui: 0.9375rem; /* 15px */
+  --text-ui--line-height: 0.9375rem; /* 15px */
+  --text-ui--font-weight: 360;
+  --text-ui--letter-spacing: 0.5px;
+  --text-small: 0.75rem; /* 12px */
+}
+
+/* Figma styles that need font-family or text-transform, which text tokens
+   can't carry: caps, smallcaps, entity/base, entity/name, entity/label. */
+@utility text-caps {
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  letter-spacing: 0.07em; /* 7% tracking = 0.98px at 14px */
+  text-transform: uppercase;
+}
+
+@utility text-smallcaps {
+  font-size: 0.625rem; /* 10px */
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* Entity styles: 14px/15px. Figma tracking 0.1em is halved to 0.05em, same
+   rationale as the .font-mono base rule above. Figma weight for entity/base
+   is 425, but the static Mono cuts are 400/500 — 400 matches how badges
+   render today. */
+@utility text-entity-base {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+@utility text-entity-name {
+  font-family: var(--font-semi-mono);
+  font-size: 0.875rem;
+  line-height: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+@utility text-entity-label {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 0.9375rem;
+  font-weight: 425;
 }
