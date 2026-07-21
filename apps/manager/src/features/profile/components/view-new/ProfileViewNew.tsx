@@ -142,7 +142,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
           isOwner={isOwnerPending ? undefined : isOwner}
           name={name}
         />
-        <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-17.25 lg:landscape:max-w-226.25">
+        <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
           <div>
             <ProfileViewNewMigrationBanner
               isMigrationEnabled={migrationEnabled}

@@ -9,12 +9,17 @@ import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Name
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { cn } from '@/lib/utils'
 
 type UpgradeBannerProps = {
+  readonly className?: string
   readonly profileName?: string
 }
 
-export const UpgradeBanner = ({ profileName }: UpgradeBannerProps) => {
+export const UpgradeBanner = ({
+  className,
+  profileName,
+}: UpgradeBannerProps) => {
   const navigate = useNavigate()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
@@ -46,7 +51,12 @@ export const UpgradeBanner = ({ profileName }: UpgradeBannerProps) => {
   }
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8">
+    <div
+      className={cn(
+        'relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8',
+        className,
+      )}
+    >
       <GrainOverlay />
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">

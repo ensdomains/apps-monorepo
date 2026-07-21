@@ -44,7 +44,5 @@ export const ProfileViewNewMigrationBanner = ({
   name,
 }: ProfileViewNewMigrationBannerProps) =>
   isMigrationEnabled ? (
-    <div className="mb-6">
-      <UpgradeBanner profileName={name} />
-    </div>
+    <UpgradeBanner className="mb-6" profileName={name} />
   ) : null
