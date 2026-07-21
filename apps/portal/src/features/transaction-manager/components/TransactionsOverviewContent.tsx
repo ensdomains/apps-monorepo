@@ -77,7 +77,7 @@ export const TransactionsOverviewContent = ({
           {ensName ? (
             <div className="flex flex-col items-center gap-2 pt-10">
               <NameAvatar name={ensName} height="80px" width="80px" />
-              <h2 className="text-3xl font-medium text-foreground text-center max-w-full break-all">
+              <h2 className="text-h2 text-foreground text-center max-w-full break-all">
                 {ensName}
               </h2>
             </div>

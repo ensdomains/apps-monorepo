@@ -37,9 +37,9 @@ const V1RegistryInfo = ({
   const firstLabel = labels[0]
 
   return (
-    <div className="max-w-360 mx-auto w-full flex flex-col p-4 gap-4 sm:p-6 sm:gap-6">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-heading font-medium leading-none">Registry</h1>
+        <h1 className="text-h1">Registry</h1>
       </div>
 
       {/* V1 names have no per-name subregistry contract */}
@@ -48,7 +48,7 @@ const V1RegistryInfo = ({
         protocol={ownerData.protocolVersion}
         owner={ownerData.owner}
       />
-      <h2 className="leading-none text-heading font-medium">Parent Registry</h2>
+      <h2 className="text-h2">Parent Registry</h2>
       <RegistryCardsGrid
         label={labels[1]}
         protocol={ownerData.protocolVersion}

@@ -57,8 +57,8 @@ function RouteComponent() {
     )
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <h1 className="text-2xl md:text-heading font-medium leading-none">
+    <div className="flex flex-col gap-8">
+      <h1 className="text-2xl font-[425] md:text-h1">
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
 
@@ -102,7 +102,7 @@ function RouteComponent() {
 
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
-          <h2 className="text-2xl font-medium">History</h2>
+          <h2 className="text-h2">History</h2>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/resolver/$address/history" params={{ address }}>
               <Clock className="size-4" />

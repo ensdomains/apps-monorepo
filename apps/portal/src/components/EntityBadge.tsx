@@ -57,19 +57,19 @@ export const hoverBgClass: Record<EntityVariant, string> = {
   default: 'hover:bg-default-fill dark:hover:bg-entity-bg',
 }
 
-// Shared pill typography & layout.
-// No tracking class here — .font-mono sets letter-spacing: 0.1 em globally
-// (see src/styles/index.css @layer base).
+// Shared pill layout. Typography comes from the Figma entity styles
+// (text-entity-* utilities in src/styles/index.css): names are Semi-Mono 500,
+// everything else Mono (WEB-595).
 const pillBase =
   'inline-flex items-center h-5 px-1 rounded w-fit ' +
-  'font-mono text-sm leading-none whitespace-nowrap no-underline'
+  'leading-none whitespace-nowrap no-underline'
 
-const pillWeight = (variant: EntityVariant) =>
-  variant === 'name' ? 'font-medium' : 'font-normal'
+const pillType = (variant: EntityVariant) =>
+  variant === 'name' ? 'text-entity-name' : 'text-entity-base'
 
 // Standalone pill: self-contained bg + text (used when there are no chips).
 const pillClass = (variant: EntityVariant, className?: string) =>
-  cn(pillBase, pillWeight(variant), variantClass[variant], className)
+  cn(pillBase, pillType(variant), variantClass[variant], className)
 
 const chipClass = cn(
   'inline-flex items-center cursor-pointer transition-colors',
@@ -173,7 +173,7 @@ export const EntityBadge = ({
   const chainId = useChainId()
 
   const labelContent = label ? (
-    <span className="bg-background text-center font-sans font-[425] leading-none px-1 py-0.5 rounded-[2px] mr-1">
+    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
       {label}
     </span>
   ) : null
@@ -346,7 +346,7 @@ export const EntityBadge = ({
       <span
         className={cn(
           pillBase,
-          pillWeight(variant),
+          pillType(variant),
           'relative z-10',
           variantTextClass[variant],
           // Avatar sits flush against the left edge — remove left padding

@@ -12,9 +12,7 @@ export const InfoCard = ({
 }) => (
   <div className={cn('rounded-sm bg-background overflow-hidden', className)}>
     <div className="px-6 py-3">
-      <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
-        {title}
-      </span>
+      <span className="text-caps leading-none text-foreground">{title}</span>
     </div>
     <div>{children}</div>
   </div>

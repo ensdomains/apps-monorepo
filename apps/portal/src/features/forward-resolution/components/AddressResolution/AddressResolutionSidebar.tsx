@@ -41,7 +41,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { names } from '@/lib/reverseRegistrarChainId'
-import { fromCoinType } from '@/lib/utils'
+import { cn, fromCoinType } from '@/lib/utils'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { EditableRecord } from '@/utils/records/editRecordUtils'
 import type { ProtocolVersion } from '@/utils/types'
@@ -222,11 +222,14 @@ const PrimaryNameRow = ({
     <div className="flex items-center gap-2 flex-wrap">
       <Badge
         variant="outline"
-        className={
-          status === 'verified' || status === 'pending'
-            ? 'text-xs'
-            : 'text-xs text-muted-foreground'
-        }
+        className={cn(
+          'text-xs border-transparent',
+          match(status)
+            .with('verified', () => 'bg-success-fill text-success-text')
+            .with('pending', () => 'bg-accent-fill text-accent-text')
+            .with('unverifiable', () => 'bg-default-fill text-default-text')
+            .otherwise(() => 'bg-danger-fill text-danger-text'),
+        )}
       >
         {match(status)
           .with('verified', () => <CheckCircle2 className="size-4" />)
@@ -334,7 +337,7 @@ const ResolutionDetails = ({
   return (
     <div className="p-6 flex flex-col gap-6">
       <SheetHeader>
-        <SheetTitle className="font-sans text-heading font-medium">
+        <SheetTitle className="font-sans text-h2">
           {label} resolution
         </SheetTitle>
       </SheetHeader>

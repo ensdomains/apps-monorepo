@@ -74,7 +74,8 @@ export const DataTable = <TData, TValue>({
                 <TableCell
                   className={cn(
                     'px-4 sm:px-6',
-                    tableView.compact ? 'py-2' : 'py-4',
+                    // 40px rows per the Builder layout spec (WEB-595)
+                    tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                   )}
                   key={cell.id}
                 >
@@ -85,7 +86,10 @@ export const DataTable = <TData, TValue>({
           ))
         ) : (
           <TableRow>
-            <TableCell colSpan={columns.length} className="h-24 text-center">
+            <TableCell
+              colSpan={columns.length}
+              className="px-6 py-24 text-center"
+            >
               No results.
             </TableCell>
           </TableRow>

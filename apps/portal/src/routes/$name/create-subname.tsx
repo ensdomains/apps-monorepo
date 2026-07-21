@@ -54,7 +54,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <h1 className="text-[30px] font-medium leading-[1.35]">Create subname</h1>
+    <h1 className="text-h1">Create subname</h1>
   </div>
 )
 
@@ -212,7 +212,7 @@ const CreateSubnameForm = ({
 
   if (!hasSubregistry) {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-muted-foreground">
           This name does not have a subregistry. You must deploy one first to
@@ -228,7 +228,7 @@ const CreateSubnameForm = ({
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -401,7 +401,7 @@ const CreateSubnameContent = ({
 }: CreateSubnameContentProps) => {
   if (ownerData.protocolVersion !== 'ENSv2') {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-muted-foreground">
           This feature is only available for ENSv2 names.

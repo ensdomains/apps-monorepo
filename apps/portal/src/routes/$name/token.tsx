@@ -130,7 +130,7 @@ const TokenInfoCard = ({
                 </div>
 
                 <div className="px-8">
-                  <h3 className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground mb-4">
+                  <h3 className="text-caps leading-none text-foreground mb-4">
                     History
                   </h3>
                   <div className="border border-secondary rounded-lg overflow-hidden">
@@ -275,9 +275,9 @@ function RouteComponent() {
   const encoding = parts.map((part) => part.type).join(' + ')
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-360 mx-auto w-full">
+    <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-[30px] font-medium leading-tight">Token Info</h1>
+        <h1 className="text-h1">Token Info</h1>
       </header>
 
       {data?.protocolVersion === 'ENSv1' ? (
@@ -359,7 +359,7 @@ function RouteComponent() {
       {labels[0] ? (
         <div className="rounded-sm bg-background overflow-hidden">
           <div className="px-6 py-3">
-            <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
+            <span className="text-caps leading-none text-foreground">
               Labels
             </span>
           </div>
