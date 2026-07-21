@@ -37,6 +37,7 @@ import {
   computeResolverAddress,
   saltToHex,
 } from './commitment.js'
+import { createIntentExecutor, isIntentsTransport } from './intent-transport.js'
 import { getRolesConfig, ROLES_MODULE_ABI } from './roles.js'
 import type { PaymentToken } from './types.js'
 
@@ -99,6 +100,8 @@ export function createServerWalletClient(env: CloudflareBindings) {
   }
   const roles = getRolesConfig(env)
   const account = privateKeyToAccount(privateKey as Hex)
+  // Lazily created on first intents-transport write (one per client/job).
+  let intentExecutor: ReturnType<typeof createIntentExecutor> | null = null
   return createClient({
     chain: sepoliaWithEns,
     transport: http(SEPOLIA_RPC_URL),
@@ -115,18 +118,38 @@ export function createServerWalletClient(env: CloudflareBindings) {
       payer: (roles ? roles.safe : account.address) as Address,
       /**
        * Submit an on-chain write as the payer. Single chokepoint for every
-       * mutating call in the fulfilment flow, so the two execution modes
-       * cannot drift apart. `shouldRevert=true` bubbles inner failures into
-       * the outer tx, keeping receipt.status meaningful in Roles mode.
+       * mutating call in the fulfilment flow, so the execution modes cannot
+       * drift apart. `shouldRevert=true` bubbles inner failures into the
+       * outer tx, keeping receipt.status meaningful in Roles mode.
+       *
+       * Transports (orthogonal to Roles wrapping):
+       * - raw (default): the executor EOA signs the tx and pays gas in ETH.
+       * - intents (`FULFILMENT_TRANSPORT=intents`): the same call is carried
+       *   by a Rhinestone Warp intent — solvers pay the gas and are
+       *   reimbursed from the executor's USDC (the voucher's gasFee split).
+       *   The 7702 delegation keeps the executor's address, so the Roles
+       *   membership is transport-invariant. Resolves to the destination
+       *   fill hash, preserving callers' receipt/event parsing.
        */
       async execWrite(tx: { to: Address; data: Hex }): Promise<Hex> {
-        if (!roles) return client.sendTransaction(tx)
-        return client.writeContract({
-          address: roles.module,
-          abi: ROLES_MODULE_ABI,
-          functionName: 'execTransactionWithRole',
-          args: [tx.to, 0n, tx.data, 0, roles.roleKey, true],
-        })
+        // The Roles wrapping is identical for both transports: the payer at
+        // the target must be the Safe.
+        const call: { to: Address; data: Hex } = roles
+          ? {
+              to: roles.module,
+              data: encodeFunctionData({
+                abi: ROLES_MODULE_ABI,
+                functionName: 'execTransactionWithRole',
+                args: [tx.to, 0n, tx.data, 0, roles.roleKey, true],
+              }),
+            }
+          : tx
+
+        if (isIntentsTransport(env)) {
+          intentExecutor ??= createIntentExecutor(env)
+          return intentExecutor(call)
+        }
+        return client.sendTransaction(call)
       },
     }))
 }

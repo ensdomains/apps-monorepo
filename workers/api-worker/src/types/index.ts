@@ -52,11 +52,18 @@ declare global {
      */
     ALLOW_UNSIGNED_WEBHOOK?: string
     /**
-     * Rhinestone orchestrator API key. Used at order time to quote the
-     * fulfilment fee (solver fee + gas, in stables) — the orchestrator is
-     * the single pricing source for the voucher's gasFee component. Unset →
-     * order quotes use the conservative flat fallback fee.
+     * Rhinestone API key (price service + intents transport). A shared dev
+     * key ships in-repo (apps/manager/.env.ci) and is inlined as the
+     * default; set this to override.
      */
     RHINESTONE_API_KEY?: string
+    /**
+     * Fulfilment execution transport. `intents` routes every fulfilment
+     * write through Rhinestone Warp: solvers pay the destination gas and
+     * are reimbursed from the executor's USDC float (the voucher gasFee
+     * split) — no ETH in ops. Unset/other → raw executor-signed txs (the
+     * executor pays gas in ETH).
+     */
+    FULFILMENT_TRANSPORT?: string
   }
 }
