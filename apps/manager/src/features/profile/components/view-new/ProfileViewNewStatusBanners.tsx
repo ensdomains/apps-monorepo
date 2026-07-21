@@ -3,36 +3,48 @@ import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import type { getProfileNameExpiryStatus } from '@/features/profile/service/profileExpiry'
 
-type ProfileViewNewStatusBannersProps = {
+type ProfileViewNewGracePeriodBannerProps = {
+  readonly className?: string
   readonly expiry: ReturnType<typeof getProfileNameExpiryStatus>
-  readonly isMigrationEnabled: boolean
+  readonly isOwner?: boolean
   readonly name: string
 }
 
-export const ProfileViewNewStatusBanners = ({
+export const ProfileViewNewGracePeriodBanner = ({
+  className,
   expiry,
-  isMigrationEnabled,
+  isOwner,
   name,
-}: ProfileViewNewStatusBannersProps) => {
-  const graceBanner = match(expiry)
+}: ProfileViewNewGracePeriodBannerProps) =>
+  match({ expiry, isOwner })
     .with(
-      { isInGrace: true, graceEndDate: P.not(P.nullish) },
-      ({ graceEndDate }) => (
-        <GracePeriodBanner
-          graceEndDate={graceEndDate}
-          renewName={name}
-          variant="profileOwnName"
-        />
+      {
+        expiry: { isInGrace: true, graceEndDate: P.not(P.nullish) },
+        isOwner: P.boolean,
+      },
+      ({ expiry: { graceEndDate }, isOwner }) => (
+        <div className={className}>
+          <GracePeriodBanner
+            graceEndDate={graceEndDate}
+            renewName={name}
+            variant={isOwner ? 'profileOwnName' : 'profileNotOwnedName'}
+          />
+        </div>
       ),
     )
     .otherwise(() => null)
 
-  if (!isMigrationEnabled && !graceBanner) return null
-
-  return (
-    <div className="mb-6 space-y-4">
-      {isMigrationEnabled ? <UpgradeBanner profileName={name} /> : null}
-      {graceBanner}
-    </div>
-  )
+type ProfileViewNewMigrationBannerProps = {
+  readonly className?: string
+  readonly isMigrationEnabled: boolean
+  readonly name: string
 }
+
+export const ProfileViewNewMigrationBanner = ({
+  className,
+  isMigrationEnabled,
+  name,
+}: ProfileViewNewMigrationBannerProps) =>
+  isMigrationEnabled ? (
+    <UpgradeBanner className={className} profileName={name} />
+  ) : null
