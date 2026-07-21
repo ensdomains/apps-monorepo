@@ -97,11 +97,13 @@ async function createOrderIntent(
   ])
 
   // Server-authoritative total the voucher must carry: live register price
-  // + 10% drift headroom (the registrar pulls the live price at register
-  // time) + the orchestrator-quoted fulfilment fee (the gasFee component,
-  // forwarded on-chain to the executor at mint). The settle route enforces
-  // `amountPaid >= amount_due`.
-  const amountDue = price + price / 10n + gasFee
+  // + 2% drift headroom + the gas-economics fulfilment fee (the gasFee
+  // component, forwarded on-chain to the executor at mint). Headroom is
+  // deliberately thin: the premium component only DECAYS between quote and
+  // register (dutch auction), so the register-time price is ≤ the quoted
+  // price except for stepwise base-price oracle updates, which 2% covers.
+  // The settle route enforces `amountPaid >= amount_due`.
+  const amountDue = price + price / 50n + gasFee
 
   await getCrossmintDb(env).insert(crossmintOrders).values({
     id,
