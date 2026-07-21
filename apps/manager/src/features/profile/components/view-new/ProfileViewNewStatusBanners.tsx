@@ -35,14 +35,16 @@ export const ProfileViewNewGracePeriodBanner = ({
     .otherwise(() => null)
 
 type ProfileViewNewMigrationBannerProps = {
+  readonly className?: string
   readonly isMigrationEnabled: boolean
   readonly name: string
 }
 
 export const ProfileViewNewMigrationBanner = ({
+  className,
   isMigrationEnabled,
   name,
 }: ProfileViewNewMigrationBannerProps) =>
   isMigrationEnabled ? (
-    <UpgradeBanner className="mb-6" profileName={name} />
+    <UpgradeBanner className={className} profileName={name} />
   ) : null
