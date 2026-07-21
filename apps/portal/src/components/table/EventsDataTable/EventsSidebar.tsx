@@ -53,6 +53,8 @@ const TransactionDetails = ({
 
   const formattedTimestamp = formatTimestamp(timestamp)
 
+  console.log('data', data)
+
   // Extract name from events if not provided at top level
   const displayName =
     name || events.find((e) => e.id && !e.id.startsWith('0x'))?.id || ''
