@@ -3,6 +3,7 @@ import { getRegisterPrice as ensGetRegisterPrice } from '@ensdomains/ensjs/publi
 import { HTTPException } from 'hono/http-exception'
 import {
   type Address,
+  type Client,
   createClient,
   decodeEventLog,
   encodeFunctionData,
@@ -10,14 +11,17 @@ import {
   type Hex,
   http,
   isAddressEqual,
+  type PublicActions,
   type PublicClient,
   publicActions,
   type TransactionReceipt,
+  type Transport,
+  type WalletActions,
   walletActions,
   zeroAddress,
   zeroHash,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { type PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import {
   SEPOLIA_RPC_URL,
   sepoliaWithEns,
@@ -69,7 +73,21 @@ const SUBREGISTRY = zeroAddress
 // Fallback if the on-chain read fails (production v2 is 60s).
 const DEFAULT_MIN_COMMITMENT_AGE = 60n
 
-export type ServerWalletClient = ReturnType<typeof createServerWalletClient>
+/**
+ * Explicit shape (vs `ReturnType` extraction) so declaration emit references
+ * viem's PUBLIC named action types: since viem 2.55, inlining the inferred
+ * `.extend()` chain reaches unexported internals (actions/token/*) → TS2883.
+ */
+export type ServerWalletClient = Client<
+  Transport,
+  typeof sepoliaWithEns,
+  PrivateKeyAccount
+> &
+  PublicActions<Transport, typeof sepoliaWithEns, PrivateKeyAccount> &
+  WalletActions<typeof sepoliaWithEns, PrivateKeyAccount> & {
+    payer: Address
+    execWrite(tx: { to: Address; data: Hex }): Promise<Hex>
+  }
 
 /**
  * The server wallet that registers names on a buyer's behalf after a card
@@ -84,7 +102,9 @@ export type ServerWalletClient = ReturnType<typeof createServerWalletClient>
  * - Direct mode (legacy / local dev): writes are plain EOA txs and `payer`
  *   is the EOA itself.
  */
-export function createServerWalletClient(env: CloudflareBindings) {
+export function createServerWalletClient(
+  env: CloudflareBindings,
+): ServerWalletClient {
   // Prefer the DEDICATED role-member key. `ETH_PRIVATE_KEY` is the worker's
   // shared ops key (it also runs the faucet in `routes/wallet` — high nonce
   // traffic, large float) and is NOT a member of the registrar role; signing

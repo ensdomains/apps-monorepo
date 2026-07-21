@@ -29,6 +29,6 @@
     "@urql/exchange-retry": "^2.0.0",
     "graphql": "^16.11.0",
     "graphql-tag": "^2.12.6",
-    "viem": "^2.40.3"
+    "viem": "^2.55.4"
   }
 }
