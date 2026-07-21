@@ -120,3 +120,35 @@ via a preview-scoped build command (`build:dqa`, which forces `VITE_DQA=1`) or a
 preview-only build variable. The **production** environment uses the normal
 `build` with no `VITE_DQA`, so it cannot enable DQA. The flag is never present
 in a committed `.env`.
+
+## 7. Re-audit — 2026-07-21 (feature wave: redesign, reply threading, markdown export)
+
+Scope: changes since the last audit — thread/compose/picker redesign, reply →
+Linear threaded push, Markdown export, screenshot lightbox, pins toggle, ENS
+theming.
+
+**Verified clean (static review + live smoke test):**
+- All new `innerHTML` builders (`pathRowHtml`, `metaStripHtml`, `shotBoxHtml`,
+  thread/compose/picker markup) escape every dynamic value with `esc()`;
+  remaining interpolations are static markup, numeric counts, or fetch URLs
+  with server-generated UUIDs.
+- `pushReplyToLinear` uses the replier's own encrypted token (actor=user),
+  never a shared credential; dev sessions skip the push (`linearSynced: false`
+  confirmed live). Errors are caught — the DQA reply persists regardless.
+  `decrypt()` returns `null` on any failure (no throw in the async handler).
+- Lightbox: image `src` comes only from same-origin `/uploads/` paths; caption
+  set via `textContent`; Escape listener removed on close.
+- Auth still enforced on every mutating endpoint (401 without token verified);
+  upload path traversal returns 404; blank replies rejected (400).
+- `.env.local` gitignored in both apps; no `VITE_DQA` in tracked env files.
+
+**Fixed in this pass (previously missing input caps):**
+- `POST /api/comments`: `body` capped at 5,000 chars, `url` at 2,000,
+  `issueRef` at 40; `anchor` now sanitized (selector ≤500, label ≤200,
+  numeric offsets validated, unknown keys dropped) instead of stored raw;
+  `imageUrl` now restricted to our own `/uploads/` paths (the "after" image
+  already was — external URLs are rejected).
+- `POST /api/comments/:id/reply`: body trimmed, required, capped at 5,000.
+
+All verified against a live server instance (sanitizer clamps confirmed via
+oversized/malicious payloads).
