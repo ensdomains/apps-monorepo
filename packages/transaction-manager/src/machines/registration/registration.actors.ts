@@ -1418,13 +1418,6 @@ const VOUCHER_MINT_ABI = parseAbi([
   'event VoucherMinted(uint256 indexed tokenId, address indexed to, bytes32 indexed commitment, uint256 duration, address paymentToken, uint256 amountPaid)',
 ])
 
-/**
- * Fulfilment-gas component of the mint, forwarded on-chain to the executor.
- * TODO(WEB-7 quote wiring): replace with the order's server-quoted gasFee
- * (orchestrator quote folded into amount_due) once the worker returns it.
- */
-const VOUCHER_GAS_FEE = 0n
-
 const VOUCHER_PERMIT_PROBE = parseAbi([
   'function nonces(address owner) view returns (uint256)',
   'function DOMAIN_SEPARATOR() view returns (bytes32)',
@@ -1441,7 +1434,10 @@ export type MintVoucherInput = {
   walletClient: import('viem').WalletClient
   owner: Address
   token: Address
+  /** TOTAL settlement pulled from the buyer (price + headroom + gasFee). */
   amount: bigint
+  /** Server-quoted fulfilment-gas component, forwarded to the executor. */
+  gasFee: bigint
   commitment: Hash
   duration: bigint
 }
@@ -1502,6 +1498,7 @@ async function mintWithPermit(
   owner: Address,
   token: Address,
   amount: bigint,
+  gasFee: bigint,
   commitment: Hash,
   duration: bigint,
 ): Promise<Hash> {
@@ -1557,7 +1554,7 @@ async function mintWithPermit(
       duration,
       token,
       amount,
-      VOUCHER_GAS_FEE,
+      gasFee,
       deadline,
       v as unknown as number,
       r as Hash,
@@ -1578,6 +1575,7 @@ async function approveThenMint(
   owner: Address,
   token: Address,
   amount: bigint,
+  gasFee: bigint,
   commitment: Hash,
   duration: bigint,
 ): Promise<Hash> {
@@ -1604,7 +1602,7 @@ async function approveThenMint(
     address: getVoucherAddress(),
     abi: VOUCHER_MINT_ABI,
     functionName: 'mintSelf',
-    args: [commitment, duration, token, amount, VOUCHER_GAS_FEE],
+    args: [commitment, duration, token, amount, gasFee],
   })
 }
 
@@ -1622,6 +1620,7 @@ export function mintVoucherActor(
     owner,
     token,
     amount,
+    gasFee,
     commitment,
     duration,
   } = input
@@ -1635,6 +1634,7 @@ export function mintVoucherActor(
           owner,
           token,
           amount,
+          gasFee,
           commitment,
           duration,
         )
@@ -1645,6 +1645,7 @@ export function mintVoucherActor(
         owner,
         token,
         amount,
+        gasFee,
         commitment,
         duration,
       )

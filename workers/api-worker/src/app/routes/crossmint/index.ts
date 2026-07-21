@@ -23,6 +23,7 @@ import {
   precomputeOrderCommitment,
   VOUCHER_ADDRESS,
 } from '#services/crossmint/fulfilment.js'
+import { quoteFulfilmentFee } from '#services/crossmint/intent-quote.js'
 import {
   type CreateOrderBody,
   CreateOrderBodySchema,
@@ -52,7 +53,12 @@ async function createOrderIntent(
   env: CloudflareBindings,
   body: CreateOrderBody,
   userId: string | null,
-): Promise<{ orderId: string; commitment: Hex }> {
+): Promise<{
+  orderId: string
+  commitment: Hex
+  totalDue: string
+  gasFee: string
+}> {
   const id = crypto.randomUUID()
   const label = body.name.replace(/\.eth$/, '')
   const secret = generateSecret()
@@ -73,16 +79,29 @@ async function createOrderIntent(
       ? privateKeyToAccount(directKey as Hex).address
       : zeroAddress)
 
-  const { resolver, commitment } = await precomputeOrderCommitment(
-    publicClient,
-    deployer,
-    {
+  // The commitment precompute and the fee quote are independent — run them
+  // concurrently; register-price read joins them for the order total.
+  const [{ resolver, commitment }, price, gasFee] = await Promise.all([
+    precomputeOrderCommitment(publicClient, deployer, {
       label,
       buyer: body.ownerAddress as Address,
       secret,
       duration: BigInt(body.durationSeconds),
-    },
-  )
+    }),
+    getRegisterPriceTotal(publicClient, {
+      label,
+      duration: BigInt(body.durationSeconds),
+      paymentToken: PAYMENT_TOKENS[body.paymentToken],
+    }),
+    quoteFulfilmentFee(env),
+  ])
+
+  // Server-authoritative total the voucher must carry: live register price
+  // + 10% drift headroom (the registrar pulls the live price at register
+  // time) + the orchestrator-quoted fulfilment fee (the gasFee component,
+  // forwarded on-chain to the executor at mint). The settle route enforces
+  // `amountPaid >= amount_due`.
+  const amountDue = price + price / 10n + gasFee
 
   await getCrossmintDb(env).insert(crossmintOrders).values({
     id,
@@ -94,10 +113,16 @@ async function createOrderIntent(
     commitment,
     resolver_address: resolver,
     payment_token: body.paymentToken,
+    amount_due: amountDue.toString(),
     status: 'pending',
   })
 
-  return { orderId: id, commitment }
+  return {
+    orderId: id,
+    commitment,
+    totalDue: amountDue.toString(),
+    gasFee: gasFee.toString(),
+  }
 }
 
 /** Publicly readable order-status projection (no secret, no user_id). */
@@ -135,7 +160,7 @@ export default createApp()
         )
       }
 
-      const { orderId, commitment } = await createOrderIntent(
+      const { orderId, commitment, totalDue, gasFee } = await createOrderIntent(
         c.env,
         body,
         c.var.user_id,
@@ -145,7 +170,7 @@ export default createApp()
         orderId,
         user_id: c.var.user_id,
       })
-      return c.json({ orderId, commitment })
+      return c.json({ orderId, commitment, totalDue, gasFee })
     },
   )
   /** Poll the fulfilment status of an order (scoped to the buyer's wallet). */
@@ -187,10 +212,18 @@ export default createApp()
     vValidator('json', CreateOrderBodySchema),
     async (c) => {
       const body = c.req.valid('json')
-      const { orderId, commitment } = await createOrderIntent(c.env, body, null)
+      const { orderId, commitment, totalDue, gasFee } = await createOrderIntent(
+        c.env,
+        body,
+        null,
+      )
 
-      logger.info('Self-pay voucher order intent created', { orderId })
-      return c.json({ orderId, commitment })
+      logger.info('Self-pay voucher order intent created', {
+        orderId,
+        totalDue,
+        gasFee,
+      })
+      return c.json({ orderId, commitment, totalDue, gasFee })
     },
   )
   /**
@@ -280,15 +313,21 @@ export default createApp()
         return c.json({ error: 'Voucher paid in an unexpected token' }, 400)
       }
 
-      const price = await getRegisterPriceTotal(publicClient, {
-        label: order.name,
-        duration: BigInt(order.duration),
-        paymentToken: expectedToken,
-      })
-      if (amountPaid < price) {
+      // The order IS a quote: enforce the server-authoritative amount_due
+      // (price + headroom + fulfilment gasFee, fixed at order time) when
+      // present. Legacy rows without one fall back to the live register
+      // price as the floor.
+      const minDue = order.amount_due
+        ? BigInt(order.amount_due)
+        : await getRegisterPriceTotal(publicClient, {
+            label: order.name,
+            duration: BigInt(order.duration),
+            paymentToken: expectedToken,
+          })
+      if (amountPaid < minDue) {
         return c.json(
           {
-            error: `Voucher underpaid: carries ${amountPaid}, current register price is ${price}`,
+            error: `Voucher underpaid: carries ${amountPaid}, order total due is ${minDue}`,
           },
           400,
         )

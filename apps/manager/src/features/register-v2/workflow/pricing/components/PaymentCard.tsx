@@ -4,7 +4,7 @@ import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { type Address, type Hex, parseUnits } from 'viem'
+import type { Address, Hex } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
@@ -27,11 +27,6 @@ import {
 // Crossmint's default per-transaction credit-card limit (USD). Above this the
 // card option is disabled with a warning (per WEB-7).
 const CARD_LIMIT_USD = 1500
-
-// Headroom over the quoted price for the voucher mint (the registrar pulls the
-// live price at register time, which can drift up). Mirrors the worker's
-// authorizedPaymentAmount.
-const withHeadroom = (amount: bigint) => amount + amount / 10n
 
 // Load the Crossmint dialog client-only: the @crossmint SDK performs disallowed
 // operations (async I/O / random values) at module top-level, which crash SSR
@@ -117,9 +112,11 @@ export const PaymentCard = () => {
         },
       })
       if (!res.ok) throw new Error(`Failed to create order (${res.status})`)
-      const { orderId, commitment } = (await res.json()) as {
+      const { orderId, commitment, totalDue, gasFee } = (await res.json()) as {
         orderId: string
         commitment: Hex
+        totalDue: string
+        gasFee: string
       }
 
       // 2. Start the registration machine with voucher data. The machine
@@ -148,12 +145,13 @@ export const PaymentCard = () => {
           orderId,
           commitment,
           paymentToken: TOKENS.USDC.address as Address,
-          // Headroom over the quoted price (the registrar pulls the live
-          // price at register time, which can drift up). Mirrors the
-          // worker's authorizedPaymentAmount.
-          paymentAmount: withHeadroom(
-            parseUnits(String(totalPriceUsd ?? 0), TOKENS.USDC.decimals),
-          ),
+          // Server-authoritative quote: register price + drift headroom +
+          // the orchestrator-quoted fulfilment gasFee. The mint pulls the
+          // TOTAL from the buyer; the voucher forwards the gasFee component
+          // on-chain to the fulfilment executor (buyer funds their own gas).
+          // Settle enforces amountPaid >= this total.
+          paymentAmount: BigInt(totalDue),
+          gasFee: BigInt(gasFee),
           walletClient,
           pollOrderStatus: async () => {
             // Public-by-UUID status endpoint — no auth, so an expired SIWE

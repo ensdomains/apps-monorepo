@@ -42,7 +42,7 @@ import type { PaymentToken } from './types.js'
 
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
-const CONTRACTS = {
+export const CONTRACTS = {
   ETHRegistrar: ensjsSepolia.ensEthRegistrar.address,
   VerifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
   DedicatedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,

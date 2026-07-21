@@ -85,6 +85,8 @@ type Events =
         commitment: `0x${string}`
         paymentToken: Address
         paymentAmount: bigint
+        /** Server-quoted fulfilment-gas component (from the order quote). */
+        gasFee: bigint
         walletClient: import('viem').WalletClient
         /** Auth-aware order status poll (JWT-gated endpoint). */
         pollOrderStatus: () => Promise<{

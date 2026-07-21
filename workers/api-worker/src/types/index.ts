@@ -51,5 +51,12 @@ declare global {
      * `/crossmint/voucher/orders/:id/settle` with on-chain proof.
      */
     ALLOW_UNSIGNED_WEBHOOK?: string
+    /**
+     * Rhinestone orchestrator API key. Used at order time to quote the
+     * fulfilment fee (solver fee + gas, in stables) — the orchestrator is
+     * the single pricing source for the voucher's gasFee component. Unset →
+     * order quotes use the conservative flat fallback fee.
+     */
+    RHINESTONE_API_KEY?: string
   }
 }

@@ -122,8 +122,10 @@ export type RegistrationContext = {
   voucherOrderCommitment?: Hash
   /** Payment token address for the voucher mint. */
   voucherPaymentToken?: Address
-  /** Payment amount (in token units) for the voucher mint. */
+  /** TOTAL payment amount (in token units) for the voucher mint. */
   voucherPaymentAmount?: bigint
+  /** Server-quoted fulfilment-gas component of the mint. */
+  voucherGasFee?: bigint
   /** Tx hash of the voucher mint transaction, used for receipt polling. */
   voucherMintTxId?: Hash
   /** Wallet client used to send the voucher mint transaction. */
@@ -188,8 +190,11 @@ export type RegistrationEvent =
         commitment: Hash
         /** Payment token address. */
         paymentToken: Address
-        /** Payment amount in token units. */
+        /** TOTAL payment amount in token units (price + headroom + gasFee). */
         paymentAmount: bigint
+        /** Server-quoted fulfilment-gas component, forwarded on-chain to the
+         * executor by the voucher's gasFee split. */
+        gasFee: bigint
         /** Wallet client for sending the mint transaction. */
         walletClient: import('viem').WalletClient
         /**
@@ -398,6 +403,7 @@ export const registrationMachine = setup({
         owner: Address
         token: Address
         amount: bigint
+        gasFee: bigint
         commitment: import('viem').Hash
         duration: bigint
       }) => {
@@ -590,6 +596,10 @@ export const registrationMachine = setup({
             voucherPaymentAmount: ({ event }) =>
               event.type === 'START_REGISTRATION'
                 ? event.voucherOrder?.paymentAmount
+                : undefined,
+            voucherGasFee: ({ event }) =>
+              event.type === 'START_REGISTRATION'
+                ? event.voucherOrder?.gasFee
                 : undefined,
             voucherMintTxId: () => undefined,
             voucherWalletClient: ({ event }) =>
@@ -1379,6 +1389,7 @@ export const registrationMachine = setup({
           token: context.voucherPaymentToken!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           amount: context.voucherPaymentAmount!,
+          gasFee: context.voucherGasFee ?? 0n,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           commitment: context.voucherOrderCommitment!,
           duration: context.duration,
