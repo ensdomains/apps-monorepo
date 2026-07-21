@@ -1,17 +1,22 @@
 /**
  * Unified dev/QA tooling — TanStack-style floating trigger beside the router
- * devtools, with a tabbed bottom sheet: one tab per enabled tool (Time Travel,
- * Migration, Design QA, …). Add future tools by pushing another entry into the
- * `tabs` array. The active tab persists across reloads; the sheet can be
- * expanded for tools that need more room.
+ * devtools, with a tabbed bottom sheet or right sidebar: one tab per enabled
+ * tool (Time Travel, Migration, Design QA, …). The active tab and dock layout
+ * persist across reloads.
  */
 
 import {
+  createMockDqaApi,
+  type DqaApi,
+  type DqaAuthConfig,
   DqaPanelContent,
+  type DqaUser,
   getDqaTheme,
   isDQAEnabled,
+  isDqaMockUiEnabled,
   loadDqaOverlay,
   subscribeDqaTheme,
+  toggleDqaTheme,
 } from '@ens-apps/dev-dqa-overlay'
 import {
   isMigrationToolEnabled,
@@ -29,7 +34,15 @@ import {
   useState,
 } from 'react'
 import { isDevDrawerEnabled } from './config'
+import { DqaAuthButton } from './DqaAuthButton'
 import { DRAWER, DRAWER_THEME_VARS } from './drawerTheme'
+import { EnsMark } from './EnsMark'
+import {
+  type DevToolsLayout,
+  getDevToolsLayout,
+  setDevToolsLayout,
+  subscribeDevToolsLayout,
+} from './layoutPreference'
 
 const TANSTACK_DEVTOOLS_OFFSET = 168 - 10
 
@@ -62,10 +75,10 @@ function DevDrawerGate() {
     const settle = () => {
       if (done) return
       done = true
-      // One extra idle tick so first data/paint has a chance to land.
       const idle =
         (window as { requestIdleCallback?: (cb: () => void) => number })
-          .requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300))
+          .requestIdleCallback ??
+        ((cb: () => void) => window.setTimeout(cb, 300))
       idle(() => setReady(true))
     }
     if (document.readyState === 'complete') settle()
@@ -78,18 +91,26 @@ function DevDrawerGate() {
 }
 
 function DevDrawerInner() {
-  // Two-phase mount for the slide animation: `rendered` mounts the sheet,
-  // `shown` (set a frame later) slides it in; closing reverses and unmounts
-  // on transitionend.
   const [rendered, setRendered] = useState(false)
   const [shown, setShown] = useState(false)
   const [settled, setSettled] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  // Drawer-wide theme (dark default) — shared with the DQA overlay/panel via
-  // localStorage `dqa_theme`; the DQA toolbar toggle updates it live.
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getDqaTheme())
+  const [layout, setLayout] = useState<DevToolsLayout>(() =>
+    getDevToolsLayout(),
+  )
+  const [dqaApi, setDqaApi] = useState<DqaApi | null>(null)
+  const [dqaUser, setDqaUser] = useState<DqaUser | null>(null)
+  const [dqaAuthenticated, setDqaAuthenticated] = useState(false)
+  const [dqaAuthConfig, setDqaAuthConfig] = useState<DqaAuthConfig | null>(null)
+  const [dqaSignInError, setDqaSignInError] = useState<string | null>(null)
+  const [dqaReady, setDqaReady] = useState(false)
+  const [dqaPresence, setDqaPresence] = useState<readonly DqaUser[]>([])
+  const [dqaShowPins, setDqaShowPins] = useState(true)
+  const isSidebar = layout === 'sidebar'
 
   useEffect(() => subscribeDqaTheme(setTheme), [])
+  useEffect(() => subscribeDevToolsLayout(setLayout), [])
   const [activeKey, setActiveKey] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     try {
@@ -103,30 +124,78 @@ function DevDrawerInner() {
   const dqaEnabled = isDQAEnabled()
 
   useEffect(() => {
-    if (dqaEnabled) void loadDqaOverlay()
+    if (dqaEnabled && !isDqaMockUiEnabled()) void loadDqaOverlay()
+  }, [dqaEnabled])
+
+  // Track DQA auth for the topbar Sign in / profile control.
+  useEffect(() => {
+    if (!dqaEnabled) {
+      setDqaApi(null)
+      setDqaUser(null)
+      setDqaAuthenticated(false)
+      setDqaAuthConfig(null)
+      setDqaSignInError(null)
+      setDqaReady(false)
+      return
+    }
+    let unsubscribe: (() => void) | undefined
+    let cancelled = false
+
+    const apply = (state: {
+      user: DqaUser | null
+      authenticated: boolean
+      authConfig: DqaAuthConfig | null
+      signInError: string | null
+      ready: boolean
+      loading: boolean
+      presence?: readonly DqaUser[]
+      showPins?: boolean
+    }) => {
+      setDqaUser(state.user)
+      setDqaAuthenticated(state.authenticated)
+      setDqaAuthConfig(state.authConfig)
+      setDqaSignInError(state.signInError)
+      setDqaReady(state.ready && !state.loading)
+      setDqaPresence(state.presence ?? [])
+      setDqaShowPins(state.showPins !== false)
+    }
+
+    const attach = (api: DqaApi) => {
+      if (cancelled) return
+      setDqaApi(api)
+      apply(api.getState())
+      unsubscribe = api.subscribe(apply)
+      void api.fetchAuthConfig().then((config) => {
+        if (!cancelled) setDqaAuthConfig(config)
+      })
+    }
+
+    if (isDqaMockUiEnabled()) {
+      const api = window.__DQA__ ?? createMockDqaApi()
+      window.__DQA__ = api
+      attach(api)
+    } else {
+      void loadDqaOverlay()
+        .then(attach)
+        .catch(() => {})
+    }
+
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+    }
   }, [dqaEnabled])
 
   // Close the drawer when DQA comment mode turns on so the reviewer sees the
   // full page while picking an element (only reacts to the transition).
   useEffect(() => {
-    if (!dqaEnabled || !rendered) return
-    let unsubscribe: (() => void) | undefined
-    let cancelled = false
-    void loadDqaOverlay()
-      .then((api) => {
-        if (cancelled) return
-        let prev = api.getState().commentMode
-        unsubscribe = api.subscribe((state) => {
-          if (state.commentMode && !prev) setShown(false)
-          prev = state.commentMode
-        })
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-      unsubscribe?.()
-    }
-  }, [dqaEnabled, rendered])
+    if (!dqaEnabled || !rendered || !dqaApi) return
+    let prev = dqaApi.getState().commentMode
+    return dqaApi.subscribe((state) => {
+      if (state.commentMode && !prev) setShown(false)
+      prev = state.commentMode
+    })
+  }, [dqaEnabled, rendered, dqaApi])
 
   useEffect(() => {
     if (!rendered) {
@@ -143,27 +212,33 @@ function DevDrawerInner() {
     if (!shown) setSettled(false)
   }, [shown])
 
-  // Reserve scroll room for the open sheet (like TanStack devtools): pad the
-  // body by the panel's measured height so it never covers page content, and
-  // restore on close. ResizeObserver keeps it in sync with expand/viewport.
   const panelRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (!rendered) return
     const panel = panelRef.current
     if (!panel) return
     const body = document.body
-    const previousPadding = body.style.paddingBottom
+    const previousPaddingBottom = body.style.paddingBottom
+    const previousPaddingRight = body.style.paddingRight
     const apply = () => {
-      body.style.paddingBottom = `${panel.getBoundingClientRect().height}px`
+      const rect = panel.getBoundingClientRect()
+      if (isSidebar) {
+        body.style.paddingRight = `${rect.width}px`
+        body.style.paddingBottom = previousPaddingBottom
+      } else {
+        body.style.paddingBottom = `${rect.height}px`
+        body.style.paddingRight = previousPaddingRight
+      }
     }
     apply()
     const observer = new ResizeObserver(apply)
     observer.observe(panel)
     return () => {
       observer.disconnect()
-      body.style.paddingBottom = previousPadding
+      body.style.paddingBottom = previousPaddingBottom
+      body.style.paddingRight = previousPaddingRight
     }
-  }, [rendered])
+  }, [rendered, isSidebar])
 
   const tabs: ToolTab[] = []
 
@@ -180,7 +255,7 @@ function DevDrawerInner() {
     tabs.push({
       key: 'migration',
       label: 'Migration',
-      accent: '#e7a259',
+      accent: '#e7a259', // ens-citrine-400
       content: <MigrationPanelContent />,
     })
   }
@@ -189,7 +264,7 @@ function DevDrawerInner() {
     tabs.push({
       key: 'dqa',
       label: 'Design QA',
-      accent: '#b34ad7',
+      accent: '#f53293', // ens-garnet-core (brand magenta)
       content: <DqaPanelContent />,
     })
   }
@@ -206,10 +281,120 @@ function DevDrawerInner() {
     } catch {}
   }
 
+  const toolTabs = (
+    <div
+      style={{
+        ...tabsRowStyle,
+        ...(isSidebar ? sidebarTabsRowStyle : undefined),
+      }}
+      role="tablist"
+      aria-label="Dev tools"
+    >
+      {tabs.map((tab) => {
+        const isActive = tab.key === active.key
+        return (
+          <button
+            aria-selected={isActive}
+            key={tab.key}
+            onClick={() => selectTab(tab.key)}
+            role="tab"
+            style={{
+              ...tabStyle,
+              ...(isActive
+                ? {
+                    background: DRAWER.accentBg,
+                    borderColor: DRAWER.accentBorder,
+                    color: DRAWER.fg,
+                    fontWeight: 600,
+                  }
+                : undefined),
+            }}
+            type="button"
+          >
+            <span
+              aria-hidden
+              style={{ ...tabDotStyle, background: tab.accent }}
+            />
+            {tab.label}
+            <span aria-hidden style={tabChevronStyle}>
+              ›
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+
+  const headerUtils = (
+    <div style={headerActionsStyle}>
+      {dqaEnabled && (
+        <DqaAuthButton
+          api={dqaApi}
+          authenticated={dqaAuthenticated}
+          devAllowed={!!dqaAuthConfig?.devAllowed}
+          oauthConfigured={!!dqaAuthConfig?.oauthConfigured}
+          ready={dqaReady}
+          signInError={dqaSignInError}
+          user={dqaUser}
+        />
+      )}
+      <button
+        aria-label={
+          isSidebar
+            ? 'Switch to bottom sheet layout'
+            : 'Switch to sidebar layout'
+        }
+        onClick={() => setDevToolsLayout(isSidebar ? 'bottom' : 'sidebar')}
+        style={{
+          ...headerBtnStyle,
+          ...(isSidebar ? headerBtnActiveStyle : undefined),
+        }}
+        title={
+          isSidebar
+            ? 'Layout: sidebar — click for bottom sheet'
+            : 'Layout: bottom — click for sidebar'
+        }
+        type="button"
+      >
+        {isSidebar ? <IconPanelBottom /> : <IconPanelRight />}
+      </button>
+      <button
+        aria-label={
+          theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
+        }
+        onClick={() => toggleDqaTheme()}
+        style={headerBtnStyle}
+        title={`Theme: ${theme} — click to switch`}
+        type="button"
+      >
+        {theme === 'dark' ? <IconSun /> : <IconMoon />}
+      </button>
+      {!isSidebar && (
+        <button
+          aria-label={expanded ? 'Shrink dev tools' : 'Expand dev tools'}
+          onClick={() => setExpanded((value) => !value)}
+          style={headerBtnStyle}
+          title={expanded ? 'Shrink' : 'Expand'}
+          type="button"
+        >
+          {expanded ? '⌄' : '⌃'}
+        </button>
+      )}
+      <button
+        aria-label="Close dev tools"
+        onClick={() => setShown(false)}
+        style={headerBtnStyle}
+        type="button"
+      >
+        ✕
+      </button>
+    </div>
+  )
+
   return (
     <>
       {rendered && (
-        <div
+        <section
           data-dqa-ignore=""
           ref={panelRef}
           onTransitionEnd={(event) => {
@@ -218,79 +403,37 @@ function DevDrawerInner() {
             else setSettled(true)
           }}
           style={{
-            ...panelStyle,
+            ...(isSidebar ? sidebarPanelStyle : panelStyle),
             ...DRAWER_THEME_VARS[theme],
-            height: expanded ? '85vh' : PANEL_HEIGHT,
-            // `none` once settled: a lingering transform forces subpixel
-            // compositing that renders text blurry.
+            ...(isSidebar
+              ? { width: SIDEBAR_WIDTH }
+              : { height: expanded ? '85vh' : PANEL_HEIGHT }),
             transform: shown
               ? settled
                 ? 'none'
-                : 'translateY(0)'
-              : 'translateY(100%)',
+                : isSidebar
+                  ? 'translateX(0)'
+                  : 'translateY(0)'
+              : isSidebar
+                ? 'translateX(100%)'
+                : 'translateY(100%)',
           }}
-          role="region"
           aria-label="ENS dev tools"
         >
           <div style={panelHeaderStyle}>
             <div style={panelBrandStyle}>
-              <span style={panelBrandMarkStyle}>ENS</span>
+              <span aria-hidden style={panelBrandLogoStyle}>
+                <EnsMark size={13} style={{ color: 'currentColor' }} />
+              </span>
               <span style={panelBrandTitleStyle}>Dev tools</span>
             </div>
-            <div style={tabsRowStyle} role="tablist" aria-label="Dev tools">
-              {tabs.map((tab) => {
-                const isActive = tab.key === active.key
-                return (
-                  <button
-                    aria-selected={isActive}
-                    key={tab.key}
-                    onClick={() => selectTab(tab.key)}
-                    role="tab"
-                    style={{
-                      ...tabStyle,
-                      ...(isActive
-                        ? {
-                            background: DRAWER.accentBg,
-                            borderColor: tab.accent,
-                            color: DRAWER.accentDense,
-                          }
-                        : undefined),
-                    }}
-                    type="button"
-                  >
-                    <span
-                      aria-hidden
-                      style={{ ...tabDotStyle, background: tab.accent }}
-                    />
-                    {tab.label}
-                  </button>
-                )
-              })}
-            </div>
-            <div style={headerActionsStyle}>
-              <button
-                aria-label={expanded ? 'Shrink dev tools' : 'Expand dev tools'}
-                onClick={() => setExpanded((value) => !value)}
-                style={headerBtnStyle}
-                title={expanded ? 'Shrink' : 'Expand'}
-                type="button"
-              >
-                {expanded ? '⌄' : '⌃'}
-              </button>
-              <button
-                aria-label="Close dev tools"
-                onClick={() => setShown(false)}
-                style={headerBtnStyle}
-                type="button"
-              >
-                ✕
-              </button>
-            </div>
+            {headerUtils}
           </div>
           <div style={tabContentStyle} role="tabpanel">
-            {active.content}
+            {toolTabs}
+            <div style={activeToolStyle}>{active.content}</div>
           </div>
-        </div>
+        </section>
       )}
 
       {!rendered && (
@@ -302,19 +445,186 @@ function DevDrawerInner() {
           style={{ ...toggleStyle, ...DRAWER_THEME_VARS[theme] }}
           type="button"
         >
-          <span style={toggleMarkStyle}>ENS</span>
+          <EnsMark size={14} style={{ color: 'currentColor', flexShrink: 0 }} />
           <span style={toggleLabelStyle}>Dev tools</span>
-          <span style={toggleDotsStyle}>
-            {tabs.map((tab) => (
-              <span
-                key={tab.key}
-                style={{ ...statusDotStyle, background: tab.accent }}
-              />
-            ))}
-          </span>
+          {dqaPresence.length > 0 ? (
+            // Live viewers (max 3 avatars + "N viewing"); full list is in the
+            // open DQA toolbar.
+            <span
+              style={togglePresenceStyle}
+              title={`${dqaPresence.length} viewing: ${dqaPresence.map((p) => p.name).join(', ')}`}
+            >
+              <span style={triggerAvatarsStyle}>
+                {dqaPresence.slice(0, 3).map((p, i) => (
+                  <span
+                    key={p.id}
+                    style={{
+                      ...triggerAvatarStyle,
+                      background: p.color ?? '#6b7280',
+                      marginLeft: i === 0 ? 0 : -5,
+                    }}
+                  >
+                    {(p.name || '?').slice(0, 1).toUpperCase()}
+                  </span>
+                ))}
+              </span>
+              {dqaPresence.length > 3 && (
+                <span style={triggerMoreStyle}>+{dqaPresence.length - 3}</span>
+              )}
+            </span>
+          ) : (
+            <span style={toggleDotsStyle}>
+              {tabs.map((tab) => (
+                <span
+                  key={tab.key}
+                  style={{ ...statusDotStyle, background: tab.accent }}
+                />
+              ))}
+            </span>
+          )}
+          {dqaAuthenticated && dqaApi?.setShowPins && (
+            // Quick pins toggle without opening the drawer. A span (not a
+            // nested <button>) because it sits inside the trigger button.
+            <span
+              onClick={(event) => {
+                event.stopPropagation()
+                dqaApi.setShowPins?.(!dqaShowPins)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  dqaApi.setShowPins?.(!dqaShowPins)
+                }
+              }}
+              role="button"
+              style={triggerEyeStyle}
+              tabIndex={0}
+              title={
+                dqaShowPins
+                  ? 'Hide comment bubbles on the page'
+                  : 'Show comment bubbles on the page'
+              }
+            >
+              <TriggerEyeIcon off={!dqaShowPins} />
+            </span>
+          )}
         </button>
       )}
     </>
+  )
+}
+
+function TriggerEyeIcon({ off }: { readonly off?: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      focusable="false"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      style={{ width: 12, height: 12, display: 'block' }}
+      viewBox="0 0 24 24"
+    >
+      {off ? (
+        <>
+          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68" />
+          <path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61" />
+          <line x1="2" x2="22" y1="2" y2="22" />
+        </>
+      ) : (
+        <>
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
+    </svg>
+  )
+}
+
+function IconPanelRight() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      focusable="false"
+      height="14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.75"
+      viewBox="0 0 16 16"
+      width="14"
+    >
+      <title>Sidebar layout</title>
+      <rect height="12" rx="1.5" width="12" x="2" y="2" />
+      <path d="M10 2v12" />
+    </svg>
+  )
+}
+
+function IconPanelBottom() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      focusable="false"
+      height="14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.75"
+      viewBox="0 0 16 16"
+      width="14"
+    >
+      <title>Bottom layout</title>
+      <rect height="12" rx="1.5" width="12" x="2" y="2" />
+      <path d="M2 10h12" />
+    </svg>
+  )
+}
+
+function IconSun() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      focusable="false"
+      height="14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.75"
+      viewBox="0 0 16 16"
+      width="14"
+    >
+      <title>Light theme</title>
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1" />
+    </svg>
+  )
+}
+
+function IconMoon() {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      focusable="false"
+      height="14"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.75"
+      viewBox="0 0 16 16"
+      width="14"
+    >
+      <title>Dark theme</title>
+      <path d="M13.5 9.2A5.5 5.5 0 0 1 6.8 2.5 5.5 5.5 0 1 0 13.5 9.2Z" />
+    </svg>
   )
 }
 
@@ -322,6 +632,7 @@ const Z_PANEL = 2_147_483_640
 const Z_TOGGLE = 2_147_483_645
 
 const PANEL_HEIGHT = 'min(52vh, 520px)'
+const SIDEBAR_WIDTH = 'min(380px, 100vw)'
 
 const panelStyle: CSSProperties = {
   position: 'fixed',
@@ -334,18 +645,40 @@ const panelStyle: CSSProperties = {
   background: DRAWER.bg,
   color: DRAWER.fg,
   font: DRAWER.font,
-  borderTop: `1px solid ${DRAWER.borderStrong}`,
-  boxShadow: '0 -8px 32px rgba(9, 60, 82, 0.14)',
+  fontSize: 13,
+  borderTop: `1px solid ${DRAWER.border}`,
+  boxShadow:
+    '0 -1px 2px rgba(0,0,0,.04), 0 -8px 24px rgba(0,0,0,.10), 0 -24px 48px rgba(0,0,0,.08)',
   transition: 'transform 0.22s ease-out, height 0.15s ease-out',
+}
+
+const sidebarPanelStyle: CSSProperties = {
+  position: 'fixed',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: Z_PANEL,
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  background: DRAWER.bg,
+  color: DRAWER.fg,
+  font: DRAWER.font,
+  fontSize: 13,
+  borderLeft: `1px solid ${DRAWER.border}`,
+  boxShadow:
+    '-1px 0 2px rgba(0,0,0,.04), -8px 0 24px rgba(0,0,0,.10), -24px 0 48px rgba(0,0,0,.08)',
+  transition: 'transform 0.22s ease-out, width 0.15s ease-out',
 }
 
 const panelHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 16,
-  padding: '8px 16px',
-  borderBottom: `1px solid ${DRAWER.border}`,
-  background: DRAWER.surface,
+  justifyContent: 'space-between',
+  gap: 8,
+  padding: '12px 14px',
+  borderBottom: `1px solid ${DRAWER.borderSoft}`,
+  background: DRAWER.bg,
   flexShrink: 0,
 }
 
@@ -356,45 +689,58 @@ const panelBrandStyle: CSSProperties = {
   flexShrink: 0,
 }
 
-const panelBrandMarkStyle: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: '0.06em',
-  color: DRAWER.onAccent,
-  background: DRAWER.accentDense,
-  borderRadius: 4,
-  padding: '2px 6px',
+const panelBrandLogoStyle: CSSProperties = {
+  width: 22,
+  height: 22,
+  borderRadius: 6,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: DRAWER.primary,
+  color: DRAWER.onPrimary,
+  flexShrink: 0,
 }
 
 const panelBrandTitleStyle: CSSProperties = {
-  fontSize: 12,
+  fontSize: 13,
   fontWeight: 600,
-  color: DRAWER.accentDense,
-  letterSpacing: '0.02em',
+  color: DRAWER.fg,
+  letterSpacing: '-0.01em',
 }
 
 const tabsRowStyle: CSSProperties = {
   display: 'flex',
+  flexWrap: 'wrap',
   alignItems: 'center',
   gap: 4,
-  flex: 1,
-  overflowX: 'auto',
+  flexShrink: 0,
+  marginBottom: 10,
+  paddingBottom: 10,
+  borderBottom: `1px solid ${DRAWER.borderSoft}`,
+}
+
+const sidebarTabsRowStyle: CSSProperties = {
+  flexDirection: 'column',
+  alignItems: 'stretch',
+  flexWrap: 'nowrap',
 }
 
 const tabStyle: CSSProperties = {
-  display: 'inline-flex',
+  display: 'flex',
   alignItems: 'center',
-  gap: 6,
-  padding: '5px 12px',
-  borderRadius: 6,
+  gap: 8,
+  padding: '7px 10px',
+  borderRadius: 8,
   border: `1px solid transparent`,
   background: 'transparent',
   color: DRAWER.muted,
-  font: '12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace',
-  fontWeight: 600,
+  font: DRAWER.font,
+  fontSize: 12.5,
+  fontWeight: 500,
   cursor: 'pointer',
   whiteSpace: 'nowrap',
   userSelect: 'none',
+  textAlign: 'left',
 }
 
 const tabDotStyle: CSSProperties = {
@@ -404,29 +750,55 @@ const tabDotStyle: CSSProperties = {
   flexShrink: 0,
 }
 
+const tabChevronStyle: CSSProperties = {
+  marginLeft: 'auto',
+  color: DRAWER.faint,
+  fontSize: 11,
+  paddingLeft: 6,
+}
+
 const headerActionsStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: 6,
+  gap: 4,
   flexShrink: 0,
 }
 
 const headerBtnStyle: CSSProperties = {
-  border: `1px solid ${DRAWER.border}`,
-  background: DRAWER.surface,
-  color: DRAWER.muted,
-  borderRadius: 6,
-  width: 28,
-  height: 28,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'transparent',
+  color: DRAWER.faint,
+  borderRadius: 7,
+  width: 26,
+  height: 26,
+  padding: 0,
   cursor: 'pointer',
   fontSize: 12,
   lineHeight: 1,
 }
 
+const headerBtnActiveStyle: CSSProperties = {
+  background: DRAWER.chipBg,
+  color: DRAWER.fg,
+}
+
 const tabContentStyle: CSSProperties = {
   flex: 1,
+  minHeight: 0,
   overflow: 'auto',
-  padding: '14px 16px 16px',
+  padding: '12px 14px 14px',
+  display: 'flex',
+  flexDirection: 'column',
+}
+
+const activeToolStyle: CSSProperties = {
+  flex: 1,
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
 }
 
 const toggleStyle: CSSProperties = {
@@ -438,7 +810,6 @@ const toggleStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   padding: '7px 12px 7px 8px',
-  // Match the TanStack devtools pill sitting next to it.
   borderRadius: 6,
   background: DRAWER.handleBg,
   color: DRAWER.handleFg,
@@ -447,21 +818,12 @@ const toggleStyle: CSSProperties = {
   cursor: 'pointer',
   userSelect: 'none',
   whiteSpace: 'nowrap',
-  font: '600 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace',
-}
-
-const toggleMarkStyle: CSSProperties = {
-  fontSize: 10,
-  fontWeight: 800,
-  letterSpacing: '0.05em',
-  background: 'rgba(255,255,255,0.16)',
-  borderRadius: 4,
-  padding: '2px 5px',
+  font: `600 ${DRAWER.font}`,
 }
 
 const toggleLabelStyle: CSSProperties = {
   fontWeight: 600,
-  letterSpacing: '0.02em',
+  letterSpacing: '-0.01em',
 }
 
 const toggleDotsStyle: CSSProperties = {
@@ -476,4 +838,51 @@ const statusDotStyle: CSSProperties = {
   height: 6,
   borderRadius: '50%',
   flexShrink: 0,
+}
+
+const togglePresenceStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  marginLeft: 2,
+}
+
+const triggerEyeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 3,
+  marginLeft: 2,
+  borderRadius: 5,
+  color: 'currentColor',
+  opacity: 0.75,
+  cursor: 'pointer',
+}
+
+const triggerAvatarsStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+}
+
+const triggerAvatarStyle: CSSProperties = {
+  width: 16,
+  height: 16,
+  borderRadius: '50%',
+  marginLeft: -5,
+  border: '1.5px solid var(--dt-handle-bg)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#fff',
+  fontSize: 8,
+  fontWeight: 700,
+  flexShrink: 0,
+  lineHeight: 1,
+  userSelect: 'none',
+}
+
+const triggerMoreStyle: CSSProperties = {
+  fontSize: 9,
+  fontWeight: 700,
+  opacity: 0.85,
 }

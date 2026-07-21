@@ -51,21 +51,39 @@
       :host { all: initial; }
       * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         -webkit-font-smoothing: antialiased; }
-      /* dark theme (default) */
-      :host { --ink:#e5e7eb; --muted:#9ca3af; --line:#374151; --surface:#111827; --subtle:#1f2937; --accent:#3b82f6;
-        --pin-bg:#111827; --pin-fg:#ffffff; --btn-bg:#3b82f6; --btn-fg:#ffffff; }
-      :host(.light) { --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --surface:#fff; --subtle:#f9fafb; --accent:#2563eb;
-        --pin-bg:#111827; --pin-fg:#ffffff; --btn-bg:#111827; --btn-fg:#ffffff; }
+      /* ENS brand palette — quartz neutrals, lapis accent, signal danger.
+         dark theme (default) */
+      :host { --ink:#f4f4f4; --muted:#a1a1a1; --line:#333333; --surface:#191919; --subtle:#262625; --accent:#39b4ea;
+        --pin-bg:#191919; --pin-fg:#ffffff; --btn-bg:#f4f4f4; --btn-fg:#191919; --danger:#ffb3ac; --success:#1cbf46; }
+      :host(.light) { --ink:#191919; --muted:#595755; --line:#e1e1e0; --surface:#fff; --subtle:#faf9f7; --accent:#0080bc;
+        --pin-bg:#191919; --pin-fg:#ffffff; --btn-bg:#191919; --btn-fg:#ffffff; --danger:#b42013; --success:#007c23; }
+      /* Every avatar variant (pins, thread messages, presence, cursors):
+         line-height 1 keeps initials optically centered; images fill. */
+      .av, .avatar, .pin-av, .pin-letter { line-height: 1; user-select: none; text-align: center; }
+      .av img, .avatar img, .pin-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .layer { position: fixed; inset: 0; pointer-events: none; }
       .hl { position: absolute; pointer-events: none; border: 1.5px solid var(--accent);
-        border-radius: 4px; background: rgba(37,99,235,.06); transition: all .04s linear; display: none; }
+        border-radius: 4px; background: rgba(0,128,188,.06); transition: all .04s linear; display: none; }
       .hl-label { position: absolute; left: 0; top: -20px; font-size: 11px; font-weight: 600;
         color: #fff; background: var(--accent); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
-      .pin { position: absolute; width: 24px; height: 24px; margin-top: -24px;
-        border-radius: 50% 50% 50% 2px; background: var(--pin-bg); color: var(--pin-fg);
-        display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
-        cursor: pointer; pointer-events: auto; box-shadow: 0 1px 4px rgba(0,0,0,.25); border: 1.5px solid #fff; }
-      .pin.resolved { background: var(--surface); color: var(--muted); border-color: var(--line); box-shadow: none; }
+      /* Pin = a cluster of up to 3 participant avatars (author + repliers). */
+      .pin { position: absolute; margin-top: -28px; display: flex; align-items: center;
+        cursor: pointer; pointer-events: auto; padding: 0; }
+      .pin .pin-av { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+        border: 1.5px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); margin-left: -10px;
+        display: flex; align-items: center; justify-content: center; position: relative; }
+      /* The first avatar keeps the classic comment-marker shape (circle with a
+         pointed bottom-left corner) so pins still read as "a comment here". */
+      .pin .pin-av:first-child { margin-left: 0; border-radius: 50% 50% 50% 2px; }
+      .pin .pin-av img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+      .pin .pin-letter { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+        font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; line-height: 1; user-select: none; }
+      .pin .pin-more { width: 22px; height: 28px; margin-left: -8px; display: flex; align-items: center;
+        justify-content: center; font-size: 10px; font-weight: 700; color: var(--pin-fg); }
+      .pin.resolved { opacity: 0.72; }
+      .pin.resolved::after { content: '✓'; position: absolute; right: -4px; bottom: -2px; width: 13px; height: 13px;
+        border-radius: 50%; background: var(--surface); color: var(--muted); border: 1px solid var(--line);
+        font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; line-height: 1; }
       .cursor { position: absolute; pointer-events: none; transition: transform .06s linear; }
       .cursor svg { display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
       .cursor .tag { position: absolute; left: 13px; top: 13px; white-space: nowrap;
@@ -78,7 +96,9 @@
       .toolbar .mode.active { background: var(--ink); color: #fff; }
       .presence { display: flex; align-items: center; padding-left: 2px; }
       .avatar { width: 22px; height: 22px; border-radius: 50%; margin-left: -5px; border: 2px solid var(--surface);
-        display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+        display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff;
+        overflow: hidden; flex-shrink: 0; line-height: 1; user-select: none; }
+      .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .count { font-size: 12px; color: var(--muted); padding: 0 6px; }
       .icon-btn { all: unset; cursor: pointer; color: var(--muted); font-size: 12px; padding: 6px; border-radius: 6px; }
       .icon-btn:hover { background: var(--subtle); color: var(--ink); }
@@ -106,7 +126,8 @@
       .msg { display: flex; gap: 8px; align-items: flex-start; }
       .msg .av { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex;
         align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 700;
-        text-transform: uppercase; margin-top: 1px; }
+        text-transform: uppercase; margin-top: 1px; overflow: hidden; line-height: 1; user-select: none; }
+      .msg .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
       .msg .bubble { flex: 1; min-width: 0; }
       .msg .meta { display: flex; align-items: baseline; gap: 6px; margin-bottom: 2px; }
       .msg .who { font-size: 12px; font-weight: 700; color: var(--ink); }
@@ -152,7 +173,7 @@
       .signin h4 { margin: 0 0 4px; font-size: 14px; color: var(--ink); }
       .signin p { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.4; }
       .signin .btn { display: block; width: 100%; text-align: center; margin-top: 8px; }
-      .signin .err { color: #be123c; font-size: 12px; margin-top: 8px; }
+      .signin .err { color: var(--danger); font-size: 12px; margin-top: 8px; }
       /* component inspector */
       .inspect { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
       .i-tabs { display: flex; border-bottom: 1px solid var(--line); background: var(--subtle); }
@@ -171,9 +192,9 @@
       .i-row select.i-unit { flex: 0 0 52px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 4px;
         font-size: 11px; font-family: ui-monospace, monospace; color: var(--ink); background: var(--subtle); }
       /* highlight-all outlines */
-      .outline-all { position: absolute; pointer-events: auto; border: 1px solid rgba(59,130,246,.55);
-        background: rgba(59,130,246,.05); border-radius: 2px; cursor: pointer; }
-      .outline-all:hover { border-color: var(--accent); background: rgba(59,130,246,.14); }
+      .outline-all { position: absolute; pointer-events: auto; border: 1px solid rgba(0,128,188,.55);
+        background: rgba(0,128,188,.05); border-radius: 2px; cursor: pointer; }
+      .outline-all:hover { border-color: var(--accent); background: rgba(0,128,188,.14); }
       .outline-all .oa-tag { position: absolute; left: 0; top: -15px; font-size: 9px; font-weight: 600; color: #fff;
         background: var(--accent); padding: 0 4px; border-radius: 3px; white-space: nowrap; max-width: 180px;
         overflow: hidden; text-overflow: ellipsis; }
@@ -203,6 +224,148 @@
       .prio { border: 1px solid var(--line); border-radius: 5px; background: var(--subtle); color: var(--ink);
         font-size: 11px; padding: 3px 4px; font-family: inherit; }
       .action-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+      /* ---- redesigned comment card (thread + Linear panel) ---- */
+      .popover.card2 { width: 380px; border-radius: 14px; font-size: 13px; }
+      .card2 .body { padding: 0; }
+      .card-header { display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+        border-bottom: 1px solid var(--line); flex-shrink: 0; }
+      .card-header .ttl { flex: 1; font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+      .card-header .icon-x { all: unset; display: flex; align-items: center; justify-content: center;
+        width: 26px; height: 26px; border-radius: 7px; color: var(--muted); cursor: pointer; flex-shrink: 0; }
+      .card-header .icon-x:hover { background: var(--subtle); color: var(--ink); }
+      .card-header .icon-x svg { width: 14px; height: 14px; }
+      .path-row { padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--subtle); flex-shrink: 0; }
+      .path-row details { font-size: 12px; }
+      .path-row summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
+        color: var(--muted); white-space: nowrap; overflow: hidden; user-select: none; }
+      .path-row summary::-webkit-details-marker { display: none; }
+      .path-row summary .trunc { overflow: hidden; text-overflow: ellipsis; }
+      .path-row .cur { font-weight: 600; color: var(--ink); }
+      .path-row summary .hint2 { flex-shrink: 0; margin-left: auto; font-size: 11px; color: var(--muted); opacity: .8; }
+      .path-row details[open] summary .trunc, .path-row details[open] summary .hint2 { display: none; }
+      /* full path lives inside <summary> so clicking it collapses again */
+      .path-row summary .full-path { display: none; }
+      .path-row details[open] summary .full-path { display: flex; }
+      .full-path { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; padding: 6px 8px;
+        white-space: normal; cursor: pointer; background: var(--surface); border: 1px solid var(--line);
+        border-radius: 8px; font-size: 12px; line-height: 1.6; color: var(--muted); word-break: break-word; }
+      .full-path .sep { opacity: .6; }
+      .full-path .kind { opacity: .7; }
+      .meta-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 14px;
+        border-bottom: 1px solid var(--line); flex-shrink: 0; max-height: 88px; overflow-y: auto; }
+      .tag2 { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 500; line-height: 1.4; background: var(--subtle); color: var(--muted);
+        border: 1px solid var(--line); max-width: 100%; }
+      .tag2.el { color: var(--accent); border-color: var(--accent); background: transparent; }
+      .tag2.el, .tag2.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .tag2.edit b { color: var(--accent); font-weight: 600; }
+      .tag2.edit s { opacity: .7; }
+      .card2 .thread-scroll { padding: 12px 14px 4px; }
+      .reply-area2 { padding: 8px 14px 12px; flex-shrink: 0; }
+      .reply-box { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px;
+        background: var(--surface); }
+      .reply-box:focus-within { border-color: var(--accent); }
+      .reply-box textarea { border: none; outline: none; resize: none; background: transparent; min-height: 40px;
+        padding: 10px 12px 4px; font: inherit; font-size: 13px; color: var(--ink); }
+      .reply-box textarea:focus { border: none; }
+      .reply-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; padding: 6px 8px 8px; }
+      .card-footer { display: flex; align-items: center; padding: 8px 10px; border-top: 1px solid var(--line);
+        background: var(--subtle); flex-shrink: 0; }
+      .card-footer .spacer { flex: 1; }
+      .footer-action { all: unset; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+        font-size: 12px; font-weight: 500; color: var(--muted); padding: 6px 9px; border-radius: 7px; user-select: none; }
+      .footer-action:hover { background: var(--surface); color: var(--ink); }
+      .footer-action.danger { color: var(--danger); }
+      .footer-action.danger:hover { color: var(--danger); background: rgba(200,46,31,.08); }
+      .footer-action.success { color: var(--success); }
+      .footer-action.success:hover { color: var(--success); background: rgba(0,124,35,.08); }
+      .footer-action svg { width: 13px; height: 13px; flex-shrink: 0; }
+      .synced-dot { font-size: 10px; color: var(--muted); margin-left: 4px; }
+      /* linear panel */
+      .linear-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; overflow-y: auto; }
+      .radio-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+      .dev-note { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted);
+        padding: 8px 10px; background: var(--subtle); border: 1px dashed var(--line); border-radius: 8px; }
+      .linear-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        padding: 10px 14px; border-top: 1px solid var(--line); background: var(--subtle); flex-shrink: 0; }
+      /* ---- redesigned compose (new comment) ---- */
+      .new-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+      .comment-input { width: 100%; font: inherit; font-size: 13px; color: var(--ink); padding: 10px 12px;
+        border: 1px solid var(--line); border-radius: 10px; background: var(--surface); resize: vertical; min-height: 64px; }
+      .comment-input::placeholder { color: var(--muted); }
+      .comment-input:focus { outline: none; border-color: var(--accent); }
+      .inspector2 { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+      .tab-bar { display: flex; background: var(--subtle); border-bottom: 1px solid var(--line); }
+      .tab-bar .t { all: unset; flex: 1; text-align: center; padding: 8px 0; font-size: 12px; font-weight: 500;
+        color: var(--muted); cursor: pointer; user-select: none; border-bottom: 2px solid transparent; }
+      .tab-bar .t:hover { color: var(--ink); }
+      .tab-bar .t.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+      .prop-list { max-height: 176px; overflow-y: auto; }
+      .prop-row { display: grid; grid-template-columns: 104px 1fr 56px; gap: 8px; align-items: center; padding: 6px 12px; }
+      .prop-row + .prop-row { border-top: 1px solid var(--line); }
+      .prop-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px;
+        color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .prop-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--ink);
+        padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface);
+        width: 100%; min-width: 0; }
+      .prop-value:focus { outline: none; border-color: var(--accent); }
+      .prop-value.wide { grid-column: 2 / 4; }
+      .unit-select { font: inherit; font-size: 11.5px; color: var(--muted); padding: 5px 4px;
+        border: 1px solid var(--line); border-radius: 7px; background: var(--surface); cursor: pointer; width: 100%; }
+      .unit-select:focus { outline: none; border-color: var(--accent); }
+      .prop-value.edited, .unit-select.edited { border-color: var(--accent); color: var(--accent); }
+      .color-cell { display: flex; align-items: center; gap: 6px; grid-column: 2 / 4; }
+      .swatch { flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line);
+        cursor: pointer; padding: 0; background: none; }
+      .swatch::-webkit-color-swatch-wrapper { padding: 0; }
+      .swatch::-webkit-color-swatch { border: none; border-radius: 5px; }
+      .inspector-note { display: flex; gap: 7px; padding: 8px 12px; font-size: 11px; line-height: 1.5;
+        color: var(--muted); background: var(--subtle); border-top: 1px solid var(--line); }
+      .class-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px; }
+      .class-chip { display: inline-flex; align-items: center; gap: 5px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; padding: 3px 8px;
+        background: var(--subtle); border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+      .class-chip .x { cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; user-select: none; }
+      .class-chip .x:hover { color: var(--danger); }
+      .add-class { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+        border: 1px dashed var(--line); border-radius: 999px; padding: 3px 8px; width: 110px;
+        background: transparent; color: var(--ink); }
+      .add-class::placeholder { color: var(--muted); }
+      .add-class:focus { outline: none; border-color: var(--accent); border-style: solid; }
+      .rowkv { display: flex; gap: 10px; padding: 7px 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+      .rowkv + .rowkv { border-top: 1px solid var(--line); }
+      .rowkv .k { color: var(--muted); width: 40%; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+      .rowkv .v { color: var(--ink); word-break: break-word; min-width: 0; }
+      .options-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+      .file-input { font-size: 11px; color: var(--muted); max-width: 100%; }
+      .action-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+        padding: 10px 14px; border-top: 1px solid var(--line); background: var(--subtle); flex-shrink: 0; }
+      .i-empty2 { padding: 12px; font-size: 11px; color: var(--muted); }
+      /* screenshots: standardized thumbnail slot — fixed height, contained
+         (never stretched), click to magnify in the lightbox */
+      .shot-box { position: relative; margin-top: 6px; height: 92px; padding: 6px; background: var(--subtle);
+        border: 1px solid var(--line); border-radius: 8px; display: flex; align-items: center;
+        justify-content: center; overflow: hidden; cursor: zoom-in; transition: border-color .15s; }
+      .shot-box:hover { border-color: var(--accent); }
+      /* corner badge: marks the slot as an image; flips to zoom-in on hover */
+      .shot-ico { position: absolute; top: 5px; right: 5px; display: flex; align-items: center;
+        justify-content: center; width: 20px; height: 20px; border-radius: 6px;
+        background: var(--surface); border: 1px solid var(--line); color: var(--muted);
+        pointer-events: none; }
+      .shot-ico svg { width: 12px; height: 12px; }
+      .shot-ico .z { display: none; }
+      .shot-box:hover .shot-ico { color: var(--accent); border-color: var(--accent); }
+      .shot-box:hover .shot-ico .i { display: none; }
+      .shot-box:hover .shot-ico .z { display: block; }
+      .shot-box img.thumb { max-width: 100%; max-height: 100%; width: auto; height: auto;
+        object-fit: contain; border-radius: 4px; margin: 0; box-shadow: 0 1px 3px rgba(0,0,0,.12); display: block; }
+      .lightbox { position: fixed; inset: 0; z-index: 2147483630; background: rgba(0,0,0,.72);
+        display: flex; align-items: center; justify-content: center; cursor: zoom-out; padding: 24px; }
+      .lightbox img { max-width: min(1400px, 94vw); max-height: 92vh; border-radius: 10px;
+        box-shadow: 0 12px 48px rgba(0,0,0,.5); background: #fff; }
+      .lightbox .lb-cap { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+        font-size: 12px; color: #fff; opacity: .8; user-select: none; }
     </style>
     <div class="layer" id="pins"></div>
     <div class="layer" id="outline-all"></div>
@@ -220,7 +383,7 @@
   ui.style.pointerEvents = 'none'
   const styleFix = document.createElement('style')
   styleFix.textContent =
-    '.toolbar,.popover,.pin,.signin{pointer-events:auto!important;}'
+    '.toolbar,.popover,.pin,.signin,.lightbox{pointer-events:auto!important;}'
   root.appendChild(styleFix)
   if (EMBED) {
     const embedHide = document.createElement('style')
@@ -259,6 +422,11 @@
   try {
     showResolved = localStorage.getItem('dqa_show_resolved') === '1'
   } catch {}
+  // Comment pins on the page (bubbles) — can be hidden to view the page clean.
+  let showPins = true
+  try {
+    showPins = localStorage.getItem('dqa_show_pins') !== '0'
+  } catch {}
   let authConf = { oauthConfigured: false, devAllowed: true }
   let signInError = null
   let ready = false
@@ -276,6 +444,7 @@
       body: c.body,
       author: c.author,
       authorId: c.authorId || null,
+      authorAvatar: c.authorAvatar || null,
       status: c.status === 'resolved' ? 'resolved' : 'open',
       anchorLabel: (c.anchor && c.anchor.label) || '',
       replyCount: (c.replies || []).length,
@@ -293,15 +462,17 @@
         id: USER.id || 'self',
         name: USER.name,
         color: USER.color || '#111827',
+        avatarUrl: USER.avatarUrl || null,
       },
     ]
-    cursorEls.forEach((el) => {
+    cursorEls.forEach((el, id) => {
       const tag = el.querySelector('.tag')
       if (!tag) return
       users.push({
-        id: tag.textContent || 'peer',
+        id: id || tag.textContent || 'peer',
         name: tag.textContent || 'Peer',
         color: tag.style.background || '#777',
+        avatarUrl: el.dataset.avatarUrl || null,
       })
     })
     return users
@@ -323,6 +494,7 @@
       pageIssueRef: ISSUE_REF,
       theme: THEME,
       showResolved,
+      showPins,
       outlineAll,
       pageUrl: PAGE_URL,
     }
@@ -355,7 +527,9 @@
   }
 
   async function devLogin(name) {
-    const devName = (name && String(name).trim()) || 'Dev'
+    // Empty name is fine — the server auto-assigns a unique "Dev N" per
+    // session, so each browser shows up as a separate user.
+    const devName = (name && String(name).trim()) || ''
     signInError = null
     try {
       const r = await fetch(
@@ -822,9 +996,19 @@
   }
 
   // ---- pins -------------------------------------------------------------
+  function setShowPins(on) {
+    showPins = !!on
+    try {
+      localStorage.setItem('dqa_show_pins', showPins ? '1' : '0')
+    } catch {}
+    renderPins()
+    renderToolbar() // refresh the eye icon (no-op in embed mode)
+    notifyState()
+  }
   function renderPins() {
     pinsLayer.innerHTML = ''
-    comments.forEach((c, i) => {
+    if (!showPins) return
+    comments.forEach((c) => {
       if (!c.anchor) return
       if (c.status === 'resolved' && !showResolved) return
       const pos = resolveAnchor(c.anchor)
@@ -832,8 +1016,41 @@
       pin.className = 'pin' + (c.status === 'resolved' ? ' resolved' : '')
       pin.style.left = pos.x + 'px'
       pin.style.top = pos.y + 'px'
-      pin.textContent = c.status === 'resolved' ? '✓' : i + 1
-      pin.title = c.body
+      // Unique participants: comment author first, then reply authors (deduped
+      // by name). Show up to 3 avatars; "+N" if more people are on the thread.
+      const participants = []
+      const seen = new Set()
+      for (const p of [
+        { name: c.author, avatarUrl: c.authorAvatar },
+        ...(c.replies || []).map((r) => ({ name: r.author, avatarUrl: r.authorAvatar })),
+      ]) {
+        const key = p.name || '?'
+        if (seen.has(key)) continue
+        seen.add(key)
+        participants.push(p)
+      }
+      participants.slice(0, 3).forEach((p) => {
+        const av = document.createElement('span')
+        av.className = 'pin-av'
+        fillAvatar(av, {
+          name: p.name,
+          avatarUrl: p.avatarUrl,
+          color: avatarColor(p.name),
+          letterClass: 'pin-letter',
+        })
+        pin.appendChild(av)
+      })
+      if (participants.length > 3) {
+        const more = document.createElement('span')
+        more.className = 'pin-more'
+        more.textContent = '+' + (participants.length - 3)
+        pin.appendChild(more)
+      }
+      const snippet = String(c.body || '').slice(0, 80)
+      const names = participants.map((p) => p.name).filter(Boolean).join(', ')
+      pin.title = names
+        ? `${names}${snippet ? ' — ' + snippet : ''}`
+        : snippet
       pin.addEventListener('click', (e) => {
         e.stopPropagation()
         activeCommentId = c.id
@@ -1012,37 +1229,42 @@
       },
     }
     const pop = document.createElement('div')
-    pop.className = 'popover'
+    pop.className = 'popover card2'
     placePopover(pop, x, y)
-    const headLabel = (inspect && inspect.componentPath) || anchor.label
     pop.innerHTML = `
-      <div class="head"><span>New comment</span><span class="sel" title="${esc(headLabel)}">${esc(headLabel)}</span><button class="head-x" data-act="cancel" title="Close" aria-label="Close">✕</button></div>
+      <div class="card-header">
+        <span class="ttl">New comment</span>
+        <button class="icon-x" data-act="cancel" title="Close" aria-label="Close">${ICONS.x}</button>
+      </div>
+      ${pathRowHtml({ inspect, anchor })}
+      ${metaStripHtml({ inspect })}
       <div class="body">
-        <textarea placeholder="What's off? (size, spacing, copy, behaviour…)"></textarea>
-        ${
-          inspect
-            ? `
-        <div class="inspect">
-          <div class="i-tabs">
-            <button class="i-tab active" data-itab="styles">Styles</button>
-            <button class="i-tab" data-itab="classes">Classes</button>
-            <button class="i-tab" data-itab="props">Props</button>
+        <div class="new-body">
+          <textarea class="comment-input" rows="3" placeholder="What's off? (size, spacing, copy, behaviour…)" aria-label="Comment"></textarea>
+          ${
+            inspect
+              ? `
+          <div class="inspector2">
+            <div class="tab-bar" role="tablist">
+              <button class="t active" data-itab="styles">Styles</button>
+              <button class="t" data-itab="classes">Classes</button>
+              <button class="t" data-itab="props">Props</button>
+            </div>
+            <div data-ibody></div>
+            <div class="inspector-note"><span data-inote>Style edits apply to the page live (like devtools) and attach as suggestions.</span></div>
+          </div>`
+              : ''
+          }
+          <input class="file file-input" type="file" accept="image/*" aria-label="Attach image" />
+          <div class="options-row">
+            <label class="opt"><input type="checkbox" data-act="shot" checked /> Element screenshot</label>
+            <label class="opt"><input type="checkbox" data-act="tolinear" /> Send to Linear</label>
           </div>
-          <div class="i-body" data-ibody></div>
-          <div class="i-note">Style edits apply to the page live (like devtools) and attach as suggestions.</div>
-        </div>`
-            : ''
-        }
-        <div class="row"><input class="file" type="file" accept="image/*" /></div>
-        <div class="row">
-          <label class="opt"><input type="checkbox" data-act="shot" checked /> Element screenshot</label>
-          <label class="opt"><input type="checkbox" data-act="tolinear" /> Send to Linear</label>
         </div>
-        <div class="row actions">
-          <span class="spacer"></span>
-          <button class="btn ghost" data-act="cancel">Cancel</button>
-          <button class="btn primary" data-act="save">Comment</button>
-        </div>
+      </div>
+      <div class="action-footer">
+        <button class="btn ghost" data-act="cancel">Cancel</button>
+        <button class="btn primary" data-act="save">Comment</button>
       </div>`
     ui.appendChild(pop)
     activePopover = pop
@@ -1142,21 +1364,33 @@
   }
 
   // Inspector tabs: editable computed styles (live preview), Tailwind class
-  // list (editable as one line), and React props read from the fiber.
+  // chips (removable + addable), and React props read from the fiber.
+  const INSPECTOR_NOTES = {
+    styles:
+      'Style edits apply to the page live (like devtools) and attach as suggestions.',
+    classes: 'Class changes apply live and attach to the comment as suggestions.',
+    props: 'Read-only props of the selected component instance.',
+  }
   function wireInspector(pop, el, inspect, styleEdits) {
     const body = pop.querySelector('[data-ibody]')
-    const tabs = [...pop.querySelectorAll('.i-tab')]
+    const note = pop.querySelector('[data-inote]')
+    const tabs = [...pop.querySelectorAll('.tab-bar .t')]
     function show(tabKey) {
       tabs.forEach((t) =>
         t.classList.toggle('active', t.dataset.itab === tabKey),
       )
+      if (note) note.textContent = INSPECTOR_NOTES[tabKey]
       body.innerHTML = ''
       if (tabKey === 'styles') {
+        const list = document.createElement('div')
+        list.className = 'prop-list'
         Object.entries(inspect.styles).forEach(([prop, val]) => {
           const row = document.createElement('div')
-          row.className = 'i-row'
-          const label = document.createElement('label')
+          row.className = 'prop-row'
+          const label = document.createElement('span')
+          label.className = 'prop-name'
           label.textContent = prop
+          label.title = prop
           row.appendChild(label)
           const cur = (styleEdits.get(prop) && styleEdits.get(prop).to) || val
           const applyEdit = (next) => {
@@ -1168,13 +1402,15 @@
             renderHighlight()
           }
           if (COLOR_PROPS.has(prop)) {
-            // Native colour picker + a text field (for transparent/currentColor/etc).
+            // Native colour swatch + a text field (for transparent/currentColor/etc).
+            const cell = document.createElement('div')
+            cell.className = 'color-cell'
             const color = document.createElement('input')
             color.type = 'color'
-            color.className = 'i-color'
+            color.className = 'swatch'
             color.value = colorToHex(cur) || '#000000'
             const text = document.createElement('input')
-            text.className = 'i-textval'
+            text.className = 'prop-value'
             text.value = cur
             text.classList.toggle('edited', cur !== val)
             color.oninput = () => {
@@ -1188,7 +1424,8 @@
               text.classList.toggle('edited', text.value !== val)
               applyEdit(text.value)
             }
-            row.append(color, text)
+            cell.append(color, text)
+            row.appendChild(cell)
           } else {
             const parsed = parseSingleLength(cur)
             if (parsed) {
@@ -1196,10 +1433,10 @@
               const num = document.createElement('input')
               num.type = 'number'
               num.step = 'any'
-              num.className = 'i-num'
+              num.className = 'prop-value'
               num.value = String(parsed.num)
               const unit = document.createElement('select')
-              unit.className = 'i-unit'
+              unit.className = 'unit-select'
               for (const u of ['px', 'rem', 'em', '%', 'vh', 'vw', '']) {
                 const o = document.createElement('option')
                 o.value = u
@@ -1219,7 +1456,7 @@
               row.append(num, unit)
             } else {
               const input = document.createElement('input')
-              input.className = 'i-textval'
+              input.className = 'prop-value wide'
               input.value = cur
               input.classList.toggle('edited', cur !== val)
               input.oninput = () => {
@@ -1229,38 +1466,82 @@
               row.appendChild(input)
             }
           }
-          body.appendChild(row)
+          list.appendChild(row)
         })
+        body.appendChild(list)
       } else if (tabKey === 'classes') {
-        body.innerHTML = inspect.classes.length
-          ? inspect.classes
-              .map((cl) => `<span class="chip">${esc(cl)}</span>`)
-              .join('')
-          : '<div class="i-empty">No classes on this element.</div>'
-        const input = document.createElement('input')
-        input.className = 'class-input'
-        input.placeholder = 'Edit class list (live preview)'
-        input.value =
+        // Chip editor: × removes a class, the dashed input adds one. All
+        // changes preview live and record a single class styleEdit.
+        const fromClasses = inspect.classes.join(' ')
+        let current = (
           (styleEdits.get('class') && styleEdits.get('class').to) ||
-          inspect.classes.join(' ')
-        input.oninput = () => {
-          const next = input.value.slice(0, 300)
+          fromClasses
+        )
+          .split(/\s+/)
+          .filter(Boolean)
+        const wrap = document.createElement('div')
+        wrap.className = 'class-chips'
+        const applyClasses = () => {
+          const next = current.join(' ').slice(0, 300)
           try {
             el.setAttribute('class', next)
           } catch {}
-          styleEdits.set('class', { from: inspect.classes.join(' '), to: next })
+          styleEdits.set('class', { from: fromClasses, to: next })
           renderHighlight()
+          render()
         }
-        body.appendChild(input)
+        function render() {
+          wrap.innerHTML = ''
+          if (!current.length && !inspect.classes.length) {
+            const empty = document.createElement('span')
+            empty.className = 'i-empty2'
+            empty.style.padding = '0'
+            empty.textContent = 'No classes on this element.'
+            wrap.appendChild(empty)
+          }
+          current.forEach((cl, i) => {
+            const chip = document.createElement('span')
+            chip.className = 'class-chip'
+            const txt = document.createElement('span')
+            txt.textContent = cl
+            const x = document.createElement('span')
+            x.className = 'x'
+            x.textContent = '×'
+            x.title = 'Remove class (live preview)'
+            x.onclick = () => {
+              current.splice(i, 1)
+              applyClasses()
+            }
+            chip.append(txt, x)
+            wrap.appendChild(chip)
+          })
+          const add = document.createElement('input')
+          add.className = 'add-class'
+          add.placeholder = '+ add class'
+          add.onkeydown = (ev) => {
+            if (ev.key !== 'Enter' && ev.key !== ' ') return
+            ev.preventDefault()
+            const token = add.value.trim()
+            if (!token || /\s/.test(token) || !isSafeCssValue(token)) return
+            current.push(token)
+            applyClasses()
+            // Re-focus the fresh input so several classes can be added in a row.
+            const next = wrap.querySelector('.add-class')
+            if (next) next.focus()
+          }
+          wrap.appendChild(add)
+        }
+        render()
+        body.appendChild(wrap)
       } else {
         body.innerHTML = inspect.props
           ? Object.entries(inspect.props)
               .map(
                 ([k, v]) =>
-                  `<div class="i-kv"><b>${esc(k)}</b>: ${esc(v)}</div>`,
+                  `<div class="rowkv"><span class="k" title="${esc(k)}">${esc(k)}</span><span class="v">${esc(v)}</span></div>`,
               )
               .join('')
-          : '<div class="i-empty">No React props found on this element.</div>'
+          : '<div class="i-empty2">No React props found on this element.</div>'
       }
     }
     tabs.forEach((t) => {
@@ -1270,93 +1551,165 @@
   }
 
   // ---- thread -----------------------------------------------------------
+  // Inline SVG icons for the redesigned card (stroke follows currentColor).
+  const ICONS = {
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+    check:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>',
+    copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    trash:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>',
+    arrow:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:11px;height:11px"><path d="M7 17L17 7M7 7h10v10"/></svg>',
+    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+    image:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+    eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>',
+    eyeOff:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 1 12s4 8 11 8a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>',
+    zoom: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>',
+  }
+
+  // Standardized screenshot slot with an image badge (zoom icon on hover).
+  function shotBoxHtml(url) {
+    return `<div class="shot-box"><img class="thumb" src="${API}${esc(url)}" /><span class="shot-ico"><span class="i">${ICONS.image}</span><span class="z">${ICONS.zoom}</span></span></div>`
+  }
+
+  // Component path row: truncated one-liner that expands to the full,
+  // never-cut breadcrumb (design: path-row/details).
+  function pathRowHtml(c) {
+    const compPath = (c.inspect && c.inspect.componentPath) || ''
+    const parts = compPath ? compPath.split(' › ') : []
+    const fallback =
+      (c.inspect && c.inspect.tag) || (c.anchor && c.anchor.label) || ''
+    if (!parts.length && !fallback) return ''
+    const last = parts.length ? parts[parts.length - 1] : fallback
+    const truncated =
+      parts.length > 2
+        ? `${esc(parts[0])} › … › <span class="cur">${esc(last)}</span>`
+        : parts.length
+          ? parts
+              .map((p, i) =>
+                i === parts.length - 1
+                  ? `<span class="cur">${esc(p)}</span>`
+                  : esc(p),
+              )
+              .join(' › ')
+          : `<span class="cur">${esc(fallback)}</span>`
+    const full = parts.length
+      ? parts
+          .map((p, i) =>
+            i === parts.length - 1 ? `<span class="cur">${esc(p)}</span>` : `<span>${esc(p)}</span>`,
+          )
+          .join('<span class="sep">›</span>')
+      : `<span class="cur">${esc(fallback)}</span>`
+    return `
+      <div class="path-row">
+        <details>
+          <summary>
+            <span class="trunc">${truncated}</span>
+            <span class="hint2">full path</span>
+            <div class="full-path"><span class="kind">Component</span><span class="sep">·</span>${full}</div>
+          </summary>
+        </details>
+      </div>`
+  }
+
+  // Chips row: element tag, viewport, classes, suggested style edits.
+  function metaStripHtml(c) {
+    const chips = []
+    if (c.inspect && c.inspect.tag)
+      chips.push(
+        `<span class="tag2 el">${esc(c.inspect.tag)}${c.inspect.id ? '#' + esc(c.inspect.id) : ''}</span>`,
+      )
+    if (c.inspect && c.inspect.viewport)
+      chips.push(`<span class="tag2 mono">${esc(c.inspect.viewport)}</span>`)
+    if (c.styleEdits && c.styleEdits.length)
+      c.styleEdits.forEach((e2) =>
+        chips.push(
+          `<span class="tag2 mono edit" title="Suggested change">${esc(e2.prop)}: <s>${esc(e2.from)}</s> → <b>${esc(e2.to)}</b></span>`,
+        ),
+      )
+    const classes = (c.inspect && c.inspect.classes) || []
+    const MAX = 6
+    classes.slice(0, MAX).forEach((cl) => {
+      chips.push(`<span class="tag2 mono">${esc(cl)}</span>`)
+    })
+    if (classes.length > MAX)
+      chips.push(
+        `<span class="tag2" title="${esc(classes.slice(MAX).join(' '))}">+${classes.length - MAX} classes</span>`,
+      )
+    return chips.length ? `<div class="meta-strip">${chips.join('')}</div>` : ''
+  }
+
   function openThread(c, pos) {
     closePopover()
     activeCommentId = c.id
     pinnedEl = resolveAnchor(c.anchor).el
     renderHighlight()
     const pop = document.createElement('div')
-    pop.className = 'popover'
+    pop.className = 'popover card2'
     placePopover(pop, pos.x, pos.y)
     const replies = (c.replies || [])
-      .map((r) => messageRow(r.author, r.body, r.createdAt))
+      .map((r) =>
+        messageRow(r.author, r.body, r.createdAt, {
+          authorAvatar: r.authorAvatar || null,
+          synced: !!r.linearSynced,
+        }),
+      )
       .join('')
     const target = c.issueRef ? `Send to ${esc(c.issueRef)}` : 'Send to Linear'
-    const linearRow = c.linearDeleted
+    // Linear control lives in the reply actions: push button before a push,
+    // linked badge after, struck-through badge if deleted on the Linear side.
+    const linearControl = c.linearDeleted
       ? `<span class="badge" style="text-decoration:line-through" title="This comment/issue was deleted in Linear">${esc(c.linear?.identifier || 'Linear')} deleted</span>`
       : c.linear
-        ? `<a class="badge done" href="${esc(c.linear.url)}" target="_blank">${esc(c.linear.identifier)} ↗</a>`
-        : `<button class="btn link" data-act="linear">${target}</button>`
-    const compName =
-      (c.inspect && c.inspect.componentPath) ||
-      (c.inspect && c.inspect.tag) ||
-      c.anchor?.label ||
-      ''
-    const manyClasses =
-      c.inspect && c.inspect.classes && c.inspect.classes.length > 8
-    const inspectHtml = c.inspect
-      ? `
-      <details class="i-details"${manyClasses ? '' : ' open'}>
-        <summary>Component · ${esc(compName)}</summary>
-        <div class="i-inner">
-          <div class="i-kv"><b>${esc(c.inspect.tag)}</b>${c.inspect.id ? '#' + esc(c.inspect.id) : ''}${c.inspect.viewport ? ` · ${esc(c.inspect.viewport)}` : ''}</div>
-          ${
-            c.inspect.classes && c.inspect.classes.length
-              ? `<div style="margin-top:4px">${c.inspect.classes.map((cl) => `<span class="chip">${esc(cl)}</span>`).join('')}</div>`
-              : ''
-          }
-        </div>
-      </details>`
-      : ''
-    const editsHtml =
-      c.styleEdits && c.styleEdits.length
-        ? `
-      <details class="i-details" open>
-        <summary>Suggested changes · ${c.styleEdits.length}</summary>
-        <div class="i-inner">
-          ${c.styleEdits.map((e2) => `<div class="i-edit">${esc(e2.prop)}: <s>${esc(e2.from)}</s> → <b>${esc(e2.to)}</b></div>`).join('')}
-        </div>
-      </details>`
-        : ''
+        ? `<a class="badge done" href="${esc(c.linear.url)}" target="_blank" title="Replies here also thread onto this Linear comment">${esc(c.linear.identifier)} ${ICONS.arrow}</a>`
+        : `<button class="btn ghost" data-act="linear">${ICONS.arrow} ${target}</button>`
     pop.innerHTML = `
-      <div class="head"><span>Comment</span><span class="sel" title="${esc(compName)}">${esc(compName)}</span><button class="head-x" data-act="close" title="Close" aria-label="Close">✕</button></div>
+      <div class="card-header">
+        <span class="ttl">Comment${c.status === 'resolved' ? ' · resolved' : ''}</span>
+        <button class="icon-x" data-act="close" title="Close" aria-label="Close">${ICONS.x}</button>
+      </div>
+      ${pathRowHtml(c)}
+      ${metaStripHtml(c)}
       <div class="body body-thread">
-        <div class="context">
-          ${inspectHtml}
-          ${editsHtml}
-        </div>
         <div class="thread-scroll">
           <div class="thread">
             ${messageRow(c.author, c.body, c.createdAt, {
               first: true,
+              authorAvatar: c.authorAvatar || null,
               extraHtml:
                 (c.imageUrl
-                  ? `${c.afterImageUrl ? '<div class="shot-label">Current</div>' : ''}<img class="thumb" src="${API}${esc(c.imageUrl)}" />`
+                  ? `${c.afterImageUrl ? '<div class="shot-label">Current</div>' : ''}${shotBoxHtml(c.imageUrl)}`
                   : '') +
                 (c.afterImageUrl
-                  ? `<div class="shot-label">Suggested</div><img class="thumb" src="${API}${esc(c.afterImageUrl)}" />`
+                  ? `<div class="shot-label">Suggested</div>${shotBoxHtml(c.afterImageUrl)}`
                   : ''),
             })}
             ${replies}
           </div>
         </div>
-        <div class="reply-area">
-          <div class="row"><textarea placeholder="Reply…"></textarea></div>
-          <div class="row">
-            ${c.status === 'resolved' ? '<span class="badge done">Resolved</span>' : '<button class="btn ghost" data-act="resolve">Resolve</button>'}
-            <button class="btn ghost" data-act="delete" title="Delete this DQA comment">Delete</button>
-            ${linearRow}
-          </div>
-          <div class="row actions">
-            <span class="spacer"></span>
-            <button class="btn ghost" data-act="close">Close</button>
-            <button class="btn primary" data-act="reply">Reply</button>
+        <div class="reply-area2">
+          <div class="reply-box">
+            <textarea placeholder="Reply…" rows="2" aria-label="Reply"></textarea>
+            <div class="reply-actions">
+              ${linearControl}
+              <button class="btn primary" data-act="reply">Reply</button>
+            </div>
           </div>
         </div>
+      </div>
+      <div class="card-footer">
+        ${c.status === 'resolved' ? '' : `<button class="footer-action success" data-act="resolve">${ICONS.check} Resolve</button>`}
+        <button class="footer-action" data-act="copy-md" title="Copy this comment as Markdown (for AI tooling)">${ICONS.copy} <span>Copy</span></button>
+        <span class="spacer"></span>
+        <button class="footer-action danger" data-act="delete" title="Delete this DQA comment (does not touch Linear)">${ICONS.trash} Delete</button>
       </div>`
     ui.appendChild(pop)
     activePopover = pop
     makeDraggable(pop)
+    wireThumbs(pop)
     // Scroll to the newest message (chat-style).
     const threadEl = pop.querySelector('.thread-scroll')
     if (threadEl) threadEl.scrollTop = threadEl.scrollHeight
@@ -1372,7 +1725,15 @@
         body: JSON.stringify({ body }),
       })
       await loadComments()
-      closePopover()
+      // Keep the conversation open: re-render the thread in place with the
+      // new reply (placePopover applies a +16px x offset — compensate).
+      const updated = comments.find((x) => x.id === c.id)
+      if (updated)
+        openThread(updated, {
+          x: (parseInt(pop.style.left, 10) || 0) - 16,
+          y: parseInt(pop.style.top, 10) || 0,
+        })
+      else closePopover()
     }
     const resolveBtn = pop.querySelector('[data-act="resolve"]')
     if (resolveBtn)
@@ -1390,6 +1751,16 @@
         await loadComments()
         closePopover()
       }
+    const copyBtn = pop.querySelector('[data-act="copy-md"]')
+    if (copyBtn)
+      copyBtn.onclick = async () => {
+        const ok = await copyText(commentMarkdown(c))
+        const label = copyBtn.querySelector('span')
+        if (label) label.textContent = ok ? 'Copied ✓' : 'Copy failed'
+        setTimeout(() => {
+          if (label) label.textContent = 'Copy'
+        }, 1500)
+      }
     const linearBtn = pop.querySelector('[data-act="linear"]')
     if (linearBtn) linearBtn.onclick = () => openPicker(c)
     if (EMBED) notifyState()
@@ -1399,34 +1770,48 @@
   function openPicker(c) {
     const pop = activePopover
     if (!pop) return
-    const title = pop.querySelector('.head span')
-    if (title) title.textContent = 'Send to Linear'
-    const body = pop.querySelector('.body')
-    body.innerHTML = `
-      <div class="action-row">
-        <label class="opt"><input type="radio" name="dqa-action" value="comment" checked /> Comment</label>
-        <label class="opt"><input type="radio" name="dqa-action" value="subissue" /> Sub-issue</label>
-        <label class="opt"><input type="radio" name="dqa-action" value="issue" /> Triage issue</label>
-        <select class="prio" title="Priority (for created issues)">
-          <option value="0">No priority</option>
-          <option value="1">Urgent</option>
-          <option value="2">High</option>
-          <option value="3" selected>Medium</option>
-          <option value="4">Low</option>
-        </select>
+    // Second view of the same card: swap the whole card for the Linear panel
+    // (Back re-renders the thread view).
+    pop.innerHTML = `
+      <div class="card-header">
+        <span class="ttl">Send to Linear</span>
+        <button class="icon-x" data-act="close" title="Close" aria-label="Close">${ICONS.x}</button>
       </div>
-      <input class="picker-search" placeholder="Search tickets…" />
-      <div class="picker-list"><div class="picker-empty">Loading…</div></div>
-      <div class="row">
-        <button class="btn ghost" data-act="back">Back</button>
-        <span class="spacer"></span>
+      ${pathRowHtml(c)}
+      <div class="body">
+      <div class="linear-body">
+        <div class="radio-row" role="radiogroup" aria-label="Push mode">
+          <label class="opt"><input type="radio" name="dqa-action" value="comment" checked /> Comment</label>
+          <label class="opt"><input type="radio" name="dqa-action" value="subissue" /> Sub-issue</label>
+          <label class="opt"><input type="radio" name="dqa-action" value="issue" /> Triage issue</label>
+        </div>
+        <div class="action-row" style="margin-bottom:0">
+          <select class="prio" title="Priority (for created issues)">
+            <option value="0">No priority</option>
+            <option value="1">Urgent</option>
+            <option value="2">High</option>
+            <option value="3" selected>Medium</option>
+            <option value="4">Low</option>
+          </select>
+        </div>
+        <input class="picker-search" placeholder="Search tickets…" aria-label="Search tickets" />
+        <div class="picker-list" style="margin-top:0"><div class="picker-empty">Loading…</div></div>
+      </div>
+      </div>
+      <div class="linear-footer">
+        <button class="btn ghost" data-act="back">${ICONS.back} Back</button>
+        <span class="spacer" style="flex:1"></span>
         <button class="btn primary" data-act="create" style="display:none">Create triage issue</button>
         ${ISSUE_REF ? `<button class="btn link" data-act="default">Use ${esc(ISSUE_REF)}</button>` : ''}
       </div>`
+    const body = pop
     const search = body.querySelector('.picker-search')
     const list = body.querySelector('.picker-list')
     const prio = body.querySelector('.prio')
     const createBtn = body.querySelector('[data-act="create"]')
+    const closeBtn = body.querySelector('[data-act="close"]')
+    if (closeBtn) closeBtn.onclick = closePopover
+    makeDraggable(pop)
     const currentAction = () =>
       body.querySelector('input[name="dqa-action"]:checked').value
     const opts = () => ({
@@ -1503,15 +1888,73 @@
           }),
         })
       ).json()
-      if (data.issue)
+      if (data.issue) {
         alert(
           `Linear (${data.mode || 'comment'}): ${data.issue.identifier}\n${data.issue.url}${data.dryRun ? '\n\n(dry run)' : ''}`,
         )
-      else alert('Linear error: ' + (data.error || 'unknown'))
+        // Return to the thread view — it now shows the linked badge, and
+        // subsequent replies will thread onto the Linear comment.
+        await loadComments()
+        const updated = comments.find((x) => x.id === c.id)
+        if (updated) {
+          openThread(updated, resolveAnchor(updated.anchor))
+          return
+        }
+      } else alert('Linear error: ' + (data.error || 'unknown'))
     } catch (e) {
       alert('Linear error: ' + e.message)
     }
     closePopover()
+  }
+
+  // Full-size screenshot viewer — thumbnails in the 380px card are often too
+  // small to read. Click a thumb to magnify; click anywhere or Esc closes.
+  function openLightbox(src, caption) {
+    const box = document.createElement('div')
+    box.className = 'lightbox'
+    const img = document.createElement('img')
+    img.src = src
+    img.alt = caption || 'Screenshot'
+    box.appendChild(img)
+    if (caption) {
+      const cap = document.createElement('div')
+      cap.className = 'lb-cap'
+      cap.textContent = `${caption} — click anywhere or press Esc to close`
+      box.appendChild(cap)
+    }
+    const close = () => {
+      box.remove()
+      window.removeEventListener('keydown', onKey, true)
+    }
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') {
+        ev.stopPropagation()
+        close()
+      }
+    }
+    box.onclick = close
+    window.addEventListener('keydown', onKey, true)
+    ui.appendChild(box)
+  }
+
+  // Make every screenshot thumbnail inside a popover magnifiable.
+  function wireThumbs(pop) {
+    pop.querySelectorAll('.shot-box').forEach((box) => {
+      box.title = 'Click to magnify'
+      box.onclick = (ev) => {
+        ev.stopPropagation()
+        const img = box.querySelector('img')
+        if (!img) return
+        // Use the preceding shot label ("Current" / "Suggested") as caption.
+        const label = box.previousElementSibling
+        openLightbox(
+          img.src,
+          label && label.classList.contains('shot-label')
+            ? label.textContent
+            : 'Screenshot',
+        )
+      }
+    })
   }
 
   function placePopover(pop, x, y) {
@@ -1523,7 +1966,7 @@
   // Popovers are draggable by their header (they can cover the element under
   // review, or open partly off-screen near the viewport edges).
   function makeDraggable(pop) {
-    const head = pop.querySelector('.head')
+    const head = pop.querySelector('.head, .card-header')
     if (!head) return
     head.style.cursor = 'move'
     head.addEventListener('pointerdown', (e) => {
@@ -1728,6 +2171,7 @@
     if (!user || cursorEls.has(user.id)) return cursorEls.get(user.id)
     const c = document.createElement('div')
     c.className = 'cursor'
+    if (user.avatarUrl) c.dataset.avatarUrl = user.avatarUrl
     c.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="${user.color || '#2563eb'}" d="M3 2l7 18 2.5-7.5L20 10z"/></svg><span class="tag" style="background:${user.color || '#2563eb'}">${esc(user.name)}</span>`
     cursorsLayer.appendChild(c)
     cursorEls.set(user.id, c)
@@ -1787,8 +2231,10 @@
       <button class="mode${commentMode ? ' active' : ''}" data-act="mode">${commentMode ? 'Pick an element' : 'Inspect'}</button>
       <div class="presence"></div>
       <span class="count">${open} open</span>
+      <button class="icon-btn" data-act="pins" title="${showPins ? 'Hide comment bubbles on the page' : 'Show comment bubbles on the page'}">${showPins ? ICONS.eye : ICONS.eyeOff}</button>
       <button class="icon-btn" data-act="signout" title="Sign out (${esc(USER.name)})">⏻</button>`
     tb.querySelector('[data-act="mode"]').onclick = () => setMode(!commentMode)
+    tb.querySelector('[data-act="pins"]').onclick = () => setShowPins(!showPins)
     tb.querySelector('[data-act="signout"]').onclick = signOut
     renderPresence(tb)
   }
@@ -1800,17 +2246,23 @@
     box.innerHTML = ''
     const av = document.createElement('div')
     av.className = 'avatar'
-    av.style.background = USER.color || '#111827'
-    av.textContent = (USER.name || '?').slice(0, 1).toUpperCase()
     av.title = USER.name + ' (you)'
+    fillAvatar(av, {
+      name: USER.name,
+      avatarUrl: USER.avatarUrl,
+      color: USER.color || avatarColor(USER.name),
+    })
     box.appendChild(av)
     cursorEls.forEach((el) => {
       const tag = el.querySelector('.tag')
       const a = document.createElement('div')
       a.className = 'avatar'
-      a.style.background = tag ? tag.style.background : '#777'
-      a.textContent = (tag ? tag.textContent : '?').slice(0, 1).toUpperCase()
       a.title = tag ? tag.textContent : ''
+      fillAvatar(a, {
+        name: tag ? tag.textContent : '?',
+        avatarUrl: el.dataset.avatarUrl || null,
+        color: tag ? tag.style.background : '#777',
+      })
       box.appendChild(a)
     })
     if (EMBED) notifyState()
@@ -1866,14 +2318,14 @@
 
   // Deterministic avatar colour + initial from a name (matches the drawer's palette).
   const AVATAR_COLORS = [
-    '#2563eb',
-    '#0f766e',
-    '#7c3aed',
-    '#be123c',
-    '#b45309',
-    '#0891b2',
-    '#4d7c0f',
-    '#c026d3',
+    '#0080bc', // ens-lapis-core
+    '#007c23', // ens-peridot-core
+    '#8a0a49', // ens-garnet-dense
+    '#b35600', // ens-citrine-600
+    '#674d49', // ens-bronzite-core
+    '#093c52', // ens-lapis-dense
+    '#f53293', // ens-garnet-core
+    '#c82e1f', // ens-signal-danger-500
   ]
   function avatarColor(name) {
     let h = 0
@@ -1882,6 +2334,113 @@
   }
   function initial(name) {
     return (String(name || '?').trim()[0] || '?').toUpperCase()
+  }
+
+  /** Fill a container with a Linear avatar image or a colored letter fallback. */
+  function fillAvatar(el, { name, avatarUrl, color, letterClass }) {
+    const bg = color || avatarColor(name)
+    const letter = initial(name)
+    el.replaceChildren()
+    el.style.background = bg
+    if (avatarUrl) {
+      const img = document.createElement('img')
+      img.src = avatarUrl
+      img.alt = ''
+      img.referrerPolicy = 'no-referrer'
+      img.draggable = false
+      img.onerror = () => {
+        el.replaceChildren()
+        el.style.background = bg
+        if (letterClass) {
+          const span = document.createElement('span')
+          span.className = letterClass
+          span.textContent = letter
+          el.appendChild(span)
+        } else {
+          el.textContent = letter
+        }
+      }
+      el.appendChild(img)
+      return
+    }
+    if (letterClass) {
+      const span = document.createElement('span')
+      span.className = letterClass
+      span.textContent = letter
+      el.appendChild(span)
+    } else {
+      el.textContent = letter
+    }
+  }
+
+  // ---- Markdown export (AI-tooling friendly) ------------------------------
+  // Compact, LLM-oriented serialization: only what an agent needs to locate
+  // and fix the issue (instruction, route, component, selector, classes,
+  // suggested edits, replies). No authors/timestamps/URLs — they cost tokens
+  // and don't change the fix.
+  function commentMarkdown(c, index) {
+    const inspect = c.inspect || null
+    const lines = []
+    const idx = index != null ? `${index}. ` : ''
+    let route = c.url
+    try {
+      const u = new URL(c.url)
+      route = u.pathname + u.search
+    } catch {}
+    const status = c.status === 'resolved' ? ' [resolved]' : ''
+    lines.push(
+      `${idx}QA: ${String(c.body || '').split('\n').join(' ').trim()}${status}`,
+    )
+    lines.push(`page: ${route}`)
+    if (inspect && inspect.componentPath)
+      lines.push(`component: ${inspect.componentPath}`)
+    if (c.anchor && c.anchor.selector)
+      lines.push(`element: ${c.anchor.selector}`)
+    if (inspect && inspect.classes && inspect.classes.length)
+      lines.push(`classes: ${inspect.classes.join(' ')}`)
+    if (c.styleEdits && c.styleEdits.length) {
+      lines.push('suggested changes:')
+      for (const e of c.styleEdits)
+        lines.push(`  ${e.prop}: ${e.from} -> ${e.to}`)
+    }
+    if (c.replies && c.replies.length) {
+      lines.push('replies:')
+      for (const r of c.replies)
+        lines.push(`  - ${String(r.body || '').split('\n').join(' ').trim()}`)
+    }
+    if (c.linear && c.linear.identifier)
+      lines.push(`linear: ${c.linear.identifier}${c.linearDeleted ? ' (deleted)' : ''}`)
+    return lines.join('\n')
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text)
+      return true
+    } catch {
+      // Fallback for non-secure contexts.
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.cssText = 'position:fixed;opacity:0'
+        document.body.appendChild(ta)
+        ta.select()
+        const ok = document.execCommand('copy')
+        ta.remove()
+        return ok
+      } catch {
+        return false
+      }
+    }
+  }
+
+  function avatarHtml(name, avatarUrl, color) {
+    const bg = color || avatarColor(name)
+    const letter = esc(initial(name))
+    if (avatarUrl) {
+      return `<div class="av" style="background:${bg}"><img src="${esc(avatarUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.remove();this.parentElement.textContent='${letter}'" /></div>`
+    }
+    return `<div class="av" style="background:${bg}">${letter}</div>`
   }
 
   // Short relative time ("just now", "5m", "3h", "2d") with an absolute title.
@@ -1905,13 +2464,13 @@
     author,
     body,
     createdAt,
-    { first = false, extraHtml = '' } = {},
+    { first = false, extraHtml = '', authorAvatar = null, synced = false } = {},
   ) {
     return `
       <div class="msg${first ? ' first' : ''}">
-        <div class="av" style="background:${avatarColor(author)}">${esc(initial(author))}</div>
+        ${avatarHtml(author, authorAvatar)}
         <div class="bubble">
-          <div class="meta"><span class="who">${esc(author)}</span><span class="when" title="${esc(absTime(createdAt))}">${esc(relTime(createdAt))}</span></div>
+          <div class="meta"><span class="who">${esc(author)}</span><span class="when" title="${esc(absTime(createdAt))}">${esc(relTime(createdAt))}</span>${synced ? '<span class="synced-dot" title="Also posted to Linear as a threaded reply">↗ Linear</span>' : ''}</div>
           <div class="txt">${esc(body)}</div>
           ${extraHtml}
         </div>
@@ -1948,6 +2507,26 @@
       notifyState()
     },
     setTheme,
+    // Markdown export (for AI tooling / sharing). Callers own the clipboard
+    // write so it happens inside their user-gesture context.
+    getCommentMarkdown(id) {
+      const c = comments.find((x) => x.id === id)
+      return c ? commentMarkdown(c) : null
+    },
+    getAllCommentsMarkdown() {
+      const list = comments.filter((c) => c.anchor)
+      if (!list.length) return null
+      let route = PAGE_URL
+      try {
+        const u = new URL(PAGE_URL)
+        route = u.pathname + u.search
+      } catch {}
+      return [
+        `Design QA comments for ${route} (${list.length}):`,
+        '',
+        list.map((c, i) => commentMarkdown(c, i + 1)).join('\n\n'),
+      ].join('\n')
+    },
     async resolveComment(id) {
       await api(`/api/comments/${id}/resolve`, { method: 'POST' })
       await loadComments()
@@ -1956,6 +2535,7 @@
       await api(`/api/comments/${id}`, { method: 'DELETE' })
       await loadComments()
     },
+    setShowPins,
     setShowResolved(on) {
       showResolved = !!on
       try {

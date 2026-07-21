@@ -2,6 +2,7 @@ export type DqaUser = {
   readonly id: string
   readonly name: string
   readonly color?: string
+  readonly avatarUrl?: string | null
 }
 
 export type DqaAuthConfig = {
@@ -34,6 +35,7 @@ export type DqaCommentSummary = {
   readonly body: string
   readonly author: string
   readonly authorId?: string | null
+  readonly authorAvatar?: string | null
   readonly status: 'open' | 'resolved'
   readonly anchorLabel?: string
   readonly replyCount: number
@@ -63,6 +65,8 @@ export type DqaState = {
   readonly theme?: 'dark' | 'light'
   /** Whether resolved comments' pins render on the page. */
   readonly showResolved?: boolean
+  /** Whether comment pins (bubbles) render on the page at all. */
+  readonly showPins?: boolean
   /** Whether all commentable elements are outlined on the page. */
   readonly outlineAll?: boolean
 }
@@ -86,6 +90,8 @@ export type DqaApi = {
   readonly deleteComment?: (id: string) => Promise<void>
   /** Optional (newer overlay versions): toggle resolved pins on the page. */
   readonly setShowResolved?: (on: boolean) => void
+  /** Optional (newer overlay versions): show/hide all comment bubbles. */
+  readonly setShowPins?: (on: boolean) => void
   /** Optional (newer overlay versions): outline all commentable elements. */
   readonly setHighlightAll?: (on: boolean) => void
   /** Optional (newer overlay versions): element-hierarchy navigator. */
@@ -96,6 +102,9 @@ export type DqaApi = {
   /** Optional (newer overlay versions): pages navigator. */
   readonly getPages?: () => Promise<DqaPageSummary[]>
   readonly navigateTo?: (url: string) => void
+  /** Optional (newer overlay versions): Markdown export for AI tooling. */
+  readonly getCommentMarkdown?: (id: string) => string | null
+  readonly getAllCommentsMarkdown?: () => string | null
 }
 
 declare global {

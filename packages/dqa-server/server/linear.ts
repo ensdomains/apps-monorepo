@@ -170,6 +170,32 @@ export async function checkLinearStatus(linearRef: LinearRef | null, token: stri
   }
 }
 
+/**
+ * Push a DQA reply to Linear as a THREADED reply under the comment we created
+ * at push time (`parentId`), or as a plain issue comment when the DQA comment
+ * was pushed as an issue/sub-issue. Replies are conversation text only — the
+ * rich context (screenshot, selector, edits) already lives on the parent.
+ * Best-effort: returns false instead of throwing (reply already saved in DQA).
+ */
+export async function pushReplyToLinear(
+  linear: LinearRef,
+  body: string,
+  userToken: string | null,
+): Promise<boolean> {
+  if (!userToken) return false; // dev sessions / no Linear identity
+  try {
+    const input: Record<string, unknown> = { body };
+    if (linear.id) input.issueId = linear.id;
+    if (linear.commentId) input.parentId = linear.commentId;
+    if (!input.issueId && !input.parentId) return false;
+    const data = await gql(COMMENT_CREATE, userToken, { input });
+    return !!data?.commentCreate?.success;
+  } catch (e) {
+    console.warn("[linear] reply push failed:", (e as Error).message);
+    return false;
+  }
+}
+
 // The signed-in reviewer's Linear user id (actor=user tokens only).
 async function viewerId(token: string): Promise<string | null> {
   try {

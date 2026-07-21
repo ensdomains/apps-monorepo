@@ -36,7 +36,12 @@ import {
   removeComment,
   updateComment,
 } from './db.ts'
-import { checkLinearStatus, pushToLinear, searchIssues } from './linear.ts'
+import {
+  checkLinearStatus,
+  pushReplyToLinear,
+  pushToLinear,
+  searchIssues,
+} from './linear.ts'
 import type { Comment, Inspect, OAuthState, StyleEdit } from './types.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -228,7 +233,8 @@ app.get('/auth/callback', async (req, res) => {
 app.get('/auth/dev', (req, res) => {
   if (!devAllowed()) return res.status(403).json({ error: 'dev auth disabled' })
   res.json({
-    token: makeDevSession((req.query.name || 'Dev').toString().slice(0, 40)),
+    // Empty name → server auto-assigns "Dev N" (unique per session).
+    token: makeDevSession(String(req.query.name ?? '').slice(0, 40)),
   })
 })
 
@@ -240,8 +246,16 @@ app.post('/auth/logout', requireAuth, async (req, res) => {
 
 // who am I (handy for the overlay to validate its token)
 app.get('/auth/me', requireAuth, (req, res) => {
-  const { sub, name, email, color, orgId, dev } = req.session
-  res.json({ id: sub, name, email, color, orgId, dev })
+  const { sub, name, email, color, orgId, dev, avatarUrl } = req.session
+  res.json({
+    id: sub,
+    name,
+    email,
+    color,
+    orgId,
+    dev,
+    avatarUrl: avatarUrl || null,
+  })
 })
 
 // ======================================================================
@@ -398,6 +412,7 @@ app.post('/api/comments', requireAuth, (req, res) => {
     url,
     author: req.session.name, // identity comes from the session, not the client
     authorId: req.session.sub,
+    authorAvatar: req.session.avatarUrl || null,
     body,
     anchor: anchor || null,
     imageUrl: imageUrl || null,
@@ -419,12 +434,27 @@ app.post('/api/comments', requireAuth, (req, res) => {
   res.json(comment)
 })
 
-app.post('/api/comments/:id/reply', requireAuth, (req, res) => {
+app.post('/api/comments/:id/reply', requireAuth, async (req, res) => {
+  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : ''
+  if (!body) return res.status(400).json({ error: 'body required' })
+
+  // If the parent comment was already pushed to Linear, mirror the reply
+  // there as a THREADED reply (parentId) so the conversation continues on
+  // the ticket. Best-effort — the DQA reply saves regardless.
+  const parent = listComments().find((c) => c.id === req.params.id)
+  let linearSynced = false
+  if (parent?.linear && !parent.linearDeleted) {
+    const userToken = decrypt(req.session.lt) // null for dev sessions
+    linearSynced = await pushReplyToLinear(parent.linear, body, userToken)
+  }
+
   const updated = addReply(req.params.id, {
     id: randomUUID(),
     author: req.session.name,
-    body: req.body?.body,
+    authorAvatar: req.session.avatarUrl || null,
+    body,
     createdAt: new Date().toISOString(),
+    linearSynced,
   })
   if (!updated) return res.status(404).json({ error: 'not found' })
   broadcast(updated.url, { type: 'comment:update', comment: updated })
@@ -511,7 +541,16 @@ app.use(
     },
   }),
 )
-app.use(express.static(PUBLIC_DIR))
+// `no-cache` = browsers must revalidate (ETag/304) before reusing a cached
+// copy, so overlay.js updates are picked up on refresh instead of a stale
+// script silently serving until the heuristic cache expires.
+app.use(
+  express.static(PUBLIC_DIR, {
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache')
+    },
+  }),
+)
 
 // ======================================================================
 //  WebSocket — live cursors + presence (also gated)
@@ -528,7 +567,12 @@ const wss = new WebSocketServer({
 })
 type PeerMeta = {
   url: string | null
-  user: { id: string; name: string; color: string } | null
+  user: {
+    id: string
+    name: string
+    color: string
+    avatarUrl?: string | null
+  } | null
   authed: boolean
 }
 type Peer = import('ws').WebSocket & { meta: PeerMeta }
@@ -584,6 +628,7 @@ wss.on('connection', (rawWs) => {
         id: session.sub,
         name: session.name,
         color: session.color,
+        avatarUrl: session.avatarUrl || null,
       }
       const room = rooms.get(msg.url) ?? new Set<Peer>()
       rooms.set(msg.url, room)

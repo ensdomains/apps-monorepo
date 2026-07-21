@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { createMockDqaApi } from '../createMockDqaApi'
 import { isDqaMockUiEnabled } from '../config'
+import { createMockDqaApi } from '../createMockDqaApi'
 import { loadDqaOverlay } from '../loadOverlay'
 import type { DqaApi, DqaState } from '../types'
 
@@ -37,7 +37,8 @@ export const useDqaPanel = (): DqaPanelView => {
     let unsubscribe: (() => void) | undefined
 
     if (mockMode) {
-      const mockApi = createMockDqaApi()
+      // Reuse an API already attached by DevDrawer (shared Sign in / profile).
+      const mockApi = window.__DQA__ ?? createMockDqaApi()
       window.__DQA__ = mockApi
       setApi(mockApi)
       unsubscribe = mockApi.subscribe(setState)

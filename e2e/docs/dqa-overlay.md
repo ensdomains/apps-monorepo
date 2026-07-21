@@ -51,9 +51,19 @@ VITE_DQA_LINEAR_ISSUE=ENG-123
 With no Linear OAuth configured the server runs in dev mode ("Dev mode" sign-in
 in the DevDrawer DQA section, dry-run Linear pushes) — instant for local use.
 
-Open the **Dev Tools** tab at the bottom of the screen (`▲ Dev Tools 📌`) to
-sign in, toggle comment mode, and sign out. Time travel is optional — DQA works
-in the drawer on its own when only `VITE_DQA=1` is set.
+Open the **Dev Tools** drawer (`ENS Dev tools` trigger). Sign in / profile
+controls live in the drawer header; tool tabs (Time travel, Design QA, …) sit
+in the panel body. Time travel is optional — DQA works in the drawer on its own
+when only `VITE_DQA=1` is set.
+
+**Layout preference:** Use the layout icon in the Dev tools header to dock as a
+bottom sheet (default) or a Figma-style right sidebar. Theme and Linear sign-in
+also live in that header. The layout choice is saved in `localStorage` as
+`ens-devtools:layout`.
+
+**Comment pins:** On-page pins show the author’s Linear avatar when available
+(colored letter fallback for dev login / missing photo). The comment list still
+shows `#1`, `#2`, … for order.
 
 To enable real Linear auth/pushes, copy `e2e/infra/.env.example` to
 `e2e/infra/.env` (gitignored) and fill in the `LINEAR_*` / `DQA_*` values —
@@ -112,11 +122,11 @@ Full setup: `packages/dqa-server/MANUAL.md` §3.
 
 When signed in (or in mock UI mode), the **Design QA** tab shows:
 
-- **Toolbar** — Comment mode toggle, live presence avatars (“N viewing”), page Linear ticket link, sign out.
+- **Toolbar** — Comment mode toggle, live presence avatars (“N viewing”), page Linear ticket link.
 - **Filters** — Open / Resolved / All with counts.
 - **Comment inbox** — Cards with pin number, anchored component label, excerpt, author, reply count, Linear badge, and **Focus on page** (scrolls to the element and opens the overlay thread popover).
 
-When not signed in, the sign-in row is shown and the comment inbox stays empty until you authenticate.
+When not signed in, use **Sign in** in the Dev tools header; the Design QA panel prompts you until you authenticate.
 
 Mock-only mode (`VITE_DQA_MOCK_UI=1`) needs no running DQA server — useful for designing the drawer UI in isolation.
 

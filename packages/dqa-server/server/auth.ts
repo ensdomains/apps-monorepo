@@ -300,7 +300,7 @@ async function gql<T>(
 
 export async function fetchViewer(token: string): Promise<LinearViewer> {
   const data = await gql<{ viewer: LinearViewer }>(
-    `{ viewer { id name email organization { id name urlKey }
+    `{ viewer { id name email avatarUrl organization { id name urlKey }
         teamMemberships { nodes { team { id key name } } } } }`,
     token,
   )
@@ -374,25 +374,29 @@ export function makeSession(viewer: LinearViewer, linearToken: string): string {
     email: viewer.email || null,
     orgId: viewer.organization?.id || null,
     color: colorFor(viewer.id),
+    avatarUrl: viewer.avatarUrl || null,
     lt: encrypt(linearToken), // encrypted Linear access token (server-only)
     dev: false,
   })
 }
 
+// Auto-numbered default names so each browser/session in dev mode shows up as
+// a distinct user ("Dev 1", "Dev 2", …). Resets on server restart — fine.
+let devSeq = 0
+
 export function makeDevSession(name: string): string {
-  const id =
-    'dev-' +
-    crypto
-      .createHash('sha1')
-      .update(name || 'dev')
-      .digest('hex')
-      .slice(0, 6)
+  devSeq += 1
+  const label = (name || '').trim() || `Dev ${devSeq}`
+  // Random id per session (NOT a hash of the name): two browsers using the
+  // same/default name must still be separate users for presence/cursors.
+  const id = 'dev-' + crypto.randomBytes(3).toString('hex')
   return signJWT({
     sub: id,
-    name: name || 'Dev',
+    name: label,
     email: null,
     orgId: null,
     color: colorFor(id),
+    avatarUrl: null,
     lt: null,
     dev: true,
   })

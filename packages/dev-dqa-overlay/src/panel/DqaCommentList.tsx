@@ -10,6 +10,7 @@ type DqaCommentListProps = {
   readonly onFocus: (id: string) => void
   readonly onResolve?: (id: string) => void
   readonly onDelete?: (id: string) => void
+  readonly onCopyMarkdown?: (id: string) => Promise<boolean>
   readonly showFocusAction?: boolean
 }
 
@@ -20,6 +21,7 @@ export function DqaCommentList({
   onFocus,
   onResolve,
   onDelete,
+  onCopyMarkdown,
   showFocusAction = true,
 }: DqaCommentListProps) {
   const filtered = comments.filter((comment) => {
@@ -47,6 +49,9 @@ export function DqaCommentList({
           onFocus={() => onFocus(comment.id)}
           onResolve={onResolve ? () => onResolve(comment.id) : undefined}
           onDelete={onDelete ? () => onDelete(comment.id) : undefined}
+          onCopyMarkdown={
+            onCopyMarkdown ? () => onCopyMarkdown(comment.id) : undefined
+          }
           showFocusAction={showFocusAction}
         />
       ))}
@@ -57,16 +62,16 @@ export function DqaCommentList({
 const listStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 8,
+  gap: 10,
 }
 
 const emptyStyle: CSSProperties = {
-  padding: '20px 12px',
+  padding: '40px 20px',
   textAlign: 'center',
-  color: PANEL.muted,
+  color: PANEL.faint,
   font: PANEL.fontSans,
-  fontSize: 12,
+  fontSize: 12.5,
   border: `1px dashed ${PANEL.border}`,
-  borderRadius: 8,
+  borderRadius: 10,
   background: PANEL.surface,
 }

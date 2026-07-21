@@ -30,8 +30,12 @@ export type Anchor = {
 export type Reply = {
   id: string
   author: string
+  /** Linear profile image URL when available; letter fallback otherwise. */
+  authorAvatar?: string | null
   body: string
   createdAt: string
+  /** True when the reply was also posted to Linear as a threaded reply. */
+  linearSynced?: boolean
 }
 
 /** A pushed Linear comment or issue reference stored on a comment. */
@@ -49,6 +53,8 @@ export type Comment = {
   url: string
   author: string
   authorId: string
+  /** Linear profile image URL when available; letter fallback otherwise. */
+  authorAvatar?: string | null
   body: string
   anchor: Anchor | null
   imageUrl: string | null
@@ -80,6 +86,8 @@ export type Session = {
   email: string | null
   orgId: string | null
   color: string
+  /** Linear profile image URL when the viewer has one. */
+  avatarUrl?: string | null
   /** Encrypted Linear access token (server-only), or null for dev sessions. */
   lt: string | null
   dev: boolean
@@ -91,8 +99,11 @@ export type LinearViewer = {
   id: string
   name: string
   email?: string | null
+  avatarUrl?: string | null
   organization?: { id: string; name?: string; urlKey?: string } | null
-  teamMemberships?: { nodes: { team: { id: string; key: string; name: string } }[] }
+  teamMemberships?: {
+    nodes: { team: { id: string; key: string; name: string } }[]
+  }
 }
 
 export type LinearPushMode = 'comment' | 'subissue' | 'issue'

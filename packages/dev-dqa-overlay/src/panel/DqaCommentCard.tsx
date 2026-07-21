@@ -1,5 +1,6 @@
-import { type CSSProperties } from 'react'
+import { type CSSProperties, useState } from 'react'
 import type { DqaCommentSummary } from '../types'
+import { DqaAvatar } from './DqaAvatar'
 import { formatRelativeTime } from './formatRelativeTime'
 import { linearIssueUrl } from './linearUrl'
 import { PANEL } from './panelTheme'
@@ -10,6 +11,8 @@ type DqaCommentCardProps = {
   readonly onFocus: () => void
   readonly onResolve?: () => void
   readonly onDelete?: () => void
+  /** Returns true when the comment's Markdown was copied to the clipboard. */
+  readonly onCopyMarkdown?: () => Promise<boolean>
   readonly showFocusAction?: boolean
 }
 
@@ -19,13 +22,18 @@ export function DqaCommentCard({
   onFocus,
   onResolve,
   onDelete,
+  onCopyMarkdown,
   showFocusAction = true,
 }: DqaCommentCardProps) {
+  const [copied, setCopied] = useState<null | boolean>(null)
+  const [hovered, setHovered] = useState(false)
   const linearUrl =
     comment.linear?.url ??
     (comment.issueRef ? linearIssueUrl(comment.issueRef) : null)
   const linearLabel = comment.linear?.identifier ?? comment.issueRef
   const clickable = showFocusAction
+  const resolved = comment.status === 'resolved'
+  const hasActions = showFocusAction && (onResolve || onDelete || onCopyMarkdown)
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: clickable card with inner controls
@@ -42,28 +50,36 @@ export function DqaCommentCard({
             }
           : undefined
       }
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
       style={{
         ...cardStyle,
         ...(clickable ? cardClickableStyle : undefined),
+        ...(hovered ? cardHoverStyle : undefined),
         ...(active ? cardActiveStyle : undefined),
       }}
     >
       <div style={headerStyle}>
-        <div style={headerLeftStyle}>
-          <span style={pinStyle}>
-            {comment.status === 'resolved' ? '✓' : `#${comment.pinIndex}`}
+        <DqaAvatar
+          avatarUrl={comment.authorAvatar}
+          name={comment.author}
+          size={22}
+        />
+        <span style={pinNumStyle}>{resolved ? '✓' : `#${comment.pinIndex}`}</span>
+        {comment.anchorLabel && (
+          <span style={tagElStyle} title={comment.anchorLabel}>
+            {comment.anchorLabel}
           </span>
-          <span style={anchorStyle}>{comment.anchorLabel ?? 'Element'}</span>
-        </div>
+        )}
         <span
           style={{
             ...statusStyle,
-            ...(comment.status === 'resolved' ? statusResolvedStyle : undefined),
+            ...(resolved ? statusResolvedStyle : statusOpenStyle),
           }}
         >
-          {comment.status}
+          {resolved ? 'RESOLVED' : 'OPEN'}
         </span>
       </div>
 
@@ -73,7 +89,8 @@ export function DqaCommentCard({
         <span>{comment.author}</span>
         {comment.replyCount > 0 && (
           <span>
-            · {comment.replyCount} {comment.replyCount === 1 ? 'reply' : 'replies'}
+            · {comment.replyCount}{' '}
+            {comment.replyCount === 1 ? 'reply' : 'replies'}
           </span>
         )}
         <span>· {formatRelativeTime(comment.createdAt)}</span>
@@ -82,53 +99,73 @@ export function DqaCommentCard({
             style={linearDeletedStyle}
             title="The pushed comment/issue was deleted in Linear"
           >
-            {linearLabel ?? 'Linear'} · deleted in Linear
+            · {linearLabel ?? 'Linear'} deleted in Linear
           </span>
+        ) : linearLabel && linearUrl ? (
+          <a
+            href={linearUrl}
+            onClick={(event) => event.stopPropagation()}
+            rel="noopener noreferrer"
+            style={linearLinkStyle}
+            target="_blank"
+          >
+            {linearLabel} ↗
+          </a>
         ) : (
-          linearLabel &&
-          linearUrl && (
-            <a
-              href={linearUrl}
-              onClick={(event) => event.stopPropagation()}
-              rel="noopener noreferrer"
-              style={linearLinkStyle}
-              target="_blank"
-            >
-              {linearLabel} ↗
-            </a>
-          )
-        )}
-        {!comment.linear && !comment.issueRef && (
           <span style={notLinkedStyle}>· Not in Linear yet</span>
         )}
       </div>
 
-      {showFocusAction && (onResolve || onDelete) && (
-        <div style={actionsStyle}>
+      {hasActions && (
+        <div
+          style={{
+            ...actionsStyle,
+            ...(hovered || active ? actionsVisibleStyle : undefined),
+          }}
+        >
+          {onCopyMarkdown && (
+            <button
+              onClick={(event) => {
+                event.stopPropagation()
+                void onCopyMarkdown().then((ok) => {
+                  setCopied(ok)
+                  setTimeout(() => setCopied(null), 1500)
+                })
+              }}
+              style={miniActionStyle}
+              title="Copy this comment as Markdown (for AI tooling)"
+              type="button"
+            >
+              <MiniIcon kind="copy" />
+              {copied === null ? 'Copy' : copied ? 'Copied ✓' : 'Copy failed'}
+            </button>
+          )}
           {onDelete && (
             <button
               onClick={(event) => {
                 event.stopPropagation()
                 onDelete()
               }}
-              style={deleteBtnStyle}
+              style={{ ...miniActionStyle, color: PANEL.error }}
               title="Delete this DQA comment (does not touch Linear)"
               type="button"
             >
+              <MiniIcon kind="trash" />
               Delete
             </button>
           )}
-          {comment.status === 'open' && onResolve && (
+          {!resolved && onResolve && (
             <button
               onClick={(event) => {
                 event.stopPropagation()
                 onResolve()
               }}
-              style={resolveBtnStyle}
+              style={{ ...miniActionStyle, color: PANEL.success }}
               title="Mark as resolved (moves out of the Open filter)"
               type="button"
             >
-              ✓ Resolve
+              <MiniIcon kind="check" />
+              Resolve
             </button>
           )}
         </div>
@@ -137,15 +174,50 @@ export function DqaCommentCard({
   )
 }
 
+function MiniIcon({ kind }: { readonly kind: 'copy' | 'trash' | 'check' }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      style={{ width: 12, height: 12, flexShrink: 0 }}
+      viewBox="0 0 24 24"
+    >
+      {kind === 'copy' ? (
+        <>
+          <rect height="13" rx="2" width="13" x="9" y="9" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </>
+      ) : kind === 'trash' ? (
+        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      ) : (
+        <>
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <path d="M22 4L12 14.01l-3-3" />
+        </>
+      )}
+    </svg>
+  )
+}
+
 const cardStyle: CSSProperties = {
   padding: '10px 12px',
-  borderRadius: 8,
+  borderRadius: 10,
   border: `1px solid ${PANEL.border}`,
-  background: PANEL.surface,
+  background: PANEL.bg,
+  transition: 'border-color .15s, box-shadow .15s',
 }
 
 const cardClickableStyle: CSSProperties = {
   cursor: 'pointer',
+}
+
+const cardHoverStyle: CSSProperties = {
+  borderColor: PANEL.faint,
+  boxShadow: '0 2px 8px rgba(0,0,0,.06)',
 }
 
 const cardActiveStyle: CSSProperties = {
@@ -157,61 +229,65 @@ const cardActiveStyle: CSSProperties = {
 const headerStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 8,
+  gap: 7,
   marginBottom: 6,
-}
-
-const headerLeftStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
   minWidth: 0,
 }
 
-const pinStyle: CSSProperties = {
+const pinNumStyle: CSSProperties = {
   flexShrink: 0,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 22,
-  height: 22,
-  borderRadius: '50%',
-  background: PANEL.accentDense,
-  color: PANEL.onAccent,
   font: PANEL.font,
+  fontSize: 10.5,
   fontWeight: 700,
-  fontSize: 10,
+  color: PANEL.onPrimary,
+  background: PANEL.primary,
+  borderRadius: 999,
+  padding: '1px 7px',
+  lineHeight: 1.6,
 }
 
-const anchorStyle: CSSProperties = {
-  font: PANEL.font,
-  fontWeight: 600,
-  color: PANEL.accentDense,
+const tagElStyle: CSSProperties = {
+  font: PANEL.fontMono,
+  fontSize: 11,
+  padding: '2px 7px',
+  borderRadius: 999,
+  background: PANEL.accentBg,
+  color: PANEL.accent,
+  border: `1px solid ${PANEL.accentBorder}`,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+  minWidth: 0,
 }
 
 const statusStyle: CSSProperties = {
+  marginLeft: 'auto',
   flexShrink: 0,
   font: PANEL.font,
   fontSize: 10,
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
+  fontWeight: 700,
+  letterSpacing: '0.05em',
+  padding: '2px 8px',
+  borderRadius: 999,
+}
+
+const statusOpenStyle: CSSProperties = {
   color: PANEL.accent,
+  background: PANEL.accentBg,
+  border: `1px solid ${PANEL.accentBorder}`,
 }
 
 const statusResolvedStyle: CSSProperties = {
-  color: PANEL.muted,
+  color: PANEL.success,
+  background: PANEL.successBg,
+  border: `1px solid ${PANEL.successBg}`,
 }
 
 const bodyStyle: CSSProperties = {
-  margin: '0 0 8px',
+  margin: '0 0 5px',
   font: PANEL.fontSans,
-  fontSize: 12,
-  lineHeight: 1.45,
+  fontSize: 13,
+  lineHeight: 1.5,
   color: PANEL.fg,
 }
 
@@ -221,12 +297,12 @@ const metaStyle: CSSProperties = {
   alignItems: 'center',
   gap: 4,
   font: PANEL.font,
-  fontSize: 10,
-  color: PANEL.muted,
+  fontSize: 11,
+  color: PANEL.faint,
 }
 
 const linearLinkStyle: CSSProperties = {
-  color: PANEL.accentDense,
+  color: PANEL.accent,
   fontWeight: 600,
   textDecoration: 'none',
 }
@@ -235,30 +311,38 @@ const notLinkedStyle: CSSProperties = {
   fontStyle: 'italic',
 }
 
-const actionsStyle: CSSProperties = {
-  marginTop: 8,
-  display: 'flex',
-  justifyContent: 'flex-end',
-}
-
-const resolveBtnStyle: CSSProperties = {
-  border: `1px solid ${PANEL.borderStrong}`,
-  background: PANEL.surface,
-  color: PANEL.accentDense,
-  borderRadius: 4,
-  padding: '3px 8px',
-  font: PANEL.font,
-  cursor: 'pointer',
-}
-
-const deleteBtnStyle: CSSProperties = {
-  ...resolveBtnStyle,
-  color: PANEL.error,
-  borderColor: PANEL.border,
-}
-
 const linearDeletedStyle: CSSProperties = {
   color: PANEL.error,
   fontWeight: 600,
   textDecoration: 'line-through',
+}
+
+const actionsStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
+  gap: 4,
+  marginTop: 8,
+  paddingTop: 8,
+  borderTop: `1px solid ${PANEL.borderSoft}`,
+  opacity: 0,
+  transition: 'opacity .15s',
+}
+
+const actionsVisibleStyle: CSSProperties = {
+  opacity: 1,
+}
+
+const miniActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  border: 'none',
+  background: 'transparent',
+  cursor: 'pointer',
+  font: PANEL.font,
+  fontSize: 11.5,
+  fontWeight: 500,
+  color: PANEL.muted,
+  padding: '4px 8px',
+  borderRadius: 6,
 }

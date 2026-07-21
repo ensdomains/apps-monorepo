@@ -1,13 +1,19 @@
-export { DQA_LINEAR_ISSUE, DQA_URL, isDQAEnabled, isDqaMockUiEnabled } from './config'
+export {
+  DQA_LINEAR_ISSUE,
+  DQA_URL,
+  isDQAEnabled,
+  isDqaMockUiEnabled,
+} from './config'
+export { createMockDqaApi } from './createMockDqaApi'
 export { DqaPanelContent } from './DqaPanelContent'
 export { loadDqaOverlay } from './loadOverlay'
-export { createMockDqaApi } from './createMockDqaApi'
+export { DqaAvatar } from './panel/DqaAvatar'
 export {
+  type DqaTheme,
   getDqaTheme,
   setDqaTheme,
   subscribeDqaTheme,
   toggleDqaTheme,
-  type DqaTheme,
 } from './theme'
 export type {
   DqaApi,
