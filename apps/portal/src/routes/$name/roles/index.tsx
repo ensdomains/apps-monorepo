@@ -52,7 +52,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-[425] md:text-h1">Roles</h1>
+      <h1 className="text-h2 md:text-h1">Roles</h1>
       <NameRegistryRolesOverviewTable name={name} />
       <NameResolverRolesOverviewTable name={name} />
       <NameRolesOverviewTable
