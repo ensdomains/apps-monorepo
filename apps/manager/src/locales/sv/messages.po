@@ -645,6 +645,7 @@ msgstr ""
 
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
 #: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
+#: src/features/profile/components/view/AddressProfileHeader.tsx
 msgid "Copy to clipboard"
 msgstr ""
 
@@ -677,6 +678,7 @@ msgid "Create unlimited subdomains for free"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Created"
 msgstr ""
 
@@ -921,6 +923,7 @@ msgid "expiring on"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Expiry Date"
 msgstr ""
 
@@ -1251,6 +1254,10 @@ msgstr ""
 msgid "Manage Renewals"
 msgstr ""
 
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
+msgid "Managed"
+msgstr ""
+
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "Manager"
 msgstr ""
@@ -1294,6 +1301,7 @@ msgid "My Names"
 msgstr "Mina namn"
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
 msgstr "Namn"
 
@@ -1307,6 +1315,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Name registering"
+msgstr ""
+
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
+msgid "Names"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -1340,7 +1352,6 @@ msgid "Next card"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPagination.tsx
-#: src/features/profile/components/view/AddressProfileView.tsx
 msgid "Next page"
 msgstr ""
 
@@ -1377,6 +1388,7 @@ msgid "No names match your search"
 msgstr ""
 
 #: src/features/dashboard/components/MyNamesList.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "No names to display"
 msgstr "Inga namn att visa"
 
@@ -1464,6 +1476,7 @@ msgid "Over 2 million ENS names registered"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
 msgstr ""
 
@@ -1600,7 +1613,6 @@ msgid "Previous owner"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPagination.tsx
-#: src/features/profile/components/view/AddressProfileView.tsx
 msgid "Previous page"
 msgstr ""
 
@@ -1697,8 +1709,8 @@ msgid "Registered"
 msgstr "Registrerad"
 
 #: src/features/profile/components/view/AddressProfileView.tsx
-msgid "Registered ENS names"
-msgstr ""
+#~ msgid "Registered ENS names"
+#~ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
@@ -1955,6 +1967,7 @@ msgid "Search name, address..."
 msgstr "Sök namn, adress..."
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
 msgstr ""
 
@@ -1970,7 +1983,9 @@ msgstr ""
 msgid "See what's new"
 msgstr ""
 
+#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr ""
@@ -1980,6 +1995,7 @@ msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr ""
 
@@ -2302,8 +2318,8 @@ msgid "There was a problem verifying your email address."
 msgstr ""
 
 #: src/features/profile/components/view/AddressProfileView.tsx
-msgid "This address does not have a primary ENS name."
-msgstr ""
+#~ msgid "This address does not have a primary ENS name."
+#~ msgstr ""
 
 #: src/features/payment/components/add.tsx
 #: src/features/payment/components/index.tsx
@@ -2391,6 +2407,10 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Try searching for a different coin or chain"
+msgstr ""
+
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
+msgid "Unable to load names for this address. Please try again."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
@@ -2519,6 +2539,10 @@ msgstr ""
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
+msgstr ""
+
+#: src/features/profile/components/view/AddressProfileHeader.tsx
+msgid "View profile"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
