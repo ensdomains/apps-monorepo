@@ -57,11 +57,11 @@ export const Route = createRootRoute({
                 </PHProvider>
               </TransactionManagerSetup>
             </ConnectModalProvider>
-            {import.meta.env.DEV && <DevDrawer />}
           </QueryClientProvider>
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
+        <DevDrawer />
         <TanStackRouterDevtools position="bottom-right" />
       </>
     )
