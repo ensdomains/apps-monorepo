@@ -747,27 +747,35 @@
     'data-cy',
     'id',
   ]
-  function buildSelector(el) {
-    let node = el
-    while (node && node.nodeType === 1 && node !== document.body) {
-      for (const attr of STABLE_ATTRS) {
-        const v = node.getAttribute && node.getAttribute(attr)
-        if (v)
-          return {
-            selector: `[${attr}="${cssEscape(v)}"]`,
-            label:
-              node.getAttribute('data-component') || node.tagName.toLowerCase(),
-          }
-      }
-      node = node.parentElement
+  function stableAttrSelector(node) {
+    if (!node || node.nodeType !== 1 || !node.getAttribute) return null
+    for (const attr of STABLE_ATTRS) {
+      const v = node.getAttribute(attr)
+      if (v) return `[${attr}="${cssEscape(v)}"]`
     }
+    return null
+  }
+  function buildSelector(el) {
+    // A stable attribute on the element ITSELF identifies it directly.
+    const own = stableAttrSelector(el)
+    if (own)
+      return {
+        selector: own,
+        label: el.getAttribute('data-component') || el.tagName.toLowerCase(),
+      }
+    // Otherwise build a direct-child nth-of-type path from the element up to
+    // the nearest stable-attr ancestor (used as a SCOPE PREFIX) or <body>.
+    // The old code returned the stable ancestor itself — in apps without
+    // data-testids everywhere (explorer/portal) every comment anchored to
+    // the first ancestor with an id, i.e. div#app.
     const parts = []
-    node = el
+    let node = el
+    let prefix = 'body > '
     while (
       node &&
       node.nodeType === 1 &&
       node !== document.body &&
-      parts.length < 6
+      parts.length < 20
     ) {
       let part = node.tagName.toLowerCase()
       const parent = node.parentElement
@@ -779,9 +787,21 @@
           part += `:nth-of-type(${sameTag.indexOf(node) + 1})`
       }
       parts.unshift(part)
-      node = node.parentElement
+      const scope = stableAttrSelector(parent)
+      if (scope && parent !== document.body) {
+        prefix = `${scope} > `
+        break
+      }
+      if (!parent || parent === document.body) break
+      node = parent
     }
-    return { selector: parts.join(' > '), label: el.tagName.toLowerCase() }
+    // Depth cap hit without reaching body/scope: drop the anchored prefix so
+    // the (rare) truncated path can still match as a descendant selector.
+    if (parts.length >= 20) prefix = ''
+    return {
+      selector: prefix + parts.join(' > '),
+      label: el.tagName.toLowerCase(),
+    }
   }
   function cssEscape(s) {
     return String(s).replace(/"/g, '\\"')
@@ -2093,11 +2113,22 @@
       if (inOverlayOrIgnored(e)) return
       e.preventDefault()
       e.stopPropagation()
-      openCompose(
-        captureAnchor(e.target, e.clientX, e.clientY),
-        e.clientX,
-        e.clientY,
-      )
+      // Resolve the element by coordinates (same mechanism as hover) rather
+      // than trusting e.target: apps that re-render on interaction (portal)
+      // can swap the pressed node between mousedown and click, which makes
+      // the browser retarget the click to a common ancestor like #app.
+      let el = document.elementFromPoint(e.clientX, e.clientY)
+      if (
+        !el ||
+        el === host ||
+        (el.closest && el.closest('[data-dqa-ignore]'))
+      ) {
+        el = null
+      }
+      // Fall back to the tracked hover element, then the raw click target.
+      if (!el && hoverEl && document.contains(hoverEl)) el = hoverEl
+      if (!el) el = e.target
+      openCompose(captureAnchor(el, e.clientX, e.clientY), e.clientX, e.clientY)
       setMode(false)
     },
     true,
@@ -2298,14 +2329,43 @@
       hintEl = document.createElement('div')
       hintEl.className = 'hint'
       hintEl.textContent =
-        'Inspect — click any element to comment · Esc to cancel'
+        'Inspect — click any element to comment · C to toggle · Esc to cancel'
       ui.appendChild(hintEl)
     }
+  }
+  // True when the keystroke belongs to a text field (page or overlay side) —
+  // shortcuts must never fire while someone is typing.
+  function isTypingTarget(e) {
+    const t = e.composedPath ? e.composedPath()[0] : e.target
+    if (!t || t.nodeType !== 1) return false
+    const tag = t.tagName
+    return (
+      tag === 'INPUT' ||
+      tag === 'TEXTAREA' ||
+      tag === 'SELECT' ||
+      t.isContentEditable
+    )
   }
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       setMode(false)
       closePopover()
+      return
+    }
+    // "C" toggles comment/inspect mode (Figma/Vercel-toolbar convention).
+    // Plain keypress only — no modifiers, never while typing, signed-in only.
+    if (
+      (e.key === 'c' || e.key === 'C') &&
+      !e.metaKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.shiftKey &&
+      USER &&
+      !activePopover &&
+      !isTypingTarget(e)
+    ) {
+      e.preventDefault()
+      setMode(!commentMode)
     }
   })
 
