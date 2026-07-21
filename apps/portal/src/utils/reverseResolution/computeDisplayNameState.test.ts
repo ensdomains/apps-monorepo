@@ -69,7 +69,7 @@ describe('computeDisplayNameState', () => {
   })
 
   describe('L2 (Optimism, chainId 10)', () => {
-    it('should use name when set', () => {
+    it('should use name when set and allow completing the forward record', () => {
       const result = computeDisplayNameState({
         name: 'alice.eth',
         defaultName: 'default.eth',
@@ -77,11 +77,14 @@ describe('computeDisplayNameState', () => {
         reverseRegistrarChainId: 10,
       })
 
+      // A reverse name set on the L2 registrar without a matching forward
+      // `addr(node, l2CoinType)` record is only half of an ENSIP-19 primary —
+      // the forward record can be written (on L1) to complete it.
       expect(result).toEqual({
         displayName: 'alice.eth',
         isInheritingDefault: false,
         isPrimaryName: false,
-        canSetAsPrimary: false,
+        canSetAsPrimary: true,
       })
     })
 
