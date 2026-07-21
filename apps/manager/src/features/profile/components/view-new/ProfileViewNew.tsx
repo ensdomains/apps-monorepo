@@ -126,7 +126,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
 
   return (
     <div
-      className="relative min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:pb-28.5"
+      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5"
       style={expiry.isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
       <ProfileViewNewThemeColorProvider value={profileThemeColor}>

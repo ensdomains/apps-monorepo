@@ -52,12 +52,7 @@ export const Layout = ({ children }: LayoutProps) => {
           'bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200',
       )}
     >
-      <div
-        className={tw(
-          'sticky inset-x-0 top-0 z-50',
-          isNewProfileViewPage && '-mb-13.5 lg:landscape:-mb-20',
-        )}
-      >
+      <div className="sticky inset-x-0 top-0 z-50">
         <Header
           desktopBreakpoint={isNewProfileViewPage ? 'lg-landscape' : 'md'}
           hasMobileBlurredBackground={isNewProfileViewPage}
