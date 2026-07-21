@@ -51,6 +51,11 @@ const CONTRACTS = {
   Registry: ensjsSepolia.ensRegistry.address,
 } as const
 
+export const PAYMENT_TOKEN_DECIMALS: Record<PaymentToken, number> = {
+  USDC: 6,
+  DAI: 18,
+}
+
 export const PAYMENT_TOKENS: Record<PaymentToken, Address> = {
   USDC: ensjsSepolia.usdc.address,
   DAI: ensjsSepolia.dai.address,
