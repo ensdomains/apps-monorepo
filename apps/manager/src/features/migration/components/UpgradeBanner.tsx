@@ -53,7 +53,7 @@ export const UpgradeBanner = ({
   return (
     <div
       className={cn(
-        'relative overflow-hidden bg-gradient-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-6 md:py-8',
+        'relative overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200 px-4 py-6 md:rounded-lg md:px-5 md:py-5.5',
         className,
       )}
     >
