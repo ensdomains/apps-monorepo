@@ -58,7 +58,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-[425] md:text-h1">
+      <h1 className="text-h2 md:text-h1">
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
 

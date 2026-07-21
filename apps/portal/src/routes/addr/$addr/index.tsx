@@ -107,7 +107,7 @@ function RouteComponent() {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2 lg:flex-row justify-between items-baseline">
-        <h1 className="text-2xl font-[425] md:text-h1 break-all">{addr}</h1>
+        <h1 className="text-h2 md:text-h1 break-all">{addr}</h1>
         {isViewingConnectedWallet && (
           <Button variant="default" onClick={() => disconnect()}>
             Disconnect
