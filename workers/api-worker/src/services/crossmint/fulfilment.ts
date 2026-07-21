@@ -488,7 +488,7 @@ export async function verifyRegistration(
  * the manager client mints against (`getVoucherAddress()` in
  * @ens-apps/transaction-manager registration.actors.ts).
  */
-export const VOUCHER_ADDRESS = '0x6Fc426D667B49e3949ced241653aC2fb7721E8Ed'
+export const VOUCHER_ADDRESS = '0xfd0D6F7152CC59C0eBFef6364c4aB8CaCe9b797d'
 
 /**
  * Burn the Crossmint voucher once the name is delivered.

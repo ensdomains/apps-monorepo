@@ -1407,11 +1407,23 @@ export function ensureHcaDeployedActor(input: {
 // with a single `mintSelfWithPermit` or `mintSelf` transaction, followed by
 // backend fulfilment polling. The user pays with their own stablecoin wallet.
 
+// gasFee split (voucher 0xfd0D6F71…): `amount - gasFee` settles to the treasury
+// Safe, `gasFee` is forwarded to the fulfilment executor so the buyer funds
+// their own fulfilment gas at mint time. Until the order-time fee quote is
+// wired through `amount_due`, the client mints with gasFee = 0 (legal — the
+// split is simply inactive for that voucher).
 const VOUCHER_MINT_ABI = parseAbi([
-  'function mintSelf(bytes32 commitment, uint256 duration, address paymentToken, uint256 amount) returns (uint256 tokenId)',
-  'function mintSelfWithPermit(bytes32 commitment, uint256 duration, address paymentToken, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) returns (uint256 tokenId)',
+  'function mintSelf(bytes32 commitment, uint256 duration, address paymentToken, uint256 amount, uint256 gasFee) returns (uint256 tokenId)',
+  'function mintSelfWithPermit(bytes32 commitment, uint256 duration, address paymentToken, uint256 amount, uint256 gasFee, uint256 deadline, uint8 v, bytes32 r, bytes32 s) returns (uint256 tokenId)',
   'event VoucherMinted(uint256 indexed tokenId, address indexed to, bytes32 indexed commitment, uint256 duration, address paymentToken, uint256 amountPaid)',
 ])
+
+/**
+ * Fulfilment-gas component of the mint, forwarded on-chain to the executor.
+ * TODO(WEB-7 quote wiring): replace with the order's server-quoted gasFee
+ * (orchestrator quote folded into amount_due) once the worker returns it.
+ */
+const VOUCHER_GAS_FEE = 0n
 
 const VOUCHER_PERMIT_PROBE = parseAbi([
   'function nonces(address owner) view returns (uint256)',
@@ -1443,10 +1455,10 @@ function getVoucherAddress(): Address {
     const env = import.meta as unknown as { env: Record<string, string> }
     return (
       (env?.env?.VITE_VOUCHER_ADDRESS as Address | undefined) ??
-      '0x6Fc426D667B49e3949ced241653aC2fb7721E8Ed'
+      '0xfd0D6F7152CC59C0eBFef6364c4aB8CaCe9b797d'
     )
   } catch {
-    return '0x6Fc426D667B49e3949ced241653aC2fb7721E8Ed'
+    return '0xfd0D6F7152CC59C0eBFef6364c4aB8CaCe9b797d'
   }
 }
 
@@ -1545,6 +1557,7 @@ async function mintWithPermit(
       duration,
       token,
       amount,
+      VOUCHER_GAS_FEE,
       deadline,
       v as unknown as number,
       r as Hash,
@@ -1591,7 +1604,7 @@ async function approveThenMint(
     address: getVoucherAddress(),
     abi: VOUCHER_MINT_ABI,
     functionName: 'mintSelf',
-    args: [commitment, duration, token, amount],
+    args: [commitment, duration, token, amount, VOUCHER_GAS_FEE],
   })
 }
 
