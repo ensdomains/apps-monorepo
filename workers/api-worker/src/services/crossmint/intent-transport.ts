@@ -3,6 +3,12 @@ import type { Address, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { logger } from '#utils/logger.js'
+import {
+  type FulfilmentLeg,
+  type GasAndPrices,
+  quoteLegTokenRequest,
+  readGasAndPrices,
+} from './intent-quote.js'
 
 /**
  * Intents execution transport (`FULFILMENT_TRANSPORT=intents`): fulfilment
@@ -64,27 +70,41 @@ export function createIntentExecutor(env: CloudflareBindings) {
     return { account, initSig }
   }
 
+  // One gas-price + ETH/USDC read, shared by every leg quoted on this executor
+  // instance (a queue-phase's worth of legs). Register runs in a later phase =
+  // a fresh instance, so it re-quotes against then-current gas. `.catch(null)`
+  // keeps a price outage from throwing here — the per-leg quote falls back.
+  let gasPricesPromise: Promise<GasAndPrices | undefined> | null = null
+
   return async function execWriteViaIntents(
-    call: { to: Address; data: Hex },
+    call: { to: Address; data: Hex; leg: FulfilmentLeg },
     gasLimit: bigint = DEFAULT_GAS_LIMIT,
   ): Promise<Hex> {
     accountPromise ??= init()
     const { account, initSig } = await accountPromise
+
+    gasPricesPromise ??= readGasAndPrices(env).catch(() => undefined)
+    // Declare the USDC this leg actually needs available so the solver sizes
+    // the route and reserves its gas reimbursement correctly. A nominal 1n
+    // under-declares the spend → the solver earmarks the balance for the token
+    // request and finds too little left for gas ("insufficient available
+    // balance … leaving too little remainder for gas"). Priced identically to
+    // the buyer's mint-time gasFee, so the collected fee covers every leg.
+    const tokenRequestAmount = await quoteLegTokenRequest(
+      env,
+      call.leg,
+      await gasPricesPromise,
+    )
 
     const result = await account.sendTransaction({
       chain: sepolia,
       eip7702InitSignature: initSig,
       calls: [{ to: call.to, value: 0n, data: call.data }],
       // tokenRequests + feeAsset + sourceAssets together are the USDC-gas
-      // settlement anchor the SOLVER routes against — this exact triple is
-      // what filled demonslayer.eth on-chain (relayer 0x46565eeD…) and what
-      // the validated probe uses. Omitting tokenRequests leaves the router
-      // with no token movement to construct a fill → "No viable route".
-      // The earlier "insufficient balance" failures were NOT this config's
-      // fault — they were the correct funding precheck rejecting orders whose
-      // executor USDC (the buyer-funded gasFee) was below the per-leg quote.
-      // sourceAssets:['USDC'] pins gas paid in USDC-equivalent; no ETH.
-      tokenRequests: [{ address: USDC_L1, amount: 1n }],
+      // settlement anchor the SOLVER routes against. `amount` is this leg's
+      // real quoted USDC need (see above) — NOT a nominal 1n. sourceAssets:
+      // ['USDC'] pins gas paid in USDC-equivalent; no ETH anywhere.
+      tokenRequests: [{ address: USDC_L1, amount: tokenRequestAmount }],
       feeAsset: 'USDC',
       sourceAssets: ['USDC'],
       gasLimit,

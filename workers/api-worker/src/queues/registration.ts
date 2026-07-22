@@ -8,12 +8,12 @@ import {
 import { KV_KEY } from '#core/kv/index.js'
 import {
   assertCommitmentMatchesChain,
+  assertRegistrarAllowance,
   assertVoucherCommitment,
   authorizedPaymentAmount,
   burnVoucher,
   createServerWalletClient,
   deployDedicatedResolver,
-  ensureTokenAllowance,
   getRegisterPriceTotal,
   PAYMENT_TOKENS,
   readMinCommitmentAge,
@@ -232,7 +232,7 @@ async function runRegisterPhase(
     duration: BigInt(order.duration),
     paymentToken: tokenAddress,
   })
-  await ensureTokenAllowance(client, {
+  await assertRegistrarAllowance(client, {
     token: tokenAddress,
     amount: authorizedPaymentAmount(price),
   })

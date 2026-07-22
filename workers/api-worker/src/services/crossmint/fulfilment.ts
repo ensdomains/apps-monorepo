@@ -43,6 +43,7 @@ import {
   computeResolverAddress,
   saltToHex,
 } from './commitment.js'
+import type { FulfilmentLeg } from './intent-quote.js'
 import { createIntentExecutor, isIntentsTransport } from './intent-transport.js'
 import { getRolesConfig, ROLES_MODULE_ABI } from './roles.js'
 import type { PaymentToken } from './types.js'
@@ -114,7 +115,7 @@ export type ServerWalletClient = Client<
   PublicActions<Transport, typeof sepoliaWithEns, PrivateKeyAccount> &
   WalletActions<typeof sepoliaWithEns, PrivateKeyAccount> & {
     payer: Address
-    execWrite(tx: { to: Address; data: Hex }): Promise<Hex>
+    execWrite(tx: { to: Address; data: Hex; leg: FulfilmentLeg }): Promise<Hex>
   }
 
 /**
@@ -179,10 +180,17 @@ export function createServerWalletClient(
        *   membership is transport-invariant. Resolves to the destination
        *   fill hash, preserving callers' receipt/event parsing.
        */
-      async execWrite(tx: { to: Address; data: Hex }): Promise<Hex> {
+      async execWrite(tx: {
+        to: Address
+        data: Hex
+        leg: FulfilmentLeg
+      }): Promise<Hex> {
         // The Roles wrapping is identical for both transports: the payer at
-        // the target must be the Safe.
-        const call: { to: Address; data: Hex } = roles
+        // the target must be the Safe. `leg` tags which fulfilment step this
+        // is so the intents transport can quote the right per-leg USDC
+        // `tokenRequests` — it's transport metadata, not part of the on-chain
+        // call, so the raw path ignores it.
+        const target: { to: Address; data: Hex } = roles
           ? {
               to: roles.module,
               data: encodeFunctionData({
@@ -191,13 +199,13 @@ export function createServerWalletClient(
                 args: [tx.to, 0n, tx.data, 0, roles.roleKey, true],
               }),
             }
-          : tx
+          : { to: tx.to, data: tx.data }
 
         if (isIntentsTransport(env)) {
           intentExecutor ??= createIntentExecutor(env)
-          return intentExecutor(call)
+          return intentExecutor({ ...target, leg: tx.leg })
         }
-        return client.sendTransaction(call)
+        return client.sendTransaction(target)
       },
     }))
 }
@@ -369,6 +377,7 @@ export async function deployDedicatedResolver(
 
   const initData = buildResolverInitBundle(params.owner, params.label)
   const hash = await client.execWrite({
+    leg: 'resolverDeploy',
     to: CONTRACTS.VerifiableFactory,
     data: encodeFunctionData({
       abi: VERIFIABLE_FACTORY_ABI,
@@ -440,6 +449,7 @@ export async function submitCommit(
   commitment: Hex,
 ): Promise<Hex> {
   const hash = await client.execWrite({
+    leg: 'commit',
     to: CONTRACTS.ETHRegistrar,
     data: encodeFunctionData({
       abi: ETH_REGISTRAR_ABI,
@@ -493,13 +503,21 @@ export function authorizedPaymentAmount(price: bigint): bigint {
 }
 
 /**
- * Approve the registrar to pull `amount` of `token` from the payer (skipped if
- * the existing allowance already covers it). In Roles mode the allowance is the
- * SAFE's — it doubles as the blast-radius cap for a leaked worker key, which is
- * why the role's approve permission pins the spender to the registrar and caps
- * the per-call amount.
+ * Assert the payer (the Safe) has granted the registrar enough allowance to
+ * pull the registration price. This is a READ-ONLY guard: the allowance is a
+ * one-off, standing `USDC.approve(registrar, maxUint256)` set directly by the
+ * Safe owner (an ops action), NOT something fulfilment re-approves per order.
+ *
+ * Why not approve here: the registrar is a fixed, trusted target and the role
+ * already confines the executor EOA to registration-only activity — it can't
+ * move the Safe's USDC anywhere except into a registration payment — so a
+ * standing allowance is safe and removes a whole per-order intent leg. The
+ * role's `approve` permission is also capped (≤10k), so an infinite standing
+ * approval can only be set owner-direct, not through this path. A missing
+ * allowance is therefore an ops/config error, surfaced loudly rather than
+ * papered over with a capped (and now unnecessary) approve.
  */
-export async function ensureTokenAllowance(
+export async function assertRegistrarAllowance(
   client: ServerWalletClient,
   params: { token: Address; amount: bigint },
 ): Promise<void> {
@@ -509,16 +527,12 @@ export async function ensureTokenAllowance(
     functionName: 'allowance',
     args: [client.payer, CONTRACTS.ETHRegistrar],
   })
-  if (allowance >= params.amount) return
-  const hash = await client.execWrite({
-    to: params.token,
-    data: encodeFunctionData({
-      abi: erc20Abi,
-      functionName: 'approve',
-      args: [CONTRACTS.ETHRegistrar, params.amount],
-    }),
-  })
-  await client.waitForTransactionReceipt({ hash })
+  if (allowance < params.amount) {
+    throw new Error(
+      `Registrar allowance too low (${allowance} < ${params.amount}) for payer ${client.payer}. ` +
+        `Set the one-off standing approval: Safe → USDC.approve(registrar, maxUint256).`,
+    )
+  }
 }
 
 function parseRegisteredTokenId(
@@ -562,6 +576,7 @@ export async function submitRegister(
   },
 ): Promise<{ hash: Hex; tokenId: bigint }> {
   const hash = await client.execWrite({
+    leg: 'register',
     to: CONTRACTS.ETHRegistrar,
     data: encodeFunctionData({
       abi: ETH_REGISTRAR_ABI,

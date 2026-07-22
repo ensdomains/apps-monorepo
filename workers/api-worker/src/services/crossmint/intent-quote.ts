@@ -45,7 +45,24 @@ import { logger } from '#utils/logger.js'
  * ETH/USD — Rhinestone's price service (endorsed source; no Chainlink). Dev
  * key ships in-repo, inlined as an overridable default.
  */
-const FULFILMENT_LEG_UNITS = [268_000n, 84_823n, 336_856n] as const
+/**
+ * Per-leg raw chain gas, live Sepolia receipts through the Zodiac Roles
+ * modifier (see header). Single source of truth — the whole-fulfilment total
+ * and each leg's `tokenRequests` quote both derive from this map, so the
+ * numbers live in exactly one place.
+ */
+export const LEG_GAS_UNITS = {
+  resolverDeploy: 268_000n,
+  commit: 84_823n,
+  register: 336_856n,
+} as const
+export type FulfilmentLeg = keyof typeof LEG_GAS_UNITS
+
+/** Total raw gas across every leg, derived from {@link LEG_GAS_UNITS}. */
+const TOTAL_FULFILMENT_GAS_UNITS = Object.values(LEG_GAS_UNITS).reduce(
+  (a, u) => a + u,
+  0n,
+)
 
 /** ×1.30 — p95 upward base-fee drift over a ≤10min window (see header). */
 const GAS_DRIFT_BUFFER_PERCENT = 30n
@@ -85,6 +102,51 @@ async function fetchUsdPrices8(
   }
 }
 
+function premiumPct(env: CloudflareBindings): bigint {
+  return env.RAIL_PREMIUM_PERCENT
+    ? BigInt(env.RAIL_PREMIUM_PERCENT)
+    : RAIL_PREMIUM_PERCENT_DEFAULT
+}
+
+/**
+ * Convert raw chain gas units → the rail-priced USDC cost (6dp): drift-buffer,
+ * ETH→USDC, then the solver premium. Single source of truth so the buyer's
+ * gasFee (sum of all legs) and each leg's `tokenRequests` declaration are
+ * computed the SAME way and can never drift apart.
+ */
+function railPrice6dp(
+  units: bigint,
+  gasPrice: bigint,
+  prices: { eth: bigint; usdc: bigint },
+  premium: bigint,
+): bigint {
+  const bufferedWei =
+    (units * gasPrice * (100n + GAS_DRIFT_BUFFER_PERCENT)) / 100n
+  // wei (1e18) × ethUsd8 / usdcUsd8 → USDC at 1e18 scale; ÷1e12 → 6dp units.
+  const rawGasFee6dp = (bufferedWei * prices.eth) / (prices.usdc * 10n ** 12n)
+  return (rawGasFee6dp * premium) / 100n
+}
+
+/** A single gas-price + ETH/USDC read, reusable across every leg of one job. */
+export type GasAndPrices = {
+  gasPrice: bigint
+  prices: { eth: bigint; usdc: bigint }
+}
+
+export async function readGasAndPrices(
+  env: CloudflareBindings,
+): Promise<GasAndPrices> {
+  const client = createPublicClient({
+    chain: sepoliaWithEns,
+    transport: http(SEPOLIA_RPC_URL),
+  })
+  const [gasPrice, prices] = await Promise.all([
+    client.getGasPrice(),
+    fetchUsdPrices8(env.RHINESTONE_API_KEY ?? DEFAULT_RHINESTONE_API_KEY),
+  ])
+  return { gasPrice, prices }
+}
+
 /**
  * Compute the fulfilment gas fee in payment-token units (6dp). Falls back to
  * a conservative flat fee (with a warning log) if the chain gas price or the
@@ -94,32 +156,13 @@ export async function quoteFulfilmentFee(
   env: CloudflareBindings,
 ): Promise<bigint> {
   try {
-    const client = createPublicClient({
-      chain: sepoliaWithEns,
-      transport: http(SEPOLIA_RPC_URL),
-    })
-    const [gasPrice, prices] = await Promise.all([
-      client.getGasPrice(),
-      fetchUsdPrices8(env.RHINESTONE_API_KEY ?? DEFAULT_RHINESTONE_API_KEY),
-    ])
-
-    const premiumPct = env.RAIL_PREMIUM_PERCENT
-      ? BigInt(env.RAIL_PREMIUM_PERCENT)
-      : RAIL_PREMIUM_PERCENT_DEFAULT
-
-    // Total raw chain gas across the three legs, drift-buffered (wei).
-    const totalUnits = FULFILMENT_LEG_UNITS.reduce((a, u) => a + u, 0n)
-    const bufferedWei =
-      (totalUnits * gasPrice * (100n + GAS_DRIFT_BUFFER_PERCENT)) / 100n
-
-    // wei (1e18) × ethUsd8 / usdcUsd8 → USDC at 1e18 scale; ÷1e12 → 6dp units.
-    const rawGasFee6dp = (bufferedWei * prices.eth) / (prices.usdc * 10n ** 12n)
-
-    // Rail price = raw gas × the solver premium (which folds in the rail's
-    // fixed fees). This is what the executor actually pays the rail — what
-    // the buyer must fund — making the executor self-financing per order.
-    const fee = (rawGasFee6dp * premiumPct) / 100n
-
+    const { gasPrice, prices } = await readGasAndPrices(env)
+    const fee = railPrice6dp(
+      TOTAL_FULFILMENT_GAS_UNITS,
+      gasPrice,
+      prices,
+      premiumPct(env),
+    )
     if (fee === 0n) {
       logger.warn('Fulfilment fee computed as zero, using fallback')
       return FALLBACK_FEE_UNITS_6DP
@@ -128,5 +171,40 @@ export async function quoteFulfilmentFee(
   } catch (error) {
     logger.warn('Fulfilment fee quote failed, using fallback', { error })
     return FALLBACK_FEE_UNITS_6DP
+  }
+}
+
+/**
+ * The USDC (6dp) the executor account must have available for ONE intent leg —
+ * i.e. what the solver reserves to be reimbursed for that leg's gas. This is
+ * the value to pass as the leg's `tokenRequests.amount`: declaring it (instead
+ * of a nominal 1n) is what lets the solver size the route and reserve gas
+ * without starving — the fix for "balance needed for token request, leaving
+ * too little remainder for gas". Priced with the SAME model as the buyer's
+ * gasFee, so the sum of the legs' requests equals what was collected at mint.
+ *
+ * Falls back to the whole-fulfilment fallback / N legs on a quote outage, so a
+ * leg is never under-declared to 0.
+ */
+export async function quoteLegTokenRequest(
+  env: CloudflareBindings,
+  leg: FulfilmentLeg,
+  cached?: GasAndPrices,
+): Promise<bigint> {
+  try {
+    const { gasPrice, prices } = cached ?? (await readGasAndPrices(env))
+    const amount = railPrice6dp(
+      LEG_GAS_UNITS[leg],
+      gasPrice,
+      prices,
+      premiumPct(env),
+    )
+    return amount > 0n ? amount : FALLBACK_FEE_UNITS_6DP / 3n
+  } catch (error) {
+    logger.warn('Per-leg token-request quote failed, using fallback', {
+      error,
+      leg,
+    })
+    return FALLBACK_FEE_UNITS_6DP / 3n
   }
 }
