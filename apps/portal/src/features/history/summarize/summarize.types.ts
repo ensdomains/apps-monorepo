@@ -41,6 +41,11 @@ export type ActionSlot =
   | { readonly kind: 'glyph'; readonly value: '→' | '↔' }
   | { readonly kind: 'connective'; readonly value: string }
   | { readonly kind: 'placeholder'; readonly value: string }
+  | {
+      readonly kind: 'actor'
+      readonly txHash: string
+      readonly address?: string
+    }
 
 /** A tier-1 semantic action, produced by the summarize engine from raw events. */
 export type Action = {
@@ -61,8 +66,6 @@ export type DescriptorContext = {
   readonly primary: TimelineIndexerEvent
   /** All events grouped into this action. */
   readonly events: readonly TimelineIndexerEvent[]
-  /** txHash (lowercased) → sender address, from RPC backfill (see useTransactionSenders). */
-  readonly senders?: ReadonlyMap<string, string>
 }
 
 /** A descriptor turns an event group into a label + slots. `null` = not applicable. */

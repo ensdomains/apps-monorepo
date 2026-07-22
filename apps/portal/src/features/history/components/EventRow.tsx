@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { decodeRoleChange } from '../summarize/decodeRawData'
+import { AccountBadge } from './AccountBadge'
 import { getContractLabel } from './contractLabel'
 import { DecodedParams } from './EventDetail'
 import { DETAIL_INDENT, RAIL_X, TIER2_INDENT } from './timelineGeometry'
@@ -61,11 +62,7 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
             {change.roles.length || ''}{' '}
             {change.roles.length === 1 ? 'role' : 'roles'} {verb}
           </span>
-          {change.account && (
-            <EntityBadge variant="address" address={change.account as Address}>
-              {truncateAddress(change.account)}
-            </EntityBadge>
-          )}
+          {change.account && <AccountBadge address={change.account} />}
         </>
       )
     }

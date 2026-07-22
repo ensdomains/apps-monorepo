@@ -60,13 +60,11 @@ const distinctTxHashes = (events: readonly TimelineIndexerEvent[]): Hex[] => [
  */
 const describeGroup = (
   group: readonly TimelineIndexerEvent[],
-  senders?: ReadonlyMap<string, string>,
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
   const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
   const ctxFor = (primary: TimelineIndexerEvent): DescriptorContext => ({
     primary,
     events: group,
-    senders,
   })
 
   for (const recipe of RECIPES) {
@@ -84,11 +82,6 @@ const describeGroup = (
   return { icon: FALLBACK_ICON, label: humanizeType(primary.type), slots: [] }
 }
 
-export type SummarizeOptions = {
-  /** txHash (lowercased) → sender address, from RPC backfill. */
-  readonly senders?: ReadonlyMap<string, string>
-}
-
 /**
  * Turn a flat list of raw indexer events into tier-1 semantic actions.
  * v1 groups strictly by transaction; multi-transaction actions (primary name) are a
@@ -96,7 +89,6 @@ export type SummarizeOptions = {
  */
 export const summarizeEvents = (
   events: readonly TimelineIndexerEvent[],
-  options: SummarizeOptions = {},
 ): Action[] => {
   const relevant = events.filter((event) => !IGNORED_TYPES.has(event.type))
 
@@ -107,7 +99,7 @@ export const summarizeEvents = (
       timestamp: Math.max(...group.map((event) => event.timestamp)),
       txHashes: distinctTxHashes(group),
       events: group,
-      ...describeGroup(group, options.senders),
+      ...describeGroup(group),
     }
   })
 

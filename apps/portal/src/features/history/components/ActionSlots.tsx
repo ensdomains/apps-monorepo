@@ -2,6 +2,7 @@ import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ActionSlot } from '../summarize/summarize.types'
+import { AccountBadge } from './AccountBadge'
 
 /** Renders one label slot — an entity chip, a monospace value, or a muted joiner. */
 const Slot = ({ slot }: { slot: ActionSlot }) => {
@@ -13,11 +14,9 @@ const Slot = ({ slot }: { slot: ActionSlot }) => {
         </EntityBadge>
       )
     case 'address':
-      return (
-        <EntityBadge variant="address" address={slot.value as Address}>
-          {truncateAddress(slot.value)}
-        </EntityBadge>
-      )
+      return <AccountBadge address={slot.value} />
+    case 'actor':
+      return <AccountBadge address={slot.address} txHash={slot.txHash} />
     case 'contract':
       return (
         <EntityBadge

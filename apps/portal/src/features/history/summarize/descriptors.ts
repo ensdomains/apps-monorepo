@@ -30,20 +30,22 @@ export const humanizeType = (type: string): string => {
 }
 
 /**
- * Resolve the actor (tx sender) for actions like "Register by {actor}".
- * Prefers a payload field, then the RPC-backfilled senders map, else a placeholder.
+ * Actor slot for actions like "Register by {actor}". Prefers a payload address;
+ * otherwise carries the txHash so EntityBadge (senderOfTxHash + resolveName) resolves
+ * the sender (and its primary name) at render time — no more `—` placeholder.
  *
- * TODO(indexer): replace with `Event.from` so no RPC backfill / placeholder is needed.
+ * TODO(indexer): pass `Event.from` here so no RPC lookup is needed.
  */
 const actorSlot = (
   ctx: DescriptorContext,
   ...payloadCandidates: (string | null | undefined)[]
 ): ActionSlot => {
   const fromPayload = payloadCandidates.find((v) => v && !isZero(v))
-  if (fromPayload) return { kind: 'address', value: fromPayload }
-  const fromRpc = ctx.senders?.get(ctx.primary.transactionHash.toLowerCase())
-  if (fromRpc) return { kind: 'address', value: fromRpc }
-  return { kind: 'placeholder', value: '—' }
+  return {
+    kind: 'actor',
+    txHash: ctx.primary.transactionHash,
+    address: fromPayload ?? undefined,
+  }
 }
 
 const nameSlot = (value?: string | null): ActionSlot => ({

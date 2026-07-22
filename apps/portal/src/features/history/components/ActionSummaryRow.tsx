@@ -28,8 +28,6 @@ interface ActionSummaryRowProps {
   readonly action: Action
   /** Date labels are grouped — only the first row of a date shows it (Figma). */
   readonly showDate?: boolean
-  /** txHash (lowercased) → sender, for the "{actor} initiated at" rows. */
-  readonly senders?: ReadonlyMap<string, string>
 }
 
 /**
@@ -40,7 +38,6 @@ interface ActionSummaryRowProps {
 export const ActionSummaryRow = ({
   action,
   showDate = true,
-  senders,
 }: ActionSummaryRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -56,10 +53,7 @@ export const ActionSummaryRow = ({
         <div className="flex flex-col">
           {txGroups.map((group) => (
             <div key={group[0].transactionHash} className="flex flex-col">
-              <TransactionHeaderRow
-                event={group[0]}
-                actor={senders?.get(group[0].transactionHash.toLowerCase())}
-              />
+              <TransactionHeaderRow event={group[0]} />
               {group.map((event) => (
                 <EventRow key={event.id} event={event} />
               ))}

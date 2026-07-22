@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ChevronsUpDownIcon, ListFilterIcon } from 'lucide-react'
 import { useMemo } from 'react'
-import type { Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import { Timeline } from '@/components/ui/timeline'
-import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { formatTimelineDate } from '../formatTimelineDate'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
@@ -18,9 +16,10 @@ interface HistoryTimelineProps {
 }
 
 /**
- * The History timeline: fetches the widened event feed, backfills tx senders (for the
- * "by {actor}" lines), summarizes raw events into semantic actions, and renders the
- * three-tier nested timeline.
+ * The History timeline: fetches the widened event feed, summarizes raw events into
+ * semantic actions, and renders the three-tier nested timeline. Actors / addresses are
+ * resolved (and name-resolved) per chip at render time via EntityBadge
+ * (resolveName / senderOfTxHash props).
  */
 export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
   const {
@@ -29,25 +28,9 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
     error,
   } = useQuery(getNameHistoryTimelineQueryOptions({ name }))
 
-  const transactionHashes = useMemo<Hash[]>(
-    () => events?.map((event) => event.transactionHash) ?? [],
-    [events],
-  )
-
-  // TODO(indexer): drop this RPC backfill once Event.from is indexed (spec §6.1).
-  const { data: senders } = useTransactionSenders({ transactionHashes })
-
-  const sendersByLowerHash = useMemo(() => {
-    if (!senders) return undefined
-    const map = new Map<string, string>()
-    for (const [hash, from] of senders) map.set(hash.toLowerCase(), from)
-    return map
-  }, [senders])
-
   const actions = useMemo(
-    () =>
-      events ? summarizeEvents(events, { senders: sendersByLowerHash }) : [],
-    [events, sendersByLowerHash],
+    () => (events ? summarizeEvents(events) : []),
+    [events],
   )
 
   if (isLoading) return <LoadingMessage />
@@ -96,7 +79,6 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           <ActionSummaryRow
             key={action.id}
             action={action}
-            senders={sendersByLowerHash}
             showDate={
               index === 0 ||
               formatTimelineDate(actions[index - 1].timestamp) !==

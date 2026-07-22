@@ -1,6 +1,5 @@
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
@@ -10,24 +9,20 @@ import {
   formatTimelineTime,
 } from '../formatTimelineDate'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import { AccountBadge } from './AccountBadge'
 import { TransactionMeta } from './EventDetail'
 import { DETAIL_INDENT, RAIL_X, TIER2_INDENT } from './timelineGeometry'
 
 interface TransactionHeaderRowProps {
   /** A representative event from the transaction (for timestamp / hash / block). */
   readonly event: TimelineIndexerEvent
-  /** The transaction sender, if resolved. */
-  readonly actor?: string
 }
 
 /**
  * Tier-2 "transaction" row: `{actor} initiated at {time}` on the left, the tx date +
  * hash on the right, expanding to the transaction metadata (Figma "Transaction details").
  */
-export const TransactionHeaderRow = ({
-  event,
-  actor,
-}: TransactionHeaderRowProps) => {
+export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -56,14 +51,9 @@ export const TransactionHeaderRow = ({
               isOpen && 'rotate-180',
             )}
           />
-          {actor && (
-            <EntityBadge variant="address" address={actor as Address}>
-              {truncateAddress(actor)}
-            </EntityBadge>
-          )}
+          <AccountBadge txHash={event.transactionHash} />
           <span className="text-muted-foreground text-sm">
-            {actor ? 'initiated at' : 'Transaction initiated at'}{' '}
-            {formatTimelineTime(event.timestamp)}
+            initiated at {formatTimelineTime(event.timestamp)}
           </span>
         </div>
         <div className="flex items-center gap-2 justify-self-end whitespace-nowrap">

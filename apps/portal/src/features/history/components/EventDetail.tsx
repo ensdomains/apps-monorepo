@@ -5,6 +5,7 @@ import { getEventFieldType } from '@/utils/ens/eventSignatures'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import { AccountBadge } from './AccountBadge'
 import { getDecodedEntries } from './eventDecodedEntries'
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
@@ -78,13 +79,7 @@ export const TransactionMeta = ({
   const pending = isTxLoading || isReceiptLoading ? '…' : '—'
   const toAddress = tx?.to ?? event.contractAddress ?? undefined
 
-  const fromValue = tx?.from ? (
-    <EntityBadge variant="address" address={tx.from}>
-      {truncateAddress(tx.from)}
-    </EntityBadge>
-  ) : (
-    pending
-  )
+  const fromValue = tx?.from ? <AccountBadge address={tx.from} /> : pending
   const toValue = toAddress ? (
     <EntityBadge variant="contract" address={toAddress as Address}>
       {truncateAddress(toAddress)}
