@@ -1,6 +1,7 @@
 import type { Address, Hash } from 'viem'
 import { useEnsName, useTransaction } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface AccountBadgeProps {
@@ -8,7 +9,16 @@ interface AccountBadgeProps {
   readonly address?: string
   /** When no address is known (e.g. "Renew by …"), resolve this tx's sender instead. */
   readonly txHash?: string
+  readonly full?: boolean
 }
+
+/** Full value on desktop, truncated on mobile — for hashes/addresses in expanded detail. */
+export const FullOnDesktop = ({ value }: { value: string }) => (
+  <>
+    <span className="sm:hidden">{truncateAddress(value)}</span>
+    <span className="hidden sm:inline">{value}</span>
+  </>
+)
 
 /**
  * Renders an account as its **primary ENS name** (no avatar) when one resolves,
@@ -17,7 +27,11 @@ interface AccountBadgeProps {
  *
  * TODO(indexer): once `Event.from` is indexed, pass it as `address` and drop the tx RPC.
  */
-export const AccountBadge = ({ address, txHash }: AccountBadgeProps) => {
+export const AccountBadge = ({
+  address,
+  txHash,
+  full = false,
+}: AccountBadgeProps) => {
   const { data: tx } = useTransaction({
     hash: txHash as Hash | undefined,
     query: { enabled: !!txHash && !address },
@@ -29,6 +43,7 @@ export const AccountBadge = ({ address, txHash }: AccountBadgeProps) => {
     address: resolved,
     query: { enabled: !!resolved },
   })
+  const explorerUrl = useBlockExplorerAddressUrl(resolved)
 
   if (!resolved) {
     return <span className="text-muted-foreground text-sm">…</span>
@@ -36,15 +51,24 @@ export const AccountBadge = ({ address, txHash }: AccountBadgeProps) => {
 
   if (name) {
     return (
-      <EntityBadge variant="name" name={name} address={resolved}>
+      <EntityBadge
+        variant="name"
+        name={name}
+        address={resolved}
+        etherscanHref={explorerUrl}
+      >
         {name}
       </EntityBadge>
     )
   }
 
   return (
-    <EntityBadge variant="address" address={resolved}>
-      {truncateAddress(resolved)}
+    <EntityBadge
+      variant="address"
+      address={resolved}
+      etherscanHref={explorerUrl}
+    >
+      {full ? <FullOnDesktop value={resolved} /> : truncateAddress(resolved)}
     </EntityBadge>
   )
 }

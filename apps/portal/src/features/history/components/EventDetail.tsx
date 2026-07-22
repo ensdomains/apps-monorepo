@@ -1,11 +1,14 @@
 import { type Address, formatEther, formatGwei, type Hash } from 'viem'
 import { useTransaction, useTransactionReceipt } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
+import {
+  useBlockExplorerAddressUrl,
+  useBlockExplorerTxUrl,
+} from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { getEventFieldType } from '@/utils/ens/eventSignatures'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
-import { AccountBadge } from './AccountBadge'
+import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { getDecodedEntries } from './eventDecodedEntries'
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
@@ -79,12 +82,17 @@ export const TransactionMeta = ({
   })
 
   const pending = isTxLoading || isReceiptLoading ? '…' : '—'
-  const toAddress = tx?.to ?? event.contractAddress ?? undefined
+  const toAddress = (tx?.to ?? event.contractAddress ?? undefined) as
+    | Address
+    | undefined
 
-  const fromValue = tx?.from ? <AccountBadge address={tx.from} /> : pending
+  const txUrl = useBlockExplorerTxUrl(txHash)
+  const toUrl = useBlockExplorerAddressUrl(toAddress)
+
+  const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
   const toValue = toAddress ? (
-    <EntityBadge variant="contract" address={toAddress as Address}>
-      {truncateAddress(toAddress)}
+    <EntityBadge variant="contract" address={toAddress} etherscanHref={toUrl}>
+      <FullOnDesktop value={toAddress} />
     </EntityBadge>
   ) : (
     pending
@@ -92,7 +100,11 @@ export const TransactionMeta = ({
 
   return (
     <div className="flex flex-col">
-      <MetaRow label="Transaction">{txHash}</MetaRow>
+      <MetaRow label="Transaction">
+        <EntityBadge variant="tx" copyValue={txHash} etherscanHref={txUrl}>
+          <FullOnDesktop value={txHash} />
+        </EntityBadge>
+      </MetaRow>
       <MetaRow label="Block">{event.blockNumber}</MetaRow>
       <MetaRow label="Timestamp">
         {formatTimestamp(BigInt(event.timestamp)) ?? '—'} UTC
