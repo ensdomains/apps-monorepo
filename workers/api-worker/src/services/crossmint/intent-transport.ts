@@ -1,4 +1,4 @@
-import { RhinestoneSDK } from '@rhinestone/sdk'
+import { getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
@@ -25,6 +25,9 @@ import { logger } from '#utils/logger.js'
 /** Shared dev key, already committed in apps/manager/.env.ci. */
 const DEFAULT_RHINESTONE_API_KEY =
   'rs_2fcz8PTz5A0vf1Z1HIG19qHxTd_NtCCJmRavTxtNL8'
+
+/** The rail's USDC on this chain — the settlement anchor for USDC-gas routing. */
+const USDC_L1 = getTokenAddress('USDC', sepolia.id)
 
 /**
  * Default destination gas limit. Covers the largest single leg (register,
@@ -72,17 +75,17 @@ export function createIntentExecutor(env: CloudflareBindings) {
       chain: sepolia,
       eip7702InitSignature: initSig,
       calls: [{ to: call.to, value: 0n, data: call.data }],
-      // NO tokenRequests: the intent moves no tokens from the executor (the
-      // Safe pays at each target). tokenRequests declares tokens the intent
-      // must SOURCE/deliver as an input — a phantom entry here makes the
-      // orchestrator reserve balance for a delivery that never happens and
-      // then find "too little remainder for gas" (per the docs'
-      // auxiliaryFunds double-counting warning). Omitting it lets the
-      // orchestrator auto-pick the executor's USDC balance.
-      //
-      // sourceAssets: ['USDC'] pins gas to be paid IN USDC-equivalent via the
-      // paymaster — the buyer-funded gasFee (forwarded to the executor at
-      // mint) is the coin that pays. No ETH anywhere.
+      // tokenRequests + feeAsset + sourceAssets together are the USDC-gas
+      // settlement anchor the SOLVER routes against — this exact triple is
+      // what filled demonslayer.eth on-chain (relayer 0x46565eeD…) and what
+      // the validated probe uses. Omitting tokenRequests leaves the router
+      // with no token movement to construct a fill → "No viable route".
+      // The earlier "insufficient balance" failures were NOT this config's
+      // fault — they were the correct funding precheck rejecting orders whose
+      // executor USDC (the buyer-funded gasFee) was below the per-leg quote.
+      // sourceAssets:['USDC'] pins gas paid in USDC-equivalent; no ETH.
+      tokenRequests: [{ address: USDC_L1, amount: 1n }],
+      feeAsset: 'USDC',
       sourceAssets: ['USDC'],
       gasLimit,
     })
