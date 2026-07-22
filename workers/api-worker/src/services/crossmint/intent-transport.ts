@@ -1,4 +1,4 @@
-import { getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
+import { RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
@@ -25,9 +25,6 @@ import { logger } from '#utils/logger.js'
 /** Shared dev key, already committed in apps/manager/.env.ci. */
 const DEFAULT_RHINESTONE_API_KEY =
   'rs_2fcz8PTz5A0vf1Z1HIG19qHxTd_NtCCJmRavTxtNL8'
-
-/** The rail's USDC on this chain — the executor float's asset (fee + funding pinned to it). */
-const USDC_L1 = getTokenAddress('USDC', sepolia.id)
 
 /**
  * Default destination gas limit. Covers the largest single leg (register,
@@ -75,11 +72,18 @@ export function createIntentExecutor(env: CloudflareBindings) {
       chain: sepolia,
       eip7702InitSignature: initSig,
       calls: [{ to: call.to, value: 0n, data: call.data }],
-      // The intent moves no tokens itself (the Safe pays at the targets);
-      // the 1-unit request just anchors the fee/funding asset to USDC.
-      tokenRequests: [{ address: USDC_L1, amount: 1n }],
+      // NO tokenRequests: the intent moves no tokens from the executor (the
+      // Safe pays at each target). tokenRequests declares tokens the intent
+      // must SOURCE/deliver as an input — a phantom entry here makes the
+      // orchestrator reserve balance for a delivery that never happens and
+      // then find "too little remainder for gas" (per the docs'
+      // auxiliaryFunds double-counting warning). Omitting it lets the
+      // orchestrator auto-pick the executor's USDC balance.
+      //
+      // sourceAssets: ['USDC'] pins gas to be paid IN USDC-equivalent via the
+      // paymaster — the buyer-funded gasFee (forwarded to the executor at
+      // mint) is the coin that pays. No ETH anywhere.
       sourceAssets: ['USDC'],
-      feeAsset: 'USDC',
       gasLimit,
     })
 
