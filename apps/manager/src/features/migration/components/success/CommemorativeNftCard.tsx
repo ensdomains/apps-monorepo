@@ -1,6 +1,5 @@
 import {
   type IconType,
-  SiDiscord,
   SiOpensea,
   SiTelegram,
   SiX,
@@ -90,24 +89,6 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
   const hasDownload =
     !!state.card.assets.imageUrl || !!state.card.assets.animationUrl
 
-  const shareToDiscord = externalUrl
-    ? async () => {
-        try {
-          if (navigator.share) {
-            await navigator.share({
-              title: 'ENSv2 commemorative NFT',
-              url: externalUrl,
-            })
-            return
-          }
-        } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError')
-            return
-        }
-        await copy(externalUrl)
-      }
-    : undefined
-
   return (
     <fieldset className="flex shrink-0 flex-col gap-2 border-0 p-0">
       <legend className="sr-only">
@@ -119,12 +100,11 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
       <SocialControl href={state.card.shareUrls.telegram} icon={SiTelegram}>
         <Trans>Share on Telegram</Trans>
       </SocialControl>
-      <SocialControl icon={SiDiscord} onClick={shareToDiscord}>
-        <Trans>Share to Discord</Trans>
-      </SocialControl>
-      <SocialControl href={state.card.marketplaceUrl} icon={SiOpensea}>
-        <Trans>View on OpenSea</Trans>
-      </SocialControl>
+      {state.card.marketplaceUrl ? (
+        <SocialControl href={state.card.marketplaceUrl} icon={SiOpensea}>
+          <Trans>View on OpenSea</Trans>
+        </SocialControl>
+      ) : null}
       <button
         className={socialControlClassName}
         disabled={!externalUrl}

@@ -37,7 +37,7 @@ describe('commemorative NFT sharing', () => {
     )
   })
 
-  it('only exposes OpenSea after a Sepolia mint', () => {
+  it('does not expose OpenSea for Sepolia claims', () => {
     expect(
       buildCommemorativeNftMarketplaceUrl({
         chainId: 11155111,
@@ -51,6 +51,6 @@ describe('commemorative NFT sharing', () => {
         ownerAddress,
         minted: true,
       }),
-    ).toContain('testnets.opensea.io/assets/sepolia')
+    ).toBeUndefined()
   })
 })
