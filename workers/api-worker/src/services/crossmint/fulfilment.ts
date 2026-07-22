@@ -63,24 +63,31 @@ export const PAYMENT_TOKEN_DECIMALS: Record<PaymentToken, number> = {
   DAI: 18,
 }
 
+/**
+ * Tokens the SAFE pays the registrar in. USDC is the rail's Circle USDC —
+ * the deployed StandardRentPriceOracle accepts it at the same 1:1 ratio as
+ * the legacy MockUSDC (verified on-chain via `isPaymentToken` +
+ * `getRegisterPrice` parity), and the Roles policy admits it in the
+ * register/approve conditions (migration txs 0xd16a8264…, 0x8994378f…,
+ * 0x4d72e998…). With buyers also paying the voucher in Circle USDC, the
+ * treasury's registrar float self-replenishes from sales — MockUSDC is out
+ * of the system entirely. DAI is a card-path vestige the PoC never charges;
+ * the register policy no longer admits it.
+ */
 export const PAYMENT_TOKENS: Record<PaymentToken, Address> = {
-  USDC: ensjsSepolia.usdc.address,
+  USDC: getTokenAddress('USDC', sepoliaWithEns.id),
   DAI: ensjsSepolia.dai.address,
 }
 
 /**
- * Tokens the BUYER pays the voucher in — distinct from `PAYMENT_TOKENS`
- * (what the SAFE pays the registrar). The buyer-facing asset must be the
- * Rhinestone rail's settlement token, so the gasFee component the voucher
- * forwards to the executor at mint is the SAME coin solvers take as
- * reimbursement under `FULFILMENT_TRANSPORT=intents` — the literal
- * buyer-funds-their-own-gas loop. Derived from the rail's own token
- * registry (`getTokenAddress`), never hardcoded: on Sepolia that's Circle
- * USDC (0x1c7D…7238) while ENS's registrar prices in MockUSDC (publicly
- * mintable, so the Safe's registrar float is self-service); on mainnet
- * both maps converge to canonical USDC and the distinction disappears.
- * DAI has no rail support and the voucher path is USDC-only; the entry
- * exists for type completeness.
+ * Tokens the BUYER pays the voucher in. Same asset as `PAYMENT_TOKENS` now
+ * that the whole pipeline runs on the rail's USDC (buyer → voucher →
+ * treasury → registrar, and the gasFee split → executor → solvers), but
+ * kept as a distinct map because the two legs answer to different
+ * authorities: this one MUST be the rail's settlement token
+ * (`getTokenAddress`), while `PAYMENT_TOKENS` must be whatever the
+ * registrar's oracle accepts — they happen to coincide, on Sepolia by
+ * oracle provisioning and on mainnet by there only being one USDC.
  */
 export const VOUCHER_PAYMENT_TOKENS: Record<PaymentToken, Address> = {
   USDC: getTokenAddress('USDC', sepoliaWithEns.id),

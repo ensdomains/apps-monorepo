@@ -42,6 +42,7 @@
  */
 import { writeFileSync } from 'node:fs'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { getTokenAddress } from '@rhinestone/sdk'
 import {
   type Address,
   encodeFunctionData,
@@ -55,6 +56,7 @@ import {
   toFunctionSelector,
   toHex,
 } from 'viem'
+import { sepolia } from 'viem/chains'
 import {
   ETH_REGISTRAR_ABI,
   VERIFIABLE_FACTORY_ABI,
@@ -80,7 +82,20 @@ const APPROVE_CAP_DAI = parseUnits(process.env.APPROVE_CAP_DAI ?? '10000', 18)
 const contracts = ensL1Contracts[supportedL1Chains.sepolia]
 const TARGETS = {
   registrar: contracts.ensEthRegistrar.address,
-  usdc: contracts.usdc.address,
+  /**
+   * The rail's Circle USDC — the single payment asset of the pipeline
+   * (buyer -> voucher -> treasury -> registrar; gasFee -> executor ->
+   * solvers). The deployed StandardRentPriceOracle accepts it 1:1 with the
+   * legacy mock.
+   */
+  usdc: getTokenAddress('USDC', sepolia.id),
+  /**
+   * Legacy ENS MockUSDC — kept ONLY in the register OR-branch as a
+   * transition allowance for orders fulfilled during a policy->worker
+   * deploy gap; drop it (revoke + re-scope) once no pre-switch orders can
+   * exist.
+   */
+  mockUsdc: contracts.usdc.address,
   dai: contracts.dai.address,
   factory: contracts.ensVerifiableFactory.address,
 } as const
@@ -139,8 +154,10 @@ const registerConditions: ConditionFlat[] = [
   node(0, ParamType.Static, Operator.LessThan, uintWord(DURATION_BOUND)), // 6: duration cap
   node(0, ParamType.None, Operator.Or), //          7: paymentToken: one of...
   node(0, ParamType.Static, Operator.Pass), //      8: referrer (any)
-  node(7, ParamType.Static, Operator.EqualTo, addressWord(TARGETS.usdc)), // 9: ...USDC
-  node(7, ParamType.Static, Operator.EqualTo, addressWord(TARGETS.dai)), // 10: ...DAI
+  // The PoC charges USDC only — the DAI branch was dropped in the Circle
+  // migration (Safe txs 0xd16a8264…, 0x8994378f…, 0x4d72e998…).
+  node(7, ParamType.Static, Operator.EqualTo, addressWord(TARGETS.mockUsdc)), // 9: ...MockUSDC (transition)
+  node(7, ParamType.Static, Operator.EqualTo, addressWord(TARGETS.usdc)), // 10: ...Circle USDC
 ]
 
 // approve(address spender, uint256 amount) — the allowance is the blast-radius
