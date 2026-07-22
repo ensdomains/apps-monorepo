@@ -5,7 +5,6 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { buildCommemorativeNftCardData } from '../../commemorative-nft/cardData'
 import { isCommemorativeNftCanonicalProfile } from '../../commemorative-nft/sharing'
-import { useCommemorativeNftArtwork } from '../../commemorative-nft/useCommemorativeNftArtwork'
 import { useCommemorativeNftAvailability } from '../../commemorative-nft/useCommemorativeNftAvailability'
 import { CommemorativeNftCard } from './CommemorativeNftCard'
 import { CommemorativeNftClaimDialog } from './CommemorativeNftClaimDialog'
@@ -35,7 +34,7 @@ export const CommemorativeNftProfileSection = ({
     ? isCommemorativeNftCanonicalProfile(name, eligibility.profileName)
     : false
   const minted = availability.claimed.data === true
-  const artworkUrl = useCommemorativeNftArtwork(eligibility?.assets.imageUrl)
+  const artworkUrl = eligibility?.assets.imageUrl
   const cardData = useMemo(
     () =>
       eligibility && minted

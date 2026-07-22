@@ -1,5 +1,5 @@
-import { Trans } from '@lingui/react/macro'
 import { useEffect, useState } from 'react'
+import { MSymbol } from '@/components/ui/material-symbol'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
 
 type CommemorativeNftRendererSurfaceProps = {
@@ -28,15 +28,19 @@ export const CommemorativeNftRendererSurface = ({
   if (!artworkUrl || failed) {
     return (
       <div
-        aria-label={`NFT preview unavailable for ${eligibility.rendererName}`}
-        className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_45%_35%,#58c8ff_0%,#a946c4_36%,#082d74_100%)] px-6 text-center"
+        aria-label={`Commemorative NFT preview for ${eligibility.rendererName}`}
+        className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#f8dce7] px-6 text-center"
         data-archetype={eligibility.traits.Archetype}
         data-seed={eligibility.traits.Seed}
         role="img"
       >
-        <span className="font-semi-mono text-[7px] text-white/80 uppercase tracking-[0.18em]">
-          <Trans>Preview unavailable</Trans>
-        </span>
+        <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,transparent_0,transparent_11px,rgba(128,0,54,0.045)_11px,rgba(128,0,54,0.045)_12px)]" />
+        <div className="absolute inset-3 rounded-[13px] border border-ens-garnet-500/15 border-dashed" />
+        <div className="relative text-ens-garnet-500">
+          <span className="flex size-9 items-center justify-center rounded-full bg-white/55">
+            <MSymbol className="text-[20px]" symbol="image" />
+          </span>
+        </div>
       </div>
     )
   }

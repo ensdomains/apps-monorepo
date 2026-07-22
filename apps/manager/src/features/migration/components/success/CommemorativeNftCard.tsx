@@ -253,43 +253,47 @@ const ArtworkCard = ({
         eligibility={state.card.eligibility}
         onReady={onRevealComplete}
       />
-      <span className="absolute top-[6px] left-[4px] font-medium font-mono text-[#e1e1e0] text-[6px] tracking-[0.12px]">
-        {formatMigrationDate(state.card.migratedAt)}
-      </span>
-      <span className="absolute top-[77px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
-        ENS v2
-      </span>
-      <span className="absolute top-[101px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
-        NFT
-      </span>
-      <span className="absolute top-[207px] left-[118px] whitespace-nowrap font-mono text-[6px] text-white tracking-[0.12px]">
-        {state.card.migratedNameCount > 0 ? (
-          <Trans>YOU have migrated</Trans>
-        ) : (
-          <Trans>ENSv2 commemorative</Trans>
-        )}
-      </span>
-      {state.card.migratedNameCount > 0 ? (
-        <span className="absolute top-[224px] left-[108px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
-          <span className="font-medium text-[#11ff5d]">
-            {state.card.migratedNameCount}
+      {state.card.artworkUrl ? (
+        <>
+          <span className="absolute top-[6px] left-[4px] font-medium font-mono text-[#e1e1e0] text-[6px] tracking-[0.12px]">
+            {formatMigrationDate(state.card.migratedAt)}
           </span>{' '}
-          {state.card.migratedNameCount === 1 ? (
-            <Trans>name</Trans>
-          ) : (
-            <Trans>names</Trans>
-          )}
-        </span>
+          <span className="absolute top-[77px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
+            ENS v2
+          </span>
+          <span className="absolute top-[101px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
+            NFT
+          </span>
+          <span className="absolute top-[207px] left-[118px] whitespace-nowrap font-mono text-[6px] text-white tracking-[0.12px]">
+            {state.card.migratedNameCount > 0 ? (
+              <Trans>YOU have migrated</Trans>
+            ) : (
+              <Trans>ENSv2 commemorative</Trans>
+            )}
+          </span>
+          {state.card.migratedNameCount > 0 ? (
+            <span className="absolute top-[224px] left-[108px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
+              <span className="font-medium text-[#11ff5d]">
+                {state.card.migratedNameCount}
+              </span>{' '}
+              {state.card.migratedNameCount === 1 ? (
+                <Trans>name</Trans>
+              ) : (
+                <Trans>names</Trans>
+              )}
+            </span>
+          ) : null}
+          <span className="absolute top-[260px] left-[69px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
+            <Trans>welcome to a new era of</Trans>{' '}
+            <span className="text-[#11ff5d]">ENS</span>
+          </span>
+          <img
+            alt=""
+            className="absolute top-[257px] left-[171px] w-[10px]"
+            src={ensMarkUrl}
+          />
+        </>
       ) : null}
-      <span className="absolute top-[260px] left-[69px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
-        <Trans>welcome to a new era of</Trans>{' '}
-        <span className="text-[#11ff5d]">ENS</span>
-      </span>
-      <img
-        alt=""
-        className="absolute top-[257px] left-[171px] w-[10px]"
-        src={ensMarkUrl}
-      />
     </div>
   </motion.div>
 )

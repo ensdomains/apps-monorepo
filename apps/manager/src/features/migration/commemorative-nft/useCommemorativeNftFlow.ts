@@ -20,7 +20,6 @@ import {
 } from './flowState'
 import { invalidateCommemorativeNftStatus } from './queries'
 import type { CommemorativeNftEligibility } from './types'
-import { useCommemorativeNftArtwork } from './useCommemorativeNftArtwork'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
 type UseCommemorativeNftFlowOptions = {
@@ -225,7 +224,12 @@ export const useCommemorativeNftFlow = ({
   })
 
   const claimed = availability.claimed.data === true
-  const artworkUrl = useCommemorativeNftArtwork(eligibility?.assets.imageUrl)
+  const artworkUrl = eligibility?.assets.imageUrl
+
+  useEffect(() => {
+    if (open && eligibilityKey && !artworkUrl) setRevealComplete(true)
+  }, [artworkUrl, eligibilityKey, open])
+
   const card = useMemo<CommemorativeNftCardData | undefined>(() => {
     if (!eligibility) return undefined
 
