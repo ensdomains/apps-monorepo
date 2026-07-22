@@ -1,6 +1,10 @@
 import { ChevronDown, XIcon } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import {
+  Button,
+  type ButtonSize,
+  type ButtonVariant,
+} from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
   DropdownMenu,
@@ -24,11 +28,13 @@ export const TableDateRangeFilter = ({
   dateRange,
   onChange,
   variant = 'outline',
+  size,
 }: {
   label: string
   dateRange: DateRange
   onChange: (range: DateRange) => void
-  variant?: 'default' | 'outline'
+  variant?: ButtonVariant
+  size?: ButtonSize
 }) => {
   const [open, setOpen] = useState(false)
   const [fromOpen, setFromOpen] = useState(false)
@@ -42,7 +48,11 @@ export const TableDateRangeFilter = ({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} className="flex items-center gap-2">
+        <Button
+          variant={variant}
+          size={size}
+          className="flex items-center gap-2"
+        >
           {label}: {getDateRangeLabel(dateRange)}
           <ChevronDown className="h-4 w-4" />
         </Button>

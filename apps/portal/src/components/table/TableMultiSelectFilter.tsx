@@ -1,7 +1,11 @@
 import { ChevronDown, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import {
+  Button,
+  type ButtonSize,
+  type ButtonVariant,
+} from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
@@ -21,12 +25,14 @@ export const TableMultiSelectFilter = ({
   selectedValues,
   onChange,
   variant = 'outline',
+  size,
 }: {
   label: string
   groups: FilterGroup[]
   selectedValues: string[]
   onChange: (values: string[]) => void
-  variant?: 'default' | 'outline'
+  variant?: ButtonVariant
+  size?: ButtonSize
 }) => {
   const [open, setOpen] = useState(false)
 
@@ -42,6 +48,7 @@ export const TableMultiSelectFilter = ({
       <DropdownMenuTrigger asChild>
         <Button
           variant={variant}
+          size={size}
           className="flex items-center gap-2 focus-visible:outline-none"
         >
           {label}:

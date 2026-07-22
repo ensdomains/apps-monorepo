@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { formatTimelineDate } from '../formatTimelineDate'
@@ -27,6 +26,9 @@ interface ActionSummaryRowProps {
   readonly action: Action
   /** Date labels are grouped — only the first row of a date shows it (Figma). */
   readonly showDate?: boolean
+  /** Controlled open state (driven by the row and by "Expand all"). */
+  readonly isOpen: boolean
+  readonly onToggle: () => void
 }
 
 /**
@@ -37,9 +39,9 @@ interface ActionSummaryRowProps {
 export const ActionSummaryRow = ({
   action,
   showDate = true,
+  isOpen,
+  onToggle,
 }: ActionSummaryRowProps) => {
-  const [isOpen, setIsOpen] = useState(false)
-
   const eventCount = action.events.length
   const txCount = action.txHashes.length
   const txGroups = groupEventsByTx(action.events)
@@ -47,7 +49,7 @@ export const ActionSummaryRow = ({
   return (
     <TimelineRow
       isOpen={isOpen}
-      onToggle={() => setIsOpen((open) => !open)}
+      onToggle={onToggle}
       disclosure={
         <div className="flex flex-col">
           {txGroups.map((group) => (
