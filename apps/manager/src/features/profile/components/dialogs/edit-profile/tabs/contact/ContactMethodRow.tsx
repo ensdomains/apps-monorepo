@@ -1,9 +1,9 @@
 import { MSymbol } from '@/components/ui/material-symbol'
-import { Switch } from '@/components/ui/switch'
 import { IconRenderer } from '@/features/profile/components/IconRenderer'
 import { getRecordDef } from '@/features/profile/data/records'
 import { cn } from '@/lib/utils'
 import type { ContactMethod } from './constants'
+import { PrimaryContactButton } from './PrimaryContactButton'
 import {
   contactErrorMessageClassName,
   contactErrorMessageIconClassName,
@@ -36,7 +36,7 @@ export const ContactMethodRow = ({
   const record = getRecordDef(method.key)
 
   return (
-    <div className="flex w-full items-start gap-1.5 pt-1 md:gap-4 md:pr-4">
+    <div className="flex w-full items-start gap-3 pt-1">
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <label
           className={cn(
@@ -80,15 +80,11 @@ export const ContactMethodRow = ({
           </p>
         ) : null}
       </div>
-      <Switch
-        aria-label={`Pin ${method.label} as a primary contact method`}
-        checked={primary}
-        className={cn(
-          'mt-3 h-5 w-10 shrink-0 border border-transparent bg-ens-quartz-300 data-[state=checked]:bg-ens-signal-success-600 [&>span]:size-4.25 [&>span]:data-[state=checked]:translate-x-5',
-          (disabled || primaryDisabled) && 'cursor-not-allowed opacity-60',
-        )}
+      <PrimaryContactButton
         disabled={disabled || primaryDisabled}
-        onCheckedChange={(checked) => onPrimaryChange(method, checked)}
+        label={method.label}
+        onClick={() => onPrimaryChange(method, !primary)}
+        selected={primary}
       />
     </div>
   )
