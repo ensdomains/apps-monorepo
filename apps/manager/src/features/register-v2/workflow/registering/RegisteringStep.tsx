@@ -8,6 +8,7 @@ import { RegisterV2Context } from '../../state/registrationUi.context'
 import { useRegisteringStage } from '../../state/registrationUi.selectors'
 import { CenteredWeaveLoader } from './components/CenteredWeaveLoader'
 import { NotificationSettings } from './components/NotificationSettings'
+import { PrimaryNameSetupNotice } from './components/PrimaryNameSetupNotice'
 import { RegisteringHeader } from './components/RegisteringHeader'
 import { RegistrationDetails } from './components/RegistrationDetails'
 import { useRegisteringCompletion } from './hooks/useRegisteringCompletion'
@@ -101,7 +102,6 @@ const useRegisteringDisplay = () => {
   return {
     stageDescription,
     stageLabel: i18n._(stageMessages.stageLabel),
-    stageProgress: maxProgress?.progress ?? 0,
   }
 }
 
@@ -129,14 +129,17 @@ export const RegisteringStep = ({
   const { t } = useLingui()
   const { uiActor, label } = RegisterV2Context.use()
   const uiStage = useRegisteringStage(uiActor)
-  const { stageDescription, stageLabel, stageProgress } =
-    useRegisteringDisplay()
+  const { stageDescription, stageLabel } = useRegisteringDisplay()
 
   const notificationsCompleted = uiStage?.notifications === 'completed'
+  // Keep the loader up through post-registration setup (primary name / ETH
+  // record) so those steps read as part of the registration, with their stage
+  // message shown under the fill.
   const showWeaveLoader =
     !isRegistrationComplete &&
     notificationsCompleted &&
-    uiStage?.transaction === 'pendingRegistration'
+    !!uiStage?.transaction &&
+    uiStage.transaction !== 'success'
 
   // Single source of truth for entering the weave flow: the notifications step
   // reaching `completed` (a superset of the loader being shown, and the state
@@ -200,11 +203,14 @@ export const RegisteringStep = ({
         <RegisteringHeader
           fillProgress={fillProgress}
           isRegistrationComplete={isRegistrationComplete}
-          stageDescription={stageDescription}
           stageLabel={stageLabel}
-          stageProgress={stageProgress}
           uiStage={uiStage}
         />
+        {isRegistrationComplete && (
+          <div className="mt-4">
+            <PrimaryNameSetupNotice />
+          </div>
+        )}
       </div>
       <div className="mx-auto w-full-[32px] max-w-6xl space-y-6.5">
         {match(uiStage)

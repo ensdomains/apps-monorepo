@@ -38,10 +38,11 @@ export function useRegistrationFillProgress(
   const { remainingSeconds: cooldownSeconds, isActive: isCooldownActive } =
     useCountdown(registeringTx.registerReadyTimestamp)
 
+  // Complete only when the parent UI machine is done: the child registration
+  // machine reports success before post-registration setup (primary name /
+  // ETH record) has run, so gating on it would show "complete" too early.
   const isRegistrationComplete =
-    registeringTx.value === 'success' ||
-    uiStage?.transaction === 'success' ||
-    machineStep === 'success'
+    uiStage?.transaction === 'success' || machineStep === 'success'
 
   const runCompletionSweep = isRegistrationComplete && sawWeaveFlow
 

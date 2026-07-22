@@ -77,6 +77,7 @@ type Context = {
   postRegistrationData?: PostRegistrationData
   postRegistrationProgress: PostRegistrationProgress
   registrationCompleted: boolean
+  postRegistrationSetupFailed: boolean
   ethRecordSyncTxId?: string
   primaryNameTxId?: string
   maxProgressReached?: MaxProgressReached
@@ -265,6 +266,7 @@ const machineSetup = setup({
       postRegistrationData: () => undefined,
       postRegistrationProgress: () => INITIAL_POST_REGISTRATION_PROGRESS,
       registrationCompleted: () => false,
+      postRegistrationSetupFailed: () => false,
       ethRecordSyncTxId: () => undefined,
       primaryNameTxId: () => undefined,
     }),
@@ -340,6 +342,9 @@ const machineSetup = setup({
         error,
       )
     },
+    markPostRegistrationSetupFailed: assign({
+      postRegistrationSetupFailed: () => true,
+    }),
     setPostRegistrationDecisionStage: assign({
       maxProgressReached: ({ context }) =>
         updateMaxProgress(context.maxProgressReached, 'postRegistrationSetup'),
@@ -443,6 +448,7 @@ const startRegistrationAction = machineSetup.createAction(
       },
       postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
       registrationCompleted: false,
+      postRegistrationSetupFailed: false,
       ethRecordSyncTxId: undefined,
       primaryNameTxId: undefined,
     })
@@ -566,6 +572,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     lastErrorMessage: undefined,
     postRegistrationProgress: INITIAL_POST_REGISTRATION_PROGRESS,
     registrationCompleted: false,
+    postRegistrationSetupFailed: false,
     maxProgressReached: undefined,
   }),
   states: {
@@ -680,6 +687,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: [
                     'setRegistrationSuccessStage',
                     'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
                   ],
                 },
               },
@@ -703,6 +711,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: [
                     'setRegistrationSuccessStage',
                     'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
                   ],
                 },
               },
@@ -735,6 +744,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: [
                     'setRegistrationSuccessStage',
                     'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
                   ],
                 },
               },
@@ -767,6 +777,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: [
                     'setRegistrationSuccessStage',
                     'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
                   ],
                 },
               },
@@ -803,6 +814,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: [
                     'setRegistrationSuccessStage',
                     'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
                   ],
                 },
               },
@@ -826,6 +838,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   actions: [
                     'setRegistrationSuccessStage',
                     'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
                   ],
                 },
               },

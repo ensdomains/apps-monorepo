@@ -160,12 +160,8 @@ export const TokenPickerContent = () => {
             <span className="text-ens-gray text-xs">
               <Trans>
                 Your wallet address can only have one primary name, which will
-                display instead of your wallet address across apps.
-              </Trans>
-            </span>
-            <span className="text-ens-gray text-xs">
-              <Trans>
-                You'll be prompted to confirm this additional transaction after
+                display instead of your wallet address across apps. You'll be
+                prompted to confirm this additional transaction after
                 registration.
               </Trans>
             </span>
