@@ -32,9 +32,10 @@ interface ActionSummaryRowProps {
 }
 
 /**
- * Tier-1 summary row. Matches the Figma anatomy: a 3-column grid
- * [date+icon rail (180px) | label + entity chips | counts], a 24px icon badge sitting
- * on the vertical rail (the affordance — no chevron), and the tx count as an amber pill.
+ * Tier-1 summary row. Desktop is the Figma 3-column grid
+ * [date+icon rail (180px) | label + chips | counts]; mobile stacks it — icon + date +
+ * counts on the top line, label + chips below. The pieces are computed once and placed
+ * into the two layout shells so nothing is duplicated but the markup.
  */
 export const ActionSummaryRow = ({
   action,
@@ -45,6 +46,31 @@ export const ActionSummaryRow = ({
   const eventCount = action.events.length
   const txCount = action.txHashes.length
   const txGroups = groupEventsByTx(action.events)
+  const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
+
+  const iconBadge = (
+    <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-lg border-[3px] border-background bg-muted text-muted-foreground">
+      <ActionIconGlyph icon={action.icon} />
+    </span>
+  )
+  const labelAndChips = (
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+      <span className="text-[14px] text-foreground">{action.label}</span>
+      <ActionSlots slots={action.slots} />
+    </div>
+  )
+  const counts = (
+    <div className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
+      <span className="font-mono text-[13px] text-muted-foreground">
+        {eventCount}
+        <span className="sm:hidden"> evt</span>
+        <span className="hidden sm:inline">
+          {` ${eventCount === 1 ? 'event' : 'events'}`}
+        </span>
+      </span>
+      <EntityBadge variant="tx">{txCount} tx</EntityBadge>
+    </div>
+  )
 
   return (
     <TimelineRow
@@ -63,30 +89,30 @@ export const ActionSummaryRow = ({
         </div>
       }
     >
-      <div className="grid grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3">
-        {/* Col 1: date + icon badge */}
+      {/* Mobile: icon + date + counts on top, label + chips below */}
+      <div className="flex gap-2 py-2 pr-2 sm:hidden">
+        {iconBadge}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[13px] text-muted-foreground">
+              {dateLabel}
+            </span>
+            <div className="ml-auto">{counts}</div>
+          </div>
+          {labelAndChips}
+        </div>
+      </div>
+
+      {/* Desktop: date + icon rail | label + chips | counts */}
+      <div className="hidden grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3 sm:grid">
         <div className="flex items-center gap-5">
           <span className="w-[120px] shrink-0 text-right font-mono text-[13px] text-muted-foreground">
-            {showDate ? formatTimelineDate(action.timestamp) : ''}
+            {dateLabel}
           </span>
-          <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-lg border-[3px] border-background bg-muted text-muted-foreground">
-            <ActionIconGlyph icon={action.icon} />
-          </span>
+          {iconBadge}
         </div>
-
-        {/* Col 2: label + entity chips */}
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-          <span className="text-[14px] text-foreground">{action.label}</span>
-          <ActionSlots slots={action.slots} />
-        </div>
-
-        {/* Col 3: counts */}
-        <div className="flex items-center gap-3 justify-self-end whitespace-nowrap">
-          <span className="font-mono text-[13px] text-muted-foreground">
-            {eventCount} {eventCount === 1 ? 'event' : 'events'}
-          </span>
-          <EntityBadge variant="tx">{txCount} tx</EntityBadge>
-        </div>
+        {labelAndChips}
+        <div className="justify-self-end">{counts}</div>
       </div>
     </TimelineRow>
   )

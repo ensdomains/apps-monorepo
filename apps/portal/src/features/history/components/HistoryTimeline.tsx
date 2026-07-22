@@ -14,7 +14,6 @@ import { formatTimelineDate } from '../formatTimelineDate'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionSummaryRow } from './ActionSummaryRow'
-import { RAIL_X } from './timelineGeometry'
 
 interface HistoryTimelineProps {
   readonly name: string
@@ -79,9 +78,9 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
 
   return (
     <div className="flex w-full flex-col gap-4 p-4 sm:gap-6 sm:p-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <h1 className="font-semibold text-heading">History</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <TableDateRangeFilter
             label="Date range"
             dateRange={dateRange}
@@ -110,11 +109,12 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           description="No events match the selected filters. Try widening the date range or clearing the event filter."
         />
       ) : (
-        <div className="relative">
+        // Responsive timeline geometry lives here as CSS vars so the rail + every
+        // row indent share one source (mobile ⟷ desktop) — see rows' pl-(--…).
+        <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:192px]">
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 w-px bg-border"
-            style={{ left: `${RAIL_X}px` }}
+            className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-px bg-border"
           />
           <Timeline>
             {filteredActions.map((action, index) => (

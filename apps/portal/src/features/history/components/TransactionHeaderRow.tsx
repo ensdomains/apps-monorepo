@@ -11,7 +11,6 @@ import {
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { AccountBadge } from './AccountBadge'
 import { TransactionMeta } from './EventDetail'
-import { DETAIL_INDENT, TIER2_INDENT } from './timelineGeometry'
 
 interface TransactionHeaderRowProps {
   /** A representative event from the transaction (for timestamp / hash / block). */
@@ -30,16 +29,13 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
       isOpen={isOpen}
       onToggle={() => setIsOpen((open) => !open)}
       disclosure={
-        <div className="py-1" style={{ paddingLeft: `${DETAIL_INDENT}px` }}>
+        <div className="py-1 pl-(--detail-indent)">
           <TransactionMeta event={event} txHash={event.transactionHash} />
         </div>
       }
     >
-      <div
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 pr-3"
-        style={{ paddingLeft: `${TIER2_INDENT}px` }}
-      >
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="grid grid-cols-1 gap-y-1 py-2 pr-3 pl-(--tier2-indent) sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ChevronDown
             className={cn(
               'size-3.5 shrink-0 text-muted-foreground transition-transform duration-150',
@@ -51,7 +47,7 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
             initiated at {formatTimelineTime(event.timestamp)}
           </span>
         </div>
-        <div className="flex items-center gap-2 justify-self-end whitespace-nowrap">
+        <div className="flex items-center gap-2 justify-self-start whitespace-nowrap sm:justify-self-end">
           <span className="text-[13px] text-warning-text">
             {formatTimelineFullDate(event.timestamp)}
           </span>

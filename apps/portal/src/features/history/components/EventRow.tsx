@@ -11,7 +11,6 @@ import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { decodeRoleChange } from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
 import { DecodedParams } from './EventDetail'
-import { DETAIL_INDENT, TIER2_INDENT } from './timelineGeometry'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
   <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">
@@ -99,15 +98,12 @@ export const EventRow = ({ event }: EventRowProps) => {
       isOpen={isOpen}
       onToggle={() => setIsOpen((open) => !open)}
       disclosure={
-        <div className="py-1" style={{ paddingLeft: `${DETAIL_INDENT}px` }}>
+        <div className="py-1 pl-(--detail-indent)">
           <DecodedParams event={event} />
         </div>
       }
     >
-      <div
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 pr-3"
-        style={{ paddingLeft: `${TIER2_INDENT}px` }}
-      >
+      <div className="grid grid-cols-1 gap-y-1 py-2 pr-3 pl-(--tier2-indent) sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ChevronDown
             className={cn(
@@ -120,7 +116,7 @@ export const EventRow = ({ event }: EventRowProps) => {
           </code>
           <EventContent event={event} />
         </div>
-        <div className="justify-self-end">
+        <div className="justify-self-start sm:justify-self-end">
           {event.contractAddress && (
             <EntityBadge
               variant="contract"

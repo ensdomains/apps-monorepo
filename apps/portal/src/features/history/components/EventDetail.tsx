@@ -52,7 +52,9 @@ const MetaRow = ({
   children: React.ReactNode
 }) => (
   <div className="flex items-baseline gap-4 py-1">
-    <span className="w-40 shrink-0 text-muted-foreground text-sm">{label}</span>
+    <span className="w-24 shrink-0 text-muted-foreground text-sm sm:w-40">
+      {label}
+    </span>
     <span className="min-w-0 break-all font-mono text-sm">{children}</span>
   </div>
 )
