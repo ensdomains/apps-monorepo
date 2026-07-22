@@ -102,3 +102,26 @@ watch it move through expiring → grace → premium → released, live, repeate
   re-derived from the live block on load, so reloads stay aligned.
 - **Manager is SSR** — the first paint may briefly show server (real) time
   before the client clock applies; the reload-after-warp resolves it.
+
+## Future: time travel on PR previews (not implemented)
+
+Time travel could ride the Cloudflare PR previews exactly like the DQA overlay
+(see `packages/dqa-server/MANUAL.md`). It shares the same DevDrawer, so the
+**app-side change is trivial** — one line:
+
+- In `packages/dev-time-travel/src/config.ts`, drop the `import.meta.env.DEV &&`
+  from `isTimeTravelEnabled()` so it's flag-only (mirrors `isDQAEnabled()`), then
+  enable `VITE_TIME_TRAVEL=1` + `VITE_TIME_TRAVEL_RPC=<url>` on the app's
+  **preview** Cloudflare build only (never production). A `build:tt` script like
+  `build:dqa` would make this explicit.
+
+**The real blocker is infra, not code.** The panel advances chain time via
+`evm_increaseTime` + `evm_mine`, which only exist on an **Anvil / fork node** —
+real Sepolia rejects them. So previews would need `VITE_TIME_TRAVEL_RPC` pointed
+at a persistent, public, HTTPS-reachable forked-chain node. That fork could live
+on the **same QA host as the DQA server** (e.g. `https://qa.app.ens.dev/rpc`
+alongside `…/overlay.js`), but standing up a stateful shared fork — chain state,
+reset policy, who can warp it — is the non-trivial part and is why this is
+deferred. Until such an endpoint exists, time travel stays dev-only (local
+`infra:up` stack), while DQA works on previews because it only needs a plain
+HTTP service.
