@@ -1,3 +1,4 @@
+import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   createFileRoute,
   type ErrorComponentProps,
@@ -12,6 +13,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
@@ -87,8 +89,15 @@ export const Route = createFileRoute('/$name/')({
 
 function ProfileRoutePending() {
   const name = Route.useParams({ select: (params) => params.name })
+  const profileViewNewServerEnabled = Route.useRouteContext({
+    select: (context) => context.profileViewNewEnabled,
+  })
+  const profileViewNewEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    profileViewNewServerEnabled,
+  )
 
-  return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
+  return profileViewNewEnabled ? (
     <ProfileViewNewLoading name={name} />
   ) : (
     <ProfileLoading />
@@ -109,6 +118,15 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
 
 function RouteComponent() {
   const name = Route.useParams({ select: (params) => params.name })
+  const profileViewNewServerEnabled = Route.useRouteContext({
+    select: (context) => context.profileViewNewEnabled,
+  })
+  const profileViewNewEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
+    profileViewNewServerEnabled,
+  )
 
-  return <ProfileView name={name} />
+  return (
+    <ProfileView name={name} profileViewNewEnabled={profileViewNewEnabled} />
+  )
 }

@@ -25,6 +25,7 @@ const meta = {
         'primaryExpired',
         'anyNameExpired',
         'profileOwnName',
+        'profileNotOwnedName',
       ] satisfies GracePeriodBannerVariant[],
     },
     graceEndDate: { control: 'date' },
@@ -60,6 +61,12 @@ export const AnyNameExpired: Story = {
 export const ProfileOwnName: Story = {
   args: {
     variant: 'profileOwnName',
+  },
+}
+
+export const ProfileNotOwnedName: Story = {
+  args: {
+    variant: 'profileNotOwnedName',
   },
 }
 
@@ -122,6 +129,12 @@ export const AllVariants: Story = {
         previewRenew
         renewName="profile.eth"
         variant="profileOwnName"
+      />
+      <GracePeriodBanner
+        graceEndDate={graceEndDate}
+        previewRenew
+        renewName="not-owned.eth"
+        variant="profileNotOwnedName"
       />
     </div>
   ),

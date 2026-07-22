@@ -45,11 +45,6 @@ msgstr "{0} are expiring without auto-renewal with the earliest expiring on <0>{
 msgid "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 msgstr "{0} expires on <0>{1}</0>. Enable auto-renewal or renew manually to avoid expiration."
 
-#. placeholder {0}: currentPage + 1
-#: src/features/dashboard/components/EducationCarousel.tsx
-msgid "{0} of {totalPages}"
-msgstr "{0} of {totalPages}"
-
 #. placeholder {0}: autoRenewal.price
 #: src/features/auto-renewal/components/index.tsx
 msgid "{0} USD/year"
@@ -140,8 +135,8 @@ msgid "A simple, portable identity that you control"
 msgstr "A simple, portable identity that you control"
 
 #: src/features/landing/FeaturesCarousel.tsx
-msgid "A simpler way to<0/><1>get paid.</1>"
-msgstr "A simpler way to<0/><1>get paid.</1>"
+msgid "A simpler way to get paid."
+msgstr "A simpler way to get paid."
 
 #: src/features/profile/components/view-new/ProfileViewNewAbout.tsx
 msgid "About"
@@ -184,6 +179,11 @@ msgstr "Add more contact methods"
 #: src/routes/payment/list.tsx
 msgid "Add Payment Method"
 msgstr "Add Payment Method"
+
+#: src/features/grace/components/GracePeriodBanner.tsx
+#: src/features/grace/components/GracePeriodFavoriteButton.tsx
+msgid "Add to favorites"
+msgstr "Add to favorites"
 
 #: src/features/dashboard/service/mutations/favoriteToast.tsx
 msgid "Added to your favorites!"
@@ -393,12 +393,6 @@ msgstr "Browser notifications enabled"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Bug bounty"
 msgstr "Bug bounty"
-
-#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
-#~ msgid "Buy Name"
-#~ msgstr "Buy Name"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
@@ -664,6 +658,7 @@ msgstr "Copy Link"
 
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
 #: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
+#: src/features/profile/components/view/AddressProfileHeader.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
@@ -696,6 +691,7 @@ msgid "Create unlimited subdomains for free"
 msgstr "Create unlimited subdomains for free"
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Created"
 msgstr "Created"
 
@@ -940,6 +936,7 @@ msgid "expiring on"
 msgstr "expiring on"
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Expiry Date"
 msgstr "Expiry Date"
 
@@ -1246,6 +1243,10 @@ msgstr "Make sure the message starts with \"ENS would like you to ...\""
 msgid "Makes crypto addresses human-readable"
 msgstr "Makes crypto addresses human-readable"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Making your name work everywhere"
+msgstr "Making your name work everywhere"
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Manage everything in one place"
 msgstr "Manage everything in one place"
@@ -1265,6 +1266,10 @@ msgstr "Manage on explorer"
 #: src/routes/auto-renewal/index.tsx
 msgid "Manage Renewals"
 msgstr "Manage Renewals"
+
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
+msgid "Managed"
+msgstr "Managed"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "Manager"
@@ -1309,6 +1314,7 @@ msgid "My Names"
 msgstr "My Names"
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
 msgstr "Name"
 
@@ -1323,6 +1329,10 @@ msgstr "Name on card"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Name registering"
 msgstr "Name registering"
+
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
+msgid "Names"
+msgstr "Names"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Names are permanent, only expire if not renewed"
@@ -1355,7 +1365,6 @@ msgid "Next card"
 msgstr "Next card"
 
 #: src/features/dashboard/components/DashboardPagination.tsx
-#: src/features/profile/components/view/AddressProfileView.tsx
 msgid "Next page"
 msgstr "Next page"
 
@@ -1392,6 +1401,7 @@ msgid "No names match your search"
 msgstr "No names match your search"
 
 #: src/features/dashboard/components/MyNamesList.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "No names to display"
 msgstr "No names to display"
 
@@ -1479,6 +1489,7 @@ msgid "Over 2 million ENS names registered"
 msgstr "Over 2 million ENS names registered"
 
 #: src/features/dashboard/components/NamesTable.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
 msgstr "Owned"
 
@@ -1548,6 +1559,14 @@ msgstr "Permission missing. Please try again."
 msgid "Personalized NFT"
 msgstr "Personalized NFT"
 
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Placing your new identity in your wallet"
+msgstr "Placing your new identity in your wallet"
+
+#: src/features/weave-registration/lib/weaveSteps.ts
+msgid "Planting your name in the infinite garden"
+msgstr "Planting your name in the infinite garden"
+
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
@@ -1607,7 +1626,6 @@ msgid "Previous owner"
 msgstr "Previous owner"
 
 #: src/features/dashboard/components/DashboardPagination.tsx
-#: src/features/profile/components/view/AddressProfileView.tsx
 msgid "Previous page"
 msgstr "Previous page"
 
@@ -1704,8 +1722,8 @@ msgid "Registered"
 msgstr "Registered"
 
 #: src/features/profile/components/view/AddressProfileView.tsx
-msgid "Registered ENS names"
-msgstr "Registered ENS names"
+#~ msgid "Registered ENS names"
+#~ msgstr "Registered ENS names"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
@@ -1792,6 +1810,10 @@ msgstr "Remove Email Contact Method?"
 #: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
 msgid "Remove favorite"
 msgstr "Remove favorite"
+
+#: src/features/grace/components/GracePeriodFavoriteButton.tsx
+msgid "Remove from favorites"
+msgstr "Remove from favorites"
 
 #: src/features/notifications/shared/primitives.tsx
 msgid "Remove notification"
@@ -1966,6 +1988,7 @@ msgid "Search name, address..."
 msgstr "Search name, address..."
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Search names"
 msgstr "Search names"
 
@@ -1981,7 +2004,9 @@ msgstr "See all"
 msgid "See what's new"
 msgstr "See what's new"
 
+#. placeholder {0}: name.label
 #. placeholder {0}: stablecoin.symbol
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Select {0}"
 msgstr "Select {0}"
@@ -1991,6 +2016,7 @@ msgid "Select {label} as primary name"
 msgstr "Select {label} as primary name"
 
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
 msgstr "Select all"
 
@@ -2313,17 +2339,29 @@ msgid "There was a problem verifying your email address."
 msgstr "There was a problem verifying your email address."
 
 #: src/features/profile/components/view/AddressProfileView.tsx
-msgid "This address does not have a primary ENS name."
-msgstr "This address does not have a primary ENS name."
+#~ msgid "This address does not have a primary ENS name."
+#~ msgstr "This address does not have a primary ENS name."
 
 #: src/features/payment/components/add.tsx
 #: src/features/payment/components/index.tsx
 msgid "This card will be charged for your subscription."
 msgstr "This card will be charged for your subscription."
 
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "This name can’t be edited"
+msgstr "This name can’t be edited"
+
+#: src/features/grace/components/GracePeriodBanner.tsx
+msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgstr "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
 msgid "This name is already registered or not available for registration."
 msgstr "This name is already registered or not available for registration."
+
+#: src/features/grace/components/GracePeriodBanner.tsx
+msgid "This name is in grace period"
+msgstr "This name is in grace period"
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
@@ -2404,6 +2442,10 @@ msgstr "Try it out"
 msgid "Try searching for a different coin or chain"
 msgstr "Try searching for a different coin or chain"
 
+#: src/features/profile/components/view/AddressProfileNamesList.tsx
+msgid "Unable to load names for this address. Please try again."
+msgstr "Unable to load names for this address. Please try again."
+
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "unique searches in the last 30 days"
 msgstr "unique searches in the last 30 days"
@@ -2424,6 +2466,10 @@ msgstr "Upgrade all names to receive NFT"
 #: src/features/migration/components/UpgradeNamesButton.tsx
 msgid "Upgrade Names"
 msgstr "Upgrade Names"
+
+#: src/features/migration/components/UpgradeBanner.tsx
+msgid "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
+msgstr "Upgrade your name to edit your new ENS profile and claim your personalized NFT."
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "Upgrade your name(s) in just a couple steps to unlock your new ENS profile and claim your commemorative NFT."
@@ -2531,6 +2577,10 @@ msgstr "Verifying registration on-chain"
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
 msgstr "Verifying..."
+
+#: src/features/profile/components/view/AddressProfileHeader.tsx
+msgid "View profile"
+msgstr "View profile"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for approval"
@@ -2798,8 +2848,8 @@ msgid "Your ENS name works across web3"
 msgstr "Your ENS name works across web3"
 
 #: src/features/grace/components/GracePeriodBanner.tsx
-msgid "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
-msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+msgid "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+msgstr "Your expired name is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your name is in grace period"
@@ -2818,8 +2868,8 @@ msgid "Your names, text records, and addresses will migrate automatically"
 msgstr "Your names, text records, and addresses will migrate automatically"
 
 #: src/features/grace/components/GracePeriodBanner.tsx
-msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
-msgstr "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by {formattedGraceEnd} to keep it. While in grace, the name won't work with its records."
+msgid "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
+msgstr "Your primary name expired {daysSinceExpiry, plural, one {# day} other {# days}} ago and is now in its {graceDays}-day grace period. Renew by <0>{formattedGraceEnd}</0> to keep it. While in grace, the name won't work with its records."
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "Your primary name has expired."

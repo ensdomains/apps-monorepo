@@ -122,7 +122,6 @@ export const ExtendNameModal = ({
                     tokenAllowance: token.allowance,
                   })
                 }
-                isRegistering={false}
               />
             ) : null,
           )

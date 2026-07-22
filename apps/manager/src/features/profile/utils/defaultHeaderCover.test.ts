@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getDefaultHeaderCover } from './defaultHeaderCover'
+import {
+  getDefaultHeaderCover,
+  getLoadingHeaderCover,
+} from './defaultHeaderCover'
 
 const decodeSvg = (cover: string): string => {
   const [, encodedSvg] = cover.split(',')
@@ -42,5 +45,11 @@ describe('getDefaultHeaderCover', () => {
     )
 
     expect(svg).toContain('fill="#87514C" style="mix-blend-mode:color"')
+  })
+
+  it('uses the neutral Quartz color for the loading cover', () => {
+    expect(decodeSvg(getLoadingHeaderCover())).toContain(
+      'fill="#C7C6C4" style="mix-blend-mode:color"',
+    )
   })
 })

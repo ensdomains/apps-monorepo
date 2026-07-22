@@ -106,6 +106,12 @@ describe('isExtendable2LD', () => {
         }),
       ).toBe(false)
     })
+
+    it('accepts a v1 name with no expiry (permissive; useCanExtend gates it on-chain)', () => {
+      expect(
+        isExtendable2LD({ name: 'alice.eth', isV2: false, expiryDate: null }),
+      ).toBe(true)
+    })
   })
 })
 

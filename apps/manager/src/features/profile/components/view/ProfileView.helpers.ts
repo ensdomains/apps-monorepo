@@ -1,10 +1,33 @@
 import type { Address } from 'viem'
 
-type IsConnectedProfileOwnerParams = {
-  readonly owner: Address | undefined
+type ConnectedAddressCandidates = {
   readonly walletAddress: Address | undefined
   readonly accountAddress: Address | null | undefined
   readonly ownerAddress: Address | null | undefined
+}
+
+type IsConnectedProfileOwnerParams = ConnectedAddressCandidates & {
+  readonly owner: Address | undefined
+}
+
+type IsViewingConnectedAddressParams = ConnectedAddressCandidates & {
+  readonly address: Address | undefined
+}
+
+const matchesConnectedAddress = (
+  target: Address | undefined,
+  candidates: ConnectedAddressCandidates,
+): boolean => {
+  const normalizedTarget = target?.toLowerCase()
+  if (!normalizedTarget) return false
+
+  return [
+    candidates.walletAddress,
+    candidates.accountAddress,
+    candidates.ownerAddress,
+  ]
+    .filter((addr): addr is Address => !!addr)
+    .some((addr) => addr.toLowerCase() === normalizedTarget)
 }
 
 export const isConnectedProfileOwner = ({
@@ -12,11 +35,21 @@ export const isConnectedProfileOwner = ({
   walletAddress,
   accountAddress,
   ownerAddress,
-}: IsConnectedProfileOwnerParams): boolean => {
-  const normalizedOwner = owner?.toLowerCase()
-  if (!normalizedOwner) return false
+}: IsConnectedProfileOwnerParams): boolean =>
+  matchesConnectedAddress(owner, {
+    walletAddress,
+    accountAddress,
+    ownerAddress,
+  })
 
-  return [walletAddress, accountAddress, ownerAddress]
-    .filter((addr): addr is Address => !!addr)
-    .some((addr) => addr.toLowerCase() === normalizedOwner)
-}
+export const isViewingConnectedAddress = ({
+  address,
+  walletAddress,
+  accountAddress,
+  ownerAddress,
+}: IsViewingConnectedAddressParams): boolean =>
+  matchesConnectedAddress(address, {
+    walletAddress,
+    accountAddress,
+    ownerAddress,
+  })

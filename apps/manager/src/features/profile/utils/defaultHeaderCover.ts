@@ -2,13 +2,14 @@ import defaultHeaderCoverSvg from '@/assets/profile/default-header-cover.svg?raw
 import type { ProfileTheme } from '../constants'
 import { getProfileTheme } from './themeColor'
 
-type CoverKey = ProfileTheme['label'] | 'Grace'
+type CoverKey = ProfileTheme['label'] | 'Grace' | 'Loading'
 
 const COVER_COLORS = {
   Citrine: '#984D1B',
   Garnet: '#E72A96',
   Grace: '#87514C',
   Lapis: '#0082BB',
+  Loading: '#C7C6C4',
   Peridot: '#007C20',
   Quartz: '#02293B',
 } satisfies Record<CoverKey, string>
@@ -39,3 +40,5 @@ export const getDefaultHeaderCover = ({
   themeColor,
 }: GetDefaultHeaderCoverOptions): string =>
   buildCover(isInGrace ? 'Grace' : getProfileTheme(themeColor).label)
+
+export const getLoadingHeaderCover = (): string => buildCover('Loading')

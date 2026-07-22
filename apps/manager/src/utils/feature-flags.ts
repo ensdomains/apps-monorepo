@@ -36,8 +36,9 @@ const FEATURE_FLAGS_INTERNAL = {
   MIGRATION: {
     enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
   },
-  PROFILE_VIEW_NEW: {
-    enabled: import.meta.env.VITE_FF_PROFILE_VIEW_NEW === 'true',
+  /** Bulk name selection UI on the address profile names list (actions TBD). */
+  PROFILE_ADDRESS_NAMES_SELECTION: {
+    enabled: import.meta.env.VITE_FF_PROFILE_ADDRESS_NAMES_SELECTION === 'true',
   },
   /** Favorite/search demand stats in the temp premium price cooldown banner. */
   TEMP_PREMIUM_NAME_STATS: {
