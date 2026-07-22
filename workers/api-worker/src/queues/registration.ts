@@ -132,6 +132,7 @@ async function runCommitPhase(
     owner: buyer,
     secret,
     expectedResolver: resolver,
+    label: order.name,
   })
   // Belt-and-braces: the local commitment must equal the registrar's own
   // makeCommitment for the exact tuple we're about to commit.

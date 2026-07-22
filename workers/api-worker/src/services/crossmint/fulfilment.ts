@@ -11,6 +11,7 @@ import {
   type Hex,
   http,
   isAddressEqual,
+  namehash,
   type PublicActions,
   type PublicClient,
   publicActions,
@@ -253,15 +254,79 @@ function parseProxyDeployedAddress(
  * identity used in the precompute, so `deployed === expectedResolver` is
  * asserted as a tripwire against any drift.
  */
+/** ENSIP-9 coin type for mainnet ETH. */
+const COIN_TYPE_ETH = 60n
+
+/**
+ * Init calldata for the dedicated-resolver proxy that BOTH initializes it and
+ * sets the buyer's ETH address record — so the name resolves to its owner the
+ * moment registration completes, with no buyer-side record transaction.
+ *
+ * Without this, `initialize(owner, bitmap)` grants roles only: a freshly
+ * registered name resolves to nothing until the buyer sets records — which in
+ * the voucher flow they never otherwise have to do.
+ *
+ * Mechanics: `deployProxy` executes the init calldata with the FACTORY as
+ * `msg.sender`, and the resolver's `multicall` delegatecalls preserve that
+ * sender. The buyer holds no roles yet at that point, so the bundle runs the
+ * whole sequence AS the factory:
+ *
+ *   1. initialize(factory, bitmap)  — factory becomes the root-role holder
+ *   2. setAddr(namehash, 60, owner) — record write, permitted by (1)
+ *   3. grantRootRoles(bitmap, owner)— buyer ends up with the exact roles the
+ *                                     plain init used to grant
+ *   4. revokeRootRoles(bitmap, factory) — factory strips itself
+ *
+ * Net state = the previous init + the ETH record. Verified against the
+ * deployed Sepolia factory/impl via eth_call, including that the CREATE2
+ * proxy address is initData-independent — the order-time resolver precompute
+ * and commitment are unaffected.
+ */
+export function buildResolverInitBundle(owner: Address, label: string): Hex {
+  const abi = DEDICATED_RESOLVER_INIT_ABI
+  const node = namehash(`${label}.eth`)
+  const factory = CONTRACTS.VerifiableFactory
+  return encodeFunctionData({
+    abi,
+    functionName: 'multicall',
+    args: [
+      [
+        encodeFunctionData({
+          abi,
+          functionName: 'initialize',
+          args: [factory, DEDICATED_RESOLVER_ROLE_BITMAP],
+        }),
+        encodeFunctionData({
+          abi,
+          functionName: 'setAddr',
+          args: [node, COIN_TYPE_ETH, owner],
+        }),
+        encodeFunctionData({
+          abi,
+          functionName: 'grantRootRoles',
+          args: [DEDICATED_RESOLVER_ROLE_BITMAP, owner],
+        }),
+        encodeFunctionData({
+          abi,
+          functionName: 'revokeRootRoles',
+          args: [DEDICATED_RESOLVER_ROLE_BITMAP, factory],
+        }),
+      ],
+    ],
+  })
+}
+
 export async function deployDedicatedResolver(
   client: ServerWalletClient,
-  params: { owner: Address; secret: Hex; expectedResolver: Address },
+  params: {
+    owner: Address
+    secret: Hex
+    expectedResolver: Address
+    /** ENS label (no .eth) — used to set records at deploy time. */
+    label: string
+  },
 ): Promise<Address> {
-  const initData = encodeFunctionData({
-    abi: DEDICATED_RESOLVER_INIT_ABI,
-    functionName: 'initialize',
-    args: [params.owner, DEDICATED_RESOLVER_ROLE_BITMAP],
-  })
+  const initData = buildResolverInitBundle(params.owner, params.label)
   const hash = await client.execWrite({
     to: CONTRACTS.VerifiableFactory,
     data: encodeFunctionData({

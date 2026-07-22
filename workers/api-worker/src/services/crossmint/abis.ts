@@ -42,9 +42,18 @@ export const VERIFIABLE_FACTORY_ABI = parseAbi([
   'event ProxyDeployed(address indexed sender, address indexed proxyAddress, uint256 salt, address implementation)',
 ])
 
-/** Dedicated-resolver initializer (owner + role bitmap). */
+/**
+ * Dedicated-resolver surface used inside the `deployProxy` init bundle. The
+ * factory calls the fresh proxy with this calldata; `multicall` delegatecalls
+ * preserve `msg.sender == factory`, which is what makes deploy-time record
+ * writes possible (see `buildResolverInitBundle` in fulfilment.ts).
+ */
 export const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
   'function initialize(address owner, uint256 bitmap)',
+  'function multicall(bytes[] calls)',
+  'function setAddr(bytes32 node, uint256 coinType, bytes addressBytes)',
+  'function grantRootRoles(uint256 roleBitmap, address account)',
+  'function revokeRootRoles(uint256 roleBitmap, address account)',
 ])
 
 /**
