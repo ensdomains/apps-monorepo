@@ -183,9 +183,22 @@ const V2RecentActivityTable = ({
   )
 }
 
-const V1RecentActivity = ({ name }: { name: string }) => {
+const V1RecentActivity = ({
+  name,
+  eventTypes,
+}: {
+  name: string
+  eventTypes?: readonly string[]
+}) => {
   const { data, isLoading, error } = useQuery(
-    getNameHistoryQueryOptions({ name, first: 3, orderDirection: 'desc' }),
+    // The subgraph query has no event-type filter, so filtering happens
+    // client-side below — fetch a deeper window so the filtered list isn't
+    // starved by unrelated events (transfers, wraps, …).
+    getNameHistoryQueryOptions({
+      name,
+      first: eventTypes ? 10 : 3,
+      orderDirection: 'desc',
+    }),
   )
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
@@ -198,25 +211,37 @@ const V1RecentActivity = ({ name }: { name: string }) => {
     )
   if (!data) return <NoRecentActivity name={name} />
 
+  const events = [
+    ...data.domainEvents,
+    ...(data.registrationEvents || []),
+    ...(data.resolverEvents || []),
+  ].filter((event) => !eventTypes || eventTypes.includes(event.type))
+
+  if (eventTypes && events.length === 0) return <NoRecentActivity name={name} />
+
   return (
     <RecentActivityShell name={name}>
       <div>
-        <V1RecentActivityTable
-          name={name}
-          events={[
-            ...data.domainEvents,
-            ...(data.registrationEvents || []),
-            ...(data.resolverEvents || []),
-          ]}
-        />
+        <V1RecentActivityTable name={name} events={events} />
       </div>
     </RecentActivityShell>
   )
 }
 
-const V2RecentActivity = ({ name }: { name: string }) => {
+const V2RecentActivity = ({
+  name,
+  eventTypes,
+}: {
+  name: string
+  eventTypes?: readonly string[]
+}) => {
   const { data, isLoading, error } = useQuery(
-    getV2NameHistoryQueryOptions({ name, first: 3, orderDirection: 'desc' }),
+    getV2NameHistoryQueryOptions({
+      name,
+      first: 3,
+      orderDirection: 'desc',
+      eventTypes,
+    }),
   )
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
@@ -244,14 +269,17 @@ const V2RecentActivity = ({ name }: { name: string }) => {
 interface RecentActivityProps {
   name: string
   protocolVersion: ProtocolVersion
+  /** When set, only events of these types are shown (e.g. `AddressChanged`). */
+  eventTypes?: readonly string[]
 }
 
 export const RecentActivity = ({
   name,
   protocolVersion,
+  eventTypes,
 }: RecentActivityProps) =>
   protocolVersion === 'ENSv2' ? (
-    <V2RecentActivity name={name} />
+    <V2RecentActivity name={name} eventTypes={eventTypes} />
   ) : (
-    <V1RecentActivity name={name} />
+    <V1RecentActivity name={name} eventTypes={eventTypes} />
   )

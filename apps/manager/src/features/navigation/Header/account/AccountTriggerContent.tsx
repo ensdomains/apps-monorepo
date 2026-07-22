@@ -28,6 +28,7 @@ export const AccountTriggerContent = () => {
               <ImageFallback.Fallback>
                 <PatternAvatar
                   className="size-full rounded-sm border-none bg-transparent p-0 shadow-none"
+                  color={avatar.themeColor}
                   name={reverseNameQuery.data ?? ownerAddress ?? 'wallet'}
                 />
               </ImageFallback.Fallback>

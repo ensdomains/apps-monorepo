@@ -29,6 +29,21 @@ export const TransactionModal = ({ transactions }: TransactionModalProps) => {
   const [transactionModalContentState, setTransactionModalContentState] =
     useState<TransactionModalContentState>({ type: 'overview' })
 
+  // When the parent swaps in a different set of transactions — e.g. a sidebar
+  // switching from its "set address" flow to its "set primary name" flow — a
+  // lingering `info`/`state` view can still reference the previous flow's
+  // transaction id, which `getTransactionById` would then throw on ("... not
+  // found"). Fall back to the overview in that case. This "adjust state during
+  // render" can't loop: once reset to overview there's no id left to reconcile.
+  if (
+    transactionModalContentState.type !== 'overview' &&
+    !transactions.some(
+      (t) => t.id === transactionModalContentState.transactionId,
+    )
+  ) {
+    setTransactionModalContentState({ type: 'overview' })
+  }
+
   useAutoAdvanceTransaction(autoAdvanceTxId, transactions)
 
   const handleClose = () => {

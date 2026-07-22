@@ -27,6 +27,7 @@ import { Route as NameHistoryRouteImport } from './routes/$name/history'
 import { Route as NameEditRecordsRouteImport } from './routes/$name/edit-records'
 import { Route as NameCreateSubnameRouteImport } from './routes/$name/create-subname'
 import { Route as NameChangeResolverRouteImport } from './routes/$name/change-resolver'
+import { Route as NameAddressRouteImport } from './routes/$name/address'
 import { Route as TldTldIndexRouteImport } from './routes/tld/$tld/index'
 import { Route as ResolverAddressIndexRouteImport } from './routes/resolver/$address/index'
 import { Route as RegistryAddressIndexRouteImport } from './routes/registry/$address/index'
@@ -137,6 +138,11 @@ const NameChangeResolverRoute = NameChangeResolverRouteImport.update({
   path: '/change-resolver',
   getParentRoute: () => NameRoute,
 } as any)
+const NameAddressRoute = NameAddressRouteImport.update({
+  id: '/address',
+  path: '/address',
+  getParentRoute: () => NameRoute,
+} as any)
 const TldTldIndexRoute = TldTldIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -239,6 +245,7 @@ const ResolverAddressRolesIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
@@ -313,6 +321,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$name': typeof NameRouteWithChildren
+  '/$name/address': typeof NameAddressRoute
   '/$name/change-resolver': typeof NameChangeResolverRoute
   '/$name/create-subname': typeof NameCreateSubnameRoute
   '/$name/edit-records': typeof NameEditRecordsRoute
@@ -354,6 +363,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$name'
+    | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
     | '/$name/edit-records'
@@ -392,6 +402,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
     | '/$name/edit-records'
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$name'
+    | '/$name/address'
     | '/$name/change-resolver'
     | '/$name/create-subname'
     | '/$name/edit-records'
@@ -602,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NameChangeResolverRouteImport
       parentRoute: typeof NameRoute
     }
+    '/$name/address': {
+      id: '/$name/address'
+      path: '/address'
+      fullPath: '/$name/address'
+      preLoaderRoute: typeof NameAddressRouteImport
+      parentRoute: typeof NameRoute
+    }
     '/tld/$tld/': {
       id: '/tld/$tld/'
       path: '/'
@@ -739,6 +758,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface NameRouteChildren {
+  NameAddressRoute: typeof NameAddressRoute
   NameChangeResolverRoute: typeof NameChangeResolverRoute
   NameCreateSubnameRoute: typeof NameCreateSubnameRoute
   NameEditRecordsRoute: typeof NameEditRecordsRoute
@@ -756,6 +776,7 @@ interface NameRouteChildren {
 }
 
 const NameRouteChildren: NameRouteChildren = {
+  NameAddressRoute: NameAddressRoute,
   NameChangeResolverRoute: NameChangeResolverRoute,
   NameCreateSubnameRoute: NameCreateSubnameRoute,
   NameEditRecordsRoute: NameEditRecordsRoute,

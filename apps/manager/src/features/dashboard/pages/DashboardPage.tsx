@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, useReducedMotion } from 'motion/react'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -14,7 +15,7 @@ import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
@@ -33,7 +34,10 @@ const stagger = (index: number, shouldReduceMotion: boolean | null) =>
 export const DashboardPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const shouldReduceMotion = useReducedMotion()
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
   // `reverseName ?? null`) instead of throwing into the route and crashing it.
@@ -56,16 +60,16 @@ export const DashboardPage = () => {
   const hasProfile = Boolean(defaultName)
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 py-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:py-10">
+    <div className="mx-auto flex w-full max-w-7xl flex-col items-start gap-4 pt-0 pb-6 md:w-[calc(100%-4rem)] md:flex-row md:gap-8 md:pb-10">
       {migrationEnabled && <MigrationModal />}
-      <div className="min-w-0 flex-1 space-y-6 md:space-y-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-6">
         {migrationEnabled && (
           <motion.div className="w-full" {...stagger(0, shouldReduceMotion)}>
             <UpgradeBanner />
           </motion.div>
         )}
         <motion.div
-          className="w-full px-4 md:px-0"
+          className="w-full px-4 empty:hidden md:px-0"
           {...stagger(1, shouldReduceMotion)}
         >
           <DashboardGraceBanner primaryLabel={defaultName} />

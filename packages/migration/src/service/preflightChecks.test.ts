@@ -71,6 +71,38 @@ describe('checkOwnership', () => {
     expect([...ids]).toEqual(['0xa1'])
   })
 
+  it('marks IS_DOT_ETH names in their grace period (owned but not transferable)', async () => {
+    // Wrapper expiry is still in the future (registrarExpiry + 90d grace), so getData
+    // reports the name as owned — but it is inside the grace period, so a transfer would
+    // revert with "insufficient balance". Must be excluded despite the owner matching.
+    const graceExpiry = BigInt(Math.floor(Date.now() / 1000) + 3600)
+    multicallMock.mockResolvedValueOnce([
+      ok([OWNER, Number(FUSES.IS_DOT_ETH), graceExpiry] as const),
+    ])
+    const ids = await checkOwnership(
+      publicClient,
+      [makeClassified({ id: '0xa1', tokenType: 'locked-2ld' })],
+      OWNER,
+    )
+    expect([...ids]).toEqual(['0xa1'])
+  })
+
+  it('keeps IS_DOT_ETH names transferable when past the grace period start', async () => {
+    // Wrapper expiry more than 90 days out → registration still live → transferable.
+    const liveExpiry = BigInt(
+      Math.floor(Date.now() / 1000) + 120 * 24 * 60 * 60,
+    )
+    multicallMock.mockResolvedValueOnce([
+      ok([OWNER, Number(FUSES.IS_DOT_ETH), liveExpiry] as const),
+    ])
+    const ids = await checkOwnership(
+      publicClient,
+      [makeClassified({ id: '0xa1', tokenType: 'locked-2ld' })],
+      OWNER,
+    )
+    expect(ids.size).toBe(0)
+  })
+
   it('treats a failed multicall entry as already migrated', async () => {
     multicallMock.mockResolvedValueOnce([fail()])
     const ids = await checkOwnership(

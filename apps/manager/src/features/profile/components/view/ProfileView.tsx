@@ -7,7 +7,6 @@ import { useConnection } from 'wagmi'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { sectionsList } from '../../data/records'
@@ -30,6 +29,7 @@ import { ViewLinksSection } from './ViewLinksSection'
 
 interface ProfileViewProps {
   name: string
+  profileViewNewEnabled?: boolean
 }
 
 type UseIsOwnerParams = {
@@ -49,12 +49,10 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
   })
 }
 
-export const ProfileView = ({ name }: ProfileViewProps) => {
-  const profileViewNewEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
-    false,
-  )
-
+export const ProfileView = ({
+  name,
+  profileViewNewEnabled = false,
+}: ProfileViewProps) => {
   return profileViewNewEnabled ? (
     <ProfileViewNew name={name} />
   ) : (
@@ -63,7 +61,10 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
 }
 
 const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
-  const migrationEnabled = useFeatureFlag('MIGRATION')
+  const migrationEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION,
+    false,
+  )
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -92,6 +93,20 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
     owner,
   })
 
+  const gracePeriodBanner = match(expiry)
+    .with(
+      { isInGrace: true, graceEndDate: P.not(P.nullish) },
+      ({ graceEndDate }) =>
+        isOwnerPending ? null : (
+          <GracePeriodBanner
+            graceEndDate={graceEndDate}
+            renewName={name}
+            variant={isOwner ? 'profileOwnName' : 'profileNotOwnedName'}
+          />
+        ),
+    )
+    .otherwise(() => null)
+
   // Registry ownerOf is zero when expired; expiry distinguishes v2 grace from missing.
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
@@ -118,26 +133,21 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
       style={expiry.isInGrace ? undefined : themeVars}
     >
       {migrationEnabled && <UpgradeBanner profileName={name} />}
-      {match(expiry)
-        .with(
-          { isInGrace: true, graceEndDate: P.not(P.nullish) },
-          ({ graceEndDate }) => (
-            <GracePeriodBanner
-              graceEndDate={graceEndDate}
-              renewName={name}
-              variant="profileOwnName"
-            />
-          ),
-        )
-        .otherwise(() => null)}
-      <ViewHeaderSection
-        hasHeader={Boolean(records.base.header?.trim())}
-        isInGrace={expiry.isInGrace}
-        isOwner={isOwnerPending ? undefined : isOwner}
-        name={name}
-        owner={owner}
-        themeColor={profileThemeColor}
-      />
+      <div className="relative">
+        {gracePeriodBanner ? (
+          <div className="mb-4 md:absolute md:inset-x-4 md:top-4 md:z-10 md:mb-0">
+            {gracePeriodBanner}
+          </div>
+        ) : null}
+        <ViewHeaderSection
+          hasHeader={Boolean(records.base.header?.trim())}
+          isInGrace={expiry.isInGrace}
+          isOwner={isOwnerPending ? undefined : isOwner}
+          name={name}
+          owner={owner}
+          themeColor={profileThemeColor}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
