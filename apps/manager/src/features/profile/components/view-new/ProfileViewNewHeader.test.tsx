@@ -5,6 +5,20 @@ import { render } from '@/utils/test-utils'
 import { ProfileViewNewHeader } from './ProfileViewNewHeader'
 
 describe('ProfileViewNewHeader', () => {
+  it('uses the default Lapis background when no profile theme is set', () => {
+    render(
+      <ProfileViewNewHeader
+        avatarLoading={false}
+        name="example.eth"
+        records={newEmptyProfileRecords()}
+      />,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: 'example.eth' }).parentElement,
+    ).toHaveClass('bg-[var(--theme-color,var(--color-ens-lapis-500))]')
+  })
+
   it('keeps the mobile About section clear of the profile actions', () => {
     render(
       <ProfileViewNewHeader

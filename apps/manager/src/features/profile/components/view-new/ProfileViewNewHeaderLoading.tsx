@@ -4,6 +4,7 @@ import {
   type MaterialSymbolProps,
   MSymbol,
 } from '@/components/ui/material-symbol'
+import { getLoadingHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { cn } from '@/lib/utils'
 import { tw } from '@/utils/tailwind'
 import {
@@ -15,6 +16,7 @@ const neutralAvatarCellIds = Array.from({ length: 36 }, (_, index) => index)
 const neutralAvatarFilledCells = new Set([
   0, 2, 4, 6, 12, 18, 24, 30, 31, 32, 33, 34, 35, 11, 15, 16, 20, 22, 27, 28,
 ])
+const loadingHeaderCoverUrl = getLoadingHeaderCover()
 
 export const ProfileViewNewBannerLoading = ({
   shouldReduceMotion,
@@ -23,9 +25,14 @@ export const ProfileViewNewBannerLoading = ({
 }) => (
   <div className="relative h-74 w-full lg:landscape:h-90.25">
     <div className="absolute inset-0 overflow-hidden">
-      <div className="absolute top-14 h-60 w-full bg-[linear-gradient(145deg,#F1F0EF_0%,#ffffff_58%,#E4E1DE_100%)] lg:landscape:top-0 lg:landscape:h-full" />
+      <img
+        alt=""
+        aria-hidden="true"
+        className="absolute top-14 h-60 w-full object-cover lg:landscape:top-0 lg:landscape:h-130"
+        src={loadingHeaderCoverUrl}
+      />
       {!shouldReduceMotion && (
-        <div className="pointer-events-none absolute top-14 h-60 w-full animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent lg:landscape:top-0 lg:landscape:h-full" />
+        <div className="pointer-events-none absolute top-14 h-60 w-full animate-shimmer bg-linear-to-r from-transparent via-white/30 to-transparent lg:landscape:top-0 lg:landscape:h-130" />
       )}
     </div>
     <div className="mask-[linear-gradient(to_bottom,transparent_0%,transparent_54%,black_78%,black_100%)] pointer-events-none absolute inset-x-0 -bottom-10 h-62.5 bg-[linear-gradient(to_bottom,rgba(252,251,251,0)_0%,rgba(252,251,251,0)_40%,rgba(252,251,251,0.72)_72%,#FCFBFB_100%)] backdrop-blur-sm" />

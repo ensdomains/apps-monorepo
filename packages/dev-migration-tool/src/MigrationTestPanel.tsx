@@ -15,6 +15,7 @@ import {
   type ActiveName,
   buildMockDomain,
   createV1NameOnAnvil,
+  DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
   getOnchainExpiry,
   PRESETS,
@@ -39,6 +40,19 @@ function migrationLookupName(body: string): string | undefined {
   } catch {
     return undefined
   }
+}
+
+/**
+ * All panel-created names are owned by DEFAULT_ACCOUNT (see buildMockDomain).
+ * getNamesForAddress is address-scoped (owner/registrant/wrappedOwner filter),
+ * so only inject the mocks when the query actually targets DEFAULT_ACCOUNT —
+ * otherwise every address's profile would leak the connected wallet's names.
+ * The address is embedded verbatim (lowercased) in the where filter, so a
+ * substring check against the serialized body is sufficient and robust to the
+ * exact filter shape.
+ */
+function nameListTargetsMockOwner(body: string): boolean {
+  return body.toLowerCase().includes(DEFAULT_ACCOUNT.toLowerCase())
 }
 
 // ---------------------------------------------------------------------------
@@ -87,8 +101,11 @@ export function setInjectedNames(names: ActiveName[]): void {
     const isMigrationLookup = body.includes('getV1DomainForMigration')
     if (!isNameList && !isMigrationLookup) return origFetch(input, init)
 
-    const injected = isNameList
+    const nameListInjected = nameListTargetsMockOwner(body)
       ? _injectedNames
+      : []
+    const injected = isNameList
+      ? nameListInjected
       : _injectedNames.filter(
           (n) => `${n.label}.eth` === migrationLookupName(body),
         )
