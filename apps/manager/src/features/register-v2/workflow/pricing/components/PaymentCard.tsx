@@ -164,6 +164,14 @@ export const PaymentCard = () => {
               // Non-status body (404/…): throw so the poll retries.
               throw new Error(body.error)
             }
+            // Surface the fulfilment phase to the ui machine so the progress
+            // bar advances through the real backend phases (committing →
+            // committed → registering) instead of parking on one value for
+            // the whole fulfilment.
+            uiActor.send({
+              type: 'registration.voucherPhase',
+              phase: body.status,
+            })
             return {
               status: body.status,
               error: 'error' in body ? body.error : undefined,

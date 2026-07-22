@@ -27,6 +27,10 @@ const useMaxProgress = RegisterV2Context.createSelector(
   (state) => state.context.maxProgressReached ?? null,
 )
 
+const useVoucherPhase = RegisterV2Context.createSelector(
+  (state) => state.context.voucherPhase,
+)
+
 export const RegisteringStep = () => {
   const { _ } = useLingui()
   const { registrationActor, uiActor } = RegisterV2Context.use()
@@ -34,11 +38,12 @@ export const RegisteringStep = () => {
   const uiStage = useRegisteringStage(uiActor)
   const txState = useRegistrationTxState(registeringTx)
   const maxProgress = useMaxProgress(uiActor)
+  const voucherPhase = useVoucherPhase(uiActor)
 
   const displayedStage = maxProgress?.stage ?? registeringTx.value
   const displayedProgress = maxProgress?.progress ?? 0
   const stageMessages = getRegistrationStageMessages(
-    { ...registeringTx, value: displayedStage },
+    { ...registeringTx, value: displayedStage, voucherPhase },
     txState,
   )
 

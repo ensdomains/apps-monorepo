@@ -10,6 +10,8 @@ export type RegisteringTxSnapshot = {
   registrationTxId?: string
   voucherOrderId?: string
   voucherMintTxId?: string
+  /** Backend fulfilment phase (ui-machine context), voucher path only. */
+  voucherPhase?: string
 }
 
 export type TransactionState = string | undefined
@@ -23,7 +25,7 @@ export const getRegistrationStageMessages = (
   tx: RegisteringTxSnapshot,
   txState: TransactionState,
 ): StageMessages =>
-  match({ stage: tx.value, txState })
+  match({ stage: tx.value, txState, voucherPhase: tx.voucherPhase })
     .returnType<StageMessages>()
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
@@ -130,10 +132,28 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Waiting for payment confirmation`,
       stageDescription: msg`Waiting for the transaction receipt`,
     }))
-    .with({ stage: 'fulfillingRegistration' }, () => ({
-      stageLabel: msg`Completing your registration`,
-      stageDescription: msg`The backend is processing your registration`,
-    }))
+    // Fulfilment is the long tail (~2-3 min); the copy tracks the real
+    // backend phase so the wait reads as movement, not a stall.
+    .with({ stage: 'fulfillingRegistration' }, ({ voucherPhase }) =>
+      match(voucherPhase)
+        .returnType<StageMessages>()
+        .with('committing', () => ({
+          stageLabel: msg`Committing your registration`,
+          stageDescription: msg`Submitting the on-chain commitment for your name`,
+        }))
+        .with('committed', () => ({
+          stageLabel: msg`Security cooldown`,
+          stageDescription: msg`Waiting out the on-chain anti-frontrunning delay (about a minute)`,
+        }))
+        .with('registering', () => ({
+          stageLabel: msg`Registering your name`,
+          stageDescription: msg`Submitting the final registration transaction`,
+        }))
+        .otherwise(() => ({
+          stageLabel: msg`Completing your registration`,
+          stageDescription: msg`Verifying your payment and starting registration`,
+        })),
+    )
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,
       stageDescription: msg`Registration complete`,

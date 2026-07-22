@@ -573,6 +573,10 @@ msgstr "Committed"
 msgid "Committing"
 msgstr "Committing"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Committing your registration"
+msgstr "Committing your registration"
+
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
@@ -1859,6 +1863,10 @@ msgstr "Registering"
 msgid "Registering for"
 msgstr "Registering for"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Registering your name"
+msgstr "Registering your name"
+
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Registration"
 msgstr "Registration"
@@ -2125,6 +2133,10 @@ msgstr "Search names"
 msgid "Search notifications"
 msgstr "Search notifications"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Security cooldown"
+msgstr "Security cooldown"
+
 #: src/features/notifications/dropdown/notification-dropdown.tsx
 msgid "See all"
 msgstr "See all"
@@ -2367,6 +2379,14 @@ msgid "Submitting the commitment transaction"
 msgstr "Submitting the commitment transaction"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Submitting the final registration transaction"
+msgstr "Submitting the final registration transaction"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Submitting the on-chain commitment for your name"
+msgstr "Submitting the on-chain commitment for your name"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting the registration transaction"
 msgstr "Submitting the registration transaction"
 
@@ -2405,10 +2425,6 @@ msgstr "Telegram Notifications"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Terms of Use"
 msgstr "Terms of Use"
-
-#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "The backend is processing your registration"
-msgstr "The backend is processing your registration"
 
 #: src/features/payment/components/add.tsx
 msgid "The backup payment method will be charged if the default payment method fails."
@@ -2690,6 +2706,10 @@ msgstr "Verifying Email..."
 msgid "Verifying registration on-chain"
 msgstr "Verifying registration on-chain"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Verifying your payment and starting registration"
+msgstr "Verifying your payment and starting registration"
+
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
 msgstr "Verifying..."
@@ -2785,6 +2805,10 @@ msgstr "Waiting for token approval"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for transaction"
 msgstr "Waiting for transaction"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting out the on-chain anti-frontrunning delay (about a minute)"
+msgstr "Waiting out the on-chain anti-frontrunning delay (about a minute)"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting period"
