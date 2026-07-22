@@ -121,6 +121,16 @@
     // fulfilment signer fails closed (no silent direct-EOA signing).
     "REGISTRAR_SAFE_ADDRESS": "0x6A15F8314393Fa816D2b8A9437fBDFd9cca9293C",
     "REGISTRAR_ROLES_MODULE_ADDRESS": "0x250f3a370fA3Bb0704B9998B4F0A33057b248EbD",
+    // Fulfilment writes ride Rhinestone intents: solvers pay the destination
+    // gas and are reimbursed from the executor's USDC — the buyer-funded
+    // gasFee the voucher forwards at mint. Closes the loop that raw
+    // transactions leave open (executor earns USDC but burns ETH; see the
+    // intent-transport service). Unset => raw executor-signed txs (ETH gas).
+    // NOTE(sepolia): solvers settle in Circle USDC (0x1c7D…7238), while
+    // buyer gasFees accrue in ENS MockUSDC (0xba11…2e10) — the executor's
+    // Circle USDC float is the staging gas tank; on mainnet both are the
+    // same asset and the loop closes literally.
+    "FULFILMENT_TRANSPORT": "intents",
     "BASE_URL": "https://app-api.ens.dev",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",
