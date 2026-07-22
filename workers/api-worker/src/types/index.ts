@@ -65,5 +65,16 @@ declare global {
      * executor pays gas in ETH).
      */
     FULFILMENT_TRANSPORT?: string
+    /**
+     * Solver premium on raw gas, ×100 (e.g. "330" = 3.3×), for the intents
+     * fulfilment fee quote. Unset → 330 default (back-solved from on-chain
+     * rail fills). Retune here when mainnet rail pricing is characterised.
+     */
+    RAIL_PREMIUM_PERCENT?: string
+    /**
+     * Fixed solver fee per intent leg, in USDC 6dp (e.g. "1000000" = $1).
+     * Unset → $1 default.
+     */
+    RAIL_FIXED_FEE_PER_LEG_6DP?: string
   }
 }

@@ -3,49 +3,61 @@ import { SEPOLIA_RPC_URL, sepoliaWithEns } from '#core/eth/client.js'
 import { logger } from '#utils/logger.js'
 
 /**
- * Order-time fulfilment gas fee, in the payment stable (6dp):
+ * Order-time fulfilment gas fee, in the payment stable (6dp).
  *
- *     fee = UNITS × live gas price × p95 drift buffer × ETH/USD
+ * Fulfilment runs on the INTENTS transport: each of the three legs (resolver
+ * deploy, commit, register) is a separate Rhinestone Warp intent, and the
+ * executor pays the SOLVER'S price for each — not the raw chain gas. So the
+ * buyer's gasFee must equal what the rail actually bills, or the executor
+ * (funded only by this fee at mint) bleeds and every order eventually fails
+ * the funding precheck. The fee is therefore modelled on the rail's own
+ * pricing shape:
  *
- * The buyer pays ACTUAL gas economics — measured units at the live chain gas
- * price with an empirically-derived buffer — not a solver rail's padded
- * pricing. (The orchestrator's own quotes embed ~3.3× gas-price padding plus
- * ~$1 fixed per intent on testnet; if the execution transport ends up costing
- * more than this fee collects, that delta is a transport decision to make
- * with data, not a cost to silently pass to every buyer.)
+ *     fee = Σ_legs ( raw_gas_leg × gasPrice × drift × ETH/USD × PREMIUM
+ *                    + FIXED_PER_LEG )
  *
- * UNITS — live Sepolia receipts through the Zodiac Roles modifier:
- *   resolver deploy 217,915 + commit 84,823 + register 336,856 = 639,594.
- *   The deploy leg now bundles the buyer's ETH record into the resolver init
- *   (initialize-as-factory + setAddr + grant/revoke — see
- *   buildResolverInitBundle): measured via eth_call estimate, the bundle adds
- *   87,057 over plain init → 726,651 total, plus 5% calldata-variance
- *   margin → 763k.
+ * i.e. raw chain gas, marked up by the solver premium, plus a fixed fee per
+ * intent. Collecting exactly this makes the executor self-funding per order:
+ * the gasFee deposited at mint covers that order's own three intent fills.
  *
- * BUFFER — measured base-fee drift over 13.7h of Sepolia (4096 blocks),
- * max upward drift within sliding windows:
- *   window   p50     p95     p99     max
- *    3min   ×1.067  ×1.194  ×1.768  ×4.9
- *    5min   ×1.078  ×1.216  ×2.741  ×12.5
- *   10min   ×1.093  ×1.327  ×10.1   ×42.4
- * ×1.30 covers p95 of the realistic quote→execution window (≤10min). The
- * p99+ tail (spam spikes compounding 12.5%/block) is NOT bufferable at sane
- * cost — it is handled operationally: the fulfilment queue's retry/backoff
- * waits spikes out, and the commitment validity window is hours.
+ * PREMIUM + FIXED — calibrated to on-chain-observed rail prices from the
+ * validated probe (Sepolia @ 3.7 gwei): commit-leg (≈85k) filled ≈$2.1,
+ * register-leg (≈337k) filled ≈$4.6, structure "≈$1 fixed + gas at ~2-3×
+ * solver premium". Back-solving both legs gives ≈3.3× premium on raw gas plus
+ * ≈$1 fixed per intent — consistent across legs. These are env-overridable so
+ * the model can be retuned (or replaced by a live orchestrator /quotes call)
+ * without a redeploy when mainnet pricing is characterised.
  *
- * ETH/USD — Rhinestone's price service (the endorsed price source; no
- * Chainlink). The dev API key ships in-repo (apps/manager/.env.ci), so it is
- * inlined as an overridable default like the other publishable keys.
+ * LEG UNITS — live Sepolia receipts through the Zodiac Roles modifier:
+ *   resolver deploy 268,000 (initialize-as-factory + setAddr + grant/revoke
+ *   record bundle, eth_call-measured) + commit 84,823 + register 336,856.
+ *   Kept per-leg (not summed) because the rail prices per intent, and the
+ *   fixed fee applies once per leg.
+ *
+ * DRIFT ×1.30 — p95 upward base-fee drift over the ≤10min quote→execution
+ * window (measured over 13.7h/4096 Sepolia blocks: 3min ×1.19, 5min ×1.22,
+ * 10min ×1.33 at p95). The p99+ spam-spike tail is handled operationally by
+ * the queue's retry/backoff, not buffered.
+ *
+ * ETH/USD — Rhinestone's price service (endorsed source; no Chainlink). Dev
+ * key ships in-repo, inlined as an overridable default.
  */
-const FULFILMENT_GAS_UNITS = 763_000n
+const FULFILMENT_LEG_UNITS = [268_000n, 84_823n, 336_856n] as const
 
 /** ×1.30 — p95 upward base-fee drift over a ≤10min window (see header). */
 const GAS_DRIFT_BUFFER_PERCENT = 30n
 
-/** Conservative fallback (USDC 6dp) when gas price or ETH/USD can't be read:
- * ~2× the typical computed fee at 1 gwei / $2k ETH. Overquoting cents beats
- * blocking checkout. */
-const FALLBACK_FEE_UNITS_6DP = 3_000_000n
+/** Solver premium on raw gas, ×100 (330 = 3.3×). Env-overridable. Back-solved
+ * from the probe's on-chain rail fills. */
+const RAIL_PREMIUM_PERCENT_DEFAULT = 330n
+
+/** Fixed solver fee per intent leg, in USDC 6dp ($1.00). Env-overridable. */
+const RAIL_FIXED_FEE_PER_LEG_6DP_DEFAULT = 1_000_000n
+
+/** Conservative fallback (USDC 6dp) when gas price or ETH/USD can't be read.
+ * Covers a full 3-leg intent fulfilment (~$9-10 observed) so a fee-quote
+ * outage never under-collects and strands the executor. */
+const FALLBACK_FEE_UNITS_6DP = 12_000_000n
 
 const PRICE_SERVICE_URL =
   'https://v1.orchestrator.rhinestone.dev/deposit-processor/prices'
@@ -91,12 +103,27 @@ export async function quoteFulfilmentFee(
       fetchUsdPrices8(env.RHINESTONE_API_KEY ?? DEFAULT_RHINESTONE_API_KEY),
     ])
 
+    const premiumPct = env.RAIL_PREMIUM_PERCENT
+      ? BigInt(env.RAIL_PREMIUM_PERCENT)
+      : RAIL_PREMIUM_PERCENT_DEFAULT
+    const fixedPerLeg = env.RAIL_FIXED_FEE_PER_LEG_6DP
+      ? BigInt(env.RAIL_FIXED_FEE_PER_LEG_6DP)
+      : RAIL_FIXED_FEE_PER_LEG_6DP_DEFAULT
+
+    // Total raw chain gas across the three legs, drift-buffered (wei).
+    const totalUnits = FULFILMENT_LEG_UNITS.reduce((a, u) => a + u, 0n)
     const bufferedWei =
-      (FULFILMENT_GAS_UNITS * gasPrice * (100n + GAS_DRIFT_BUFFER_PERCENT)) /
-      100n
+      (totalUnits * gasPrice * (100n + GAS_DRIFT_BUFFER_PERCENT)) / 100n
 
     // wei (1e18) × ethUsd8 / usdcUsd8 → USDC at 1e18 scale; ÷1e12 → 6dp units.
-    const fee = (bufferedWei * prices.eth) / (prices.usdc * 10n ** 12n)
+    const rawGasFee6dp = (bufferedWei * prices.eth) / (prices.usdc * 10n ** 12n)
+
+    // Rail price = raw gas × solver premium + a fixed fee per intent leg.
+    // This is what the executor actually pays the rail, so it's what the
+    // buyer must fund — making the executor self-financing per order.
+    const fee =
+      (rawGasFee6dp * premiumPct) / 100n +
+      fixedPerLeg * BigInt(FULFILMENT_LEG_UNITS.length)
 
     if (fee === 0n) {
       logger.warn('Fulfilment fee computed as zero, using fallback')
