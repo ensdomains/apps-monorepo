@@ -20,12 +20,15 @@ import { logger } from '#utils/logger.js'
  * intent. Collecting exactly this makes the executor self-funding per order:
  * the gasFee deposited at mint covers that order's own three intent fills.
  *
- * PREMIUM + FIXED — calibrated to on-chain-observed rail prices from the
- * validated probe (Sepolia @ 3.7 gwei): commit-leg (≈85k) filled ≈$2.1,
- * register-leg (≈337k) filled ≈$4.6, structure "≈$1 fixed + gas at ~2-3×
- * solver premium". Back-solving both legs gives ≈3.3× premium on raw gas plus
- * ≈$1 fixed per intent — consistent across legs. These are env-overridable so
- * the model can be retuned (or replaced by a live orchestrator /quotes call)
+ * PREMIUM — calibrated to the ACTUAL on-chain cost of a full intents
+ * fulfilment, not the probe's prose. demonslayer.eth's three legs
+ * (deploy+commit+register) filled via relayer for a MEASURED 4.39 USDC
+ * (executor USDC 7.00 → 2.61 across its fulfilment). Against the raw 3-leg
+ * gas base (~2.7 USDC at the time), that's an effective ~1.6× — the solver
+ * premium plus fixed fees, rolled into one multiplier. We set 1.8× for a
+ * small safety margin (fee ≈ raw × 1.8 ≈ 4.8, just above the measured 4.4),
+ * and NO separate fixed fee (it double-counted and bloated the quote to ~9).
+ * Env-overridable to retune (or swap to a live orchestrator /quotes call)
  * without a redeploy when mainnet pricing is characterised.
  *
  * LEG UNITS — live Sepolia receipts through the Zodiac Roles modifier:
@@ -47,17 +50,14 @@ const FULFILMENT_LEG_UNITS = [268_000n, 84_823n, 336_856n] as const
 /** ×1.30 — p95 upward base-fee drift over a ≤10min window (see header). */
 const GAS_DRIFT_BUFFER_PERCENT = 30n
 
-/** Solver premium on raw gas, ×100 (330 = 3.3×). Env-overridable. Back-solved
- * from the probe's on-chain rail fills. */
-const RAIL_PREMIUM_PERCENT_DEFAULT = 330n
-
-/** Fixed solver fee per intent leg, in USDC 6dp ($1.00). Env-overridable. */
-const RAIL_FIXED_FEE_PER_LEG_6DP_DEFAULT = 1_000_000n
+/** Solver premium (incl. fixed fees) on raw gas, ×100 (180 = 1.8×).
+ * Env-overridable. Calibrated to demonslayer's measured 4.39 USDC fill. */
+const RAIL_PREMIUM_PERCENT_DEFAULT = 180n
 
 /** Conservative fallback (USDC 6dp) when gas price or ETH/USD can't be read.
- * Covers a full 3-leg intent fulfilment (~$9-10 observed) so a fee-quote
- * outage never under-collects and strands the executor. */
-const FALLBACK_FEE_UNITS_6DP = 12_000_000n
+ * Covers a full 3-leg intent fulfilment (~4.4 measured, headroom for spikes)
+ * so a fee-quote outage never under-collects and strands the executor. */
+const FALLBACK_FEE_UNITS_6DP = 7_000_000n
 
 const PRICE_SERVICE_URL =
   'https://v1.orchestrator.rhinestone.dev/deposit-processor/prices'
@@ -106,9 +106,6 @@ export async function quoteFulfilmentFee(
     const premiumPct = env.RAIL_PREMIUM_PERCENT
       ? BigInt(env.RAIL_PREMIUM_PERCENT)
       : RAIL_PREMIUM_PERCENT_DEFAULT
-    const fixedPerLeg = env.RAIL_FIXED_FEE_PER_LEG_6DP
-      ? BigInt(env.RAIL_FIXED_FEE_PER_LEG_6DP)
-      : RAIL_FIXED_FEE_PER_LEG_6DP_DEFAULT
 
     // Total raw chain gas across the three legs, drift-buffered (wei).
     const totalUnits = FULFILMENT_LEG_UNITS.reduce((a, u) => a + u, 0n)
@@ -118,12 +115,10 @@ export async function quoteFulfilmentFee(
     // wei (1e18) × ethUsd8 / usdcUsd8 → USDC at 1e18 scale; ÷1e12 → 6dp units.
     const rawGasFee6dp = (bufferedWei * prices.eth) / (prices.usdc * 10n ** 12n)
 
-    // Rail price = raw gas × solver premium + a fixed fee per intent leg.
-    // This is what the executor actually pays the rail, so it's what the
-    // buyer must fund — making the executor self-financing per order.
-    const fee =
-      (rawGasFee6dp * premiumPct) / 100n +
-      fixedPerLeg * BigInt(FULFILMENT_LEG_UNITS.length)
+    // Rail price = raw gas × the solver premium (which folds in the rail's
+    // fixed fees). This is what the executor actually pays the rail — what
+    // the buyer must fund — making the executor self-financing per order.
+    const fee = (rawGasFee6dp * premiumPct) / 100n
 
     if (fee === 0n) {
       logger.warn('Fulfilment fee computed as zero, using fallback')
