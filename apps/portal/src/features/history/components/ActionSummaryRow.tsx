@@ -8,7 +8,6 @@ import { ActionSlots } from './ActionSlots'
 import { ActionIconGlyph } from './actionIcons'
 import { EventRow } from './EventRow'
 import { TransactionHeaderRow } from './TransactionHeaderRow'
-import { RAIL_X } from './timelineGeometry'
 
 /** Group an action's events by transaction, preserving order. */
 const groupEventsByTx = (
@@ -62,14 +61,7 @@ export const ActionSummaryRow = ({
         </div>
       }
     >
-      <div className="relative grid grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3">
-        {/* Vertical rail — runs behind the icon badge (which masks it at the node). */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute top-0 h-full w-px bg-border"
-          style={{ left: `${RAIL_X}px` }}
-        />
-
+      <div className="grid grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3">
         {/* Col 1: date + icon badge */}
         <div className="flex items-center gap-5">
           <span className="w-[120px] shrink-0 text-right font-mono text-[13px] text-muted-foreground">

@@ -11,7 +11,7 @@ import { decodeRoleChange } from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
 import { getContractLabel } from './contractLabel'
 import { DecodedParams } from './EventDetail'
-import { DETAIL_INDENT, RAIL_X, TIER2_INDENT } from './timelineGeometry'
+import { DETAIL_INDENT, TIER2_INDENT } from './timelineGeometry'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
   <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">
@@ -103,14 +103,9 @@ export const EventRow = ({ event }: EventRowProps) => {
       }
     >
       <div
-        className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 pr-3"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 pr-3"
         style={{ paddingLeft: `${TIER2_INDENT}px` }}
       >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute top-0 h-full w-px bg-border"
-          style={{ left: `${RAIL_X}px` }}
-        />
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ChevronDown
             className={cn(

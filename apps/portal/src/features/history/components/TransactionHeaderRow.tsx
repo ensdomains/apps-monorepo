@@ -11,7 +11,7 @@ import {
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { AccountBadge } from './AccountBadge'
 import { TransactionMeta } from './EventDetail'
-import { DETAIL_INDENT, RAIL_X, TIER2_INDENT } from './timelineGeometry'
+import { DETAIL_INDENT, TIER2_INDENT } from './timelineGeometry'
 
 interface TransactionHeaderRowProps {
   /** A representative event from the transaction (for timestamp / hash / block). */
@@ -36,14 +36,9 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
       }
     >
       <div
-        className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 pr-3"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-2 pr-3"
         style={{ paddingLeft: `${TIER2_INDENT}px` }}
       >
-        <span
-          aria-hidden
-          className="pointer-events-none absolute top-0 h-full w-px bg-border"
-          style={{ left: `${RAIL_X}px` }}
-        />
         <div className="flex min-w-0 items-center gap-2">
           <ChevronDown
             className={cn(

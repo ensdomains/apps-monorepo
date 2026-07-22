@@ -10,6 +10,7 @@ import { formatTimelineDate } from '../formatTimelineDate'
 import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionSummaryRow } from './ActionSummaryRow'
+import { RAIL_X } from './timelineGeometry'
 
 interface HistoryTimelineProps {
   readonly name: string
@@ -74,19 +75,28 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
         </div>
       </div>
 
-      <Timeline>
-        {actions.map((action, index) => (
-          <ActionSummaryRow
-            key={action.id}
-            action={action}
-            showDate={
-              index === 0 ||
-              formatTimelineDate(actions[index - 1].timestamp) !==
-                formatTimelineDate(action.timestamp)
-            }
-          />
-        ))}
-      </Timeline>
+      {/* One continuous rail for the whole timeline — spans every row and every
+          expanded detail, so it can never break on open. Icon badges mask it at nodes. */}
+      <div className="relative">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 w-px bg-border"
+          style={{ left: `${RAIL_X}px` }}
+        />
+        <Timeline>
+          {actions.map((action, index) => (
+            <ActionSummaryRow
+              key={action.id}
+              action={action}
+              showDate={
+                index === 0 ||
+                formatTimelineDate(actions[index - 1].timestamp) !==
+                  formatTimelineDate(action.timestamp)
+              }
+            />
+          ))}
+        </Timeline>
+      </div>
     </div>
   )
 }
