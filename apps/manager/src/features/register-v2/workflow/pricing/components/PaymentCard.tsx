@@ -112,12 +112,15 @@ export const PaymentCard = () => {
         },
       })
       if (!res.ok) throw new Error(`Failed to create order (${res.status})`)
-      const { orderId, commitment, totalDue, gasFee } = (await res.json()) as {
-        orderId: string
-        commitment: Hex
-        totalDue: string
-        gasFee: string
-      }
+      const { orderId, commitment, totalDue, gasFee, paymentToken } =
+        (await res.json()) as {
+          orderId: string
+          commitment: Hex
+          totalDue: string
+          gasFee: string
+          /** Server-declared mint token: the rail's settlement asset. */
+          paymentToken: Address
+        }
 
       // 2. Start the registration machine with voucher data. The machine
       // handles mint → receipt → settle → poll; the injected callbacks keep
@@ -144,7 +147,10 @@ export const PaymentCard = () => {
         voucherOrder: {
           orderId,
           commitment,
-          paymentToken: TOKENS.USDC.address as Address,
+          // Server-declared: the rail's settlement asset (Circle USDC on
+          // Sepolia), NOT the registrar's pricing token — so the gasFee the
+          // voucher forwards is the same coin solvers take as reimbursement.
+          paymentToken,
           // Server-authoritative quote: register price + drift headroom +
           // the orchestrator-quoted fulfilment gasFee. The mint pulls the
           // TOTAL from the buyer; the voucher forwards the gasFee component

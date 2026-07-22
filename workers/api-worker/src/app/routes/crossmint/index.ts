@@ -22,6 +22,7 @@ import {
   PAYMENT_TOKENS,
   precomputeOrderCommitment,
   VOUCHER_ADDRESS,
+  VOUCHER_PAYMENT_TOKENS,
 } from '#services/crossmint/fulfilment.js'
 import { quoteFulfilmentFee } from '#services/crossmint/intent-quote.js'
 import {
@@ -58,6 +59,8 @@ async function createOrderIntent(
   commitment: Hex
   totalDue: string
   gasFee: string
+  /** The token the buyer must mint the voucher in (rail settlement asset). */
+  paymentToken: Address
 }> {
   const id = crypto.randomUUID()
   const label = body.name.replace(/\.eth$/, '')
@@ -124,6 +127,10 @@ async function createOrderIntent(
     commitment,
     totalDue: amountDue.toString(),
     gasFee: gasFee.toString(),
+    // The token the buyer must mint the voucher in — the RAIL's settlement
+    // asset (Circle USDC on Sepolia), NOT the registrar's pricing token.
+    // Server-declared so the frontend never carries its own token constant.
+    paymentToken: VOUCHER_PAYMENT_TOKENS[body.paymentToken],
   }
 }
 
@@ -310,7 +317,7 @@ export default createApp()
         )
       }
       const expectedToken =
-        PAYMENT_TOKENS[(order.payment_token ?? 'USDC') as PaymentToken]
+        VOUCHER_PAYMENT_TOKENS[(order.payment_token ?? 'USDC') as PaymentToken]
       if (!isAddressEqual(paymentToken, expectedToken)) {
         return c.json({ error: 'Voucher paid in an unexpected token' }, 400)
       }

@@ -1427,6 +1427,7 @@ const VOUCHER_ERC20_META = parseAbi([
   'function allowance(address owner, address spender) view returns (uint256)',
   'function nonces(address owner) view returns (uint256)',
   'function name() view returns (string)',
+  'function version() view returns (string)',
 ])
 
 export type MintVoucherInput = {
@@ -1503,7 +1504,7 @@ async function mintWithPermit(
   duration: bigint,
 ): Promise<Hash> {
   const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1 hour
-  const [nonce, name] = await Promise.all([
+  const [nonce, name, version] = await Promise.all([
     readContract(publicClient, {
       address: token,
       abi: VOUCHER_ERC20_META,
@@ -1515,12 +1516,21 @@ async function mintWithPermit(
       abi: VOUCHER_ERC20_META,
       functionName: 'name',
     }),
+    // EIP-2612 domain version differs per token: Circle USDC declares "2",
+    // most mocks/OZ tokens "1". Hardcoding "1" produces silently-invalid
+    // signatures on real USDC, so read it — falling back to "1" only for
+    // tokens that don't expose version() at all.
+    readContract(publicClient, {
+      address: token,
+      abi: VOUCHER_ERC20_META,
+      functionName: 'version',
+    }).catch(() => '1'),
   ])
   const signature = await signTypedData(walletClient, {
     account: owner,
     domain: {
       name,
-      version: '1',
+      version,
       chainId: publicClient.chain?.id ?? 0,
       verifyingContract: token,
     },

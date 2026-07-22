@@ -1,5 +1,6 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getRegisterPrice as ensGetRegisterPrice } from '@ensdomains/ensjs/public/v2'
+import { getTokenAddress } from '@rhinestone/sdk'
 import { HTTPException } from 'hono/http-exception'
 import {
   type Address,
@@ -64,6 +65,25 @@ export const PAYMENT_TOKEN_DECIMALS: Record<PaymentToken, number> = {
 
 export const PAYMENT_TOKENS: Record<PaymentToken, Address> = {
   USDC: ensjsSepolia.usdc.address,
+  DAI: ensjsSepolia.dai.address,
+}
+
+/**
+ * Tokens the BUYER pays the voucher in — distinct from `PAYMENT_TOKENS`
+ * (what the SAFE pays the registrar). The buyer-facing asset must be the
+ * Rhinestone rail's settlement token, so the gasFee component the voucher
+ * forwards to the executor at mint is the SAME coin solvers take as
+ * reimbursement under `FULFILMENT_TRANSPORT=intents` — the literal
+ * buyer-funds-their-own-gas loop. Derived from the rail's own token
+ * registry (`getTokenAddress`), never hardcoded: on Sepolia that's Circle
+ * USDC (0x1c7D…7238) while ENS's registrar prices in MockUSDC (publicly
+ * mintable, so the Safe's registrar float is self-service); on mainnet
+ * both maps converge to canonical USDC and the distinction disappears.
+ * DAI has no rail support and the voucher path is USDC-only; the entry
+ * exists for type completeness.
+ */
+export const VOUCHER_PAYMENT_TOKENS: Record<PaymentToken, Address> = {
+  USDC: getTokenAddress('USDC', sepoliaWithEns.id),
   DAI: ensjsSepolia.dai.address,
 }
 

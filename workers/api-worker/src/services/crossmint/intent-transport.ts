@@ -1,4 +1,4 @@
-import { RhinestoneSDK } from '@rhinestone/sdk'
+import { getTokenAddress, RhinestoneSDK } from '@rhinestone/sdk'
 import type { Address, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
@@ -26,8 +26,8 @@ import { logger } from '#utils/logger.js'
 const DEFAULT_RHINESTONE_API_KEY =
   'rs_2fcz8PTz5A0vf1Z1HIG19qHxTd_NtCCJmRavTxtNL8'
 
-/** Sepolia USDC — the executor float's asset (fee + funding pinned to it). */
-const USDC_L1: Address = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'
+/** The rail's USDC on this chain — the executor float's asset (fee + funding pinned to it). */
+const USDC_L1 = getTokenAddress('USDC', sepolia.id)
 
 /**
  * Default destination gas limit. Covers the largest single leg (register,
