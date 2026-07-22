@@ -15,8 +15,12 @@ import { logger } from '#utils/logger.js'
  * with data, not a cost to silently pass to every buyer.)
  *
  * UNITS — live Sepolia receipts through the Zodiac Roles modifier:
- *   resolver deploy 217,915 + commit 84,823 + register 336,856 = 639,594,
- *   plus 5% calldata-variance margin → 672k.
+ *   resolver deploy 217,915 + commit 84,823 + register 336,856 = 639,594.
+ *   The deploy leg now bundles the buyer's ETH record into the resolver init
+ *   (initialize-as-factory + setAddr + grant/revoke — see
+ *   buildResolverInitBundle): measured via eth_call estimate, the bundle adds
+ *   87,057 over plain init → 726,651 total, plus 5% calldata-variance
+ *   margin → 763k.
  *
  * BUFFER — measured base-fee drift over 13.7h of Sepolia (4096 blocks),
  * max upward drift within sliding windows:
@@ -33,7 +37,7 @@ import { logger } from '#utils/logger.js'
  * Chainlink). The dev API key ships in-repo (apps/manager/.env.ci), so it is
  * inlined as an overridable default like the other publishable keys.
  */
-const FULFILMENT_GAS_UNITS = 672_000n
+const FULFILMENT_GAS_UNITS = 763_000n
 
 /** ×1.30 — p95 upward base-fee drift over a ≤10min window (see header). */
 const GAS_DRIFT_BUFFER_PERCENT = 30n
