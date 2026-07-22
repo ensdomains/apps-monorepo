@@ -112,10 +112,32 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://lb.drpc.org',
 ] as const
 
+// DQA design-review overlay (QA/PR-preview builds ONLY). The overlay script
+// loads from the dqa-server origin and talks to it over fetch + WebSocket, so
+// that origin must appear in script-src and connect-src (https AND wss — a
+// https source does not authorize wss: URLs). Gated on the same build-time
+// VITE_DQA flag as the tool itself: production pipelines never set it, so
+// these resolve to [] and the production policy is unchanged.
+const DQA_ORIGIN =
+  import.meta.env?.VITE_DQA === '1' || import.meta.env?.VITE_DQA === 'true'
+    ? originFromEnvUrl(
+        (import.meta.env?.VITE_DQA_URL as string | undefined) ??
+          'http://localhost:4000',
+      )
+    : null
+const DQA_SCRIPT_HOSTS = DQA_ORIGIN ? [DQA_ORIGIN] : []
+const DQA_CONNECT_HOSTS = DQA_ORIGIN
+  ? [DQA_ORIGIN, DQA_ORIGIN.replace(/^http/, 'ws')]
+  : []
+
 // Static defaults plus any deployment-specific override origins. Deduped so an
 // override that matches a default doesn't appear twice.
 const CONNECT_HOSTS = [
-  ...new Set<string>([...DEFAULT_CONNECT_HOSTS, ...OVERRIDE_CONNECT_ORIGINS]),
+  ...new Set<string>([
+    ...DEFAULT_CONNECT_HOSTS,
+    ...OVERRIDE_CONNECT_ORIGINS,
+    ...DQA_CONNECT_HOSTS,
+  ]),
 ]
 
 // No third-party script hosts. PostHog used to lazy-load its extension bundles
@@ -149,6 +171,7 @@ const BASE_DIRECTIVES = [
     "'self'",
     "'wasm-unsafe-eval'",
     ...SCRIPT_HOSTS,
+    ...DQA_SCRIPT_HOSTS,
     ...INLINE_SCRIPT_HASHES,
   ].join(' '),
   // 'unsafe-inline' styles: required by Tailwind / CSS-in-JS runtime injection.

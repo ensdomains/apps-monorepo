@@ -24,6 +24,17 @@ function parseDirectives(policy: string): Record<string, string[]> {
 const header = parseDirectives(cspWithFrameAncestors)
 const meta = parseDirectives(cspWithoutFrameAncestors)
 
+// DQA overlay origin appears ONLY in VITE_DQA builds (PR previews / local QA
+// with .env.local). CI and production pipelines never set the flag, so there
+// this resolves to null and the expectations pin the exact baseline policy.
+const dqaOrigin =
+  import.meta.env.VITE_DQA === '1' || import.meta.env.VITE_DQA === 'true'
+    ? originFromEnvUrl(
+        (import.meta.env.VITE_DQA_URL as string | undefined) ??
+          'http://localhost:4000',
+      )
+    : null
+
 describe('csp', () => {
   // The invariants below must never silently regress — each one would either
   // open an XSS/clickjacking hole or break a flow in the browser (not here).
@@ -115,13 +126,34 @@ describe('csp', () => {
     it('allowlists no third-party script hosts', () => {
       // PostHog is pre-bundled (module.full.no-external) and served from 'self',
       // so it no longer loads scripts from the analytics host. script-src must
-      // not regress to allowing an external script origin.
+      // not regress to allowing an external script origin. The only build-time
+      // exception is the DQA overlay origin, gated on VITE_DQA (never set in
+      // CI/production — there the expected list is exactly the baseline).
       expect(header['script-src']).toEqual([
         "'self'",
         "'wasm-unsafe-eval'",
+        ...(dqaOrigin ? [dqaOrigin] : []),
         "'sha256-dvxYa7VmoGYAPR03Kp8okAGePv+XjpmficO2jq/Ia9g='",
       ])
       expect(header['script-src']).not.toContain('https://jakob.ens.domains')
+    })
+
+    it('gates the DQA overlay origin on the VITE_DQA build flag', () => {
+      if (dqaOrigin) {
+        // QA build: overlay script + API/WS origins must all be present.
+        expect(header['script-src']).toContain(dqaOrigin)
+        expect(header['connect-src']).toContain(dqaOrigin)
+        expect(header['connect-src']).toContain(
+          dqaOrigin.replace(/^http/, 'ws'),
+        )
+      } else {
+        // Flag off (CI/production): no DQA host may leak into any directive.
+        for (const tokens of Object.values(header)) {
+          for (const token of tokens) {
+            expect(token).not.toMatch(/dqa|railway|localhost:4000/)
+          }
+        }
+      }
     })
   })
 
