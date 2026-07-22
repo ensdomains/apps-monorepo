@@ -2383,8 +2383,8 @@ msgid "Submitting the final registration transaction"
 msgstr "Submitting the final registration transaction"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Submitting the on-chain commitment for your name"
-msgstr "Submitting the on-chain commitment for your name"
+msgid "Submitting the onchain commitment for your name"
+msgstr "Submitting the onchain commitment for your name"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting the registration transaction"
@@ -2703,8 +2703,8 @@ msgid "Verifying Email..."
 msgstr "Verifying Email..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Verifying registration on-chain"
-msgstr "Verifying registration on-chain"
+msgid "Verifying registration onchain"
+msgstr "Verifying registration onchain"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Verifying your payment and starting registration"
@@ -2807,8 +2807,8 @@ msgid "Waiting for transaction"
 msgstr "Waiting for transaction"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Waiting out the on-chain anti-frontrunning delay (about a minute)"
-msgstr "Waiting out the on-chain anti-frontrunning delay (about a minute)"
+msgid "Waiting out the onchain anti-frontrunning delay (one minute)"
+msgstr "Waiting out the onchain anti-frontrunning delay (one minute)"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting period"

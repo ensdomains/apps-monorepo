@@ -121,7 +121,7 @@ export const getRegistrationStageMessages = (
       stageDescription: msg`Waiting for the registration confirmation`,
     }))
     .with({ stage: 'verifyingRegistration' }, () => ({
-      stageLabel: msg`Verifying registration on-chain`,
+      stageLabel: msg`Verifying registration onchain`,
       stageDescription: msg`Confirming the name is now owned by your account`,
     }))
     .with({ stage: 'mintingVoucher' }, () => ({
@@ -139,11 +139,11 @@ export const getRegistrationStageMessages = (
         .returnType<StageMessages>()
         .with('committing', () => ({
           stageLabel: msg`Committing your registration`,
-          stageDescription: msg`Submitting the on-chain commitment for your name`,
+          stageDescription: msg`Submitting the onchain commitment for your name`,
         }))
         .with('committed', () => ({
           stageLabel: msg`Security cooldown`,
-          stageDescription: msg`Waiting out the on-chain anti-frontrunning delay (about a minute)`,
+          stageDescription: msg`Waiting out the onchain anti-frontrunning delay (one minute)`,
         }))
         .with('registering', () => ({
           stageLabel: msg`Registering your name`,
