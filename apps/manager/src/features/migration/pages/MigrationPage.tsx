@@ -10,9 +10,8 @@ import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
-import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
-import { useCommemorativeNftPreview } from '@/features/migration/components/success/useCommemorativeNftPreview'
+import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
@@ -116,10 +115,6 @@ export const MigrationPage = () => {
   const isMigrationSuccess = step === 'success'
   const dialogOpen = isMigrationSuccess || isPreviewOpen
   const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
-  const dialogState = useCommemorativeNftPreview({
-    open: dialogOpen,
-    migratedNameCount: dialogNames.length,
-  })
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     selectedNames,
@@ -139,32 +134,43 @@ export const MigrationPage = () => {
     }
   }, [step, queryClient])
 
-  const handleSuccessClose = useCallback(() => {
-    if (isMigrationSuccess) {
-      uiActor.send({ type: 'done' })
-      navigate({ to: '/dashboard' })
-      return
-    }
+  const handleSuccessClose = useCallback(
+    (profileName?: string) => {
+      if (isMigrationSuccess) {
+        uiActor.send({ type: 'done' })
+        const destinationName = profileName ?? dialogNames[0]
+        if (destinationName) {
+          navigate({ to: '/$name', params: { name: destinationName } })
+          return
+        }
+        navigate({ to: '/dashboard' })
+        return
+      }
 
-    setIsPreviewOpen(false)
-  }, [isMigrationSuccess, uiActor, navigate])
-
-  const handleViewProfile = useCallback(() => {
-    const name = dialogNames[0]
-
-    if (isMigrationSuccess) {
-      uiActor.send({ type: 'done' })
-    } else {
       setIsPreviewOpen(false)
-    }
+    },
+    [dialogNames, isMigrationSuccess, uiActor, navigate],
+  )
 
-    if (name) {
-      navigate({ to: '/$name', params: { name } })
-      return
-    }
+  const handleViewProfile = useCallback(
+    (profileName?: string) => {
+      const name = profileName ?? dialogNames[0]
 
-    navigate({ to: '/dashboard' })
-  }, [dialogNames, isMigrationSuccess, uiActor, navigate])
+      if (isMigrationSuccess) {
+        uiActor.send({ type: 'done' })
+      } else {
+        setIsPreviewOpen(false)
+      }
+
+      if (name) {
+        navigate({ to: '/$name', params: { name } })
+        return
+      }
+
+      navigate({ to: '/dashboard' })
+    },
+    [dialogNames, isMigrationSuccess, uiActor, navigate],
+  )
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -226,13 +232,15 @@ export const MigrationPage = () => {
               <Trans>Back</Trans>
             </span>
           </button>
-          <button
-            className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
-            onClick={() => setIsPreviewOpen(true)}
-            type="button"
-          >
-            <Trans>Preview success dialog</Trans>
-          </button>
+          {import.meta.env.DEV ? (
+            <button
+              className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
+              onClick={() => setIsPreviewOpen(true)}
+              type="button"
+            >
+              <Trans>Preview success dialog</Trans>
+            </button>
+          ) : null}
         </>
       )}
 
@@ -288,11 +296,15 @@ export const MigrationPage = () => {
         .with('success', () => null)
         .exhaustive()}
 
-      <MigrationSuccessDialog
+      <CommemorativeNftClaimDialog
+        context="migration"
+        migratedNameCount={dialogNames.length}
         onClose={handleSuccessClose}
         onViewProfile={handleViewProfile}
         open={dialogOpen}
-        state={dialogState}
+        ownerAddress={ownerAddress as Address | undefined}
+        preview={isPreviewOpen && !isMigrationSuccess}
+        previewProfileName={dialogNames[0]}
       />
     </div>
   )

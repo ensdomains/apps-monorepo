@@ -3,6 +3,7 @@ import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/ProfileView.helpers'
 import {
   buildNameAvatarUrl,
@@ -38,6 +39,21 @@ type ProfileViewNewProps = {
 
 type UseIsOwnerParams = {
   readonly owner: Address | undefined
+}
+
+const ProfileCommemorativeNftSection = ({
+  enabled,
+  isOwner,
+  isOwnerPending,
+  name,
+}: {
+  readonly enabled: boolean
+  readonly isOwner: boolean
+  readonly isOwnerPending: boolean
+  readonly name: string
+}) => {
+  if (!enabled || isOwnerPending || !isOwner) return null
+  return <CommemorativeNftProfileSection isOwner name={name} />
 }
 
 const useIsOwner = ({ owner }: UseIsOwnerParams) => {
@@ -175,6 +191,12 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
                 avatarUrl={avatarUrl}
                 name={name}
                 records={records}
+              />
+              <ProfileCommemorativeNftSection
+                enabled={migrationEnabled}
+                isOwner={isOwner}
+                isOwnerPending={isOwnerPending}
+                name={name}
               />
             </div>
           </div>

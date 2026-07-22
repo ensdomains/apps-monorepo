@@ -5,6 +5,7 @@ import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
+import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
@@ -152,6 +153,9 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
         {/* Left/main column */}
         <div className="space-y-4 md:col-span-7 lg:col-span-8">
           <ViewBioSection records={records} />
+          {migrationEnabled && isOwner ? (
+            <CommemorativeNftProfileSection isOwner name={name} />
+          ) : null}
           {sectionsList.map((section) => (
             <ViewDynamicSection
               key={section}
