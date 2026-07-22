@@ -353,6 +353,20 @@ export async function deployDedicatedResolver(
     label: string
   },
 ): Promise<Address> {
+  // Idempotency: the resolver's CREATE2 address is deterministic (deployer +
+  // secret), so a queue retry that re-enters `committing` AFTER the deploy
+  // leg already landed (but a later leg failed) would re-run `deployProxy`
+  // into a CREATE2 collision — the factory reverts, surfacing as
+  // `ModuleTransactionFailed` through the Roles modifier and wedging the
+  // order forever. If code already exists at the expected address, the
+  // deploy is done (the init bundle ran atomically inside it); skip it.
+  const existing = await client.getBytecode({
+    address: params.expectedResolver,
+  })
+  if (existing && existing !== '0x') {
+    return params.expectedResolver
+  }
+
   const initData = buildResolverInitBundle(params.owner, params.label)
   const hash = await client.execWrite({
     to: CONTRACTS.VerifiableFactory,
