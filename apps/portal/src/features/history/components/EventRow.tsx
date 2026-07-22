@@ -13,7 +13,7 @@ import { AccountBadge } from './AccountBadge'
 import { DecodedParams } from './EventDetail'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
-  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[13px]">
+  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-sm">
     {children}
   </code>
 )
@@ -116,9 +116,7 @@ export const EventRow = ({ event }: EventRowProps) => {
               isOpen && 'rotate-180',
             )}
           />
-          <code className="font-mono text-[14px] text-foreground">
-            {event.type}
-          </code>
+          <Mono>{event.type}</Mono>
           <EventContent event={event} />
         </div>
         <div className="justify-self-start sm:justify-self-end">

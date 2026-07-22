@@ -55,13 +55,13 @@ export const ActionSummaryRow = ({
   )
   const labelAndChips = (
     <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-      <span className="text-[14px] text-foreground">{action.label}</span>
+      <span className="text-foreground text-sm">{action.label}</span>
       <ActionSlots slots={action.slots} />
     </div>
   )
   const counts = (
     <div className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
-      <span className="font-mono text-[13px] text-muted-foreground">
+      <span className="font-mono text-muted-foreground text-sm">
         {eventCount}
         <span className="sm:hidden"> evt</span>
         <span className="hidden sm:inline">

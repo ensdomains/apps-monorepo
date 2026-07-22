@@ -48,11 +48,13 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
             initiated at {formatTimelineTime(event.timestamp)}
           </span>
         </div>
-        <div className="flex items-center gap-2 justify-self-start whitespace-nowrap sm:justify-self-end">
-          <span className="text-[13px] text-warning-text">
-            {formatTimelineFullDate(event.timestamp)}
-          </span>
-          <EntityBadge variant="tx" copyValue={event.transactionHash} compact>
+        <div className="justify-self-start whitespace-nowrap sm:justify-self-end">
+          <EntityBadge
+            variant="tx"
+            label={formatTimelineFullDate(event.timestamp)}
+            copyValue={event.transactionHash}
+            compact
+          >
             {truncateAddress(event.transactionHash)}
           </EntityBadge>
         </div>

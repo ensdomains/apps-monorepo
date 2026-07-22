@@ -1,10 +1,11 @@
 import { type Address, formatEther, formatGwei, type Hash } from 'viem'
-import { useTransaction, useTransactionReceipt } from 'wagmi'
+import { useChainId, useTransaction, useTransactionReceipt } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import {
   useBlockExplorerAddressUrl,
   useBlockExplorerTxUrl,
 } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { getEventFieldType } from '@/utils/ens/eventSignatures'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
@@ -86,8 +87,10 @@ export const TransactionMeta = ({
     | Address
     | undefined
 
+  const chainId = useChainId()
   const txUrl = useBlockExplorerTxUrl(txHash)
   const toUrl = useBlockExplorerAddressUrl(toAddress)
+  const toLabel = toAddress ? getEnsContractName(chainId, toAddress) : undefined
 
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
   const toValue = toAddress ? (
@@ -95,6 +98,7 @@ export const TransactionMeta = ({
       variant="contract"
       address={toAddress}
       etherscanHref={toUrl}
+      label={toLabel}
       compact
     >
       <FullOnDesktop value={toAddress} />
