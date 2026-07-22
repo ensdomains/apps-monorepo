@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCommemorativeNftMarketplaceUrl,
+  buildCommemorativeNftProfileUrl,
   buildCommemorativeNftShareUrls,
   isCommemorativeNftCanonicalProfile,
 } from './sharing'
@@ -25,6 +26,15 @@ describe('commemorative NFT sharing', () => {
     expect(urls.x).toContain('x.com/intent/post')
     expect(urls.x).toContain('hello+world')
     expect(urls.telegram).toContain('t.me/share/url')
+  })
+
+  it('builds a canonical Manager profile fallback for sharing', () => {
+    expect(buildCommemorativeNftProfileUrl('Yoginth.eth.')).toBe(
+      'https://app.ens.domains/p/yoginth.eth',
+    )
+    expect(buildCommemorativeNftProfileUrl('hello world.eth')).toBe(
+      'https://app.ens.domains/p/hello%20world.eth',
+    )
   })
 
   it('only exposes OpenSea after a Sepolia mint', () => {

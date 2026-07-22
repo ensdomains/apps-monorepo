@@ -92,12 +92,17 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
 
   const shareToDiscord = externalUrl
     ? async () => {
-        if (navigator.share) {
-          await navigator.share({
-            title: 'ENSv2 commemorative NFT',
-            url: externalUrl,
-          })
-          return
+        try {
+          if (navigator.share) {
+            await navigator.share({
+              title: 'ENSv2 commemorative NFT',
+              url: externalUrl,
+            })
+            return
+          }
+        } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError')
+            return
         }
         await copy(externalUrl)
       }
