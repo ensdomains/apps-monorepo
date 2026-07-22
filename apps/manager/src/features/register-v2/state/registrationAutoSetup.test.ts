@@ -32,8 +32,8 @@ describe('getManagerRegistrationPostRegistrationSetup', () => {
   })
 
   it.each([
-    2, 3,
-  ])('returns undefined when the user already owns %i names', (ownedNamesCount) => {
+    5, 6, 7, 20,
+  ])('returns undefined when the user already owns %i names (collector)', (ownedNamesCount) => {
     expect(
       getManagerRegistrationPostRegistrationSetup({
         ownerAddress: '0x1111111111111111111111111111111111111111',
@@ -44,7 +44,7 @@ describe('getManagerRegistrationPostRegistrationSetup', () => {
   })
 
   it.each([
-    0, 1,
+    0, 1, 2, 3, 4,
   ])('enables setup when the user owns %i names and has no primary name', (ownedNamesCount) => {
     expect(
       getManagerRegistrationPostRegistrationSetup({

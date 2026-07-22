@@ -16,7 +16,7 @@ export function getManagerRegistrationPostRegistrationSetup(params: {
     !params.ownerAddress ||
     params.existingPrimaryName ||
     params.ownedNamesCount == null ||
-    params.ownedNamesCount >= 2
+    params.ownedNamesCount >= 5
   ) {
     return undefined
   }
