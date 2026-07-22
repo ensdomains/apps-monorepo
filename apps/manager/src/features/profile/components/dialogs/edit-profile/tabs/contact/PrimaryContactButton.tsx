@@ -39,7 +39,7 @@ export const PrimaryContactButton = ({
       <Star
         aria-hidden="true"
         className={cn(
-          'size-5 fill-ens-quartz-50 text-ens-quartz-300 transition-[fill,color] duration-200 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none',
+          'size-5 fill-ens-quartz-50 text-ens-quartz-300 transition-[fill,color] duration-200 ease-out motion-reduce:transition-none',
           selected && 'fill-ens-signal-warning-500 text-ens-signal-warning-500',
         )}
         strokeWidth={1.25}
