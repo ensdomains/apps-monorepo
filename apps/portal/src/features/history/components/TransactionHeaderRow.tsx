@@ -51,7 +51,7 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
           <span className="text-[13px] text-warning-text">
             {formatTimelineFullDate(event.timestamp)}
           </span>
-          <EntityBadge variant="tx" copyValue={event.transactionHash}>
+          <EntityBadge variant="tx" copyValue={event.transactionHash} compact>
             {truncateAddress(event.transactionHash)}
           </EntityBadge>
         </div>

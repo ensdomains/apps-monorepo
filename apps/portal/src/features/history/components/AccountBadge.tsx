@@ -56,6 +56,7 @@ export const AccountBadge = ({
         name={name}
         address={resolved}
         etherscanHref={explorerUrl}
+        compact
       >
         {name}
       </EntityBadge>
@@ -67,6 +68,7 @@ export const AccountBadge = ({
       variant="address"
       address={resolved}
       etherscanHref={explorerUrl}
+      compact
     >
       {full ? <FullOnDesktop value={resolved} /> : truncateAddress(resolved)}
     </EntityBadge>

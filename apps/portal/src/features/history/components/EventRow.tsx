@@ -37,7 +37,11 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
         <>
           <span className={muted}>registered</span>
           {event.asNameRegistered?.name && (
-            <EntityBadge variant="name" name={event.asNameRegistered.name}>
+            <EntityBadge
+              variant="name"
+              name={event.asNameRegistered.name}
+              compact
+            >
               {event.asNameRegistered.name}
             </EntityBadge>
           )}
@@ -122,6 +126,7 @@ export const EventRow = ({ event }: EventRowProps) => {
               variant="contract"
               address={event.contractAddress as Address}
               label={contractLabel}
+              compact
             >
               {truncateAddress(event.contractAddress)}
             </EntityBadge>

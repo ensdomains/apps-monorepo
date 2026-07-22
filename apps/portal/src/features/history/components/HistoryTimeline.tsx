@@ -116,7 +116,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
             aria-hidden
             className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-px bg-border"
           />
-          <Timeline>
+          <Timeline className="gap-y-4">
             {filteredActions.map((action, index) => (
               <ActionSummaryRow
                 key={action.id}

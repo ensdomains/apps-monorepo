@@ -23,7 +23,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
   }
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full border-separate border-spacing-y-2 text-sm">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
             <th className="py-1.5 pr-6 font-medium">Parameter</th>
@@ -91,7 +91,12 @@ export const TransactionMeta = ({
 
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
   const toValue = toAddress ? (
-    <EntityBadge variant="contract" address={toAddress} etherscanHref={toUrl}>
+    <EntityBadge
+      variant="contract"
+      address={toAddress}
+      etherscanHref={toUrl}
+      compact
+    >
       <FullOnDesktop value={toAddress} />
     </EntityBadge>
   ) : (
@@ -99,9 +104,14 @@ export const TransactionMeta = ({
   )
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col gap-y-2">
       <MetaRow label="Transaction">
-        <EntityBadge variant="tx" copyValue={txHash} etherscanHref={txUrl}>
+        <EntityBadge
+          variant="tx"
+          copyValue={txHash}
+          etherscanHref={txUrl}
+          compact
+        >
           <FullOnDesktop value={txHash} />
         </EntityBadge>
       </MetaRow>

@@ -9,7 +9,7 @@ import { AccountBadge } from './AccountBadge'
 const Slot = ({ slot }: { slot: ActionSlot }) =>
   match(slot)
     .with({ kind: 'name' }, ({ value }) => (
-      <EntityBadge variant="name" name={value}>
+      <EntityBadge variant="name" name={value} compact>
         {value}
       </EntityBadge>
     ))
@@ -22,12 +22,13 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
         variant="contract"
         address={value as Address}
         isRegistry={isRegistry}
+        compact
       >
         {truncateAddress(value)}
       </EntityBadge>
     ))
     .with({ kind: 'tx' }, ({ value }) => (
-      <EntityBadge variant="tx" copyValue={value}>
+      <EntityBadge variant="tx" copyValue={value} compact>
         {truncateAddress(value)}
       </EntityBadge>
     ))

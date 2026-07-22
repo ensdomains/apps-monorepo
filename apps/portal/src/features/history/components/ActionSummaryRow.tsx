@@ -77,9 +77,12 @@ export const ActionSummaryRow = ({
       isOpen={isOpen}
       onToggle={onToggle}
       disclosure={
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-y-4 pt-4">
           {txGroups.map((group) => (
-            <div key={group[0].transactionHash} className="flex flex-col">
+            <div
+              key={group[0].transactionHash}
+              className="flex flex-col gap-y-4"
+            >
               <TransactionHeaderRow event={group[0]} />
               {group.map((event) => (
                 <EventRow key={event.id} event={event} />
