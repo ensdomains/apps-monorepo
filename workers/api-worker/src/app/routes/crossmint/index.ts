@@ -169,17 +169,14 @@ export default createApp()
         )
       }
 
-      const { orderId, commitment, totalDue, gasFee } = await createOrderIntent(
-        c.env,
-        body,
-        c.var.user_id,
-      )
+      const { orderId, commitment, totalDue, gasFee, paymentToken } =
+        await createOrderIntent(c.env, body, c.var.user_id)
 
       logger.info('Crossmint order intent created', {
         orderId,
         user_id: c.var.user_id,
       })
-      return c.json({ orderId, commitment, totalDue, gasFee })
+      return c.json({ orderId, commitment, totalDue, gasFee, paymentToken })
     },
   )
   /** Poll the fulfilment status of an order (scoped to the buyer's wallet). */
@@ -221,18 +218,15 @@ export default createApp()
     vValidator('json', CreateOrderBodySchema),
     async (c) => {
       const body = c.req.valid('json')
-      const { orderId, commitment, totalDue, gasFee } = await createOrderIntent(
-        c.env,
-        body,
-        null,
-      )
+      const { orderId, commitment, totalDue, gasFee, paymentToken } =
+        await createOrderIntent(c.env, body, null)
 
       logger.info('Self-pay voucher order intent created', {
         orderId,
         totalDue,
         gasFee,
       })
-      return c.json({ orderId, commitment, totalDue, gasFee })
+      return c.json({ orderId, commitment, totalDue, gasFee, paymentToken })
     },
   )
   /**
