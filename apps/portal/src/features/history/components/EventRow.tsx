@@ -5,11 +5,11 @@ import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
+import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { decodeRoleChange } from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
-import { getContractLabel } from './contractLabel'
 import { DecodedParams } from './EventDetail'
 import { DETAIL_INDENT, TIER2_INDENT } from './timelineGeometry'
 
@@ -90,7 +90,9 @@ export const EventRow = ({ event }: EventRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const chainId = useChainId()
 
-  const contractLabel = getContractLabel(chainId, event.contractAddress)
+  const contractLabel = event.contractAddress
+    ? getEnsContractName(chainId, event.contractAddress as Address)
+    : undefined
 
   return (
     <TimelineRow

@@ -6,15 +6,15 @@ export const formatTimelineFullDate = (unixSeconds: number): string =>
   formatExpiryDate(unixSecondsToPlainDateUtc(unixSeconds))
 
 /** Time of day, e.g. "1:32 PM" (UTC) — used in "initiated at {time}". */
-export const formatTimelineTime = (unixSeconds: number): string => {
-  const time = Temporal.Instant.fromEpochMilliseconds(unixSeconds * 1000)
+export const formatTimelineTime = (unixSeconds: number): string =>
+  Temporal.Instant.fromEpochMilliseconds(unixSeconds * 1000)
     .toZonedDateTimeISO('UTC')
     .toPlainTime()
-  const hour12 = time.hour % 12 === 0 ? 12 : time.hour % 12
-  const minute = String(time.minute).padStart(2, '0')
-  const meridiem = time.hour < 12 ? 'AM' : 'PM'
-  return `${hour12}:${minute} ${meridiem}`
-}
+    .toLocaleString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    })
 
 /**
  * Timeline rail date label: "Today" / "Yesterday" for recent entries, otherwise an

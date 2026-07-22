@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { ChevronsUpDownIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -36,18 +36,9 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set())
 
-  const actions = useMemo(
-    () => (events ? summarizeEvents(events) : []),
-    [events],
-  )
-  const eventTypeGroups = useMemo(
-    () => buildEventTypeGroups(events ?? []),
-    [events],
-  )
-  const filteredActions = useMemo(
-    () => filterActions(actions, dateRange, selectedTypes),
-    [actions, dateRange, selectedTypes],
-  )
+  const actions = events ? summarizeEvents(events) : []
+  const eventTypeGroups = buildEventTypeGroups(events ?? [])
+  const filteredActions = filterActions(actions, dateRange, selectedTypes)
 
   const allExpanded =
     filteredActions.length > 0 &&

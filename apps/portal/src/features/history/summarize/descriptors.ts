@@ -1,3 +1,4 @@
+import { zeroAddress } from 'viem'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { decodeRoleChange, parseEventData, readString } from './decodeRawData'
 import type {
@@ -6,10 +7,8 @@ import type {
   DescriptorContext,
 } from './summarize.types'
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-
 const isZero = (value?: string | null): boolean =>
-  !value || value.toLowerCase() === ZERO_ADDRESS
+  !value || value.toLowerCase() === zeroAddress
 
 const short = (value?: string | null): string =>
   value ? truncateAddress(value, 6, 4, '…') : '—'
