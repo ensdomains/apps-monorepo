@@ -109,9 +109,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           description="No events match the selected filters. Try widening the date range or clearing the event filter."
         />
       ) : (
-        // Responsive timeline geometry lives here as CSS vars so the rail + every
-        // row indent share one source (mobile ⟷ desktop) — see rows' pl-(--…).
-        <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:192px]">
+        <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:182px]">
           <span
             aria-hidden
             className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-px bg-border"

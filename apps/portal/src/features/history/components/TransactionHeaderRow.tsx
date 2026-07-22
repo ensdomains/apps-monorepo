@@ -28,13 +28,14 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
     <TimelineRow
       isOpen={isOpen}
       onToggle={() => setIsOpen((open) => !open)}
+      className="ml-(--tier2-indent) pl-2"
       disclosure={
         <div className="py-1 pl-(--detail-indent)">
           <TransactionMeta event={event} txHash={event.transactionHash} />
         </div>
       }
     >
-      <div className="grid grid-cols-1 gap-y-1 py-2 pr-3 pl-(--tier2-indent) sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
+      <div className="grid grid-cols-1 gap-y-1 py-2 pr-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ChevronDown
             className={cn(

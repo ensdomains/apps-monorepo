@@ -37,10 +37,6 @@ export const TimelineRow = ({
 
   return (
     <div className="flex flex-col">
-      {/* Hover highlight is instant (`transition-none`) — snappy, per design.
-          The whole row is the toggle hit-target; nested chips/links keep their own
-          click via isInteractiveTarget(). A real <button> can't wrap the interactive
-          entity chips, so this is an intentional div[role=button]. */}
       {isInteractive ? (
         // biome-ignore lint/a11y/useSemanticElements: a real <button> cannot wrap the interactive entity chips/links this row contains; div[role=button] is intentional (click-anywhere row).
         <div
