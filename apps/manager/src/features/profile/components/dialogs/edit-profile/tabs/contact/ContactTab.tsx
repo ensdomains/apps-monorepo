@@ -13,6 +13,7 @@ import {
   maxPrimaryContactMethods,
   rowMethods,
 } from './constants'
+import { PrimaryContactCapacityIndicator } from './PrimaryContactCapacityIndicator'
 import {
   getBaseWithPrimaryContactKeys,
   getContactMethodErrorMessage,
@@ -164,10 +165,13 @@ export const ContactTab = ({
         })}
       </div>
 
-      <div className="flex flex-col gap-3 overflow-hidden">
-        <p className="w-full text-right text-ens-signal-success-700 text-xs leading-[1.2]">
-          {selectedPrimaryContactCount}/{maxPrimaryContactMethods} selected
-        </p>
+      <div className="relative flex flex-col gap-3">
+        <div className="absolute -top-5.5 right-0">
+          <PrimaryContactCapacityIndicator
+            maximum={maxPrimaryContactMethods}
+            selected={selectedPrimaryContactCount}
+          />
+        </div>
 
         {selectedMethods.length === 0 ? (
           <div className="rounded-sm border border-ens-quartz-250 border-dashed p-4 text-[14px] text-ens-quartz-400">
@@ -179,26 +183,25 @@ export const ContactTab = ({
             const primary = primaryContactKeys.includes(method.key)
 
             return (
-              <div className="flex flex-col gap-3" key={method.key}>
-                <ContactMethodRow
-                  disabled={isSaving}
-                  errorMessage={getContactMethodErrorMessage({
-                    isPrimary: primary,
-                    method,
-                    value,
-                  })}
-                  method={method}
-                  noticeMessage={getContactMethodNoticeMessage(method)}
-                  onPrimaryChange={handlePrimaryChange}
-                  onValueChange={handleValueChange}
-                  primary={primary}
-                  primaryDisabled={getIsPrimaryContactToggleDisabled({
-                    isPrimary: primary,
-                    primaryContactCount: primaryContactKeys.length,
-                  })}
-                  value={value}
-                />
-              </div>
+              <ContactMethodRow
+                disabled={isSaving}
+                errorMessage={getContactMethodErrorMessage({
+                  isPrimary: primary,
+                  method,
+                  value,
+                })}
+                key={method.key}
+                method={method}
+                noticeMessage={getContactMethodNoticeMessage(method)}
+                onPrimaryChange={handlePrimaryChange}
+                onValueChange={handleValueChange}
+                primary={primary}
+                primaryDisabled={getIsPrimaryContactToggleDisabled({
+                  isPrimary: primary,
+                  primaryContactCount: primaryContactKeys.length,
+                })}
+                value={value}
+              />
             )
           })
         )}
