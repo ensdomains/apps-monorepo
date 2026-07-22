@@ -58,7 +58,7 @@ const MetaRow = ({
     <span className="w-24 shrink-0 text-muted-foreground text-sm sm:w-40">
       {label}
     </span>
-    <span className="min-w-0 break-all font-mono text-sm">{children}</span>
+    <span className="font-mono text-sm min-w-0">{children}</span>
   </div>
 )
 
