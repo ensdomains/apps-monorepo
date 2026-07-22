@@ -29,28 +29,25 @@ export const GameStep = () => {
   const progress = useMigrationProgress(uiActor)
   const stepDescriptors = useMigrationStepDescriptors(uiActor)
 
-  const done = substep === 'succeeding'
   const hasCollapsed = substep === 'failing'
 
   const totalSteps = Math.max(progress?.totalSteps ?? stepDescriptors.length, 1)
   const completedSteps = progress?.currentStep ?? 0
-  const displayStep = displayStepOf(done, completedSteps, totalSteps)
+  const displayStep = displayStepOf(completedSteps, totalSteps)
   const { plankWidth, frensX, scrollOffset, totalBridgeWidth } =
     computeBridgeLayout({ totalSteps, completedSteps, trackWidth })
 
-  const isExcited = !!progress?.txHash && !done && !hasCollapsed
+  const isExcited = !!progress?.txHash && !hasCollapsed
 
   const nextDescriptor = stepDescriptors[completedSteps] as
     | MigrationStepDescriptor
     | undefined
 
   const stepDescription = describeNextStep({
-    done,
     progressDescription: progress?.description,
     descriptor: nextDescriptor,
   })
   const descriptionText = match(stepDescription)
-    .with({ kind: 'done' }, () => t`Almost there...`)
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Getting ready...`)
     .with(
@@ -134,11 +131,7 @@ export const GameStep = () => {
         )}
 
         <div className="relative mt-4 h-[360px] w-full max-w-[1040px] shrink-0">
-          <motion.div
-            animate={{ opacity: done ? 0 : 1 }}
-            className="absolute inset-0"
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
+          <div className="absolute inset-0">
             <div
               className="absolute right-[120px] bottom-[70px] left-0 z-10"
               ref={trackRef}
@@ -366,21 +359,7 @@ export const GameStep = () => {
               className="absolute right-[120px] bottom-[23px] left-0 h-px bg-ens-garnet-900/5"
               transition={hasCollapsed ? { duration: 0.3 } : { duration: 0 }}
             />
-          </motion.div>
-
-          <motion.div
-            animate={
-              done ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.5 }
-            }
-            className="absolute inset-0 flex items-center justify-center"
-            transition={
-              done
-                ? { type: 'spring', bounce: 0.4, duration: 0.8, delay: 0.3 }
-                : { duration: 0 }
-            }
-          >
-            <img alt="" className="h-[216px]" src="/frens/together.svg" />
-          </motion.div>
+          </div>
         </div>
       </div>
     </div>

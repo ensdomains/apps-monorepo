@@ -3,15 +3,16 @@ import { Trans } from '@lingui/react/macro'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
-import { SuccessModal } from '@/features/migration/components/SuccessModal'
+import { useCommemorativeNftPreview } from '@/features/migration/components/success/useCommemorativeNftPreview'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
@@ -21,7 +22,6 @@ import {
 } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
-  useMigrateSubstep,
   useMigrationLastError,
   useMigrationMigratedNames,
   useMigrationSelectedNames,
@@ -105,7 +105,6 @@ export const MigrationPage = () => {
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
-  const migrateSubstep = useMigrateSubstep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
@@ -113,6 +112,14 @@ export const MigrationPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const isMigrationSuccess = step === 'success'
+  const dialogOpen = isMigrationSuccess || isPreviewOpen
+  const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
+  const dialogState = useCommemorativeNftPreview({
+    open: dialogOpen,
+    migratedNameCount: dialogNames.length,
+  })
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     selectedNames,
@@ -127,15 +134,37 @@ export const MigrationPage = () => {
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
 
   useEffect(() => {
-    if (migrateSubstep === 'succeeding') {
+    if (step === 'success') {
       invalidateMigrationQueries(queryClient)
     }
-  }, [migrateSubstep, queryClient])
+  }, [step, queryClient])
 
   const handleSuccessClose = useCallback(() => {
-    uiActor.send({ type: 'done' })
+    if (isMigrationSuccess) {
+      uiActor.send({ type: 'done' })
+      navigate({ to: '/dashboard' })
+      return
+    }
+
+    setIsPreviewOpen(false)
+  }, [isMigrationSuccess, uiActor, navigate])
+
+  const handleViewProfile = useCallback(() => {
+    const name = dialogNames[0]
+
+    if (isMigrationSuccess) {
+      uiActor.send({ type: 'done' })
+    } else {
+      setIsPreviewOpen(false)
+    }
+
+    if (name) {
+      navigate({ to: '/$name', params: { name } })
+      return
+    }
+
     navigate({ to: '/dashboard' })
-  }, [uiActor, navigate])
+  }, [dialogNames, isMigrationSuccess, uiActor, navigate])
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -185,17 +214,26 @@ export const MigrationPage = () => {
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (
-        <button
-          aria-label="Back"
-          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
-          onClick={handleBack}
-          type="button"
-        >
-          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
-          <span className="max-xl:hidden">
-            <Trans>Back</Trans>
-          </span>
-        </button>
+        <>
+          <button
+            aria-label="Back"
+            className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+            onClick={handleBack}
+            type="button"
+          >
+            <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+            <span className="max-xl:hidden">
+              <Trans>Back</Trans>
+            </span>
+          </button>
+          <button
+            className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
+            onClick={() => setIsPreviewOpen(true)}
+            type="button"
+          >
+            <Trans>Preview success dialog</Trans>
+          </button>
+        </>
       )}
 
       {match(step)
@@ -247,14 +285,15 @@ export const MigrationPage = () => {
             </motion.div>
           </ResultLayout>
         ))
-        .with('success', () => (
-          <SuccessModal
-            migratedNames={migratedNames}
-            onClose={handleSuccessClose}
-            open
-          />
-        ))
+        .with('success', () => null)
         .exhaustive()}
+
+      <MigrationSuccessDialog
+        onClose={handleSuccessClose}
+        onViewProfile={handleViewProfile}
+        open={dialogOpen}
+        state={dialogState}
+      />
     </div>
   )
 }
