@@ -6,11 +6,12 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
@@ -74,14 +75,32 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
+  // Eligibility lookups run in the background (best-effort): they only seed the
+  // default state of the primary-name toggle, so a slow/failed indexer never
+  // blocks starting the registration.
+  const existingPrimaryNameQuery = useQuery(
+    profileReverseNameQuery(account.ownerAddress ?? undefined),
+  )
+  const ownedNamesCountQuery = useQuery(
+    ownedNamesCountQueryOptions(account.ownerAddress ?? undefined),
+  )
+
+  // Auto-set is the default only when the wallet is eligible (no primary name
+  // yet and fewer than 5 owned names). The user can always override via the
+  // toggle, including turning it on to replace an existing primary name.
+  const defaultSetAsPrimary = !!getManagerRegistrationPostRegistrationSetup({
+    ownerAddress: account.ownerAddress,
+    existingPrimaryName: existingPrimaryNameQuery.data,
+    ownedNamesCount: ownedNamesCountQuery.data,
+  })
+  const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(null)
+  const setAsPrimary = setPrimaryChoice ?? defaultSetAsPrimary
+
   // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  const startRegistration = (
-    existingPrimaryName?: string | null,
-    ownedNamesCount?: number | null,
-  ) => {
+  const startRegistration = () => {
     if (!pricingQuery.data || !selectedToken) return
     uiActor.send({
       type: 'registration.start',
@@ -92,33 +111,19 @@ export const TokenPickerContent = () => {
       account,
       basePriceNumber: pricingQuery.data.basePriceNumber,
       premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
-      postRegistrationSetup: getManagerRegistrationPostRegistrationSetup({
-        ownerAddress: account.ownerAddress,
-        existingPrimaryName,
-        ownedNamesCount,
-      }),
+      postRegistrationSetup: setAsPrimary
+        ? { primaryName: { enabled: true, syncEthRecord: true } }
+        : undefined,
     })
   }
 
   const availabilityMutation = useMutation({
-    mutationFn: async () => {
-      const [availability, existingPrimaryName, ownedNamesCount] =
-        await Promise.all([
-          queryClient.fetchQuery({
-            ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
-            staleTime: 0,
-          }),
-          queryClient.fetchQuery(
-            profileReverseNameQuery(account.ownerAddress ?? undefined),
-          ),
-          queryClient.fetchQuery(
-            ownedNamesCountQueryOptions(account.ownerAddress ?? undefined),
-          ),
-        ])
-
-      return { availability, existingPrimaryName, ownedNamesCount }
-    },
-    onSuccess: ({ availability, existingPrimaryName, ownedNamesCount }) => {
+    mutationFn: async () =>
+      queryClient.fetchQuery({
+        ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
+        staleTime: 0,
+      }),
+    onSuccess: (availability) => {
       if (!pricingQuery.data || !selectedToken) return
 
       if (!availability.isAvailable) {
@@ -130,12 +135,14 @@ export const TokenPickerContent = () => {
         return
       }
 
-      startRegistration(existingPrimaryName, ownedNamesCount)
+      startRegistration()
     },
   })
 
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
+
+  const domainName = `${label}.eth`
 
   return (
     <TokenPickerContentBase
@@ -143,6 +150,27 @@ export const TokenPickerContent = () => {
         availabilityMutation.isError
           ? t`We couldn't confirm that ${label}.eth is still available. Please try again.`
           : null
+      }
+      footer={
+        <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-ens-gray text-sm">
+              <Trans>Set as primary name</Trans>
+            </span>
+            <span className="text-ens-gray text-xs">
+              <Trans>
+                Your wallet address can only have one primary name, which will
+                display instead of your wallet address across apps. You'll
+                confirm this at the end of registration.
+              </Trans>
+            </span>
+          </div>
+          <Switch
+            aria-label={t`Set ${domainName} as your primary name`}
+            checked={setAsPrimary}
+            onCheckedChange={setSetPrimaryChoice}
+          />
+        </div>
       }
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
@@ -171,6 +199,7 @@ export const TokenPickerContentBase = ({
   isLoadingBalances,
   isConnected,
   nextMessage = <Trans>Register name</Trans>,
+  footer,
 }: {
   label: string
   pricingLoading: boolean
@@ -184,6 +213,8 @@ export const TokenPickerContentBase = ({
   isLoadingBalances: boolean
   isConnected: boolean
   nextMessage?: ReactNode
+  /** Optional content below the payment options (e.g. the primary-name toggle). */
+  footer?: ReactNode
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -324,13 +355,7 @@ export const TokenPickerContentBase = ({
             </div>
           </div>
 
-          <p className="text-center text-ens-gray-three text-sm">
-            <Trans>
-              If your connected wallet has fewer than two names and no primary
-              name yet, ENS may set this name as your primary name and link it
-              to your connected wallet automatically.
-            </Trans>
-          </p>
+          {footer}
         </div>
       </div>
       <Button
