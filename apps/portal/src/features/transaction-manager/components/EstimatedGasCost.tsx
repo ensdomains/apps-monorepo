@@ -80,10 +80,17 @@ export const EstimatedGasCost = ({
   const intent = useMemo(
     () =>
       readyWalletClient && prepareIntent
-        ? fromThrowable(
-            prepareIntent,
-            () => undefined,
-          )({
+        ? fromThrowable(prepareIntent, (error) => {
+            // A throw here is expected UI-state churn (no fuses selected, no
+            // record changes yet) and maps to the neutral "nothing to estimate"
+            // hint. But wallet readiness is already guaranteed above, so a real
+            // builder bug throws too — surface it in dev so it doesn't vanish
+            // silently behind that same hint.
+            if (import.meta.env.DEV) {
+              console.warn('prepareIntent threw during gas estimate:', error)
+            }
+            return undefined
+          })({
             walletClient: readyWalletClient,
             chainId: sepoliaWithEns.id,
           }).unwrapOr(undefined)
@@ -118,39 +125,35 @@ export const EstimatedGasCost = ({
     )
     .otherwise(() => gasStatus)
 
-  switch (status) {
-    case 'success':
-      return <>{`${cost} ETH`}</>
-    case 'loading':
-      return <>{'Estimating…'}</>
-    case 'error':
-      return (
-        <EstimateHint
-          icon={AlertCircle}
-          label="Unavailable"
-          tip="This transaction can't be estimated — as configured it would fail on-chain (for example a missing role or an unmet prerequisite)."
-        />
-      )
-    default:
-      return (
-        <EstimateHint
-          icon={Info}
-          label="Not yet"
-          tip={match({
-            hasPrepareIntent: Boolean(prepareIntent),
-            hasReadyWallet: Boolean(readyWalletClient),
-          })
-            .with(
-              { hasPrepareIntent: false },
-              () =>
-                "This step's cost is estimated once it starts — it can't be worked out ahead of time.",
-            )
-            .with(
-              { hasReadyWallet: false },
-              () => 'Connect your wallet on Sepolia to see the estimate.',
-            )
-            .otherwise(() => 'Preparing the estimate…')}
-        />
-      )
-  }
+  return match(status)
+    .with('success', () => <>{`${cost} ETH`}</>)
+    .with('loading', () => <>{'Estimating…'}</>)
+    .with('error', () => (
+      <EstimateHint
+        icon={AlertCircle}
+        label="Unavailable"
+        tip="This transaction can't be estimated — as configured it would fail on-chain (for example a missing role or an unmet prerequisite)."
+      />
+    ))
+    .with('idle', () => (
+      <EstimateHint
+        icon={Info}
+        label="Not yet"
+        tip={match({
+          hasPrepareIntent: Boolean(prepareIntent),
+          hasReadyWallet: Boolean(readyWalletClient),
+        })
+          .with(
+            { hasPrepareIntent: false },
+            () =>
+              "This step's cost is estimated once it starts — it can't be worked out ahead of time.",
+          )
+          .with(
+            { hasReadyWallet: false },
+            () => 'Connect your wallet on Sepolia to see the estimate.',
+          )
+          .otherwise(() => 'Preparing the estimate…')}
+      />
+    ))
+    .exhaustive()
 }
