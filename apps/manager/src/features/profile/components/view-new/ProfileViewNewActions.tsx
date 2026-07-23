@@ -25,6 +25,30 @@ type ProfileViewNewActionsProps = {
   readonly url: string
 }
 
+type ProfileViewNewMobileActionsProps = Pick<
+  ProfileViewNewActionsProps,
+  'avatarUrl' | 'isOwner' | 'name' | 'url'
+>
+
+export const ProfileViewNewMobileActions = ({
+  avatarUrl,
+  isOwner,
+  name,
+  url,
+}: ProfileViewNewMobileActionsProps) => (
+  <div className="flex w-full items-center justify-between lg:landscape:hidden">
+    <ProfileViewNewRenewAction
+      className={renewActionClassName}
+      isOwner={isOwner}
+      name={name}
+    />
+    <div className="flex shrink-0 items-center gap-4">
+      <ProfileViewNewFavoriteAction name={name} />
+      <ProfileViewNewShareAction avatarUrl={avatarUrl} name={name} url={url} />
+    </div>
+  </div>
+)
+
 export const ProfileViewNewActions = ({
   avatarUrl,
   isInGrace,
@@ -39,23 +63,18 @@ export const ProfileViewNewActions = ({
 
   return (
     <>
-      <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
-        <div className="mx-auto flex w-full max-w-97.5 items-center justify-between px-5">
-          <ProfileViewNewRenewAction
-            className={renewActionClassName}
-            isOwner={isOwner}
-            name={name}
-          />
-          <div className="flex items-center gap-4">
-            <ProfileViewNewFavoriteAction name={name} />
-            <ProfileViewNewShareAction
+      {isInGrace ? null : (
+        <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
+          <div className="mx-auto w-full max-w-97.5 px-5">
+            <ProfileViewNewMobileActions
               avatarUrl={avatarUrl}
+              isOwner={isOwner}
               name={name}
               url={url}
             />
           </div>
         </div>
-      </div>
+      )}
 
       <div
         className={desktopActionContainerClassName}
