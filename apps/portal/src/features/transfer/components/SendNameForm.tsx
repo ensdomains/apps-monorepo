@@ -20,10 +20,9 @@ import { AddressNameInput } from '@/features/address/components/AddressNameInput
 import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
-import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
-import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransferName } from '../hooks/useTransferName'
+import { useTransferResetTargets } from '../hooks/useTransferResetTargets'
 import type { TransferOptions } from '../utils/buildTransferPlan'
 
 type SendNameFormProps = {
@@ -65,15 +64,11 @@ export const SendNameForm = ({
   })
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  // `useNameResolverAddress` already maps empty/zero → null, so a truthy check is
-  // enough. `getNameRegistries` returns the name's own subregistry at [0] (or the
-  // zero address when unset), so that one still needs an explicit zero check.
-  const resolverQuery = useNameResolverAddress({ name })
-  const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
-  const subregistryAddress = registriesQuery.data?.[0]
-  const hasResolver = !!resolverQuery.data
-  const hasSubregistry =
-    !!subregistryAddress && subregistryAddress !== zeroAddress
+  const {
+    optionIsVisible,
+    settled: resetTargetsSettled,
+    failed: resetTargetsFailed,
+  } = useTransferResetTargets({ name })
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -85,14 +80,6 @@ export const SendNameForm = ({
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
   const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
-  // A reset option only appears once we've confirmed the name actually has that
-  // target set — nothing to reset means nothing to show, and we stay hidden
-  // while the lookup is in flight rather than flashing a row we may remove.
-  const optionIsVisible: Record<keyof TransferOptions, boolean> = {
-    resetResolver: !resolverQuery.isLoading && hasResolver,
-    resetRegistry: !registriesQuery.isLoading && hasSubregistry,
-  }
-
   // A hidden option never contributes to the plan, regardless of its stored
   // toggle value, so fold visibility into the options we hand off.
   const effectiveOptions: TransferOptions = {
@@ -101,9 +88,6 @@ export const SendNameForm = ({
   }
 
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
-
-  const resetTargetsSettled =
-    !resolverQuery.isLoading && !registriesQuery.isLoading
 
   const canStart =
     hasValidRecipient && !isResolving && !isPreparing && resetTargetsSettled
@@ -177,6 +161,13 @@ export const SendNameForm = ({
       >
         {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
+
+      {resetTargetsFailed && (
+        <span className="text-destructive text-sm">
+          Couldn’t check this name’s current resolver and registry. Refresh and
+          try again before transferring.
+        </span>
+      )}
 
       {prepError && (
         <span className="text-destructive text-sm">{prepError.message}</span>
