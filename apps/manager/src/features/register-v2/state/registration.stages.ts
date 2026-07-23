@@ -13,24 +13,29 @@ export type RegistrationStage = RegistrationMachineStage | PostRegistrationStage
 export const REGISTRATION_STAGE_PROGRESS = {
   idle: 0,
   settingUpRegistration: 5,
+  // Pure-EOA spine
   deployingResolver: 8,
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
-  ensuringHcaDeployed: 27,
-  // HCA path: resolver-deploy + commit bundled into one Intent. Sits at the
-  // same point as the standalone `committingTransaction` step.
-  submittingSetupBundle: 31,
   committingTransaction: 31,
+  // Standalone-HCA commit leg: check funding → (permit) → fund+enable+commit
+  // as one session-signed request. Sits alongside `committingTransaction`.
+  checkingHcaFunding: 27,
+  signingFundingPermit: 29,
+  submittingSetupBundle: 31,
+  // Shared cooldown spine
   waitingForCommitment: 38,
   fetchingCommitmentAge: 40,
   commitmentCooldown: 44,
   validatingCommitment: 46,
+  // Pure-EOA allowance + approve
   checkingAllowance: 50,
-  signingPermit: 52,
   approvingToken: 54,
   waitingForApproval: 62,
+  // Pure-EOA reveal
   registeringDomain: 77,
   waitingForRegistration: 90,
+  // Standalone-HCA reveal batch
   submittingRhinestoneBundle: 55,
   waitingForRhinestoneBundle: 85,
   verifyingRegistration: 95,

@@ -7,7 +7,7 @@ import type {
   OrchestratorError,
 } from '@rhinestone/sdk/errors'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Address, WalletClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import {
   initializeRhinestoneAccount,
   type RhinestoneInitResult,
@@ -36,6 +36,7 @@ export interface AccountInitResult {
 interface InitializeAccountInput {
   readonly walletSource: WalletSource
   readonly walletClient?: WalletClient
+  readonly publicClient?: PublicClient
 }
 
 class AccountInitializationError extends TaggedError(
@@ -73,7 +74,7 @@ function mapRhinestoneConfig(
 export function initializeAccountActor(
   input: InitializeAccountInput,
 ): ResultAsync<AccountInitResult, AccountInitializationError> {
-  const { walletClient } = input
+  const { walletClient, publicClient } = input
 
   if (!walletClient) {
     return errAsync(
@@ -83,10 +84,19 @@ export function initializeAccountActor(
       }),
     )
   }
+  if (!publicClient) {
+    return errAsync(
+      new AccountInitializationError({
+        provider: 'routing',
+        cause: new Error('Missing public client for Rhinestone initialization'),
+      }),
+    )
+  }
 
   return fromPromise(
     initializeRhinestoneAccount({
       walletClient,
+      publicClient,
     }),
     (error) =>
       new AccountInitializationError({

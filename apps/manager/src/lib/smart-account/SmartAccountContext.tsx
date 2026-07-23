@@ -2,9 +2,12 @@
 
 import { anvilSetupOwner } from '@ens-apps/dev-time-travel'
 import {
+  buildHcaSessionEnablePayload,
   getValidSessionForAccount,
+  type HcaSessionEnablePayload,
   isRhinestoneSession,
   type RhinestoneStoredSession,
+  rebuildDestinationSession,
   removeSessionsByOwner,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
@@ -25,8 +28,13 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, isAddressEqual, type WalletClient } from 'viem'
-import { useConnection, useWalletClient } from 'wagmi'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
+import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
@@ -68,6 +76,21 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * `signer`), or null on failure / the EOA-only path.
    */
   readonly enableSession: () => Promise<Signer | null>
+  /**
+   * The active persisted session record for the current HCA, if any. Carries
+   * the fields needed to rebuild the session-enable payload for registration.
+   */
+  readonly activeStoredSession: RhinestoneStoredSession | null
+  /**
+   * Resolve the `START_REGISTRATION` session-enable payload for the active
+   * session. Reads `experimental_isSessionEnabled` on-chain and returns
+   * `undefined` when the session is ALREADY enabled (so no enable call is
+   * re-issued), or the enable payload when it still needs enabling. Returns
+   * `undefined` when there is no active session.
+   */
+  readonly getSessionEnablePayload: () => Promise<
+    HcaSessionEnablePayload | undefined
+  >
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -146,6 +169,7 @@ function buildRhinestoneSigner(
  */
 function useWalletConnectionSync(
   wagmiWalletClient: WalletClient | undefined,
+  wagmiPublicClient: PublicClient | undefined,
   snapshotValue: string,
   send: (event: EventFromLogic<typeof smartAccountMachine>) => void,
 ) {
@@ -176,14 +200,15 @@ function useWalletConnectionSync(
       return
     }
 
-    if (!wagmiWalletClient) return
+    if (!wagmiWalletClient || !wagmiPublicClient) return
     send({
       type: 'WALLET_CONNECTED',
       walletSource: 'external-wallet',
       walletClient: wagmiWalletClient,
+      publicClient: wagmiPublicClient,
     })
     connectedKeyRef.current = nextKey
-  }, [wagmiWalletClient, snapshotValue, send])
+  }, [wagmiWalletClient, wagmiPublicClient, snapshotValue, send])
 }
 
 /**
@@ -222,6 +247,7 @@ export const SmartAccountContextProvider = ({
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
   const { data: wagmiWalletClient } = useWalletClient()
+  const wagmiPublicClient = usePublicClient({ chainId: customSepolia.id })
 
   // True while the connector is still establishing/restoring a session, so
   // we don't report the account as "initialized" mid-reconnect.
@@ -260,6 +286,7 @@ export const SmartAccountContextProvider = ({
   const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
     useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
+    useEoa ? undefined : (wagmiPublicClient as PublicClient | undefined),
     snapshot.value as string,
     send,
   )
@@ -516,13 +543,22 @@ export const SmartAccountContextProvider = ({
     const rhinestoneAccount =
       baseClient as unknown as RhinestoneSigner['account']
 
+    if (!wagmiPublicClient) {
+      setSessionError('No public client available for session authorization')
+      return null
+    }
+
     setIsEnablingSession(true)
     setSessionError(null)
+    // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
+    const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
     const result = await resolveSessionActor({
       ownerAddress: sessionOwnerAddress,
       accountAddress,
       chain: customSepolia,
       rhinestoneAccount,
+      publicClient: wagmiPublicClient as unknown as PublicClient,
+      alreadyDeployed,
     })
     setIsEnablingSession(false)
 
@@ -545,7 +581,11 @@ export const SmartAccountContextProvider = ({
       baseClient,
       accountAddress,
       rhinestoneApiKey,
-      sessionContext: buildSessionContext({ session: result.value.session }),
+      sessionContext: buildSessionContext({
+        session: result.value.session,
+        chain: customSepolia,
+        hca: accountAddress,
+      }),
       sessionOwnerAddress,
       machineOwner: snapshot.context.ownerAddress,
       eoaAddress,
@@ -556,16 +596,53 @@ export const SmartAccountContextProvider = ({
     sessionOwnerAddress,
     snapshot.context.ownerAddress,
     eoaAddress,
+    wagmiPublicClient,
   ])
 
-  // The session context (ephemeral owner key) to attach to the rhinestone
-  // signer, if a session is active.
+  // Resolve the START_REGISTRATION session-enable payload. Reads
+  // `experimental_isSessionEnabled` on-chain (only safe to do on resume — never
+  // right after an enabling request) and returns `undefined` when the session
+  // is already enabled, so the machine omits the enable call.
+  const getSessionEnablePayload = useCallback(async (): Promise<
+    HcaSessionEnablePayload | undefined
+  > => {
+    if (!activeSession || !accountAddress || !baseClient) return undefined
+
+    const rhinestoneAccount =
+      baseClient as unknown as RhinestoneSigner['account']
+
+    // Rebuild the SDK Session (no prompt) to query on-chain enablement.
+    const { session } = rebuildDestinationSession({
+      chain: customSepolia,
+      hca: accountAddress,
+      resolver: activeSession.resolver,
+      hcaSessionNonce: BigInt(activeSession.hcaSessionNonce),
+      validUntil: BigInt(activeSession.validUntil),
+      sessionPrivateKey: activeSession.sessionPrivateKey,
+    })
+
+    try {
+      const enabled =
+        await rhinestoneAccount.experimental_isSessionEnabled(session)
+      if (enabled) return undefined
+    } catch {
+      // If the read fails, fall back to including the enable payload — the
+      // enable call is idempotent and the batch is atomic.
+    }
+    return buildHcaSessionEnablePayload(activeSession)
+  }, [activeSession, accountAddress, baseClient])
+
+  // The session context to attach to the rhinestone signer, if active.
   const sessionContext = useMemo(
     () =>
-      activeSession
-        ? buildSessionContext({ session: activeSession })
+      activeSession && accountAddress
+        ? buildSessionContext({
+            session: activeSession,
+            chain: customSepolia,
+            hca: accountAddress,
+          })
         : undefined,
-    [activeSession],
+    [activeSession, accountAddress],
   )
 
   const signer: Signer | null = useMemo(() => {
@@ -661,6 +738,8 @@ export const SmartAccountContextProvider = ({
             isEnablingSession: false,
             sessionError: null,
             enableSession,
+            activeStoredSession: null,
+            getSessionEnablePayload,
           }
         : {
             type: 'rhinestone',
@@ -692,6 +771,8 @@ export const SmartAccountContextProvider = ({
             isEnablingSession,
             sessionError,
             enableSession,
+            activeStoredSession: activeSession,
+            getSessionEnablePayload,
           },
     [
       useEoa,
@@ -719,6 +800,7 @@ export const SmartAccountContextProvider = ({
       isEnablingSession,
       sessionError,
       enableSession,
+      getSessionEnablePayload,
     ],
   )
 

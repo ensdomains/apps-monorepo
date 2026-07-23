@@ -329,10 +329,6 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx
-msgid "Awaiting approval signature"
-msgstr "Awaiting approval signature"
-
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -768,10 +764,6 @@ msgstr "Default"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/lib/smart-account/rhinestone.ts
-msgid "Deploying on-chain…"
-msgstr "Deploying on-chain…"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
@@ -1020,10 +1012,6 @@ msgstr "Failed to add telegram: "
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
-
-#: src/lib/smart-account/rhinestone.ts
-msgid "Failed to deploy smart account"
-msgstr "Failed to deploy smart account"
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Failed to fund wallet"
@@ -1713,10 +1701,6 @@ msgstr "Preferences"
 msgid "Preferences updated"
 msgstr "Preferences updated"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx
-msgid "Preparing account"
-msgstr "Preparing account"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Preparing commitment"
@@ -2283,10 +2267,6 @@ msgstr "Setting up registration"
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
 
-#: src/lib/smart-account/rhinestone.ts
-msgid "Setting up your smart account"
-msgstr "Setting up your smart account"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting..."
 msgstr "Setting..."
@@ -2388,10 +2368,6 @@ msgstr "Skipping SIWE verification means you won't get notifications about your 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart Account"
 msgstr "Smart Account"
-
-#: src/lib/smart-account/rhinestone.ts
-msgid "Smart account ready"
-msgstr "Smart account ready"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart sessions are required to use this app."

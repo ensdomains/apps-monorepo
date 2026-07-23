@@ -124,8 +124,10 @@ export const TokenPickerContent = () => {
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  const startRegistration = (resolvedSetAsPrimary: boolean) => {
+  const startRegistration = async (resolvedSetAsPrimary: boolean) => {
     if (!pricingQuery.data || !selectedToken) return
+    // Resolve the session-enable payload up front (checks on-chain enablement).
+    const hcaSessionEnable = await account.getSessionEnablePayload()
     uiActor.send({
       type: 'registration.start',
       label,
@@ -133,6 +135,7 @@ export const TokenPickerContent = () => {
       token: selectedToken,
       totalPrice: pricingQuery.data.rawPrice,
       account,
+      hcaSessionEnable,
       basePriceNumber: pricingQuery.data.basePriceNumber,
       premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
       postRegistrationSetup: resolvedSetAsPrimary
@@ -152,7 +155,7 @@ export const TokenPickerContent = () => {
       ])
       return { availability, resolvedSetAsPrimary }
     },
-    onSuccess: ({ availability, resolvedSetAsPrimary }) => {
+    onSuccess: async ({ availability, resolvedSetAsPrimary }) => {
       if (!pricingQuery.data || !selectedToken) return
 
       if (!availability.isAvailable) {
@@ -164,7 +167,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      startRegistration(resolvedSetAsPrimary)
+      await startRegistration(resolvedSetAsPrimary)
     },
   })
 
