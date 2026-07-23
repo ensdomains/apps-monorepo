@@ -225,8 +225,7 @@ export const GeneralTab = ({
                   <LinkIcon className="size-3.5 shrink-0 text-current" />
                 ) : (
                   <MSymbol
-                    className="shrink-0 text-current"
-                    style={{ fontSize: 14 }}
+                    className="shrink-0 text-current text-[14px] ms-wght-400"
                     symbol={shortcut.symbol}
                   />
                 )

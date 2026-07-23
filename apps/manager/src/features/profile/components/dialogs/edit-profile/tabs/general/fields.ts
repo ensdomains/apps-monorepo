@@ -4,13 +4,13 @@ import { validateUrl } from '@/features/profile/utils/validateUrl'
 
 type ShortcutIcon =
   | {
-      readonly symbol: MaterialSymbol
-      readonly icon?: never
-    }
+    readonly symbol: MaterialSymbol
+    readonly icon?: never
+  }
   | {
-      readonly icon: 'link'
-      readonly symbol?: never
-    }
+    readonly icon: 'link'
+    readonly symbol?: never
+  }
 
 type GeneralShortcut = {
   readonly field: string
@@ -20,7 +20,7 @@ type GeneralShortcut = {
 export const generalShortcuts = [
   { field: 'avatar', label: 'Profile picture', symbol: 'face' },
   { field: 'header', label: 'Banner', symbol: 'wall_art' },
-  { field: 'url', label: 'Custom link', icon: 'link' },
+  { field: 'url', label: 'Custom link', symbol: 'link' },
   { field: 'description', label: 'Description', symbol: 'text_ad' },
   { field: 'name', label: 'Full name', symbol: 'badge' },
   { field: 'location', label: 'Location', symbol: 'add_location_alt' },
