@@ -2145,7 +2145,7 @@ msgid "Set reverse record to show your name"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Set up a resolver on the explorer"
+msgid "Set up & Set as Primary"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
@@ -2178,6 +2178,10 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Setting up resolver"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Setting up resolver..."
 msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts
@@ -2474,6 +2478,10 @@ msgstr ""
 msgid "This name can’t be edited"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you — you may need to confirm an extra transaction."
+msgstr ""
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr ""
@@ -2488,10 +2496,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
-msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "This name still uses a resolver you don’t control, so its records can’t be updated from this wallet. Set up your own resolver for this name first, then set it as your primary name."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx

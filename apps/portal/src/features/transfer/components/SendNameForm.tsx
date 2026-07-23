@@ -1,11 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Info } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
@@ -52,9 +60,10 @@ export const SendNameForm = ({
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<TransferOptions>({
-    resetResolver: false,
-    resetRegistry: false,
+    resetResolver: true,
+    resetRegistry: true,
   })
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   // `useNameResolverAddress` already maps empty/zero → null, so a truthy check is
   // enough. `getNameRegistries` returns the name's own subregistry at [0] (or the
@@ -95,12 +104,30 @@ export const SendNameForm = ({
 
   const canStart = hasValidRecipient && !isResolving && !isPreparing
 
+  const keepsResolver = optionIsVisible.resetResolver && !options.resetResolver
+  const keepsRegistry = optionIsVisible.resetRegistry && !options.resetRegistry
+  const needsConfirmation = keepsResolver || keepsRegistry
+
   const toggleOption = (key: keyof TransferOptions) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
-  const handleStart = () => {
+  const runTransfer = () => {
     if (!recipient) return
     startTransfer({ recipient, options: effectiveOptions })
+  }
+
+  const handleStart = () => {
+    if (!recipient) return
+    if (needsConfirmation) {
+      setConfirmOpen(true)
+      return
+    }
+    runTransfer()
+  }
+
+  const handleConfirmProceed = () => {
+    setConfirmOpen(false)
+    runTransfer()
   }
 
   return (
@@ -120,61 +147,22 @@ export const SendNameForm = ({
           onChange={setRecipientInput}
           resolution={resolution}
           className="h-9"
-          resolvedContent={match({ recipient, isSelf, isZeroAddress })
-            .with({ isSelf: true }, () => (
-              <p className="text-sm mt-1.5 text-destructive">
-                The recipient already owns this name.
-              </p>
-            ))
-            .with({ isZeroAddress: true }, () => (
-              <p className="text-sm mt-1.5 text-destructive">
-                Can’t transfer to the zero address.
-              </p>
-            ))
-            .with({ recipient: P.nonNullable }, ({ recipient }) => (
-              <RecipientPreview address={recipient} />
-            ))
-            .otherwise(() => null)}
+          resolvedContent={
+            <RecipientResolvedContent
+              recipient={recipient}
+              isSelf={isSelf}
+              isZeroAddress={isZeroAddress}
+            />
+          }
         />
       </div>
 
       {hasValidRecipient && (
-        <Alert>
-          <Info className="size-4" />
-          <AlertDescription>
-            After the transfer, the recipient must set up their own resolver on
-            this name before they can manage its records or use it as their
-            primary name. Records set with your resolver don’t carry over to the
-            new owner.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {hasValidRecipient && visibleOptions.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {visibleOptions.map((option) => (
-            <label
-              key={option.key}
-              htmlFor={`transfer-option-${option.key}`}
-              className="flex items-start justify-between gap-3 cursor-pointer"
-            >
-              <span className="flex flex-col">
-                <span className="text-foreground font-medium">
-                  {option.label}
-                </span>
-                <span className="text-muted-foreground text-sm">
-                  {option.description}
-                </span>
-              </span>
-              <Switch
-                id={`transfer-option-${option.key}`}
-                checked={options[option.key]}
-                onCheckedChange={() => toggleOption(option.key)}
-                className="mt-1 shrink-0"
-              />
-            </label>
-          ))}
-        </div>
+        <TransferResetOptions
+          options={options}
+          visibleOptions={visibleOptions}
+          onToggle={toggleOption}
+        />
       )}
 
       <Button
@@ -190,10 +178,143 @@ export const SendNameForm = ({
         <span className="text-destructive text-sm">{prepError.message}</span>
       )}
 
+      <TransferConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        keepsResolver={keepsResolver}
+        keepsRegistry={keepsRegistry}
+        onConfirm={handleConfirmProceed}
+      />
+
       <TransactionModal transactions={transactions} />
     </div>
   )
 }
+
+const TransferResetOptions = ({
+  options,
+  visibleOptions,
+  onToggle,
+}: {
+  readonly options: TransferOptions
+  readonly visibleOptions: readonly OptionConfig[]
+  readonly onToggle: (key: keyof TransferOptions) => void
+}) => {
+  if (visibleOptions.length === 0) return null
+
+  return (
+    <div className="flex flex-col gap-3">
+      {visibleOptions.map((option) => (
+        <label
+          key={option.key}
+          htmlFor={`transfer-option-${option.key}`}
+          className="flex items-start justify-between gap-3 cursor-pointer"
+        >
+          <span className="flex flex-col">
+            <span className="text-foreground font-medium">{option.label}</span>
+            <span className="text-muted-foreground text-sm">
+              {option.description}
+            </span>
+          </span>
+          <Switch
+            id={`transfer-option-${option.key}`}
+            checked={options[option.key]}
+            onCheckedChange={() => onToggle(option.key)}
+            className="mt-1 shrink-0"
+          />
+        </label>
+      ))}
+    </div>
+  )
+}
+
+const RecipientResolvedContent = ({
+  recipient,
+  isSelf,
+  isZeroAddress,
+}: {
+  readonly recipient: Address | null
+  readonly isSelf: boolean
+  readonly isZeroAddress: boolean
+}) =>
+  match({ recipient, isSelf, isZeroAddress })
+    .with({ isSelf: true }, () => (
+      <p className="text-sm mt-1.5 text-destructive">
+        The recipient already owns this name.
+      </p>
+    ))
+    .with({ isZeroAddress: true }, () => (
+      <p className="text-sm mt-1.5 text-destructive">
+        Can’t transfer to the zero address.
+      </p>
+    ))
+    .with({ recipient: P.nonNullable }, ({ recipient }) => (
+      <RecipientPreview address={recipient} />
+    ))
+    .otherwise(() => null)
+
+const TransferConfirmDialog = ({
+  open,
+  onOpenChange,
+  keepsResolver,
+  keepsRegistry,
+  onConfirm,
+}: {
+  readonly open: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly keepsResolver: boolean
+  readonly keepsRegistry: boolean
+  readonly onConfirm: () => void
+}) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-lg">
+      <DialogHeader>
+        <DialogTitle>Transfer without resetting?</DialogTitle>
+        <DialogDescription>
+          You’ve chosen to leave{' '}
+          {match({ keepsResolver, keepsRegistry })
+            .with({ keepsResolver: true, keepsRegistry: true }, () => (
+              <>this name’s resolver and registry</>
+            ))
+            .with({ keepsResolver: true }, () => <>this name’s resolver</>)
+            .otherwise(() => (
+              <>this name’s registry</>
+            ))}{' '}
+          in place. Before you continue, note that:
+        </DialogDescription>
+      </DialogHeader>
+
+      <ul className="flex flex-col gap-2 text-sm text-muted-foreground list-disc pl-5">
+        <li>
+          You may keep permission to edit this name’s records after the
+          transfer, since {keepsResolver ? 'the resolver' : 'the registry'}{' '}
+          stays under your control.
+        </li>
+        <li>
+          The recipient may need to deploy their own{' '}
+          {match({ keepsResolver, keepsRegistry })
+            .with({ keepsResolver: true, keepsRegistry: true }, () => (
+              <>resolver and registry</>
+            ))
+            .with({ keepsResolver: true }, () => <>resolver</>)
+            .otherwise(() => (
+              <>registry</>
+            ))}{' '}
+          before they can edit records or set this name as their primary name.
+        </li>
+      </ul>
+
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          Back
+        </Button>
+        <Button variant="default" onClick={onConfirm}>
+          Transfer anyway
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+)
 
 const RecipientPreview = ({ address }: { address: Address }) => {
   const { data: primaryName, isLoading } = useQuery(
