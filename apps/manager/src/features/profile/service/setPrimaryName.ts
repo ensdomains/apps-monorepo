@@ -12,6 +12,7 @@ import {
 import {
   type Address,
   encodeFunctionData,
+  isAddressEqual,
   type PublicClient,
   type WalletClient,
 } from 'viem'
@@ -132,6 +133,19 @@ export async function setPrimaryName(
 ): Promise<void> {
   const { name, ownerAddress, walletClient, publicClient, chainId, onTxId } =
     params
+
+  // The wallet client and the owner address come from the account context
+  // separately and can momentarily diverge while the wallet reconnects or the
+  // user switches accounts. Sending from an address the wallet does not
+  // control would fail at the transport, so reject up front.
+  if (
+    walletClient.account &&
+    !isAddressEqual(walletClient.account.address, ownerAddress)
+  ) {
+    throw new Error(
+      'Cannot set primary name - the connected wallet does not control the owner address.',
+    )
+  }
 
   const signer: Signer = { type: 'eoa', walletClient }
 

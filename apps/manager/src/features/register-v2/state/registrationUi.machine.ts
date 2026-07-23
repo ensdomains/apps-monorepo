@@ -193,6 +193,13 @@ const machineSetup = setup({
       hasPrimaryNameForwardRemaining(context),
     hasPrimaryNameReverseRemaining: ({ context }) =>
       hasPrimaryNameReverseRemaining(context),
+    // Setup was requested but the owner wallet client is unavailable, so the
+    // primary-name legs can't be sent: surface the failure notice instead of
+    // silently reporting success.
+    primaryNameSetupUnavailable: ({ context }) =>
+      shouldSetPrimaryName(context) &&
+      !context.postRegistrationData?.walletClient &&
+      !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
     hasPrimaryNameTxId: ({ context }) => !!context.primaryNameTxId,
   },
@@ -624,6 +631,14 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                 {
                   guard: 'hasPrimaryNameReverseRemaining',
                   target: 'settingPrimaryNameReverse',
+                },
+                {
+                  guard: 'primaryNameSetupUnavailable',
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'markPostRegistrationSetupFailed',
+                  ],
                 },
                 {
                   target: 'success',

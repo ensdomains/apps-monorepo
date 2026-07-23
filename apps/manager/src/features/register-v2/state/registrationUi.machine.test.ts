@@ -370,6 +370,26 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
   })
 
+  it('marks setup failed when the owner wallet client is missing', async () => {
+    // Setup was requested but the primary-name legs can't be sent without the
+    // owner wallet: registration still succeeds, with the failure notice.
+    const noWalletAccount = {
+      ...eoaAccount,
+      walletClient: null,
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(noWalletAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush()
+
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
   it('completes successfully when the primary-name transaction is rejected', async () => {
     // Regression: rejecting the primary-name wallet transaction must not fail
     // the (already successful) registration or loop.

@@ -75,6 +75,24 @@ describe('setPrimaryName', () => {
     expect(reverseSigner).toEqual({ type: 'eoa', walletClient })
   })
 
+  it('rejects when the wallet client controls a different account', async () => {
+    const walletClient = {
+      account: { address: '0x4444444444444444444444444444444444444444' },
+    } as unknown as WalletClient
+
+    await expect(
+      setPrimaryName({
+        name: 'leon',
+        ownerAddress: EOA_OWNER,
+        walletClient,
+        publicClient,
+        chainId: CHAIN_ID,
+      }),
+    ).rejects.toThrow(/does not control the owner address/)
+
+    expect(start).not.toHaveBeenCalled()
+  })
+
   it('waits for the forward leg before submitting the reverse leg', async () => {
     const order: string[] = []
     start.mockImplementation((() => {
