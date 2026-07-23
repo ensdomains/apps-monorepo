@@ -6,16 +6,10 @@
         "decimals": 18
       },
       "USDC": {
-        "address": "0x3dfc8b53dafa5ebbb071a8b97678ab534ed838d9",
+        "address": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
         "decimals": 6,
-        "balanceSlot": 0,
-        "approvalSlot": 1
-      },
-      "DAI": {
-        "address": "0xe915cebbc1570a74177b6c589fed1e8f53117559",
-        "decimals": 18,
-        "balanceSlot": 0,
-        "approvalSlot": 1
+        "balanceSlot": 9,
+        "approvalSlot": 10
       }
     }
   }
