@@ -21,7 +21,10 @@ import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
-import { ProfileViewNewActions } from './ProfileViewNewActions'
+import {
+  ProfileViewNewActions,
+  ProfileViewNewMobileActions,
+} from './ProfileViewNewActions'
 import { ProfileViewNewBanner } from './ProfileViewNewBanner'
 import { ProfileViewNewCards } from './ProfileViewNewCards'
 import { ProfileViewNewHeader } from './ProfileViewNewHeader'
@@ -123,6 +126,8 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']
+  const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
+  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
 
   return (
     <div
@@ -144,7 +149,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         <ProfileViewNewGracePeriodBanner
           className="absolute inset-x-4 top-24.5 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
           expiry={expiry}
-          isOwner={isOwnerPending ? undefined : isOwner}
+          isOwner={resolvedIsOwner}
           name={name}
         />
         <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
@@ -157,13 +162,22 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
             <ProfileViewNewGracePeriodBanner
               className="mb-6 lg:landscape:hidden"
               expiry={expiry}
-              isOwner={isOwnerPending ? undefined : isOwner}
+              isOwner={resolvedIsOwner}
               name={name}
             />
             <ProfileViewNewHeader
               avatarLoading={false}
               avatarUrl={avatarUrl}
               displayExpiryDate={expiry.displayExpiryDate}
+              hasMobileStatusBanner={hasMobileStatusBanner}
+              mobileActions={
+                <ProfileViewNewMobileActions
+                  avatarUrl={avatarUrl}
+                  isOwner={resolvedIsOwner}
+                  name={name}
+                  url={getProfileUrl(name)}
+                />
+              }
               name={name}
               owner={owner}
               ownerReverseName={ownerReverseName.data}
@@ -181,8 +195,9 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         </div>
         <ProfileViewNewActions
           avatarUrl={avatarUrl}
+          hasMobileStatusBanner={hasMobileStatusBanner}
           isInGrace={expiry.isInGrace}
-          isOwner={isOwnerPending ? undefined : isOwner}
+          isOwner={resolvedIsOwner}
           name={name}
           onUpdated={refetchRecords}
           owner={owner}
