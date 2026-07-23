@@ -1,35 +1,39 @@
 import { Trans } from '@lingui/react/macro'
 import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
-import { match, P } from 'ts-pattern'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
-import { GracePeriodBanner } from '@/features/grace/components/GracePeriodBanner'
-import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
-import { useSmartAccountContext } from '@/lib/smart-account'
-import { sectionsList } from '../../data/records'
+import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
+import {
+  buildNameAvatarUrl,
+  buildNameHeaderUrl,
+} from '@/features/profile/service/profileAvatar'
 import {
   getProfileExpiryResultStatus,
   profileExpiryQuery,
-} from '../../service/profileExpiry'
-import { profileOwnerQuery } from '../../service/profileOwner'
-import { profileRecordsQuery } from '../../service/profileRecords'
-import { getThemeVars } from '../../utils/themeColor'
-import { transformProfileRecords } from '../../utils/transformRecords'
-import { EditProfileDialog } from '../dialogs/edit-profile/EditProfileDialog'
-import { ProfileViewNew } from '../view-new/ProfileViewNew'
-import { isConnectedProfileOwner } from './ProfileView.helpers'
-import { ViewBioSection } from './ViewBioSection'
-import { ViewCryptoSection } from './ViewCryptoSection'
-import { ViewDynamicSection } from './ViewDynamicSection'
-import { ViewHeaderSection } from './ViewHeaderSection'
-import { ViewLinksSection } from './ViewLinksSection'
+} from '@/features/profile/service/profileExpiry'
+import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
+import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
+import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
+import { getThemeVars } from '@/features/profile/utils/themeColor'
+import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import { useSmartAccountContext } from '@/lib/smart-account'
+import { ProfileActions, ProfileMobileActions } from './ProfileActions'
+import { ProfileBanner } from './ProfileBanner'
+import { ProfileCards } from './ProfileCards'
+import { ProfileHeader } from './ProfileHeader'
+import { ProfileLoading } from './ProfileLoading'
+import {
+  ProfileGracePeriodBanner,
+  ProfileMigrationBanner,
+} from './ProfileStatusBanners'
+import { ProfileThemeColorProvider } from './ProfileThemeColor'
 
-interface ProfileViewProps {
-  name: string
-  profileViewNewEnabled?: boolean
+type ProfileViewProps = {
+  readonly name: string
 }
 
 type UseIsOwnerParams = {
@@ -49,18 +53,14 @@ const useIsOwner = ({ owner }: UseIsOwnerParams) => {
   })
 }
 
-export const ProfileView = ({
-  name,
-  profileViewNewEnabled = false,
-}: ProfileViewProps) => {
-  return profileViewNewEnabled ? (
-    <ProfileViewNew name={name} />
-  ) : (
-    <ProfileViewCurrent name={name} />
-  )
-}
+const getProfileUrl = (name: string) =>
+  `${
+    typeof window === 'undefined'
+      ? 'https://app.ens.domains'
+      : window.location.origin
+  }/p/${name}`
 
-const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
+export const ProfileView = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
@@ -82,36 +82,20 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
   } = useQuery({
     ...profileExpiryQuery(name, ownerData?.protocol),
   })
-  const expiry = getProfileExpiryResultStatus(expiryData)
-
-  const owner = ownerData?.owner as Address | undefined
-  const profileThemeColor = expiry.isInGrace
-    ? undefined
-    : themeVars['--theme-color']
-
-  const isOwner = useIsOwner({
-    owner,
+  const registration = useQuery({
+    ...profileRegistrationQuery(name, ownerData?.protocol),
   })
 
-  const gracePeriodBanner = match(expiry)
-    .with(
-      { isInGrace: true, graceEndDate: P.not(P.nullish) },
-      ({ graceEndDate }) =>
-        isOwnerPending ? null : (
-          <GracePeriodBanner
-            graceEndDate={graceEndDate}
-            renewName={name}
-            variant={isOwner ? 'profileOwnName' : 'profileNotOwnedName'}
-          />
-        ),
-    )
-    .otherwise(() => null)
-
-  // Registry ownerOf is zero when expired; expiry distinguishes v2 grace from missing.
+  const expiry = getProfileExpiryResultStatus(expiryData)
+  const owner = ownerData?.owner as Address | undefined
+  const ownerReverseName = useQuery({
+    ...profileReverseNameQuery(owner),
+  })
+  const isOwner = useIsOwner({ owner })
   const ownerMissing = !isOwnerPending && !ownerData?.owner
 
   if (ownerMissing && isExpiryPending) {
-    return <ProfileLoading />
+    return <ProfileLoading name={name} />
   }
 
   if (ownerMissing && isExpiryError) {
@@ -127,57 +111,97 @@ const ProfileViewCurrent = ({ name }: ProfileViewProps) => {
     )
   }
 
+  const avatarUrl = expiry.isInGrace ? undefined : buildNameAvatarUrl(name)
+  const headerUrl =
+    expiry.isInGrace || !records.base.header?.trim()
+      ? undefined
+      : buildNameHeaderUrl(name)
+  const defaultHeaderUrl = getDefaultHeaderCover({
+    isInGrace: expiry.isInGrace,
+    themeColor: records.base.theme,
+  })
+  const profileThemeColor = expiry.isInGrace
+    ? undefined
+    : themeVars['--theme-color']
+  const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
+  const resolvedIsOwner = isOwnerPending ? undefined : isOwner
+
   return (
     <div
-      className="mx-auto mb-12 w-full max-w-7xl space-y-4 pt-4 md:w-[calc(100%-4rem)]"
-      style={expiry.isInGrace ? undefined : themeVars}
+      className="relative -mt-13.5 min-h-screen bg-[#FCFBFB] pb-[calc(117px+env(safe-area-inset-bottom,0))] lg:landscape:-mt-20 lg:landscape:pb-28.5"
+      style={expiry.isInGrace ? undefined : (themeVars as React.CSSProperties)}
     >
-      {migrationEnabled && <UpgradeBanner profileName={name} />}
-      <div className="relative">
-        {gracePeriodBanner ? (
-          <div className="mb-4 md:absolute md:inset-x-4 md:top-4 md:z-10 md:mb-0">
-            {gracePeriodBanner}
-          </div>
-        ) : null}
-        <ViewHeaderSection
-          hasHeader={Boolean(records.base.header?.trim())}
-          isInGrace={expiry.isInGrace}
-          isOwner={isOwnerPending ? undefined : isOwner}
+      <ProfileThemeColorProvider value={profileThemeColor}>
+        <ProfileBanner
+          defaultHeaderUrl={defaultHeaderUrl}
+          headerLoading={false}
+          headerUrl={headerUrl}
           name={name}
-          owner={owner}
-          themeColor={profileThemeColor}
         />
-      </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-        {/* Left/main column */}
-        <div className="space-y-4 md:col-span-7 lg:col-span-8">
-          <ViewBioSection records={records} />
-          {sectionsList.map((section) => (
-            <ViewDynamicSection
-              key={section}
-              records={records}
-              section={section}
+        <ProfileMigrationBanner
+          className="absolute inset-x-4 top-32 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
+          isMigrationEnabled={migrationEnabled}
+          name={name}
+        />
+        <ProfileGracePeriodBanner
+          className="absolute inset-x-4 top-24.5 z-20 mx-auto hidden max-w-275.5 lg:landscape:block"
+          expiry={expiry}
+          isOwner={resolvedIsOwner}
+          name={name}
+        />
+        <div className="relative z-10 mx-auto -mt-21 w-full max-w-97.5 space-y-0 lg:landscape:-mt-11.25 lg:landscape:max-w-226.25">
+          <div>
+            <ProfileMigrationBanner
+              className="mb-6 lg:landscape:hidden"
+              isMigrationEnabled={migrationEnabled}
+              name={name}
             />
-          ))}
-        </div>
-
-        {/* Right/side column */}
-        <div className="space-y-4 md:col-span-5 lg:col-span-4">
-          <ViewCryptoSection records={records} />
-          <ViewLinksSection records={records} />
-
-          {isOwner && !expiry.isInGrace && (
-            <div className="space-y-2">
-              <EditProfileDialog
+            <ProfileGracePeriodBanner
+              className="mb-6 lg:landscape:hidden"
+              expiry={expiry}
+              isOwner={resolvedIsOwner}
+              name={name}
+            />
+            <ProfileHeader
+              avatarLoading={false}
+              avatarUrl={avatarUrl}
+              displayExpiryDate={expiry.displayExpiryDate}
+              hasMobileStatusBanner={hasMobileStatusBanner}
+              mobileActions={
+                <ProfileMobileActions
+                  avatarUrl={avatarUrl}
+                  isOwner={resolvedIsOwner}
+                  name={name}
+                  url={getProfileUrl(name)}
+                />
+              }
+              name={name}
+              owner={owner}
+              ownerReverseName={ownerReverseName.data}
+              records={records}
+              registrationDate={registration.data?.registrationDate}
+            />
+            <div className="space-y-0">
+              <ProfileCards
+                avatarUrl={avatarUrl}
                 name={name}
-                onUpdated={refetchRecords}
-                owner={owner}
                 records={records}
               />
             </div>
-          )}
+          </div>
         </div>
-      </div>
+        <ProfileActions
+          avatarUrl={avatarUrl}
+          hasMobileStatusBanner={hasMobileStatusBanner}
+          isInGrace={expiry.isInGrace}
+          isOwner={resolvedIsOwner}
+          name={name}
+          onUpdated={refetchRecords}
+          owner={owner}
+          records={records}
+          url={getProfileUrl(name)}
+        />
+      </ProfileThemeColorProvider>
     </div>
   )
 }
