@@ -145,10 +145,7 @@ export const EstimatedGasCost = ({
             () =>
               "This step's cost is estimated once it starts — it can't be worked out ahead of time.",
           )
-          .with(
-            { hasReadyWallet: false },
-            () => 'Connect your wallet on Sepolia to see the estimate.',
-          )
+          .with({ hasReadyWallet: false }, () => 'Connect your wallet')
           .otherwise(() => 'Preparing the estimate…')}
       />
     ))
