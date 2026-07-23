@@ -17,20 +17,20 @@ import {
 } from '@/lib/smart-account'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { hasInsufficientBalance } from '@/utils/payment'
-import {
-  durationForName,
-  newExpirySeconds,
-  PRESETS,
-  USDC,
-  yearsToSeconds,
-} from './pricing'
 import type {
   BulkRenewName,
   PresetSummary,
   RenewItem,
   Selection,
   SummaryRow,
-} from './types'
+} from '../types'
+import {
+  durationForName,
+  newExpirySeconds,
+  PRESETS,
+  USDC,
+  yearsToSeconds,
+} from '../utils/pricing'
 
 type BulkRenewPayment = {
   readonly isConnected: boolean

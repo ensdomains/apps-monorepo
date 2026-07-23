@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { cn } from '@/lib/utils'
-import { formatUsdAmount, PRESETS } from './pricing'
-import type { PresetSummary, Selection } from './types'
+import type { PresetSummary, Selection } from '../types'
+import { formatUsdAmount, PRESETS } from '../utils/pricing'
 
 /** The 1yr / 3yr / 6yr duration cards on the summary step. */
 export const DurationPresets = ({

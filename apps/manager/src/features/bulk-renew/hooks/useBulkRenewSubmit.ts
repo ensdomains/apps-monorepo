@@ -16,7 +16,7 @@ import type { Address } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
-import type { BulkRenewPhase, RenewItem, RowStatus } from './types'
+import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
 
 // How long to hold the completed progress bar before showing the success view.
 const SETTLE_MS = 600

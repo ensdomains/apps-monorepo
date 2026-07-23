@@ -1,6 +1,6 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
-import type { Selection } from './types'
+import type { Selection } from '../types'
 
 /** Renewals are paid in stablecoins; USDC is the display/default coin. */
 export const USDC = TOKENS.USDC

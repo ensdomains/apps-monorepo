@@ -2,9 +2,9 @@ import { Trans } from '@lingui/react/macro'
 import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type { RowStatus, SummaryRow } from '../types'
 import { BeadProgressBar } from './BeadProgressBar'
 import { NamesBreakdown } from './NamesBreakdown'
-import type { RowStatus, SummaryRow } from './types'
 
 /** In-progress view: bead progress bar + the names breakdown + busy button. */
 export const RenewingStep = ({

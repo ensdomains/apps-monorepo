@@ -1,9 +1,9 @@
 import { Trans } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { ArrowRight } from 'lucide-react'
+import type { SummaryRow } from '../types'
+import { formatUsdAmount } from '../utils/pricing'
 import { NameAvatar } from './NameAvatar'
-import { formatUsdAmount } from './pricing'
-import type { SummaryRow } from './types'
 
 /** Scrollable per-name list of expiry ranges + subtotals, with a pinned total. */
 export const NamesBreakdown = ({

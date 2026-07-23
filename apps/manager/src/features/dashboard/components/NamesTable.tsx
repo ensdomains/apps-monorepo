@@ -8,10 +8,7 @@ import { match } from 'ts-pattern'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
-import {
-  BulkRenewDialog,
-  type BulkRenewName,
-} from '@/features/renew/components/BulkRenewDialog'
+import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
 import { isRenewableV2Domain } from '@/features/renew/utils/renewableName'
 import { isBackendAuthed } from '@/utils/backend-client'
 import {

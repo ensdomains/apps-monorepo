@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import type { Selection } from '../types'
 import {
   durationForName,
   formatUsdAmount,
   newExpirySeconds,
   yearsToSeconds,
 } from './pricing'
-import type { Selection } from './types'
 
 const YEAR = yearsToSeconds(1) // 365.25-day year → 31_557_600s
 const YEAR_S = BigInt(YEAR) // same, as on-chain bigint seconds

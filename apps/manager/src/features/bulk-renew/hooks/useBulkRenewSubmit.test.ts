@@ -2,7 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { RenewItem } from './types'
+import type { RenewItem } from '../types'
 
 // Mocked transaction-manager actors + app singletons. Declared via vi.hoisted so
 // the vi.mock factories below can reference them.

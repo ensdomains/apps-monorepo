@@ -2,9 +2,9 @@ import { Trans } from '@lingui/react/macro'
 import { Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type { SummaryRow } from '../types'
 import { BeadProgressBar } from './BeadProgressBar'
 import { NamesBreakdown } from './NamesBreakdown'
-import type { SummaryRow } from './types'
 
 /** Terminal success view: green check + title + full bead bar + receipt. */
 export const SuccessStep = ({

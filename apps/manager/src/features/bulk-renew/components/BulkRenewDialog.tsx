@@ -12,6 +12,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { useBulkRenew } from '../hooks/useBulkRenew'
+import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
+import type { BulkRenewName, Selection } from '../types'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
 import { NamesBreakdown } from './NamesBreakdown'
@@ -19,9 +22,6 @@ import { PaymentMethodSection } from './PaymentMethodSection'
 import { RenewingStep } from './RenewingStep'
 import { RenewToDatePopover } from './RenewToDatePopover'
 import { SuccessStep } from './SuccessStep'
-import type { BulkRenewName, Selection } from './types'
-import { useBulkRenew } from './useBulkRenew'
-import { useBulkRenewSubmit } from './useBulkRenewSubmit'
 
 const dialogTitleClassName =
   'text-left font-normal font-sans text-ens-quartz-900 text-xl tracking-[-0.4px]'

@@ -8,7 +8,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import type { Selection } from './types'
+import type { Selection } from '../types'
 
 /**
  * "Renew to date instead" link + calendar. The calendar jumps to and is bounded
