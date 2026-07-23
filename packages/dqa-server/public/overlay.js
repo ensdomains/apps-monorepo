@@ -161,6 +161,13 @@
       .picker-item .pid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); flex-shrink: 0; }
       .picker-item .pt { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .picker-empty { font-size: 12px; color: var(--muted); padding: 10px 4px; }
+      .search-row { position: relative; }
+      .search-row .picker-search { padding-right: 28px; }
+      .search-spin { position: absolute; right: 9px; top: 50%; margin-top: -6px; width: 12px; height: 12px;
+        border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%;
+        animation: dqa-spin .7s linear infinite; }
+      @keyframes dqa-spin { to { transform: rotate(360deg); } }
+      .picker-more { font-size: 11px; color: var(--muted); padding: 8px; text-align: center; }
       .opt { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
       .opt input { margin: 0; cursor: pointer; }
       .hint { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); pointer-events: none;
@@ -1814,7 +1821,10 @@
             <option value="4">Low</option>
           </select>
         </div>
-        <input class="picker-search" placeholder="Search tickets…" aria-label="Search tickets" />
+        <div class="search-row">
+          <input class="picker-search" placeholder="Search tickets…" aria-label="Search tickets" />
+          <span class="search-spin" style="display:none" aria-hidden="true"></span>
+        </div>
         <div class="picker-list" style="margin-top:0"><div class="picker-empty">Loading…</div></div>
       </div>
       </div>
@@ -1852,12 +1862,29 @@
       openThread(c, resolveAnchor(c.anchor))
     const def = body.querySelector('[data-act="default"]')
     if (def) def.onclick = () => sendToLinear(c, ISSUE_REF, opts())
-    let t
-    async function load(term) {
+    const spin = body.querySelector('.search-spin')
+    let debounceT
+    let seq = 0 // ignore stale responses (fast typing)
+    let nextCursor = null
+    let currentTerm = ''
+    let inflight = false
+    function rowFor(it) {
+      const row = document.createElement('div')
+      row.className = 'picker-item'
+      row.innerHTML = `<span class="pid">${esc(it.identifier)}</span><span class="pt">${esc(it.title)}</span>`
+      row.onclick = () => sendToLinear(c, it.identifier, opts())
+      return row
+    }
+    async function load(term, after) {
+      const mySeq = ++seq
+      inflight = true
+      spin.style.display = ''
+      if (!after) nextCursor = null
       try {
         const res = await api(
-          `/api/linear/issues?term=${encodeURIComponent(term || '')}`,
+          `/api/linear/issues?term=${encodeURIComponent(term || '')}${after ? `&after=${encodeURIComponent(after)}` : ''}`,
         )
+        if (mySeq !== seq) return // superseded by a newer search
         if (
           !res.ok ||
           !(res.headers.get('content-type') || '').includes('json')
@@ -1866,30 +1893,51 @@
           return
         }
         const data = await res.json()
+        if (mySeq !== seq) return
         if (data.dev) {
           list.innerHTML = `<div class="picker-empty">Dev mode — sign in with Linear to list tickets.</div>`
           return
         }
         const issues = data.issues || []
-        if (!issues.length) {
+        if (after) {
+          const more = list.querySelector('.picker-more')
+          if (more) more.remove()
+        } else if (!issues.length) {
           list.innerHTML = `<div class="picker-empty">No tickets found.</div>`
           return
+        } else {
+          list.innerHTML = ''
         }
-        list.innerHTML = ''
-        issues.forEach((it) => {
-          const row = document.createElement('div')
-          row.className = 'picker-item'
-          row.innerHTML = `<span class="pid">${esc(it.identifier)}</span><span class="pt">${esc(it.title)}</span>`
-          row.onclick = () => sendToLinear(c, it.identifier, opts())
-          list.appendChild(row)
-        })
+        issues.forEach((it) => list.appendChild(rowFor(it)))
+        nextCursor = data.nextCursor || null
+        if (nextCursor) {
+          const more = document.createElement('div')
+          more.className = 'picker-more'
+          more.textContent = 'Scroll for more…'
+          list.appendChild(more)
+        }
       } catch (e) {
-        list.innerHTML = `<div class="picker-empty">Error: ${esc(e.message)}</div>`
+        if (mySeq === seq)
+          list.innerHTML = `<div class="picker-empty">Error: ${esc(e.message)}</div>`
+      } finally {
+        if (mySeq === seq) {
+          spin.style.display = 'none'
+          inflight = false
+        }
       }
     }
+    // Infinite scroll: fetch the next cursor page near the bottom.
+    list.addEventListener('scroll', () => {
+      if (!nextCursor || inflight) return
+      if (list.scrollTop + list.clientHeight >= list.scrollHeight - 60)
+        load(currentTerm, nextCursor)
+    })
     search.addEventListener('input', () => {
-      clearTimeout(t)
-      t = setTimeout(() => load(search.value.trim()), 250)
+      clearTimeout(debounceT)
+      debounceT = setTimeout(() => {
+        currentTerm = search.value.trim()
+        load(currentTerm)
+      }, 250)
     })
     search.focus()
     load('')

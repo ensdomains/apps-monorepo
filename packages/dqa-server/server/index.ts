@@ -515,8 +515,16 @@ app.get('/api/linear/issues', requireAuth, async (req, res) => {
   try {
     const userToken = decrypt(req.session.lt)
     const term = typeof req.query.term === 'string' ? req.query.term.trim() : ''
-    const issues = await searchIssues(term, userToken)
-    res.json({ issues, dev: !userToken })
+    const after =
+      typeof req.query.after === 'string' && req.query.after.length < 500
+        ? req.query.after
+        : null
+    const page = await searchIssues(term, userToken, after)
+    res.json({
+      issues: page.issues,
+      nextCursor: page.nextCursor,
+      dev: !userToken,
+    })
   } catch (e) {
     console.error('[linear] search', (e as Error).message)
     res.status(502).json({ error: (e as Error).message })

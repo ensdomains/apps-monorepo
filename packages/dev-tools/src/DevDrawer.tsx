@@ -44,7 +44,10 @@ import {
   subscribeDevToolsLayout,
 } from './layoutPreference'
 
-const TANSTACK_DEVTOOLS_OFFSET = 168 - 10
+// Sit left of the TanStack devtools button in dev. That widget is dev-only
+// (renders nothing in production builds), so in QA/PR-preview builds the
+// trigger docks hard-right instead of leaving a dead gap.
+const TANSTACK_DEVTOOLS_OFFSET = import.meta.env.DEV ? 168 - 10 : 10
 
 const ACTIVE_TAB_KEY = 'ens-devtools:active-tab'
 
