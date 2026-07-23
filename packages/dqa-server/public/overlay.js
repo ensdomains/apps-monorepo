@@ -778,6 +778,10 @@
     const parts = []
     let node = el
     let prefix = 'body > '
+    // True when the walk reached a stable-attr scope or <body> — i.e. the
+    // prefix genuinely anchors the path. Checking parts.length instead would
+    // wrongly strip a valid prefix when anchoring happens on the 20th segment.
+    let anchored = false
     while (
       node &&
       node.nodeType === 1 &&
@@ -797,14 +801,18 @@
       const scope = stableAttrSelector(parent)
       if (scope && parent !== document.body) {
         prefix = `${scope} > `
+        anchored = true
         break
       }
-      if (!parent || parent === document.body) break
+      if (!parent || parent === document.body) {
+        anchored = true
+        break
+      }
       node = parent
     }
     // Depth cap hit without reaching body/scope: drop the anchored prefix so
     // the (rare) truncated path can still match as a descendant selector.
-    if (parts.length >= 20) prefix = ''
+    if (!anchored) prefix = ''
     return {
       selector: prefix + parts.join(' > '),
       label: el.tagName.toLowerCase(),
