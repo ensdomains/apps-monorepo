@@ -4,6 +4,7 @@ import type {
   TransactionRequest,
 } from '@ens-apps/transaction-manager'
 import { type UseQueryResult, useQuery } from '@tanstack/react-query'
+import { useSelector } from '@xstate/react'
 import {
   BaseError,
   ContractFunctionRevertedError,
@@ -11,7 +12,7 @@ import {
   formatEther,
   type PublicClient,
 } from 'viem'
-import { usePublicClient } from 'wagmi'
+import { useEstimateFeesPerGas, usePublicClient } from 'wagmi'
 
 /**
  * The estimate's state, so callers can show honest UI:
@@ -50,7 +51,7 @@ const formatGasCost = (wei: bigint): string =>
  * revert should be shown to the user as "Unavailable"; a transient blip must not
  * claim the transaction would fail.
  */
-const isRevertError = (error: unknown): boolean =>
+export const isRevertError = (error: unknown): boolean =>
   error instanceof BaseError &&
   error.walk(
     (e) =>
@@ -66,7 +67,7 @@ const isRevertError = (error: unknown): boolean =>
  * surfacing "Unavailable" would be wrong. Transient errors still bubble up so
  * react-query can retry them.
  */
-const estimateGasForCall = async (
+export const estimateGasForCall = async (
   publicClient: PublicClient,
   eoa: EOATransactionRequest,
 ): Promise<bigint> => {
@@ -94,9 +95,9 @@ const estimateGasForCall = async (
  * failure (after retries) or a fee-lookup failure falls back to the neutral
  * `idle` hint so the UI neither lies about a revert nor hangs on "Estimating…".
  */
-const deriveStatus = (
+export const deriveStatus = (
   gasQuery: UseQueryResult<bigint>,
-  feeQuery: UseQueryResult<bigint>,
+  feeHasError: boolean,
   hasCost: boolean,
 ): GasEstimateStatus => {
   if (gasQuery.fetchStatus === 'idle' && gasQuery.status === 'pending') {
@@ -104,7 +105,7 @@ const deriveStatus = (
   }
   if (gasQuery.isError && isRevertError(gasQuery.error)) return 'error'
   if (hasCost) return 'success'
-  const hasUnrecoverableTransientError = gasQuery.isError || feeQuery.isError
+  const hasUnrecoverableTransientError = gasQuery.isError || feeHasError
   return hasUnrecoverableTransientError ? 'idle' : 'loading'
 }
 
@@ -123,9 +124,12 @@ export const useTransactionGasEstimate = (
   actor: TransactionMachineActor | undefined,
   fallbackRequest?: TransactionRequest,
 ): { cost: string | null; status: GasEstimateStatus } => {
-  const snapshot = actor?.getSnapshot()
-  const activeRequest = snapshot?.context.request
-  const receipt = snapshot?.context.receipt
+  // Read the machine reactively: `getSnapshot()` during render doesn't subscribe,
+  // so the hook would only re-run when some parent re-renders. `useSelector`
+  // subscribes to the actor and re-renders this hook when `request`/`receipt`
+  // actually change (it passes `undefined` to the selector when `actor` is).
+  const activeRequest = useSelector(actor, (s) => s?.context.request)
+  const receipt = useSelector(actor, (s) => s?.context.receipt)
   const candidate =
     activeRequest?.type === 'eoa' ? activeRequest : fallbackRequest
   const eoa = candidate?.type === 'eoa' ? candidate : null
@@ -135,15 +139,18 @@ export const useTransactionGasEstimate = (
   // target chain isn't in the wagmi config, so we never show a wrong-chain cost.
   const publicClient = usePublicClient({ chainId: eoa?.chainId })
 
-  const feeQuery = useQuery({
-    queryKey: ['tx-fee-per-gas', eoa?.chainId],
-    enabled: Boolean(publicClient) && eoa?.chainId !== undefined,
-    staleTime: PREVIEW_STALE_TIME,
-    refetchOnWindowFocus: false,
-    retry: MAX_TRANSIENT_RETRIES,
-    queryFn: (): Promise<bigint> => {
-      if (!publicClient) throw new Error('No public client')
-      return publicClient.getGasPrice()
+  // Price the estimate on the same fee model the transaction manager submits
+  // under: EIP-1559. `maxFeePerGas` is the per-gas ceiling the user could pay, so
+  // `gas * maxFeePerGas` is the honest upper-bound cost — not legacy
+  // `eth_gasPrice`, which prices a fee model we don't use. wagmi's hook already
+  // handles chain scoping, query keys and caching for us.
+  const feeQuery = useEstimateFeesPerGas({
+    chainId: eoa?.chainId,
+    query: {
+      enabled: Boolean(publicClient) && eoa?.chainId !== undefined,
+      staleTime: PREVIEW_STALE_TIME,
+      refetchOnWindowFocus: false,
+      retry: MAX_TRANSIENT_RETRIES,
     },
   })
 
@@ -190,9 +197,14 @@ export const useTransactionGasEstimate = (
   }
 
   const gas = gasQuery.data
-  const feePerGas = feeQuery.data
+  const maxFeePerGas = feeQuery.data?.maxFeePerGas
   const cost =
-    gas != null && feePerGas != null ? formatGasCost(gas * feePerGas) : null
+    gas != null && maxFeePerGas != null
+      ? formatGasCost(gas * maxFeePerGas)
+      : null
 
-  return { cost, status: deriveStatus(gasQuery, feeQuery, cost != null) }
+  return {
+    cost,
+    status: deriveStatus(gasQuery, feeQuery.isError, cost != null),
+  }
 }
