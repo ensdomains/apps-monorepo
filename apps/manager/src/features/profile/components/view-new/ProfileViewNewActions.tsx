@@ -16,6 +16,7 @@ import { ProfileViewNewShareAction } from './ProfileViewNewShareAction'
 
 type ProfileViewNewActionsProps = {
   readonly avatarUrl?: string
+  readonly hasMobileStatusBanner: boolean
   readonly isInGrace: boolean
   readonly isOwner?: boolean
   readonly name: string
@@ -51,6 +52,7 @@ export const ProfileViewNewMobileActions = ({
 
 export const ProfileViewNewActions = ({
   avatarUrl,
+  hasMobileStatusBanner,
   isInGrace,
   isOwner,
   name,
@@ -63,7 +65,7 @@ export const ProfileViewNewActions = ({
 
   return (
     <>
-      {isInGrace ? null : (
+      {hasMobileStatusBanner ? null : (
         <div className="absolute inset-x-0 top-118.5 z-30 lg:landscape:hidden">
           <div className="mx-auto w-full max-w-97.5 px-5">
             <ProfileViewNewMobileActions

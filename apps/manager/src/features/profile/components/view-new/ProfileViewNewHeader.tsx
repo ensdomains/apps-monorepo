@@ -12,7 +12,7 @@ type ProfileViewNewHeaderProps = {
   readonly avatarUrl?: string
   readonly avatarLoading: boolean
   readonly displayExpiryDate?: Date | null
-  readonly isInGrace?: boolean
+  readonly hasMobileStatusBanner?: boolean
   readonly mobileActions?: React.ReactNode
   readonly name: string
   readonly owner?: Address
@@ -25,7 +25,7 @@ export const ProfileViewNewHeader = ({
   avatarLoading,
   avatarUrl,
   displayExpiryDate,
-  isInGrace = false,
+  hasMobileStatusBanner = false,
   mobileActions,
   name,
   owner,
@@ -36,7 +36,7 @@ export const ProfileViewNewHeader = ({
   <div
     className={cn(
       'relative min-h-130.75 rounded-none bg-transparent shadow-none lg:landscape:min-h-0 lg:landscape:space-y-[21.7px] lg:landscape:px-8 lg:landscape:pt-0',
-      isInGrace ? 'pt-0' : 'pt-15.5',
+      hasMobileStatusBanner ? 'pt-0' : 'pt-15.5',
     )}
   >
     <ProfileViewNewAvatar
@@ -44,7 +44,7 @@ export const ProfileViewNewHeader = ({
       avatarUrl={avatarUrl}
       className={cn(
         'lg:landscape:hidden',
-        isInGrace
+        hasMobileStatusBanner
           ? 'mx-auto mb-6'
           : 'absolute -top-33 left-1/2 -translate-x-1/2',
       )}
@@ -52,7 +52,7 @@ export const ProfileViewNewHeader = ({
     />
     <div className="flex flex-col items-center lg:landscape:block lg:landscape:space-y-3.25">
       <ProfileViewNewNameBadge name={name} />
-      {isInGrace ? (
+      {hasMobileStatusBanner ? (
         <div className="mt-6 w-full px-5 lg:landscape:hidden">
           {mobileActions}
         </div>
@@ -60,7 +60,7 @@ export const ProfileViewNewHeader = ({
       <div
         className={cn(
           'w-full px-5 lg:landscape:mt-0 lg:landscape:px-0',
-          isInGrace ? 'mt-6' : 'mt-10',
+          hasMobileStatusBanner ? 'mt-6' : 'mt-10',
         )}
       >
         <ProfileViewNewDetails
@@ -75,7 +75,7 @@ export const ProfileViewNewHeader = ({
     <div
       className={cn(
         'flex flex-col gap-6 px-5 lg:landscape:mt-0 lg:landscape:flex-row lg:landscape:items-stretch lg:landscape:px-0',
-        isInGrace ? 'mt-6' : 'mt-29',
+        hasMobileStatusBanner ? 'mt-6' : 'mt-29',
       )}
     >
       <ProfileViewNewAvatar

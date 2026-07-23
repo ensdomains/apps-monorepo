@@ -126,6 +126,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
   const profileThemeColor = expiry.isInGrace
     ? undefined
     : themeVars['--theme-color']
+  const hasMobileStatusBanner = migrationEnabled || expiry.isInGrace
   const resolvedIsOwner = isOwnerPending ? undefined : isOwner
 
   return (
@@ -168,7 +169,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
               avatarLoading={false}
               avatarUrl={avatarUrl}
               displayExpiryDate={expiry.displayExpiryDate}
-              isInGrace={expiry.isInGrace}
+              hasMobileStatusBanner={hasMobileStatusBanner}
               mobileActions={
                 <ProfileViewNewMobileActions
                   avatarUrl={avatarUrl}
@@ -194,6 +195,7 @@ export const ProfileViewNew = ({ name }: ProfileViewNewProps) => {
         </div>
         <ProfileViewNewActions
           avatarUrl={avatarUrl}
+          hasMobileStatusBanner={hasMobileStatusBanner}
           isInGrace={expiry.isInGrace}
           isOwner={resolvedIsOwner}
           name={name}
