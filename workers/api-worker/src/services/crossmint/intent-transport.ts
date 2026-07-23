@@ -58,18 +58,26 @@ export function createIntentExecutor(env: CloudflareBindings) {
     return { account, initSig }
   }
 
-  return async function execWriteViaIntents(call: {
-    to: Address
-    data: Hex
-    leg: FulfilmentLeg
-  }): Promise<Hex> {
+  /**
+   * Execute one INTENT carrying one or more calls. Batching calls into a
+   * single intent is a first-order cost lever: the rail bills ~100k gas of
+   * intent machinery (fill wrapper + claim) PER INTENT on top of our calls
+   * (measured 2026-07-23: a 150k-limit quote bills as ~250k units at the
+   * orchestrator's own gas price), so every merged call saves one machinery
+   * unit. Calls execute in order and ATOMICALLY — the batch fully lands or
+   * fully reverts, which is what makes deploy+commit fusion retry-safe (no
+   * deploy-landed-but-commit-didn't partial states).
+   */
+  return async function execWriteViaIntents(
+    calls: Array<{ to: Address; data: Hex; leg: FulfilmentLeg }>,
+  ): Promise<Hex> {
     accountPromise ??= init()
     const { account, initSig } = await accountPromise
 
     const result = await account.sendTransaction({
       chain: sepolia,
       eip7702InitSignature: initSig,
-      calls: [{ to: call.to, value: 0n, data: call.data }],
+      calls: calls.map((c) => ({ to: c.to, value: 0n, data: c.data })),
       // tokenRequests MUST be the nominal 1n anchor. MEASURED (quote probe
       // 2026-07-23): the request amount does NOT price into the quote — it is
       // RESERVED from the account's balance ON TOP of the fee. Declaring a
@@ -80,11 +88,11 @@ export function createIntentExecutor(env: CloudflareBindings) {
       tokenRequests: [{ address: USDC_L1, amount: 1n }],
       feeAsset: 'USDC',
       sourceAssets: ['USDC'],
-      // The rail prices the fee on this LIMIT (measured: same call quotes
+      // The rail prices the fee on the LIMIT (measured: same call quotes
       // 1.10 @150k vs 2.64 @500k). Per-leg limits — shared with the buyer's
-      // fee quote via LEG_GAS_LIMITS — keep each leg's fee as tight as its
-      // real gas needs allow.
-      gasLimit: LEG_GAS_LIMITS[call.leg],
+      // fee quote via LEG_GAS_LIMITS — summed over the batch, keep the fee
+      // as tight as the batch's real gas needs allow.
+      gasLimit: calls.reduce((sum, c) => sum + LEG_GAS_LIMITS[c.leg], 0n),
     })
 
     const status = await account.waitForExecution(result)

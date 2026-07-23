@@ -13,11 +13,10 @@ import {
   authorizedPaymentAmount,
   burnVoucher,
   createServerWalletClient,
-  deployDedicatedResolver,
   getRegisterPriceTotal,
   PAYMENT_TOKENS,
   readMinCommitmentAge,
-  submitCommit,
+  submitCommitWithResolver,
   submitRegister,
   verifyRegistration,
 } from '#services/crossmint/fulfilment.js'
@@ -128,23 +127,29 @@ async function runCommitPhase(
   const resolver = order.resolver_address as Address
   const commitment = order.commitment as `0x${string}`
 
-  const deployedResolver = await deployDedicatedResolver(client, {
-    owner: buyer,
-    secret,
-    expectedResolver: resolver,
-    label: order.name,
-  })
-  // Belt-and-braces: the local commitment must equal the registrar's own
-  // makeCommitment for the exact tuple we're about to commit.
+  // Belt-and-braces BEFORE spending anything: the local commitment must
+  // equal the registrar's own makeCommitment for the exact tuple we're about
+  // to commit. Pure view over the PRECOMPUTED resolver address — needs no
+  // deployed code, so it runs ahead of the batch.
   await assertCommitmentMatchesChain(client, {
     label: order.name,
     owner: buyer,
     secret,
-    resolver: deployedResolver,
+    resolver,
     duration: BigInt(order.duration),
     expected: commitment,
   })
-  const commitTxHash = await submitCommit(client, commitment)
+  // Resolver deploy + commit as ONE batch (single intent on the intents
+  // transport): one machinery overhead instead of two, and atomic — no
+  // deploy-landed-but-commit-didn't retry states.
+  const { hash: commitTxHash, resolver: deployedResolver } =
+    await submitCommitWithResolver(client, {
+      owner: buyer,
+      secret,
+      expectedResolver: resolver,
+      label: order.name,
+      commitment,
+    })
   const minAge = await readMinCommitmentAge(client)
 
   await updateOrder(db, orderId, {

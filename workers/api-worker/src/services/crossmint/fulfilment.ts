@@ -116,6 +116,16 @@ export type ServerWalletClient = Client<
   WalletActions<typeof sepoliaWithEns, PrivateKeyAccount> & {
     payer: Address
     execWrite(tx: { to: Address; data: Hex; leg: FulfilmentLeg }): Promise<Hex>
+    /**
+     * Execute several calls as ONE intent (intents transport) or sequential
+     * txs (raw transport). Returns every produced tx hash — a single fill
+     * hash on the intents path (all calls land in that one tx), one hash per
+     * call on the raw path. Event parsing must therefore scan ALL returned
+     * receipts, not assume a position.
+     */
+    execBatch(
+      txs: Array<{ to: Address; data: Hex; leg: FulfilmentLeg }>,
+    ): Promise<Hex[]>
   }
 
 /**
@@ -158,56 +168,70 @@ export function createServerWalletClient(
   })
     .extend(publicActions)
     .extend(walletActions)
-    .extend((client) => ({
+    .extend((client) => {
       /**
-       * The identity that funds registrations: holds the payment-token float,
-       * grants the registrar allowance, owns freshly-registered names until
-       * delivery. The Safe in Roles mode, the EOA in direct mode.
-       */
-      payer: (roles ? roles.safe : account.address) as Address,
-      /**
-       * Submit an on-chain write as the payer. Single chokepoint for every
-       * mutating call in the fulfilment flow, so the execution modes cannot
-       * drift apart. `shouldRevert=true` bubbles inner failures into the
-       * outer tx, keeping receipt.status meaningful in Roles mode.
+       * Execute calls as the payer — ONE intent on the intents transport,
+       * sequential EOA txs on raw. Single chokepoint for every mutating call
+       * in the fulfilment flow, so the execution modes cannot drift apart.
        *
-       * Transports (orthogonal to Roles wrapping):
-       * - raw (default): the executor EOA signs the tx and pays gas in ETH.
-       * - intents (`FULFILMENT_TRANSPORT=intents`): the same call is carried
-       *   by a Rhinestone Warp intent — solvers pay the gas and are
-       *   reimbursed from the executor's USDC (the voucher's gasFee split).
-       *   The 7702 delegation keeps the executor's address, so the Roles
-       *   membership is transport-invariant. Resolves to the destination
-       *   fill hash, preserving callers' receipt/event parsing.
+       * The Roles wrapping is identical for both transports and applied PER
+       * CALL (`shouldRevert=true` bubbles inner failures into the outer tx,
+       * keeping receipt.status meaningful in Roles mode). `leg` tags let the
+       * intents transport size the batch's gas limit from LEG_GAS_LIMITS —
+       * transport metadata only, never part of the on-chain call.
+       *
+       * Returns every produced tx hash: a single fill hash on the intents
+       * path (all calls land in that one tx), one hash per call on raw.
        */
-      async execWrite(tx: {
-        to: Address
-        data: Hex
-        leg: FulfilmentLeg
-      }): Promise<Hex> {
-        // The Roles wrapping is identical for both transports: the payer at
-        // the target must be the Safe. `leg` tags which fulfilment step this
-        // is so the intents transport can quote the right per-leg USDC
-        // `tokenRequests` — it's transport metadata, not part of the on-chain
-        // call, so the raw path ignores it.
-        const target: { to: Address; data: Hex } = roles
-          ? {
-              to: roles.module,
-              data: encodeFunctionData({
-                abi: ROLES_MODULE_ABI,
-                functionName: 'execTransactionWithRole',
-                args: [tx.to, 0n, tx.data, 0, roles.roleKey, true],
-              }),
-            }
-          : { to: tx.to, data: tx.data }
+      const execBatch = async (
+        txs: Array<{ to: Address; data: Hex; leg: FulfilmentLeg }>,
+      ): Promise<Hex[]> => {
+        const wrapped = txs.map((tx) => ({
+          leg: tx.leg,
+          ...(roles
+            ? {
+                to: roles.module,
+                data: encodeFunctionData({
+                  abi: ROLES_MODULE_ABI,
+                  functionName: 'execTransactionWithRole',
+                  args: [tx.to, 0n, tx.data, 0, roles.roleKey, true],
+                }),
+              }
+            : { to: tx.to, data: tx.data }),
+        }))
 
         if (isIntentsTransport(env)) {
           intentExecutor ??= createIntentExecutor(env)
-          return intentExecutor({ ...target, leg: tx.leg })
+          // One intent, N calls, ONE machinery overhead + fill hash.
+          return [await intentExecutor(wrapped)]
         }
-        return client.sendTransaction(target)
-      },
-    }))
+        // Raw path: sequential EOA txs (await each hash so nonces order).
+        const hashes: Hex[] = []
+        for (const w of wrapped) {
+          hashes.push(await client.sendTransaction({ to: w.to, data: w.data }))
+        }
+        return hashes
+      }
+
+      return {
+        /**
+         * The identity that funds registrations: holds the payment-token
+         * float, grants the registrar allowance, owns freshly-registered
+         * names until delivery. The Safe in Roles mode, the EOA in direct
+         * mode.
+         */
+        payer: (roles ? roles.safe : account.address) as Address,
+        execWrite: async (tx: {
+          to: Address
+          data: Hex
+          leg: FulfilmentLeg
+        }): Promise<Hex> => {
+          const [hash] = await execBatch([tx])
+          return hash
+        },
+        execBatch,
+      }
+    })
 }
 
 /** 32-byte commit-reveal secret from a CSPRNG (never Math.random server-side). */
@@ -351,7 +375,22 @@ export function buildResolverInitBundle(owner: Address, label: string): Hex {
   })
 }
 
-export async function deployDedicatedResolver(
+/**
+ * Deploy the buyer's dedicated resolver AND submit the commit as ONE batch —
+ * a single intent on the intents transport. The two calls have no on-chain
+ * ordering dependency (the commitment is a pure hash over the PRECOMPUTED
+ * resolver address), and fusing them saves a whole intent's machinery
+ * overhead (~100k gas billed per intent, measured 2026-07-23) plus its fixed
+ * fee. On the intents path the batch is atomic: both land or neither does —
+ * eliminating the deploy-landed-but-commit-didn't retry states outright.
+ *
+ * Idempotency (queue retry re-entering `committing`): the resolver's CREATE2
+ * address is deterministic (deployer + secret), so re-running `deployProxy`
+ * after a landed deploy would collide and revert, wedging the order. If code
+ * already exists at the expected address the deploy call is simply omitted
+ * and the batch degrades to commit-only.
+ */
+export async function submitCommitWithResolver(
   client: ServerWalletClient,
   params: {
     owner: Address
@@ -359,50 +398,63 @@ export async function deployDedicatedResolver(
     expectedResolver: Address
     /** ENS label (no .eth) — used to set records at deploy time. */
     label: string
+    commitment: Hex
   },
-): Promise<Address> {
-  // Idempotency: the resolver's CREATE2 address is deterministic (deployer +
-  // secret), so a queue retry that re-enters `committing` AFTER the deploy
-  // leg already landed (but a later leg failed) would re-run `deployProxy`
-  // into a CREATE2 collision — the factory reverts, surfacing as
-  // `ModuleTransactionFailed` through the Roles modifier and wedging the
-  // order forever. If code already exists at the expected address, the
-  // deploy is done (the init bundle ran atomically inside it); skip it.
+): Promise<{ hash: Hex; resolver: Address }> {
   const existing = await client.getBytecode({
     address: params.expectedResolver,
   })
-  if (existing && existing !== '0x') {
-    return params.expectedResolver
-  }
+  const needDeploy = !existing || existing === '0x'
 
-  const initData = buildResolverInitBundle(params.owner, params.label)
-  const hash = await client.execWrite({
-    leg: 'resolverDeploy',
-    to: CONTRACTS.VerifiableFactory,
+  const txs: Array<{ to: Address; data: Hex; leg: FulfilmentLeg }> = []
+  if (needDeploy) {
+    txs.push({
+      leg: 'resolverDeploy',
+      to: CONTRACTS.VerifiableFactory,
+      data: encodeFunctionData({
+        abi: VERIFIABLE_FACTORY_ABI,
+        functionName: 'deployProxy',
+        args: [
+          CONTRACTS.DedicatedResolverImpl,
+          BigInt(saltToHex(params.secret)),
+          buildResolverInitBundle(params.owner, params.label),
+        ],
+      }),
+    })
+  }
+  txs.push({
+    leg: 'commit',
+    to: CONTRACTS.ETHRegistrar,
     data: encodeFunctionData({
-      abi: VERIFIABLE_FACTORY_ABI,
-      functionName: 'deployProxy',
-      args: [
-        CONTRACTS.DedicatedResolverImpl,
-        BigInt(saltToHex(params.secret)),
-        initData,
-      ],
+      abi: ETH_REGISTRAR_ABI,
+      functionName: 'commit',
+      args: [params.commitment],
     }),
   })
-  // In Roles mode the receipt is for the outer module tx, but the factory's
-  // ProxyDeployed event still lands in it (module -> Safe -> factory bubble up
-  // within the same transaction), so the parse below is mode-agnostic.
-  const receipt = await client.waitForTransactionReceipt({ hash })
-  const resolver = parseProxyDeployedAddress(receipt)
-  if (!resolver) {
-    throw new Error('ProxyDeployed event missing from resolver deploy receipt')
+
+  const hashes = await client.execBatch(txs)
+  const receipts = await Promise.all(
+    hashes.map((hash) => client.waitForTransactionReceipt({ hash })),
+  )
+
+  if (needDeploy) {
+    // In Roles mode the receipts are for outer module/fill txs, but the
+    // factory's ProxyDeployed event still lands in them (module -> Safe ->
+    // factory bubble up within the same transaction), so scanning every
+    // returned receipt is transport- and mode-agnostic.
+    const resolver = receipts
+      .map(parseProxyDeployedAddress)
+      .find((a): a is Address => a !== undefined)
+    if (!resolver) {
+      throw new Error('ProxyDeployed event missing from commit batch receipts')
+    }
+    if (!isAddressEqual(resolver, params.expectedResolver)) {
+      throw new Error(
+        `Resolver address mismatch: deployed ${resolver}, expected ${params.expectedResolver}`,
+      )
+    }
   }
-  if (!isAddressEqual(resolver, params.expectedResolver)) {
-    throw new Error(
-      `Resolver address mismatch: deployed ${resolver}, expected ${params.expectedResolver}`,
-    )
-  }
-  return resolver
+  return { hash: hashes[hashes.length - 1], resolver: params.expectedResolver }
 }
 
 /**
@@ -441,24 +493,6 @@ export async function assertCommitmentMatchesChain(
       `Commitment mismatch: local ${params.expected}, on-chain ${onchain}`,
     )
   }
-}
-
-/** Submit the commit tx and wait for it to land. Returns the tx hash. */
-export async function submitCommit(
-  client: ServerWalletClient,
-  commitment: Hex,
-): Promise<Hex> {
-  const hash = await client.execWrite({
-    leg: 'commit',
-    to: CONTRACTS.ETHRegistrar,
-    data: encodeFunctionData({
-      abi: ETH_REGISTRAR_ABI,
-      functionName: 'commit',
-      args: [commitment],
-    }),
-  })
-  await client.waitForTransactionReceipt({ hash })
-  return hash
 }
 
 export async function readMinCommitmentAge(

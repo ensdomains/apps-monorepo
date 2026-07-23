@@ -68,6 +68,19 @@ export const LEG_GAS_LIMITS = {
 } as const
 export type FulfilmentLeg = keyof typeof LEG_GAS_LIMITS
 
+/**
+ * How the legs are grouped into INTENTS — the fee's other axis. The rail
+ * bills its fixed machinery (~100k fill wrapper + claim, surfacing as the
+ * ~0.44 USDC intercept) PER INTENT, so the buyer's fee must count intents,
+ * not legs: deploy+commit ride one batched intent (`submitCommitWithResolver`
+ * — they have no ordering dependency and the commit-reveal gap only
+ * constrains register), register rides its own after the cooldown. Keep this
+ * in lockstep with the queue's actual batching or the fee under/over-counts
+ * fixed fees.
+ */
+export const FULFILMENT_INTENT_BATCHES: readonly (readonly FulfilmentLeg[])[] =
+  [['resolverDeploy', 'commit'], ['register']] as const
+
 /** ×1.15 — p95 upward base-fee drift over the pipeline's REAL exposure
  * (~3min quote→fills incl. the 60s commit cooldown; measured p95: 3min
  * ×1.19, 5min ×1.22 — 1.15 accepts a sliver of p95 tail, which the queue's
@@ -180,10 +193,13 @@ export async function quoteFulfilmentFee(
 ): Promise<bigint> {
   try {
     const { gasPrice, prices } = await readGasAndPrices(env)
-    const fee = Object.values(LEG_GAS_LIMITS).reduce(
-      (sum, limit) => sum + railLegFee6dp(limit, gasPrice, prices, env),
-      0n,
-    )
+    // One rail price PER INTENT: fixed machinery once per batch, gas over
+    // the batch's summed leg limits (gas is linear, so summing inside the
+    // batch is exact).
+    const fee = FULFILMENT_INTENT_BATCHES.reduce((sum, batch) => {
+      const batchLimit = batch.reduce((a, leg) => a + LEG_GAS_LIMITS[leg], 0n)
+      return sum + railLegFee6dp(batchLimit, gasPrice, prices, env)
+    }, 0n)
     if (fee === 0n) {
       logger.warn('Fulfilment fee computed as zero, using fallback')
       return FALLBACK_FEE_UNITS_6DP
