@@ -1,6 +1,5 @@
-import { sepoliaWithEns } from '@ens-apps/indexer/chain'
+import { orderedSepoliaRpcUrls, sepoliaWithEns } from '@ens-apps/indexer/chain'
 import { createPublicClient, fallback, http } from 'viem'
-import { orderedSepoliaRpcUrls } from '@/lib/sepoliaRpc'
 
 // Public, keyless Sepolia endpoint used as the default primary when the
 // SEPOLIA_RPC_URL secret is not configured (e.g. `wrangler dev` without a
@@ -8,8 +7,8 @@ import { orderedSepoliaRpcUrls } from '@/lib/sepoliaRpc'
 const DEFAULT_SEPOLIA_RPC_URL = 'https://sepolia.drpc.org'
 
 export function createClient(env: Env) {
-  // Failover to the shared public endpoints (see src/lib/sepoliaRpc.ts) — a
-  // failed OG/SSR read means a broken preview card.
+  // Failover to the shared public endpoints (SEPOLIA_FALLBACK_RPC_URLS in
+  // @ens-apps/indexer/chain) — a failed OG/SSR read means a broken preview card.
   const urls = orderedSepoliaRpcUrls(
     env.SEPOLIA_RPC_URL || DEFAULT_SEPOLIA_RPC_URL,
   )

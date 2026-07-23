@@ -1,4 +1,7 @@
-import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
+import {
+  orderedSepoliaRpcUrls,
+  WALLETCONNECT_PROJECT_ID,
+} from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { connectorsForWallets } from '@rainbow-me/rainbowkit'
 import {
@@ -49,20 +52,11 @@ const resolveRpcUrl = createIsomorphicFn()
 export const SEPOLIA_RPC_URL: string =
   resolveRpcUrl() || MANAGER_SEPOLIA_RPC_URL
 
-// Public Sepolia fallback endpoints. dRPC intermittently returns HTTP 500s on
-// otherwise-valid `eth_call`s (e.g. `nonces`, `MIN_COMMITMENT_AGE`); viem's
-// `fallback()` transport transparently fails over so a single provider blip
-// doesn't break a registration. The manager's own RPC URL stays the preferred
-// (primary) endpoint so quota/usage is still attributed to the manager app.
-const SEPOLIA_FALLBACK_RPC_URLS = [
-  'https://ethereum-sepolia-rpc.publicnode.com',
-  'https://sepolia.gateway.tenderly.co',
-] as const
-
-const SEPOLIA_RPC_URLS: readonly string[] = [
-  SEPOLIA_RPC_URL,
-  ...SEPOLIA_FALLBACK_RPC_URLS.filter((url) => url !== SEPOLIA_RPC_URL),
-]
+// Failover to the shared public endpoints (see SEPOLIA_FALLBACK_RPC_URLS in
+// @ens-apps/indexer/chain for the rationale and provider choice). The
+// manager's own RPC URL stays the preferred (primary) endpoint so quota/usage
+// is still attributed to the manager app.
+const SEPOLIA_RPC_URLS = orderedSepoliaRpcUrls(SEPOLIA_RPC_URL)
 
 export const sepoliaFallbackTransport = fallback(
   SEPOLIA_RPC_URLS.map((url) => http(url, { retryCount: 2 })),
