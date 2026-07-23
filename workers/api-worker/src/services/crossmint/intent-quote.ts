@@ -58,13 +58,19 @@ import { logger } from '#utils/logger.js'
  * truth shared with the transport, so charged == priced by construction.
  */
 export const LEG_GAS_LIMITS = {
-  // Raw usage measured through the Roles modifier (wrapper overhead
-  // included): deploy 268k, commit 84.8k, register 336.9k. Limits carry
-  // +19-30% revert headroom — no more, because the rail prices the fee on
-  // the LIMIT, so every spare 10k gas here is ~0.05 USDC the buyer overpays.
-  resolverDeploy: 320_000n,
-  commit: 110_000n,
-  register: 400_000n,
+  // Usage measured from PRODUCTION fills through the Roles modifier:
+  // deploy+commit batch 353k combined (deploy ~268k, commit ~85k), register
+  // ~348k — and register is stable to ±0.2% ACROSS names/durations (457,533
+  // vs 458,520 fill gas for two different orders), so headroom is only +6%:
+  // enough for one-off cold-slot writes (+15k worst case, e.g. first payment
+  // to a fresh beneficiary) and label-length extremes (+1-2k), nothing more.
+  // The rail prices the fee on the LIMIT ("the client supplies gas units"),
+  // so every spare 10k here is ~0.06 USDC the buyer overpays; conversely an
+  // under-declared leg reverts out-of-gas and strands a PAID order — +6% is
+  // the measured balance point between those asymmetric costs.
+  resolverDeploy: 285_000n,
+  commit: 90_000n,
+  register: 365_000n,
 } as const
 export type FulfilmentLeg = keyof typeof LEG_GAS_LIMITS
 
