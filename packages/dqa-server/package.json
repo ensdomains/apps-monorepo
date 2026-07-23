@@ -1,0 +1,27 @@
+{
+  "name": "@ens-apps/dqa-server",
+  "version": "1.0.0",
+  "description": "DQA overlay service: comment persistence, image upload, live cursor relay, Linear OAuth + push. Serves public/overlay.js for injection into QA/preview builds. TypeScript, run directly by Node's native type stripping (no build step).",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch server/index.ts",
+    "start": "node server/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "catalog:typescript6"
+  }
+}

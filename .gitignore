@@ -12,3 +12,5 @@ package-lock.json
 opencode.json
 e2e/test-results/*
 .security-audit/
+# E2E infra secrets (Linear OAuth for the dqa service, etc.)
+e2e/infra/.env

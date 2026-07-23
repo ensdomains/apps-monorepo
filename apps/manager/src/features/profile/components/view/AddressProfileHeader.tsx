@@ -19,11 +19,11 @@ import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { truncateAddress } from '@/lib/utils'
-import { ProfileViewNewAbout } from '../view-new/ProfileViewNewAbout'
-import { ProfileViewNewAvatar } from '../view-new/ProfileViewNewAvatar'
-import { ProfileViewNewDetails } from '../view-new/ProfileViewNewDetails'
-import { ProfileViewNewThemeColorProvider } from '../view-new/ProfileViewNewThemeColor'
 import { findPrimaryAddressName } from './addressProfilePrimary'
+import { ProfileAbout } from './ProfileAbout'
+import { ProfileAvatar } from './ProfileAvatar'
+import { ProfileDetails } from './ProfileDetails'
+import { ProfileThemeColorProvider } from './ProfileThemeColor'
 
 const AddressBadge = ({ address }: { readonly address: Address }) => {
   const { t } = useLingui()
@@ -143,7 +143,7 @@ const AddressProfileDetailsSection = ({
   })
 
   return (
-    <ProfileViewNewDetails
+    <ProfileDetails
       displayExpiryDate={displayExpiryDate}
       owner={owner}
       ownerReverseName={isV1Primary ? primaryName : ownerReverseName}
@@ -167,23 +167,23 @@ const AddressProfileAvatarSection = ({
 }) => {
   if (records) {
     return (
-      <ProfileViewNewThemeColorProvider value={themeColor}>
+      <ProfileThemeColorProvider value={themeColor}>
         <div className="flex flex-col gap-6 lg:landscape:flex-row lg:landscape:items-stretch">
-          <ProfileViewNewAvatar
+          <ProfileAvatar
             avatarLoading={false}
             avatarUrl={avatarUrl}
             className="mx-auto size-38 rounded-xl shadow-none lg:landscape:mx-0 lg:landscape:size-[147px]" // 147px avatar per Figma — not on the spacing scale
             name={primaryName}
           />
-          <ProfileViewNewAbout records={records} />
+          <ProfileAbout records={records} />
         </div>
-      </ProfileViewNewThemeColorProvider>
+      </ProfileThemeColorProvider>
     )
   }
 
   if (isV1Primary && avatarUrl) {
     return (
-      <ProfileViewNewAvatar
+      <ProfileAvatar
         avatarLoading={false}
         avatarUrl={avatarUrl}
         className="mx-auto size-38 rounded-xl shadow-none"

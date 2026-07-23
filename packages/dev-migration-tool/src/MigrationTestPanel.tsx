@@ -285,7 +285,7 @@ export function MigrationPanelContent() {
               type="button"
               disabled={busy || !selectedName}
               onClick={() => selectedName && migrateSingle(selectedName)}
-              style={smallChipStyle('#2563eb')}
+              style={smallChipStyle('#0080bc')}
               title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
             >
               Migrate
@@ -294,7 +294,7 @@ export function MigrationPanelContent() {
               type="button"
               disabled={!selectedName}
               onClick={() => selectedName && removeName(selectedName.id)}
-              style={smallChipStyle('#374151')}
+              style={smallChipStyle('#737373')}
               title="Remove selected"
             >
               ×
@@ -448,7 +448,7 @@ const rowStyle: CSSProperties = {
 const sepStyle: CSSProperties = {
   width: 1,
   height: 13,
-  background: 'rgba(255,255,255,0.15)',
+  background: '#d9d9d9',
   flexShrink: 0,
   alignSelf: 'center',
   margin: '0 3px',
@@ -457,31 +457,31 @@ const sepStyle: CSSProperties = {
 const selectStyle: CSSProperties = {
   padding: '2px 5px',
   borderRadius: 4,
-  border: '1px solid rgba(255,255,255,0.18)',
-  background: 'rgba(0,0,0,0.3)',
-  color: '#e5e7eb',
+  border: '1px solid #d9d9d9',
+  background: '#ffffff',
+  color: '#191919',
   fontSize: 11,
   cursor: 'pointer',
   maxWidth: 200,
 }
 
 const emptyStyle: CSSProperties = {
-  color: '#4b5563',
+  color: '#737373',
   fontSize: 11,
   fontStyle: 'italic',
 }
 
 function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {
   return {
-    padding: '2px 7px',
+    padding: '2px 8px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid #cee1e8',
     background: active
-      ? 'rgba(37,99,235,0.6)'
+      ? '#093c52'
       : disabled
-        ? 'rgba(75,85,99,0.4)'
-        : 'rgba(37,99,235,0.85)',
-    color: disabled ? '#9ca3af' : '#fff',
+        ? '#eeeded'
+        : '#0080bc',
+    color: disabled ? '#737373' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     whiteSpace: 'nowrap',
@@ -491,9 +491,9 @@ function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {
 
 function smallChipStyle(bg: string): CSSProperties {
   return {
-    padding: '2px 6px',
+    padding: '2px 8px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid #cee1e8',
     background: bg,
     color: '#fff',
     cursor: 'pointer',
@@ -506,9 +506,9 @@ function migrateAllChipStyle(disabled: boolean): CSSProperties {
   return {
     padding: '2px 10px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: disabled ? 'rgba(75,85,99,0.4)' : '#d97706',
-    color: disabled ? '#9ca3af' : '#fff',
+    border: '1px solid #e7a259',
+    background: disabled ? '#eeeded' : '#984d1b',
+    color: disabled ? '#737373' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     fontWeight: 600,
@@ -533,6 +533,6 @@ const statusDotStyle: CSSProperties = {
 }
 
 const errorInlineStyle: CSSProperties = {
-  color: '#fca5a5',
+  color: '#b42013',
   fontSize: 11,
 }
