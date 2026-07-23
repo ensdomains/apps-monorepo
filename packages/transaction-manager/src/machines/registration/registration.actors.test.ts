@@ -1,5 +1,5 @@
-import type { Address, Hex, PublicClient } from 'viem'
-import { describe, expect, it, vi } from 'vitest'
+import type { Address, Hex } from 'viem'
+import { describe, expect, it } from 'vitest'
 import type { Signer } from '../../types/signer.types'
 import { type Call, getPrimaryCall } from '../../types/transaction.types'
 import { createTransactionRequest } from './registration.actors'
