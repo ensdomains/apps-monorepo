@@ -24,7 +24,7 @@
     "idb": "^8.0.3",
     "neverthrow": "^8.1.1",
     "valibot": "^1.2.0",
-    "viem": "^2.21.58",
+    "viem": "^2.55.4",
     "xstate": "catalog:"
   },
   "peerDependencies": {
@@ -34,9 +34,9 @@
   },
   "devDependencies": {
     "@types/react": "^19.0.6",
+    "react": "^19.2.5",
     "typescript": "catalog:typescript6",
     "vitest": "catalog:",
-    "wagmi": "^3.0.2",
-    "react": "^19.2.5"
+    "wagmi": "^3.0.2"
   }
 }

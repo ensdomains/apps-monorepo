@@ -7,18 +7,17 @@ import {
 } from '#core/database/schema/crossmint.js'
 import { KV_KEY } from '#core/kv/index.js'
 import {
+  assertCommitmentMatchesChain,
+  assertRegistrarAllowance,
+  assertVoucherCommitment,
   authorizedPaymentAmount,
   burnVoucher,
   createServerWalletClient,
-  deployDedicatedResolver,
-  ensureTokenAllowance,
   getRegisterPriceTotal,
-  makeCommitment,
   PAYMENT_TOKENS,
   readMinCommitmentAge,
-  submitCommit,
+  submitCommitWithResolver,
   submitRegister,
-  transferName,
   verifyRegistration,
 } from '#services/crossmint/fulfilment.js'
 import type {
@@ -69,10 +68,15 @@ async function runCommitPhase(
     logger.warn('Registration commit: order not found', { orderId })
     return
   }
-  // Idempotent: only a freshly-paid order commits. Anything else is a
-  // redelivery of an order already in-flight or done.
-  if (order.status !== 'paid') {
-    logger.debug('Registration commit: order not in paid state, skipping', {
+  // Idempotent: a freshly-paid order commits, and a `committing` order may
+  // RE-ENTER — that's a queue retry after a mid-phase throw (the first
+  // attempt flips paid→committing before doing on-chain work, so refusing
+  // re-entry would wedge the order forever with the failure never recorded).
+  // Concurrency is already serialized by the per-order KV lock; the on-chain
+  // steps tolerate re-runs (resolver deploy is CREATE2-idempotent, re-commit
+  // just refreshes the commitment timestamp).
+  if (order.status !== 'paid' && order.status !== 'committing') {
+    logger.debug('Registration commit: order not in commit state, skipping', {
       orderId,
       status: order.status,
     })
@@ -81,30 +85,77 @@ async function runCommitPhase(
 
   await updateOrder(db, orderId, { status: 'committing' })
 
-  const client = createServerWalletClient(env)
-  // The registrar charges the `owner`, so the SERVER registers to itself
-  // (it holds the payment token) and transfers to the buyer in the register
-  // phase. The commitment must bind the same owner used at register (server).
-  // The resolver is deployed buyer-owned so the buyer controls records after
-  // delivery (resolver ownership is independent of name ownership).
-  const server = client.account.address
-  const buyer = order.owner_address as Address
+  // FAIL-CLOSED before ANY spend (the resolver deploy + commit below are
+  // Roles-executed txs): a paid order must carry a verified voucher tokenId
+  // (recorded by the Svix-verified webhook or the self-pay settle route).
+  // Its absence means the paid flip came from an unverified source — refuse
+  // before the first on-chain action, not just before register.
+  if (!order.commitment || !order.voucher_token_id) {
+    throw new Error(
+      `Order ${orderId} has no verified voucher (commitment=${Boolean(
+        order.commitment,
+      )}, voucherTokenId=${Boolean(order.voucher_token_id)}); refusing to spend`,
+    )
+  }
 
-  const resolver = await deployDedicatedResolver(client, buyer)
-  const commitment = await makeCommitment(client, {
+  const client = createServerWalletClient(env)
+
+  // The voucher must still exist and carry this order's exact commitment
+  // (burned/missing vouchers read as bytes32(0) and never match).
+  await assertVoucherCommitment(client, {
+    voucherTokenId: BigInt(order.voucher_token_id),
+    expected: order.commitment as `0x${string}`,
+  })
+  // The registrar charges msg.sender (the PAYER — the Safe in Roles mode), so
+  // the name is registered with owner = BUYER directly: the payer funds it, the
+  // buyer receives it, no transfer step.
+  //
+  // The commitment + resolver are the order's PAID-FOR identity: fixed and stored
+  // at order time (owner = buyer), and the voucher was minted carrying that
+  // commitment. We MUST use the stored values, never re-derive here — the
+  // resolver precompute is payer-dependent (`deployer = client.payer`), so
+  // re-deriving after a Roles-mode toggle would yield a different resolver and a
+  // commitment that no longer matches the voucher, failing the order. An order
+  // past `pending` without them is a data error, not something to paper over.
+  const buyer = order.owner_address as Address
+  const secret = order.secret as `0x${string}`
+  if (!order.commitment || !order.resolver_address) {
+    throw new Error(
+      `Order ${orderId} reached commit phase without a stored commitment/resolver`,
+    )
+  }
+  const resolver = order.resolver_address as Address
+  const commitment = order.commitment as `0x${string}`
+
+  // Belt-and-braces BEFORE spending anything: the local commitment must
+  // equal the registrar's own makeCommitment for the exact tuple we're about
+  // to commit. Pure view over the PRECOMPUTED resolver address — needs no
+  // deployed code, so it runs ahead of the batch.
+  await assertCommitmentMatchesChain(client, {
     label: order.name,
-    owner: server,
-    secret: order.secret as `0x${string}`,
+    owner: buyer,
+    secret,
     resolver,
     duration: BigInt(order.duration),
+    expected: commitment,
   })
-  const commitTxHash = await submitCommit(client, commitment)
+  // Resolver deploy + commit as ONE batch (single intent on the intents
+  // transport): one machinery overhead instead of two, and atomic — no
+  // deploy-landed-but-commit-didn't retry states.
+  const { hash: commitTxHash, resolver: deployedResolver } =
+    await submitCommitWithResolver(client, {
+      owner: buyer,
+      secret,
+      expectedResolver: resolver,
+      label: order.name,
+      commitment,
+    })
   const minAge = await readMinCommitmentAge(client)
 
   await updateOrder(db, orderId, {
     status: 'committed',
     commitment,
-    resolver_address: resolver,
+    resolver_address: deployedResolver,
     commit_tx_hash: commitTxHash,
     committed_at: new Date(),
   })
@@ -122,8 +173,8 @@ async function runCommitPhase(
 }
 
 /**
- * Phase 2 (delayed): approve the payment token from the server wallet and submit
- * `register`, delivering the name to the buyer, then burn the voucher.
+ * Phase 2 (delayed): approve the payment token from the payer (Safe or EOA) and
+ * submit `register`, delivering the name to the buyer, then burn the voucher.
  */
 async function runRegisterPhase(
   db: CrossmintDb,
@@ -135,11 +186,18 @@ async function runRegisterPhase(
     logger.warn('Registration register: order not found', { orderId })
     return
   }
-  if (order.status !== 'committed') {
-    logger.debug('Registration register: order not committed, skipping', {
-      orderId,
-      status: order.status,
-    })
+  // Same re-entry rule as the commit phase: `registering` means a retry of a
+  // mid-phase throw, not a duplicate. The approve/register steps tolerate
+  // re-runs (allowance check short-circuits; a second register of the same
+  // commitment reverts on-chain rather than double-registering).
+  if (order.status !== 'committed' && order.status !== 'registering') {
+    logger.debug(
+      'Registration register: order not in register state, skipping',
+      {
+        orderId,
+        status: order.status,
+      },
+    )
     return
   }
   if (!order.resolver_address) {
@@ -149,32 +207,50 @@ async function runRegisterPhase(
   await updateOrder(db, orderId, { status: 'registering' })
 
   const client = createServerWalletClient(env)
-  const server = client.account.address
   const buyer = order.owner_address as Address
   const resolver = order.resolver_address as Address
   const paymentToken = (order.payment_token ?? 'USDC') as PaymentToken
   const tokenAddress = PAYMENT_TOKENS[paymentToken]
+
+  // Gate spending on the voucher: its stored commitment must equal the exact
+  // (label, buyer, secret, resolver, duration) tuple we're about to register.
+  // A mismatch (or a missing/burned voucher) means this order isn't authorized
+  // to spend — fail before any approve/register. FAIL-CLOSED: an order with no
+  // recorded voucher tokenId is not fulfillable, period. Every legitimate path
+  // records one (Crossmint's signed webhook carries it; self-pay settle
+  // extracts it from the mint receipt) — its absence means the paid flip came
+  // from an unverified source.
+  if (!order.commitment || !order.voucher_token_id) {
+    throw new Error(
+      `Order ${orderId} has no verified voucher (commitment=${Boolean(
+        order.commitment,
+      )}, voucherTokenId=${Boolean(order.voucher_token_id)}); refusing to spend`,
+    )
+  }
+  await assertVoucherCommitment(client, {
+    voucherTokenId: BigInt(order.voucher_token_id),
+    expected: order.commitment as `0x${string}`,
+  })
 
   const price = await getRegisterPriceTotal(client, {
     label: order.name,
     duration: BigInt(order.duration),
     paymentToken: tokenAddress,
   })
-  await ensureTokenAllowance(client, {
+  await assertRegistrarAllowance(client, {
     token: tokenAddress,
     amount: authorizedPaymentAmount(price),
   })
 
-  // Register to the server (the payer), then deliver the name to the buyer.
+  // Register straight to the buyer — the payer (msg.sender) funds it.
   const { hash: registerTxHash, tokenId } = await submitRegister(client, {
     label: order.name,
-    owner: server,
+    owner: buyer,
     secret: order.secret as `0x${string}`,
     resolver,
     duration: BigInt(order.duration),
     paymentToken: tokenAddress,
   })
-  await transferName(client, { tokenId, to: buyer })
 
   const verified = await verifyRegistration(client, {
     tokenId,

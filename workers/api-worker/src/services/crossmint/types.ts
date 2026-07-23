@@ -20,6 +20,19 @@ export const CreateOrderBodySchema = v.object({
 export type CreateOrderBody = v.InferOutput<typeof CreateOrderBodySchema>
 
 /**
+ * Body for settling a self-pay voucher order: the tx hash of the buyer's
+ * `mintSelf`/`mintSelfWithPermit` transaction. The on-chain mint IS the
+ * payment proof — the settle route verifies the receipt emitted a
+ * `VoucherMinted` with this order's exact commitment before flipping to paid.
+ * No auth: the commitment binds the buyer, so possession of a matching mint
+ * is strictly stronger evidence than any session token.
+ */
+export const SettleOrderBodySchema = v.object({
+  txHash: v.pipe(v.string(), v.regex(/^0x[0-9a-fA-F]{64}$/)),
+})
+export type SettleOrderBody = v.InferOutput<typeof SettleOrderBodySchema>
+
+/**
  * The slice of the Crossmint webhook payload we rely on. Crossmint's full
  * payload is larger; we parse leniently and only require what we use.
  * `clientReference` is our order id (echoed back); it may arrive top-level or

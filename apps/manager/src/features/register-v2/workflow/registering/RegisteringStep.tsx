@@ -19,10 +19,16 @@ const useRegisteringTx = RegisterV2Context.createTxSelector((state) => ({
   approvalTxId: state?.context.approvalTxId,
   registrationTxId: state?.context.registrationTxId,
   registerReadyTimestamp: state?.context.registerReadyTimestamp ?? null,
+  voucherOrderId: state?.context.voucherOrderId,
+  voucherMintTxId: state?.context.voucherMintTxId,
 }))
 
 const useMaxProgress = RegisterV2Context.createSelector(
   (state) => state.context.maxProgressReached ?? null,
+)
+
+const useVoucherPhase = RegisterV2Context.createSelector(
+  (state) => state.context.voucherPhase,
 )
 
 export const RegisteringStep = () => {
@@ -32,11 +38,12 @@ export const RegisteringStep = () => {
   const uiStage = useRegisteringStage(uiActor)
   const txState = useRegistrationTxState(registeringTx)
   const maxProgress = useMaxProgress(uiActor)
+  const voucherPhase = useVoucherPhase(uiActor)
 
   const displayedStage = maxProgress?.stage ?? registeringTx.value
   const displayedProgress = maxProgress?.progress ?? 0
   const stageMessages = getRegistrationStageMessages(
-    { ...registeringTx, value: displayedStage },
+    { ...registeringTx, value: displayedStage, voucherPhase },
     txState,
   )
 

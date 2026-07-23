@@ -55,6 +55,8 @@ export const crossmintOrders = sqliteTable(
     voucher_token_id: text('voucher_token_id'),
     /** ETH (wei) the voucher contract received, for reconciliation. */
     amount_paid: text('amount_paid'),
+    /** Server-authoritative quote (token units): price + headroom + gas fee. */
+    amount_due: text('amount_due'),
     commit_tx_hash: text('commit_tx_hash'),
     register_tx_hash: text('register_tx_hash'),
     status: text('status')

@@ -28,6 +28,6 @@
   "keywords": [],
   "dependencies": {
     "@ensdomains/ensjs": "catalog:",
-    "viem": "^2.40.3"
+    "viem": "^2.55.4"
   }
 }

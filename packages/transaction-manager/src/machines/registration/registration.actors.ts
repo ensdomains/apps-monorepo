@@ -1400,6 +1400,394 @@ export function ensureHcaDeployedActor(input: {
 }
 
 // ============================================================================
+// Voucher (Self-Pay) Actor Functions
+// ============================================================================
+//
+// These replace the multi-step on-chain resolver/commit/cooldown/register flow
+// with a single `mintSelfWithPermit` or `mintSelf` transaction, followed by
+// backend fulfilment polling. The user pays with their own stablecoin wallet.
+
+// gasFee split (voucher 0xfd0D6F71…): `amount - gasFee` settles to the treasury
+// Safe, `gasFee` is forwarded to the fulfilment executor so the buyer funds
+// their own fulfilment gas at mint time. Until the order-time fee quote is
+// wired through `amount_due`, the client mints with gasFee = 0 (legal — the
+// split is simply inactive for that voucher).
+const VOUCHER_MINT_ABI = parseAbi([
+  'function mintSelf(bytes32 commitment, uint256 duration, address paymentToken, uint256 amount, uint256 gasFee) returns (uint256 tokenId)',
+  'function mintSelfWithPermit(bytes32 commitment, uint256 duration, address paymentToken, uint256 amount, uint256 gasFee, uint256 deadline, uint8 v, bytes32 r, bytes32 s) returns (uint256 tokenId)',
+  'event VoucherMinted(uint256 indexed tokenId, address indexed to, bytes32 indexed commitment, uint256 duration, address paymentToken, uint256 amountPaid)',
+])
+
+const VOUCHER_PERMIT_PROBE = parseAbi([
+  'function nonces(address owner) view returns (uint256)',
+  'function DOMAIN_SEPARATOR() view returns (bytes32)',
+])
+
+const VOUCHER_ERC20_META = parseAbi([
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function nonces(address owner) view returns (uint256)',
+  'function name() view returns (string)',
+  'function version() view returns (string)',
+])
+
+export type MintVoucherInput = {
+  publicClient: PublicClient
+  walletClient: import('viem').WalletClient
+  owner: Address
+  token: Address
+  /** TOTAL settlement pulled from the buyer (price + headroom + gasFee). */
+  amount: bigint
+  /** Server-quoted fulfilment-gas component, forwarded to the executor. */
+  gasFee: bigint
+  commitment: Hash
+  duration: bigint
+}
+
+/**
+ * Overridable voucher address. Defaults to the Sepolia staging deployment.
+ * Set VITE_VOUCHER_ADDRESS env var to override per environment.
+ */
+function getVoucherAddress(): Address {
+  try {
+    const env = import.meta as unknown as { env: Record<string, string> }
+    return (
+      (env?.env?.VITE_VOUCHER_ADDRESS as Address | undefined) ??
+      '0xfd0D6F7152CC59C0eBFef6364c4aB8CaCe9b797d'
+    )
+  } catch {
+    return '0xfd0D6F7152CC59C0eBFef6364c4aB8CaCe9b797d'
+  }
+}
+
+/**
+ * Detect EIP-2612 permit support by probing `nonces(owner)` and
+ * `DOMAIN_SEPARATOR()` on the token contract. Returns false on any revert.
+ */
+async function supportsPermit2612(
+  client: PublicClient,
+  token: Address,
+  probeOwner: Address = '0x0000000000000000000000000000000000000000',
+): Promise<boolean> {
+  try {
+    await Promise.all([
+      readContract(client, {
+        address: token,
+        abi: VOUCHER_PERMIT_PROBE,
+        functionName: 'nonces',
+        args: [probeOwner],
+      }),
+      readContract(client, {
+        address: token,
+        abi: VOUCHER_PERMIT_PROBE,
+        functionName: 'DOMAIN_SEPARATOR',
+      }),
+    ])
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Mint the voucher using EIP-2612 permit (one tx). Signs the permit off-chain,
+ * then submits `mintSelfWithPermit(commitment, duration, token, amount,
+ * deadline, v, r, s)`. Returns the tx hash.
+ */
+async function mintWithPermit(
+  publicClient: PublicClient,
+  walletClient: import('viem').WalletClient,
+  owner: Address,
+  token: Address,
+  amount: bigint,
+  gasFee: bigint,
+  commitment: Hash,
+  duration: bigint,
+): Promise<Hash> {
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600) // 1 hour
+  const [nonce, name, version] = await Promise.all([
+    readContract(publicClient, {
+      address: token,
+      abi: VOUCHER_ERC20_META,
+      functionName: 'nonces',
+      args: [owner],
+    }),
+    readContract(publicClient, {
+      address: token,
+      abi: VOUCHER_ERC20_META,
+      functionName: 'name',
+    }),
+    // EIP-2612 domain version differs per token: Circle USDC declares "2",
+    // most mocks/OZ tokens "1". Hardcoding "1" produces silently-invalid
+    // signatures on real USDC, so read it — falling back to "1" only for
+    // tokens that don't expose version() at all.
+    readContract(publicClient, {
+      address: token,
+      abi: VOUCHER_ERC20_META,
+      functionName: 'version',
+    }).catch(() => '1'),
+  ])
+  const signature = await signTypedData(walletClient, {
+    account: owner,
+    domain: {
+      name,
+      version,
+      chainId: publicClient.chain?.id ?? 0,
+      verifyingContract: token,
+    },
+    types: {
+      Permit: [
+        { name: 'owner', type: 'address' },
+        { name: 'spender', type: 'address' },
+        { name: 'value', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' },
+      ],
+    },
+    primaryType: 'Permit',
+    message: {
+      owner,
+      spender: getVoucherAddress(),
+      value: amount,
+      nonce,
+      deadline,
+    },
+  })
+  const { r, s, v } = parseSignature(signature)
+  return walletClient.writeContract({
+    account: owner,
+    chain: walletClient.chain,
+    address: getVoucherAddress(),
+    abi: VOUCHER_MINT_ABI,
+    functionName: 'mintSelfWithPermit',
+    args: [
+      commitment,
+      duration,
+      token,
+      amount,
+      gasFee,
+      deadline,
+      v as unknown as number,
+      r as Hash,
+      s as Hash,
+    ],
+  })
+}
+
+/**
+ * Mint the voucher using approve + mintSelf (two-step fallback).
+ * Checks the existing allowance first, sends approve only if needed,
+ * then submits `mintSelf(commitment, duration, token, amount)`.
+ * Returns the tx hash of `mintSelf`.
+ */
+async function approveThenMint(
+  publicClient: PublicClient,
+  walletClient: import('viem').WalletClient,
+  owner: Address,
+  token: Address,
+  amount: bigint,
+  gasFee: bigint,
+  commitment: Hash,
+  duration: bigint,
+): Promise<Hash> {
+  const allowance = await readContract(publicClient, {
+    address: token,
+    abi: VOUCHER_ERC20_META,
+    functionName: 'allowance',
+    args: [owner, getVoucherAddress()],
+  })
+  if (allowance < amount) {
+    const approveHash = await walletClient.writeContract({
+      account: owner,
+      chain: walletClient.chain,
+      address: token,
+      abi: erc20Abi,
+      functionName: 'approve',
+      args: [getVoucherAddress(), amount],
+    })
+    await publicClient.waitForTransactionReceipt({ hash: approveHash })
+  }
+  return walletClient.writeContract({
+    account: owner,
+    chain: walletClient.chain,
+    address: getVoucherAddress(),
+    abi: VOUCHER_MINT_ABI,
+    functionName: 'mintSelf',
+    args: [commitment, duration, token, amount, gasFee],
+  })
+}
+
+/**
+ * Mint a voucher token by detecting permit support on-chain, then sending
+ * either a one-tx `mintSelfWithPermit` or a two-step approve + `mintSelf`.
+ * Returns the mint tx hash (not the receipt — the caller polls for it).
+ */
+export function mintVoucherActor(
+  input: MintVoucherInput,
+): ResultAsync<Hash, Error> {
+  const {
+    publicClient,
+    walletClient,
+    owner,
+    token,
+    amount,
+    gasFee,
+    commitment,
+    duration,
+  } = input
+  return fromPromise(
+    (async () => {
+      const canPermit = await supportsPermit2612(publicClient, token, owner)
+      if (canPermit) {
+        return mintWithPermit(
+          publicClient,
+          walletClient,
+          owner,
+          token,
+          amount,
+          gasFee,
+          commitment,
+          duration,
+        )
+      }
+      return approveThenMint(
+        publicClient,
+        walletClient,
+        owner,
+        token,
+        amount,
+        gasFee,
+        commitment,
+        duration,
+      )
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+/**
+ * Poll the backend order status until it is terminal (`registered` → resolves,
+ * `failed` → rejects). Re-checks every 4 seconds. The status callback is
+ * injected by the app layer because the backend endpoint is JWT-gated — the
+ * app's hono client carries the SIWE auth header; the machine must not do raw
+ * unauthenticated fetches. Used by the `fulfillingRegistration` machine state.
+ */
+export function pollVoucherFulfilmentActor(input: {
+  pollOrderStatus: () => Promise<{ status: string; error?: string | null }>
+}): ResultAsync<void, Error> {
+  const { pollOrderStatus } = input
+
+  const IN_FLIGHT = new Set([
+    'pending',
+    'paid',
+    'committing',
+    'committed',
+    'registering',
+  ])
+  const POLL_INTERVAL_MS = 4000
+  const MAX_POLLS = 90 // 6 minutes — commit cooldown + register can take a while
+
+  return fromPromise(
+    new Promise<void>((resolve, reject) => {
+      let pollCount = 0
+
+      const poll = async () => {
+        pollCount++
+
+        try {
+          const { status, error } = await pollOrderStatus()
+
+          if (status === 'registered') {
+            resolve()
+            return
+          }
+          if (status === 'failed') {
+            reject(new Error(error ?? 'Registration failed'))
+            return
+          }
+          if (!IN_FLIGHT.has(status)) {
+            // Unknown status — log it but keep polling (forward-compatible
+            // with new in-flight statuses on the backend)
+            console.warn('⚠️ [POLL FULFILMENT] Unknown order status:', status)
+          }
+        } catch (error) {
+          // Transient network/auth error — keep polling
+          console.warn('⚠️ [POLL FULFILMENT] Poll failed, retrying:', error)
+        }
+
+        if (pollCount >= MAX_POLLS) {
+          reject(
+            new Error(
+              'Timed out waiting for the registration to complete. Your payment is safe — retry to continue checking.',
+            ),
+          )
+          return
+        }
+
+        setTimeout(poll, POLL_INTERVAL_MS)
+      }
+
+      // Start first poll after the initial delay
+      setTimeout(poll, POLL_INTERVAL_MS)
+    }),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+/**
+ * Poll for an on-chain transaction receipt using the public client.
+ * Retries every 4 seconds until the receipt is available or timeout.
+ * This is used for the voucher mint tx (which isn't tracked by the
+ * transaction manager — it's sent directly from the wallet).
+ */
+export function pollVoucherMintReceiptActor(input: {
+  publicClient: PublicClient
+  txHash: Hash
+}): ResultAsync<void, Error> {
+  const { publicClient, txHash } = input
+
+  return fromPromise(
+    new Promise<void>((resolve, reject) => {
+      const cancelled = false
+      const POLL_INTERVAL_MS = 2000
+      const MAX_POLLS = 60 // 2 minutes
+
+      let pollCount = 0
+
+      const poll = async () => {
+        if (cancelled) return
+        pollCount++
+
+        try {
+          const receipt = await publicClient.getTransactionReceipt({
+            hash: txHash,
+          })
+          if (receipt.status === 'success') {
+            resolve()
+            return
+          }
+          if (receipt.status === 'reverted') {
+            reject(new Error('Voucher mint transaction reverted'))
+            return
+          }
+        } catch {
+          // Receipt not yet available — keep polling
+        }
+
+        if (pollCount >= MAX_POLLS) {
+          reject(new Error('Voucher mint receipt polling timed out'))
+          return
+        }
+
+        setTimeout(poll, POLL_INTERVAL_MS)
+      }
+
+      setTimeout(poll, POLL_INTERVAL_MS)
+    }),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}
+
+// ============================================================================
 // Renewal Actor Functions
 // ============================================================================
 //

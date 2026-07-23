@@ -1,6 +1,11 @@
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { ok, type Result } from 'neverthrow'
-import { createPublicClient, http } from 'viem'
+import {
+  createPublicClient,
+  http,
+  type PublicClient,
+  type Transport,
+} from 'viem'
 import { sepolia } from 'viem/chains'
 import { error } from '../../utils/result'
 
@@ -19,12 +24,16 @@ export const customSepolia = {
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
-export type ViemClient =
-  ReturnType<typeof createEnsClient> extends Result<infer T, infer _E>
-    ? T
-    : never
+/**
+ * Explicit named client type: without it, declaration emit (build:types)
+ * inlines the inferred client shape, which since viem 2.55 references
+ * unexported internals (actions/token/*) → TS2883.
+ */
+export type ViemClient = PublicClient<Transport, typeof sepoliaWithEns>
 
-export const createEnsClient = (env: CloudflareBindings) => {
+export const createEnsClient = (
+  env: CloudflareBindings,
+): Result<ViemClient, { code: 'INVALID_CHAIN'; message: string }> => {
   if ((env.CHAIN as string) !== 'sepolia') {
     return error({
       code: 'INVALID_CHAIN',
@@ -32,7 +41,7 @@ export const createEnsClient = (env: CloudflareBindings) => {
     })
   }
 
-  const client = createPublicClient({
+  const client: ViemClient = createPublicClient({
     chain: sepoliaWithEns,
     transport: http(SEPOLIA_RPC_URL),
   })

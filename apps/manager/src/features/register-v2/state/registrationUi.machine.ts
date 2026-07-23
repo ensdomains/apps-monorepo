@@ -23,6 +23,7 @@ import { getQueryClient } from '@/utils/router/root-context'
 import { SECONDS_IN_YEAR } from '../utils/time'
 import {
   getRegistrationStageProgress,
+  getVoucherFulfilmentPhaseProgress,
   type MaxProgressReached,
   REGISTRATION_STAGE_PROGRESS,
   type RegistrationStage,
@@ -57,6 +58,14 @@ type Context = {
   }
 
   maxProgressReached?: MaxProgressReached
+
+  /**
+   * Latest backend fulfilment phase for the voucher (self-pay) path
+   * (pending|paid|committing|committed|registering|registered). Reported by
+   * PaymentCard's order-status poll; drives progress WITHIN the long
+   * `fulfillingRegistration` stage and phase-specific status copy.
+   */
+  voucherPhase?: string
 }
 
 type Events =
@@ -65,6 +74,7 @@ type Events =
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
   | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | { type: 'registration.voucherPhase'; phase: string }
   | {
       type: 'registration.start'
       label: string
@@ -78,6 +88,24 @@ type Events =
       basePriceNumber: number
       /** Formatted premium price */
       premiumPriceNumber: number
+
+      /** Voucher order data (self-pay path) */
+      voucherOrder?: {
+        orderId: string
+        commitment: `0x${string}`
+        paymentToken: Address
+        paymentAmount: bigint
+        /** Server-quoted fulfilment-gas component (from the order quote). */
+        gasFee: bigint
+        walletClient: import('viem').WalletClient
+        /** Auth-aware order status poll (JWT-gated endpoint). */
+        pollOrderStatus: () => Promise<{
+          status: string
+          error?: string | null
+        }>
+        /** Settle nudge: receives the confirmed mint tx hash (post-mint). */
+        triggerFulfilment: (mintTxHash: `0x${string}`) => void
+      }
     }
   | { type: 'notifications.step.next' }
   | { type: 'transaction.success' }
@@ -125,6 +153,7 @@ const machineSetup = setup({
     }),
     clearMaxProgress: assign({
       maxProgressReached: () => undefined,
+      voucherPhase: () => undefined,
     }),
     setError: assign({
       lastErrorMessage: ({ event }) =>
@@ -262,6 +291,7 @@ const startRegistrationAction = machineSetup.createAction(
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true
             : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true',
+        voucherOrder: event.voucherOrder,
       } satisfies RegistrationEvent),
     )
   }),
@@ -317,6 +347,7 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     selectedToken: undefined,
     lastErrorMessage: undefined,
     maxProgressReached: undefined,
+    voucherPhase: undefined,
   }),
   states: {
     pricing: {
@@ -344,17 +375,18 @@ export const registrationV2UiMachine = machineSetup.createMachine({
             'pricing.dialog.dismiss': {
               target: 'duration',
             },
-            'registration.start': {
-              target: '#registrationV2Ui.registering',
-              guard: ({ event }) =>
-                event.duration >= MIN_REGISTER_DURATION_SECONDS,
-              actions: [
-                'clearError',
-                'clearMaxProgress',
-                startRegistrationAction,
-              ],
-            },
           },
+        },
+      },
+      // Handled at the `pricing` parent level so it works from BOTH substates:
+      // the token picker (`tokens`) sends it for the HCA/Rhinestone flow, and
+      // the PaymentCard voucher self-pay path sends it directly from
+      // `duration` (it skips token selection — the voucher is always USDC).
+      on: {
+        'registration.start': {
+          target: '#registrationV2Ui.registering',
+          guard: ({ event }) => event.duration >= MIN_REGISTER_DURATION_SECONDS,
+          actions: ['clearError', 'clearMaxProgress', startRegistrationAction],
         },
       },
     },
@@ -417,6 +449,24 @@ export const registrationV2UiMachine = machineSetup.createMachine({
     },
   },
   on: {
+    // Fulfilment phase from the voucher order-status poll (PaymentCard). Maps
+    // real backend phases onto the fulfilment band of the progress bar —
+    // without this the bar would sit at a single static value for the whole
+    // ~2-3 min fulfilment (commit txs + cooldown + register). Same monotonic
+    // clamp as the stage-based updates: a stale/out-of-order poll response
+    // can never move the bar backwards.
+    'registration.voucherPhase': {
+      actions: assign({
+        voucherPhase: ({ event }) => event.phase,
+        maxProgressReached: ({ context, event }) => {
+          const progress = getVoucherFulfilmentPhaseProgress(event.phase)
+          if (progress === undefined) return context.maxProgressReached
+          const current = context.maxProgressReached
+          if (current && progress <= current.progress) return current
+          return { stage: 'fulfillingRegistration', progress }
+        },
+      }),
+    },
     $error: {
       target: '.failure',
       actions: ['setError'],

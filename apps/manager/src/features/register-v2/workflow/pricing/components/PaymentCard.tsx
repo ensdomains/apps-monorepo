@@ -4,12 +4,15 @@ import { useConnectModal } from '@rainbow-me/rainbowkit'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { lazy, Suspense, useEffect, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, Hex } from 'viem'
+import { useWalletClient } from 'wagmi'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
+import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { tw } from '@/utils/tailwind'
@@ -41,8 +44,11 @@ export const PaymentCard = () => {
     state.context.duration,
     state.can({ type: 'pricing.step.next' }),
   ])
-  const { ownerAddress } = useSmartAccountContext()
+  const { ownerAddress, accountAddress } = useSmartAccountContext()
   const [cardOpen, setCardOpen] = useState(false)
+  const [orderError, setOrderError] = useState<string>()
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false)
+  const { data: walletClient } = useWalletClient()
   // Gate the client-only Crossmint dialog on mount so it never renders (and its
   // SDK never imports) during SSR.
   const [mounted, setMounted] = useState(false)
@@ -74,20 +80,149 @@ export const PaymentCard = () => {
   const overCardLimit =
     totalPriceUsd !== undefined && totalPriceUsd > CARD_LIMIT_USD
   const showCardOption = cardCheckoutEnabled && Boolean(ownerAddress)
+  // Self-pay voucher path: the stablecoin button creates a backend order and
+  // starts the registration machine (which handles mint + poll) instead of
+  // advancing to the HCA/Rhinestone intent flow.
+  const voucherCheckoutEnabled =
+    isFeatureEnabled('WALLET_VOUCHER_CHECKOUT') && Boolean(ownerAddress)
+
+  const handleVoucherCheckout = async () => {
+    setOrderError(undefined)
+
+    // The mint is sent from the connected EOA wallet — bail early if the
+    // wallet client is momentarily unavailable (connector desync).
+    if (!walletClient) {
+      setOrderError('Wallet not connected — please reconnect and try again')
+      return
+    }
+
+    setIsCreatingOrder(true)
+    try {
+      // 1. Create the backend order — deliberately UNAUTHENTICATED (no SIWE).
+      // The buyer proves control of the wallet on-chain by signing the mint;
+      // the backend only ever fulfils against that on-chain proof, so a
+      // session signature adds nothing here (and a mid-flow session expiry
+      // must never be able to break checkout).
+      const res = await backendClient.crossmint.voucher.orders.$post({
+        json: {
+          name: label,
+          durationSeconds: duration,
+          ownerAddress: ownerAddress as Address,
+          paymentToken: 'USDC',
+        },
+      })
+      if (!res.ok) throw new Error(`Failed to create order (${res.status})`)
+      const { orderId, commitment, totalDue, gasFee, paymentToken } =
+        (await res.json()) as {
+          orderId: string
+          commitment: Hex
+          totalDue: string
+          gasFee: string
+          /** Server-declared mint token: the rail's settlement asset. */
+          paymentToken: Address
+        }
+
+      // 2. Start the registration machine with voucher data. The machine
+      // handles mint → receipt → settle → poll; the injected callbacks keep
+      // all backend URLs/transport out of the machine. Settle fires on entry
+      // to `fulfillingRegistration`, i.e. AFTER the mint receipt is
+      // confirmed — never before payment.
+      uiActor.send({
+        type: 'registration.start',
+        label,
+        duration: BigInt(duration),
+        token: 'USDC',
+        totalPrice: BigInt(0), // not used in the voucher path
+        account: {
+          // For the voucher self-pay path the signer is the EOA wallet — the
+          // machine routes through the voucher states before any rhinestone
+          // Bundle production, and the mint actor uses walletClient directly.
+          signer: { type: 'eoa', walletClient } as const,
+          ownerAddress: ownerAddress as Address,
+          accountAddress: (accountAddress ?? ownerAddress) as Address,
+          walletClient,
+        } as unknown as SmartAccountContextValue,
+        basePriceNumber: pricingQuery.data?.basePrice ?? 0,
+        premiumPriceNumber: pricingQuery.data?.premiumPrice ?? 0,
+        voucherOrder: {
+          orderId,
+          commitment,
+          // Server-declared: the rail's settlement asset (Circle USDC on
+          // Sepolia), NOT the registrar's pricing token — so the gasFee the
+          // voucher forwards is the same coin solvers take as reimbursement.
+          paymentToken,
+          // Server-authoritative quote: register price + drift headroom +
+          // the orchestrator-quoted fulfilment gasFee. The mint pulls the
+          // TOTAL from the buyer; the voucher forwards the gasFee component
+          // on-chain to the fulfilment executor (buyer funds their own gas).
+          // Settle enforces amountPaid >= this total.
+          paymentAmount: BigInt(totalDue),
+          gasFee: BigInt(gasFee),
+          walletClient,
+          pollOrderStatus: async () => {
+            // Public-by-UUID status endpoint — no auth, so an expired SIWE
+            // session can never blind the buyer mid-fulfilment.
+            const statusRes = await backendClient.crossmint.voucher.orders[
+              ':id'
+            ].$get({ param: { id: orderId } })
+            const body = await statusRes.json()
+            if (!('status' in body)) {
+              // Non-status body (404/…): throw so the poll retries.
+              throw new Error(body.error)
+            }
+            // Surface the fulfilment phase to the ui machine so the progress
+            // bar advances through the real backend phases (committing →
+            // committed → registering) instead of parking on one value for
+            // the whole fulfilment.
+            uiActor.send({
+              type: 'registration.voucherPhase',
+              phase: body.status,
+            })
+            return {
+              status: body.status,
+              error: 'error' in body ? body.error : undefined,
+            }
+          },
+          triggerFulfilment: (mintTxHash) => {
+            // Settle with the on-chain payment proof: the backend verifies
+            // the mint receipt (VoucherMinted carrying this order's
+            // commitment) before flipping paid + enqueueing fulfilment.
+            // Fire-and-forget; idempotent, re-fired on machine RETRY.
+            void backendClient.crossmint.voucher.orders[':id'].settle
+              .$post({
+                param: { id: orderId },
+                json: { txHash: mintTxHash },
+              })
+              .catch(() => {})
+          },
+        },
+      })
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : 'Checkout failed')
+    } finally {
+      setIsCreatingOrder(false)
+    }
+  }
 
   return (
     <>
       <PaymentCardBase
         amount={totalPriceUsd}
         basePrice={pricingQuery.data?.basePrice}
-        canNext={canNext}
+        canNext={canNext && !isCreatingOrder}
         cardOverLimit={overCardLimit}
         discountAmount={discountAmount}
         isLoading={pricingQuery.isLoading || pricingQuery.isPlaceholderData}
-        onNext={() => uiActor.send({ type: 'pricing.step.next' })}
+        onNext={
+          voucherCheckoutEnabled
+            ? handleVoucherCheckout
+            : () => uiActor.send({ type: 'pricing.step.next' })
+        }
         onPayWithCard={showCardOption ? () => setCardOpen(true) : undefined}
         premiumAmount={pricingQuery.data?.premiumPrice}
         type="register"
+        voucherError={orderError}
+        voucherProcessing={isCreatingOrder}
       />
       {mounted && showCardOption && ownerAddress && (
         <Suspense fallback={null}>
@@ -116,6 +251,8 @@ export const PaymentCardBase = ({
   premiumAmount,
   basePrice,
   type,
+  voucherProcessing,
+  voucherError,
 }: {
   canNext: boolean
   onNext: () => void
@@ -130,6 +267,10 @@ export const PaymentCardBase = ({
   basePrice?: number
   isLoading: boolean
   type: 'register' | 'renew'
+  /** When true, the voucher order is being created (show loading state). */
+  voucherProcessing?: boolean
+  /** Error message from the voucher order creation. */
+  voucherError?: string
 }) => {
   const { isConnected } = useSmartAccountContext()
   const { openConnectModal, connectModalOpen } = useConnectModal()
@@ -207,12 +348,21 @@ export const PaymentCardBase = ({
             <Button
               className="w-full font-medium font-mono uppercase tracking-widest"
               color="blue"
-              disabled={!canNext}
+              disabled={!canNext || voucherProcessing}
               onClick={onNext}
               size="lg"
             >
-              <Trans>Pay with stablecoins</Trans>
+              {voucherProcessing ? (
+                <Trans>Creating order…</Trans>
+              ) : (
+                <Trans>Pay with stablecoins</Trans>
+              )}
             </Button>
+            {voucherError && (
+              <p className="text-center text-ens-signal-error-core text-xs">
+                {voucherError}
+              </p>
+            )}
             {onPayWithCard && (
               <>
                 <Button

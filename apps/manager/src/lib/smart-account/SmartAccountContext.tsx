@@ -41,6 +41,16 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
 
+/**
+ * Whether the app runs without the Rhinestone smart account entirely.
+ * - `USE_EOA`: explicit override (e.g. Tenderly forks with no relayer).
+ * - `WALLET_VOUCHER_CHECKOUT`: implied — registration is settled by the
+ *   self-pay voucher (plain EOA mint, server-side fulfilment), so nothing
+ *   needs the HCA and its deploy prompt must not appear.
+ */
+const isEoaOnlyMode = () =>
+  isFeatureEnabled('USE_EOA') || isFeatureEnabled('WALLET_VOUCHER_CHECKOUT')
+
 interface SmartAccountContextProviderProps {
   readonly children: ReactNode
 }
@@ -116,8 +126,12 @@ export const SmartAccountContextProvider = ({
 
   // In EOA-only mode the smart-account state machine never runs — skip the
   // wallet sync hook so we don't kick off Rhinestone initialization
-  // (which would deploy the HCA via Warp etc.).
-  const useEoa = isFeatureEnabled('USE_EOA')
+  // (which would deploy the HCA via Warp etc.). Beyond the explicit USE_EOA
+  // override, the self-pay voucher checkout implies EOA-only: registration
+  // settles through the voucher (a plain EOA mint verified server-side), so
+  // no flow needs the HCA — and skipping init removes the smart-account
+  // deploy prompt/"Deploying smart account…" UX entirely.
+  const useEoa = isEoaOnlyMode()
   useWalletConnectionSync(
     useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
     snapshot.value as string,
@@ -263,9 +277,9 @@ export const SmartAccountContextProvider = ({
 
   const signer: Signer | null = useMemo(() => {
     // EOA-only mode: skip smart account machinery entirely and sign with the
-    // wagmi wallet client directly. This is the only viable signer on the
-    // tenderly fork where the Rhinestone relayer is unavailable.
-    if (isFeatureEnabled('USE_EOA')) {
+    // wagmi wallet client directly (Tenderly forks, and the voucher self-pay
+    // flow which never produces Rhinestone Intents).
+    if (isEoaOnlyMode()) {
       if (!wagmiWalletClient || !wagmiWalletClient.account) return null
       return {
         type: 'eoa',
@@ -301,13 +315,13 @@ export const SmartAccountContextProvider = ({
     }
   }, [baseClient, accountAddress, wagmiWalletClient])
 
-  const isConnected = isFeatureEnabled('USE_EOA')
+  const isConnected = useEoa
     ? !!wagmiWalletClient && !!eoaAddress
     : !!snapshot.context.walletSource && !!snapshot.context.client
-  const hasInitialized = isFeatureEnabled('USE_EOA')
+  const hasInitialized = useEoa
     ? !isWalletPending
     : !isWalletPending && snapshot.value !== 'initializing'
-  const isAccountReady = isFeatureEnabled('USE_EOA')
+  const isAccountReady = useEoa
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress
 

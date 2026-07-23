@@ -66,6 +66,11 @@ export default createApp()
     const rawBody = await c.req.text()
     const db = getCrossmintDb(c.env)
 
+    // Fail closed: an unsigned "payment succeeded" claim must never flip an
+    // order to paid. Without the Svix secret this endpoint is an open switch
+    // that lets anyone trigger Safe spending for an unpaid order. Local dev
+    // can opt in explicitly; self-pay doesn't need this endpoint at all (it
+    // settles via /crossmint/voucher/orders/:id/settle with on-chain proof).
     if (c.env.CROSSMINT_WEBHOOK_SECRET) {
       const id = c.req.header('svix-id')
       const timestamp = c.req.header('svix-timestamp')
@@ -82,6 +87,9 @@ export default createApp()
         logger.warn('Crossmint webhook signature verification failed')
         return c.json({ error: 'Invalid signature' }, 401)
       }
+    } else if (c.env.ALLOW_UNSIGNED_WEBHOOK !== 'true') {
+      logger.warn('Crossmint webhook rejected: no CROSSMINT_WEBHOOK_SECRET')
+      return c.json({ error: 'Webhook signing not configured' }, 503)
     }
 
     const parsed = v.safeParse(WebhookRawBodySchema, rawBody)

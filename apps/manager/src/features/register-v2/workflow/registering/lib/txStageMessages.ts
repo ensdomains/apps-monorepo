@@ -8,6 +8,10 @@ export type RegisteringTxSnapshot = {
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  voucherOrderId?: string
+  voucherMintTxId?: string
+  /** Backend fulfilment phase (ui-machine context), voucher path only. */
+  voucherPhase?: string
 }
 
 export type TransactionState = string | undefined
@@ -21,7 +25,7 @@ export const getRegistrationStageMessages = (
   tx: RegisteringTxSnapshot,
   txState: TransactionState,
 ): StageMessages =>
-  match({ stage: tx.value, txState })
+  match({ stage: tx.value, txState, voucherPhase: tx.voucherPhase })
     .returnType<StageMessages>()
     .with({ stage: 'idle' }, () => ({
       stageLabel: msg`Idle`,
@@ -117,9 +121,39 @@ export const getRegistrationStageMessages = (
       stageDescription: msg`Waiting for the registration confirmation`,
     }))
     .with({ stage: 'verifyingRegistration' }, () => ({
-      stageLabel: msg`Verifying registration on-chain`,
+      stageLabel: msg`Verifying registration onchain`,
       stageDescription: msg`Confirming the name is now owned by your account`,
     }))
+    .with({ stage: 'mintingVoucher' }, () => ({
+      stageLabel: msg`Minting voucher`,
+      stageDescription: msg`Confirm the payment in your wallet`,
+    }))
+    .with({ stage: 'waitingForVoucherMint' }, () => ({
+      stageLabel: msg`Waiting for payment confirmation`,
+      stageDescription: msg`Waiting for the transaction receipt`,
+    }))
+    // Fulfilment is the long tail (~2-3 min); the copy tracks the real
+    // backend phase so the wait reads as movement, not a stall.
+    .with({ stage: 'fulfillingRegistration' }, ({ voucherPhase }) =>
+      match(voucherPhase)
+        .returnType<StageMessages>()
+        .with('committing', () => ({
+          stageLabel: msg`Committing your registration`,
+          stageDescription: msg`Submitting the onchain commitment for your name`,
+        }))
+        .with('committed', () => ({
+          stageLabel: msg`Security cooldown`,
+          stageDescription: msg`Waiting out the onchain anti-frontrunning delay (one minute)`,
+        }))
+        .with('registering', () => ({
+          stageLabel: msg`Registering your name`,
+          stageDescription: msg`Submitting the final registration transaction`,
+        }))
+        .otherwise(() => ({
+          stageLabel: msg`Completing your registration`,
+          stageDescription: msg`Verifying your payment and starting registration`,
+        })),
+    )
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,
       stageDescription: msg`Registration complete`,

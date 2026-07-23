@@ -85,6 +85,10 @@ msgstr "{label} theme"
 msgid "{label} theme (selected)"
 msgstr "{label} theme (selected)"
 
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "{label}.eth is yours!"
+msgstr "{label}.eth is yours!"
+
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
 msgstr "{migrated} out of {total} names upgraded"
@@ -465,6 +469,10 @@ msgstr "Card expiry date"
 msgid "Card number"
 msgstr "Card number"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Card payments are limited to $1,500. Pay with stablecoins for this amount."
+msgstr "Card payments are limited to $1,500. Pay with stablecoins for this amount."
+
 #: src/features/payment/components/add.tsx
 msgid "Card security code"
 msgstr "Card security code"
@@ -492,6 +500,10 @@ msgstr "Checking wallet connection..."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
 msgstr "Checking whether a payment approval is needed"
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Checkout failed"
+msgstr "Checkout failed"
 
 #: src/features/profile/components/sections/ThemeSection.tsx
 msgid "Choose a color for your profile"
@@ -529,6 +541,7 @@ msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
 msgid "Close"
 msgstr "Close"
 
@@ -560,6 +573,10 @@ msgstr "Committed"
 msgid "Committing"
 msgstr "Committing"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Committing your registration"
+msgstr "Committing your registration"
+
 #: src/features/landing/FeaturesCarousel.tsx
 msgid "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
 msgstr "Companies and projects use ENS because it's secured by ethereum, so you can be sure it's the real deal. Avoid impersonation scams and stay safe out there <3."
@@ -576,6 +593,14 @@ msgstr "Complete upgrade and receive a collectible marking your place in ENS his
 msgid "Complete your profile"
 msgstr "Complete your profile"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Completing your registration"
+msgstr "Completing your registration"
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Completing your registration…"
+msgstr "Completing your registration…"
+
 #: src/features/payment/components/add.tsx
 #: src/routes/auto-renewal/index.tsx
 msgid "Confirm"
@@ -589,6 +614,10 @@ msgstr "Confirm Payment"
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 msgid "Confirm purchase"
 msgstr "Confirm purchase"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Confirm the payment in your wallet"
+msgstr "Confirm the payment in your wallet"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Confirming approval"
@@ -733,6 +762,10 @@ msgstr "Create unlimited subdomains for free"
 msgid "Created"
 msgstr "Created"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Creating order…"
+msgstr "Creating order…"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Credit Card Payment"
 msgstr "Credit Card Payment"
@@ -835,6 +868,7 @@ msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
 
 #: src/features/migration/components/SuccessModal.tsx
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
 msgid "Done"
 msgstr "Done"
 
@@ -1354,6 +1388,10 @@ msgstr "Marking..."
 msgid "Migration failed"
 msgstr "Migration failed"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Minting voucher"
+msgstr "Minting voucher"
+
 #: src/features/payment/components/add.tsx
 msgid "MM/YY"
 msgstr "MM/YY"
@@ -1588,6 +1626,10 @@ msgstr "Page not found"
 msgid "Pay with Apple"
 msgstr "Pay with Apple"
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
+msgid "Pay with card"
+msgstr "Pay with card"
+
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Pay with credit card"
 msgstr "Pay with credit card"
@@ -1669,6 +1711,10 @@ msgstr "Preferences updated"
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Preparing account"
 msgstr "Preparing account"
+
+#: src/features/register-v2/workflow/pricing/components/CrossmintCheckoutDialog.tsx
+msgid "Preparing checkout…"
+msgstr "Preparing checkout…"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -1816,6 +1862,10 @@ msgstr "Registering"
 #: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx
 msgid "Registering for"
 msgstr "Registering for"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Registering your name"
+msgstr "Registering your name"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
 msgid "Registration"
@@ -2083,6 +2133,10 @@ msgstr "Search names"
 msgid "Search notifications"
 msgstr "Search notifications"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Security cooldown"
+msgstr "Security cooldown"
+
 #: src/features/notifications/dropdown/notification-dropdown.tsx
 msgid "See all"
 msgstr "See all"
@@ -2323,6 +2377,14 @@ msgstr "Submitting renewal"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting the commitment transaction"
 msgstr "Submitting the commitment transaction"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Submitting the final registration transaction"
+msgstr "Submitting the final registration transaction"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Submitting the onchain commitment for your name"
+msgstr "Submitting the onchain commitment for your name"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting the registration transaction"
@@ -2641,8 +2703,12 @@ msgid "Verifying Email..."
 msgstr "Verifying Email..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-msgid "Verifying registration on-chain"
-msgstr "Verifying registration on-chain"
+msgid "Verifying registration onchain"
+msgstr "Verifying registration onchain"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Verifying your payment and starting registration"
+msgstr "Verifying your payment and starting registration"
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Verifying..."
@@ -2675,6 +2741,10 @@ msgstr "Waiting for commitment receipt"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for commitment submission"
 msgstr "Waiting for commitment submission"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for payment confirmation"
+msgstr "Waiting for payment confirmation"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for registration"
@@ -2724,6 +2794,10 @@ msgstr "Waiting for the registration transaction"
 msgid "Waiting for the resolver deployment"
 msgstr "Waiting for the resolver deployment"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for the transaction receipt"
+msgstr "Waiting for the transaction receipt"
+
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Waiting for token approval"
 msgstr "Waiting for token approval"
@@ -2731,6 +2805,10 @@ msgstr "Waiting for token approval"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for transaction"
 msgstr "Waiting for transaction"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting out the onchain anti-frontrunning delay (one minute)"
+msgstr "Waiting out the onchain anti-frontrunning delay (one minute)"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting period"
