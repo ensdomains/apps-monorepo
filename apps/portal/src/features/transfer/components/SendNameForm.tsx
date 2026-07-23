@@ -102,7 +102,11 @@ export const SendNameForm = ({
 
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
-  const canStart = hasValidRecipient && !isResolving && !isPreparing
+  const resetTargetsSettled =
+    !resolverQuery.isLoading && !registriesQuery.isLoading
+
+  const canStart =
+    hasValidRecipient && !isResolving && !isPreparing && resetTargetsSettled
 
   const keepsResolver = optionIsVisible.resetResolver && !options.resetResolver
   const keepsRegistry = optionIsVisible.resetRegistry && !options.resetRegistry
