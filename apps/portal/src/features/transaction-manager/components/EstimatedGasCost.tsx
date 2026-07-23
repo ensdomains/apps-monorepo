@@ -1,7 +1,4 @@
-import type {
-  CustomTransactionIntent,
-  TransactionMachineActor,
-} from '@ens-apps/transaction-manager'
+import type { TransactionMachineActor } from '@ens-apps/transaction-manager'
 import { AlertCircle, Info } from 'lucide-react'
 import { fromThrowable } from 'neverthrow'
 import { type ComponentType, useMemo } from 'react'
@@ -15,7 +12,7 @@ import {
 import { sepoliaWithEns } from '@/lib/wagmi'
 import type { WalletClientWithAccount } from '@/utils/types'
 import { useTransactionGasEstimate } from '../hooks/useTransactionGasEstimate'
-import type { IntentContext } from '../types'
+import type { Transaction } from '../types'
 
 /** An icon + label that reveals an explanation on hover/focus. */
 const EstimateHint = ({
@@ -52,18 +49,17 @@ const EstimateHint = ({
  */
 export const EstimatedGasCost = ({
   actor,
-  prepareIntent,
-  prepareIntentPending = false,
-  prepareIntentError = false,
+  intent,
 }: {
   readonly actor: TransactionMachineActor | undefined
-  readonly prepareIntent?: (
-    ctx: IntentContext,
-  ) => CustomTransactionIntent | undefined
-  /** See {@link Transaction.prepareIntentPending} — async-intent bridge. */
-  readonly prepareIntentPending?: boolean
-  readonly prepareIntentError?: boolean
+  /** The step's estimate config — see {@link Transaction.intent}. */
+  readonly intent?: Transaction['intent']
 }) => {
+  const {
+    prepare: prepareIntent,
+    isPending: prepareIntentPending = false,
+    isError: prepareIntentError = false,
+  } = intent ?? {}
   const { data: walletClient } = useWalletClient()
   // Only estimate against a wallet that's ready (account + chain) and on the
   // estimate's target chain: an intent built for Sepolia can't be estimated
@@ -77,7 +73,7 @@ export const EstimatedGasCost = ({
   // Memoize on the inputs that change the intent so the modal's actor-snapshot
   // re-renders don't re-run `encodeFunctionData` (and, some flows, ensjs
   // write-param encoding) on every render.
-  const intent = useMemo(
+  const preparedIntent = useMemo(
     () =>
       readyWalletClient && prepareIntent
         ? fromThrowable(prepareIntent, (error) => {
@@ -100,7 +96,7 @@ export const EstimatedGasCost = ({
 
   const { cost, status: gasStatus } = useTransactionGasEstimate(
     actor,
-    intent?.request,
+    preparedIntent?.request,
   )
 
   // An async-intent flow (see the props above) surfaces its own resolution
@@ -113,7 +109,7 @@ export const EstimatedGasCost = ({
     hasActiveRequest,
     prepareIntentError,
     prepareIntentPending,
-    hasIntent: intent !== undefined,
+    hasIntent: preparedIntent !== undefined,
   })
     .with(
       { hasActiveRequest: false, prepareIntentError: true },

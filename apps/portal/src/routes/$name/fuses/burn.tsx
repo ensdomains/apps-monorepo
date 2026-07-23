@@ -271,16 +271,18 @@ function RouteComponent() {
             transactionName: `Permanently burn selected fuses on ${name}`,
             // Deterministic from the selected fuses, so the modal can estimate
             // gas the moment it opens (shared with the burnFuses submit path).
-            prepareIntent:
-              selectedChildFuses.size > 0
-                ? ({ walletClient, chainId }) =>
-                    prepareBurnFusesTransaction({
-                      name,
-                      fuses: Array.from(selectedChildFuses),
-                      walletClient,
-                      chainId,
-                    })
-                : undefined,
+            intent: {
+              prepare:
+                selectedChildFuses.size > 0
+                  ? ({ walletClient, chainId }) =>
+                      prepareBurnFusesTransaction({
+                        name,
+                        fuses: Array.from(selectedChildFuses),
+                        walletClient,
+                        chainId,
+                      })
+                  : undefined,
+            },
             onStart: handleStartTransaction,
             onDone: () => {
               queryClient.invalidateQueries({

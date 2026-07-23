@@ -719,18 +719,20 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: UPDATE_REVERSE_NAME_TX_ID,
                   title: 'Update reverse name',
                   transactionName: `Set reverse name to ${nameInput}`,
-                  prepareIntent:
-                    !isL2Target && isConnected && nameInput
-                      ? ({ walletClient, chainId }) => {
-                          const { request } =
-                            getReverseResolutionRequest(nameInput)
-                          return prepareSetReverseResolutionTransaction({
-                            request,
-                            from: walletClient.account.address,
-                            chainId,
-                          })
-                        }
-                      : undefined,
+                  intent: {
+                    prepare:
+                      !isL2Target && isConnected && nameInput
+                        ? ({ walletClient, chainId }) => {
+                            const { request } =
+                              getReverseResolutionRequest(nameInput)
+                            return prepareSetReverseResolutionTransaction({
+                              request,
+                              from: walletClient.account.address,
+                              chainId,
+                            })
+                          }
+                        : undefined,
+                  },
                   onStart: handleUpdateReverseStart,
                   onDone: handleUpdateReverseDone,
                 },
@@ -740,17 +742,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: SET_PRIMARY_NAME_TX_ID,
                   title: 'Set primary name',
                   transactionName: `Set primary name to ${displayName}`,
-                  prepareIntent:
-                    isConnected && displayName
-                      ? ({ walletClient, chainId }) => {
-                          const request = getForwardResolutionRequest(address)
-                          return prepareSetForwardResolutionTransaction({
-                            request,
-                            from: walletClient.account.address,
-                            chainId,
-                          })
-                        }
-                      : undefined,
+                  intent: {
+                    prepare:
+                      isConnected && displayName
+                        ? ({ walletClient, chainId }) => {
+                            const request = getForwardResolutionRequest(address)
+                            return prepareSetForwardResolutionTransaction({
+                              request,
+                              from: walletClient.account.address,
+                              chainId,
+                            })
+                          }
+                        : undefined,
+                  },
                   onStart: handleSetPrimaryNameStart,
                   onDone: handleSetPrimaryNameDone,
                 },

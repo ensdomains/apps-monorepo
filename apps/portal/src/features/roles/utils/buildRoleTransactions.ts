@@ -81,24 +81,26 @@ export function buildRoleTransactions(
       id: descriptor.id,
       title: descriptor.title,
       transactionName: descriptor.transactionName,
-      prepareIntent: ({ walletClient, chainId }) =>
-        descriptor.type === 'grant'
-          ? prepareGrantRolesTransaction({
-              name,
-              account: descriptor.account,
-              roles: descriptor.roles,
-              walletClient,
-              chainId,
-              registryAddress,
-            })
-          : prepareRevokeRolesTransaction({
-              name,
-              account: descriptor.account,
-              roles: descriptor.roles,
-              walletClient,
-              chainId,
-              registryAddress,
-            }),
+      intent: {
+        prepare: ({ walletClient, chainId }) =>
+          descriptor.type === 'grant'
+            ? prepareGrantRolesTransaction({
+                name,
+                account: descriptor.account,
+                roles: descriptor.roles,
+                walletClient,
+                chainId,
+                registryAddress,
+              })
+            : prepareRevokeRolesTransaction({
+                name,
+                account: descriptor.account,
+                roles: descriptor.roles,
+                walletClient,
+                chainId,
+                registryAddress,
+              }),
+      },
       onStart: () => runDescriptor(descriptor),
       onDone:
         nextDescriptor !== undefined

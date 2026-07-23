@@ -231,7 +231,7 @@ type FlowStep = {
   readonly id: string
   readonly title: string
   readonly transactionName: string
-  readonly prepareIntent?: Transaction['prepareIntent']
+  readonly prepareIntent?: NonNullable<Transaction['intent']>['prepare']
   readonly action: () => Promise<void>
 }
 
@@ -324,7 +324,7 @@ function buildMultiTransactions({
     id: step.id,
     title: step.title,
     transactionName: step.transactionName,
-    prepareIntent: step.prepareIntent,
+    intent: { prepare: step.prepareIntent },
     onStart: step.action,
     onDone: i < flowSteps.length - 1 ? flowSteps[i + 1].action : handleDone,
   }))
@@ -461,18 +461,20 @@ export const useRenewalTransactions = ({
         // Renew pulls the ERC-20 payment, so a live estimate reverts until the
         // allowance covers the price. Estimate only when it already does;
         // otherwise it estimates the moment the approval step completes.
-        prepareIntent:
-          publicClient && single.tokenAllowance >= single.tokenPrice
-            ? ({ walletClient }) =>
-                buildRenewIntent({
-                  name: single.selectedName.name,
-                  duration: single.duration,
-                  tokenAddress: single.tokenAddress,
-                  from: walletClient.account.address,
-                  publicClient,
-                  isV2: single.selectedName.isV2,
-                })
-            : undefined,
+        intent: {
+          prepare:
+            publicClient && single.tokenAllowance >= single.tokenPrice
+              ? ({ walletClient }) =>
+                  buildRenewIntent({
+                    name: single.selectedName.name,
+                    duration: single.duration,
+                    tokenAddress: single.tokenAddress,
+                    from: walletClient.account.address,
+                    publicClient,
+                    isV2: single.selectedName.isV2,
+                  })
+              : undefined,
+        },
         onStart: handleRenewStart,
         onDone: handleDone,
       }
@@ -483,13 +485,15 @@ export const useRenewalTransactions = ({
         id: RENEWAL_TX_IDS.approve(renewer),
         title: 'Approve payment',
         transactionName: approveLabel(single.tokenSymbol, renewer),
-        prepareIntent: ({ walletClient }) =>
-          buildRenewalApproveIntent({
-            from: walletClient.account.address,
-            tokenAddress: single.tokenAddress,
-            renewer,
-            tokenPrice: single.tokenPrice,
-          }),
+        intent: {
+          prepare: ({ walletClient }) =>
+            buildRenewalApproveIntent({
+              from: walletClient.account.address,
+              tokenAddress: single.tokenAddress,
+              renewer,
+              tokenPrice: single.tokenPrice,
+            }),
+        },
         onStart: handleApproveStart,
         onDone: handleRenewStart,
       }

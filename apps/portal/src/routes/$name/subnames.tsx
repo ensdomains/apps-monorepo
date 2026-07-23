@@ -284,7 +284,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         id,
         title: 'Delete subname',
         transactionName: `Delete ${subname.name}`,
-        prepareIntent: getDeleteIntent(subname),
+        intent: { prepare: getDeleteIntent(subname) },
         onStart: () => {
           void runDelete(subname, id)
         },

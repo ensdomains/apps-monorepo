@@ -252,15 +252,17 @@ function RouteComponent() {
             id: DELETE_ALIAS_TX_ID,
             title: 'Delete alias',
             transactionName: `Delete alias ${pendingDeleteAlias?.fromName ?? ''}`,
-            prepareIntent: pendingDeleteAlias
-              ? ({ walletClient, chainId }) =>
-                  prepareDeleteAliasTransaction({
-                    fromName: pendingDeleteAlias.fromName,
-                    resolverAddress: address as Address,
-                    walletClient,
-                    chainId,
-                  })
-              : undefined,
+            intent: {
+              prepare: pendingDeleteAlias
+                ? ({ walletClient, chainId }) =>
+                    prepareDeleteAliasTransaction({
+                      fromName: pendingDeleteAlias.fromName,
+                      resolverAddress: address as Address,
+                      walletClient,
+                      chainId,
+                    })
+                : undefined,
+            },
             onStart: () => {
               if (!pendingDeleteAlias) return
               deleteMutation.mutate(pendingDeleteAlias.fromName)

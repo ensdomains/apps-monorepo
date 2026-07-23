@@ -335,13 +335,15 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   id: DEPLOY_SUBREGISTRY_TX_ID,
                   title: 'Deploy subregistry',
                   transactionName: `Deploy subregistry for ${name}`,
-                  prepareIntent: ({ walletClient, chainId }) =>
-                    prepareDeploySubregistryTransaction({
-                      factoryAddress,
-                      implAddress,
-                      walletClient,
-                      chainId,
-                    }),
+                  intent: {
+                    prepare: ({ walletClient, chainId }) =>
+                      prepareDeploySubregistryTransaction({
+                        factoryAddress,
+                        implAddress,
+                        walletClient,
+                        chainId,
+                      }),
+                  },
                   onStart: handleDeploySubregistryStart,
                   // Chains into the set step once the deploy succeeds; the
                   // handler is idempotent so this can't double-submit.
@@ -366,16 +368,18 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   // The custom-registry branch's "Set subregistry" call is fully
                   // known upfront (user-provided address), so its gas can be
                   // estimated the moment the modal opens.
-                  prepareIntent: customSubregistryAddress
-                    ? ({ walletClient, chainId }) =>
-                        prepareSetSubregistryTransaction({
-                          label,
-                          parentRegistry,
-                          subregistryAddress: customSubregistryAddress,
-                          walletClient,
-                          chainId,
-                        })
-                    : undefined,
+                  intent: {
+                    prepare: customSubregistryAddress
+                      ? ({ walletClient, chainId }) =>
+                          prepareSetSubregistryTransaction({
+                            label,
+                            parentRegistry,
+                            subregistryAddress: customSubregistryAddress,
+                            walletClient,
+                            chainId,
+                          })
+                      : undefined,
+                  },
                   onStart: handleSetSubregistryStart,
                   onDone: handleSetSubregistryDone,
                 },

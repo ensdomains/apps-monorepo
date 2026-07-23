@@ -329,12 +329,14 @@ export const ChangeResolverForm = ({
                   id: DEPLOY_RESOLVER_TX_ID,
                   title: 'Deploy permissioned resolver',
                   transactionName: `Deploy resolver for ${name}`,
-                  prepareIntent: ({ walletClient, chainId }) =>
-                    prepareDeployPermissionedResolverTransaction({
-                      from: walletClient.account.address,
-                      chainId,
-                      salt: deployResolverSalt,
-                    }),
+                  intent: {
+                    prepare: ({ walletClient, chainId }) =>
+                      prepareDeployPermissionedResolverTransaction({
+                        from: walletClient.account.address,
+                        chainId,
+                        salt: deployResolverSalt,
+                      }),
+                  },
                   onStart: handleDeployResolverStart,
                   onDone: handleChangeResolverAfterDeployStart,
                 },
@@ -354,16 +356,18 @@ export const ChangeResolverForm = ({
                   id: CHANGE_RESOLVER_TX_ID,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
-                  prepareIntent: customResolverToUse
-                    ? ({ walletClient, chainId }) =>
-                        prepareChangeResolverTransaction({
-                          name,
-                          registryAddress,
-                          resolverAddress: customResolverToUse,
-                          from: walletClient.account.address,
-                          chainId,
-                        })
-                    : undefined,
+                  intent: {
+                    prepare: customResolverToUse
+                      ? ({ walletClient, chainId }) =>
+                          prepareChangeResolverTransaction({
+                            name,
+                            registryAddress,
+                            resolverAddress: customResolverToUse,
+                            from: walletClient.account.address,
+                            chainId,
+                          })
+                      : undefined,
+                  },
                   onStart: handleChangeResolverTransactionStart,
                   onDone: handleChangeResolverTransactionDone,
                 },

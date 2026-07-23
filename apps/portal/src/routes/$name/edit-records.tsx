@@ -541,9 +541,11 @@ const EditRecordsContent = ({
             id: SAVE_RECORDS_TRANSACTION_ID,
             title: 'Save records',
             transactionName: 'Set resolver records',
-            prepareIntent: () => saveRecordsIntentQuery.data,
-            prepareIntentPending: saveRecordsIntentQuery.isLoading,
-            prepareIntentError: saveRecordsIntentQuery.isError,
+            intent: {
+              prepare: () => saveRecordsIntentQuery.data,
+              isPending: saveRecordsIntentQuery.isLoading,
+              isError: saveRecordsIntentQuery.isError,
+            },
             onStart: handleStartSaveRecordsTransaction,
             onDone: () => {
               closeTransactionModal()

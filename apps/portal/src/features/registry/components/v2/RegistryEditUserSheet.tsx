@@ -226,7 +226,7 @@ export const RegistryEditUserSheet = ({
         id: GRANT_TX_ID,
         title: 'Grant roles',
         transactionName: 'Grant registry roles',
-        prepareIntent: rolesIntentThunk('grant', toGrant),
+        intent: { prepare: rolesIntentThunk('grant', toGrant) },
         onStart: () =>
           grantRegistryRoles({
             registryAddress,
@@ -243,7 +243,7 @@ export const RegistryEditUserSheet = ({
         id: REVOKE_TX_ID,
         title: 'Revoke roles',
         transactionName: 'Revoke registry roles',
-        prepareIntent: rolesIntentThunk('revoke', toRevoke),
+        intent: { prepare: rolesIntentThunk('revoke', toRevoke) },
         onStart: () =>
           revokeRegistryRoles({
             registryAddress,

@@ -299,17 +299,19 @@ export const RolesAddUserSheet = ({
                 transactionName: address
                   ? `Grant roles for ${truncateAddress(address, 6, 4)}`
                   : 'Grant roles',
-                prepareIntent: pendingGrant
-                  ? ({ walletClient, chainId }) =>
-                      prepareGrantRolesTransaction({
-                        name,
-                        account: pendingGrant.account,
-                        roles: pendingGrant.roles,
-                        walletClient,
-                        chainId,
-                        registryAddress,
-                      })
-                  : undefined,
+                intent: {
+                  prepare: pendingGrant
+                    ? ({ walletClient, chainId }) =>
+                        prepareGrantRolesTransaction({
+                          name,
+                          account: pendingGrant.account,
+                          roles: pendingGrant.roles,
+                          walletClient,
+                          chainId,
+                          registryAddress,
+                        })
+                    : undefined,
+                },
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

@@ -397,19 +397,21 @@ const CreateSubnameForm = ({
             // The prepared createSubname transaction for the pre-start gas
             // estimate. Undefined until the form is ready (resolver resolved,
             // owner set) — the modal shows "Estimating…" until then.
-            prepareIntent:
-              hasSubregistry && ownerAddress && resolverAddress
-                ? ({ walletClient, chainId }) =>
-                    prepareCreateSubnameTransaction({
-                      registryAddress: subregistryAddress,
-                      label: label.trim(),
-                      owner: ownerAddress,
-                      resolverAddress,
-                      walletClient,
-                      chainId,
-                      expires: estimateExpires,
-                    }).unwrapOr(undefined)
-                : undefined,
+            intent: {
+              prepare:
+                hasSubregistry && ownerAddress && resolverAddress
+                  ? ({ walletClient, chainId }) =>
+                      prepareCreateSubnameTransaction({
+                        registryAddress: subregistryAddress,
+                        label: label.trim(),
+                        owner: ownerAddress,
+                        resolverAddress,
+                        walletClient,
+                        chainId,
+                        expires: estimateExpires,
+                      }).unwrapOr(undefined)
+                  : undefined,
+            },
             onStart: handleStartTransaction,
             onDone: () => {
               closeTransactionModal()

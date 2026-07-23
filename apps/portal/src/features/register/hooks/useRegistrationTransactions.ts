@@ -9,7 +9,13 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { type Address, erc20Abi, keccak256, stringToBytes } from 'viem'
+import {
+  type Address,
+  erc20Abi,
+  hexToBigInt,
+  keccak256,
+  stringToBytes,
+} from 'viem'
 import {
   useConfig,
   useConnection,
@@ -191,17 +197,21 @@ export const useRegistrationTransactions = ({
         // stable throwaway salt: deploy gas is salt-independent, and a
         // name-derived salt never collides with a real (random-salt) deploy, so
         // estimateGas won't revert on an already-deployed address.
-        prepareIntent: connection.address
-          ? ({ walletClient }) =>
-              toEoaCustomIntent({
-                from: walletClient.account.address,
-                ...encodeDeployDedicatedResolverCall({
-                  owner: connection.address as Address,
-                  salt: BigInt(keccak256(stringToBytes(`estimate:${name}`))),
-                }),
-                chainId,
-              })
-          : undefined,
+        intent: {
+          prepare: connection.address
+            ? ({ walletClient }) =>
+                toEoaCustomIntent({
+                  from: walletClient.account.address,
+                  ...encodeDeployDedicatedResolverCall({
+                    owner: connection.address as Address,
+                    salt: hexToBigInt(
+                      keccak256(stringToBytes(`estimate:${name}`)),
+                    ),
+                  }),
+                  chainId,
+                })
+            : undefined,
+        },
         onStart: handleStart,
         onDone: handleProceed,
       },
@@ -223,16 +233,18 @@ export const useRegistrationTransactions = ({
         // upfront (no dependency on an earlier step), so the modal can estimate
         // it the moment it opens. approve gas is amount-independent, so the
         // estimate holds even if the submitted allowance differs slightly.
-        prepareIntent: savedParams
-          ? ({ walletClient }) =>
-              buildApproveIntent({
-                from: walletClient.account.address,
-                token: savedParams.tokenAddress,
-                spender: ethRegistrar,
-                amount: savedParams.tokenPrice,
-                chainId,
-              })
-          : undefined,
+        intent: {
+          prepare: savedParams
+            ? ({ walletClient }) =>
+                buildApproveIntent({
+                  from: walletClient.account.address,
+                  token: savedParams.tokenAddress,
+                  spender: ethRegistrar,
+                  amount: savedParams.tokenPrice,
+                  chainId,
+                })
+            : undefined,
+        },
         onStart: handleProceed,
         onDone: handleProceed,
       })

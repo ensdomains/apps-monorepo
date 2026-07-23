@@ -406,17 +406,19 @@ export const ResolverAddUserSheet = ({
                 transactionName: `Grant resolver roles for ${pendingGrant?.name || '(root)'}`,
                 // Deterministic once the user has confirmed the grant, so the
                 // modal can estimate gas the moment it opens.
-                prepareIntent: pendingGrant
-                  ? ({ walletClient, chainId }) =>
-                      prepareGrantResolverRolesTransaction({
-                        resolverAddress,
-                        name: pendingGrant.name,
-                        account: pendingGrant.account,
-                        roles: pendingGrant.roles,
-                        walletClient,
-                        chainId,
-                      })
-                  : undefined,
+                intent: {
+                  prepare: pendingGrant
+                    ? ({ walletClient, chainId }) =>
+                        prepareGrantResolverRolesTransaction({
+                          resolverAddress,
+                          name: pendingGrant.name,
+                          account: pendingGrant.account,
+                          roles: pendingGrant.roles,
+                          walletClient,
+                          chainId,
+                        })
+                    : undefined,
+                },
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

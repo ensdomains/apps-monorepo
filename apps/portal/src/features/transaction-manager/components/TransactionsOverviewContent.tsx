@@ -204,11 +204,7 @@ export const TransactionsOverviewContent = ({
                       <dd className="text-base">
                         <EstimatedGasCost
                           actor={activeTransactionsMap.get(transaction.id)}
-                          prepareIntent={transaction.prepareIntent}
-                          prepareIntentPending={
-                            transaction.prepareIntentPending
-                          }
-                          prepareIntentError={transaction.prepareIntentError}
+                          intent={transaction.intent}
                         />
                       </dd>
                     </dl>

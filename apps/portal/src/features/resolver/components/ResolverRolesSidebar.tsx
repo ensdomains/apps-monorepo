@@ -471,14 +471,16 @@ export const ResolverRolesSidebar = ({
               // two transactions under one step id, so we can't represent it
               // with a single intent — return undefined and let that step
               // estimate once started.
-              prepareIntent: pendingAction
-                ? (ctx) =>
-                    prepareResolverRolesIntent(
-                      pendingAction,
-                      resolverAddress,
-                      ctx,
-                    )
-                : undefined,
+              intent: {
+                prepare: pendingAction
+                  ? (ctx) =>
+                      prepareResolverRolesIntent(
+                        pendingAction,
+                        resolverAddress,
+                        ctx,
+                      )
+                  : undefined,
+              },
               onStart: () => {
                 if (!pendingAction) return
                 if (pendingAction.type === 'remove') {

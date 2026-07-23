@@ -44,12 +44,7 @@ export const TransactionInfoContent = ({
             </h3>
             <p className="text-xs font-mono">
               Est. cost:{' '}
-              <EstimatedGasCost
-                actor={actor}
-                prepareIntent={transaction.prepareIntent}
-                prepareIntentPending={transaction.prepareIntentPending}
-                prepareIntentError={transaction.prepareIntentError}
-              />
+              <EstimatedGasCost actor={actor} intent={transaction.intent} />
             </p>
             {transaction.steps && transaction.steps.length > 0 && (
               <ul className="flex flex-col gap-1 pb-4 text-sm mt-3">

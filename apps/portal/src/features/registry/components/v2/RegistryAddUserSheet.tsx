@@ -267,16 +267,18 @@ export const RegistryAddUserSheet = ({
                 transactionName: 'Grant registry roles',
                 // Deterministic once the user has picked an account + roles, so
                 // the modal can estimate gas the moment it opens.
-                prepareIntent: pendingGrant
-                  ? ({ walletClient, chainId }) =>
-                      prepareGrantRegistryRolesTransaction({
-                        registryAddress,
-                        account: pendingGrant.account,
-                        roles: pendingGrant.roles,
-                        walletClient,
-                        chainId,
-                      })
-                  : undefined,
+                intent: {
+                  prepare: pendingGrant
+                    ? ({ walletClient, chainId }) =>
+                        prepareGrantRegistryRolesTransaction({
+                          registryAddress,
+                          account: pendingGrant.account,
+                          roles: pendingGrant.roles,
+                          walletClient,
+                          chainId,
+                        })
+                    : undefined,
+                },
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },
