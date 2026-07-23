@@ -987,11 +987,30 @@
     )
     return h2iPromise
   }
+  // The element's OWN background is usually transparent — the page color
+  // comes from an ancestor. Without it, captures of light-on-dark UIs render
+  // light text on transparency (unreadable on the popover). Walk up to the
+  // first ancestor that actually paints a background color.
+  function effectiveBackground(el) {
+    let node = el
+    while (node && node.nodeType === 1) {
+      const bg = getComputedStyle(node).backgroundColor
+      if (bg && bg !== 'transparent') {
+        // skip fully transparent rgba(0,0,0,0) / colors with alpha 0
+        const m = bg.match(/rgba?\(([^)]+)\)/)
+        const alpha = m ? Number((m[1].split(',')[3] ?? '1').trim()) : 1
+        if (alpha > 0) return bg
+      }
+      node = node.parentElement
+    }
+    return '#ffffff'
+  }
   async function captureElementShot(el) {
     try {
       const h2i = await loadHtmlToImage()
       const blob = await h2i.toBlob(el, {
         pixelRatio: Math.min(2, window.devicePixelRatio || 1),
+        backgroundColor: effectiveBackground(el),
       })
       if (!blob) return null
       const fd = new FormData()
@@ -1099,6 +1118,21 @@
     if (comments.length) renderPins()
     if (outlineAll) renderOutlineAll()
     renderHighlight()
+    repositionPopover()
+  }
+  // Keep the open comment card glued to its anchored element on scroll —
+  // same behavior as the pins. `_follow.dx/dy` preserve the card's offset
+  // from the anchor (including any manual drag).
+  function repositionPopover() {
+    const pop = activePopover
+    const f = pop && pop._follow
+    if (!f || !f.anchor) return
+    const p = resolveAnchor(f.anchor)
+    if (!p) return
+    // No viewport clamping here: like the pins, the card scrolls out of view
+    // with its element instead of getting stuck at the screen edge.
+    pop.style.left = p.x + f.dx + 'px'
+    pop.style.top = p.y + f.dy + 'px'
   }
   window.addEventListener('scroll', reposition, true)
   window.addEventListener('resize', reposition)
@@ -1266,6 +1300,12 @@
     const pop = document.createElement('div')
     pop.className = 'popover card2'
     placePopover(pop, x, y)
+    // Follow the anchored element on scroll (offset from anchor preserved).
+    pop._follow = {
+      anchor,
+      dx: parseFloat(pop.style.left) - x,
+      dy: parseFloat(pop.style.top) - y,
+    }
     pop.innerHTML = `
       <div class="card-header">
         <span class="ttl">New comment</span>
@@ -1685,6 +1725,12 @@
     const pop = document.createElement('div')
     pop.className = 'popover card2'
     placePopover(pop, pos.x, pos.y)
+    // Follow the anchored element on scroll (offset from anchor preserved).
+    pop._follow = {
+      anchor: c.anchor,
+      dx: parseFloat(pop.style.left) - pos.x,
+      dy: parseFloat(pop.style.top) - pos.y,
+    }
     const replies = (c.replies || [])
       .map((r) =>
         messageRow(r.author, r.body, r.createdAt, {
@@ -2070,6 +2116,16 @@
       const up = () => {
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
+        // Re-base the scroll-follow offset on the dragged position so the
+        // card keeps following the element from where the user left it.
+        const f = pop._follow
+        if (f && f.anchor) {
+          const p = resolveAnchor(f.anchor)
+          if (p) {
+            f.dx = parseFloat(pop.style.left) - p.x
+            f.dy = parseFloat(pop.style.top) - p.y
+          }
+        }
       }
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
