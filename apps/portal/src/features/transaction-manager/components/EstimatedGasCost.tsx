@@ -61,12 +61,13 @@ export const EstimatedGasCost = ({
     isError: prepareIntentError = false,
   } = intent ?? {}
   const { data: walletClient } = useWalletClient()
-  // Only estimate against a wallet that's ready (account + chain) and on the
-  // estimate's target chain: an intent built for Sepolia can't be estimated
-  // against a wallet scoped to another network, and the builders throw without a
-  // resolved chain. `undefined` otherwise, so we skip estimation instead.
+  // Only estimate against a ready wallet: an account (the `from`) and a resolved
+  // chain, which the builders need to encode calldata. We don't pin to a specific
+  // chain here — `eth_estimateGas` only needs `from`, and the estimate hook
+  // already scopes its public client to the intent's target chain. `undefined`
+  // otherwise, so we skip estimation instead.
   const readyWalletClient =
-    walletClient?.account && walletClient.chain?.id === sepoliaWithEns.id
+    walletClient?.account && walletClient.chain
       ? (walletClient as WalletClientWithAccount)
       : undefined
 
