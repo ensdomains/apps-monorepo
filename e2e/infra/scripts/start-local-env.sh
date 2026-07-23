@@ -92,6 +92,8 @@ wait_for_service "alto"  90
 check_running "paymaster"
 # mockestrator /health returns 503 — just confirm the container is up
 check_running "mockestrator"
+# DQA overlay service (design-review comments). See e2e/docs/dqa-overlay.md.
+wait_for_service "dqa" 60
 
 # ---------- print env ----------
 echo ""
@@ -105,6 +107,10 @@ echo ""
 echo "  # Rhinestone path (default smart-account provider)"
 echo "  VITE_RHINESTONE_ENDPOINT_URL=/orchestrator   (Vite proxy → 127.0.0.1:3007)"
 echo '  VITE_RHINESTONE_CUSTOM_RPC_URLS={"11155111":"http://127.0.0.1:8545"}'
+echo ""
+echo "  # DQA overlay (design review — optional; see e2e/docs/dqa-overlay.md)"
+echo "  VITE_DQA=1"
+echo "  VITE_DQA_URL=http://localhost:4000"
 echo ""
 echo "Copy these into your app's .env and (re)start the dev server so Vite picks them up."
 echo ""
