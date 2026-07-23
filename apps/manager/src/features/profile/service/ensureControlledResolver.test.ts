@@ -93,4 +93,23 @@ describe('ensureControlledResolver', () => {
     expect(mockedChange).not.toHaveBeenCalled()
     expect(mockedWait).not.toHaveBeenCalled()
   })
+
+  it('rejects subnames before deploying anything (changeResolver is 2LD-only)', async () => {
+    const runSubname = () =>
+      ensureControlledResolver({
+        name: 'sub.leon.eth',
+        eoa: EOA,
+        signer,
+        accountAddress: EOA,
+        wagmiConfig,
+        publicClient,
+        chainId: CHAIN_ID,
+      })
+
+    await expect(runSubname()).rejects.toThrow(/subname/i)
+    // No on-chain work: neither the resolver deploy nor setResolver runs.
+    expect(mockedEnsure).not.toHaveBeenCalled()
+    expect(mockedChange).not.toHaveBeenCalled()
+    expect(mockedWait).not.toHaveBeenCalled()
+  })
 })

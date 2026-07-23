@@ -359,6 +359,12 @@ export const ChoosePrimaryNameDialog = ({
       queryClient.invalidateQueries({
         queryKey: $qk({ $scope: 'profile', $action: 'reverse_name' }),
       })
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_access' }),
+      })
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'get_records' }),
+      })
       setOpen(false)
       onUpdated?.()
     },

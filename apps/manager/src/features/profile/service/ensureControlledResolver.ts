@@ -1,4 +1,5 @@
 import { type Signer, waitForTransaction } from '@ens-apps/transaction-manager'
+import { parseInput } from '@ensdomains/ensjs/utils'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
 import { ensureOwnedPermRes } from '@/features/migration/service/ensureOwnedPermRes'
@@ -31,6 +32,11 @@ export interface EnsureControlledResolverParams {
  *  2. `setResolver(name, ownedResolver)` through the transaction manager
  *     (sponsored intent for smart accounts, direct tx for EOAs).
  *
+ * Only supports direct `.eth` 2LDs: `changeResolver` derives the tokenId from
+ * the leaf label against the root `.eth` registry. Subnames live in a parent
+ * registry the manager can't deploy or point at, so this throws for them —
+ * before deploying anything — rather than submitting a reverting `setResolver`.
+ *
  * Resolves with the resolver address once step 2 is confirmed, so callers can
  * write records to it immediately.
  */
@@ -46,6 +52,13 @@ export async function ensureControlledResolver(
     publicClient,
     chainId,
   } = params
+
+  const fullName = name.endsWith('.eth') ? name : `${name}.eth`
+  if (!parseInput(fullName).is2LD) {
+    throw new Error(
+      'This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.',
+    )
+  }
 
   const resolver = await ensureOwnedPermRes({
     eoa,
