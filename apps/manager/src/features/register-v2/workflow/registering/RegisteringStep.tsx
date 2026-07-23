@@ -57,8 +57,6 @@ const getDisplayedRegistrationStage = (
     .with('waitingForPrimaryNameForward', () => 'settingPrimaryName' as const)
     .with('settingPrimaryNameReverse', () => 'settingPrimaryName' as const)
     .with('waitingForPrimaryNameReverse', () => 'settingPrimaryName' as const)
-    .with('settingPrimaryName', () => 'settingPrimaryName' as const)
-    .with('waitingForPrimaryName', () => 'settingPrimaryName' as const)
     .with('success', () => 'success' as const)
     .otherwise(() => childStage as RegistrationStage)
 
