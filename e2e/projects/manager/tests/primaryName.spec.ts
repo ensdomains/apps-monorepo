@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import {
   test,
   expect,
-  authorizeTransaction,
+  authorizeTransactionsWhile,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
@@ -32,7 +32,7 @@ async function viewProfile(page: Page, name: string) {
 // Must run before any other spec registers a name to the shared connected
 // account (single worker, same Anvil fork across files — see
 // e2e/playwright.config.base.ts). The auto-primary-name feature only
-// triggers when the wallet owns fewer than 2 names and has no primary name
+// triggers when the wallet owns fewer than 5 names and has no primary name
 // set yet, which only holds true this early in the suite.
 test.describe('ENS primary name (post-registration auto-setup)', () => {
   test.describe.configure({ timeout: 300_000 })
@@ -73,18 +73,23 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // post-registration setup sends TWO plain eth_sendTransaction requests
     // from the owner wallet: forward (default reverse registrar) then reverse
     // (reverse registrar). eth_sendTransaction is never auto-permitted (see
-    // PERMITTED_SIGN_KINDS), so authorize both here — the first arrives only
-    // after the commit/reveal completes, hence the long timeout.
-    await authorizeTransaction(wallet, 240_000)
-    await authorizeTransaction(wallet, 120_000)
+    // PERMITTED_SIGN_KINDS), so authorize them as they arrive while waiting
+    // for completion. The completion banner is gated on the WHOLE flow
+    // (including these legs), so once it shows, the setup has finished and
+    // the polling stops without a dangling authorize.
+    let registrationComplete = false
+    const authorizeSetupTxs = authorizeTransactionsWhile(
+      page,
+      wallet,
+      () => registrationComplete,
+    )
 
-    // The completion banner is gated on the WHOLE flow finishing (including
-    // the primary-name legs above), so by the time it renders the setup has
-    // completed and it is safe to navigate away.
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
       timeout: 240_000,
     })
+    registrationComplete = true
+    await authorizeSetupTxs
 
     await expect(
       page.getByRole('link', { name: /complete your profile/i }),
@@ -100,7 +105,11 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     await expect(
       page.getByText('Primary Name', { exact: true }),
     ).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByText(domainToRegister)).toBeVisible({ timeout: 15_000 })
+    // The name renders twice once the primary is set (names list + primary
+    // name card), so a bare getByText violates strict mode.
+    await expect(page.getByText(domainToRegister).first()).toBeVisible({
+      timeout: 15_000,
+    })
   })
 })
 

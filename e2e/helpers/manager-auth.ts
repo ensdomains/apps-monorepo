@@ -296,6 +296,36 @@ export async function authorizeTransactions(
 }
 
 /**
+ * Authorize any `eth_sendTransaction` requests that arrive while a flow is
+ * still running, stopping once `isDone()` reports completion.
+ *
+ * The post-registration primary-name setup sends two sequential owner-EOA
+ * transactions (forward then reverse) when the connected wallet is eligible —
+ * and none when it isn't (e.g. it already has a primary name). Polling the
+ * pending queue handles both cases and never leaves a dangling `authorize`
+ * that could swallow the next test's transaction (single worker).
+ */
+export async function authorizeTransactionsWhile(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  isDone: () => boolean,
+  pollMs = 250,
+): Promise<void> {
+  while (!isDone()) {
+    if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) >= 1) {
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      continue
+    }
+    try {
+      await page.waitForTimeout(pollMs)
+    } catch {
+      // Page/context torn down — stop polling rather than throw.
+      return
+    }
+  }
+}
+
+/**
  * Authorize the USDC approve `eth_sendTransaction` only if the flow actually
  * requests one, stopping as soon as `isDone()` reports the flow has finished.
  *
