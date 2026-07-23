@@ -82,18 +82,118 @@ const ISSUE_BY_KEY_NUMBER = `
   }`;
 
 const ISSUES_LIST = `
-  query($filter: IssueFilter) {
-    issues(first: 25, orderBy: updatedAt, filter: $filter) {
+  query($filter: IssueFilter, $after: String) {
+    issues(first: 50, after: $after, orderBy: updatedAt, filter: $filter) {
       nodes { id identifier title }
+      pageInfo { hasNextPage endCursor }
     }
   }`;
 
-// List recent issues, optionally filtered by a search term (matches title).
-export async function searchIssues(term: string, token: string | null): Promise<any[]> {
-  if (!token) return [];
-  const variables = term ? { filter: { title: { containsIgnoreCase: term } } } : {};
-  const data = await gql(ISSUES_LIST, token, variables);
-  return data.issues?.nodes || [];
+/**
+ * Build an IssueFilter for a search term. Title-contains alone is useless for
+ * how people actually search — they type identifiers. So:
+ *   "WEB-656"  → that exact issue (team key + number), plus title matches
+ *   "WEB-"/"web" → all of team WEB's recent issues, plus title matches
+ *   anything else → title contains (unchanged)
+ */
+function termToFilter(term: string): Record<string, unknown> {
+  const exact = term.match(/^([A-Za-z][A-Za-z0-9]*)-(\d+)$/);
+  if (exact) {
+    return {
+      or: [
+        {
+          and: [
+            { team: { key: { eqIgnoreCase: exact[1] } } },
+            { number: { eq: Number(exact[2]) } },
+          ],
+        },
+        { title: { containsIgnoreCase: term } },
+      ],
+    };
+  }
+  const teamKey = term.match(/^([A-Za-z][A-Za-z0-9]*)-?$/);
+  if (teamKey) {
+    return {
+      or: [
+        { team: { key: { eqIgnoreCase: teamKey[1] } } },
+        { title: { containsIgnoreCase: term } },
+      ],
+    };
+  }
+  return { title: { containsIgnoreCase: term } };
+}
+
+// Linear's full-text search — matches across title, description, and comments
+// with relevance ranking, over the WHOLE workspace (not just recent issues).
+const ISSUES_SEARCH = `
+  query($term: String!, $after: String) {
+    searchIssues(term: $term, first: 50, after: $after) {
+      nodes { id identifier title }
+      pageInfo { hasNextPage endCursor }
+    }
+  }`;
+
+export type IssuePage = { issues: any[]; nextCursor: string | null };
+
+// The picker's cursor carries the query mode it came from (`mode:cursor`) so
+// page N+1 always continues the SAME query — otherwise an identifier term
+// that fell through to full-text on page 1 would replay the strict filter
+// with a foreign cursor on page 2.
+function pageOf(conn: any, mode: string): IssuePage {
+  const nodes = conn?.nodes || [];
+  const next = conn?.pageInfo?.hasNextPage ? conn.pageInfo.endCursor : null;
+  return { issues: nodes, nextCursor: next ? `${mode}:${next}` : null };
+}
+
+/**
+ * Ticket-picker search (cursor-paginated, 50 per page).
+ *  - empty term       → most recently updated issues
+ *  - "WEB-656"/"WEB-" → deterministic identifier/team filter (full-text ranks
+ *                       identifier lookups poorly); falls through to full-text
+ *                       when the strict filter matches nothing
+ *  - anything else    → Linear full-text search (title/description/comments),
+ *                       with the title filter as fallback if the API errors
+ */
+export async function searchIssues(
+  term: string,
+  token: string | null,
+  after: string | null = null,
+): Promise<IssuePage> {
+  if (!token) return { issues: [], nextCursor: null };
+  const t = (term || "").trim();
+  let mode: string | null = null;
+  let cursor: string | null = null;
+  if (after) {
+    const sep = after.indexOf(":");
+    if (sep > 0) {
+      mode = after.slice(0, sep);
+      cursor = after.slice(sep + 1);
+    }
+  }
+  if (!mode) {
+    mode = !t ? "list" : /^[A-Za-z][A-Za-z0-9]*-?(\d+)?$/.test(t) ? "filter" : "search";
+  }
+  if (mode === "list") {
+    const data = await gql(ISSUES_LIST, token, { after: cursor });
+    return pageOf(data.issues, "list");
+  }
+  if (mode === "filter") {
+    const data = await gql(ISSUES_LIST, token, { filter: termToFilter(t), after: cursor });
+    const page = pageOf(data.issues, "filter");
+    // Empty first page → fall through to full-text; later pages return as-is.
+    if (page.issues.length || cursor) return page;
+  }
+  try {
+    const data = await gql(ISSUES_SEARCH, token, { term: t, after: cursor });
+    return pageOf(data.searchIssues, "search");
+  } catch (e) {
+    console.warn(
+      "[linear] full-text search failed, falling back to title filter:",
+      (e as Error).message,
+    );
+    const data = await gql(ISSUES_LIST, token, { filter: termToFilter(t) });
+    return pageOf(data.issues, "filter");
+  }
 }
 
 function buildBody(comment: Comment, media: { before?: string | null; after?: string | null } = {}): string {

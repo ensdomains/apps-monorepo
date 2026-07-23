@@ -161,6 +161,13 @@
       .picker-item .pid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); flex-shrink: 0; }
       .picker-item .pt { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .picker-empty { font-size: 12px; color: var(--muted); padding: 10px 4px; }
+      .search-row { position: relative; }
+      .search-row .picker-search { padding-right: 28px; }
+      .search-spin { position: absolute; right: 9px; top: 50%; margin-top: -6px; width: 12px; height: 12px;
+        border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%;
+        animation: dqa-spin .7s linear infinite; }
+      @keyframes dqa-spin { to { transform: rotate(360deg); } }
+      .picker-more { font-size: 11px; color: var(--muted); padding: 8px; text-align: center; }
       .opt { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; user-select: none; }
       .opt input { margin: 0; cursor: pointer; }
       .hint { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); pointer-events: none;
@@ -747,27 +754,39 @@
     'data-cy',
     'id',
   ]
-  function buildSelector(el) {
-    let node = el
-    while (node && node.nodeType === 1 && node !== document.body) {
-      for (const attr of STABLE_ATTRS) {
-        const v = node.getAttribute && node.getAttribute(attr)
-        if (v)
-          return {
-            selector: `[${attr}="${cssEscape(v)}"]`,
-            label:
-              node.getAttribute('data-component') || node.tagName.toLowerCase(),
-          }
-      }
-      node = node.parentElement
+  function stableAttrSelector(node) {
+    if (!node || node.nodeType !== 1 || !node.getAttribute) return null
+    for (const attr of STABLE_ATTRS) {
+      const v = node.getAttribute(attr)
+      if (v) return `[${attr}="${cssEscape(v)}"]`
     }
+    return null
+  }
+  function buildSelector(el) {
+    // A stable attribute on the element ITSELF identifies it directly.
+    const own = stableAttrSelector(el)
+    if (own)
+      return {
+        selector: own,
+        label: el.getAttribute('data-component') || el.tagName.toLowerCase(),
+      }
+    // Otherwise build a direct-child nth-of-type path from the element up to
+    // the nearest stable-attr ancestor (used as a SCOPE PREFIX) or <body>.
+    // The old code returned the stable ancestor itself — in apps without
+    // data-testids everywhere (explorer/portal) every comment anchored to
+    // the first ancestor with an id, i.e. div#app.
     const parts = []
-    node = el
+    let node = el
+    let prefix = 'body > '
+    // True when the walk reached a stable-attr scope or <body> — i.e. the
+    // prefix genuinely anchors the path. Checking parts.length instead would
+    // wrongly strip a valid prefix when anchoring happens on the 20th segment.
+    let anchored = false
     while (
       node &&
       node.nodeType === 1 &&
       node !== document.body &&
-      parts.length < 6
+      parts.length < 20
     ) {
       let part = node.tagName.toLowerCase()
       const parent = node.parentElement
@@ -779,9 +798,25 @@
           part += `:nth-of-type(${sameTag.indexOf(node) + 1})`
       }
       parts.unshift(part)
-      node = node.parentElement
+      const scope = stableAttrSelector(parent)
+      if (scope && parent !== document.body) {
+        prefix = `${scope} > `
+        anchored = true
+        break
+      }
+      if (!parent || parent === document.body) {
+        anchored = true
+        break
+      }
+      node = parent
     }
-    return { selector: parts.join(' > '), label: el.tagName.toLowerCase() }
+    // Depth cap hit without reaching body/scope: drop the anchored prefix so
+    // the (rare) truncated path can still match as a descendant selector.
+    if (!anchored) prefix = ''
+    return {
+      selector: prefix + parts.join(' > '),
+      label: el.tagName.toLowerCase(),
+    }
   }
   function cssEscape(s) {
     return String(s).replace(/"/g, '\\"')
@@ -952,11 +987,30 @@
     )
     return h2iPromise
   }
+  // The element's OWN background is usually transparent — the page color
+  // comes from an ancestor. Without it, captures of light-on-dark UIs render
+  // light text on transparency (unreadable on the popover). Walk up to the
+  // first ancestor that actually paints a background color.
+  function effectiveBackground(el) {
+    let node = el
+    while (node && node.nodeType === 1) {
+      const bg = getComputedStyle(node).backgroundColor
+      if (bg && bg !== 'transparent') {
+        // skip fully transparent rgba(0,0,0,0) / colors with alpha 0
+        const m = bg.match(/rgba?\(([^)]+)\)/)
+        const alpha = m ? Number((m[1].split(',')[3] ?? '1').trim()) : 1
+        if (alpha > 0) return bg
+      }
+      node = node.parentElement
+    }
+    return '#ffffff'
+  }
   async function captureElementShot(el) {
     try {
       const h2i = await loadHtmlToImage()
       const blob = await h2i.toBlob(el, {
         pixelRatio: Math.min(2, window.devicePixelRatio || 1),
+        backgroundColor: effectiveBackground(el),
       })
       if (!blob) return null
       const fd = new FormData()
@@ -1064,6 +1118,21 @@
     if (comments.length) renderPins()
     if (outlineAll) renderOutlineAll()
     renderHighlight()
+    repositionPopover()
+  }
+  // Keep the open comment card glued to its anchored element on scroll —
+  // same behavior as the pins. `_follow.dx/dy` preserve the card's offset
+  // from the anchor (including any manual drag).
+  function repositionPopover() {
+    const pop = activePopover
+    const f = pop && pop._follow
+    if (!f || !f.anchor) return
+    const p = resolveAnchor(f.anchor)
+    if (!p) return
+    // No viewport clamping here: like the pins, the card scrolls out of view
+    // with its element instead of getting stuck at the screen edge.
+    pop.style.left = p.x + f.dx + 'px'
+    pop.style.top = p.y + f.dy + 'px'
   }
   window.addEventListener('scroll', reposition, true)
   window.addEventListener('resize', reposition)
@@ -1231,6 +1300,12 @@
     const pop = document.createElement('div')
     pop.className = 'popover card2'
     placePopover(pop, x, y)
+    // Follow the anchored element on scroll (offset from anchor preserved).
+    pop._follow = {
+      anchor,
+      dx: parseFloat(pop.style.left) - x,
+      dy: parseFloat(pop.style.top) - y,
+    }
     pop.innerHTML = `
       <div class="card-header">
         <span class="ttl">New comment</span>
@@ -1650,6 +1725,12 @@
     const pop = document.createElement('div')
     pop.className = 'popover card2'
     placePopover(pop, pos.x, pos.y)
+    // Follow the anchored element on scroll (offset from anchor preserved).
+    pop._follow = {
+      anchor: c.anchor,
+      dx: parseFloat(pop.style.left) - pos.x,
+      dy: parseFloat(pop.style.top) - pos.y,
+    }
     const replies = (c.replies || [])
       .map((r) =>
         messageRow(r.author, r.body, r.createdAt, {
@@ -1794,7 +1875,10 @@
             <option value="4">Low</option>
           </select>
         </div>
-        <input class="picker-search" placeholder="Search tickets…" aria-label="Search tickets" />
+        <div class="search-row">
+          <input class="picker-search" placeholder="Search tickets…" aria-label="Search tickets" />
+          <span class="search-spin" style="display:none" aria-hidden="true"></span>
+        </div>
         <div class="picker-list" style="margin-top:0"><div class="picker-empty">Loading…</div></div>
       </div>
       </div>
@@ -1832,12 +1916,29 @@
       openThread(c, resolveAnchor(c.anchor))
     const def = body.querySelector('[data-act="default"]')
     if (def) def.onclick = () => sendToLinear(c, ISSUE_REF, opts())
-    let t
-    async function load(term) {
+    const spin = body.querySelector('.search-spin')
+    let debounceT
+    let seq = 0 // ignore stale responses (fast typing)
+    let nextCursor = null
+    let currentTerm = ''
+    let inflight = false
+    function rowFor(it) {
+      const row = document.createElement('div')
+      row.className = 'picker-item'
+      row.innerHTML = `<span class="pid">${esc(it.identifier)}</span><span class="pt">${esc(it.title)}</span>`
+      row.onclick = () => sendToLinear(c, it.identifier, opts())
+      return row
+    }
+    async function load(term, after) {
+      const mySeq = ++seq
+      inflight = true
+      spin.style.display = ''
+      if (!after) nextCursor = null
       try {
         const res = await api(
-          `/api/linear/issues?term=${encodeURIComponent(term || '')}`,
+          `/api/linear/issues?term=${encodeURIComponent(term || '')}${after ? `&after=${encodeURIComponent(after)}` : ''}`,
         )
+        if (mySeq !== seq) return // superseded by a newer search
         if (
           !res.ok ||
           !(res.headers.get('content-type') || '').includes('json')
@@ -1846,30 +1947,51 @@
           return
         }
         const data = await res.json()
+        if (mySeq !== seq) return
         if (data.dev) {
           list.innerHTML = `<div class="picker-empty">Dev mode — sign in with Linear to list tickets.</div>`
           return
         }
         const issues = data.issues || []
-        if (!issues.length) {
+        if (after) {
+          const more = list.querySelector('.picker-more')
+          if (more) more.remove()
+        } else if (!issues.length) {
           list.innerHTML = `<div class="picker-empty">No tickets found.</div>`
           return
+        } else {
+          list.innerHTML = ''
         }
-        list.innerHTML = ''
-        issues.forEach((it) => {
-          const row = document.createElement('div')
-          row.className = 'picker-item'
-          row.innerHTML = `<span class="pid">${esc(it.identifier)}</span><span class="pt">${esc(it.title)}</span>`
-          row.onclick = () => sendToLinear(c, it.identifier, opts())
-          list.appendChild(row)
-        })
+        issues.forEach((it) => list.appendChild(rowFor(it)))
+        nextCursor = data.nextCursor || null
+        if (nextCursor) {
+          const more = document.createElement('div')
+          more.className = 'picker-more'
+          more.textContent = 'Scroll for more…'
+          list.appendChild(more)
+        }
       } catch (e) {
-        list.innerHTML = `<div class="picker-empty">Error: ${esc(e.message)}</div>`
+        if (mySeq === seq)
+          list.innerHTML = `<div class="picker-empty">Error: ${esc(e.message)}</div>`
+      } finally {
+        if (mySeq === seq) {
+          spin.style.display = 'none'
+          inflight = false
+        }
       }
     }
+    // Infinite scroll: fetch the next cursor page near the bottom.
+    list.addEventListener('scroll', () => {
+      if (!nextCursor || inflight) return
+      if (list.scrollTop + list.clientHeight >= list.scrollHeight - 60)
+        load(currentTerm, nextCursor)
+    })
     search.addEventListener('input', () => {
-      clearTimeout(t)
-      t = setTimeout(() => load(search.value.trim()), 250)
+      clearTimeout(debounceT)
+      debounceT = setTimeout(() => {
+        currentTerm = search.value.trim()
+        load(currentTerm)
+      }, 250)
     })
     search.focus()
     load('')
@@ -1994,6 +2116,16 @@
       const up = () => {
         window.removeEventListener('pointermove', move)
         window.removeEventListener('pointerup', up)
+        // Re-base the scroll-follow offset on the dragged position so the
+        // card keeps following the element from where the user left it.
+        const f = pop._follow
+        if (f && f.anchor) {
+          const p = resolveAnchor(f.anchor)
+          if (p) {
+            f.dx = parseFloat(pop.style.left) - p.x
+            f.dy = parseFloat(pop.style.top) - p.y
+          }
+        }
       }
       window.addEventListener('pointermove', move)
       window.addEventListener('pointerup', up)
@@ -2093,11 +2225,22 @@
       if (inOverlayOrIgnored(e)) return
       e.preventDefault()
       e.stopPropagation()
-      openCompose(
-        captureAnchor(e.target, e.clientX, e.clientY),
-        e.clientX,
-        e.clientY,
-      )
+      // Resolve the element by coordinates (same mechanism as hover) rather
+      // than trusting e.target: apps that re-render on interaction (portal)
+      // can swap the pressed node between mousedown and click, which makes
+      // the browser retarget the click to a common ancestor like #app.
+      let el = document.elementFromPoint(e.clientX, e.clientY)
+      if (
+        !el ||
+        el === host ||
+        (el.closest && el.closest('[data-dqa-ignore]'))
+      ) {
+        el = null
+      }
+      // Fall back to the tracked hover element, then the raw click target.
+      if (!el && hoverEl && document.contains(hoverEl)) el = hoverEl
+      if (!el) el = e.target
+      openCompose(captureAnchor(el, e.clientX, e.clientY), e.clientX, e.clientY)
       setMode(false)
     },
     true,
@@ -2298,14 +2441,43 @@
       hintEl = document.createElement('div')
       hintEl.className = 'hint'
       hintEl.textContent =
-        'Inspect — click any element to comment · Esc to cancel'
+        'Inspect — click any element to comment · C to toggle · Esc to cancel'
       ui.appendChild(hintEl)
     }
+  }
+  // True when the keystroke belongs to a text field (page or overlay side) —
+  // shortcuts must never fire while someone is typing.
+  function isTypingTarget(e) {
+    const t = e.composedPath ? e.composedPath()[0] : e.target
+    if (!t || t.nodeType !== 1) return false
+    const tag = t.tagName
+    return (
+      tag === 'INPUT' ||
+      tag === 'TEXTAREA' ||
+      tag === 'SELECT' ||
+      t.isContentEditable
+    )
   }
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       setMode(false)
       closePopover()
+      return
+    }
+    // "C" toggles comment/inspect mode (Figma/Vercel-toolbar convention).
+    // Plain keypress only — no modifiers, never while typing, signed-in only.
+    if (
+      (e.key === 'c' || e.key === 'C') &&
+      !e.metaKey &&
+      !e.ctrlKey &&
+      !e.altKey &&
+      !e.shiftKey &&
+      USER &&
+      !activePopover &&
+      !isTypingTarget(e)
+    ) {
+      e.preventDefault()
+      setMode(!commentMode)
     }
   })
 

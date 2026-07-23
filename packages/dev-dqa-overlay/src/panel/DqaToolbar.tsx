@@ -89,6 +89,7 @@ export function DqaToolbar({
           <button
             onClick={onToggleCommentMode}
             style={commentMode ? activeBtnStyle : primaryBtnStyle}
+            title="Toggle inspect mode — or press C on the page"
             type="button"
           >
             <span style={btnInnerStyle}>

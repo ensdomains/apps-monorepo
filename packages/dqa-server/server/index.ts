@@ -42,7 +42,13 @@ import {
   pushToLinear,
   searchIssues,
 } from './linear.ts'
-import type { Comment, Inspect, OAuthState, StyleEdit } from './types.ts'
+import type {
+  Anchor,
+  Comment,
+  Inspect,
+  OAuthState,
+  StyleEdit,
+} from './types.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 4000
@@ -370,6 +376,31 @@ function isSafeCssValue(v: string): boolean {
     !/[<>{};]|url\(|expression|javascript:|@import|\\/i.test(v)
   )
 }
+// Cap free-text fields — bodies are rendered escaped everywhere, but there is
+// no reason to store megabytes per comment (express.json allows 2mb requests
+// for screenshot metadata).
+const MAX_BODY_LEN = 5_000
+const MAX_URL_LEN = 2_000
+
+function sanitizeAnchor(a: unknown): Anchor | null {
+  if (!a || typeof a !== 'object') return null
+  const o = a as Record<string, unknown>
+  const selector = String(o.selector ?? '').slice(0, 500)
+  if (!selector) return null
+  const num = (v: unknown): number | undefined => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }
+  return {
+    selector,
+    label: o.label ? String(o.label).slice(0, 200) : undefined,
+    offsetX: num(o.offsetX),
+    offsetY: num(o.offsetY),
+    pageXPct: num(o.pageXPct),
+    pageYPct: num(o.pageYPct),
+  }
+}
+
 function sanitizeStyleEdits(edits: unknown): StyleEdit[] | null {
   if (!Array.isArray(edits)) return null
   const out = edits
@@ -407,21 +438,24 @@ app.post('/api/comments', requireAuth, (req, res) => {
   } = req.body || {}
   if (!url || !body)
     return res.status(400).json({ error: 'url and body required' })
+  // Server-hosted screenshots only — both image fields must point at our
+  // own /uploads/ (same rule the "after" shot always had).
+  const ownUpload = (v: unknown) =>
+    typeof v === 'string' && v.startsWith('/uploads/') && v.length < 200
+      ? v
+      : null
   const comment: Comment = {
     id: randomUUID(),
-    url,
+    url: String(url).slice(0, MAX_URL_LEN),
     author: req.session.name, // identity comes from the session, not the client
     authorId: req.session.sub,
     authorAvatar: req.session.avatarUrl || null,
-    body,
-    anchor: anchor || null,
-    imageUrl: imageUrl || null,
+    body: String(body).slice(0, MAX_BODY_LEN),
+    anchor: sanitizeAnchor(anchor),
+    imageUrl: ownUpload(imageUrl),
     // "after" element screenshot with suggested style edits applied
-    afterImageUrl:
-      typeof afterImageUrl === 'string' && afterImageUrl.startsWith('/uploads/')
-        ? afterImageUrl
-        : null,
-    issueRef: issueRef || null, // e.g. "ENG-123" from the page's data-linear-issue
+    afterImageUrl: ownUpload(afterImageUrl),
+    issueRef: issueRef ? String(issueRef).slice(0, 40) : null, // e.g. "ENG-123"
     inspect: sanitizeInspect(inspect),
     styleEdits: sanitizeStyleEdits(styleEdits),
     status: 'open',
@@ -435,7 +469,10 @@ app.post('/api/comments', requireAuth, (req, res) => {
 })
 
 app.post('/api/comments/:id/reply', requireAuth, async (req, res) => {
-  const body = typeof req.body?.body === 'string' ? req.body.body.trim() : ''
+  const body =
+    typeof req.body?.body === 'string'
+      ? req.body.body.trim().slice(0, MAX_BODY_LEN)
+      : ''
   if (!body) return res.status(400).json({ error: 'body required' })
 
   // If the parent comment was already pushed to Linear, mirror the reply
@@ -478,8 +515,16 @@ app.get('/api/linear/issues', requireAuth, async (req, res) => {
   try {
     const userToken = decrypt(req.session.lt)
     const term = typeof req.query.term === 'string' ? req.query.term.trim() : ''
-    const issues = await searchIssues(term, userToken)
-    res.json({ issues, dev: !userToken })
+    const after =
+      typeof req.query.after === 'string' && req.query.after.length < 500
+        ? req.query.after
+        : null
+    const page = await searchIssues(term, userToken, after)
+    res.json({
+      issues: page.issues,
+      nextCursor: page.nextCursor,
+      dev: !userToken,
+    })
   } catch (e) {
     console.error('[linear] search', (e as Error).message)
     res.status(502).json({ error: (e as Error).message })
