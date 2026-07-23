@@ -58,24 +58,33 @@ import { logger } from '#utils/logger.js'
  * truth shared with the transport, so charged == priced by construction.
  */
 export const LEG_GAS_LIMITS = {
-  resolverDeploy: 350_000n,
-  commit: 150_000n,
-  register: 500_000n,
+  // Raw usage measured through the Roles modifier (wrapper overhead
+  // included): deploy 268k, commit 84.8k, register 336.9k. Limits carry
+  // +19-30% revert headroom — no more, because the rail prices the fee on
+  // the LIMIT, so every spare 10k gas here is ~0.05 USDC the buyer overpays.
+  resolverDeploy: 320_000n,
+  commit: 110_000n,
+  register: 400_000n,
 } as const
 export type FulfilmentLeg = keyof typeof LEG_GAS_LIMITS
 
-/** ×1.30 — p95 upward base-fee drift over a ≤10min window (see header).
- * Applied to the GAS component only (the fixed per-leg fee doesn't drift). */
-const GAS_DRIFT_BUFFER_PERCENT = 30n
+/** ×1.15 — p95 upward base-fee drift over the pipeline's REAL exposure
+ * (~3min quote→fills incl. the 60s commit cooldown; measured p95: 3min
+ * ×1.19, 5min ×1.22 — 1.15 accepts a sliver of p95 tail, which the queue's
+ * retry absorbs). Applied to the GAS component only. The former ×1.30 was
+ * sized for a ≤10min window and, stacked on the markup, produced ~35%
+ * over-collection at flat gas — measured dust 2.29 of 6.61 on
+ * selffunded0723.eth. */
+const GAS_DRIFT_BUFFER_PERCENT = 15n
 
-/** The rail's fixed fee per intent leg, USDC 6dp. Measured intercept of the
- * quote curve (~0.44); default 0.45 for margin. Env-overridable. */
-const RAIL_FIXED_FEE_6DP_DEFAULT = 450_000n
+/** The rail's fixed fee per intent leg, USDC 6dp — the MEASURED intercept
+ * (~0.44) of the orchestrator quote curve, no padding. Env-overridable. */
+const RAIL_FIXED_FEE_6DP_DEFAULT = 440_000n
 
-/** Solver gas markup on the leg's LIMIT-priced raw gas, ×100 (220 = 2.2×).
- * Measured slope of the quote curve (~2.11×); default 2.2 for margin.
- * Env-overridable via RAIL_PREMIUM_PERCENT. */
-const RAIL_PREMIUM_PERCENT_DEFAULT = 220n
+/** Solver gas markup on the leg's LIMIT-priced raw gas, ×100 — the MEASURED
+ * slope (~2.11×) of the quote curve, no padding (the slope already contains
+ * the solver's margin). Env-overridable via RAIL_PREMIUM_PERCENT. */
+const RAIL_PREMIUM_PERCENT_DEFAULT = 211n
 
 /** Conservative fallback (USDC 6dp) when gas price or ETH/USD can't be read.
  * Covers a full 3-leg intent fulfilment (~4.4 measured, headroom for spikes)
