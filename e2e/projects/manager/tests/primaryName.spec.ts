@@ -1,9 +1,10 @@
 import type { Page } from '@playwright/test'
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
 import {
-  clickThroughEnableSessions,
-  fixRawHashPersonalSign,
-} from '../../../helpers/manager-auth.js'
+  test,
+  expect,
+  authorizeTransaction,
+} from '../../../fixtures/playwright.manager.fixture.js'
+import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
@@ -42,11 +43,6 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     accounts,
     wallet,
   }) => {
-    // Work around a headless-web3-provider bug that breaks raw-hash
-    // personal_sign requests (used by the primary-name authorization) —
-    // see fixRawHashPersonalSign for the full root-cause explanation.
-    fixRawHashPersonalSign(wallet, accounts.getPrivateKey('user'))
-
     const domainToRegister = `e2e-primary-${Date.now().toString(36)}.eth`
     const nameOnly = domainToRegister.replace(/\.eth$/i, '')
 
@@ -72,22 +68,24 @@ test.describe('ENS primary name (post-registration auto-setup)', () => {
     // modal, so the unauthenticated ("Verify Wallet") variant renders here.
     await page.getByRole('button', { name: 'Set up later' }).click()
 
+    // Primary names are an EOA interaction (the reverse registrars key
+    // setName on msg.sender), so after the registration itself confirms the
+    // post-registration setup sends TWO plain eth_sendTransaction requests
+    // from the owner wallet: forward (default reverse registrar) then reverse
+    // (reverse registrar). eth_sendTransaction is never auto-permitted (see
+    // PERMITTED_SIGN_KINDS), so authorize both here — the first arrives only
+    // after the commit/reveal completes, hence the long timeout.
+    await authorizeTransaction(wallet, 240_000)
+    await authorizeTransaction(wallet, 120_000)
+
+    // The completion banner is gated on the WHOLE flow finishing (including
+    // the primary-name legs above), so by the time it renders the setup has
+    // completed and it is safe to navigate away.
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     await expect(successBanner).toContainText('Registration Complete', {
       timeout: 240_000,
     })
 
-    // The banner above can render as soon as the underlying mint transaction
-    // succeeds (useRegistrationFillProgress ORs in the child registration
-    // actor's own `success`), which is BEFORE the post-registration
-    // primary-name signature flow (a further parallel step in
-    // registrationUi.machine.ts: postRegistrationDecision ->
-    // settingPrimaryName* -> waitingForPrimaryName* -> success) has actually
-    // finished. Navigating away here would tear down the SPA and kill that
-    // in-flight step. "Complete your profile" only appears once
-    // `registering.transaction` itself reaches `success` (see
-    // RegistrationDetails.tsx's useIsRegisteringTransactionSuccess), which is
-    // the real signal that primary-name setup (if eligible) has completed.
     await expect(
       page.getByRole('link', { name: /complete your profile/i }),
     ).toBeVisible({ timeout: 60_000 })
