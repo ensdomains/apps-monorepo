@@ -1,6 +1,14 @@
 import type { RegistrationMachineState } from '@ens-apps/transaction-manager'
 
-export type RegistrationStage = Extract<RegistrationMachineState, string>
+type RegistrationMachineStage = Extract<RegistrationMachineState, string>
+
+export type PostRegistrationStage =
+  | 'postRegistrationSetup'
+  | 'syncingEthRecord'
+  | 'waitingForEthRecordSync'
+  | 'settingPrimaryName'
+
+export type RegistrationStage = RegistrationMachineStage | PostRegistrationStage
 
 export const REGISTRATION_STAGE_PROGRESS = {
   idle: 0,
@@ -26,6 +34,10 @@ export const REGISTRATION_STAGE_PROGRESS = {
   submittingRhinestoneBundle: 55,
   waitingForRhinestoneBundle: 85,
   verifyingRegistration: 95,
+  postRegistrationSetup: 96,
+  syncingEthRecord: 97,
+  waitingForEthRecordSync: 98,
+  settingPrimaryName: 99,
   success: 100,
   error: 0,
 } as const satisfies Record<RegistrationStage, number>

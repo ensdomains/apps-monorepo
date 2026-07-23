@@ -19,7 +19,11 @@
  *   - E2E infra running: `pnpm e2e:infra:up` (Anvil + Alto + Paymaster + Mockestrator)
  *   - Manager app with VITE_FF_USE_EOA=false and VITE_FF_USE_WARP_INFRA=true
  */
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import {
+  test,
+  expect,
+  authorizeTransactionsWhile,
+} from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
 import { findSearchInput } from '../../../helpers/search-input.js'
@@ -31,6 +35,7 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     connectedPage: page,
     mockIndexer,
     accounts,
+    wallet,
   }) => {
     const nameOnly = DOMAIN_TO_REGISTER.replace(/\.eth$/i, '')
     const searchInput = await findSearchInput(page)
@@ -57,10 +62,21 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
-    // On the HCA path all payment authorization uses an EIP-2612 permit
-    // (eth_signTypedData_v4, auto-authorized by PERMITTED_SIGN_KINDS) carried
-    // into the sponsored register bundle — no eth_sendTransaction is needed.
+    // The registration itself needs no eth_sendTransaction on the HCA path
+    // (payment is an auto-authorized EIP-2612 permit carried into the
+    // sponsored register bundle). But when the wallet is still eligible for
+    // the auto primary-name setup, the post-registration step sends two
+    // owner-EOA transactions (forward + reverse) that must be authorized —
+    // and the completion banner is gated on the whole flow finishing.
+    let registrationComplete = false
+    const authorizeSetupTxs = authorizeTransactionsWhile(
+      page,
+      wallet,
+      () => registrationComplete,
+    )
     await expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 })
+    registrationComplete = true
+    await authorizeSetupTxs
 
     if (mockIndexer.enabled) {
       mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: accounts.getAddress('user') })

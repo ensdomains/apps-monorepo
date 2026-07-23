@@ -54,8 +54,11 @@ export function useSetPrimaryName(
         throw new Error('Cannot set primary name - ENS owner is not available.')
       }
 
-      const { walletClient, ownerAddress, signer, accountAddress } = account
-      if (!walletClient || !ownerAddress || !signer || !accountAddress) {
+      // Primary names are an EOA interaction: the reverse registrars key on
+      // msg.sender, so the owner wallet sends the transactions directly even
+      // when the session runs through a smart account.
+      const { walletClient, ownerAddress } = account
+      if (!walletClient || !ownerAddress) {
         throw new Error(
           'Cannot set primary name - account not ready. Please wait for wallet to connect.',
         )
@@ -63,9 +66,7 @@ export function useSetPrimaryName(
 
       await setPrimaryName({
         name,
-        signer,
-        accountAddress: accountAddress as Address,
-        eoaAddress: ownerAddress as Address,
+        ownerAddress: ownerAddress as Address,
         walletClient,
         publicClient: publicClient as PublicClient,
         chainId,
