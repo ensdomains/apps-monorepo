@@ -96,11 +96,35 @@ export const TokenPickerContent = () => {
   const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(null)
   const setAsPrimary = setPrimaryChoice ?? defaultSetAsPrimary
 
+  // An explicit toggle choice always wins. Otherwise resolve the eligibility
+  // lookups (already in flight for the toggle default — fetchQuery dedupes)
+  // so a click that lands before they settle still auto-sets correctly. A
+  // failed lookup skips the auto-setup rather than blocking registration.
+  const resolveSetAsPrimary = async (): Promise<boolean> => {
+    if (setPrimaryChoice !== null) return setPrimaryChoice
+    if (!account.ownerAddress) return false
+    try {
+      const [existingPrimaryName, ownedNamesCount] = await Promise.all([
+        queryClient.fetchQuery(profileReverseNameQuery(account.ownerAddress)),
+        queryClient.fetchQuery(
+          ownedNamesCountQueryOptions(account.ownerAddress),
+        ),
+      ])
+      return !!getManagerRegistrationPostRegistrationSetup({
+        ownerAddress: account.ownerAddress,
+        existingPrimaryName,
+        ownedNamesCount,
+      })
+    } catch {
+      return false
+    }
+  }
+
   // Dispatch `registration.start`. The smart-session gate runs UP FRONT (in
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  const startRegistration = () => {
+  const startRegistration = (resolvedSetAsPrimary: boolean) => {
     if (!pricingQuery.data || !selectedToken) return
     uiActor.send({
       type: 'registration.start',
@@ -111,19 +135,24 @@ export const TokenPickerContent = () => {
       account,
       basePriceNumber: pricingQuery.data.basePriceNumber,
       premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
-      postRegistrationSetup: setAsPrimary
+      postRegistrationSetup: resolvedSetAsPrimary
         ? { primaryName: { enabled: true, syncEthRecord: true } }
         : undefined,
     })
   }
 
   const availabilityMutation = useMutation({
-    mutationFn: async () =>
-      queryClient.fetchQuery({
-        ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
-        staleTime: 0,
-      }),
-    onSuccess: (availability) => {
+    mutationFn: async () => {
+      const [availability, resolvedSetAsPrimary] = await Promise.all([
+        queryClient.fetchQuery({
+          ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
+          staleTime: 0,
+        }),
+        resolveSetAsPrimary(),
+      ])
+      return { availability, resolvedSetAsPrimary }
+    },
+    onSuccess: ({ availability, resolvedSetAsPrimary }) => {
       if (!pricingQuery.data || !selectedToken) return
 
       if (!availability.isAvailable) {
@@ -135,7 +164,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      startRegistration()
+      startRegistration(resolvedSetAsPrimary)
     },
   })
 
