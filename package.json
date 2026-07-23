@@ -55,7 +55,8 @@
     ],
     "patchedDependencies": {
       "xstate": "patches/xstate.patch",
-      "class-variance-authority": "patches/class-variance-authority.patch"
+      "class-variance-authority": "patches/class-variance-authority.patch",
+      "@rhinestone/sdk@1.8.0": "patches/@rhinestone%2Fsdk@1.8.0.patch"
     },
     "overrides": {
       "available-typed-arrays": "npm:@socketregistry/available-typed-arrays@^1",

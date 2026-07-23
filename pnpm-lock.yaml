@@ -89,6 +89,9 @@ overrides:
   vite@8.0.10>rolldown: 1.0.0-rc.18
 
 patchedDependencies:
+  '@rhinestone/sdk@1.8.0':
+    hash: 5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867
+    path: patches/@rhinestone%2Fsdk@1.8.0.patch
   class-variance-authority:
     hash: ebe86d2b48ded23f6f7fdaac2701d1f2732a1a01bd27776367d7420a325783fd
     path: patches/class-variance-authority.patch
@@ -213,7 +216,7 @@ importers:
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@3.25.76))
+        version: 1.8.0(patch_hash=5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867)(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@3.25.76))
       '@tailwindcss/vite':
         specifier: ^4.2.4
         version: 4.2.4(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -935,18 +938,12 @@ importers:
 
   packages/smart-account:
     dependencies:
-      '@ens-apps/transaction-manager':
-        specifier: workspace:*
-        version: link:../transaction-manager
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../utils
-      '@ensdomains/ensjs-abi':
-        specifier: 'catalog:'
-        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@97bcdf0
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: 1.8.0(patch_hash=5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867)(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       neverthrow:
         specifier: ^8.1.1
         version: 8.2.0
@@ -966,6 +963,9 @@ importers:
 
   packages/transaction-manager:
     dependencies:
+      '@ens-apps/smart-account':
+        specifier: workspace:*
+        version: link:../smart-account
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../utils
@@ -980,7 +980,7 @@ importers:
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@97bcdf0
       '@rhinestone/sdk':
         specifier: 'catalog:'
-        version: 1.8.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
+        version: 1.8.0(patch_hash=5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867)(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@xstate/react':
         specifier: ^4.0.0-beta.12
         version: 4.1.3(@types/react@19.2.7)(react@19.2.5)(xstate@5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5))
@@ -13682,7 +13682,7 @@ snapshots:
 
   '@resvg/resvg-wasm@2.4.0': {}
 
-  '@rhinestone/sdk@1.8.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
+  '@rhinestone/sdk@1.8.0(patch_hash=5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867)(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@3.25.76))':
     dependencies:
       '@rhinestone/shared-configs': 1.6.10(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@3.25.76))
       solady: 0.1.26
@@ -13693,7 +13693,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@rhinestone/sdk@1.8.0(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
+  '@rhinestone/sdk@1.8.0(patch_hash=5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867)(express@5.2.1)(jose@6.2.3)(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))':
     dependencies:
       '@rhinestone/shared-configs': 1.6.10(typescript@6.0.3)(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       solady: 0.1.26
