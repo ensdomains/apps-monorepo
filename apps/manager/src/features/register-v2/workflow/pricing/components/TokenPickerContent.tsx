@@ -6,12 +6,11 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { type ReactNode, useState } from 'react'
+import type { ReactNode } from 'react'
 import { match, P } from 'ts-pattern'
 import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
@@ -75,33 +74,11 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
-  // Eligibility lookups run in the background (best-effort): they only seed the
-  // default state of the primary-name toggle, so a slow/failed indexer never
-  // blocks starting the registration.
-  const existingPrimaryNameQuery = useQuery(
-    profileReverseNameQuery(account.ownerAddress ?? undefined),
-  )
-  const ownedNamesCountQuery = useQuery(
-    ownedNamesCountQueryOptions(account.ownerAddress ?? undefined),
-  )
-
-  // Auto-set is the default only when the wallet is eligible (no primary name
-  // yet and fewer than 5 owned names). The user can always override via the
-  // toggle, including turning it on to replace an existing primary name.
-  const defaultSetAsPrimary = !!getManagerRegistrationPostRegistrationSetup({
-    ownerAddress: account.ownerAddress,
-    existingPrimaryName: existingPrimaryNameQuery.data,
-    ownedNamesCount: ownedNamesCountQuery.data,
-  })
-  const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(null)
-  const setAsPrimary = setPrimaryChoice ?? defaultSetAsPrimary
-
-  // An explicit toggle choice always wins. Otherwise resolve the eligibility
-  // lookups (already in flight for the toggle default — fetchQuery dedupes)
-  // so a click that lands before they settle still auto-sets correctly. A
-  // failed lookup skips the auto-setup rather than blocking registration.
+  // Auto-set the name as primary when the wallet is eligible (no primary name
+  // yet and fewer than 5 owned names). Resolved from the eligibility lookups
+  // at registration start; a failed lookup skips the auto-setup rather than
+  // blocking registration.
   const resolveSetAsPrimary = async (): Promise<boolean> => {
-    if (setPrimaryChoice !== null) return setPrimaryChoice
     if (!account.ownerAddress) return false
     try {
       const [existingPrimaryName, ownedNamesCount] = await Promise.all([
@@ -171,36 +148,12 @@ export const TokenPickerContent = () => {
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  const domainName = `${label}.eth`
-
   return (
     <TokenPickerContentBase
       errorMessage={
         availabilityMutation.isError
           ? t`We couldn't confirm that ${label}.eth is still available. Please try again.`
           : null
-      }
-      footer={
-        <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ens-gray text-sm">
-              <Trans>Set as primary name</Trans>
-            </span>
-            <span className="text-ens-gray text-xs">
-              <Trans>
-                Your wallet address can only have one primary name, which will
-                display instead of your wallet address across apps. You'll be
-                prompted to confirm this additional transaction after
-                registration.
-              </Trans>
-            </span>
-          </div>
-          <Switch
-            aria-label={t`Set ${domainName} as your primary name`}
-            checked={setAsPrimary}
-            onCheckedChange={setSetPrimaryChoice}
-          />
-        </div>
       }
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
@@ -229,7 +182,6 @@ export const TokenPickerContentBase = ({
   isLoadingBalances,
   isConnected,
   nextMessage = <Trans>Register name</Trans>,
-  footer,
 }: {
   label: string
   pricingLoading: boolean
@@ -243,8 +195,6 @@ export const TokenPickerContentBase = ({
   isLoadingBalances: boolean
   isConnected: boolean
   nextMessage?: ReactNode
-  /** Optional content below the payment options (e.g. the primary-name toggle). */
-  footer?: ReactNode
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -384,8 +334,6 @@ export const TokenPickerContentBase = ({
               <DAI className="h-7 w-7" />
             </div>
           </div>
-
-          {footer}
         </div>
       </div>
       <Button
