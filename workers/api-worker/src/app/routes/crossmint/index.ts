@@ -100,13 +100,18 @@ async function createOrderIntent(
   ])
 
   // Server-authoritative total the voucher must carry: live register price
-  // + 2% drift headroom + the gas-economics fulfilment fee (the gasFee
-  // component, forwarded on-chain to the executor at mint). Headroom is
-  // deliberately thin: the premium component only DECAYS between quote and
-  // register (dutch auction), so the register-time price is ≤ the quoted
-  // price except for stepwise base-price oracle updates, which 2% covers.
-  // The settle route enforces `amountPaid >= amount_due`.
-  const amountDue = price + price / 50n + gasFee
+  // + the gas-economics fulfilment fee (the gasFee component, forwarded
+  // on-chain to the executor at mint) — EXACTLY, no price headroom. The
+  // register-time pull can never exceed the quote: base price is constant
+  // for a (label, duration) and the premium component only DECAYS between
+  // quote and register (dutch auction). Drift buffers belong on GAS only —
+  // a price headroom here is a real USDC over-deposit that accretes in the
+  // Safe (it did: 2% × price per order). The one residual up-risk is an
+  // admin base-rate change landing mid-order — a governance-scale event
+  // handled as fail-and-recover (register reverts, order retries/tops up),
+  // not priced into every order. The settle route enforces
+  // `amountPaid >= amount_due`.
+  const amountDue = price + gasFee
 
   await getCrossmintDb(env).insert(crossmintOrders).values({
     id,
