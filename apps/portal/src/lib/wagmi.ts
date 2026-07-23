@@ -6,6 +6,7 @@ import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
+import { orderedSepoliaRpcUrls } from '@/lib/sepoliaRpc'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -24,21 +25,10 @@ const PORTAL_SEPOLIA_RPC_URL =
 export const SEPOLIA_RPC_URL: string =
   import.meta.env?.VITE_SEPOLIA_RPC_URL || PORTAL_SEPOLIA_RPC_URL
 
-// Public Sepolia fallback endpoints, mirroring the manager app: dRPC
-// intermittently returns HTTP 500s on otherwise-valid `eth_call`s; viem's
-// `fallback()` transport transparently fails over so a single provider blip
-// doesn't surface as a query error. The portal's own RPC URL stays the
-// preferred (primary) endpoint so quota/usage is still attributed to the
-// portal app.
-const SEPOLIA_FALLBACK_RPC_URLS = [
-  'https://ethereum-sepolia-rpc.publicnode.com',
-  'https://1rpc.io/sepolia',
-] as const
-
-const SEPOLIA_RPC_URLS: readonly string[] = [
-  SEPOLIA_RPC_URL,
-  ...SEPOLIA_FALLBACK_RPC_URLS.filter((url) => url !== SEPOLIA_RPC_URL),
-]
+// Failover to shared public endpoints (see src/lib/sepoliaRpc.ts for the
+// rationale and provider choice). The portal's own RPC URL stays the preferred
+// (primary) endpoint so quota/usage is still attributed to the portal app.
+const SEPOLIA_RPC_URLS = orderedSepoliaRpcUrls(SEPOLIA_RPC_URL)
 
 export const sepoliaFallbackTransport = fallback(
   SEPOLIA_RPC_URLS.map((url) =>

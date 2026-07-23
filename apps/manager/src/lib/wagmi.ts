@@ -56,7 +56,7 @@ export const SEPOLIA_RPC_URL: string =
 // (primary) endpoint so quota/usage is still attributed to the manager app.
 const SEPOLIA_FALLBACK_RPC_URLS = [
   'https://ethereum-sepolia-rpc.publicnode.com',
-  'https://1rpc.io/sepolia',
+  'https://sepolia.gateway.tenderly.co',
 ] as const
 
 const SEPOLIA_RPC_URLS: readonly string[] = [
