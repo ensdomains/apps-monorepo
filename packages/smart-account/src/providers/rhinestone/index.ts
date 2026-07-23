@@ -8,36 +8,64 @@
  * discussion on https://github.com/ensdomains/apps-monorepo/pull/751
  * for the rationale.
  *
- * Prompt-free registration is NOT done via ERC-7579 SmartSessions/Emissary —
- * the HCA does not install those modules (its module set is locked to
- * `{HCAModule validator, IntentExecutor}`; verified on-chain). Instead, a
- * "session" is an ephemeral key added as a time-boxed OWNER of the HCA's
- * OwnableValidator, which can then sign Intents directly. The session lifecycle
- * is exported here: `registration-policy` (the `updateConfig` add-owner call
- * builder), `session` (create/restore + the one-time enable signature that adds
- * the owner), and `session-storage` (localStorage persistence of the ephemeral
- * key). See apps/manager/src/lib/smart-account/HCA_SESSION.md.
+ * This is the STANDALONE-HCA surface. Registration is prompt-free via a scoped
+ * ERC-7579 SmartSession on the standalone validator
+ * (`HCAOwnerAndSessionValidator`): the wallet signs ONE multi-chain session
+ * authorization up front, and the session is enabled lazily inside the first
+ * HCA action via `enableSessionWithRefund(...)`. The old ephemeral-OWNER model
+ * (`updateConfig` add-owner) is gone.
+ *
+ * Exports: `initialize-account` (create/adopt the standalone HCA), `manifest`
+ * (chain-keyed contract tables + salt derivation), `session` (multi-chain
+ * session construction + enable-data), and `session-storage` (persistence).
  */
 
 export {
-  deployRhinestoneAccountCore,
+  buildStandaloneAccountConfig,
   type InitializeRhinestoneAccountParams,
-  type InitProgressStage,
   initializeRhinestoneAccount,
-  initializeRhinestoneAccountCore,
   type RhinestoneInitConfig,
   type RhinestoneInitResult,
 } from './initialize-account'
 export {
-  buildAddSessionOwnerCall,
-  ENS_HCA_MODULE,
-  REGISTRATION_SESSION_VALIDITY_SECONDS,
-} from './registration-policy'
+  computeResolverSalt,
+  DEFAULT_SESSION_VALIDITY_SECONDS,
+  DESTINATION_CONTRACTS,
+  type DestinationContracts,
+  getDestinationContracts,
+  getSourceContracts,
+  ONCHAIN_ACCOUNT_ID,
+  SAME_CHAIN_USDC_BUDGET,
+  SHARED_CONTRACTS,
+  type SharedContracts,
+  SOURCE_CONTRACTS,
+  type SourceContracts,
+  STANDALONE_HCA_VERSION,
+  USER_SALT,
+} from './manifest'
 export {
-  type CreateRhinestoneSessionParams,
-  createRhinestoneSession,
-  type RestoreRhinestoneSessionParams,
-  restoreRhinestoneSession,
+  buildCommitCall,
+  buildRevealBatch,
+  buildUsdcApproveCall,
+  type Call,
+  computeResolverAddress,
+  ethReverseName,
+  type ResolverRecord,
+  type RevealBatchParams,
+  readCommitment,
+  readCommitmentAges,
+  readRegisterPrice,
+} from './registration-calls'
+export {
+  buildEnableSessionWithRefundCall,
+  type ChainDigest,
+  computeDestinationSessionSalt,
+  computeSourceSessionSalt,
+  createDestinationSession,
+  type DestinationSessionParams,
+  type DestinationSessionResult,
+  rebuildDestinationSession,
+  type SessionEnableData,
 } from './session'
 export {
   clearAllSessions,
@@ -55,4 +83,11 @@ export {
   saveSession,
   setSkippedStatus,
 } from './session-storage'
-export { isRhinestoneSession, type RhinestoneStoredSession } from './types'
+export {
+  buildHcaSessionEnablePayload,
+  deserializeChainDigests,
+  type HcaSessionEnablePayload,
+  isRhinestoneSession,
+  type RhinestoneStoredSession,
+  serializeChainDigests,
+} from './types'

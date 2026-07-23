@@ -27,12 +27,11 @@ export interface BaseStoredSession {
   /**
    * Expiry timestamp (unix seconds).
    *
-   * Enforced BOTH on-chain (via the `time-frame` policy baked into every
-   * session action — see `providers/rhinestone/registration-policy.ts`) and
-   * client-side (provider restore helpers / `isSessionExpired`) as a UX
-   * preflight that avoids submitting an Intent that would revert. A stolen
-   * session key therefore stops working on-chain after this timestamp, from
-   * any client.
+   * Enforced BOTH on-chain (the scoped session's `validUntil` bound on the
+   * standalone `HCAOwnerAndSessionValidator`) and client-side (provider helpers
+   * / `isSessionExpired`) as a UX preflight that avoids submitting an Intent
+   * that would revert. A stolen session key therefore stops working on-chain
+   * after this timestamp, from any client.
    */
   readonly validUntil: number
   /** Session private key (hex) for signing */

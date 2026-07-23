@@ -37,6 +37,14 @@ function makeSession(
     chainId: 11155111,
     validUntil: NOW_SEC + 3600,
     sessionPrivateKey: `0x${'1'.repeat(64)}` as Hex,
+    permissionId: `0x${'2'.repeat(64)}` as Hex,
+    resolver: '0x3333333333333333333333333333333333333333',
+    hcaSessionNonce: '0',
+    authorization: `0x${'4'.repeat(130)}` as Hex,
+    hashesAndChainIds: [
+      { chainId: '11155111', sessionDigest: `0x${'5'.repeat(64)}` as Hex },
+    ],
+    sessionToEnableIndex: 0,
     ...overrides,
   }
 }

@@ -1,0 +1,120 @@
+// biome-ignore-all lint/suspicious/noExplicitAny: decoded ABI args need flexible typing in tests
+
+import type { Address, Hex } from 'viem'
+import { decodeFunctionData, parseAbi } from 'viem'
+import { sepolia } from 'viem/chains'
+import { describe, expect, it } from 'vitest'
+import { getDestinationContracts } from './manifest'
+import {
+  buildCommitCall,
+  buildRevealBatch,
+  computeResolverAddress,
+} from './registration-calls'
+
+const HCA = '0xaaaa000000000000000000000000000000000001' as const
+const WALLET = '0x1111111111111111111111111111111111111111' as const
+const RESOLVER = '0x3333333333333333333333333333333333333333' as const
+const SECRET = `0x${'7'.repeat(64)}` as Hex
+const C = getDestinationContracts(sepolia.id)
+
+const ethRegistrarAbi = parseAbi([
+  'function commit(bytes32 commitment)',
+  'function register(string label, address owner, bytes32 secret, address subregistry, address resolver, uint64 duration, address paymentToken, bytes32 referrer)',
+])
+const resolverAbi = parseAbi([
+  'function authorizeNameRoles(bytes toName, uint256 roleBitmap, address account, bool grant)',
+])
+
+/** ROLES.ALL from contracts-v2 deploy-constants: every nibble = 1. */
+const EXPECTED_ROLES_ALL =
+  0x1111111111111111111111111111111111111111111111111111111111111111n
+
+describe('computeResolverAddress', () => {
+  it('is deterministic per HCA', () => {
+    expect(computeResolverAddress({ chainId: sepolia.id, hca: HCA })).toBe(
+      computeResolverAddress({ chainId: sepolia.id, hca: HCA }),
+    )
+  })
+})
+
+describe('buildCommitCall', () => {
+  it('targets the registrar with value 0', () => {
+    const call = buildCommitCall({
+      chainId: sepolia.id,
+      commitment: `0x${'a'.repeat(64)}` as Hex,
+    })
+    expect(call.to.toLowerCase()).toBe(C.ethRegistrar.toLowerCase())
+    expect(call.value).toBe(0n)
+  })
+})
+
+describe('buildRevealBatch ordering', () => {
+  const base = {
+    chainId: sepolia.id,
+    hca: HCA as Address,
+    resolver: RESOLVER as Address,
+    label: 'myname',
+    wallet: WALLET as Address,
+    secret: SECRET,
+    price: 12_345n,
+    duration: 28n * 86400n,
+  }
+
+  it('omits deployProxy when the resolver already exists; exact tail order', () => {
+    const calls = buildRevealBatch({ ...base, resolverDeployed: true })
+    // approve → register → setAddr → authorizeNameRoles
+    expect(calls).toHaveLength(4)
+    expect(calls[0].to.toLowerCase()).toBe(C.usdc.toLowerCase()) // approve
+    expect(calls[1].to.toLowerCase()).toBe(C.ethRegistrar.toLowerCase()) // register
+    expect(calls[2].to.toLowerCase()).toBe(RESOLVER.toLowerCase()) // setAddr
+    // last call is authorizeNameRoles on the resolver
+    const last = calls[calls.length - 1]
+    const decoded = decodeFunctionData({ abi: resolverAbi, data: last.data })
+    expect(decoded.functionName).toBe('authorizeNameRoles')
+    // toName is dynamic bytes hex"00" (NOT bytes1), roleBitmap is ROLES.ALL
+    // (every nibble = 1, not all bits set).
+    expect((decoded.args as any)[0]).toBe('0x00')
+    expect((decoded.args as any)[1]).toBe(EXPECTED_ROLES_ALL)
+    expect((decoded.args as any)[2].toLowerCase()).toBe(WALLET.toLowerCase())
+    expect((decoded.args as any)[3]).toBe(true)
+  })
+
+  it('prepends deployProxy when the resolver is not deployed', () => {
+    const calls = buildRevealBatch({ ...base, resolverDeployed: false })
+    expect(calls[0].to.toLowerCase()).toBe(C.verifiableFactory.toLowerCase())
+    expect(calls).toHaveLength(5)
+  })
+
+  it('inserts setNameWithHCA before authorizeNameRoles when a primary name is set', () => {
+    const calls = buildRevealBatch({
+      ...base,
+      resolverDeployed: true,
+      setPrimaryName: 'myname.eth',
+    })
+    const adapterIdx = calls.findIndex(
+      (c) =>
+        c.to.toLowerCase() ===
+        C.defaultReverseRegistrarHcaAdapter.toLowerCase(),
+    )
+    const authIdx = calls.length - 1
+    expect(adapterIdx).toBeGreaterThan(-1)
+    expect(adapterIdx).toBeLessThan(authIdx)
+  })
+
+  it('registers the wallet (not the HCA) as owner and approves exactly the price', () => {
+    const calls = buildRevealBatch({ ...base, resolverDeployed: true })
+    const register = calls[1]
+    const decoded = decodeFunctionData({
+      abi: ethRegistrarAbi,
+      data: register.data,
+    })
+    expect(decoded.functionName).toBe('register')
+    expect((decoded.args as any)[1].toLowerCase()).toBe(WALLET.toLowerCase())
+    expect((decoded.args as any)[6].toLowerCase()).toBe(C.usdc.toLowerCase())
+  })
+
+  it('sets value 0 on every inner call', () => {
+    const calls = buildRevealBatch({ ...base, resolverDeployed: false })
+    for (const c of calls) expect(c.value).toBe(0n)
+  })
+})
