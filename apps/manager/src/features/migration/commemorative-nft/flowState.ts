@@ -33,5 +33,6 @@ export const getCommemorativeNftFlowStatus = (
   if (input.claimed === true) return 'minted'
   if (input.claimError) return 'claimError'
   if (input.claimPending) return 'minting'
+  if (input.claimed === undefined) return 'loadingEligibility'
   return 'readyToMint'
 }

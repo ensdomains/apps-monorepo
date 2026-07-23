@@ -18,7 +18,7 @@ describe('commemorative NFT flow state', () => {
       'configurationError',
     ],
     [{ ...base, revealComplete: false }, 'revealing'],
-    [{ ...base, claimed: undefined }, 'readyToMint'],
+    [{ ...base, claimed: undefined }, 'loadingEligibility'],
     [{ ...base, claimed: undefined, claimPending: true }, 'minting'],
     [{ ...base }, 'readyToMint'],
     [{ ...base, claimPending: true }, 'minting'],
