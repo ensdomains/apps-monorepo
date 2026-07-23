@@ -60,6 +60,7 @@ describe('commemorative NFT eligibility', () => {
     const result = parseCommemorativeNftEligibility({
       ownerAddress,
       payload: {
+        address: ownerAddress,
         name: 'unwrappedyogi',
         profile_name: 'yoginth.eth',
         proof: [proof],
@@ -73,6 +74,19 @@ describe('commemorative NFT eligibility', () => {
     expect(result.rendererName).toBe('unwrappedyogi')
     expect(result.profileName).toBe('yoginth.eth')
     expect(result.traits.Seed).toBe(742_941_409)
+  })
+
+  it('rejects payloads without an address', () => {
+    expect(() =>
+      parseCommemorativeNftEligibility({
+        ownerAddress,
+        payload: {
+          name: 'yoginth.eth',
+          proof: [proof],
+          traits,
+        },
+      }),
+    ).toThrow(CommemorativeNftEligibilityError)
   })
 
   it('treats HTTP 404 as ineligible', async () => {
@@ -93,6 +107,7 @@ describe('commemorative NFT eligibility', () => {
       parseCommemorativeNftEligibility({
         ownerAddress,
         payload: {
+          address: ownerAddress,
           name: 'yoginth.eth',
           proof: ['0x1234'],
           traits: { ...traits, Seed: -1 },

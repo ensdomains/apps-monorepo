@@ -35,7 +35,7 @@ const attributeSchema = v.object({
 })
 
 const payloadSchema = v.object({
-  address: v.optional(v.string()),
+  address: v.string(),
   name: v.string(),
   profileName: v.optional(v.string()),
   profile_name: v.optional(v.string()),
@@ -123,20 +123,18 @@ export const parseCommemorativeNftEligibility = (params: {
   }
 
   const payloadAddress = parsed.output.address
-  if (payloadAddress) {
-    if (!isAddress(payloadAddress, { strict: false })) {
-      throw new CommemorativeNftEligibilityError(
-        'Eligibility payload contains an invalid address',
-      )
-    }
-    if (
-      getAddress(payloadAddress).toLowerCase() !==
-      params.ownerAddress.toLowerCase()
-    ) {
-      throw new CommemorativeNftEligibilityError(
-        'Eligibility payload does not belong to the connected address',
-      )
-    }
+  if (!isAddress(payloadAddress, { strict: false })) {
+    throw new CommemorativeNftEligibilityError(
+      'Eligibility payload contains an invalid address',
+    )
+  }
+  if (
+    getAddress(payloadAddress).toLowerCase() !==
+    params.ownerAddress.toLowerCase()
+  ) {
+    throw new CommemorativeNftEligibilityError(
+      'Eligibility payload does not belong to the connected address',
+    )
   }
 
   const profileName = normalizeProfileName(
