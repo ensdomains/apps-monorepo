@@ -136,10 +136,11 @@ export async function setPrimaryName(
 
   // The wallet client and the owner address come from the account context
   // separately and can momentarily diverge while the wallet reconnects or the
-  // user switches accounts. Sending from an address the wallet does not
-  // control would fail at the transport, so reject up front.
+  // user switches accounts. Require a bound account that matches the owner:
+  // an account-less client gives no way to verify the wallet controls the
+  // owner address, and a mismatched one would fail at the wallet.
   if (
-    walletClient.account &&
+    !walletClient.account ||
     !isAddressEqual(walletClient.account.address, ownerAddress)
   ) {
     throw new Error(

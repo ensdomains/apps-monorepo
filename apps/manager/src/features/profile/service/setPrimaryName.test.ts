@@ -107,11 +107,27 @@ describe('setPrimaryName', () => {
     await setPrimaryName({
       name: 'leon.eth',
       ownerAddress: EOA_OWNER,
-      walletClient: {} as WalletClient,
+      walletClient: {
+        account: { address: EOA_OWNER },
+      } as unknown as WalletClient,
       publicClient,
       chainId: CHAIN_ID,
     })
 
     expect(order).toEqual(['start-1', 'wait-tx-1', 'start-2', 'wait-tx-2'])
+  })
+
+  it('rejects when the wallet client has no bound account', async () => {
+    await expect(
+      setPrimaryName({
+        name: 'leon',
+        ownerAddress: EOA_OWNER,
+        walletClient: {} as WalletClient,
+        publicClient,
+        chainId: CHAIN_ID,
+      }),
+    ).rejects.toThrow(/does not control the owner address/)
+
+    expect(start).not.toHaveBeenCalled()
   })
 })

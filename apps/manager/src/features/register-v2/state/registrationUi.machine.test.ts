@@ -413,6 +413,26 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
   })
 
+  it('marks setup failed when the wallet client has no bound account', async () => {
+    // Account-less client (mid-reconnect): we can't verify it controls the
+    // owner address, so skip the legs and surface the failure notice.
+    const accountlessAccount = {
+      ...eoaAccount,
+      walletClient: {} as any,
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(accountlessAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush()
+
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
   it('completes successfully when the primary-name transaction is rejected', async () => {
     // Regression: rejecting the primary-name wallet transaction must not fail
     // the (already successful) registration or loop.

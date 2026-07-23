@@ -146,10 +146,12 @@ const canSetPrimaryName = (context: Context) => {
   }
 
   const { walletClient, ownerAddress } = context.postRegistrationData
-  if (!walletClient) return false
 
+  // Require a bound account that matches: an account-less client (possible
+  // mid-reconnect) gives no way to verify the wallet controls the owner
+  // address, so treat it as unavailable rather than submitting blind.
   return (
-    !walletClient.account ||
+    !!walletClient?.account &&
     isAddressEqual(walletClient.account.address, ownerAddress)
   )
 }
