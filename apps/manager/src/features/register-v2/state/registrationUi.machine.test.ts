@@ -390,6 +390,29 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
   })
 
+  it('marks setup failed when the wallet no longer controls the owner address', async () => {
+    // The wallet client and owner address are captured together but can
+    // diverge if the user switches accounts mid-registration: skip the legs
+    // (they would fail at the transport) and surface the failure notice.
+    const divergedAccount = {
+      ...eoaAccount,
+      walletClient: {
+        account: { address: '0x9999999999999999999999999999999999999999' },
+      } as any,
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(divergedAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush()
+
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
   it('completes successfully when the primary-name transaction is rejected', async () => {
     // Regression: rejecting the primary-name wallet transaction must not fail
     // the (already successful) registration or loop.

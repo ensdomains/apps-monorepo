@@ -7,7 +7,12 @@ import {
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import {
   type ActorRefFrom,
   assign,
@@ -132,9 +137,22 @@ const asEthName = (label: string) => `${label}.eth`
 // Primary names are an EOA interaction: the reverse registrars key on
 // msg.sender, so the owner wallet must send the transactions itself (an
 // HCA-sent setName writes the smart account's reverse node instead). The
-// owner wallet client is therefore required on every signer path.
-const canSetPrimaryName = (context: Context) =>
-  shouldSetPrimaryName(context) && !!context.postRegistrationData?.walletClient
+// owner wallet client is therefore required on every signer path, and it must
+// still control the captured owner address (the pair can diverge if the user
+// switches accounts mid-registration).
+const canSetPrimaryName = (context: Context) => {
+  if (!shouldSetPrimaryName(context) || !context.postRegistrationData) {
+    return false
+  }
+
+  const { walletClient, ownerAddress } = context.postRegistrationData
+  if (!walletClient) return false
+
+  return (
+    !walletClient.account ||
+    isAddressEqual(walletClient.account.address, ownerAddress)
+  )
+}
 
 const hasPrimaryNameForwardRemaining = (context: Context) =>
   canSetPrimaryName(context) &&
@@ -193,12 +211,12 @@ const machineSetup = setup({
       hasPrimaryNameForwardRemaining(context),
     hasPrimaryNameReverseRemaining: ({ context }) =>
       hasPrimaryNameReverseRemaining(context),
-    // Setup was requested but the owner wallet client is unavailable, so the
-    // primary-name legs can't be sent: surface the failure notice instead of
-    // silently reporting success.
+    // Setup was requested but the primary-name legs can't be sent (no owner
+    // wallet client, or it no longer controls the owner address): surface the
+    // failure notice instead of silently reporting success.
     primaryNameSetupUnavailable: ({ context }) =>
       shouldSetPrimaryName(context) &&
-      !context.postRegistrationData?.walletClient &&
+      !canSetPrimaryName(context) &&
       !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
     hasPrimaryNameTxId: ({ context }) => !!context.primaryNameTxId,
