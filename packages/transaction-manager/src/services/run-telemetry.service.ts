@@ -47,7 +47,11 @@ interface SnapshotLike {
       gasPrice?: bigint
       maxFeePerGas?: bigint
       maxPriorityFeePerGas?: bigint
-      rhinestoneParams?: { sponsored?: boolean }
+      rhinestoneParams?: {
+        sponsored?:
+          | boolean
+          | { gas: boolean; bridging: boolean; swaps: boolean }
+      }
     }
     intent?: { type?: string }
     signer?: { type?: string }
@@ -431,7 +435,11 @@ function resolveSponsorship(
 ): boolean | undefined {
   if (!request) return undefined
   if (request.type === 'rhinestone-intent') {
-    return request.rhinestoneParams?.sponsored
+    const sponsored = request.rhinestoneParams?.sponsored
+    // Normalize the SDK's object form to "was gas sponsored?" — the bit
+    // telemetry has always tracked. The standalone-HCA user-paid route is
+    // `{ gas: false, ... }` → false.
+    return typeof sponsored === 'object' ? sponsored.gas : sponsored
   }
   return undefined
 }

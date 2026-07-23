@@ -46,7 +46,19 @@ export function submitWarpTransaction(
     )
   }
 
-  const { calls, sponsored, tokenRequests } = request.rhinestoneParams
+  const { calls, sponsored, feeAsset, sessionEnableData, tokenRequests } =
+    request.rhinestoneParams
+
+  if (sessionEnableData && !signer.session) {
+    return errAsync(
+      new TransactionSubmissionError(
+        request,
+        new Error(
+          'rhinestoneParams.sessionEnableData requires a signer with an active session',
+        ),
+      ),
+    )
+  }
 
   if (!calls || calls.length === 0) {
     return errAsync(
@@ -97,16 +109,19 @@ export function submitWarpTransaction(
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
       logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      // Authorization: if the signer carries an active smart session, the SDK
-      // signs this Intent with the ephemeral SESSION KEY (no owner prompt). The
-      // ephemeral key is a time-boxed HCA owner, so it signs through the normal
-      // owner validator path. Without a session we omit `signers` and the SDK
-      // uses the connected owner (owner-signed).
+      // Authorization: if the signer carries an active scoped session, the SDK
+      // signs this Intent with the ephemeral SESSION KEY (no wallet prompt) via
+      // `experimental_session`. `enableData` is attached ONLY on the request
+      // that also carries the on-chain `enableSessionWithRefund` call (the
+      // first HCA action); afterwards it is omitted per the standalone-HCA
+      // spec. Without a session we omit `signers` and the SDK uses the
+      // connected owner (owner-signed).
       const sessionSigners = signer.session
         ? ({
-            type: 'owner' as const,
-            kind: 'ecdsa' as const,
-            accounts: [signer.session.sessionAccount],
+            type: 'experimental_session' as const,
+            session: signer.session.session,
+            ...(sessionEnableData ? { enableData: sessionEnableData } : {}),
+            verifyExecutions: true,
           } satisfies NonNullable<Transaction['signers']>)
         : undefined
 
@@ -116,7 +131,11 @@ export function submitWarpTransaction(
         // Spread into a fresh mutable array: the SDK's CallInput[] is mutable
         // while rhinestoneParams.calls is readonly.
         calls: [...calls],
+        // No gas sponsorship for the standalone-HCA route: callers pass the
+        // user-paid shape `{ gas:false, bridging:false, swaps:false }` +
+        // `feeAsset: 'USDC'`. Legacy callers may still pass booleans.
         sponsored: sponsored ?? true,
+        ...(feeAsset ? { feeAsset } : {}),
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
         // Cast needed: SDK's internal TokenRequests is a strict discriminated union

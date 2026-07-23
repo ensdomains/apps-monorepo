@@ -4,37 +4,53 @@ import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
 import type { Signer } from '../../types/signer.types'
 import {
-  authorizedPaymentAmount,
-  ensureHcaDeployedActor,
   generateCommitmentActor,
   type PermitSignature,
   pollTransactionStatusActor,
   readMinCommitmentAgeActor,
   readPaymentTokenAllowanceActor,
   resolveResolverDeploymentActor,
-  signPermitActor,
   submitApprovalActor,
   submitCommitmentActor,
-  submitPermitAndRegistrationActor,
   submitRegistrationActor,
-  submitResolverAndCommitmentActor,
   submitResolverDeploymentActor,
   validateCommitmentActor,
   verifyRegistrationActor,
 } from './registration.actors'
+import {
+  defaultHcaBudget,
+  type HcaSessionEnableParams,
+  hcaRegistrarAddress,
+  readHcaUsdcBalanceActor,
+  signFundingPermitActor,
+  submitFundingAndCommitActor,
+  submitRevealBatchActor,
+  verifyHcaRegistrationActor,
+} from './registration.hca.actors'
 
 /**
  * Registration Machine
  *
- * Orchestrates the ENS registration flow:
- * 1. Deploy dedicated resolver
- * 2. Generate commitment
- * 3. Submit commitment transaction
- * 4. Wait for commitment confirmation
- * 5. Approve token spend
- * 6. Wait for approval confirmation
- * 7. Submit registration transaction
- * 8. Wait for registration confirmation
+ * Orchestrates the ENS registration flow for two signer modes:
+ *
+ * Pure-EOA (portal; old deployment — unchanged):
+ * 1. Deploy dedicated resolver → wait → generate commitment → commit → wait
+ * 2. Cooldown spine (fetch age → validate → cooldown), allowance → approve
+ * 3. Register → wait → verify
+ *
+ * Standalone-HCA (manager; new deployment, user-paid USDC, NO gas sponsorship):
+ * 1. `checkingHcaFunding` — read HCA USDC balance; skip permit when funded
+ * 2. `signingFundingPermit` — EIP-2612 permit (wallet → HCA budget); the 2nd
+ *    and last wallet prompt (the 1st was the session authorization, signed in
+ *    the app BEFORE the machine starts)
+ * 3. `submittingSetupBundle` — ONE session-signed request: permit +
+ *    transferFrom + enableSessionWithRefund (until enabled) + commit; deploys
+ *    the HCA lazily
+ * 4. Shared cooldown spine (against the standalone registrar)
+ * 5. `submittingRhinestoneBundle` — price re-read + exact-ordered reveal batch
+ *    (deployProxy? → approve → register(wallet) → setters → setNameWithHCA? →
+ *    authorizeNameRoles); session-signed, no wallet prompt
+ * 6. Verify against the standalone registry
  *
  * Persistence is handled automatically via inspect option (see export at bottom)
  */
@@ -64,13 +80,11 @@ export type RegistrationContext = {
   // Account & client
   signer?: Signer
   /**
-   * EOA signer used ONLY to produce the EIP-2612 permit signature. The ENS
-   * registrar pulls the payment token from the name owner (the EOA), so the
-   * allowance must be authorized by the EOA — and `permit` lets the EOA do that
-   * with an OFF-CHAIN signature (gasless, no tx). The signed permit is then
-   * carried inside the sponsored rhinestone bundle alongside `register`, so the
-   * EOA never sends a transaction or needs ETH. Everything else stays on the
-   * sponsored rhinestone `signer`.
+   * EOA signer used ONLY to produce the EIP-2612 FUNDING permit signature
+   * (standalone-HCA route): `owner = wallet`, `spender = HCA`,
+   * `value = hcaBudget`. The permit + `transferFrom` pair is carried inside
+   * the session-signed commit request, so the wallet never sends a
+   * transaction or needs ETH. Everything else is session-signed on `signer`.
    */
   approvalSigner?: Signer
   accountAddress?: Address
@@ -85,6 +99,21 @@ export type RegistrationContext = {
   selectedToken: 'USDC' | 'DAI'
   tokenPrice: bigint
   sponsored?: boolean
+  /**
+   * Standalone-HCA: USDC budget transferred wallet → HCA in the commit leg
+   * (covers registration price + execution-cost refunds). Defaults to the
+   * manifest's same-chain budget.
+   */
+  hcaBudget?: bigint
+  /**
+   * Standalone-HCA: session-enable payload (enable-data + enable-call args).
+   * Present ONLY while the session still needs its on-chain
+   * `enableSessionWithRefund` — the app omits it when resuming with an
+   * already-enabled session (`experimental_isSessionEnabled`).
+   */
+  hcaSessionEnable?: HcaSessionEnableParams
+  /** Standalone-HCA: when set, the reveal batch also sets the primary name. */
+  primaryName?: string
 
   // Flow state
   resolverTxId?: string
@@ -93,10 +122,10 @@ export type RegistrationContext = {
   commitment?: CommitmentData
   commitmentTxId?: string
   /**
-   * Signed EIP-2612 permit (rhinestone flow). Set in `signingPermit` and
-   * carried into the sponsored permit+register bundle. Absent on the pure-EOA
-   * path (which uses an on-chain `approve`) and when allowance already covers
-   * the price.
+   * Signed EIP-2612 FUNDING permit (standalone-HCA flow). Set in
+   * `signingFundingPermit` and carried into the session-signed commit request
+   * (permit + transferFrom pair). Absent on the pure-EOA path (which uses an
+   * on-chain `approve`) and when the HCA balance already covers the budget.
    */
   permit?: PermitSignature
   approvalTxId?: string
@@ -110,11 +139,11 @@ export type RegistrationContext = {
   retryTarget?:
     | 'deployingResolver'
     | 'submittingSetupBundle'
-    | 'ensuringHcaDeployed'
     | 'committingTransaction'
-    | 'signingPermit'
+    | 'signingFundingPermit'
     | 'approvingToken'
     | 'registeringDomain'
+    | 'submittingRhinestoneBundle'
 }
 
 export type RegistrationEvent =
@@ -127,11 +156,17 @@ export type RegistrationEvent =
       price: bigint
       signer: Signer
       /**
-       * Optional EOA signer used to sign the EIP-2612 permit (rhinestone/HCA
-       * flows). See `RegistrationContext.approvalSigner`. Omit for pure-EOA
-       * flows (which use a plain on-chain `approve`).
+       * Optional EOA signer used to sign the EIP-2612 FUNDING permit
+       * (standalone-HCA flow). See `RegistrationContext.approvalSigner`. Omit
+       * for pure-EOA flows (which use a plain on-chain `approve`).
        */
       approvalSigner?: Signer
+      /** Standalone-HCA: USDC funding budget override. */
+      hcaBudget?: bigint
+      /** Standalone-HCA: session-enable payload (omit once enabled). */
+      hcaSessionEnable?: HcaSessionEnableParams
+      /** Standalone-HCA: set the primary name in the reveal batch. */
+      primaryName?: string
       accountAddress: Address
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
@@ -153,9 +188,57 @@ export const registrationMachine = setup({
   },
 
   actors: {
-    ensureHcaDeployed: fromResultAsync((input: { signer: Signer }) => {
-      return ensureHcaDeployedActor(input)
-    }),
+    readHcaUsdcBalance: fromResultAsync(
+      (input: {
+        hca: Address
+        publicClient: PublicClient
+        chainId: number
+      }) => {
+        return readHcaUsdcBalanceActor(input)
+      },
+    ),
+    signFundingPermit: fromResultAsync(
+      (input: {
+        wallet: Address
+        hca: Address
+        value: bigint
+        approvalSigner: Signer
+        publicClient: PublicClient
+        chainId: number
+      }) => {
+        return signFundingPermitActor(input)
+      },
+    ),
+    submitFundingAndCommit: fromResultAsync(
+      (input: {
+        name: string
+        wallet: Address
+        hca: Address
+        duration: bigint
+        permit?: PermitSignature
+        sessionEnable?: HcaSessionEnableParams
+        signer: Signer
+        publicClient: PublicClient
+        id?: string
+      }) => {
+        return submitFundingAndCommitActor(input)
+      },
+    ),
+    submitRevealBatch: fromResultAsync(
+      (input: {
+        name: string
+        wallet: Address
+        hca: Address
+        duration: bigint
+        secret: Hex
+        signer: Signer
+        publicClient: PublicClient
+        primaryName?: string
+        id?: string
+      }) => {
+        return submitRevealBatchActor(input)
+      },
+    ),
     deployResolver: fromResultAsync(
       (input: {
         name: string
@@ -166,21 +249,6 @@ export const registrationMachine = setup({
         id?: string
       }) => {
         return submitResolverDeploymentActor(input)
-      },
-    ),
-    submitResolverAndCommitment: fromResultAsync(
-      (input: {
-        name: string
-        owner: Address
-        resolverOwner: Address
-        duration: bigint
-        selectedToken: 'USDC' | 'DAI'
-        signer: Signer
-        publicClient: PublicClient
-        sponsored?: boolean
-        id?: string
-      }) => {
-        return submitResolverAndCommitmentActor(input)
       },
     ),
     resolveResolverDeployment: fromResultAsync((input: { txId: string }) => {
@@ -253,34 +321,6 @@ export const registrationMachine = setup({
         return submitRegistrationActor(input)
       },
     ),
-    signPermit: fromResultAsync(
-      (input: {
-        owner: Address
-        selectedToken: 'USDC' | 'DAI'
-        value: bigint
-        approvalSigner: Signer
-        publicClient: PublicClient
-      }) => {
-        return signPermitActor(input)
-      },
-    ),
-    submitPermitAndRegistration: fromResultAsync(
-      (input: {
-        permit: PermitSignature
-        selectedToken: 'USDC' | 'DAI'
-        name: string
-        commitment: CommitmentData
-        signer: Signer
-        duration: bigint
-        owner: Address
-        publicClient: PublicClient
-        sponsored?: boolean
-        resolverAddress: Address
-        id?: string
-      }) => {
-        return submitPermitAndRegistrationActor(input)
-      },
-    ),
     pollTransactionStatus: fromResultAsync((input: { txId: string }) => {
       return pollTransactionStatusActor(input)
     }),
@@ -310,12 +350,16 @@ export const registrationMachine = setup({
       },
     ),
     validateCommitment: fromResultAsync(
-      (input: { commitment: CommitmentData; publicClient: PublicClient }) => {
+      (input: {
+        commitment: CommitmentData
+        publicClient: PublicClient
+        registrarAddress?: Address
+      }) => {
         return validateCommitmentActor(input)
       },
     ),
     readMinCommitmentAge: fromResultAsync(
-      (input: { publicClient: PublicClient }) => {
+      (input: { publicClient: PublicClient; registrarAddress?: Address }) => {
         return readMinCommitmentAgeActor(input)
       },
     ),
@@ -330,12 +374,23 @@ export const registrationMachine = setup({
     ),
     verifyRegistration: fromResultAsync(
       (input: {
+        mode: 'eoa' | 'hca'
         name: string
         owner: Address
+        hca: Address
         resolverAddress: Address
         publicClient: PublicClient
       }) => {
-        return verifyRegistrationActor(input)
+        // One machine state, two deployments: the HCA path verifies against
+        // the standalone registry, the EOA path against the old deployment.
+        return input.mode === 'hca'
+          ? verifyHcaRegistrationActor({
+              name: input.name,
+              wallet: input.owner,
+              hca: input.hca,
+              publicClient: input.publicClient,
+            })
+          : verifyRegistrationActor(input)
       },
     ),
   },
@@ -458,6 +513,9 @@ export const registrationMachine = setup({
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
             sponsored: ({ event }) => event.sponsored ?? true,
+            hcaBudget: ({ event }) => event.hcaBudget,
+            hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
+            primaryName: ({ event }) => event.primaryName,
             resolverAddress: () => undefined,
             resolverTxId: () => undefined,
             resolverSalt: () => undefined,
@@ -482,12 +540,12 @@ export const registrationMachine = setup({
       },
       always: [
         {
-          // Rhinestone/HCA: deploy the resolver and commit in ONE sponsored
-          // Intent (resolver address is predicted, so no need to wait for the
-          // deploy to mine; the HCA deploys inline on this first Intent). This
-          // is the single-signature setup path.
+          // Standalone-HCA: check whether the HCA already holds enough USDC
+          // (skips the funding permit), then fund+enable+commit in ONE
+          // session-signed request. The session authorization was signed in
+          // the app before the machine started.
           guard: 'isRhinestoneSigner',
-          target: 'submittingSetupBundle',
+          target: 'checkingHcaFunding',
         },
         // Pure-EOA: an EOA can't batch, so deploy the resolver, wait for it,
         // then commit as separate transactions.
@@ -495,28 +553,99 @@ export const registrationMachine = setup({
       ],
     },
 
+    checkingHcaFunding: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'readHcaUsdcBalance',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          chainId: context.chainId,
+        }),
+        onDone: [
+          {
+            // The HCA already holds enough USDC (e.g. leftover budget from a
+            // prior registration) — no funding permit needed. 0 extra prompts.
+            guard: ({ context, event }) => {
+              const balance = event.output as bigint
+              return balance >= (context.hcaBudget ?? defaultHcaBudget())
+            },
+            target: 'submittingSetupBundle',
+          },
+          { target: 'signingFundingPermit' },
+        ],
+        // If the read fails, fall back to authorizing rather than blocking.
+        onError: { target: 'signingFundingPermit' },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
+    signingFundingPermit: {
+      entry: ['logTransition'],
+      invoke: {
+        src: 'signFundingPermit',
+        input: ({ context }) => ({
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          wallet: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
+          value: context.hcaBudget ?? defaultHcaBudget(),
+          // The funding permit MUST be signed by the wallet (EOA); the HCA
+          // cannot produce an EIP-2612 signature for the wallet's balance.
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          approvalSigner: context.approvalSigner ?? context.signer!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          chainId: context.chainId,
+        }),
+        onDone: {
+          target: 'submittingSetupBundle',
+          actions: assign({
+            permit: ({ event }) => event.output,
+          }),
+        },
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'signingFundingPermit' as const,
+            }),
+            ({ event }) => {
+              console.error(
+                '❌ [REGISTRATION] Funding permit signing failed:',
+                event.error,
+              )
+            },
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
+    },
+
     submittingSetupBundle: {
       entry: ['logTransition'],
       invoke: {
-        src: 'submitResolverAndCommitment',
+        src: 'submitFundingAndCommit',
         input: ({ context }) => ({
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          owner: context.ownerAddress ?? context.accountAddress!,
-          // The resolver's EACL grantee must be the address the resolver sees at
-          // write time (EOA after SCA→EOA unwrap). Mirrors `deployingResolver`.
-          resolverOwner:
-            context.resolverOwnerAddress ??
-            context.ownerAddress ??
-            // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-            context.accountAddress!,
+          wallet: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
           duration: context.duration,
-          selectedToken: context.selectedToken,
+          permit: context.permit,
+          sessionEnable: context.hcaSessionEnable,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.commit,
         }),
         onDone: {
@@ -536,7 +665,7 @@ export const registrationMachine = setup({
             }),
             ({ event }) => {
               console.error(
-                '❌ [REGISTRATION] Resolver+commitment bundle failed:',
+                '❌ [REGISTRATION] Funding+commit request failed:',
                 event.error,
               )
             },
@@ -655,7 +784,7 @@ export const registrationMachine = setup({
           }
         },
         onDone: {
-          target: 'ensuringHcaDeployed',
+          target: 'committingTransaction',
           actions: assign({
             commitment: ({ event }) => event.output,
           }),
@@ -670,38 +799,6 @@ export const registrationMachine = setup({
             ({ event }) => {
               console.error(
                 '❌ [REGISTRATION] Commitment preparation failed:',
-                event.error,
-              )
-            },
-          ],
-        },
-      },
-      on: {
-        CANCEL: 'idle',
-      },
-    },
-
-    ensuringHcaDeployed: {
-      entry: ['logTransition'],
-      invoke: {
-        src: 'ensureHcaDeployed',
-        input: ({ context }) => ({
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signer: context.signer!,
-        }),
-        onDone: {
-          target: 'committingTransaction',
-        },
-        onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'ensuringHcaDeployed' as const,
-            }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] HCA deployment failed:',
                 event.error,
               )
             },
@@ -795,22 +892,50 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          // The HCA path committed on the standalone registrar; read ITS
+          // cooldown window, not the old deployment's.
+          registrarAddress:
+            context.signer?.type === 'rhinestone'
+              ? hcaRegistrarAddress(context.chainId)
+              : undefined,
         }),
-        onDone: {
-          target: 'checkingAllowance',
-          actions: assign({
-            registerReadyTimestamp: ({ event }) => {
-              const minAgeSeconds = Number(event.output as bigint)
-              return Date.now() + minAgeSeconds * 1000
-            },
-          }),
-        },
-        onError: {
+        onDone: [
+          {
+            // Standalone-HCA: the HCA was funded pre-commit and pays the
+            // registrar from its own balance in the reveal batch — no
+            // allowance/permit step after the cooldown.
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) => {
+                const minAgeSeconds = Number(event.output as bigint)
+                return Date.now() + minAgeSeconds * 1000
+              },
+            }),
+          },
+          {
+            target: 'checkingAllowance',
+            actions: assign({
+              registerReadyTimestamp: ({ event }) => {
+                const minAgeSeconds = Number(event.output as bigint)
+                return Date.now() + minAgeSeconds * 1000
+              },
+            }),
+          },
+        ],
+        onError: [
           // Fall back to the default cooldown so registration can still
           // proceed even if the read fails.
-          target: 'checkingAllowance',
-          actions: 'setFallbackRegisterReadyTimestamp',
-        },
+          {
+            guard: 'isRhinestoneSigner',
+            target: 'commitmentCooldown',
+            actions: 'setFallbackRegisterReadyTimestamp',
+          },
+          {
+            target: 'checkingAllowance',
+            actions: 'setFallbackRegisterReadyTimestamp',
+          },
+        ],
       },
       on: {
         CANCEL: 'idle',
@@ -826,10 +951,16 @@ export const registrationMachine = setup({
           commitment: context.commitment!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
+          registrarAddress:
+            context.signer?.type === 'rhinestone'
+              ? hcaRegistrarAddress(context.chainId)
+              : undefined,
         }),
-        onDone: {
-          target: 'checkingAllowance',
-        },
+        onDone: [
+          // The commitment is confirmed on-chain; HCA needs no allowance step.
+          { guard: 'isRhinestoneSigner', target: 'commitmentCooldown' },
+          { target: 'checkingAllowance' },
+        ],
         onError: {
           target: 'error',
           actions: [
@@ -837,10 +968,10 @@ export const registrationMachine = setup({
               error: ({ event }) => event.error as Error,
               // The commitment never landed, so resubmit it — but via the path
               // that originally produced it. The HCA flow commits inside the
-              // sponsored `submittingSetupBundle` (resolver-deploy + commit), so
-              // it must re-run the whole bundle with a fresh commitment; a
-              // standalone `committingTransaction` would be the wrong path (and
-              // is rejected if the prior commitment did land). Pure-EOA commits
+              // session-signed `submittingSetupBundle` (fund + enable +
+              // commit), so it must re-run the whole request with a fresh
+              // commitment (the batch is atomic: a revert leaves the permit
+              // unconsumed, so it is safely reused). Pure-EOA commits
               // standalone, so it retries `committingTransaction`.
               retryTarget: ({ context }) =>
                 context.signer?.type === 'rhinestone'
@@ -875,9 +1006,9 @@ export const registrationMachine = setup({
         },
         onDone: [
           {
-            // A signed permit means the rhinestone path: submit permit+register
-            // as one sponsored bundle.
-            guard: ({ context }) => !!context.permit,
+            // Standalone-HCA: cooldown elapsed → session-signed reveal batch
+            // (price re-read inside the actor). No wallet prompt.
+            guard: 'isRhinestoneSigner',
             target: 'submittingRhinestoneBundle',
           },
           { target: 'registeringDomain' },
@@ -886,7 +1017,10 @@ export const registrationMachine = setup({
           target: 'error',
           actions: assign({
             error: ({ event }) => event.error as Error,
-            retryTarget: () => 'committingTransaction' as const,
+            retryTarget: ({ context }) =>
+              context.signer?.type === 'rhinestone'
+                ? ('submittingSetupBundle' as const)
+                : ('committingTransaction' as const),
           }),
         },
       },
@@ -898,24 +1032,21 @@ export const registrationMachine = setup({
     submittingRhinestoneBundle: {
       entry: ['logTransition', 'clearRegisterReadyTimestamp'],
       invoke: {
-        src: 'submitPermitAndRegistration',
+        src: 'submitRevealBatch',
         input: ({ context }) => ({
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          permit: context.permit!,
-          selectedToken: context.selectedToken,
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          commitment: context.commitment!,
+          wallet: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          signer: context.signer!,
+          hca: context.accountAddress!,
           duration: context.duration,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          owner: context.ownerAddress ?? context.accountAddress!,
+          secret: context.commitment!.secret,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          sponsored: context.sponsored,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          resolverAddress: context.resolverAddress!,
+          primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
         }),
         onDone: {
@@ -929,11 +1060,11 @@ export const registrationMachine = setup({
           actions: [
             assign({
               error: ({ event }) => event.error as Error,
-              retryTarget: () => 'signingPermit' as const,
+              retryTarget: () => 'submittingRhinestoneBundle' as const,
             }),
             ({ event }) => {
               console.error(
-                '❌ [REGISTRATION] Permit+register bundle submission failed:',
+                '❌ [REGISTRATION] Reveal batch submission failed:',
                 event.error,
               )
             },
@@ -952,20 +1083,14 @@ export const registrationMachine = setup({
         // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
         input: ({ context }) => ({ txId: context.registrationTxId! }),
         onDone: 'success',
+        // Receipt polling can flake after the reveal actually landed. Check
+        // the registry before declaring failure — the user may already own
+        // the name.
         onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'signingPermit' as const,
-            }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Permit+register bundle failed:',
-                event.error,
-              )
-            },
-          ],
+          target: 'verifyingRegistration',
+          actions: assign({
+            error: ({ event }) => event.error as Error,
+          }),
         },
       },
       on: {
@@ -995,70 +1120,13 @@ export const registrationMachine = setup({
             },
             target: 'commitmentCooldown',
           },
-          {
-            // Rhinestone/HCA: authorize via a gasless EIP-2612 permit signed by
-            // the EOA and carried into the sponsored bundle. No EOA tx.
-            guard: 'isRhinestoneSigner',
-            target: 'signingPermit',
-          },
-          // Pure-EOA fallback: a bare EOA can't batch or sponsor, so it sets the
-          // allowance with a plain on-chain `approve`.
+          // Pure-EOA: a bare EOA can't batch or sponsor, so it sets the
+          // allowance with a plain on-chain `approve`. (The HCA path never
+          // reaches this state — it funds pre-commit and pays from the HCA.)
           { target: 'approvingToken' },
         ],
-        onError: [
-          {
-            // If the read fails, fall back to authorizing rather than blocking.
-            guard: 'isRhinestoneSigner',
-            target: 'signingPermit',
-          },
-          { target: 'approvingToken' },
-        ],
-      },
-      on: {
-        CANCEL: 'idle',
-      },
-    },
-
-    signingPermit: {
-      entry: ['logTransition'],
-      invoke: {
-        src: 'signPermit',
-        input: ({ context }) => ({
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          owner: context.ownerAddress ?? context.accountAddress!,
-          selectedToken: context.selectedToken,
-          // Authorize only what this registration needs — NOT an unlimited
-          // allowance. See `authorizedPaymentAmount` for the headroom rationale.
-          value: authorizedPaymentAmount(context.tokenPrice),
-          // The registrar pulls payment from the name owner (the EOA), so the
-          // permit MUST be signed by the EOA. Use the dedicated EOA
-          // `approvalSigner`; the rhinestone HCA can't produce a permit.
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          approvalSigner: context.approvalSigner ?? context.signer!,
-          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          publicClient: context.publicClient!,
-        }),
-        onDone: {
-          target: 'commitmentCooldown',
-          actions: assign({
-            permit: ({ event }) => event.output,
-          }),
-        },
-        onError: {
-          target: 'error',
-          actions: [
-            assign({
-              error: ({ event }) => event.error as Error,
-              retryTarget: () => 'signingPermit' as const,
-            }),
-            ({ event }) => {
-              console.error(
-                '❌ [REGISTRATION] Permit signing failed:',
-                event.error,
-              )
-            },
-          ],
-        },
+        // If the read fails, fall back to authorizing rather than blocking.
+        onError: { target: 'approvingToken' },
       },
       on: {
         CANCEL: 'idle',
@@ -1214,9 +1282,15 @@ export const registrationMachine = setup({
       invoke: {
         src: 'verifyRegistration',
         input: ({ context }) => ({
+          mode:
+            context.signer?.type === 'rhinestone'
+              ? ('hca' as const)
+              : ('eoa' as const),
           name: context.name,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          hca: context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1234,7 +1308,10 @@ export const registrationMachine = setup({
             target: 'error',
             actions: [
               assign({
-                retryTarget: () => 'registeringDomain' as const,
+                retryTarget: ({ context }) =>
+                  context.signer?.type === 'rhinestone'
+                    ? ('submittingRhinestoneBundle' as const)
+                    : ('registeringDomain' as const),
               }),
               ({ context }) => {
                 console.error(
@@ -1249,7 +1326,10 @@ export const registrationMachine = setup({
           target: 'error',
           actions: [
             assign({
-              retryTarget: () => 'registeringDomain' as const,
+              retryTarget: ({ context }) =>
+                context.signer?.type === 'rhinestone'
+                  ? ('submittingRhinestoneBundle' as const)
+                  : ('registeringDomain' as const),
             }),
             ({ event }) => {
               console.error(
@@ -1304,15 +1384,31 @@ export const registrationMachine = setup({
             })),
           },
           {
-            guard: ({ context }) => context.retryTarget === 'signingPermit',
-            // Re-read allowance first: a prior attempt may have landed (skip to
-            // register) and a fresh permit signature is needed otherwise.
-            target: 'checkingAllowance',
+            guard: ({ context }) =>
+              context.retryTarget === 'signingFundingPermit',
+            // Re-check the HCA balance first: a prior attempt may have funded
+            // the HCA already (skip the permit) and a fresh permit signature
+            // is needed otherwise.
+            target: 'checkingHcaFunding',
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
               retryTarget: undefined,
               permit: undefined,
+              registrationTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'submittingRhinestoneBundle',
+            // Re-submit the reveal batch: the actor re-reads the CURRENT price
+            // and re-checks resolver deployment, so a stale quote or transient
+            // relayer failure self-heals.
+            target: 'submittingRhinestoneBundle',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
               registrationTxId: undefined,
             })),
           },
@@ -1343,20 +1439,12 @@ export const registrationMachine = setup({
           },
           {
             guard: ({ context }) =>
-              context.retryTarget === 'ensuringHcaDeployed',
-            target: 'ensuringHcaDeployed',
-            actions: assign(({ context }) => ({
-              ...context,
-              error: undefined,
-              retryTarget: undefined,
-            })),
-          },
-          {
-            guard: ({ context }) =>
               context.retryTarget === 'submittingSetupBundle',
             target: 'submittingSetupBundle',
-            // Re-run the whole bundle: a fresh resolver salt/address and a new
-            // commitment are generated, so clear any partial setup state.
+            // Re-run the whole commit request: a fresh secret + commitment are
+            // generated, so clear any partial setup state. The funding permit
+            // is KEPT — the atomic batch reverted, so the permit's nonce is
+            // unconsumed and it is safely reused.
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
