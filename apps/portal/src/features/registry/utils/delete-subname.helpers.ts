@@ -6,15 +6,9 @@
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { deleteSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { err, fromThrowable, ok, type Result } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import type { WalletClientWithAccount } from '@/utils/types'
-
-const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
-  e instanceof Error ? e : new Error(String(e)),
-)
 
 export interface PrepareDeleteSubnameParams {
   /** The parent registry (subregistry) address that manages this subname */
@@ -27,44 +21,35 @@ export interface PrepareDeleteSubnameParams {
   readonly chainId: number
 }
 
-function assertWalletHasAccount(
-  walletClient: WalletClient,
-): walletClient is WalletClientWithAccount {
-  return walletClient.account !== undefined
-}
-
 /** The deleteSubname intent, shared by the gas estimate and {@link deleteSubname}. */
 export function prepareDeleteSubnameTransaction({
   registryAddress,
   label,
   walletClient,
   chainId,
-}: PrepareDeleteSubnameParams): Result<CustomTransactionIntent, Error> {
-  if (!assertWalletHasAccount(walletClient)) {
-    return err(new Error('Wallet client has no connected account'))
+}: PrepareDeleteSubnameParams): CustomTransactionIntent {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
   }
 
-  const writeParams = deleteSubnameWriteParameters(walletClient, {
-    registryAddress,
-    label,
-  })
+  const writeParams = deleteSubnameWriteParameters(
+    walletClient as Parameters<typeof deleteSubnameWriteParameters>[0],
+    {
+      registryAddress,
+      label,
+    },
+  )
 
-  const dataResult = safeEncodeFunctionData({
+  const data = encodeFunctionData({
     abi: writeParams.abi,
     functionName: writeParams.functionName,
     args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: writeParams.address,
+    data,
+    chainId,
   })
-
-  if (dataResult.isErr()) {
-    return err(dataResult.error)
-  }
-
-  return ok(
-    toEoaCustomIntent({
-      from: walletClient.account.address,
-      to: writeParams.address,
-      data: dataResult.value,
-      chainId,
-    }),
-  )
 }

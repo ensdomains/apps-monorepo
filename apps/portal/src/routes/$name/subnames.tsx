@@ -268,7 +268,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
             label: getLabel(subname.name),
             walletClient,
             chainId,
-          }).unwrapOr(undefined)
+          })
       : undefined
 
   // One Transaction entry per queued subname. The modal walks through them

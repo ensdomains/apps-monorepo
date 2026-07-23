@@ -409,7 +409,7 @@ const CreateSubnameForm = ({
                         walletClient,
                         chainId,
                         expires: estimateExpires,
-                      }).unwrapOr(undefined)
+                      })
                   : undefined,
             },
             onStart: handleStartTransaction,

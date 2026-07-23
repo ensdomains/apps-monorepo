@@ -6,15 +6,9 @@
 
 import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { createSubnameV2WriteParameters } from '@ensdomains/ensjs/wallet'
-import { err, fromThrowable, ok, type Result } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData, zeroAddress } from 'viem'
 import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
-import type { WalletClientWithAccount } from '@/utils/types'
-
-const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
-  e instanceof Error ? e : new Error(String(e)),
-)
 
 /**
  * Default role bitmap granted to the subname owner on creation.
@@ -53,12 +47,6 @@ export interface PrepareCreateSubnameParams {
   readonly expires?: bigint
 }
 
-function assertWalletHasAccount(
-  walletClient: WalletClient,
-): walletClient is WalletClientWithAccount {
-  return walletClient.account !== undefined
-}
-
 /**
  * The createSubnameV2 intent, shared by the gas estimate and {@link createSubname}.
  *
@@ -77,37 +65,34 @@ export function prepareCreateSubnameTransaction({
   subregistryAddress = zeroAddress,
   roleBitmap = DEFAULT_ROLE_BITMAP,
   expires,
-}: PrepareCreateSubnameParams): Result<CustomTransactionIntent, Error> {
-  if (!assertWalletHasAccount(walletClient)) {
-    return err(new Error('Wallet client has no connected account'))
+}: PrepareCreateSubnameParams): CustomTransactionIntent {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
   }
 
-  const writeParams = createSubnameV2WriteParameters(walletClient, {
-    registryAddress,
-    label,
-    owner,
-    subregistryAddress,
-    resolverAddress,
-    roleBitmap,
-    expires,
-  })
+  const writeParams = createSubnameV2WriteParameters(
+    walletClient as Parameters<typeof createSubnameV2WriteParameters>[0],
+    {
+      registryAddress,
+      label,
+      owner,
+      subregistryAddress,
+      resolverAddress,
+      roleBitmap,
+      expires,
+    },
+  )
 
-  const dataResult = safeEncodeFunctionData({
+  const data = encodeFunctionData({
     abi: writeParams.abi,
     functionName: writeParams.functionName,
     args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: writeParams.address,
+    data,
+    chainId,
   })
-
-  if (dataResult.isErr()) {
-    return err(dataResult.error)
-  }
-
-  return ok(
-    toEoaCustomIntent({
-      from: walletClient.account.address,
-      to: writeParams.address,
-      data: dataResult.value,
-      chainId,
-    }),
-  )
 }
