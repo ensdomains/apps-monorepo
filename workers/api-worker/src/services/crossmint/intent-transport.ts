@@ -3,12 +3,7 @@ import type { Address, Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { logger } from '#utils/logger.js'
-import {
-  type FulfilmentLeg,
-  type GasAndPrices,
-  quoteLegTokenRequest,
-  readGasAndPrices,
-} from './intent-quote.js'
+import { type FulfilmentLeg, LEG_GAS_LIMITS } from './intent-quote.js'
 
 /**
  * Intents execution transport (`FULFILMENT_TRANSPORT=intents`): fulfilment
@@ -34,13 +29,6 @@ const DEFAULT_RHINESTONE_API_KEY =
 
 /** The rail's USDC on this chain — the settlement anchor for USDC-gas routing. */
 const USDC_L1 = getTokenAddress('USDC', sepolia.id)
-
-/**
- * Default destination gas limit. Covers the largest single leg (register,
- * 337k measured through the modifier) with margin; the orchestrator prices
- * fees on the limit, so callers with cheaper legs may pass a tighter one.
- */
-const DEFAULT_GAS_LIMIT = 500_000n
 
 export function isIntentsTransport(env: CloudflareBindings): boolean {
   return env.FULFILMENT_TRANSPORT === 'intents'
@@ -70,44 +58,33 @@ export function createIntentExecutor(env: CloudflareBindings) {
     return { account, initSig }
   }
 
-  // One gas-price + ETH/USDC read, shared by every leg quoted on this executor
-  // instance (a queue-phase's worth of legs). Register runs in a later phase =
-  // a fresh instance, so it re-quotes against then-current gas. `.catch(null)`
-  // keeps a price outage from throwing here — the per-leg quote falls back.
-  let gasPricesPromise: Promise<GasAndPrices | undefined> | null = null
-
-  return async function execWriteViaIntents(
-    call: { to: Address; data: Hex; leg: FulfilmentLeg },
-    gasLimit: bigint = DEFAULT_GAS_LIMIT,
-  ): Promise<Hex> {
+  return async function execWriteViaIntents(call: {
+    to: Address
+    data: Hex
+    leg: FulfilmentLeg
+  }): Promise<Hex> {
     accountPromise ??= init()
     const { account, initSig } = await accountPromise
-
-    gasPricesPromise ??= readGasAndPrices(env).catch(() => undefined)
-    // Declare the USDC this leg actually needs available so the solver sizes
-    // the route and reserves its gas reimbursement correctly. A nominal 1n
-    // under-declares the spend → the solver earmarks the balance for the token
-    // request and finds too little left for gas ("insufficient available
-    // balance … leaving too little remainder for gas"). Priced identically to
-    // the buyer's mint-time gasFee, so the collected fee covers every leg.
-    const tokenRequestAmount = await quoteLegTokenRequest(
-      env,
-      call.leg,
-      await gasPricesPromise,
-    )
 
     const result = await account.sendTransaction({
       chain: sepolia,
       eip7702InitSignature: initSig,
       calls: [{ to: call.to, value: 0n, data: call.data }],
-      // tokenRequests + feeAsset + sourceAssets together are the USDC-gas
-      // settlement anchor the SOLVER routes against. `amount` is this leg's
-      // real quoted USDC need (see above) — NOT a nominal 1n. sourceAssets:
-      // ['USDC'] pins gas paid in USDC-equivalent; no ETH anywhere.
-      tokenRequests: [{ address: USDC_L1, amount: tokenRequestAmount }],
+      // tokenRequests MUST be the nominal 1n anchor. MEASURED (quote probe
+      // 2026-07-23): the request amount does NOT price into the quote — it is
+      // RESERVED from the account's balance ON TOP of the fee. Declaring a
+      // real amount therefore ~doubles the balance a leg needs and starves
+      // gas ("insufficient available balance … leaving too little remainder
+      // for gas"). Same-chain legs self-fund from the executor's own USDC;
+      // the 1n merely anchors USDC as the settlement asset for routing.
+      tokenRequests: [{ address: USDC_L1, amount: 1n }],
       feeAsset: 'USDC',
       sourceAssets: ['USDC'],
-      gasLimit,
+      // The rail prices the fee on this LIMIT (measured: same call quotes
+      // 1.10 @150k vs 2.64 @500k). Per-leg limits — shared with the buyer's
+      // fee quote via LEG_GAS_LIMITS — keep each leg's fee as tight as its
+      // real gas needs allow.
+      gasLimit: LEG_GAS_LIMITS[call.leg],
     })
 
     const status = await account.waitForExecution(result)

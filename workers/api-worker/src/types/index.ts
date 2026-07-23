@@ -67,10 +67,17 @@ declare global {
     FULFILMENT_TRANSPORT?: string
     /**
      * Solver premium (incl. rail fixed fees) on raw gas, ×100 (e.g. "180" =
-     * 1.8×), for the intents fulfilment fee quote. Unset → 180 default,
-     * calibrated to demonslayer's measured 4.39 USDC on-chain fill. Retune
-     * here when mainnet rail pricing is characterised.
+     * 2.2×) applied to each leg's LIMIT-priced raw gas in the fulfilment fee
+     * quote. Unset → 220 default: the measured slope (~2.11×) of the
+     * orchestrator's quote curve (probe 2026-07-23) plus margin. Retune here
+     * when mainnet rail pricing is characterised.
      */
     RAIL_PREMIUM_PERCENT?: string
+    /**
+     * Optional override for the rail's fixed fee per intent leg, in USDC 6dp
+     * units. Unset → 450000 (0.45 USDC) default: the measured intercept
+     * (~0.44) of the orchestrator's quote curve plus margin.
+     */
+    RAIL_FIXED_FEE_6DP?: string
   }
 }
