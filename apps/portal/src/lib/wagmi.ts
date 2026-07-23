@@ -1,7 +1,7 @@
 import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { walletConnect } from '@wagmi/connectors'
-import { createClient, http } from 'viem'
+import { createClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
@@ -24,11 +24,41 @@ const PORTAL_SEPOLIA_RPC_URL =
 export const SEPOLIA_RPC_URL: string =
   import.meta.env?.VITE_SEPOLIA_RPC_URL || PORTAL_SEPOLIA_RPC_URL
 
+// Public Sepolia fallback endpoints, mirroring the manager app: dRPC
+// intermittently returns HTTP 500s on otherwise-valid `eth_call`s; viem's
+// `fallback()` transport transparently fails over so a single provider blip
+// doesn't surface as a query error. The portal's own RPC URL stays the
+// preferred (primary) endpoint so quota/usage is still attributed to the
+// portal app.
+const SEPOLIA_FALLBACK_RPC_URLS = [
+  'https://ethereum-sepolia-rpc.publicnode.com',
+  'https://1rpc.io/sepolia',
+] as const
+
+const SEPOLIA_RPC_URLS: readonly string[] = [
+  SEPOLIA_RPC_URL,
+  ...SEPOLIA_FALLBACK_RPC_URLS.filter((url) => url !== SEPOLIA_RPC_URL),
+]
+
+export const sepoliaFallbackTransport = fallback(
+  SEPOLIA_RPC_URLS.map((url) =>
+    http(url, {
+      retryCount: 2,
+      batch: {
+        wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
+      },
+    }),
+  ),
+  // rank: false keeps the declared order (primary first) instead of latency
+  // ranking, which would let a fast public node steal traffic from our key.
+  { rank: false, retryCount: 2 },
+)
+
 export const customSepolia = {
   ...sepolia,
   rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
+    default: { http: [...SEPOLIA_RPC_URLS] },
+    public: { http: [...SEPOLIA_RPC_URLS] },
   },
 }
 
@@ -55,10 +85,6 @@ export const wagmiConfig = createConfig({
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(SEPOLIA_RPC_URL, {
-        batch: {
-          wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
-        },
-      }),
+      transport: sepoliaFallbackTransport,
     }),
 })
