@@ -1,19 +1,16 @@
-import { useFeatureFlagEnabled } from '@posthog/react'
 import {
   createFileRoute,
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
+import { ProfileLoading } from '@/features/profile/components/view/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
-import { ProfileViewNewLoading } from '@/features/profile/components/view-new/ProfileViewNewLoading'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
@@ -89,16 +86,7 @@ export const Route = createFileRoute('/$name/')({
 
 function ProfileRoutePending() {
   const name = Route.useParams({ select: (params) => params.name })
-  const profileViewNewEnabled = useFeatureFlagEnabled(
-    POSTHOG_FEATURE_FLAGS.PROFILE_VIEW_NEW,
-    false,
-  )
-
-  return profileViewNewEnabled ? (
-    <ProfileViewNewLoading name={name} />
-  ) : (
-    <ProfileLoading />
-  )
+  return <ProfileLoading name={name} />
 }
 
 function ProfileRouteError({ error }: ErrorComponentProps) {
@@ -115,6 +103,5 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
 
 function RouteComponent() {
   const name = Route.useParams({ select: (params) => params.name })
-
   return <ProfileView name={name} />
 }
