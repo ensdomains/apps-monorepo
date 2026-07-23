@@ -162,7 +162,7 @@ export const SendNameForm = ({
         {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
 
-      {resetTargetsFailed && (
+      {hasValidRecipient && resetTargetsFailed && (
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.

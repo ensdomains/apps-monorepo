@@ -1,3 +1,10 @@
+import {
+  type Call,
+  type Signer,
+  type TransactionRequest,
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import {
   type Config as WagmiConfig,
@@ -7,6 +14,7 @@ import {
 import {
   type Address,
   decodeEventLog,
+  encodeFunctionData,
   type Hex,
   type PublicClient,
   parseAbiItem,
@@ -67,14 +75,38 @@ export const findExistingPermRes = async (params: {
   return null
 }
 
-export const predictOwnedPermResAddress = async (params: {
+/**
+ * Build the `deployProxy` call for the owner's dedicated PermissionedResolver,
+ * without submitting it. Keyed off `account`: the VerifiableFactory derives the
+ * proxy address from `msg.sender`, so `account` is both the deployer and the
+ * resolver's admin. Lets callers batch the deploy alongside `setResolver` and a
+ * record write in a single intent.
+ */
+export const buildDeployOwnedPermResCall = (account: Address): Call => ({
+  to: V2_CONTRACTS.VerifiableFactory,
+  data: encodeFunctionData({
+    abi: VERIFIABLE_FACTORY_ABI,
+    functionName: 'deployProxy',
+    args: [
+      V2_CONTRACTS.PermissionedResolverImpl,
+      computeOwnedResolverSalt(account, 0n),
+      getOwnedPermResInitCalldata(account),
+    ],
+  }),
+  value: 0n,
+})
+
+/**
+ * The CREATE2 address `deployProxy` would return for `eoa`, computed by
+ * simulating the (not-yet-submitted) deploy. Assumes no owned resolver exists
+ * yet — callers that don't already know that should use
+ * {@link predictOwnedPermResAddress}, which checks first.
+ */
+export const simulateOwnedPermResAddress = async (params: {
   eoa: Address
   publicClient: PublicClient
 }): Promise<Address> => {
   const { eoa, publicClient } = params
-  const existing = await findExistingPermRes({ eoa, publicClient })
-  if (existing) return existing
-
   const salt = computeOwnedResolverSalt(eoa, 0n)
   const { result } = await publicClient.simulateContract({
     address: V2_CONTRACTS.VerifiableFactory,
@@ -88,6 +120,14 @@ export const predictOwnedPermResAddress = async (params: {
     account: eoa,
   })
   return result
+}
+
+export const predictOwnedPermResAddress = async (params: {
+  eoa: Address
+  publicClient: PublicClient
+}): Promise<Address> => {
+  const existing = await findExistingPermRes(params)
+  return existing ?? simulateOwnedPermResAddress(params)
 }
 
 export const ensureOwnedPermRes = async (params: {
@@ -126,6 +166,79 @@ export const ensureOwnedPermRes = async (params: {
   if (receipt.status !== 'success') {
     throw new OwnedResolverDeployError({
       cause: new Error(`deployProxy tx reverted (hash=${hash})`),
+    })
+  }
+
+  const deployed = parseProxyAddress(
+    receipt.logs as readonly { topics: readonly Hex[]; data: Hex }[],
+  )
+  if (!deployed) {
+    throw new OwnedResolverDeployError({
+      cause: new Error('deployProxy succeeded but ProxyDeployed log not found'),
+    })
+  }
+  return deployed
+}
+
+/**
+ * Deploy (or reuse) the owner's dedicated PermissionedResolver for an EOA,
+ * routing the deploy through the transaction manager as a direct EOA tx.
+ *
+ * Unlike {@link ensureOwnedPermRes} (used by the migration flow) this never
+ * touches `@wagmi/core`'s `writeContract`, so the whole owned-resolver setup
+ * goes through one path. Smart accounts do NOT use this — they bundle the
+ * deploy with `setResolver` and the record write in a single sponsored intent
+ * (see `setupControlledResolver`), so this rejects non-EOA signers.
+ *
+ * The VerifiableFactory derives the proxy address from `msg.sender`, so the
+ * resolver is keyed off — and admin'd to — `account`. `findExistingPermRes`
+ * looks it up by that same sender, so a later call for another of the owner's
+ * names is a no-op.
+ */
+export const ensureOwnedPermResViaSigner = async (params: {
+  account: Address
+  signer: Signer
+  chainId: number
+  publicClient: PublicClient
+}): Promise<Address> => {
+  const { account, signer, chainId, publicClient } = params
+
+  if (signer.type !== 'eoa') {
+    throw new Error(
+      'ensureOwnedPermResViaSigner supports EOA signers only; smart accounts bundle the deploy via setupControlledResolver',
+    )
+  }
+
+  const existing = await findExistingPermRes({ eoa: account, publicClient })
+  if (existing) {
+    return existing
+  }
+
+  const call = buildDeployOwnedPermResCall(account)
+  const request: TransactionRequest = {
+    type: 'eoa',
+    from: account,
+    to: call.to,
+    data: call.data,
+    value: 0n,
+    chainId,
+  }
+
+  const txId = transactionManager.startTransaction(
+    { type: 'custom', request },
+    signer,
+    {
+      description: 'Set up your resolver',
+      publicClient,
+      chainId,
+      operation: 'deploy-resolver',
+    },
+  )
+
+  const { receipt } = await waitForTransaction(txId)
+  if (!receipt) {
+    throw new OwnedResolverDeployError({
+      cause: new Error('deploy tx confirmed without a receipt'),
     })
   }
 

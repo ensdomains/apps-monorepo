@@ -6,14 +6,13 @@ import {
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Config as WagmiConfig } from '@wagmi/core'
 import { AlertCircle, Check } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { getAddress } from 'viem'
-import { useChainId, useConfig, useConnection } from 'wagmi'
+import { useChainId, useConnection } from 'wagmi'
 import * as ImageFallback from '@/components/atoms/ImageFallback'
 import { PatternAvatar } from '@/components/atoms/PatternAvatar/PatternAvatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -27,13 +26,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
-import { ensureControlledResolver } from '@/features/profile/service/ensureControlledResolver'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { saveRecords } from '@/features/profile/service/profileRecordTransactions'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
+import { setupControlledResolver } from '@/features/profile/service/setupControlledResolver'
 import {
   type SmartAccountContextValue,
   useSmartAccountContext,
@@ -260,12 +259,10 @@ const useSetupResolverMutation = ({
   account,
   chainId,
   selectedName,
-  wagmiConfig,
 }: {
   readonly account: SmartAccountContextValue
   readonly chainId: number
   readonly selectedName: string | null
-  readonly wagmiConfig: WagmiConfig
 }) =>
   useMutation({
     mutationFn: async () => {
@@ -274,30 +271,22 @@ const useSetupResolverMutation = ({
 
       const walletAddress = account.ownerAddress as Address
 
-      const resolverAddress = await ensureControlledResolver({
+      // Deploy the owned resolver, point the name at it, and write the initial
+      // ETH-address record. A freshly deployed resolver starts empty, so this
+      // is a plain insert (no prior value to diff against). Smart accounts get
+      // all three steps bundled into one sponsored intent; EOAs run them as a
+      // short sequence of confirmations.
+      await setupControlledResolver({
         name: selectedName,
-        eoa: walletAddress,
         signer: account.signer,
         accountAddress: account.accountAddress,
-        wagmiConfig,
         publicClient: publicClient as PublicClient,
         chainId,
-      })
-
-      // A freshly deployed owned resolver starts empty, so this is a plain
-      // insert of the ETH-address record (no prior value to diff against).
-      await saveRecords({
-        name: selectedName,
         before: { texts: [], coins: [] },
         after: {
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: account.signer,
-        accountAddress: account.accountAddress,
-        publicClient: publicClient as PublicClient,
-        chainId,
-        resolverAddress,
       })
     },
     onError: (error) => {
@@ -346,7 +335,6 @@ export const ChoosePrimaryNameDialog = ({
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
   const chainId = useChainId()
-  const wagmiConfig = useConfig()
 
   const {
     submit: submitPrimaryName,
@@ -425,7 +413,6 @@ export const ChoosePrimaryNameDialog = ({
     account,
     chainId,
     selectedName,
-    wagmiConfig,
   })
 
   // Pre-flight: dry-run the ETH-address write so we can warn and disable the

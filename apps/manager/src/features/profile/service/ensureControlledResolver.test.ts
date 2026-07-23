@@ -2,10 +2,11 @@ import type { Address, PublicClient } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ens-apps/transaction-manager', () => ({
+  getSmartAccountAddress: vi.fn(),
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' })),
 }))
 vi.mock('@/features/migration/service/ensureOwnedPermRes', () => ({
-  ensureOwnedPermRes: vi.fn(),
+  ensureOwnedPermResViaSigner: vi.fn(),
 }))
 vi.mock('./changeResolver', () => ({
   changeResolver: vi.fn(() => 'tx-mock'),
@@ -13,7 +14,7 @@ vi.mock('./changeResolver', () => ({
 
 import type { Signer } from '@ens-apps/transaction-manager'
 import { waitForTransaction } from '@ens-apps/transaction-manager'
-import { ensureOwnedPermRes } from '@/features/migration/service/ensureOwnedPermRes'
+import { ensureOwnedPermResViaSigner } from '@/features/migration/service/ensureOwnedPermRes'
 import { changeResolver } from './changeResolver'
 import { ensureControlledResolver } from './ensureControlledResolver'
 
@@ -22,9 +23,8 @@ const OWNED_RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 const CHAIN_ID = 11155111
 const publicClient = {} as PublicClient
 const signer: Signer = { type: 'eoa', walletClient: {} as never }
-const wagmiConfig = {} as never
 
-const mockedEnsure = vi.mocked(ensureOwnedPermRes)
+const mockedEnsure = vi.mocked(ensureOwnedPermResViaSigner)
 const mockedChange = vi.mocked(changeResolver)
 const mockedWait = vi.mocked(waitForTransaction)
 
@@ -35,10 +35,8 @@ afterEach(() => {
 const run = () =>
   ensureControlledResolver({
     name: 'leon.eth',
-    eoa: EOA,
     signer,
     accountAddress: EOA,
-    wagmiConfig,
     publicClient,
     chainId: CHAIN_ID,
   })
@@ -51,8 +49,9 @@ describe('ensureControlledResolver', () => {
 
     expect(resolver).toBe(OWNED_RESOLVER)
     expect(mockedEnsure).toHaveBeenCalledWith({
-      eoa: EOA,
-      wagmiConfig,
+      account: EOA,
+      signer,
+      chainId: CHAIN_ID,
       publicClient,
     })
     expect(mockedChange).toHaveBeenCalledWith({
@@ -98,10 +97,8 @@ describe('ensureControlledResolver', () => {
     const runSubname = () =>
       ensureControlledResolver({
         name: 'sub.leon.eth',
-        eoa: EOA,
         signer,
         accountAddress: EOA,
-        wagmiConfig,
         publicClient,
         chainId: CHAIN_ID,
       })
