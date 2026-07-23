@@ -7,7 +7,12 @@ import {
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import {
   type ActorRefFrom,
   assign,
@@ -24,8 +29,6 @@ import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountC
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
-  needsSignatureFlow,
-  startSmartPrimaryNameTransaction,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
@@ -131,27 +134,35 @@ const shouldSetPrimaryName = (context: Context) =>
 
 const asEthName = (label: string) => `${label}.eth`
 
-const hasPrimaryNameForwardRemaining = (context: Context) =>
-  shouldSetPrimaryName(context) &&
-  !hasSmartPrimaryNameFlow(context) &&
-  !context.postRegistrationProgress.primaryNameForwardConfirmed
-
-const hasPrimaryNameReverseRemaining = (context: Context) =>
-  shouldSetPrimaryName(context) &&
-  !hasSmartPrimaryNameFlow(context) &&
-  context.postRegistrationProgress.primaryNameForwardConfirmed
-
-const hasSmartPrimaryNameFlow = (context: Context) => {
+// Primary names are an EOA interaction: the reverse registrars key on
+// msg.sender, so the owner wallet must send the transactions itself (an
+// HCA-sent setName writes the smart account's reverse node instead). The
+// owner wallet client is therefore required on every signer path, and it must
+// still control the captured owner address (the pair can diverge if the user
+// switches accounts mid-registration).
+const canSetPrimaryName = (context: Context) => {
   if (!shouldSetPrimaryName(context) || !context.postRegistrationData) {
     return false
   }
 
-  return needsSignatureFlow({
-    signer: context.postRegistrationData.signer,
-    walletClient: context.postRegistrationData.walletClient ?? undefined,
-    eoaAddress: context.postRegistrationData.ownerAddress,
-  })
+  const { walletClient, ownerAddress } = context.postRegistrationData
+
+  // Require a bound account that matches: an account-less client (possible
+  // mid-reconnect) gives no way to verify the wallet controls the owner
+  // address, so treat it as unavailable rather than submitting blind.
+  return (
+    !!walletClient?.account &&
+    isAddressEqual(walletClient.account.address, ownerAddress)
+  )
 }
+
+const hasPrimaryNameForwardRemaining = (context: Context) =>
+  canSetPrimaryName(context) &&
+  !context.postRegistrationProgress.primaryNameForwardConfirmed
+
+const hasPrimaryNameReverseRemaining = (context: Context) =>
+  canSetPrimaryName(context) &&
+  context.postRegistrationProgress.primaryNameForwardConfirmed
 
 const updateMaxProgress = (
   current: MaxProgressReached | undefined,
@@ -187,25 +198,6 @@ const machineSetup = setup({
           chainId: input.chainId,
         }),
     ),
-    submitSmartPrimaryNameTransaction: fromPromise(
-      async ({
-        input,
-      }: {
-        input: Required<PostRegistrationData> & {
-          signer: Extract<Signer, { type: 'rhinestone' }>
-          walletClient: WalletClient
-        }
-      }) =>
-        startSmartPrimaryNameTransaction({
-          name: `${input.label}.eth`,
-          signer: input.signer,
-          accountAddress: input.accountAddress,
-          eoaAddress: input.ownerAddress,
-          walletClient: input.walletClient,
-          publicClient: input.publicClient,
-          chainId: input.chainId,
-        }),
-    ),
     waitForKnownTransaction: fromPromise(
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
@@ -221,8 +213,13 @@ const machineSetup = setup({
       hasPrimaryNameForwardRemaining(context),
     hasPrimaryNameReverseRemaining: ({ context }) =>
       hasPrimaryNameReverseRemaining(context),
-    hasSmartPrimaryNameRemaining: ({ context }) =>
-      shouldSetPrimaryName(context) && hasSmartPrimaryNameFlow(context),
+    // Setup was requested but the primary-name legs can't be sent (no owner
+    // wallet client, or it no longer controls the owner address): surface the
+    // failure notice instead of silently reporting success.
+    primaryNameSetupUnavailable: ({ context }) =>
+      shouldSetPrimaryName(context) &&
+      !canSetPrimaryName(context) &&
+      !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
     hasPrimaryNameTxId: ({ context }) => !!context.primaryNameTxId,
   },
@@ -368,10 +365,6 @@ const machineSetup = setup({
       ethRecordSyncTxId: ({ event }) =>
         (event as unknown as { output: string }).output,
     }),
-    storePrimaryNameTxId: assign({
-      primaryNameTxId: ({ event }) =>
-        (event as unknown as { output: string }).output,
-    }),
     markEthRecordSynced: assign({
       postRegistrationProgress: ({ context }) => ({
         ...context.postRegistrationProgress,
@@ -477,7 +470,7 @@ const startRegistrationAction = machineSetup.createAction(
 
 const submitPrimaryNameForwardAction = machineSetup.createAction(
   enqueueActions(({ enqueue, context }) => {
-    if (!context.postRegistrationData) {
+    if (!context.postRegistrationData?.walletClient) {
       return enqueue.raise({
         type: '$error',
         error: new Error('Post-registration data is incomplete'),
@@ -485,10 +478,14 @@ const submitPrimaryNameForwardAction = machineSetup.createAction(
     }
 
     try {
+      // Sent by the owner EOA: the reverse registrars key on msg.sender.
       const txId = submitPrimaryNameForward({
         name: asEthName(context.postRegistrationData.label),
-        signer: context.postRegistrationData.signer,
-        accountAddress: context.postRegistrationData.accountAddress,
+        signer: {
+          type: 'eoa',
+          walletClient: context.postRegistrationData.walletClient,
+        },
+        accountAddress: context.postRegistrationData.ownerAddress,
         publicClient: context.postRegistrationData.publicClient,
         chainId: context.postRegistrationData.chainId,
       })
@@ -507,7 +504,7 @@ const submitPrimaryNameForwardAction = machineSetup.createAction(
 
 const submitPrimaryNameReverseAction = machineSetup.createAction(
   enqueueActions(({ enqueue, context }) => {
-    if (!context.postRegistrationData) {
+    if (!context.postRegistrationData?.walletClient) {
       return enqueue.raise({
         type: '$error',
         error: new Error('Post-registration data is incomplete'),
@@ -515,10 +512,14 @@ const submitPrimaryNameReverseAction = machineSetup.createAction(
     }
 
     try {
+      // Sent by the owner EOA: the reverse registrars key on msg.sender.
       const txId = submitPrimaryNameReverse({
         name: asEthName(context.postRegistrationData.label),
-        signer: context.postRegistrationData.signer,
-        accountAddress: context.postRegistrationData.accountAddress,
+        signer: {
+          type: 'eoa',
+          walletClient: context.postRegistrationData.walletClient,
+        },
+        accountAddress: context.postRegistrationData.ownerAddress,
         publicClient: context.postRegistrationData.publicClient,
         chainId: context.postRegistrationData.chainId,
       })
@@ -644,16 +645,20 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   target: 'syncingEthRecord',
                 },
                 {
-                  guard: 'hasSmartPrimaryNameRemaining',
-                  target: 'settingPrimaryName',
-                },
-                {
                   guard: 'hasPrimaryNameForwardRemaining',
                   target: 'settingPrimaryNameForward',
                 },
                 {
                   guard: 'hasPrimaryNameReverseRemaining',
                   target: 'settingPrimaryNameReverse',
+                },
+                {
+                  guard: 'primaryNameSetupUnavailable',
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'markPostRegistrationSetupFailed',
+                  ],
                 },
                 {
                   target: 'success',
@@ -765,67 +770,6 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                     throw new Error(
                       'Primary name reverse transaction is missing',
                     )
-                  }
-                  return { txId: context.primaryNameTxId }
-                },
-                onDone: {
-                  target: 'success',
-                  actions: ['setRegistrationSuccessStage'],
-                },
-                onError: {
-                  target: 'success',
-                  actions: [
-                    'setRegistrationSuccessStage',
-                    'logPostRegistrationSetupError',
-                    'markPostRegistrationSetupFailed',
-                  ],
-                },
-              },
-            },
-            settingPrimaryName: {
-              entry: ['setPrimaryNameStage'],
-              invoke: {
-                src: 'submitSmartPrimaryNameTransaction',
-                input: ({ context }) => {
-                  if (
-                    !context.postRegistrationData?.resolverAddress ||
-                    !context.postRegistrationData.walletClient ||
-                    context.postRegistrationData.signer.type !== 'rhinestone'
-                  ) {
-                    throw new Error(
-                      'Smart-account primary name setup is missing required account data',
-                    )
-                  }
-
-                  return {
-                    ...context.postRegistrationData,
-                    resolverAddress:
-                      context.postRegistrationData.resolverAddress,
-                    signer: context.postRegistrationData.signer,
-                    walletClient: context.postRegistrationData.walletClient,
-                  }
-                },
-                onDone: {
-                  target: 'waitingForPrimaryName',
-                  actions: ['storePrimaryNameTxId'],
-                },
-                onError: {
-                  target: 'success',
-                  actions: [
-                    'setRegistrationSuccessStage',
-                    'logPostRegistrationSetupError',
-                    'markPostRegistrationSetupFailed',
-                  ],
-                },
-              },
-            },
-            waitingForPrimaryName: {
-              entry: ['setPrimaryNameStage'],
-              invoke: {
-                src: 'waitForKnownTransaction',
-                input: ({ context }) => {
-                  if (!context.primaryNameTxId) {
-                    throw new Error('Primary name transaction is missing')
                   }
                   return { txId: context.primaryNameTxId }
                 },

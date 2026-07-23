@@ -62,8 +62,6 @@ vi.mock('../service/syncEthAddressRecord', () => ({
 }))
 
 vi.mock('../../profile/service/setPrimaryName', () => ({
-  needsSignatureFlow: vi.fn(() => false),
-  startSmartPrimaryNameTransaction: vi.fn(async () => 'tx-primary-smart'),
   submitPrimaryNameForward: vi.fn(() => 'tx-primary-forward'),
   submitPrimaryNameReverse: vi.fn(() => 'tx-primary-reverse'),
 }))
@@ -83,8 +81,6 @@ vi.mock('@/utils/router/root-context', () => ({
 import { waitForTransaction } from '@ens-apps/transaction-manager'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
 import {
-  needsSignatureFlow,
-  startSmartPrimaryNameTransaction,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
@@ -96,8 +92,6 @@ import {
 
 const waitForKnownTransaction = vi.mocked(waitForTransaction)
 const startSyncEthRecord = vi.mocked(startSyncEthAddressRecordTransaction)
-const isSmartFlow = vi.mocked(needsSignatureFlow)
-const startSmartPrimaryName = vi.mocked(startSmartPrimaryNameTransaction)
 const startPrimaryNameForward = vi.mocked(submitPrimaryNameForward)
 const startPrimaryNameReverse = vi.mocked(submitPrimaryNameReverse)
 
@@ -165,7 +159,6 @@ const flush = async (times = 8) => {
 
 afterEach(() => {
   vi.clearAllMocks()
-  isSmartFlow.mockReturnValue(false)
 })
 
 describe('registrationV2UiMachine — HCA approval-signer guard', () => {
@@ -222,7 +215,8 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     signer: { type: 'eoa', walletClient: {} as never },
     accountAddress: EOA_ADDRESS,
     ownerAddress: EOA_ADDRESS,
-    walletClient: null,
+    // Primary-name legs are sent by the owner wallet, so it must be present.
+    walletClient: { account: { address: EOA_ADDRESS } } as any,
   } as unknown as SmartAccountContextValue
 
   const smartAccount = {
@@ -315,27 +309,31 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
   })
 
-  it('runs the smart-account primary-name flow as a single transaction', async () => {
-    isSmartFlow.mockImplementation(() => true)
+  it('sends the primary-name legs from the owner EOA on the smart-account path', async () => {
+    // The reverse registrars key setName on msg.sender, so even a smart
+    // account session must send these from the owner wallet — never as an
+    // HCA intent (which would write the HCA's reverse node).
     startSyncEthRecord.mockResolvedValueOnce('tx-eth-record')
     waitForKnownTransaction
       .mockResolvedValueOnce({ hash: '0xeth' } as never)
-      .mockReturnValueOnce(deferred<{ hash: '0xsmart' }>().promise as never)
-    startSmartPrimaryName.mockResolvedValueOnce('tx-primary-smart')
+      .mockReturnValueOnce(deferred<{ hash: '0xforward' }>().promise as never)
 
     const actor = startActorInTokens()
     actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(16)
 
-    expect(startSmartPrimaryName).toHaveBeenCalledTimes(1)
-    expect(startPrimaryNameForward).not.toHaveBeenCalled()
-    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
-    expect(actor.getSnapshot().context.primaryNameTxId).toBe('tx-primary-smart')
+    expect(startPrimaryNameForward).toHaveBeenCalledTimes(1)
+    expect(startPrimaryNameForward).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountAddress: EOA_ADDRESS,
+        signer: expect.objectContaining({ type: 'eoa' }),
+      }),
+    )
     expect(
-      actor
-        .getSnapshot()
-        .matches({ registering: { transaction: 'waitingForPrimaryName' } }),
+      actor.getSnapshot().matches({
+        registering: { transaction: 'waitingForPrimaryNameForward' },
+      }),
     ).toBe(true)
   })
 
@@ -372,11 +370,73 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
   })
 
-  it('completes successfully when the primary-name signature is rejected', async () => {
-    // Regression: rejecting the final primary-name signature must not fail the
-    // (already successful) registration or loop.
-    isSmartFlow.mockImplementation(() => true)
-    startSmartPrimaryName.mockRejectedValueOnce(
+  it('marks setup failed when the owner wallet client is missing', async () => {
+    // Setup was requested but the primary-name legs can't be sent without the
+    // owner wallet: registration still succeeds, with the failure notice.
+    const noWalletAccount = {
+      ...eoaAccount,
+      walletClient: null,
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(noWalletAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush()
+
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
+  it('marks setup failed when the wallet no longer controls the owner address', async () => {
+    // The wallet client and owner address are captured together but can
+    // diverge if the user switches accounts mid-registration: skip the legs
+    // (they would fail at the transport) and surface the failure notice.
+    const divergedAccount = {
+      ...eoaAccount,
+      walletClient: {
+        account: { address: '0x9999999999999999999999999999999999999999' },
+      } as any,
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(divergedAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush()
+
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
+  it('marks setup failed when the wallet client has no bound account', async () => {
+    // Account-less client (mid-reconnect): we can't verify it controls the
+    // owner address, so skip the legs and surface the failure notice.
+    const accountlessAccount = {
+      ...eoaAccount,
+      walletClient: {} as any,
+    } as unknown as SmartAccountContextValue
+
+    const actor = startActorInTokens()
+    actor.send(startEvent(accountlessAccount, { enabled: true }))
+    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    await flush()
+
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
+    ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
+  })
+
+  it('completes successfully when the primary-name transaction is rejected', async () => {
+    // Regression: rejecting the primary-name wallet transaction must not fail
+    // the (already successful) registration or loop.
+    waitForKnownTransaction.mockRejectedValueOnce(
       new Error('User rejected the request'),
     )
 
@@ -385,10 +445,11 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(16)
 
-    expect(startSmartPrimaryName).toHaveBeenCalledTimes(1)
+    expect(startPrimaryNameForward).toHaveBeenCalledTimes(1)
     expect(actor.getSnapshot().matches('failure')).toBe(false)
     expect(
       actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
     ).toBe(true)
+    expect(actor.getSnapshot().context.postRegistrationSetupFailed).toBe(true)
   })
 })
