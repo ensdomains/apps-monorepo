@@ -25,7 +25,7 @@ function RouteComponent() {
         <p className="font-serif text-[24px] sm:text-[36px] font-[350] text-center leading-[1.35] text-foreground">
           Explore the source of truth for
           <br />
-          Ethereum Name Service (ENSv2)
+          Ethereum Name Service (ENSv2 Beta)
         </p>
         <HomeSearchInput className="bg-card dark:bg-transparent w-91.75 max-w-full rounded-sm border-border shadow-none" />
       </section>
