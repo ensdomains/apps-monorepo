@@ -143,6 +143,17 @@ export const ConnectWalletDialog = ({
   // pairing while our dialog is closed).
   const isConnecting = pendingId !== null
 
+  // A deliberate dismissal of WalletConnect's own modal needs no app-level
+  // error — that modal WAS the UI the user cancelled. But a real pairing
+  // failure (timeout, relay error) would otherwise vanish with both modals
+  // closed, so reopen ours with the error.
+  const handleConnectError = (e: unknown, usesOwnModal: boolean) => {
+    if (usesOwnModal && isConnectionCancelled(e)) return
+
+    setError(normalizeConnectError(e))
+    if (usesOwnModal) onOpenChange(true)
+  }
+
   const connect = async (connector: Connector) => {
     // Guard against a second concurrent attempt: two in-flight connects would
     // let each one's `finally` clear the other's pending indicator.
@@ -170,14 +181,7 @@ export const ConnectWalletDialog = ({
       await connectAsync({ connector, chainId })
       onOpenChange(false)
     } catch (e) {
-      // A deliberate dismissal of WalletConnect's own modal needs no app-level
-      // error — that modal WAS the UI the user cancelled. But a real pairing
-      // failure (timeout, relay error) would otherwise vanish with both modals
-      // closed, so reopen ours with the error.
-      if (usesOwnModal && isConnectionCancelled(e)) return
-
-      setError(normalizeConnectError(e))
-      if (usesOwnModal) onOpenChange(true)
+      handleConnectError(e, usesOwnModal)
     } finally {
       setPendingId(null)
     }
