@@ -133,7 +133,7 @@ export const NodeDetailSheet = ({
                     No records set for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-sm overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <DataTable columns={sidebarRecordColumns} data={records} />
                   </div>
                 )}
@@ -154,7 +154,7 @@ export const NodeDetailSheet = ({
                     No roles assigned for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-sm overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <Table>
                       <TableHeader>
                         <TableRow>

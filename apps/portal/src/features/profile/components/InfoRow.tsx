@@ -14,7 +14,8 @@ type InfoRowProps = {
  *
  * On mobile the value wraps to its own line beneath the icon + label so wide
  * content (tx hashes, addresses, EntityBadges) can't overflow the viewport.
- * From `sm` up it sits inline on a fixed-height (`h-13`) row — the inline
+ * From `sm` up it sits inline on a fixed-height (`h-10`, 40px per the
+ * Builder layout spec) row — the inline
  * content is single-line, so a fixed height keeps rows evenly sized, whereas
  * mobile stays auto-height to fit the stacked lines.
  */
@@ -26,7 +27,7 @@ export const InfoRow = ({
 }: InfoRowProps) => (
   <div
     className={cn(
-      'flex flex-col gap-1 sm:h-13 sm:flex-row sm:items-center sm:gap-4 text-default-text',
+      'flex flex-col gap-1 sm:h-10 sm:flex-row sm:items-center sm:gap-4 text-default-text',
       className,
     )}
   >

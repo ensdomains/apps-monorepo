@@ -25,7 +25,7 @@ export const InfoRow = ({
   label: string
   children: ReactNode
 }) => (
-  <div className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-13">
+  <div className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-10">
     <span className="w-28 shrink-0 text-sm font-medium text-muted-foreground">
       {label}
     </span>

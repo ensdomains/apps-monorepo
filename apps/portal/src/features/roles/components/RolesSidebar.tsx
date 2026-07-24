@@ -315,7 +315,7 @@ export const RolesSidebar = <
                     </h3>
                   </div>
 
-                  <div className="border border-border rounded-sm overflow-hidden p-0">
+                  <div className="border border-border rounded-sm overflow-hidden p-0 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <RoleHistoryTable
                       name={name}
                       label={getNameLabels(name).currentLabel}
