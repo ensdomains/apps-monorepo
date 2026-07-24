@@ -5,12 +5,15 @@ import type { RegisteringTxSnapshot, TransactionState } from './txStageMessages'
 
 const getRegistrationTxHash = (tx: RegisteringTxSnapshot) =>
   match(tx.value)
+    .with('syncingEthRecord', () => tx.ethRecordSyncTxId)
     .with('waitingForResolverDeployment', () => tx.resolverTxId)
     .with('waitingForCommitment', () => tx.commitmentTxId)
     .with('waitingForApproval', () => tx.approvalTxId)
     .with('waitingForRegistration', () => tx.registrationTxId)
     .with('submittingRhinestoneBundle', () => tx.registrationTxId)
     .with('waitingForRhinestoneBundle', () => tx.registrationTxId)
+    .with('waitingForEthRecordSync', () => tx.ethRecordSyncTxId)
+    .with('settingPrimaryName', () => tx.primaryNameTxId)
     .otherwise(() => undefined)
 
 export const useRegistrationTxState = (
