@@ -274,7 +274,12 @@ describe('SmartAccountContext', () => {
       expect(removeSessionsByOwnerMock).not.toHaveBeenCalledWith(EOA_B)
     })
 
-    it('evicts the previous owner session on wallet disconnect (eoa → null)', async () => {
+    it('does NOT evict on a transient disconnect (eoa → null)', async () => {
+      // A disconnect blip (wagmi briefly reports null during reconnect / HMR /
+      // tab focus) must NOT wipe the owner's session — that forced a needless
+      // re-ENABLE on every reconnect. The session survives so the next action
+      // reuses it prompt-free (per the HCA handoff doc). Cross-owner safety is
+      // preserved by the different-EOA-switch case above.
       vi.mocked(useWalletClient).mockReturnValue({
         data: { account: { address: EOA_A } },
       } as any)
@@ -293,10 +298,17 @@ describe('SmartAccountContext', () => {
       vi.mocked(useWalletClient).mockReturnValue({ data: null } as any)
       rerender()
 
-      // The previously-connected owner (A) has its session evicted.
-      await waitFor(() => {
-        expect(removeSessionsByOwnerMock).toHaveBeenCalledWith(EOA_A)
-      })
+      // No eviction on the null blip.
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
+
+      // Reconnecting the SAME owner still must not evict.
+      vi.mocked(useWalletClient).mockReturnValue({
+        data: { account: { address: EOA_A } },
+      } as any)
+      rerender()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(removeSessionsByOwnerMock).not.toHaveBeenCalled()
     })
 
     it('does NOT evict on a plain re-render with the same EOA', async () => {

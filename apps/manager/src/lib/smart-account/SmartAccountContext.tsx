@@ -233,9 +233,17 @@ function usePreviousOwnerSessionEviction(
   useEffect(() => {
     if (!enabled) return
     const previous = previousOwnerRef.current
+    // Do NOT treat a transient disconnect (eoaAddress → null) as an owner
+    // change. wagmi briefly reports `null` during reconnect / HMR / tab focus,
+    // and evicting on that wipes the stored session for the SAME owner, forcing
+    // a needless re-ENABLE on the next action (and re-deploy paths). Only react
+    // to a real switch to a DIFFERENT non-null owner. Keep the last known owner
+    // in the ref across null blips so the comparison is against the real prior
+    // owner, not the transient null.
+    if (!eoaAddress) return
     previousOwnerRef.current = eoaAddress
     if (!previous) return
-    if (eoaAddress && isAddressEqual(previous, eoaAddress)) return
+    if (isAddressEqual(previous, eoaAddress)) return
     onClearedRef.current(previous)
   }, [eoaAddress, enabled])
 }
