@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
   isCoinbase,
+  isConnectionCancelled,
   isMetaMask,
   METAMASK_DOWNLOAD_URL,
   normalizeConnectError,
@@ -169,9 +170,14 @@ export const ConnectWalletDialog = ({
       await connectAsync({ connector, chainId })
       onOpenChange(false)
     } catch (e) {
-      if (usesOwnModal) return
+      // A deliberate dismissal of WalletConnect's own modal needs no app-level
+      // error — that modal WAS the UI the user cancelled. But a real pairing
+      // failure (timeout, relay error) would otherwise vanish with both modals
+      // closed, so reopen ours with the error.
+      if (usesOwnModal && isConnectionCancelled(e)) return
 
       setError(normalizeConnectError(e))
+      if (usesOwnModal) onOpenChange(true)
     } finally {
       setPendingId(null)
     }
