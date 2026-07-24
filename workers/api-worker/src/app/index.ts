@@ -5,6 +5,7 @@ import { logger } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
 import favoritesApp from './routes/favorites'
+import namesApp from './routes/names'
 import notificationsApp from './routes/notifications'
 import transactionsApp from './routes/transactions'
 import walletApp from './routes/wallet'
@@ -14,6 +15,7 @@ const app = createApp()
   .use('/*', cors())
   .route('/', authApp)
   .route('/', favoritesApp)
+  .route('/', namesApp)
   .route('/', notificationsApp)
   .route('/', transactionsApp)
   .route('/', webhookApp)

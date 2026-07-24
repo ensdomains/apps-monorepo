@@ -2,9 +2,11 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
 import { useMemo, useRef } from 'react'
+import { getNameStatsQueryOptions } from '@/features/register-v2/data/queries/nameStats.query'
 import { getOracleParamsQueryOptions } from '@/features/register-v2/data/queries/oracleParams.query'
 import { getRegisterPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { useRegistrationV2Context } from '@/features/register-v2/state/registrationUi.context'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import {
@@ -34,6 +36,21 @@ export const PriceCooldownBannerSection = () => {
   })
 
   const oracleQuery = useQuery(getOracleParamsQueryOptions)
+
+  // Engagement stats for the "buy now or wait?" section. Public endpoint, no
+  // auth; only fetched when the feature flag is on. `label` is the bare label —
+  // stats are keyed by the full name, matching favorites/search capture.
+  const nameStatsQuery = useQuery({
+    ...getNameStatsQueryOptions(`${label}.eth`),
+    enabled: isFeatureEnabled('TEMP_PREMIUM_NAME_STATS'),
+  })
+  const demand = useMemo(() => {
+    if (!nameStatsQuery.data) return undefined
+    return {
+      favoriteCount: nameStatsQuery.data.favorites,
+      searchCount30d: nameStatsQuery.data.unique_searches_last_30d,
+    }
+  }, [nameStatsQuery.data])
 
   const bannerData = useMemo(() => {
     const premiumDecay = oracleQuery.data?.premiumDecay
@@ -111,6 +128,7 @@ export const PriceCooldownBannerSection = () => {
         premiumStartDate,
         nowPoint,
       }}
+      demand={demand}
       fees={{
         ...bannerData.props.fees,
         ...(liveCurrentPremiumLabel
