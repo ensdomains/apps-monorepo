@@ -9,14 +9,13 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 }))
 vi.mock('@/features/migration/service/ensureOwnedPermRes', () => ({
   buildDeployOwnedPermResCall: vi.fn(() => DEPLOY_CALL),
+  ensureOwnedPermResViaSigner: vi.fn(async () => RESOLVER),
   findExistingPermRes: vi.fn(),
   simulateOwnedPermResAddress: vi.fn(async () => RESOLVER),
 }))
 vi.mock('./changeResolver', () => ({
   buildSetResolverCall: vi.fn(() => SET_RESOLVER_CALL),
-}))
-vi.mock('./ensureControlledResolver', () => ({
-  ensureControlledResolver: vi.fn(async () => RESOLVER),
+  changeResolver: vi.fn(() => 'tx-set-resolver'),
 }))
 vi.mock('./profileRecordTransactions', () => ({
   buildRecordsUpdateCalls: vi.fn(async () => ({
@@ -26,12 +25,17 @@ vi.mock('./profileRecordTransactions', () => ({
   saveRecords: vi.fn(async () => ({ hash: '0xhash', txId: 'tx-records' })),
 }))
 
-import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
+import {
+  type Signer,
+  transactionManager,
+  waitForTransaction,
+} from '@ens-apps/transaction-manager'
 import {
   buildDeployOwnedPermResCall,
+  ensureOwnedPermResViaSigner,
   findExistingPermRes,
 } from '@/features/migration/service/ensureOwnedPermRes'
-import { ensureControlledResolver } from './ensureControlledResolver'
+import { changeResolver } from './changeResolver'
 import { saveRecords } from './profileRecordTransactions'
 import { setupControlledResolver } from './setupControlledResolver'
 
@@ -67,7 +71,9 @@ const snapshots = {
 const start = vi.mocked(transactionManager.startTransaction)
 const mockedFindExisting = vi.mocked(findExistingPermRes)
 const mockedDeployCall = vi.mocked(buildDeployOwnedPermResCall)
-const mockedEnsure = vi.mocked(ensureControlledResolver)
+const mockedEnsureOwned = vi.mocked(ensureOwnedPermResViaSigner)
+const mockedChangeResolver = vi.mocked(changeResolver)
+const mockedWait = vi.mocked(waitForTransaction)
 const mockedSaveRecords = vi.mocked(saveRecords)
 
 afterEach(() => {
@@ -103,7 +109,7 @@ describe('setupControlledResolver', () => {
       },
     })
     // The bundle replaces the sequential path entirely.
-    expect(mockedEnsure).not.toHaveBeenCalled()
+    expect(mockedEnsureOwned).not.toHaveBeenCalled()
     expect(mockedSaveRecords).not.toHaveBeenCalled()
   })
 
@@ -140,13 +146,21 @@ describe('setupControlledResolver', () => {
     })
 
     expect(resolver).toBe(RESOLVER)
-    expect(mockedEnsure).toHaveBeenCalledWith({
+    expect(mockedEnsureOwned).toHaveBeenCalledWith({
+      account: ACCOUNT,
+      signer: eoaSigner,
+      chainId: CHAIN_ID,
+      publicClient,
+    })
+    expect(mockedChangeResolver).toHaveBeenCalledWith({
       name: 'leon.eth',
+      newResolver: RESOLVER,
       signer: eoaSigner,
       accountAddress: ACCOUNT,
       publicClient,
       chainId: CHAIN_ID,
     })
+    expect(mockedWait).toHaveBeenCalledWith('tx-set-resolver')
     expect(mockedSaveRecords).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'leon.eth',
@@ -158,12 +172,64 @@ describe('setupControlledResolver', () => {
     expect(start).not.toHaveBeenCalled()
   })
 
-  it('rejects subnames before doing any on-chain work', async () => {
+  it('orders the EOA steps: deploy, setResolver, confirmation, records', async () => {
+    const order: string[] = []
+    mockedEnsureOwned.mockImplementationOnce(async () => {
+      order.push('deploy')
+      return RESOLVER
+    })
+    mockedChangeResolver.mockImplementationOnce(() => {
+      order.push('setResolver')
+      return 'tx-set-resolver'
+    })
+    mockedWait.mockImplementationOnce(async () => {
+      order.push('wait')
+      return { hash: '0xhash' } as never
+    })
+    mockedSaveRecords.mockImplementationOnce(async () => {
+      order.push('records')
+      return { hash: '0xhash', txId: 'tx-records' } as never
+    })
+
+    await setupControlledResolver({
+      name: 'leon.eth',
+      signer: eoaSigner,
+      accountAddress: ACCOUNT,
+      publicClient,
+      chainId: CHAIN_ID,
+      ...snapshots,
+    })
+
+    expect(order).toEqual(['deploy', 'setResolver', 'wait', 'records'])
+  })
+
+  it('propagates an EOA deploy failure without assigning a resolver or writing records', async () => {
+    mockedEnsureOwned.mockRejectedValueOnce(new Error('deploy reverted'))
+
+    await expect(
+      setupControlledResolver({
+        name: 'leon.eth',
+        signer: eoaSigner,
+        accountAddress: ACCOUNT,
+        publicClient,
+        chainId: CHAIN_ID,
+        ...snapshots,
+      }),
+    ).rejects.toThrow('deploy reverted')
+
+    expect(mockedChangeResolver).not.toHaveBeenCalled()
+    expect(mockedSaveRecords).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['smart account', smartSigner],
+    ['EOA', eoaSigner],
+  ] as const)('rejects subnames before doing any on-chain work (%s)', async (_label, signer) => {
     await expect(
       setupControlledResolver({
         name: 'sub.leon.eth',
-        signer: smartSigner,
-        accountAddress: SMART_ACCOUNT,
+        signer,
+        accountAddress: ACCOUNT,
         publicClient,
         chainId: CHAIN_ID,
         ...snapshots,
@@ -171,7 +237,7 @@ describe('setupControlledResolver', () => {
     ).rejects.toThrow(/subname/i)
 
     expect(start).not.toHaveBeenCalled()
-    expect(mockedEnsure).not.toHaveBeenCalled()
+    expect(mockedEnsureOwned).not.toHaveBeenCalled()
     expect(mockedFindExisting).not.toHaveBeenCalled()
   })
 })

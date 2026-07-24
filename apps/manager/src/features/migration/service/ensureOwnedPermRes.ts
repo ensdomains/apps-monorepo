@@ -53,6 +53,18 @@ const parseProxyAddress = (
   return null
 }
 
+const extractDeployedProxy = (
+  logs: readonly { topics: readonly Hex[]; data: Hex }[],
+): Address => {
+  const deployed = parseProxyAddress(logs)
+  if (!deployed) {
+    throw new OwnedResolverDeployError({
+      cause: new Error('deployProxy succeeded but ProxyDeployed log not found'),
+    })
+  }
+  return deployed
+}
+
 export const findExistingPermRes = async (params: {
   eoa: Address
   publicClient: PublicClient
@@ -169,15 +181,9 @@ export const ensureOwnedPermRes = async (params: {
     })
   }
 
-  const deployed = parseProxyAddress(
+  return extractDeployedProxy(
     receipt.logs as readonly { topics: readonly Hex[]; data: Hex }[],
   )
-  if (!deployed) {
-    throw new OwnedResolverDeployError({
-      cause: new Error('deployProxy succeeded but ProxyDeployed log not found'),
-    })
-  }
-  return deployed
 }
 
 /**
@@ -242,13 +248,7 @@ export const ensureOwnedPermResViaSigner = async (params: {
     })
   }
 
-  const deployed = parseProxyAddress(
+  return extractDeployedProxy(
     receipt.logs as readonly { topics: readonly Hex[]; data: Hex }[],
   )
-  if (!deployed) {
-    throw new OwnedResolverDeployError({
-      cause: new Error('deployProxy succeeded but ProxyDeployed log not found'),
-    })
-  }
-  return deployed
 }

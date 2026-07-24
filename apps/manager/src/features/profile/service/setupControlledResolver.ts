@@ -10,11 +10,11 @@ import { parseInput } from '@ensdomains/ensjs/utils'
 import type { Address, PublicClient } from 'viem'
 import {
   buildDeployOwnedPermResCall,
+  ensureOwnedPermResViaSigner,
   findExistingPermRes,
   simulateOwnedPermResAddress,
 } from '@/features/migration/service/ensureOwnedPermRes'
-import { buildSetResolverCall } from './changeResolver'
-import { ensureControlledResolver } from './ensureControlledResolver'
+import { buildSetResolverCall, changeResolver } from './changeResolver'
 import {
   buildRecordsUpdateCalls,
   type ServiceRecordSnapshot,
@@ -57,9 +57,13 @@ export async function setupControlledResolver(
   const { name, signer, accountAddress, publicClient, chainId, before, after } =
     params
 
-  // The `.eth` 2LD guard lives in each branch (setupViaBundle for smart
-  // accounts, ensureControlledResolver for EOAs) rather than here, so both paths
-  // reject subnames exactly once.
+  const fullName = name.endsWith('.eth') ? name : `${name}.eth`
+  if (!parseInput(fullName).is2LD) {
+    throw new Error(
+      'This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.',
+    )
+  }
+
   if (signer.type === 'rhinestone') {
     return setupViaBundle({
       account: getSmartAccountAddress(signer),
@@ -72,14 +76,22 @@ export async function setupControlledResolver(
     })
   }
 
-  // EOAs can't batch: run the same three steps as sequential transactions.
-  const resolver = await ensureControlledResolver({
-    name,
+  const resolver = await ensureOwnedPermResViaSigner({
+    account: accountAddress,
     signer,
-    accountAddress,
-    publicClient,
     chainId,
+    publicClient,
   })
+  await waitForTransaction(
+    changeResolver({
+      name,
+      newResolver: resolver,
+      signer,
+      accountAddress,
+      publicClient,
+      chainId,
+    }),
+  )
   await saveRecords({
     name,
     before,
@@ -110,13 +122,6 @@ async function setupViaBundle(params: {
   after: ServiceRecordSnapshot
 }): Promise<Address> {
   const { account, signer, name, chainId, publicClient, before, after } = params
-
-  const fullName = name.endsWith('.eth') ? name : `${name}.eth`
-  if (!parseInput(fullName).is2LD) {
-    throw new Error(
-      'This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.',
-    )
-  }
 
   // Only look up the owned resolver once: when it doesn't exist yet, simulate
   // the deterministic deploy address directly instead of going through
