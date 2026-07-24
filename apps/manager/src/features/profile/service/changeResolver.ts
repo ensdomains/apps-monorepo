@@ -6,8 +6,13 @@ import {
   type TransactionRequest,
   transactionManager,
 } from '@ens-apps/transaction-manager'
-import { setResolverWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { type Address, encodeFunctionData, type PublicClient } from 'viem'
+import { permissionedRegistrySetResolverSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
+import {
+  type Address,
+  encodeFunctionData,
+  labelhash,
+  type PublicClient,
+} from 'viem'
 
 /** Strip a trailing `.eth` so a name and its bare label normalize alike. */
 const toLabel = (name: string): string => name.replace('.eth', '')
@@ -19,22 +24,13 @@ export function buildSetResolverCall({
   name: string
   newResolver: Address
 }): Call {
-  const writeParams = setResolverWriteParameters(
-    {} as Parameters<typeof setResolverWriteParameters>[0],
-    {
-      label: toLabel(name),
-      registryAddress: ENS_SEPOLIA_CONTRACTS.ETHRegistry,
-      resolverAddress: newResolver,
-    },
-  )
-
   const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
+    abi: permissionedRegistrySetResolverSnippet,
+    functionName: 'setResolver',
+    args: [BigInt(labelhash(toLabel(name))), newResolver],
   })
 
-  return { to: writeParams.address, data, value: 0n }
+  return { to: ENS_SEPOLIA_CONTRACTS.ETHRegistry, data, value: 0n }
 }
 
 export interface ChangeResolverParams {
