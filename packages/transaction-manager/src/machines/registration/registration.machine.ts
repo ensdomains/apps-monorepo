@@ -195,6 +195,7 @@ export const registrationMachine = setup({
         duration: bigint
         publicClient: PublicClient
         chainId: number
+        signer?: Signer
         apiKey?: string
       }) => {
         return estimateHcaBudgetActor(input)
@@ -585,6 +586,7 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          signer: context.signer,
         }),
         onDone: {
           target: 'checkingHcaFunding',

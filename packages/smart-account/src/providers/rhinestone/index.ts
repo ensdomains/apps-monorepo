@@ -25,6 +25,8 @@ export {
   HCA_LEG_GAS_LIMITS,
   type HcaBudgetBreakdown,
   type HcaBudgetParams,
+  type HcaLeg,
+  type QuoteLegCostUsdc,
 } from './budget'
 export {
   buildStandaloneAccountConfig,

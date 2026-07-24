@@ -27,12 +27,15 @@ import {
   computeResolverAddress,
   estimateHcaBudget,
   getDestinationContracts,
+  HCA_LEG_GAS_LIMITS,
   type Call as HcaCall,
+  type HcaLeg,
   readCommitment,
   readRegisterPrice,
 } from '@ens-apps/smart-account'
+import type { Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient } from 'viem'
+import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
   encodeFunctionData,
@@ -45,7 +48,7 @@ import {
 import { getEip712Domain, readContract, signTypedData } from 'viem/actions'
 import { sepolia } from 'viem/chains'
 import { transactionManager } from '../../providers/transactionManager'
-import type { Signer } from '../../types/signer.types'
+import type { RhinestoneSigner, Signer } from '../../types/signer.types'
 import type {
   Call,
   RhinestoneTransactionRequest,
@@ -94,25 +97,139 @@ export function hcaRegistrarAddress(chainId: number): Address {
 }
 
 /**
+ * Read the USDC (6dp) an intent will spend, straight from a Rhinestone
+ * `prepareTransaction` quote (`intentCost.tokensReceived[0].amountSpent`).
+ * This is the amount the orchestrator actually pulls, so it is immune to the
+ * caller's local gas-price reads. Returns `null` if the quote can't be read.
+ */
+async function quoteIntentSpendUsdc(
+  account: RhinestoneSigner['account'],
+  chain: Chain,
+  calls: Call[],
+  gasLimit: bigint,
+  signers?: Transaction['signers'],
+): Promise<bigint | null> {
+  const prepared = await account.prepareTransaction({
+    sourceChains: [chain],
+    targetChain: chain,
+    calls: [...calls],
+    sponsored: { gas: false, bridging: false, swaps: false },
+    feeAsset: 'USDC',
+    tokenRequests: [],
+    gasLimit,
+    ...(signers ? { signers } : {}),
+  } as Transaction)
+  const received = (
+    prepared as {
+      intentRoute?: {
+        intentCost?: { tokensReceived?: { amountSpent?: string }[] }
+      }
+    }
+  ).intentRoute?.intentCost?.tokensReceived?.[0]?.amountSpent
+  if (received === undefined) return null
+  const value = BigInt(received)
+  return value > 0n ? value : null
+}
+
+/**
  * Compute the same-chain HCA funding budget at runtime:
- * `commitGasFee + registerGasFee + 3%·registerGasFee + registrationPrice`,
- * pricing the gas legs via Rhinestone's rail (gas→USDC). See
- * `estimateHcaBudget` in `@ens-apps/smart-account`.
+ * `commitCost + registerCost + 3%·registerCost + registrationPrice`.
+ *
+ * Prefers Rhinestone's per-leg quote (`prepareTransaction` → `intentCost`),
+ * which reflects the exact USDC the orchestrator pulls and is immune to
+ * Sepolia gas-price spikes. Falls back to a clamped gas-limit model per leg
+ * when the account/session isn't available or a quote fails.
  */
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
   chainId: number
+  signer?: Signer
   apiKey?: string
 }): ResultAsync<bigint, Error> {
+  const label = cleanLabel(input.name)
+  const chainId = input.chainId
+
+  // Build a best-effort per-leg quoter when we have a Rhinestone signer with an
+  // active session (needed to shape the session-signed intents).
+  const rhinestone =
+    input.signer?.type === 'rhinestone' ? input.signer : undefined
+  const chain = input.publicClient.chain
+  const activeSession = rhinestone?.session
+
+  const quoteLegCostUsdc =
+    rhinestone && activeSession && chain
+      ? async (leg: HcaLeg): Promise<bigint | null> => {
+          const hca = rhinestone.account.getAddress() as Address
+          const resolver = computeResolverAddress({ chainId, hca })
+          const sessionSigners: Transaction['signers'] = {
+            type: 'experimental_session',
+            session: activeSession.session,
+            verifyExecutions: true,
+          }
+          if (leg === 'commit') {
+            // Enable + commit (dummy commitment — cost is size/gas-driven, not
+            // value-driven). Funding pair omitted: cheap USDC transfers.
+            const commitCall = buildCommitCall({
+              chainId,
+              commitment: `0x${'11'.repeat(32)}` as Hex,
+            })
+            return quoteIntentSpendUsdc(
+              rhinestone.account,
+              chain,
+              [
+                {
+                  to: commitCall.to,
+                  value: commitCall.value,
+                  data: commitCall.data,
+                },
+              ],
+              HCA_LEG_GAS_LIMITS.commit,
+              sessionSigners,
+            )
+          }
+          // register leg: full reveal batch at the current price.
+          const price = await readRegisterPrice({
+            publicClient: input.publicClient,
+            chainId,
+            label,
+            duration: input.duration,
+          })
+          const resolverCode = await input.publicClient.getCode({
+            address: resolver,
+          })
+          const revealCalls = buildRevealBatch({
+            chainId,
+            hca,
+            resolver,
+            resolverDeployed: Boolean(resolverCode && resolverCode !== '0x'),
+            label,
+            // The name recipient (wallet). A placeholder is fine for a gas/cost
+            // quote — the orchestrator prices the intent by size, not by owner.
+            wallet: hca,
+            secret: `0x${'22'.repeat(32)}` as Hex,
+            price,
+            duration: input.duration,
+          })
+          return quoteIntentSpendUsdc(
+            rhinestone.account,
+            chain,
+            toCalls(revealCalls),
+            HCA_LEG_GAS_LIMITS.register,
+            sessionSigners,
+          )
+        }
+      : undefined
+
   return fromPromise(
     estimateHcaBudget({
       publicClient: input.publicClient,
-      chainId: input.chainId,
-      label: cleanLabel(input.name),
+      chainId,
+      label,
       duration: input.duration,
       ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+      ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
     }).then((b) => b.total),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )

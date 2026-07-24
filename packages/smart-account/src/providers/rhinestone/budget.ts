@@ -5,24 +5,28 @@
  * enough USDC to cover the whole same-chain registration paid from the HCA's
  * own balance:
  *
- *     budget = commitGasFee            (commit leg executor refund, USDC)
- *            + registerGasFee          (register leg executor refund, USDC)
- *            + 3% buffer of registerGasFee   (gas-spike headroom in the ~60s
+ *     budget = commitLegCost           (commit intent, USDC the orchestrator
+ *                                       actually pulls)
+ *            + registerLegCost         (register intent, USDC)
+ *            + 3% buffer of registerLegCost  (gas-spike headroom in the ~60s
  *                                             commit→reveal cooldown)
  *            + registrationPrice       (the .eth rent, USDC)
  *
- * The gas legs are priced the way the Rhinestone rail actually bills — the
- * executor is reimbursed in USDC for each intent it fills, at
- * `gasLimit × gasPrice × (ETH/USD ÷ USDC/USD)`, NOT the raw chain gas. This
- * mirrors the calibrated crossmint fulfilment quote
- * (`workers/api-worker/.../crossmint/intent-quote.ts`): per-leg gas LIMITS
- * (the rail prices on the limit, not usage) converted through Rhinestone's own
- * price service.
+ * PREFERRED sizing (`quoteLegCostUsdc`): each leg's USDC cost comes straight
+ * from Rhinestone's own quote — `account.prepareTransaction(...)` returns
+ * `intentRoute.intentOp.elements[0].spendTokens`, the exact USDC the
+ * orchestrator will pull for that intent. This is immune to the caller's local
+ * gas-price reads (Sepolia `getGasPrice()` spikes to ~20 gwei even when the
+ * tx settles at ~1-2 gwei, which massively over-sizes a gas×price model).
+ *
+ * FALLBACK sizing (no quoter, or the quote throws): price the leg from its gas
+ * LIMIT × live gas price × ETH/USDC, mirroring the calibrated crossmint
+ * fulfilment quote — but this is a rough upper bound and is only used when the
+ * orchestrator quote is unavailable.
  *
  * This is NOT the session refund CAP (`MAX_REFUND_AMOUNT`, baked into the
  * session salt) — that is a fixed ceiling. This is the actual USDC moved into
- * the HCA up front, sized to the live quote so the wallet neither under-funds
- * (intent reverts / register strands) nor over-funds.
+ * the HCA up front.
  */
 
 import type { PublicClient } from 'viem'
@@ -30,25 +34,19 @@ import { getDestinationContracts } from './manifest'
 import { readRegisterPrice } from './registration-calls'
 
 /**
- * Per-leg gas LIMITS the same-chain HCA flow prices on. The Rhinestone rail
- * reimburses the executor over the limit supplied, so these are the tightest
- * limits that safely cover each leg's measured usage (mirrors crossmint's
- * `LEG_GAS_LIMITS`, adjusted for the HCA batch shape):
- *
- *   - commit: enable-session + permit + transferFrom + commit, in one intent.
- *     Measured HCA commit fill ≈ 116k gas (fork trace); rounded up for the
- *     funding pair + first-use enable envelope overhead.
- *   - register: approve + register (+ optional resolver deploy / setters /
- *     primary). Register alone is ~337k stable ±0.2% across names; headroom
- *     for a cold-slot resolver deploy on first use.
+ * Per-leg gas LIMITS. Passed to `prepareTransaction({ gasLimit })` so the
+ * orchestrator quotes against a bounded leg, and used by the fallback model.
+ * Sized from live Sepolia fills (register ≈ 393k gas measured) plus headroom.
  */
 export const HCA_LEG_GAS_LIMITS = {
-  commit: 250_000n,
-  register: 500_000n,
+  commit: 200_000n,
+  register: 450_000n,
 } as const
 
-/** p95 gas-price drift over the ~60s commit→reveal window, applied per leg. */
-const GAS_DRIFT_BUFFER_PERCENT = 3n
+export type HcaLeg = keyof typeof HCA_LEG_GAS_LIMITS
+
+/** p95 gas-price drift over the ~60s commit→reveal window, register leg only. */
+const REGISTER_BUFFER_PERCENT = 3n
 
 /** Rhinestone price service (ETH/USDC unit prices, 1e8-scaled). */
 const PRICE_SERVICE_URL =
@@ -58,8 +56,22 @@ const PRICE_SERVICE_URL =
 const DEFAULT_RHINESTONE_API_KEY =
   'rs_2fcz8PTz5A0vf1Z1HIG19qHxTd_NtCCJmRavTxtNL8'
 
-/** Conservative fallback budget (USDC 6dp) if the quote can't be computed. */
-const FALLBACK_GAS_FEE_6DP = 40_000_000n // 40 USDC of gas headroom
+/**
+ * Sanity ceiling on the per-leg gas price used by the FALLBACK model, to stop
+ * a transient Sepolia base-fee spike from ballooning the estimate. Real
+ * same-chain fills settle at ~1-2 gwei; 5 gwei is generous headroom.
+ */
+const FALLBACK_MAX_GAS_PRICE_WEI = 5_000_000_000n
+
+/** Conservative flat fallback per leg (USDC 6dp) if the price feed is down. */
+const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
+
+/**
+ * Quote one leg's USDC (6dp) cost from Rhinestone. Returns `null` when the
+ * quote is unavailable so the caller can fall back to the gas-limit model.
+ * Injected by the caller (which owns the SDK account + session context).
+ */
+export type QuoteLegCostUsdc = (leg: HcaLeg) => Promise<bigint | null>
 
 /** USD unit prices (1e8-scaled) from Rhinestone's price service. */
 async function fetchUsdPrices8(
@@ -81,19 +93,19 @@ async function fetchUsdPrices8(
   }
 }
 
-/**
- * Convert a gas LIMIT to a USDC (6dp) executor refund at the current gas price
- * and ETH/USDC rate, with an optional upward gas-price drift buffer.
- */
-function gasLegFee6dp(
+/** Fallback: convert a gas LIMIT to a USDC (6dp) cost at a clamped gas price. */
+function fallbackLegFee6dp(
   limit: bigint,
   gasPrice: bigint,
   prices: { eth: bigint; usdc: bigint },
-  driftPercent = 0n,
 ): bigint {
-  const bufferedWei = (limit * gasPrice * (100n + driftPercent)) / 100n
+  const clamped =
+    gasPrice > FALLBACK_MAX_GAS_PRICE_WEI
+      ? FALLBACK_MAX_GAS_PRICE_WEI
+      : gasPrice
+  const wei = limit * clamped
   // wei (1e18) × ethUsd8 / usdcUsd8 → USDC at 1e18 scale; ÷1e12 → 6dp units.
-  return (bufferedWei * prices.eth) / (prices.usdc * 10n ** 12n)
+  return (wei * prices.eth) / (prices.usdc * 10n ** 12n)
 }
 
 export interface HcaBudgetParams {
@@ -105,24 +117,31 @@ export interface HcaBudgetParams {
   readonly duration: bigint
   /** Rhinestone API key for the price service. Falls back to the shared dev key. */
   readonly apiKey?: string
+  /**
+   * Optional per-leg Rhinestone quote. When provided and it returns a value,
+   * the leg's USDC cost is taken from the orchestrator quote; otherwise the
+   * gas-limit fallback model is used for that leg.
+   */
+  readonly quoteLegCostUsdc?: QuoteLegCostUsdc
 }
 
 export interface HcaBudgetBreakdown {
   /** Total USDC (6dp) to permit + transfer into the HCA. */
   readonly total: bigint
-  readonly commitGasFee: bigint
-  readonly registerGasFee: bigint
-  readonly registerGasBuffer: bigint
+  readonly commitCost: bigint
+  readonly registerCost: bigint
+  readonly registerBuffer: bigint
   readonly registrationPrice: bigint
+  /** Which source produced the leg costs. */
+  readonly source: 'quote' | 'fallback' | 'mixed'
 }
 
 /**
  * Compute the same-chain HCA funding budget at runtime:
- * `commitGasFee + registerGasFee + 3%·registerGasFee + registrationPrice`.
+ * `commitCost + registerCost + 3%·registerCost + registrationPrice`.
  *
- * Reads the live registration price and (best-effort) the live gas price +
- * ETH/USDC rate. Falls back to a conservative flat gas fee if the price feed
- * or gas price is unreachable, so a quote outage never under-funds the HCA.
+ * Prefers Rhinestone's per-leg quote; falls back to a clamped gas-limit model
+ * per leg when the quote is unavailable.
  */
 export async function estimateHcaBudget(
   params: HcaBudgetParams,
@@ -136,46 +155,63 @@ export async function estimateHcaBudget(
     duration: params.duration,
   })
 
-  let commitGasFee: bigint
-  let registerGasFee: bigint
-  try {
-    const [gasPrice, prices] = await Promise.all([
-      params.publicClient.getGasPrice(),
-      fetchUsdPrices8(params.apiKey ?? DEFAULT_RHINESTONE_API_KEY),
-    ])
-    commitGasFee = gasLegFee6dp(
-      HCA_LEG_GAS_LIMITS.commit,
-      gasPrice,
-      prices,
-      GAS_DRIFT_BUFFER_PERCENT,
-    )
-    registerGasFee = gasLegFee6dp(
-      HCA_LEG_GAS_LIMITS.register,
-      gasPrice,
-      prices,
-      GAS_DRIFT_BUFFER_PERCENT,
-    )
-  } catch {
-    // Split the flat fallback across the two legs proportionally to their
-    // limits so the buffer/formula shape below still holds.
-    const totalLimit = HCA_LEG_GAS_LIMITS.commit + HCA_LEG_GAS_LIMITS.register
-    commitGasFee =
-      (FALLBACK_GAS_FEE_6DP * HCA_LEG_GAS_LIMITS.commit) / totalLimit
-    registerGasFee =
-      (FALLBACK_GAS_FEE_6DP * HCA_LEG_GAS_LIMITS.register) / totalLimit
+  // Best-effort quote per leg.
+  const quotedCommit = await tryQuote(params.quoteLegCostUsdc, 'commit')
+  const quotedRegister = await tryQuote(params.quoteLegCostUsdc, 'register')
+
+  // Gas-limit fallback inputs (only read if a leg is unquoted).
+  let fallbackCommit: bigint | undefined
+  let fallbackRegister: bigint | undefined
+  if (quotedCommit === null || quotedRegister === null) {
+    let gasPrice = 0n
+    let prices: { eth: bigint; usdc: bigint } | null = null
+    try {
+      ;[gasPrice, prices] = await Promise.all([
+        params.publicClient.getGasPrice(),
+        fetchUsdPrices8(params.apiKey ?? DEFAULT_RHINESTONE_API_KEY),
+      ])
+    } catch {
+      prices = null
+    }
+    fallbackCommit = prices
+      ? fallbackLegFee6dp(HCA_LEG_GAS_LIMITS.commit, gasPrice, prices)
+      : FALLBACK_LEG_FEE_6DP
+    fallbackRegister = prices
+      ? fallbackLegFee6dp(HCA_LEG_GAS_LIMITS.register, gasPrice, prices)
+      : FALLBACK_LEG_FEE_6DP
   }
 
-  // 3% buffer on the register leg's gas fee only (per the funding formula).
-  const registerGasBuffer = (registerGasFee * 3n) / 100n
+  const commitCost = quotedCommit ?? (fallbackCommit as bigint)
+  const registerCost = quotedRegister ?? (fallbackRegister as bigint)
 
-  const total =
-    commitGasFee + registerGasFee + registerGasBuffer + registrationPrice
+  const registerBuffer = (registerCost * REGISTER_BUFFER_PERCENT) / 100n
+  const total = commitCost + registerCost + registerBuffer + registrationPrice
+
+  const source: HcaBudgetBreakdown['source'] =
+    quotedCommit !== null && quotedRegister !== null
+      ? 'quote'
+      : quotedCommit === null && quotedRegister === null
+        ? 'fallback'
+        : 'mixed'
 
   return {
     total,
-    commitGasFee,
-    registerGasFee,
-    registerGasBuffer,
+    commitCost,
+    registerCost,
+    registerBuffer,
     registrationPrice,
+    source,
+  }
+}
+
+async function tryQuote(
+  quoter: QuoteLegCostUsdc | undefined,
+  leg: HcaLeg,
+): Promise<bigint | null> {
+  if (!quoter) return null
+  try {
+    return await quoter(leg)
+  } catch {
+    return null
   }
 }
