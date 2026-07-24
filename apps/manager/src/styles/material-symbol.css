@@ -70,7 +70,7 @@
   --ms-optical-size-24: 24;
   --ms-optical-size-40: 40;
   --ms-optical-size-48: 48;
-  --default-ms-optical-size: var(--ms-optical-size-20, 20);
+  --default-ms-optical-size: var(--ms-optical-size-24, 24);
 }
 
 /**

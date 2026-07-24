@@ -1,4 +1,4 @@
-import { ChevronDown, Link as LinkIcon } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -221,14 +221,10 @@ export const GeneralTab = ({
                 mobileHiddenShortcutFields.has(field) && 'hidden md:flex',
               )}
               icon={
-                'icon' in shortcut ? (
-                  <LinkIcon className="size-3.5 shrink-0 text-current" />
-                ) : (
-                  <MSymbol
-                    className="shrink-0 text-current text-[14px] ms-wght-400"
-                    symbol={shortcut.symbol}
-                  />
-                )
+                <MSymbol
+                  className="ms-opsz-20 ms-wght-400 shrink-0 text-current text-[14px]"
+                  symbol={shortcut.symbol}
+                />
               }
               key={field}
               label={getShortcutLabel(field, label)}
