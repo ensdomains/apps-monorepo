@@ -1,6 +1,6 @@
 'use client'
 
-import { anvilSetupOwner } from '@ens-apps/dev-time-travel'
+import { anvilSetupOwner, isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import {
   buildHcaSessionEnablePayload,
   getValidSessionForAccount,
@@ -345,9 +345,13 @@ export const SmartAccountContextProvider = ({
 
   // Dev-only: clears contract bytecode + mints USDC/DAI on the local Anvil fork
   // for the owner address. Runs whenever ownerAddress becomes available.
-  // Falls back silently if anvil_* methods are unavailable (real Sepolia in dev).
+  //
+  // Gated on `isTimeTravelEnabled()` (DEV + VITE_TIME_TRAVEL), which is the same
+  // flag that signals "a local Anvil fork is running". Without it — e.g. dev
+  // against real Sepolia — the `/rpc` proxy has no Anvil behind it, so these
+  // `anvil_setCode` / mint calls would spam `ECONNREFUSED 127.0.0.1:8545`.
   useEffect(() => {
-    if (!import.meta.env.DEV || !ownerAddress) return
+    if (!isTimeTravelEnabled() || !ownerAddress) return
     if (anvilSetupDoneRef.current.has(ownerAddress)) return
 
     anvilSetupDoneRef.current.add(ownerAddress)

@@ -74,7 +74,6 @@ describe('computeSourceSessionSalt', () => {
       sourceToken: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
       hca: HCA as Address,
       destinationToken: REFUND_TOKEN as Address,
-      acrossArbiter: '0x28a4d41776968c1201a807ec51ffb405362b8882' as Address,
       destinationChainId: 11155111n,
       maxSourceAmount: 20_000_000n,
       maxDestinationAmount: 14_000_000n,

@@ -116,7 +116,12 @@ export function buildStandaloneAccountConfig(
   }
 }
 
-function makeSdk(params: InitializeRhinestoneAccountParams): RhinestoneSDK {
+function makeSdk(params: {
+  chain: Chain
+  rhinestoneApiKey: string
+  rhinestoneEndpointUrl?: string
+  rhinestoneCustomRpcUrls?: Record<number, string>
+}): RhinestoneSDK {
   const defaultRpcUrl = params.chain.rpcUrls.default.http[0]
   const urls: Record<number, string> = {
     ...(defaultRpcUrl ? { [params.chain.id]: defaultRpcUrl } : {}),
@@ -255,46 +260,56 @@ export function initializeRhinestoneAccount(
         },
       }
 
-      // First derive the address with a fresh (no-initData) config.
+      // Derive the deterministic address with a no-initData config.
       const candidate = await sdk.createAccount(accountConfig)
       const hca = candidate.getAddress() as Address
 
       const code = await params.publicClient.getCode({ address: hca })
       const alreadyDeployed = Boolean(code && code !== '0x')
 
-      if (!alreadyDeployed) {
-        return {
-          client: candidate,
-          address: hca,
-          ownerAddress: params.eoaAddress,
-          alreadyDeployed: false,
-          config: {
-            chain: params.chain,
-            rhinestoneApiKey: params.rhinestoneApiKey,
-          },
-        }
+      // Bind the account to its deploy state.
+      //
+      // The SDK's setup-ops (which include the factory deploy call) are gated by
+      // `initData`: when `initData: { address }` is set, `getInitCode` returns
+      // the address-only form → `getSetupOperationsAndDelegations` returns
+      // `setupOps: []` (no deploy). When `initData` is absent, the deploy op is
+      // included.
+      //
+      // Therefore:
+      //   - UNDEPLOYED HCA → NO initData, so the first (commit) action's
+      //     setup-ops deploy it.
+      //   - ALREADY-DEPLOYED HCA → initData: { address }, so no re-deploy op is
+      //     emitted (a re-deploy makes the intent's session signature invalid →
+      //     `InvalidSignature()`). This also covers the "existing HCA, new
+      //     session" case: the enable call runs, but the account is not
+      //     re-deployed.
+      //
+      // NOTE: this is evaluated per `initializeRhinestoneAccount` call. Once the
+      // commit deploys a previously-undeployed HCA, the caller must re-init so
+      // the reveal (and future registrations) use the deployed (initData)
+      // binding — see the manager's re-init on the smart-account machine.
+      if (alreadyDeployed) {
+        await verifyExistingHca({
+          publicClient: params.publicClient,
+          hca,
+          expectedOwner: params.eoaAddress,
+          destinationChainId: params.chain.id,
+          requireTrustedForPrimary: params.requireTrustedForPrimary ?? false,
+        })
       }
 
-      // Adopt-existing: verify BEFORE reusing, then recreate the account with
-      // `initData: { address: hca }` so the SDK skips deployment.
-      await verifyExistingHca({
-        publicClient: params.publicClient,
-        hca,
-        expectedOwner: params.eoaAddress,
-        destinationChainId: params.chain.id,
-        requireTrustedForPrimary: params.requireTrustedForPrimary ?? false,
-      })
-
-      const adopted = await sdk.createAccount({
-        ...accountConfig,
-        initData: { address: hca },
-      })
+      const client = alreadyDeployed
+        ? await sdk.createAccount({
+            ...accountConfig,
+            initData: { address: hca },
+          })
+        : candidate
 
       return {
-        client: adopted,
+        client,
         address: hca,
         ownerAddress: params.eoaAddress,
-        alreadyDeployed: true,
+        alreadyDeployed,
         config: {
           chain: params.chain,
           rhinestoneApiKey: params.rhinestoneApiKey,

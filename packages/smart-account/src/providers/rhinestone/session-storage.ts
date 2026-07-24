@@ -17,12 +17,15 @@
  *   v5 → v6: replaced the ephemeral-owner record with the scoped-SmartSession
  *            record (permissionId, authorization, hashesAndChainIds, resolver,
  *            hcaSessionNonce, sessionToEnableIndex). See ./types.ts.
+ *   v6 → v7: SDK patch bumped (5e0a5f32… → 7603298e…). The session
+ *            authorization / enable-data encoding changed, so any session
+ *            signed under the old patch is invalid and must be re-authorized.
  */
 
 import type { Address } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v6'
+const SESSION_STORAGE_KEY = 'ens-sessions-v7'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'

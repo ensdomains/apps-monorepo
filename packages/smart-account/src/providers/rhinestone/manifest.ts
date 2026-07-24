@@ -51,11 +51,17 @@ export interface SourceContracts {
   readonly hcaFundingSessionValidator: Address
 }
 
-/** Chain-agnostic contracts shared across the Rhinestone route. */
+/**
+ * Chain-agnostic contracts shared across the Rhinestone route.
+ *
+ * NOTE: the Across adapter/arbiter is intentionally NOT here. Per the handoff
+ * doc, the frontend does not supply an Across adapter address — the source
+ * validator reads the active Permit2 Across adapter from the Rhinestone Router
+ * at claim time, and it is not part of the source permission ID.
+ */
 export interface SharedContracts {
   readonly nexusFactory: Address
   readonly permit2: Address
-  readonly acrossArbiter: Address
 }
 
 export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
@@ -77,14 +83,13 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
 export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
   [baseSepolia.id]: {
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-    hcaFundingSessionValidator: '0xCd3498554f08AB38ACCa8eFcB0839421598364a1',
+    hcaFundingSessionValidator: '0x6FC0FdE0960003AcB24810FFd5dB6224B3d88974',
   },
 }
 
 export const SHARED_CONTRACTS: SharedContracts = {
   nexusFactory: '0x0000000000679A258c64d2F20F310e12B64b7375',
   permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
-  acrossArbiter: '0x28a4d41776968c1201a807ec51ffb405362b8882',
 }
 
 /**
@@ -141,10 +146,21 @@ export const ZERO_ADDRESS =
 
 export const DEFAULT_SESSION_VALIDITY_SECONDS = 24 * 60 * 60
 
-export const MAX_REFUND_EXCHANGE_RATE = 5_000_000_000n
-export const MAX_REFUND_GAS_OVERHEAD = 100_000n
-export const MAX_REFUND_AMOUNT = 25_000_000n
-export const SAME_CHAIN_USDC_BUDGET = 20_000_000n
+// Session gas-refund CAPS (baked into the destination session salt via
+// `computeDestinationSessionSalt`). These bound the executor reimbursement the
+// orchestrator may pull from the HCA inside a session action — the on-chain
+// `HCAOwnerAndSessionValidator._checkGasRefund` reverts `GasRefundNotAllowed()`
+// (wrapped by the emissary as `InvalidSignature()`) when the orchestrator's
+// quoted refund exceeds any cap. They are NOT the amount actually charged; they
+// are ceilings, so they are set generously to absorb Sepolia gas spikes.
+//
+// Observed on a live Sepolia commit: the orchestrator quoted refundAmount ≈
+// 33.5 USDC, gasOverhead ≈ 50k, exchangeRate ≈ 1.9e9 — the previous
+// `MAX_REFUND_AMOUNT` of 25 USDC was below the quote and reverted. Caps are
+// bumped well clear of that.
+export const MAX_REFUND_EXCHANGE_RATE = 20_000_000_000n
+export const MAX_REFUND_GAS_OVERHEAD = 500_000n
+export const MAX_REFUND_AMOUNT = 100_000_000n // 100 USDC ceiling
 
 /**
  * Derive the per-HCA resolver salt passed to `VerifiableFactory.deployProxy`.

@@ -130,10 +130,13 @@ export function computeDestinationSessionSalt(params: {
 /**
  * Compute the source (funding Nexus-side) session salt. EXACT field order:
  * address wallet, uint48 validUntil, address sourceToken, address hca,
- * address destinationToken, address acrossArbiter, uint64 destinationChainId,
- * uint96 maxSourceAmount, uint96 maxDestinationAmount.
+ * address destinationToken, uint64 destinationChainId, uint96 maxSourceAmount,
+ * uint96 maxDestinationAmount.
  *
- * Kept as a pure function for the deferred cross-chain path (see module doc).
+ * NOTE: `acrossArbiter` is NOT part of the salt (updated handoff doc). The
+ * source validator reads the active Across adapter from the Rhinestone Router
+ * at claim time, so a compatible adapter change does not affect the source
+ * permission ID. Kept as a pure function for the deferred cross-chain path.
  */
 export function computeSourceSessionSalt(params: {
   readonly wallet: Address
@@ -141,7 +144,6 @@ export function computeSourceSessionSalt(params: {
   readonly sourceToken: Address
   readonly hca: Address
   readonly destinationToken: Address
-  readonly acrossArbiter: Address
   readonly destinationChainId: bigint
   readonly maxSourceAmount: bigint
   readonly maxDestinationAmount: bigint
@@ -151,7 +153,6 @@ export function computeSourceSessionSalt(params: {
       [
         { type: 'address' },
         { type: 'uint48' },
-        { type: 'address' },
         { type: 'address' },
         { type: 'address' },
         { type: 'address' },
@@ -165,7 +166,6 @@ export function computeSourceSessionSalt(params: {
         params.sourceToken,
         params.hca,
         params.destinationToken,
-        params.acrossArbiter,
         params.destinationChainId,
         params.maxSourceAmount,
         params.maxDestinationAmount,

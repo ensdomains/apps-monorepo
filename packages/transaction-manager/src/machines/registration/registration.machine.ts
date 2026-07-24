@@ -18,7 +18,7 @@ import {
   verifyRegistrationActor,
 } from './registration.actors'
 import {
-  defaultHcaBudget,
+  estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
   readHcaUsdcBalanceActor,
@@ -137,6 +137,7 @@ export type RegistrationContext = {
   error?: Error
   /** The state to return to on RETRY — set when entering error state */
   retryTarget?:
+    | 'computingHcaBudget'
     | 'deployingResolver'
     | 'submittingSetupBundle'
     | 'committingTransaction'
@@ -188,6 +189,17 @@ export const registrationMachine = setup({
   },
 
   actors: {
+    estimateHcaBudget: fromResultAsync(
+      (input: {
+        name: string
+        duration: bigint
+        publicClient: PublicClient
+        chainId: number
+        apiKey?: string
+      }) => {
+        return estimateHcaBudgetActor(input)
+      },
+    ),
     readHcaUsdcBalance: fromResultAsync(
       (input: {
         hca: Address
@@ -540,17 +552,61 @@ export const registrationMachine = setup({
       },
       always: [
         {
-          // Standalone-HCA: check whether the HCA already holds enough USDC
-          // (skips the funding permit), then fund+enable+commit in ONE
-          // session-signed request. The session authorization was signed in
-          // the app before the machine started.
+          // Standalone-HCA: compute the funding budget at runtime, check
+          // whether the HCA already holds enough USDC (skips the funding
+          // permit), then fund+enable+commit in ONE session-signed request.
+          // The session authorization was signed in the app before the machine
+          // started.
           guard: 'isRhinestoneSigner',
-          target: 'checkingHcaFunding',
+          target: 'computingHcaBudget',
         },
         // Pure-EOA: an EOA can't batch, so deploy the resolver, wait for it,
         // then commit as separate transactions.
         { target: 'deployingResolver' },
       ],
+    },
+
+    // Standalone-HCA: size the wallet→HCA funding permit at runtime from the
+    // live registration price + Rhinestone-rail gas quote (commit + register
+    // legs + 3% register buffer). A caller-supplied `hcaBudget` override wins.
+    computingHcaBudget: {
+      entry: ['logTransition'],
+      always: [
+        {
+          guard: ({ context }) => context.hcaBudget !== undefined,
+          target: 'checkingHcaFunding',
+        },
+      ],
+      invoke: {
+        src: 'estimateHcaBudget',
+        input: ({ context }) => ({
+          name: context.name,
+          duration: context.duration,
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          publicClient: context.publicClient!,
+          chainId: context.chainId,
+        }),
+        onDone: {
+          target: 'checkingHcaFunding',
+          actions: assign({
+            hcaBudget: ({ event }) => event.output as bigint,
+          }),
+        },
+        // On estimator failure, fail loudly rather than silently under/over-
+        // funding — the permit amount must be correct.
+        onError: {
+          target: 'error',
+          actions: [
+            assign({
+              error: ({ event }) => event.error as Error,
+              retryTarget: () => 'computingHcaBudget' as const,
+            }),
+          ],
+        },
+      },
+      on: {
+        CANCEL: 'idle',
+      },
     },
 
     checkingHcaFunding: {
@@ -570,7 +626,8 @@ export const registrationMachine = setup({
             // prior registration) — no funding permit needed. 0 extra prompts.
             guard: ({ context, event }) => {
               const balance = event.output as bigint
-              return balance >= (context.hcaBudget ?? defaultHcaBudget())
+              // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
+              return balance >= context.hcaBudget!
             },
             target: 'submittingSetupBundle',
           },
@@ -593,7 +650,8 @@ export const registrationMachine = setup({
           wallet: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hca: context.accountAddress!,
-          value: context.hcaBudget ?? defaultHcaBudget(),
+          // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
+          value: context.hcaBudget!,
           // The funding permit MUST be signed by the wallet (EOA); the HCA
           // cannot produce an EIP-2612 signature for the wallet's balance.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -1381,6 +1439,19 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               registrationTxId: undefined,
+            })),
+          },
+          {
+            guard: ({ context }) =>
+              context.retryTarget === 'computingHcaBudget',
+            // Recompute the budget from scratch: clear the stale value so the
+            // estimator re-quotes the live price + gas.
+            target: 'computingHcaBudget',
+            actions: assign(({ context }) => ({
+              ...context,
+              error: undefined,
+              retryTarget: undefined,
+              hcaBudget: undefined,
             })),
           },
           {

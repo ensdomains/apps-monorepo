@@ -25,11 +25,11 @@ import {
   buildEnableSessionWithRefundCall,
   buildRevealBatch,
   computeResolverAddress,
+  estimateHcaBudget,
   getDestinationContracts,
   type Call as HcaCall,
   readCommitment,
   readRegisterPrice,
-  SAME_CHAIN_USDC_BUDGET,
 } from '@ens-apps/smart-account'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
@@ -69,6 +69,7 @@ export interface HcaSessionEnableParams {
 const erc2612Abi = parseAbi([
   'function nonces(address owner) view returns (uint256)',
   'function name() view returns (string)',
+  'function version() view returns (string)',
   'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
   'function transferFrom(address from, address to, uint256 amount) returns (bool)',
   'function balanceOf(address account) view returns (uint256)',
@@ -92,9 +93,29 @@ export function hcaRegistrarAddress(chainId: number): Address {
   return getDestinationContracts(chainId).ethRegistrar
 }
 
-/** Default same-chain HCA budget when the caller does not specify one. */
-export function defaultHcaBudget(): bigint {
-  return SAME_CHAIN_USDC_BUDGET
+/**
+ * Compute the same-chain HCA funding budget at runtime:
+ * `commitGasFee + registerGasFee + 3%·registerGasFee + registrationPrice`,
+ * pricing the gas legs via Rhinestone's rail (gas→USDC). See
+ * `estimateHcaBudget` in `@ens-apps/smart-account`.
+ */
+export function estimateHcaBudgetActor(input: {
+  name: string
+  duration: bigint
+  publicClient: PublicClient
+  chainId: number
+  apiKey?: string
+}): ResultAsync<bigint, Error> {
+  return fromPromise(
+    estimateHcaBudget({
+      publicClient: input.publicClient,
+      chainId: input.chainId,
+      label: cleanLabel(input.name),
+      duration: input.duration,
+      ...(input.apiKey ? { apiKey: input.apiKey } : {}),
+    }).then((b) => b.total),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
 }
 
 const toCalls = (calls: readonly HcaCall[]): Call[] =>
@@ -189,7 +210,12 @@ export function signFundingPermitActor(input: {
         args: [input.wallet],
       })
 
-      // Prefer ERC-5267 `eip712Domain()`; fall back to `name()` + version "1".
+      // Prefer ERC-5267 `eip712Domain()`; fall back to `name()` + `version()`.
+      // Circle's Sepolia USDC (FiatTokenV2_2) does NOT implement ERC-5267 (it
+      // reverts), and its EIP-712 domain version is "2" — so the fallback MUST
+      // read the token's `version()` getter, not assume "1", or the permit
+      // signature is computed over the wrong domain and reverts with
+      // `EIP2612: invalid signature`.
       let domain: {
         name: string
         version: string
@@ -208,14 +234,23 @@ export function signFundingPermitActor(input: {
             (resolved.domain.verifyingContract as Address) ?? contracts.usdc,
         }
       } catch {
-        const name = await readContract(input.publicClient, {
-          address: contracts.usdc,
-          abi: erc2612Abi,
-          functionName: 'name',
-        })
+        const [name, version] = await Promise.all([
+          readContract(input.publicClient, {
+            address: contracts.usdc,
+            abi: erc2612Abi,
+            functionName: 'name',
+          }),
+          // `version()` is optional on ERC-2612 tokens; default to "1" only
+          // when the token doesn't expose it.
+          readContract(input.publicClient, {
+            address: contracts.usdc,
+            abi: erc2612Abi,
+            functionName: 'version',
+          }).catch(() => '1'),
+        ])
         domain = {
           name,
-          version: '1',
+          version,
           chainId: input.chainId,
           verifyingContract: contracts.usdc,
         }
