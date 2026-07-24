@@ -438,6 +438,16 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
+    // The api-worker faucet mints MOCK USDC/DAI — only meaningful with the
+    // local-infra (Anvil fork) setup. The standalone-HCA flow pays in REAL
+    // Circle Sepolia USDC (the token whose balance `needsStablecoins` reads),
+    // which the faucet cannot mint; running it there leaves the real balance
+    // low, retries every refetch, and shows a misleading success toast. Gate it
+    // on `isTimeTravelEnabled()` (DEV + VITE_TIME_TRAVEL), the same "local Anvil
+    // is running" signal used by `anvilSetupOwner`. On real Sepolia the user
+    // funds their own USDC.
+    if (!isTimeTravelEnabled()) return
+
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
     // initialization. The machine can flap disconnected→initializing→ready

@@ -35,6 +35,7 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
@@ -586,9 +587,15 @@ export function readPaymentTokenAllowanceActor(input: {
   owner: Address
   selectedToken: 'USDC' | 'DAI'
   publicClient: PublicClient
+  /** Spender to read the allowance for. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
 }): ResultAsync<bigint, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
-  const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const tokenAddress =
+    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
   return fromPromise(
     readContract(input.publicClient, {
       address: tokenAddress,
@@ -797,14 +804,20 @@ export function submitApprovalActor(input: {
   publicClient: PublicClient
   sponsored?: boolean
   id?: string
+  /** Spender to approve. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Token to approve. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
 }): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return ResultAsync.fromSafePromise(
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const tokenAddress = getPaymentTokenAddress(input.selectedToken)
+      const tokenAddress =
+        input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues
       const normalizedTokenAddress = tokenAddress.toLowerCase() as Address
       console.log(
@@ -1013,13 +1026,22 @@ export function submitRenewActor(input: {
   sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  // Names registered by this app live on the STANDALONE-HCA registrar and are
+  // priced/paid in REAL Circle Sepolia USDC — NOT the legacy
+  // `ENS_SEPOLIA_CONTRACTS.ETHRegistrar` + mock tokens. Renew against the same
+  // registrar + token the name was registered with, or the allowance check and
+  // `renew` call target the wrong contracts and revert.
+  const chainId = input.publicClient.chain?.id ?? sepolia.id
+  const hcaContracts = getDestinationContracts(chainId)
+  const registrarAddress = hcaContracts.ethRegistrar
 
   return fromPromise(
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      // Circle USDC is the only supported HCA payment token (its
+      // PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN). DAI is not accepted.
+      const paymentToken = hcaContracts.usdc
       // Normalize to lowercase to avoid Rhinestone SDK validation issues.
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 
@@ -1038,7 +1060,7 @@ export function submitRenewActor(input: {
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
-        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        chainId,
         calls: [{ to: registrarAddress, data: renewData, value: 0n }],
         sponsored: input.sponsored ?? true,
       })

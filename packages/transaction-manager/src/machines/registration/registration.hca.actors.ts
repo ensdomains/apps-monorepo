@@ -146,6 +146,7 @@ export function estimateHcaBudgetActor(input: {
   publicClient: PublicClient
   chainId: number
   signer?: Signer
+  sessionEnable?: HcaSessionEnableParams
   apiKey?: string
 }): ResultAsync<bigint, Error> {
   const label = cleanLabel(input.name)
@@ -163,33 +164,57 @@ export function estimateHcaBudgetActor(input: {
       ? async (leg: HcaLeg): Promise<bigint | null> => {
           const hca = rhinestone.account.getAddress() as Address
           const resolver = computeResolverAddress({ chainId, hca })
-          const sessionSigners: Transaction['signers'] = {
+          const baseSigners: Transaction['signers'] = {
             type: 'experimental_session',
             session: activeSession.session,
             verifyExecutions: true,
           }
           if (leg === 'commit') {
-            // Enable + commit (dummy commitment — cost is size/gas-driven, not
-            // value-driven). Funding pair omitted: cheap USDC transfers.
+            // Quote the SAME shape `submitFundingAndCommitActor` submits: when
+            // the session still needs enabling, the commit intent carries
+            // `enableData` (first-use mode 05) AND an `enableSessionWithRefund`
+            // call — both materially change the gas. The funding
+            // permit/transferFrom pair is two cheap ERC-20 calls on top; the
+            // `HCA_LEG_GAS_LIMITS.commit` bound (a proven upper bound over the
+            // measured ~393k first-commit fill, which the rail prices the quote
+            // on) covers them, so a successful quote never underfunds the HCA.
+            const commitSigners: Transaction['signers'] = input.sessionEnable
+              ? { ...baseSigners, enableData: input.sessionEnable.enableData }
+              : baseSigners
+            const calls: Call[] = []
+            if (input.sessionEnable) {
+              const enableCall = buildEnableSessionWithRefundCall({
+                chainId,
+                permissionId: input.sessionEnable.permissionId,
+                sessionKey: input.sessionEnable.sessionKey,
+                validUntil: input.sessionEnable.validUntil,
+                resolver,
+              })
+              calls.push({
+                to: enableCall.to,
+                value: enableCall.value,
+                data: enableCall.data,
+              })
+            }
             const commitCall = buildCommitCall({
               chainId,
               commitment: `0x${'11'.repeat(32)}` as Hex,
             })
+            calls.push({
+              to: commitCall.to,
+              value: commitCall.value,
+              data: commitCall.data,
+            })
             return quoteIntentSpendUsdc(
               rhinestone.account,
               chain,
-              [
-                {
-                  to: commitCall.to,
-                  value: commitCall.value,
-                  data: commitCall.data,
-                },
-              ],
+              calls,
               HCA_LEG_GAS_LIMITS.commit,
-              sessionSigners,
+              commitSigners,
             )
           }
-          // register leg: full reveal batch at the current price.
+          // register leg: full reveal batch at the current price (the session
+          // is enabled by the commit, so no enableData here).
           const price = await readRegisterPrice({
             publicClient: input.publicClient,
             chainId,
@@ -217,7 +242,7 @@ export function estimateHcaBudgetActor(input: {
             chain,
             toCalls(revealCalls),
             HCA_LEG_GAS_LIMITS.register,
-            sessionSigners,
+            baseSigners,
           )
         }
       : undefined

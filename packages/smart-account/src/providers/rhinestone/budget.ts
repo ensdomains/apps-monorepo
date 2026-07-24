@@ -39,7 +39,11 @@ import { readRegisterPrice } from './registration-calls'
  * Sized from live Sepolia fills (register ≈ 393k gas measured) plus headroom.
  */
 export const HCA_LEG_GAS_LIMITS = {
-  commit: 200_000n,
+  // Proven upper bound: a first-use commit (enable + permit + transferFrom +
+  // commit, which deploys the HCA) filled at ~393k gas on live Sepolia. The
+  // rail prices the quote on this LIMIT, so it must cover the full bundle or a
+  // successful quote could underfund the HCA and revert the first commit.
+  commit: 450_000n,
   register: 450_000n,
 } as const
 

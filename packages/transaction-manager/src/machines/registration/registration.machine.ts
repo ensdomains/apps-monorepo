@@ -196,6 +196,7 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         chainId: number
         signer?: Signer
+        sessionEnable?: HcaSessionEnableParams
         apiKey?: string
       }) => {
         return estimateHcaBudgetActor(input)
@@ -587,6 +588,7 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           chainId: context.chainId,
           signer: context.signer,
+          sessionEnable: context.hcaSessionEnable,
         }),
         onDone: {
           target: 'checkingHcaFunding',
@@ -1513,15 +1515,20 @@ export const registrationMachine = setup({
           {
             guard: ({ context }) =>
               context.retryTarget === 'submittingSetupBundle',
-            target: 'submittingSetupBundle',
-            // Re-run the whole commit request: a fresh secret + commitment are
-            // generated, so clear any partial setup state. The funding permit
-            // is KEPT — the atomic batch reverted, so the permit's nonce is
-            // unconsumed and it is safely reused.
+            // Re-run the whole commit request through `checkingHcaFunding`: a
+            // fresh secret + commitment are generated there, and the funding is
+            // re-evaluated. The signed EIP-2612 permit has a 1-hour deadline, so
+            // a retry after that window would submit an EXPIRED permit and
+            // revert every attempt. Clearing it and re-entering the funding
+            // check either skips the permit (the HCA is now funded from a prior
+            // partial attempt — `checkingHcaFunding` detects the balance) or
+            // re-signs a fresh permit via `signingFundingPermit`.
+            target: 'checkingHcaFunding',
             actions: assign(({ context }) => ({
               ...context,
               error: undefined,
               retryTarget: undefined,
+              permit: undefined,
               resolverAddress: undefined,
               resolverTxId: undefined,
               resolverSalt: undefined,
