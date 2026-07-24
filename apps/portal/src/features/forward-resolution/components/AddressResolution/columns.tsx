@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  SquareUser,
   TriangleAlert,
   XCircle,
 } from 'lucide-react'
@@ -112,13 +113,21 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
 
       const { icon: Icon, label, muted } = REVERSE_MATCH_BADGES[reverseMatch]
       return (
-        <Badge
-          variant="outline"
-          className={cn('text-xs', muted && 'text-muted-foreground')}
-        >
-          <Icon className="size-4" />
-          <span>{label}</span>
-        </Badge>
+        <div className="flex flex-row items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn('text-xs', muted && 'text-muted-foreground')}
+          >
+            <Icon className="size-4" />
+            <span>{label}</span>
+          </Badge>
+          {reverseMatch === 'verified' && (
+            <Badge variant="outline" className="text-xs">
+              <SquareUser className="size-4" />
+              <span>Primary name</span>
+            </Badge>
+          )}
+        </div>
       )
     },
   },
