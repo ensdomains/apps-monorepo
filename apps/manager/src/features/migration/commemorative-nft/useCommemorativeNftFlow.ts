@@ -16,6 +16,7 @@ import {
 import { createCommemorativeNftPreviewEligibility } from './eligibility.fixture'
 import {
   type CommemorativeNftFlowStatus,
+  getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
 } from './flowState'
 import { invalidateCommemorativeNftStatus } from './queries'
@@ -223,7 +224,11 @@ export const useCommemorativeNftFlow = ({
     },
   })
 
-  const claimed = availability.claimed.data === true
+  const claimedStatus = getCommemorativeNftClaimedStatus({
+    preview,
+    claimed: availability.claimed.data,
+  })
+  const claimed = claimedStatus === true
   const artworkUrl = eligibility?.assets.imageUrl
 
   useEffect(() => {
@@ -262,7 +267,7 @@ export const useCommemorativeNftFlow = ({
 
   const flowStatus = getCommemorativeNftFlowStatus({
     eligibilityStatus,
-    claimed: availability.claimed.data,
+    claimed: claimedStatus,
     revealComplete,
     claimPending: claimMutation.isPending || awaitingClaim,
     claimError: claimMutation.isError || availability.claimed.isError,

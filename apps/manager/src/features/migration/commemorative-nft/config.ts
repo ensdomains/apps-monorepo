@@ -1,10 +1,16 @@
 import { type Address, getAddress, keccak256 } from 'viem'
 import { sepolia } from 'viem/chains'
-import type { CommemorativeNftAssets } from './types'
+import type {
+  CommemorativeNftAssets,
+  CommemorativeNftEligibility,
+} from './types'
 
 export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
   '0xe49A9D706FCD82AA575496352B5633F80fBBC449',
 )
+
+export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
+  'https://ens-renderer.pages.dev'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
@@ -20,6 +26,9 @@ export const getCommemorativeNftConfig = () => ({
   eligibilityOrigin: optionalOrigin(
     import.meta.env.VITE_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN,
   ),
+  rendererOrigin:
+    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
+    DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
 })
 
 export const getCommemorativeNftContractAddress = (
@@ -50,4 +59,32 @@ export const buildCommemorativeNftAssets = (
     imageUrl: `${origin}/${tokenId}.png`,
     animationUrl: `${origin}/${tokenId}.mp4`,
   }
+}
+
+const rendererAttributes = (traits: CommemorativeNftEligibility['traits']) => [
+  { trait_type: 'Era', value: traits.Era },
+  { trait_type: 'Depth', value: traits.Depth },
+  { trait_type: 'Gasveteran', value: traits.Gasveteran },
+  { trait_type: 'Archetype', value: traits.Archetype },
+  { trait_type: 'Rarity', value: traits.Rarity },
+  { trait_type: 'Seed', value: traits.Seed },
+]
+
+export const buildCommemorativeNftRendererUrl = (params: {
+  readonly eligibility: CommemorativeNftEligibility
+  readonly rendererOrigin: string
+}): string => {
+  const metadata = {
+    name: params.eligibility.rendererName,
+    description: 'A commemorative NFT marking the migration to ENSv2.',
+    image: '',
+    animation_url: '',
+    attributes: rendererAttributes(params.eligibility.traits),
+  }
+  const tokenUri = `data:application/json;charset=utf-8,${encodeURIComponent(
+    JSON.stringify(metadata),
+  )}`
+  const rendererUrl = new URL(trimTrailingSlash(params.rendererOrigin))
+  rendererUrl.searchParams.set('tokenURI', tokenUri)
+  return rendererUrl.toString()
 }

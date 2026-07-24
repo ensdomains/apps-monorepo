@@ -6,27 +6,39 @@ type CommemorativeNftRendererSurfaceProps = {
   readonly artworkUrl?: string
   readonly eligibility: CommemorativeNftEligibility
   readonly onReady?: () => void
+  readonly rendererUrl?: string
 }
 
-/**
- * Stable seam for WEB-604's browser-only renderer export. Until that package is
- * consumable by Manager, this surface renders the persistent PNG (or a clear
- * failure treatment) and never attempts to import the document-touching entry.
- */
 export const CommemorativeNftRendererSurface = ({
   artworkUrl,
   eligibility,
   onReady,
+  rendererUrl,
 }: CommemorativeNftRendererSurfaceProps) => {
-  const [failed, setFailed] = useState(false)
+  const [artworkFailed, setArtworkFailed] = useState(false)
+  const [rendererFailed, setRendererFailed] = useState(false)
+  const [rendererReady, setRendererReady] = useState(false)
 
   useEffect(() => {
-    setFailed(false)
-    if (!artworkUrl) onReady?.()
-  }, [artworkUrl, onReady])
+    if (!rendererUrl && !artworkUrl) onReady?.()
+  }, [artworkUrl, onReady, rendererUrl])
 
-  if (!artworkUrl || failed) {
-    return (
+  const fallback =
+    artworkUrl && !artworkFailed ? (
+      <img
+        alt=""
+        className="pointer-events-none absolute top-0 left-[-7.03%] h-full w-[141.41%] max-w-none select-none object-cover"
+        draggable={false}
+        onError={() => {
+          setArtworkFailed(true)
+          if (!rendererUrl) onReady?.()
+        }}
+        onLoad={() => {
+          if (!rendererUrl) onReady?.()
+        }}
+        src={artworkUrl}
+      />
+    ) : (
       <div
         aria-label={`Commemorative NFT preview for ${eligibility.rendererName}`}
         className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#f8dce7] px-6 text-center"
@@ -43,19 +55,30 @@ export const CommemorativeNftRendererSurface = ({
         </div>
       </div>
     )
-  }
 
   return (
-    <img
-      alt=""
-      className="pointer-events-none absolute top-0 left-[-7.03%] h-full w-[141.41%] max-w-none select-none object-cover"
-      draggable={false}
-      onError={() => {
-        setFailed(true)
-        onReady?.()
-      }}
-      onLoad={onReady}
-      src={artworkUrl}
-    />
+    <>
+      {fallback}
+      {rendererUrl && !rendererFailed ? (
+        <iframe
+          className={`absolute top-1/2 left-1/2 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0 transition-opacity duration-500 ${
+            rendererReady ? 'opacity-100' : 'opacity-0'
+          }`}
+          onError={() => {
+            setRendererFailed(true)
+            onReady?.()
+          }}
+          onLoad={() => {
+            setRendererReady(true)
+            onReady?.()
+          }}
+          referrerPolicy="no-referrer"
+          sandbox="allow-same-origin allow-scripts"
+          src={rendererUrl}
+          tabIndex={-1}
+          title={`Interactive commemorative NFT artwork for ${eligibility.rendererName}`}
+        />
+      ) : null}
+    </>
   )
 }
