@@ -220,26 +220,22 @@ const useUpdateEthAddressMutation = ({
 
       if (ethAddress?.toLowerCase() === walletAddress.toLowerCase()) return
 
-      try {
-        await saveRecords({
-          name: selectedName,
-          before: {
-            texts: [],
-            coins: ethAddress ? [{ coinType: 60, value: ethAddress }] : [],
-          },
-          after: {
-            texts: [],
-            coins: [{ coinType: 60, value: getAddress(walletAddress) }],
-          },
-          signer: account.signer,
-          accountAddress: account.accountAddress,
-          publicClient: publicClient as PublicClient,
-          chainId,
-          resolverAddress,
-        })
-      } catch (cause) {
-        throw new ResolverNotControlledError({ cause })
-      }
+      await saveRecords({
+        name: selectedName,
+        before: {
+          texts: [],
+          coins: ethAddress ? [{ coinType: 60, value: ethAddress }] : [],
+        },
+        after: {
+          texts: [],
+          coins: [{ coinType: 60, value: getAddress(walletAddress) }],
+        },
+        signer: account.signer,
+        accountAddress: account.accountAddress,
+        publicClient: publicClient as PublicClient,
+        chainId,
+        resolverAddress,
+      })
     },
     onError: (error) => {
       console.error('Failed to set ETH address record:', error)
@@ -262,12 +258,21 @@ const useSetupResolverMutation = ({
   readonly account: SmartAccountContextValue
   readonly chainId: number
   readonly selectedName: string | null
-}) =>
-  useMutation({
+}) => {
+  const { t } = useLingui()
+
+  return useMutation({
     mutationFn: async () => {
       const { signer } = account
       if (!selectedName || !account.ownerAddress) return
-      if (signer?.type !== 'rhinestone') return
+
+      // Fail closed: a silent no-op here would let set-primary continue without
+      // a writable resolver (e.g. USE_EOA / missing Rhinestone signer).
+      if (signer?.type !== 'rhinestone') {
+        throw new Error(
+          t`A smart account is required to set up a resolver for this name`,
+        )
+      }
 
       const walletAddress = account.ownerAddress as Address
 
@@ -291,6 +296,7 @@ const useSetupResolverMutation = ({
       console.error('Failed to set up resolver for primary name:', error)
     },
   })
+}
 
 const shouldUpdateEthAddress = ({
   selectedName,
@@ -549,7 +555,7 @@ export const ChoosePrimaryNameDialog = ({
             <Alert variant="warning">
               <AlertCircle />
               <AlertDescription>
-                {t`This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you — you may need to confirm an extra transaction.`}
+                {t`This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you in one step, then set this name as primary.`}
               </AlertDescription>
             </Alert>
           )}

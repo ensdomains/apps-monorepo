@@ -178,6 +178,7 @@ export const SendNameForm = ({
         onOpenChange={setConfirmOpen}
         keepsResolver={keepsResolver}
         keepsRegistry={keepsRegistry}
+        isPreparing={isPreparing}
         onConfirm={handleConfirmProceed}
       />
 
@@ -253,12 +254,14 @@ const TransferConfirmDialog = ({
   onOpenChange,
   keepsResolver,
   keepsRegistry,
+  isPreparing,
   onConfirm,
 }: {
   readonly open: boolean
   readonly onOpenChange: (open: boolean) => void
   readonly keepsResolver: boolean
   readonly keepsRegistry: boolean
+  readonly isPreparing: boolean
   readonly onConfirm: () => void
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
@@ -280,11 +283,18 @@ const TransferConfirmDialog = ({
       </DialogHeader>
 
       <ul className="flex flex-col gap-2 text-sm text-muted-foreground list-disc pl-5">
-        <li>
-          You may keep permission to edit this name’s records after the
-          transfer, since {keepsResolver ? 'the resolver' : 'the registry'}{' '}
-          stays under your control.
-        </li>
+        {keepsResolver && (
+          <li>
+            You may keep permission to edit this name’s records after the
+            transfer, since the resolver stays under your control.
+          </li>
+        )}
+        {keepsRegistry && (
+          <li>
+            You may keep control of this name’s subnames after the transfer,
+            since the registry stays under your control.
+          </li>
+        )}
         <li>
           The recipient may need to deploy their own{' '}
           {match({ keepsResolver, keepsRegistry })
@@ -300,11 +310,15 @@ const TransferConfirmDialog = ({
       </ul>
 
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={isPreparing}
+        >
           Back
         </Button>
-        <Button variant="default" onClick={onConfirm}>
-          Transfer anyway
+        <Button variant="default" onClick={onConfirm} disabled={isPreparing}>
+          {isPreparing ? 'Preparing…' : 'Transfer anyway'}
         </Button>
       </DialogFooter>
     </DialogContent>

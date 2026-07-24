@@ -135,6 +135,10 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "A simpler way to get paid."
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "A smart account is required to set up a resolver for this name"
+msgstr ""
+
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
 msgstr ""
@@ -2479,7 +2483,7 @@ msgid "This name can’t be edited"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you — you may need to confirm an extra transaction."
+msgid "This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you in one step, then set this name as primary."
 msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
