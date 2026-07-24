@@ -25,6 +25,27 @@ const normalizeCount = (value: unknown): number | null => {
   return null
 }
 
+const UNIQUE_SEARCHES_COLUMN = 'unique_searches_last_30d'
+
+const extractCountFromResultRow = (row: unknown, columns: unknown): unknown => {
+  if (Array.isArray(row)) {
+    if (Array.isArray(columns)) {
+      const columnIndex = columns.indexOf(UNIQUE_SEARCHES_COLUMN)
+      if (columnIndex >= 0) {
+        return row[columnIndex]
+      }
+    }
+
+    return row[0]
+  }
+
+  if (row && typeof row === 'object') {
+    return (row as Record<string, unknown>)[UNIQUE_SEARCHES_COLUMN]
+  }
+
+  return undefined
+}
+
 const extractUniqueSearchCount = (payload: unknown): number => {
   if (!payload || typeof payload !== 'object') {
     return 0
@@ -33,19 +54,12 @@ const extractUniqueSearchCount = (payload: unknown): number => {
   const record = payload as Record<string, unknown>
   const results = record.results
 
-  if (
-    !Array.isArray(results) ||
-    !results[0] ||
-    typeof results[0] !== 'object'
-  ) {
+  if (!Array.isArray(results) || results.length === 0) {
     return 0
   }
 
-  return (
-    normalizeCount(
-      (results[0] as Record<string, unknown>).unique_searches_last_30d,
-    ) ?? 0
-  )
+  const rawCount = extractCountFromResultRow(results[0], record.columns)
+  return normalizeCount(rawCount) ?? 0
 }
 
 const resolveEndpointUrl = ResultFn(async function* (env: CloudflareBindings) {

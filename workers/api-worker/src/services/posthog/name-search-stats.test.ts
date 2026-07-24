@@ -44,6 +44,33 @@ describe('getUniqueSearchesLast30dFromPostHog', () => {
     )
   })
 
+  it('reads tabular PostHog endpoint results using columns metadata', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: [[4]],
+          columns: ['unique_searches_last_30d'],
+        }),
+      }),
+    )
+
+    await expect(
+      getUniqueSearchesLast30dFromPostHog(
+        {
+          POSTHOG: {
+            host: 'https://posthog.example',
+            unique_searches_endpoint:
+              'api/environments/test/query_endpoints/unique-searches/run/',
+          },
+          POSTHOG_PERSONAL_API_KEY: 'secret',
+        } as CloudflareBindings,
+        'july24.eth',
+      ),
+    ).resolves.toMatchObject({ value: 4 })
+  })
+
   it('reads the labelled unique search count instead of unrelated numeric fields', async () => {
     vi.stubGlobal(
       'fetch',
