@@ -33,6 +33,7 @@ import {
 import { setupControlledResolver } from './setupControlledResolver'
 
 const SMART_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
+const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const RESOLVER = '0x3333333333333333333333333333333333333333' as Address
 const DEPLOY_CALL = {
   to: '0x00000000000000000000000000000000000000a1' as Address,
@@ -74,12 +75,19 @@ describe('setupControlledResolver', () => {
     const resolver = await setupControlledResolver({
       name: 'leon.eth',
       signer: smartSigner,
+      ownerAddress: OWNER,
       publicClient,
       chainId: CHAIN_ID,
       ...snapshots,
     })
 
     expect(resolver).toBe(RESOLVER)
+    expect(mockedFindExisting).toHaveBeenCalledWith({
+      eoa: OWNER,
+      deployer: SMART_ACCOUNT,
+      publicClient,
+    })
+    expect(mockedDeployCall).toHaveBeenCalledWith(OWNER)
     expect(start).toHaveBeenCalledTimes(1)
     const [intent] = start.mock.calls[0] ?? []
     expect(intent).toEqual({
@@ -102,6 +110,7 @@ describe('setupControlledResolver', () => {
     await setupControlledResolver({
       name: 'leon.eth',
       signer: smartSigner,
+      ownerAddress: OWNER,
       publicClient,
       chainId: CHAIN_ID,
       ...snapshots,
@@ -122,6 +131,7 @@ describe('setupControlledResolver', () => {
       setupControlledResolver({
         name: 'sub.leon.eth',
         signer: smartSigner,
+        ownerAddress: OWNER,
         publicClient,
         chainId: CHAIN_ID,
         ...snapshots,

@@ -277,6 +277,7 @@ const useSetupResolverMutation = ({
       await setupControlledResolver({
         name: selectedName,
         signer,
+        ownerAddress: walletAddress,
         publicClient: publicClient as PublicClient,
         chainId,
         before: { texts: [], coins: [] },

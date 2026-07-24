@@ -23,6 +23,7 @@ export interface SetupControlledResolverParams {
   /** ENS name, with or without the `.eth` suffix */
   name: string
   signer: RhinestoneSigner
+  ownerAddress: Address
   publicClient: PublicClient
   chainId: number
   /** Record diff to write to the freshly-controlled resolver. */
@@ -35,8 +36,8 @@ export interface SetupControlledResolverParams {
  * point the name at it, and write the initial records — one sponsored atomic
  * intent: deploy the owned resolver (skipped when it already exists),
  * `setResolver`, record write. The owned resolver's address is deterministic
- * (CREATE2 keyed off the smart account), so it's predicted up front and the
- * later calls point at it before it's mined.
+ * (CREATE2 keyed off the owner's salt and the smart account as deployer), so
+ * it's predicted up front and the later calls point at it before it's mined.
  *
  * Only supports `.eth` 2LDs — subnames live in a parent registry we can't
  * deploy or point at, so this throws for them before submitting anything.
@@ -46,7 +47,8 @@ export interface SetupControlledResolverParams {
 export async function setupControlledResolver(
   params: SetupControlledResolverParams,
 ): Promise<Address> {
-  const { name, signer, publicClient, chainId, before, after } = params
+  const { name, signer, ownerAddress, publicClient, chainId, before, after } =
+    params
 
   const fullName = name.endsWith('.eth') ? name : `${name}.eth`
   if (!parseInput(fullName).is2LD) {
@@ -55,15 +57,20 @@ export async function setupControlledResolver(
     )
   }
 
-  const account = getSmartAccountAddress(signer)
+  const smartAccount = getSmartAccountAddress(signer)
 
-  // Only look up the owned resolver once: when it doesn't exist yet, simulate
-  // the deterministic deploy address directly instead of going through
-  // predictOwnedPermResAddress, which would repeat the same lookup.
-  const existing = await findExistingPermRes({ eoa: account, publicClient })
+  const existing = await findExistingPermRes({
+    eoa: ownerAddress,
+    deployer: smartAccount,
+    publicClient,
+  })
   const resolver =
     existing ??
-    (await simulateOwnedPermResAddress({ eoa: account, publicClient }))
+    (await simulateOwnedPermResAddress({
+      eoa: ownerAddress,
+      deployer: smartAccount,
+      publicClient,
+    }))
 
   const recordUpdate = await buildRecordsUpdateCalls({
     name,
@@ -74,14 +81,14 @@ export async function setupControlledResolver(
   })
 
   const calls: Call[] = [
-    ...(existing ? [] : [buildDeployOwnedPermResCall(account)]),
+    ...(existing ? [] : [buildDeployOwnedPermResCall(ownerAddress)]),
     buildSetResolverCall({ name, newResolver: resolver }),
     ...recordUpdate.calls,
   ]
 
   const request: TransactionRequest = {
     type: 'rhinestone-intent',
-    from: account,
+    from: smartAccount,
     chainId,
     rhinestoneParams: { calls, sponsored: true },
   }
