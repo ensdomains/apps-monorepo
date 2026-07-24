@@ -252,8 +252,7 @@ const useUpdateEthAddressMutation = ({
  * resolver it can write to. Deploys/assigns a resolver the owner controls, then
  * writes the ETH-address record to it so the name resolves back to the wallet.
  * The dialog runs this in place of `useUpdateEthAddressMutation`, before the
- * reverse record is set. Bundled into one sponsored intent for smart accounts;
- * a short sequence of confirmations for EOAs.
+ * reverse record is set. All bundled into one sponsored atomic intent.
  */
 const useSetupResolverMutation = ({
   account,
@@ -266,20 +265,18 @@ const useSetupResolverMutation = ({
 }) =>
   useMutation({
     mutationFn: async () => {
+      const { signer } = account
       if (!selectedName || !account.ownerAddress) return
-      if (!account.signer || !account.accountAddress) return
+      if (signer?.type !== 'rhinestone') return
 
       const walletAddress = account.ownerAddress as Address
 
       // Deploy the owned resolver, point the name at it, and write the initial
       // ETH-address record. A freshly deployed resolver starts empty, so this
-      // is a plain insert (no prior value to diff against). Smart accounts get
-      // all three steps bundled into one sponsored intent; EOAs run them as a
-      // short sequence of confirmations.
+      // is a plain insert (no prior value to diff against).
       await setupControlledResolver({
         name: selectedName,
-        signer: account.signer,
-        accountAddress: account.accountAddress,
+        signer,
         publicClient: publicClient as PublicClient,
         chainId,
         before: { texts: [], coins: [] },
