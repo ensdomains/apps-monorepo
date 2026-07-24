@@ -1,13 +1,16 @@
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
 import { match } from 'ts-pattern'
+import type { RegistrationStage } from '../../../state/registration.stages'
 
 export type RegisteringTxSnapshot = {
-  value: string
+  value: RegistrationStage
   resolverTxId?: string
   commitmentTxId?: string
   approvalTxId?: string
   registrationTxId?: string
+  ethRecordSyncTxId?: string
+  primaryNameTxId?: string
 }
 
 export type TransactionState = string | undefined
@@ -119,6 +122,34 @@ export const getRegistrationStageMessages = (
     .with({ stage: 'verifyingRegistration' }, () => ({
       stageLabel: msg`Verifying registration on-chain`,
       stageDescription: msg`Confirming the name is now owned by your account`,
+    }))
+    .with({ stage: 'postRegistrationSetup' }, () => ({
+      stageLabel: msg`Finishing setup`,
+      stageDescription: msg`Preparing your newly registered name`,
+    }))
+    .with({ stage: 'syncingEthRecord' }, () => ({
+      stageLabel: msg`Setting ETH address record`,
+      stageDescription: msg`Setting the default wallet address on your name`,
+    }))
+    .with({ stage: 'waitingForEthRecordSync', txState: 'submitting' }, () => ({
+      stageLabel: msg`Setting ETH address record`,
+      stageDescription: msg`Setting the default wallet address on your name`,
+    }))
+    .with({ stage: 'waitingForEthRecordSync' }, () => ({
+      stageLabel: msg`Waiting for ETH address record confirmation`,
+      stageDescription: msg`Waiting for ETH address record confirmation`,
+    }))
+    .with({ stage: 'settingPrimaryName', txState: 'submitting' }, () => ({
+      stageLabel: msg`Setting primary name`,
+      stageDescription: msg`Submitting primary name update`,
+    }))
+    .with({ stage: 'settingPrimaryName', txState: 'pending' }, () => ({
+      stageLabel: msg`Setting primary name`,
+      stageDescription: msg`Waiting for primary name confirmation`,
+    }))
+    .with({ stage: 'settingPrimaryName' }, () => ({
+      stageLabel: msg`Setting primary name`,
+      stageDescription: msg`Submitting primary name update`,
     }))
     .with({ stage: 'success' }, () => ({
       stageLabel: msg`Registration complete`,

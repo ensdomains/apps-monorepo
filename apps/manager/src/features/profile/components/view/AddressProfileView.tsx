@@ -5,7 +5,7 @@ import { profileAddressNamesQuery } from '@/features/profile/service/profileAddr
 import { useSmartAccountContextSafe } from '@/lib/smart-account/SmartAccountContext'
 import { AddressProfileHeader } from './AddressProfileHeader'
 import { AddressProfileNamesList } from './AddressProfileNamesList'
-import { isViewingConnectedAddress } from './ProfileView.helpers'
+import { isViewingConnectedAddress } from './connectedAccounts.helpers'
 
 export const AddressProfileView = ({
   address,

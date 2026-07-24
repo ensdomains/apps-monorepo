@@ -1023,6 +1023,10 @@ msgstr "Fee at this moment"
 msgid "Finalizing registration"
 msgstr "Finalizing registration"
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Finishing setup"
+msgstr "Finishing setup"
+
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
@@ -1126,6 +1130,11 @@ msgstr "I Understand"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Idle"
 msgstr "Idle"
+
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
+msgstr "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
 
 #: src/features/payment/components/index.tsx
 msgid "If your primary card is declined, we will use this card to charge you."
@@ -1597,6 +1606,10 @@ msgid "Preparing wallet..."
 msgstr "Preparing wallet..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Preparing your newly registered name"
+msgstr "Preparing your newly registered name"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing your registration"
 msgstr "Preparing your registration"
 
@@ -2052,9 +2065,21 @@ msgstr "Set up later"
 msgid "Set which ENS name displays as your identity across apps and wallets."
 msgstr "Set which ENS name displays as your identity across apps and wallets."
 
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Setting ETH address record"
+msgstr "Setting ETH address record"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting ETH address..."
 msgstr "Setting ETH address..."
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Setting primary name"
+msgstr "Setting primary name"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Setting the default wallet address on your name"
+msgstr "Setting the default wallet address on your name"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting up registration"
@@ -2220,6 +2245,10 @@ msgstr "Submitting approval and registration"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting commitment transaction"
 msgstr "Submitting commitment transaction"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Submitting primary name update"
+msgstr "Submitting primary name update"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting registration bundle"
@@ -2592,6 +2621,14 @@ msgstr "Waiting for commitment receipt"
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for commitment submission"
 msgstr "Waiting for commitment submission"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for ETH address record confirmation"
+msgstr "Waiting for ETH address record confirmation"
+
+#: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
+msgid "Waiting for primary name confirmation"
+msgstr "Waiting for primary name confirmation"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Waiting for registration"

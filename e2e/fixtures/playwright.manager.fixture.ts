@@ -342,4 +342,5 @@ export {
   authorizeApproveIfRequested,
   authorizeTransaction,
   authorizeTransactions,
+  authorizeTransactionsWhile,
 } from '../helpers/manager-auth.js'
