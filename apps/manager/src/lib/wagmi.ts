@@ -3,17 +3,11 @@ import {
   WALLETCONNECT_PROJECT_ID,
 } from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
-import { connectorsForWallets } from '@rainbow-me/rainbowkit'
-import {
-  frameWallet,
-  injectedWallet,
-  metaMaskWallet,
-  walletConnectWallet,
-} from '@rainbow-me/rainbowkit/wallets'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
+import { walletConnect } from 'wagmi/connectors'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 export { WALLETCONNECT_PROJECT_ID }
@@ -89,21 +83,16 @@ export const wagmiConfig = createConfig({
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
   },
+  // Injected wallets (MetaMask, Rabby, Frame, …) are discovered via EIP-6963
+  // (multiInjectedProviderDiscovery above), so WalletConnect is the only
+  // explicit connector — same setup as the portal app.
   connectors: [
-    ...connectorsForWallets(
-      [
-        {
-          groupName: 'Popular',
-          wallets: [
-            injectedWallet,
-            metaMaskWallet,
-            walletConnectWallet,
-            frameWallet,
-          ],
-        },
-      ],
-      { projectId: WALLETCONNECT_PROJECT_ID, appName: 'ENS Manager' },
-    ),
+    walletConnect({
+      projectId: WALLETCONNECT_PROJECT_ID,
+      // The QR modal follows the OS theme by default; the manager app is
+      // light-only, so pin it.
+      qrModalOptions: { themeMode: 'light' },
+    }),
     // Test-only: auto-signing wallet for Playwright/agents. Off in production.
     ...(isMockWalletEnabled ? [mockConnector] : []),
   ],

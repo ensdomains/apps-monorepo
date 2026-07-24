@@ -138,7 +138,7 @@ msgstr "A simple, portable identity that you control"
 msgid "A simpler way to get paid."
 msgstr "A simpler way to get paid."
 
-#: src/features/profile/components/view-new/ProfileViewNewAbout.tsx
+#: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
 msgstr "About"
 
@@ -167,7 +167,7 @@ msgid "Add credit card"
 msgstr "Add credit card"
 
 #: src/features/dashboard/components/NameRow.tsx
-#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Add favorite"
 msgstr "Add favorite"
 
@@ -201,7 +201,7 @@ msgstr "Additional fee"
 msgid "Address"
 msgstr "Address"
 
-#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Addresses"
 msgstr "Addresses"
 
@@ -361,10 +361,6 @@ msgstr "Billing country"
 msgid "Billing zip code"
 msgstr "Billing zip code"
 
-#: src/features/profile/components/view/ViewBioSection.tsx
-msgid "Bio"
-msgstr "Bio"
-
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
 msgstr "Blog"
@@ -423,7 +419,7 @@ msgstr "Card security code"
 msgid "Carving your name into the blockchain"
 msgstr "Carving your name into the blockchain"
 
-#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Chain-specific addresses"
 msgstr "Chain-specific addresses"
 
@@ -476,10 +472,6 @@ msgstr "Clear search"
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr "Click the button below to verify your email address and start receiving notifications."
-
-#: src/features/profile/components/view/ViewBioSection.tsx
-msgid "Click to copy"
-msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
@@ -611,7 +603,7 @@ msgid "Connection Details"
 msgstr "Connection Details"
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
-#: src/features/profile/components/view-new/ProfileViewNewContacts.tsx
+#: src/features/profile/components/view/ProfileContactSection.tsx
 msgid "Contact"
 msgstr "Contact"
 
@@ -644,8 +636,8 @@ msgid "Copy Link"
 msgstr "Copy Link"
 
 #: src/components/atoms/CopyToClipboard/CopyToClipboard.tsx
-#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
 #: src/features/profile/components/view/AddressProfileHeader.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
@@ -771,7 +763,7 @@ msgid "Done"
 msgstr "Done"
 
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialog.tsx
-#: src/features/profile/components/view-new/ProfileViewNewEditAction.tsx
+#: src/features/profile/components/view/ProfileEditAction.tsx
 msgid "Edit Profile"
 msgstr "Edit Profile"
 
@@ -887,8 +879,7 @@ msgstr "Estimating..."
 
 #: src/components/molecules/DomainResultCard/DomainProfileCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx
-#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
 #: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
@@ -961,7 +952,6 @@ msgstr "Failed to fund wallet: {0}"
 msgid "Failed to load notifications"
 msgstr "Failed to load notifications"
 
-#: src/features/profile/components/view-new/ProfileViewNew.tsx
 #: src/features/profile/components/view/ProfileView.tsx
 msgid "Failed to load registration data for this name."
 msgstr "Failed to load registration data for this name."
@@ -1132,7 +1122,6 @@ msgid "Idle"
 msgstr "Idle"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
 msgstr "If your connected wallet has fewer than two names and no primary name yet, ENS may set this name as your primary name and link it to your connected wallet automatically."
 
@@ -1189,8 +1178,7 @@ msgstr "Link copied to clipboard"
 msgid "links"
 msgstr "links"
 
-#: src/features/profile/components/view-new/ProfileViewNewLinks.tsx
-#: src/features/profile/components/view/ViewLinksSection.tsx
+#: src/features/profile/components/view/ProfileLinksSection.tsx
 msgid "Links"
 msgstr "Links"
 
@@ -1223,7 +1211,7 @@ msgstr "Loading..."
 msgid "Long-term identity"
 msgstr "Long-term identity"
 
-#: src/features/profile/components/view-new/ProfileViewNewAddresses.tsx
+#: src/features/profile/components/view/ProfileAddressesSection.tsx
 msgid "Main receiving address"
 msgstr "Main receiving address"
 
@@ -1425,10 +1413,6 @@ msgstr "No wallet connected yet"
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
 
-#: src/features/profile/components/view/ViewBioSection.tsx
-msgid "Not set"
-msgstr "Not set"
-
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
 msgid "Not supported"
@@ -1489,12 +1473,8 @@ msgstr "Over 2 million ENS names registered"
 msgid "Owned"
 msgstr "Owned"
 
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx
-msgid "Owned by"
-msgstr "Owned by"
-
 #: src/features/dashboard/components/DashboardPills.tsx
-#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
 msgstr "Owner"
 
@@ -1621,10 +1601,6 @@ msgstr "Preparing your wallet with gas for the upgrade..."
 msgid "Previous card"
 msgstr "Previous card"
 
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx
-msgid "Previous owner"
-msgstr "Previous owner"
-
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Previous page"
 msgstr "Previous page"
@@ -1661,7 +1637,7 @@ msgstr "Primary name set successfully"
 msgid "Privacy Policy"
 msgstr "Privacy Policy"
 
-#: src/features/profile/components/view-new/ProfileViewNewActions.tsx
+#: src/features/profile/components/view/ProfileActions.tsx
 msgid "Profile actions"
 msgstr "Profile actions"
 
@@ -1717,13 +1693,9 @@ msgstr "Register to date"
 #: src/features/landing/components/ProfileCard.tsx
 #: src/features/migration/components/ProfileCardPreview.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
-#: src/features/profile/components/view-new/ProfileViewNewDetails.tsx
+#: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Registered"
 msgstr "Registered"
-
-#: src/features/profile/components/view/AddressProfileView.tsx
-#~ msgid "Registered ENS names"
-#~ msgstr "Registered ENS names"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
@@ -1803,7 +1775,7 @@ msgid "Remove Email Contact Method?"
 msgstr "Remove Email Contact Method?"
 
 #: src/features/dashboard/components/NameRow.tsx
-#: src/features/profile/components/view-new/ProfileViewNewFavoriteAction.tsx
+#: src/features/profile/components/view/ProfileFavoriteAction.tsx
 msgid "Remove favorite"
 msgstr "Remove favorite"
 
@@ -1847,7 +1819,7 @@ msgstr "Renew"
 msgid "Renew name"
 msgstr "Renew name"
 
-#: src/features/profile/components/view-new/ProfileViewNewRenewAction.tsx
+#: src/features/profile/components/view/ProfileRenewAction.tsx
 #: src/features/renew/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Renew Name"
@@ -2037,9 +2009,17 @@ msgstr "Send Verification"
 msgid "Sending..."
 msgstr "Sending..."
 
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Set {domainName} as your primary name"
+msgstr "Set {domainName} as your primary name"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Set as Primary"
 msgstr "Set as Primary"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Set as primary name"
+msgstr "Set as primary name"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Set it as your primary name from the primary name card on your Dashboard."
@@ -2105,7 +2085,7 @@ msgstr "Settings"
 msgid "Share"
 msgstr "Share"
 
-#: src/features/profile/components/view-new/ProfileViewNewShareAction.tsx
+#: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share profile"
 msgstr "Share profile"
 
@@ -2195,7 +2175,7 @@ msgstr "Smart account ready"
 msgid "Smart sessions are required to use this app."
 msgstr "Smart sessions are required to use this app."
 
-#: src/features/profile/components/view-new/ProfileViewNewSocial.tsx
+#: src/features/profile/components/view/ProfileSocialSection.tsx
 msgid "Social"
 msgstr "Social"
 
@@ -2349,10 +2329,6 @@ msgstr "The renewal for {label}.eth could not be completed. You can retry or go 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "There was a problem verifying your email address."
 msgstr "There was a problem verifying your email address."
-
-#: src/features/profile/components/view/AddressProfileView.tsx
-#~ msgid "This address does not have a primary ENS name."
-#~ msgstr "This address does not have a primary ENS name."
 
 #: src/features/payment/components/add.tsx
 #: src/features/payment/components/index.tsx
@@ -2879,6 +2855,10 @@ msgstr "Your name is in grace period"
 msgid "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 apps with your <0>.eth name</0> and your ENS profile will load automatically."
 
+#: src/features/register-v2/workflow/registering/components/PrimaryNameSetupNotice.tsx
+msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
+msgstr "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
+
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
 msgstr "Your names are ready to upgrade"
@@ -2906,6 +2886,10 @@ msgstr "Your registration is in progress. Leaving may interrupt it. Are you sure
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
 msgstr "Your renewal is in progress. Leaving may interrupt it. Are you sure you want to leave?"
+
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
+msgstr "Your wallet address can only have one primary name, which will display instead of your wallet address across apps. You'll be prompted to confirm this additional transaction after registration."
 
 #: src/routes/wallet.tsx
 msgid "Your wallet is successfully connected to the application"
