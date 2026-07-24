@@ -7,6 +7,7 @@ declare namespace Cloudflare {
 	}
 	interface Env {
 		KV: KVNamespace;
+		COMMEMORATIVE_NFT_BUCKET: R2Bucket;
 		EVENT_INGESTION_QUEUE: Queue;
 		TELEGRAM_QUEUE: Queue;
 		EMAIL_QUEUE: Queue;
@@ -14,6 +15,7 @@ declare namespace Cloudflare {
 		DLQ: Queue;
 		CHAIN: "sepolia";
 		BASE_URL: "https://app-api.ens.dev";
+		COMMEMORATIVE_NFT_GENERATOR_URL: "";
 		ENS_INDEXER_GRAPHQL_URL: "https://graphql.ens.dev/";
 		MANAGER_APP_URL: "https://app.ens.dev";
 		VAPID_SUBJECT: "mailto:notifications@ens.domains";
@@ -30,6 +32,7 @@ declare namespace Cloudflare {
 		DATABASE_URL: string;
 		SENDGRID_WEBHOOK_VERIFICATION_KEY: string;
 		VAPID_PRIVATE_KEY: string;
+		COMMEMORATIVE_NFT_GENERATOR_TOKEN: string;
 	}
 }
 interface CloudflareBindings extends Cloudflare.Env {}
@@ -37,7 +40,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CHAIN" | "BASE_URL" | "ENS_INDEXER_GRAPHQL_URL" | "MANAGER_APP_URL" | "VAPID_SUBJECT" | "VAPID_PUBLIC_KEY" | "SENDGRID_BROADCAST_LIST_ID" | "SENDGRID_TEMPLATE_IDS" | "TELEGRAM_WEBHOOK_SECRET" | "JWT_SECRET" | "TELEGRAM_BOT_TOKEN" | "SENDGRID_API_KEY" | "EMAIL_FROM_ADDRESS" | "ETH_PRIVATE_KEY" | "SEPOLIA_RPC_URL" | "DATABASE_URL" | "SENDGRID_WEBHOOK_VERIFICATION_KEY" | "VAPID_PRIVATE_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CHAIN" | "BASE_URL" | "COMMEMORATIVE_NFT_GENERATOR_URL" | "ENS_INDEXER_GRAPHQL_URL" | "MANAGER_APP_URL" | "VAPID_SUBJECT" | "VAPID_PUBLIC_KEY" | "SENDGRID_BROADCAST_LIST_ID" | "SENDGRID_TEMPLATE_IDS" | "TELEGRAM_WEBHOOK_SECRET" | "JWT_SECRET" | "TELEGRAM_BOT_TOKEN" | "SENDGRID_API_KEY" | "EMAIL_FROM_ADDRESS" | "ETH_PRIVATE_KEY" | "SEPOLIA_RPC_URL" | "DATABASE_URL" | "SENDGRID_WEBHOOK_VERIFICATION_KEY" | "VAPID_PRIVATE_KEY" | "COMMEMORATIVE_NFT_GENERATOR_TOKEN">> {}
 }
 
 // Begin runtime types

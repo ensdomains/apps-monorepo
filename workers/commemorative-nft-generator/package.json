@@ -1,0 +1,22 @@
+{
+  "name": "commemorative-nft-generator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsgo -p tsconfig.build.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run",
+    "typecheck": "tsgo -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@types/node": "^24.3.1",
+    "aws4fetch": "^1.0.20",
+    "playwright-core": "1.58.2"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "catalog:",
+    "tsx": "^4.21.0",
+    "vitest": "catalog:"
+  }
+}

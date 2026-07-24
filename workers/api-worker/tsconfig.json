@@ -11,5 +11,10 @@
     "jsxImportSource": "hono/jsx",
     "rootDir": "."
   },
-  "include": ["src/**/*", "worker-configuration.gen.d.ts", "drizzle.config.ts"]
+  "include": [
+    "src/**/*",
+    "scripts/**/*",
+    "worker-configuration.gen.d.ts",
+    "drizzle.config.ts"
+  ]
 }
