@@ -4,7 +4,7 @@ import { mock } from 'wagmi'
 // Test-only mock wallet — mirrors the setup in `ens-app-v3`.
 //
 // When `VITE_USE_MOCK_WALLET === 'true'` the app registers wagmi's `mock`
-// connector alongside the RainbowKit wallets and auto-connects it on load (see
+// connector alongside the wallet connectors and auto-connects it on load (see
 // `MockWalletAutoConnect`), so an automated browser (Playwright / agents) never
 // has to click through the connect modal or a signing prompt. The `mock`
 // connector forwards `eth_sendTransaction`/`eth_sign*` as raw JSON-RPC to the

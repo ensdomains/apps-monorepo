@@ -10,8 +10,6 @@ import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
-export { WALLETCONNECT_PROJECT_ID }
-
 // Manager owns its Sepolia RPC URL — it must NOT reuse the RPC URL exported by
 // `@ens-apps/indexer/chain`, so each app's DRPC key is attributed separately.
 // This key is shipped in the browser bundle and is therefore not secret; it
