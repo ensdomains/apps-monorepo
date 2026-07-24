@@ -100,7 +100,7 @@ export const SendNameForm = ({
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const runTransfer = () => {
-    if (!recipient) return
+    if (!recipient || !resetTargetsSettled) return
     startTransfer({ recipient, options: effectiveOptions })
   }
 
