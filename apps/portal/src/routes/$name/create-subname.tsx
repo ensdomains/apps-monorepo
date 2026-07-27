@@ -28,6 +28,7 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
+import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 const getClient = () => wagmiConfig.getClient()
@@ -134,12 +135,14 @@ const CreateSubnameForm = ({
   })
 
   const trimmedLabel = label.trim()
+  const labelError = getLabelRegistrationError(trimmedLabel)
   const isLabelTaken = Boolean(
     trimmedLabel && existingSubnames?.some((s) => s.labelName === trimmedLabel),
   )
 
   const handleStartTransaction = () => {
-    if (!hasSubregistry || !ownerAddress || !resolverAddress) return
+    if (!hasSubregistry || !ownerAddress || !resolverAddress || labelError)
+      return
 
     // When time-travel is active, Anvil's block time can be far ahead of
     // Date.now(). Use a 100-year window so the expiry is never stale on-chain.
@@ -232,7 +235,7 @@ const CreateSubnameForm = ({
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <Field data-invalid={isLabelTaken}>
+        <Field data-invalid={isLabelTaken || Boolean(labelError)}>
           <FieldLabel htmlFor="label">Subname</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
@@ -252,6 +255,7 @@ const CreateSubnameForm = ({
               {trimmedLabel}.{name} is already registered.
             </p>
           )}
+          {labelError && <p className="text-sm text-danger">{labelError}</p>}
         </Field>
 
         <Field data-invalid={!ownerAddress && !isResolving}>
@@ -353,7 +357,9 @@ const CreateSubnameForm = ({
 
         <Button
           type="submit"
-          disabled={!ownerAddress || !isConnected || isLabelTaken}
+          disabled={
+            !ownerAddress || !isConnected || isLabelTaken || Boolean(labelError)
+          }
           className="w-full sm:w-fit"
         >
           {match({ isSubmitting, isSuccess })

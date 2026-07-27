@@ -55,3 +55,29 @@ export const isValidEnsName = (name: string) => {
     }
   })
 }
+
+/**
+ * Validation for a label being REGISTERED (create-subname and similar
+ * inputs). Display/resolution contexts accept encoded labelhashes, but
+ * registration must not: a literal `[…hash…]` label would later be
+ * indistinguishable from a genuine encoded labelhash (a known ENS spoofing
+ * vector), so bracket-wrapped labels are rejected outright.
+ *
+ * Returns a user-facing error message, or `null` when the label is
+ * registrable.
+ */
+export const getLabelRegistrationError = (label: string): string | null => {
+  if (!label) {
+    return null
+  }
+  if (label.includes('.')) {
+    return 'Subname must be a single label — dots are not allowed.'
+  }
+  if (label.startsWith('[') && label.endsWith(']')) {
+    return 'Labels in [labelhash] form cannot be registered - this notation is reserved for displaying unknown labels.'
+  }
+  if (!isNormalizedLabel(label)) {
+    return 'Label contains invalid or non-normalized characters.'
+  }
+  return null
+}

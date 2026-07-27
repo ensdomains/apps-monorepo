@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isNormalized, isValidEnsName } from './isNormalized'
+import {
+  getLabelRegistrationError,
+  isNormalized,
+  isValidEnsName,
+} from './isNormalized'
 
 describe('isNormalized', () => {
   it('should return true for normalized ENS names', () => {
@@ -77,5 +81,32 @@ describe('encoded labelhash labels', () => {
         '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f93977z].eth',
       ),
     ).toBe(false) // non-hex
+  })
+})
+
+describe('getLabelRegistrationError', () => {
+  it('allows normal registrable labels', () => {
+    expect(getLabelRegistrationError('mysubname')).toBe(null)
+    expect(getLabelRegistrationError('test-123')).toBe(null)
+    expect(getLabelRegistrationError('')).toBe(null)
+  })
+
+  it('rejects bracket-form labels (encoded labelhash spoofing)', () => {
+    expect(
+      getLabelRegistrationError(
+        '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f939773]',
+      ),
+    ).toMatch(/cannot be registered/)
+    expect(getLabelRegistrationError('[abc]')).toMatch(/cannot be registered/)
+  })
+
+  it('rejects dots and non-normalized labels', () => {
+    expect(getLabelRegistrationError('a.b')).toMatch(/single label/)
+    expect(getLabelRegistrationError('MySub')).toMatch(
+      /invalid or non-normalized/,
+    )
+    expect(getLabelRegistrationError('bad name')).toMatch(
+      /invalid or non-normalized/,
+    )
   })
 })
