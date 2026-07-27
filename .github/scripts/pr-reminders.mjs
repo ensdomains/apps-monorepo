@@ -136,11 +136,14 @@ if (needsReview.length > 0)
       return prLine(pr, who)
     }),
   })
-if (needsQaLabel.length > 0)
+if (needsQaLabel.length > 0) {
+  // Tag the QA crew once per digest (on the heading), not on every line.
+  const qaCrew = (config.qaEngineers ?? []).map(mention).join(' ')
   sections.push({
-    heading: `:white_check_mark: Approved but missing "${config.qaLabel}"`,
+    heading: `:white_check_mark: Approved but missing "${config.qaLabel}"${qaCrew ? ` — cc ${qaCrew}` : ''}`,
     lines: needsQaLabel.map((pr) => prLine(pr, mention(pr.author.login))),
   })
+}
 if (hasConflicts.length > 0)
   sections.push({
     heading: ':boom: Merge conflicts',
