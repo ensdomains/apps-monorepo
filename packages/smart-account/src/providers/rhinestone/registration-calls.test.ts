@@ -86,21 +86,16 @@ describe('buildRevealBatch ordering', () => {
     expect((decoded.args as any)[3]).toBe(true)
   })
 
-  it('prepends deployProxy when the resolver is not deployed, folding the record writes into initialize', () => {
+  it('prepends deployProxy with EMPTY initialize setters, records standalone', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
     expect(calls[0].to.toLowerCase()).toBe(C.verifiableFactory.toLowerCase())
-    // deployProxy → approve → register → authorizeNameRoles. The `setAddr` is
-    // NOT a standalone call: it rides inside `initialize`'s setters. (The one
-    // resolver-targeting call left is `authorizeNameRoles`.)
-    expect(calls).toHaveLength(4)
-    const setAddrSelector = calls.filter(
-      (c) =>
-        c.to.toLowerCase() === RESOLVER.toLowerCase() &&
-        c.data.startsWith('0x8b95dd71'), // setAddr(bytes32,uint256,bytes)
-    )
-    expect(setAddrSelector).toHaveLength(0)
+    // deployProxy → approve → register → setAddr → authorizeNameRoles
+    expect(calls).toHaveLength(5)
 
-    // deployProxy(impl, salt, initialize(hca, ROLES_ALL, [setAddr(...)]))
+    // `setters` MUST be empty: HCAOwnerAndSessionValidator rebuilds the
+    // expected deployProxy calldata with `initialize(account, ALL_ROLES, [])`
+    // and compares keccak hashes. Folding the record writes in here reverts
+    // with PolicyRuleFailed() (0xe50c42ea), surfaced as InvalidSignature().
     const deploy = decodeFunctionData({
       abi: verifiableFactoryDeployProxySnippet,
       data: calls[0].data,
@@ -112,14 +107,19 @@ describe('buildRevealBatch ordering', () => {
     expect(init.functionName).toBe('initialize')
     expect((init.args as any)[0].toLowerCase()).toBe(HCA.toLowerCase())
     expect((init.args as any)[1]).toBe(EXPECTED_ROLES_ALL)
+    expect((init.args as any)[2]).toHaveLength(0)
 
-    const setters = (init.args as any)[2] as Hex[]
-    expect(setters).toHaveLength(1)
+    // ...and the record write is a standalone, individually-whitelisted call.
+    const setAddrCalls = calls.filter(
+      (c) =>
+        c.to.toLowerCase() === RESOLVER.toLowerCase() &&
+        c.data.startsWith('0x8b95dd71'), // setAddr(bytes32,uint256,bytes)
+    )
+    expect(setAddrCalls).toHaveLength(1)
     const setAddr = decodeFunctionData({
       abi: publicResolverSetAddrSnippet,
-      data: setters[0],
+      data: setAddrCalls[0].data,
     })
-    expect(setAddr.functionName).toBe('setAddr')
     expect((setAddr.args as any)[1]).toBe(60n) // COIN_TYPE_ETH
     expect(((setAddr.args as any)[2] as string).toLowerCase()).toBe(
       WALLET.toLowerCase(),

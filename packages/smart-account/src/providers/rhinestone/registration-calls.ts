@@ -230,9 +230,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   const calls: Call[] = []
 
   // The record writes for this name: the default `addr` (the wallet) plus any
-  // selected text records. Encoded once and then either folded into the
-  // resolver's `initialize(...)` (fresh deploy) or issued as standalone calls
-  // (resolver already exists from a prior registration).
+  // selected text records. Always issued as standalone calls (step 4).
   const recordSetters: Hex[] = [
     encodeFunctionData({
       abi: publicResolverSetAddrSnippet,
@@ -251,15 +249,17 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
       ),
   ]
 
-  // 1. deployProxy (omit when resolver exists) — the record writes ride along
-  //    inside `initialize`'s `setters` multicall.
+  // 1. deployProxy (omit when resolver exists).
   //
-  //    `PermissionedResolver.initialize(admin, roleBitmap, setters)` grants the
-  //    HCA its roles and then runs `setters` via a self-delegatecall while
-  //    `_isInitializing()` is still true — and the resolver overrides
-  //    `_checkRoles` to skip permission checks during initialization. So the
-  //    setters execute even though `msg.sender` is the VerifiableFactory (which
-  //    holds no roles), with no need to grant/revoke a temporary factory role.
+  //    `setters` MUST be empty. `HCAOwnerAndSessionValidator._checkResolverDeployment`
+  //    reconstructs the expected calldata as
+  //      deployProxy(PERMITTED_RESOLVER_IMPL, salt, initialize(account, ALL_ROLES, []))
+  //    and compares `keccak256(callData)` against it, so folding the record
+  //    writes into `setters` — even though the resolver would happily execute
+  //    them during initialization — makes the hashes differ and reverts with
+  //    `PolicyRuleFailed()` (0xe50c42ea), which the emissary re-wraps as
+  //    `InvalidSignature()`. Records go out as standalone calls in step 4;
+  //    their selectors are individually whitelisted by the same policy.
   if (!params.resolverDeployed) {
     const salt = computeResolverSalt(params.hca)
     calls.push({
@@ -274,7 +274,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
           encodeFunctionData({
             abi: permissionedResolverInitializeAbi,
             functionName: 'initialize',
-            args: [params.hca, ROLES_ALL, recordSetters],
+            args: [params.hca, ROLES_ALL, []],
           }),
         ],
       }),
@@ -312,16 +312,12 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
     }),
   })
 
-  // 4. resolver setters — only when the resolver ALREADY exists. On a fresh
-  //    deploy these same setters ran inside `initialize` above (step 1), so
-  //    re-issuing them here would just burn gas rewriting identical values.
-  //    An existing resolver is past initialization, so these are ordinary
-  //    permissioned writes — authorized because the HCA holds the root roles
-  //    granted when it was first initialized.
-  if (params.resolverDeployed) {
-    for (const data of recordSetters) {
-      calls.push({ to: params.resolver, value: 0n, data })
-    }
+  // 4. resolver setters — ALWAYS standalone, on both the fresh-deploy and the
+  //    existing-resolver path (see step 1: the policy forbids folding them into
+  //    `initialize`). These are ordinary permissioned writes, authorized because
+  //    the HCA holds the root roles granted by `initialize`.
+  for (const data of recordSetters) {
+    calls.push({ to: params.resolver, value: 0n, data })
   }
 
   // 5. primary name (default.reverse) — only when selected
