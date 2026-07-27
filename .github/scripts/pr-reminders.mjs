@@ -114,8 +114,13 @@ const mention = (login) => {
   return id && !id.startsWith('REPLACE') ? `<@${id}>` : `@${login}`
 }
 
+// PR titles are contributor-controlled; escape Slack's control characters so
+// a title containing e.g. <!channel> can't trigger notifications from the bot.
+const escapeSlack = (s) =>
+  s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+
 const prLine = (pr, who) =>
-  `• <${pr.url}|#${pr.number}> ${pr.title.slice(0, 80)} — ${who}`
+  `• <${pr.url}|#${pr.number}> ${escapeSlack(pr.title.slice(0, 80))} — ${who}`
 
 const sections = []
 if (needsReview.length > 0)
