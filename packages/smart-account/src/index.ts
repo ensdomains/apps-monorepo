@@ -67,6 +67,8 @@ export {
   isRhinestoneSession,
   isSessionExpired,
   ONCHAIN_ACCOUNT_ID,
+  type QuoteLegResult,
+  type QuoteMarketData,
   type ResolverRecord,
   type RevealBatchParams,
   type RhinestoneInitConfig,

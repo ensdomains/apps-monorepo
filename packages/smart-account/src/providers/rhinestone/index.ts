@@ -27,6 +27,8 @@ export {
   type HcaBudgetParams,
   type HcaLeg,
   type QuoteLegCostUsdc,
+  type QuoteLegResult,
+  type QuoteMarketData,
 } from './budget'
 export {
   buildStandaloneAccountConfig,

@@ -31,6 +31,7 @@ import {
   type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
+  type QuoteLegResult,
   readCommitment,
   readRegisterPrice,
 } from '@ens-apps/smart-account'
@@ -109,8 +110,8 @@ async function quoteIntentSpendUsdc(
   calls: Call[],
   gasLimit: bigint,
   signers?: Transaction['signers'],
-): Promise<bigint | null> {
-  const prepared = await account.prepareTransaction({
+): Promise<QuoteLegResult> {
+  const prepared = (await account.prepareTransaction({
     sourceChains: [chain],
     targetChain: chain,
     calls: [...calls],
@@ -119,17 +120,33 @@ async function quoteIntentSpendUsdc(
     tokenRequests: [],
     gasLimit,
     ...(signers ? { signers } : {}),
-  } as Transaction)
-  const received = (
-    prepared as {
-      intentRoute?: {
-        intentCost?: { tokensReceived?: { amountSpent?: string }[] }
-      }
-    }
-  ).intentRoute?.intentCost?.tokensReceived?.[0]?.amountSpent
-  if (received === undefined) return null
-  const value = BigInt(received)
-  return value > 0n ? value : null
+  } as Transaction)) as PreparedQuote
+
+  const route = prepared.intentRoute
+  const received = route?.intentCost?.tokensReceived?.[0]?.amountSpent
+  const spend = received === undefined ? null : BigInt(received)
+
+  // The same response carries the orchestrator's own ETH/USDC prices and the
+  // destination gas price. Surface them so the fallback model never needs the
+  // internal `/deposit-processor/prices` route, which has no CORS headers and
+  // therefore always failed in the browser.
+  const meta = route?.intentOp?.signedMetadata
+  const ethUsd = meta?.tokenPrices?.ETH
+  const usdcUsd = meta?.tokenPrices?.USDC
+  const gasPriceRaw = meta?.gasPrices?.[String(chain.id)]
+  const market =
+    ethUsd && ethUsd > 0 && usdcUsd && usdcUsd > 0 && gasPriceRaw
+      ? {
+          ethUsd8: BigInt(Math.round(ethUsd * 1e8)),
+          usdcUsd8: BigInt(Math.round(usdcUsd * 1e8)),
+          gasPriceWei: BigInt(gasPriceRaw),
+        }
+      : undefined
+
+  return {
+    spendUsdc: spend !== null && spend > 0n ? spend : null,
+    ...(market ? { market } : {}),
+  }
 }
 
 /**
@@ -141,6 +158,46 @@ async function quoteIntentSpendUsdc(
  * Sepolia gas-price spikes. Falls back to a clamped gas-limit model per leg
  * when the account/session isn't available or a quote fails.
  */
+/** The subset of `prepareTransaction`'s response this module reads. */
+type PreparedQuote = {
+  intentRoute?: {
+    intentCost?: { tokensReceived?: { amountSpent?: string }[] }
+    intentOp?: {
+      signedMetadata?: {
+        tokenPrices?: Record<string, number>
+        gasPrices?: Record<string, string>
+      }
+    }
+  }
+}
+
+/** The session-signed variant of the SDK's `signers` union. */
+type SessionSigners = Extract<
+  NonNullable<Transaction['signers']>,
+  { type: 'experimental_session' }
+>
+
+/** Session-signed `signers` for a quote, or `undefined` to quote owner-signed. */
+function sessionSigners(
+  activeSession: RhinestoneSigner['session'],
+): SessionSigners | undefined {
+  return activeSession
+    ? {
+        type: 'experimental_session',
+        session: activeSession.session,
+        verifyExecutions: true,
+      }
+    : undefined
+}
+
+/** Attach first-use `enableData`, but only to an existing session signer. */
+function withEnableData(
+  signers: SessionSigners | undefined,
+  enableData: SessionEnableData | undefined,
+): SessionSigners | undefined {
+  return signers && enableData ? { ...signers, enableData } : signers
+}
+
 export function estimateHcaBudgetActor(input: {
   name: string
   duration: bigint
@@ -148,28 +205,30 @@ export function estimateHcaBudgetActor(input: {
   chainId: number
   signer?: Signer
   sessionEnable?: HcaSessionEnableParams
-  apiKey?: string
 }): ResultAsync<HcaBudgetBreakdown, Error> {
   const label = cleanLabel(input.name)
   const chainId = input.chainId
 
-  // Build a best-effort per-leg quoter when we have a Rhinestone signer with an
-  // active session (needed to shape the session-signed intents).
+  // Build a best-effort per-leg quoter whenever we have a Rhinestone account.
+  //
+  // An active session is NOT required. A first-time user has no session at
+  // budget time (it is enabled by the commit leg itself), so gating the quoter
+  // on one meant new users could never quote and always fell through to the
+  // fallback model — which, because the price service is unreachable from the
+  // browser (see `estimateHcaBudget`), degrades further to a flat per-leg fee
+  // and massively over-funds the HCA. Without a session we still quote, just
+  // owner-signed: the batch shape (and therefore its cost) is the same.
   const rhinestone =
     input.signer?.type === 'rhinestone' ? input.signer : undefined
   const chain = input.publicClient.chain
   const activeSession = rhinestone?.session
 
   const quoteLegCostUsdc =
-    rhinestone && activeSession && chain
-      ? async (leg: HcaLeg): Promise<bigint | null> => {
+    rhinestone && chain
+      ? async (leg: HcaLeg): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
           const resolver = computeResolverAddress({ chainId, hca })
-          const baseSigners: Transaction['signers'] = {
-            type: 'experimental_session',
-            session: activeSession.session,
-            verifyExecutions: true,
-          }
+          const baseSigners = sessionSigners(activeSession)
           if (leg === 'commit') {
             // Quote the SAME shape `submitFundingAndCommitActor` submits: when
             // the session still needs enabling, the commit intent carries
@@ -179,9 +238,10 @@ export function estimateHcaBudgetActor(input: {
             // `HCA_LEG_GAS_LIMITS.commit` bound (a proven upper bound over the
             // measured ~393k first-commit fill, which the rail prices the quote
             // on) covers them, so a successful quote never underfunds the HCA.
-            const commitSigners: Transaction['signers'] = input.sessionEnable
-              ? { ...baseSigners, enableData: input.sessionEnable.enableData }
-              : baseSigners
+            const commitSigners = withEnableData(
+              baseSigners,
+              input.sessionEnable?.enableData,
+            )
             const calls: Call[] = []
             if (input.sessionEnable) {
               const enableCall = buildEnableSessionWithRefundCall({
@@ -254,7 +314,6 @@ export function estimateHcaBudgetActor(input: {
       chainId,
       label,
       duration: input.duration,
-      ...(input.apiKey ? { apiKey: input.apiKey } : {}),
       ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
     }).then((breakdown) => {
       // `source` tells you whether the leg costs came from Rhinestone's own
@@ -268,6 +327,9 @@ export function estimateHcaBudgetActor(input: {
         registerCost: breakdown.registerCost,
         registerBuffer: breakdown.registerBuffer,
         registrationPrice: breakdown.registrationPrice,
+        ...(breakdown.fallbackReasons
+          ? { fallbackReasons: breakdown.fallbackReasons }
+          : {}),
       })
       return breakdown
     }),

@@ -20,9 +20,14 @@
  * tx settles at ~1-2 gwei, which massively over-sizes a gas×price model).
  *
  * FALLBACK sizing (no quoter, or the quote throws): price the leg from its gas
- * LIMIT × live gas price × ETH/USDC, mirroring the calibrated crossmint
- * fulfilment quote — but this is a rough upper bound and is only used when the
- * orchestrator quote is unavailable.
+ * LIMIT × gas price × ETH/USDC — a rough upper bound, used only when the
+ * orchestrator quote is unavailable. The gas price and unit prices come from
+ * the SAME quote response (`intentOp.signedMetadata`), NOT from a separate
+ * price service: the orchestrator's `/deposit-processor/prices` route is an
+ * internal path with no CORS headers (its preflight 404s), so calling it from
+ * a browser always failed and silently collapsed the estimate to a flat
+ * per-leg fee that over-funded the HCA ~5x. It would also have leaked the API
+ * key to every visitor.
  *
  * This is NOT the session refund CAP (`MAX_REFUND_AMOUNT`, baked into the
  * session salt) — that is a fixed ceiling. This is the actual USDC moved into
@@ -52,50 +57,44 @@ export type HcaLeg = keyof typeof HCA_LEG_GAS_LIMITS
 /** p95 gas-price drift over the ~60s commit→reveal window, register leg only. */
 const REGISTER_BUFFER_PERCENT = 3n
 
-/** Rhinestone price service (ETH/USDC unit prices, 1e8-scaled). */
-const PRICE_SERVICE_URL =
-  'https://v1.orchestrator.rhinestone.dev/deposit-processor/prices'
-
-/** Shared dev key (already committed in apps/manager/.env.ci). Overridable. */
-const DEFAULT_RHINESTONE_API_KEY =
-  'rs_2fcz8PTz5A0vf1Z1HIG19qHxTd_NtCCJmRavTxtNL8'
-
 /**
  * Sanity ceiling on the per-leg gas price used by the FALLBACK model, to stop
- * a transient Sepolia base-fee spike from ballooning the estimate. Real
- * same-chain fills settle at ~1-2 gwei; 5 gwei is generous headroom.
+ * a transient base-fee spike from ballooning the estimate. Real same-chain
+ * fills settle at ~1-2 gwei; 5 gwei is generous headroom.
  */
 const FALLBACK_MAX_GAS_PRICE_WEI = 5_000_000_000n
 
-/** Conservative flat fallback per leg (USDC 6dp) if the price feed is down. */
+/** Last-resort flat fallback per leg (USDC 6dp) when even the quote metadata is absent. */
 const FALLBACK_LEG_FEE_6DP = 5_000_000n // 5 USDC/leg
 
 /**
- * Quote one leg's USDC (6dp) cost from Rhinestone. Returns `null` when the
- * quote is unavailable so the caller can fall back to the gas-limit model.
- * Injected by the caller (which owns the SDK account + session context).
+ * Market data the orchestrator returns alongside a quote
+ * (`intentOp.signedMetadata`). Prices are 1e8-scaled; `gasPriceWei` is the
+ * destination chain's gas price.
  */
-export type QuoteLegCostUsdc = (leg: HcaLeg) => Promise<bigint | null>
-
-/** USD unit prices (1e8-scaled) from Rhinestone's price service. */
-async function fetchUsdPrices8(
-  apiKey: string,
-): Promise<{ eth: bigint; usdc: bigint }> {
-  const res = await fetch(`${PRICE_SERVICE_URL}?symbols=ETH,USDC`, {
-    headers: { 'x-api-key': apiKey },
-  })
-  if (!res.ok) throw new Error(`price service ${res.status}`)
-  const body = (await res.json()) as { prices?: Record<string, number> }
-  const eth = body.prices?.ETH
-  const usdc = body.prices?.USDC
-  if (!eth || eth <= 0 || !usdc || usdc <= 0) {
-    throw new Error('price service returned no ETH/USDC price')
-  }
-  return {
-    eth: BigInt(Math.round(eth * 1e8)),
-    usdc: BigInt(Math.round(usdc * 1e8)),
-  }
+export interface QuoteMarketData {
+  readonly ethUsd8: bigint
+  readonly usdcUsd8: bigint
+  readonly gasPriceWei: bigint
 }
+
+/**
+ * One leg's quote. `spendUsdc` is the exact USDC the orchestrator will pull
+ * (`null` when the route could not be priced — e.g. an unfunded account).
+ * `market` is present whenever the quote round-trip succeeded, so the fallback
+ * model can be driven off the orchestrator's own prices instead of a separate
+ * (browser-unreachable) price service.
+ */
+export interface QuoteLegResult {
+  readonly spendUsdc: bigint | null
+  readonly market?: QuoteMarketData
+}
+
+/**
+ * Quote one leg from Rhinestone. Returns `null` when no quote could be made at
+ * all. Injected by the caller (which owns the SDK account + session context).
+ */
+export type QuoteLegCostUsdc = (leg: HcaLeg) => Promise<QuoteLegResult | null>
 
 /** Fallback: convert a gas LIMIT to a USDC (6dp) cost at a clamped gas price. */
 function fallbackLegFee6dp(
@@ -119,12 +118,10 @@ export interface HcaBudgetParams {
   readonly label: string
   /** Registration duration (seconds) — same value used at commit + reveal. */
   readonly duration: bigint
-  /** Rhinestone API key for the price service. Falls back to the shared dev key. */
-  readonly apiKey?: string
   /**
-   * Optional per-leg Rhinestone quote. When provided and it returns a value,
-   * the leg's USDC cost is taken from the orchestrator quote; otherwise the
-   * gas-limit fallback model is used for that leg.
+   * Optional per-leg Rhinestone quote. When it returns a spend amount, that is
+   * used directly; when it only returns market data, the gas-limit model is
+   * priced from it; when it returns nothing, a flat per-leg fee is used.
    */
   readonly quoteLegCostUsdc?: QuoteLegCostUsdc
 }
@@ -138,6 +135,11 @@ export interface HcaBudgetBreakdown {
   readonly registrationPrice: bigint
   /** Which source produced the leg costs. */
   readonly source: 'quote' | 'fallback' | 'mixed'
+  /**
+   * Why any leg fell back. Present only when `source` is not `'quote'`.
+   * A fallback silently over-funds, so the reason must be visible.
+   */
+  readonly fallbackReasons?: readonly string[]
 }
 
 /**
@@ -163,38 +165,51 @@ export async function estimateHcaBudget(
   const quotedCommit = await tryQuote(params.quoteLegCostUsdc, 'commit')
   const quotedRegister = await tryQuote(params.quoteLegCostUsdc, 'register')
 
-  // Gas-limit fallback inputs (only read if a leg is unquoted).
+  const fallbackReasons = [quotedCommit.reason, quotedRegister.reason].filter(
+    (r): r is string => r !== undefined,
+  )
+
+  // Gas-limit fallback, priced off the quote's OWN market data. Either leg's
+  // quote carries it, so an unpriced route (e.g. an unfunded HCA, which cannot
+  // yield a spend amount) still gets a realistic estimate rather than a flat fee.
   let fallbackCommit: bigint | undefined
   let fallbackRegister: bigint | undefined
-  if (quotedCommit === null || quotedRegister === null) {
-    let gasPrice = 0n
-    let prices: { eth: bigint; usdc: bigint } | null = null
-    try {
-      ;[gasPrice, prices] = await Promise.all([
-        params.publicClient.getGasPrice(),
-        fetchUsdPrices8(params.apiKey ?? DEFAULT_RHINESTONE_API_KEY),
-      ])
-    } catch {
-      prices = null
+  if (quotedCommit.value === null || quotedRegister.value === null) {
+    const market = quotedCommit.market ?? quotedRegister.market
+    if (!market) {
+      fallbackReasons.push('no quote market data (flat per-leg fee used)')
     }
-    fallbackCommit = prices
-      ? fallbackLegFee6dp(HCA_LEG_GAS_LIMITS.commit, gasPrice, prices)
-      : FALLBACK_LEG_FEE_6DP
-    fallbackRegister = prices
-      ? fallbackLegFee6dp(HCA_LEG_GAS_LIMITS.register, gasPrice, prices)
-      : FALLBACK_LEG_FEE_6DP
+    const prices = market
+      ? { eth: market.ethUsd8, usdc: market.usdcUsd8 }
+      : undefined
+    fallbackCommit =
+      prices && market
+        ? fallbackLegFee6dp(
+            HCA_LEG_GAS_LIMITS.commit,
+            market.gasPriceWei,
+            prices,
+          )
+        : FALLBACK_LEG_FEE_6DP
+    fallbackRegister =
+      prices && market
+        ? fallbackLegFee6dp(
+            HCA_LEG_GAS_LIMITS.register,
+            market.gasPriceWei,
+            prices,
+          )
+        : FALLBACK_LEG_FEE_6DP
   }
 
-  const commitCost = quotedCommit ?? (fallbackCommit as bigint)
-  const registerCost = quotedRegister ?? (fallbackRegister as bigint)
+  const commitCost = quotedCommit.value ?? (fallbackCommit as bigint)
+  const registerCost = quotedRegister.value ?? (fallbackRegister as bigint)
 
   const registerBuffer = (registerCost * REGISTER_BUFFER_PERCENT) / 100n
   const total = commitCost + registerCost + registerBuffer + registrationPrice
 
   const source: HcaBudgetBreakdown['source'] =
-    quotedCommit !== null && quotedRegister !== null
+    quotedCommit.value !== null && quotedRegister.value !== null
       ? 'quote'
-      : quotedCommit === null && quotedRegister === null
+      : quotedCommit.value === null && quotedRegister.value === null
         ? 'fallback'
         : 'mixed'
 
@@ -205,17 +220,39 @@ export async function estimateHcaBudget(
     registerBuffer,
     registrationPrice,
     source,
+    ...(fallbackReasons.length > 0 ? { fallbackReasons } : {}),
   }
 }
 
+/**
+ * A quote can be unavailable for three very different reasons, all of which
+ * previously collapsed into a silent `null` and an unexplained `fallback`
+ * source. Report which one happened so an over-funded budget is diagnosable.
+ */
 async function tryQuote(
   quoter: QuoteLegCostUsdc | undefined,
   leg: HcaLeg,
-): Promise<bigint | null> {
-  if (!quoter) return null
+): Promise<{
+  value: bigint | null
+  market?: QuoteMarketData
+  reason?: string
+}> {
+  if (!quoter) return { value: null, reason: `${leg}: no quoter available` }
   try {
-    return await quoter(leg)
-  } catch {
-    return null
+    const result = await quoter(leg)
+    if (result === null) return { value: null, reason: `${leg}: no quote` }
+    const market = result.market ? { market: result.market } : {}
+    return result.spendUsdc === null
+      ? {
+          value: null,
+          ...market,
+          reason: `${leg}: quote returned no spend amount`,
+        }
+      : { value: result.spendUsdc, ...market }
+  } catch (error) {
+    return {
+      value: null,
+      reason: `${leg}: quote threw — ${error instanceof Error ? error.message : String(error)}`,
+    }
   }
 }
