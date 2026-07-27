@@ -149,6 +149,7 @@ describe('commemorative NFT eligibility', () => {
     )
 
     expect(rendererUrl.origin).toBe('https://renderer.example')
+    expect(rendererUrl.searchParams.get('embed')).toBe('1')
     expect(metadata).toMatchObject({
       name: 'yoginth.eth',
       attributes: [
