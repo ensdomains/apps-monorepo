@@ -17,6 +17,12 @@
  */
 
 import {
+  publicResolverSetAddrSnippet,
+  publicResolverSetTextSnippet,
+} from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import {
   type Address,
   concatHex,
   encodeAbiParameters,
@@ -51,15 +57,13 @@ const ethRegistrarAbi = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
   'function MAX_COMMITMENT_AGE() view returns (uint64)',
 ])
-const verifiableFactoryAbi = parseAbi([
-  'function deployProxy(address implementation, uint256 salt, bytes initializer) returns (address)',
-])
-const permissionedResolverAbi = parseAbi([
+/**
+ * `PermissionedResolver.initialize(admin, roleBitmap, setters)` — the third
+ * `setters` arg is not modelled by ensjs-abi's 2-arg `proxyInitializeSnippet`,
+ * so this one stays local. Every other ABI here comes from `@ensdomains/ensjs-abi`.
+ */
+const permissionedResolverInitializeAbi = parseAbi([
   'function initialize(address owner, uint256 roles, bytes[] data)',
-  'function setAddr(bytes32 node, uint256 coinType, bytes value)',
-  'function setText(bytes32 node, string key, string value)',
-  'function setName(bytes32 node, string name)',
-  'function authorizeNameRoles(bytes toName, uint256 roleBitmap, address account, bool grant)',
 ])
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
@@ -225,22 +229,52 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   const node = namehash(name)
   const calls: Call[] = []
 
-  // 1. deployProxy (omit when resolver exists)
+  // The record writes for this name: the default `addr` (the wallet) plus any
+  // selected text records. Encoded once and then either folded into the
+  // resolver's `initialize(...)` (fresh deploy) or issued as standalone calls
+  // (resolver already exists from a prior registration).
+  const recordSetters: Hex[] = [
+    encodeFunctionData({
+      abi: publicResolverSetAddrSnippet,
+      functionName: 'setAddr',
+      args: [node, COIN_TYPE_ETH, params.wallet],
+    }),
+    ...(params.records ?? [])
+      .filter((record) => record.type === 'text' && record.key)
+      .map((record) =>
+        encodeFunctionData({
+          abi: publicResolverSetTextSnippet,
+          functionName: 'setText',
+          // biome-ignore lint/style/noNonNullAssertion: filtered on `key` above
+          args: [node, record.key!, record.value],
+        }),
+      ),
+  ]
+
+  // 1. deployProxy (omit when resolver exists) — the record writes ride along
+  //    inside `initialize`'s `setters` multicall.
+  //
+  //    `PermissionedResolver.initialize(admin, roleBitmap, setters)` grants the
+  //    HCA its roles and then runs `setters` via a self-delegatecall while
+  //    `_isInitializing()` is still true — and the resolver overrides
+  //    `_checkRoles` to skip permission checks during initialization. So the
+  //    setters execute even though `msg.sender` is the VerifiableFactory (which
+  //    holds no roles), with no need to grant/revoke a temporary factory role.
   if (!params.resolverDeployed) {
     const salt = computeResolverSalt(params.hca)
     calls.push({
       to: c.verifiableFactory,
       value: 0n,
       data: encodeFunctionData({
-        abi: verifiableFactoryAbi,
+        abi: verifiableFactoryDeployProxySnippet,
         functionName: 'deployProxy',
         args: [
           c.permissionedResolverImpl,
           salt,
           encodeFunctionData({
-            abi: permissionedResolverAbi,
+            abi: permissionedResolverInitializeAbi,
             functionName: 'initialize',
-            args: [params.hca, ROLES_ALL, []],
+            args: [params.hca, ROLES_ALL, recordSetters],
           }),
         ],
       }),
@@ -278,27 +312,15 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
     }),
   })
 
-  // 4. resolver setters — default addr for the wallet, then selected records
-  calls.push({
-    to: params.resolver,
-    value: 0n,
-    data: encodeFunctionData({
-      abi: permissionedResolverAbi,
-      functionName: 'setAddr',
-      args: [node, COIN_TYPE_ETH, params.wallet],
-    }),
-  })
-  for (const record of params.records ?? []) {
-    if (record.type === 'text' && record.key) {
-      calls.push({
-        to: params.resolver,
-        value: 0n,
-        data: encodeFunctionData({
-          abi: permissionedResolverAbi,
-          functionName: 'setText',
-          args: [node, record.key, record.value],
-        }),
-      })
+  // 4. resolver setters — only when the resolver ALREADY exists. On a fresh
+  //    deploy these same setters ran inside `initialize` above (step 1), so
+  //    re-issuing them here would just burn gas rewriting identical values.
+  //    An existing resolver is past initialization, so these are ordinary
+  //    permissioned writes — authorized because the HCA holds the root roles
+  //    granted when it was first initialized.
+  if (params.resolverDeployed) {
+    for (const data of recordSetters) {
+      calls.push({ to: params.resolver, value: 0n, data })
     }
   }
 
@@ -320,7 +342,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
     to: params.resolver,
     value: 0n,
     data: encodeFunctionData({
-      abi: permissionedResolverAbi,
+      abi: permissionedResolverAuthorizeNameRolesSnippet,
       functionName: 'authorizeNameRoles',
       args: ['0x00', ROLES_ALL, params.wallet, true],
     }),

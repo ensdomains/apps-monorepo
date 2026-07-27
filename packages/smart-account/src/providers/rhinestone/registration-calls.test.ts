@@ -1,5 +1,7 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: decoded ABI args need flexible typing in tests
 
+import { publicResolverSetAddrSnippet } from '@ensdomains/ensjs-abi/v1/publicResolver'
+import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import type { Address, Hex } from 'viem'
 import { decodeFunctionData, parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
@@ -23,6 +25,11 @@ const ethRegistrarAbi = parseAbi([
 ])
 const resolverAbi = parseAbi([
   'function authorizeNameRoles(bytes toName, uint256 roleBitmap, address account, bool grant)',
+])
+// `PermissionedResolver.initialize` takes a third `bytes[] setters` arg that
+// ensjs-abi's `proxyInitializeSnippet` (2-arg) does not model, so it stays local.
+const resolverInitAbi = parseAbi([
+  'function initialize(address owner, uint256 roles, bytes[] data)',
 ])
 
 /** ROLES.ALL from contracts-v2 deploy-constants: every nibble = 1. */
@@ -79,10 +86,61 @@ describe('buildRevealBatch ordering', () => {
     expect((decoded.args as any)[3]).toBe(true)
   })
 
-  it('prepends deployProxy when the resolver is not deployed', () => {
+  it('prepends deployProxy when the resolver is not deployed, folding the record writes into initialize', () => {
     const calls = buildRevealBatch({ ...base, resolverDeployed: false })
     expect(calls[0].to.toLowerCase()).toBe(C.verifiableFactory.toLowerCase())
-    expect(calls).toHaveLength(5)
+    // deployProxy → approve → register → authorizeNameRoles. The `setAddr` is
+    // NOT a standalone call: it rides inside `initialize`'s setters. (The one
+    // resolver-targeting call left is `authorizeNameRoles`.)
+    expect(calls).toHaveLength(4)
+    const setAddrSelector = calls.filter(
+      (c) =>
+        c.to.toLowerCase() === RESOLVER.toLowerCase() &&
+        c.data.startsWith('0x8b95dd71'), // setAddr(bytes32,uint256,bytes)
+    )
+    expect(setAddrSelector).toHaveLength(0)
+
+    // deployProxy(impl, salt, initialize(hca, ROLES_ALL, [setAddr(...)]))
+    const deploy = decodeFunctionData({
+      abi: verifiableFactoryDeployProxySnippet,
+      data: calls[0].data,
+    })
+    const init = decodeFunctionData({
+      abi: resolverInitAbi,
+      data: (deploy.args as any)[2] as Hex,
+    })
+    expect(init.functionName).toBe('initialize')
+    expect((init.args as any)[0].toLowerCase()).toBe(HCA.toLowerCase())
+    expect((init.args as any)[1]).toBe(EXPECTED_ROLES_ALL)
+
+    const setters = (init.args as any)[2] as Hex[]
+    expect(setters).toHaveLength(1)
+    const setAddr = decodeFunctionData({
+      abi: publicResolverSetAddrSnippet,
+      data: setters[0],
+    })
+    expect(setAddr.functionName).toBe('setAddr')
+    expect((setAddr.args as any)[1]).toBe(60n) // COIN_TYPE_ETH
+    expect(((setAddr.args as any)[2] as string).toLowerCase()).toBe(
+      WALLET.toLowerCase(),
+    )
+  })
+
+  it('issues the record writes as standalone calls when the resolver already exists', () => {
+    const calls = buildRevealBatch({ ...base, resolverDeployed: true })
+    const setAddrCall = calls.find(
+      (c) => c.to.toLowerCase() === RESOLVER.toLowerCase(),
+    )
+    expect(setAddrCall).toBeDefined()
+    const decoded = decodeFunctionData({
+      abi: publicResolverSetAddrSnippet,
+      // biome-ignore lint/style/noNonNullAssertion: asserted above
+      data: setAddrCall!.data,
+    })
+    expect(decoded.functionName).toBe('setAddr')
+    expect(((decoded.args as any)[2] as string).toLowerCase()).toBe(
+      WALLET.toLowerCase(),
+    )
   })
 
   it('inserts setNameWithHCA before authorizeNameRoles when a primary name is set', () => {
