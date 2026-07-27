@@ -224,9 +224,13 @@ export const useCommemorativeNftFlow = ({
     },
   })
 
+  const hasFreshClaimedResult =
+    availability.claimed.isSuccess &&
+    availability.claimed.fetchStatus === 'idle'
   const claimedStatus = getCommemorativeNftClaimedStatus({
     preview,
     claimed: availability.claimed.data,
+    isFresh: hasFreshClaimedResult,
   })
   const claimed = claimedStatus === true
   const artworkUrl = eligibility?.assets.imageUrl

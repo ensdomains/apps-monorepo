@@ -18,14 +18,43 @@ describe('commemorative NFT flow state', () => {
       getCommemorativeNftClaimedStatus({
         preview: true,
         claimed: undefined,
+        isFresh: false,
       }),
     ).toBe(false)
     expect(
       getCommemorativeNftClaimedStatus({
         preview: false,
         claimed: undefined,
+        isFresh: false,
       }),
     ).toBeUndefined()
+  })
+
+  it('does not treat a cached unclaimed result as mintable while refetching', () => {
+    expect(
+      getCommemorativeNftClaimedStatus({
+        preview: false,
+        claimed: false,
+        isFresh: false,
+      }),
+    ).toBeUndefined()
+    expect(
+      getCommemorativeNftClaimedStatus({
+        preview: false,
+        claimed: false,
+        isFresh: true,
+      }),
+    ).toBe(false)
+  })
+
+  it('keeps a cached claimed result because it cannot enable minting', () => {
+    expect(
+      getCommemorativeNftClaimedStatus({
+        preview: false,
+        claimed: true,
+        isFresh: false,
+      }),
+    ).toBe(true)
   })
 
   it.each([

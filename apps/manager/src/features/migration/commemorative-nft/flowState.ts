@@ -25,7 +25,12 @@ export type CommemorativeNftFlowStatus =
 export const getCommemorativeNftClaimedStatus = (params: {
   readonly preview: boolean
   readonly claimed: boolean | undefined
-}): boolean | undefined => (params.preview ? false : params.claimed)
+  readonly isFresh: boolean
+}): boolean | undefined => {
+  if (params.preview) return false
+  if (params.claimed === true) return true
+  return params.isFresh ? params.claimed : undefined
+}
 
 export const getCommemorativeNftFlowStatus = (
   input: CommemorativeNftFlowStatusInput,
