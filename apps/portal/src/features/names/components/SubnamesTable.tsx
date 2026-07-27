@@ -205,7 +205,7 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-background border-b border-border pb-6 flex flex-col gap-4 sticky top-0 z-20">
+      <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-h1 flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}

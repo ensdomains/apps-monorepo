@@ -84,7 +84,7 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="border-b border-border pb-4 flex flex-col gap-4">
+      <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
           <h1 className="text-h1">Address Resolution</h1>
         </div>

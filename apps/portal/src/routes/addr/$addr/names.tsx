@@ -309,7 +309,7 @@ function RouteComponent() {
 
   return (
     <>
-      <header className="bg-background pb-4 flex flex-col gap-4 sticky top-0 z-20">
+      <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
           <h1 className="text-h1">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}

@@ -33,7 +33,7 @@ const RecentActivityShell = ({
 }) => (
   <div className="flex flex-col gap-4 w-full">
     <div className="flex flex-row justify-between items-center">
-      <h2 className="text-caps text-muted-foreground">History</h2>
+      <h2 className="text-h2">History</h2>
       <Button variant="ghost" size="sm" asChild>
         <Link to="/$name/history" params={{ name }}>
           <Clock className="size-4" />

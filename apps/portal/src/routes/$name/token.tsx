@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { InfoRow as HeaderInfoRow } from '@/features/profile/components/InfoRow'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getTokenIdQueryOptions } from '@/features/profile/hooks/useTokenId'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -63,24 +64,26 @@ const TokenInfoCard = ({
   protocolVersion: ProtocolVersion
 }) => {
   return (
-    <InfoCard title="Token info">
-      <InfoRow label="Protocol">
-        <span className="text-sm">{protocolVersion}</span>
-      </InfoRow>
+    <div className="flex flex-col">
+      <HeaderInfoRow label="Protocol">
+        <span className="text-entity-base text-foreground">
+          {protocolVersion}
+        </span>
+      </HeaderInfoRow>
 
-      <InfoRow label="Token Standard">
+      <HeaderInfoRow label="Token Standard">
         <div>
           <CopyableRecord value={tokenStandard} />
         </div>
-      </InfoRow>
+      </HeaderInfoRow>
 
-      <InfoRow label="Contract">
+      <HeaderInfoRow label="Contract">
         <EntityBadge variant="contract" address={contractAddress}>
           {contractAddress}
         </EntityBadge>
-      </InfoRow>
+      </HeaderInfoRow>
 
-      <InfoRow label="Token ID">
+      <HeaderInfoRow label="Token ID">
         <div className="flex items-center gap-4 justify-between w-full ">
           <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
           <Sheet>
@@ -160,8 +163,8 @@ const TokenInfoCard = ({
             </SheetContent>
           </Sheet>
         </div>
-      </InfoRow>
-    </InfoCard>
+      </HeaderInfoRow>
+    </div>
   )
 }
 

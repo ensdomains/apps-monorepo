@@ -6,15 +6,15 @@ import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
 import { sepolia } from 'viem/chains'
 import { useConnection } from 'wagmi'
 import { getEnsResolverQueryOptions } from 'wagmi/query'
-import { AssuredWorkloadIcon, EditNoteIcon } from '@/assets/icons'
+import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
-import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { InfoRow } from '@/features/profile/components/InfoRow'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
@@ -87,41 +87,6 @@ const EditButtons = ({
   )
 }
 
-const ResolverBanner = ({
-  name,
-  docsHref,
-}: {
-  name: 'ENS Permissioned Resolver' | 'ENS Public Resolver'
-  docsHref: string
-}) => {
-  return (
-    <div className="flex items-start gap-3 p-6 self-stretch rounded-sm bg-message-success-fill">
-      <AssuredWorkloadIcon className="size-6 shrink-0 text-message-success-text mt-0.5" />
-      <div className="flex flex-col gap-1">
-        <span
-          className="font-serif font-[350] leading-none tracking-[-0.6px]"
-          style={{
-            color: 'var(--message-success-text, #105C23)',
-            fontSize: 'var(--3xl, 30px)',
-          }}
-        >
-          {name}
-        </span>
-        <p className="text-sm text-message-success-text">
-          This resolver is an instance of the official{' '}
-          <ExternalLink
-            href={docsHref}
-            className="underline decoration-dashed underline-offset-4"
-          >
-            {name}
-          </ExternalLink>
-          . This resolver has been audited and is considered secure.
-        </p>
-      </div>
-    </div>
-  )
-}
-
 const ResolverAddressValue = ({ address }: { address: Address }) => (
   <EntityBadge
     variant="contract"
@@ -169,12 +134,12 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
     )
 
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-p text-foreground">
       {features.map((feature) => (
         <ExternalLink
           key={feature.name}
           href={feature.link}
-          className="underline decoration-dotted underline-offset-4 transition-colors hover:text-primary"
+          className="underline transition-colors hover:text-primary"
         >
           {feature.name}
         </ExternalLink>
@@ -183,14 +148,17 @@ const FeatureLinks = ({ resolverAddress }: { resolverAddress: Address }) => {
   )
 }
 
-const ResolverInfoCard = ({
+const ResolverInfoList = ({
   resolverAddress,
   name,
   type,
+  docsHref,
 }: {
   resolverAddress: Address
   name: string
   type: string
+  /** Official-resolver docs link — renders the audited notice in the Type row. */
+  docsHref?: string
 }) => {
   const { data: resolver } = useQuery(
     getResolverOverviewQueryOptions({ address: resolverAddress }),
@@ -199,9 +167,19 @@ const ResolverInfoCard = ({
   const nodeHash = namehash(name)
 
   return (
-    <InfoCard title="Resolver info">
+    <div className="flex flex-col">
       <InfoRow label="Type">
-        <span className="text-sm">{type}</span>
+        {docsHref ? (
+          <p className="text-p text-foreground">
+            This is an instance of the official{' '}
+            <ExternalLink href={docsHref} className="underline">
+              {type}
+            </ExternalLink>
+            . It is audited and is considered secure.
+          </p>
+        ) : (
+          <span className="text-ui text-foreground">{type}</span>
+        )}
       </InfoRow>
       <InfoRow label="Contract">
         <ResolverAddressValue address={resolverAddress} />
@@ -215,58 +193,18 @@ const ResolverInfoCard = ({
         </div>
       </InfoRow>
       <InfoRow label="Namehash">
-        <span className="font-mono text-sm break-all">{nodeHash}</span>
+        <span className="text-entity-base text-foreground break-all">
+          {nodeHash}
+        </span>
       </InfoRow>
       <InfoRow label="Interfaces">
         <div>
           <FeatureLinks resolverAddress={resolverAddress} />
         </div>
       </InfoRow>
-    </InfoCard>
+    </div>
   )
 }
-
-const PermissionedResolverView = ({
-  name,
-  resolverAddress,
-}: {
-  name: string
-  resolverAddress: Address
-}) => (
-  <ResolverInfoCard
-    name={name}
-    resolverAddress={resolverAddress}
-    type="Permissioned Resolver"
-  />
-)
-
-const PublicResolverView = ({
-  name,
-  resolverAddress,
-}: {
-  name: string
-  resolverAddress: Address
-}) => (
-  <ResolverInfoCard
-    name={name}
-    resolverAddress={resolverAddress}
-    type="ENS Public Resolver"
-  />
-)
-
-const CustomResolverView = ({
-  name,
-  resolverAddress,
-}: {
-  name: string
-  resolverAddress: Address
-}) => (
-  <ResolverInfoCard
-    name={name}
-    resolverAddress={resolverAddress}
-    type="Custom Resolver"
-  />
-)
 
 const HistorySection = ({
   name,
@@ -367,18 +305,6 @@ const ResolverView = ({
 
   return (
     <div className="flex flex-col gap-8">
-      {permissionedResolverQuery.data ? (
-        <ResolverBanner
-          name="ENS Permissioned Resolver"
-          docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
-        />
-      ) : isOfficialPublicResolver ? (
-        <ResolverBanner
-          name="ENS Public Resolver"
-          docsHref="https://docs.ens.domains/resolvers/public/"
-        />
-      ) : null}
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-h1">Resolver</h1>
         {address ? (
@@ -392,14 +318,25 @@ const ResolverView = ({
       </div>
 
       {permissionedResolverQuery.data ? (
-        <PermissionedResolverView
+        <ResolverInfoList
           name={name}
           resolverAddress={resolverAddress}
+          type="ENS Permissioned Resolver"
+          docsHref="https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol"
         />
       ) : isOfficialPublicResolver ? (
-        <PublicResolverView name={name} resolverAddress={resolverAddress} />
+        <ResolverInfoList
+          name={name}
+          resolverAddress={resolverAddress}
+          type="ENS Public Resolver"
+          docsHref="https://docs.ens.domains/resolvers/public/"
+        />
       ) : (
-        <CustomResolverView name={name} resolverAddress={resolverAddress} />
+        <ResolverInfoList
+          name={name}
+          resolverAddress={resolverAddress}
+          type="Custom Resolver"
+        />
       )}
 
       <HistorySection name={name} protocolVersion={ownerData.protocolVersion} />
