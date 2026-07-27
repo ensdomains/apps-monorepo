@@ -77,9 +77,9 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
   }
 
   return (
-    <div className="flex w-full flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+    <div className="flex w-full flex-col gap-4 sm:gap-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <h1 className="font-semibold text-heading">History</h1>
+        <h1 className="text-4xl">History</h1>
         <div className="flex flex-wrap items-center gap-2">
           <TableDateRangeFilter
             label="Date range"
