@@ -39,7 +39,8 @@ import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
-  SUPPORTED_TOKENS,
+  type TOKEN_SYMBOL,
+  TOKENS,
 } from '../../contracts/ens-sepolia'
 import { assertPaymentTokenSupported } from '../../contracts/paymentToken'
 import { waitForTransactionReceiptById } from '../../helpers/transaction-status.helpers'
@@ -273,8 +274,8 @@ export function encodeRegisterCall({
 /**
  * Get payment token address
  */
-function getPaymentTokenAddress(token: 'USDC' | 'DAI'): Address {
-  return SUPPORTED_TOKENS[token]
+function getPaymentTokenAddress(token: TOKEN_SYMBOL): Address {
+  return TOKENS[token].address
 }
 
 export function getSignerAddress(signer: Signer): Address {
@@ -467,7 +468,7 @@ export function generateCommitmentActor(input: {
   owner: Address
   duration: bigint
   publicClient: PublicClient
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   resolverAddress: Address
 }): ResultAsync<CommitmentData, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
@@ -585,7 +586,7 @@ export function readMinCommitmentAgeActor(input: {
  */
 export function readPaymentTokenAllowanceActor(input: {
   owner: Address
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   publicClient: PublicClient
   /** Spender to read the allowance for. Defaults to the legacy registrar. */
   registrarAddress?: Address
@@ -799,7 +800,7 @@ export function validateCommitmentActor(input: {
  */
 export function submitApprovalActor(input: {
   tokenPrice: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
   sponsored?: boolean
@@ -872,7 +873,7 @@ export function submitRegistrationActor(input: {
   commitment: CommitmentData
   signer: import('../..').Signer
   duration: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   owner: Address
   publicClient: PublicClient
   sponsored?: boolean
@@ -1020,7 +1021,7 @@ function encodeRenewData(
 export function submitRenewActor(input: {
   label: string
   duration: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
   sponsored?: boolean

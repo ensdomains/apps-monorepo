@@ -9,11 +9,14 @@ import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
-import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
   name: string
   duration: number // years
+  /**
+   * Retained for the legacy picker's plumbing (reducer → useSessionGate), but
+   * no longer read: USDC is the only registrar-accepted payment token.
+   */
   selectedToken: Address
   tokenPrice: bigint
 }
@@ -45,7 +48,7 @@ export function handleStartRegistration(
   actor: ActorRefFrom<typeof registrationMachine>,
   options: HandleRegistrationOptions,
 ): void {
-  const { name, duration, selectedToken, tokenPrice } = params
+  const { name, duration, tokenPrice } = params
   const { publicClient } = options
 
   // Prefer an explicitly-provided signer (e.g. one just returned by
@@ -64,7 +67,9 @@ export function handleStartRegistration(
     return
   }
 
-  const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
+  // USDC is the only registrar-accepted payment token; `selectedToken` is kept
+  // as an address purely for the legacy picker's plumbing.
+  const token = 'USDC' as const
   const durationInSeconds = durationYearsToSeconds(duration)
 
   const enableSponsorship =

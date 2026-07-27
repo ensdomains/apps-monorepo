@@ -2,6 +2,7 @@ import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
 import { assign, fromPromise, setup } from 'xstate'
+import type { TOKEN_SYMBOL } from '../../contracts/ens-sepolia'
 import type { Signer } from '../../types/signer.types'
 import {
   generateCommitmentActor,
@@ -96,7 +97,7 @@ export type RegistrationContext = {
   // Registration params
   name: string
   duration: bigint
-  selectedToken: 'USDC' | 'DAI'
+  selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
   sponsored?: boolean
   /**
@@ -153,7 +154,7 @@ export type RegistrationEvent =
       name: string
       /** Duration in seconds */
       duration: bigint
-      token: 'USDC' | 'DAI'
+      token: TOKEN_SYMBOL
       price: bigint
       signer: Signer
       /**
@@ -281,7 +282,7 @@ export const registrationMachine = setup({
         owner: Address
         duration: bigint
         publicClient: PublicClient
-        selectedToken: 'USDC' | 'DAI'
+        selectedToken: TOKEN_SYMBOL
         resolverAddress: Address
       }) => {
         return generateCommitmentActor({
@@ -310,7 +311,7 @@ export const registrationMachine = setup({
     submitApproval: fromResultAsync(
       (input: {
         tokenPrice: bigint
-        selectedToken: 'USDC' | 'DAI'
+        selectedToken: TOKEN_SYMBOL
         signer: Signer
         publicClient: PublicClient
         sponsored?: boolean
@@ -325,7 +326,7 @@ export const registrationMachine = setup({
         commitment: CommitmentData
         signer: Signer
         duration: bigint
-        selectedToken: 'USDC' | 'DAI'
+        selectedToken: TOKEN_SYMBOL
         owner: Address
         publicClient: PublicClient
         sponsored?: boolean
@@ -380,7 +381,7 @@ export const registrationMachine = setup({
     readPaymentTokenAllowance: fromResultAsync(
       (input: {
         owner: Address
-        selectedToken: 'USDC' | 'DAI'
+        selectedToken: TOKEN_SYMBOL
         publicClient: PublicClient
       }) => {
         return readPaymentTokenAllowanceActor(input)
