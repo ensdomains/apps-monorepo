@@ -8,9 +8,9 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
-import { PermissionedResolverBanner } from '@/features/resolver/components/PermissionedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
+import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
@@ -57,12 +57,10 @@ function RouteComponent() {
     )
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <h1 className="text-2xl md:text-heading font-medium leading-none">
+    <div className="flex flex-col gap-8">
+      <h1 className="text-h2 md:text-h1">
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
-
-      <PermissionedResolverBanner resolverAddress={address as Address} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
@@ -91,6 +89,7 @@ function RouteComponent() {
 
       <ResolverDetails
         resolverAddress={address as Address}
+        typeValue={<ResolverTypeValue resolverAddress={address as Address} />}
         data={[
           {
             label: 'Contract',
@@ -102,7 +101,7 @@ function RouteComponent() {
 
       <div className="flex flex-col gap-4 w-full">
         <div className="flex flex-row justify-between items-center">
-          <h2 className="text-2xl font-medium">History</h2>
+          <h2 className="text-h2">History</h2>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/resolver/$address/history" params={{ address }}>
               <Clock className="size-4" />

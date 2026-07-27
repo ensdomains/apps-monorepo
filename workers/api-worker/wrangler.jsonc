@@ -98,6 +98,10 @@
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",
     "MANAGER_APP_URL": "https://app.ens.dev",
+    "POSTHOG": {
+      "host": "https://eu.posthog.com",
+      "unique_searches_endpoint": "/api/projects/109100/endpoints/unique_name_searches_last_30d/run"
+    },
     "VAPID_SUBJECT": "mailto:notifications@ens.domains",
     "VAPID_PUBLIC_KEY": "BOBjtfgZPtGSJtajVkh4T1Ceswos_aRXYlD4Mq8aXEa4sc_0lkrwKzUhnUIgCt22_cAEYSr0wZlhCiWPsFXyRGs",
     "SENDGRID_BROADCAST_LIST_ID": "",

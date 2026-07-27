@@ -32,7 +32,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
           <InfoRow label="Coin Type">
             <span className="font-mono">
               {record.id}{' '}
-              <span className="font-sans text-muted-foreground uppercase">
+              <span className="font-sans text-caps text-muted-foreground">
                 {record.key}
               </span>
             </span>
@@ -257,9 +257,7 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
   return (
     <div className="rounded-sm bg-background overflow-hidden">
       <div className="px-6 py-3">
-        <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
-          History
-        </span>
+        <span className="text-caps leading-none text-foreground">History</span>
       </div>
       <div className="px-6 pb-6">
         {hasNoHistory ? (

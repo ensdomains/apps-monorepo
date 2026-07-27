@@ -18,9 +18,7 @@ export const RecentActivityTable = () => {
   return (
     <div className="flex flex-col overflow-hidden w-full">
       <div className="flex gap-2 h-12 items-center px-4 border-b border-border shrink-0">
-        <span className="font-medium text-sm tracking-widest uppercase">
-          Recent Activity
-        </span>
+        <span className="text-caps">Recent Activity</span>
       </div>
       {isLoading ? (
         <div className="flex items-center justify-center py-8">

@@ -578,7 +578,7 @@ export function TemporaryPremiumChart({
         className="pointer-events-none absolute font-medium font-mono text-[16px] tabular-nums"
         style={{
           top: 6,
-          left: 12,
+          left: 20,
           color: 'var(--premium-chart-axis, #39B4EA)',
           letterSpacing: '-0.176px',
         }}

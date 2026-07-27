@@ -151,6 +151,9 @@ export const buildEditActionColumn = <T,>(
 export const rolesTableClassName = (hasActions: boolean) =>
   cn(
     '[&_td]:align-top [&_.overflow-x-auto]:overflow-visible [&_tbody_tr:hover]:bg-transparent',
+    // `:not(:first-child)` keeps the colSpan empty-state cell ("No results.")
+    // out of the action-cell overrides — it's the only cell in its row, so it
+    // is a :last-child too and would otherwise lose its padding.
     hasActions &&
-      '[&_td:last-child]:p-0 [&_td:last-child]:w-12 [&_td:last-child]:relative',
+      '[&_td:last-child:not(:first-child)]:p-0 [&_td:last-child:not(:first-child)]:w-12 [&_td:last-child:not(:first-child)]:relative',
   )
