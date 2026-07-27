@@ -407,6 +407,10 @@ msgstr "Can you share your order number?"
 msgid "Cancel"
 msgstr "Cancel"
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Cannot save profile"
+msgstr "Cannot save profile"
+
 #: src/features/payment/components/add.tsx
 msgid "Card expiry date"
 msgstr "Card expiry date"
@@ -1368,6 +1372,10 @@ msgstr "Name Expiry"
 msgid "Name on card"
 msgstr "Name on card"
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Name owner is not available yet. Try again in a moment."
+msgstr "Name owner is not available yet. Try again in a moment."
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Name registering"
 msgstr "Name registering"
@@ -2313,6 +2321,10 @@ msgstr "Some names are more in-demand than others."
 msgid "Some names could not be loaded"
 msgstr "Some names could not be loaded"
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Something went wrong preparing the save. Please try again."
+msgstr "Something went wrong preparing the save. Please try again."
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Please refresh and try again."
 msgstr "Something went wrong. Please refresh and try again."
@@ -2484,6 +2496,10 @@ msgstr "This name doesn’t have a resolver you control yet. Setting it as your 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "This name has no resolver, so profile records cannot be saved."
+msgstr "This name has no resolver, so profile records cannot be saved."
 
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
 msgid "This name is already registered or not available for registration."
@@ -2824,6 +2840,10 @@ msgstr "Waiting period"
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Wallet {address} funded successfully"
 msgstr "Wallet {address} funded successfully"
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Wallet account is not ready. Wait for your account to finish connecting, then try again."
+msgstr "Wallet account is not ready. Wait for your account to finish connecting, then try again."
 
 #: src/routes/wallet.tsx
 msgid "Wallet Address:"

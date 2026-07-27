@@ -412,6 +412,10 @@ msgstr ""
 msgid "Cancel"
 msgstr "Avbryt"
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Cannot save profile"
+msgstr ""
+
 #: src/features/payment/components/add.tsx
 msgid "Card expiry date"
 msgstr ""
@@ -1373,6 +1377,10 @@ msgstr ""
 msgid "Name on card"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Name owner is not available yet. Try again in a moment."
+msgstr ""
+
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Name registering"
 msgstr ""
@@ -2318,6 +2326,10 @@ msgstr ""
 msgid "Some names could not be loaded"
 msgstr ""
 
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Something went wrong preparing the save. Please try again."
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Please refresh and try again."
 msgstr ""
@@ -2488,6 +2500,10 @@ msgstr ""
 
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "This name has no resolver, so profile records cannot be saved."
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
@@ -2828,6 +2844,10 @@ msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Wallet {address} funded successfully"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Wallet account is not ready. Wait for your account to finish connecting, then try again."
 msgstr ""
 
 #: src/routes/wallet.tsx

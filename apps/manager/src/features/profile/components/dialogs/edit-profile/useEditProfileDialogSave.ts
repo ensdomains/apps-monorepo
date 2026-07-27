@@ -1,10 +1,13 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { t } from '@lingui/core/macro'
 import {
   type QueryClient,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
 import { useAccount, useChainId, useSignTypedData } from 'wagmi'
 import type { Actor } from 'xstate'
@@ -57,6 +60,35 @@ interface UseEditProfileDialogSaveParams {
 interface SaveRecordsMutationVariables extends SaveRecordsParams {
   readonly currentRecords: ProfileRecords
 }
+
+interface SaveBlockedPrerequisites {
+  readonly hasOwner: boolean
+  readonly hasAccount: boolean
+  readonly hasResolver: boolean
+}
+
+const getSaveBlockedDescription = ({
+  hasOwner,
+  hasAccount,
+  hasResolver,
+}: SaveBlockedPrerequisites) =>
+  match({ hasOwner, hasAccount, hasResolver })
+    .with(
+      { hasOwner: false },
+      () => t`Name owner is not available yet. Try again in a moment.`,
+    )
+    .with(
+      { hasAccount: false },
+      () =>
+        t`Wallet account is not ready. Wait for your account to finish connecting, then try again.`,
+    )
+    .with(
+      { hasResolver: false },
+      () => t`This name has no resolver, so profile records cannot be saved.`,
+    )
+    .otherwise(
+      () => t`Something went wrong preparing the save. Please try again.`,
+    )
 
 const useCloseProfileDialogOnSuccessfulSave = ({
   dialogActor,
@@ -253,14 +285,20 @@ export const useEditProfileDialogSave = ({
       })
 
       const snapshot = dialogActor.getSnapshot()
-      if (
-        !snapshot.matches({ editing: 'saving' }) ||
-        !snapshot.context.pendingSave
-      ) {
-        return null
-      }
+      const pendingSave = snapshot.matches({ editing: 'saving' })
+        ? snapshot.context.pendingSave
+        : undefined
 
-      return snapshot.context.pendingSave
+      if (pendingSave) return pendingSave
+
+      toast.error(t`Cannot save profile`, {
+        description: getSaveBlockedDescription({
+          hasOwner: Boolean(owner),
+          hasAccount: Boolean(account.signer && account.accountAddress),
+          hasResolver: Boolean(savedRecords.resolverAddress),
+        }),
+      })
+      return null
     },
     [
       account.accountAddress,
@@ -270,6 +308,7 @@ export const useEditProfileDialogSave = ({
       dialogActor,
       name,
       owner,
+      savedRecords.resolverAddress,
     ],
   )
 
