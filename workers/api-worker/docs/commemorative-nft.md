@@ -62,8 +62,13 @@ Do not paste the secret access key into issues, chat, or committed env files.
 ## Token serving and generation
 
 `GET /v1/commemorative-nft/<tokenId>.(json|png|mp4)` serves immutable objects
-from R2. On a miss it submits an idempotent job to the authenticated generator
-service and returns `503` with `Retry-After` until media is ready.
+from R2. A known asset that is not ready returns `503` with `Retry-After`
+without starting generation.
+
+Only trusted callers holding `COMMEMORATIVE_NFT_GENERATOR_TOKEN` can submit an
+idempotent generation job through
+`POST /v1/commemorative-nft/<tokenId>/prepare`. Public asset requests never
+consume renderer capacity.
 
 The generator is a separate container under
 `workers/commemorative-nft-generator`. It runs the renderer in headless
@@ -78,6 +83,7 @@ Production activation still requires:
 
 - bucket-scoped R2 write credentials in the deployment secret manager;
 - a deployed generator container and Worker generator URL/token;
+- a trusted mint/indexer process that submits admitted generation jobs;
 - the frozen, hardened renderer bundle from WEB-604;
 - a permanent custom R2 domain;
 - the reviewed mainnet contract and base URI.
