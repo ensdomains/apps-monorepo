@@ -1,12 +1,23 @@
 import { useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
+
+const RENDERER_PAINT_SETTLE_MS = 300
 
 type CommemorativeNftRendererSurfaceProps = {
   readonly artworkUrl?: string
   readonly eligibility: CommemorativeNftEligibility
   readonly onReady?: () => void
   readonly rendererUrl?: string
+}
+
+const isRendererDocumentLoad = (iframe: HTMLIFrameElement) => {
+  try {
+    return iframe.contentWindow?.location.href !== 'about:blank'
+  } catch {
+    // Reading the URL throws once the deployed cross-origin renderer has loaded.
+    return true
+  }
 }
 
 export const CommemorativeNftRendererSurface = ({
@@ -16,16 +27,45 @@ export const CommemorativeNftRendererSurface = ({
   rendererUrl,
 }: CommemorativeNftRendererSurfaceProps) => {
   const shouldReduceMotion = useReducedMotion()
+  const onReadyRef = useRef(onReady)
   const [artworkFailed, setArtworkFailed] = useState(false)
   const [rendererFailed, setRendererFailed] = useState(false)
+  const [rendererLoaded, setRendererLoaded] = useState(false)
   const [rendererReady, setRendererReady] = useState(false)
 
   useEffect(() => {
-    if (!rendererUrl && !artworkUrl) onReady?.()
-  }, [artworkUrl, onReady, rendererUrl])
+    onReadyRef.current = onReady
+  }, [onReady])
+
+  useEffect(() => {
+    if (!rendererUrl && !artworkUrl) onReadyRef.current?.()
+  }, [artworkUrl, rendererUrl])
+
+  useEffect(() => {
+    if (!rendererLoaded || rendererFailed) return
+
+    let firstAnimationFrame: number | undefined
+    let secondAnimationFrame: number | undefined
+    const settleTimer = window.setTimeout(() => {
+      firstAnimationFrame = window.requestAnimationFrame(() => {
+        secondAnimationFrame = window.requestAnimationFrame(() => {
+          setRendererReady(true)
+          onReadyRef.current?.()
+        })
+      })
+    }, RENDERER_PAINT_SETTLE_MS)
+
+    return () => {
+      window.clearTimeout(settleTimer)
+      if (firstAnimationFrame !== undefined)
+        window.cancelAnimationFrame(firstAnimationFrame)
+      if (secondAnimationFrame !== undefined)
+        window.cancelAnimationFrame(secondAnimationFrame)
+    }
+  }, [rendererFailed, rendererLoaded])
 
   const fallback = (
-    <div className="absolute inset-0 overflow-hidden rounded-[18px]">
+    <div className="absolute inset-0 z-10 overflow-hidden rounded-[18px]">
       {artworkUrl && !artworkFailed ? (
         <img
           alt=""
@@ -63,16 +103,14 @@ export const CommemorativeNftRendererSurface = ({
       {rendererReady && !rendererFailed ? null : fallback}
       {rendererUrl && !rendererFailed ? (
         <iframe
-          className={`absolute top-1/2 left-1/2 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0 ${
-            rendererReady ? 'opacity-100' : 'opacity-0'
-          }`}
+          className="absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0"
           onError={() => {
             setRendererFailed(true)
-            onReady?.()
+            onReadyRef.current?.()
           }}
-          onLoad={() => {
-            setRendererReady(true)
-            onReady?.()
+          onLoad={(event) => {
+            if (!isRendererDocumentLoad(event.currentTarget)) return
+            setRendererLoaded(true)
           }}
           referrerPolicy="no-referrer"
           sandbox="allow-same-origin allow-scripts"
