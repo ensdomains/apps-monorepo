@@ -61,11 +61,9 @@ function RouteComponent() {
   const nodes = resolver?.nodes ?? []
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-heading font-medium leading-none">
-          Roles
-        </h1>
+        <h1 className="text-h2 md:text-h1">Roles</h1>
         {accountAddress && canManageRoles && (
           <Button
             variant="default"

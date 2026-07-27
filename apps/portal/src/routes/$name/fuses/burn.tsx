@@ -167,7 +167,7 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="flex flex-col items-center px-8 py-6 w-full">
+      <div className="flex flex-col items-center w-full">
         <div className="flex flex-col gap-6 max-w-2xl w-full">
           <Link
             to="/$name/fuses"
@@ -178,7 +178,7 @@ function RouteComponent() {
             Back
           </Link>
 
-          <h1 className="text-4xl font-medium leading-tight">Burn fuses</h1>
+          <h1 className="text-h1">Burn fuses</h1>
 
           <div className="bg-muted rounded-sm p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />

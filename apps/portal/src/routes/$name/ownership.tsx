@@ -77,7 +77,7 @@ function RouteComponent() {
     )
 
   return (
-    <div className="max-w-360 w-full mx-auto flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+    <div className="flex flex-col gap-8">
       {grace.isInGrace && grace.graceEndDate && (
         <GraceBanner
           graceEndDate={grace.graceEndDate}
@@ -85,25 +85,25 @@ function RouteComponent() {
         />
       )}
       <div className="flex flex-row justify-between">
-        <h1 className="font-medium text-heading">Ownership</h1>
+        <h1 className="text-h1">Ownership</h1>
       </div>
-      <div className="flex flex-col gap-4 sm:gap-6">
+      {/* Header list — same structure as the Overview/Resolver pages (WEB-649) */}
+      <div className="flex flex-col">
         <ExpiryWithRegistrationData
           name={name}
           protocolVersion={data.protocolVersion}
         />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-          <Owner
-            owner={data.owner}
-            label={grace.isInGrace ? 'Previous owner' : 'Name owner'}
-          />
-          <ParentName name={name} />
-        </div>
-        {data.protocolVersion === 'ENSv1' && (
-          <V1NameManagerRecord name={name} className="w-full" />
-        )}
-        <NameSubgraphHistory name={name} category="domain" />
+        <Owner
+          owner={data.owner}
+          label={grace.isInGrace ? 'Previous owner' : 'Name owner'}
+          asRow
+        />
+        <ParentName name={name} asRow />
       </div>
+      {data.protocolVersion === 'ENSv1' && (
+        <V1NameManagerRecord name={name} className="w-full" />
+      )}
+      <NameSubgraphHistory name={name} category="domain" />
     </div>
   )
 }

@@ -173,9 +173,7 @@ export const RolesAddUserSheet = ({
       >
         <div className="p-6 flex flex-col gap-6 h-full">
           <SheetHeader className="p-0 pt-4">
-            <SheetTitle className="font-sans text-heading font-medium">
-              Add user
-            </SheetTitle>
+            <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">

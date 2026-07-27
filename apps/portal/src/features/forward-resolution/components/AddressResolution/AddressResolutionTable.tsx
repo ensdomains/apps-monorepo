@@ -89,7 +89,7 @@ export const AddressResolutionTable = ({
             <TableRow>
               <TableCell
                 colSpan={columns.length + 1}
-                className="h-24 text-center"
+                className="px-6 py-24 text-center"
               >
                 No results.
               </TableCell>

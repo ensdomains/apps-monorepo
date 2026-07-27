@@ -5,6 +5,10 @@
 @font-face {
   font-family: "ABCMonumentGrotesk";
   src: url("@/assets/fonts/abc-monument-grotesk-variable.woff2") format("woff2");
+  /* Expose the full wght axis (verified via fonttools: 200–1000) so the
+     Builder type styles' 360/425 weights render as real variable-font
+     instances instead of clamping to 400. */
+  font-weight: 200 1000;
 }
 
 /* ===============================

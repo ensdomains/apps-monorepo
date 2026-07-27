@@ -154,9 +154,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
         {/* Fixed header at the top */}
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
-            <SheetTitle className="font-sans text-heading font-medium">
-              {title}
-            </SheetTitle>
+            <SheetTitle className="font-sans text-h2">{title}</SheetTitle>
           </SheetHeader>
         </div>
 

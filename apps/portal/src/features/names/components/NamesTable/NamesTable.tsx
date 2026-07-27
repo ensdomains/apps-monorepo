@@ -75,7 +75,10 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
-                    className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+                    className={cn(
+                      'px-6',
+                      tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
+                    )}
                     key={cell.id}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -85,7 +88,10 @@ export const NamesTable = ({ table }: NamesTableProps) => {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
+              <TableCell
+                colSpan={columns.length}
+                className="px-6 py-24 text-center"
+              >
                 No results.
               </TableCell>
             </TableRow>

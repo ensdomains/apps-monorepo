@@ -118,7 +118,7 @@ function EditRecordsPage() {
           <Link to="/$name" params={{ name }} className="hover:opacity-70">
             <ArrowLeftIcon className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl font-bold">{name}</h1>
+          <h1 className="text-h1">{name}</h1>
         </div>
         <ErrorMessage
           title="Wallet Not Connected"
@@ -139,7 +139,7 @@ function EditRecordsPage() {
           <Link to="/$name" params={{ name }} className="hover:opacity-70">
             <ArrowLeftIcon className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl font-bold">{name}</h1>
+          <h1 className="text-h1">{name}</h1>
         </div>
         <ErrorMessage
           title="Permission Denied"
@@ -313,14 +313,14 @@ const EditRecordsContent = ({
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <header className="border-b border-border px-8 pb-6 pt-6">
+      <header className="border-b border-border pb-6">
         <Link to="/$name/records" params={{ name }}>
           <Button variant="ghost" className="flex items-center gap-2 -ml-2">
             <ArrowLeftIcon className="size-4" />
             Back to View
           </Button>
         </Link>
-        <h1 className="text-heading font-medium mb-6">Edit records</h1>
+        <h1 className="text-h1 mb-6">Edit records</h1>
 
         {/* Add Record Form */}
         <div className="flex flex-col sm:flex-row gap-3">
