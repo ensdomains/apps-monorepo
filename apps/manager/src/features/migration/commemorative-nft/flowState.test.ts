@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
+  isCommemorativeNftClaimResultFresh,
 } from './flowState'
 
 const base = {
@@ -55,6 +56,58 @@ describe('commemorative NFT flow state', () => {
         isFresh: false,
       }),
     ).toBe(true)
+  })
+
+  it('does not treat an idle cached result as fresh for a new dialog opening', () => {
+    expect(
+      isCommemorativeNftClaimResultFresh({
+        claimReadKey: '11155111:0x123',
+        requiredClaimReadKey: '11155111:0x123',
+        dataUpdatedAt: 100,
+        requiredDataUpdatedAt: 100,
+        isSuccess: true,
+        fetchStatus: 'idle',
+      }),
+    ).toBe(false)
+  })
+
+  it('accepts a successful idle result fetched after the dialog opens', () => {
+    expect(
+      isCommemorativeNftClaimResultFresh({
+        claimReadKey: '11155111:0x123',
+        requiredClaimReadKey: '11155111:0x123',
+        dataUpdatedAt: 101,
+        requiredDataUpdatedAt: 100,
+        isSuccess: true,
+        fetchStatus: 'idle',
+      }),
+    ).toBe(true)
+  })
+
+  it('does not accept a result while its claim query is refetching', () => {
+    expect(
+      isCommemorativeNftClaimResultFresh({
+        claimReadKey: '11155111:0x123',
+        requiredClaimReadKey: '11155111:0x123',
+        dataUpdatedAt: 101,
+        requiredDataUpdatedAt: 100,
+        isSuccess: true,
+        fetchStatus: 'fetching',
+      }),
+    ).toBe(false)
+  })
+
+  it('does not accept a fresh result for a different claim query', () => {
+    expect(
+      isCommemorativeNftClaimResultFresh({
+        claimReadKey: '11155111:0x456',
+        requiredClaimReadKey: '11155111:0x123',
+        dataUpdatedAt: 101,
+        requiredDataUpdatedAt: 100,
+        isSuccess: true,
+        fetchStatus: 'idle',
+      }),
+    ).toBe(false)
   })
 
   it.each([

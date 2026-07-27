@@ -18,6 +18,7 @@ import {
   type CommemorativeNftFlowStatus,
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
+  isCommemorativeNftClaimResultFresh,
 } from './flowState'
 import { invalidateCommemorativeNftStatus } from './queries'
 import type { CommemorativeNftEligibility } from './types'
@@ -30,6 +31,11 @@ type UseCommemorativeNftFlowOptions = {
   readonly migratedNameCount: number
   readonly preview?: boolean
   readonly previewProfileName?: string
+}
+
+type ClaimReadBoundary = {
+  readonly key: string | undefined
+  readonly dataUpdatedAt: number
 }
 
 const getClaimErrorMessage = (error: unknown): string =>
@@ -140,6 +146,24 @@ export const useCommemorativeNftFlow = ({
     pollClaimed: awaitingClaim,
     allowDevFixture: true,
   })
+  const claimReadKey = ownerAddress
+    ? `${availability.chainId}:${ownerAddress.toLowerCase()}`
+    : undefined
+  const claimedDataUpdatedAt = availability.claimed.dataUpdatedAt
+  const [claimReadBoundary, setClaimReadBoundary] = useState<ClaimReadBoundary>(
+    () => ({
+      key: claimReadKey,
+      dataUpdatedAt: claimedDataUpdatedAt,
+    }),
+  )
+
+  useEffect(() => {
+    if (open && claimReadBoundary.key === claimReadKey) return
+    setClaimReadBoundary({
+      key: claimReadKey,
+      dataUpdatedAt: claimedDataUpdatedAt,
+    })
+  }, [claimReadBoundary.key, claimedDataUpdatedAt, claimReadKey, open])
 
   const remoteEligibility =
     availability.eligibility.data?.status === 'eligible'
@@ -224,9 +248,14 @@ export const useCommemorativeNftFlow = ({
     },
   })
 
-  const hasFreshClaimedResult =
-    availability.claimed.isSuccess &&
-    availability.claimed.fetchStatus === 'idle'
+  const hasFreshClaimedResult = isCommemorativeNftClaimResultFresh({
+    claimReadKey,
+    requiredClaimReadKey: claimReadBoundary.key,
+    dataUpdatedAt: claimedDataUpdatedAt,
+    requiredDataUpdatedAt: claimReadBoundary.dataUpdatedAt,
+    isSuccess: availability.claimed.isSuccess,
+    fetchStatus: availability.claimed.fetchStatus,
+  })
   const claimedStatus = getCommemorativeNftClaimedStatus({
     preview,
     claimed: availability.claimed.data,

@@ -32,6 +32,20 @@ export const getCommemorativeNftClaimedStatus = (params: {
   return params.isFresh ? params.claimed : undefined
 }
 
+export const isCommemorativeNftClaimResultFresh = (params: {
+  readonly claimReadKey: string | undefined
+  readonly requiredClaimReadKey: string | undefined
+  readonly dataUpdatedAt: number
+  readonly requiredDataUpdatedAt: number
+  readonly isSuccess: boolean
+  readonly fetchStatus: 'fetching' | 'paused' | 'idle'
+}): boolean =>
+  params.claimReadKey !== undefined &&
+  params.claimReadKey === params.requiredClaimReadKey &&
+  params.dataUpdatedAt > params.requiredDataUpdatedAt &&
+  params.isSuccess &&
+  params.fetchStatus === 'idle'
+
 export const getCommemorativeNftFlowStatus = (
   input: CommemorativeNftFlowStatusInput,
 ): CommemorativeNftFlowStatus => {
