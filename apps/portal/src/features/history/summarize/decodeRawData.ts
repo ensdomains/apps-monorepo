@@ -1,3 +1,5 @@
+import { isEncodedLabelhash } from '@ensdomains/ensjs/utils'
+import { isHex } from 'viem'
 import { decodeRoleBitmap } from '@/lib/roles/decodeRoleBitmap'
 
 /**
@@ -43,16 +45,17 @@ export type RoleChange = {
 
 /**
  * Best-effort decode of an `EACRolesChanged` event from its raw `data`.
- * Determines grant vs revoke from the old→new bitmap delta.
+ * Determines grant vs revoke from the old→new bitmap delta. Field names match
+ * the indexer payload (see `lib/roles/filterEventsByResource.ts`).
  *
  * TODO(indexer): expose asRolesChanged { account resource oldRoleBitmap newRoleBitmap }
- * so this JSON parsing (and the exact field names below) becomes unnecessary.
+ * so this JSON parsing becomes unnecessary.
  */
 export const decodeRoleChange = (data?: string | null): RoleChange => {
   const obj = parseEventData(data)
-  const account = readString(obj, 'account', 'holder')
-  const oldBitmap = readString(obj, 'oldRoleBitmap', 'previousRoleBitmap')
-  const newBitmap = readString(obj, 'newRoleBitmap', 'roleBitmap')
+  const account = readString(obj, 'account')
+  const oldBitmap = readString(obj, 'oldRoleBitmap')
+  const newBitmap = readString(obj, 'newRoleBitmap')
 
   const safeDecode = (bitmap?: string): string[] => {
     if (!bitmap) return []
@@ -65,8 +68,9 @@ export const decodeRoleChange = (data?: string | null): RoleChange => {
 
   const before = new Set(safeDecode(oldBitmap))
   const after = safeDecode(newBitmap)
+  const afterSet = new Set(after)
   const granted = after.filter((role) => !before.has(role))
-  const revoked = [...before].filter((role) => !new Set(after).has(role))
+  const revoked = [...before].filter((role) => !afterSet.has(role))
 
   if (granted.length > 0 && revoked.length === 0)
     return { account, direction: 'grant', roles: granted }
@@ -86,9 +90,9 @@ export const resolveDecodedName = (
   eventName?: string | null,
 ): string | undefined => {
   if (!value) return undefined
-  // Hex values (labelhashes/node hashes) and subgraph-encoded unknown labels
-  // ("[<labelhash>]") are not display labels.
-  if (value.startsWith('0x') || value.startsWith('[')) return undefined
+  // Raw hex (labelhashes/node hashes) and encoded unknown labels ("[<labelhash>]")
+  // are not display labels.
+  if (isHex(value) || isEncodedLabelhash(value)) return undefined
   if (value.includes('.')) return value
   if (!eventName) return undefined
   if (eventName === value || eventName.startsWith(`${value}.`)) return eventName

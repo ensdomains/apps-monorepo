@@ -3,6 +3,7 @@ import { Check, PanelRight } from 'lucide-react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { Button } from '@/components/ui/button'
+import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { cn } from '@/lib/utils'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
@@ -18,19 +19,6 @@ export type RoleRowEntry = {
   hasAdmin: boolean
   hasUser: boolean
 }
-
-/**
- * Strip the `ROLE_` prefix / `_ADMIN` suffix and Title-Case a raw role name,
- * e.g. `ROLE_SET_RESOLVER_ADMIN` -> `Set Resolver`.
- */
-export const formatRoleLabel = (role: string) =>
-  role
-    .replace(/^ROLE_/, '')
-    .replace(/_ADMIN$/, '')
-    .toLowerCase()
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
 
 /**
  * Collapse a flat list of role names (with `_ADMIN` variants interleaved) into

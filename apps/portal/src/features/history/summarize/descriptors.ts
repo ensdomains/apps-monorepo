@@ -1,4 +1,5 @@
 import { zeroAddress } from 'viem'
+import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   decodeRoleChange,
@@ -15,17 +16,11 @@ import type {
 const isZero = (value?: string | null): boolean =>
   !value || value.toLowerCase() === zeroAddress
 
-const short = (value?: string | null): string =>
-  value ? truncateAddress(value, 6, 4, '…') : '—'
-
-/** Prettify a role constant like `ROLE_SET_SUBREGISTRY` → "Set subregistry". */
-const humanizeRole = (role: string): string => {
-  const words = role
-    .replace(/^ROLE_/, '')
-    .toLowerCase()
-    .replace(/_/g, ' ')
-  return words.charAt(0).toUpperCase() + words.slice(1)
-}
+/** App-standard role label, keeping the admin distinction the tables show as a column. */
+const humanizeRole = (role: string): string =>
+  role.endsWith('_ADMIN')
+    ? `${formatRoleLabel(role)} Admin`
+    : formatRoleLabel(role)
 
 /**
  * Fallback label for an unknown event type: `SubregistryUpdated` → "Subregistry
@@ -129,17 +124,22 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   // No typed decoder — read from raw `data`. TODO(indexer): asContenthashChanged.
   ContenthashChanged: {
     icon: 'contenthash',
-    build: ({ primary }) => ({
-      label: 'Set content hash',
-      slots: [
-        {
-          kind: 'text',
-          value: short(
-            readString(parseEventData(primary.data), 'hash', 'contentHash'),
-          ),
-        },
-      ],
-    }),
+    build: ({ primary }) => {
+      const hash = readString(
+        parseEventData(primary.data),
+        'hash',
+        'contentHash',
+      )
+      return {
+        label: 'Set content hash',
+        slots: [
+          {
+            kind: 'text',
+            value: hash ? truncateAddress(hash, 6, 4, '…') : '—',
+          },
+        ],
+      }
+    },
   },
 
   // Reverse-registrar primary-name set. TODO(indexer): asNameChanged.
@@ -196,7 +196,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: (ctx) => ({
       label: 'Register',
       slots: [
-        // `label` is the bytes32 labelhash, never display text — only `name` counts.
         resolvedNameSlot(ctx.primary.asNameRegistered?.name, ctx.primary.name),
         { kind: 'connective', value: 'by' },
         actorSlot(ctx, ctx.primary.asNameRegistered?.owner),

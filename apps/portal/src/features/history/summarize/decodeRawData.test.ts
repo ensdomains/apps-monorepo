@@ -43,4 +43,8 @@ describe('resolveDecodedName', () => {
       ),
     ).toBeUndefined()
   })
+
+  it('still accepts legitimate 0x-prefixed names', () => {
+    expect(resolveDecodedName('0xdeadbeef.eth')).toBe('0xdeadbeef.eth')
+  })
 })

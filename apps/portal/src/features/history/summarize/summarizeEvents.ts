@@ -60,8 +60,8 @@ const distinctTxHashes = (events: readonly TimelineIndexerEvent[]): Hex[] => [
  */
 const describeGroup = (
   group: readonly TimelineIndexerEvent[],
+  byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
-  const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
   const ctxFor = (primary: TimelineIndexerEvent): DescriptorContext => ({
     primary,
     events: group,
@@ -93,13 +93,14 @@ export const summarizeEvents = (
   const relevant = events.filter((event) => !IGNORED_TYPES.has(event.type))
 
   const actions = groupByTransaction(relevant).map((group): Action => {
-    const primary = [...group].sort((a, b) => rankOf(b) - rankOf(a))[0]
+    const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
+    const primary = byRank[0]
     return {
       id: `${primary.transactionHash}:${primary.id}`,
       timestamp: Math.max(...group.map((event) => event.timestamp)),
       txHashes: distinctTxHashes(group),
       events: group,
-      ...describeGroup(group),
+      ...describeGroup(group, byRank),
     }
   })
 
