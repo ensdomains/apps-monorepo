@@ -9,8 +9,14 @@ export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
   '0xe49A9D706FCD82AA575496352B5633F80fBBC449',
 )
 
-export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
+const PRODUCTION_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
+const PREVIEW_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
+  'https://3a0c669a.ens-renderer.pages.dev'
+
+export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = import.meta.env.DEV
+  ? PREVIEW_COMMEMORATIVE_NFT_RENDERER_ORIGIN
+  : PRODUCTION_COMMEMORATIVE_NFT_RENDERER_ORIGIN
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
