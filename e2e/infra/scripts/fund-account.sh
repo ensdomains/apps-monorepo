@@ -20,8 +20,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ADDRESS="${1:?Usage: fund-account.sh <ADDRESS>}"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
 
-# Anvil's first default account private key (has 10 000 ETH on any fork)
+# Anvil's first default account — used as the sender for the `mint` calls below.
+# NOTE: on a fork this account does NOT reliably hold 10,000 ETH; it inherits
+# real Sepolia state and is drawn down by the other funding scripts. Its balance
+# is topped up explicitly below rather than assumed.
 ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+ANVIL_ADDRESS="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+# 10 ETH / 10,000 ETH as hex quantities (what `anvil_setBalance` expects).
+ETH_AMOUNT_HEX=$(cast to-hex 10000000000000000000)
+FUNDER_AMOUNT_HEX=$(cast to-hex 10000000000000000000000)
 
 # Payment-token addresses, resolved from the ensjs Sepolia chain config — the
 # SAME source the app uses (`@ens-apps/transaction-manager` SUPPORTED_TOKENS).
@@ -42,13 +49,20 @@ echo "→ Clearing contract code at $ADDRESS (make it an EOA)..."
 cast rpc anvil_setCode "$ADDRESS" "0x" --rpc-url "$RPC_URL" > /dev/null
 echo "  ✅ Code cleared"
 
-# 1. Send ETH
-echo "→ Sending 1 ETH..."
-cast send "$ADDRESS" --value 1ether \
-  --private-key "$ANVIL_KEY" \
-  --rpc-url "$RPC_URL" \
-  --quiet
-echo "  ✅ 1 ETH sent"
+# 1. Set ETH balance directly — no sender, no gas, idempotent. Transferring from
+#    Anvil account 0 fails once that account runs dry ("Insufficient funds for
+#    gas * price + value"), which is exactly what happens on a fork where it
+#    inherits real Sepolia state and the sibling funding scripts spend it.
+echo "→ Setting 10 ETH balance..."
+cast rpc anvil_setBalance "$ADDRESS" "$ETH_AMOUNT_HEX" --rpc-url "$RPC_URL" >/dev/null
+echo "  ✅ 10 ETH set"
+
+# 1b. Top up the funder itself: the `mint` calls below are real transactions and
+#     still need gas. Done AFTER the step above so that funding account 0 (the
+#     common case) leaves it with the full funder balance, not 10 ETH.
+echo "→ Topping up funder $ANVIL_ADDRESS..."
+cast rpc anvil_setBalance "$ANVIL_ADDRESS" "$FUNDER_AMOUNT_HEX" --rpc-url "$RPC_URL" >/dev/null
+echo "  ✅ funder topped up"
 
 # 2. Mint MockUSDC (6 decimals → 10_000 * 1e6 = 10000000000)
 echo "→ Minting 10 000 MockUSDC..."
