@@ -18,7 +18,6 @@ const Mono = ({ children }: { children: React.ReactNode }) => (
   </code>
 )
 
-/** The "{EventType} {description} {chips}" content shown on a tier-2 event row. */
 const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
   const muted = 'text-muted-foreground text-sm'
 
