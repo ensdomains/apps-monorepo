@@ -22,6 +22,11 @@ export type CommemorativeNftFlowStatus =
   | 'configurationError'
   | 'claimError'
 
+export const getCommemorativeNftClaimedStatus = (params: {
+  readonly preview: boolean
+  readonly claimed: boolean | undefined
+}): boolean | undefined => (params.preview ? false : params.claimed)
+
 export const getCommemorativeNftFlowStatus = (
   input: CommemorativeNftFlowStatusInput,
 ): CommemorativeNftFlowStatus => {

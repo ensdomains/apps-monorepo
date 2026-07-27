@@ -15,6 +15,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import {
+  buildCommemorativeNftRendererUrl,
+  getCommemorativeNftConfig,
+} from '../../commemorative-nft/config'
 import arrowRightUrl from './assets/arrow-right.svg'
 import ensMarkUrl from './assets/ens-mark.svg'
 import { CommemorativeNftRendererSurface } from './CommemorativeNftRendererSurface'
@@ -90,7 +94,7 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
     !!state.card.assets.imageUrl || !!state.card.assets.animationUrl
 
   return (
-    <fieldset className="flex shrink-0 flex-col gap-2 border-0 p-0">
+    <fieldset className="relative z-10 flex shrink-0 flex-col gap-2 border-0 p-0">
       <legend className="sr-only">
         <Trans>NFT actions</Trans>
       </legend>
@@ -237,66 +241,75 @@ const ArtworkCard = ({
 }: {
   readonly state: CardDialogState
   readonly onRevealComplete?: () => void
-}) => (
-  <motion.div
-    animate={{ opacity: 1, y: 0 }}
-    aria-label={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
-    className="flex h-[308px] w-[236px] items-center justify-center"
-    initial={{ opacity: 0, y: 8 }}
-    key="artwork"
-    role="img"
-    transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-  >
-    <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] overflow-hidden rounded-[18px] bg-[#006ee6] drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
-      <CommemorativeNftRendererSurface
-        artworkUrl={state.card.artworkUrl}
-        eligibility={state.card.eligibility}
-        onReady={onRevealComplete}
-      />
-      {state.card.artworkUrl ? (
-        <>
-          <span className="absolute top-[6px] left-[4px] font-medium font-mono text-[#e1e1e0] text-[6px] tracking-[0.12px]">
-            {formatMigrationDate(state.card.migratedAt)}
-          </span>{' '}
-          <span className="absolute top-[77px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
-            ENS v2
-          </span>
-          <span className="absolute top-[101px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
-            NFT
-          </span>
-          <span className="absolute top-[207px] left-[118px] whitespace-nowrap font-mono text-[6px] text-white tracking-[0.12px]">
-            {state.card.migratedNameCount > 0 ? (
-              <Trans>YOU have migrated</Trans>
-            ) : (
-              <Trans>ENSv2 commemorative</Trans>
-            )}
-          </span>
-          {state.card.migratedNameCount > 0 ? (
-            <span className="absolute top-[224px] left-[108px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
-              <span className="font-medium text-[#11ff5d]">
-                {state.card.migratedNameCount}
-              </span>{' '}
-              {state.card.migratedNameCount === 1 ? (
-                <Trans>name</Trans>
+}) => {
+  const rendererUrl = buildCommemorativeNftRendererUrl({
+    eligibility: state.card.eligibility,
+    rendererOrigin: getCommemorativeNftConfig().rendererOrigin,
+  })
+
+  return (
+    <motion.div
+      animate={{ opacity: 1, y: 0 }}
+      aria-label={`Commemorative ENS NFT for ${state.card.eligibility.rendererName}`}
+      className="flex h-[308px] w-[236px] items-center justify-center"
+      initial={{ opacity: 0, y: 8 }}
+      key="artwork"
+      role="group"
+      transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+    >
+      <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
+        <CommemorativeNftRendererSurface
+          artworkUrl={state.card.artworkUrl}
+          eligibility={state.card.eligibility}
+          key={rendererUrl}
+          onReady={onRevealComplete}
+          rendererUrl={rendererUrl}
+        />
+        {!rendererUrl && state.card.artworkUrl ? (
+          <>
+            <span className="absolute top-[6px] left-[4px] font-medium font-mono text-[#e1e1e0] text-[6px] tracking-[0.12px]">
+              {formatMigrationDate(state.card.migratedAt)}
+            </span>{' '}
+            <span className="absolute top-[77px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
+              ENS v2
+            </span>
+            <span className="absolute top-[101px] left-[28px] font-medium font-mono text-[#11ff5d] text-[6px] tracking-[0.12px]">
+              NFT
+            </span>
+            <span className="absolute top-[207px] left-[118px] whitespace-nowrap font-mono text-[6px] text-white tracking-[0.12px]">
+              {state.card.migratedNameCount > 0 ? (
+                <Trans>YOU have migrated</Trans>
               ) : (
-                <Trans>names</Trans>
+                <Trans>ENSv2 commemorative</Trans>
               )}
             </span>
-          ) : null}
-          <span className="absolute top-[260px] left-[69px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
-            <Trans>welcome to a new era of</Trans>{' '}
-            <span className="text-[#11ff5d]">ENS</span>
-          </span>
-          <img
-            alt=""
-            className="absolute top-[257px] left-[171px] w-[10px]"
-            src={ensMarkUrl}
-          />
-        </>
-      ) : null}
-    </div>
-  </motion.div>
-)
+            {state.card.migratedNameCount > 0 ? (
+              <span className="absolute top-[224px] left-[108px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
+                <span className="font-medium text-[#11ff5d]">
+                  {state.card.migratedNameCount}
+                </span>{' '}
+                {state.card.migratedNameCount === 1 ? (
+                  <Trans>name</Trans>
+                ) : (
+                  <Trans>names</Trans>
+                )}
+              </span>
+            ) : null}
+            <span className="absolute top-[260px] left-[69px] whitespace-nowrap font-semi-mono text-[6px] text-white tracking-[0.12px]">
+              <Trans>welcome to a new era of</Trans>{' '}
+              <span className="text-[#11ff5d]">ENS</span>
+            </span>
+            <img
+              alt=""
+              className="absolute top-[257px] left-[171px] w-[10px]"
+              src={ensMarkUrl}
+            />
+          </>
+        ) : null}
+      </div>
+    </motion.div>
+  )
+}
 
 export const CommemorativeNftCard = ({
   state,

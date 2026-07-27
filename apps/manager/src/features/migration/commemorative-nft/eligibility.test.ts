@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildCommemorativeNftAssets,
   buildCommemorativeNftEligibilityUrl,
+  buildCommemorativeNftRendererUrl,
   getCommemorativeNftTokenId,
 } from './config'
 import {
@@ -125,5 +126,41 @@ describe('commemorative NFT eligibility', () => {
     expect(assets.imageUrl).toMatch(/\.png$/)
     expect(assets.animationUrl).toMatch(/\.mp4$/)
     expect(assets.metadataUrl).toMatch(/\.json$/)
+  })
+
+  it('builds a renderer URL from validated public traits', () => {
+    const eligibility = parseCommemorativeNftEligibility({
+      ownerAddress,
+      payload: {
+        address: ownerAddress,
+        name: 'yoginth.eth',
+        proof: [proof],
+        traits,
+      },
+    })
+    const value = buildCommemorativeNftRendererUrl({
+      eligibility,
+      rendererOrigin: 'https://renderer.example/',
+    })
+    const rendererUrl = new URL(value)
+    const tokenUri = rendererUrl.searchParams.get('tokenURI')
+    const metadata = JSON.parse(
+      decodeURIComponent(tokenUri?.split(',')[1] ?? ''),
+    )
+
+    expect(rendererUrl.origin).toBe('https://renderer.example')
+    expect(rendererUrl.searchParams.get('embed')).toBe('1')
+    expect(metadata).toMatchObject({
+      name: 'yoginth.eth',
+      attributes: [
+        { trait_type: 'Era', value: 'DeFi' },
+        { trait_type: 'Depth', value: 'Domainer' },
+        { trait_type: 'Gasveteran', value: 'Weathered' },
+        { trait_type: 'Archetype', value: 'Abstract' },
+        { trait_type: 'Rarity', value: 'Common' },
+        { trait_type: 'Seed', value: 742_941_409 },
+      ],
+    })
+    expect(value).not.toContain(proof)
   })
 })

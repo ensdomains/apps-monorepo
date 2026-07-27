@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { getCommemorativeNftFlowStatus } from './flowState'
+import {
+  getCommemorativeNftClaimedStatus,
+  getCommemorativeNftFlowStatus,
+} from './flowState'
 
 const base = {
   eligibilityStatus: 'eligible' as const,
@@ -10,6 +13,21 @@ const base = {
 }
 
 describe('commemorative NFT flow state', () => {
+  it('treats the display-only preview as unclaimed without a chain query', () => {
+    expect(
+      getCommemorativeNftClaimedStatus({
+        preview: true,
+        claimed: undefined,
+      }),
+    ).toBe(false)
+    expect(
+      getCommemorativeNftClaimedStatus({
+        preview: false,
+        claimed: undefined,
+      }),
+    ).toBeUndefined()
+  })
+
   it.each([
     [{ ...base, eligibilityStatus: 'pending' as const }, 'loadingEligibility'],
     [{ ...base, eligibilityStatus: 'ineligible' as const }, 'ineligible'],
