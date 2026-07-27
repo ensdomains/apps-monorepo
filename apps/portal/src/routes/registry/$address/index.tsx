@@ -102,20 +102,20 @@ function RouteComponent() {
       </div>
 
       <div className="flex flex-col gap-10 lg:gap-6 lg:flex-row lg:items-start">
-        <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8 text-sm">
-          <dt className="text-muted-foreground flex items-center h-9">
+        <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Address
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             <EntityBadge variant="contract" address={address}>
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground flex items-center h-9">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Deployed
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             <DeployedBadge
               namehash={registry.namehash}
               createdBlock={registry.createdBlock}
@@ -123,10 +123,10 @@ function RouteComponent() {
             />
           </dd>
 
-          <dt className="text-muted-foreground flex items-center h-9">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Factory
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             <EntityBadge
               variant="contract"
               label="registry factory"
@@ -137,10 +137,10 @@ function RouteComponent() {
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground flex items-center h-9">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Parent
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             {match({
               isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
               isLoadingParent,

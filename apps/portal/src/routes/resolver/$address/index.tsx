@@ -8,9 +8,9 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
-import { PermissionedResolverBanner } from '@/features/resolver/components/PermissionedResolverBanner'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
+import { ResolverTypeValue } from '@/features/resolver/components/ResolverTypeValue'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { queryClient } from '@/utils/queryClient'
@@ -62,8 +62,6 @@ function RouteComponent() {
         Resolver {truncateAddress(address, 6, 4, '...')}
       </h1>
 
-      <PermissionedResolverBanner resolverAddress={address as Address} />
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <CounterCard to="/resolver/$address/nodes" params={{ address }}>
           <CounterCardRow icon={GridIcon}>
@@ -91,6 +89,7 @@ function RouteComponent() {
 
       <ResolverDetails
         resolverAddress={address as Address}
+        typeValue={<ResolverTypeValue resolverAddress={address as Address} />}
         data={[
           {
             label: 'Contract',

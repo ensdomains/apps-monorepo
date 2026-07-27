@@ -30,7 +30,10 @@ import {
   RESOLVER_INTERFACE_IDS,
   type ResolverInterfaceName,
 } from '@/lib/constants/resolverInterfaceIds'
-import { universalResolverAddress } from '@/lib/constants/universalResolver'
+import {
+  officialPublicResolverAddress,
+  universalResolverAddress,
+} from '@/lib/constants/universalResolver'
 import { wagmiConfig } from '@/lib/wagmi'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
@@ -43,9 +46,6 @@ export const Route = createFileRoute('/$name/resolver')({
 })
 
 const sepoliaUrl = sepolia.blockExplorers.default.url
-
-const officialPublicResolverAddress =
-  '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as Address
 
 const interfaceNamesById = Object.entries(RESOLVER_INTERFACE_IDS).map(
   ([name, value]) => [value, name as ResolverInterfaceName] as const,
