@@ -39,6 +39,21 @@ const pickTypedPayload = (
 }
 
 /**
+ * Full ENS name a decoded `name` param refers to, if determinable: the value itself
+ * when it is already a full name, or the event's domain when the value is its leading
+ * label (e.g. LabelRegistered emits the bare label of the name it created).
+ */
+export const resolveDecodedName = (
+  value: string,
+  eventName?: string | null,
+): string | undefined => {
+  if (value.includes('.')) return value
+  if (eventName && (eventName === value || eventName.startsWith(`${value}.`)))
+    return eventName
+  return undefined
+}
+
+/**
  * Decoded parameter entries for the tier-3 detail table. Prefers the typed `as*`
  * payload; falls back to the raw `data` JSON blob for types without a decoder.
  */

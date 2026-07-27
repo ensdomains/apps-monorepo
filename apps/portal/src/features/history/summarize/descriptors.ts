@@ -134,7 +134,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'transfer',
     build: ({ primary }) => {
       const to = primary.asTransfer?.to
-      // from == 0 is a mint (registration) — let the register descriptor own that story.
       if (isZero(primary.asTransfer?.from)) return null
       return {
         label: 'Transfer name',
@@ -213,7 +212,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     },
   },
 
-  // Conditional variant: grant vs revoke from the bitmap delta.
   EACRolesChanged: {
     icon: 'grant',
     build: ({ primary }) => {

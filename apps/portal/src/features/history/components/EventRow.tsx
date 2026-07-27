@@ -5,12 +5,14 @@ import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { decodeRoleChange } from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
 import { DecodedParams } from './EventDetail'
+import { resolveDecodedName } from './eventDecodedEntries'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
   <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-sm">
@@ -18,34 +20,52 @@ const Mono = ({ children }: { children: React.ReactNode }) => (
   </code>
 )
 
-const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
-  const muted = 'text-muted-foreground text-sm'
+const muted = 'text-muted-foreground text-sm'
 
+const LabelRegisteredContent = ({ event }: { event: TimelineIndexerEvent }) => {
+  const label = event.asLabelRegistered?.name
+  const fullName = label ? resolveDecodedName(label, event.name) : undefined
+  return (
+    <>
+      <span className={muted}>created label</span>
+      {label &&
+        (fullName ? (
+          <EntityBadge variant="name" name={fullName} compact>
+            {label}
+          </EntityBadge>
+        ) : (
+          <Mono>{label}</Mono>
+        ))}
+    </>
+  )
+}
+
+const NameRegisteredContent = ({ event }: { event: TimelineIndexerEvent }) => {
+  // The indexer often carries only the bare label — resolve it against the
+  // event's domain so "troy" still badges as troy.eth.
+  const registered =
+    event.asNameRegistered?.name ?? event.asNameRegistered?.label
+  const registeredName = registered
+    ? resolveDecodedName(registered, event.name)
+    : undefined
+  return (
+    <>
+      <span className={muted}>registered</span>
+      {registeredName && (
+        <EntityBadge variant="name" name={registeredName} compact>
+          {registeredName}
+        </EntityBadge>
+      )}
+    </>
+  )
+}
+
+const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
   switch (event.type) {
     case 'LabelRegistered':
-      return (
-        <>
-          <span className={muted}>created label</span>
-          {event.asLabelRegistered?.name && (
-            <Mono>{event.asLabelRegistered.name}</Mono>
-          )}
-        </>
-      )
+      return <LabelRegisteredContent event={event} />
     case 'NameRegistered':
-      return (
-        <>
-          <span className={muted}>registered</span>
-          {event.asNameRegistered?.name && (
-            <EntityBadge
-              variant="name"
-              name={event.asNameRegistered.name}
-              compact
-            >
-              {event.asNameRegistered.name}
-            </EntityBadge>
-          )}
-        </>
-      )
+      return <NameRegisteredContent event={event} />
     case 'Transfer':
       return (
         <>
@@ -92,9 +112,13 @@ export const EventRow = ({ event }: EventRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const chainId = useChainId()
 
-  const contractLabel = event.contractAddress
-    ? getEnsContractName(chainId, event.contractAddress as Address)
+  const contractAddress = (event.contractAddress ?? undefined) as
+    | Address
+    | undefined
+  const contractLabel = contractAddress
+    ? getEnsContractName(chainId, contractAddress)
     : undefined
+  const contractExplorerUrl = useBlockExplorerAddressUrl(contractAddress)
 
   return (
     <TimelineRow
@@ -119,14 +143,15 @@ export const EventRow = ({ event }: EventRowProps) => {
           <EventContent event={event} />
         </div>
         <div className="justify-self-start sm:justify-self-end">
-          {event.contractAddress && (
+          {contractAddress && (
             <EntityBadge
               variant="contract"
-              address={event.contractAddress as Address}
+              address={contractAddress}
               label={contractLabel}
+              etherscanHref={contractExplorerUrl}
               compact
             >
-              {truncateAddress(event.contractAddress)}
+              {truncateAddress(contractAddress)}
             </EntityBadge>
           )}
         </div>
