@@ -94,7 +94,7 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
     !!state.card.assets.imageUrl || !!state.card.assets.animationUrl
 
   return (
-    <fieldset className="flex shrink-0 flex-col gap-2 border-0 p-0">
+    <fieldset className="relative z-10 flex shrink-0 flex-col gap-2 border-0 p-0">
       <legend className="sr-only">
         <Trans>NFT actions</Trans>
       </legend>
@@ -257,7 +257,7 @@ const ArtworkCard = ({
       role="group"
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] overflow-hidden rounded-[18px] bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
+      <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
         <CommemorativeNftRendererSurface
           artworkUrl={state.card.artworkUrl}
           eligibility={state.card.eligibility}

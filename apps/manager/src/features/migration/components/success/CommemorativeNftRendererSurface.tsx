@@ -24,36 +24,39 @@ export const CommemorativeNftRendererSurface = ({
     if (!rendererUrl && !artworkUrl) onReady?.()
   }, [artworkUrl, onReady, rendererUrl])
 
-  const fallback =
-    artworkUrl && !artworkFailed ? (
-      <img
-        alt=""
-        className="pointer-events-none absolute top-0 left-[-7.03%] h-full w-[141.41%] max-w-none select-none object-cover"
-        draggable={false}
-        onError={() => {
-          setArtworkFailed(true)
-          if (!rendererUrl) onReady?.()
-        }}
-        onLoad={() => {
-          if (!rendererUrl) onReady?.()
-        }}
-        src={artworkUrl}
-      />
-    ) : (
-      <div
-        aria-label={`Loading commemorative NFT preview for ${eligibility.rendererName}`}
-        aria-live="polite"
-        className="absolute inset-0 overflow-hidden rounded-[18px] bg-[#f1d5e1]"
-        data-archetype={eligibility.traits.Archetype}
-        data-seed={eligibility.traits.Seed}
-        role="status"
-      >
-        <div className="absolute inset-0 bg-linear-to-br from-white/50 via-[#f6dce7] to-[#eec7d8]" />
-        {shouldReduceMotion ? null : (
-          <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/70 to-transparent" />
-        )}
-      </div>
-    )
+  const fallback = (
+    <div className="absolute inset-0 overflow-hidden rounded-[18px]">
+      {artworkUrl && !artworkFailed ? (
+        <img
+          alt=""
+          className="pointer-events-none absolute top-0 left-[-7.03%] h-full w-[141.41%] max-w-none select-none object-cover"
+          draggable={false}
+          onError={() => {
+            setArtworkFailed(true)
+            if (!rendererUrl) onReady?.()
+          }}
+          onLoad={() => {
+            if (!rendererUrl) onReady?.()
+          }}
+          src={artworkUrl}
+        />
+      ) : (
+        <div
+          aria-label={`Loading commemorative NFT preview for ${eligibility.rendererName}`}
+          aria-live="polite"
+          className="absolute inset-0 bg-[#f1d5e1]"
+          data-archetype={eligibility.traits.Archetype}
+          data-seed={eligibility.traits.Seed}
+          role="status"
+        >
+          <div className="absolute inset-0 bg-linear-to-br from-white/50 via-[#f6dce7] to-[#eec7d8]" />
+          {shouldReduceMotion ? null : (
+            <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/70 to-transparent" />
+          )}
+        </div>
+      )}
+    </div>
+  )
 
   return (
     <>
