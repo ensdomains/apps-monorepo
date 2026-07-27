@@ -49,3 +49,33 @@ describe('isValidEnsName', () => {
     expect(isValidEnsName('ETH')).toBe(false) // uppercase 1LD
   })
 })
+
+describe('encoded labelhash labels', () => {
+  const encoded =
+    '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f939773]'
+
+  it('accepts names containing an encoded labelhash label', () => {
+    expect(isValidEnsName(`${encoded}.baywall.eth`)).toBe(true)
+    expect(isNormalized(`${encoded}.baywall.eth`)).toBe(true)
+    expect(isValidEnsName(encoded)).toBe(true)
+  })
+
+  it('still validates the other labels around it', () => {
+    expect(isValidEnsName(`${encoded}.BayWall.eth`)).toBe(false)
+    expect(isValidEnsName(`${encoded}..eth`)).toBe(false)
+  })
+
+  it('rejects malformed bracket labels', () => {
+    expect(isValidEnsName('[abc].eth')).toBe(false) // too short
+    expect(
+      isValidEnsName(
+        '[023E0D05AB821F1DEB4821991C1A5BB8E1D9D71B7113D61CCE6972934F939773].eth',
+      ),
+    ).toBe(false) // uppercase hex
+    expect(
+      isValidEnsName(
+        '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f93977z].eth',
+      ),
+    ).toBe(false) // non-hex
+  })
+})
