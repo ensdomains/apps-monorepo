@@ -17,12 +17,12 @@ import {
   useBlockExplorerTxUrl,
 } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
-import { getEventFieldType } from '@/utils/ens/eventSignatures'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { getDecodedEntries } from './eventDecodedEntries'
+import { getTimelineFieldType } from './eventFieldTypes'
 
 /** Param keys that denote a contract even when the address has no known label. */
 const CONTRACT_PARAM_KEYS = new Set(['resolver', 'registry', 'implementer'])
@@ -104,7 +104,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
             <tr key={key}>
               <td className="py-1.5 pr-6 align-top font-mono">{key}</td>
               <td className="py-1.5 pr-6 align-top font-mono text-muted-foreground">
-                {getEventFieldType(event.type, key)}
+                {getTimelineFieldType(event.type, key)}
               </td>
               <td className="py-1.5 break-all align-top font-mono">
                 <DecodedValue event={event} paramKey={key} value={value} />

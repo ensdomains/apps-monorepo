@@ -41,7 +41,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
 
   const allExpanded =
     filteredActions.length > 0 &&
-    filteredActions.every((action) => openIds.has(action.id))
+    filteredActions.every((action) => openIds.has(action.txHash))
 
   const toggleAction = (id: string) =>
     setOpenIds((prev) => {
@@ -53,7 +53,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
 
   const toggleExpandAll = () =>
     setOpenIds(
-      allExpanded ? new Set() : new Set(filteredActions.map((a) => a.id)),
+      allExpanded ? new Set() : new Set(filteredActions.map((a) => a.txHash)),
     )
 
   if (isLoading) return <LoadingMessage />
@@ -117,10 +117,10 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
           <Timeline className="gap-y-4">
             {filteredActions.map((action, index) => (
               <ActionSummaryRow
-                key={action.id}
+                key={action.txHash}
                 action={action}
-                isOpen={openIds.has(action.id)}
-                onToggle={() => toggleAction(action.id)}
+                isOpen={openIds.has(action.txHash)}
+                onToggle={() => toggleAction(action.txHash)}
                 showDate={
                   index === 0 ||
                   formatTimelineDate(filteredActions[index - 1].timestamp) !==

@@ -1,8 +1,7 @@
-import type { Hex } from 'viem'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { DESCRIPTORS, FALLBACK_ICON, humanizeType } from './descriptors'
-import { RECIPES } from './recipes'
-import type { Action, DescriptorContext } from './summarize.types'
+import { multiRecordRecipe } from './recipes'
+import type { Action } from './summarize.types'
 
 /** Event types that never surface as their own action (nor as filter options). */
 export const IGNORED_TYPES = new Set(['CommitmentMade'])
@@ -37,7 +36,7 @@ const rankOf = (event: TimelineIndexerEvent): number =>
   TYPE_RANK[event.type] ?? 0
 
 /** Group events by transaction hash, preserving encounter order. */
-export const groupByTransaction = (
+const groupByTransaction = (
   events: readonly TimelineIndexerEvent[],
 ): TimelineIndexerEvent[][] => {
   const groups = new Map<string, TimelineIndexerEvent[]>()
@@ -50,42 +49,34 @@ export const groupByTransaction = (
   return [...groups.values()]
 }
 
-const distinctTxHashes = (events: readonly TimelineIndexerEvent[]): Hex[] => [
-  ...new Set(events.map((event) => event.transactionHash)),
-]
-
 /**
- * Build the label/slots/icon for a group: try recipes first, then the highest-ranked
- * event whose descriptor produces a result, else a humanized fallback.
+ * Build the label/slots/icon for a group: the multi-record recipe first, then the
+ * highest-ranked event whose descriptor produces a result, else a humanized fallback.
  */
 const describeGroup = (
   group: readonly TimelineIndexerEvent[],
   byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
-  const ctxFor = (primary: TimelineIndexerEvent): DescriptorContext => ({
-    primary,
-    events: group,
-  })
-
-  for (const recipe of RECIPES) {
-    const result = recipe(group, ctxFor(byRank[0]))
-    if (result) return result
-  }
+  const fromRecipe = multiRecordRecipe(group)
+  if (fromRecipe) return fromRecipe
 
   for (const primary of byRank) {
     const descriptor = DESCRIPTORS[primary.type]
-    const built = descriptor?.build(ctxFor(primary))
+    const built = descriptor?.build({ primary, events: group })
     if (built) return { ...built, icon: built.icon ?? descriptor.icon }
   }
 
-  const primary = byRank[0]
-  return { icon: FALLBACK_ICON, label: humanizeType(primary.type), slots: [] }
+  return {
+    icon: FALLBACK_ICON,
+    label: humanizeType(byRank[0].type),
+    slots: [],
+  }
 }
 
 /**
- * Turn a flat list of raw indexer events into tier-1 semantic actions.
- * v1 groups strictly by transaction; multi-transaction actions (primary name) are a
- * documented follow-up (recipes.ts) and currently render as separate actions.
+ * Turn a flat list of raw indexer events into tier-1 semantic actions, one per
+ * transaction. Multi-transaction actions (primary name) are a documented follow-up
+ * (recipes.ts) and currently render as separate actions.
  */
 export const summarizeEvents = (
   events: readonly TimelineIndexerEvent[],
@@ -94,11 +85,9 @@ export const summarizeEvents = (
 
   const actions = groupByTransaction(relevant).map((group): Action => {
     const byRank = [...group].sort((a, b) => rankOf(b) - rankOf(a))
-    const primary = byRank[0]
     return {
-      id: `${primary.transactionHash}:${primary.id}`,
+      txHash: group[0].transactionHash,
       timestamp: Math.max(...group.map((event) => event.timestamp)),
-      txHashes: distinctTxHashes(group),
       events: group,
       ...describeGroup(group, byRank),
     }

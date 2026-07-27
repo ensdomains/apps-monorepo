@@ -5,9 +5,7 @@ import {
   Boxes,
   Circle,
   Clock,
-  Eye,
   FileCode2,
-  Flame,
   GitBranch,
   List,
   Lock,
@@ -39,8 +37,6 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
   migrate: ArrowRightLeft,
   fuses: Lock,
   expiry: Clock,
-  burn: Flame,
-  observer: Eye,
   default: Circle,
 }
 

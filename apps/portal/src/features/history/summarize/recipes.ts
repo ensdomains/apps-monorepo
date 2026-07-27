@@ -1,22 +1,5 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
-import type { ActionSlot, DescriptorContext } from './summarize.types'
-
-/**
- * Recipes collapse a *group* of raw events into a single semantic action when the
- * default one-primary-event descriptor isn't enough (e.g. "Set 4 records"). Each
- * returns a label + slots + icon, or `null` to defer to the descriptor path.
- *
- * A recipe runs against events already grouped by transaction (see summarizeEvents).
- */
-export type RecipeResult = {
-  icon: 'records'
-  label: string
-  slots: ActionSlot[]
-}
-export type Recipe = (
-  group: readonly TimelineIndexerEvent[],
-  ctx: DescriptorContext,
-) => RecipeResult | null
+import type { ActionSlot } from './summarize.types'
 
 const RECORD_TYPES = new Set([
   'TextChanged',
@@ -34,9 +17,12 @@ const recordLabel = (event: TimelineIndexerEvent): string => {
 
 /**
  * "Set N records" — a single transaction that sets multiple resolver records.
- * Matches when ≥2 of the group's events are record writes.
+ * Collapses the group into one semantic action when ≥2 of its events are record
+ * writes; returns `null` to defer to the per-event descriptor path.
  */
-export const multiRecordRecipe: Recipe = (group) => {
+export const multiRecordRecipe = (
+  group: readonly TimelineIndexerEvent[],
+): { icon: 'records'; label: string; slots: ActionSlot[] } | null => {
   const records = group.filter((event) => RECORD_TYPES.has(event.type))
   if (records.length < 2) return null
 
@@ -58,5 +44,3 @@ export const multiRecordRecipe: Recipe = (group) => {
 // NameChanged in separate txs). Requires correlating by target+actor within a time
 // window — cannot key on transactionHash. Until then those render as separate actions.
 // Ideally the indexer provides an action/correlation id (see spec §6.4).
-
-export const RECIPES: readonly Recipe[] = [multiRecordRecipe]

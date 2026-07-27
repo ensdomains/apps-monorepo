@@ -19,8 +19,6 @@ export type ActionIcon =
   | 'migrate'
   | 'fuses'
   | 'expiry'
-  | 'burn'
-  | 'observer'
   | 'default'
 
 /**
@@ -46,16 +44,18 @@ export type ActionSlot =
       readonly address?: string
     }
 
-/** A tier-1 semantic action, produced by the summarize engine from raw events. */
+/**
+ * A tier-1 semantic action, produced by the summarize engine from raw events.
+ * Actions are one-per-transaction, so `txHash` doubles as the stable identity.
+ */
 export type Action = {
-  readonly id: string
+  readonly txHash: Hex
   readonly icon: ActionIcon
   /** The verb phrase, e.g. "Set address to". */
   readonly label: string
   /** Entities/joiners rendered inline after the label. */
   readonly slots: readonly ActionSlot[]
   readonly timestamp: number
-  readonly txHashes: readonly Hex[]
   /** Underlying on-chain events (tier-2). */
   readonly events: readonly TimelineIndexerEvent[]
 }

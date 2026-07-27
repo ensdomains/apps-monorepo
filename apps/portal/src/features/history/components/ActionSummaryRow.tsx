@@ -2,7 +2,6 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { formatTimelineDate } from '../formatTimelineDate'
 import type { Action } from '../summarize/summarize.types'
-import { groupByTransaction } from '../summarize/summarizeEvents'
 import { ActionSlots } from './ActionSlots'
 import { ActionIconGlyph } from './actionIcons'
 import { EventRow } from './EventRow'
@@ -30,8 +29,6 @@ export const ActionSummaryRow = ({
   onToggle,
 }: ActionSummaryRowProps) => {
   const eventCount = action.events.length
-  const txCount = action.txHashes.length
-  const txGroups = groupByTransaction(action.events)
   const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
 
   const iconBadge = (
@@ -54,7 +51,8 @@ export const ActionSummaryRow = ({
           {` ${eventCount === 1 ? 'event' : 'events'}`}
         </span>
       </span>
-      <EntityBadge variant="tx">{txCount} tx</EntityBadge>
+      {/* Actions are one-per-transaction by construction (see summarizeEvents). */}
+      <EntityBadge variant="tx">1 tx</EntityBadge>
     </div>
   )
 
@@ -64,16 +62,9 @@ export const ActionSummaryRow = ({
       onToggle={onToggle}
       disclosure={
         <div className="flex flex-col gap-y-4 pt-4">
-          {txGroups.map((group) => (
-            <div
-              key={group[0].transactionHash}
-              className="flex flex-col gap-y-4"
-            >
-              <TransactionHeaderRow event={group[0]} />
-              {group.map((event) => (
-                <EventRow key={event.id} event={event} />
-              ))}
-            </div>
+          <TransactionHeaderRow event={action.events[0]} />
+          {action.events.map((event) => (
+            <EventRow key={event.id} event={event} />
           ))}
         </div>
       }
