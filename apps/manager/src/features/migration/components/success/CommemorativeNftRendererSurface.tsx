@@ -1,5 +1,5 @@
+import { useReducedMotion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { MSymbol } from '@/components/ui/material-symbol'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
 
 type CommemorativeNftRendererSurfaceProps = {
@@ -15,6 +15,7 @@ export const CommemorativeNftRendererSurface = ({
   onReady,
   rendererUrl,
 }: CommemorativeNftRendererSurfaceProps) => {
+  const shouldReduceMotion = useReducedMotion()
   const [artworkFailed, setArtworkFailed] = useState(false)
   const [rendererFailed, setRendererFailed] = useState(false)
   const [rendererReady, setRendererReady] = useState(false)
@@ -40,28 +41,26 @@ export const CommemorativeNftRendererSurface = ({
       />
     ) : (
       <div
-        aria-label={`Commemorative NFT preview for ${eligibility.rendererName}`}
-        className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[#f8dce7] px-6 text-center"
+        aria-label={`Loading commemorative NFT preview for ${eligibility.rendererName}`}
+        aria-live="polite"
+        className="absolute inset-0 overflow-hidden rounded-[18px] bg-[#f1d5e1]"
         data-archetype={eligibility.traits.Archetype}
         data-seed={eligibility.traits.Seed}
-        role="img"
+        role="status"
       >
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(135deg,transparent_0,transparent_11px,rgba(128,0,54,0.045)_11px,rgba(128,0,54,0.045)_12px)]" />
-        <div className="absolute inset-3 rounded-[13px] border border-ens-garnet-500/15 border-dashed" />
-        <div className="relative text-ens-garnet-500">
-          <span className="flex size-9 items-center justify-center rounded-full bg-white/55">
-            <MSymbol className="text-[20px]" symbol="image" />
-          </span>
-        </div>
+        <div className="absolute inset-0 bg-linear-to-br from-white/50 via-[#f6dce7] to-[#eec7d8]" />
+        {shouldReduceMotion ? null : (
+          <div className="pointer-events-none absolute inset-0 animate-shimmer bg-linear-to-r from-transparent via-white/70 to-transparent" />
+        )}
       </div>
     )
 
   return (
     <>
-      {fallback}
+      {rendererReady && !rendererFailed ? null : fallback}
       {rendererUrl && !rendererFailed ? (
         <iframe
-          className={`absolute top-1/2 left-1/2 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0 transition-opacity duration-500 ${
+          className={`absolute top-1/2 left-1/2 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0 ${
             rendererReady ? 'opacity-100' : 'opacity-0'
           }`}
           onError={() => {

@@ -257,7 +257,7 @@ const ArtworkCard = ({
       role="group"
       transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] overflow-hidden rounded-[18px] bg-[#006ee6] drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
+      <div className="relative h-[282px] w-[200px] rotate-[-5.12deg] overflow-hidden rounded-[18px] bg-transparent drop-shadow-[0_7px_7px_rgba(90,0,36,0.28)]">
         <CommemorativeNftRendererSurface
           artworkUrl={state.card.artworkUrl}
           eligibility={state.card.eligibility}
