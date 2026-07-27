@@ -18,8 +18,10 @@ export const REGISTRATION_STAGE_PROGRESS = {
   waitingForResolverDeployment: 15,
   preparingCommitment: 23,
   committingTransaction: 31,
-  // Standalone-HCA commit leg: check funding → (permit) → fund+enable+commit
-  // as one session-signed request. Sits alongside `committingTransaction`.
+  // Standalone-HCA commit leg: size the budget → check funding → (permit) →
+  // fund+enable+commit as one session-signed request. Sits alongside
+  // `committingTransaction`.
+  computingHcaBudget: 25,
   checkingHcaFunding: 27,
   signingFundingPermit: 29,
   submittingSetupBundle: 31,

@@ -163,7 +163,13 @@ export const ConfirmPurchaseBase = ({
   const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
-  const selectedCoinConfig = selectedToken && STABLECOINS[selectedToken]
+  // `SUPPORTED_TOKEN` still spans the legacy USDC/DAI pair, but the
+  // standalone-HCA deployment only configures Circle USDC — so look the symbol
+  // up defensively and fall back to the USDC icon for anything unconfigured.
+  const selectedCoinConfig =
+    selectedToken && selectedToken in STABLECOINS
+      ? STABLECOINS[selectedToken as keyof typeof STABLECOINS]
+      : undefined
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
   return (
