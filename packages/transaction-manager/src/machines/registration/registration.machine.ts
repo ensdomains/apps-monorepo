@@ -1,3 +1,4 @@
+import type { HcaBudgetBreakdown } from '@ens-apps/smart-account'
 import { getChainClock } from '@ens-apps/utils/time-travel/installChainClock'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address, Hash, Hex, PublicClient } from 'viem'
@@ -106,6 +107,12 @@ export type RegistrationContext = {
    * manifest's same-chain budget.
    */
   hcaBudget?: bigint
+  /**
+   * Standalone-HCA: how `hcaBudget` was derived (per-leg costs plus whether
+   * they came from Rhinestone's quote or the clamped gas-limit fallback).
+   * Absent when the caller supplied `hcaBudget` directly, since no estimate ran.
+   */
+  hcaBudgetBreakdown?: HcaBudgetBreakdown
   /**
    * Standalone-HCA: session-enable payload (enable-data + enable-call args).
    * Present ONLY while the session still needs its on-chain
@@ -594,7 +601,10 @@ export const registrationMachine = setup({
         onDone: {
           target: 'checkingHcaFunding',
           actions: assign({
-            hcaBudget: ({ event }) => event.output as bigint,
+            hcaBudget: ({ event }) =>
+              (event.output as HcaBudgetBreakdown).total,
+            hcaBudgetBreakdown: ({ event }) =>
+              event.output as HcaBudgetBreakdown,
           }),
         },
         // On estimator failure, fail loudly rather than silently under/over-
@@ -1457,6 +1467,7 @@ export const registrationMachine = setup({
               error: undefined,
               retryTarget: undefined,
               hcaBudget: undefined,
+              hcaBudgetBreakdown: undefined,
             })),
           },
           {

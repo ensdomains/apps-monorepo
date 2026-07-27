@@ -428,7 +428,7 @@ export function encodeDeployDedicatedResolverCall(input: {
       abi: VERIFIABLE_FACTORY_ABI,
       functionName: 'deployProxy',
       args: [
-        ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+        ENS_SEPOLIA_CONTRACTS.PermissionedResolverImpl,
         input.salt,
         getResolverInitCalldata(input.owner),
       ],

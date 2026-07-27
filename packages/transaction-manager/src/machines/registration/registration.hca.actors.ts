@@ -28,6 +28,7 @@ import {
   estimateHcaBudget,
   getDestinationContracts,
   HCA_LEG_GAS_LIMITS,
+  type HcaBudgetBreakdown,
   type Call as HcaCall,
   type HcaLeg,
   readCommitment,
@@ -148,7 +149,7 @@ export function estimateHcaBudgetActor(input: {
   signer?: Signer
   sessionEnable?: HcaSessionEnableParams
   apiKey?: string
-}): ResultAsync<bigint, Error> {
+}): ResultAsync<HcaBudgetBreakdown, Error> {
   const label = cleanLabel(input.name)
   const chainId = input.chainId
 
@@ -255,7 +256,21 @@ export function estimateHcaBudgetActor(input: {
       duration: input.duration,
       ...(input.apiKey ? { apiKey: input.apiKey } : {}),
       ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
-    }).then((b) => b.total),
+    }).then((breakdown) => {
+      // `source` tells you whether the leg costs came from Rhinestone's own
+      // quote or from the clamped gas-limit fallback. Without it there is no
+      // way to tell which model actually sized the permit at runtime — a
+      // silent fallback just over-funds and looks identical to a good quote.
+      console.log('🔧 [REGISTRATION] HCA budget:', {
+        source: breakdown.source,
+        total: breakdown.total,
+        commitCost: breakdown.commitCost,
+        registerCost: breakdown.registerCost,
+        registerBuffer: breakdown.registerBuffer,
+        registrationPrice: breakdown.registrationPrice,
+      })
+      return breakdown
+    }),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
 }

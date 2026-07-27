@@ -13,8 +13,10 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // --- V2 (sourced from ensjs chain config) ---
   ETHRegistry: ensjsSepolia.ensRegistry.address,
   ETHRegistrar: ensjsSepolia.ensEthRegistrar.address,
-  // DedicatedResolverImpl is ensjs's PermissionedResolverImpl.
-  DedicatedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
+  // The V2 resolver implementation proxied by VerifiableFactory. This is
+  // `PermissionedResolver` — NOT namechain's `DedicatedResolver`, which is a
+  // different contract with its own interface id (0x92349baa).
+  PermissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
   VerifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
   StandardRentPriceOracle: ensjsSepolia.ensStandardRentPriceOracle.address,
   HCAFactory: ensjsSepolia.ensHcaFactory.address,
