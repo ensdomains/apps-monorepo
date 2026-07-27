@@ -75,3 +75,24 @@ export const decodeRoleChange = (data?: string | null): RoleChange => {
   // Mixed or indeterminate change — surface the resulting role set.
   return { account, direction: 'unknown', roles: after }
 }
+
+/**
+ * Full ENS name a decoded `name`/`label` param refers to, if determinable:
+ * - value already contains a dot → treat as a full name
+ * - value is the leading label of `eventName` → return `eventName`
+ * - otherwise, if value is not already a label in `eventName`, append it under
+ *   that domain (e.g. LabelRegistered emits `"alice"` on `parent.eth` →
+ *   `alice.parent.eth`)
+ */
+export const resolveDecodedName = (
+  value: string,
+  eventName?: string | null,
+): string | undefined => {
+  if (!value) return undefined
+  if (value.includes('.')) return value
+  if (!eventName) return undefined
+  if (eventName === value || eventName.startsWith(`${value}.`)) return eventName
+  const labels = eventName.split('.')
+  if (labels.includes(value)) return undefined
+  return `${value}.${eventName}`
+}

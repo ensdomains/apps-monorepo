@@ -1,6 +1,8 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { parseEventData } from '../summarize/decodeRawData'
 
+export { resolveDecodedName } from '../summarize/decodeRawData'
+
 /** The typed `as*` payload matching an event's type, if the indexer decoded one. */
 const pickTypedPayload = (
   event: TimelineIndexerEvent,
@@ -36,21 +38,6 @@ const pickTypedPayload = (
     default:
       return undefined
   }
-}
-
-/**
- * Full ENS name a decoded `name` param refers to, if determinable: the value itself
- * when it is already a full name, or the event's domain when the value is its leading
- * label (e.g. LabelRegistered emits the bare label of the name it created).
- */
-export const resolveDecodedName = (
-  value: string,
-  eventName?: string | null,
-): string | undefined => {
-  if (value.includes('.')) return value
-  if (eventName && (eventName === value || eventName.startsWith(`${value}.`)))
-    return eventName
-  return undefined
 }
 
 /**

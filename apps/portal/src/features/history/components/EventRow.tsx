@@ -28,14 +28,13 @@ const LabelRegisteredContent = ({ event }: { event: TimelineIndexerEvent }) => {
   return (
     <>
       <span className={muted}>created label</span>
-      {label &&
-        (fullName ? (
-          <EntityBadge variant="name" name={fullName} compact>
-            {label}
-          </EntityBadge>
-        ) : (
-          <Mono>{label}</Mono>
-        ))}
+      {fullName ? (
+        <EntityBadge variant="name" name={fullName} compact>
+          {fullName}
+        </EntityBadge>
+      ) : (
+        label && <Mono>{label}</Mono>
+      )}
     </>
   )
 }
@@ -51,10 +50,12 @@ const NameRegisteredContent = ({ event }: { event: TimelineIndexerEvent }) => {
   return (
     <>
       <span className={muted}>registered</span>
-      {registeredName && (
+      {registeredName ? (
         <EntityBadge variant="name" name={registeredName} compact>
           {registeredName}
         </EntityBadge>
+      ) : (
+        registered && <Mono>{registered}</Mono>
       )}
     </>
   )

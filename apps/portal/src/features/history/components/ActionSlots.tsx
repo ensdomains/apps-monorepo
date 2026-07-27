@@ -53,13 +53,8 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
 export const ActionSlots = ({ slots }: { slots: readonly ActionSlot[] }) => (
   <>
     {slots.map((slot, index) => (
-      <Slot
-        key={`${slot.kind}-${
-          // biome-ignore lint/suspicious/noArrayIndexKey: unique key for each slot
-          index + 1
-        }`}
-        slot={slot}
-      />
+      // biome-ignore lint/suspicious/noArrayIndexKey: slots are a positional, static label sequence
+      <Slot key={`${slot.kind}-${index}`} slot={slot} />
     ))}
   </>
 )

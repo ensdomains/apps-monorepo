@@ -70,7 +70,7 @@ const DecodedValue = ({
   if (name) {
     return (
       <EntityBadge variant="name" name={name} compact>
-        {value}
+        {name}
       </EntityBadge>
     )
   }

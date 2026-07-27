@@ -1,6 +1,11 @@
 import { zeroAddress } from 'viem'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { decodeRoleChange, parseEventData, readString } from './decodeRawData'
+import {
+  decodeRoleChange,
+  parseEventData,
+  readString,
+  resolveDecodedName,
+} from './decodeRawData'
 import type {
   ActionSlot,
   Descriptor,
@@ -51,6 +56,17 @@ const nameSlot = (value?: string | null): ActionSlot => ({
   kind: 'name',
   value: value ?? '—',
 })
+
+/** Prefer a resolved full ENS name for action chips; never badge a bare label. */
+const resolvedNameSlot = (
+  candidate?: string | null,
+  eventName?: string | null,
+): ActionSlot =>
+  nameSlot(
+    (candidate ? resolveDecodedName(candidate, eventName) : undefined) ??
+      eventName ??
+      candidate,
+  )
 
 /**
  * The action catalogue. Keyed by the indexer `Event.type`.
@@ -161,7 +177,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'subname',
     build: ({ primary }) => ({
       label: 'Register subname',
-      slots: [nameSlot(primary.asLabelRegistered?.name ?? primary.name)],
+      slots: [resolvedNameSlot(primary.asLabelRegistered?.name, primary.name)],
     }),
   },
   NameRegistered: {
@@ -169,7 +185,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: (ctx) => ({
       label: 'Register',
       slots: [
-        nameSlot(ctx.primary.asNameRegistered?.name ?? ctx.primary.name),
+        resolvedNameSlot(
+          ctx.primary.asNameRegistered?.name ??
+            ctx.primary.asNameRegistered?.label,
+          ctx.primary.name,
+        ),
         { kind: 'connective', value: 'by' },
         actorSlot(ctx, ctx.primary.asNameRegistered?.owner),
       ],
