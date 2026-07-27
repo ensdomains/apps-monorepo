@@ -30,7 +30,10 @@ const DemandStats = ({ demand }: { demand?: PriceCooldownDemand }) => {
     <div className="flex flex-col gap-2 text-ens-lapis-900 md:flex-row md:flex-wrap md:gap-3">
       {favoriteCount !== undefined && (
         <div className="flex items-center gap-1.5">
-          <MSymbol className="ms-opsz-16 ms-wght-300" symbol="favorite" />
+          <MSymbol
+            className="ms-fill ms-opsz-16 ms-wght-300"
+            symbol="favorite"
+          />
           <span className="font-mono text-sm uppercase">{favoriteCount}</span>
           <span className="font-medium text-ens-lapis-900 text-xs md:text-sm">
             <Trans>people have favorited this name</Trans>
