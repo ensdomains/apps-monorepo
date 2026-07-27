@@ -20,7 +20,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
-ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
 # Standalone-HCA deployment addresses (Circle USDC etc.), from the app manifest.
 eval "$(node "$SCRIPT_DIR/print-standalone-hca-addresses.mjs")"
@@ -29,6 +28,8 @@ eval "$(node "$SCRIPT_DIR/print-standalone-hca-addresses.mjs")"
 USDC_BALANCE_SLOT=9
 # 10,000 USDC (6 decimals) as a 32-byte hex value.
 USDC_AMOUNT_HEX=$(cast to-uint256 10000000000)
+# 10 ETH as a hex quantity (what `anvil_setBalance` expects).
+ETH_AMOUNT_HEX=$(cast to-hex 10000000000000000000)
 
 # Known addresses to fund. The standalone flow reads the EOA's USDC (permit
 # source) and needs ETH in the standalone HCA (mockestrator impersonation gas).
@@ -56,9 +57,17 @@ fund_address() {
   echo "→ Funding $addr"
 
   # ETH for gas (impersonated HCA execution in the mockestrator).
-  cast send "$addr" --value 10ether \
-    --private-key "$ANVIL_KEY" --rpc-url "$RPC_URL" --quiet 2>/dev/null
-  echo "  ✅ 10 ETH sent (gas)"
+  #
+  # Set the balance directly instead of transferring from Anvil account 0. The
+  # funder's balance is NOT guaranteed on a fork — it inherits real Sepolia
+  # state and is drawn down by earlier setup — and once it dips below the
+  # transfer value every remaining address fails with
+  # "Insufficient funds for gas * price + value" (which `--quiet 2>/dev/null`
+  # then hides, surfacing only as a bare exit 1). `anvil_setBalance` needs no
+  # sender, spends no gas, and is idempotent.
+  cast rpc anvil_setBalance "$addr" "$ETH_AMOUNT_HEX" \
+    --rpc-url "$RPC_URL" >/dev/null
+  echo "  ✅ 10 ETH set (gas)"
 
   # 10,000 Circle USDC via direct storage write (no open mint).
   set_usdc_balance "$addr"
