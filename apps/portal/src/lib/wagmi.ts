@@ -55,28 +55,7 @@ export const customSepolia = {
   },
 }
 
-// ENS v1 (Sepolia) subgraph endpoint. `extendChainWithEns` hardcodes ensjs's
-// default (`api.sepolia.ensnode.io`), which now returns "payment required" for
-// this API key and blocks the migration flow — so we override `subgraphs.ens`
-// after extending (the ensjs default always wins over anything passed into the
-// chain). Self-hosted ENS-owned replacement synced for Sepolia v1.
-const V1_SUBGRAPH_URL = 'https://v1-graphql.ens.dev/subgraph'
-
-const extendedSepolia = extendChainWithEns(customSepolia)
-
-// ensjs types `subgraphs.ens.url` as the exact default literal, so the cast
-// keeps the (structural) type intact while swapping the runtime URL — the value
-// is only ever used as a fetch target, nothing branches on the literal.
-export const sepoliaWithEns = {
-  ...extendedSepolia,
-  subgraphs: {
-    ...extendedSepolia.subgraphs,
-    ens: {
-      ...extendedSepolia.subgraphs.ens,
-      url: V1_SUBGRAPH_URL as typeof extendedSepolia.subgraphs.ens.url,
-    },
-  },
-}
+export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
 // Injected wallets (MetaMask, Coinbase extension, Rabby, …) are discovered via
 // EIP-6963, so WalletConnect is the only explicit connector. We skip the
