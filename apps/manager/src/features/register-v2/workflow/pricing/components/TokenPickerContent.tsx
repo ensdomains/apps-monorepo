@@ -8,7 +8,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -382,7 +382,6 @@ export const TokenPickerContentBase = ({
               <Trans>Stables accepted</Trans>
             </p>
             <div className="flex items-center gap-1">
-              <USDTIcon className="h-7 w-7" />
               <USDCIcon className="h-7 w-7" />
             </div>
           </div>

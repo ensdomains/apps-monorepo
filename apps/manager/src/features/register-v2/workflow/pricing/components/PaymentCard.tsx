@@ -2,7 +2,7 @@ import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ens-consumer/button/Button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
@@ -156,7 +156,6 @@ export const PaymentCardBase = ({
           </p>
           {/* Stablecoin icons */}
           <div className="flex items-center gap-1">
-            <USDTIcon className="h-7 w-7" />
             <USDCIcon className="h-7 w-7" />
           </div>
         </div>

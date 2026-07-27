@@ -1221,8 +1221,8 @@ msgid "Inbox"
 msgstr "Inbox"
 
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx
-msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
-msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
+msgid "Insufficient funds. You don't have enough USDC in your wallet for this purchase."
+msgstr "Insufficient funds. You don't have enough USDC in your wallet for this purchase."
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Invalid character"
@@ -2469,8 +2469,8 @@ msgid "Support"
 msgstr "Support"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Supports USDC and DAI payments"
-msgstr "Supports USDC and DAI payments"
+msgid "Supports USDC payments"
+msgstr "Supports USDC payments"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram"
