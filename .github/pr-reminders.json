@@ -1,0 +1,23 @@
+{
+  "$comment": "Config for .github/workflows/pr-reminders.yml \u2014 the run schedule itself is the cron in that workflow.",
+  "qaLabel": "QA Requested",
+  "minAgeHoursForReviewNag": 24,
+  "ignoreLabels": [
+    "DO NOT MERGE",
+    "automated"
+  ],
+  "ignoreAuthors": [
+    "dependabot",
+    "app/dependabot",
+    "github-actions",
+    "app/github-actions"
+  ],
+  "$slackUserMapComment": "GitHub login -> Slack member ID (Slack profile -> three dots -> Copy member ID). Unmapped logins fall back to their plain GitHub handle.",
+  "slackUserMap": {
+    "Malak67": "REPLACE_WITH_SLACK_MEMBER_ID"
+  },
+  "ignoreTitlePatterns": [
+    "DO NOT MERGE",
+    "WIP"
+  ]
+}
