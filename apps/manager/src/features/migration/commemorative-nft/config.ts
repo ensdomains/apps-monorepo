@@ -92,6 +92,6 @@ export const buildCommemorativeNftRendererUrl = (params: {
   )}`
   const rendererUrl = new URL(trimTrailingSlash(params.rendererOrigin))
   rendererUrl.searchParams.set('tokenURI', tokenUri)
-  rendererUrl.searchParams.set('embed', '1')
+  rendererUrl.searchParams.set('transparent', '1')
   return rendererUrl.toString()
 }
