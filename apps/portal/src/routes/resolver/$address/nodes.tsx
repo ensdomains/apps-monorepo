@@ -275,7 +275,7 @@ function RouteComponent() {
                         key={cell.id}
                         className={cn(
                           'px-6',
-                          tableView.compact ? 'py-2' : 'py-4',
+                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                         )}
                       >
                         {flexRender(
