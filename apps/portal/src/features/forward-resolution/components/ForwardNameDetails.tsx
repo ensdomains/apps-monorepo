@@ -110,7 +110,7 @@ export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {
 
   return (
     <div className="flex flex-col p-4 sm:p-8 gap-4 sm:gap-6">
-      <h2 className="text-3xl font-medium">{name}</h2>
+      <h2 className="text-h2">{name}</h2>
       <div className="flex flex-col gap-4">
         <div className="flex flex-row">
           <div className="w-full max-w-40">Name</div>

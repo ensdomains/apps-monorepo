@@ -156,7 +156,7 @@ const HistorySection = ({ tld }: { tld: string }) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
-        <h2 className="text-2xl font-medium">History</h2>
+        <h2 className="text-h2">History</h2>
         <Button variant="ghost" size="sm" disabled>
           <ClockIcon className="size-4" />
           Full history
@@ -239,9 +239,9 @@ function TldOverview() {
   const { owner, registryAddress, rootRegistryAddress } = tldDataQuery.data
 
   return (
-    <div className="flex flex-col gap-12 p-10 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-row justify-between items-center">
-        <h1 className="text-heading font-medium leading-none">{tld}</h1>
+        <h1 className="text-h1">{tld}</h1>
         <CopyButton value={tld} />
       </div>
 

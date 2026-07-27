@@ -28,7 +28,7 @@ describe('validateRegistrableEthName', () => {
 
   it('returns error for non-normalized names', () => {
     expect(validateRegistrableEthName('Vitalik.eth')).toBe(
-      'Names must be normalized (lowercase, valid characters).',
+      'Label contains invalid or non-normalized characters.',
     )
   })
 
@@ -63,5 +63,15 @@ describe('validateNameLength', () => {
 
   it('returns error for invalid names (empty, unparseable)', () => {
     expect(validateNameLength('')).toBe('Invalid name')
+  })
+})
+
+describe('validateRegistrableEthName — encoded labelhash labels', () => {
+  it('rejects bracket-form labels with a specific message (not "too short")', () => {
+    expect(
+      validateRegistrableEthName(
+        '[023e0d05ab821f1deb4821991c1a5bb8e1d9d71b7113d61cce6972934f939773].eth',
+      ),
+    ).toMatch(/cannot be registered/)
   })
 })
