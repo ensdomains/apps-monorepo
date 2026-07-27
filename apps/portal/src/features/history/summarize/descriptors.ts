@@ -27,11 +27,23 @@ const humanizeRole = (role: string): string => {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
-/** Fallback label for an unknown event type: `SubregistryUpdated` → "Subregistry updated". */
-export const humanizeType = (type: string): string => {
-  const spaced = type.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1).toLowerCase()
-}
+/**
+ * Fallback label for an unknown event type: `SubregistryUpdated` → "Subregistry
+ * updated", preserving acronyms: `EACRolesChanged` → "EAC roles changed".
+ */
+export const humanizeType = (type: string): string =>
+  type
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)(?=[A-Z][a-z])/g, '$1 ')
+    .split(' ')
+    .map((word, index) => {
+      if (word.length > 1 && word === word.toUpperCase()) return word
+      const lower = word.toLowerCase()
+      return index === 0
+        ? lower.charAt(0).toUpperCase() + lower.slice(1)
+        : lower
+    })
+    .join(' ')
 
 /**
  * Actor slot for actions like "Register by {actor}". Prefers a payload address;
@@ -52,20 +64,27 @@ const actorSlot = (
   }
 }
 
-const nameSlot = (value?: string | null): ActionSlot => ({
-  kind: 'name',
-  value: value ?? '—',
-})
+// Missing entity values render as a `placeholder` slot — never as a badge whose
+// chip would link/copy a literal "—".
+const nameSlot = (value?: string | null): ActionSlot =>
+  value ? { kind: 'name', value } : { kind: 'placeholder', value: '—' }
 
-/** Prefer a resolved full ENS name for action chips; never badge a bare label. */
+const addressSlot = (value?: string | null): ActionSlot =>
+  value ? { kind: 'address', value } : { kind: 'placeholder', value: '—' }
+
+const contractSlot = (value?: string | null, isRegistry = false): ActionSlot =>
+  value
+    ? { kind: 'contract', value, isRegistry }
+    : { kind: 'placeholder', value: '—' }
+
+/** Name slot resolved to a full ENS name, falling back to the event's domain. */
 const resolvedNameSlot = (
   candidate?: string | null,
   eventName?: string | null,
 ): ActionSlot =>
   nameSlot(
     (candidate ? resolveDecodedName(candidate, eventName) : undefined) ??
-      eventName ??
-      candidate,
+      eventName,
   )
 
 /**
@@ -78,9 +97,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'address',
     build: ({ primary }) => ({
       label: 'Set address to',
-      slots: [
-        { kind: 'address', value: primary.asAddressChanged?.address ?? '—' },
-      ],
+      slots: [addressSlot(primary.asAddressChanged?.address)],
     }),
   },
   AddrChanged: {
@@ -88,13 +105,10 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: ({ primary }) => ({
       label: 'Set address to',
       slots: [
-        {
-          kind: 'address',
-          value:
-            primary.asAddressChanged?.address ??
-            readString(parseEventData(primary.data), 'address', 'addr') ??
-            '—',
-        },
+        addressSlot(
+          primary.asAddressChanged?.address ??
+            readString(parseEventData(primary.data), 'address', 'addr'),
+        ),
       ],
     }),
   },
@@ -140,23 +154,20 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'primary',
     build: ({ primary }) => ({
       label: 'Set primary name',
-      slots: [
-        { kind: 'address', value: primary.asReverseClaimed?.address ?? '—' },
-      ],
+      slots: [addressSlot(primary.asReverseClaimed?.address)],
     }),
   },
 
   Transfer: {
     icon: 'transfer',
     build: ({ primary }) => {
-      const to = primary.asTransfer?.to
       if (isZero(primary.asTransfer?.from)) return null
       return {
         label: 'Transfer name',
         slots: [
           nameSlot(primary.name),
           { kind: 'glyph', value: '→' },
-          { kind: 'address', value: to ?? '—' },
+          addressSlot(primary.asTransfer?.to),
         ],
       }
     },
@@ -168,7 +179,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
       slots: [
         nameSlot(primary.name),
         { kind: 'glyph', value: '→' },
-        { kind: 'address', value: primary.asRegistryTransfer?.owner ?? '—' },
+        addressSlot(primary.asRegistryTransfer?.owner),
       ],
     }),
   },
@@ -185,11 +196,8 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: (ctx) => ({
       label: 'Register',
       slots: [
-        resolvedNameSlot(
-          ctx.primary.asNameRegistered?.name ??
-            ctx.primary.asNameRegistered?.label,
-          ctx.primary.name,
-        ),
+        // `label` is the bytes32 labelhash, never display text — only `name` counts.
+        resolvedNameSlot(ctx.primary.asNameRegistered?.name, ctx.primary.name),
         { kind: 'connective', value: 'by' },
         actorSlot(ctx, ctx.primary.asNameRegistered?.owner),
       ],
@@ -207,9 +215,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'resolver',
     build: ({ primary }) => ({
       label: 'Update resolver',
-      slots: [
-        { kind: 'contract', value: primary.asResolverUpdated?.resolver ?? '—' },
-      ],
+      slots: [contractSlot(primary.asResolverUpdated?.resolver)],
     }),
   },
 
@@ -227,7 +233,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
       }
       return {
         label: 'Deploy and link subregistry',
-        slots: [{ kind: 'contract', value: registry ?? '—', isRegistry: true }],
+        slots: [contractSlot(registry, true)],
       }
     },
   },
@@ -237,12 +243,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: ({ primary }) => {
       const change = decodeRoleChange(primary.data)
       const roleText = change.roles.map(humanizeRole).join(', ') || 'roles'
-      const account: ActionSlot = change.account
-        ? { kind: 'address', value: change.account }
-        : { kind: 'placeholder', value: '—' }
+      const account = addressSlot(change.account)
 
       if (change.direction === 'revoke') {
         return {
+          icon: 'revoke',
           label: 'Revoke role',
           slots: [
             { kind: 'text', value: roleText },
@@ -285,15 +290,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: () => ({ label: 'Expiry updated', slots: [] }),
   },
 }
-
-/**
- * Gapped actions from the design that the indexer does not (yet) emit as events.
- * Present for completeness; never rendered until the indexer supports them.
- *
- * TODO(indexer): confirm/emit TokenObserverSet and Burn events, then move these into
- * DESCRIPTORS and drop this list.
- */
-export const UNSUPPORTED_ACTIONS = ['TokenObserverSet', 'Burn'] as const
 
 /** Icon fallback used when no descriptor matches. */
 export const FALLBACK_ICON = 'default' as const

@@ -8,7 +8,7 @@ interface AccountBadgeProps {
   /** The account address, when known. */
   readonly address?: string
   /** When no address is known (e.g. "Renew by …"), resolve this tx's sender instead. */
-  readonly txHash?: string
+  readonly txHash?: Hash
   readonly full?: boolean
 }
 
@@ -33,7 +33,7 @@ export const AccountBadge = ({
   full = false,
 }: AccountBadgeProps) => {
   const { data: tx } = useTransaction({
-    hash: txHash as Hash | undefined,
+    hash: txHash,
     query: { enabled: !!txHash && !address },
   })
 

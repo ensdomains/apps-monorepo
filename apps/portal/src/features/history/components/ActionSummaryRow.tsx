@@ -1,26 +1,12 @@
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { formatTimelineDate } from '../formatTimelineDate'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import type { Action } from '../summarize/summarize.types'
+import { groupByTransaction } from '../summarize/summarizeEvents'
 import { ActionSlots } from './ActionSlots'
 import { ActionIconGlyph } from './actionIcons'
 import { EventRow } from './EventRow'
 import { TransactionHeaderRow } from './TransactionHeaderRow'
-
-/** Group an action's events by transaction, preserving order. */
-const groupEventsByTx = (
-  events: readonly TimelineIndexerEvent[],
-): TimelineIndexerEvent[][] => {
-  const groups = new Map<string, TimelineIndexerEvent[]>()
-  for (const event of events) {
-    const key = event.transactionHash.toLowerCase()
-    const group = groups.get(key)
-    if (group) group.push(event)
-    else groups.set(key, [event])
-  }
-  return [...groups.values()]
-}
 
 interface ActionSummaryRowProps {
   readonly action: Action
@@ -45,7 +31,7 @@ export const ActionSummaryRow = ({
 }: ActionSummaryRowProps) => {
   const eventCount = action.events.length
   const txCount = action.txHashes.length
-  const txGroups = groupEventsByTx(action.events)
+  const txGroups = groupByTransaction(action.events)
   const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
 
   const iconBadge = (

@@ -3,7 +3,7 @@ import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
-import type { Hex } from 'viem'
+import type { Address, Hex } from 'viem'
 import { graphqlIndexerClient } from '@/lib/indexer'
 
 /**
@@ -109,7 +109,7 @@ export type TimelineIndexerEvent = TimelineDecoded & {
   readonly transactionHash: Hex
   readonly blockNumber: number
   readonly timestamp: number
-  readonly contractAddress?: string | null
+  readonly contractAddress?: Address | null
   readonly key?: string | null
   readonly value?: string | null
   /** Raw JSON blob of decoded params — fallback for event types without an `as*` decoder. */

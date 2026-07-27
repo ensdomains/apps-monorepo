@@ -77,22 +77,20 @@ export const decodeRoleChange = (data?: string | null): RoleChange => {
 }
 
 /**
- * Full ENS name a decoded `name`/`label` param refers to, if determinable:
- * - value already contains a dot → treat as a full name
- * - value is the leading label of `eventName` → return `eventName`
- * - otherwise, if value is not already a label in `eventName`, append it under
- *   that domain (e.g. LabelRegistered emits `"alice"` on `parent.eth` →
- *   `alice.parent.eth`)
+ * Resolve a decoded `name`/`label` param to the full ENS name it refers to: full
+ * names pass through; a bare label resolves against the event's domain — the domain
+ * itself when the label is its leading label, otherwise a child under it.
  */
 export const resolveDecodedName = (
   value: string,
   eventName?: string | null,
 ): string | undefined => {
   if (!value) return undefined
+  // Hex values (labelhashes/node hashes) and subgraph-encoded unknown labels
+  // ("[<labelhash>]") are not display labels.
+  if (value.startsWith('0x') || value.startsWith('[')) return undefined
   if (value.includes('.')) return value
   if (!eventName) return undefined
   if (eventName === value || eventName.startsWith(`${value}.`)) return eventName
-  const labels = eventName.split('.')
-  if (labels.includes(value)) return undefined
   return `${value}.${eventName}`
 }

@@ -1,11 +1,16 @@
+import { useQueries } from '@tanstack/react-query'
 import {
-  type Address,
   formatEther,
   formatGwei,
   type Hash,
+  isAddress,
   zeroAddress,
 } from 'viem'
-import { useChainId, useTransaction, useTransactionReceipt } from 'wagmi'
+import { useChainId, useConfig } from 'wagmi'
+import {
+  getTransactionQueryOptions,
+  getTransactionReceiptQueryOptions,
+} from 'wagmi/query'
 import { EntityBadge } from '@/components/EntityBadge'
 import {
   useBlockExplorerAddressUrl,
@@ -15,16 +20,12 @@ import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { getEventFieldType } from '@/utils/ens/eventSignatures'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import { resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
-import { getDecodedEntries, resolveDecodedName } from './eventDecodedEntries'
-
-const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
+import { getDecodedEntries } from './eventDecodedEntries'
 
 /** Param keys that denote a contract even when the address has no known label. */
 const CONTRACT_PARAM_KEYS = new Set(['resolver', 'registry', 'implementer'])
-
-/** Param keys that may carry an ENS name or its bare leading label. */
-const NAME_PARAM_KEYS = new Set(['name', 'label'])
 
 /**
  * One decoded value: entity-shaped values render as interactive EntityBadges —
@@ -42,7 +43,7 @@ const DecodedValue = ({
   value: string
 }) => {
   const chainId = useChainId()
-  const address = ADDRESS_RE.test(value) ? (value as Address) : undefined
+  const address = isAddress(value, { strict: false }) ? value : undefined
   const explorerUrl = useBlockExplorerAddressUrl(address)
 
   if (address && address !== zeroAddress) {
@@ -64,9 +65,9 @@ const DecodedValue = ({
     return <AccountBadge address={address} full />
   }
 
-  const name = NAME_PARAM_KEYS.has(paramKey)
-    ? resolveDecodedName(value, event.name)
-    : undefined
+  // Only `name` params carry display labels — `label` params are bytes32 labelhashes.
+  const name =
+    paramKey === 'name' ? resolveDecodedName(value, event.name) : undefined
   if (name) {
     return (
       <EntityBadge variant="name" name={name} compact>
@@ -145,17 +146,20 @@ export const TransactionMeta = ({
   event: TimelineIndexerEvent
   txHash: Hash
 }) => {
-  const { data: tx, isLoading: isTxLoading } = useTransaction({ hash: txHash })
-  const { data: receipt, isLoading: isReceiptLoading } = useTransactionReceipt({
-    hash: txHash,
-  })
-
-  const pending = isTxLoading || isReceiptLoading ? '…' : '—'
-  const toAddress = (tx?.to ?? event.contractAddress ?? undefined) as
-    | Address
-    | undefined
-
   const chainId = useChainId()
+  const config = useConfig()
+  const [txQuery, receiptQuery] = useQueries({
+    queries: [
+      getTransactionQueryOptions(config, { hash: txHash, chainId }),
+      getTransactionReceiptQueryOptions(config, { hash: txHash, chainId }),
+    ],
+  })
+  const tx = txQuery.data
+  const receipt = receiptQuery.data
+
+  const pending = txQuery.isLoading || receiptQuery.isLoading ? '…' : '—'
+  const toAddress = tx?.to ?? event.contractAddress ?? undefined
+
   const txUrl = useBlockExplorerTxUrl(txHash)
   const toUrl = useBlockExplorerAddressUrl(toAddress)
   const toLabel = toAddress ? getEnsContractName(chainId, toAddress) : undefined

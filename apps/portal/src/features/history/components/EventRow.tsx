@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
-import type { Address } from 'viem'
+import { match } from 'ts-pattern'
+import { zeroAddress } from 'viem'
 import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
@@ -9,10 +10,12 @@ import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplor
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
-import { decodeRoleChange } from '../summarize/decodeRawData'
+import {
+  decodeRoleChange,
+  resolveDecodedName,
+} from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
 import { DecodedParams } from './EventDetail'
-import { resolveDecodedName } from './eventDecodedEntries'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
   <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-sm">
@@ -22,61 +25,60 @@ const Mono = ({ children }: { children: React.ReactNode }) => (
 
 const muted = 'text-muted-foreground text-sm'
 
-const LabelRegisteredContent = ({ event }: { event: TimelineIndexerEvent }) => {
-  const label = event.asLabelRegistered?.name
-  const fullName = label ? resolveDecodedName(label, event.name) : undefined
-  return (
-    <>
-      <span className={muted}>created label</span>
-      {fullName ? (
-        <EntityBadge variant="name" name={fullName} compact>
-          {fullName}
-        </EntityBadge>
-      ) : (
-        label && <Mono>{label}</Mono>
-      )}
-    </>
+/** A name chip when the value resolves to a full ENS name, plain mono text otherwise. */
+const NameOrLabel = ({
+  value,
+  eventName,
+}: {
+  value?: string | null
+  eventName?: string | null
+}) => {
+  if (!value) return null
+  const name = resolveDecodedName(value, eventName)
+  return name ? (
+    <EntityBadge variant="name" name={name} compact>
+      {name}
+    </EntityBadge>
+  ) : (
+    <Mono>{value}</Mono>
   )
 }
 
-const NameRegisteredContent = ({ event }: { event: TimelineIndexerEvent }) => {
-  // The indexer often carries only the bare label — resolve it against the
-  // event's domain so "troy" still badges as troy.eth.
-  const registered =
-    event.asNameRegistered?.name ?? event.asNameRegistered?.label
-  const registeredName = registered
-    ? resolveDecodedName(registered, event.name)
-    : undefined
-  return (
-    <>
-      <span className={muted}>registered</span>
-      {registeredName ? (
-        <EntityBadge variant="name" name={registeredName} compact>
-          {registeredName}
-        </EntityBadge>
-      ) : (
-        registered && <Mono>{registered}</Mono>
-      )}
-    </>
-  )
-}
-
-const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
-  switch (event.type) {
-    case 'LabelRegistered':
-      return <LabelRegisteredContent event={event} />
-    case 'NameRegistered':
-      return <NameRegisteredContent event={event} />
-    case 'Transfer':
+const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
+  match(event.type)
+    .with('LabelRegistered', () => (
+      <>
+        <span className={muted}>created label</span>
+        <NameOrLabel
+          value={event.asLabelRegistered?.name}
+          eventName={event.name}
+        />
+      </>
+    ))
+    .with('NameRegistered', () => (
+      <>
+        <span className={muted}>registered</span>
+        <NameOrLabel
+          value={event.asNameRegistered?.name ?? event.name}
+          eventName={event.name}
+        />
+      </>
+    ))
+    .with('Transfer', () => {
+      const from = event.asTransfer?.from
+      const isMint = !from || from.toLowerCase() === zeroAddress
       return (
         <>
-          <span className={muted}>minted token ID</span>
+          <span className={muted}>
+            {isMint ? 'minted token ID' : 'transferred token ID'}
+          </span>
           {event.asTransfer?.id && (
             <Mono>{truncateAddress(event.asTransfer.id)}</Mono>
           )}
         </>
       )
-    case 'EACRolesChanged': {
+    })
+    .with('EACRolesChanged', () => {
       const change = decodeRoleChange(event.data)
       const verb = change.direction === 'revoke' ? 'revoked from' : 'granted to'
       return (
@@ -88,18 +90,14 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) => {
           {change.account && <AccountBadge address={change.account} />}
         </>
       )
-    }
-    case 'TextChanged':
-      return (
-        <>
-          <span className={muted}>set</span>
-          {event.asTextChanged?.key && <Mono>{event.asTextChanged.key}</Mono>}
-        </>
-      )
-    default:
-      return null
-  }
-}
+    })
+    .with('TextChanged', () => (
+      <>
+        <span className={muted}>set</span>
+        {event.asTextChanged?.key && <Mono>{event.asTextChanged.key}</Mono>}
+      </>
+    ))
+    .otherwise(() => null)
 
 interface EventRowProps {
   readonly event: TimelineIndexerEvent
@@ -113,9 +111,7 @@ export const EventRow = ({ event }: EventRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const chainId = useChainId()
 
-  const contractAddress = (event.contractAddress ?? undefined) as
-    | Address
-    | undefined
+  const contractAddress = event.contractAddress ?? undefined
   const contractLabel = contractAddress
     ? getEnsContractName(chainId, contractAddress)
     : undefined

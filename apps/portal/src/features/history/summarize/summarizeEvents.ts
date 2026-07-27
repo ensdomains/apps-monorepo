@@ -4,8 +4,8 @@ import { DESCRIPTORS, FALLBACK_ICON, humanizeType } from './descriptors'
 import { RECIPES } from './recipes'
 import type { Action, DescriptorContext } from './summarize.types'
 
-/** Event types that never surface as their own action. */
-const IGNORED_TYPES = new Set(['CommitmentMade'])
+/** Event types that never surface as their own action (nor as filter options). */
+export const IGNORED_TYPES = new Set(['CommitmentMade'])
 
 /**
  * Significance ranking used to pick the "primary" event that drives an action's
@@ -37,7 +37,7 @@ const rankOf = (event: TimelineIndexerEvent): number =>
   TYPE_RANK[event.type] ?? 0
 
 /** Group events by transaction hash, preserving encounter order. */
-const groupByTransaction = (
+export const groupByTransaction = (
   events: readonly TimelineIndexerEvent[],
 ): TimelineIndexerEvent[][] => {
   const groups = new Map<string, TimelineIndexerEvent[]>()
@@ -75,7 +75,7 @@ const describeGroup = (
   for (const primary of byRank) {
     const descriptor = DESCRIPTORS[primary.type]
     const built = descriptor?.build(ctxFor(primary))
-    if (built) return { icon: descriptor.icon, ...built }
+    if (built) return { ...built, icon: built.icon ?? descriptor.icon }
   }
 
   const primary = byRank[0]

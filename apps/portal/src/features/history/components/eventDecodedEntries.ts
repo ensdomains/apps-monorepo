@@ -1,8 +1,6 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { parseEventData } from '../summarize/decodeRawData'
 
-export { resolveDecodedName } from '../summarize/decodeRawData'
-
 /** The typed `as*` payload matching an event's type, if the indexer decoded one. */
 const pickTypedPayload = (
   event: TimelineIndexerEvent,

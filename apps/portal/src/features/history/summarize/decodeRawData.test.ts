@@ -18,6 +18,9 @@ describe('resolveDecodedName', () => {
 
   it('appends a bare label under the event domain', () => {
     expect(resolveDecodedName('alice', 'parent.eth')).toBe('alice.parent.eth')
+    expect(resolveDecodedName('parent', 'alice.parent.eth')).toBe(
+      'parent.alice.parent.eth',
+    )
   })
 
   it('returns undefined without a usable value or event name', () => {
@@ -26,8 +29,18 @@ describe('resolveDecodedName', () => {
     expect(resolveDecodedName('troy', null)).toBeUndefined()
   })
 
-  it('does not invent a name from a non-leading label already in eventName', () => {
-    expect(resolveDecodedName('parent', 'alice.parent.eth')).toBeUndefined()
-    expect(resolveDecodedName('eth', 'troy.eth')).toBeUndefined()
+  it('rejects labelhashes and encoded labels', () => {
+    expect(
+      resolveDecodedName(
+        '0xaf2caa1c2ca1d027f1ac823b529d0a67cd144264b2789fa2ea4d63a67c7103cc',
+        'troy.eth',
+      ),
+    ).toBeUndefined()
+    expect(
+      resolveDecodedName(
+        '[af2caa1c2ca1d027f1ac823b529d0a67cd144264b2789fa2ea4d63a67c7103cc]',
+        'troy.eth',
+      ),
+    ).toBeUndefined()
   })
 })

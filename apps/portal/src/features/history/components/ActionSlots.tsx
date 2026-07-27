@@ -27,11 +27,6 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
         {truncateAddress(value)}
       </EntityBadge>
     ))
-    .with({ kind: 'tx' }, ({ value }) => (
-      <EntityBadge variant="tx" copyValue={value} compact>
-        {truncateAddress(value)}
-      </EntityBadge>
-    ))
     .with({ kind: 'text' }, ({ value }) => (
       <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
         {value}

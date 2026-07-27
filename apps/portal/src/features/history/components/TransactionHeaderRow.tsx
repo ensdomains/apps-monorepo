@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
   formatTimelineFullDate,
@@ -23,6 +24,7 @@ interface TransactionHeaderRowProps {
  */
 export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
+  const txUrl = useBlockExplorerTxUrl(event.transactionHash)
 
   return (
     <TimelineRow
@@ -53,6 +55,7 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
             variant="tx"
             label={formatTimelineFullDate(event.timestamp)}
             copyValue={event.transactionHash}
+            etherscanHref={txUrl}
             compact
           >
             {truncateAddress(event.transactionHash)}

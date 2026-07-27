@@ -24,7 +24,7 @@ export type ActionIcon =
   | 'default'
 
 /**
- * An inline piece of an action label. `name`/`address`/`contract`/`tx` render as
+ * An inline piece of an action label. `name`/`address`/`contract` render as
  * `EntityBadge` chips; `text` is monospace; `glyph`/`connective` are muted joiners;
  * `placeholder` marks data we don't have yet (a gap — see the spec §6).
  */
@@ -36,14 +36,13 @@ export type ActionSlot =
       readonly value: string
       readonly isRegistry?: boolean
     }
-  | { readonly kind: 'tx'; readonly value: string }
   | { readonly kind: 'text'; readonly value: string }
   | { readonly kind: 'glyph'; readonly value: '→' | '↔' }
   | { readonly kind: 'connective'; readonly value: string }
   | { readonly kind: 'placeholder'; readonly value: string }
   | {
       readonly kind: 'actor'
-      readonly txHash: string
+      readonly txHash: Hex
       readonly address?: string
     }
 
@@ -68,10 +67,13 @@ export type DescriptorContext = {
   readonly events: readonly TimelineIndexerEvent[]
 }
 
-/** A descriptor turns an event group into a label + slots. `null` = not applicable. */
+/**
+ * A descriptor turns an event group into a label + slots. `null` = not applicable.
+ * A build may override the type-level icon for conditional variants (grant vs revoke).
+ */
 export type Descriptor = {
   readonly icon: ActionIcon
   readonly build: (
     ctx: DescriptorContext,
-  ) => { label: string; slots: ActionSlot[] } | null
+  ) => { icon?: ActionIcon; label: string; slots: ActionSlot[] } | null
 }

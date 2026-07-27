@@ -3,6 +3,7 @@ import type { DateRange } from '@/utils/formatting/formatDateRange'
 import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
 import { humanizeType } from './summarize/descriptors'
 import type { Action } from './summarize/summarize.types'
+import { IGNORED_TYPES } from './summarize/summarizeEvents'
 
 const startOfDayMs = (date: Date): number => {
   const day = new Date(date)
@@ -41,7 +42,7 @@ export const buildEventTypeGroups = (
   events: readonly TimelineIndexerEvent[],
 ): FilterGroup[] => {
   const types = [...new Set(events.map((event) => event.type))]
-    .filter((type) => type !== 'CommitmentMade')
+    .filter((type) => !IGNORED_TYPES.has(type))
     .sort()
   if (types.length === 0) return []
   return [
