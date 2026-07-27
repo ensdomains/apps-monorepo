@@ -338,6 +338,10 @@
   --success-fill: #142f1c;
   --danger-fill: #391925;
   --warning-fill: #41250c;
+  /* Neutral fill: without this the light-mode #f2f2f2 leaks into dark mode,
+     rendering "default" badges (Unverifiable, fuse False) as bright chips
+     with unreadable #a1a1a1 text. */
+  --default-fill: #2b2b2b;
   /* Semantic text colors — dark mode values (light rock-name 200s) */
   --accent-text: var(--lapis-200);
   --success-text: var(--peridot-200);
