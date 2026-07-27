@@ -1,5 +1,6 @@
 import { useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
+import { tw } from '@/utils/tailwind'
 import type { CommemorativeNftEligibility } from '../../commemorative-nft/types'
 
 const RENDERER_PAINT_SETTLE_MS = 300
@@ -103,7 +104,10 @@ export const CommemorativeNftRendererSurface = ({
       {rendererReady && !rendererFailed ? null : fallback}
       {rendererUrl && !rendererFailed ? (
         <iframe
-          className="absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0"
+          className={tw(
+            'absolute top-1/2 left-1/2 z-0 h-full w-[109%] -translate-x-1/2 -translate-y-1/2 scale-[1.15] border-0',
+            rendererReady ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}
           onError={() => {
             setRendererFailed(true)
             onReadyRef.current?.()
