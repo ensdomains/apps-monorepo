@@ -865,10 +865,6 @@ msgstr ""
 msgid "ENSv1 only"
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "ENSv2 commemorative"
-msgstr ""
-
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "ENSv2 commemorative NFT"
@@ -1356,10 +1352,6 @@ msgstr ""
 msgid "My Names"
 msgstr "Mina namn"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "name"
-msgstr ""
-
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
@@ -1375,10 +1367,6 @@ msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Name registering"
-msgstr ""
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "names"
 msgstr ""
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -2855,10 +2843,6 @@ msgstr ""
 msgid "web3 username"
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "welcome to a new era of"
-msgstr ""
-
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Welcome to the new ENS app"
 msgstr ""
@@ -2927,10 +2911,6 @@ msgstr ""
 
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
-msgstr ""
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "YOU have migrated"
 msgstr ""
 
 #: src/features/dashboard/pages/DashboardPage.tsx

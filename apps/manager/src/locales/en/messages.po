@@ -860,10 +860,6 @@ msgstr "ENS names can be up to 255 characters"
 msgid "ENSv1 only"
 msgstr "ENSv1 only"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "ENSv2 commemorative"
-msgstr "ENSv2 commemorative"
-
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "ENSv2 commemorative NFT"
@@ -1351,10 +1347,6 @@ msgstr "Multi-year Discount ({discountPercentage}%)"
 msgid "My Names"
 msgstr "My Names"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "name"
-msgstr "name"
-
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Name"
@@ -1371,10 +1363,6 @@ msgstr "Name on card"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Name registering"
 msgstr "Name registering"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "names"
-msgstr "names"
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
@@ -2850,10 +2838,6 @@ msgstr "We sent a verification code to your email address."
 msgid "web3 username"
 msgstr "web3 username"
 
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "welcome to a new era of"
-msgstr "welcome to a new era of"
-
 #: src/features/migration/components/UpgradeBanner.tsx
 msgid "Welcome to the new ENS app"
 msgstr "Welcome to the new ENS app"
@@ -2923,10 +2907,6 @@ msgstr "You can verify later by clicking your profile in the navbar"
 #: src/features/migration/components/MigrationModal.tsx
 msgid "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
 msgstr "You have <0>{eligibleNameCount}</0> names that are eligible for upgrade"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "YOU have migrated"
-msgstr "YOU have migrated"
 
 #: src/features/dashboard/pages/DashboardPage.tsx
 msgid "You haven't set a primary name yet."
