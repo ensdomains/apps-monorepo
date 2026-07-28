@@ -1,7 +1,7 @@
 /**
  * Clear the sender's primary reverse records before transferring their primary
- * name. Mirrors Manager's setPrimaryName legs (`default.reverse` then
- * `addr.reverse`) with `setName('')`, via the existing setReverseResolution
+ * name. Writes `setName('')` on the ENSv1 DefaultReverseRegistrar (`default.reverse`)
+ * then the ReverseRegistrar (`addr.reverse`), via the existing setReverseResolution
  * helper. Modal tracks the final tx id only.
  */
 
@@ -12,6 +12,7 @@ import {
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import type { Hex, PublicClient, WalletClient } from 'viem'
+import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
 import { setReverseResolution } from '@/features/reverse-resolution/helpers/setReverseResolution'
 
 type UnsetPrimaryNameParameters = {
@@ -37,7 +38,7 @@ export const unsetPrimaryName = async ({
     ...common,
     id: `${id}-default`,
     request: {
-      address: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+      address: DEFAULT_REVERSE_REGISTRAR_ADDRESS,
       abi: defaultReverseRegistrarSetNameSnippet,
       functionName: 'setName',
       args: [''],

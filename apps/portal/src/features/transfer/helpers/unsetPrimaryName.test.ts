@@ -7,8 +7,6 @@ const { setReverseResolution } = vi.hoisted(() => ({
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   ENS_SEPOLIA_CONTRACTS: {
-    DefaultReverseRegistrar:
-      '0xeb8269fb39290f31c4c29cec548807ca2133abb4' as Address,
     ReverseRegistrar: '0xA0a1AbcDAe1a2a4A2EF8e9113Ff0e02DD81DC0C6' as Address,
   },
 }))
@@ -21,6 +19,7 @@ import {
   ENS_SEPOLIA_CONTRACTS,
   type Signer,
 } from '@ens-apps/transaction-manager'
+import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
 import { unsetPrimaryName } from './unsetPrimaryName'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
@@ -51,7 +50,7 @@ describe('unsetPrimaryName', () => {
       expect.objectContaining({
         id: 'transfer-alice.eth-unset-primary-default',
         request: expect.objectContaining({
-          address: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+          address: DEFAULT_REVERSE_REGISTRAR_ADDRESS,
           functionName: 'setName',
           args: [''],
         }),

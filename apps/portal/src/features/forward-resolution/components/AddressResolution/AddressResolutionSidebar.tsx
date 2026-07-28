@@ -1,5 +1,4 @@
 import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
-import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -36,6 +35,7 @@ import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
 import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -531,7 +531,7 @@ const useAddressRecordEditor = (
     setReverseResolution({
       name,
       request: {
-        address: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
+        address: DEFAULT_REVERSE_REGISTRAR_ADDRESS,
         abi: defaultReverseRegistrarSetNameSnippet,
         functionName: 'setName',
         args: [name],
