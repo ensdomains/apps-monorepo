@@ -132,7 +132,9 @@ if (needsReview.length > 0)
         .filter(Boolean)
         .map(mention)
       const who =
-        reviewers.length > 0 ? reviewers.join(' ') : `author ${mention(pr.author.login)}`
+        reviewers.length > 0
+          ? `${reviewers.join(' ')} please review`
+          : `${mention(pr.author.login)} please request a reviewer`
       return prLine(pr, who)
     }),
   })
@@ -141,13 +143,17 @@ if (needsQaLabel.length > 0) {
   const qaCrew = (config.qaEngineers ?? []).map(mention).join(' ')
   sections.push({
     heading: `:white_check_mark: Approved but missing "${config.qaLabel}"${qaCrew ? ` — cc ${qaCrew}` : ''}`,
-    lines: needsQaLabel.map((pr) => prLine(pr, mention(pr.author.login))),
+    lines: needsQaLabel.map((pr) =>
+      prLine(pr, `${mention(pr.author.login)} add the label / hand over to QA`),
+    ),
   })
 }
 if (hasConflicts.length > 0)
   sections.push({
     heading: ':boom: Merge conflicts',
-    lines: hasConflicts.map((pr) => prLine(pr, mention(pr.author.login))),
+    lines: hasConflicts.map((pr) =>
+      prLine(pr, `${mention(pr.author.login)} please rebase`),
+    ),
   })
 
 if (sections.length === 0) {
