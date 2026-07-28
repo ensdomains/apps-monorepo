@@ -17,6 +17,21 @@ describe('cn', () => {
     expect(cn('bg-red-500', 'bg-blue-500')).toBe('bg-blue-500')
   })
 
+  // Regression (WEB-649): the default tailwind-merge classified our custom
+  // type classes as text COLORS and dropped them next to a real color class,
+  // which stripped the entity typography off EntityBadge.
+  it('keeps custom type classes alongside text colors', () => {
+    expect(cn('text-entity-name', 'text-accent-text')).toBe(
+      'text-entity-name text-accent-text',
+    )
+    expect(cn('text-ui', 'text-default-text')).toBe('text-ui text-default-text')
+  })
+
+  it('merges conflicting type-scale classes (last wins)', () => {
+    expect(cn('text-entity-base', 'text-entity-name')).toBe('text-entity-name')
+    expect(cn('text-sm', 'text-entity-base')).toBe('text-entity-base')
+  })
+
   it('should handle empty inputs', () => {
     expect(cn()).toBe('')
     expect(cn('')).toBe('')
