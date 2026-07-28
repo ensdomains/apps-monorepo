@@ -477,7 +477,6 @@ const useAddressRecordEditor = (
 
   const { canEdit } = useCanEditRecords({
     name,
-    roles: ['ROLE_SET_ADDR'],
   })
 
   const txId = data ? `tx-set-addr-${data.coinType}` : 'tx-set-addr'
