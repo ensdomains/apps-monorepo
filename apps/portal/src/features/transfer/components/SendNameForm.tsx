@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Info } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Info } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
@@ -192,10 +192,13 @@ export const SendNameForm = ({
       )}
 
       {hasValidRecipient && primaryQuery.isError && (
-        <span className="text-destructive text-sm">
-          Couldn’t check whether this name is your primary name. Refresh and try
-          again before transferring.
-        </span>
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertDescription>
+            Couldn’t check whether this name is your primary name. Refresh and
+            try again before transferring.
+          </AlertDescription>
+        </Alert>
       )}
 
       {prepError && (
