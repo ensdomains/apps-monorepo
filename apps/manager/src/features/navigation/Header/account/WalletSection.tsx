@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
+import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -14,7 +15,8 @@ type WalletSectionProps = {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { accountAddress, isLoading } = useSmartAccountContext()
+  const { accountAddress, ownerAddress, isLoading } = useSmartAccountContext()
+  const { address: connectedAddress } = useAccount()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -31,11 +33,17 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   return (
     <div className="mb-3 space-y-4">
-      {match({ accountAddress, isLoading })
-        .with({ accountAddress: P.nonNullable }, ({ accountAddress }) => (
+      {/* Show the user's wallet address, never the HCA (WEB-678). The live
+          wagmi account comes first: the machine's ownerAddress can be stale
+          for a render during a wallet switch. */}
+      {match({
+        walletAddress: connectedAddress ?? ownerAddress ?? accountAddress,
+        isLoading,
+      })
+        .with({ walletAddress: P.nonNullable }, ({ walletAddress }) => (
           <button
             className="flex w-full items-center gap-2"
-            onClick={() => copy(accountAddress)}
+            onClick={() => copy(walletAddress)}
             type="button"
           >
             <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
@@ -43,11 +51,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               <Trans>Address</Trans>
             </span>
             <span className="text-sm leading-ens-tight">
-              {copied ? (
-                <Trans>Copied!</Trans>
-              ) : (
-                truncateAddress(accountAddress)
-              )}
+              {copied ? <Trans>Copied!</Trans> : truncateAddress(walletAddress)}
             </span>
             <MSymbol className="ms-opsz-20" symbol="content_copy" />
           </button>
