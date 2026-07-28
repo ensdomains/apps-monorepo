@@ -151,7 +151,11 @@ async function handleOgImage(
 
   // Name OG image with optional subpage: /og/name/subpage.png
   const nameParts = decoded.split('/')
-  const { avatar, owner } = await fetchEnsData(env, nameParts[0])
+  const { avatar, owner } = await fetchEnsData(
+    env,
+    nameParts[0],
+    new URL(request.url).host,
+  )
   return renderOgImage(
     nameParts[0],
     avatar,
@@ -230,7 +234,7 @@ async function handleNamePage(
   const decodedName = decodeURIComponent(name)
   const [response, ensData] = await Promise.all([
     env.ASSETS.fetch(request),
-    fetchEnsData(env, decodedName),
+    fetchEnsData(env, decodedName, url.host),
   ])
 
   const { description, avatar } = ensData
