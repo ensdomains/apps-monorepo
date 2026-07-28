@@ -4,8 +4,8 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
-import { ExpiryWithRegistrationData } from '@/features/ownership/components/ExpiryWithRegistrationData'
 import { V1NameManagerRecord } from '@/features/ownership/components/V1NameManagerRecord'
+import { ExpiryWithRegistrationData } from '@/features/profile/components/ExpiryWithRegistrationData'
 import { GraceBanner } from '@/features/profile/components/GraceBanner'
 import { Owner } from '@/features/profile/components/Owner'
 import { ParentName } from '@/features/profile/components/ParentName'
@@ -95,14 +95,14 @@ function RouteComponent() {
         />
         <Owner
           owner={data.owner}
-          label={grace.isInGrace ? 'Previous owner' : 'Name owner'}
+          label={grace.isInGrace ? 'Previous owner' : 'Owner'}
           asRow
         />
+        {data.protocolVersion === 'ENSv1' && (
+          <V1NameManagerRecord name={name} asRow />
+        )}
         <ParentName name={name} asRow />
       </div>
-      {data.protocolVersion === 'ENSv1' && (
-        <V1NameManagerRecord name={name} className="w-full" />
-      )}
       <NameSubgraphHistory name={name} category="domain" />
     </div>
   )
