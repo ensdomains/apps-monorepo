@@ -404,6 +404,7 @@ msgstr "Can you share your order number?"
 #: src/features/notifications/settings/email-verify-step.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogHeader.tsx
 #: src/features/profile/components/dialogs/edit-profile/EditProfileDialogTabs.tsx
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "Cancel"
 msgstr "Cancel"
@@ -1980,6 +1981,18 @@ msgstr "Renewing for"
 msgid "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 msgstr "Renewing this name will add time to the <0>current owner's</0> registration. You won't gain ownership of the name, but you will make someone's day."
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Replace & Continue"
+msgstr "Replace & Continue"
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Replace & Save"
+msgstr "Replace & Save"
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Replace this name’s profile setup?"
+msgstr "Replace this name’s profile setup?"
+
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend Verification"
 msgstr "Resend Verification"
@@ -2155,10 +2168,6 @@ msgstr "Set primary name"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Set reverse record to show your name"
 msgstr "Set reverse record to show your name"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Set up & Set as Primary"
-msgstr "Set up & Set as Primary"
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
@@ -2494,10 +2503,6 @@ msgstr "This card will be charged for your subscription."
 msgid "This name can’t be edited"
 msgstr "This name can’t be edited"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you in one step, then set this name as primary."
-msgstr "This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you in one step, then set this name as primary."
-
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
@@ -2513,6 +2518,14 @@ msgstr "This name is in grace period"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownBannerHeader.tsx
 msgid "This name is in price cooldown"
 msgstr "This name is in price cooldown"
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name still has profile settings from a previous owner. Continuing will replace them with what you’ve entered here."
+msgstr "This name still has profile settings from a previous owner. Continuing will replace them with what you’ve entered here."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name still has profile settings from a previous owner. Continuing will replace them. Only your wallet address will be kept — other profile details will be cleared."
+msgstr "This name still has profile settings from a previous owner. Continuing will replace them. Only your wallet address will be kept — other profile details will be cleared."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."

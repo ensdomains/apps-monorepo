@@ -7,7 +7,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, PublicClient } from 'viem'
@@ -39,6 +39,11 @@ import type {
   EditProfileForm,
   EditProfileSaveHandler,
 } from './EditProfileDialog.types'
+
+type DeferredEditProfileSave = {
+  readonly currentRecords: ProfileRecords
+  readonly options: Parameters<EditProfileSaveHandler>[1]
+}
 
 interface UseCloseProfileDialogOnSuccessfulSaveParams {
   readonly dialogActor: Actor<typeof editProfileDialogMachine>
@@ -203,6 +208,8 @@ export const useEditProfileDialogSave = ({
     readonly PreparedProfileImageUpload[]
   >([])
   const [isFinalizingImageSave, setIsFinalizingImageSave] = useState(false)
+  const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
+  const deferredSetupSaveRef = useRef<DeferredEditProfileSave | null>(null)
 
   const ownerAddress = account.ownerAddress as Address | null
   const hasResolver = Boolean(savedRecords.resolverAddress)
@@ -472,7 +479,7 @@ export const useEditProfileDialogSave = ({
     [saveRecordsMutation, setupResolverMutation],
   )
 
-  const handleSave = useCallback<EditProfileSaveHandler>(
+  const executeSave = useCallback<EditProfileSaveHandler>(
     (currentRecords, options) => {
       resetSaveState()
 
@@ -515,6 +522,54 @@ export const useEditProfileDialogSave = ({
     ],
   )
 
+  const handleSave = useCallback<EditProfileSaveHandler>(
+    (currentRecords, options) => {
+      if (options.hasRecordChanges && needsResolverSetup) {
+        const blockedReason = match({
+          isResolverAccessPending,
+          is2LD: parseInput(name.endsWith('.eth') ? name : `${name}.eth`).is2LD,
+        })
+          .with(
+            { isResolverAccessPending: true },
+            () =>
+              t`Checking whether you can write to this name’s resolver. Try again in a moment.`,
+          )
+          .with(
+            { is2LD: false },
+            () =>
+              t`This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.`,
+          )
+          .otherwise(() => null)
+
+        if (blockedReason) {
+          toast.error(t`Cannot save profile`, { description: blockedReason })
+          return
+        }
+
+        deferredSetupSaveRef.current = { currentRecords, options }
+        setSetupConfirmOpen(true)
+        return
+      }
+
+      executeSave(currentRecords, options)
+    },
+    [executeSave, isResolverAccessPending, name, needsResolverSetup],
+  )
+
+  const confirmSetupSave = useCallback(() => {
+    const deferred = deferredSetupSaveRef.current
+    deferredSetupSaveRef.current = null
+    if (!deferred) return
+    executeSave(deferred.currentRecords, deferred.options)
+  }, [executeSave])
+
+  const handleSetupConfirmOpenChange = useCallback((nextOpen: boolean) => {
+    setSetupConfirmOpen(nextOpen)
+    if (!nextOpen) {
+      deferredSetupSaveRef.current = null
+    }
+  }, [])
+
   useCloseProfileDialogOnSuccessfulSave({
     dialogActor,
     ethAddressChanged,
@@ -529,11 +584,14 @@ export const useEditProfileDialogSave = ({
   })
 
   return {
+    confirmSetupSave,
     handleSave,
     handleImageUploadPrepared,
+    handleSetupConfirmOpenChange,
     isFinalizingImageSave,
     isResolverAccessPending,
     resetPreparedImageSaveState,
     preparedImageUploads,
+    setupConfirmOpen,
   }
 }

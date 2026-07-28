@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { ResolverSetupConfirmDialog } from '@/features/profile/components/dialogs/ResolverSetupConfirmDialog'
 import { useSetPrimaryName } from '@/features/profile/hooks/useSetPrimaryName'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { getProfileEthAddressSnapshot } from '@/features/profile/service/profileEthAddress'
@@ -140,12 +141,10 @@ const ConfirmButtonLabel = ({
   settingUpResolver,
   settingEthAddress,
   isSubmitting,
-  resolverBlocked,
 }: {
   readonly settingUpResolver: boolean
   readonly settingEthAddress: boolean
   readonly isSubmitting: boolean
-  readonly resolverBlocked: boolean
 }) => {
   const { t } = useLingui()
 
@@ -153,12 +152,10 @@ const ConfirmButtonLabel = ({
     settingUpResolver,
     settingEthAddress,
     isSubmitting,
-    resolverBlocked,
   })
     .with({ settingUpResolver: true }, () => <>{t`Setting up resolver...`}</>)
     .with({ settingEthAddress: true }, () => <>{t`Setting ETH address...`}</>)
     .with({ isSubmitting: true }, () => <>{t`Setting...`}</>)
-    .with({ resolverBlocked: true }, () => <>{t`Set up & Set as Primary`}</>)
     .otherwise(() => <>{t`Set as Primary`}</>)
 }
 
@@ -335,6 +332,7 @@ export const ChoosePrimaryNameDialog = ({
   const { t } = useLingui()
   const [open, setOpen] = useState(false)
   const [selectedName, setSelectedName] = useState<string | null>(null)
+  const [setupConfirmOpen, setSetupConfirmOpen] = useState(false)
   const { address } = useConnection()
   const account = useSmartAccountContext()
   const queryClient = useQueryClient()
@@ -456,7 +454,7 @@ export const ChoosePrimaryNameDialog = ({
     }
   }
 
-  const handleConfirm = async () => {
+  const runConfirm = async () => {
     if (!selectedName || !account.ownerAddress) return
 
     if (!account.signer || !account.accountAddress) {
@@ -465,8 +463,6 @@ export const ChoosePrimaryNameDialog = ({
     }
 
     try {
-      // No resolver we control (typical after a transfer): set one up and seed
-      // the ETH-address record. Otherwise just refresh the record in place.
       if (resolverBlocked) {
         await setupResolverMutation.mutateAsync()
       } else {
@@ -484,6 +480,22 @@ export const ChoosePrimaryNameDialog = ({
     } catch {
       // Error surfaced via isError / primaryNameErrorMessage.
     }
+  }
+
+  const handleConfirm = () => {
+    if (!selectedName || !account.ownerAddress) return
+
+    if (!account.signer || !account.accountAddress) {
+      toast.error(t`Wallet signer not available`)
+      return
+    }
+
+    if (resolverBlocked) {
+      setSetupConfirmOpen(true)
+      return
+    }
+
+    void runConfirm()
   }
 
   const handleCancel = () => {
@@ -510,98 +522,99 @@ export const ChoosePrimaryNameDialog = ({
     primaryNameErrorMessage
 
   return (
-    <Dialog onOpenChange={setOpen} open={open}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="text-[24px] text-foreground">
-            <Trans>Choose Primary Name</Trans>
-          </DialogTitle>
-          <DialogDescription className="font-sans text-muted-foreground text-sm">
-            <Trans>
-              Set which ENS name displays as your identity across apps and
-              wallets.
-            </Trans>
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog onOpenChange={setOpen} open={open}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogContent className="flex max-h-[90vh] max-w-125 flex-col overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-[24px] text-foreground">
+              <Trans>Choose Primary Name</Trans>
+            </DialogTitle>
+            <DialogDescription className="font-sans text-muted-foreground text-sm">
+              <Trans>
+                Set which ENS name displays as your identity across apps and
+                wallets.
+              </Trans>
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
-          {/* Names List */}
-          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
-            {match({ isLoading, domains })
-              .with({ isLoading: true }, () => <PrimaryNameSkeletonList />)
-              .with({ domains: [] }, () => (
-                <div className="py-8 text-center font-sans text-muted-foreground text-sm">
-                  <Trans>No names found</Trans>
-                </div>
-              ))
-              .otherwise(({ domains }) =>
-                domains.map((domain) => (
-                  <PrimaryNameOption
-                    domain={domain}
-                    isSubmitting={isSubmitting}
-                    key={domain.id}
-                    onSelectName={handleSelectName}
-                    selectedName={selectedName}
-                  />
-                )),
-              )}
-          </div>
+          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+            {/* Names List */}
+            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+              {match({ isLoading, domains })
+                .with({ isLoading: true }, () => <PrimaryNameSkeletonList />)
+                .with({ domains: [] }, () => (
+                  <div className="py-8 text-center font-sans text-muted-foreground text-sm">
+                    <Trans>No names found</Trans>
+                  </div>
+                ))
+                .otherwise(({ domains }) =>
+                  domains.map((domain) => (
+                    <PrimaryNameOption
+                      domain={domain}
+                      isSubmitting={isSubmitting}
+                      key={domain.id}
+                      onSelectName={handleSelectName}
+                      selectedName={selectedName}
+                    />
+                  )),
+                )}
+            </div>
 
-          {/* Error Message */}
-          <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
-          {/* Resolver setup notice (received-via-transfer names) */}
-          {resolverBlocked && !actionErrorMessage && (
-            <Alert variant="warning">
-              <AlertCircle />
-              <AlertDescription>
-                {t`This name doesn’t have a resolver you control yet. Setting it as your primary name will first set up a resolver for you in one step, then set this name as primary.`}
-              </AlertDescription>
-            </Alert>
-          )}
-          {/* ETH Address Mismatch/Missing Info */}
-          {showEthAddressInfo && account.ownerAddress && (
-            <Alert variant="warning">
-              <AlertCircle />
-              <AlertDescription>
-                <p>
-                  {existingEthAddress
-                    ? t`The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.`
-                    : t`No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.`}
-                </p>
-                <div className="mt-2 w-full rounded-md bg-amber-100/60 px-2.5 py-1.5">
-                  <p className="break-all font-mono text-amber-900 text-xs">
-                    {account.ownerAddress}
+            {/* Error Message */}
+            <PrimaryNameErrorNotice errorMessage={actionErrorMessage} />
+            {/* ETH Address Mismatch/Missing Info */}
+            {showEthAddressInfo && account.ownerAddress && (
+              <Alert variant="warning">
+                <AlertCircle />
+                <AlertDescription>
+                  <p>
+                    {existingEthAddress
+                      ? t`The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.`
+                      : t`No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.`}
                   </p>
-                </div>
-              </AlertDescription>
-            </Alert>
-          )}
-          {/* Action Buttons */}
-          <div className="flex shrink-0 gap-3">
-            <Button
-              className="h-12 flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={isSubmitting || isPreparing}
-              onClick={handleCancel}
-              variant="outline"
-            >
-              <Trans>Cancel</Trans>
-            </Button>
-            <Button
-              className="h-12 flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
-              disabled={confirmDisabled}
-              onClick={handleConfirm}
-            >
-              <ConfirmButtonLabel
-                isSubmitting={isSubmitting}
-                resolverBlocked={resolverBlocked}
-                settingEthAddress={updateEthAddressMutation.isPending}
-                settingUpResolver={setupResolverMutation.isPending}
-              />
-            </Button>
+                  <div className="mt-2 w-full rounded-md bg-amber-100/60 px-2.5 py-1.5">
+                    <p className="break-all font-mono text-amber-900 text-xs">
+                      {account.ownerAddress}
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            {/* Action Buttons */}
+            <div className="flex shrink-0 gap-3">
+              <Button
+                className="h-12 flex-1 rounded-xs border-ens-white bg-ens-white font-mono text-ens-blue text-sm uppercase tracking-wider transition-colors hover:bg-ens-white/80 disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
+                disabled={isSubmitting || isPreparing}
+                onClick={handleCancel}
+                variant="outline"
+              >
+                <Trans>Cancel</Trans>
+              </Button>
+              <Button
+                className="h-12 flex-1 rounded-xs border-ens-blue bg-ens-blue font-mono text-sm text-white uppercase tracking-wider transition-colors hover:bg-ens-blue-hover disabled:border-border disabled:bg-ens-white disabled:text-muted-foreground"
+                disabled={confirmDisabled}
+                onClick={handleConfirm}
+              >
+                <ConfirmButtonLabel
+                  isSubmitting={isSubmitting}
+                  settingEthAddress={updateEthAddressMutation.isPending}
+                  settingUpResolver={setupResolverMutation.isPending}
+                />
+              </Button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <ResolverSetupConfirmDialog
+        intent="primary-name"
+        onConfirm={() => {
+          void runConfirm()
+        }}
+        onOpenChange={setSetupConfirmOpen}
+        open={setupConfirmOpen}
+      />
+    </>
   )
 }
