@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
@@ -8,6 +7,7 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { RecordList } from '@/features/records/components/RecordList'
+import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/records')({
@@ -22,7 +22,6 @@ export const Route = createFileRoute('/$name/records')({
 
 function App() {
   const { name } = Route.useParams()
-  const { address: connectedAddress } = useConnection()
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
   const profileQuery = useQuery({
@@ -33,8 +32,10 @@ function App() {
     // Always refetch on mount to ensure fresh data after edits
     refetchOnMount: 'always' as const,
   })
+  const { canEdit, isLoading: isCanEditLoading } = useCanEditRecords({ name })
 
-  const isLoading = profileQuery.isLoading || ownerQuery.isLoading
+  const isLoading =
+    profileQuery.isLoading || ownerQuery.isLoading || isCanEditLoading
 
   if (isLoading) return <LoadingMessage />
 
@@ -56,20 +57,12 @@ function App() {
     )
   }
 
-  // Check if connected user can edit records
-  // Must be connected AND be the owner
-  const ownerData = ownerQuery.data
-  const canEdit =
-    !!connectedAddress &&
-    !!ownerData &&
-    connectedAddress.toLowerCase() === ownerData.owner.toLowerCase()
-
   return (
     <RecordList
       name={name}
       records={profileQuery.data.records}
       canEdit={canEdit}
-      protocolVersion={ownerData?.protocolVersion}
+      protocolVersion={ownerQuery.data?.protocolVersion}
     />
   )
 }

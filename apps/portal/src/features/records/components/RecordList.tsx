@@ -30,7 +30,7 @@ export const RecordList = ({
 }: {
   name: string
   records: GetRecordsReturnType
-  /** Whether the connected user can edit records (owner check) */
+  /** Whether the connected user can edit records */
   canEdit?: boolean
   /** The protocol version of the name */
   protocolVersion?: ProtocolVersion

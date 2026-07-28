@@ -30,6 +30,7 @@ import {
   buildDeployOwnedPermResCall,
   findExistingPermRes,
 } from '@/features/migration/service/ensureOwnedPermRes'
+import { buildRecordsUpdateCalls } from './profileRecordTransactions'
 import { setupControlledResolver } from './setupControlledResolver'
 
 const SMART_ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
@@ -63,6 +64,7 @@ const snapshots = {
 const start = vi.mocked(transactionManager.startTransaction)
 const mockedFindExisting = vi.mocked(findExistingPermRes)
 const mockedDeployCall = vi.mocked(buildDeployOwnedPermResCall)
+const mockedBuildRecords = vi.mocked(buildRecordsUpdateCalls)
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -124,6 +126,29 @@ describe('setupControlledResolver', () => {
       }
     ).request.rhinestoneParams.calls
     expect(calls).toEqual([SET_RESOLVER_CALL, ...RECORD_CALLS])
+  })
+
+  it('omits the record write when both snapshots are empty', async () => {
+    mockedFindExisting.mockResolvedValue(null)
+
+    await setupControlledResolver({
+      name: 'leon.eth',
+      signer: smartSigner,
+      ownerAddress: OWNER,
+      publicClient,
+      chainId: CHAIN_ID,
+      before: { texts: [], coins: [] },
+      after: { texts: [], coins: [] },
+    })
+
+    expect(mockedBuildRecords).not.toHaveBeenCalled()
+    const [intent] = start.mock.calls[0] ?? []
+    const calls = (
+      intent as unknown as {
+        request: { rhinestoneParams: { calls: unknown[] } }
+      }
+    ).request.rhinestoneParams.calls
+    expect(calls).toEqual([DEPLOY_CALL, SET_RESOLVER_CALL])
   })
 
   it('rejects subnames before doing any on-chain work', async () => {

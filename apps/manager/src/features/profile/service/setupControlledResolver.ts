@@ -26,14 +26,21 @@ export interface SetupControlledResolverParams {
   ownerAddress: Address
   publicClient: PublicClient
   chainId: number
-  /** Record diff to write to the freshly-controlled resolver. */
+  /**
+   * Record diff to write to the freshly-controlled resolver. A freshly
+   * deployed/assigned resolver starts empty, so callers typically pass an
+   * empty `before` and the desired final records as `after`. When both are
+   * empty the record-write step is omitted (deploy + setResolver only).
+   */
   before: ServiceRecordSnapshot
   after: ServiceRecordSnapshot
+  /** Transaction-manager description. Defaults to a generic setup label. */
+  description?: string
 }
 
 /**
  * Give the connected owner a resolver they control on a transferred `name`,
- * point the name at it, and write the initial records — one sponsored atomic
+ * point the name at it, and optionally write records — one sponsored atomic
  * intent: deploy the owned resolver (skipped when it already exists),
  * `setResolver`, record write. The owned resolver's address is deterministic
  * (CREATE2 keyed off the owner's salt and the smart account as deployer), so
@@ -44,12 +51,16 @@ export interface SetupControlledResolverParams {
  *
  * Resolves with the resolver address once the intent is confirmed.
  */
-export async function setupControlledResolver(
-  params: SetupControlledResolverParams,
-): Promise<Address> {
-  const { name, signer, ownerAddress, publicClient, chainId, before, after } =
-    params
-
+export async function setupControlledResolver({
+  name,
+  signer,
+  ownerAddress,
+  publicClient,
+  chainId,
+  before,
+  after,
+  description = `Set up resolver for ${name}`,
+}: SetupControlledResolverParams): Promise<Address> {
   const fullName = name.endsWith('.eth') ? name : `${name}.eth`
   if (!parseInput(fullName).is2LD) {
     throw new Error(
@@ -72,18 +83,32 @@ export async function setupControlledResolver(
       publicClient,
     }))
 
-  const recordUpdate = await buildRecordsUpdateCalls({
-    name,
-    before,
-    after,
-    publicClient,
-    resolverAddress: resolver,
-  })
+  const hasRecordsToWrite =
+    before.texts.length > 0 ||
+    before.coins.length > 0 ||
+    Boolean(before.contentHash?.trim()) ||
+    Boolean(before.abi?.trim()) ||
+    after.texts.length > 0 ||
+    after.coins.length > 0 ||
+    Boolean(after.contentHash?.trim()) ||
+    Boolean(after.abi?.trim())
+
+  const recordCalls = hasRecordsToWrite
+    ? (
+        await buildRecordsUpdateCalls({
+          name,
+          before,
+          after,
+          publicClient,
+          resolverAddress: resolver,
+        })
+      ).calls
+    : []
 
   const calls: Call[] = [
     ...(existing ? [] : [buildDeployOwnedPermResCall(ownerAddress)]),
     buildSetResolverCall({ name, newResolver: resolver }),
-    ...recordUpdate.calls,
+    ...recordCalls,
   ]
 
   const request: TransactionRequest = {
@@ -97,7 +122,7 @@ export async function setupControlledResolver(
     { type: 'custom', request },
     signer,
     {
-      description: `Set up ${name} as your primary name`,
+      description,
       publicClient,
       chainId,
       operation: 'setup-controlled-resolver',

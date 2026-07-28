@@ -136,6 +136,7 @@ msgid "A simpler way to get paid."
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "A smart account is required to set up a resolver for this name"
 msgstr ""
 
@@ -458,6 +459,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Checking whether a payment approval is needed"
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Checking whether you can write to this name’s resolver. Try again in a moment."
 msgstr ""
 
 #: src/routes/wallet.tsx
@@ -2502,10 +2507,6 @@ msgstr ""
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr ""
 
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "This name has no resolver, so profile records cannot be saved."
-msgstr ""
-
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
 msgid "This name is already registered or not available for registration."
 msgstr ""
@@ -2524,6 +2525,10 @@ msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "This signature is free and doesn't cost any gas."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first."
 msgstr ""
 
 #. placeholder {0}: Math.ceil(totalSelected / 100)

@@ -1,8 +1,10 @@
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
+import { parseInput } from '@ensdomains/ensjs/utils'
 import { t } from '@lingui/core/macro'
 import {
   type QueryClient,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
@@ -24,10 +26,15 @@ import {
   type SaveRecordsParams,
   saveRecords,
 } from '@/features/profile/service/profileRecordTransactions'
+import { resolverWriteAccessQuery } from '@/features/profile/service/resolverWriteAccess'
+import { setupControlledResolver } from '@/features/profile/service/setupControlledResolver'
 import type { ProfileRecords } from '@/features/profile/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import type { editProfileDialogMachine } from './EditProfileDialog.machine'
+import type {
+  editProfileDialogMachine,
+  PendingSave,
+} from './EditProfileDialog.machine'
 import type {
   EditProfileForm,
   EditProfileSaveHandler,
@@ -53,6 +60,7 @@ interface UseEditProfileDialogSaveParams {
   readonly isSuccess: boolean
   readonly name: string
   readonly onUpdated?: () => undefined | Promise<unknown>
+  readonly open: boolean
   readonly owner?: Address
   readonly savedRecords: ProfileRecords
 }
@@ -61,18 +69,22 @@ interface SaveRecordsMutationVariables extends SaveRecordsParams {
   readonly currentRecords: ProfileRecords
 }
 
+interface SetupResolverMutationVariables {
+  readonly pendingSave: Extract<PendingSave, { kind: 'setup' }>
+}
+
 interface SaveBlockedPrerequisites {
   readonly hasOwner: boolean
   readonly hasAccount: boolean
-  readonly hasResolver: boolean
+  readonly hasSetupSigner: boolean
 }
 
 const getSaveBlockedDescription = ({
   hasOwner,
   hasAccount,
-  hasResolver,
+  hasSetupSigner,
 }: SaveBlockedPrerequisites) =>
-  match({ hasOwner, hasAccount, hasResolver })
+  match({ hasOwner, hasAccount, hasSetupSigner })
     .with(
       { hasOwner: false },
       () => t`Name owner is not available yet. Try again in a moment.`,
@@ -83,12 +95,24 @@ const getSaveBlockedDescription = ({
         t`Wallet account is not ready. Wait for your account to finish connecting, then try again.`,
     )
     .with(
-      { hasResolver: false },
-      () => t`This name has no resolver, so profile records cannot be saved.`,
+      { hasSetupSigner: false },
+      () => t`A smart account is required to set up a resolver for this name`,
     )
     .otherwise(
       () => t`Something went wrong preparing the save. Please try again.`,
     )
+
+const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
+  coins.find(({ coinType }) => coinType === 60)?.value
+
+const toastSaveError = (error: unknown) => {
+  toast.error(t`Cannot save profile`, {
+    description:
+      error instanceof Error
+        ? error.message
+        : t`Something went wrong preparing the save. Please try again.`,
+  })
+}
 
 const useCloseProfileDialogOnSuccessfulSave = ({
   dialogActor,
@@ -128,6 +152,13 @@ const useCloseProfileDialogOnSuccessfulSave = ({
         })
       }
 
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'resolver_write_access' }),
+      })
+      queryClient.invalidateQueries({
+        queryKey: $qk({ $scope: 'profile', $action: 'get_records' }),
+      })
+
       if (!cancelled) {
         dialogActor.send({ type: 'CLOSE' })
       }
@@ -159,6 +190,7 @@ export const useEditProfileDialogSave = ({
   isSuccess,
   name,
   onUpdated,
+  open,
   owner,
   savedRecords,
 }: UseEditProfileDialogSaveParams) => {
@@ -172,34 +204,81 @@ export const useEditProfileDialogSave = ({
   >([])
   const [isFinalizingImageSave, setIsFinalizingImageSave] = useState(false)
 
+  const ownerAddress = account.ownerAddress as Address | null
+  const hasResolver = Boolean(savedRecords.resolverAddress)
+
+  // Prefetch like ChoosePrimaryNameDialog: decide setup vs in-place before save.
+  const resolverWriteAccess = useQuery({
+    ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
+    enabled: open && hasResolver && Boolean(ownerAddress),
+  })
+
+  const needsResolverSetup =
+    !hasResolver ||
+    (Boolean(ownerAddress) && resolverWriteAccess.data === false)
+
+  const isResolverAccessPending =
+    hasResolver && Boolean(ownerAddress) && resolverWriteAccess.isLoading
+
   const saveRecordsMutation = useMutation({
     mutationFn: ({
       currentRecords: _currentRecords,
       ...params
     }: SaveRecordsMutationVariables) => saveRecords(params),
     onSuccess: (_data, variables) => {
-      const ethBefore = variables.before.coins.find(
-        ({ coinType }) => coinType === 60,
-      )
-      const ethAfter = variables.after.coins.find(
-        ({ coinType }) => coinType === 60,
-      )
-
       dialogActor.send({
         type: 'SAVE_SUCCEEDED',
         currentRecords: variables.currentRecords,
-        ethAddressChanged: ethBefore?.value !== ethAfter?.value,
+        ethAddressChanged:
+          ethCoinValue(variables.before.coins) !==
+          ethCoinValue(variables.after.coins),
       })
     },
-    onError: () => {
+    onError: (error) => {
       dialogActor.send({ type: 'RESET_SAVE_STATE' })
+      toastSaveError(error)
+    },
+  })
+
+  const setupResolverMutation = useMutation({
+    mutationFn: async ({ pendingSave }: SetupResolverMutationVariables) => {
+      const resolver = await setupControlledResolver({
+        name: pendingSave.name,
+        signer: pendingSave.signer,
+        ownerAddress: pendingSave.ownerAddress,
+        publicClient: pendingSave.publicClient,
+        chainId: pendingSave.chainId,
+        before: { texts: [], coins: [] },
+        after: pendingSave.after,
+        description: `Update profile records for ${pendingSave.name}`,
+      })
+
+      return {
+        currentRecords: {
+          ...pendingSave.currentRecords,
+          resolverAddress: resolver,
+        },
+        ethAddressChanged: pendingSave.ethAddressChanged,
+      }
+    },
+    onSuccess: ({ currentRecords, ethAddressChanged: ethChanged }) => {
+      dialogActor.send({
+        type: 'SAVE_SUCCEEDED',
+        currentRecords,
+        ethAddressChanged: ethChanged,
+      })
+    },
+    onError: (error) => {
+      dialogActor.send({ type: 'RESET_SAVE_STATE' })
+      toastSaveError(error)
     },
   })
 
   const resetSaveState = useCallback(() => {
     saveRecordsMutation.reset()
+    setupResolverMutation.reset()
     dialogActor.send({ type: 'RESET_SAVE_STATE' })
-  }, [dialogActor, saveRecordsMutation])
+  }, [dialogActor, saveRecordsMutation, setupResolverMutation])
 
   const resetPreparedImageSaveState = useCallback(() => {
     setPreparedImageUploads([])
@@ -269,6 +348,28 @@ export const useEditProfileDialogSave = ({
 
   const getPendingRecordSave = useCallback(
     (currentRecords: ProfileRecords) => {
+      const blockedReason = match({
+        isResolverAccessPending,
+        needsResolverSetup,
+        is2LD: parseInput(name.endsWith('.eth') ? name : `${name}.eth`).is2LD,
+      })
+        .with(
+          { isResolverAccessPending: true },
+          () =>
+            t`Checking whether you can write to this name’s resolver. Try again in a moment.`,
+        )
+        .with(
+          { needsResolverSetup: true, is2LD: false },
+          () =>
+            t`This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.`,
+        )
+        .otherwise(() => null)
+
+      if (blockedReason) {
+        toast.error(t`Cannot save profile`, { description: blockedReason })
+        return null
+      }
+
       dialogActor.send({
         type: 'SAVE_REQUESTED',
         values: currentRecords,
@@ -276,8 +377,9 @@ export const useEditProfileDialogSave = ({
           accountAddress: account.accountAddress as Address | null,
           chainId,
           name,
+          needsResolverSetup,
           owner,
-          ownerAddress: account.ownerAddress as Address | null,
+          ownerAddress,
           publicClient: publicClient as PublicClient,
           retryCount: 0,
           signer: account.signer,
@@ -295,20 +397,24 @@ export const useEditProfileDialogSave = ({
         description: getSaveBlockedDescription({
           hasOwner: Boolean(owner),
           hasAccount: Boolean(account.signer && account.accountAddress),
-          hasResolver: Boolean(savedRecords.resolverAddress),
+          hasSetupSigner: !(
+            needsResolverSetup &&
+            (account.signer?.type !== 'rhinestone' || !ownerAddress)
+          ),
         }),
       })
       return null
     },
     [
       account.accountAddress,
-      account.ownerAddress,
       account.signer,
       chainId,
       dialogActor,
+      isResolverAccessPending,
       name,
+      needsResolverSetup,
       owner,
-      savedRecords.resolverAddress,
+      ownerAddress,
     ],
   )
 
@@ -350,12 +456,20 @@ export const useEditProfileDialogSave = ({
   )
 
   const submitPendingRecordSave = useCallback(
-    (pendingRecordSave: NonNullable<ReturnType<typeof getPendingRecordSave>>) =>
-      saveRecordsMutation.mutate({
-        ...pendingRecordSave.params,
-        currentRecords: pendingRecordSave.currentRecords,
-      }),
-    [saveRecordsMutation],
+    (pendingRecordSave: PendingSave) => {
+      match(pendingRecordSave)
+        .with({ kind: 'setup' }, (pendingSave) => {
+          setupResolverMutation.mutate({ pendingSave })
+        })
+        .with({ kind: 'update' }, (pendingSave) => {
+          saveRecordsMutation.mutate({
+            ...pendingSave.params,
+            currentRecords: pendingSave.currentRecords,
+          })
+        })
+        .exhaustive()
+    },
+    [saveRecordsMutation, setupResolverMutation],
   )
 
   const handleSave = useCallback<EditProfileSaveHandler>(
@@ -418,6 +532,7 @@ export const useEditProfileDialogSave = ({
     handleSave,
     handleImageUploadPrepared,
     isFinalizingImageSave,
+    isResolverAccessPending,
     resetPreparedImageSaveState,
     preparedImageUploads,
   }
