@@ -24,6 +24,9 @@ catalogs:
     '@typescript/native-preview':
       specifier: 7.0.0-dev.20260421.2
       version: 7.0.0-dev.20260421.2
+    '@vitest/coverage-v8':
+      specifier: ^4.1.5
+      version: 4.1.5
     '@wagmi/connectors':
       specifier: ^7.1.1
       version: 7.1.1
@@ -106,6 +109,9 @@ importers:
       '@biomejs/biome':
         specifier: ^2.5.0
         version: 2.5.1
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 4.1.5(vitest@4.1.5)
       knip:
         specifier: ^5.70.2
         version: 5.72.0(@types/node@24.10.2)(typescript@6.0.3)
