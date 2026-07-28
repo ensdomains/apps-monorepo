@@ -2,6 +2,7 @@ import { Trans } from '@lingui/react/macro'
 import { useSelector } from '@xstate/store-react'
 import { WalletIcon } from 'lucide-react'
 import { match, P } from 'ts-pattern'
+import { useAccount } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -15,6 +16,7 @@ type WalletSectionProps = {
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
   const { accountAddress, ownerAddress, isLoading } = useSmartAccountContext()
+  const { address: connectedAddress } = useAccount()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -33,9 +35,14 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
     <div className="mb-3 space-y-4">
       {/* Show the user's wallet (owner EOA) address, never the HCA: users
           aren't introduced to the smart account, so its address is confusing
-          next to their primary name (WEB-678). `accountAddress` only serves
-          as a fallback for legacy paths with no separate owner. */}
-      {match({ walletAddress: ownerAddress ?? accountAddress, isLoading })
+          next to their primary name (WEB-678). Prefer the live wagmi account,
+          which updates immediately on a wallet switch, over the owner address
+          captured by the smart-account machine (stale until it resyncs);
+          `accountAddress` only serves legacy paths with no separate owner. */}
+      {match({
+        walletAddress: connectedAddress ?? ownerAddress ?? accountAddress,
+        isLoading,
+      })
         .with({ walletAddress: P.nonNullable }, ({ walletAddress }) => (
           <button
             className="flex w-full items-center gap-2"
@@ -47,11 +54,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               <Trans>Address</Trans>
             </span>
             <span className="text-sm leading-ens-tight">
-              {copied ? (
-                <Trans>Copied!</Trans>
-              ) : (
-                truncateAddress(walletAddress)
-              )}
+              {copied ? <Trans>Copied!</Trans> : truncateAddress(walletAddress)}
             </span>
             <MSymbol className="ms-opsz-20" symbol="content_copy" />
           </button>
