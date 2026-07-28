@@ -222,7 +222,7 @@ export const GeneralTab = ({
               )}
               icon={
                 <MSymbol
-                  className="ms-opsz-20 ms-wght-400 shrink-0 text-current text-[14px]"
+                  className="ms-opsz-20 ms-wght-400 shrink-0 text-current text-sm"
                   symbol={shortcut.symbol}
                 />
               }
