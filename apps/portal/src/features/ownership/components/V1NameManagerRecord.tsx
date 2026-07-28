@@ -1,8 +1,10 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { namehash } from 'viem'
 import { useReadContract } from 'wagmi'
+import { ShieldPersonIcon } from '@/assets/icons'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
@@ -38,9 +40,11 @@ const ensRegistryAddress = getChainContractAddress({
 export const V1NameManagerRecord = ({
   name,
   className,
+  asRow,
 }: {
   name: string
-  className: string
+  className?: string
+  asRow?: boolean
 }) => {
   const {
     data: managerAddress,
@@ -53,9 +57,35 @@ export const V1NameManagerRecord = ({
     address: ensRegistryAddress,
   })
 
-  if (error)
+  // Row-shaped transient states: the full-size Loading/Error blocks would
+  // break the compact header list this renders inside when `asRow` is set.
+  if (error) {
+    if (asRow)
+      return (
+        <InfoRow icon={ShieldPersonIcon} label="Manager" className={className}>
+          <span className="text-sm text-muted-foreground">
+            Failed to load manager
+          </span>
+        </InfoRow>
+      )
     return <ErrorMessage title={error.name} description={error.message} />
-  if (isLoading) return <LoadingMessage title="Loading manager" />
+  }
+  if (isLoading) {
+    if (asRow)
+      return (
+        <InfoRow icon={ShieldPersonIcon} label="Manager" className={className}>
+          <span className="text-sm text-muted-foreground">Loading</span>
+        </InfoRow>
+      )
+    return <LoadingMessage title="Loading manager" />
+  }
 
-  return <Owner label="Manager" owner={managerAddress} className={className} />
+  return (
+    <Owner
+      label="Manager"
+      owner={managerAddress}
+      className={className}
+      asRow={asRow}
+    />
+  )
 }
