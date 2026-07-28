@@ -1,3 +1,4 @@
+import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { describe, expect, it } from 'vitest'
 import {
   cspMetaTag,
@@ -59,6 +60,18 @@ describe('csp', () => {
 
     it("starts from 'self'", () => {
       expect(connectSrc).toContain("'self'")
+    })
+
+    it('allowlists every shared RPC failover origin', () => {
+      // The viem transports (lib/wagmi.ts, worker/clients.ts) fail over to
+      // SEPOLIA_FALLBACK_RPC_URLS; a fallback origin missing here means the
+      // browser blocks the request and the failover silently does nothing in
+      // production. Derived from the same export so the two can't drift.
+      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+        expect(connectSrc).toContain(new URL(url).origin)
+      }
+      // The keyed dRPC primary stays allowlisted alongside the fallbacks.
+      expect(connectSrc).toContain('https://lb.drpc.live')
     })
 
     it('collapses ENS hosts into wildcards rather than listing them bare', () => {

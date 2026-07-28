@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  SquareUser,
   TriangleAlert,
   XCircle,
 } from 'lucide-react'
@@ -13,14 +14,31 @@ import { cn } from '@/lib/utils'
 import type { ReverseMatchStatus } from '../hooks/useReverseMatch'
 import type { AddressResolutionRow } from './types'
 
+// Semantic fill/text tokens so the badges hold up in both light and dark mode.
 const REVERSE_MATCH_BADGES: Record<
   ReverseMatchStatus,
-  { icon: typeof CheckCircle2; label: string; muted: boolean }
+  { icon: typeof CheckCircle2; label: string; className: string }
 > = {
-  verified: { icon: CheckCircle2, label: 'True', muted: false },
-  pending: { icon: Clock, label: 'Pending', muted: false },
-  mismatch: { icon: XCircle, label: 'False', muted: true },
-  unverifiable: { icon: TriangleAlert, label: 'Unverifiable', muted: true },
+  verified: {
+    icon: CheckCircle2,
+    label: 'True',
+    className: 'bg-success-fill text-success-text',
+  },
+  pending: {
+    icon: Clock,
+    label: 'Pending',
+    className: 'bg-accent-fill text-accent-text',
+  },
+  mismatch: {
+    icon: XCircle,
+    label: 'False',
+    className: 'bg-danger-fill text-danger-text',
+  },
+  unverifiable: {
+    icon: TriangleAlert,
+    label: 'Unverifiable',
+    className: 'bg-default-fill text-default-text',
+  },
 }
 
 // Default first, Mainnet second, L2s after (then alphabetical).
@@ -110,15 +128,27 @@ export const columns: ColumnDef<AddressResolutionRow>[] = [
       if (reverseMatch === undefined)
         return <Loader2 className="size-4 animate-spin text-muted-foreground" />
 
-      const { icon: Icon, label, muted } = REVERSE_MATCH_BADGES[reverseMatch]
+      const {
+        icon: Icon,
+        label,
+        className,
+      } = REVERSE_MATCH_BADGES[reverseMatch]
       return (
-        <Badge
-          variant="outline"
-          className={cn('text-xs', muted && 'text-muted-foreground')}
-        >
-          <Icon className="size-4" />
-          <span>{label}</span>
-        </Badge>
+        <div className="flex flex-row items-center gap-2">
+          <Badge
+            variant="outline"
+            className={cn('text-xs border-transparent', className)}
+          >
+            <Icon className="size-4" />
+            <span>{label}</span>
+          </Badge>
+          {reverseMatch === 'verified' && (
+            <Badge variant="outline" className="text-xs">
+              <SquareUser className="size-4" />
+              <span>Primary name</span>
+            </Badge>
+          )}
+        </div>
       )
     },
   },

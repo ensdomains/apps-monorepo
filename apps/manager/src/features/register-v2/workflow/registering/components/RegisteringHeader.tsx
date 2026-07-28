@@ -27,8 +27,7 @@ const useTrailingDots = (max = 3) => {
   return '.'.repeat(count)
 }
 
-const RegisteringTitle = () => {
-  const { t } = useLingui()
+const RegisteringTitle = ({ label }: { label: string }) => {
   const dots = useTrailingDots()
   return (
     <Calligraph
@@ -37,7 +36,7 @@ const RegisteringTitle = () => {
       className="text-base text-ens-blue"
       initial
     >
-      {`${t`Registering name`}${dots}`}
+      {`${label}${dots}`}
     </Calligraph>
   )
 }
@@ -48,6 +47,8 @@ export interface RegisteringHeaderProps {
   isRegistrationComplete: boolean
   uiStage: RegisteringStage
   fillProgress: number
+  /** Label for the post-registration setup stages (ETH record / primary name). */
+  stageLabel: string
 }
 
 /** Title + progress bar (or completion banner) shown above the registration details. */
@@ -55,6 +56,7 @@ export function RegisteringHeader({
   isRegistrationComplete,
   uiStage,
   fillProgress,
+  stageLabel,
 }: RegisteringHeaderProps) {
   const { t } = useLingui()
 
@@ -62,22 +64,37 @@ export function RegisteringHeader({
     return <RegistrationCompletionBanner />
   }
 
-  return match(uiStage?.transaction)
-    .with('pending', () => (
-      <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
-        <RegisteringTitle />
-        <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
-          <WeaveProgressBar
-            animate={false}
-            className="w-full max-w-2xl"
-            progress={fillProgress / 100}
-          />
-        </Suspense>
-      </div>
-    ))
-    .with('success', () => <RegistrationCompletionBanner />)
-    .with(undefined, () => (
-      <RegistrationProgressBar label={t`Loading...`} progress={0} />
-    ))
-    .exhaustive()
+  return (
+    match(uiStage?.transaction)
+      .with('pendingRegistration', () => (
+        <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
+          <RegisteringTitle label={t`Registering name`} />
+          <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
+            <WeaveProgressBar
+              animate={false}
+              className="w-full max-w-2xl"
+              progress={fillProgress / 100}
+            />
+          </Suspense>
+        </div>
+      ))
+      .with('success', () => <RegistrationCompletionBanner />)
+      .with(undefined, () => (
+        <RegistrationProgressBar label={t`Loading...`} progress={0} />
+      ))
+      // Post-registration setup stages (ETH record sync / primary name) keep
+      // the same weave bar as the registration itself, with the stage message.
+      .otherwise(() => (
+        <div className="flex w-full flex-col items-center gap-2 text-center max-md:px-3">
+          <RegisteringTitle label={stageLabel} />
+          <Suspense fallback={<WeaveTrackPlaceholder className="max-w-2xl" />}>
+            <WeaveProgressBar
+              animate={false}
+              className="w-full max-w-2xl"
+              progress={fillProgress / 100}
+            />
+          </Suspense>
+        </div>
+      ))
+  )
 }

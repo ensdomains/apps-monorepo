@@ -11,12 +11,14 @@ export type DatapointProps = {
   variant?: EntityVariant
 }
 
-export const Datapoint = ({ label, value, href, variant }: DatapointProps) => {
+/**
+ * A datapoint's value cell. The row label comes from the surrounding header
+ * list (`InfoRow`), so this renders only the value: an EntityBadge for
+ * name/address/contract variants, a copyable record otherwise.
+ */
+export const Datapoint = ({ value, href, variant }: DatapointProps) => {
   return (
     <>
-      <span className="text-sm sm:text-base font-medium max-w-160">
-        {label}
-      </span>
       {variant ? (
         <EntityBadge
           variant={variant}

@@ -15,6 +15,8 @@
  * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
  */
 
+import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+
 /**
  * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
  * be allowlisted in `connect-src`.
@@ -52,6 +54,10 @@ const OVERRIDE_CONNECT_ORIGINS = [
 const DEFAULT_CONNECT_HOSTS = [
   // default Sepolia RPC — packages/indexer/chain.ts
   'https://lb.drpc.live',
+  // Public RPC failover endpoints — derived from the same source the viem
+  // transports use (lib/wagmi.ts, worker/clients.ts), so a fallback added
+  // there can never be silently blocked by this policy.
+  ...SEPOLIA_FALLBACK_RPC_URLS.map((url) => new URL(url).origin),
   // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
   // urql/client.ts) and the fund/faucet API (app-api.ens.dev —
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env

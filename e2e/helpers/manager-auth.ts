@@ -3,6 +3,8 @@ import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
+import type { Hash } from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
 
 // ---------------------------------------------------------------------------
 // Connect wallet (RainbowKit + headless web3 provider)
@@ -294,6 +296,36 @@ export async function authorizeTransactions(
 }
 
 /**
+ * Authorize any `eth_sendTransaction` requests that arrive while a flow is
+ * still running, stopping once `isDone()` reports completion.
+ *
+ * The post-registration primary-name setup sends two sequential owner-EOA
+ * transactions (forward then reverse) when the connected wallet is eligible —
+ * and none when it isn't (e.g. it already has a primary name). Polling the
+ * pending queue handles both cases and never leaves a dangling `authorize`
+ * that could swallow the next test's transaction (single worker).
+ */
+export async function authorizeTransactionsWhile(
+  page: Page,
+  wallet: Web3ProviderBackend,
+  isDone: () => boolean,
+  pollMs = 250,
+): Promise<void> {
+  while (!isDone()) {
+    if (wallet.getPendingRequestCount(Web3RequestKind.SendTransaction) >= 1) {
+      await wallet.authorize(Web3RequestKind.SendTransaction)
+      continue
+    }
+    try {
+      await page.waitForTimeout(pollMs)
+    } catch {
+      // Page/context torn down — stop polling rather than throw.
+      return
+    }
+  }
+}
+
+/**
  * Authorize the USDC approve `eth_sendTransaction` only if the flow actually
  * requests one, stopping as soon as `isDone()` reports the flow has finished.
  *
@@ -322,4 +354,48 @@ export async function authorizeApproveIfRequested(
       return
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// personal_sign raw-hash workaround
+// ---------------------------------------------------------------------------
+
+/**
+ * Work around a bug in @ensdomains/headless-web3-provider's SignMessageMiddleware:
+ * it unconditionally runs `hexToString(req.params[0])` before signing `personal_sign`
+ * requests, assuming the payload is always UTF-8 text. The manager app signs raw
+ * 32-byte hashes via `walletClient.signMessage({ message: { raw } })` for the
+ * primary-name authorization (setPrimaryName.ts's requestPrimaryNameSignature), so
+ * the library re-interprets those raw bytes as text and signs the WRONG hash. The
+ * resulting signature is one `DefaultReverseRegistrar.setNameForAddrWithSignature`
+ * correctly rejects on-chain (confirmed via debug_traceTransaction — ecrecover
+ * recovers an address unrelated to the signer). A real wallet extension doesn't
+ * have this bug, which is why the flow works when driven manually in a real browser.
+ *
+ * Intercepts `personal_sign` requests whose payload is exactly a 32-byte hash
+ * (a strong signal it's meant to be signed as raw bytes rather than decoded as
+ * text — genuine human-readable messages, e.g. SIWE sign-in, are never this
+ * shape) and signs them correctly ourselves. Everything else still goes through
+ * the library's normal (correct, for text messages) handling.
+ */
+export function fixRawHashPersonalSign(
+  wallet: Web3ProviderBackend,
+  privateKey: Hash,
+): void {
+  const signerAccount = privateKeyToAccount(privateKey)
+  const originalRequest = wallet.request.bind(wallet)
+
+  wallet.request = (async (req: { method: string; params?: unknown[] }) => {
+    const [rawMessage] = req.params ?? []
+    if (
+      req.method === 'personal_sign' &&
+      typeof rawMessage === 'string' &&
+      /^0x[0-9a-fA-F]{64}$/.test(rawMessage)
+    ) {
+      return signerAccount.signMessage({
+        message: { raw: rawMessage as Hash },
+      })
+    }
+    return originalRequest(req)
+  }) as typeof wallet.request
 }

@@ -31,11 +31,11 @@ test.describe('ENS profile', () => {
         await page.getByRole('tab', { name: 'Contact' }).click()
 
         // E-mail is not enabled by default — toggle its pill first.
-        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).and(page.locator(':not([aria-pressed])')).click()
         await page.getByLabel('E-mail', { exact: true }).fill('test@example.com')
 
         // GitHub is not enabled by default — toggle its pill first.
-        await page.getByRole('button', { name: 'GitHub' }).click()
+        await page.getByRole('button', { name: 'GitHub' }).and(page.locator(':not([aria-pressed])')).click()
         await page.getByLabel('GitHub', { exact: true }).fill('ens-test-user')
 
         // Twitter is enabled by default — fill the already-visible input.
@@ -64,7 +64,7 @@ test.describe('ENS profile', () => {
 
         // Contact tab: E-mail is not enabled by default — toggle its pill first.
         await page.getByRole('tab', { name: 'Contact' }).click()
-        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).and(page.locator(':not([aria-pressed])')).click()
         await page.getByLabel('E-mail', { exact: true }).fill('remove@example.com')
 
         await saveProfileChanges(page)
@@ -78,7 +78,7 @@ test.describe('ENS profile', () => {
 
         // Contact tab: clicking the active "E-mail" pill removes the record.
         await page.getByRole('tab', { name: 'Contact' }).click()
-        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).and(page.locator(':not([aria-pressed])')).click()
 
         await saveProfileChanges(page)
         await waitForProfileUpdated(page)
@@ -109,7 +109,7 @@ test.describe('ENS profile', () => {
 
         // Contact tab: enable E-mail then fill with an invalid address.
         await page.getByRole('tab', { name: 'Contact' }).click()
-        await page.getByRole('button', { name: 'E-mail' }).click()
+        await page.getByRole('button', { name: 'E-mail' }).and(page.locator(':not([aria-pressed])')).click()
         await page.getByLabel('E-mail', { exact: true }).fill('not-an-email')
         await expect(
             page.getByText('Enter a valid email address'),
@@ -180,10 +180,13 @@ test.describe('ENS profile', () => {
         await page.getByRole('button', { name: 'Add favorite' }).first().click()
         await addDone
 
-        // Verify name appears under the Favorites tab on the dashboard
+        // Verify name appears under the Favorites tab on the dashboard.
+        // Search by name to avoid pagination hiding it on a later page — the
+        // favorites list defaults to alphabetical sort, not recency.
         await page.goto(`${MANAGER_APP_URL}/dashboard`)
         await page.waitForLoadState('networkidle')
         await page.getByText('Favorites').click()
+        await page.getByPlaceholder('Search my names').fill(name)
         await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 })
 
         // Remove from favourites — listener registered before click, then wait for it
@@ -237,10 +240,13 @@ test.describe('ENS profile', () => {
         await page.getByRole('button', { name: 'Add favorite' }).first().click()
         await page.waitForTimeout(2_000)
 
-        // Verify it appears in the Favorites tab on the dashboard
+        // Verify it appears in the Favorites tab on the dashboard.
+        // Search by name to avoid pagination hiding it on a later page — the
+        // favorites list defaults to alphabetical sort, not recency.
         await page.goto(`${MANAGER_APP_URL}/dashboard`)
         await page.waitForLoadState('networkidle')
         await page.getByText('Favorites').click()
+        await page.getByPlaceholder('Search my names').fill(name)
         await expect(page.getByText(name).first()).toBeVisible({ timeout: 10_000 })
 
         // Remove from favourites — go back to the profile page and click the heart again
