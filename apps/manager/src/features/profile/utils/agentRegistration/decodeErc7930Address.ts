@@ -18,6 +18,10 @@ export function decodeErc7930Address(
   // Remove 0x prefix if present
   const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex
 
+  // The whole payload must be well-formed hex bytes; parseInt/slice below
+  // would otherwise silently accept garbage characters.
+  if (cleanHex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(cleanHex)) return null
+
   // Minimum length check: 2 + 2 + 1 + 1 + 1 + 20 = 27 bytes = 54 hex chars
   if (cleanHex.length < 54) return null
 
@@ -54,6 +58,10 @@ export function decodeErc7930Address(
   // Address (20 bytes)
   const addressHex = cleanHex.slice(offset, offset + 40)
   if (addressHex.length !== 40) return null
+  offset += 40
+
+  // Reject trailing bytes: a valid payload is fully consumed.
+  if (offset !== cleanHex.length) return null
 
   return {
     chainId,

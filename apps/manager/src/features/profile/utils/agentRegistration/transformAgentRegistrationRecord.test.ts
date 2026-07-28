@@ -18,7 +18,6 @@ describe('transformAgentRegistrationRecord', () => {
       agentId: '19151',
       chainId: 1,
       registryAddress: '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432',
-      iconKey: 'agent',
     })
   })
 

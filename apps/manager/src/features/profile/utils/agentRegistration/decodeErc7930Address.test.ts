@@ -66,6 +66,22 @@ describe('decodeErc7930Address', () => {
     expect(decodeErc7930Address(hex)).toBeNull()
   })
 
+  it('should return null for non-hex payload characters', () => {
+    expect(
+      decodeErc7930Address(
+        '0x00010000010114zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz',
+      ),
+    ).toBe(null)
+  })
+
+  it('should return null for trailing bytes after the address', () => {
+    expect(
+      decodeErc7930Address(
+        '0x000100000101148004a169fb4a3325136eb29fa0ceb6d2e539a432deadbeef',
+      ),
+    ).toBe(null)
+  })
+
   it('should return null if address is truncated', () => {
     // Only 10 bytes of address instead of 20
     const hex = '0x00010000010114' + '8004a169fb4a33251'

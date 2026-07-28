@@ -51,6 +51,17 @@ describe('parseAgentRegistrationKey', () => {
     expect(parseAgentRegistrationKey('agent-registration[0x1234][]')).toBeNull()
   })
 
+  it('should reject extra bracket sections and trailing characters', () => {
+    // From review: lastIndexOf-based parsing accepted these malformed keys.
+    expect(parseAgentRegistrationKey('agent-registration[0x123][1][2]')).toBe(
+      null,
+    )
+    expect(
+      parseAgentRegistrationKey('agent-registration[0x123][1]trailing'),
+    ).toBe(null)
+    expect(parseAgentRegistrationKey('agent-registration[xyz][1]')).toBe(null)
+  })
+
   it('should lowercase the registry hex', () => {
     const key = 'agent-registration[0xABCDEF123456][789]'
     const result = parseAgentRegistrationKey(key)

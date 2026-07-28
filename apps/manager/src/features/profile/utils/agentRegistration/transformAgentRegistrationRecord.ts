@@ -18,9 +18,6 @@ export interface AgentRegistrationRecord {
   registryDisplayName: string
   /** Block explorer URL from viem's chain registry, or null. */
   explorerUrl: string | null
-  /** Human-readable single-line summary: "id: 167 | registry: 8004.eth@ethereum". */
-  displayValue: string
-  iconKey: 'agent'
 }
 
 /**
@@ -47,8 +44,6 @@ export function transformAgentRegistrationRecord(
     decoded.address,
   )
 
-  const displayValue = `id: ${parsed.agentId} | registry: ${registryDisplayName}@${chainInfo.name}`
-
   return {
     key: record.key,
     value: record.value,
@@ -58,7 +53,5 @@ export function transformAgentRegistrationRecord(
     registryAddress: decoded.address,
     registryDisplayName,
     explorerUrl,
-    displayValue,
-    iconKey: 'agent',
   }
 }

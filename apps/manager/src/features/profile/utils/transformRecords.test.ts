@@ -396,7 +396,6 @@ describe('profile transformRecords utils', () => {
         chainId: 1,
         registryAddress: '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432',
         registryDisplayName: '8004.eth',
-        iconKey: 'agent',
       })
       // Must not leak into the generic `unknown` bucket.
       expect(result.unknown).toEqual([])

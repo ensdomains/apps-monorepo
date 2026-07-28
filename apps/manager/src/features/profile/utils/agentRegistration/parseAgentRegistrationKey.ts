@@ -6,29 +6,19 @@
  * @param key - The text record key to parse
  * @returns Parsed registry hex and agent ID, or null if invalid
  */
+// Anchored to the exact ENSIP-25 shape so malformed keys (extra bracket
+// sections, trailing characters, non-hex registries) are rejected outright.
+const AGENT_REGISTRATION_KEY_PATTERN =
+  /^agent-registration\[(0x[a-fA-F0-9]+)\]\[([^\]]+)\]$/
+
 export function parseAgentRegistrationKey(
   key: string,
 ): { registryHex: string; agentId: string } | null {
-  const prefix = 'agent-registration['
+  const match = AGENT_REGISTRATION_KEY_PATTERN.exec(key)
+  if (!match) return null
 
-  if (!key.startsWith(prefix)) return null
-
-  // Find the closing bracket of the first section
-  const firstCloseIndex = key.indexOf('][')
-  if (firstCloseIndex === -1) return null
-
-  // Extract registry (between first [ and ][)
-  const registryHex = key.slice(prefix.length, firstCloseIndex)
-
-  // Extract agentId (between ][ and final ])
-  const agentIdStart = firstCloseIndex + 2
-  const agentIdEnd = key.lastIndexOf(']')
-  if (agentIdEnd <= agentIdStart) return null
-
-  const agentId = key.slice(agentIdStart, agentIdEnd)
-
-  // Validate registry looks like hex
-  if (!registryHex.startsWith('0x')) return null
+  const [, registryHex, agentId] = match
+  if (!registryHex || !agentId) return null
 
   return { registryHex: registryHex.toLowerCase(), agentId }
 }

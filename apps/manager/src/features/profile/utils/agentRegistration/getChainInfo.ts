@@ -1,5 +1,29 @@
 import { extractChain } from 'viem'
-import * as chains from 'viem/chains'
+import {
+  arbitrum,
+  base,
+  linea,
+  mainnet,
+  optimism,
+  polygon,
+  scroll,
+  sepolia,
+} from 'viem/chains'
+
+// Curated instead of `import * as chains`: importing viem's full chain
+// registry defeats tree-shaking and pulls 100+ chain definitions into the
+// bundle. Agent registries live on a handful of chains (the known 8004.eth
+// registry is on mainnet); anything else falls back to `chain:<id>`.
+const KNOWN_CHAINS = [
+  mainnet,
+  sepolia,
+  base,
+  optimism,
+  arbitrum,
+  polygon,
+  linea,
+  scroll,
+] as const
 
 export interface ChainInfo {
   name: string
@@ -8,15 +32,14 @@ export interface ChainInfo {
 
 /**
  * Gets chain information (name and block explorer URL) from a chain ID.
- * Uses viem's chain registry for lookup.
  *
  * @param chainId - The EVM chain ID
  * @returns Chain info with name and explorer URL
  */
 export function getChainInfo(chainId: number): ChainInfo {
   const chain = extractChain({
-    chains: Object.values(chains),
-    id: chainId as (typeof chains.mainnet)['id'],
+    chains: [...KNOWN_CHAINS],
+    id: chainId as (typeof KNOWN_CHAINS)[number]['id'],
   })
 
   if (chain) {

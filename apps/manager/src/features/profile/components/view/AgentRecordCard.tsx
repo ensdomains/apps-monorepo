@@ -17,6 +17,7 @@ const fieldValueClassName = 'truncate font-medium text-foreground text-sm'
  */
 export const AgentRecordCard = ({ record }: AgentRecordCardProps) => (
   <div
+    // border-[0.25px]: hairline border, matches ProfileCard's card surface
     className="rounded-xl border-[0.25px] border-border bg-white p-4"
     data-testid={`agent-record-card-${record.agentId}`}
   >
