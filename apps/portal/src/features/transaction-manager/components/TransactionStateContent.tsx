@@ -20,6 +20,7 @@ import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
 import { getTransactionById } from '../utils/getTransactionById'
+import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
 import { TransactionFlowProgressBar } from './TransactionFlowProgressBar'
 import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
@@ -121,9 +122,12 @@ export const TransactionStateContent = ({
                       <SquareArrowOutUpRight className="size-3" />
                     </a>
                   )}
-                  {transaction.waitUntil &&
-                  status === undefined &&
-                  transaction.waitUntil > Date.now() ? (
+                  {shouldShowWaitCountdown(
+                    transaction,
+                    index,
+                    transactions,
+                    activeTransactionsMap,
+                  ) && transaction.waitUntil ? (
                     <TransactionWaitCountdown
                       waitUntil={transaction.waitUntil}
                     />

@@ -104,9 +104,9 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.registerReadyTimestamp,
   )
-  // Surface the commit-reveal cooldown to the modal. Approval can happen at
-  // any time; only the actual register call is gated by MIN_COMMITMENT_AGE,
-  // so attach the deadline to the register step.
+  // Keep the commit-reveal deadline on the register step whenever we know it.
+  // Visibility is gated in the modal (only when register is next), so Approve
+  // In Progress does not show a misleading "Ready in Xs" on Register.
   const registerWaitUntil =
     machineState === 'fetchingCommitmentAge' ||
     machineState === 'commitmentCooldown' ||

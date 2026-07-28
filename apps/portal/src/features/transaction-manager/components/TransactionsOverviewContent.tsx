@@ -23,6 +23,7 @@ import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
+import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
 import { EstimatedGasCost } from './EstimatedGasCost'
 import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
@@ -84,7 +85,7 @@ export const TransactionsOverviewContent = ({
             </div>
           ) : null}
           <div className="space-y-2 min-w-0">
-            {transactions.map((transaction) => {
+            {transactions.map((transaction, index) => {
               const activeTxSnapshot = activeTransactionsMap
                 .get(transaction.id)
                 ?.getSnapshot()
@@ -127,10 +128,12 @@ export const TransactionsOverviewContent = ({
                         <h4 className="text-base font-medium text-foreground truncate">
                           {transaction.title}
                         </h4>
-                        {transaction.waitUntil &&
-                        getStatus(transaction.id, activeTransactionsMap) ===
-                          undefined &&
-                        transaction.waitUntil > Date.now() ? (
+                        {shouldShowWaitCountdown(
+                          transaction,
+                          index,
+                          transactions,
+                          activeTransactionsMap,
+                        ) && transaction.waitUntil ? (
                           <TransactionWaitCountdown
                             waitUntil={transaction.waitUntil}
                           />
