@@ -1,0 +1,163 @@
+import type { Address, PublicClient } from 'viem'
+import { sepolia } from 'viem/chains'
+import { describe, expect, it, vi } from 'vitest'
+import { createActor, fromPromise, waitFor } from 'xstate'
+import type { Signer } from '../../types/signer.types'
+import { registrationMachine } from './registration.machine'
+
+const HCA = '0xaaaa000000000000000000000000000000000001' as Address
+const WALLET = '0x1111111111111111111111111111111111111111' as Address
+const BUDGET = 15_000_000n
+
+const permit = {
+  owner: WALLET,
+  spender: HCA,
+  value: BUDGET,
+  deadline: 1_800_000_000n,
+  v: 27,
+  r: `0x${'11'.repeat(32)}`,
+  s: `0x${'22'.repeat(32)}`,
+} as const
+
+/**
+ * Stub only the standalone-HCA actors the funding path walks through. Anything
+ * further down the flow (commitment polling, reveal) never starts because the
+ * assertions stop at the funding decision.
+ */
+const startHcaRegistration = (overrides: {
+  /** HCA USDC balance per `checkingHcaFunding` visit (last value repeats). */
+  balances?: bigint[]
+  signFundingPermit?: ReturnType<typeof vi.fn>
+  submitFundingAndCommit?: ReturnType<typeof vi.fn>
+  estimateHcaBudget?: ReturnType<typeof vi.fn>
+  hcaBudget?: bigint
+}) => {
+  const estimateHcaBudget =
+    overrides.estimateHcaBudget ??
+    vi.fn(async () => ({
+      total: BUDGET,
+      commitCost: 4_000_000n,
+      registerCost: 6_000_000n,
+      registerBuffer: 180_000n,
+      registrationPrice: 5_000_000n,
+      source: 'quote' as const,
+    }))
+  const signFundingPermit =
+    overrides.signFundingPermit ?? vi.fn(async () => permit)
+  const submitFundingAndCommit =
+    overrides.submitFundingAndCommit ??
+    vi.fn(() => new Promise(() => {})) /* park: assertions stop here */
+
+  const balances = overrides.balances ?? [0n]
+  let fundingChecks = 0
+
+  const actor = createActor(
+    registrationMachine.provide({
+      actors: {
+        estimateHcaBudget: fromPromise(estimateHcaBudget) as never,
+        readHcaUsdcBalance: fromPromise(async () => {
+          const balance =
+            balances[Math.min(fundingChecks, balances.length - 1)] ?? 0n
+          fundingChecks += 1
+          return balance
+        }) as never,
+        signFundingPermit: fromPromise(signFundingPermit) as never,
+        submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
+      },
+    }),
+    { input: { chainId: sepolia.id } },
+  )
+
+  actor.start()
+  actor.send({
+    type: 'START_REGISTRATION',
+    name: 'myname.eth',
+    duration: 31_536_000n,
+    token: 'USDC',
+    price: 5_000_000n,
+    signer: { type: 'rhinestone' } as unknown as Signer,
+    accountAddress: HCA,
+    ownerAddress: WALLET,
+    publicClient: { chain: sepolia } as unknown as PublicClient,
+    ...(overrides.hcaBudget !== undefined
+      ? { hcaBudget: overrides.hcaBudget }
+      : {}),
+  })
+
+  return { actor, estimateHcaBudget, signFundingPermit, submitFundingAndCommit }
+}
+
+describe('registrationMachine — standalone-HCA funding', () => {
+  it('skips the funding permit when the HCA already covers the budget', async () => {
+    const { actor, signFundingPermit } = startHcaRegistration({
+      balances: [BUDGET],
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    // Leftover budget from a prior registration ⇒ zero extra wallet prompts.
+    expect(signFundingPermit).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.permit).toBeUndefined()
+  })
+
+  it('signs a funding permit for the estimated budget when the HCA is short', async () => {
+    const { actor, signFundingPermit } = startHcaRegistration({
+      balances: [BUDGET - 1n],
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit).toHaveBeenCalledOnce()
+    expect(signFundingPermit.mock.calls[0][0].input).toMatchObject({
+      wallet: WALLET,
+      hca: HCA,
+      value: BUDGET,
+    })
+    expect(actor.getSnapshot().context.permit).toEqual(permit)
+  })
+
+  it('honours a caller-supplied budget instead of estimating one', async () => {
+    const { actor, estimateHcaBudget } = startHcaRegistration({
+      hcaBudget: 42_000_000n,
+      balances: [42_000_000n],
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(estimateHcaBudget).not.toHaveBeenCalled()
+    expect(actor.getSnapshot().context.hcaBudget).toBe(42_000_000n)
+  })
+
+  it('discards the signed permit on retry so an expired one is never resubmitted', async () => {
+    // The EIP-2612 permit carries a 1-hour deadline; retrying with the stored
+    // signature after that window reverts every attempt. The retry must go back
+    // through the funding check, which either skips the permit (the HCA was
+    // funded by the failed attempt) or signs a fresh one.
+    const submitFundingAndCommit = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('relayer rejected the intent'))
+      .mockImplementation(() => new Promise(() => {}))
+
+    // Second visit sees the HCA funded by the attempt that failed afterwards.
+    const { actor, signFundingPermit } = startHcaRegistration({
+      balances: [BUDGET - 1n, BUDGET],
+      submitFundingAndCommit,
+    })
+
+    await waitFor(actor, (s) => s.matches('error'))
+    expect(actor.getSnapshot().context.permit).toEqual(permit)
+    expect(actor.getSnapshot().context.retryTarget).toBe(
+      'submittingSetupBundle',
+    )
+
+    actor.send({ type: 'RETRY' })
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    // Re-entering the funding check found the HCA funded, so the retry carries
+    // no permit at all rather than replaying the expiring signature.
+    expect(actor.getSnapshot().context.permit).toBeUndefined()
+    expect(signFundingPermit).toHaveBeenCalledOnce()
+    // A stale commitment is cleared too, so the reveal can't bind to it.
+    expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+  })
+})
