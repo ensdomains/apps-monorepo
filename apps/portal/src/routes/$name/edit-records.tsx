@@ -150,8 +150,8 @@ function EditRecordsPage() {
           description={
             <>
               You don't have permission to edit records for{' '}
-              <strong>{name}</strong>. Record edits require ownership of the
-              resolver (or name ownership on a non-permissioned resolver).
+              <strong>{name}</strong>. Record edits require the relevant
+              resolver roles (or ownership on a non-permissioned resolver).
             </>
           }
         />
