@@ -313,33 +313,40 @@ function encodePermitData(permit: PermitSignature): Hex {
   })
 }
 
-/**
- * Encode registration transaction data
- */
-function encodeRegistrationData(
-  name: string,
-  ownerAddress: Address,
-  secret: Hash,
-  duration: bigint,
-  paymentToken: Address,
-  resolverAddress: Address,
-): Hash {
-  const cleanName = name.replace('.eth', '')
-
-  return encodeFunctionData({
-    abi: ethRegistrarRegisterSnippet,
-    functionName: 'register',
-    args: [
-      cleanName,
-      ownerAddress,
-      secret,
-      zeroAddress,
-      resolverAddress,
-      duration,
-      paymentToken,
-      REFERER_ADDRESS,
-    ],
-  })
+/** Shared `ETHRegistrar.register` call for submit + gas estimate. */
+export function encodeRegisterCall({
+  name,
+  owner,
+  secret,
+  duration,
+  paymentToken,
+  resolverAddress,
+}: {
+  name: string
+  owner: Address
+  secret: Hash
+  duration: bigint
+  paymentToken: Address
+  resolverAddress: Address
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+    data: encodeFunctionData({
+      abi: ethRegistrarRegisterSnippet,
+      functionName: 'register',
+      args: [
+        name.replace('.eth', ''),
+        owner,
+        secret,
+        zeroAddress,
+        resolverAddress,
+        duration,
+        paymentToken,
+        REFERER_ADDRESS,
+      ],
+    }),
+    value: 0n,
+  }
 }
 
 /**
@@ -1064,26 +1071,20 @@ export function submitRegistrationActor(input: {
         normalizedPaymentToken,
       )
 
-      const registrationData = encodeRegistrationData(
-        input.name,
-        input.owner,
-        input.commitment.secret,
-        input.duration,
-        normalizedPaymentToken,
-        input.resolverAddress,
-      )
+      const registerCall = encodeRegisterCall({
+        name: input.name,
+        owner: input.owner,
+        secret: input.commitment.secret,
+        duration: input.duration,
+        paymentToken: normalizedPaymentToken,
+        resolverAddress: input.resolverAddress,
+      })
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
-        calls: [
-          {
-            to: registrarAddress,
-            data: registrationData,
-            value: 0n,
-          },
-        ],
+        calls: [registerCall],
         sponsored: input.sponsored ?? true,
       })
 
@@ -1277,14 +1278,14 @@ export function submitPermitAndRegistrationActor(input: {
 
       const permitData = encodePermitData(input.permit)
 
-      const registrationData = encodeRegistrationData(
-        input.name,
-        input.owner,
-        input.commitment.secret,
-        input.duration,
-        normalizedPaymentToken,
-        input.resolverAddress,
-      )
+      const registerCall = encodeRegisterCall({
+        name: input.name,
+        owner: input.owner,
+        secret: input.commitment.secret,
+        duration: input.duration,
+        paymentToken: normalizedPaymentToken,
+        resolverAddress: input.resolverAddress,
+      })
 
       const request = createTransactionRequest({
         signer: input.signer,
@@ -1292,7 +1293,7 @@ export function submitPermitAndRegistrationActor(input: {
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           { to: normalizedPaymentToken, data: permitData, value: 0n },
-          { to: registrarAddress, data: registrationData, value: 0n },
+          registerCall,
         ],
         sponsored: input.sponsored ?? true,
       })

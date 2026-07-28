@@ -27,7 +27,10 @@ export {
   type WaitForTransactionResult,
   waitForTransaction,
 } from './helpers/waitForTransaction'
-export { encodeDeployDedicatedResolverCall } from './machines/registration/registration.actors'
+export {
+  encodeDeployDedicatedResolverCall,
+  encodeRegisterCall,
+} from './machines/registration/registration.actors'
 export type {
   RegistrationContext,
   RegistrationEvent,

@@ -1,6 +1,7 @@
 import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
 import {
   encodeDeployDedicatedResolverCall,
+  encodeRegisterCall,
   REGISTRATION_TX_IDS,
   registrationMachine,
   transactionManager,
@@ -90,6 +91,7 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.resolverAddress,
   )
+  const commitment = useSelector(actor, (state) => state.context.commitment)
   const verifiedResolverRef = useRef<Address | null>(null)
   useEffect(() => {
     if (!resolverAddress || verifiedResolverRef.current === resolverAddress) {
@@ -254,6 +256,27 @@ export const useRegistrationTransactions = ({
       id: REGISTRATION_TX_IDS.register,
       title: 'Register name',
       transactionName: `Register ${name}`,
+      // Known once commitment + resolver exist; gas cap covers the commitment-age
+      // window where live estimateGas reverts.
+      intent: {
+        prepare:
+          commitment && resolverAddress && connection.address && savedParams
+            ? ({ walletClient }) =>
+                toEoaCustomIntent({
+                  from: walletClient.account.address,
+                  ...encodeRegisterCall({
+                    name,
+                    owner: connection.address as Address,
+                    secret: commitment.secret,
+                    duration: BigInt(duration),
+                    paymentToken: savedParams.tokenAddress,
+                    resolverAddress,
+                  }),
+                  chainId,
+                  gas: 500_000n,
+                })
+            : undefined,
+      },
       onStart: handleProceed,
       onDone: handleDone,
       waitUntil: registerWaitUntil,
@@ -262,9 +285,12 @@ export const useRegistrationTransactions = ({
     return steps
   }, [
     name,
+    duration,
     connection.address,
     savedParams,
     needsApproval,
+    commitment,
+    resolverAddress,
     registerWaitUntil,
     handleStart,
     handleProceed,

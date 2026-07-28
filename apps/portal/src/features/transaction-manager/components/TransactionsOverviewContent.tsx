@@ -200,7 +200,12 @@ export const TransactionsOverviewContent = ({
                       </Button>
                     </div>
                     <dl className="grid grid-cols-2 gap-1 place-items-start">
-                      <dt className="text-base font-medium">Est. Cost</dt>
+                      <dt className="text-base font-medium">
+                        {getStatus(transaction.id, activeTransactionsMap) ===
+                        'success'
+                          ? 'Actual Cost'
+                          : 'Est. Cost'}
+                      </dt>
                       <dd className="text-base">
                         <EstimatedGasCost
                           actor={activeTransactionsMap.get(transaction.id)}
