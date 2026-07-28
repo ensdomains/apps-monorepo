@@ -9,10 +9,19 @@ import type { CommemorativeNftShareUrls } from './types'
 const normalizedProfileName = (name: string) =>
   name.trim().replace(/\.$/, '').toLowerCase()
 
-export const buildCommemorativeNftProfileUrl = (profileName: string): string =>
-  `https://app.ens.domains/p/${encodeURIComponent(
-    normalizedProfileName(profileName),
-  )}`
+const getManagerOrigin = (): string =>
+  typeof window === 'undefined'
+    ? 'https://app.ens.domains'
+    : window.location.origin
+
+export const buildCommemorativeNftProfileUrl = (
+  profileName: string,
+  origin = getManagerOrigin(),
+): string =>
+  new URL(
+    `/p/${encodeURIComponent(normalizedProfileName(profileName))}`,
+    origin,
+  ).toString()
 
 export const isCommemorativeNftCanonicalProfile = (
   routeName: string,

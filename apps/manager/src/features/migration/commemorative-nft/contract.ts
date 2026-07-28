@@ -5,7 +5,6 @@ import {
   writeContract,
 } from '@wagmi/core'
 import { type Address, getAddress, type Hex, parseAbi } from 'viem'
-import { sepolia } from 'viem/chains'
 import { getCommemorativeNftContractAddress } from './config'
 
 export const COMMEMORATIVE_NFT_ABI = parseAbi([
@@ -135,13 +134,6 @@ export const claimCommemorativeNft = async (params: {
     throw new CommemorativeNftClaimError(
       'wallet-mismatch',
       'Reconnect the eligible owner wallet before minting.',
-    )
-  }
-
-  if (params.chainId !== sepolia.id) {
-    throw new CommemorativeNftClaimError(
-      'unsupported-network',
-      'The commemorative NFT is not available on this network.',
     )
   }
 

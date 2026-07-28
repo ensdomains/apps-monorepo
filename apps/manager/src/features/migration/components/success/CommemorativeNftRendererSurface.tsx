@@ -117,7 +117,7 @@ export const CommemorativeNftRendererSurface = ({
             setRendererLoaded(true)
           }}
           referrerPolicy="no-referrer"
-          sandbox="allow-same-origin allow-scripts"
+          sandbox="allow-scripts"
           src={rendererUrl}
           tabIndex={-1}
           title={`Interactive commemorative NFT artwork for ${eligibility.rendererName}`}

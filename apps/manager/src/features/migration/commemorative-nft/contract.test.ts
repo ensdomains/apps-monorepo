@@ -69,6 +69,19 @@ describe('commemorative NFT contract', () => {
     expect(writeContractMock).not.toHaveBeenCalled()
   })
 
+  it('refuses to mint when the contract is unavailable on the active chain', async () => {
+    await expect(
+      claimCommemorativeNft({
+        wagmiConfig,
+        chainId: 10,
+        ownerAddress,
+        walletAddress: ownerAddress,
+        proof,
+      }),
+    ).rejects.toMatchObject({ reason: 'unsupported-network' })
+    expect(writeContractMock).not.toHaveBeenCalled()
+  })
+
   it('reads claimed state directly from the contract', async () => {
     readContractMock.mockResolvedValue(true)
     await expect(

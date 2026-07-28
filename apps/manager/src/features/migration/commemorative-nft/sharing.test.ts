@@ -28,13 +28,28 @@ describe('commemorative NFT sharing', () => {
     expect(urls.telegram).toContain('t.me/share/url')
   })
 
-  it('builds a canonical Manager profile fallback for sharing', () => {
+  it('builds a Manager profile fallback on the active environment', () => {
     expect(buildCommemorativeNftProfileUrl('Yoginth.eth.')).toBe(
-      'https://app.ens.domains/p/yoginth.eth',
+      new URL('/p/yoginth.eth', window.location.origin).toString(),
     )
-    expect(buildCommemorativeNftProfileUrl('hello world.eth')).toBe(
-      'https://app.ens.domains/p/hello%20world.eth',
-    )
+    expect(
+      buildCommemorativeNftProfileUrl(
+        'Yoginth.eth.',
+        'https://staging.example/',
+      ),
+    ).toBe('https://staging.example/p/yoginth.eth')
+    expect(
+      buildCommemorativeNftProfileUrl(
+        'Yoginth.eth.',
+        'https://app.ens.domains',
+      ),
+    ).toBe('https://app.ens.domains/p/yoginth.eth')
+    expect(
+      buildCommemorativeNftProfileUrl(
+        'hello world.eth',
+        'https://app.ens.domains',
+      ),
+    ).toBe('https://app.ens.domains/p/hello%20world.eth')
   })
 
   it('does not expose OpenSea for Sepolia claims', () => {

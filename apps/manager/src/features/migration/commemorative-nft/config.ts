@@ -26,7 +26,9 @@ export const getCommemorativeNftConfig = () => ({
   eligibilityOrigin: optionalOrigin(
     import.meta.env.VITE_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN,
   ),
-  rendererOrigin: DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
+  rendererOrigin:
+    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
+    DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
 })
 
 export const getCommemorativeNftContractAddress = (
@@ -64,6 +66,7 @@ const rendererAttributes = (traits: CommemorativeNftEligibility['traits']) => [
   { trait_type: 'Depth', value: traits.Depth },
   { trait_type: 'Gasveteran', value: traits.Gasveteran },
   { trait_type: 'Archetype', value: traits.Archetype },
+  // Metadata keeps the pipeline value; the renderer derives visual rarity from metadata.name.
   { trait_type: 'Rarity', value: traits.Rarity },
   { trait_type: 'Seed', value: traits.Seed },
 ]
@@ -79,6 +82,7 @@ export const buildCommemorativeNftRendererUrl = (params: {
     animation_url: '',
     attributes: rendererAttributes(params.eligibility.traits),
   }
+  // `data:` is part of the renderer contract; WEB-604's allowlist must permit it.
   const tokenUri = `data:application/json;charset=utf-8,${encodeURIComponent(
     JSON.stringify(metadata),
   )}`
