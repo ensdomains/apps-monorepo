@@ -35,7 +35,7 @@ export const RegistryTree = ({
   if (!registries) return null
 
   return (
-    <div className="mt-3 sm:mt-5 mb-4">
+    <div>
       <div className="flex flex-col">
         {[...registries].reverse().map((registry, index) => {
           if (registry === null) return null

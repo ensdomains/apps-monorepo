@@ -205,9 +205,9 @@ export const SubnamesTable = ({
 
   return (
     <>
-      <header className="bg-muted border-b border-border px-6 pb-6 pt-12 flex flex-col gap-4 sticky top-0 z-20">
+      <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
-          <h1 className="text-[30px] font-medium leading-tight flex-1">
+          <h1 className="text-h1 flex-1">
             {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
           </h1>
           {canCreateSubname && (
@@ -391,7 +391,7 @@ export const SubnamesTable = ({
                       <TableCell
                         className={cn(
                           'px-6',
-                          tableView.compact ? 'py-2' : 'py-4',
+                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                         )}
                         key={cell.id}
                       >

@@ -31,7 +31,7 @@ export const RecordSidebar: FC<
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
-            <SheetTitle className="font-sans text-heading font-medium capitalize">
+            <SheetTitle className="font-sans text-h2 capitalize">
               {row?.original.type} record
             </SheetTitle>
           </SheetHeader>

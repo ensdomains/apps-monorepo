@@ -244,7 +244,7 @@ const Profile = ({
     // owner can renew before the window closes.
     if (grace.isInGrace && grace.graceEndDate) {
       return (
-        <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
+        <div className="flex flex-col gap-8">
           <GraceBanner
             graceEndDate={grace.graceEndDate}
             canExtend={graceCanExtend}
@@ -340,7 +340,7 @@ const Profile = ({
     !grace.isExpired
 
   return (
-    <div className="flex flex-col gap-12 lg:p-10 p-4 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       {registrationBanner && (
         <RegistrationSuccessBanner name={name} {...registrationBanner} />
       )}

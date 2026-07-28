@@ -21,7 +21,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
         {row.getVisibleCells().map((cell) => (
           <TableCell
             key={cell.id}
-            className={cn('px-6', tableView.compact ? 'py-2' : 'py-4')}
+            className={cn('px-6', tableView.compact ? 'h-8 py-1' : 'h-10 py-2')}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
@@ -35,7 +35,10 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
           const eventAddress = extractFromAddress(eventDetails)
           const fromAddress = eventAddress ?? row.original.from
 
-          const cellClassName = cn('px-6', tableView.compact ? 'py-2' : 'py-4')
+          const cellClassName = cn(
+            'px-6',
+            tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
+          )
           const totalColumns = row.getVisibleCells().length
           const trailingColSpan = totalColumns - 4 // 2 leading + 1 event type + 1 address
 

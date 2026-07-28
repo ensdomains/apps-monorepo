@@ -20,6 +20,7 @@ import {
 } from '@/features/register/services/checkNameAvailabilityService'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
+import { recordNameSearch } from './recordNameSearch'
 import { searchHistoryStore } from './useSearchHistory'
 
 const LINK_OPTIONS = {
@@ -153,6 +154,7 @@ export const NameSuggestionItem = ({
           return
         }
         searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
+        recordNameSearch(name)
         onNavigate?.()
       }}
       {...LINK_OPTIONS[isAvailable ? 'register' : 'profile'](name)}

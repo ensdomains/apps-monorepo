@@ -296,7 +296,7 @@ export const ResolverEventsTable = ({
             table.getRowModel().rows.map((row) => {
               const cellClassName = cn(
                 'px-6',
-                tableView.compact ? 'py-2' : 'py-4',
+                tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
               )
               const totalColumns = row.getVisibleCells().length
               const trailingColSpan = totalColumns - 4
@@ -342,7 +342,10 @@ export const ResolverEventsTable = ({
             })
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
+              <TableCell
+                colSpan={columns.length}
+                className="px-6 py-24 text-center"
+              >
                 No events found.
               </TableCell>
             </TableRow>

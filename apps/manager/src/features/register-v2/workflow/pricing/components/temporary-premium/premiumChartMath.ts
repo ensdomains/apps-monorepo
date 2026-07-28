@@ -201,11 +201,11 @@ export function computeLeaderGeometry(
   if (placement.axis === 'horizontal') {
     const sign = placement.dir === 'right' ? 1 : -1
     const leaderStart = { x: pos.x + sign * dotGap, y: pos.y }
-    const leaderEnd = { x: pos.x + sign * len, y: pos.y }
     const labelAnchor = {
-      x: leaderEnd.x + sign * cfg.labelGap,
+      x: pos.x + sign * (len + cfg.labelGap),
       y: pos.y,
     }
+    const leaderEnd = labelAnchor
     return {
       leaderStart,
       leaderEnd,
@@ -220,11 +220,11 @@ export function computeLeaderGeometry(
 
   const sign = placement.dir === 'up' ? -1 : 1
   const leaderStart = { x: pos.x, y: pos.y + sign * dotGap }
-  const leaderEnd = { x: pos.x, y: pos.y + sign * len }
   const labelAnchor = {
     x: pos.x,
-    y: leaderEnd.y + sign * cfg.labelGap,
+    y: pos.y + sign * (len + cfg.labelGap),
   }
+  const leaderEnd = labelAnchor
   return {
     leaderStart,
     leaderEnd,
