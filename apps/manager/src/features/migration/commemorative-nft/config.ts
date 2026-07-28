@@ -9,14 +9,8 @@ export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
   '0xe49A9D706FCD82AA575496352B5633F80fBBC449',
 )
 
-const PRODUCTION_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
+export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
-const PREVIEW_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
-  'https://5de04212.ens-renderer.pages.dev'
-
-export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN = import.meta.env.DEV
-  ? PREVIEW_COMMEMORATIVE_NFT_RENDERER_ORIGIN
-  : PRODUCTION_COMMEMORATIVE_NFT_RENDERER_ORIGIN
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
@@ -32,9 +26,7 @@ export const getCommemorativeNftConfig = () => ({
   eligibilityOrigin: optionalOrigin(
     import.meta.env.VITE_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN,
   ),
-  rendererOrigin:
-    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
-    DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
+  rendererOrigin: DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
 })
 
 export const getCommemorativeNftContractAddress = (
