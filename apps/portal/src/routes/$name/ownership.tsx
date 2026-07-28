@@ -98,11 +98,11 @@ function RouteComponent() {
           label={grace.isInGrace ? 'Previous owner' : 'Owner'}
           asRow
         />
+        {data.protocolVersion === 'ENSv1' && (
+          <V1NameManagerRecord name={name} asRow />
+        )}
         <ParentName name={name} asRow />
       </div>
-      {data.protocolVersion === 'ENSv1' && (
-        <V1NameManagerRecord name={name} className="w-full" />
-      )}
       <NameSubgraphHistory name={name} category="domain" />
     </div>
   )

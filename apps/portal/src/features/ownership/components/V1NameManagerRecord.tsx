@@ -38,9 +38,11 @@ const ensRegistryAddress = getChainContractAddress({
 export const V1NameManagerRecord = ({
   name,
   className,
+  asRow,
 }: {
   name: string
-  className: string
+  className?: string
+  asRow?: boolean
 }) => {
   const {
     data: managerAddress,
@@ -57,5 +59,12 @@ export const V1NameManagerRecord = ({
     return <ErrorMessage title={error.name} description={error.message} />
   if (isLoading) return <LoadingMessage title="Loading manager" />
 
-  return <Owner label="Manager" owner={managerAddress} className={className} />
+  return (
+    <Owner
+      label="Manager"
+      owner={managerAddress}
+      className={className}
+      asRow={asRow}
+    />
+  )
 }
