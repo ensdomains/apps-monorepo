@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Info } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
@@ -31,8 +31,10 @@ type SendNameFormProps = {
   readonly owner: Address
 }
 
+type ResetToggleKey = 'resetResolver' | 'resetRegistry'
+
 type OptionConfig = {
-  readonly key: keyof TransferOptions
+  readonly key: ResetToggleKey
   readonly label: string
   readonly description: string
 }
@@ -58,7 +60,7 @@ export const SendNameForm = ({
   owner,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
-  const [options, setOptions] = useState<TransferOptions>({
+  const [options, setOptions] = useState<Record<ResetToggleKey, boolean>>({
     resetResolver: true,
     resetRegistry: true,
   })
@@ -69,6 +71,11 @@ export const SendNameForm = ({
     settled: resetTargetsSettled,
     failed: resetTargetsFailed,
   } = useTransferResetTargets({ name })
+
+  const primaryQuery = useQuery(getPrimaryNameQueryOptions(owner))
+  const willUnsetPrimary =
+    !!primaryQuery.data &&
+    primaryQuery.data.toLowerCase() === name.toLowerCase()
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -83,6 +90,7 @@ export const SendNameForm = ({
   // A hidden option never contributes to the plan, regardless of its stored
   // toggle value, so fold visibility into the options we hand off.
   const effectiveOptions: TransferOptions = {
+    unsetPrimary: willUnsetPrimary,
     resetResolver: options.resetResolver && optionIsVisible.resetResolver,
     resetRegistry: options.resetRegistry && optionIsVisible.resetRegistry,
   }
@@ -90,17 +98,21 @@ export const SendNameForm = ({
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
   const canStart =
-    hasValidRecipient && !isResolving && !isPreparing && resetTargetsSettled
+    hasValidRecipient &&
+    !isResolving &&
+    !isPreparing &&
+    resetTargetsSettled &&
+    primaryQuery.isSuccess
 
   const keepsResolver = optionIsVisible.resetResolver && !options.resetResolver
   const keepsRegistry = optionIsVisible.resetRegistry && !options.resetRegistry
   const needsConfirmation = keepsResolver || keepsRegistry
 
-  const toggleOption = (key: keyof TransferOptions) =>
+  const toggleOption = (key: ResetToggleKey) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const runTransfer = () => {
-    if (!recipient || !resetTargetsSettled) return
+    if (!recipient || !resetTargetsSettled || !primaryQuery.isSuccess) return
     startTransfer({ recipient, options: effectiveOptions })
   }
 
@@ -145,6 +157,16 @@ export const SendNameForm = ({
         />
       </div>
 
+      {hasValidRecipient && willUnsetPrimary && (
+        <Alert>
+          <Info className="size-4" />
+          <AlertDescription>
+            This is your primary name. Transferring it will unset it as your
+            primary name so your address no longer reverse-resolves to it.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {hasValidRecipient && (
         <TransferResetOptions
           options={options}
@@ -166,6 +188,13 @@ export const SendNameForm = ({
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
+        </span>
+      )}
+
+      {hasValidRecipient && primaryQuery.isError && (
+        <span className="text-destructive text-sm">
+          Couldn’t check whether this name is your primary name. Refresh and try
+          again before transferring.
         </span>
       )}
 
@@ -192,9 +221,9 @@ const TransferResetOptions = ({
   visibleOptions,
   onToggle,
 }: {
-  readonly options: TransferOptions
+  readonly options: Record<ResetToggleKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
-  readonly onToggle: (key: keyof TransferOptions) => void
+  readonly onToggle: (key: ResetToggleKey) => void
 }) => {
   if (visibleOptions.length === 0) return null
 

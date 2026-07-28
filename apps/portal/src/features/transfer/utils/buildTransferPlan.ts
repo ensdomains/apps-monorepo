@@ -2,12 +2,16 @@
  * Pure builder that turns the user's transfer options into an ordered list of
  * on-chain steps.
  *
- * Ordering matters: every configuration step (reset the resolver, reset the
- * registry) must run BEFORE the ownership hand-off, because once the ERC-1155
- * token is transferred the sender loses the roles needed to make those changes.
- * The token transfer is therefore always last.
+ * Ordering matters: every configuration step (unset primary, reset the
+ * resolver, reset the registry) must run BEFORE the ownership hand-off, because
+ * once the ERC-1155 token is transferred the sender loses the roles needed to
+ * make those changes. The token transfer is therefore always last.
  *
- * Both config steps are "reset to zero" rather than "hand over a fresh
+ * Unset-primary is independent of token ownership (it writes the sender's
+ * reverse record), but it still runs first so reverse-resolution for the
+ * sender is cleared before the name leaves their control.
+ *
+ * Resolver/registry resets are "reset to zero" rather than "hand over a fresh
  * contract": in v2 the resolver and the subregistry are user-owned objects that
  * may be shared across the sender's other names, so we detach the name from them
  * (`setResolver(0x0)` / `setSubregistry(0x0)`) instead of reassigning them to the
@@ -15,6 +19,8 @@
  */
 
 export type TransferOptions = {
+  /** Clear the sender's reverse records when this name is their primary. */
+  readonly unsetPrimary: boolean
   /** Detach the name from its resolver (`setResolver(0x0)`) for a clean slate. */
   readonly resetResolver: boolean
   /** Detach the name from its subregistry (`setSubregistry(0x0)`). */
@@ -22,6 +28,7 @@ export type TransferOptions = {
 }
 
 export type TransferStepKind =
+  | 'unset-primary'
   | 'reset-resolver'
   | 'reset-registry'
   | 'transfer-token'
@@ -37,6 +44,10 @@ export const buildTransferPlan = (
 
   // Configuration steps run before the token moves, since the sender loses the
   // required roles once ownership transfers.
+  if (options.unsetPrimary) {
+    steps.push('unset-primary')
+  }
+
   if (options.resetResolver) {
     steps.push('reset-resolver')
   }
@@ -51,6 +62,7 @@ export const buildTransferPlan = (
 }
 
 export const STEP_LABELS: Record<TransferStepKind, string> = {
+  'unset-primary': 'Unset primary name',
   'reset-resolver': 'Reset resolver',
   'reset-registry': 'Reset registry',
   'transfer-token': 'Transfer name',

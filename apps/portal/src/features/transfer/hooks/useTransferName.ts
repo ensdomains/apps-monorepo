@@ -7,6 +7,7 @@ import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -17,6 +18,7 @@ import { getLabel } from '@/utils/token/getLabel'
 import { resetNameRegistry } from '../helpers/resetNameRegistry'
 import { resetNameResolver } from '../helpers/resetNameResolver'
 import { transferToken } from '../helpers/transferToken'
+import { unsetPrimaryName } from '../helpers/unsetPrimaryName'
 import {
   buildTransferPlan,
   STEP_LABELS,
@@ -42,6 +44,7 @@ type SavedParams = {
 }
 
 const GAS_BY_STEP: Record<TransferStepKind, number> = {
+  'unset-primary': 0.0002,
   'reset-resolver': 0.0001,
   'reset-registry': 0.0001,
   'transfer-token': 0.0003,
@@ -82,9 +85,14 @@ export const useTransferName = ({
     clearTransaction()
     setSavedParams(null)
     const invalidate = () =>
-      queryClient.invalidateQueries({
-        queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
-      })
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getPrimaryNameQueryOptions(owner).queryKey,
+        }),
+      ]).then(() => undefined)
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
     void navigate({ to: '/$name/ownership', params: { name } })
@@ -127,6 +135,7 @@ export const useTransferName = ({
     const label = getLabel(name)
 
     await match(step)
+      .with('unset-primary', () => unsetPrimaryName({ ...common, id }))
       .with('reset-resolver', () =>
         resetNameResolver({ ...common, label, registryAddress, id }),
       )

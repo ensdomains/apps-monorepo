@@ -2,11 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { zeroAddress } from 'viem'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
-import type { TransferOptions } from '../utils/buildTransferPlan'
 
 export type TransferResetTargets = {
-  /** Whether each reset option has a target set that's worth showing/resetting. */
-  readonly optionIsVisible: Record<keyof TransferOptions, boolean>
+  /** Whether each reset toggle has a target set that's worth showing/resetting. */
+  readonly optionIsVisible: {
+    readonly resetResolver: boolean
+    readonly resetRegistry: boolean
+  }
   /** Both lookups succeeded — the reset targets are known. */
   readonly settled: boolean
   /** At least one lookup errored — the reset targets are unknown. */

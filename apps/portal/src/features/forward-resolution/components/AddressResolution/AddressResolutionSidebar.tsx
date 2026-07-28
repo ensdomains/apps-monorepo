@@ -1,4 +1,5 @@
 import { getRegistrarAddress } from '@ens-apps/l2-primary/v1'
+import { ENS_SEPOLIA_CONTRACTS } from '@ens-apps/transaction-manager'
 import { defaultReverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/defaultReverseRegistrar'
 import { reverseRegistrarSetNameSnippet } from '@ensdomains/ensjs-abi/reverseRegistrar'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -401,14 +402,6 @@ const ResolutionDetails = ({
 
 const SET_PRIMARY_TX_ID = 'tx-forward-set-primary-name'
 
-// Standalone ENSv1 `DefaultReverseRegistrar` on Sepolia (ENSIP-19
-// `default.reverse`, coin type 0x80000000). `setName(string)` sets the caller's
-// cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
-// TODO: Sepolia-only; move to a network-keyed source (e.g. @ens-apps/l2-primary)
-// when mainnet is supported.
-const DEFAULT_REVERSE_REGISTRAR_ADDRESS =
-  '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47' as const
-
 /**
  * Owns the two write flows for the selected network — editing the
  * `addr(coinType)` record, and (when permitted) setting the primary name so the
@@ -538,7 +531,7 @@ const useAddressRecordEditor = (
     setReverseResolution({
       name,
       request: {
-        address: DEFAULT_REVERSE_REGISTRAR_ADDRESS,
+        address: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar,
         abi: defaultReverseRegistrarSetNameSnippet,
         functionName: 'setName',
         args: [name],
