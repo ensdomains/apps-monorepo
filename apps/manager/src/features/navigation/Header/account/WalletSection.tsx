@@ -14,7 +14,7 @@ type WalletSectionProps = {
 }
 
 export const WalletSection = ({ onAction }: WalletSectionProps) => {
-  const { accountAddress, isLoading } = useSmartAccountContext()
+  const { accountAddress, ownerAddress, isLoading } = useSmartAccountContext()
   const { copied, copy } = useCopyFeedback()
   const shouldShowSiweButton = useSelector(
     backendAuthStore,
@@ -31,11 +31,15 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   return (
     <div className="mb-3 space-y-4">
-      {match({ accountAddress, isLoading })
-        .with({ accountAddress: P.nonNullable }, ({ accountAddress }) => (
+      {/* Show the user's wallet (owner EOA) address, never the HCA: users
+          aren't introduced to the smart account, so its address is confusing
+          next to their primary name (WEB-678). `accountAddress` only serves
+          as a fallback for legacy paths with no separate owner. */}
+      {match({ walletAddress: ownerAddress ?? accountAddress, isLoading })
+        .with({ walletAddress: P.nonNullable }, ({ walletAddress }) => (
           <button
             className="flex w-full items-center gap-2"
-            onClick={() => copy(accountAddress)}
+            onClick={() => copy(walletAddress)}
             type="button"
           >
             <MSymbol className="ms-opsz-20" symbol="account_balance_wallet" />
@@ -46,7 +50,7 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
               {copied ? (
                 <Trans>Copied!</Trans>
               ) : (
-                truncateAddress(accountAddress)
+                truncateAddress(walletAddress)
               )}
             </span>
             <MSymbol className="ms-opsz-20" symbol="content_copy" />
