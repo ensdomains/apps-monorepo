@@ -33,12 +33,9 @@ export const WalletSection = ({ onAction }: WalletSectionProps) => {
 
   return (
     <div className="mb-3 space-y-4">
-      {/* Show the user's wallet (owner EOA) address, never the HCA: users
-          aren't introduced to the smart account, so its address is confusing
-          next to their primary name (WEB-678). Prefer the live wagmi account,
-          which updates immediately on a wallet switch, over the owner address
-          captured by the smart-account machine (stale until it resyncs);
-          `accountAddress` only serves legacy paths with no separate owner. */}
+      {/* Show the user's wallet address, never the HCA (WEB-678). The live
+          wagmi account comes first: the machine's ownerAddress can be stale
+          for a render during a wallet switch. */}
       {match({
         walletAddress: connectedAddress ?? ownerAddress ?? accountAddress,
         isLoading,
