@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getNameMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
+import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MANAGER_APP_BASE_URL } from '@/lib/constants/domain'
 import { cn } from '@/lib/utils'
@@ -22,9 +22,7 @@ const MANAGER_MIGRATE_URL = `${MANAGER_APP_BASE_URL}/migration`
  */
 export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
   const isMobile = useIsMobile()
-  const { data: migration } = useQuery(
-    getNameMigrationStatusQueryOptions({ name }),
-  )
+  const { data: migration } = useQuery(getMigrationStatusQueryOptions({ name }))
 
   if (migration?.migratable !== true) return null
 
