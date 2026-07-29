@@ -1,17 +1,19 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import { Trans } from '@lingui/react/macro'
+import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCanGoBack, useNavigate } from '@tanstack/react-router'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useEffect } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address, WalletClient } from 'viem'
 import { useWalletClient } from 'wagmi'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { GameStep } from '@/features/migration/components/GameStep'
 import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
+import { MigrationSuccessDialog } from '@/features/migration/components/MigrationSuccessDialog'
 import { SelectNamesStep } from '@/features/migration/components/SelectNamesStep'
-import { SuccessModal } from '@/features/migration/components/SuccessModal'
+import { CommemorativeNftClaimDialog } from '@/features/migration/components/success/CommemorativeNftClaimDialog'
 import { useMigrationGasEstimate } from '@/features/migration/hooks/useMigrationGasEstimate'
 import { useMigrationGasFunding } from '@/features/migration/hooks/useMigrationGasFunding'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
@@ -21,12 +23,12 @@ import {
 } from '@/features/migration/service/decodeMigrationError'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
-  useMigrateSubstep,
   useMigrationLastError,
   useMigrationMigratedNames,
   useMigrationSelectedNames,
   useMigrationStep,
 } from '@/features/migration/state/migrationUi.selectors'
+import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
@@ -39,6 +41,32 @@ const ResultLayout = ({ children }: { children: ReactNode }) => (
   >
     {children}
   </motion.div>
+)
+
+const disabledNftSuccessState = {
+  status: 'error',
+  stage: 'configuration',
+  message: '',
+} as const
+
+const noop = () => undefined
+
+const PlainMigrationSuccessDialog = ({
+  onContinue,
+}: {
+  readonly onContinue: () => void
+}) => (
+  <MigrationSuccessDialog
+    canMint={false}
+    context="migration"
+    onClose={onContinue}
+    onMint={noop}
+    onRetry={noop}
+    onRevealComplete={noop}
+    onViewProfile={onContinue}
+    open
+    state={disabledNftSuccessState}
+  />
 )
 
 const formatMigrationError = (error: MigrationError): ReactNode => {
@@ -105,7 +133,6 @@ export const MigrationPage = () => {
   const canGoBack = useCanGoBack()
   const { uiActor } = useMigrationUiContext()
   const step = useMigrationStep(uiActor)
-  const migrateSubstep = useMigrateSubstep(uiActor)
   const selectedNames = useMigrationSelectedNames(uiActor)
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
@@ -113,6 +140,15 @@ export const MigrationPage = () => {
   const { ownerAddress } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
+  const migrationNftEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
+    false,
+  )
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const isMigrationSuccess = step === 'success'
+  const dialogOpen =
+    migrationNftEnabled && (isMigrationSuccess || isPreviewOpen)
+  const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     selectedNames,
@@ -127,15 +163,53 @@ export const MigrationPage = () => {
   const gasFundingStatus = useMigrationGasFunding(ownerAddress)
 
   useEffect(() => {
-    if (migrateSubstep === 'succeeding') {
+    if (step === 'success') {
       invalidateMigrationQueries(queryClient)
     }
-  }, [migrateSubstep, queryClient])
+  }, [step, queryClient])
 
-  const handleSuccessClose = useCallback(() => {
-    uiActor.send({ type: 'done' })
-    navigate({ to: '/dashboard' })
-  }, [uiActor, navigate])
+  const handleSuccessClose = useCallback(
+    (profileName?: string) => {
+      if (isMigrationSuccess) {
+        uiActor.send({ type: 'done' })
+        const destinationName = profileName ?? dialogNames[0]
+        if (destinationName) {
+          navigate({ to: '/$name', params: { name: destinationName } })
+          return
+        }
+        navigate({ to: '/dashboard' })
+        return
+      }
+
+      setIsPreviewOpen(false)
+    },
+    [dialogNames, isMigrationSuccess, uiActor, navigate],
+  )
+
+  const handleViewProfile = useCallback(
+    (profileName?: string) => {
+      const name = profileName ?? dialogNames[0]
+
+      if (isMigrationSuccess) {
+        uiActor.send({ type: 'done' })
+      } else {
+        setIsPreviewOpen(false)
+      }
+
+      if (name) {
+        navigate({ to: '/$name', params: { name } })
+        return
+      }
+
+      navigate({ to: '/dashboard' })
+    },
+    [dialogNames, isMigrationSuccess, uiActor, navigate],
+  )
+
+  const handlePlainSuccess = useCallback(
+    () => handleViewProfile(),
+    [handleViewProfile],
+  )
 
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
@@ -185,17 +259,28 @@ export const MigrationPage = () => {
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (
-        <button
-          aria-label="Back"
-          className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
-          onClick={handleBack}
-          type="button"
-        >
-          <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
-          <span className="max-xl:hidden">
-            <Trans>Back</Trans>
-          </span>
-        </button>
+        <>
+          <button
+            aria-label="Back"
+            className="absolute top-6 left-5 z-20 inline-flex items-center gap-2 py-2 font-medium text-ens-garnet-900 text-sm uppercase leading-ens-none transition-colors hover:text-ens-garnet-900/70 md:left-8"
+            onClick={handleBack}
+            type="button"
+          >
+            <MSymbol className="ms-opsz-24 ms-wght-500" symbol="arrow_back" />
+            <span className="max-xl:hidden">
+              <Trans>Back</Trans>
+            </span>
+          </button>
+          {import.meta.env.DEV && migrationNftEnabled ? (
+            <button
+              className="absolute top-6 right-5 z-20 px-2 py-2 text-ens-garnet-900 text-xs underline underline-offset-2 md:right-8"
+              onClick={() => setIsPreviewOpen(true)}
+              type="button"
+            >
+              <Trans>Preview success dialog</Trans>
+            </button>
+          ) : null}
+        </>
       )}
 
       {match(step)
@@ -247,14 +332,25 @@ export const MigrationPage = () => {
             </motion.div>
           </ResultLayout>
         ))
-        .with('success', () => (
-          <SuccessModal
-            migratedNames={migratedNames}
-            onClose={handleSuccessClose}
-            open
-          />
-        ))
+        .with('success', () =>
+          migrationNftEnabled ? null : (
+            <PlainMigrationSuccessDialog onContinue={handlePlainSuccess} />
+          ),
+        )
         .exhaustive()}
+
+      {migrationNftEnabled ? (
+        <CommemorativeNftClaimDialog
+          context="migration"
+          migratedNameCount={dialogNames.length}
+          onClose={handleSuccessClose}
+          onViewProfile={handleViewProfile}
+          open={dialogOpen}
+          ownerAddress={ownerAddress as Address | undefined}
+          preview={isPreviewOpen && !isMigrationSuccess}
+          previewProfileName={dialogNames[0]}
+        />
+      ) : null}
     </div>
   )
 }

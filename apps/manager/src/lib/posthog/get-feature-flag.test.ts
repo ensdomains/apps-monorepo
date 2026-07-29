@@ -37,6 +37,9 @@ vi.mock('@/lib/connection-cookie', () => ({
 
 const WALLET_ADDRESS = '0x1111111111111111111111111111111111111111'
 const MIGRATION_FLAG_INPUT = { data: { flag: 'migration' as const } }
+const MIGRATION_NFT_FLAG_INPUT = {
+  data: { flag: 'migration-nft' as const },
+}
 
 describe('getFeatureFlag', () => {
   beforeEach(() => {
@@ -75,6 +78,20 @@ describe('getFeatureFlag', () => {
     isFeatureEnabledMock.mockResolvedValue(false)
 
     await expect(getFeatureFlag(MIGRATION_FLAG_INPUT)).resolves.toBe(false)
+  })
+
+  it('evaluates the commemorative NFT feature flag', async () => {
+    isFeatureEnabledMock.mockResolvedValue(true)
+
+    await expect(getFeatureFlag(MIGRATION_NFT_FLAG_INPUT)).resolves.toBe(true)
+    expect(isFeatureEnabledMock).toHaveBeenCalledWith(
+      'migration-nft',
+      WALLET_ADDRESS,
+      {
+        personProperties: { address: WALLET_ADDRESS },
+        sendFeatureFlagEvents: false,
+      },
+    )
   })
 
   it('treats an omitted boolean flag as disabled', async () => {

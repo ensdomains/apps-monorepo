@@ -11,11 +11,15 @@ import { NamesTable } from '@/features/dashboard/components/NamesTable'
 import { PrimaryNameCard } from '@/features/dashboard/components/PrimaryNameCard'
 import { MigrationModal } from '@/features/migration/components/MigrationModal'
 import { MigrationProgressBanner } from '@/features/migration/components/MigrationProgressBanner'
+import { CommemorativeNftDashboardPrompt } from '@/features/migration/components/success/CommemorativeNftDashboardPrompt'
 import { UpgradeBanner } from '@/features/migration/components/UpgradeBanner'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import {
+  isMigrationNftEnabled,
+  POSTHOG_FEATURE_FLAGS,
+} from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 
 const stagger = (index: number, shouldReduceMotion: boolean | null) =>
@@ -38,6 +42,14 @@ export const DashboardPage = () => {
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
+  const migrationNftEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
+    false,
+  )
+  const commemorativeNftEnabled = isMigrationNftEnabled({
+    migrationEnabled,
+    migrationNftEnabled,
+  })
 
   // Non-suspense so a resolver error degrades to `undefined` (UI falls back to
   // `reverseName ?? null`) instead of throwing into the route and crashing it.
@@ -68,6 +80,7 @@ export const DashboardPage = () => {
             <UpgradeBanner />
           </motion.div>
         )}
+        {commemorativeNftEnabled ? <CommemorativeNftDashboardPrompt /> : null}
         <motion.div
           className="w-full px-4 empty:hidden md:px-0"
           {...stagger(1, shouldReduceMotion)}
