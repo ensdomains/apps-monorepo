@@ -53,6 +53,7 @@ export const MATERIAL_SYMBOLS = [
   'key_vertical',
   'keyboard_arrow_down',
   'language',
+  'language_chinese_array',
   'link',
   'login',
   'logout',
