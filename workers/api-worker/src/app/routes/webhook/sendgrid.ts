@@ -2,9 +2,8 @@ import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
-import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { TABLE } from '#core/database/index.js'
+import { type Database, getDatabase, TABLE } from '#core/database/index.js'
 import { logger } from '#utils/logger.js'
 
 // SendGrid event types we care about
@@ -90,64 +89,53 @@ const verifySignature = ResultFn(async function* (
 
 export default createApp()
   .basePath('/sendgrid')
-  .post('/events', injectDb, async (c) => {
-    // verify webhook signature if secret is configured
-    if (c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY) {
-      const signature = c.req.header('X-Twilio-Email-Event-Webhook-Signature')
-      const timestamp = c.req.header('X-Twilio-Email-Event-Webhook-Timestamp')
-
-      if (!signature || !timestamp) {
-        return c.json({ error: 'Missing signature headers' }, 401)
-      }
-
-      const rawBody = await c.req.text()
-      const verifyResult = await verifySignature(
-        c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY,
-        rawBody,
-        signature,
-        timestamp,
-      )
-
-      if (verifyResult.isErr()) {
-        logger.error('SendGrid signature verification failed', {
-          error: verifyResult.error,
-        })
-        return c.json({ error: 'Invalid signature' }, 401)
-      }
-
-      if (!verifyResult.value) {
-        return c.json({ error: 'Invalid signature' }, 401)
-      }
-
-      // re-parse the body since we consumed it
-      const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
-      if (!events.success) {
-        logger.warn('Invalid SendGrid webhook payload', {
-          issues: events.issues,
-        })
-        return c.json({ error: 'Invalid payload' }, 400)
-      }
-
-      await processEvents(c.var.db, events.output)
-    } else {
-      // no signature verification, parse with safe JSON handling
-      const rawBody = await c.req.text()
-      const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
-      if (!events.success) {
-        logger.warn('Invalid SendGrid webhook payload', {
-          issues: events.issues,
-        })
-        return c.json({ error: 'Invalid payload' }, 400)
-      }
-
-      await processEvents(c.var.db, events.output)
+  .post('/events', async (c) => {
+    if (!c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY) {
+      logger.error('SendGrid webhook verification key is not configured')
+      return c.json({ error: 'Internal server error' }, 500)
     }
+
+    const signature = c.req.header('X-Twilio-Email-Event-Webhook-Signature')
+    const timestamp = c.req.header('X-Twilio-Email-Event-Webhook-Timestamp')
+
+    if (!signature || !timestamp) {
+      return c.json({ error: 'Missing signature headers' }, 401)
+    }
+
+    const rawBody = await c.req.text()
+    const verifyResult = await verifySignature(
+      c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY,
+      rawBody,
+      signature,
+      timestamp,
+    )
+
+    if (verifyResult.isErr()) {
+      logger.error('SendGrid signature verification failed', {
+        error: verifyResult.error,
+      })
+      return c.json({ error: 'Invalid signature' }, 401)
+    }
+
+    if (!verifyResult.value) {
+      return c.json({ error: 'Invalid signature' }, 401)
+    }
+
+    const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
+    if (!events.success) {
+      logger.warn('Invalid SendGrid webhook payload', {
+        issues: events.issues,
+      })
+      return c.json({ error: 'Invalid payload' }, 400)
+    }
+
+    await processEvents(getDatabase(c.env), events.output)
 
     return c.json({ ok: true })
   })
 
 async function processEvents(
-  db: Parameters<typeof injectDb>[0]['var']['db'],
+  db: Database,
   events: v.InferOutput<typeof SendGridWebhookPayloadSchema>,
 ) {
   for (const event of events) {
