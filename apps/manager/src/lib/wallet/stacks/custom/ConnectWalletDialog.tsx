@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { getResolvedThemeMode } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 import { wagmiConfig } from '@/lib/wagmi'
 import {
@@ -21,17 +20,6 @@ import {
   WALLETCONNECT_ID,
 } from './connect.helpers'
 import { CoinbaseIcon, MetaMaskIcon, WalletConnectIcon } from './WalletIcons'
-
-// The WalletConnect (reown) modal's theme is fixed at connector creation, so a
-// mid-session theme toggle wouldn't apply. Reach the modal instance on the
-// provider (untyped: `modal?: any`) and set the current app theme before it
-// opens. No-ops if the modal isn't ready.
-const syncWalletConnectTheme = async (connector: Connector) => {
-  const provider = (await connector.getProvider()) as {
-    modal?: { setThemeMode?: (mode: 'light' | 'dark') => void }
-  }
-  provider.modal?.setThemeMode?.(getResolvedThemeMode())
-}
 
 type WalletRowProps = {
   readonly icon: ReactNode
@@ -66,19 +54,19 @@ const WalletRow = ({
   )
 
   const className = cn(
-    'flex w-full cursor-pointer items-center gap-3 rounded-sm border border-transparent bg-secondary/60 px-3 py-2.5 text-left transition-colors',
-    'hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+    'flex w-full cursor-pointer items-center gap-3 rounded-xs border bg-background px-3 py-2.5 text-left transition-colors',
+    'hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     'disabled:pointer-events-none disabled:opacity-60',
   )
 
   if (href) {
     return (
       <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className={className}
         aria-label={`Install ${name}`}
+        className={className}
+        href={href}
+        rel="noreferrer"
+        target="_blank"
       >
         {content}
       </a>
@@ -87,10 +75,10 @@ const WalletRow = ({
 
   return (
     <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled || isPending}
       className={className}
+      disabled={disabled || isPending}
+      onClick={onClick}
+      type="button"
     >
       {content}
     </button>
@@ -190,7 +178,6 @@ export const ConnectWalletDialog = ({
       // the right chain from the first connect.
       const walletChainId = await connector.getChainId()
       const chainId = resolveConnectChainId(walletChainId, wagmiConfig.chains)
-      if (usesOwnModal) await syncWalletConnectTheme(connector)
       await connectAsync({ connector, chainId })
       onOpenChange(false)
     } catch (e) {
@@ -244,7 +231,7 @@ export const ConnectWalletDialog = ({
   const discoveredWallets: WalletOption[] = otherWallets.map((connector) => ({
     key: connector.uid,
     icon: connector.icon ? (
-      <img src={connector.icon} alt="" className="size-8 rounded-xs" />
+      <img alt="" className="size-8 rounded-xs" src={connector.icon} />
     ) : (
       <Wallet className="size-5 text-muted-foreground" />
     ),
@@ -256,30 +243,30 @@ export const ConnectWalletDialog = ({
     if (!option.connector) {
       return (
         <WalletRow
-          key={option.key}
-          icon={option.icon}
-          name={option.name}
           badge={option.badge}
           href={option.href}
+          icon={option.icon}
+          key={option.key}
+          name={option.name}
         />
       )
     }
     const { connector } = option
     return (
       <WalletRow
-        key={option.key}
-        icon={option.icon}
-        name={option.name}
         badge={option.badge}
-        isPending={pendingId === connector.uid}
         disabled={isConnecting}
+        icon={option.icon}
+        isPending={pendingId === connector.uid}
+        key={option.key}
+        name={option.name}
         onClick={() => connect(connector)}
       />
     )
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog onOpenChange={onOpenChange} open={open}>
       <DialogContent className="gap-5 p-8 sm:max-w-100">
         <DialogHeader>
           <DialogTitle>Connect a wallet</DialogTitle>
@@ -300,7 +287,7 @@ export const ConnectWalletDialog = ({
         </div>
 
         {error && (
-          <p className="text-message-danger-text text-sm" role="alert">
+          <p className="text-destructive text-sm" role="alert">
             {error}
           </p>
         )}
