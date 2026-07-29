@@ -816,6 +816,10 @@ msgstr "Do I have to upgrade my names? What happens if I don't?"
 msgid "Does not expire"
 msgstr "Does not expire"
 
+#: src/components/NameFallbackCard.tsx
+msgid "doesn't exist"
+msgstr "doesn't exist"
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Domain transfer & expiry notifications"
 msgstr "Domain transfer & expiry notifications"
@@ -1187,6 +1191,10 @@ msgstr "Grace period"
 msgid "Growing your corner of the decentralized web"
 msgstr "Growing your corner of the decentralized web"
 
+#: src/components/NameFallbackCard.tsx
+msgid "hasn't been imported to ENS yet"
+msgstr "hasn't been imported to ENS yet"
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How can I secure my ENS name?"
 msgstr "How can I secure my ENS name?"
@@ -1239,6 +1247,10 @@ msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your w
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Invalid character"
 msgstr "Invalid character"
+
+#: src/components/NameFallbackCard.tsx
+msgid "is too short to register"
+msgstr "is too short to register"
 
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "It looks like the session setup didn't complete. Please try again — without it, you won't be able to register or manage names."
@@ -2098,6 +2110,10 @@ msgstr "Retrying will attempt the registration again from where it left off."
 msgid "Retrying will attempt the renewal again from where it left off."
 msgstr "Retrying will attempt the renewal again from where it left off."
 
+#: src/components/NameFallbackCard.tsx
+msgid "Return to Dashboard"
+msgstr "Return to Dashboard"
+
 #. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
 #: src/features/bulk-renew/components/DurationPresets.tsx
 msgid "Save {0}"
@@ -2754,6 +2770,10 @@ msgstr "Use Different Email"
 #: src/features/landing/IntegrationsSection.tsx
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
 msgstr "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
+
+#: src/components/NameFallbackCard.tsx
+msgid "uses an unsupported TLD"
+msgstr "uses an unsupported TLD"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Validating commitment"

@@ -85,7 +85,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // NOTE: PostHog's script bundle is allowed separately via SCRIPT_HOSTS, which
   // stays an exact host — script-src must not use a wildcard.
   'https://*.ens.domains',
-  // DNS-over-HTTPS resolver — src/features/profile/hooks/useDnsSecEnabled.ts
+  // DNS-over-HTTPS resolver — packages/utils/src/dnssec.ts
   'https://1.1.1.1',
   // Etherscan API — proxy-contract verification fetch in
   // src/utils/blockExplorer/verifyProxyContract.ts (resolver/registry deploy).
