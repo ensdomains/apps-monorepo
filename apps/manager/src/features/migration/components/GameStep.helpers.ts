@@ -68,7 +68,6 @@ export const computeBridgeLayout = (params: {
 }
 
 export type StepDescription =
-  | { readonly kind: 'done' }
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
   | { readonly kind: 'approve-base-registrar' }
@@ -88,12 +87,10 @@ export type StepDescription =
     }
 
 export const describeNextStep = (params: {
-  readonly done: boolean
   readonly progressDescription?: string
   readonly descriptor: MigrationStepDescriptor | undefined
 }): StepDescription =>
   match(params)
-    .with({ done: true }, () => ({ kind: 'done' as const }))
     .with(
       { progressDescription: P.string },
       ({ progressDescription }) =>
@@ -167,7 +164,6 @@ export const giantTransitionFor = (mode: GiantMode) =>
     .exhaustive()
 
 export const displayStepOf = (
-  done: boolean,
   completedSteps: number,
   totalSteps: number,
-): number => (done ? totalSteps : Math.min(completedSteps + 1, totalSteps))
+): number => Math.min(completedSteps + 1, totalSteps)

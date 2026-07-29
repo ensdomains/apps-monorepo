@@ -5,6 +5,7 @@
  * to burn their own child/owner fuses (CANNOT_UNWRAP, CANNOT_TRANSFER, etc.)
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { type Signer, transactionManager } from '@ens-apps/transaction-manager'
 import type { ChildFuseKeys } from '@ensdomains/ensjs/utils'
 import { setFusesWriteParameters } from '@ensdomains/ensjs/wallet'
@@ -14,6 +15,7 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { sepoliaWithEns } from '@/lib/wagmi'
 
 // ============================================================================
@@ -22,13 +24,16 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 
 type ChildFuseKey = (typeof ChildFuseKeys)[number]
 
-export type BurnFusesParameters = {
+export type BurnFusesTransactionParameters = {
   readonly name: string
   readonly fuses: ChildFuseKey[]
   readonly walletClient: WalletClient
+  readonly chainId: number
+}
+
+export type BurnFusesParameters = BurnFusesTransactionParameters & {
   readonly publicClient: PublicClient
   readonly signer: Signer
-  readonly chainId: number
   readonly id: string
 }
 
@@ -70,28 +75,24 @@ export interface BurnFusesResult {
  * })
  * ```
  */
-export async function burnFuses({
+/** The burn-fuses intent, shared by the gas estimate and {@link burnFuses}. */
+export function prepareBurnFusesTransaction({
   name,
   fuses,
   walletClient,
-  publicClient,
-  signer,
   chainId,
-  id,
-}: BurnFusesParameters): Promise<{ txId: string }> {
-  // Validate wallet client has account and chain
+}: BurnFusesTransactionParameters): CustomTransactionIntent {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
 
-  // Check if there are any fuses to burn
   if (fuses.length === 0) {
     throw new Error('No fuses selected to burn')
   }
 
-  // Use ensjs to build the write parameters
-  // Type assertion is safe since we validated account and chain above
-  // Using `as unknown as` because ensjs requires specific chain type with ensNameWrapper contract
+  // Type assertion is safe since we validated account and chain above.
+  // Using `as unknown as` because ensjs requires a specific chain type with the
+  // ensNameWrapper contract.
   const client = {
     ...walletClient,
     chain: sepoliaWithEns,
@@ -102,35 +103,43 @@ export async function burnFuses({
     fuses: { named: fuses },
   })
 
-  // Encode the transaction data from write parameters
   const data = encodeFunctionData({
     abi: writeParams.abi,
     functionName: writeParams.functionName,
     args: writeParams.args,
   })
 
-  // Start the transaction through the transaction manager
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: writeParams.address as Address,
+    data,
+    chainId,
+  })
+}
+
+export async function burnFuses({
+  name,
+  fuses,
+  walletClient,
+  publicClient,
+  signer,
+  chainId,
+  id,
+}: BurnFusesParameters): Promise<{ txId: string }> {
+  const intent = prepareBurnFusesTransaction({
+    name,
+    fuses,
+    walletClient,
+    chainId,
+  })
+
   // Does NOT wait for completion - caller should track state via useTransaction(txId)
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: writeParams.address as Address,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
-    signer,
-    {
-      id,
-      description: `Burn fuses for ${name}`,
-      publicClient,
-      chainId,
-    },
-  )
+  const txId = transactionManager.startTransaction(intent, signer, {
+    id,
+    description: `Burn fuses for ${name}`,
+    publicClient,
+    chainId,
+  })
 
   return { txId }
 }

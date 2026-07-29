@@ -5,6 +5,7 @@
  * Extracts deployed address from the transaction receipt.
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -19,6 +20,7 @@ import type {
   WalletClient,
 } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
 function extractDeployedAddress(
@@ -30,13 +32,17 @@ function extractDeployedAddress(
   return undefined
 }
 
-export interface DeploySubregistryParameters {
+export interface DeploySubregistryTransactionParameters {
   readonly factoryAddress: Address
   readonly implAddress: Address
   readonly walletClient: WalletClient
+  readonly chainId: number
+}
+
+export interface DeploySubregistryParameters
+  extends DeploySubregistryTransactionParameters {
   readonly publicClient: PublicClient
   readonly signer: Signer
-  readonly chainId: number
   readonly id: string
 }
 
@@ -46,15 +52,13 @@ export interface DeploySubregistryResult {
   readonly deployedAddress: Address
 }
 
-export const deploySubregistry = async ({
+/** The subregistry-deploy intent, shared by the gas estimate and `deploySubregistry`. */
+export const prepareDeploySubregistryTransaction = ({
   factoryAddress,
   implAddress,
   walletClient,
-  publicClient,
-  signer,
   chainId,
-  id,
-}: DeploySubregistryParameters): Promise<DeploySubregistryResult> => {
+}: DeploySubregistryTransactionParameters): CustomTransactionIntent => {
   if (!walletClient.account) {
     throw new Error('Wallet client must have account configured')
   }
@@ -72,25 +76,36 @@ export const deploySubregistry = async ({
     args: writeParams.args,
   })
 
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: writeParams.address,
-        data,
-        chainId,
-      },
-    },
-    signer,
-    {
-      id,
-      description: `Deploy subregistry`,
-      publicClient,
-      timeout: 120_000,
-    },
-  )
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: writeParams.address,
+    data,
+    chainId,
+  })
+}
+
+export const deploySubregistry = async ({
+  factoryAddress,
+  implAddress,
+  walletClient,
+  publicClient,
+  signer,
+  chainId,
+  id,
+}: DeploySubregistryParameters): Promise<DeploySubregistryResult> => {
+  const intent = prepareDeploySubregistryTransaction({
+    factoryAddress,
+    implAddress,
+    walletClient,
+    chainId,
+  })
+
+  const txId = transactionManager.startTransaction(intent, signer, {
+    id,
+    description: `Deploy subregistry`,
+    publicClient,
+    timeout: 120_000,
+  })
 
   const result = await waitForTransaction(txId)
   const deployedAddress = extractDeployedAddress(result.receipt)

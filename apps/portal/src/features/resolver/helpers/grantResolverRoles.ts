@@ -1,3 +1,4 @@
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -12,35 +13,27 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
-export interface GrantResolverRolesParameters {
+export interface GrantResolverRolesTransactionParameters {
   readonly resolverAddress: Address
   /** Dotted name (e.g. "myname.eth") or empty string for ROOT_RESOURCE (all names). */
   readonly name: string
   readonly account: Address
   readonly roles: ResolverRole[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
-  readonly id: string
 }
 
-export const grantResolverRoles = async (
-  params: GrantResolverRolesParameters,
-): Promise<Hash> => {
-  const {
-    resolverAddress,
-    name,
-    account,
-    roles,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-    id,
-  } = params
-
+/** The grantRoles intent, shared by the gas estimate and `grantResolverRoles`. */
+export const prepareGrantResolverRolesTransaction = ({
+  resolverAddress,
+  name,
+  account,
+  roles,
+  walletClient,
+  chainId,
+}: GrantResolverRolesTransactionParameters): CustomTransactionIntent => {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -73,18 +66,45 @@ export const grantResolverRoles = async (
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: resolverAddress,
+    data,
+    chainId,
+  })
+}
+
+export interface GrantResolverRolesParameters
+  extends GrantResolverRolesTransactionParameters {
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly id: string
+}
+
+export const grantResolverRoles = async (
+  params: GrantResolverRolesParameters,
+): Promise<Hash> => {
+  const {
+    resolverAddress,
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    id,
+  } = params
+
   const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: resolverAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+    prepareGrantResolverRolesTransaction({
+      resolverAddress,
+      name,
+      account,
+      roles,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

@@ -9,7 +9,6 @@ const createTransaction = (
   id: 'tx-1',
   title: 'Save records',
   transactionName: 'Set resolver records',
-  estimatedGasCost: 0.0001,
   onStart: () => {},
   onDone: () => {},
   ...overrides,
