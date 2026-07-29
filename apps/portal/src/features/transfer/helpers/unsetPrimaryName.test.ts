@@ -39,6 +39,7 @@ describe('unsetPrimaryName', () => {
 
     const result = await unsetPrimaryName({
       name: 'alice.eth',
+      owner: OWNER,
       walletClient,
       publicClient,
       signer,
@@ -65,5 +66,28 @@ describe('unsetPrimaryName', () => {
       }),
     ])
     expect(result).toEqual({ txId: 'tx-reverse', hash: '0x2' })
+  })
+
+  it('throws when the connected wallet is not the owner', async () => {
+    const otherWallet = {
+      account: {
+        address: '0x2222222222222222222222222222222222222222' as Address,
+      },
+    } as WalletClient
+
+    await expect(
+      unsetPrimaryName({
+        name: 'alice.eth',
+        owner: OWNER,
+        walletClient: otherWallet,
+        publicClient,
+        signer,
+        chainId: 11155111,
+        id: 'transfer-alice.eth-unset-primary',
+      }),
+    ).rejects.toThrow(
+      'Connected wallet must match the owner whose primary name is being cleared',
+    )
+    expect(setReverseResolution).not.toHaveBeenCalled()
   })
 })

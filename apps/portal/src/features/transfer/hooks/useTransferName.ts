@@ -135,7 +135,7 @@ export const useTransferName = ({
     const label = getLabel(name)
 
     await match(step)
-      .with('unset-primary', () => unsetPrimaryName({ ...common, id }))
+      .with('unset-primary', () => unsetPrimaryName({ ...common, owner, id }))
       .with('reset-resolver', () =>
         resetNameResolver({ ...common, label, registryAddress, id }),
       )
