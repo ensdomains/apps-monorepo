@@ -76,11 +76,9 @@ describe('describeNextStep', () => {
   const descriptor = (d: MigrationStepDescriptor): MigrationStepDescriptor => d
 
   it.each([
-    ['done flag wins', { done: true, descriptor: undefined }, { kind: 'done' }],
     [
-      'progressDescription wins when not done',
+      'progressDescription wins',
       {
-        done: false,
         progressDescription: 'Approving…',
         descriptor: undefined,
       },
@@ -88,13 +86,12 @@ describe('describeNextStep', () => {
     ],
     [
       'no descriptor → preparing',
-      { done: false, descriptor: undefined },
+      { descriptor: undefined },
       { kind: 'preparing' },
     ],
     [
       'approve-base-registrar descriptor',
       {
-        done: false,
         descriptor: descriptor({ type: 'approve-base-registrar' }),
       },
       { kind: 'approve-base-registrar' },
@@ -102,7 +99,6 @@ describe('describeNextStep', () => {
     [
       'approve-name-wrapper descriptor',
       {
-        done: false,
         descriptor: descriptor({ type: 'approve-name-wrapper' }),
       },
       { kind: 'approve-name-wrapper' },
@@ -110,7 +106,6 @@ describe('describeNextStep', () => {
     [
       'ensure-resolver descriptor',
       {
-        done: false,
         descriptor: descriptor({ type: 'ensure-resolver' }),
       },
       { kind: 'ensure-resolver' },
@@ -118,7 +113,6 @@ describe('describeNextStep', () => {
     [
       'migrate-batch descriptor',
       {
-        done: false,
         descriptor: descriptor({
           type: 'migrate-batch',
           index: 0,
@@ -131,7 +125,6 @@ describe('describeNextStep', () => {
     [
       'grant-role descriptor',
       {
-        done: false,
         descriptor: descriptor({ type: 'grant-role', label: 'myname' }),
       },
       { kind: 'grant-role', label: 'myname' },
@@ -139,7 +132,6 @@ describe('describeNextStep', () => {
     [
       'profile-replay-batch descriptor',
       {
-        done: false,
         descriptor: descriptor({
           type: 'profile-replay-batch',
           index: 0,
@@ -176,11 +168,10 @@ describe('giantModeOf / giantAnimateFor / giantTransitionFor', () => {
 
 describe('displayStepOf', () => {
   it.each([
-    [true, 5, 10, 10],
-    [false, 0, 10, 1],
-    [false, 9, 10, 10],
-    [false, 15, 10, 10],
-  ])('done=%s completed=%i total=%i → %i', (done, c, total, expected) => {
-    expect(displayStepOf(done, c, total)).toBe(expected)
+    [0, 10, 1],
+    [9, 10, 10],
+    [15, 10, 10],
+  ])('completed=%i total=%i → %i', (completed, total, expected) => {
+    expect(displayStepOf(completed, total)).toBe(expected)
   })
 })
