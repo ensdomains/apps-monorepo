@@ -20,7 +20,10 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import {
+  isMigrationNftEnabled,
+  POSTHOG_FEATURE_FLAGS,
+} from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileActions, ProfileMobileActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
@@ -79,6 +82,14 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
+  const migrationNftEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
+    false,
+  )
+  const commemorativeNftEnabled = isMigrationNftEnabled({
+    migrationEnabled,
+    migrationNftEnabled,
+  })
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -202,7 +213,7 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                 records={records}
               />
               <ProfileCommemorativeNftSection
-                enabled={migrationEnabled}
+                enabled={commemorativeNftEnabled}
                 isOwner={resolvedIsOwner}
                 name={name}
               />
