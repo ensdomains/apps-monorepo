@@ -1,22 +1,24 @@
 /**
  * Pure builder that turns the user's transfer options into an ordered list of
- * on-chain steps.
+ * on-chain steps. The token transfer is always last.
  *
- * Ordering matters: every configuration step (unset primary, reset the
- * resolver, reset the registry) must run BEFORE the ownership hand-off, because
- * once the ERC-1155 token is transferred the sender loses the roles needed to
- * make those changes. The token transfer is therefore always last.
+ * EOA sequences are not atomic — there is no rollback if the user abandons
+ * mid-flow. That is inherent to the whole transfer feature, not unique to
+ * unset-primary.
  *
- * Unset-primary writes are independent of token ownership (they clear the
- * sender's reverse records), but still run first so reverse-resolution for the
- * sender is cleared before the name leaves their control. Each registrar that
- * holds the name is its own modal step — one wallet confirmation per tx.
- *
- * Resolver/registry resets are "reset to zero" rather than "hand over a fresh
- * contract": in v2 the resolver and the subregistry are user-owned objects that
- * may be shared across the sender's other names, so we detach the name from them
- * (`setResolver(0x0)` / `setSubregistry(0x0)`) instead of reassigning them to the
- * recipient. The recipient deploys their own afterwards.
+ * Ordering defense:
+ * 1. Resolver/registry resets (`setResolver(0x0)` / `setSubregistry(0x0)`) MUST
+ *    run before the transfer: once the ERC-1155 token moves, the sender loses
+ *    the roles needed to make those changes. These are "reset to zero" rather
+ *    than handing over a fresh contract — in v2 the resolver and subregistry
+ *    may be shared across the sender's other names, so we detach this name from
+ *    them; the recipient deploys their own afterwards.
+ * 2. Unset-primary (L1 `default.reverse` / `addr.reverse`) COULD run after the
+ *    transfer — reverse records stay under the sender's authority forever —
+ *    but running it last recreates the stale-reverse-record bug whenever a user
+ *    abandons after the transfer step. Clearing first fails toward the
+ *    recoverable state (re-set primary = one tx) instead of the bug state.
+ *    Each matching registrar is its own modal step / wallet confirmation.
  */
 
 import type { UnsetPrimaryTargets } from '../helpers/unsetPrimaryName'
