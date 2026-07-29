@@ -32,12 +32,7 @@ type GetMigrationStatusParameters = {
   address: Address | undefined
 }
 
-const getMigrationStatus = ResultFn(async function* ({
-  name,
-  address,
-}: GetMigrationStatusParameters) {
-  if (!address) return ok<MigrationStatus>({ migratable: false })
-
+const fetchV1Domain = ResultFn(async function* (name: string) {
   const client = yield* safeGetClient()
   const subgraphClient = createSubgraphClient(client)
 
@@ -65,9 +60,15 @@ const getMigrationStatus = ResultFn(async function* ({
     (e) => new GetMigrationStatusError({ cause: e }),
   )
 
-  const domain = domains[0] ?? null
-  if (!domain) return ok<MigrationStatus>({ migratable: false })
+  return ok({ client, domain: domains[0] ?? null })
+})
 
+/** Classify + on-chain preflight for one (domain, acting address) pair. */
+const evaluateMigration = ResultFn(async function* (
+  client: unknown,
+  domain: V1Domain,
+  address: Address,
+) {
   const classified = classifyName(domain, address)
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
@@ -95,6 +96,42 @@ const getMigrationStatus = ResultFn(async function* ({
   )
 })
 
+const getMigrationStatus = ResultFn(async function* ({
+  name,
+  address,
+}: GetMigrationStatusParameters) {
+  if (!address) return ok<MigrationStatus>({ migratable: false })
+
+  const { client, domain } = yield* fetchV1Domain(name)
+  if (!domain) return ok<MigrationStatus>({ migratable: false })
+
+  return ok(yield* evaluateMigration(client, domain, address))
+})
+
+/**
+ * Name-scoped migration verdict: evaluated against the name's own V1 token
+ * holder — wrappedOwner for wrapped names, registrant for unwrapped ones
+ * (the registry `owner` is the controller and may be a different address, so
+ * it is only a last-resort fallback). Use this for surfaces shown to any
+ * visitor (e.g. the registry page's migrate prompt), where "can THIS name
+ * migrate" matters rather than "can the connected wallet migrate it".
+ */
+const getNameMigrationStatus = ResultFn(async function* ({
+  name,
+}: {
+  name: string
+}) {
+  const { client, domain } = yield* fetchV1Domain(name)
+  if (!domain) return ok<MigrationStatus>({ migratable: false })
+
+  const holder = (domain.wrappedOwner?.id ??
+    domain.registrant?.id ??
+    domain.owner?.id) as Address | undefined
+  if (!holder) return ok<MigrationStatus>({ migratable: false })
+
+  return ok(yield* evaluateMigration(client, domain, holder))
+})
+
 const getMigrationStatusQueryKey = createQueryKey<
   'get-migration-status',
   GetMigrationStatusParameters
@@ -107,5 +144,18 @@ export const getMigrationStatusQueryOptions = (
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
     enabled: !!params.name && !!params.address,
+    retry: 2,
+  })
+
+const getNameMigrationStatusQueryKey = createQueryKey<
+  'get-name-migration-status',
+  { name: string }
+>('get-name-migration-status')
+
+export const getNameMigrationStatusQueryOptions = (params: { name: string }) =>
+  resultQueryOptions({
+    queryKey: getNameMigrationStatusQueryKey(params),
+    queryFn: ({ queryKey: [, params] }) => getNameMigrationStatus(params),
+    enabled: !!params.name,
     retry: 2,
   })
