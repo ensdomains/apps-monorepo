@@ -8,6 +8,11 @@ vi.mock('@tanstack/react-router', () => ({
     options,
     useParams: ({ select }: { select: (params: { name: string }) => string }) =>
       select({ name: 'example.eth' }),
+    useLoaderData: ({
+      select,
+    }: {
+      select: (data: { fallback: undefined }) => undefined
+    }) => select({ fallback: undefined }),
   }),
   redirect: (options: unknown) => ({ options }),
 }))
