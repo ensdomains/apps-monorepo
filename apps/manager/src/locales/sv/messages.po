@@ -1700,6 +1700,14 @@ msgstr ""
 msgid "Preview success dialog"
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
+msgid "Preview your one-of-a-kind card and mint it whenever you're ready."
+msgstr ""
+
+#: src/features/dashboard/components/EducationCarousel.tsx
+msgid "Previous card"
+msgstr ""
+
 #: src/features/profile/components/common/ProfileHeaderInfo.tsx
 #~ msgid "Previous owner"
 #~ msgstr ""
@@ -2194,6 +2202,14 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Share on Telegram"
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Share on X"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileShareAction.tsx
@@ -3021,6 +3037,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/PrimaryNameSetupNotice.tsx
 msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
+msgstr ""
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Your name(s) have been upgraded!"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

@@ -2199,6 +2199,14 @@ msgstr "Settings"
 msgid "Share"
 msgstr "Share"
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Share on Telegram"
+msgstr "Share on Telegram"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Share on X"
+msgstr "Share on X"
+
 #: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share profile"
 msgstr "Share profile"
@@ -3025,6 +3033,10 @@ msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 ap
 #: src/features/register-v2/workflow/registering/components/PrimaryNameSetupNotice.tsx
 msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
 msgstr "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "Your name(s) have been upgraded!"
+msgstr "Your name(s) have been upgraded!"
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"
