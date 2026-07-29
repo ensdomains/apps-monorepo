@@ -14,19 +14,18 @@ type CommemorativeNftClaimDialogProps = {
   readonly previewProfileName?: string
 }
 
-export const CommemorativeNftClaimDialog = ({
+const OpenCommemorativeNftClaimDialog = ({
   context,
   migratedNameCount = 0,
   onClose,
   onViewProfile,
-  open,
   ownerAddress,
   preview,
   previewProfileName,
 }: CommemorativeNftClaimDialogProps) => {
   const { address: walletAddress } = useConnection()
   const flow = useCommemorativeNftFlow({
-    open,
+    open: true,
     ownerAddress,
     walletAddress,
     migratedNameCount,
@@ -43,8 +42,15 @@ export const CommemorativeNftClaimDialog = ({
       onRetry={() => void flow.retry()}
       onRevealComplete={flow.completeReveal}
       onViewProfile={() => onViewProfile(flow.eligibility?.profileName)}
-      open={open}
+      open
       state={flow.state}
     />
   )
+}
+
+export const CommemorativeNftClaimDialog = (
+  props: CommemorativeNftClaimDialogProps,
+) => {
+  if (!props.open) return null
+  return <OpenCommemorativeNftClaimDialog {...props} />
 }

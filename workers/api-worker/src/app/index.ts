@@ -4,6 +4,7 @@ import { ValiError } from 'valibot'
 import { logger } from '#utils/logger.js'
 import { createApp } from './middleware/hono'
 import authApp from './routes/auth'
+import commemorativeNftApp from './routes/commemorative-nft'
 import favoritesApp from './routes/favorites'
 import namesApp from './routes/names'
 import notificationsApp from './routes/notifications'
@@ -14,6 +15,7 @@ import webhookApp from './routes/webhook'
 const app = createApp()
   .use('/*', cors())
   .route('/', authApp)
+  .route('/', commemorativeNftApp)
   .route('/', favoritesApp)
   .route('/', namesApp)
   .route('/', notificationsApp)

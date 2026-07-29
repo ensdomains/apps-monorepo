@@ -2,6 +2,10 @@ import { qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address } from 'viem'
+import {
+  getCommemorativeNftAssetsReadyRefetchInterval,
+  readCommemorativeNftAssetsReady,
+} from './assets'
 import { getCommemorativeNftConfig } from './config'
 import { readCommemorativeNftClaimed } from './contract'
 import { fetchCommemorativeNftEligibility } from './eligibility'
@@ -31,6 +35,34 @@ export const commemorativeNftEligibilityQueryOptions = (params: {
     staleTime: Number.POSITIVE_INFINITY,
   })
 }
+
+export const commemorativeNftAssetsReadyQueryOptions = (params: {
+  readonly metadataUrl: string | undefined
+  readonly poll: boolean
+}) =>
+  queryOptions({
+    queryKey: qk('commemorative_nft', 'assets_ready', {
+      metadataUrl: params.metadataUrl,
+    }),
+    queryFn: ({ signal }) =>
+      params.metadataUrl
+        ? readCommemorativeNftAssetsReady({
+            metadataUrl: params.metadataUrl,
+            signal,
+          })
+        : Promise.resolve(false),
+    enabled: params.poll && !!params.metadataUrl,
+    refetchInterval: (query) =>
+      getCommemorativeNftAssetsReadyRefetchInterval({
+        poll: params.poll,
+        ready: query.state.data,
+      }),
+    refetchIntervalInBackground: false,
+    refetchOnReconnect: false,
+    refetchOnWindowFocus: false,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  })
 
 export const commemorativeNftClaimedQueryOptions = (params: {
   readonly ownerAddress: Address

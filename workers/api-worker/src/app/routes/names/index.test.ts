@@ -53,7 +53,7 @@ const env = {
       'api/environments/test/query_endpoints/unique-searches/run/',
   },
   POSTHOG_PERSONAL_API_KEY: 'secret',
-} as CloudflareBindings
+} as unknown as CloudflareBindings
 
 beforeEach(() => {
   selectResults.length = 0

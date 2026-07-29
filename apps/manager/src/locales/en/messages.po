@@ -1642,6 +1642,10 @@ msgstr "Please sign in to telegram in the popup window."
 msgid "Please wait while we verify your email address."
 msgstr "Please wait while we verify your email address."
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "PNG and MP4 downloads are available after minting"
+msgstr "PNG and MP4 downloads are available after minting"
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences"
 msgstr "Preferences"
@@ -1658,6 +1662,10 @@ msgstr "Preparing account"
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Preparing commitment"
 msgstr "Preparing commitment"
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Preparing PNG and MP4 downloads"
+msgstr "Preparing PNG and MP4 downloads"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Preparing the commitment"

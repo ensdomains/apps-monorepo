@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { useCopyFeedback } from '@/hooks/useCopyFeedback'
+import { startCommemorativeNftAssetDownload } from '../../commemorative-nft/assets'
 import {
   buildCommemorativeNftRendererUrl,
   getCommemorativeNftConfig,
@@ -79,8 +80,14 @@ const SocialControl = ({
 const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
   const { copy } = useCopyFeedback()
   const externalUrl = state.card.shareUrls.external
-  const hasDownload =
+  const hasDownloadAssets =
     !!state.card.assets.imageUrl || !!state.card.assets.animationUrl
+  const downloadsPreparing =
+    state.status === 'minted' && state.card.downloadsReady === false
+  const hasDownload =
+    state.status === 'minted' &&
+    state.card.downloadsReady !== false &&
+    hasDownloadAssets
 
   return (
     <fieldset className="relative z-10 flex shrink-0 flex-col gap-2 border-0 p-0">
@@ -112,41 +119,59 @@ const SharingRail = ({ state }: { readonly state: CardDialogState }) => {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
+            aria-busy={downloadsPreparing}
             className={socialControlClassName}
             disabled={!hasDownload}
             type="button"
           >
             <MSymbol className="ms-wght-500 text-[20px]" symbol="download" />
             <span className="sr-only">
-              <Trans>Download NFT</Trans>
+              {downloadsPreparing ? (
+                <Trans>Preparing PNG and MP4 downloads</Trans>
+              ) : state.status !== 'minted' && hasDownloadAssets ? (
+                <Trans>PNG and MP4 downloads are available after minting</Trans>
+              ) : (
+                <Trans>Download NFT</Trans>
+              )}
             </span>
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="font-mono">
-          <DropdownMenuItem asChild disabled={!state.card.assets.imageUrl}>
-            <a
-              download
-              href={state.card.assets.imageUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <MSymbol symbol="image" />
-              <Trans>Download PNG</Trans>
-            </a>
+          <DropdownMenuItem
+            disabled={!hasDownload || !state.card.assets.imageUrl}
+            onSelect={() => {
+              const assetUrl = state.card.assets.imageUrl
+              if (!assetUrl) return
+              startCommemorativeNftAssetDownload({
+                assetUrl,
+                filename: 'ensv2-commemorative-nft.png',
+              })
+            }}
+          >
+            <MSymbol symbol="image" />
+            <Trans>Download PNG</Trans>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild disabled={!state.card.assets.animationUrl}>
-            <a
-              download
-              href={state.card.assets.animationUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              <MSymbol symbol="movie" />
-              <Trans>Download MP4</Trans>
-            </a>
+          <DropdownMenuItem
+            disabled={!hasDownload || !state.card.assets.animationUrl}
+            onSelect={() => {
+              const assetUrl = state.card.assets.animationUrl
+              if (!assetUrl) return
+              startCommemorativeNftAssetDownload({
+                assetUrl,
+                filename: 'ensv2-commemorative-nft.mp4',
+              })
+            }}
+          >
+            <MSymbol symbol="movie" />
+            <Trans>Download MP4</Trans>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      {downloadsPreparing ? (
+        <span className="sr-only" role="status">
+          <Trans>Preparing PNG and MP4 downloads</Trans>
+        </span>
+      ) : null}
     </fieldset>
   )
 }

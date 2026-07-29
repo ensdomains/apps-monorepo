@@ -1,6 +1,7 @@
 # prod
 dist/
 tsconfig.tsbuildinfo
+tsconfig.scripts.tsbuildinfo
 
 # dev
 .yarn/
@@ -33,3 +34,6 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# Generated commemorative NFT snapshot artifacts
+/commemorative-nft-out/

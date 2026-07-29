@@ -1647,6 +1647,10 @@ msgstr ""
 msgid "Please wait while we verify your email address."
 msgstr ""
 
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "PNG and MP4 downloads are available after minting"
+msgstr ""
+
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences"
 msgstr ""
@@ -1662,6 +1666,10 @@ msgstr ""
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Preparing commitment"
+msgstr ""
+
+#: src/features/migration/components/success/CommemorativeNftCard.tsx
+msgid "Preparing PNG and MP4 downloads"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts

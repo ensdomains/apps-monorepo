@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Address, Hex } from 'viem'
@@ -7,7 +7,12 @@ import type {
   CommemorativeNftCardData,
   MigrationSuccessDialogState,
 } from '../components/success/MigrationSuccessDialog.types'
+import { startCommemorativeNftAssetPreparationAfterReceipt } from './assets'
 import { buildCommemorativeNftCardData } from './cardData'
+import {
+  buildCommemorativeNftPrepareUrl,
+  getCommemorativeNftConfig,
+} from './config'
 import {
   claimCommemorativeNft,
   decodeCommemorativeNftClaimError,
@@ -19,8 +24,12 @@ import {
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
   isCommemorativeNftClaimResultFresh,
+  shouldPollCommemorativeNftAssets,
 } from './flowState'
-import { invalidateCommemorativeNftStatus } from './queries'
+import {
+  commemorativeNftAssetsReadyQueryOptions,
+  invalidateCommemorativeNftStatus,
+} from './queries'
 import type { CommemorativeNftEligibility } from './types'
 import { useCommemorativeNftAvailability } from './useCommemorativeNftAvailability'
 
@@ -139,6 +148,7 @@ export const useCommemorativeNftFlow = ({
   const [txHash, setTxHash] = useState<Hex | undefined>()
   const [awaitingClaim, setAwaitingClaim] = useState(false)
   const [migratedAt, setMigratedAt] = useState(() => new Date())
+  const assetOrigin = getCommemorativeNftConfig().assetOrigin
 
   const availability = useCommemorativeNftAvailability({
     ownerAddress,
@@ -216,10 +226,17 @@ export const useCommemorativeNftFlow = ({
       })
       setTxHash(hash)
       setAwaitingClaim(true)
-      await waitForCommemorativeNftClaimReceipt({
-        wagmiConfig,
-        chainId: availability.chainId,
-        hash,
+      await startCommemorativeNftAssetPreparationAfterReceipt({
+        prepareUrl: buildCommemorativeNftPrepareUrl(
+          assetOrigin,
+          eligibility.ownerAddress,
+        ),
+        waitForReceipt: () =>
+          waitForCommemorativeNftClaimReceipt({
+            wagmiConfig,
+            chainId: availability.chainId,
+            hash,
+          }),
       })
       return hash
     },
@@ -268,27 +285,6 @@ export const useCommemorativeNftFlow = ({
     if (open && eligibilityKey && !artworkUrl) setRevealComplete(true)
   }, [artworkUrl, eligibilityKey, open])
 
-  const card = useMemo<CommemorativeNftCardData | undefined>(() => {
-    if (!eligibility) return undefined
-
-    return buildCommemorativeNftCardData({
-      artworkUrl,
-      chainId: availability.chainId,
-      eligibility,
-      migratedAt,
-      migratedNameCount,
-      minted: claimed,
-      ownerAddress: eligibility.ownerAddress,
-    })
-  }, [
-    availability.chainId,
-    artworkUrl,
-    claimed,
-    eligibility,
-    migratedAt,
-    migratedNameCount,
-  ])
-
   const eligibilityStatus = availability.supported
     ? getEligibilityFlowStatus({
         isError: availability.eligibility.isError,
@@ -305,6 +301,39 @@ export const useCommemorativeNftFlow = ({
     claimPending: claimMutation.isPending || awaitingClaim,
     claimError: claimMutation.isError || availability.claimed.isError,
   })
+  const assetReadiness = useQuery(
+    commemorativeNftAssetsReadyQueryOptions({
+      metadataUrl: eligibility?.assets.metadataUrl,
+      poll: shouldPollCommemorativeNftAssets({
+        open,
+        flowStatus,
+        metadataUrl: eligibility?.assets.metadataUrl,
+      }),
+    }),
+  )
+
+  const card = useMemo<CommemorativeNftCardData | undefined>(() => {
+    if (!eligibility) return undefined
+
+    return buildCommemorativeNftCardData({
+      artworkUrl,
+      chainId: availability.chainId,
+      eligibility,
+      migratedAt,
+      migratedNameCount,
+      minted: claimed,
+      ownerAddress: eligibility.ownerAddress,
+      downloadsReady: assetReadiness.data === true,
+    })
+  }, [
+    assetReadiness.data,
+    availability.chainId,
+    artworkUrl,
+    claimed,
+    eligibility,
+    migratedAt,
+    migratedNameCount,
+  ])
 
   const state =
     getNonArtworkDialogState({

@@ -3,6 +3,7 @@ import {
   getCommemorativeNftClaimedStatus,
   getCommemorativeNftFlowStatus,
   isCommemorativeNftClaimResultFresh,
+  shouldPollCommemorativeNftAssets,
 } from './flowState'
 
 const base = {
@@ -127,5 +128,38 @@ describe('commemorative NFT flow state', () => {
     [{ ...base, claimed: true, claimError: true }, 'minted'],
   ])('derives %s as %s', (input, expected) => {
     expect(getCommemorativeNftFlowStatus(input)).toBe(expected)
+  })
+
+  it('polls assets only while a minted dialog with metadata is open', () => {
+    const metadataUrl = 'https://api.example/123.json'
+
+    expect(
+      shouldPollCommemorativeNftAssets({
+        open: true,
+        flowStatus: 'minted',
+        metadataUrl,
+      }),
+    ).toBe(true)
+    expect(
+      shouldPollCommemorativeNftAssets({
+        open: false,
+        flowStatus: 'minted',
+        metadataUrl,
+      }),
+    ).toBe(false)
+    expect(
+      shouldPollCommemorativeNftAssets({
+        open: true,
+        flowStatus: 'minting',
+        metadataUrl,
+      }),
+    ).toBe(false)
+    expect(
+      shouldPollCommemorativeNftAssets({
+        open: true,
+        flowStatus: 'minted',
+        metadataUrl: undefined,
+      }),
+    ).toBe(false)
   })
 })

@@ -15,6 +15,7 @@ export const buildCommemorativeNftCardData = (params: {
   readonly migratedNameCount: number
   readonly minted: boolean
   readonly ownerAddress: Address
+  readonly downloadsReady?: boolean
 }): CommemorativeNftCardData => {
   const shareTarget =
     params.eligibility.assets.externalUrl ??
@@ -31,6 +32,7 @@ export const buildCommemorativeNftCardData = (params: {
     }),
     migratedAt: params.migratedAt,
     migratedNameCount: params.migratedNameCount,
+    downloadsReady: params.downloadsReady,
     shareUrls: buildCommemorativeNftShareUrls(shareTarget),
   }
 }

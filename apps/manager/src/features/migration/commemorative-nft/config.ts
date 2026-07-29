@@ -11,6 +11,10 @@ export const COMMEMORATIVE_NFT_SEPOLIA_ADDRESS = getAddress(
 
 export const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
   'https://ens-renderer.pages.dev'
+export const DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN =
+  'https://app-api.ens.dev/v1/commemorative-nft'
+export const DEFAULT_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN =
+  'https://pub-43406b099825402eb42ecfb3494a902b.r2.dev/eligibility'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '')
 
@@ -20,12 +24,12 @@ const optionalOrigin = (value: string | undefined): string | undefined => {
 }
 
 export const getCommemorativeNftConfig = () => ({
-  assetOrigin: optionalOrigin(
-    import.meta.env.VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN,
-  ),
-  eligibilityOrigin: optionalOrigin(
-    import.meta.env.VITE_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN,
-  ),
+  assetOrigin:
+    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_ASSET_ORIGIN) ??
+    DEFAULT_COMMEMORATIVE_NFT_ASSET_ORIGIN,
+  eligibilityOrigin:
+    optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN) ??
+    DEFAULT_COMMEMORATIVE_NFT_ELIGIBILITY_ORIGIN,
   rendererOrigin:
     optionalOrigin(import.meta.env.VITE_COMMEMORATIVE_NFT_RENDERER_ORIGIN) ??
     DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN,
@@ -59,6 +63,14 @@ export const buildCommemorativeNftAssets = (
     imageUrl: `${origin}/${tokenId}.png`,
     animationUrl: `${origin}/${tokenId}.mp4`,
   }
+}
+
+export const buildCommemorativeNftPrepareUrl = (
+  assetOrigin: string,
+  ownerAddress: Address,
+): string => {
+  const tokenId = getCommemorativeNftTokenId(ownerAddress).toString()
+  return `${trimTrailingSlash(assetOrigin)}/${tokenId}/prepare`
 }
 
 const rendererAttributes = (traits: CommemorativeNftEligibility['traits']) => [
