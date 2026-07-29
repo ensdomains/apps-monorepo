@@ -27,7 +27,6 @@ export type RoleTransactionDescriptor = {
   readonly id: string
   readonly title: string
   readonly transactionName: string
-  readonly estimatedGasCost: number
   readonly type: 'grant' | 'revoke'
   readonly account: Address
   readonly roles: readonly Role[]
@@ -61,7 +60,6 @@ export function buildRoleTransactionDescriptors(
         id: GRANT_ROLES_TX_ID,
         title: 'Grant roles',
         transactionName: `Grant roles for ${truncateAddress(account, 6, 4)}`,
-        estimatedGasCost: 0.0001,
         type: 'grant',
         account,
         roles: toGrant,
@@ -73,7 +71,6 @@ export function buildRoleTransactionDescriptors(
         id: REVOKE_ROLES_TX_ID,
         title: 'Revoke roles',
         transactionName: `Revoke roles for ${truncateAddress(account, 6, 4)}`,
-        estimatedGasCost: 0.0001,
         type: 'revoke',
         account,
         roles: toRevoke,
@@ -90,7 +87,6 @@ export function buildRoleTransactionDescriptors(
         id: REVOKE_ROLES_TX_ID,
         title: 'Remove user',
         transactionName: `Remove ${truncateAddress(account, 6, 4)} from ${name}`,
-        estimatedGasCost: 0.0001,
         type: 'revoke',
         account,
         roles,

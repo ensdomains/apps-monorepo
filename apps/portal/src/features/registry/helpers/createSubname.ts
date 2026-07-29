@@ -60,7 +60,7 @@ export async function createSubname(
     expires,
   } = params
 
-  const intentResult = await prepareCreateSubnameTransaction({
+  const intent = prepareCreateSubnameTransaction({
     registryAddress,
     label,
     owner,
@@ -70,11 +70,7 @@ export async function createSubname(
     expires,
   })
 
-  if (intentResult.isErr()) {
-    throw intentResult.error
-  }
-
-  const txId = transactionManager.startTransaction(intentResult.value, signer, {
+  const txId = transactionManager.startTransaction(intent, signer, {
     id,
     chainId,
     description: `Create subname ${label}.${parentName}`,

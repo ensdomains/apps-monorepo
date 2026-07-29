@@ -48,7 +48,6 @@ describe('buildRoleTransactions', () => {
       id: 'tx-grant-roles',
       title: 'Grant roles',
       transactionName: 'Grant roles for 0x1234…7890',
-      estimatedGasCost: 0.0001,
     })
     expect(typeof result[0].onStart).toBe('function')
     expect(typeof result[0].onDone).toBe('function')

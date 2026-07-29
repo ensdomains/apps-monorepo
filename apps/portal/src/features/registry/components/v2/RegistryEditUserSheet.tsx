@@ -22,11 +22,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { prepareGrantRegistryRolesTransaction } from '@/features/registry/helpers/grantRegistryRoles'
+import { prepareRevokeRegistryRolesTransaction } from '@/features/registry/helpers/revokeRegistryRoles'
 import { useGrantRegistryRolesMutation } from '@/features/registry/hooks/useGrantRegistryRoles'
 import { useRevokeRegistryRolesMutation } from '@/features/registry/hooks/useRevokeRegistryRoles'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import type { Transaction } from '@/features/transaction-manager/types'
+import type {
+  IntentContext,
+  Transaction,
+} from '@/features/transaction-manager/types'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryRolesQueryOptions } from '../../hooks/useRegistryRoles'
 import {
@@ -188,6 +193,24 @@ export const RegistryEditUserSheet = ({
     clearTransaction()
   }
 
+  // The prepared grant/revoke transaction for a step — deterministic given the
+  // account and roles, so the modal can estimate gas the moment it opens. Yields
+  // a lazy thunk (or undefined until an account is selected) that the modal
+  // calls with the ready wallet context.
+  const rolesIntentThunk = (kind: 'grant' | 'revoke', roles: Role[]) =>
+    account
+      ? ({ walletClient, chainId }: IntentContext) =>
+          (kind === 'grant'
+            ? prepareGrantRegistryRolesTransaction
+            : prepareRevokeRegistryRolesTransaction)({
+            registryAddress,
+            account,
+            roles,
+            walletClient,
+            chainId,
+          })
+      : undefined
+
   // Derive the modal steps straight from `pending`: a grant step when there are
   // roles to grant, then a revoke step when there are roles to revoke. The grant
   // step hands off to the revoke step (if any), and the last step finishes.
@@ -203,7 +226,7 @@ export const RegistryEditUserSheet = ({
         id: GRANT_TX_ID,
         title: 'Grant roles',
         transactionName: 'Grant registry roles',
-        estimatedGasCost: 0.0001,
+        intent: { prepare: rolesIntentThunk('grant', toGrant) },
         onStart: () =>
           grantRegistryRoles({
             registryAddress,
@@ -220,7 +243,7 @@ export const RegistryEditUserSheet = ({
         id: REVOKE_TX_ID,
         title: 'Revoke roles',
         transactionName: 'Revoke registry roles',
-        estimatedGasCost: 0.0001,
+        intent: { prepare: rolesIntentThunk('revoke', toRevoke) },
         onStart: () =>
           revokeRegistryRoles({
             registryAddress,

@@ -5,6 +5,7 @@
  * ROOT_RESOURCE so the revoke applies registry-wide rather than per-label.
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -19,17 +20,22 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
-export type RevokeRegistryRolesParameters = {
+export type RevokeRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
   readonly account: Address
-  readonly roles: Role[]
+  readonly roles: readonly Role[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
-  readonly id: string
 }
+
+export type RevokeRegistryRolesParameters =
+  RevokeRegistryRolesTransactionParameters & {
+    readonly publicClient: PublicClient
+    readonly signer: Signer
+    readonly id: string
+  }
 
 export interface RevokeRegistryRolesResult {
   txId: string
@@ -38,6 +44,45 @@ export interface RevokeRegistryRolesResult {
 
 // See `grantRegistryRoles.ts` — registry-wide scope.
 const ROOT_RESOURCE = 0n
+
+/** The revoke-roles intent, shared by the gas estimate and {@link revokeRegistryRoles}. */
+export function prepareRevokeRegistryRolesTransaction({
+  registryAddress,
+  account,
+  roles,
+  walletClient,
+  chainId,
+}: RevokeRegistryRolesTransactionParameters): CustomTransactionIntent {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
+  if (roles.length === 0) {
+    throw new Error('No roles found to revoke')
+  }
+
+  const writeParams = revokeRolesWriteParameters(
+    walletClient as Parameters<typeof revokeRolesWriteParameters>[0],
+    {
+      registryAddress,
+      account,
+      resource: ROOT_RESOURCE,
+      roles: [...roles],
+    },
+  )
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: registryAddress,
+    data,
+    chainId,
+  })
+}
 
 export async function revokeRegistryRoles(
   params: RevokeRegistryRolesParameters,
@@ -53,41 +98,14 @@ export async function revokeRegistryRoles(
     id,
   } = params
 
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
-  if (roles.length === 0) {
-    throw new Error('No roles found to revoke')
-  }
-
-  const writeParams = revokeRolesWriteParameters(
-    walletClient as Parameters<typeof revokeRolesWriteParameters>[0],
-    {
+  const txId = transactionManager.startTransaction(
+    prepareRevokeRegistryRolesTransaction({
       registryAddress,
       account,
-      resource: ROOT_RESOURCE,
       roles,
-    },
-  )
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
-
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: registryAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

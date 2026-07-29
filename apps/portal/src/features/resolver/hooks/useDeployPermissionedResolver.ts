@@ -1,3 +1,4 @@
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -13,6 +14,7 @@ import {
   getResolverInitCalldata,
   parseProxyDeployedAddress,
 } from '@/features/resolver/utils/permissionedResolver'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { invalidateResolverQueries } from '../utils/invalidateResolverQueries'
@@ -32,6 +34,48 @@ interface UseDeployPermissionedResolverParams {
   readonly name: string
 }
 
+const permissionedResolverImpl = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensPermissionedResolverImpl',
+})
+
+const verifiableFactory = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
+export interface DeployPermissionedResolverTransactionParameters {
+  readonly from: Address
+  readonly chainId: number
+  /**
+   * CREATE2 salt for the proxy. Generated fresh per deploy attempt via
+   * `generateResolverSalt`. The modal's pre-start gas estimate passes a stable
+   * throwaway salt instead — deploy gas is independent of the salt value, so the
+   * estimate is accurate without needing the exact salt the submit will use.
+   */
+  readonly salt: bigint
+}
+
+/** The `deployProxy` intent, shared by the gas estimate and `deployPermissionedResolver`. */
+export const prepareDeployPermissionedResolverTransaction = ({
+  from,
+  chainId,
+  salt,
+}: DeployPermissionedResolverTransactionParameters): CustomTransactionIntent => {
+  const deployCalldata = encodeFunctionData({
+    abi: verifiableFactoryAbi,
+    functionName: 'deployProxy',
+    args: [permissionedResolverImpl, salt, getResolverInitCalldata(from)],
+  })
+
+  return toEoaCustomIntent({
+    from,
+    to: verifiableFactory,
+    data: deployCalldata,
+    chainId,
+  })
+}
+
 const deployPermissionedResolver = async ({
   name,
   signer,
@@ -47,43 +91,19 @@ const deployPermissionedResolver = async ({
   chainId: number
   id: string
 }): Promise<DeployPermissionedResolverResult> => {
-  const permissionedResolverImpl = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensPermissionedResolverImpl',
-  })
-  const verifiableFactory = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensVerifiableFactory',
-  })
-
   const salt = generateResolverSalt(name)
-  const initCalldata = getResolverInitCalldata(accountAddress)
-  const deployCalldata = encodeFunctionData({
-    abi: verifiableFactoryAbi,
-    functionName: 'deployProxy',
-    args: [permissionedResolverImpl, salt, initCalldata],
+  const intent = prepareDeployPermissionedResolverTransaction({
+    from: accountAddress,
+    chainId,
+    salt,
   })
 
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: accountAddress,
-        to: verifiableFactory,
-        data: deployCalldata,
-        value: 0n,
-        chainId,
-      },
-    },
-    signer,
-    {
-      id,
-      description: `Deploy permissioned resolver for ${name}`,
-      publicClient,
-      timeout: 120_000,
-    },
-  )
+  const txId = transactionManager.startTransaction(intent, signer, {
+    id,
+    description: `Deploy permissioned resolver for ${name}`,
+    publicClient,
+    timeout: 120_000,
+  })
 
   const result = await waitForTransaction(txId)
   const resolverAddress = parseProxyDeployedAddress(result.receipt?.logs ?? [])

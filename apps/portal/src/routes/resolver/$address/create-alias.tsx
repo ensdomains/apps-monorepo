@@ -20,6 +20,7 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { prepareSetAliasTransaction } from '@/features/resolver/helpers/setAlias'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
@@ -326,7 +327,18 @@ function RouteComponent() {
             id: CREATE_ALIAS_TX_ID,
             title: 'Create alias',
             transactionName: `Alias ${pendingAlias?.fromName ?? ''} -> ${pendingAlias?.toName ?? ''}`,
-            estimatedGasCost: 0.0001,
+            intent: {
+              prepare: pendingAlias
+                ? ({ walletClient, chainId }) =>
+                    prepareSetAliasTransaction({
+                      fromName: pendingAlias.fromName,
+                      toName: pendingAlias.toName,
+                      resolverAddress: address as Address,
+                      walletClient,
+                      chainId,
+                    })
+                : undefined,
+            },
             onStart: () => {
               if (!pendingAlias) return
               mutation.mutate(pendingAlias)
