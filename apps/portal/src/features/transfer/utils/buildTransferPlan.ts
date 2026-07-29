@@ -7,9 +7,10 @@
  * once the ERC-1155 token is transferred the sender loses the roles needed to
  * make those changes. The token transfer is therefore always last.
  *
- * Unset-primary is independent of token ownership (it writes the sender's
- * reverse record), but it still runs first so reverse-resolution for the
- * sender is cleared before the name leaves their control.
+ * Unset-primary writes are independent of token ownership (they clear the
+ * sender's reverse records), but still run first so reverse-resolution for the
+ * sender is cleared before the name leaves their control. Each registrar that
+ * holds the name is its own modal step — one wallet confirmation per tx.
  *
  * Resolver/registry resets are "reset to zero" rather than "hand over a fresh
  * contract": in v2 the resolver and the subregistry are user-owned objects that
@@ -18,9 +19,9 @@
  * recipient. The recipient deploys their own afterwards.
  */
 
+import type { UnsetPrimaryTargets } from '../helpers/unsetPrimaryName'
+
 export type TransferOptions = {
-  /** Clear the sender's reverse records when this name is their primary. */
-  readonly unsetPrimary: boolean
   /** Detach the name from its resolver (`setResolver(0x0)`) for a clean slate. */
   readonly resetResolver: boolean
   /** Detach the name from its subregistry (`setSubregistry(0x0)`). */
@@ -28,7 +29,8 @@ export type TransferOptions = {
 }
 
 export type TransferStepKind =
-  | 'unset-primary'
+  | 'unset-default-reverse'
+  | 'unset-addr-reverse'
   | 'reset-resolver'
   | 'reset-registry'
   | 'transfer-token'
@@ -36,16 +38,24 @@ export type TransferStepKind =
 /**
  * Build the ordered step list for a transfer. The `transfer-token` step is
  * always present and always last.
+ *
+ * `unsetTargets` comes from L1 reverse discovery — each matching registrar is a
+ * separate modal step / wallet confirmation.
  */
 export const buildTransferPlan = (
   options: TransferOptions,
+  unsetTargets: UnsetPrimaryTargets,
 ): TransferStepKind[] => {
   const steps: TransferStepKind[] = []
 
   // Configuration steps run before the token moves, since the sender loses the
   // required roles once ownership transfers.
-  if (options.unsetPrimary) {
-    steps.push('unset-primary')
+  if (unsetTargets.clearDefault) {
+    steps.push('unset-default-reverse')
+  }
+
+  if (unsetTargets.clearReverse) {
+    steps.push('unset-addr-reverse')
   }
 
   if (options.resetResolver) {
@@ -62,7 +72,8 @@ export const buildTransferPlan = (
 }
 
 export const STEP_LABELS: Record<TransferStepKind, string> = {
-  'unset-primary': 'Unset primary name',
+  'unset-default-reverse': 'Unset default primary name',
+  'unset-addr-reverse': 'Unset ETH primary name',
   'reset-resolver': 'Reset resolver',
   'reset-registry': 'Reset registry',
   'transfer-token': 'Transfer name',

@@ -21,6 +21,10 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import {
+  getUnsetPrimaryTargets,
+  unsetPrimaryTargetsQueryKey,
+} from '../helpers/unsetPrimaryName'
 import { useTransferName } from '../hooks/useTransferName'
 import { useTransferResetTargets } from '../hooks/useTransferResetTargets'
 import type { TransferOptions } from '../utils/buildTransferPlan'
@@ -72,10 +76,13 @@ export const SendNameForm = ({
     failed: resetTargetsFailed,
   } = useTransferResetTargets({ name })
 
-  const primaryQuery = useQuery(getPrimaryNameQueryOptions(owner))
+  const unsetTargetsQuery = useQuery({
+    queryKey: unsetPrimaryTargetsQueryKey(owner, name),
+    queryFn: () => getUnsetPrimaryTargets({ owner, name }),
+  })
   const willUnsetPrimary =
-    !!primaryQuery.data &&
-    primaryQuery.data.toLowerCase() === name.toLowerCase()
+    !!unsetTargetsQuery.data &&
+    (unsetTargetsQuery.data.clearDefault || unsetTargetsQuery.data.clearReverse)
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -90,7 +97,6 @@ export const SendNameForm = ({
   // A hidden option never contributes to the plan, regardless of its stored
   // toggle value, so fold visibility into the options we hand off.
   const effectiveOptions: TransferOptions = {
-    unsetPrimary: willUnsetPrimary,
     resetResolver: options.resetResolver && optionIsVisible.resetResolver,
     resetRegistry: options.resetRegistry && optionIsVisible.resetRegistry,
   }
@@ -102,7 +108,7 @@ export const SendNameForm = ({
     !isResolving &&
     !isPreparing &&
     resetTargetsSettled &&
-    primaryQuery.isSuccess
+    unsetTargetsQuery.isSuccess
 
   const keepsResolver = optionIsVisible.resetResolver && !options.resetResolver
   const keepsRegistry = optionIsVisible.resetRegistry && !options.resetRegistry
@@ -112,8 +118,12 @@ export const SendNameForm = ({
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const runTransfer = () => {
-    if (!recipient || !resetTargetsSettled || !primaryQuery.isSuccess) return
-    startTransfer({ recipient, options: effectiveOptions })
+    if (!recipient || !resetTargetsSettled || !unsetTargetsQuery.data) return
+    startTransfer({
+      recipient,
+      options: effectiveOptions,
+      unsetTargets: unsetTargetsQuery.data,
+    })
   }
 
   const handleStart = () => {
@@ -191,7 +201,7 @@ export const SendNameForm = ({
         </span>
       )}
 
-      {hasValidRecipient && primaryQuery.isError && (
+      {hasValidRecipient && unsetTargetsQuery.isError && (
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
           <AlertDescription>

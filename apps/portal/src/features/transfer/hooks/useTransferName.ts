@@ -18,7 +18,11 @@ import { getLabel } from '@/utils/token/getLabel'
 import { resetNameRegistry } from '../helpers/resetNameRegistry'
 import { resetNameResolver } from '../helpers/resetNameResolver'
 import { transferToken } from '../helpers/transferToken'
-import { unsetPrimaryName } from '../helpers/unsetPrimaryName'
+import {
+  type UnsetPrimaryTargets,
+  unsetPrimaryName,
+  unsetPrimaryTargetsQueryKey,
+} from '../helpers/unsetPrimaryName'
 import {
   buildTransferPlan,
   STEP_LABELS,
@@ -35,16 +39,19 @@ type UseTransferNameParams = {
 export type StartTransferParams = {
   readonly recipient: Address
   readonly options: TransferOptions
+  readonly unsetTargets: UnsetPrimaryTargets
 }
 
 type SavedParams = {
   readonly recipient: Address
   readonly tokenId: bigint
   readonly options: TransferOptions
+  readonly unsetTargets: UnsetPrimaryTargets
 }
 
 const GAS_BY_STEP: Record<TransferStepKind, number> = {
-  'unset-primary': 0.0002,
+  'unset-default-reverse': 0.0002,
+  'unset-addr-reverse': 0.0002,
   'reset-resolver': 0.0001,
   'reset-registry': 0.0001,
   'transfer-token': 0.0003,
@@ -92,6 +99,9 @@ export const useTransferName = ({
         queryClient.invalidateQueries({
           queryKey: getPrimaryNameQueryOptions(owner).queryKey,
         }),
+        queryClient.invalidateQueries({
+          queryKey: unsetPrimaryTargetsQueryKey(owner, name),
+        }),
       ]).then(() => undefined)
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
@@ -105,6 +115,7 @@ export const useTransferName = ({
     mutationFn: async ({
       recipient,
       options,
+      unsetTargets,
     }: StartTransferParams): Promise<SavedParams> => {
       const tokenId = await getEnsTokenId({
         label: getLabel(name),
@@ -115,7 +126,7 @@ export const useTransferName = ({
           throw error
         },
       )
-      return { recipient, tokenId, options }
+      return { recipient, tokenId, options, unsetTargets }
     },
     onSuccess: (params) => {
       startedStepsRef.current = new Set()
@@ -135,7 +146,12 @@ export const useTransferName = ({
     const label = getLabel(name)
 
     await match(step)
-      .with('unset-primary', () => unsetPrimaryName({ ...common, owner, id }))
+      .with('unset-default-reverse', () =>
+        unsetPrimaryName({ ...common, owner, target: 'default', id }),
+      )
+      .with('unset-addr-reverse', () =>
+        unsetPrimaryName({ ...common, owner, target: 'addr', id }),
+      )
       .with('reset-resolver', () =>
         resetNameResolver({ ...common, label, registryAddress, id }),
       )
@@ -152,8 +168,8 @@ export const useTransferName = ({
   // array in a ref for auto-advance, so referential stability isn't required.
   const buildTransactions = (): Transaction[] => {
     if (!savedParams) return []
-    const { recipient, tokenId, options } = savedParams
-    const steps = buildTransferPlan(options)
+    const { recipient, tokenId, options, unsetTargets } = savedParams
+    const steps = buildTransferPlan(options, unsetTargets)
 
     // Idempotent runner per step: `onStart` may be invoked twice (modal UI +
     // the prior step's auto-advance `onDone`). Errors clear the guard so the
