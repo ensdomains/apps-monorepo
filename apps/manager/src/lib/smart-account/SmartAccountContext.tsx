@@ -7,7 +7,6 @@ import {
   type HcaSessionEnablePayload,
   isRhinestoneSession,
   type RhinestoneStoredSession,
-  rebuildDestinationSession,
   removeSessionsByOwner,
 } from '@ens-apps/smart-account'
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
@@ -83,10 +82,14 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly activeStoredSession: RhinestoneStoredSession | null
   /**
    * Resolve the `START_REGISTRATION` session-enable payload for the active
-   * session. Reads `experimental_isSessionEnabled` on-chain and returns
-   * `undefined` when the session is ALREADY enabled (so no enable call is
-   * re-issued), or the enable payload when it still needs enabling. Returns
-   * `undefined` when there is no active session.
+   * session. Rebuilt from persisted state with NO wallet prompt and no chain
+   * read — it replays the single authorization signature captured at the
+   * session gate.
+   *
+   * Returned for ANY active session, including one already enabled on-chain:
+   * the registration machine, not this getter, decides whether to attach it
+   * (only alongside a funding permit, which the validator's policy requires).
+   * Returns `undefined` only when there is no active session.
    */
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnablePayload | undefined
@@ -620,38 +623,31 @@ export const SmartAccountContextProvider = ({
     wagmiPublicClient,
   ])
 
-  // Resolve the START_REGISTRATION session-enable payload. Reads
-  // `experimental_isSessionEnabled` on-chain (only safe to do on resume — never
-  // right after an enabling request) and returns `undefined` when the session
-  // is already enabled, so the machine omits the enable call.
+  // Resolve the START_REGISTRATION session-enable payload.
+  //
+  // Returns the payload for ANY active session — including one already enabled
+  // on-chain. It used to short-circuit to `undefined` once
+  // `experimental_isSessionEnabled` was true, which broke every registration
+  // after the first: dropping the proof forces the validator's steady-state
+  // path, where the funding `permit` is rejected with
+  // `ActionNotAllowed(USDC, permit)` (masked as `InvalidSignature()`).
+  //
+  // Re-presenting the proof is safe and costs no extra wallet prompt. The
+  // owner's session authorization is signed ONCE and stored; the proof is
+  // reusable (`_validateSessionEnableProof` checks only `validUntil` and the
+  // account's session nonce, which nothing increments outside revocation), and
+  // `enableSessionWithRefund` is idempotent (`_enableSessionFor` rewrites the
+  // same slot with identical values).
+  //
+  // The machine decides whether to ATTACH it: `submittingSetupBundle` sends it
+  // only alongside a funding permit, so a fully-funded HCA still gets the cheap
+  // commit-only batch.
   const getSessionEnablePayload = useCallback(async (): Promise<
     HcaSessionEnablePayload | undefined
   > => {
-    if (!activeSession || !accountAddress || !baseClient) return undefined
-
-    const rhinestoneAccount =
-      baseClient as unknown as RhinestoneSigner['account']
-
-    // Rebuild the SDK Session (no prompt) to query on-chain enablement.
-    const { session } = rebuildDestinationSession({
-      chain: customSepolia,
-      hca: accountAddress,
-      resolver: activeSession.resolver,
-      hcaSessionNonce: BigInt(activeSession.hcaSessionNonce),
-      validUntil: BigInt(activeSession.validUntil),
-      sessionPrivateKey: activeSession.sessionPrivateKey,
-    })
-
-    try {
-      const enabled =
-        await rhinestoneAccount.experimental_isSessionEnabled(session)
-      if (enabled) return undefined
-    } catch {
-      // If the read fails, fall back to including the enable payload — the
-      // enable call is idempotent and the batch is atomic.
-    }
+    if (!activeSession || !accountAddress) return undefined
     return buildHcaSessionEnablePayload(activeSession)
-  }, [activeSession, accountAddress, baseClient])
+  }, [activeSession, accountAddress])
 
   // The session context to attach to the rhinestone signer, if active.
   const sessionContext = useMemo(

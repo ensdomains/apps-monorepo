@@ -168,8 +168,10 @@ export interface ResolvedSession {
  * Reuse a valid stored session if present, else authorize one (the single
  * authorization signature).
  *
- * On resume, expiry is checked client-side here; the caller separately reads
- * `experimental_isSessionEnabled` on-chain before omitting enable-data.
+ * On resume, expiry is checked client-side here. Enable-data is NOT gated on
+ * on-chain enablement: it is replayed from the stored authorization whenever a
+ * batch carries the funding permit, since the validator only accepts that pair
+ * on the path the proof unlocks.
  */
 export function resolveSessionActor(
   input: ResolveSessionInput,

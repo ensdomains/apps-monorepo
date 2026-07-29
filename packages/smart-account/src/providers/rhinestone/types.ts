@@ -62,8 +62,12 @@ export function deserializeChainDigests(
  * the `SessionEnableData` + the `enableSessionWithRefund` call args from a
  * persisted session — without a wallet prompt.
  *
- * Callers omit this when the session is already enabled on-chain (checked via
- * `experimental_isSessionEnabled` on resume).
+ * Safe to rebuild and present on EVERY use, not just the session's first: the
+ * proof is reusable (`_validateSessionEnableProof` checks only `validUntil` and
+ * the account's session nonce, which nothing increments outside revocation) and
+ * `enableSessionWithRefund` is idempotent. Callers attach it whenever the batch
+ * also carries the EIP-2612 funding pair, which the validator's policy only
+ * accepts on the code path this proof unlocks.
  */
 export interface HcaSessionEnablePayload {
   readonly enableData: SessionEnableData

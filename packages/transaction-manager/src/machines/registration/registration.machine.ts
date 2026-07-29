@@ -30,6 +30,9 @@ import {
   verifyHcaRegistrationActor,
 } from './registration.hca.actors'
 
+/** `Math.max` for bigints (no bigint overload on `Math.max`). */
+const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
+
 /**
  * Registration Machine
  *
@@ -114,10 +117,30 @@ export type RegistrationContext = {
    */
   hcaBudgetBreakdown?: HcaBudgetBreakdown
   /**
+   * Standalone-HCA: the HCA's USDC balance read in `checkingHcaFunding`. The
+   * funding permit tops the HCA up to `hcaBudget`, so it must be signed for
+   * `hcaBudget - hcaUsdcBalance` — signing for the full budget re-funds the
+   * leftover from every prior registration and ratchets the HCA balance up.
+   */
+  hcaUsdcBalance?: bigint
+  /**
    * Standalone-HCA: session-enable payload (enable-data + enable-call args).
-   * Present ONLY while the session still needs its on-chain
-   * `enableSessionWithRefund` — the app omits it when resuming with an
-   * already-enabled session (`experimental_isSessionEnabled`).
+   *
+   * Present whenever a session exists — the `SessionEnableProof` is REUSABLE
+   * (`_validateSessionEnableProof` only checks `validUntil` and the account's
+   * session nonce, which nothing increments outside revocation) and
+   * `enableSessionWithRefund` is idempotent (`_enableSessionFor` overwrites the
+   * same slot with identical values).
+   *
+   * Whether it is actually attached to a batch is decided by
+   * `submittingSetupBundle`, NOT by on-chain enablement: the validator only
+   * tolerates the `permit` + `transferFrom` funding pair on the code path that
+   * is entered by presenting this proof (`_checkInitialRegistrationPolicy`,
+   * which strips enable + permit + transfer before applying the policy).
+   * Without it the pair falls through to `_checkRegistrationExecutions`, whose
+   * payment-token branch allows ONLY `approve` and reverts
+   * `ActionNotAllowed(USDC, permit)` — surfaced by the emissary as
+   * `InvalidSignature()`. Hence the invariant: enableData ⟺ funding permit.
    */
   hcaSessionEnable?: HcaSessionEnableParams
   /** Standalone-HCA: when set, the reveal batch also sets the primary name. */
@@ -639,17 +662,34 @@ export const registrationMachine = setup({
           {
             // The HCA already holds enough USDC (e.g. leftover budget from a
             // prior registration) — no funding permit needed. 0 extra prompts.
+            // With no permit the batch carries no enable call either, so it
+            // takes the steady-state policy path (commit only), which is legal.
             guard: ({ context, event }) => {
               const balance = event.output as bigint
               // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
               return balance >= context.hcaBudget!
             },
             target: 'submittingSetupBundle',
+            actions: assign({
+              hcaUsdcBalance: ({ event }) => event.output as bigint,
+            }),
           },
-          { target: 'signingFundingPermit' },
+          {
+            target: 'signingFundingPermit',
+            actions: assign({
+              hcaUsdcBalance: ({ event }) => event.output as bigint,
+            }),
+          },
         ],
         // If the read fails, fall back to authorizing rather than blocking.
-        onError: { target: 'signingFundingPermit' },
+        // Treat the balance as 0 so the permit covers the FULL budget: an
+        // over-large permit still registers (the surplus stays in the
+        // user-owned HCA and is credited on the next run), whereas assuming a
+        // balance we could not read risks an under-funded, reverting reveal.
+        onError: {
+          target: 'signingFundingPermit',
+          actions: assign({ hcaUsdcBalance: () => 0n }),
+        },
       },
       on: {
         CANCEL: 'idle',
@@ -665,8 +705,19 @@ export const registrationMachine = setup({
           wallet: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           hca: context.accountAddress!,
-          // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
-          value: context.hcaBudget!,
+          // Top-up ONLY: the HCA keeps unspent budget from prior registrations
+          // (the doc's "unused USDC stays in the user-owned HCA"), so the
+          // permit must cover the SHORTFALL, not the whole budget. Signing for
+          // the full budget re-funds that leftover every time and ratchets the
+          // balance up. `checkingHcaFunding` already routed the
+          // `balance >= budget` case straight to the bundle, so this is > 0;
+          // the clamp only guards a racing balance change between the read and
+          // here.
+          value: bigintMax(
+            // biome-ignore lint/style/noNonNullAssertion: set by computingHcaBudget
+            context.hcaBudget! - (context.hcaUsdcBalance ?? 0n),
+            0n,
+          ),
           // The funding permit MUST be signed by the wallet (EOA); the HCA
           // cannot produce an EIP-2612 signature for the wallet's balance.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
@@ -714,7 +765,18 @@ export const registrationMachine = setup({
           hca: context.accountAddress!,
           duration: context.duration,
           permit: context.permit,
-          sessionEnable: context.hcaSessionEnable,
+          // INVARIANT: enableData ⟺ funding permit.
+          //
+          // The validator only tolerates the `permit` + `transferFrom` pair on
+          // the path entered by presenting the session-enable proof
+          // (`_checkInitialRegistrationPolicy`, which strips enable + permit +
+          // transfer before applying the policy). Attach the proof whenever we
+          // fund — NOT merely on the session's first on-chain use. Re-presenting
+          // it is safe: the proof is reusable and `enableSessionWithRefund` is
+          // idempotent. Conversely, when the HCA is already funded we send no
+          // permit and so omit the enable call, keeping the cheap steady-state
+          // batch (commit only).
+          sessionEnable: context.permit ? context.hcaSessionEnable : undefined,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state

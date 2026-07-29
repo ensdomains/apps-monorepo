@@ -539,6 +539,32 @@ export function submitFundingAndCommitActor(input: {
 > {
   return fromPromise(
     (async () => {
+      // INVARIANT: a funding permit REQUIRES the session-enable proof in the
+      // same batch.
+      //
+      // `HCAOwnerAndSessionValidator` only tolerates the `permit` +
+      // `transferFrom` pair inside `_checkInitialRegistrationPolicy`, which is
+      // reached by presenting the proof and which strips enable + permit +
+      // transfer before applying the fixed policy. Without the proof the pair
+      // falls through to `_checkRegistrationExecutions`, whose payment-token
+      // branch allows ONLY `approve`:
+      //
+      //   if (selector != APPROVE_SELECTOR)
+      //       revert ActionNotAllowed(execution.target, selector);
+      //
+      // That reverts `ActionNotAllowed(USDC, 0xd505accf)` (0xde1834f2), which
+      // the emissary re-wraps as `InvalidSignature()` (0x8baa579f) — an error
+      // that says nothing about the real cause. Fail here instead, where the
+      // message can name it.
+      if (input.permit && !input.sessionEnable) {
+        throw new Error(
+          'HCA funding permit requires the session-enable proof in the same ' +
+            'batch: the validator rejects USDC.permit outside the initial ' +
+            'registration policy path (ActionNotAllowed(USDC, permit)). ' +
+            'Attach `sessionEnable` whenever `permit` is set.',
+        )
+      }
+
       const chainId = input.publicClient.chain?.id ?? sepolia.id
       const contracts = getDestinationContracts(chainId)
       const label = cleanLabel(input.name)

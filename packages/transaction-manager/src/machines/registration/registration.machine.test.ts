@@ -3,6 +3,8 @@ import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import { createActor, fromPromise, waitFor } from 'xstate'
 import type { Signer } from '../../types/signer.types'
+import type { HcaSessionEnableParams } from './registration.hca.actors'
+import { submitFundingAndCommitActor } from './registration.hca.actors'
 import { registrationMachine } from './registration.machine'
 
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
@@ -20,6 +22,17 @@ const permit = {
 } as const
 
 /**
+ * Stand-in for the stored session-enable proof. The owner signs the session
+ * authorization once; this payload is rebuilt from storage on every run.
+ */
+const SESSION_ENABLE = {
+  enableData: { stub: 'enable-data' },
+  permissionId: `0x${'33'.repeat(32)}`,
+  sessionKey: '0x2222222222222222222222222222222222222222',
+  validUntil: 2_000_000_000n,
+} as unknown as HcaSessionEnableParams
+
+/**
  * Stub only the standalone-HCA actors the funding path walks through. Anything
  * further down the flow (commitment polling, reveal) never starts because the
  * assertions stop at the funding decision.
@@ -29,8 +42,12 @@ const startHcaRegistration = (overrides: {
   balances?: bigint[]
   signFundingPermit?: ReturnType<typeof vi.fn>
   submitFundingAndCommit?: ReturnType<typeof vi.fn>
+  /** Overrides the balance stub entirely (e.g. to simulate an RPC failure). */
+  readHcaUsdcBalance?: ReturnType<typeof vi.fn>
   estimateHcaBudget?: ReturnType<typeof vi.fn>
   hcaBudget?: bigint
+  /** Stored session-enable proof, as rebuilt from storage on every run. */
+  hcaSessionEnable?: HcaSessionEnableParams
 }) => {
   const estimateHcaBudget =
     overrides.estimateHcaBudget ??
@@ -55,12 +72,15 @@ const startHcaRegistration = (overrides: {
     registrationMachine.provide({
       actors: {
         estimateHcaBudget: fromPromise(estimateHcaBudget) as never,
-        readHcaUsdcBalance: fromPromise(async () => {
-          const balance =
-            balances[Math.min(fundingChecks, balances.length - 1)] ?? 0n
-          fundingChecks += 1
-          return balance
-        }) as never,
+        readHcaUsdcBalance: fromPromise(
+          overrides.readHcaUsdcBalance ??
+            (async () => {
+              const balance =
+                balances[Math.min(fundingChecks, balances.length - 1)] ?? 0n
+              fundingChecks += 1
+              return balance
+            }),
+        ) as never,
         signFundingPermit: fromPromise(signFundingPermit) as never,
         submitFundingAndCommit: fromPromise(submitFundingAndCommit) as never,
       },
@@ -79,6 +99,7 @@ const startHcaRegistration = (overrides: {
     accountAddress: HCA,
     ownerAddress: WALLET,
     publicClient: { chain: sepolia } as unknown as PublicClient,
+    hcaSessionEnable: overrides.hcaSessionEnable ?? SESSION_ENABLE,
     ...(overrides.hcaBudget !== undefined
       ? { hcaBudget: overrides.hcaBudget }
       : {}),
@@ -100,9 +121,13 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(actor.getSnapshot().context.permit).toBeUndefined()
   })
 
-  it('signs a funding permit for the estimated budget when the HCA is short', async () => {
+  it('signs a funding permit for the SHORTFALL, not the whole budget', async () => {
+    // The HCA keeps unspent budget from prior registrations. Permitting the
+    // full budget on top of that leftover re-funds it every run and ratchets
+    // the balance up, so the permit must cover only the difference.
+    const balance = 1_504_912n
     const { actor, signFundingPermit } = startHcaRegistration({
-      balances: [BUDGET - 1n],
+      balances: [balance],
     })
 
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
@@ -111,9 +136,26 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit.mock.calls[0][0].input).toMatchObject({
       wallet: WALLET,
       hca: HCA,
-      value: BUDGET,
+      value: BUDGET - balance,
     })
     expect(actor.getSnapshot().context.permit).toEqual(permit)
+  })
+
+  it('permits the full budget when the balance read fails', async () => {
+    // An unreadable balance must not be guessed at: over-permitting leaves the
+    // surplus in the user-owned HCA, whereas assuming funds we could not see
+    // risks an under-funded reveal that reverts.
+    const { actor, signFundingPermit } = startHcaRegistration({
+      readHcaUsdcBalance: vi.fn(async () => {
+        throw new Error('rpc down')
+      }),
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    expect(signFundingPermit.mock.calls[0][0].input).toMatchObject({
+      value: BUDGET,
+    })
   })
 
   it('honours a caller-supplied budget instead of estimating one', async () => {
@@ -159,5 +201,63 @@ describe('registrationMachine — standalone-HCA funding', () => {
     expect(signFundingPermit).toHaveBeenCalledOnce()
     // A stale commitment is cleared too, so the reveal can't bind to it.
     expect(actor.getSnapshot().context.commitmentTxId).toBeUndefined()
+  })
+})
+
+describe('registrationMachine — enableData ⟺ funding permit', () => {
+  // `HCAOwnerAndSessionValidator` only tolerates the `permit` + `transferFrom`
+  // pair on the path reached by presenting the session-enable proof
+  // (`_checkInitialRegistrationPolicy`). Without the proof the pair hits
+  // `_checkRegistrationExecutions`, whose payment-token branch allows only
+  // `approve`, reverting `ActionNotAllowed(USDC, permit)` — which the emissary
+  // masks as `InvalidSignature()`.
+
+  it('attaches the enable proof whenever it funds, even on an already-enabled session', async () => {
+    const { actor, submitFundingAndCommit } = startHcaRegistration({
+      balances: [BUDGET - 1n],
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    const input = submitFundingAndCommit.mock.calls[0][0].input
+    expect(input.permit).toEqual(permit)
+    // The proof is reusable and the enable call idempotent, so re-presenting it
+    // costs no wallet prompt and keeps the batch on the legal policy path.
+    expect(input.sessionEnable).toEqual(SESSION_ENABLE)
+  })
+
+  it('omits the enable call when the HCA is already funded', async () => {
+    const { actor, submitFundingAndCommit } = startHcaRegistration({
+      balances: [BUDGET],
+    })
+
+    await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
+
+    const input = submitFundingAndCommit.mock.calls[0][0].input
+    // No permit ⇒ steady-state policy path ⇒ cheap commit-only batch.
+    expect(input.permit).toBeUndefined()
+    expect(input.sessionEnable).toBeUndefined()
+  })
+
+  it('rejects a permit with no enable proof instead of submitting it', async () => {
+    // Belt-and-braces for the case the machine cannot repair: the HCA is short
+    // but no session proof was ever stored. Building this batch guarantees an
+    // `InvalidSignature()` from the orchestrator with no usable detail, so the
+    // actor refuses it and names the real cause.
+    const result = await submitFundingAndCommitActor({
+      name: 'myname.eth',
+      wallet: WALLET,
+      hca: HCA,
+      duration: 31_536_000n,
+      permit,
+      // sessionEnable deliberately omitted
+      signer: { type: 'rhinestone' } as unknown as Signer,
+      publicClient: { chain: sepolia } as unknown as PublicClient,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toContain(
+      'ActionNotAllowed(USDC, permit)',
+    )
   })
 })
