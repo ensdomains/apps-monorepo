@@ -353,6 +353,10 @@ msgstr "Billing country"
 msgid "Billing zip code"
 msgstr "Billing zip code"
 
+#: src/features/profile/components/view/ViewBioSection.tsx
+#~ msgid "Bio"
+#~ msgstr "Bio"
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
 msgstr "Blog"
@@ -464,6 +468,10 @@ msgstr "Clear search"
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr "Click the button below to verify your email address and start receiving notifications."
+
+#: src/features/profile/components/view/ViewBioSection.tsx
+#~ msgid "Click to copy"
+#~ msgstr "Click to copy"
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
@@ -1467,6 +1475,10 @@ msgstr "No wallet connected yet"
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
 
+#: src/features/profile/components/view/ViewBioSection.tsx
+#~ msgid "Not set"
+#~ msgstr "Not set"
+
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
 msgid "Not supported"
@@ -1538,6 +1550,10 @@ msgstr "Over 2 million ENS names registered"
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
 msgstr "Owned"
+
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#~ msgid "Owned by"
+#~ msgstr "Owned by"
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
@@ -1686,6 +1702,10 @@ msgstr "Preview your one-of-a-kind card and mint it whenever you're ready."
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Previous card"
 msgstr "Previous card"
+
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#~ msgid "Previous owner"
+#~ msgstr "Previous owner"
 
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Previous page"
@@ -2178,14 +2198,6 @@ msgstr "Settings"
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
 msgstr "Share"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Share on Telegram"
-msgstr "Share on Telegram"
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Share on X"
-msgstr "Share on X"
 
 #: src/features/profile/components/view/ProfileShareAction.tsx
 msgid "Share profile"
@@ -3013,10 +3025,6 @@ msgstr "Your name lives onchain - you own it, not a platform. Sign in to web3 ap
 #: src/features/register-v2/workflow/registering/components/PrimaryNameSetupNotice.tsx
 msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
 msgstr "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Your name(s) have been upgraded!"
-msgstr "Your name(s) have been upgraded!"
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"

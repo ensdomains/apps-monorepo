@@ -358,6 +358,10 @@ msgstr ""
 msgid "Billing zip code"
 msgstr ""
 
+#: src/features/profile/components/view/ViewBioSection.tsx
+#~ msgid "Bio"
+#~ msgstr ""
+
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
 msgstr ""
@@ -469,6 +473,10 @@ msgstr ""
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr ""
+
+#: src/features/profile/components/view/ViewBioSection.tsx
+#~ msgid "Click to copy"
+#~ msgstr ""
 
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
@@ -1472,6 +1480,10 @@ msgstr ""
 msgid "Not a valid name format"
 msgstr ""
 
+#: src/features/profile/components/view/ViewBioSection.tsx
+#~ msgid "Not set"
+#~ msgstr ""
+
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
 msgid "Not supported"
@@ -1543,6 +1555,10 @@ msgstr ""
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
 msgstr ""
+
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#~ msgid "Owned by"
+#~ msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
@@ -1684,13 +1700,9 @@ msgstr ""
 msgid "Preview success dialog"
 msgstr ""
 
-#: src/features/migration/components/success/CommemorativeNftDashboardPrompt.tsx
-msgid "Preview your one-of-a-kind card and mint it whenever you're ready."
-msgstr ""
-
-#: src/features/dashboard/components/EducationCarousel.tsx
-msgid "Previous card"
-msgstr ""
+#: src/features/profile/components/common/ProfileHeaderInfo.tsx
+#~ msgid "Previous owner"
+#~ msgstr ""
 
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Previous page"
@@ -2182,14 +2194,6 @@ msgstr ""
 
 #: src/features/profile/components/dialogs/ShareProfileDialog.tsx
 msgid "Share"
-msgstr ""
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Share on Telegram"
-msgstr ""
-
-#: src/features/migration/components/success/CommemorativeNftCard.tsx
-msgid "Share on X"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileShareAction.tsx
@@ -3017,10 +3021,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/PrimaryNameSetupNotice.tsx
 msgid "Your name was registered, but we couldn't set it as your primary name. You can set it anytime from your profile."
-msgstr ""
-
-#: src/features/migration/components/MigrationSuccessDialog.tsx
-msgid "Your name(s) have been upgraded!"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
