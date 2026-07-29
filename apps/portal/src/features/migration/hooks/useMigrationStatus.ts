@@ -9,7 +9,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { gql } from 'graphql-request'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address, PublicClient } from 'viem'
+import { type Address, isAddress, type PublicClient } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 /**
@@ -74,11 +74,14 @@ const getMigrationStatus = ResultFn(async function* ({
   const domain = domains[0] ?? null
   if (!domain) return ok<MigrationStatus>({ migratable: false })
 
-  const evaluationAddress = (address ??
+  const holderCandidate =
+    address ??
     domain.wrappedOwner?.id ??
     domain.registrant?.id ??
-    domain.owner?.id) as Address | undefined
-  if (!evaluationAddress) return ok<MigrationStatus>({ migratable: false })
+    domain.owner?.id
+  if (!holderCandidate || !isAddress(holderCandidate))
+    return ok<MigrationStatus>({ migratable: false })
+  const evaluationAddress = holderCandidate
 
   const classified = classifyName(domain, evaluationAddress)
   if (classified?.type !== 'classified')
