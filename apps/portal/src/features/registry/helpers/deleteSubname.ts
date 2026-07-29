@@ -47,18 +47,14 @@ export const deleteSubname = async (
     chainId,
   } = params
 
-  const intentResult = await prepareDeleteSubnameTransaction({
+  const intent = prepareDeleteSubnameTransaction({
     registryAddress,
     label,
     walletClient,
     chainId,
   })
 
-  if (intentResult.isErr()) {
-    throw intentResult.error
-  }
-
-  const txId = transactionManager.startTransaction(intentResult.value, signer, {
+  const txId = transactionManager.startTransaction(intent, signer, {
     id,
     description: `Delete subname ${name}`,
     publicClient,

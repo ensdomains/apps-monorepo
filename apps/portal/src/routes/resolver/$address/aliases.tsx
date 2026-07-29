@@ -37,6 +37,7 @@ import {
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { prepareDeleteAliasTransaction } from '@/features/resolver/helpers/setAlias'
 import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
 import {
   getResolverOverviewQueryOptions,
@@ -251,7 +252,17 @@ function RouteComponent() {
             id: DELETE_ALIAS_TX_ID,
             title: 'Delete alias',
             transactionName: `Delete alias ${pendingDeleteAlias?.fromName ?? ''}`,
-            estimatedGasCost: 0.0001,
+            intent: {
+              prepare: pendingDeleteAlias
+                ? ({ walletClient, chainId }) =>
+                    prepareDeleteAliasTransaction({
+                      fromName: pendingDeleteAlias.fromName,
+                      resolverAddress: address as Address,
+                      walletClient,
+                      chainId,
+                    })
+                : undefined,
+            },
             onStart: () => {
               if (!pendingDeleteAlias) return
               deleteMutation.mutate(pendingDeleteAlias.fromName)

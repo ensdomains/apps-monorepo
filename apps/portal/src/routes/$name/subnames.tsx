@@ -19,9 +19,13 @@ import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useDeleteSubname } from '@/features/registry/hooks/useDeleteSubname'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { prepareDeleteSubnameTransaction } from '@/features/registry/utils/delete-subname.helpers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import type { Transaction } from '@/features/transaction-manager/types'
+import type {
+  IntentContext,
+  Transaction,
+} from '@/features/transaction-manager/types'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 const DELETE_SUBNAME_TX_ID_PREFIX = 'tx-delete-ens-subname'
@@ -250,6 +254,23 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
   const handleClearSelected = (selected: SubnameRow[]) =>
     queueForDeletion(selected)
 
+  // The prepared delete transaction for a queued subname — deterministic given
+  // the registry and label, so the modal can estimate gas the moment it opens.
+  // Matches the call submitted by runDelete → useDeleteSubname (same registry,
+  // label and chainId) so the estimate stays byte-identical. Yields a lazy thunk
+  // (or undefined when there's no subregistry) the modal calls with the ready
+  // wallet context.
+  const getDeleteIntent = (subname: SubnameRow) =>
+    hasSubregistry && subregistryAddress
+      ? ({ walletClient, chainId }: IntentContext) =>
+          prepareDeleteSubnameTransaction({
+            registryAddress: subregistryAddress,
+            label: getLabel(subname.name),
+            walletClient,
+            chainId,
+          })
+      : undefined
+
   // One Transaction entry per queued subname. The modal walks through them
   // top-to-bottom; intermediate onDone fires the next one's onStart so the
   // user gets sequential wallet popups without having to click "Next" between
@@ -263,7 +284,7 @@ const V2SubnamesContent = ({ name }: V2SubnamesContentProps) => {
         id,
         title: 'Delete subname',
         transactionName: `Delete ${subname.name}`,
-        estimatedGasCost: 0.0001,
+        intent: { prepare: getDeleteIntent(subname) },
         onStart: () => {
           void runDelete(subname, id)
         },

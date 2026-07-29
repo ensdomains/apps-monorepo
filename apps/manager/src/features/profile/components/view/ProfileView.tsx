@@ -3,6 +3,7 @@ import { useFeatureFlagEnabled } from '@posthog/react'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
+import { CommemorativeNftProfileSection } from '@/features/migration/components/success/CommemorativeNftProfileSection'
 import { isConnectedProfileOwner } from '@/features/profile/components/view/connectedAccounts.helpers'
 import {
   buildNameAvatarUrl,
@@ -19,7 +20,10 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getDefaultHeaderCover } from '@/features/profile/utils/defaultHeaderCover'
 import { getThemeVars } from '@/features/profile/utils/themeColor'
 import { transformProfileRecords } from '@/features/profile/utils/transformRecords'
-import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
+import {
+  isMigrationNftEnabled,
+  POSTHOG_FEATURE_FLAGS,
+} from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { ProfileActions, ProfileMobileActions } from './ProfileActions'
 import { ProfileBanner } from './ProfileBanner'
@@ -60,11 +64,32 @@ const getProfileUrl = (name: string) =>
       : window.location.origin
   }/p/${name}`
 
+const ProfileCommemorativeNftSection = ({
+  enabled,
+  isOwner,
+  name,
+}: {
+  readonly enabled: boolean
+  readonly isOwner: boolean | undefined
+  readonly name: string
+}) => {
+  if (!enabled || !isOwner) return null
+  return <CommemorativeNftProfileSection isOwner name={name} />
+}
+
 export const ProfileView = ({ name }: ProfileViewProps) => {
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
     false,
   )
+  const migrationNftEnabled = useFeatureFlagEnabled(
+    POSTHOG_FEATURE_FLAGS.MIGRATION_NFT,
+    false,
+  )
+  const commemorativeNftEnabled = isMigrationNftEnabled({
+    migrationEnabled,
+    migrationNftEnabled,
+  })
   const { data: profileRecords, refetch: refetchRecords } = useSuspenseQuery({
     ...profileRecordsQuery(name),
   })
@@ -186,6 +211,11 @@ export const ProfileView = ({ name }: ProfileViewProps) => {
                 avatarUrl={avatarUrl}
                 name={name}
                 records={records}
+              />
+              <ProfileCommemorativeNftSection
+                enabled={commemorativeNftEnabled}
+                isOwner={resolvedIsOwner}
+                name={name}
               />
             </div>
           </div>

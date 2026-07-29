@@ -20,7 +20,7 @@ const useMockWalletAutoConnect = () => {
   }, [status, connect, connectors])
 }
 
-// Only mounted when `isMockWalletEnabled` (see `stacks/RainbowKitStack.tsx`).
+// Only mounted when `isMockWalletEnabled` (see `stacks/CustomWalletStack.tsx`).
 export const MockWalletAutoConnect = () => {
   useMockWalletAutoConnect()
   return null
