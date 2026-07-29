@@ -204,7 +204,7 @@ const RegistryEmptyState = ({
   ownerData: NonNullable<GetEnsOwnerReturnType>
 }) =>
   ownerData.protocolVersion === 'ENSv1' ? (
-    <MigrateRegistryPrompt name={name} owner={ownerData.owner} />
+    <MigrateRegistryPrompt name={name} />
   ) : (
     <ConfigureRegistryForm name={name} />
   )

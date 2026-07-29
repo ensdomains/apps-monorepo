@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import type { Address } from 'viem'
 import { Button } from '@/components/ui/button'
-import { getMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
+import { getNameMigrationStatusQueryOptions } from '@/features/migration/hooks/useMigrationStatus'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MANAGER_APP_BASE_URL } from '@/lib/constants/domain'
 import { cn } from '@/lib/utils'
@@ -14,22 +13,17 @@ const MANAGER_MIGRATE_URL = `${MANAGER_APP_BASE_URL}/migration`
  * name can't deploy its own registry until it migrates to ENSv2, so the tree's
  * unconfigured-registry slot shows a Migrate CTA instead of the deploy form.
  *
- * Migratability is evaluated against the NAME'S OWNER rather than the
- * connected wallet, so the prompt is visible to any visitor (per the Figma,
- * which shows it while disconnected); the migration flow itself gates on the
- * right wallet. Names the classifier deems non-migratable render nothing —
- * the tree simply ends at the name row.
+ * Migratability is name-scoped: evaluated against the name's own V1 token
+ * holder (wrappedOwner/registrant — NOT the registry controller), so the
+ * prompt is visible to any visitor per the Figma, which shows it while
+ * disconnected; the migration flow itself gates on the right wallet. Names
+ * the classifier deems non-migratable render nothing — the tree simply ends
+ * at the name row.
  */
-export const MigrateRegistryPrompt = ({
-  name,
-  owner,
-}: {
-  readonly name: string
-  readonly owner: Address
-}) => {
+export const MigrateRegistryPrompt = ({ name }: { readonly name: string }) => {
   const isMobile = useIsMobile()
   const { data: migration } = useQuery(
-    getMigrationStatusQueryOptions({ name, address: owner }),
+    getNameMigrationStatusQueryOptions({ name }),
   )
 
   if (migration?.migratable !== true) return null
