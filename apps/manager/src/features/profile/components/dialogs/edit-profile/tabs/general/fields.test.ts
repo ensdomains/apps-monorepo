@@ -14,6 +14,7 @@ const createRecords = (base: ProfileRecords['base'] = {}): ProfileRecords => ({
   addresses: [],
   links: [],
   unknown: [],
+  agentRegistrations: [],
 })
 
 describe('general profile fields', () => {

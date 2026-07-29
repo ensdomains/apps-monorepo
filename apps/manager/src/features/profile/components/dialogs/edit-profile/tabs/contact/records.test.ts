@@ -173,6 +173,7 @@ describe('contact record helpers', () => {
           links: [],
           social: [{ key: 'com.twitter', value: '' }],
           unknown: [],
+          agentRegistrations: [],
         }),
       ).toEqual([
         {
@@ -194,6 +195,7 @@ describe('contact record helpers', () => {
           links: [],
           social: [{ key: 'com.twitter', value: 'ens' }],
           unknown: [],
+          agentRegistrations: [],
         }),
       ).toEqual([])
     })
@@ -209,6 +211,7 @@ describe('contact record helpers', () => {
           links: [],
           social: [],
           unknown: [],
+          agentRegistrations: [],
         }),
       ).toEqual([{ key: 'email', message: 'Enter a valid email address' }])
     })

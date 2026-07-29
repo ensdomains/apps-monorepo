@@ -206,6 +206,14 @@ msgstr ""
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
+#: src/features/profile/components/view/AgentRecordCard.tsx
+msgid "Agent ID"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileAgentSection.tsx
+msgid "Agents"
+msgstr ""
+
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
 msgstr ""
@@ -631,6 +639,10 @@ msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copied!"
+msgstr ""
+
+#: src/features/profile/components/view/AgentRecordCard.tsx
+msgid "Copy"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -1854,6 +1866,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
 msgid "Registration successful! You'll receive a confirmation shortly."
+msgstr ""
+
+#: src/features/profile/components/view/AgentRecordCard.tsx
+msgid "Registry"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx

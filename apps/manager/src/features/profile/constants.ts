@@ -1,6 +1,46 @@
 export const AVATAR_UPLOAD_BASE_URL =
   'https://avatar-upload-staging.ens-cf.workers.dev'
 
+/**
+ * Hardcoded reverse map from a known agent-registry contract (chain + address)
+ * to its human-readable primary name.
+ *
+ * ERC-7828 cross-chain name resolution is out of scope (WEB-569 req 7), so the
+ * known `8004.eth` registry is hardcoded as an acceptable short-term solution.
+ */
+export interface KnownAgentRegistry {
+  name: string
+  chainId: number
+  address: string
+}
+
+export const KNOWN_AGENT_REGISTRIES: readonly KnownAgentRegistry[] = [
+  {
+    name: '8004.eth',
+    chainId: 1,
+    address: '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432',
+  },
+]
+
+/**
+ * Looks up a known registry name by chain ID and address.
+ *
+ * @param chainId - The EVM chain ID
+ * @param address - The registry contract address
+ * @returns The registry name (e.g. "8004.eth") or null if unknown
+ */
+export function getKnownRegistryName(
+  chainId: number,
+  address: string,
+): string | null {
+  const normalizedAddress = address.toLowerCase()
+  const registry = KNOWN_AGENT_REGISTRIES.find(
+    (r) =>
+      r.chainId === chainId && r.address.toLowerCase() === normalizedAddress,
+  )
+  return registry?.name ?? null
+}
+
 export const PROFILE_THEMES = [
   {
     aliases: ['#000000', '#191919'],
