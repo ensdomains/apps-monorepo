@@ -74,8 +74,10 @@ export const ResolverSetupConfirmDialog = ({
           <Button
             className="flex-2/3 uppercase"
             onClick={() => {
-              onOpenChange(false)
+              // Confirm before close — edit-profile clears the deferred save
+              // when the dialog closes, so reversing this no-ops Replace & Save.
               onConfirm()
+              onOpenChange(false)
             }}
             size="lg"
             variant="destructive"
