@@ -103,6 +103,9 @@ export const SendNameForm = ({
 
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
+  // Fail-closed on reverse discovery: a flaky L1 reverse lookup blocks *all*
+  // transfers, not only primary ones. Prefer that over transferring while
+  // possibly leaving a stale reverse record (the bug this flow exists to fix).
   const canStart =
     hasValidRecipient &&
     !isResolving &&
