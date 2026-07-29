@@ -6,7 +6,9 @@ import {
 } from '#services/commemorative-nft/assets.js'
 import {
   type CommemorativeNftGenerationBindings,
+  createKvGenerationAdmission,
   createWorkflowGenerationCoordinator,
+  GENERATION_ADMISSION_WINDOW_SECONDS,
   type GenerationCoordinator,
   type GenerationPreparationStatus,
 } from '#services/commemorative-nft/generation.js'
@@ -87,6 +89,16 @@ const preparationResponse = (
       'Retry-After': RETRY_AFTER_SECONDS.toString(),
     })
   }
+  if (status === 'rate-limited') {
+    return jsonResponse(
+      request,
+      { error: 'Asset preparation is rate limited' },
+      429,
+      {
+        'Retry-After': GENERATION_ADMISSION_WINDOW_SECONDS.toString(),
+      },
+    )
+  }
 
   return unavailableResponse(request, 'Asset generation is not configured')
 }
@@ -126,7 +138,10 @@ export const createCommemorativeNftApp = (
   const createGenerationCoordinator =
     dependencies.createGenerationCoordinator ??
     ((env: CommemorativeNftWorkerBindings) =>
-      createWorkflowGenerationCoordinator(env.COMMEMORATIVE_NFT_GENERATION))
+      createWorkflowGenerationCoordinator(
+        env.COMMEMORATIVE_NFT_GENERATION,
+        createKvGenerationAdmission(env.KV),
+      ))
   const createTokenOwnershipReader =
     dependencies.createTokenOwnershipReader ?? createSepoliaTokenOwnershipReader
 

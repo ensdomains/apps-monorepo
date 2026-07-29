@@ -45,7 +45,11 @@ confirmed Sepolia mint
 `GET|HEAD /v1/commemorative-nft/<tokenId>.(json|png|mp4)` serves complete
 immutable objects. A known minted miss starts or resumes the same Workflow and
 returns `503` with `Retry-After: 15`. Unknown or unminted assets return `404`;
-the explicit prepare route returns `409` for a known unminted token.
+the explicit prepare route returns `409` for a known unminted token. Starting,
+resuming, or restarting generation consumes a token-scoped, one-hour KV
+admission window; active workflows remain observable without consuming another
+admission. Explicit preparation requests rejected by that boundary return
+`429`.
 
 Eligibility remains a direct R2 read and claimed status remains a direct
 contract read. There are intentionally no eligibility, Merkle-proof, or mint

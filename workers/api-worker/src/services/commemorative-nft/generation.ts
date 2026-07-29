@@ -1,9 +1,16 @@
+import { KV_KEY } from '#core/kv/index.js'
+
 export interface CommemorativeNftGenerationParams {
   readonly chainId: number
   readonly tokenId: string
 }
 
-export type GenerationPreparationStatus = 'preparing' | 'unavailable'
+export const GENERATION_ADMISSION_WINDOW_SECONDS = 60 * 60
+
+export type GenerationPreparationStatus =
+  | 'preparing'
+  | 'rate-limited'
+  | 'unavailable'
 
 export interface GenerationCoordinator {
   prepare(tokenId: string): Promise<GenerationPreparationStatus>
@@ -25,30 +32,53 @@ const ACTIVE_WORKFLOW_STATUSES = new Set<ActiveWorkflowStatus>([
 const getWorkflowInstanceId = (tokenId: string): string =>
   `nft-11155111-${tokenId}-v1`
 
+export const createKvGenerationAdmission = (
+  kv: KVNamespace,
+): ((tokenId: string) => Promise<boolean>) => {
+  return async (tokenId) => {
+    const key = KV_KEY.COMMEMORATIVE_NFT.GENERATION_ADMISSION(tokenId)
+    if (await kv.get(key)) return false
+
+    // KV admission is intentionally token-scoped: deterministic Workflow IDs
+    // prevent parallel creation, while this cooldown prevents public requests
+    // from repeatedly restarting the same terminal Workflow.
+    await kv.put(key, Date.now().toString(), {
+      expirationTtl: GENERATION_ADMISSION_WINDOW_SECONDS,
+    })
+    return true
+  }
+}
+
 const activateWorkflowInstance = async (
   instance: WorkflowInstance,
   status: InstanceStatus['status'],
-): Promise<boolean> => {
-  if (ACTIVE_WORKFLOW_STATUSES.has(status as ActiveWorkflowStatus)) return true
+  admit: () => Promise<boolean>,
+): Promise<GenerationPreparationStatus> => {
+  if (ACTIVE_WORKFLOW_STATUSES.has(status as ActiveWorkflowStatus)) {
+    return 'preparing'
+  }
 
   if (status === 'paused') {
+    if (!(await admit())) return 'rate-limited'
     await instance.resume()
-    return true
+    return 'preparing'
   }
   if (
     status === 'errored' ||
     status === 'terminated' ||
     status === 'complete'
   ) {
+    if (!(await admit())) return 'rate-limited'
     await instance.restart()
-    return true
+    return 'preparing'
   }
 
-  return false
+  return 'unavailable'
 }
 
 export const createWorkflowGenerationCoordinator = (
   workflow: Workflow<CommemorativeNftGenerationParams> | undefined,
+  admit: (tokenId: string) => Promise<boolean>,
 ): GenerationCoordinator => ({
   prepare: async (tokenId) => {
     if (!workflow) return 'unavailable'
@@ -58,14 +88,18 @@ export const createWorkflowGenerationCoordinator = (
       try {
         const instance = await workflow.get(instanceId)
         const instanceStatus = await instance.status()
-        if (await activateWorkflowInstance(instance, instanceStatus.status)) {
-          return 'preparing'
-        }
+        return await activateWorkflowInstance(
+          instance,
+          instanceStatus.status,
+          () => admit(tokenId),
+        )
       } catch {
         // Cloudflare throws when get() targets an ID that does not exist.
         // Creation below is also safe when this was a transient lookup error:
         // an existing caller-supplied ID makes create() fail closed.
       }
+
+      if (!(await admit(tokenId))) return 'rate-limited'
 
       try {
         await workflow.create({
@@ -78,11 +112,11 @@ export const createWorkflowGenerationCoordinator = (
         // generation service unavailable.
         const racedInstance = await workflow.get(instanceId)
         const racedStatus = await racedInstance.status()
-        if (
-          !(await activateWorkflowInstance(racedInstance, racedStatus.status))
-        ) {
-          return 'unavailable'
-        }
+        return await activateWorkflowInstance(
+          racedInstance,
+          racedStatus.status,
+          async () => true,
+        )
       }
       return 'preparing'
     } catch {

@@ -405,6 +405,7 @@ describe('commemorative NFT prepare route', () => {
 
   it.each([
     ['preparing', 202],
+    ['rate-limited', 429],
     ['unavailable', 503],
   ] as const)('maps coordinator %s to HTTP %s', async (preparationStatus, expectedStatus) => {
     const { app, prepare } = makeDependencies('minted', preparationStatus)
