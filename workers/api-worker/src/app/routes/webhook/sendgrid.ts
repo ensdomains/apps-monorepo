@@ -35,25 +35,19 @@ class SignatureVerificationError extends TaggedError(
   'SIGNATURE_VERIFICATION_ERROR',
 ) {}
 
-/**
- * verify SendGrid webhook signature using ECDSA.
- * https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
- */
-const verifySignature = ResultFn(async function* (
-  publicKey: string,
-  payload: string,
-  signature: string,
-  timestamp: string,
-) {
-  // SendGrid signs: timestamp + payload
-  const signedPayload = timestamp + payload
+class VerificationKeyConfigurationError extends TaggedError(
+  'VERIFICATION_KEY_CONFIGURATION_ERROR',
+) {}
 
-  // import the public key (base64 encoded ECDSA P-256 key)
+const importVerificationKey = ResultFn(async function* (publicKey: string) {
   const keyData = yield* fromSync(
     () => Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
     () =>
-      new SignatureVerificationError({ message: 'Invalid base64 public key' }),
+      new VerificationKeyConfigurationError({
+        message: 'Invalid base64 encoding',
+      }),
   )
+
   const cryptoKey = yield* fromPromise(
     crypto.subtle.importKey(
       'spki',
@@ -62,8 +56,27 @@ const verifySignature = ResultFn(async function* (
       false,
       ['verify'],
     ),
-    () => new SignatureVerificationError({ message: 'Failed to import key' }),
+    () =>
+      new VerificationKeyConfigurationError({
+        message: 'Invalid SPKI verification key',
+      }),
   )
+
+  return ok(cryptoKey)
+})
+
+/**
+ * verify SendGrid webhook signature using ECDSA.
+ * https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
+ */
+const verifySignature = ResultFn(async function* (
+  verificationKey: CryptoKey,
+  payload: string,
+  signature: string,
+  timestamp: string,
+) {
+  // SendGrid signs: timestamp + payload
+  const signedPayload = timestamp + payload
 
   // decode signature (base64)
   const signatureData = yield* fromSync(
@@ -77,7 +90,7 @@ const verifySignature = ResultFn(async function* (
   const isValid = yield* fromPromise(
     crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
-      cryptoKey,
+      verificationKey,
       signatureData,
       encoder.encode(signedPayload),
     ),
@@ -90,8 +103,21 @@ const verifySignature = ResultFn(async function* (
 export default createApp()
   .basePath('/sendgrid')
   .post('/events', async (c) => {
-    if (!c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY) {
+    const configuredVerificationKey =
+      c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY?.trim()
+
+    if (!configuredVerificationKey) {
       logger.error('SendGrid webhook verification key is not configured')
+      return c.json({ error: 'Internal server error' }, 500)
+    }
+
+    const verificationKeyResult = await importVerificationKey(
+      configuredVerificationKey,
+    )
+    if (verificationKeyResult.isErr()) {
+      logger.error('SendGrid webhook verification key is invalid', {
+        reason: verificationKeyResult.error.message,
+      })
       return c.json({ error: 'Internal server error' }, 500)
     }
 
@@ -104,7 +130,7 @@ export default createApp()
 
     const rawBody = await c.req.text()
     const verifyResult = await verifySignature(
-      c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY,
+      verificationKeyResult.value,
       rawBody,
       signature,
       timestamp,
@@ -112,7 +138,7 @@ export default createApp()
 
     if (verifyResult.isErr()) {
       logger.error('SendGrid signature verification failed', {
-        error: verifyResult.error,
+        reason: verifyResult.error.message,
       })
       return c.json({ error: 'Invalid signature' }, 401)
     }

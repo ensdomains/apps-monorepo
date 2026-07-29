@@ -87,6 +87,8 @@ describe('POST /sendgrid/events', () => {
   it.each([
     undefined,
     '',
+    '   ',
+    '\t\n',
   ])('fails closed without a verification key (%s)', async (verificationKey) => {
     const env = {
       SENDGRID_WEBHOOK_VERIFICATION_KEY: verificationKey,
@@ -100,9 +102,26 @@ describe('POST /sendgrid/events', () => {
     expect(mocks.findFirst).not.toHaveBeenCalled()
   })
 
-  it('rejects missing signature headers without database work', async () => {
+  it('rejects a malformed configured key as a server error without database work', async () => {
     const env = {
-      SENDGRID_WEBHOOK_VERIFICATION_KEY: 'configured-key',
+      SENDGRID_WEBHOOK_VERIFICATION_KEY: btoa('not an SPKI key'),
+    } as CloudflareBindings
+
+    const response = await requestWebhook(env, payload, {
+      'X-Twilio-Email-Event-Webhook-Signature': btoa('signature'),
+      'X-Twilio-Email-Event-Webhook-Timestamp': '1750000000',
+    })
+
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'Internal server error' })
+    expect(mocks.getDatabase).not.toHaveBeenCalled()
+    expect(mocks.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('rejects missing signature headers without database work', async () => {
+    const signed = await createSignature(payload, '1750000000')
+    const env = {
+      SENDGRID_WEBHOOK_VERIFICATION_KEY: signed.publicKey,
     } as CloudflareBindings
 
     const response = await requestWebhook(env, payload)
@@ -115,7 +134,7 @@ describe('POST /sendgrid/events', () => {
     expect(mocks.findFirst).not.toHaveBeenCalled()
   })
 
-  it('rejects an invalid signature without database work', async () => {
+  it('rejects a mismatched signed payload without database work', async () => {
     const timestamp = '1750000000'
     const signed = await createSignature(payload, timestamp)
     const env = {
@@ -137,7 +156,7 @@ describe('POST /sendgrid/events', () => {
     const timestamp = '1750000000'
     const signed = await createSignature(payload, timestamp)
     const env = {
-      SENDGRID_WEBHOOK_VERIFICATION_KEY: signed.publicKey,
+      SENDGRID_WEBHOOK_VERIFICATION_KEY: ` \t${signed.publicKey}\n `,
     } as CloudflareBindings
 
     const response = await requestWebhook(env, payload, {
