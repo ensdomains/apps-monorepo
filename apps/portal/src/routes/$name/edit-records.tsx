@@ -89,18 +89,22 @@ function EditRecordsPage() {
   if (ownerQuery.error) {
     return (
       <ErrorMessage
-        title="Owner unavailable"
-        description={ownerQuery.error.cause.message}
+        compact
+        description="Error fetching the owner. Please refresh the page."
       />
     )
   }
 
   if (!profileQuery.data) {
     return (
-      <NoResultsMessage
-        title="No records yet"
-        description="This name doesn't have any records set. Records will appear here once they're configured."
-      />
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h1">Edit records</h1>
+        <NoResultsMessage
+          title="No records yet"
+          description="This name doesn't have any records set. Records will appear here once they're configured."
+          className="mx-0"
+        />
+      </div>
     )
   }
 

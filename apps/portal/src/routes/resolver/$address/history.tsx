@@ -46,7 +46,7 @@ function RouteComponent() {
       <h1 className="text-h2 md:text-h1">
         {events.length > 0
           ? `${events.length} Event${events.length !== 1 ? 's' : ''}`
-          : 'Events'}
+          : 'History'}
       </h1>
 
       {events.length > 0 ? (

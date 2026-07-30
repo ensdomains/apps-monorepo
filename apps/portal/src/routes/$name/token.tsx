@@ -257,7 +257,13 @@ function RouteComponent() {
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  if (error) return <div>Error loading owner: {error.cause?.message}</div>
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching the owner. Please refresh the page."
+      />
+    )
 
   if (isLoading) return <LoadingSpinner title="Loading owner data" />
 
@@ -289,7 +295,10 @@ function RouteComponent() {
         <TokenV2Name name={name} registryAddress={data.registryAddress} />
       ) : null}
 
-      <InfoCard title="Normalization">
+      <InfoCard
+        title="Normalization"
+        className="[&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0"
+      >
         <InfoRow label="Input">
           <div className="flex flex-row gap-1 flex-wrap items-center">
             {parts.map((label, idx) => (
@@ -360,14 +369,14 @@ function RouteComponent() {
       </InfoCard>
 
       {labels[0] ? (
-        <div className="rounded-sm bg-background overflow-hidden">
-          <div className="px-6 py-3">
+        <div className="rounded-sm bg-background overflow-hidden [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0">
+          <div className="py-3">
             <span className="text-caps leading-none text-foreground">
               Labels
             </span>
           </div>
           <Tabs defaultValue={labels[0]} className="gap-0">
-            <div className="px-6 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <TabsList>
                 {labels.map((label, idx) => (
                   <div key={label} className="contents">

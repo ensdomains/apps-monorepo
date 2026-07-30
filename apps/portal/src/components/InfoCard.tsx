@@ -11,7 +11,7 @@ export const InfoCard = ({
   className?: string
 }) => (
   <div className={cn('rounded-sm bg-background overflow-hidden', className)}>
-    <div className="px-6 py-3">
+    <div data-slot="info-card-title" className="px-6 py-3">
       <span className="text-caps leading-none text-foreground">{title}</span>
     </div>
     <div>{children}</div>
@@ -25,7 +25,10 @@ export const InfoRow = ({
   label: string
   children: ReactNode
 }) => (
-  <div className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-10">
+  <div
+    data-slot="info-row"
+    className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-10"
+  >
     <span className="w-28 shrink-0 text-sm font-medium text-muted-foreground">
       {label}
     </span>

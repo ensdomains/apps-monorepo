@@ -47,7 +47,8 @@ const V2NameRoles = ({
       />
     )
 
-  if (!nameRolesQuery.data) return <NoResultsMessage title="No role accounts" />
+  if (!nameRolesQuery.data)
+    return <NoResultsMessage title="No role accounts" className="mx-0" />
 
   return (
     <RolesTable

@@ -41,8 +41,8 @@ function RouteComponent() {
   if (v1Query.error) {
     return (
       <ErrorMessage
-        title="Error loading V1 history"
-        description={v1Query.error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   }
@@ -50,8 +50,8 @@ function RouteComponent() {
   if (v2Query.error) {
     return (
       <ErrorMessage
-        title="Error loading V2 history"
-        description={v2Query.error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   }
@@ -65,10 +65,14 @@ function RouteComponent() {
 
   if (!hasV1Data && !hasV2Data) {
     return (
-      <NoResultsMessage
-        title="No history yet"
-        description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
-      />
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h1">History</h1>
+        <NoResultsMessage
+          title="No history yet"
+          description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
+          className="mx-0"
+        />
+      </div>
     )
   }
 

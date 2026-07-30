@@ -129,7 +129,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
       <NoResultsMessage
         title="No names yet"
         description="Names owned by this address will appear here."
-        className="mx-0"
+        className="mx-0 my-0"
       />
     )
 

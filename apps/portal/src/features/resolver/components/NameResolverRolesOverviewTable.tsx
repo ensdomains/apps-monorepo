@@ -34,6 +34,7 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
   if (!resolverAddress)
     return (
       <NoResultsMessage
+        className="mx-0"
         title="No resolver set"
         description={`${name} doesn't have a resolver, so there are no resolver roles to show.`}
       />

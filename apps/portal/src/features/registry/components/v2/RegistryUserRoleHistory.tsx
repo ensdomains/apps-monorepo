@@ -93,14 +93,15 @@ export const RegistryUserRoleHistory = ({
       )}
       {error && (
         <ErrorMessage
-          title="Failed to load history"
-          description={error.cause?.message ?? error.message}
+          compact
+          description="Error fetching role history. Please refresh the page."
         />
       )}
       {!isLoading && !error && rows.length === 0 && (
         <NoResultsMessage
           title="No role changes yet"
           description="This user has no recorded role grants or revokes on this registry."
+          className="mx-0 my-0"
         />
       )}
       {!isLoading && !error && rows.length > 0 && (
