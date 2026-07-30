@@ -115,7 +115,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
     ],
   })
 
-  if (v1NamesQuery.error) {
+  if (v1NamesQuery.error || v2NamesQuery.error) {
     return (
       <ErrorMessage
         compact
