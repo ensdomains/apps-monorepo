@@ -8,6 +8,7 @@ import { CardsStackIcon, HubIcon } from '@/assets/icons'
 import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -155,13 +156,14 @@ const HistorySection = ({ tld }: { tld: string }) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-h2">History</h2>
-        <Button variant="ghost" size="sm" disabled>
-          <ClockIcon className="size-4" />
-          Full history
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" disabled>
+            <ClockIcon className="size-4" />
+            Full history
+          </Button>
+        }
+      />
       <NameSubgraphHistory
         name={tld}
         v2Events={transformV2EventsToSubgraphFormat(v2HistoryQuery.data || [])}
