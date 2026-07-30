@@ -115,21 +115,16 @@ export const NameList = ({ address, limit }: NameListProps) => {
     ],
   })
 
-  if (v1NamesQuery.error || v2NamesQuery.error) {
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching names. Please refresh the page."
-      />
-    )
-  }
   if (v1NamesQuery.isLoading) return <LoadingSpinner title="Loading V1 names" />
   if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
+
+  const v1Failed = Boolean(v1NamesQuery.error)
+  const v2Failed = Boolean(v2NamesQuery.error)
 
   const allData = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
   const data = limit ? allData.slice(0, limit) : allData
 
-  if (data.length === 0)
+  if (data.length === 0 && !v1Failed && !v2Failed)
     return (
       <NoResultsMessage
         title="No names yet"
@@ -140,6 +135,20 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
   return (
     <div>
+      {v1Failed && (
+        <ErrorMessage
+          compact
+          description="Error fetching ENSv1 names. Please refresh the page."
+          className="mb-4"
+        />
+      )}
+      {v2Failed && (
+        <ErrorMessage
+          compact
+          description="Error fetching ENSv2 names. Please refresh the page."
+          className="mb-4"
+        />
+      )}
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {data.map((name) => (
@@ -158,18 +167,22 @@ export const NameList = ({ address, limit }: NameListProps) => {
       </div>
 
       {/* Desktop view - Table layout */}
-      <div className="hidden md:block">
-        <DataTable data={data} columns={columns} />
-      </div>
+      {data.length > 0 && (
+        <div className="hidden md:block">
+          <DataTable data={data} columns={columns} />
+        </div>
+      )}
 
-      <Link
-        to="/addr/$addr/names"
-        params={{ addr: address }}
-        className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <GripHorizontal className="size-4" />
-        Go to full list ({allData.length})
-      </Link>
+      {allData.length > 0 && (
+        <Link
+          to="/addr/$addr/names"
+          params={{ addr: address }}
+          className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <GripHorizontal className="size-4" />
+          Go to full list ({allData.length})
+        </Link>
+      )}
     </div>
   )
 }
