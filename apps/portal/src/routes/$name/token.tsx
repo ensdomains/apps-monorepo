@@ -393,7 +393,7 @@ function RouteComponent() {
               const labelBytes = new TextEncoder().encode(label).length
               const labelChars = [...label].length
               return (
-                <TabsContent className="m-0" value={label} key={label}>
+                <TabsContent className="m-0 px-0" value={label} key={label}>
                   <InfoRow label="Input">
                     <div>
                       <CopyableRecord value={escapeUnicode(label)} />
