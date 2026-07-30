@@ -4,7 +4,6 @@ import { ClockIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { CardsStackIcon, HubIcon, SupervisorAccountIcon } from '@/assets/icons'
-import { CopyButton } from '@/components/CopyButton'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
@@ -181,10 +180,7 @@ function TldOverview() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-row justify-between items-center">
-        <h1 className="text-h1">{tld}</h1>
-        <CopyButton value={tld} />
-      </div>
+      <h1 className="text-h1">{tld}</h1>
 
       {/* Main section: metadata rows | counters */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
