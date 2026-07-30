@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Info } from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddressEqual, zeroAddress } from 'viem'
@@ -30,10 +30,7 @@ type OptionConfig = {
   readonly label: string
   readonly description: string
   /** Shown right below the toggle when it's turned off. */
-  readonly warning: {
-    readonly tone: 'warning' | 'info'
-    readonly message: string
-  }
+  readonly warning: string
 }
 
 const OPTIONS: readonly OptionConfig[] = [
@@ -42,33 +39,24 @@ const OPTIONS: readonly OptionConfig[] = [
     label: 'Set the ETH address to the recipient',
     description:
       'Points this name’s ETH address record at the recipient, so it can no longer resolve to you.',
-    warning: {
-      tone: 'warning',
-      message:
-        'This name’s ETH address will keep pointing to you after the transfer, so you could re-set it as your primary name. Turn this on to point it at the recipient instead.',
-    },
+    warning:
+      'This name’s ETH address will keep pointing to you after the transfer, so you could re-set it as your primary name. Turn this on to point it at the recipient instead.',
   },
   {
     key: 'resetResolver',
     label: 'Reset the resolver',
     description:
       'Removes this name’s resolver so it stops resolving to your records entirely. The recipient starts clean and sets up their own.',
-    warning: {
-      tone: 'warning',
-      message:
-        'This name’s other records will keep resolving after the transfer. Until the recipient updates them, it could still be listed as the primary name for an address that no longer controls it.',
-    },
+    warning:
+      'This name’s other records will keep resolving after the transfer. Until the recipient updates them, it could still be listed as the primary name for an address that no longer controls it.',
   },
   {
     key: 'resetRegistry',
     label: 'Reset the registry',
     description:
       'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean and deploys their own.',
-    warning: {
-      tone: 'info',
-      message:
-        'You’ll keep control of this name’s subnames after the transfer. The recipient will need to deploy their own registry before they can manage them.',
-    },
+    warning:
+      'You’ll keep control of this name’s subnames after the transfer. The recipient will need to deploy their own registry before they can manage them.',
   },
 ]
 
@@ -80,8 +68,8 @@ export const SendNameForm = ({
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<Record<OptionKey, boolean>>({
     setEthAddress: true,
-    resetResolver: false,
-    resetRegistry: false,
+    resetResolver: true,
+    resetRegistry: true,
   })
 
   const {
@@ -194,35 +182,39 @@ const TransferResetOptions = ({
   return (
     <div className="flex flex-col gap-4">
       {visibleOptions.map((option) => {
-        const isWarning = option.warning.tone === 'warning'
-        const WarningIcon = isWarning ? AlertTriangle : Info
+        const disabled = option.key === 'setEthAddress' && options.resetResolver
 
         return (
           <div key={option.key} className="flex flex-col gap-2">
             <label
               htmlFor={`transfer-option-${option.key}`}
-              className="flex items-start justify-between gap-3 cursor-pointer"
+              className={`flex items-start justify-between gap-3 ${
+                disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              }`}
             >
               <span className="flex flex-col">
                 <span className="text-foreground font-medium">
                   {option.label}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                  {option.description}
+                  {disabled
+                    ? 'Not needed while the resolver is being reset.'
+                    : option.description}
                 </span>
               </span>
               <Switch
                 id={`transfer-option-${option.key}`}
                 checked={options[option.key]}
                 onCheckedChange={() => onToggle(option.key)}
+                disabled={disabled}
                 className="mt-1 shrink-0"
               />
             </label>
 
-            {!options[option.key] && (
-              <Alert variant={isWarning ? 'warning' : 'default'}>
-                <WarningIcon className="size-4" />
-                <AlertDescription>{option.warning.message}</AlertDescription>
+            {!disabled && !options[option.key] && (
+              <Alert variant="warning">
+                <AlertTriangle className="size-4" />
+                <AlertDescription>{option.warning}</AlertDescription>
               </Alert>
             )}
           </div>
