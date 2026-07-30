@@ -153,8 +153,8 @@ const ConfirmButtonLabel = ({
     settingEthAddress,
     isSubmitting,
   })
-    .with({ settingUpResolver: true }, () => <>{t`Setting up resolver...`}</>)
-    .with({ settingEthAddress: true }, () => <>{t`Setting ETH address...`}</>)
+    .with({ settingUpResolver: true }, () => <>{t`Updating profile...`}</>)
+    .with({ settingEthAddress: true }, () => <>{t`Updating address...`}</>)
     .with({ isSubmitting: true }, () => <>{t`Setting...`}</>)
     .otherwise(() => <>{t`Set as Primary`}</>)
 }
@@ -202,15 +202,11 @@ const useUpdateEthAddressMutation = ({
 
       if (snapshot.isErr()) {
         const name = selectedName
-        throw new Error(t`Could not read ETH address record for ${name}`)
+        throw new Error(t`Couldn’t read the wallet address for ${name}`)
       }
 
       const { resolverAddress, ethAddress } = snapshot.value
 
-      // A freshly transferred name still points at the *previous* owner's
-      // resolver, or at none if the resolver was reset during transfer. Either
-      // way the new owner can't write records, so surface both shapes as a
-      // ResolverNotControlledError the dialog turns into actionable guidance.
       if (!resolverAddress) {
         throw new ResolverNotControlledError()
       }
@@ -241,11 +237,8 @@ const useUpdateEthAddressMutation = ({
 }
 
 /**
- * Handles the received-via-transfer case: the connected wallet controls no
- * resolver it can write to. Deploys/assigns a resolver the owner controls, then
- * writes the ETH-address record to it so the name resolves back to the wallet.
- * The dialog runs this in place of `useUpdateEthAddressMutation`, before the
- * reverse record is set. All bundled into one sponsored atomic intent.
+ * Set up a resolver this wallet can write to, then seed the ETH address.
+ * One sponsored intent; runs before set-primary when write access is missing.
  */
 const useSetupResolverMutation = ({
   account,
@@ -263,19 +256,12 @@ const useSetupResolverMutation = ({
       const { signer } = account
       if (!selectedName || !account.ownerAddress) return
 
-      // Fail closed: a silent no-op here would let set-primary continue without
-      // a writable resolver (e.g. USE_EOA / missing Rhinestone signer).
       if (signer?.type !== 'rhinestone') {
-        throw new Error(
-          t`A smart account is required to set up a resolver for this name`,
-        )
+        throw new Error(t`Please finish connecting your wallet, then try again`)
       }
 
       const walletAddress = account.ownerAddress as Address
 
-      // Deploy the owned resolver, point the name at it, and write the initial
-      // ETH-address record. A freshly deployed resolver starts empty, so this
-      // is a plain insert (no prior value to diff against).
       await setupControlledResolver({
         name: selectedName,
         signer,
@@ -417,27 +403,21 @@ export const ChoosePrimaryNameDialog = ({
     selectedName,
   })
 
-  // Pre-flight: dry-run the ETH-address write so we can warn and disable the
-  // button *before* the user signs, rather than letting the transaction fail.
-  // Only relevant when a write is actually needed.
+  // Probe whether this wallet can write to the selected name's resolver.
   const resolverWriteAccess = useQuery({
     ...resolverWriteAccessQuery(
       selectedName ?? undefined,
       (account.ownerAddress as Address | null) ?? undefined,
     ),
-    // `needsEthAddressUpdate` already implies a selected name; the query fn
-    // no-ops on a missing owner, so this is the only gate we need.
-    enabled: open && needsEthAddressUpdate,
+    enabled: open && Boolean(selectedName) && Boolean(account.ownerAddress),
   })
 
-  // Pre-flight resolves `false` only when the write would revert (no resolver,
-  // or one owned by a previous owner) — the received-via-transfer case. We no
-  // longer block on it; instead the confirm flow sets up a resolver first.
-  // While it loads (undefined) we hold the button rather than guess the path.
-  const resolverBlocked =
-    needsEthAddressUpdate && resolverWriteAccess.data === false
+  // No write access → confirm, then set up a controlled resolver before primary.
+  const resolverBlocked = resolverWriteAccess.data === false
   const resolverAccessPending =
-    needsEthAddressUpdate && resolverWriteAccess.isLoading
+    Boolean(selectedName) &&
+    Boolean(account.ownerAddress) &&
+    resolverWriteAccess.isLoading
 
   // Set selected name to current primary on mount
   useEffect(() => {
@@ -458,14 +438,14 @@ export const ChoosePrimaryNameDialog = ({
     if (!selectedName || !account.ownerAddress) return
 
     if (!account.signer || !account.accountAddress) {
-      toast.error(t`Wallet signer not available`)
+      toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
 
     try {
       if (resolverBlocked) {
         await setupResolverMutation.mutateAsync()
-      } else {
+      } else if (needsEthAddressUpdate) {
         await updateEthAddressMutation.mutateAsync()
       }
     } catch {
@@ -486,7 +466,7 @@ export const ChoosePrimaryNameDialog = ({
     if (!selectedName || !account.ownerAddress) return
 
     if (!account.signer || !account.accountAddress) {
-      toast.error(t`Wallet signer not available`)
+      toast.error(t`Wallet isn’t ready yet. Try again in a moment.`)
       return
     }
 
@@ -570,8 +550,8 @@ export const ChoosePrimaryNameDialog = ({
                 <AlertDescription>
                   <p>
                     {existingEthAddress
-                      ? t`The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name.`
-                      : t`No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name.`}
+                      ? t`This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary.`
+                      : t`This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary.`}
                   </p>
                   <div className="mt-2 w-full rounded-md bg-amber-100/60 px-2.5 py-1.5">
                     <p className="break-all font-mono text-amber-900 text-xs">

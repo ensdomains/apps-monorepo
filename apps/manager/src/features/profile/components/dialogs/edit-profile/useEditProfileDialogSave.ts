@@ -101,7 +101,7 @@ const getSaveBlockedDescription = ({
     )
     .with(
       { hasSetupSigner: false },
-      () => t`A smart account is required to set up a resolver for this name`,
+      () => t`Please finish connecting your wallet, then try again`,
     )
     .otherwise(
       () => t`Something went wrong preparing the save. Please try again.`,
@@ -214,7 +214,7 @@ export const useEditProfileDialogSave = ({
   const ownerAddress = account.ownerAddress as Address | null
   const hasResolver = Boolean(savedRecords.resolverAddress)
 
-  // Prefetch like ChoosePrimaryNameDialog: decide setup vs in-place before save.
+  // Probe write access whenever a resolver is present.
   const resolverWriteAccess = useQuery({
     ...resolverWriteAccessQuery(name, ownerAddress ?? undefined),
     enabled: open && hasResolver && Boolean(ownerAddress),
@@ -255,7 +255,7 @@ export const useEditProfileDialogSave = ({
         ownerAddress: pendingSave.ownerAddress,
         publicClient: pendingSave.publicClient,
         chainId: pendingSave.chainId,
-        before: { texts: [], coins: [] },
+        before: pendingSave.before,
         after: pendingSave.after,
         description: `Update profile records for ${pendingSave.name}`,
       })
@@ -363,12 +363,12 @@ export const useEditProfileDialogSave = ({
         .with(
           { isResolverAccessPending: true },
           () =>
-            t`Checking whether you can write to this name’s resolver. Try again in a moment.`,
+            t`Still checking if you can edit this name. Try again in a moment.`,
         )
         .with(
           { needsResolverSetup: true, is2LD: false },
           () =>
-            t`This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.`,
+            t`This subname can’t be set up here yet. Please set it up in the ENS app first.`,
         )
         .otherwise(() => null)
 
@@ -532,12 +532,12 @@ export const useEditProfileDialogSave = ({
           .with(
             { isResolverAccessPending: true },
             () =>
-              t`Checking whether you can write to this name’s resolver. Try again in a moment.`,
+              t`Still checking if you can edit this name. Try again in a moment.`,
           )
           .with(
             { is2LD: false },
             () =>
-              t`This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.`,
+              t`This subname can’t be set up here yet. Please set it up in the ENS app first.`,
           )
           .otherwise(() => null)
 

@@ -25,22 +25,22 @@ const getCopy = (
 ): { title: ReactNode; description: ReactNode; confirmLabel: ReactNode } =>
   match(intent)
     .with('primary-name', () => ({
-      title: <Trans>Replace this name’s profile setup?</Trans>,
+      title: <Trans>Set this as your primary name?</Trans>,
       description: (
         <Trans>
-          This name still has profile settings from a previous owner. Continuing
-          will replace them. Only your wallet address will be kept — other
-          profile details will be cleared.
+          This name still has profile details from a previous owner. To use it
+          as your primary name, we’ll clear those details and keep only your
+          wallet address.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Continue</Trans>,
     }))
     .with('edit-profile', () => ({
-      title: <Trans>Replace this name’s profile setup?</Trans>,
+      title: <Trans>Start a new profile for this name?</Trans>,
       description: (
         <Trans>
-          This name still has profile settings from a previous owner. Continuing
-          will replace them with what you’ve entered here.
+          This name still has profile details from a previous owner. Continuing
+          clears them and keeps only the changes you save.
         </Trans>
       ),
       confirmLabel: <Trans>Replace & Save</Trans>,

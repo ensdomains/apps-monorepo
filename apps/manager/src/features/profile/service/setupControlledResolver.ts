@@ -64,7 +64,7 @@ export async function setupControlledResolver({
   const fullName = name.endsWith('.eth') ? name : `${name}.eth`
   if (!parseInput(fullName).is2LD) {
     throw new Error(
-      'This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first.',
+      'This subname can’t be set up here yet. Please set it up in the ENS app first.',
     )
   }
 

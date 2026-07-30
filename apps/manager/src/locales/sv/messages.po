@@ -135,11 +135,6 @@ msgstr "En enkel, portabel identitet som du kontrollerar"
 msgid "A simpler way to get paid."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "A smart account is required to set up a resolver for this name"
-msgstr ""
-
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
 msgstr ""
@@ -462,10 +457,6 @@ msgstr ""
 msgid "Checking whether a payment approval is needed"
 msgstr ""
 
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "Checking whether you can write to this name’s resolver. Try again in a moment."
-msgstr ""
-
 #: src/routes/wallet.tsx
 msgid "Choose a wallet to connect to the application"
 msgstr ""
@@ -674,7 +665,7 @@ msgid "Copy to clipboard"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Could not read ETH address record for {name}"
+msgid "Couldn’t read the wallet address for {name}"
 msgstr ""
 
 #: src/features/migration/pages/MigrationPage.tsx
@@ -1449,10 +1440,6 @@ msgstr ""
 msgid "No eligible names found for this wallet"
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
-msgstr "Ingen ETH-adresspost är angiven. Om du fortsätter kommer din nuvarande plånboksadress att sättas som ETH-adress och detta namn kommer att sättas som ditt primära namn."
-
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
 msgstr ""
@@ -1639,6 +1626,11 @@ msgstr ""
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Please finish connecting your wallet, then try again"
 msgstr ""
 
 #: src/features/register/components/VerifyWalletModal.tsx
@@ -1994,10 +1986,6 @@ msgstr ""
 msgid "Replace & Save"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "Replace this name’s profile setup?"
-msgstr ""
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend Verification"
 msgstr ""
@@ -2174,6 +2162,10 @@ msgstr ""
 msgid "Set reverse record to show your name"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Set this as your primary name?"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
 msgstr ""
@@ -2185,10 +2177,6 @@ msgstr "Välj vilket ENS-namn som visas som din identitet i appar och plånböck
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting ETH address record"
 msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Setting ETH address..."
-msgstr "Anger ETH-adress..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting primary name"
@@ -2204,10 +2192,6 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Setting up resolver"
-msgstr ""
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Setting up resolver..."
 msgstr ""
 
 #: src/lib/smart-account/rhinestone.ts
@@ -2358,6 +2342,10 @@ msgstr "Sortera efter"
 msgid "Stables accepted"
 msgstr ""
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Start a new profile for this name?"
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
@@ -2369,6 +2357,10 @@ msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Starting..."
+msgstr ""
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Still checking if you can edit this name. Try again in a moment."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -2459,10 +2451,6 @@ msgstr ""
 msgid "The ENS domain has been successfully renewed."
 msgstr ""
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
-msgstr "ETH-adressposten matchar inte din plånbok. Om du fortsätter kommer den att uppdateras till din nuvarande plånboksadress och detta namn kommer att sättas som ditt primära namn."
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "The fee hits $0 on"
 msgstr ""
@@ -2508,6 +2496,10 @@ msgstr ""
 msgid "This name can’t be edited"
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
+msgstr ""
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr ""
@@ -2524,12 +2516,16 @@ msgstr ""
 msgid "This name is in price cooldown"
 msgstr ""
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile settings from a previous owner. Continuing will replace them with what you’ve entered here."
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile settings from a previous owner. Continuing will replace them. Only your wallet address will be kept — other profile details will be cleared."
+msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
+msgstr ""
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -2541,7 +2537,7 @@ msgid "This signature is free and doesn't cost any gas."
 msgstr ""
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first."
+msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
 msgstr ""
 
 #. placeholder {0}: Math.ceil(totalSelected / 100)
@@ -2625,6 +2621,14 @@ msgstr ""
 
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Updating address..."
+msgstr ""
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Updating profile..."
 msgstr ""
 
 #. placeholder {0}: error.parentName
@@ -2885,8 +2889,8 @@ msgid "Wallet funded successfully"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Wallet signer not available"
-msgstr "Plånbokssignering inte tillgänglig"
+msgid "Wallet isn’t ready yet. Try again in a moment."
+msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."

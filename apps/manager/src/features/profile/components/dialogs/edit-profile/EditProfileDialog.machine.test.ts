@@ -62,12 +62,13 @@ describe('editProfileDialogMachine', () => {
     actor.start()
     actor.send({ type: 'OPEN', records: defaultProfileRecords })
 
+    const eth = '0x4444444444444444444444444444444444444444'
     const nextRecords = {
       ...defaultProfileRecords,
       addresses: [
         {
           coinType: 60,
-          value: '0x4444444444444444444444444444444444444444',
+          value: eth,
         },
       ],
     }
@@ -94,15 +95,18 @@ describe('editProfileDialogMachine', () => {
       name: 'transferred.eth',
       ownerAddress: OWNER,
       ethAddressChanged: true,
+      before: { texts: [], coins: [] },
+      after: { coins: [{ coinType: 60, value: eth }] },
     })
   })
 
-  it('marks eth as changed on setup when seeding the same address onto an empty resolver', () => {
+  it('passes before/after snapshots so setup writes only the edit diff', () => {
     const eth = '0x5555555555555555555555555555555555555555'
     const records = {
       ...defaultProfileRecords,
       resolverAddress: RESOLVER,
       addresses: [{ coinType: 60, value: eth }],
+      base: { description: 'previous owner bio' },
     }
     const actor = createActor(editProfileDialogMachine, {
       input: { records },
@@ -114,7 +118,7 @@ describe('editProfileDialogMachine', () => {
       type: 'SAVE_REQUESTED',
       values: {
         ...records,
-        base: { ...records.base, description: 'kept eth, new bio' },
+        base: { ...records.base, description: 'edited bio only' },
       },
       deps: {
         accountAddress: ACCOUNT,
@@ -128,10 +132,24 @@ describe('editProfileDialogMachine', () => {
       },
     })
 
-    expect(actor.getSnapshot().context.pendingSave).toMatchObject({
+    const pendingSave = actor.getSnapshot().context.pendingSave
+    expect(pendingSave).toMatchObject({
       kind: 'setup',
-      ethAddressChanged: true,
+      ethAddressChanged: false,
+      before: {
+        texts: [{ key: 'description', value: 'previous owner bio' }],
+        coins: [{ coinType: 60, value: eth }],
+      },
+      after: {
+        texts: [{ key: 'description', value: 'edited bio only' }],
+        coins: [{ coinType: 60, value: eth }],
+      },
     })
+    // Local state starts empty; refetch fills on-chain records.
+    if (pendingSave?.kind === 'setup') {
+      expect(pendingSave.currentRecords.addresses).toEqual([])
+      expect(pendingSave.currentRecords.base).toEqual({})
+    }
   })
 
   it('blocks setup saves when a smart-account signer is unavailable', () => {

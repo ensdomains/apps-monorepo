@@ -6,11 +6,16 @@ import type {
   ServiceRecordSnapshot,
 } from '@/features/profile/service/profileRecordTransactions'
 import type { ProfileRecords } from '@/features/profile/types'
-import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
+import {
+  newEmptyProfileRecords,
+  transformToServiceFormat,
+} from '@/features/profile/utils/transformRecords'
 import {
   type GeneralField,
   getDefaultVisibleFields,
 } from './tabs/general/fields'
+
+const ETH_COIN_TYPE = 60
 
 interface SaveDeps {
   readonly accountAddress?: Address | null
@@ -22,9 +27,8 @@ interface SaveDeps {
   readonly retryCount?: number
   readonly signer?: Signer | null
   /**
-   * When true, the name has no writable resolver (missing or owned by a
-   * previous owner). The save path deploys/assigns a controlled resolver and
-   * seeds it with the desired final records instead of writing in place.
+   * When true, deploy/assign a controlled resolver and apply the before→after
+   * record diff instead of writing in place.
    */
   readonly needsResolverSetup?: boolean
 }
@@ -38,6 +42,7 @@ interface PendingUpdateSave {
 interface PendingSetupSave {
   readonly kind: 'setup'
   readonly currentRecords: ProfileRecords
+  readonly before: ServiceRecordSnapshot
   readonly after: ServiceRecordSnapshot
   readonly ethAddressChanged: boolean
   readonly name: string
@@ -48,7 +53,7 @@ interface PendingSetupSave {
 }
 
 const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
-  coins.find(({ coinType }) => coinType === 60)?.value
+  coins.find(({ coinType }) => coinType === ETH_COIN_TYPE)?.value
 
 export type PendingSave = PendingUpdateSave | PendingSetupSave
 
@@ -96,22 +101,18 @@ const getPendingSave = (
 
   const before = transformToServiceFormat(savedRecords)
   const after = transformToServiceFormat(currentRecords)
-  const formEthChanged =
+  const ethAddressChanged =
     ethCoinValue(before.coins) !== ethCoinValue(after.coins)
-  const ethAddressChanged = deps.needsResolverSetup
-    ? formEthChanged || Boolean(ethCoinValue(after.coins))
-    : formEthChanged
 
   if (deps.needsResolverSetup) {
     if (deps.signer.type !== 'rhinestone' || !deps.ownerAddress) {
-      throw new Error(
-        'A smart account is required to set up a resolver for this name',
-      )
+      throw new Error('Please finish connecting your wallet, then try again')
     }
 
     return {
       kind: 'setup',
-      currentRecords,
+      currentRecords: newEmptyProfileRecords(),
+      before,
       after,
       ethAddressChanged,
       name: deps.name,

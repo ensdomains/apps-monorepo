@@ -130,11 +130,6 @@ msgstr "A simple, portable identity that you control"
 msgid "A simpler way to get paid."
 msgstr "A simpler way to get paid."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "A smart account is required to set up a resolver for this name"
-msgstr "A smart account is required to set up a resolver for this name"
-
 #: src/features/profile/components/view/ProfileAbout.tsx
 msgid "About"
 msgstr "About"
@@ -457,10 +452,6 @@ msgstr "Checking wallet connection..."
 msgid "Checking whether a payment approval is needed"
 msgstr "Checking whether a payment approval is needed"
 
-#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "Checking whether you can write to this name’s resolver. Try again in a moment."
-msgstr "Checking whether you can write to this name’s resolver. Try again in a moment."
-
 #: src/routes/wallet.tsx
 msgid "Choose a wallet to connect to the application"
 msgstr "Choose a wallet to connect to the application"
@@ -669,8 +660,8 @@ msgid "Copy to clipboard"
 msgstr "Copy to clipboard"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Could not read ETH address record for {name}"
-msgstr "Could not read ETH address record for {name}"
+msgid "Couldn’t read the wallet address for {name}"
+msgstr "Couldn’t read the wallet address for {name}"
 
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Couldn't upgrade one of your names. Please try again."
@@ -1444,10 +1435,6 @@ msgstr "No default payment method set."
 msgid "No eligible names found for this wallet"
 msgstr "No eligible names found for this wallet"
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
-msgstr "No ETH address record set. If you proceed, your current wallet address will be set as the ETH address and this name will be set as your primary name."
-
 #: src/features/dashboard/components/FavoritesList.tsx
 msgid "No favorites to display"
 msgstr "No favorites to display"
@@ -1635,6 +1622,11 @@ msgstr "Planting your name in the infinite garden"
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
 msgstr "Please connect your wallet first"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Please finish connecting your wallet, then try again"
+msgstr "Please finish connecting your wallet, then try again"
 
 #: src/features/register/components/VerifyWalletModal.tsx
 msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
@@ -1989,10 +1981,6 @@ msgstr "Replace & Continue"
 msgid "Replace & Save"
 msgstr "Replace & Save"
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "Replace this name’s profile setup?"
-msgstr "Replace this name’s profile setup?"
-
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Resend Verification"
 msgstr "Resend Verification"
@@ -2169,6 +2157,10 @@ msgstr "Set primary name"
 msgid "Set reverse record to show your name"
 msgstr "Set reverse record to show your name"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Set this as your primary name?"
+msgstr "Set this as your primary name?"
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Set up later"
 msgstr "Set up later"
@@ -2180,10 +2172,6 @@ msgstr "Set which ENS name displays as your identity across apps and wallets."
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting ETH address record"
 msgstr "Setting ETH address record"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Setting ETH address..."
-msgstr "Setting ETH address..."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Setting primary name"
@@ -2200,10 +2188,6 @@ msgstr "Setting up registration"
 #: src/features/migration/components/GameStep.tsx
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
-
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Setting up resolver..."
-msgstr "Setting up resolver..."
 
 #: src/lib/smart-account/rhinestone.ts
 msgid "Setting up your smart account"
@@ -2353,6 +2337,10 @@ msgstr "Sort by"
 msgid "Stables accepted"
 msgstr "Stables accepted"
 
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "Start a new profile for this name?"
+msgstr "Start a new profile for this name?"
+
 #: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
@@ -2365,6 +2353,10 @@ msgstr "Starter"
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Starting..."
 msgstr "Starting..."
+
+#: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
+msgid "Still checking if you can edit this name. Try again in a moment."
+msgstr "Still checking if you can edit this name. Try again in a moment."
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Submitting approval and registration"
@@ -2454,10 +2446,6 @@ msgstr "The contract checks membership in the June 1 address snapshot, not the n
 msgid "The ENS domain has been successfully renewed."
 msgstr "The ENS domain has been successfully renewed."
 
-#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
-msgstr "The ETH address record does not match your wallet. If you proceed, it will be updated to your current wallet address and this name will be set as your primary name."
-
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "The fee hits $0 on"
 msgstr "The fee hits $0 on"
@@ -2503,6 +2491,10 @@ msgstr "This card will be charged for your subscription."
 msgid "This name can’t be edited"
 msgstr "This name can’t be edited"
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
+msgstr "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
+
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
@@ -2519,13 +2511,17 @@ msgstr "This name is in grace period"
 msgid "This name is in price cooldown"
 msgstr "This name is in price cooldown"
 
-#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile settings from a previous owner. Continuing will replace them with what you’ve entered here."
-msgstr "This name still has profile settings from a previous owner. Continuing will replace them with what you’ve entered here."
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
+msgstr "This name points to a different wallet. If you continue, we’ll update it to your current wallet and set this name as your primary."
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
-msgid "This name still has profile settings from a previous owner. Continuing will replace them. Only your wallet address will be kept — other profile details will be cleared."
-msgstr "This name still has profile settings from a previous owner. Continuing will replace them. Only your wallet address will be kept — other profile details will be cleared."
+msgid "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
+msgstr "This name still has profile details from a previous owner. Continuing clears them and keeps only the changes you save."
+
+#: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
+msgid "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
+msgstr "This name still has profile details from a previous owner. To use it as your primary name, we’ll clear those details and keep only your wallet address."
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "This page can only verify your email when opened from the link in the verification email."
@@ -2536,8 +2532,8 @@ msgid "This signature is free and doesn't cost any gas."
 msgstr "This signature is free and doesn't cost any gas."
 
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
-msgid "This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first."
-msgstr "This subname needs a resolver you control, which can’t be set up here. Set one up for it in the ENS app first."
+msgid "This subname can’t be set up here yet. Please set it up in the ENS app first."
+msgstr "This subname can’t be set up here yet. Please set it up in the ENS app first."
 
 #. placeholder {0}: Math.ceil(totalSelected / 100)
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -2621,6 +2617,14 @@ msgstr "unique searches in the last 30 days"
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "Unread only"
 msgstr "Unread only"
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Updating address..."
+msgstr "Updating address..."
+
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Updating profile..."
+msgstr "Updating profile..."
 
 #. placeholder {0}: error.parentName
 #: src/features/migration/pages/MigrationPage.tsx
@@ -2880,8 +2884,8 @@ msgid "Wallet funded successfully"
 msgstr "Wallet funded successfully"
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
-msgid "Wallet signer not available"
-msgstr "Wallet signer not available"
+msgid "Wallet isn’t ready yet. Try again in a moment."
+msgstr "Wallet isn’t ready yet. Try again in a moment."
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 msgid "We couldn't confirm that {domainName} is still available. Please try again."
