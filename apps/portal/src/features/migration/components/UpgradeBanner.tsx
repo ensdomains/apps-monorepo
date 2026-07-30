@@ -21,12 +21,12 @@ export const UpgradeBanner = ({ name }: { name: string }) => (
   >
     <div className="flex items-start gap-4 flex-col sm:flex-row sm:items-center">
       <CircleAlert className="size-6 shrink-0" />
-      <p className="text-3xl font-normal leading-tight font-serif">
+      <p className="text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
         Upgrade to ENSv2
       </p>
     </div>
     <div className="flex items-start lg:items-center gap-4 flex-col lg:flex-row">
-      <p className="text-sm">
+      <p className="text-p">
         This name is reserved on ENS v2 until it is migrated from ENS v1{' '}
       </p>
       <div className="flex items-center gap-4">
