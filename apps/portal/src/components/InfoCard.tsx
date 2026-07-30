@@ -27,11 +27,9 @@ export const InfoRow = ({
 }) => (
   <div
     data-slot="info-row"
-    className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-10"
+    className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-4 min-h-10 text-default-text"
   >
-    <span className="w-28 shrink-0 text-sm font-medium text-muted-foreground">
-      {label}
-    </span>
+    <span className="text-ui w-28 shrink-0 whitespace-nowrap">{label}</span>
     <div className="flex-1 min-w-0">{children}</div>
   </div>
 )
