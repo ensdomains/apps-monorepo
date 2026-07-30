@@ -8,7 +8,9 @@ import { Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
 import type { Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Button } from '@/components/ui/button'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -32,22 +34,27 @@ const RecentActivityShell = ({
   children: React.ReactNode
 }) => (
   <div className="flex flex-col gap-4 w-full">
-    <div className="flex flex-row justify-between items-center">
-      <h2 className="text-h2">History</h2>
-      <Button variant="ghost" size="sm" asChild>
-        <Link to="/$name/history" params={{ name }}>
-          <Clock className="size-4" />
-          Full history
-        </Link>
-      </Button>
-    </div>
+    <HistorySectionHeader
+      action={
+        <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
+      }
+    />
     {children}
   </div>
 )
 
 const NoRecentActivity = ({ name }: { name: string }) => (
   <RecentActivityShell name={name}>
-    <div className="p-6 border-t border-border">No recent activity</div>
+    <NoResultsMessage
+      title="No recent activity"
+      description="Events will appear here as they happen."
+      className="mx-0 my-0"
+    />
   </RecentActivityShell>
 )
 

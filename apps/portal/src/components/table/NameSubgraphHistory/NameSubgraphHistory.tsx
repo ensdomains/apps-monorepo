@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Hash } from 'viem'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
@@ -158,7 +159,7 @@ export const NameSubgraphHistory = ({
   if (!data || data.length === 0)
     return (
       <div className="flex flex-col gap-4 w-full">
-        {enableHeader && <h2 className="text-h2">History</h2>}
+        {enableHeader && <HistorySectionHeader />}
         <NoResultsMessage
           title="No recent activity"
           description="Events will appear here as they happen."
@@ -168,12 +169,8 @@ export const NameSubgraphHistory = ({
     )
 
   return (
-    <div className="flex flex-col gap-1 p-4 sm:p-6w-full">
-      {enableHeader && (
-        <div>
-          <h2 className="text-h2">History</h2>
-        </div>
-      )}
+    <div className="flex flex-col gap-4 w-full">
+      {enableHeader && <HistorySectionHeader />}
       <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />
     </div>
   )

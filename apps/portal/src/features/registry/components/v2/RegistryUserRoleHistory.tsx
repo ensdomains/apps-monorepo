@@ -4,6 +4,7 @@ import { type Address, zeroAddress } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -87,7 +88,7 @@ export const RegistryUserRoleHistory = ({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-muted-foreground">History</h2>
+      <HistorySectionHeader />
       {isLoading && (
         <p className="text-sm text-muted-foreground">Loading history…</p>
       )}
