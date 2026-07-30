@@ -14,7 +14,7 @@ import {
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { useBulkRenew } from '../hooks/useBulkRenew'
 import { useBulkRenewSubmit } from '../hooks/useBulkRenewSubmit'
-import type { BulkRenewName, Selection } from '../types'
+import type { BulkRenewName, Selection, SummaryRow } from '../types'
 import { DurationPresets } from './DurationPresets'
 import { FailureStep } from './FailureStep'
 import { NamesBreakdown } from './NamesBreakdown'
@@ -50,6 +50,11 @@ export const BulkRenewDialog = ({
   })
   const [selectedToken, setSelectedToken] = useState<SUPPORTED_TOKEN>('USDC')
 
+  const [receipt, setReceipt] = useState<{
+    readonly rows: readonly SummaryRow[]
+    readonly total: number
+  } | null>(null)
+
   const {
     minSelectableDate,
     grandTotal,
@@ -78,6 +83,7 @@ export const BulkRenewDialog = ({
   useEffect(() => {
     if (open) {
       setStep('summary')
+      setReceipt(null)
       reset()
     }
   }, [open, reset])
@@ -104,8 +110,12 @@ export const BulkRenewDialog = ({
     onOpenChange(next)
   }
 
-  const handleConfirm = () =>
+  const handleConfirm = () => {
+    setReceipt({ rows: summaryRows, total: grandTotal })
     submit.submit({ items: renewItems, token: selectedToken, sumPriceRaw })
+  }
+
+  const receiptSummary = receipt ?? { rows: summaryRows, total: grandTotal }
 
   // Bulk renewal needs a smart account to renew every name in one transaction;
   // the dev-only EOA fork can't, so it's gated off with an explicit message.
@@ -136,8 +146,8 @@ export const BulkRenewDialog = ({
             onRenewed?.()
             handleOpenChange(false)
           }}
-          rows={summaryRows}
-          total={grandTotal}
+          rows={receiptSummary.rows}
+          total={receiptSummary.total}
         />
       )
     }
@@ -153,9 +163,9 @@ export const BulkRenewDialog = ({
     if (isSubmitting) {
       return (
         <RenewingStep
-          rows={summaryRows}
+          rows={receiptSummary.rows}
           statuses={submit.statuses}
-          total={grandTotal}
+          total={receiptSummary.total}
         />
       )
     }

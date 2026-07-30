@@ -3,14 +3,16 @@ import {
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
-import { addDays } from 'date-fns'
+import { addSeconds } from 'date-fns'
 import { useMemo } from 'react'
 import { getNameRowProfilePreview } from '@/features/dashboard/components/nameRowProfileRecords'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { getBaseRatesQueryOptions } from '@/features/register-v2/data/queries/baseRates.query'
 import { getRenewPriceQueryOptions } from '@/features/register-v2/data/queries/pricing.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
 import { getLabelLength } from '@/features/register-v2/utils/name-parser'
+import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import {
   type StablecoinBalance,
   useSmartAccountContext,
@@ -26,10 +28,9 @@ import type {
 } from '../types'
 import {
   durationForName,
-  newExpirySeconds,
+  newExpiryDateForName,
   PRESETS,
   USDC,
-  yearsToSeconds,
 } from '../utils/pricing'
 
 type BulkRenewPayment = {
@@ -73,15 +74,15 @@ export const useBulkRenew = ({
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  // The custom "renew to date" target must land after every name's expiry.
   const minSelectableDate = useMemo(() => {
     const latestExpiry = names.reduce(
       (max, n) => (n.currentExpiry > max ? n.currentExpiry : max),
       0n,
     )
-    const day = addDays(new Date(Number(latestExpiry) * 1000), 1)
-    day.setHours(0, 0, 0, 0)
-    return day
+    return addSeconds(
+      new Date(Number(latestExpiry) * 1000),
+      MIN_REGISTER_DURATION_SECONDS,
+    )
   }, [names])
 
   // Base rates (per label length) drive the discount pills.
@@ -92,13 +93,15 @@ export const useBulkRenew = ({
     return data[Math.min(getLabelLength(label), data.length) - 1] ?? 0n
   }
 
-  // Price of every (preset × name) → preset card totals + blended discount.
   const presetQueries = useQueries({
     queries: PRESETS.flatMap((preset) =>
       names.map((n) => ({
         ...getRenewPriceQueryOptions(
           n.label,
-          yearsToSeconds(preset.years),
+          getDurationInSecondsFromYears(
+            preset.years,
+            new Date(Number(n.currentExpiry) * 1000),
+          ),
           USDC.symbol,
         ),
         enabled: open,
@@ -117,7 +120,12 @@ export const useBulkRenew = ({
         const discount = calculateDiscount(
           price,
           baseRateFor(n.label),
-          BigInt(yearsToSeconds(preset.years)),
+          BigInt(
+            getDurationInSecondsFromYears(
+              preset.years,
+              new Date(Number(n.currentExpiry) * 1000),
+            ),
+          ),
         )
         total += price
         discountAmount += discount.discountAmount
@@ -197,9 +205,7 @@ export const useBulkRenew = ({
     }),
     subtotal: activeQueries[i]?.data?.usd,
     startDate: new Date(Number(n.currentExpiry) * 1000),
-    endDate: new Date(
-      Number(newExpirySeconds(selection, n.currentExpiry)) * 1000,
-    ),
+    endDate: newExpiryDateForName(selection, n.currentExpiry),
   }))
 
   const selectedBalance = stablecoinBalances.find(

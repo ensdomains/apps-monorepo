@@ -12,7 +12,7 @@ import type { Selection } from '../types'
 
 /**
  * "Renew to date instead" link + calendar. The calendar jumps to and is bounded
- * by `minSelectableDate` (the day after every selected name's expiry).
+ * by `minSelectableDate` (the minimum renewal duration after every name's expiry).
  */
 export const RenewToDatePopover = ({
   selection,

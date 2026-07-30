@@ -1,5 +1,11 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import { differenceInCalendarDays, startOfDay } from 'date-fns'
+import { secondsInDay } from 'date-fns/constants'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
+import {
+  getDurationExpiryDateForDisplay,
+  getDurationInSecondsFromYears,
+} from '@/features/register-v2/utils/time'
 import type { Selection } from '../types'
 
 /** Renewals are paid in stablecoins; USDC is the display/default coin. */
@@ -27,31 +33,47 @@ export const formatUsdAmount = (value: number): string =>
       })
     : '—'
 
-export const yearsToSeconds = (years: number): number =>
-  Math.round(years * SECONDS_IN_YEAR)
+const referenceDateOf = (currentExpiry: bigint): Date =>
+  new Date(Number(currentExpiry) * 1000)
 
 /**
- * Per-name renewal duration in seconds for the active selection. On-chain
- * durations are `bigint`; `targetMs` (a JS `Date` value) is converted to whole
- * seconds at this boundary before the `bigint` arithmetic.
+ * Seconds to renew one name by, for the active selection and the name's current
+ * expiry. Mirrors the single-name renew flow exactly (see `DurationCustomRow` /
+ * `DurationSelector`): presets use the shared calendar-aligned year helper, and
+ * "renew to date" is the whole-calendar-day span from the name's expiry to the
+ * picked target, floored at the minimum renewal duration.
  */
+export const durationSecondsForName = (
+  selection: Selection,
+  currentExpiry: bigint,
+): number => {
+  const referenceDate = referenceDateOf(currentExpiry)
+  if (selection.kind === 'preset')
+    return getDurationInSecondsFromYears(selection.years, referenceDate)
+  return Math.max(
+    MIN_REGISTER_DURATION_SECONDS,
+    differenceInCalendarDays(
+      startOfDay(new Date(selection.targetMs)),
+      startOfDay(referenceDate),
+    ) * secondsInDay,
+  )
+}
+
+/** The same duration as on-chain `bigint` seconds for the renew call. */
 export const durationForName = (
   selection: Selection,
   currentExpiry: bigint,
-): bigint => {
-  if (selection.kind === 'preset')
-    return BigInt(yearsToSeconds(selection.years))
-  // Clamp to 0 so a target before the name's expiry never yields a negative
-  // duration (the date picker prevents it, but stay defensive).
-  const seconds = BigInt(Math.round(selection.targetMs / 1000)) - currentExpiry
-  return seconds > 0n ? seconds : 0n
-}
+): bigint => BigInt(durationSecondsForName(selection, currentExpiry))
 
-/** The name's new expiry (seconds) after applying the active selection. */
-export const newExpirySeconds = (
+/**
+ * The name's new expiry as a Date, computed the same way the single-name flow
+ * displays it (`getDurationExpiryDateForDisplay`) so the two flows always agree.
+ */
+export const newExpiryDateForName = (
   selection: Selection,
   currentExpiry: bigint,
-): bigint =>
-  selection.kind === 'preset'
-    ? currentExpiry + BigInt(yearsToSeconds(selection.years))
-    : BigInt(Math.round(selection.targetMs / 1000))
+): Date =>
+  getDurationExpiryDateForDisplay(
+    durationSecondsForName(selection, currentExpiry),
+    referenceDateOf(currentExpiry),
+  )

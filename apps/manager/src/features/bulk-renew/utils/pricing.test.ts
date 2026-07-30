@@ -1,17 +1,20 @@
+import { differenceInCalendarDays, startOfDay } from 'date-fns'
+import { secondsInDay } from 'date-fns/constants'
 import { describe, expect, it } from 'vitest'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
+import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import type { Selection } from '../types'
 import {
   durationForName,
+  durationSecondsForName,
   formatUsdAmount,
-  newExpirySeconds,
-  yearsToSeconds,
+  newExpiryDateForName,
 } from './pricing'
-
-const YEAR = yearsToSeconds(1) // 365.25-day year → 31_557_600s
-const YEAR_S = BigInt(YEAR) // same, as on-chain bigint seconds
 
 const preset = (years: number): Selection => ({ kind: 'preset', years })
 const custom = (targetMs: number): Selection => ({ kind: 'custom', targetMs })
+const expiryOf = (date: Date): bigint =>
+  BigInt(Math.floor(date.getTime() / 1000))
 
 describe('formatUsdAmount', () => {
   it('formats with two decimals and thousands separators', () => {
@@ -26,36 +29,57 @@ describe('formatUsdAmount', () => {
   })
 })
 
-describe('yearsToSeconds', () => {
-  it('converts whole years using the 365.25-day year', () => {
-    expect(yearsToSeconds(1)).toBe(31_557_600)
-    expect(yearsToSeconds(3)).toBe(94_672_800)
-  })
-})
-
 describe('durationForName', () => {
-  it('returns the preset duration regardless of the name expiry', () => {
-    expect(durationForName(preset(1), 1_000n)).toBe(YEAR_S)
-    expect(durationForName(preset(3), 999_999n)).toBe(YEAR_S * 3n)
+  it('mirrors the single-name flow for presets (calendar-aligned years from the name expiry)', () => {
+    const expiryDate = new Date(2026, 4, 10)
+    const expiry = expiryOf(expiryDate)
+    expect(durationForName(preset(1), expiry)).toBe(
+      BigInt(getDurationInSecondsFromYears(1, expiryDate)),
+    )
+    expect(durationForName(preset(3), expiry)).toBe(
+      BigInt(getDurationInSecondsFromYears(3, expiryDate)),
+    )
   })
 
-  it('returns target-minus-current-expiry for a custom date', () => {
-    const expiry = 1_000_000n
-    const targetMs = (1_000_000 + YEAR) * 1000
-    expect(durationForName(custom(targetMs), expiry)).toBe(YEAR_S)
+  it('renew-to-date is the whole-calendar-day span from the name expiry', () => {
+    const expiryDate = new Date(2027, 0, 1)
+    const target = new Date(2027, 1, 1) // 31 calendar days later
+    const expected =
+      differenceInCalendarDays(startOfDay(target), startOfDay(expiryDate)) *
+      secondsInDay
+    expect(
+      durationForName(custom(target.getTime()), expiryOf(expiryDate)),
+    ).toBe(BigInt(expected))
   })
 
-  it('never returns a negative duration when the target precedes the expiry', () => {
-    expect(durationForName(custom(1_000_000 * 1000), 2_000_000n)).toBe(0n)
+  it('floors renew-to-date at the minimum renewal duration', () => {
+    const expiryDate = new Date(2027, 0, 1)
+    const target = new Date(2027, 0, 15) // 14 days — below the 28-day minimum
+    expect(
+      durationSecondsForName(custom(target.getTime()), expiryOf(expiryDate)),
+    ).toBe(MIN_REGISTER_DURATION_SECONDS)
   })
 })
 
-describe('newExpirySeconds', () => {
-  it('adds the preset duration to the current expiry', () => {
-    expect(newExpirySeconds(preset(1), 1_000n)).toBe(1_000n + YEAR_S)
+describe('newExpiryDateForName', () => {
+  it('presets land on the calendar-aligned year expiry', () => {
+    const expiryDate = new Date(2026, 4, 10, 8, 30)
+    const end = newExpiryDateForName(preset(1), expiryOf(expiryDate))
+    expect(end.getFullYear()).toBe(2027)
+    expect(end.getMonth()).toBe(4)
+    expect(end.getDate()).toBe(10)
+    expect(end.getHours()).toBe(0)
   })
 
-  it('uses the shared target date for a custom selection', () => {
-    expect(newExpirySeconds(custom(5_000_000_000), 1_000n)).toBe(5_000_000n)
+  it('renew-to-date lands on the picked calendar day (local), matching the dialog', () => {
+    const expiryDate = new Date(2027, 0, 1)
+    const target = new Date(2027, 1, 1)
+    const end = newExpiryDateForName(
+      custom(target.getTime()),
+      expiryOf(expiryDate),
+    )
+    expect(end.getFullYear()).toBe(2027)
+    expect(end.getMonth()).toBe(1)
+    expect(end.getDate()).toBe(1)
   })
 })
