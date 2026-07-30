@@ -5,6 +5,7 @@
  * applies to the whole registry rather than a single label.
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -19,17 +20,22 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
-export type GrantRegistryRolesParameters = {
+export type GrantRegistryRolesTransactionParameters = {
   readonly registryAddress: Address
   readonly account: Address
-  readonly roles: Role[]
+  readonly roles: readonly Role[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
-  readonly id: string
 }
+
+export type GrantRegistryRolesParameters =
+  GrantRegistryRolesTransactionParameters & {
+    readonly publicClient: PublicClient
+    readonly signer: Signer
+    readonly id: string
+  }
 
 export interface GrantRegistryRolesResult {
   txId: string
@@ -37,6 +43,45 @@ export interface GrantRegistryRolesResult {
 }
 
 const ROOT_RESOURCE = 0n
+
+/** The grant-roles intent, shared by the gas estimate and {@link grantRegistryRoles}. */
+export function prepareGrantRegistryRolesTransaction({
+  registryAddress,
+  account,
+  roles,
+  walletClient,
+  chainId,
+}: GrantRegistryRolesTransactionParameters): CustomTransactionIntent {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
+  }
+  if (roles.length === 0) {
+    throw new Error('At least one role must be selected')
+  }
+
+  const writeParams = grantRolesWriteParameters(
+    walletClient as Parameters<typeof grantRolesWriteParameters>[0],
+    {
+      registryAddress,
+      account,
+      resource: ROOT_RESOURCE,
+      roles: [...roles],
+    },
+  )
+
+  const data = encodeFunctionData({
+    abi: writeParams.abi,
+    functionName: writeParams.functionName,
+    args: writeParams.args,
+  } as Parameters<typeof encodeFunctionData>[0])
+
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: registryAddress,
+    data,
+    chainId,
+  })
+}
 
 export async function grantRegistryRoles(
   params: GrantRegistryRolesParameters,
@@ -52,41 +97,14 @@ export async function grantRegistryRoles(
     id,
   } = params
 
-  if (!walletClient.account || !walletClient.chain) {
-    throw new Error('Wallet client must have account and chain configured')
-  }
-  if (roles.length === 0) {
-    throw new Error('At least one role must be selected')
-  }
-
-  const writeParams = grantRolesWriteParameters(
-    walletClient as Parameters<typeof grantRolesWriteParameters>[0],
-    {
+  const txId = transactionManager.startTransaction(
+    prepareGrantRegistryRolesTransaction({
       registryAddress,
       account,
-      resource: ROOT_RESOURCE,
       roles,
-    },
-  )
-
-  const data = encodeFunctionData({
-    abi: writeParams.abi,
-    functionName: writeParams.functionName,
-    args: writeParams.args,
-  } as Parameters<typeof encodeFunctionData>[0])
-
-  const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: registryAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

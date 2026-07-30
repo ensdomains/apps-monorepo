@@ -12,17 +12,20 @@ import {
   MobileSearchInput,
   MobileSearchPanel,
 } from '../search/MobileSearchPanel'
+import { floatingWrapperGlassClassName } from '../shared/FloatingWrapper'
 import { MobileConnectButton } from './MobileConnectButton'
 
 type MobileHeaderProps = {
   readonly isConnected: boolean
   readonly isConnectionSettled: boolean
+  readonly hasBlurredBackground?: boolean
   readonly transparentBackground?: boolean
 }
 
 export const MobileHeader = ({
   isConnected,
   isConnectionSettled,
+  hasBlurredBackground = false,
   transparentBackground = false,
 }: MobileHeaderProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
@@ -45,13 +48,15 @@ export const MobileHeader = ({
   })
 
   return (
-    <header
-      className={tw(
-        'sticky top-0 z-20',
-        transparentBackground ? 'bg-transparent' : 'bg-white',
-      )}
-    >
-      <nav className="relative flex h-[54px] min-w-0 items-center px-4 py-2">
+    <header className="sticky top-0 z-20">
+      <nav
+        className={tw(
+          'relative flex h-[54px] min-w-0 items-center px-4 py-2',
+          hasBlurredBackground && floatingWrapperGlassClassName,
+          transparentBackground && !hasBlurredBackground && 'bg-transparent',
+          !transparentBackground && !hasBlurredBackground && 'bg-white',
+        )}
+      >
         <AnimatePresence initial={false} mode="popLayout">
           {searchOpen ? (
             <motion.div

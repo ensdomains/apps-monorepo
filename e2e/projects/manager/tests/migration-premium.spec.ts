@@ -67,7 +67,7 @@ test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
   test.describe.configure({ timeout: 300_000 })
 
   test('migrate active name — baseline happy path', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
     time,
@@ -96,7 +96,7 @@ test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
   })
 
   test('migrate in grace period — 45 days past expiry', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
     time,
@@ -152,7 +152,7 @@ test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
   })
 
   test('prior owner renews without premium — 5 days past expiry', async ({
-    connectedPage: page,
+    migrationConnectedPage: page,
     wallet,
     accounts,
     time,

@@ -25,7 +25,25 @@ export const Owner = ({
     isLoading,
   } = useEnsName({ address: owner, query: { enabled: Boolean(owner) } })
 
-  if (error) return <div>{error.message}</div>
+  if (error) {
+    const failed = (
+      <span className="text-sm text-muted-foreground">
+        Failed to load owner
+      </span>
+    )
+    if (asRow)
+      return (
+        <InfoRow label={label} className={className}>
+          {failed}
+        </InfoRow>
+      )
+    return (
+      <BlockCard className={cn('flex-col items-start', className)}>
+        <span className="text-sm text-muted-foreground">{label}</span>
+        {failed}
+      </BlockCard>
+    )
+  }
   if (isLoading) return <div>Loading</div>
 
   if (!owner) {

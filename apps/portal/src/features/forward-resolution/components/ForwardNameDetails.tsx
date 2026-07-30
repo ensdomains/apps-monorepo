@@ -2,6 +2,7 @@ import type { ReturnResolverEvent } from '@ensdomains/ensjs/subgraph'
 import { useQuery } from '@tanstack/react-query'
 import type { Hash } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
@@ -70,7 +71,7 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
 
   return (
     <div className="flex flex-col gap-6 p-6 border border-border rounded-sm overflow-y-scroll">
-      <h3 className="text-2xl font-medium">History</h3>
+      <HistorySectionHeader />
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>
   )
@@ -110,7 +111,7 @@ export const ForwardNameDetails = ({ name, coinTypes }: ForwardName) => {
 
   return (
     <div className="flex flex-col p-4 sm:p-8 gap-4 sm:gap-6">
-      <h2 className="text-3xl font-medium">{name}</h2>
+      <h2 className="text-h2">{name}</h2>
       <div className="flex flex-col gap-4">
         <div className="flex flex-row">
           <div className="w-full max-w-40">Name</div>

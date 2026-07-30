@@ -13,6 +13,7 @@ export type UseGraceStatusParameters = {
 
 export type UseGraceStatusReturnType = {
   isInGrace: boolean
+  isExpired: boolean
   graceEndDate: Date | null
   isLoading: boolean
   error: Error | null
@@ -36,6 +37,7 @@ export function useGraceStatus({
     if (v1Query.isLoading) {
       return {
         isInGrace: false,
+        isExpired: false,
         graceEndDate: null,
         isLoading: true,
         error: null,
@@ -44,6 +46,7 @@ export function useGraceStatus({
     if (v1Query.error) {
       return {
         isInGrace: false,
+        isExpired: false,
         graceEndDate: null,
         isLoading: false,
         error: v1Query.error,
@@ -53,6 +56,7 @@ export function useGraceStatus({
     if (!data) {
       return {
         isInGrace: false,
+        isExpired: false,
         graceEndDate: null,
         isLoading: false,
         error: null,
@@ -61,6 +65,7 @@ export function useGraceStatus({
     const graceEndSeconds = data.expiry + BigInt(data.gracePeriod)
     return {
       isInGrace: data.status === 'gracePeriod',
+      isExpired: data.status !== 'active',
       graceEndDate: new Date(Number(graceEndSeconds) * 1000),
       isLoading: false,
       error: null,
@@ -71,6 +76,7 @@ export function useGraceStatus({
     if (v2Query.isLoading) {
       return {
         isInGrace: false,
+        isExpired: false,
         graceEndDate: null,
         isLoading: true,
         error: null,
@@ -79,6 +85,7 @@ export function useGraceStatus({
     if (v2Query.error) {
       return {
         isInGrace: false,
+        isExpired: false,
         graceEndDate: null,
         isLoading: false,
         error: v2Query.error,
@@ -88,6 +95,7 @@ export function useGraceStatus({
     if (!data || data.expiry === null) {
       return {
         isInGrace: false,
+        isExpired: false,
         graceEndDate: null,
         isLoading: false,
         error: null,
@@ -97,11 +105,18 @@ export function useGraceStatus({
     const graceEndSeconds = data.expiry + V2_GRACE_DURATION_SECONDS
     return {
       isInGrace: nowSeconds > data.expiry && nowSeconds < graceEndSeconds,
+      isExpired: nowSeconds > data.expiry,
       graceEndDate: new Date(graceEndSeconds * 1000),
       isLoading: false,
       error: null,
     }
   }
 
-  return { isInGrace: false, graceEndDate: null, isLoading: false, error: null }
+  return {
+    isInGrace: false,
+    isExpired: false,
+    graceEndDate: null,
+    isLoading: false,
+    error: null,
+  }
 }

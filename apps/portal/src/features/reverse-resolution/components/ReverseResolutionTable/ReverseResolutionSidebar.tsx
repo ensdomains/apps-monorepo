@@ -16,6 +16,8 @@ import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -35,9 +37,12 @@ import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecord
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
+import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
+import { prepareSetReverseResolutionTransaction } from '../../helpers/setReverseResolution'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useSetForwardResolution } from '../../hooks/useSetForwardResolution'
 import { useSetL2ReverseName } from '../../hooks/useSetL2ReverseName'
@@ -85,13 +90,19 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   }
 
   if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching timestamps. Please refresh the page."
+      />
+    )
   }
   if (sendersError) {
     return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
+      <ErrorMessage
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
+      />
     )
   }
 
@@ -107,15 +118,16 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-row justify-between items-center">
-        <h3 className="text-2xl font-medium">History</h3>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/$name/history" params={{ name }}>
-            <Clock className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>
   )
@@ -138,7 +150,12 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   )
 
   if (error) {
-    return <div>History Error: {error.cause?.message || error.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching history. Please refresh the page."
+      />
+    )
   }
 
   if (isLoading) return <div>Loading history...</div>
@@ -148,6 +165,106 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   }
 
   return <AddressHistory history={history} name={name} />
+}
+
+interface ReverseNameFieldProps {
+  displayName: string | undefined
+  isInheritingDefault: boolean
+  isDefaultRow: boolean
+  nameInput: string
+  onNameChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  isConnected: boolean
+  isReverseResolutionPending: boolean
+  isL2ReverseNamePending: boolean
+  isSwitchingChain: boolean
+  isWrongChain: boolean
+}
+
+/**
+ * The "Name" field body: the resolved name plus either the edit form or, for
+ * the read-only Default (`default.reverse`) row, a note pointing to where the
+ * default reverse name is actually set.
+ */
+const ReverseNameField = ({
+  displayName,
+  isInheritingDefault,
+  isDefaultRow,
+  nameInput,
+  onNameChange,
+  onSubmit,
+  isConnected,
+  isReverseResolutionPending,
+  isL2ReverseNamePending,
+  isSwitchingChain,
+  isWrongChain,
+}: ReverseNameFieldProps) => {
+  const inputDisabled =
+    !isConnected ||
+    isReverseResolutionPending ||
+    isL2ReverseNamePending ||
+    isSwitchingChain
+
+  return (
+    <div className="flex-1 flex flex-col gap-2">
+      {displayName ? (
+        <div className="flex items-center gap-2 mb-2">
+          <span className="font-mono">{displayName}</span>
+          {isInheritingDefault && (
+            <Badge variant="outline" className="text-xs">
+              Default
+            </Badge>
+          )}
+        </div>
+      ) : (
+        isDefaultRow && <span className="text-muted-foreground">null</span>
+      )}
+      {isDefaultRow ? (
+        <p className="text-sm text-muted-foreground">
+          The default reverse name is set through the name's Address Resolution
+          page.
+        </p>
+      ) : (
+        <form onSubmit={onSubmit} className="flex gap-2">
+          <Input
+            type="text"
+            name="name"
+            value={nameInput}
+            onChange={onNameChange}
+            disabled={inputDisabled}
+            placeholder={match(isConnected)
+              .with(false, () => 'Connect wallet to update')
+              .otherwise(() => undefined)}
+            // No name-format gating: `setName(string)` on both the L1 and L2
+            // reverse registrars accepts any name — `.eth` names, subnames,
+            // and DNS-imported names (e.g. `v1rtl.site`) are all valid
+            // ENSIP-19 primaries. Existence is checked non-blockingly
+            // (`warnIfNameNotRegistered`) and normalization happens in the
+            // request builders.
+            required
+          />
+          <Button
+            type="submit"
+            variant="default"
+            disabled={inputDisabled || !nameInput}
+            className="h-9"
+          >
+            {match({
+              isConnected,
+              isSwitchingChain,
+              isWrongChain,
+              isL2ReverseNamePending,
+            })
+              .with({ isConnected: false }, () => 'Connect Wallet')
+              .with({ isSwitchingChain: true }, () => 'Switching...')
+              .with({ isWrongChain: true }, () => 'Switch Network')
+              .with({ isL2ReverseNamePending: true }, () => 'Sending…')
+              .otherwise(() => 'Update')}
+          </Button>
+        </form>
+      )}
+    </div>
+  )
 }
 
 interface ReverseResolutionSidebarProps extends PropsWithChildren {
@@ -168,6 +285,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   const { isConnected } = useConnection()
 
   const {
+    coinType,
     reverseRegistrarChainId,
     name,
     defaultName,
@@ -177,6 +295,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
   } = useMemo(() => {
     const r = row?.original
     return {
+      coinType: r?.coinType ?? DEFAULT_EVM_COIN_TYPE,
+      // The Default (`default.reverse`) row has no reverse-registrar chain; it
+      // falls back to `60` here purely to satisfy the write hooks, which never
+      // fire for it — its write UI is hidden below (read-only for now).
       reverseRegistrarChainId: (r?.reverseRegistrarChainId ??
         60) as ReverseRegistrarChainId,
       name: r?.name ?? null,
@@ -186,6 +308,11 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       forwardMatch: r?.forwardMatch ?? false,
     }
   }, [row])
+
+  // The Default (`default.reverse`) row is read-only in this view for now:
+  // writes go through the `DefaultReverseRegistrar`, handled on the name-view
+  // Address Resolution page.
+  const isDefaultRow = coinType === DEFAULT_EVM_COIN_TYPE
 
   const { displayName, isInheritingDefault, isPrimaryName, canSetAsPrimary } =
     computeDisplayNameState({
@@ -218,12 +345,28 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     reverseRegistrarChainId,
   })
 
+  // The forward (`setAddr`) write always runs on L1, whatever the row: the
+  // name's resolver lives on L1 and L2 forward records (`addr(node,
+  // l2CoinType)`) are written there too (ENSIP-19). So the primary-name flow
+  // gets its own L1-scoped chain requirement, independent of the row's
+  // reverse-registrar chain.
+  const {
+    isWrongChain: isWrongChainForForward,
+    isSwitchingChain: isSwitchingChainForForward,
+    requiredChainId: forwardChainId,
+    switchChainAsync: switchChainForForwardAsync,
+    getSwitchToRequiredNetworkRequest: getSwitchToL1Request,
+  } = useSwitchToRequiredNetwork({
+    reverseRegistrarChainId: 60,
+  })
+
   const {
     getReverseResolutionRequest,
     getForwardResolutionRequest,
     isEnsOwnerLoading,
   } = useReverseResolutionMutations({
     reverseRegistrarChainId,
+    coinType,
     displayName,
   })
 
@@ -247,7 +390,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     setForwardResolution: submitForwardResolution,
     isPending: isForwardResolutionPending,
   } = useSetForwardResolution({
-    chainId: requiredChainId,
+    chainId: forwardChainId,
     id: SET_PRIMARY_NAME_TX_ID,
   })
 
@@ -406,9 +549,25 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
     setNameInput('')
   }
 
+  // The forward write is an L1 transaction for every row (the resolver lives
+  // on L1), so switch to L1 — not to the row's reverse-registrar chain.
+  const switchToL1IfNeeded = async (): Promise<boolean> => {
+    if (!isWrongChainForForward) return true
+    try {
+      await switchChainForForwardAsync(getSwitchToL1Request())
+      return true
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to switch network'
+      toast.error(message)
+      console.error('Failed to switch network', error)
+      return false
+    }
+  }
+
   const handleSetPrimaryName = () => {
     void (async () => {
-      const switched = await switchChainIfNeeded()
+      const switched = await switchToL1IfNeeded()
       if (!switched) return
       setActiveFlow('primary')
       openTransactionModal()
@@ -444,10 +603,10 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         <div className="p-6 flex flex-col gap-6">
           <SheetHeader>
             <div className="flex flex-row justify-between items-center">
-              <SheetTitle className="font-sans text-heading font-medium">
+              <SheetTitle className="font-sans text-h2">
                 {label} resolution
               </SheetTitle>
-              {canSetAsPrimary && (
+              {canSetAsPrimary && !isDefaultRow && (
                 <Button
                   onClick={handleSetPrimaryName}
                   variant="default"
@@ -455,13 +614,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                     !isConnected ||
                     isEnsOwnerLoading ||
                     isForwardResolutionPending ||
-                    isSwitchingChain
+                    isSwitchingChainForForward
                   }
                 >
                   {match({
                     isConnected,
-                    isSwitchingChain,
-                    isWrongChain,
+                    isSwitchingChain: isSwitchingChainForForward,
+                    isWrongChain: isWrongChainForForward,
                   })
                     .with({ isConnected: false }, () => 'Connect Wallet')
                     .with({ isSwitchingChain: true }, () => 'Switching...')
@@ -502,70 +661,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
             <div className="flex flex-row items-start">
               <div className="w-40 font-medium">Name</div>
-              <div className="flex-1 flex flex-col gap-2">
-                {displayName && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-mono">{displayName}</span>
-                    {isInheritingDefault && (
-                      <Badge variant="outline" className="text-xs">
-                        Default
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                <form onSubmit={handleUpdate} className="flex gap-2">
-                  <Input
-                    type="text"
-                    name="name"
-                    value={nameInput}
-                    onChange={handleNameChange}
-                    disabled={
-                      !isConnected ||
-                      isReverseResolutionPending ||
-                      isL2ReverseNamePending ||
-                      isSwitchingChain
-                    }
-                    placeholder={match(isConnected)
-                      .with(false, () => 'Connect wallet to update')
-                      .otherwise(() => undefined)}
-                    // L1 (Default/Ethereum) requires a real ENS `.eth` name
-                    // because we look up its protocol version to decide on
-                    // the right setReverseName flow. L2 registrars accept any
-                    // string, so we don't gate the input there.
-                    {...(isL2Target
-                      ? {}
-                      : {
-                          pattern: '.*\\.eth$',
-                          title: 'Name must end with .eth',
-                        })}
-                    required
-                  />
-                  <Button
-                    type="submit"
-                    variant="default"
-                    disabled={
-                      !isConnected ||
-                      !nameInput ||
-                      isReverseResolutionPending ||
-                      isL2ReverseNamePending ||
-                      isSwitchingChain
-                    }
-                    className="h-9"
-                  >
-                    {match({
-                      isConnected,
-                      isSwitchingChain,
-                      isWrongChain,
-                      isL2ReverseNamePending,
-                    })
-                      .with({ isConnected: false }, () => 'Connect Wallet')
-                      .with({ isSwitchingChain: true }, () => 'Switching...')
-                      .with({ isWrongChain: true }, () => 'Switch Network')
-                      .with({ isL2ReverseNamePending: true }, () => 'Sending…')
-                      .otherwise(() => 'Update')}
-                  </Button>
-                </form>
-              </div>
+              <ReverseNameField
+                displayName={displayName}
+                isInheritingDefault={isInheritingDefault}
+                isDefaultRow={isDefaultRow}
+                nameInput={nameInput}
+                onNameChange={handleNameChange}
+                onSubmit={handleUpdate}
+                isConnected={isConnected}
+                isReverseResolutionPending={isReverseResolutionPending}
+                isL2ReverseNamePending={isL2ReverseNamePending}
+                isSwitchingChain={isSwitchingChain}
+                isWrongChain={isWrongChain}
+              />
             </div>
 
             <div className="flex flex-row items-start">
@@ -625,7 +733,20 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: UPDATE_REVERSE_NAME_TX_ID,
                   title: 'Update reverse name',
                   transactionName: `Set reverse name to ${nameInput}`,
-                  estimatedGasCost: 0.0001,
+                  intent: {
+                    prepare:
+                      !isL2Target && isConnected && nameInput
+                        ? ({ walletClient, chainId }) => {
+                            const { request } =
+                              getReverseResolutionRequest(nameInput)
+                            return prepareSetReverseResolutionTransaction({
+                              request,
+                              from: walletClient.account.address,
+                              chainId,
+                            })
+                          }
+                        : undefined,
+                  },
                   onStart: handleUpdateReverseStart,
                   onDone: handleUpdateReverseDone,
                 },
@@ -635,7 +756,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: SET_PRIMARY_NAME_TX_ID,
                   title: 'Set primary name',
                   transactionName: `Set primary name to ${displayName}`,
-                  estimatedGasCost: 0.0002,
+                  intent: {
+                    prepare:
+                      isConnected && displayName
+                        ? ({ walletClient, chainId }) => {
+                            const request = getForwardResolutionRequest(address)
+                            return prepareSetForwardResolutionTransaction({
+                              request,
+                              from: walletClient.account.address,
+                              chainId,
+                            })
+                          }
+                        : undefined,
+                  },
                   onStart: handleSetPrimaryNameStart,
                   onDone: handleSetPrimaryNameDone,
                 },

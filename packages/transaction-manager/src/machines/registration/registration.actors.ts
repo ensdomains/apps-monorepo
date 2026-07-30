@@ -313,33 +313,40 @@ function encodePermitData(permit: PermitSignature): Hex {
   })
 }
 
-/**
- * Encode registration transaction data
- */
-function encodeRegistrationData(
-  name: string,
-  ownerAddress: Address,
-  secret: Hash,
-  duration: bigint,
-  paymentToken: Address,
-  resolverAddress: Address,
-): Hash {
-  const cleanName = name.replace('.eth', '')
-
-  return encodeFunctionData({
-    abi: ethRegistrarRegisterSnippet,
-    functionName: 'register',
-    args: [
-      cleanName,
-      ownerAddress,
-      secret,
-      zeroAddress,
-      resolverAddress,
-      duration,
-      paymentToken,
-      REFERER_ADDRESS,
-    ],
-  })
+/** Shared `ETHRegistrar.register` call for submit + gas estimate. */
+export function encodeRegisterCall({
+  name,
+  owner,
+  secret,
+  duration,
+  paymentToken,
+  resolverAddress,
+}: {
+  name: string
+  owner: Address
+  secret: Hash
+  duration: bigint
+  paymentToken: Address
+  resolverAddress: Address
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: ENS_SEPOLIA_CONTRACTS.ETHRegistrar,
+    data: encodeFunctionData({
+      abi: ethRegistrarRegisterSnippet,
+      functionName: 'register',
+      args: [
+        name.replace('.eth', ''),
+        owner,
+        secret,
+        zeroAddress,
+        resolverAddress,
+        duration,
+        paymentToken,
+        REFERER_ADDRESS,
+      ],
+    }),
+    value: 0n,
+  }
 }
 
 /**
@@ -449,24 +456,13 @@ export function submitResolverDeploymentActor(input: {
     Promise.resolve().then(() => {
       const accountAddress = getSignerAddress(input.signer)
       const salt = generateResolverSalt(input.name)
-      const initCalldata = getResolverInitCalldata(input.owner)
-
-      const deployCalldata = encodeFunctionData({
-        abi: VERIFIABLE_FACTORY_ABI,
-        functionName: 'deployProxy',
-        args: [ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl, salt, initCalldata],
-      })
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
-          {
-            to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
-            data: deployCalldata,
-            value: 0n,
-          },
+          encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
         sponsored: input.sponsored ?? true,
       })
@@ -490,6 +486,33 @@ export function submitResolverDeploymentActor(input: {
   ).mapErr(
     (error) => new Error(`Failed to submit resolver deployment: ${error}`),
   )
+}
+
+/**
+ * The `VerifiableFactory.deployProxy` call that deploys a name's dedicated
+ * resolver. Exported so the app can build the SAME deploy call for its pre-start
+ * gas estimate (wrapped as an EOA intent), keeping the estimate byte-identical
+ * to what {@link submitResolverDeploymentActor} submits — the encoding lives in
+ * one place and can't drift. Deploy gas is independent of the salt value, so the
+ * estimate may pass a stable throwaway salt.
+ */
+export function encodeDeployDedicatedResolverCall(input: {
+  owner: Address
+  salt: bigint
+}): { to: Address; data: Hex; value: bigint } {
+  return {
+    to: ENS_SEPOLIA_CONTRACTS.VerifiableFactory,
+    data: encodeFunctionData({
+      abi: VERIFIABLE_FACTORY_ABI,
+      functionName: 'deployProxy',
+      args: [
+        ENS_SEPOLIA_CONTRACTS.DedicatedResolverImpl,
+        input.salt,
+        getResolverInitCalldata(input.owner),
+      ],
+    }),
+    value: 0n,
+  }
 }
 
 /**
@@ -1048,26 +1071,20 @@ export function submitRegistrationActor(input: {
         normalizedPaymentToken,
       )
 
-      const registrationData = encodeRegistrationData(
-        input.name,
-        input.owner,
-        input.commitment.secret,
-        input.duration,
-        normalizedPaymentToken,
-        input.resolverAddress,
-      )
+      const registerCall = encodeRegisterCall({
+        name: input.name,
+        owner: input.owner,
+        secret: input.commitment.secret,
+        duration: input.duration,
+        paymentToken: normalizedPaymentToken,
+        resolverAddress: input.resolverAddress,
+      })
 
       const request = createTransactionRequest({
         signer: input.signer,
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
-        calls: [
-          {
-            to: registrarAddress,
-            data: registrationData,
-            value: 0n,
-          },
-        ],
+        calls: [registerCall],
         sponsored: input.sponsored ?? true,
       })
 
@@ -1261,14 +1278,14 @@ export function submitPermitAndRegistrationActor(input: {
 
       const permitData = encodePermitData(input.permit)
 
-      const registrationData = encodeRegistrationData(
-        input.name,
-        input.owner,
-        input.commitment.secret,
-        input.duration,
-        normalizedPaymentToken,
-        input.resolverAddress,
-      )
+      const registerCall = encodeRegisterCall({
+        name: input.name,
+        owner: input.owner,
+        secret: input.commitment.secret,
+        duration: input.duration,
+        paymentToken: normalizedPaymentToken,
+        resolverAddress: input.resolverAddress,
+      })
 
       const request = createTransactionRequest({
         signer: input.signer,
@@ -1276,7 +1293,7 @@ export function submitPermitAndRegistrationActor(input: {
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
           { to: normalizedPaymentToken, data: permitData, value: 0n },
-          { to: registrarAddress, data: registrationData, value: 0n },
+          registerCall,
         ],
         sponsored: input.sponsored ?? true,
       })

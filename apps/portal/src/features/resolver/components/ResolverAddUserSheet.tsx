@@ -29,6 +29,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { prepareGrantResolverRolesTransaction } from '@/features/resolver/helpers/grantResolverRoles'
 import { useGrantResolverRoles } from '@/features/resolver/hooks/useGrantResolverRoles'
 import type { ResolverNode } from '@/features/resolver/hooks/useResolverOverview'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
@@ -292,9 +293,7 @@ export const ResolverAddUserSheet = ({
       >
         <div className="p-6 flex flex-col gap-6 h-full">
           <SheetHeader className="p-0 pt-4">
-            <SheetTitle className="font-sans text-heading font-medium">
-              Add user
-            </SheetTitle>
+            <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
@@ -405,7 +404,21 @@ export const ResolverAddUserSheet = ({
                 id: GRANT_RESOLVER_ROLES_TX_ID,
                 title: 'Grant resolver roles',
                 transactionName: `Grant resolver roles for ${pendingGrant?.name || '(root)'}`,
-                estimatedGasCost: 0.0001,
+                // Deterministic once the user has confirmed the grant, so the
+                // modal can estimate gas the moment it opens.
+                intent: {
+                  prepare: pendingGrant
+                    ? ({ walletClient, chainId }) =>
+                        prepareGrantResolverRolesTransaction({
+                          resolverAddress,
+                          name: pendingGrant.name,
+                          account: pendingGrant.account,
+                          roles: pendingGrant.roles,
+                          walletClient,
+                          chainId,
+                        })
+                    : undefined,
+                },
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

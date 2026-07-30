@@ -37,6 +37,7 @@ import {
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { prepareDeleteAliasTransaction } from '@/features/resolver/helpers/setAlias'
 import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
 import {
   getResolverOverviewQueryOptions,
@@ -208,16 +209,18 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Aliases unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching aliases. Please refresh the page."
       />
     )
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-heading font-medium leading-none">
-          {aliases.length} alias{aliases.length !== 1 ? 'es' : ''}
+        <h1 className="text-h2 md:text-h1">
+          {aliases.length > 0
+            ? `${aliases.length} alias${aliases.length !== 1 ? 'es' : ''}`
+            : 'Aliases'}
         </h1>
         {canSetAlias && (
           <Button asChild>
@@ -229,16 +232,18 @@ function RouteComponent() {
         )}
       </div>
 
-      <InputGroup className="bg-background rounded-sm">
-        <InputGroupAddon>
-          <Search />
-        </InputGroupAddon>
-        <InputGroupInput
-          placeholder="Search..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-        />
-      </InputGroup>
+      {aliases.length > 0 && (
+        <InputGroup className="bg-background rounded-sm">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            placeholder="Search..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+          />
+        </InputGroup>
+      )}
 
       {deleteMutation.error && (
         <Alert variant="destructive">
@@ -251,7 +256,17 @@ function RouteComponent() {
             id: DELETE_ALIAS_TX_ID,
             title: 'Delete alias',
             transactionName: `Delete alias ${pendingDeleteAlias?.fromName ?? ''}`,
-            estimatedGasCost: 0.0001,
+            intent: {
+              prepare: pendingDeleteAlias
+                ? ({ walletClient, chainId }) =>
+                    prepareDeleteAliasTransaction({
+                      fromName: pendingDeleteAlias.fromName,
+                      resolverAddress: address as Address,
+                      walletClient,
+                      chainId,
+                    })
+                : undefined,
+            },
             onStart: () => {
               if (!pendingDeleteAlias) return
               deleteMutation.mutate(pendingDeleteAlias.fromName)
@@ -267,8 +282,9 @@ function RouteComponent() {
 
       {aliases.length === 0 ? (
         <NoResultsMessage
-          title="This resolver has no aliases."
+          title="No aliases yet"
           description="Create an alias to redirect resolution from one name to another."
+          className="mx-0"
         />
       ) : (
         <>
@@ -377,7 +393,7 @@ function RouteComponent() {
                           key={cell.id}
                           className={cn(
                             'px-4 sm:px-6',
-                            tableView.compact ? 'py-2' : 'py-4',
+                            tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                           )}
                         >
                           {flexRender(

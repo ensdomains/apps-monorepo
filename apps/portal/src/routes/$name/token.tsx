@@ -33,6 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { InfoRow as HeaderInfoRow } from '@/features/profile/components/InfoRow'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getTokenIdQueryOptions } from '@/features/profile/hooks/useTokenId'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -63,24 +64,26 @@ const TokenInfoCard = ({
   protocolVersion: ProtocolVersion
 }) => {
   return (
-    <InfoCard title="Token info">
-      <InfoRow label="Protocol">
-        <span className="text-sm">{protocolVersion}</span>
-      </InfoRow>
+    <div className="flex flex-col">
+      <HeaderInfoRow label="Protocol">
+        <span className="text-entity-base text-foreground">
+          {protocolVersion}
+        </span>
+      </HeaderInfoRow>
 
-      <InfoRow label="Token Standard">
+      <HeaderInfoRow label="Token Standard">
         <div>
           <CopyableRecord value={tokenStandard} />
         </div>
-      </InfoRow>
+      </HeaderInfoRow>
 
-      <InfoRow label="Contract">
+      <HeaderInfoRow label="Contract">
         <EntityBadge variant="contract" address={contractAddress}>
           {contractAddress}
         </EntityBadge>
-      </InfoRow>
+      </HeaderInfoRow>
 
-      <InfoRow label="Token ID">
+      <HeaderInfoRow label="Token ID">
         <div className="flex items-center gap-4 justify-between w-full ">
           <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
           <Sheet>
@@ -130,7 +133,7 @@ const TokenInfoCard = ({
                 </div>
 
                 <div className="px-8">
-                  <h3 className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground mb-4">
+                  <h3 className="text-caps leading-none text-foreground mb-4">
                     History
                   </h3>
                   <div className="border border-secondary rounded-lg overflow-hidden">
@@ -160,8 +163,8 @@ const TokenInfoCard = ({
             </SheetContent>
           </Sheet>
         </div>
-      </InfoRow>
-    </InfoCard>
+      </HeaderInfoRow>
+    </div>
   )
 }
 
@@ -254,7 +257,13 @@ function RouteComponent() {
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  if (error) return <div>Error loading owner: {error.cause?.message}</div>
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching the owner. Please refresh the page."
+      />
+    )
 
   if (isLoading) return <LoadingSpinner title="Loading owner data" />
 
@@ -275,9 +284,9 @@ function RouteComponent() {
   const encoding = parts.map((part) => part.type).join(' + ')
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-360 mx-auto w-full">
+    <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-[30px] font-medium leading-tight">Token Info</h1>
+        <h1 className="text-h1">Token Info</h1>
       </header>
 
       {data?.protocolVersion === 'ENSv1' ? (
@@ -286,7 +295,10 @@ function RouteComponent() {
         <TokenV2Name name={name} registryAddress={data.registryAddress} />
       ) : null}
 
-      <InfoCard title="Normalization">
+      <InfoCard
+        title="Normalization"
+        className="[&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0"
+      >
         <InfoRow label="Input">
           <div className="flex flex-row gap-1 flex-wrap items-center">
             {parts.map((label, idx) => (
@@ -357,14 +369,14 @@ function RouteComponent() {
       </InfoCard>
 
       {labels[0] ? (
-        <div className="rounded-sm bg-background overflow-hidden">
-          <div className="px-6 py-3">
-            <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
+        <div className="rounded-sm bg-background overflow-hidden [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0">
+          <div className="py-3">
+            <span className="text-caps leading-none text-foreground">
               Labels
             </span>
           </div>
           <Tabs defaultValue={labels[0]} className="gap-0">
-            <div className="px-6 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <TabsList>
                 {labels.map((label, idx) => (
                   <div key={label} className="contents">
@@ -381,7 +393,7 @@ function RouteComponent() {
               const labelBytes = new TextEncoder().encode(label).length
               const labelChars = [...label].length
               return (
-                <TabsContent className="m-0" value={label} key={label}>
+                <TabsContent className="m-0 px-0" value={label} key={label}>
                   <InfoRow label="Input">
                     <div>
                       <CopyableRecord value={escapeUnicode(label)} />

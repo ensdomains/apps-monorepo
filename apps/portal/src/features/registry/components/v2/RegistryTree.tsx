@@ -27,15 +27,15 @@ export const RegistryTree = ({
   if (error)
     return (
       <ErrorMessage
-        title={error.cause.name}
-        description={error.message || error.cause.message}
+        compact
+        description="Error fetching the registry. Please refresh the page."
       />
     )
 
   if (!registries) return null
 
   return (
-    <div className="mt-3 sm:mt-5 mb-4">
+    <div>
       <div className="flex flex-col">
         {[...registries].reverse().map((registry, index) => {
           if (registry === null) return null

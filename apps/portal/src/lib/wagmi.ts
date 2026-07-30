@@ -1,10 +1,14 @@
-import { WALLETCONNECT_PROJECT_ID } from '@ens-apps/indexer/chain'
+import {
+  orderedSepoliaRpcUrls,
+  WALLETCONNECT_PROJECT_ID,
+} from '@ens-apps/indexer/chain'
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { walletConnect } from '@wagmi/connectors'
-import { createClient, http } from 'viem'
+import { createClient, fallback, http } from 'viem'
 import { sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { getResolvedThemeMode } from '@/hooks/useTheme'
+import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
 
 export { WALLETCONNECT_PROJECT_ID }
 
@@ -23,11 +27,31 @@ const PORTAL_SEPOLIA_RPC_URL =
 export const SEPOLIA_RPC_URL: string =
   import.meta.env?.VITE_SEPOLIA_RPC_URL || PORTAL_SEPOLIA_RPC_URL
 
+// Failover to the shared public endpoints (see SEPOLIA_FALLBACK_RPC_URLS in
+// @ens-apps/indexer/chain for the rationale and provider choice). The portal's
+// own RPC URL stays the preferred (primary) endpoint so quota/usage is still
+// attributed to the portal app.
+const SEPOLIA_RPC_URLS = orderedSepoliaRpcUrls(SEPOLIA_RPC_URL)
+
+export const sepoliaFallbackTransport = fallback(
+  SEPOLIA_RPC_URLS.map((url) =>
+    http(url, {
+      retryCount: 2,
+      batch: {
+        wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
+      },
+    }),
+  ),
+  // rank: false keeps the declared order (primary first) instead of latency
+  // ranking, which would let a fast public node steal traffic from our key.
+  { rank: false, retryCount: 2 },
+)
+
 export const customSepolia = {
   ...sepolia,
   rpcUrls: {
-    default: { http: [SEPOLIA_RPC_URL] },
-    public: { http: [SEPOLIA_RPC_URL] },
+    default: { http: [...SEPOLIA_RPC_URLS] },
+    public: { http: [...SEPOLIA_RPC_URLS] },
   },
 }
 
@@ -48,14 +72,12 @@ export const wagmiConfig = createConfig({
       // at connector creation, so a mid-session toggle won't restyle it.
       qrModalOptions: { themeMode: getResolvedThemeMode() },
     }),
+    // Test-only: auto-signing wallet for Playwright/agents. Off in production.
+    ...(isMockWalletEnabled ? [mockConnector] : []),
   ],
   client: ({ chain }) =>
     createClient({
       chain,
-      transport: http(SEPOLIA_RPC_URL, {
-        batch: {
-          wait: 10, // Wait 10ms to collect more requests before sending batch (default is 0ms)
-        },
-      }),
+      transport: sepoliaFallbackTransport,
     }),
 })

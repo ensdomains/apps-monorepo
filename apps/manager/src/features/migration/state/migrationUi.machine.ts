@@ -24,7 +24,6 @@ import {
 } from '@/features/migration/service/migrationService'
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 
-const SUCCESS_HOLD_MS = 3000
 const FAILURE_HOLD_MS = 1500
 
 type Context = {
@@ -82,7 +81,6 @@ export const migrationUiMachine = setup({
     tags: '' as 'running' | 'result',
   },
   delays: {
-    successHold: SUCCESS_HOLD_MS,
     failureHold: FAILURE_HOLD_MS,
   },
   actors: {
@@ -269,21 +267,13 @@ export const migrationUiMachine = setup({
                 actions: 'recordCompletion',
               },
               {
-                target: 'succeeding',
+                target: '#migrationUi.success',
                 actions: 'recordCompletion',
               },
             ],
             'migration.failed': {
               target: 'failing',
               actions: 'setError',
-            },
-          },
-        },
-        succeeding: {
-          tags: 'running',
-          after: {
-            successHold: {
-              target: '#migrationUi.success',
             },
           },
         },

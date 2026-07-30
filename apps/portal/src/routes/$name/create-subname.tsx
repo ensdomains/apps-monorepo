@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, isAddress, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
@@ -21,6 +21,7 @@ import {
 import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -28,6 +29,7 @@ import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
+import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
 
 const getClient = () => wagmiConfig.getClient()
@@ -54,7 +56,7 @@ const PageHeader = ({ name }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <h1 className="text-[30px] font-medium leading-[1.35]">Create subname</h1>
+    <h1 className="text-h1">Create subname</h1>
   </div>
 )
 
@@ -79,6 +81,20 @@ interface CreateSubnameFormProps {
 
 const CREATE_SUBNAME_TRANSACTION_ID = 'tx-create-ens-subname'
 
+// One-year (in seconds) default expiry, matching ensjs'
+// `createSubnameV2WriteParameters` default. When time-travel is active Anvil's
+// block time can be far ahead of `Date.now()`, so use a 100-year window to
+// ensure the expiry is never stale on-chain.
+const ONE_YEAR_SECONDS = 31536000n
+const HUNDRED_YEARS_SECONDS = 3153600000n
+
+const computeSubnameExpires = (): bigint => {
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  return isTimeTravelEnabled()
+    ? nowSeconds + HUNDRED_YEARS_SECONDS
+    : nowSeconds + ONE_YEAR_SECONDS
+}
+
 const CreateSubnameForm = ({
   name,
   protocolVersion,
@@ -95,6 +111,10 @@ const CreateSubnameForm = ({
   const [isResolving, setIsResolving] = useState(false)
   const [prepareError, setPrepareError] = useState<string | null>(null)
   const [resolverAddress, setResolverAddress] = useState<Address | null>(null)
+  // A stable expiry for the pre-start gas estimate. Gas is independent of the
+  // expiry value, so this need not match the fresh one the submit computes — it
+  // just has to be stable across renders so the estimate query doesn't churn.
+  const estimateExpires = useMemo(() => computeSubnameExpires(), [])
   const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasUserEditedOwner = useRef(false)
 
@@ -134,18 +154,15 @@ const CreateSubnameForm = ({
   })
 
   const trimmedLabel = label.trim()
+  const labelError = getLabelRegistrationError(trimmedLabel)
   const isLabelTaken = Boolean(
     trimmedLabel && existingSubnames?.some((s) => s.labelName === trimmedLabel),
   )
 
   const handleStartTransaction = () => {
-    if (!hasSubregistry || !ownerAddress || !resolverAddress) return
-
-    // When time-travel is active, Anvil's block time can be far ahead of
-    // Date.now(). Use a 100-year window so the expiry is never stale on-chain.
-    const expires = isTimeTravelEnabled()
-      ? BigInt(Math.floor(Date.now() / 1000)) + 3153600000n
-      : undefined
+    if (!hasSubregistry || !ownerAddress || !resolverAddress || labelError) {
+      return
+    }
 
     createSubname({
       registryAddress: subregistryAddress,
@@ -155,7 +172,7 @@ const CreateSubnameForm = ({
       parentName: name,
       protocolVersion,
       id: CREATE_SUBNAME_TRANSACTION_ID,
-      expires,
+      expires: computeSubnameExpires(),
     })
   }
 
@@ -212,7 +229,7 @@ const CreateSubnameForm = ({
 
   if (!hasSubregistry) {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-muted-foreground">
           This name does not have a subregistry. You must deploy one first to
@@ -228,11 +245,11 @@ const CreateSubnameForm = ({
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+    <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
       <PageHeader name={name} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-        <Field data-invalid={isLabelTaken}>
+        <Field data-invalid={isLabelTaken || Boolean(labelError)}>
           <FieldLabel htmlFor="label">Subname</FieldLabel>
           <div className="flex items-center gap-2">
             <Input
@@ -252,6 +269,7 @@ const CreateSubnameForm = ({
               {trimmedLabel}.{name} is already registered.
             </p>
           )}
+          {labelError && <p className="text-sm text-danger">{labelError}</p>}
         </Field>
 
         <Field data-invalid={!ownerAddress && !isResolving}>
@@ -353,7 +371,9 @@ const CreateSubnameForm = ({
 
         <Button
           type="submit"
-          disabled={!ownerAddress || !isConnected || isLabelTaken}
+          disabled={
+            !ownerAddress || !isConnected || isLabelTaken || Boolean(labelError)
+          }
           className="w-full sm:w-fit"
         >
           {match({ isSubmitting, isSuccess })
@@ -374,7 +394,24 @@ const CreateSubnameForm = ({
             id: CREATE_SUBNAME_TRANSACTION_ID,
             title: 'Create subname',
             transactionName: `Create ${label.trim()}.${name}`,
-            estimatedGasCost: 0.0002,
+            // The prepared createSubname transaction for the pre-start gas
+            // estimate. Undefined until the form is ready (resolver resolved,
+            // owner set) — the modal shows "Estimating…" until then.
+            intent: {
+              prepare:
+                hasSubregistry && ownerAddress && resolverAddress
+                  ? ({ walletClient, chainId }) =>
+                      prepareCreateSubnameTransaction({
+                        registryAddress: subregistryAddress,
+                        label: label.trim(),
+                        owner: ownerAddress,
+                        resolverAddress,
+                        walletClient,
+                        chainId,
+                        expires: estimateExpires,
+                      })
+                  : undefined,
+            },
             onStart: handleStartTransaction,
             onDone: () => {
               closeTransactionModal()
@@ -401,7 +438,7 @@ const CreateSubnameContent = ({
 }: CreateSubnameContentProps) => {
   if (ownerData.protocolVersion !== 'ENSv2') {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-[640px] mx-auto">
+      <div className="flex flex-col gap-6 w-full max-w-[640px] mx-auto">
         <PageHeader name={name} />
         <p className="text-muted-foreground">
           This feature is only available for ENSv2 names.

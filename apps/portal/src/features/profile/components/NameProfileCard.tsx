@@ -93,7 +93,7 @@ export const NameProfileCard = ({
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-0.5">
           {!stacked && (
-            <h2 className="text-2xl font-medium w-max">
+            <h2 className="text-h2 w-max">
               {linked ? (
                 <Link to="/$name" params={{ name }} className="hover:underline">
                   {labels.join('.')}.

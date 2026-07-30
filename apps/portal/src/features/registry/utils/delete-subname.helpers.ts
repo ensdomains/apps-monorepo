@@ -4,19 +4,11 @@
  * Pure functions for preparing deleteSubname transactions.
  */
 
-import type {
-  CustomTransactionIntent,
-  EOATransactionRequest,
-} from '@ens-apps/transaction-manager'
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import { deleteSubnameWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { errAsync, fromThrowable, okAsync, type ResultAsync } from 'neverthrow'
 import type { Address, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
-import type { WalletClientWithAccount } from '@/utils/types'
-
-const safeEncodeFunctionData = fromThrowable(encodeFunctionData, (e) =>
-  e instanceof Error ? e : new Error(String(e)),
-)
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 
 export interface PrepareDeleteSubnameParams {
   /** The parent registry (subregistry) address that manages this subname */
@@ -29,53 +21,35 @@ export interface PrepareDeleteSubnameParams {
   readonly chainId: number
 }
 
-function assertWalletHasAccount(
-  walletClient: WalletClient,
-): walletClient is WalletClientWithAccount {
-  return walletClient.account !== undefined
-}
-
-/**
- * Prepares the deleteSubname transaction request.
- * Returns a CustomTransactionIntent that can be passed to the transaction manager.
- */
+/** The deleteSubname intent, shared by the gas estimate and {@link deleteSubname}. */
 export function prepareDeleteSubnameTransaction({
   registryAddress,
   label,
   walletClient,
   chainId,
-}: PrepareDeleteSubnameParams): ResultAsync<CustomTransactionIntent, Error> {
-  if (!assertWalletHasAccount(walletClient)) {
-    return errAsync(new Error('Wallet client has no connected account'))
+}: PrepareDeleteSubnameParams): CustomTransactionIntent {
+  if (!walletClient.account || !walletClient.chain) {
+    throw new Error('Wallet client must have account and chain configured')
   }
 
-  const writeParams = deleteSubnameWriteParameters(walletClient, {
-    registryAddress,
-    label,
-  })
+  const writeParams = deleteSubnameWriteParameters(
+    walletClient as Parameters<typeof deleteSubnameWriteParameters>[0],
+    {
+      registryAddress,
+      label,
+    },
+  )
 
-  const dataResult = safeEncodeFunctionData({
+  const data = encodeFunctionData({
     abi: writeParams.abi,
     functionName: writeParams.functionName,
     args: writeParams.args,
-  })
+  } as Parameters<typeof encodeFunctionData>[0])
 
-  if (dataResult.isErr()) {
-    return errAsync(dataResult.error)
-  }
-
-  const request: EOATransactionRequest = {
-    type: 'eoa',
+  return toEoaCustomIntent({
     from: walletClient.account.address,
     to: writeParams.address,
-    data: dataResult.value,
+    data,
     chainId,
-  }
-
-  const intent: CustomTransactionIntent = {
-    type: 'custom',
-    request,
-  }
-
-  return okAsync(intent)
+  })
 }

@@ -24,10 +24,10 @@ const RegisterPage = () => {
         <PageContainer className="min-h-screen flex flex-col pt-4">
           {!name ? (
             <MessageCard
-              icon={<LanguagesIcon className="size-8" strokeWidth={1.5} />}
+              icon={<LanguagesIcon className="size-6" strokeWidth={1.5} />}
               title="Search for a name to register"
               description={
-                <div className="text-base">
+                <div>
                   <p>
                     Search for a name using the search bar in the sidebar, then
                     select or enter the name to proceed with the registration

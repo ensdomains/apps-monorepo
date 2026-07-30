@@ -52,7 +52,7 @@ export const columns: ColumnDef<NameRecord>[] = [
         return (
           <span className="flex flex-row items-center gap-2 font-mono">
             {row.original.id}{' '}
-            <span className="font-sans text-muted-foreground uppercase">
+            <span className="font-sans text-caps text-muted-foreground">
               {row.original.key}
             </span>
           </span>

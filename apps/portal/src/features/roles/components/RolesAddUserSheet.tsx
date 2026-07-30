@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
+import { prepareGrantRolesTransaction } from '@/features/roles/helpers/grantRoles'
 import { useGrantRoles } from '@/features/roles/hooks/useGrantRoles'
 import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -173,9 +174,7 @@ export const RolesAddUserSheet = ({
       >
         <div className="p-6 flex flex-col gap-6 h-full">
           <SheetHeader className="p-0 pt-4">
-            <SheetTitle className="font-sans text-heading font-medium">
-              Add user
-            </SheetTitle>
+            <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
           </SheetHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
@@ -300,7 +299,19 @@ export const RolesAddUserSheet = ({
                 transactionName: address
                   ? `Grant roles for ${truncateAddress(address, 6, 4)}`
                   : 'Grant roles',
-                estimatedGasCost: 0.0001,
+                intent: {
+                  prepare: pendingGrant
+                    ? ({ walletClient, chainId }) =>
+                        prepareGrantRolesTransaction({
+                          name,
+                          account: pendingGrant.account,
+                          roles: pendingGrant.roles,
+                          walletClient,
+                          chainId,
+                          registryAddress,
+                        })
+                    : undefined,
+                },
                 onStart: handleStartTransaction,
                 onDone: handleDone,
               },

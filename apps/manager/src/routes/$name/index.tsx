@@ -4,9 +4,8 @@ import {
   redirect,
 } from '@tanstack/react-router'
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
-import { ProfileLoading } from '@/features/profile/components/common/ProfileLoading'
+import { ProfileLoading } from '@/features/profile/components/view/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
-import { ProfileViewNewLoading } from '@/features/profile/components/view-new/ProfileViewNewLoading'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
@@ -17,11 +16,18 @@ import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
-    const [profileRecords, ownerData, expiryData] = await Promise.all([
+    const [profileRecords, ownerData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(name)),
       queryClient.ensureQueryData(profileOwnerQuery(name)),
-      queryClient.ensureQueryData(profileExpiryQuery(name)),
-      queryClient.prefetchQuery(profileRegistrationQuery(name)),
+    ])
+
+    const [expiryData] = await Promise.all([
+      queryClient.ensureQueryData(
+        profileExpiryQuery(name, ownerData?.protocol),
+      ),
+      queryClient.prefetchQuery(
+        profileRegistrationQuery(name, ownerData?.protocol),
+      ),
     ])
 
     const expiryDate =
@@ -80,12 +86,7 @@ export const Route = createFileRoute('/$name/')({
 
 function ProfileRoutePending() {
   const name = Route.useParams({ select: (params) => params.name })
-
-  return isFeatureEnabled('PROFILE_VIEW_NEW') ? (
-    <ProfileViewNewLoading name={name} />
-  ) : (
-    <ProfileLoading />
-  )
+  return <ProfileLoading name={name} />
 }
 
 function ProfileRouteError({ error }: ErrorComponentProps) {
@@ -102,6 +103,5 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
 
 function RouteComponent() {
   const name = Route.useParams({ select: (params) => params.name })
-
   return <ProfileView name={name} />
 }

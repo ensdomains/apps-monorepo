@@ -7,6 +7,7 @@ export const Route = createFileRoute('/$address/')({
     const resolvedName = await queryClient.ensureQueryData(
       profileReverseNameQuery(address),
     )
+
     return { resolvedName: resolvedName ?? undefined }
   },
   component: RouteComponent,

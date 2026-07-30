@@ -20,6 +20,7 @@ import {
 import { Field, FieldLabel } from '@/components/ui/field'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
+import { prepareSetAliasTransaction } from '@/features/resolver/helpers/setAlias'
 import {
   getResolverOverviewQueryOptions,
   type ResolverNode,
@@ -57,7 +58,7 @@ const PageHeader = ({ address }: PageHeaderProps) => (
         Back
       </Button>
     </Link>
-    <h1 className="text-[30px] font-medium leading-[1.35]">Create alias</h1>
+    <h1 className="text-h1">Create alias</h1>
   </div>
 )
 
@@ -160,7 +161,7 @@ function RouteComponent() {
 
   if (nodes.length === 0) {
     return (
-      <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-160 mx-auto">
+      <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
         <PageHeader address={address} />
         <p className="text-muted-foreground">
           This resolver has no nodes. A node must exist before an alias can be
@@ -171,7 +172,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex flex-col gap-6 px-4 py-4 sm:py-6 w-full max-w-160 mx-auto">
+    <div className="flex flex-col gap-6 w-full max-w-160 mx-auto">
       <PageHeader address={address} />
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -326,7 +327,18 @@ function RouteComponent() {
             id: CREATE_ALIAS_TX_ID,
             title: 'Create alias',
             transactionName: `Alias ${pendingAlias?.fromName ?? ''} -> ${pendingAlias?.toName ?? ''}`,
-            estimatedGasCost: 0.0001,
+            intent: {
+              prepare: pendingAlias
+                ? ({ walletClient, chainId }) =>
+                    prepareSetAliasTransaction({
+                      fromName: pendingAlias.fromName,
+                      toName: pendingAlias.toName,
+                      resolverAddress: address as Address,
+                      walletClient,
+                      chainId,
+                    })
+                : undefined,
+            },
             onStart: () => {
               if (!pendingAlias) return
               mutation.mutate(pendingAlias)

@@ -6,7 +6,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import {
   getLatestRenewalExpiry,
   useMultiNamePricing,
@@ -19,10 +18,11 @@ import { ExtendNameDisclaimer } from '../ExtendNameDisclaimer'
 import type { ExtensionSpanType } from '../ExtensionDurationOrExpiryPicker'
 import { MultiNameExtendSettings } from './MultiNameExtendSettings'
 import { MultiNameExtendSummary } from './MultiNameExtendSummary'
+import type { MultiNameTokenSelection } from './MultiNamePaymentTokenPicker'
 
 type MultiRenewConfig = {
   readonly renewals: readonly MultiRenewalEntry[]
-  readonly token: TokenWithPriceAndBalance
+  readonly selection: MultiNameTokenSelection
 }
 
 type MultiNameExtendModalProps = {
@@ -107,8 +107,8 @@ export const MultiNameExtendModal = ({
               allLoaded={allLoaded}
               renewals={renewals}
               onBack={() => setStep('settings')}
-              onNext={(token) => {
-                onExtend({ renewals, token })
+              onNext={(selection) => {
+                onExtend({ renewals, selection })
               }}
             />
           ))

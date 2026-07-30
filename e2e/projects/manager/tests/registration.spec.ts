@@ -66,7 +66,7 @@ test.describe('ENS name registration', () => {
     // idempotent — a no-op in EOA mode where the modal never appears.
     await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
-    await page.getByRole('button', { name: /buy name/i }).click()
+    await page.getByRole('button', { name: /register name/i }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     // Authorize the EOA registration transactions (deploy-resolver? → commit →

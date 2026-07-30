@@ -15,6 +15,8 @@
  * `report-to` / `report-uri` directives plus a `Reporting-Endpoints` header.
  */
 
+import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
+
 /**
  * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
  * be allowlisted in `connect-src`.
@@ -52,6 +54,10 @@ const OVERRIDE_CONNECT_ORIGINS = [
 const DEFAULT_CONNECT_HOSTS = [
   // default Sepolia RPC — packages/indexer/chain.ts
   'https://lb.drpc.live',
+  // Public RPC failover endpoints — derived from the same source the viem
+  // transports use (lib/wagmi.ts, worker/clients.ts), so a fallback added
+  // there can never be silently blocked by this policy.
+  ...SEPOLIA_FALLBACK_RPC_URLS.map((url) => new URL(url).origin),
   // ENS-owned hosts: indexer GraphQL (graphql.ens.dev — packages/indexer/
   // urql/client.ts) and the fund/faucet API (app-api.ens.dev —
   // src/hooks/useFundWallet.ts). Wildcarded so per-deployment / per-env
@@ -95,6 +101,21 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://sepolia.base.org',
   'https://rpc.sepolia.linea.build',
   'https://sepolia-rpc.scroll.io',
+  // CCIP-Read (ERC-3668) gateways — viem follows the UniversalResolver's
+  // OffchainLookup reverts from the browser, so every gateway origin must be
+  // allowlisted or resolution fails with a generic "HTTP request failed."
+  // buried in a ResolverError. The UR hands out the ENS batch gateway
+  // (ccip-v3.ens.xyz — wildcarded like the other ENS-owned domains) tagged
+  // `x-batch-gateway:true`, which makes viem fan the batch out to the
+  // per-chain verifier gateways directly from the browser: Unruggable's
+  // *.3668.io (arbitrum-sepolia.3668.io, linea-sepolia.3668.io, …) and its
+  // drpc-load-balanced mirror lb.drpc.org (the gateway host — distinct from
+  // the lb.drpc.live RPC above). Blocking any of these breaks L2
+  // primary-name verification (forward-resolution useReverseMatch) and every
+  // name resolving through a CCIP-read resolver.
+  'https://*.ens.xyz',
+  'https://*.3668.io',
+  'https://lb.drpc.org',
 ] as const
 
 // Static defaults plus any deployment-specific override origins. Deduped so an

@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
@@ -75,15 +76,16 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="flex flex-row justify-between items-center">
-        <h2 className="text-2xl font-medium">History</h2>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/addr/$addr/history" params={{ addr: address }}>
-            <Clock className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/addr/$addr/history" params={{ addr: address }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
       <NameSubgraphHistory
         name={address}
         category="domain"
@@ -105,11 +107,9 @@ function RouteComponent() {
     isAddressEqual(connectedAddress, addr)
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2 lg:flex-row justify-between items-baseline">
-        <h1 className="text-2xl md:text-heading font-medium leading-none break-all">
-          {addr}
-        </h1>
+        <h1 className="text-h2 md:text-h1 break-all">{addr}</h1>
         {isViewingConnectedWallet && (
           <Button variant="default" onClick={() => disconnect()}>
             Disconnect
@@ -117,7 +117,7 @@ function RouteComponent() {
         )}
       </div>
       <PrimaryName address={addr} />
-      <h2 className="font-medium text-2xl">Names</h2>
+      <h2 className="text-h2">Names</h2>
       <NameList address={addr} limit={3} />
       <AddressRecentHistory address={addr} />
     </div>

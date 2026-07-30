@@ -10,16 +10,32 @@ const DEFAULT_SEPOLIA_RPC_URL =
   'https://lb.drpc.live/sepolia/AnmpasF2C0JBqeAEzxVO8aRo7Ju0xlER8JS4QmlfqV1j'
 
 /**
- * Public Sepolia fallback endpoints. dRPC intermittently returns
- * `{"error":{"message":"Internal server error","code":3}}` (HTTP 500) on
- * otherwise-valid `eth_call`s (e.g. `nonces`, `MIN_COMMITMENT_AGE`); viem's
+ * Public Sepolia fallback endpoints, shared by every app. dRPC intermittently
+ * returns `{"error":{"message":"Internal server error","code":3}}` (HTTP 500)
+ * on otherwise-valid `eth_call`s (e.g. `nonces`, `MIN_COMMITMENT_AGE`); viem's
  * `fallback()` transport transparently fails over to these so a single
  * provider blip doesn't break a registration.
+ *
+ * All three endpoints (each app's dRPC primary + these) are separate
+ * providers, so their failure modes are uncorrelated. Exported so app CSPs
+ * can derive their `connect-src` allowlist from the same source — a fallback
+ * added here without a CSP entry would be silently blocked by the browser.
  */
-const SEPOLIA_FALLBACK_RPC_URLS = [
+export const SEPOLIA_FALLBACK_RPC_URLS = [
   'https://ethereum-sepolia-rpc.publicnode.com',
-  'https://1rpc.io/sepolia',
+  // Tenderly over 1rpc.io: 1rpc's free tier rate-limits quickly, which makes
+  // it a weak failover exactly when the primary is struggling.
+  'https://sepolia.gateway.tenderly.co',
 ] as const
+
+/**
+ * Primary-first, deduped URL list for viem's `fallback()` transport. Apps own
+ * their (attributed) primary RPC URL; the public fallbacks are shared.
+ */
+export const orderedSepoliaRpcUrls = (primary: string): readonly string[] => [
+  primary,
+  ...SEPOLIA_FALLBACK_RPC_URLS.filter((url) => url !== primary),
+]
 
 function resolveRpcUrl(): string {
   try {
@@ -49,10 +65,8 @@ export const SEPOLIA_RPC_URL: string = resolveRpcUrl()
  * fallbacks. Use with `sepoliaFallbackTransport` (or build your own
  * `fallback()`); the first entry stays the preferred endpoint.
  */
-export const SEPOLIA_RPC_URLS: readonly string[] = [
-  SEPOLIA_RPC_URL,
-  ...SEPOLIA_FALLBACK_RPC_URLS.filter((url) => url !== SEPOLIA_RPC_URL),
-]
+export const SEPOLIA_RPC_URLS: readonly string[] =
+  orderedSepoliaRpcUrls(SEPOLIA_RPC_URL)
 
 /**
  * viem `fallback()` transport over {@link SEPOLIA_RPC_URLS}. Fails over to

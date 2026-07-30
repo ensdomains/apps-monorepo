@@ -23,6 +23,8 @@ import type { ActiveTransactionState } from '../hooks/useActiveTransactionState'
 import type { Transaction, TransactionModalContentState } from '../types'
 import { getActiveTransaction } from '../utils/getActiveTransaction'
 import { getStatus } from '../utils/getStatus'
+import { shouldShowWaitCountdown } from '../utils/shouldShowWaitCountdown'
+import { EstimatedGasCost } from './EstimatedGasCost'
 import { TransactionWaitCountdown } from './TransactionWaitCountdown'
 
 type TransactionsOverviewContentProps = {
@@ -77,13 +79,13 @@ export const TransactionsOverviewContent = ({
           {ensName ? (
             <div className="flex flex-col items-center gap-2 pt-10">
               <NameAvatar name={ensName} height="80px" width="80px" />
-              <h2 className="text-3xl font-medium text-foreground text-center max-w-full break-all">
+              <h2 className="text-h2 text-foreground text-center max-w-full break-all">
                 {ensName}
               </h2>
             </div>
           ) : null}
           <div className="space-y-2 min-w-0">
-            {transactions.map((transaction) => {
+            {transactions.map((transaction, index) => {
               const activeTxSnapshot = activeTransactionsMap
                 .get(transaction.id)
                 ?.getSnapshot()
@@ -126,10 +128,12 @@ export const TransactionsOverviewContent = ({
                         <h4 className="text-base font-medium text-foreground truncate">
                           {transaction.title}
                         </h4>
-                        {transaction.waitUntil &&
-                        getStatus(transaction.id, activeTransactionsMap) ===
-                          undefined &&
-                        transaction.waitUntil > Date.now() ? (
+                        {shouldShowWaitCountdown(
+                          transaction,
+                          index,
+                          transactions,
+                          activeTransactionsMap,
+                        ) && transaction.waitUntil ? (
                           <TransactionWaitCountdown
                             waitUntil={transaction.waitUntil}
                           />
@@ -199,9 +203,17 @@ export const TransactionsOverviewContent = ({
                       </Button>
                     </div>
                     <dl className="grid grid-cols-2 gap-1 place-items-start">
-                      <dt className="text-base font-medium">Est. Cost</dt>
+                      <dt className="text-base font-medium">
+                        {getStatus(transaction.id, activeTransactionsMap) ===
+                        'success'
+                          ? 'Actual Cost'
+                          : 'Est. Cost'}
+                      </dt>
                       <dd className="text-base">
-                        {transaction.estimatedGasCost} ETH
+                        <EstimatedGasCost
+                          actor={activeTransactionsMap.get(transaction.id)}
+                          intent={transaction.intent}
+                        />
                       </dd>
                     </dl>
                   </div>

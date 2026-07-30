@@ -5,6 +5,7 @@
  * (or the only step when using a custom subregistry address).
  */
 
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -13,17 +14,22 @@ import {
 import { setSubregistryWriteParameters } from '@ensdomains/ensjs/wallet'
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
 import { encodeFunctionData } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { WalletClientWithAccount } from '@/utils/types'
 
-export interface SetSubregistryParameters {
-  readonly name: string
+export interface SetSubregistryTransactionParameters {
   readonly label: string
   readonly parentRegistry: Address
   readonly subregistryAddress: Address
   readonly walletClient: WalletClient
+  readonly chainId: number
+}
+
+export interface SetSubregistryParameters
+  extends SetSubregistryTransactionParameters {
+  readonly name: string
   readonly publicClient: PublicClient
   readonly signer: Signer
-  readonly chainId: number
   readonly id: string
 }
 
@@ -32,17 +38,18 @@ export interface SetSubregistryResult {
   readonly hash: Hex
 }
 
-export const setSubregistry = async ({
-  name,
+/**
+ * The setSubregistry intent, shared by the gas estimate and {@link setSubregistry}.
+ * Only usable for the custom (user-provided) subregistry branch: in the
+ * deploy-then-set flow the target address is only known once the deploy mines.
+ */
+export function prepareSetSubregistryTransaction({
   label,
   parentRegistry,
   subregistryAddress,
   walletClient,
-  publicClient,
-  signer,
   chainId,
-  id,
-}: SetSubregistryParameters): Promise<SetSubregistryResult> => {
+}: SetSubregistryTransactionParameters): CustomTransactionIntent {
   if (!walletClient.account) {
     throw new Error('Wallet client must have account configured')
   }
@@ -61,18 +68,37 @@ export const setSubregistry = async ({
     args: writeParams.args,
   })
 
+  return toEoaCustomIntent({
+    from: walletWithAccount.account.address,
+    to: writeParams.address,
+    data,
+    chainId,
+    // Explicit cap: live estimation for this call is unreliable, so the intent
+    // carries the gas limit the submit path uses (the estimator falls back to
+    // it when eth_estimateGas reverts).
+    gas: 500000n,
+  })
+}
+
+export const setSubregistry = async ({
+  name,
+  label,
+  parentRegistry,
+  subregistryAddress,
+  walletClient,
+  publicClient,
+  signer,
+  chainId,
+  id,
+}: SetSubregistryParameters): Promise<SetSubregistryResult> => {
   const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletWithAccount.account.address,
-        to: writeParams.address,
-        data,
-        chainId,
-        gas: 500000n,
-      },
-    },
+    prepareSetSubregistryTransaction({
+      label,
+      parentRegistry,
+      subregistryAddress,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

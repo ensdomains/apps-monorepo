@@ -32,8 +32,10 @@ export const ReverseResolutionTable = ({
   table: TableData<ReverseResolutionResult>
   address: Address
 }) => {
-  const [selectedReverseRegistrarChainId, setSelectedReverseRegistrarChainId] =
-    useState<number | null>(null)
+  // Track the selected row by its coin type (stable id) rather than holding a
+  // Row object, which would go stale on refetch. See the forward-resolution
+  // table for the same pattern.
+  const [selectedCoinType, setSelectedCoinType] = useState<number | null>(null)
 
   const [open, setOpen] = useState(false)
 
@@ -41,30 +43,27 @@ export const ReverseResolutionTable = ({
 
   const { address: account } = useConnection()
 
-  const clickedRow = selectedReverseRegistrarChainId
-    ? (table
-        .getRowModel()
-        .rows.find(
-          (r) =>
-            r.original.reverseRegistrarChainId ===
-            selectedReverseRegistrarChainId,
-        ) ?? null)
-    : null
+  const clickedRow =
+    selectedCoinType != null
+      ? (table
+          .getRowModel()
+          .rows.find((r) => r.original.coinType === selectedCoinType) ?? null)
+      : null
 
   const setClickedRow = (
     value: React.SetStateAction<Row<ReverseResolutionResult> | null>,
   ) => {
-    setSelectedReverseRegistrarChainId((prev) => {
-      const prevRow = prev
-        ? (table
-            .getRowModel()
-            .rows.find((r) => r.original.reverseRegistrarChainId === prev) ??
-          null)
-        : null
+    setSelectedCoinType((prev) => {
+      const prevRow =
+        prev != null
+          ? (table
+              .getRowModel()
+              .rows.find((r) => r.original.coinType === prev) ?? null)
+          : null
 
       const newRow = typeof value === 'function' ? value(prevRow) : value
 
-      return newRow?.original.reverseRegistrarChainId ?? null
+      return newRow?.original.coinType ?? null
     })
   }
 
@@ -113,7 +112,10 @@ export const ReverseResolutionTable = ({
               ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
+              <TableCell
+                colSpan={columns.length}
+                className="px-6 py-24 text-center"
+              >
                 No results.
               </TableCell>
             </TableRow>

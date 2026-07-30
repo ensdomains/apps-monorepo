@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { prepareDeploySubregistryTransaction } from '@/features/registry/helpers/deploySubregistry'
+import { prepareSetSubregistryTransaction } from '@/features/registry/helpers/setSubregistry'
 import { useDeploySubregistry } from '@/features/registry/hooks/useDeploySubregistry'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
@@ -28,6 +30,16 @@ const SET_SUBREGISTRY_TX_ID = 'tx-set-subregistry'
 
 const SUCCESS_LABEL_DURATION_MS = 5000
 
+const factoryAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensVerifiableFactory',
+})
+
+const implAddress = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensUserRegistryImpl',
+})
+
 type RegistryOption = 'deploy' | 'use-existing'
 
 type ConfigureRegistryFormProps = {
@@ -35,9 +47,11 @@ type ConfigureRegistryFormProps = {
 }
 
 const NoRegistryConfiguredCard = ({ name }: { name: string }) => (
-  <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
-    <h3 className="text-3xl font-medium font-serif">No registry configured</h3>
-    <p className="text-base">
+  <div className="flex flex-col gap-4 bg-neutral-2 p-6 rounded-[8px]">
+    <h3 className="text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
+      No registry configured
+    </h3>
+    <p className="text-p">
       This name doesn't have a contract set to create and manage subnames.
       Create one to turn <strong>{name}</strong> into its own namespace with
       subnames like <strong>cold.{name}</strong> or{' '}
@@ -85,16 +99,6 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
       }),
       enabled: !!connectedAddress && !!parentRegistry && !isLoading,
     })
-
-  const factoryAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensVerifiableFactory',
-  })
-
-  const implAddress = getChainContractAddress({
-    chain: sepoliaWithEns,
-    contract: 'ensUserRegistryImpl',
-  })
 
   const customSubregistryAddress =
     useCustomRegistry && isAddress(contractAddress)
@@ -200,8 +204,8 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   if (error) {
     return (
       <ErrorMessage
-        title={error.cause.name}
-        description={error.message || error.cause.message}
+        compact
+        description="Error fetching registry data. Please refresh the page."
       />
     )
   }
@@ -333,7 +337,15 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   id: DEPLOY_SUBREGISTRY_TX_ID,
                   title: 'Deploy subregistry',
                   transactionName: `Deploy subregistry for ${name}`,
-                  estimatedGasCost: 0.0008,
+                  intent: {
+                    prepare: ({ walletClient, chainId }) =>
+                      prepareDeploySubregistryTransaction({
+                        factoryAddress,
+                        implAddress,
+                        walletClient,
+                        chainId,
+                      }),
+                  },
                   onStart: handleDeploySubregistryStart,
                   // Chains into the set step once the deploy succeeds; the
                   // handler is idempotent so this can't double-submit.
@@ -343,7 +355,9 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   id: SET_SUBREGISTRY_TX_ID,
                   title: 'Set subregistry',
                   transactionName: `Set subregistry for ${name}`,
-                  estimatedGasCost: 0.0001,
+                  // No pre-start estimate by design: the target is the subregistry
+                  // deployed by the step above, whose address isn't known until
+                  // it mines. Estimated once this step becomes active.
                   onStart: handleSetSubregistryAfterDeployStart,
                   onDone: handleSetSubregistryDone,
                 },
@@ -353,7 +367,21 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
                   id: SET_SUBREGISTRY_TX_ID,
                   title: 'Set subregistry',
                   transactionName: `Set custom subregistry for ${name}`,
-                  estimatedGasCost: 0.0001,
+                  // The custom-registry branch's "Set subregistry" call is fully
+                  // known upfront (user-provided address), so its gas can be
+                  // estimated the moment the modal opens.
+                  intent: {
+                    prepare: customSubregistryAddress
+                      ? ({ walletClient, chainId }) =>
+                          prepareSetSubregistryTransaction({
+                            label,
+                            parentRegistry,
+                            subregistryAddress: customSubregistryAddress,
+                            walletClient,
+                            chainId,
+                          })
+                      : undefined,
+                  },
                   onStart: handleSetSubregistryStart,
                   onDone: handleSetSubregistryDone,
                 },

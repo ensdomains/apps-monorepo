@@ -46,6 +46,66 @@ const localSepolia = {
   rpcUrls: { default: { http: [ANVIL_RPC_URL] } },
 } as const
 
+const MIGRATION_FEATURE_FLAGS = { migration: true } as const
+const PROFILE_FEATURE_FLAGS = { 'profile-view-new': true } as const
+const FEATURE_FLAG_OVERRIDE_TIMEOUT = 10_000
+
+async function overrideManagerFeatureFlags(
+  page: Page,
+  featureFlags: Record<string, boolean>,
+): Promise<void> {
+  await page.addInitScript((featureFlags) => {
+    type PostHogWindow = Window & {
+      managerFeatureFlagsOverridden?: boolean
+      posthog?: {
+        __loaded?: boolean
+        featureFlags?: {
+          overrideFeatureFlags(options: {
+            flags: Record<string, boolean>
+          }): void
+        }
+      }
+    }
+
+    const applyOverride = () => {
+      const postHogWindow = window as PostHogWindow
+      const posthog = postHogWindow.posthog
+
+      if (!posthog?.__loaded || !posthog.featureFlags) return false
+
+      posthog.featureFlags.overrideFeatureFlags({
+        flags: featureFlags,
+      })
+      postHogWindow.managerFeatureFlagsOverridden = true
+      return true
+    }
+
+    if (applyOverride()) return
+
+    const interval = window.setInterval(() => {
+      if (applyOverride()) window.clearInterval(interval)
+    }, 10)
+  }, featureFlags)
+}
+
+async function waitForManagerFeatureFlagOverride(page: Page): Promise<void> {
+  await page
+    .waitForFunction(
+      () =>
+        (window as Window & {
+          managerFeatureFlagsOverridden?: boolean
+        }).managerFeatureFlagsOverridden === true,
+      undefined,
+      { timeout: FEATURE_FLAG_OVERRIDE_TIMEOUT },
+    )
+    .catch((cause: unknown) => {
+      throw new Error(
+        `PostHog feature flag override was not applied within ${FEATURE_FLAG_OVERRIDE_TIMEOUT}ms`,
+        { cause },
+      )
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Accounts — derived from the default Anvil mnemonic
 // ---------------------------------------------------------------------------
@@ -107,12 +167,18 @@ type ManagerFixtures = {
    * that don't need backend-gated state.
    */
   connectedPage: Page
+  /** `connectedPage` with the new profile view feature flag applied. */
+  profileConnectedPage: Page
+  /** `connectedPage` with the migration feature flag applied. */
+  migrationConnectedPage: Page
   /**
    * Same as `connectedPage` but completes the BackendAuthModal SIWE prompt
    * instead of dismissing it. Required for backend-gated features
    * (notification settings, favorites, etc). Hits the deployed worker.
    */
   authenticatedPageWithBackend: Page
+  /** Backend-authenticated page with the new profile view feature flag applied. */
+  profileAuthenticatedPageWithBackend: Page
   /** Time fixture for syncing anvil block time with the browser clock. */
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
@@ -197,9 +263,36 @@ export const test = base.extend<ManagerFixtures>({
     await use(page)
   },
 
+  profileConnectedPage: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await dismissBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
+    await use(page)
+  },
+
+  migrationConnectedPage: async ({ page, wallet }, use) => {
+    await overrideManagerFeatureFlags(page, MIGRATION_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await dismissBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
+    await use(page)
+  },
+
   authenticatedPageWithBackend: async ({ page, wallet }, use) => {
     await connectHeadless(page, wallet)
     await signInBackendAuthModal(page)
+    await use(page)
+  },
+
+  profileAuthenticatedPageWithBackend: async (
+    { page, wallet },
+    use,
+  ) => {
+    await overrideManagerFeatureFlags(page, PROFILE_FEATURE_FLAGS)
+    await connectHeadless(page, wallet)
+    await signInBackendAuthModal(page)
+    await waitForManagerFeatureFlagOverride(page)
     await use(page)
   },
 
@@ -249,4 +342,5 @@ export {
   authorizeApproveIfRequested,
   authorizeTransaction,
   authorizeTransactions,
+  authorizeTransactionsWhile,
 } from '../helpers/manager-auth.js'

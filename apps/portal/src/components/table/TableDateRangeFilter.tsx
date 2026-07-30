@@ -50,7 +50,7 @@ export const TableDateRangeFilter = ({
       <DropdownMenuContent align="start" className="w-80">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Filter by date</h3>
+            <h3 className="text-h3">Filter by date</h3>
             <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
               <XIcon className="h-4 w-4 font-bold" />
             </Button>

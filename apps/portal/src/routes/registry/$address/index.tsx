@@ -87,11 +87,9 @@ function RouteComponent() {
     .filter((name): name is string => !!name)
 
   return (
-    <div className="flex flex-col gap-9 p-4 sm:p-9 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-6">
-        <h1 className="text-heading font-normal leading-none">
-          Registry Contract
-        </h1>
+        <h1 className="text-h1">Registry Contract</h1>
         <div className="flex lg:items-center flex-col lg:flex-row flex-wrap gap-4 text-sm text-muted-foreground font-mono">
           <EntityBadge variant="default" label="type" className="font-normal">
             PermissionedRegistry
@@ -104,20 +102,20 @@ function RouteComponent() {
       </div>
 
       <div className="flex flex-col gap-10 lg:gap-6 lg:flex-row lg:items-start">
-        <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8 text-sm">
-          <dt className="text-muted-foreground flex items-center h-9">
+        <dl className="flex-1 grid lg:grid-cols-[auto_1fr] items-center gap-x-8">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Address
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             <EntityBadge variant="contract" address={address}>
               {truncateAddress(address, 6, 4)}
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground flex items-center h-9">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Deployed
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             <DeployedBadge
               namehash={registry.namehash}
               createdBlock={registry.createdBlock}
@@ -125,10 +123,10 @@ function RouteComponent() {
             />
           </dd>
 
-          <dt className="text-muted-foreground flex items-center h-9">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Factory
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             <EntityBadge
               variant="contract"
               label="registry factory"
@@ -139,10 +137,10 @@ function RouteComponent() {
             </EntityBadge>
           </dd>
 
-          <dt className="text-muted-foreground flex items-center h-9">
+          <dt className="text-ui text-muted-foreground flex items-center h-10">
             Parent
           </dt>
-          <dd className="flex items-center h-9">
+          <dd className="flex items-center h-10">
             {match({
               isRoot: isAddressEqual(registry.parentRegistry, zeroAddress),
               isLoadingParent,

@@ -4,7 +4,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CirclePlus, Search } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { useAccount, useConnection } from 'wagmi'
+import { useAccount, useConnection, useWalletClient } from 'wagmi'
 import { CoinSelect } from '@/components/CoinSelect'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -21,11 +21,14 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import { EditRecordsTable } from '@/features/records/components/EditRecordsTable/EditRecordsTable'
 import { PendingChangesBar } from '@/features/records/components/PendingChangesBar'
+import { prepareSaveRecordsTransaction } from '@/features/records/helpers/saveRecords'
+import { transformPendingChangesToSetRecords } from '@/features/records/helpers/transformPendingChanges'
 import { useEditRecordsState } from '@/features/records/hooks/useEditRecordsState'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
+import { sepoliaWithEns } from '@/lib/wagmi'
 import { queryClient } from '@/utils/queryClient'
 import type { RecordType } from '@/utils/records/editRecordUtils'
 import { recordsToTableData } from '@/utils/records/recordsToTableData'
@@ -86,18 +89,22 @@ function EditRecordsPage() {
   if (ownerQuery.error) {
     return (
       <ErrorMessage
-        title="Owner unavailable"
-        description={ownerQuery.error.cause.message}
+        compact
+        description="Error fetching the owner. Please refresh the page."
       />
     )
   }
 
   if (!profileQuery.data) {
     return (
-      <NoResultsMessage
-        title="No records yet"
-        description="This name doesn't have any records set. Records will appear here once they're configured."
-      />
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h1">Edit records</h1>
+        <NoResultsMessage
+          title="No records yet"
+          description="This name doesn't have any records set. Records will appear here once they're configured."
+          className="mx-0"
+        />
+      </div>
     )
   }
 
@@ -118,7 +125,7 @@ function EditRecordsPage() {
           <Link to="/$name" params={{ name }} className="hover:opacity-70">
             <ArrowLeftIcon className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl font-bold">{name}</h1>
+          <h1 className="text-h1">{name}</h1>
         </div>
         <ErrorMessage
           title="Wallet Not Connected"
@@ -139,7 +146,7 @@ function EditRecordsPage() {
           <Link to="/$name" params={{ name }} className="hover:opacity-70">
             <ArrowLeftIcon className="w-5 h-5" />
           </Link>
-          <h1 className="text-2xl font-bold">{name}</h1>
+          <h1 className="text-h1">{name}</h1>
         </div>
         <ErrorMessage
           title="Permission Denied"
@@ -213,10 +220,13 @@ const EditRecordsContent = ({
   } = useEditRecordsState(originalRecords)
 
   const {
+    isOpen: isTransactionModalOpen,
     openModal: openTransactionModal,
     closeModal: closeTransactionModal,
     clearTransaction,
   } = useTransactionModal()
+
+  const { data: walletClient } = useWalletClient()
 
   // Validate records whenever they change
   const validationErrors = useMemo(() => validateRecords(records), [records])
@@ -253,6 +263,40 @@ const EditRecordsContent = ({
       id: SAVE_RECORDS_TRANSACTION_ID,
     })
   }
+
+  // Pre-start gas estimate for the save. Unlike other flows the encode is async
+  // (ensjs resolves the resolver pattern on chain), so we build the intent in a
+  // query and hand the resolved value to the modal via `prepareIntent`. Runs
+  // only while the modal is open and there are changes; keyed on the pending
+  // edits so it re-estimates as they change, and on the same params the submit
+  // path uses so the estimate matches what's sent.
+  const saveRecordsIntentQuery = useQuery({
+    queryKey: [
+      'save-records-intent',
+      name,
+      resolverAddress,
+      walletClient?.account?.address,
+      transformPendingChangesToSetRecords(originalRecords, pendingChanges),
+    ],
+    enabled:
+      isTransactionModalOpen &&
+      changesCount > 0 &&
+      Boolean(walletClient?.account && walletClient?.chain),
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    retry: 2,
+    queryFn: () => {
+      if (!walletClient) throw new Error('Wallet not connected')
+      return prepareSaveRecordsTransaction({
+        name,
+        resolverAddress,
+        originalRecords,
+        pendingChanges,
+        walletClient,
+        chainId: sepoliaWithEns.id,
+      })
+    },
+  })
 
   const handleOpenSaveRecordsFlow = () => {
     if (isWrongChain) {
@@ -313,14 +357,14 @@ const EditRecordsContent = ({
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <header className="border-b border-border px-8 pb-6 pt-6">
+      <header className="border-b border-border pb-6">
         <Link to="/$name/records" params={{ name }}>
           <Button variant="ghost" className="flex items-center gap-2 -ml-2">
             <ArrowLeftIcon className="size-4" />
             Back to View
           </Button>
         </Link>
-        <h1 className="text-heading font-medium mb-6">Edit records</h1>
+        <h1 className="text-h1 mb-6">Edit records</h1>
 
         {/* Add Record Form */}
         <div className="flex flex-col sm:flex-row gap-3">
@@ -501,7 +545,11 @@ const EditRecordsContent = ({
             id: SAVE_RECORDS_TRANSACTION_ID,
             title: 'Save records',
             transactionName: 'Set resolver records',
-            estimatedGasCost: 0.0001,
+            intent: {
+              prepare: () => saveRecordsIntentQuery.data,
+              isPending: saveRecordsIntentQuery.isLoading,
+              isError: saveRecordsIntentQuery.isError,
+            },
             onStart: handleStartSaveRecordsTransaction,
             onDone: () => {
               closeTransactionModal()

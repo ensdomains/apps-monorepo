@@ -11,7 +11,7 @@ import { MSymbol } from '@/components/ui/material-symbol'
 import { getDomainsQuery } from '@/features/dashboard/service/queries/getDashboardDomains'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
-  getProfileNameExpiryStatus,
+  getProfileExpiryResultStatus,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import {
@@ -20,6 +20,7 @@ import {
 } from '@/features/register/services/checkNameAvailabilityService'
 import { isFeatureEnabled } from '@/utils/feature-flags'
 import { tw } from '@/utils/tailwind'
+import { recordNameSearch } from './recordNameSearch'
 import { searchHistoryStore } from './useSearchHistory'
 
 const LINK_OPTIONS = {
@@ -109,10 +110,7 @@ export const NameSuggestionItem = ({
       isRegistered !== undefined &&
       !(needsSelfCheck ? activeQuery.isLoading : isLoadingProp),
   })
-  const { isInGrace } = getProfileNameExpiryStatus(
-    registeredExpiryQuery.data?.expiry,
-    true,
-  )
+  const { isInGrace } = getProfileExpiryResultStatus(registeredExpiryQuery.data)
   const isCheckingGrace =
     !isSubname && isRegistered === false && registeredExpiryQuery.isLoading
   const isLoading =
@@ -156,6 +154,7 @@ export const NameSuggestionItem = ({
           return
         }
         searchHistoryStore.trigger.addToHistory({ kind: 'name', value: name })
+        recordNameSearch(name)
         onNavigate?.()
       }}
       {...LINK_OPTIONS[isAvailable ? 'register' : 'profile'](name)}

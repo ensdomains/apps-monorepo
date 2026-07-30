@@ -54,7 +54,7 @@ const makeClassified = (d: V1Domain): ClassifiedName => ({
   tokenType: 'unwrapped',
   label: d.labelName ?? '',
   parentName: 'eth',
-  fuses: 0,
+  fuses: 0n,
   tokenHolder: OWNER,
   v1ResolverAddress: null,
   resolverStrategy: 'to-owned-permres',
@@ -197,8 +197,8 @@ describe('migrationUiMachine', () => {
     })
   })
 
-  describe('migrate.succeeding → success', () => {
-    it('transitions to success after the success hold delay when migration resolves', async () => {
+  describe('migrate.running → success', () => {
+    it('transitions directly to success when migration resolves', async () => {
       executeMigrationMock.mockImplementation(async (params) => {
         params.onBatchComplete?.(['alice.eth'], '0xabc' as Hex)
         return migrationResult()
@@ -206,8 +206,6 @@ describe('migrationUiMachine', () => {
       const actor = start()
       await vi.advanceTimersByTimeAsync(0)
 
-      expect(actor.getSnapshot().value).toEqual({ migrate: 'succeeding' })
-      await vi.advanceTimersByTimeAsync(3000)
       expect(actor.getSnapshot().value).toBe('success')
       expect(actor.getSnapshot().context.txHashes).toEqual(['0xabc'])
       expect(actor.getSnapshot().context.migratedNames).toEqual(['alice.eth'])
@@ -221,7 +219,7 @@ describe('migrationUiMachine', () => {
         return migrationResult()
       })
       const actor = start()
-      await vi.advanceTimersByTimeAsync(3000)
+      await vi.advanceTimersByTimeAsync(0)
       expect(actor.getSnapshot().context.migratedNames).toEqual([
         'a.eth',
         'b.eth',
@@ -236,12 +234,13 @@ describe('migrationUiMachine', () => {
         return migrationResult()
       })
       const actor = start()
-      await vi.advanceTimersByTimeAsync(3000)
+      await vi.advanceTimersByTimeAsync(0)
 
       actor.send({ type: 'done' })
       expect(actor.getSnapshot().value).toBe('select')
       expect(actor.getSnapshot().context.plan).toBeUndefined()
       expect(actor.getSnapshot().context.migratedNames).toEqual([])
+      expect(actor.getSnapshot().context.txHashes).toEqual([])
     })
   })
 

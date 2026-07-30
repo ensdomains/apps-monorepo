@@ -141,7 +141,7 @@ const TransactionDetails = ({ event }: { readonly event: EventWithFrom }) => {
       </InfoCard>
 
       <div className="flex flex-col gap-4">
-        <h3 className="text-lg font-semibold">1 event</h3>
+        <h3 className="text-h3">1 event</h3>
 
         <div className="border rounded-sm overflow-hidden">
           <div className="border-b px-6 py-3 bg-muted">
@@ -278,9 +278,7 @@ export const EventDetailSheet = ({
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader>
-            <SheetTitle className="font-sans text-heading font-medium">
-              Transaction
-            </SheetTitle>
+            <SheetTitle className="font-sans text-h2">Transaction</SheetTitle>
           </SheetHeader>
         </div>
 

@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { ResolverEventsTable } from '@/features/resolver/components/ResolverEventsTable'
 import { getResolverOverviewQueryOptions } from '@/features/resolver/hooks/useResolverOverview'
@@ -33,20 +34,30 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="History unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
 
   const events = resolver?.events ?? []
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <h1 className="text-2xl md:text-heading font-medium leading-none">
-        {events.length} Event{events.length !== 1 ? 's' : ''}
+    <div className="flex flex-col gap-8">
+      <h1 className="text-h2 md:text-h1">
+        {events.length > 0
+          ? `${events.length} Event${events.length !== 1 ? 's' : ''}`
+          : 'History'}
       </h1>
 
-      <ResolverEventsTable events={events} enableSidebar />
+      {events.length > 0 ? (
+        <ResolverEventsTable events={events} enableSidebar />
+      ) : (
+        <NoResultsMessage
+          title="No events yet"
+          description="Events for this resolver will appear here."
+          className="mx-0"
+        />
+      )}
     </div>
   )
 }

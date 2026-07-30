@@ -8,7 +8,9 @@ import { Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
 import type { Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Button } from '@/components/ui/button'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -32,24 +34,27 @@ const RecentActivityShell = ({
   children: React.ReactNode
 }) => (
   <div className="flex flex-col gap-4 w-full">
-    <div className="flex flex-row justify-between items-center">
-      <h2 className="text-sm font-medium tracking-widest uppercase text-muted-foreground">
-        History
-      </h2>
-      <Button variant="ghost" size="sm" asChild>
-        <Link to="/$name/history" params={{ name }}>
-          <Clock className="size-4" />
-          Full history
-        </Link>
-      </Button>
-    </div>
+    <HistorySectionHeader
+      action={
+        <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
+      }
+    />
     {children}
   </div>
 )
 
 const NoRecentActivity = ({ name }: { name: string }) => (
   <RecentActivityShell name={name}>
-    <div className="p-6 border-t border-border">No recent activity</div>
+    <NoResultsMessage
+      title="No recent activity"
+      description="Events will appear here as they happen."
+      className="mx-0 my-0"
+    />
   </RecentActivityShell>
 )
 
@@ -89,22 +94,22 @@ const V1RecentActivityTable = ({
   if (timestampsError) {
     return (
       <ErrorMessage
-        title="Error loading timestamps"
-        description={timestampsError.cause?.message}
+        compact
+        description="Error fetching timestamps. Please refresh the page."
       />
     )
   }
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
 
   if (!timestampsData || !sendersData) {
-    return <ErrorMessage title="No data available" />
+    return <ErrorMessage compact description="No activity data available." />
   }
 
   const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
@@ -149,13 +154,13 @@ const V2RecentActivityTable = ({
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
   if (!sendersData) {
-    return <ErrorMessage title="No sender data available" />
+    return <ErrorMessage compact description="No sender data available." />
   }
 
   // V2 events already have timestamps from the indexer
@@ -183,48 +188,73 @@ const V2RecentActivityTable = ({
   )
 }
 
-const V1RecentActivity = ({ name }: { name: string }) => {
+const V1RecentActivity = ({
+  name,
+  eventTypes,
+}: {
+  name: string
+  eventTypes?: readonly string[]
+}) => {
   const { data, isLoading, error } = useQuery(
-    getNameHistoryQueryOptions({ name, first: 3, orderDirection: 'desc' }),
+    // The subgraph query has no event-type filter, so filtering happens
+    // client-side below — fetch a deeper window so the filtered list isn't
+    // starved by unrelated events (transfers, wraps, …).
+    getNameHistoryQueryOptions({
+      name,
+      first: eventTypes ? 10 : 3,
+      orderDirection: 'desc',
+    }),
   )
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error)
     return (
       <ErrorMessage
-        title="Error loading history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   if (!data) return <NoRecentActivity name={name} />
 
+  const events = [
+    ...data.domainEvents,
+    ...(data.registrationEvents || []),
+    ...(data.resolverEvents || []),
+  ].filter((event) => !eventTypes || eventTypes.includes(event.type))
+
+  if (eventTypes && events.length === 0) return <NoRecentActivity name={name} />
+
   return (
     <RecentActivityShell name={name}>
       <div>
-        <V1RecentActivityTable
-          name={name}
-          events={[
-            ...data.domainEvents,
-            ...(data.registrationEvents || []),
-            ...(data.resolverEvents || []),
-          ]}
-        />
+        <V1RecentActivityTable name={name} events={events} />
       </div>
     </RecentActivityShell>
   )
 }
 
-const V2RecentActivity = ({ name }: { name: string }) => {
+const V2RecentActivity = ({
+  name,
+  eventTypes,
+}: {
+  name: string
+  eventTypes?: readonly string[]
+}) => {
   const { data, isLoading, error } = useQuery(
-    getV2NameHistoryQueryOptions({ name, first: 3, orderDirection: 'desc' }),
+    getV2NameHistoryQueryOptions({
+      name,
+      first: 3,
+      orderDirection: 'desc',
+      eventTypes,
+    }),
   )
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
   if (error)
     return (
       <ErrorMessage
-        title="Error loading history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   if (!data || data.length === 0) return <NoRecentActivity name={name} />
@@ -244,14 +274,17 @@ const V2RecentActivity = ({ name }: { name: string }) => {
 interface RecentActivityProps {
   name: string
   protocolVersion: ProtocolVersion
+  /** When set, only events of these types are shown (e.g. `AddressChanged`). */
+  eventTypes?: readonly string[]
 }
 
 export const RecentActivity = ({
   name,
   protocolVersion,
+  eventTypes,
 }: RecentActivityProps) =>
   protocolVersion === 'ENSv2' ? (
-    <V2RecentActivity name={name} />
+    <V2RecentActivity name={name} eventTypes={eventTypes} />
   ) : (
-    <V1RecentActivity name={name} />
+    <V1RecentActivity name={name} eventTypes={eventTypes} />
   )

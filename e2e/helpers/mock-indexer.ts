@@ -34,6 +34,13 @@ type GraphQLBody = {
   variables?: Record<string, unknown>
 }
 
+/**
+ * Placeholder resolver address used when a fixture carries text records but no
+ * explicit resolver. Only its presence matters — record values are read
+ * on-chain via ensjs, not from this mock.
+ */
+const MOCK_RESOLVER_ADDRESS = '0x0000000000000000000000000000000000000001'
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -48,6 +55,15 @@ export function createIndexerMock() {
   function buildDomainFragment(d: MockDomain) {
     const id = namehash(d.name)
     const now = Math.floor(Date.now() / 1000)
+    // Emit a resolver fragment when the fixture provides a resolver address OR
+    // when the name carries text records. The app only probes arbitrary text
+    // keys (e.g. `agent-registration[...]`) that the indexer reports under
+    // `resolver.texts`; static keys like `description` are always probed
+    // on-chain regardless. The record VALUES are still read on-chain via ensjs,
+    // so a placeholder resolver address is enough for mock-mode discovery.
+    const hasRecords = (d.records?.length ?? 0) > 0
+    const resolverAddress =
+      d.resolver ?? (hasRecords ? MOCK_RESOLVER_ADDRESS : undefined)
     return {
       __typename: 'Domain',
       id,
@@ -56,11 +72,11 @@ export function createIndexerMock() {
       tokenId: null,
       createdAt: d.createdAt ?? now - 3600,
       expiryDate: d.expiryDate ?? now + 28 * 24 * 3600,
-      resolver: d.resolver
+      resolver: resolverAddress
         ? {
             __typename: 'Resolver',
-            id: `${d.resolver}-${id}`,
-            address: d.resolver,
+            id: `${resolverAddress}-${id}`,
+            address: resolverAddress,
             texts: d.records?.map((r) => r.key) ?? [],
             contentHash: null,
             addresses: [],
@@ -105,8 +121,13 @@ export function createIndexerMock() {
       }
 
       case 'Domain': {
+        // The app queries `domain(id: $id)` with the plain ENS name as the id
+        // (see profileRecords.ts). Match by name first, falling back to
+        // namehash for any caller that passes one.
         const id = vars.id as string | undefined
-        const match = domains.find((d) => namehash(d.name) === id)
+        const match = domains.find(
+          (d) => d.name === id || namehash(d.name) === id,
+        )
         return {
           data: { domain: match ? buildDomainFragment(match) : null },
         }

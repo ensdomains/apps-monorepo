@@ -1,11 +1,13 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { TokenWithPriceAndBalance } from '@/features/register/utils/tokenData'
 import type { NamePricingData } from '../../hooks/useMultiNamePricing'
 import type { MultiRenewalEntry } from '../../hooks/useRenewalTransactions'
 import { MultiNameConfirmCard } from './MultiNameConfirmCard'
-import { MultiNamePaymentTokenPicker } from './MultiNamePaymentTokenPicker'
+import {
+  MultiNamePaymentTokenPicker,
+  type MultiNameTokenSelection,
+} from './MultiNamePaymentTokenPicker'
 import { MultiNamePricingFooter } from './MultiNamePricingFooter'
 
 type MultiNameExtendSummaryProps = {
@@ -15,7 +17,7 @@ type MultiNameExtendSummaryProps = {
   readonly allLoaded: boolean
   readonly renewals: readonly MultiRenewalEntry[]
   readonly onBack: () => void
-  readonly onNext: (token: TokenWithPriceAndBalance) => void
+  readonly onNext: (selection: MultiNameTokenSelection) => void
 }
 
 export const MultiNameExtendSummary = ({
@@ -27,8 +29,9 @@ export const MultiNameExtendSummary = ({
   onBack,
   onNext,
 }: MultiNameExtendSummaryProps) => {
-  const [selectedToken, setSelectedToken] =
-    useState<TokenWithPriceAndBalance | null>(null)
+  const [selection, setSelection] = useState<MultiNameTokenSelection | null>(
+    null,
+  )
 
   return (
     <div className="space-y-4 mt-2">
@@ -50,7 +53,7 @@ export const MultiNameExtendSummary = ({
 
       <MultiNamePaymentTokenPicker
         renewals={renewals}
-        onSelectionChange={setSelectedToken}
+        onSelectionChange={setSelection}
       />
 
       <div className="flex gap-2">
@@ -60,8 +63,8 @@ export const MultiNameExtendSummary = ({
         <Button
           className="flex-1"
           variant="default"
-          disabled={!selectedToken}
-          onClick={() => selectedToken && onNext(selectedToken)}
+          disabled={!selection}
+          onClick={() => selection && onNext(selection)}
         >
           Next
         </Button>

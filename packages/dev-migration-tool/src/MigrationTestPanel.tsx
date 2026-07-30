@@ -15,7 +15,9 @@ import {
   type ActiveName,
   buildMockDomain,
   createV1NameOnAnvil,
+  DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
+  getOnchainExpiry,
   PRESETS,
   type PresetType,
   readStoredNames,
@@ -29,6 +31,29 @@ import {
 
 // V1 subgraph URL pattern — intercepted to inject panel-created names
 const V1_SUBGRAPH_PATTERN = 'ensnode.io/subgraph'
+
+/** Extract the `name` GraphQL variable from a subgraph request body. */
+function migrationLookupName(body: string): string | undefined {
+  try {
+    const parsed = JSON.parse(body) as { variables?: { name?: string } }
+    return parsed.variables?.name
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * All panel-created names are owned by DEFAULT_ACCOUNT (see buildMockDomain).
+ * getNamesForAddress is address-scoped (owner/registrant/wrappedOwner filter),
+ * so only inject the mocks when the query actually targets DEFAULT_ACCOUNT —
+ * otherwise every address's profile would leak the connected wallet's names.
+ * The address is embedded verbatim (lowercased) in the where filter, so a
+ * substring check against the serialized body is sufficient and robust to the
+ * exact filter shape.
+ */
+function nameListTargetsMockOwner(body: string): boolean {
+  return body.toLowerCase().includes(DEFAULT_ACCOUNT.toLowerCase())
+}
 
 // ---------------------------------------------------------------------------
 // Module-level fetch interceptor — installed at import time so it's active
@@ -65,8 +90,25 @@ export function setInjectedNames(names: ActiveName[]): void {
 
     if (!url.includes(V1_SUBGRAPH_PATTERN)) return origFetch(input, init)
 
+    // Two v1-subgraph queries need panel-created names injected:
+    //  - getNamesForAddress: the dashboard name list (returns all names).
+    //  - getV1DomainForMigration: the migration-status lookup, which filters
+    //    domains(where: { name: $name }) and must therefore be narrowed to just
+    //    the requested name — otherwise the upgrade banner never resolves for
+    //    Anvil-only names, since the real hosted subgraph can't see them.
     const body = typeof init?.body === 'string' ? init.body : ''
-    if (!body.includes('getNamesForAddress')) return origFetch(input, init)
+    const isNameList = body.includes('getNamesForAddress')
+    const isMigrationLookup = body.includes('getV1DomainForMigration')
+    if (!isNameList && !isMigrationLookup) return origFetch(input, init)
+
+    const nameListInjected = nameListTargetsMockOwner(body)
+      ? _injectedNames
+      : []
+    const injected = isNameList
+      ? nameListInjected
+      : _injectedNames.filter(
+          (n) => `${n.label}.eth` === migrationLookupName(body),
+        )
 
     let realDomains: unknown[] = []
     try {
@@ -77,10 +119,22 @@ export function setInjectedNames(names: ActiveName[]): void {
       /* subgraph unreachable */
     }
 
+    // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
+    // the value captured at creation — otherwise a renewed grace name still reads
+    // as expired and migration eligibility keeps hiding the upgrade banner.
+    const mockDomains = await Promise.all(
+      injected.map(async (n) => {
+        const liveExpiry = await getOnchainExpiry(MIGRATION_TOOL_RPC, n.label)
+        return buildMockDomain(
+          liveExpiry != null ? { ...n, expiryDate: liveExpiry } : n,
+        )
+      }),
+    )
+
     return new Response(
       JSON.stringify({
         data: {
-          domains: [...realDomains, ..._injectedNames.map(buildMockDomain)],
+          domains: [...realDomains, ...mockDomains],
         },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } },
@@ -231,7 +285,7 @@ export function MigrationPanelContent() {
               type="button"
               disabled={busy || !selectedName}
               onClick={() => selectedName && migrateSingle(selectedName)}
-              style={smallChipStyle('#2563eb')}
+              style={smallChipStyle('#0080bc')}
               title={selectedName ? `Migrate ${selectedName.label}.eth` : ''}
             >
               Migrate
@@ -240,7 +294,7 @@ export function MigrationPanelContent() {
               type="button"
               disabled={!selectedName}
               onClick={() => selectedName && removeName(selectedName.id)}
-              style={smallChipStyle('#374151')}
+              style={smallChipStyle('#737373')}
               title="Remove selected"
             >
               ×
@@ -394,7 +448,7 @@ const rowStyle: CSSProperties = {
 const sepStyle: CSSProperties = {
   width: 1,
   height: 13,
-  background: 'rgba(255,255,255,0.15)',
+  background: '#d9d9d9',
   flexShrink: 0,
   alignSelf: 'center',
   margin: '0 3px',
@@ -403,31 +457,27 @@ const sepStyle: CSSProperties = {
 const selectStyle: CSSProperties = {
   padding: '2px 5px',
   borderRadius: 4,
-  border: '1px solid rgba(255,255,255,0.18)',
-  background: 'rgba(0,0,0,0.3)',
-  color: '#e5e7eb',
+  border: '1px solid #d9d9d9',
+  background: '#ffffff',
+  color: '#191919',
   fontSize: 11,
   cursor: 'pointer',
   maxWidth: 200,
 }
 
 const emptyStyle: CSSProperties = {
-  color: '#4b5563',
+  color: '#737373',
   fontSize: 11,
   fontStyle: 'italic',
 }
 
 function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {
   return {
-    padding: '2px 7px',
+    padding: '2px 8px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: active
-      ? 'rgba(37,99,235,0.6)'
-      : disabled
-        ? 'rgba(75,85,99,0.4)'
-        : 'rgba(37,99,235,0.85)',
-    color: disabled ? '#9ca3af' : '#fff',
+    border: '1px solid #cee1e8',
+    background: active ? '#093c52' : disabled ? '#eeeded' : '#0080bc',
+    color: disabled ? '#737373' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     whiteSpace: 'nowrap',
@@ -437,9 +487,9 @@ function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {
 
 function smallChipStyle(bg: string): CSSProperties {
   return {
-    padding: '2px 6px',
+    padding: '2px 8px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid #cee1e8',
     background: bg,
     color: '#fff',
     cursor: 'pointer',
@@ -452,9 +502,9 @@ function migrateAllChipStyle(disabled: boolean): CSSProperties {
   return {
     padding: '2px 10px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: disabled ? 'rgba(75,85,99,0.4)' : '#d97706',
-    color: disabled ? '#9ca3af' : '#fff',
+    border: '1px solid #e7a259',
+    background: disabled ? '#eeeded' : '#984d1b',
+    color: disabled ? '#737373' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     fontWeight: 600,
@@ -479,6 +529,6 @@ const statusDotStyle: CSSProperties = {
 }
 
 const errorInlineStyle: CSSProperties = {
-  color: '#fca5a5',
+  color: '#b42013',
   fontSize: 11,
 }

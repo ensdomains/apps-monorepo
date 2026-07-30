@@ -42,12 +42,13 @@ const V2NameRoles = ({
   if (nameRolesQuery.error)
     return (
       <ErrorMessage
-        title="Failed to fetch role accounts"
-        description={nameRolesQuery.error.cause?.message}
+        compact
+        description="Error fetching role accounts. Please refresh the page."
       />
     )
 
-  if (!nameRolesQuery.data) return <NoResultsMessage title="No role accounts" />
+  if (!nameRolesQuery.data)
+    return <NoResultsMessage title="No role accounts" className="mx-0" />
 
   return (
     <RolesTable
@@ -108,9 +109,7 @@ export const NameRolesOverviewTable = ({
   return (
     <Fragment>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium leading-none uppercase">
-          parent registry roles
-        </h3>
+        <h3 className="text-caps leading-none">parent registry roles</h3>
         {address && (
           <AddUserButton
             canManageRoles={canManageRoles}

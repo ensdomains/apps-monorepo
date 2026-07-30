@@ -15,6 +15,7 @@ import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
@@ -33,7 +34,11 @@ import {
 import { NamesTable } from '@/features/names/components/NamesTable/NamesTable'
 import { ExtendNameModal } from '@/features/renew/components/ExtendNameModal'
 import { MultiNameExtendModal } from '@/features/renew/components/multi-name-extension/MultiNameExtendModal'
-import { useRenewalTransactions } from '@/features/renew/hooks/useRenewalTransactions'
+import { useV1Renewable } from '@/features/renew/hooks/useIsRenewable'
+import {
+  type SelectedName,
+  useRenewalTransactions,
+} from '@/features/renew/hooks/useRenewalTransactions'
 import {
   getNameLength,
   getNameStatus,
@@ -47,7 +52,6 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { queryClient } from '@/utils/queryClient'
@@ -99,6 +103,36 @@ export const Route = createFileRoute('/addr/$addr/names')({
       ),
     ]),
 })
+
+/**
+ * Narrows a coarse-filtered selection to names actually renewable right now.
+ *
+ * `isExtendable2LD` is a coarse grace-window pre-filter and is NOT authoritative
+ * for v1: ETHRenewerV1 only renews reserved/in-grace names and reverts
+ * otherwise. So each selected v1 name is checked against the renewer's on-chain
+ * `isRenewable` (shared with the name page via {@link useV1Renewable});
+ * non-renewable ones are dropped so they never enter a single- or multi-renew
+ * flow. v2 is fully covered by `isExtendable2LD` and passes through untouched.
+ *
+ * `isLoading` is true while any selected v1 name's check is still resolving —
+ * callers must gate the Extend action on it so the flow opens against a
+ * fully-resolved selection (otherwise a still-loading renewable v1 name would be
+ * momentarily excluded, flipping the single↔multi modal choice mid-interaction).
+ */
+function useRenewableNames(candidates: readonly SelectedName[]): {
+  readonly names: readonly SelectedName[]
+  readonly isLoading: boolean
+} {
+  const v1Names = candidates
+    .filter((name) => !name.isV2)
+    .map((name) => name.name)
+
+  const { isRenewable, isLoading } = useV1Renewable(v1Names)
+
+  const names = candidates.filter((name) => name.isV2 || isRenewable(name.name))
+
+  return { names, isLoading }
+}
 
 function RouteComponent() {
   const { addr: address } = Route.useParams() as { addr: Address }
@@ -229,10 +263,13 @@ function RouteComponent() {
     [rowSelection],
   )
 
-  const extendableNames = useMemo(
-    () => getSelectedNames(rowSelection, filteredData).filter(isExtendable2LD),
-    [rowSelection, filteredData],
+  // Coarse grace-window pre-filter, then narrow to names that are actually
+  // renewable now (drops non-renewable v1 names — see useRenewableNames).
+  const coarseExtendable = getSelectedNames(rowSelection, filteredData).filter(
+    isExtendable2LD,
   )
+  const { names: extendableNames, isLoading: renewabilityLoading } =
+    useRenewableNames(coarseExtendable)
 
   const searchNamesId = useId()
 
@@ -247,8 +284,8 @@ function RouteComponent() {
   if (v1NamesQuery.error) {
     return (
       <ErrorMessage
-        title="Error loading names"
-        description={extractErrorMessage(v1NamesQuery.error)}
+        compact
+        description="Error fetching names. Please refresh the page."
       />
     )
   }
@@ -256,8 +293,8 @@ function RouteComponent() {
   if (v2NamesQuery.error) {
     return (
       <ErrorMessage
-        title="Error loading names"
-        description={extractErrorMessage(v2NamesQuery.error)}
+        compact
+        description="Error fetching names. Please refresh the page."
       />
     )
   }
@@ -270,11 +307,25 @@ function RouteComponent() {
     selectedStatuses.length > 0 ||
     selectedLengths.length > 0
 
+  if (totalCount === 0)
+    return (
+      <>
+        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+          <h1 className="text-h1">Names</h1>
+        </header>
+        <NoResultsMessage
+          title="No names yet"
+          description="Names owned by this address will appear here."
+          className="mx-0"
+        />
+      </>
+    )
+
   return (
     <>
-      <header className="bg-background px-8 pb-4 pt-12 flex flex-col gap-4 sticky top-0 z-20">
+      <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row justify-between">
-          <h1 className="text-heading font-medium">
+          <h1 className="text-h1">
             {hasActiveFilters ? `${nameCount} of ${totalCount}` : nameCount}{' '}
             names
           </h1>
@@ -294,7 +345,7 @@ function RouteComponent() {
             <Button
               variant="default"
               size="sm"
-              disabled={extendableNames.length === 0}
+              disabled={extendableNames.length === 0 || renewabilityLoading}
               onClick={() => {
                 if (isTransactionInFlight(activeTxState)) {
                   openModal()
@@ -373,9 +424,8 @@ function RouteComponent() {
           onExtend={(config) => {
             startMultiFlow({
               renewals: config.renewals,
-              tokenAddress: config.token.address,
-              tokenPrice: config.token.price.total,
-              tokenAllowance: config.token.allowance,
+              tokenAddress: config.selection.tokenAddress,
+              payments: config.selection.payments,
             })
             openModal()
           }}

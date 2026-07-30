@@ -370,4 +370,65 @@ describe('profile transformRecords utils', () => {
       ])
     })
   })
+
+  describe('agent-registration records', () => {
+    // ERC-7930 encoded mainnet (chain ID 1) address for the known 8004.eth
+    // registry 0x8004a169fb4a3325136eb29fa0ceb6d2e539a432.
+    const KNOWN_REGISTRY_HEX =
+      '0x00010000010114' + '8004a169fb4a3325136eb29fa0ceb6d2e539a432'
+    const agentKey = `agent-registration[${KNOWN_REGISTRY_HEX}][19151]`
+
+    it('should start with an empty agentRegistrations array', () => {
+      expect(newEmptyProfileRecords().agentRegistrations).toEqual([])
+    })
+
+    it('should route a valid agent-registration record to agentRegistrations', () => {
+      const result = transformProfileRecords({
+        texts: [{ key: agentKey, value: '1' }],
+        coins: [],
+      })
+
+      expect(result.agentRegistrations).toHaveLength(1)
+      expect(result.agentRegistrations[0]).toMatchObject({
+        key: agentKey,
+        value: '1',
+        agentId: '19151',
+        chainId: 1,
+        registryAddress: '0x8004a169fb4a3325136eb29fa0ceb6d2e539a432',
+        registryDisplayName: '8004.eth',
+      })
+      // Must not leak into the generic `unknown` bucket.
+      expect(result.unknown).toEqual([])
+    })
+
+    it('should fall back to unknown for an invalid agent-registration record', () => {
+      const badKey = 'agent-registration[invalid][123]'
+      const result = transformProfileRecords({
+        texts: [{ key: badKey, value: '1' }],
+        coins: [],
+      })
+
+      expect(result.agentRegistrations).toEqual([])
+      expect(result.unknown).toEqual([{ key: badKey, value: '1' }])
+    })
+
+    it('should keep standard records working alongside an agent record', () => {
+      const result = transformProfileRecords({
+        texts: [
+          { key: 'description', value: 'hello' },
+          { key: 'com.twitter', value: 'ensdomains' },
+          { key: agentKey, value: '1' },
+        ],
+        coins: [],
+      })
+
+      expect(result.base.description).toBe('hello')
+      expect(result.social).toContainEqual({
+        key: 'com.twitter',
+        value: 'ensdomains',
+      })
+      expect(result.agentRegistrations).toHaveLength(1)
+      expect(result.agentRegistrations[0]?.agentId).toBe('19151')
+    })
+  })
 })

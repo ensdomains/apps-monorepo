@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Address } from 'viem'
+import { useConnection } from 'wagmi'
 import { useMigrationEligibility } from '@/features/migration/hooks/useMigrationEligibility'
 import { useV1Names } from '@/features/migration/hooks/useV1Names'
 import {
@@ -16,15 +17,20 @@ type UseEligibleV1NamesOptions = {
 export const useEligibleV1Names = (options: UseEligibleV1NamesOptions = {}) => {
   const { enabled = true, fallbackToClassified = true } = options
   const { ownerAddress } = useSmartAccountContext()
+  const { address } = useConnection()
+  const resolvedOwnerAddress = ownerAddress ?? address
   const { data: v1NamesRaw, isPending: isV1Pending } = useV1Names({ enabled })
 
   const classified = useMemo<ClassifiedName[]>(() => {
-    if (!enabled || !v1NamesRaw || !ownerAddress) return []
-    return classifyNames(v1NamesRaw, ownerAddress as Address).classified
-  }, [enabled, v1NamesRaw, ownerAddress])
+    if (!enabled || !v1NamesRaw || !resolvedOwnerAddress) return []
+    return classifyNames(v1NamesRaw, resolvedOwnerAddress as Address).classified
+  }, [enabled, v1NamesRaw, resolvedOwnerAddress])
 
   const { data: eligibility, isPending: isEligibilityPending } =
-    useMigrationEligibility(classified, enabled ? ownerAddress : undefined)
+    useMigrationEligibility(
+      classified,
+      enabled ? resolvedOwnerAddress : undefined,
+    )
 
   const eligible = useMemo<readonly ClassifiedName[]>(
     () => eligibility?.eligible ?? (fallbackToClassified ? classified : []),

@@ -150,6 +150,9 @@
 
   --shadow-temp-card: 0 4px 24px 0 rgba(7, 28, 47, 0.07);
 
+  --color-navigation-glass-border: #e2e2e28c;
+  --blur-navigation-glass: 6px;
+
   --breakpoint-xs: 30rem;
 }
 
@@ -193,6 +196,12 @@
 }
 
 :root {
+  /* WalletConnect (reown) modal reads `z-index: var(--w3m-z-index)`; when we
+     use the bare wagmi walletConnect connector nothing defines it, so it
+     collapses to auto and the app's own z-indexed elements (landing header,
+     search bar) stack over the QR modal. Define it high so the modal sits
+     above everything. Same fix as the portal app. */
+  --w3m-z-index: 2147483646;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

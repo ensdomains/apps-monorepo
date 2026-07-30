@@ -16,7 +16,10 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageCard } from '@/components/ui/message-card'
-import { burnFuses } from '@/features/fuses/helpers/burnFuses'
+import {
+  burnFuses,
+  prepareBurnFusesTransaction,
+} from '@/features/fuses/helpers/burnFuses'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -167,7 +170,7 @@ function RouteComponent() {
 
   return (
     <>
-      <div className="flex flex-col items-center px-8 py-6 w-full">
+      <div className="flex flex-col items-center w-full">
         <div className="flex flex-col gap-6 max-w-2xl w-full">
           <Link
             to="/$name/fuses"
@@ -178,7 +181,7 @@ function RouteComponent() {
             Back
           </Link>
 
-          <h1 className="text-4xl font-medium leading-tight">Burn fuses</h1>
+          <h1 className="text-h1">Burn fuses</h1>
 
           <div className="bg-muted rounded-sm p-6 flex gap-4 items-start">
             <AlertTriangle className="w-8 h-8 shrink-0" />
@@ -266,7 +269,20 @@ function RouteComponent() {
             id: BURN_FUSES_TX_ID,
             title: 'Burn Fuses',
             transactionName: `Permanently burn selected fuses on ${name}`,
-            estimatedGasCost: 0.0001,
+            // Deterministic from the selected fuses, so the modal can estimate
+            // gas the moment it opens (shared with the burnFuses submit path).
+            intent: {
+              prepare:
+                selectedChildFuses.size > 0
+                  ? ({ walletClient, chainId }) =>
+                      prepareBurnFusesTransaction({
+                        name,
+                        fuses: Array.from(selectedChildFuses),
+                        walletClient,
+                        chainId,
+                      })
+                  : undefined,
+            },
             onStart: handleStartTransaction,
             onDone: () => {
               queryClient.invalidateQueries({
@@ -285,7 +301,7 @@ function RouteComponent() {
 
 const V2NameMessage = () => (
   <MessageCard
-    icon={<AlertTriangle className="size-8" />}
+    icon={<AlertTriangle className="size-6" />}
     title="Fuses not available"
     description={
       <>
@@ -300,7 +316,7 @@ const V2NameMessage = () => (
 
 const NotOwnerMessage = () => (
   <MessageCard
-    icon={<ShieldX className="size-8" />}
+    icon={<ShieldX className="size-6" />}
     title="Not authorized"
     description={
       <>

@@ -12,6 +12,7 @@ import { useId, useState } from 'react'
 import type { Address } from 'viem'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import {
   InputGroup,
@@ -86,13 +87,29 @@ function RouteComponent() {
       />
     )
 
-  if (!data) return <div>No data</div>
+  // The hook emits one placeholder row per configured network even when no
+  // reverse record exists anywhere, so emptiness means "no row has a name".
+  const hasReverseRecords = data?.some((row) => row.name || row.defaultName)
+
+  if (!data || !hasReverseRecords)
+    return (
+      <>
+        <header className="flex flex-col gap-4">
+          <h1 className="text-h1">Reverse resolution</h1>
+        </header>
+        <NoResultsMessage
+          title="No reverse records yet"
+          description="This address doesn't have a reverse record on any network. Records will appear here once one is set."
+          className="mx-0"
+        />
+      </>
+    )
 
   return (
     <>
-      <header className="border-b border-border p-6 pb-4 pt-12 flex flex-col gap-4">
+      <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-heading font-medium">Reverse resolution</h1>
+          <h1 className="text-h1">Reverse resolution</h1>
         </div>
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput

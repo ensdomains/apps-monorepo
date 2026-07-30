@@ -6,7 +6,8 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { useBaseRate } from '@/features/register-v2/data/queries/baseRates.query'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import { getDurationExpiryDateForDisplay } from '@/features/register-v2/utils/time'
+import { DurationLabel } from '@/features/register-v2/workflow/pricing/components/DurationLabel'
 import { useRenewalUiContext } from '@/features/renew/state/renewalUi.context'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
@@ -24,8 +25,9 @@ export const RenewalDetails = () => {
       return
     }
 
-    return new Date(
-      Number(currentExpiry) * 1000 + Number(submissionData.duration) * 1000,
+    return getDurationExpiryDateForDisplay(
+      Number(submissionData.duration),
+      new Date(Number(currentExpiry) * 1000),
     )
   }, [currentExpiry, submissionData?.duration])
 
@@ -39,13 +41,6 @@ export const RenewalDetails = () => {
       baseRate,
       submissionData.duration,
     )
-
-  const durationYears = (
-    Number(submissionData.duration) / SECONDS_IN_YEAR
-  ).toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3,
-  })
 
   return (
     <div className="flex w-full flex-col gap-6">
@@ -69,7 +64,10 @@ export const RenewalDetails = () => {
                   <Trans>Renewal Period</Trans>
                 </p>
                 <p className="text-base text-ens-blue-dark">
-                  <Trans>{durationYears} years</Trans>
+                  <DurationLabel
+                    duration={Number(submissionData.duration)}
+                    referenceDate={new Date(Number(currentExpiry) * 1000)}
+                  />
                 </p>
               </div>
 

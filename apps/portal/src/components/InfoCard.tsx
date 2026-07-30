@@ -11,10 +11,8 @@ export const InfoCard = ({
   className?: string
 }) => (
   <div className={cn('rounded-sm bg-background overflow-hidden', className)}>
-    <div className="px-6 py-3">
-      <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
-        {title}
-      </span>
+    <div data-slot="info-card-title" className="px-6 py-3">
+      <span className="text-caps leading-none text-foreground">{title}</span>
     </div>
     <div>{children}</div>
   </div>
@@ -27,10 +25,11 @@ export const InfoRow = ({
   label: string
   children: ReactNode
 }) => (
-  <div className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-6 min-h-13">
-    <span className="w-28 shrink-0 text-sm font-medium text-muted-foreground">
-      {label}
-    </span>
+  <div
+    data-slot="info-row"
+    className="flex flex-col gap-2 px-6 sm:flex-row sm:items-center sm:gap-4 min-h-10 text-default-text"
+  >
+    <span className="text-ui w-28 shrink-0 whitespace-nowrap">{label}</span>
     <div className="flex-1 min-w-0">{children}</div>
   </div>
 )

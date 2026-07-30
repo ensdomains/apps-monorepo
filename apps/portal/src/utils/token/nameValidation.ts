@@ -1,7 +1,7 @@
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 import { getLabel } from './getLabel'
-import { isValidEnsName } from './isNormalized'
+import { getLabelRegistrationError, isValidEnsName } from './isNormalized'
 
 /**
  * Validates that a name is a valid .eth name that can be registered.
@@ -13,6 +13,13 @@ export const validateRegistrableEthName = (
 ): string | undefined => {
   if (!name.trim()) {
     return 'Enter a name to register.'
+  }
+
+  // Registration-specific label rules (e.g. bracket-form labels are valid to
+  // DISPLAY as encoded labelhashes but must never be registered literally).
+  const labelError = getLabelRegistrationError(name.split('.')[0] ?? '')
+  if (labelError) {
+    return labelError
   }
 
   if (!isValidEnsName(name)) {

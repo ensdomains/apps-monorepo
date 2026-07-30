@@ -1,3 +1,4 @@
+import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { describe, expect, it } from 'vitest'
 import {
   cspMetaTag,
@@ -61,6 +62,18 @@ describe('csp', () => {
       expect(connectSrc).toContain("'self'")
     })
 
+    it('allowlists every shared RPC failover origin', () => {
+      // The viem transports (lib/wagmi.ts, worker/clients.ts) fail over to
+      // SEPOLIA_FALLBACK_RPC_URLS; a fallback origin missing here means the
+      // browser blocks the request and the failover silently does nothing in
+      // production. Derived from the same export so the two can't drift.
+      for (const url of SEPOLIA_FALLBACK_RPC_URLS) {
+        expect(connectSrc).toContain(new URL(url).origin)
+      }
+      // The keyed dRPC primary stays allowlisted alongside the fallbacks.
+      expect(connectSrc).toContain('https://lb.drpc.live')
+    })
+
     it('collapses ENS hosts into wildcards rather than listing them bare', () => {
       // The wildcard is the single source of truth — a bare host alongside it
       // means someone re-added a redundant (and easily-stale) entry.
@@ -76,6 +89,21 @@ describe('csp', () => {
       // Avatars/images load via <img> (covered by img-src), so image CDNs must
       // never leak into connect-src (regression guard for i.pinimg.com).
       expect(connectSrc).not.toContain('https://i.pinimg.com')
+    })
+
+    it('allowlists the CCIP-read gateway fan-out as wildcards', () => {
+      // viem resolves the UniversalResolver's batch gateway locally
+      // (x-batch-gateway:true) and fetches the per-chain verifier gateways
+      // straight from the browser. Both domain families are
+      // subdomain-per-deployment (ccip-v3.ens.xyz, arbitrum-sepolia.3668.io,
+      // …), so the wildcard is the source of truth — a bare host alongside it
+      // is a redundant, easily-stale entry.
+      expect(connectSrc).toContain('https://*.ens.xyz')
+      expect(connectSrc).not.toContain('https://ccip-v3.ens.xyz')
+      expect(connectSrc).toContain('https://*.3668.io')
+      expect(connectSrc).not.toContain('https://linea-sepolia.3668.io')
+      // Unruggable's drpc-load-balanced gateway host — not the RPC (.live).
+      expect(connectSrc).toContain('https://lb.drpc.org')
     })
   })
 

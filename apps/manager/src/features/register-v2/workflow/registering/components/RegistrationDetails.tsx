@@ -5,10 +5,14 @@ import { DomainCard } from '@/components/atoms/DomainCard/DomainCard'
 import { LinkButton } from '@/components/ui/button'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { calculateDiscount } from '@/features/register-v2/utils/discount'
-import { SECONDS_IN_YEAR } from '@/features/register-v2/utils/time'
+import {
+  getDurationExpiryDateForDisplay,
+  getStartOfDay,
+} from '@/features/register-v2/utils/time'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { useBaseRate } from '../../../data/queries/baseRates.query'
 import { RegisterV2Context } from '../../../state/registrationUi.context'
+import { DurationLabel } from '../../pricing/components/DurationLabel'
 
 const useDetails = RegisterV2Context.createSelector(
   (state) => state.context.confirmedData,
@@ -23,24 +27,20 @@ const useIsRegisteringTransactionSuccess = RegisterV2Context.createSelector(
   (state) => state.matches({ registering: { transaction: 'success' } }),
 )
 
-const useIsChildRegistrationSuccess = RegisterV2Context.createTxSelector(
-  (state) =>
-    state !== undefined &&
-    (state.value === 'success' || state.status === 'done'),
-)
-
 export const RegistrationDetails = () => {
-  const { uiActor, label, registrationActor } = RegisterV2Context.use()
+  const { uiActor, label } = RegisterV2Context.use()
   const details = useDetails(uiActor)
   const topSuccess = useIsTopLevelSuccess(uiActor)
   const registeringTxSuccess = useIsRegisteringTransactionSuccess(uiActor)
-  const childRegSuccess = useIsChildRegistrationSuccess(registrationActor)
-  const showCompleteProfileCta =
-    topSuccess || registeringTxSuccess || childRegSuccess
+  const showCompleteProfileCta = topSuccess || registeringTxSuccess
   const baseRate = useBaseRate(label)
 
   const expirationDate = useMemo(
-    () => new Date(Date.now() + Number(details?.duration ?? 0n) * 1000),
+    () =>
+      getDurationExpiryDateForDisplay(
+        Number(details?.duration ?? 0n),
+        getStartOfDay(),
+      ),
     [details?.duration],
   )
 
@@ -51,12 +51,6 @@ export const RegistrationDetails = () => {
   const { discountAmount, discountPercentage, basePriceWithoutDiscount } =
     calculateDiscount(details.basePriceNumber, baseRate, details.duration)
 
-  const durationYears = (
-    Number(details.duration) / SECONDS_IN_YEAR
-  ).toLocaleString('en-US', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3,
-  })
   const totalPrice =
     basePriceWithoutDiscount + details.premiumPriceNumber - discountAmount
 
@@ -79,7 +73,10 @@ export const RegistrationDetails = () => {
                   <Trans>Registration Period</Trans>
                 </p>
                 <p className="text-base text-ens-blue-dark">
-                  <Trans>{durationYears} years</Trans>
+                  <DurationLabel
+                    duration={Number(details.duration)}
+                    referenceDate={getStartOfDay()}
+                  />
                 </p>
               </div>
 

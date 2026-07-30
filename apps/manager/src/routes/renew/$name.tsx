@@ -38,6 +38,10 @@ export const Route = createFileRoute('/renew/$name')({
 
     const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
 
+    if (expiryData?.protocol !== 'v2') {
+      throw new Error('This name cannot be renewed')
+    }
+
     if (isPastGracePeriod(expiryDate, true)) {
       throw redirect(
         isFeatureEnabled('REGISTRATION_V2')

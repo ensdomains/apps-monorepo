@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { type Address, zeroAddress } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import type { SubgraphEvent } from '@/utils/history/groupEventsByTransactionId'
 import { getNameRegistriesQueryOptions } from '../../hooks/useNameRegistryDiscovery'
@@ -35,13 +36,20 @@ export const RegistryHistoryByAddress = ({
   if (eventsError) {
     return (
       <ErrorMessage
-        title="Error loading registry history"
-        description={eventsError.cause?.message ?? eventsError.message}
+        compact
+        description="Error fetching registry history. Please refresh the page."
       />
     )
   }
 
-  if (!events || events.length === 0) return null
+  if (!events || events.length === 0)
+    return (
+      <NoResultsMessage
+        title="No history yet"
+        description="Events for this registry will appear here."
+        className="mx-0"
+      />
+    )
 
   const v2Events: SubgraphEvent[] = events.map((event) => ({
     transactionID: event.transactionHash,
@@ -82,8 +90,8 @@ export const RegistryHistory = ({ name }: { name: string }) => {
   if (registriesError) {
     return (
       <ErrorMessage
-        title="Error loading registry history"
-        description={registriesError.cause?.message ?? registriesError.message}
+        compact
+        description="Error fetching registry history. Please refresh the page."
       />
     )
   }

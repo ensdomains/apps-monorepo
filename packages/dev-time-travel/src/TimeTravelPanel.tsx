@@ -306,21 +306,21 @@ const rowStyle: CSSProperties = {
 const sepStyle: CSSProperties = {
   width: 1,
   height: 13,
-  background: 'rgba(255,255,255,0.15)',
+  background: '#d9d9d9',
   flexShrink: 0,
   alignSelf: 'center',
   margin: '0 3px',
 }
 
-const statLabelStyle: CSSProperties = { color: '#9ca3af', fontSize: 11 }
+const statLabelStyle: CSSProperties = { color: '#737373', fontSize: 11 }
 
 function chipStyle(disabled: boolean): CSSProperties {
   return {
-    padding: '2px 7px',
+    padding: '2px 8px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: disabled ? 'rgba(75,85,99,0.4)' : '#2563eb',
-    color: disabled ? '#9ca3af' : '#fff',
+    border: '1px solid #cee1e8',
+    background: disabled ? '#eeeded' : '#0080bc',
+    color: disabled ? '#737373' : '#ffffff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     whiteSpace: 'nowrap',
@@ -330,11 +330,11 @@ function chipStyle(disabled: boolean): CSSProperties {
 
 function dimStyle(disabled: boolean): CSSProperties {
   return {
-    padding: '2px 7px',
+    padding: '2px 8px',
     borderRadius: 4,
-    border: '1px solid rgba(255,255,255,0.14)',
-    background: 'transparent',
-    color: disabled ? '#4b5563' : '#9ca3af',
+    border: '1px solid #d9d9d9',
+    background: '#ffffff',
+    color: disabled ? '#a1a1a1' : '#093c52',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
     whiteSpace: 'nowrap',
@@ -346,14 +346,14 @@ const inputStyle: CSSProperties = {
   width: 52,
   padding: '2px 6px',
   borderRadius: 4,
-  border: '1px solid rgba(255,255,255,0.18)',
-  background: 'rgba(0,0,0,0.2)',
-  color: '#e5e7eb',
+  border: '1px solid #d9d9d9',
+  background: '#ffffff',
+  color: '#191919',
   fontSize: 11,
   lineHeight: '1.2',
 }
 
 const errorInlineStyle: CSSProperties = {
-  color: '#fca5a5',
+  color: '#b42013',
   fontSize: 11,
 }

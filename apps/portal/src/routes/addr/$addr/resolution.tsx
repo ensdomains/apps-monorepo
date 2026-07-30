@@ -73,20 +73,26 @@ function RouteComponent() {
     )
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     return (
-      <NoResultsMessage
-        title="No names found"
-        description="This address doesn't resolve to any ENS names yet."
-      />
+      <>
+        <header className="flex flex-col gap-4">
+          <h1 className="text-h1">Address Resolution</h1>
+        </header>
+        <NoResultsMessage
+          title="No names found"
+          description="This address doesn't resolve to any ENS names yet."
+          className="mx-0"
+        />
+      </>
     )
   }
 
   return (
     <>
-      <header className="border-b border-border p-6 pb-4 pt-12 flex flex-col gap-4">
+      <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-heading font-medium">Address Resolution</h1>
+          <h1 className="text-h1">Address Resolution</h1>
         </div>
         <InputGroup className="bg-background rounded-sm">
           <InputGroupInput

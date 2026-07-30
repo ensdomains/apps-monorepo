@@ -16,6 +16,7 @@ import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Badge } from '@/components/ui/badge'
@@ -163,16 +164,26 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Nodes unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching nodes. Please refresh the page."
       />
     )
 
+  if (nodes.length === 0)
+    return (
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h2 md:text-h1">Nodes</h1>
+        <NoResultsMessage
+          title="No nodes yet"
+          description="Names that resolve through this resolver will appear here."
+          className="mx-0"
+        />
+      </div>
+    )
+
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
-      <h1 className="text-2xl md:text-heading font-medium leading-none">
-        Nodes
-      </h1>
+    <div className="flex flex-col gap-8">
+      <h1 className="text-h2 md:text-h1">Nodes</h1>
 
       <InputGroup className="bg-background rounded-sm">
         <InputGroupAddon>
@@ -277,7 +288,7 @@ function RouteComponent() {
                         key={cell.id}
                         className={cn(
                           'px-6',
-                          tableView.compact ? 'py-2' : 'py-4',
+                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
                         )}
                       >
                         {flexRender(

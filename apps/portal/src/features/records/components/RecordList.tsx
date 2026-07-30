@@ -11,6 +11,7 @@ import {
 import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { EditNoteIcon } from '@/assets/icons'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -61,9 +62,11 @@ export const RecordList = ({
 
   return (
     <>
-      <header className="border-b border-border px-8 pb-4 pt-12 flex flex-col gap-4">
+      <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-heading font-medium">{recordCount} Records</h1>
+          <h1 className="text-h1">
+            {recordCount > 0 ? `${recordCount} Records` : 'Records'}
+          </h1>
           {canEdit && (
             <Button
               variant="default"
@@ -77,25 +80,35 @@ export const RecordList = ({
             </Button>
           )}
         </div>
-        <InputGroup className="bg-background rounded-sm">
-          <InputGroupInput
-            id={searchRecordsId}
-            className="w-full"
-            placeholder="Search records..."
-            onChange={(event) => table.setGlobalFilter(event.target.value)}
-          />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
+        {recordCount > 0 && (
+          <InputGroup className="bg-background rounded-sm">
+            <InputGroupInput
+              id={searchRecordsId}
+              className="w-full"
+              placeholder="Search records..."
+              onChange={(event) => table.setGlobalFilter(event.target.value)}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        )}
       </header>
-      <div className="overflow-x-auto">
-        <RecordsTable
-          name={name}
-          table={table}
-          protocolVersion={protocolVersion}
+      {recordCount > 0 ? (
+        <div className="overflow-x-auto">
+          <RecordsTable
+            name={name}
+            table={table}
+            protocolVersion={protocolVersion}
+          />
+        </div>
+      ) : (
+        <NoResultsMessage
+          title="No records set"
+          description="Records store information linked to this name like addresses or profile information."
+          className="mx-0"
         />
-      </div>
+      )}
     </>
   )
 }

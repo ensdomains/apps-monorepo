@@ -1,6 +1,8 @@
+import type { ReactNode } from 'react'
 import { ExternalLink } from 'react-external-link'
 import type { Address } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { InfoRow } from '@/features/profile/components/InfoRow'
 import { useSupportsInterfaces } from '@/hooks/useSupportsInterfaces'
 import {
   RESOLVER_FEATURES,
@@ -36,21 +38,16 @@ const SupportedFeatures = ({
   if (!supportsInterfaces) return <div>No data</div>
 
   return (
-    <div className="flex flex-col gap-2 w-full">
-      <span className="font-sans font-normal text-sm text-muted-foreground">
-        Interfaces
-      </span>
-      <div className="flex flex-row flex-wrap gap-x-4 gap-y-2">
-        {supportedInterfaces.map((feature) => (
-          <ExternalLink
-            key={feature.name}
-            href={feature.link}
-            className="text-sm sm:text-base font-normal underline underline-offset-2 decoration-dotted hover:text-primary transition-colors"
-          >
-            {feature.name}
-          </ExternalLink>
-        ))}
-      </div>
+    <div className="flex flex-wrap gap-x-4 gap-y-2 text-p text-foreground">
+      {supportedInterfaces.map((feature) => (
+        <ExternalLink
+          key={feature.name}
+          href={feature.link}
+          className="underline transition-colors hover:text-primary"
+        >
+          {feature.name}
+        </ExternalLink>
+      ))}
     </div>
   )
 }
@@ -58,19 +55,24 @@ const SupportedFeatures = ({
 export const ResolverDetails = ({
   resolverAddress,
   data,
+  typeValue,
 }: {
   resolverAddress: Address
   data: DatapointProps[]
+  /** Type-row value (e.g. {@link ResolverTypeValue}) — rendered first. */
+  typeValue?: ReactNode
 }) => {
   return (
-    <div className="flex flex-col gap-6 w-full">
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-y-1 sm:gap-y-4 gap-x-40">
-        {data.map((item) => (
-          <Datapoint key={item.label} {...item} />
-        ))}
-      </div>
-      <div className="h-px"></div>
-      <SupportedFeatures resolverAddress={resolverAddress} />
+    <div className="flex flex-col">
+      {typeValue != null && <InfoRow label="Type">{typeValue}</InfoRow>}
+      {data.map((item) => (
+        <InfoRow key={item.label} label={item.label}>
+          <Datapoint {...item} />
+        </InfoRow>
+      ))}
+      <InfoRow label="Interfaces">
+        <SupportedFeatures resolverAddress={resolverAddress} />
+      </InfoRow>
     </div>
   )
 }

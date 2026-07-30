@@ -23,6 +23,7 @@ import { Route as RenewNameRouteImport } from './routes/renew/$name'
 import { Route as RegisterNameRouteImport } from './routes/register/$name'
 import { Route as PaymentListRouteImport } from './routes/payment/list'
 import { Route as PaymentAddRouteImport } from './routes/payment/add'
+import { Route as MigrationNftRouteImport } from './routes/migration_.nft'
 import { Route as LegalTrademarkGuidelinesRouteImport } from './routes/legal/trademark-guidelines'
 import { Route as LegalTermsOfUseRouteImport } from './routes/legal/terms-of-use'
 import { Route as LegalPrivacyPolicyRouteImport } from './routes/legal/privacy-policy'
@@ -104,6 +105,11 @@ const PaymentAddRoute = PaymentAddRouteImport.update({
   path: '/payment/add',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MigrationNftRoute = MigrationNftRouteImport.update({
+  id: '/migration_/nft',
+  path: '/migration/nft',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LegalTrademarkGuidelinesRoute =
   LegalTrademarkGuidelinesRouteImport.update({
     id: '/legal/trademark-guidelines',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
+  '/migration/nft': typeof MigrationNftRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
+  '/migration/nft': typeof MigrationNftRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/legal/privacy-policy': typeof LegalPrivacyPolicyRoute
   '/legal/terms-of-use': typeof LegalTermsOfUseRoute
   '/legal/trademark-guidelines': typeof LegalTrademarkGuidelinesRoute
+  '/migration_/nft': typeof MigrationNftRoute
   '/payment/add': typeof PaymentAddRoute
   '/payment/list': typeof PaymentListRoute
   '/register/$name': typeof RegisterNameRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
+    | '/migration/nft'
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
@@ -272,6 +282,7 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
+    | '/migration/nft'
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-use'
     | '/legal/trademark-guidelines'
+    | '/migration_/nft'
     | '/payment/add'
     | '/payment/list'
     | '/register/$name'
@@ -325,6 +337,7 @@ export interface RootRouteChildren {
   LegalPrivacyPolicyRoute: typeof LegalPrivacyPolicyRoute
   LegalTermsOfUseRoute: typeof LegalTermsOfUseRoute
   LegalTrademarkGuidelinesRoute: typeof LegalTrademarkGuidelinesRoute
+  MigrationNftRoute: typeof MigrationNftRoute
   PaymentAddRoute: typeof PaymentAddRoute
   PaymentListRoute: typeof PaymentListRoute
   RegisterNameRoute: typeof RegisterNameRoute
@@ -435,6 +448,13 @@ declare module '@tanstack/react-router' {
       path: '/payment/add'
       fullPath: '/payment/add'
       preLoaderRoute: typeof PaymentAddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/migration_/nft': {
+      id: '/migration_/nft'
+      path: '/migration/nft'
+      fullPath: '/migration/nft'
+      preLoaderRoute: typeof MigrationNftRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/legal/trademark-guidelines': {
@@ -563,6 +583,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalPrivacyPolicyRoute: LegalPrivacyPolicyRoute,
   LegalTermsOfUseRoute: LegalTermsOfUseRoute,
   LegalTrademarkGuidelinesRoute: LegalTrademarkGuidelinesRoute,
+  MigrationNftRoute: MigrationNftRoute,
   PaymentAddRoute: PaymentAddRoute,
   PaymentListRoute: PaymentListRoute,
   RegisterNameRoute: RegisterNameRoute,

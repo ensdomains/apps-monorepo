@@ -74,7 +74,10 @@ export const NodeDetailSheet = ({
     ? recordsToTableData(profile.records)
     : []
 
-  const cellClassName = cn('px-4 sm:px-6', tableView.compact ? 'py-2' : 'py-4')
+  const cellClassName = cn(
+    'px-4 sm:px-6',
+    tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
+  )
 
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
@@ -85,7 +88,7 @@ export const NodeDetailSheet = ({
       >
         <div className="p-6 shrink-0 border-b">
           <SheetHeader className="p-0 flex flex-row items-center justify-between">
-            <SheetTitle className="font-sans text-heading font-medium">
+            <SheetTitle className="font-sans text-h2">
               {node?.name ?? 'Node Details'}
             </SheetTitle>
             {node && (
@@ -108,7 +111,7 @@ export const NodeDetailSheet = ({
               )}
               <section className="p-6 border-b flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Records</h3>
+                  <h3 className="text-h3">Records</h3>
                   <Button variant="default" size="sm" asChild>
                     <Link to="/$name/records" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
@@ -133,7 +136,7 @@ export const NodeDetailSheet = ({
                     No records set for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-sm overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <DataTable columns={sidebarRecordColumns} data={records} />
                   </div>
                 )}
@@ -141,7 +144,7 @@ export const NodeDetailSheet = ({
 
               <section className="p-6 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Roles</h3>
+                  <h3 className="text-h3">Roles</h3>
                   <Button variant="default" size="sm" asChild>
                     <Link to="/$name/roles" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
@@ -154,7 +157,7 @@ export const NodeDetailSheet = ({
                     No roles assigned for this node.
                   </p>
                 ) : (
-                  <div className="border border-border rounded-sm overflow-hidden">
+                  <div className="border border-border rounded-sm overflow-hidden [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
                     <Table>
                       <TableHeader>
                         <TableRow>

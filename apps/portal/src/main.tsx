@@ -6,6 +6,7 @@ import './lib/temporal-shim'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import reportWebVitals from './reportWebVitals.ts'
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
@@ -35,6 +36,11 @@ const router = createRouter({
   scrollRestoration: true,
   defaultStructuralSharing: true,
   defaultPreloadStaleTime: 0,
+  defaultErrorComponent: ({ error }) => {
+    // The error page copy points users at the console for details.
+    console.error(error)
+    return <ErrorMessage className="mt-10" />
+  },
 })
 
 // Register the router instance for type safety

@@ -6,6 +6,7 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -52,8 +53,8 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Roles unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching roles. Please refresh the page."
       />
     )
 
@@ -61,11 +62,9 @@ function RouteComponent() {
   const nodes = resolver?.nodes ?? []
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6 w-full max-w-360 mx-auto">
+    <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl md:text-heading font-medium leading-none">
-          Roles
-        </h1>
+        <h1 className="text-h2 md:text-h1">Roles</h1>
         {accountAddress && canManageRoles && (
           <Button
             variant="default"
@@ -77,12 +76,20 @@ function RouteComponent() {
           </Button>
         )}
       </div>
-      <ResolverRolesTable
-        roles={roles}
-        nodes={nodes}
-        resolverAddress={address as Address}
-        canManageRoles={canManageRoles}
-      />
+      {roles.length === 0 ? (
+        <NoResultsMessage
+          title="No role holders yet"
+          description="Accounts with roles on this resolver will appear here."
+          className="mx-0"
+        />
+      ) : (
+        <ResolverRolesTable
+          roles={roles}
+          nodes={nodes}
+          resolverAddress={address as Address}
+          canManageRoles={canManageRoles}
+        />
+      )}
       <ResolverAddUserSheet
         open={addUserOpen}
         onOpenChange={setAddUserOpen}

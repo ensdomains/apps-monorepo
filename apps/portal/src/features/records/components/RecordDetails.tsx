@@ -6,6 +6,7 @@ import { useEnsResolver } from 'wagmi'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { DataTable } from '@/components/DataTable'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
@@ -32,7 +33,7 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
           <InfoRow label="Coin Type">
             <span className="font-mono">
               {record.id}{' '}
-              <span className="font-sans text-muted-foreground uppercase">
+              <span className="font-sans text-caps text-muted-foreground">
                 {record.key}
               </span>
             </span>
@@ -96,7 +97,13 @@ const ResolverView = ({ name }: ResolverViewProps) => {
   })
 
   if (isLoading) return <LoadingSpinner title="Loading..." />
-  if (error) return <div>Error: {error.message}</div>
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching the resolver. Please refresh the page."
+      />
+    )
   if (!resolverAddress) return <div>No resolver set</div>
 
   return (
@@ -218,10 +225,10 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
     }
     if (v1HistoryQuery.error) {
       return (
-        <div>
-          History Error:{' '}
-          {v1HistoryQuery.error.cause?.message || v1HistoryQuery.error.message}
-        </div>
+        <ErrorMessage
+          compact
+          description="Error fetching history. Please refresh the page."
+        />
       )
     }
   } else {
@@ -230,10 +237,10 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
     }
     if (v2HistoryQuery.error) {
       return (
-        <div>
-          History Error:{' '}
-          {v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message}
-        </div>
+        <ErrorMessage
+          compact
+          description="Error fetching history. Please refresh the page."
+        />
       )
     }
   }
@@ -257,9 +264,7 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
   return (
     <div className="rounded-sm bg-background overflow-hidden">
       <div className="px-6 py-3">
-        <span className="text-sm font-medium uppercase tracking-[0.98px] leading-none text-foreground">
-          History
-        </span>
+        <span className="text-caps leading-none text-foreground">History</span>
       </div>
       <div className="px-6 pb-6">
         {hasNoHistory ? (
