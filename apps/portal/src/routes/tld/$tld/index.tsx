@@ -3,12 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
 import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
-import {
-  CardsStackIcon,
-  HubIcon,
-  ShieldIcon,
-  SupervisorAccountIcon,
-} from '@/assets/icons'
+import { CardsStackIcon, HubIcon, SupervisorAccountIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
@@ -27,7 +22,6 @@ import {
   getTldDataQueryOptions,
 } from '@/features/profile/hooks/useTldData'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
-import { getRegistryInfoQueryOptions } from '@/features/registry/hooks/useRegistry'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { transformV2EventsToSubgraphFormat } from '@/utils/history/transformV2Events'
 import { queryClient } from '@/utils/queryClient'
@@ -88,35 +82,6 @@ const TldRecordCount = ({ tld }: { tld: string }) => {
       icon={CardsStackIcon}
       label="Records set"
       value={recordCount}
-    />
-  )
-}
-
-const TldRoleCount = ({
-  registryAddress,
-}: {
-  registryAddress: GetTldDataReturnType['registryAddress']
-}) => {
-  const hasRegistry = registryAddress !== zeroAddress
-  const registryQuery = useQuery({
-    ...getRegistryInfoQueryOptions({ address: registryAddress }),
-    enabled: hasRegistry,
-  })
-
-  if (registryQuery.isLoading) return <LoadingSpinner />
-  if (registryQuery.error)
-    return (
-      <ErrorMessage
-        compact
-        description="Error fetching roles. Please refresh the page."
-      />
-    )
-
-  return (
-    <TldCounterCard
-      icon={ShieldIcon}
-      label="Role holders"
-      value={registryQuery.data?.roleCount ?? 0}
     />
   )
 }
@@ -250,7 +215,6 @@ function TldOverview() {
 
         <div className="flex flex-col gap-3 shrink-0">
           <TldRecordCount tld={tld} />
-          <TldRoleCount registryAddress={registryAddress} />
         </div>
       </div>
 
