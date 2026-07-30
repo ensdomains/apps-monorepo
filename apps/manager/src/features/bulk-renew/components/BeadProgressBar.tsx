@@ -30,7 +30,7 @@ export const BeadProgressBar = ({
 }: {
   readonly progress: number
 }) => (
-  <div className="h-5 w-full overflow-hidden rounded-xs bg-ens-quartz-150">
+  <div className="h-5 w-full overflow-hidden rounded-sm bg-ens-quartz-150">
     <div
       className="relative h-full bg-ens-quartz-0 transition-[width] duration-500 ease-out"
       style={{ width: `${Math.min(100, Math.max(4, progress))}%` }}

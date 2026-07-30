@@ -23,7 +23,7 @@ export const SelectionCheckbox = ({
       className={cn(
         'flex size-5 shrink-0 items-center justify-center rounded-sm border transition-colors',
         active
-          ? 'border-ens-lapis-core bg-ens-lapis-core text-ens-quartz-0'
+          ? 'border-ens-lapis-500 bg-transparent text-ens-lapis-500'
           : 'border-ens-quartz-250 bg-ens-quartz-0 text-transparent hover:border-ens-quartz-350',
       )}
       onClick={onToggle}

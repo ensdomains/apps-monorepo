@@ -5,7 +5,6 @@ import { Search } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useMemo, useState } from 'react'
 import { match } from 'ts-pattern'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MSymbol } from '@/components/ui/material-symbol'
 import { BulkRenewDialog, type BulkRenewName } from '@/features/bulk-renew'
@@ -306,7 +305,7 @@ export const NamesTable = ({
 
         {activeFilter === 'owned' && allOwnedLabels.length > 0 && (
           <div className="flex w-full items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <SelectionCheckbox
                 ariaLabel={
                   allSelected ? t`Deselect all names` : t`Select all names`
@@ -315,7 +314,7 @@ export const NamesTable = ({
                 indeterminate={someSelected && !allSelected}
                 onToggle={onToggleSelectAll}
               />
-              <span className="font-sans text-ens-quartz-550 text-sm">
+              <span className="font-sans text-[#232222] text-sm tracking-[0.28px]">
                 {selectedCount > 0 ? (
                   <Trans>{selectedCount} selected</Trans>
                 ) : (
@@ -324,19 +323,18 @@ export const NamesTable = ({
               </span>
             </div>
             {someSelected && (
-              <Button
+              <button
+                className="flex h-8.5 items-center gap-1.5 rounded-sm border border-ens-lapis-500 px-2 py-1.5 font-normal font-semi-mono text-base text-ens-lapis-500 uppercase leading-none tracking-[-0.16px] hover:opacity-80"
                 onClick={() => setIsRenewOpen(true)}
-                size="sm"
                 type="button"
-                variant="outline"
               >
                 <Trans>Renew</Trans>
                 <MSymbol
                   aria-hidden="true"
-                  className="ms-opsz-20 text-base leading-none"
+                  className="text-base leading-none"
                   symbol="double_arrow"
                 />
-              </Button>
+              </button>
             )}
           </div>
         )}
