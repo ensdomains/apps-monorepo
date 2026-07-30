@@ -73,7 +73,7 @@ function RouteComponent() {
     )
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     return (
       <NoResultsMessage
         title="No names found"

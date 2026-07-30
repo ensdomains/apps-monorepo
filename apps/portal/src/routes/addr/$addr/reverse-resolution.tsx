@@ -12,6 +12,7 @@ import { useId, useState } from 'react'
 import type { Address } from 'viem'
 import { InvalidNameMessage } from '@/components/InvalidNameMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import {
   InputGroup,
@@ -86,7 +87,13 @@ function RouteComponent() {
       />
     )
 
-  if (!data) return <div>No data</div>
+  if (!data)
+    return (
+      <NoResultsMessage
+        title="No data available"
+        description="Reverse resolution data for this address will appear here."
+      />
+    )
 
   return (
     <>

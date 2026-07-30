@@ -209,8 +209,8 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Aliases unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching aliases. Please refresh the page."
       />
     )
 
@@ -218,7 +218,9 @@ function RouteComponent() {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <h1 className="text-h2 md:text-h1">
-          {aliases.length} alias{aliases.length !== 1 ? 'es' : ''}
+          {aliases.length > 0
+            ? `${aliases.length} alias${aliases.length !== 1 ? 'es' : ''}`
+            : 'Aliases'}
         </h1>
         {canSetAlias && (
           <Button asChild>
@@ -230,16 +232,18 @@ function RouteComponent() {
         )}
       </div>
 
-      <InputGroup className="bg-background rounded-sm">
-        <InputGroupAddon>
-          <Search />
-        </InputGroupAddon>
-        <InputGroupInput
-          placeholder="Search..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-        />
-      </InputGroup>
+      {aliases.length > 0 && (
+        <InputGroup className="bg-background rounded-sm">
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+          <InputGroupInput
+            placeholder="Search..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+          />
+        </InputGroup>
+      )}
 
       {deleteMutation.error && (
         <Alert variant="destructive">
@@ -278,8 +282,9 @@ function RouteComponent() {
 
       {aliases.length === 0 ? (
         <NoResultsMessage
-          title="This resolver has no aliases."
+          title="No aliases yet"
           description="Create an alias to redirect resolution from one name to another."
+          className="mx-0"
         />
       ) : (
         <>

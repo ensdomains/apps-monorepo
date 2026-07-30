@@ -4,6 +4,7 @@ import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { SortButton } from '@/components/table/SortButton'
 import { formatExpiryDuration } from '@/utils/formatting/formatDateTime'
 import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
@@ -94,11 +95,20 @@ export const RegistryLabelsTable = ({ address }: { address: Address }) => {
   if (error) {
     return (
       <ErrorMessage
-        title="Failed to load labels"
-        description={error.cause?.message ?? error.message}
+        compact
+        description="Error fetching labels. Please refresh the page."
       />
     )
   }
 
-  return <DataTable columns={columns} data={labels ?? []} />
+  if (!labels || labels.length === 0)
+    return (
+      <NoResultsMessage
+        title="No labels yet"
+        description="Labels registered in this registry will appear here."
+        className="mx-0"
+      />
+    )
+
+  return <DataTable columns={columns} data={labels} />
 }

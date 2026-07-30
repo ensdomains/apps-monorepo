@@ -204,8 +204,8 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   if (error) {
     return (
       <ErrorMessage
-        title={error.cause.name}
-        description={error.message || error.cause.message}
+        compact
+        description="Error fetching registry data. Please refresh the page."
       />
     )
   }

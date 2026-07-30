@@ -6,7 +6,9 @@ import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
@@ -114,14 +116,27 @@ export const NameList = ({ address, limit }: NameListProps) => {
   })
 
   if (v1NamesQuery.error) {
-    return <div>Error: {v1NamesQuery.error.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching names. Please refresh the page."
+      />
+    )
   }
   if (v1NamesQuery.isLoading) return <LoadingSpinner title="Loading V1 names" />
   if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
-  if (!v2NamesQuery.data && !v1NamesQuery.data) return <>No names</>
 
   const allData = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
   const data = limit ? allData.slice(0, limit) : allData
+
+  if (data.length === 0)
+    return (
+      <NoResultsMessage
+        title="No names yet"
+        description="Names owned by this address will appear here."
+        className="mx-0"
+      />
+    )
 
   return (
     <div>

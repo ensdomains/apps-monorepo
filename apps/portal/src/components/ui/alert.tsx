@@ -11,7 +11,9 @@ const alertVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-neutral-2 text-foreground',
+        default:
+          'bg-type-entity-fill text-type-entity-text [&>svg]:text-current *:data-[slot=alert-description]:text-type-entity-text/90',
+        neutral: 'bg-neutral-2 text-foreground',
         destructive: 'bg-message-danger-fill text-message-danger-text',
         warning: 'bg-message-warning-fill text-message-warning-text',
         success: 'bg-message-success-fill text-message-success-text',

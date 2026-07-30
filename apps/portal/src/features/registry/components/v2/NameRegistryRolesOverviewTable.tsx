@@ -29,8 +29,8 @@ export const NameRegistryRolesOverviewTable = ({ name }: { name: string }) => {
   if (error)
     return (
       <ErrorMessage
-        title="Registry roles unavailable"
-        description={error.cause?.message ?? error.message}
+        compact
+        description="Error fetching registry roles. Please refresh the page."
       />
     )
 

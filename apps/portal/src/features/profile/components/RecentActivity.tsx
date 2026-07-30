@@ -87,22 +87,22 @@ const V1RecentActivityTable = ({
   if (timestampsError) {
     return (
       <ErrorMessage
-        title="Error loading timestamps"
-        description={timestampsError.cause?.message}
+        compact
+        description="Error fetching timestamps. Please refresh the page."
       />
     )
   }
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
 
   if (!timestampsData || !sendersData) {
-    return <ErrorMessage title="No data available" />
+    return <ErrorMessage compact description="No activity data available." />
   }
 
   const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
@@ -147,13 +147,13 @@ const V2RecentActivityTable = ({
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
   if (!sendersData) {
-    return <ErrorMessage title="No sender data available" />
+    return <ErrorMessage compact description="No sender data available." />
   }
 
   // V2 events already have timestamps from the indexer
@@ -203,8 +203,8 @@ const V1RecentActivity = ({
   if (error)
     return (
       <ErrorMessage
-        title="Error loading history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   if (!data) return <NoRecentActivity name={name} />
@@ -246,8 +246,8 @@ const V2RecentActivity = ({
   if (error)
     return (
       <ErrorMessage
-        title="Error loading history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   if (!data || data.length === 0) return <NoRecentActivity name={name} />
