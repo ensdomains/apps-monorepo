@@ -115,8 +115,15 @@ export const NameList = ({ address, limit }: NameListProps) => {
     ],
   })
 
-  if (v1NamesQuery.isLoading) return <LoadingSpinner title="Loading V1 names" />
-  if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
+  const v1Pending = v1NamesQuery.isLoading
+  const v2Pending = v2NamesQuery.isLoading
+
+  // Full spinner only while nothing is displayable; a source that already
+  // has data keeps rendering while the slower one settles.
+  if (v1Pending && !v2NamesQuery.data)
+    return <LoadingSpinner title="Loading V1 names" />
+  if (v2Pending && !v1NamesQuery.data)
+    return <LoadingSpinner title="Loading V2 names" />
 
   const v1Failed = Boolean(v1NamesQuery.error)
   const v2Failed = Boolean(v2NamesQuery.error)
@@ -124,7 +131,7 @@ export const NameList = ({ address, limit }: NameListProps) => {
   const allData = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
   const data = limit ? allData.slice(0, limit) : allData
 
-  if (data.length === 0 && !v1Failed && !v2Failed)
+  if (data.length === 0 && !v1Failed && !v2Failed && !v1Pending && !v2Pending)
     return (
       <NoResultsMessage
         title="No names yet"
@@ -135,6 +142,8 @@ export const NameList = ({ address, limit }: NameListProps) => {
 
   return (
     <div>
+      {v1Pending && <LoadingSpinner title="Loading V1 names" />}
+      {v2Pending && <LoadingSpinner title="Loading V2 names" />}
       {v1Failed && (
         <ErrorMessage
           compact
