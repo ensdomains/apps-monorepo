@@ -87,15 +87,19 @@ function RouteComponent() {
       />
     )
 
-  if (!data || data.length === 0)
+  // The hook emits one placeholder row per configured network even when no
+  // reverse record exists anywhere, so emptiness means "no row has a name".
+  const hasReverseRecords = data?.some((row) => row.name || row.defaultName)
+
+  if (!data || !hasReverseRecords)
     return (
       <>
         <header className="flex flex-col gap-4">
           <h1 className="text-h1">Reverse resolution</h1>
         </header>
         <NoResultsMessage
-          title="No data available"
-          description="Reverse resolution data for this address will appear here."
+          title="No reverse records yet"
+          description="This address doesn't have a reverse record on any network. Records will appear here once one is set."
           className="mx-0"
         />
       </>
