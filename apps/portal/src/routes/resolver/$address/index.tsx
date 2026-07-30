@@ -6,6 +6,7 @@ import { sepolia } from 'viem/chains'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
@@ -109,9 +110,17 @@ function RouteComponent() {
             </Link>
           </Button>
         </div>
-        <div className="border border-border rounded-sm overflow-hidden">
-          <ResolverEventsTable events={recentEvents} enableSidebar={false} />
-        </div>
+        {recentEvents.length === 0 ? (
+          <NoResultsMessage
+            title="No history yet"
+            description="Events for this resolver will appear here."
+            className="mx-0 my-0"
+          />
+        ) : (
+          <div className="border border-border rounded-sm overflow-hidden">
+            <ResolverEventsTable events={recentEvents} enableSidebar={false} />
+          </div>
+        )}
       </div>
     </div>
   )

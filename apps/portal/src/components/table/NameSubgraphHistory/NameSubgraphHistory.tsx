@@ -157,16 +157,12 @@ export const NameSubgraphHistory = ({
 
   if (!data || data.length === 0)
     return (
-      <div className="flex flex-col gap-1 p-4 sm:p-6 w-full">
-        {enableHeader && (
-          <div>
-            <h2 className="text-h2">History</h2>
-          </div>
-        )}
+      <div className="flex flex-col gap-4 w-full">
+        {enableHeader && <h2 className="text-h2">History</h2>}
         <NoResultsMessage
           title="No recent activity"
           description="Events will appear here as they happen."
-          className="mx-0"
+          className="mx-0 my-0"
         />
       </div>
     )
