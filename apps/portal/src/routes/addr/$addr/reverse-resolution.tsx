@@ -87,12 +87,18 @@ function RouteComponent() {
       />
     )
 
-  if (!data)
+  if (!data || data.length === 0)
     return (
-      <NoResultsMessage
-        title="No data available"
-        description="Reverse resolution data for this address will appear here."
-      />
+      <>
+        <header className="flex flex-col gap-4">
+          <h1 className="text-h1">Reverse resolution</h1>
+        </header>
+        <NoResultsMessage
+          title="No data available"
+          description="Reverse resolution data for this address will appear here."
+          className="mx-0"
+        />
+      </>
     )
 
   return (
