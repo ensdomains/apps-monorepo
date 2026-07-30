@@ -43,7 +43,7 @@ export const columns: ColumnDef<ForwardName>[] = [
       return (
         <div
           className={cn(
-            `w-max flex flex-row gap-2`,
+            `w-max flex flex-row items-center gap-2`,
             settings.wrapText ? 'break-all whitespace-normal' : 'truncate',
           )}
         >

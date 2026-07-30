@@ -22,7 +22,6 @@ import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabl
 import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
@@ -316,8 +315,8 @@ export const ChangeResolverForm = ({
 
       {existingResolversError && !deployNewResolver && !useCustomResolver && (
         <ErrorMessage
-          title="Failed to load resolvers"
-          description={extractErrorMessage(existingResolversError, '')}
+          compact
+          description="Error fetching resolvers. Please refresh the page."
         />
       )}
 

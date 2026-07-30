@@ -42,8 +42,8 @@ const V2NameRoles = ({
   if (nameRolesQuery.error)
     return (
       <ErrorMessage
-        title="Failed to fetch role accounts"
-        description={nameRolesQuery.error.cause?.message}
+        compact
+        description="Error fetching role accounts. Please refresh the page."
       />
     )
 

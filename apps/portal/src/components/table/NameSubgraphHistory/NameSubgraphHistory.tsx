@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Hash } from 'viem'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
@@ -162,7 +163,11 @@ export const NameSubgraphHistory = ({
             <h2 className="text-h2">History</h2>
           </div>
         )}
-        <div>No recent activity.</div>
+        <NoResultsMessage
+          title="No recent activity"
+          description="Events will appear here as they happen."
+          className="mx-0"
+        />
       </div>
     )
 

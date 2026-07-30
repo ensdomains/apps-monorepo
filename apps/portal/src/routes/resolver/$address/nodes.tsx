@@ -16,6 +16,7 @@ import type { Address } from 'viem'
 import { CopyButton } from '@/components/CopyButton'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Badge } from '@/components/ui/badge'
@@ -163,9 +164,21 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Nodes unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching nodes. Please refresh the page."
       />
+    )
+
+  if (nodes.length === 0)
+    return (
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h2 md:text-h1">Nodes</h1>
+        <NoResultsMessage
+          title="No nodes yet"
+          description="Names that resolve through this resolver will appear here."
+          className="mx-0"
+        />
+      </div>
     )
 
   return (

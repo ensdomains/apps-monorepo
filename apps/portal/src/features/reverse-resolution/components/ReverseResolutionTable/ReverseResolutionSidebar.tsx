@@ -16,6 +16,7 @@ import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -88,13 +89,19 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   }
 
   if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching timestamps. Please refresh the page."
+      />
+    )
   }
   if (sendersError) {
     return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
+      <ErrorMessage
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
+      />
     )
   }
 
@@ -141,7 +148,12 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   )
 
   if (error) {
-    return <div>History Error: {error.cause?.message || error.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching history. Please refresh the page."
+      />
+    )
   }
 
   if (isLoading) return <div>Loading history...</div>

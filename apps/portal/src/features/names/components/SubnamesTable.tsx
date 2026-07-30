@@ -13,6 +13,7 @@ import { Check, Plus, Search, Trash2, X } from 'lucide-react'
 import React, { useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { SortButton } from '@/components/table/SortButton'
 import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
@@ -208,7 +209,9 @@ export const SubnamesTable = ({
       <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
         <div className="flex flex-row items-center gap-2">
           <h1 className="text-h1 flex-1">
-            {subnames.length} subname{subnames.length !== 1 ? 's' : ''}
+            {subnames.length > 0
+              ? `${subnames.length} subname${subnames.length !== 1 ? 's' : ''}`
+              : 'Subnames'}
           </h1>
           {canCreateSubname && (
             <Button variant="default" asChild>
@@ -244,21 +247,31 @@ export const SubnamesTable = ({
             )}
           </div>
         )}
-        <InputGroup className="bg-background rounded-sm">
-          <InputGroupInput
-            className="w-full"
-            placeholder="Search..."
-            value={globalFilter}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-          />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
+        {subnames.length > 0 && (
+          <InputGroup className="bg-background rounded-sm">
+            <InputGroupInput
+              className="w-full"
+              placeholder="Search..."
+              value={globalFilter}
+              onChange={(event) => setGlobalFilter(event.target.value)}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        )}
       </header>
 
+      {subnames.length === 0 && (
+        <NoResultsMessage
+          title="No subnames yet"
+          description="Create a subname to divide this name into its own namespace."
+          className="mx-0"
+        />
+      )}
+
       {/* Mobile view - Card layout */}
-      <div className="md:hidden">
+      <div className={cn('md:hidden', subnames.length === 0 && 'hidden')}>
         {rows.length > 0 ? (
           rows.map((row) => {
             const isPendingDelete = pendingDeleteName === row.original.name
@@ -355,7 +368,9 @@ export const SubnamesTable = ({
       </div>
 
       {/* Desktop view - Table layout */}
-      <Table className="relative hidden md:table">
+      <Table
+        className={cn('relative hidden', subnames.length > 0 && 'md:table')}
+      >
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
