@@ -120,8 +120,6 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
         icon={<AlertTriangle className="size-6" />}
         title="Connect your wallet"
         className="xl:min-w-none"
-        titleClassName="text-base text-inherit font-medium"
-        descriptionClassName="text-sm text-inherit"
         description="Connect your wallet to view available payment tokens for your ENS registration."
       />
     )
@@ -170,8 +168,6 @@ export const PaymentTokenPicker = (props: PaymentTokenPickerProps) => {
           icon={<AlertTriangle className="size-6" />}
           title="Insufficient balance"
           className="xl:min-w-none"
-          titleClassName="text-base text-inherit font-medium"
-          descriptionClassName="text-sm text-inherit"
           description={
             props.mode === 'renew'
               ? "You'll need to hold USDC or DAI in your connected wallet in order to extend your ENS name."

@@ -14,7 +14,7 @@ export const NoResultsMessage = ({
 
   return (
     <MessageCard
-      icon={<Inbox size={30} strokeWidth={1.5} />}
+      icon={<Inbox size={24} strokeWidth={1.5} />}
       title={title}
       description={description || defaultDescription}
     />
