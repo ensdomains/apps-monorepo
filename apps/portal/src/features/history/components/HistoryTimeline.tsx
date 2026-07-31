@@ -112,7 +112,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
         <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:182px]">
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-px bg-border"
+            className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-0.5 bg-neutral-2"
           />
           <Timeline className="gap-y-4">
             {filteredActions.map((action, index) => (

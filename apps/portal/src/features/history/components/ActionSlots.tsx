@@ -28,7 +28,7 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
       </EntityBadge>
     ))
     .with({ kind: 'text' }, ({ value }) => (
-      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">
+      <code className="rounded bg-neutral-1 px-1.5 py-0.5 font-mono text-sm text-neutral-7">
         {value}
       </code>
     ))

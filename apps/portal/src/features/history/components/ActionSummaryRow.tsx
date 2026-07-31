@@ -32,26 +32,25 @@ export const ActionSummaryRow = ({
   const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
 
   const iconBadge = (
-    <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-lg border-[3px] border-background bg-muted text-muted-foreground">
+    <span className="relative z-10 right-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border-[3px] border-background bg-neutral-1 text-muted-foreground">
       <ActionIconGlyph icon={action.icon} />
     </span>
   )
   const labelAndChips = (
     <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-      <span className="text-foreground text-sm">{action.label}</span>
+      <span className="text-neutral-7 text-sm">{action.label}</span>
       <ActionSlots slots={action.slots} />
     </div>
   )
   const counts = (
     <div className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
-      <span className="font-mono text-muted-foreground text-sm">
+      <EntityBadge variant="default" className="gap-1">
         {eventCount}
         <span className="sm:hidden"> evt</span>
         <span className="hidden sm:inline">
           {` ${eventCount === 1 ? 'event' : 'events'}`}
         </span>
-      </span>
-      {/* Actions are one-per-transaction by construction (see summarizeEvents). */}
+      </EntityBadge>
       <EntityBadge variant="tx">1 tx</EntityBadge>
     </div>
   )
@@ -83,10 +82,9 @@ export const ActionSummaryRow = ({
         </div>
       </div>
 
-      {/* Desktop: date + icon rail | label + chips | counts */}
       <div className="hidden grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3 sm:grid">
         <div className="flex items-center gap-5">
-          <span className="w-[120px] shrink-0 text-right font-mono text-[13px] text-muted-foreground">
+          <span className="w-30 shrink-0 text-right font-mono text-[13px] text-muted-foreground">
             {dateLabel}
           </span>
           {iconBadge}
