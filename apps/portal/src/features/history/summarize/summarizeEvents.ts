@@ -1,7 +1,6 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { DESCRIPTORS, humanizeType } from './descriptors'
-import { multiRecordRecipe } from './recipes'
-import type { Action } from './summarize.types'
+import type { Action, ActionSlot } from './summarize.types'
 
 /** Event types that never surface as their own action (nor as filter options). */
 export const IGNORED_TYPES = new Set(['CommitmentMade'])
@@ -30,6 +29,40 @@ const TYPE_RANK: Record<string, number> = {
   ContenthashChanged: 30,
   FusesSet: 20,
   ExpiryUpdated: 20,
+}
+
+const RECORD_TYPES = new Set([
+  'TextChanged',
+  'AddressChanged',
+  'AddrChanged',
+  'ContenthashChanged',
+])
+
+const recordLabel = (event: TimelineIndexerEvent): string => {
+  if (event.type === 'TextChanged')
+    return event.asTextChanged?.key ?? event.key ?? 'text'
+  if (event.type === 'ContenthashChanged') return 'content hash'
+  return 'address'
+}
+
+const multiRecordRecipe = (
+  group: readonly TimelineIndexerEvent[],
+): Pick<Action, 'icon' | 'label' | 'slots'> | null => {
+  const records = group.filter((event) => RECORD_TYPES.has(event.type))
+  if (records.length < 2) return null
+
+  const MAX_SHOWN = 4
+  const slots: ActionSlot[] = records
+    .slice(0, MAX_SHOWN)
+    .map((event) => ({ kind: 'text' as const, value: recordLabel(event) }))
+  if (records.length > MAX_SHOWN) {
+    slots.push({
+      kind: 'connective',
+      value: `+${records.length - MAX_SHOWN} more`,
+    })
+  }
+
+  return { icon: 'records', label: `Set ${records.length} records`, slots }
 }
 
 const rankOf = (event: TimelineIndexerEvent): number =>
@@ -62,7 +95,7 @@ const describeGroup = (
 
   for (const primary of byRank) {
     const descriptor = DESCRIPTORS[primary.type]
-    const built = descriptor?.build({ primary })
+    const built = descriptor?.build(primary)
     if (built) return { ...built, icon: built.icon ?? descriptor.icon }
   }
 
@@ -73,11 +106,7 @@ const describeGroup = (
   }
 }
 
-/**
- * Turn a flat list of raw indexer events into tier-1 semantic actions, one per
- * transaction. Multi-transaction actions (primary name) are a documented follow-up
- * (recipes.ts) and currently render as separate actions.
- */
+/** Turn a flat list of raw indexer events into tier-1 semantic actions, one per transaction. */
 export const summarizeEvents = (
   events: readonly TimelineIndexerEvent[],
 ): Action[] => {

@@ -66,7 +66,7 @@ export type Action = {
  */
 export type Descriptor = {
   readonly icon: ActionIcon
-  readonly build: (ctx: {
-    primary: TimelineIndexerEvent
-  }) => { icon?: ActionIcon; label: string; slots: ActionSlot[] } | null
+  readonly build: (
+    primary: TimelineIndexerEvent,
+  ) => { icon?: ActionIcon; label: string; slots: ActionSlot[] } | null
 }

@@ -25,15 +25,13 @@ describe('Figma history labels', () => {
 
   it('AddressChanged stays Set address to', () => {
     const built = DESCRIPTORS.AddressChanged.build({
-      primary: {
-        ...base,
-        type: 'AddressChanged',
-        asAddressChanged: {
-          address: '0x801d2e48d378f161dba7ad7ad002ad557714c191',
-          coinType: 60,
-        },
-      } as TimelineIndexerEvent,
-    })
+      ...base,
+      type: 'AddressChanged',
+      asAddressChanged: {
+        address: '0x801d2e48d378f161dba7ad7ad002ad557714c191',
+        coinType: 60,
+      },
+    } as TimelineIndexerEvent)
     expect(built).toMatchObject({
       label: 'Set address to',
       slots: [
@@ -47,12 +45,10 @@ describe('Figma history labels', () => {
 
   it('NameRegistered is Register name with the name chip', () => {
     const built = DESCRIPTORS.NameRegistered.build({
-      primary: {
-        ...base,
-        type: 'NameRegistered',
-        asNameRegistered: { name: 'collector.eth' },
-      } as TimelineIndexerEvent,
-    })
+      ...base,
+      type: 'NameRegistered',
+      asNameRegistered: { name: 'collector.eth' },
+    } as TimelineIndexerEvent)
     expect(built).toEqual({
       label: 'Register name',
       slots: [{ kind: 'name', value: 'collector.eth' }],
@@ -61,14 +57,12 @@ describe('Figma history labels', () => {
 
   it('ResolverUpdated includes a resolver contract badge', () => {
     const built = DESCRIPTORS.ResolverUpdated.build({
-      primary: {
-        ...base,
-        type: 'ResolverUpdated',
-        asResolverUpdated: {
-          resolver: '0xb88b00000000000000000000000000000000Fa98',
-        },
-      } as TimelineIndexerEvent,
-    })
+      ...base,
+      type: 'ResolverUpdated',
+      asResolverUpdated: {
+        resolver: '0xb88b00000000000000000000000000000000Fa98',
+      },
+    } as TimelineIndexerEvent)
     expect(built).toEqual({
       label: 'Update resolver',
       slots: [
@@ -82,14 +76,12 @@ describe('Figma history labels', () => {
 
   it('SubregistryUpdated marks the contract slot as a registry', () => {
     const built = DESCRIPTORS.SubregistryUpdated.build({
-      primary: {
-        ...base,
-        type: 'SubregistryUpdated',
-        data: JSON.stringify({
-          registry: '0x541C00000000000000000000000000000000976F',
-        }),
-      } as TimelineIndexerEvent,
-    })
+      ...base,
+      type: 'SubregistryUpdated',
+      data: JSON.stringify({
+        registry: '0x541C00000000000000000000000000000000976F',
+      }),
+    } as TimelineIndexerEvent)
     expect(built).toEqual({
       label: 'Deploy and link subregistry',
       slots: [

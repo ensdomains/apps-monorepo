@@ -61,14 +61,14 @@ const resolvedNameSlot = (
 export const DESCRIPTORS: Record<string, Descriptor> = {
   AddressChanged: {
     icon: 'address',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Set address to',
       slots: [addressSlot(primary.asAddressChanged?.address)],
     }),
   },
   AddrChanged: {
     icon: 'address',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Set address to',
       slots: [
         addressSlot(
@@ -81,7 +81,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   TextChanged: {
     icon: 'text',
-    build: ({ primary }) => {
+    build: (primary) => {
       const key = primary.asTextChanged?.key ?? primary.key ?? '—'
       const value = primary.asTextChanged?.value ?? primary.value ?? ''
       const slots: ActionSlot[] = [{ kind: 'text', value: key }]
@@ -94,7 +94,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   ContenthashChanged: {
     icon: 'contenthash',
-    build: ({ primary }) => {
+    build: (primary) => {
       const hash = readString(
         parseEventData(primary.data),
         'hash',
@@ -114,7 +114,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   NameChanged: {
     icon: 'primary',
-    build: ({ primary }) => {
+    build: (primary) => {
       const setName =
         readString(parseEventData(primary.data), 'name') ?? primary.name
       return {
@@ -125,7 +125,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   },
   ReverseClaimed: {
     icon: 'primary',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Set primary name',
       slots: [
         nameSlot(primary.name),
@@ -137,7 +137,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   Transfer: {
     icon: 'transfer',
-    build: ({ primary }) => {
+    build: (primary) => {
       if (isZero(primary.asTransfer?.from)) return null
       return {
         label: 'Transfer name',
@@ -151,7 +151,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   },
   RegistryTransfer: {
     icon: 'transfer',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Transfer name',
       slots: [
         nameSlot(primary.name),
@@ -163,21 +163,21 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   LabelRegistered: {
     icon: 'subname',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Register subname',
       slots: [resolvedNameSlot(primary.asLabelRegistered?.name, primary.name)],
     }),
   },
   NameRegistered: {
     icon: 'register',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Register name',
       slots: [resolvedNameSlot(primary.asNameRegistered?.name, primary.name)],
     }),
   },
   NameRenewed: {
     icon: 'renew',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Renew',
       slots: [
         { kind: 'connective', value: 'by' },
@@ -188,7 +188,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   ResolverUpdated: {
     icon: 'resolver',
-    build: ({ primary }) => ({
+    build: (primary) => ({
       label: 'Update resolver',
       slots: [contractSlot(primary.asResolverUpdated?.resolver)],
     }),
@@ -196,7 +196,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   SubregistryUpdated: {
     icon: 'registry',
-    build: ({ primary }) => {
+    build: (primary) => {
       const registry = readString(
         parseEventData(primary.data),
         'registry',
@@ -214,7 +214,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
 
   EACRolesChanged: {
     icon: 'grant',
-    build: ({ primary }) => {
+    build: (primary) => {
       const change = decodeRoleChange(primary.data)
       const roleText = change.roles.map(humanizeRole).join(', ') || 'roles'
       const account: ActionSlot = change.account

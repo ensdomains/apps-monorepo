@@ -51,14 +51,6 @@ const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
   ExpiryUpdated: 'asExpiryUpdated',
 }
 
-const getDecodedEntries = (event: TimelineIndexerEvent): [string, string][] => {
-  const payloadKey = PAYLOAD_KEY_BY_TYPE[event.type]
-  const source = (payloadKey && event[payloadKey]) || parseEventData(event.data)
-  return Object.entries(source)
-    .filter(([, value]) => value != null && value !== '')
-    .map(([key, value]) => [key, String(value)])
-}
-
 /**
  * One decoded value: entity-shaped values render as interactive EntityBadges —
  * addresses resolve to account badges (primary name when one exists), known ENS
@@ -81,8 +73,10 @@ const DecodedValue = ({
   if (address && address !== zeroAddress) {
     const isRegistryParam =
       paramKey === 'registry' || paramKey === 'subregistry'
-    const knownContract = !!getEnsContractName(chainId, address)
-    if (knownContract || CONTRACT_PARAM_KEYS.has(paramKey)) {
+    if (
+      getEnsContractName(chainId, address) ||
+      CONTRACT_PARAM_KEYS.has(paramKey)
+    ) {
       return (
         <EntityBadge
           variant="contract"
@@ -114,7 +108,12 @@ const DecodedValue = ({
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
 export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
-  const entries = getDecodedEntries(event)
+  const payloadKey = PAYLOAD_KEY_BY_TYPE[event.type]
+  const source = (payloadKey && event[payloadKey]) || parseEventData(event.data)
+  const entries = Object.entries(source)
+    .filter(([, value]) => value != null && value !== '')
+    .map(([key, value]) => [key, String(value)] as const)
+
   if (entries.length === 0) {
     return (
       <p className="py-2 text-muted-foreground text-sm">
@@ -168,9 +167,6 @@ const MetaRow = ({
 /**
  * Tier-3 transaction metadata — inline key/value list. Fetched lazily from the RPC
  * when opened; the indexer does not carry from/to/value/gas.
- *
- * TODO(indexer): if these become filterable requirements, index value + gas to drop
- * the per-open RPC calls.
  */
 export const TransactionMeta = ({
   event,
@@ -192,29 +188,24 @@ export const TransactionMeta = ({
 
   const pending = txQuery.isLoading || receiptQuery.isLoading ? '…' : '—'
   const toAddress = tx?.to ?? event.contractAddress ?? undefined
-  const toIsKnownContract = toAddress
-    ? !!getEnsContractName(chainId, toAddress)
-    : false
 
   const txUrl = useBlockExplorerTxUrl(txHash)
   const toUrl = useBlockExplorerAddressUrl(toAddress)
 
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
-  const toValue = toAddress ? (
-    toIsKnownContract ? (
-      <EntityBadge
-        variant="contract"
-        address={toAddress}
-        etherscanHref={toUrl}
-        compact
-      >
-        <FullOnDesktop value={toAddress} />
-      </EntityBadge>
-    ) : (
-      <AccountBadge address={toAddress} full />
-    )
-  ) : (
+  const toValue = !toAddress ? (
     pending
+  ) : getEnsContractName(chainId, toAddress) ? (
+    <EntityBadge
+      variant="contract"
+      address={toAddress}
+      etherscanHref={toUrl}
+      compact
+    >
+      <FullOnDesktop value={toAddress} />
+    </EntityBadge>
+  ) : (
+    <AccountBadge address={toAddress} full />
   )
 
   return (
