@@ -42,9 +42,13 @@ export function originFromEnvUrl(value: string | undefined): string | null {
 
 // DQA overlay origin (QA/preview builds only): needed in script-src and
 // connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
+// The localhost fallback mirrors the overlay loader's own default
+// (packages/dev-dqa-overlay/src/config.ts) so a plain `pnpm build:dqa` without
+// VITE_DQA_URL still passes CSP.
 const DQA_ORIGIN =
   import.meta.env?.VITE_DQA === '1'
-    ? originFromEnvUrl(import.meta.env?.VITE_DQA_URL)
+    ? (originFromEnvUrl(import.meta.env?.VITE_DQA_URL) ??
+      'http://localhost:4000')
     : null
 
 // Deployment-specific override origins, derived from the same build-time envs
