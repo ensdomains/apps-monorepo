@@ -204,13 +204,15 @@ describe('registrationMachine — standalone-HCA funding', () => {
   })
 })
 
-describe('registrationMachine — enableData ⟺ funding permit', () => {
-  // `HCAOwnerAndSessionValidator` only tolerates the `permit` + `transferFrom`
-  // pair on the path reached by presenting the session-enable proof
-  // (`_checkInitialRegistrationPolicy`). Without the proof the pair hits
-  // `_checkRegistrationExecutions`, whose payment-token branch allows only
-  // `approve`, reverting `ActionNotAllowed(USDC, permit)` — which the emissary
-  // masks as `InvalidSignature()`.
+describe('registrationMachine — session-enable proof', () => {
+  // The proof is attached to every commit. Omitting it fails two different
+  // ways, both masked by the emissary as `InvalidSignature()`:
+  //   with a permit    → `ActionNotAllowed(USDC, permit)` (0xde1834f2), since
+  //                      `_checkRegistrationExecutions` allows only `approve`
+  //                      on the payment token;
+  //   without a permit → `InvalidSigner()` (0x815e1d64), since mode 0x02 finds
+  //                      `_sessions[hca][permissionId]` empty until the session
+  //                      has actually been enabled on-chain.
 
   it('attaches the enable proof whenever it funds, even on an already-enabled session', async () => {
     const { actor, submitFundingAndCommit } = startHcaRegistration({
@@ -226,7 +228,11 @@ describe('registrationMachine — enableData ⟺ funding permit', () => {
     expect(input.sessionEnable).toEqual(SESSION_ENABLE)
   })
 
-  it('omits the enable call when the HCA is already funded', async () => {
+  it('still attaches the enable proof when the HCA needs no funding', async () => {
+    // Regression: gating the proof on "we are funding" broke the FIRST commit
+    // under a new session whenever leftover balance covered the budget. With no
+    // proof the SDK signs mode 0x02 and `_validateFixedSessionPayload` reverts
+    // `InvalidSigner()` because `_sessions[hca][permissionId]` is still empty.
     const { actor, submitFundingAndCommit } = startHcaRegistration({
       balances: [BUDGET],
     })
@@ -234,9 +240,8 @@ describe('registrationMachine — enableData ⟺ funding permit', () => {
     await waitFor(actor, (s) => s.matches('submittingSetupBundle'))
 
     const input = submitFundingAndCommit.mock.calls[0][0].input
-    // No permit ⇒ steady-state policy path ⇒ cheap commit-only batch.
     expect(input.permit).toBeUndefined()
-    expect(input.sessionEnable).toBeUndefined()
+    expect(input.sessionEnable).toEqual(SESSION_ENABLE)
   })
 
   it('rejects a permit with no enable proof instead of submitting it', async () => {

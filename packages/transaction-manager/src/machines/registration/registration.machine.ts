@@ -132,15 +132,17 @@ export type RegistrationContext = {
    * `enableSessionWithRefund` is idempotent (`_enableSessionFor` overwrites the
    * same slot with identical values).
    *
-   * Whether it is actually attached to a batch is decided by
-   * `submittingSetupBundle`, NOT by on-chain enablement: the validator only
-   * tolerates the `permit` + `transferFrom` funding pair on the code path that
-   * is entered by presenting this proof (`_checkInitialRegistrationPolicy`,
-   * which strips enable + permit + transfer before applying the policy).
-   * Without it the pair falls through to `_checkRegistrationExecutions`, whose
-   * payment-token branch allows ONLY `approve` and reverts
-   * `ActionNotAllowed(USDC, permit)` — surfaced by the emissary as
-   * `InvalidSignature()`. Hence the invariant: enableData ⟺ funding permit.
+   * Attached to EVERY standalone-HCA commit, not just the session's first
+   * on-chain use. Two separate failures follow from omitting it:
+   *
+   *  - with a funding permit, the pair falls through to
+   *    `_checkRegistrationExecutions`, whose payment-token branch allows ONLY
+   *    `approve` → `ActionNotAllowed(USDC, permit)`;
+   *  - without it the SDK signs mode 0x02, and `_validateFixedSessionPayload`
+   *    reverts `InvalidSigner()` while `_sessions[hca][permissionId]` is empty
+   *    — i.e. on the first commit under a new session, funded or not.
+   *
+   * Both surface as `InvalidSignature()` from the emissary.
    */
   hcaSessionEnable?: HcaSessionEnableParams
   /** Standalone-HCA: when set, the reveal batch also sets the primary name. */
@@ -765,18 +767,26 @@ export const registrationMachine = setup({
           hca: context.accountAddress!,
           duration: context.duration,
           permit: context.permit,
-          // INVARIANT: enableData ⟺ funding permit.
+          // Always attach the proof when we have one. Two independent things
+          // require it, and gating on either alone has now broken production
+          // once each:
           //
-          // The validator only tolerates the `permit` + `transferFrom` pair on
-          // the path entered by presenting the session-enable proof
-          // (`_checkInitialRegistrationPolicy`, which strips enable + permit +
-          // transfer before applying the policy). Attach the proof whenever we
-          // fund — NOT merely on the session's first on-chain use. Re-presenting
-          // it is safe: the proof is reusable and `enableSessionWithRefund` is
-          // idempotent. Conversely, when the HCA is already funded we send no
-          // permit and so omit the enable call, keeping the cheap steady-state
-          // batch (commit only).
-          sessionEnable: context.permit ? context.hcaSessionEnable : undefined,
+          //  - Funding. The validator only tolerates the `permit` +
+          //    `transferFrom` pair on the path the proof unlocks
+          //    (`_checkInitialRegistrationPolicy`, which strips enable + permit
+          //    + transfer before applying the policy). Omitting it there
+          //    reverts `ActionNotAllowed(USDC, permit)`.
+          //  - On-chain enablement. Without the proof the SDK signs mode 0x02
+          //    (`FIXED_SESSION_REFUND_MODE`), and `_validateFixedSessionPayload`
+          //    reverts `InvalidSigner()` when `_sessions[hca][permissionId]` is
+          //    still empty — which is the case for the FIRST commit under a new
+          //    session, including a fully-funded one that needs no permit.
+          //
+          // Attaching it unconditionally satisfies both. It costs one extra
+          // idempotent `enableSessionWithRefund` (a struct rewrite over mostly
+          // warm slots) and no wallet prompt, since the proof is rebuilt from
+          // the stored authorization signature.
+          sessionEnable: context.hcaSessionEnable,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
