@@ -17,7 +17,10 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
-import { getEnsContractName } from '@/utils/ens/ensContractNames'
+import {
+  getContractEntityLabel,
+  getEnsContractName,
+} from '@/utils/ens/ensContractNames'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx' | 'default'
 
@@ -207,12 +210,6 @@ export const EntityBadge = ({
 }: EntityBadgeProps) => {
   const chainId = useChainId()
 
-  const labelContent = label ? (
-    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
-      {label}
-    </span>
-  ) : null
-
   const { data: resolverInterfaces } = useQuery({
     ...getSupportsInterfacesQueryOptions({
       address: address ?? zeroAddress,
@@ -220,11 +217,28 @@ export const EntityBadge = ({
     }),
     enabled: variant === 'contract' && !!address,
   })
-  const isResolver = resolverInterfaces?.some(Boolean) ?? false
+  const roleLabel =
+    variant === 'contract' && address
+      ? getContractEntityLabel(chainId, address)
+      : undefined
+  const isResolver =
+    (resolverInterfaces?.some(Boolean) ?? false) || roleLabel === 'resolver'
+  const resolvedIsRegistry = isRegistry || roleLabel === 'registry'
   const contractName =
     variant === 'contract' && address
       ? getEnsContractName(chainId, address)
       : undefined
+
+  const pillLabel =
+    label ??
+    roleLabel ??
+    (resolvedIsRegistry ? 'registry' : undefined) ??
+    (isResolver ? 'resolver' : undefined)
+  const labelContent = pillLabel ? (
+    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
+      {pillLabel}
+    </span>
+  ) : null
 
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
@@ -307,7 +321,7 @@ export const EntityBadge = ({
         </Link>
       )
     }
-    if (variant === 'contract' && isRegistry && address) {
+    if (variant === 'contract' && resolvedIsRegistry && address) {
       return (
         <Link
           to="/registry/$address"
@@ -336,7 +350,12 @@ export const EntityBadge = ({
         </Link>
       )
     }
-    if (variant === 'contract' && !isRegistry && !isResolver && etherscanHref) {
+    if (
+      variant === 'contract' &&
+      !resolvedIsRegistry &&
+      !isResolver &&
+      etherscanHref
+    ) {
       return (
         <a
           href={etherscanHref}
@@ -501,9 +520,9 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {/* Auto-derived contract-name chip — suppressed when the caller gives an
-            explicit `label` (e.g. "root registry"), which already names the pill. */}
-        {!label && contractName && (
+        {/* Auto-derived contract-name chip — suppressed when the pill already
+            shows a role/explicit label (e.g. "registry", "resolver"). */}
+        {!pillLabel && contractName && (
           <CopyChip
             value={contractName}
             label={contractName}
@@ -511,7 +530,7 @@ export const EntityBadge = ({
           />
         )}
 
-        {variant === 'contract' && isRegistry && address && (
+        {variant === 'contract' && resolvedIsRegistry && address && (
           <Link
             to="/registry/$address"
             params={{ address }}

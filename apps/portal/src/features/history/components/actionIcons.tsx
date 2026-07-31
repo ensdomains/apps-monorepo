@@ -35,5 +35,7 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
 
 export const ActionIconGlyph = ({ icon }: { icon: ActionIcon }) => {
   const Glyph = ICONS[icon]
-  return <Glyph className="size-4 text-neutral-5" aria-hidden />
+  return (
+    <Glyph className="size-4 text-neutral-5" strokeWidth={2.5} aria-hidden />
+  )
 }

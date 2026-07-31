@@ -24,7 +24,7 @@ export const ActionSummaryRow = ({
   const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
 
   const iconBadge = (
-    <span className="relative z-10 p-1.5 flex size-6 shrink-0 items-center justify-center rounded-lg bg-neutral-1 text-muted-foreground">
+    <span className="relative z-10 p-1.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 text-muted-foreground">
       <ActionIconGlyph icon={action.icon} />
     </span>
   )

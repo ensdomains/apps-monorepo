@@ -16,7 +16,7 @@ import {
   useBlockExplorerAddressUrl,
   useBlockExplorerTxUrl,
 } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getEnsContractName } from '@/utils/ens/ensContractNames'
+import { getContractEntityLabel } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { resolveDecodedName } from '../summarize/decodeRawData'
@@ -47,14 +47,18 @@ const DecodedValue = ({
   const explorerUrl = useBlockExplorerAddressUrl(address)
 
   if (address && address !== zeroAddress) {
-    const contractLabel = getEnsContractName(chainId, address)
-    if (contractLabel || CONTRACT_PARAM_KEYS.has(paramKey)) {
+    const entityLabel = getContractEntityLabel(chainId, address, paramKey)
+    if (entityLabel || CONTRACT_PARAM_KEYS.has(paramKey)) {
       return (
         <EntityBadge
           variant="contract"
           address={address}
-          label={contractLabel}
-          isRegistry={paramKey === 'registry'}
+          label={entityLabel}
+          isRegistry={
+            entityLabel === 'registry' ||
+            paramKey === 'registry' ||
+            paramKey === 'subregistry'
+          }
           etherscanHref={explorerUrl}
           compact
         >
@@ -162,7 +166,9 @@ export const TransactionMeta = ({
 
   const txUrl = useBlockExplorerTxUrl(txHash)
   const toUrl = useBlockExplorerAddressUrl(toAddress)
-  const toLabel = toAddress ? getEnsContractName(chainId, toAddress) : undefined
+  const toLabel = toAddress
+    ? getContractEntityLabel(chainId, toAddress)
+    : undefined
 
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
   const toValue = toAddress ? (
@@ -171,6 +177,7 @@ export const TransactionMeta = ({
       address={toAddress}
       etherscanHref={toUrl}
       label={toLabel}
+      isRegistry={toLabel === 'registry'}
       compact
     >
       <FullOnDesktop value={toAddress} />

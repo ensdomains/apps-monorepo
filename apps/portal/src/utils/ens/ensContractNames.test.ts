@@ -1,7 +1,7 @@
 import { ensL1Contracts } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import { getEnsContractName } from './ensContractNames'
+import { getContractEntityLabel, getEnsContractName } from './ensContractNames'
 
 const MAINNET = 1
 const SEPOLIA = 11155111
@@ -94,6 +94,45 @@ describe('getEnsContractName', () => {
         MAINNET,
         '0x0000000000000000000000000000000000000000' as Address,
       ),
+    ).toBeUndefined()
+  })
+})
+
+describe('getContractEntityLabel', () => {
+  it('returns registry / resolver from param keys', () => {
+    const unknown = '0x0000000000000000000000000000000000001234' as Address
+    expect(getContractEntityLabel(MAINNET, unknown, 'registry')).toBe(
+      'registry',
+    )
+    expect(getContractEntityLabel(MAINNET, unknown, 'subregistry')).toBe(
+      'registry',
+    )
+    expect(getContractEntityLabel(MAINNET, unknown, 'resolver')).toBe(
+      'resolver',
+    )
+  })
+
+  it('maps known ENS registry / resolver addresses to short role labels', () => {
+    expect(
+      getContractEntityLabel(SEPOLIA, sepoliaContracts.ensRegistry.address),
+    ).toBe('registry')
+    expect(
+      getContractEntityLabel(
+        SEPOLIA,
+        sepoliaContracts.ensPublicResolver.address,
+      ),
+    ).toBe('resolver')
+    expect(
+      getContractEntityLabel(
+        SEPOLIA,
+        sepoliaContracts.ensUniversalResolver.address,
+      ),
+    ).toBe('resolver')
+  })
+
+  it('returns undefined for non-registry / non-resolver contracts', () => {
+    expect(
+      getContractEntityLabel(SEPOLIA, sepoliaContracts.ensNameWrapper.address),
     ).toBeUndefined()
   })
 })

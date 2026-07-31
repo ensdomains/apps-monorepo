@@ -62,3 +62,22 @@ export const getEnsContractName = (
   if (!lookup) return undefined
   return lookup.get(address.toLowerCase())
 }
+
+/**
+ * Pill label for registry / resolver entity badges (Figma history rows).
+ * Prefer these short role labels over contract names like "ENSRegistry".
+ */
+export const getContractEntityLabel = (
+  chainId: number,
+  address: Address,
+  paramKey?: string,
+): 'registry' | 'resolver' | undefined => {
+  if (paramKey === 'registry' || paramKey === 'subregistry') return 'registry'
+  if (paramKey === 'resolver') return 'resolver'
+
+  const name = getEnsContractName(chainId, address)?.toLowerCase()
+  if (!name) return undefined
+  if (name.includes('resolver')) return 'resolver'
+  if (name.includes('registry')) return 'registry'
+  return undefined
+}

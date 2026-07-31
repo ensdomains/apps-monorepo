@@ -54,6 +54,13 @@ vi.mock('@/hooks/useSupportsInterfaces', () => ({
 
 vi.mock('@/utils/ens/ensContractNames', () => ({
   getEnsContractName: () => contractNameRef.current,
+  getContractEntityLabel: () => {
+    const name = contractNameRef.current?.toLowerCase()
+    if (!name) return undefined
+    if (name.includes('resolver')) return 'resolver'
+    if (name.includes('registry')) return 'registry'
+    return undefined
+  },
 }))
 
 // Reset shared mock state between tests so resolver / contractName overrides
@@ -252,7 +259,7 @@ describe('EntityBadge hover chips', () => {
   })
 
   it('variant="contract" shows the contract name chip when getEnsContractName returns a name', () => {
-    contractNameRef.current = 'ENS Public Resolver'
+    contractNameRef.current = 'NameWrapper'
     render(
       <EntityBadge
         variant="contract"
@@ -263,8 +270,23 @@ describe('EntityBadge hover chips', () => {
       </EntityBadge>,
     )
     // Chip surfaces the contract name as both label and copy value.
-    const contractNameChip = screen.getByText('ENS Public Resolver')
+    const contractNameChip = screen.getByText('NameWrapper')
     expect(contractNameChip.closest('button')).not.toBeNull()
+  })
+
+  it('variant="contract" uses registry / resolver pill labels instead of ENS contract names', () => {
+    contractNameRef.current = 'ENSRegistry'
+    render(
+      <EntityBadge
+        variant="contract"
+        address={TEST_ADDRESS}
+        etherscanHref={TEST_TX_URL}
+      >
+        registry-content
+      </EntityBadge>,
+    )
+    expect(screen.getByText('registry')).toBeTruthy()
+    expect(screen.queryByText('ENSRegistry')).toBeNull()
   })
 })
 

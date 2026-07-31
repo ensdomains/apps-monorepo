@@ -7,7 +7,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getEnsContractName } from '@/utils/ens/ensContractNames'
+import { getContractEntityLabel } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import {
@@ -109,7 +109,7 @@ export const EventRow = ({ event }: EventRowProps) => {
 
   const contractAddress = event.contractAddress ?? undefined
   const contractLabel = contractAddress
-    ? getEnsContractName(chainId, contractAddress)
+    ? getContractEntityLabel(chainId, contractAddress)
     : undefined
   const contractExplorerUrl = useBlockExplorerAddressUrl(contractAddress)
 
@@ -141,6 +141,7 @@ export const EventRow = ({ event }: EventRowProps) => {
               variant="contract"
               address={contractAddress}
               label={contractLabel}
+              isRegistry={contractLabel === 'registry'}
               etherscanHref={contractExplorerUrl}
               compact
             >
