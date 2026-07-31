@@ -54,9 +54,9 @@ const OPTIONS: readonly OptionConfig[] = [
     key: 'detachRegistry',
     label: 'Detach the registry',
     description:
-      'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean and deploys their own.',
+      'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean.',
     warning:
-      'You’ll keep control of this name’s subnames after transfer. The recipient will need to deploy their own registry before they can create new subnames of their own.',
+      'You’ll keep control of this name’s subnames after transfer — the name will keep pointing at your registry.',
   },
 ]
 
