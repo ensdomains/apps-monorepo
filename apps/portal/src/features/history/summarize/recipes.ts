@@ -27,9 +27,12 @@ export const multiRecordRecipe = (
   if (records.length < 2) return null
 
   const MAX_SHOWN = 4
-  const slots: ActionSlot[] = records
-    .slice(0, MAX_SHOWN)
-    .map((event) => ({ kind: 'text', value: recordLabel(event) }))
+  const slots: ActionSlot[] = [
+    { kind: 'connective', value: 'text' },
+    ...records
+      .slice(0, MAX_SHOWN)
+      .map((event) => ({ kind: 'text' as const, value: recordLabel(event) })),
+  ]
   if (records.length > MAX_SHOWN) {
     slots.push({
       kind: 'connective',
@@ -39,8 +42,3 @@ export const multiRecordRecipe = (
 
   return { icon: 'records', label: `Set ${records.length} records`, slots }
 }
-
-// TODO: cross-transaction "Set primary name" recipe (forward AddrChanged + reverse
-// NameChanged in separate txs). Requires correlating by target+actor within a time
-// window — cannot key on transactionHash. Until then those render as separate actions.
-// Ideally the indexer provides an action/correlation id (see spec §6.4).

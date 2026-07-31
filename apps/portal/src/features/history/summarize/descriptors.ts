@@ -1,5 +1,4 @@
 import { zeroAddress } from 'viem'
-import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
@@ -55,20 +54,25 @@ const actorSlot = (
   }
 }
 
-// Missing entity values render as a `placeholder` slot — never as a badge whose
-// chip would link/copy a literal "—".
 const nameSlot = (value?: string | null): ActionSlot =>
   value ? { kind: 'name', value } : { kind: 'placeholder', value: '—' }
 
 const addressSlot = (value?: string | null): ActionSlot =>
   value ? { kind: 'address', value } : { kind: 'placeholder', value: '—' }
 
-const contractSlot = (value?: string | null, isRegistry = false): ActionSlot =>
+const contractSlot = (
+  value?: string | null,
+  options?: { readonly isRegistry?: boolean; readonly label?: string },
+): ActionSlot =>
   value
-    ? { kind: 'contract', value, isRegistry }
+    ? {
+        kind: 'contract',
+        value,
+        isRegistry: options?.isRegistry,
+        label: options?.label,
+      }
     : { kind: 'placeholder', value: '—' }
 
-/** Name slot resolved to a full ENS name, falling back to the event's domain. */
 const resolvedNameSlot = (
   candidate?: string | null,
   eventName?: string | null,
@@ -78,7 +82,7 @@ const resolvedNameSlot = (
       eventName,
   )
 
-const ethPrimaryNameAction = (
+const primaryNameAction = (
   name: string | null | undefined,
   address: string | null | undefined,
 ) => ({
@@ -90,28 +94,26 @@ const ethPrimaryNameAction = (
     addressSlot(address),
   ],
 })
+
 export const DESCRIPTORS: Record<string, Descriptor> = {
   AddressChanged: {
     icon: 'address',
-    build: ({ primary }) => {
-      const address = primary.asAddressChanged?.address
-      if (primary.asAddressChanged?.coinType === MAINNET_COIN_TYPE) {
-        return ethPrimaryNameAction(primary.name, address)
-      }
-      return {
-        label: 'Set address to',
-        slots: [addressSlot(address)],
-      }
-    },
+    build: ({ primary }) => ({
+      label: 'Set address to',
+      slots: [addressSlot(primary.asAddressChanged?.address)],
+    }),
   },
   AddrChanged: {
     icon: 'address',
-    build: ({ primary }) => {
-      const address =
-        primary.asAddressChanged?.address ??
-        readString(parseEventData(primary.data), 'address', 'addr')
-      return ethPrimaryNameAction(primary.name, address)
-    },
+    build: ({ primary }) => ({
+      label: 'Set address to',
+      slots: [
+        addressSlot(
+          primary.asAddressChanged?.address ??
+            readString(parseEventData(primary.data), 'address', 'addr'),
+        ),
+      ],
+    }),
   },
 
   TextChanged: {
@@ -151,17 +153,20 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   // Reverse-registrar primary-name set. TODO(indexer): asNameChanged.
   NameChanged: {
     icon: 'primary',
-    build: ({ primary }) => ({
-      label: 'Set primary name',
-      slots: [nameSlot(readString(parseEventData(primary.data), 'name'))],
-    }),
+    build: ({ primary }) => {
+      const setName =
+        readString(parseEventData(primary.data), 'name') ?? primary.name
+      // Address is on the reverse node — show name alone until indexer links it.
+      return {
+        label: 'Set primary name',
+        slots: [nameSlot(setName)],
+      }
+    },
   },
   ReverseClaimed: {
     icon: 'primary',
-    build: ({ primary }) => ({
-      label: 'Set primary name',
-      slots: [addressSlot(primary.asReverseClaimed?.address)],
-    }),
+    build: ({ primary }) =>
+      primaryNameAction(primary.name, primary.asReverseClaimed?.address),
   },
 
   Transfer: {
@@ -199,9 +204,9 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   },
   NameRegistered: {
     icon: 'register',
-    build: (ctx) => ({
-      label: 'Registered by',
-      slots: [actorSlot(ctx, ctx.primary.asNameRegistered?.owner)],
+    build: ({ primary }) => ({
+      label: 'Register name',
+      slots: [resolvedNameSlot(primary.asNameRegistered?.name, primary.name)],
     }),
   },
   NameRenewed: {
@@ -216,7 +221,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'resolver',
     build: ({ primary }) => ({
       label: 'Update resolver',
-      slots: [contractSlot(primary.asResolverUpdated?.resolver)],
+      slots: [
+        contractSlot(primary.asResolverUpdated?.resolver, {
+          label: 'resolver',
+        }),
+      ],
     }),
   },
 
@@ -234,7 +243,9 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
       }
       return {
         label: 'Deploy and link subregistry',
-        slots: [contractSlot(registry, true)],
+        slots: [
+          contractSlot(registry, { isRegistry: true, label: 'registry' }),
+        ],
       }
     },
   },
@@ -244,7 +255,14 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: ({ primary }) => {
       const change = decodeRoleChange(primary.data)
       const roleText = change.roles.map(humanizeRole).join(', ') || 'roles'
-      const account = addressSlot(change.account)
+      // Prefer actor so the account resolves to a primary-name badge when one exists (Figma).
+      const account: ActionSlot = change.account
+        ? {
+            kind: 'actor',
+            txHash: primary.transactionHash,
+            address: change.account,
+          }
+        : { kind: 'placeholder', value: '—' }
 
       if (change.direction === 'revoke') {
         return {

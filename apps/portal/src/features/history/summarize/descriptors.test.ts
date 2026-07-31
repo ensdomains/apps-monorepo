@@ -14,33 +14,30 @@ describe('humanizeType', () => {
   })
 })
 
-describe('AddressChanged descriptor', () => {
+describe('Figma history labels', () => {
   const base = {
     id: '1',
-    type: 'AddressChanged',
     transactionHash: '0xabc',
     blockNumber: 1,
     timestamp: 1,
-    name: 'absquatulate.eth',
-  } as TimelineIndexerEvent
+    name: 'collector.eth',
+  } as const
 
-  it('renders ETH address sets as Set primary name name ↔ address', () => {
+  it('AddressChanged stays Set address to', () => {
     const built = DESCRIPTORS.AddressChanged.build({
       primary: {
         ...base,
+        type: 'AddressChanged',
         asAddressChanged: {
           address: '0x801d2e48d378f161dba7ad7ad002ad557714c191',
           coinType: 60,
         },
-      },
+      } as TimelineIndexerEvent,
       events: [],
     })
-    expect(built).toEqual({
-      icon: 'primary',
-      label: 'Set primary name',
+    expect(built).toMatchObject({
+      label: 'Set address to',
       slots: [
-        { kind: 'name', value: 'absquatulate.eth' },
-        { kind: 'glyph', value: '↔' },
         {
           kind: 'address',
           value: '0x801d2e48d378f161dba7ad7ad002ad557714c191',
@@ -49,23 +46,64 @@ describe('AddressChanged descriptor', () => {
     })
   })
 
-  it('keeps non-ETH coin address sets as Set address to', () => {
-    const built = DESCRIPTORS.AddressChanged.build({
+  it('NameRegistered is Register name with the name chip', () => {
+    const built = DESCRIPTORS.NameRegistered.build({
       primary: {
         ...base,
-        asAddressChanged: {
-          address: '0x00143024278442c1aa4b3bfa66796b4d21d06cd23f58',
-          coinType: 0,
-        },
-      },
+        type: 'NameRegistered',
+        asNameRegistered: { name: 'collector.eth' },
+      } as TimelineIndexerEvent,
       events: [],
     })
     expect(built).toEqual({
-      label: 'Set address to',
+      label: 'Register name',
+      slots: [{ kind: 'name', value: 'collector.eth' }],
+    })
+  })
+
+  it('ResolverUpdated includes a resolver-labeled contract badge', () => {
+    const built = DESCRIPTORS.ResolverUpdated.build({
+      primary: {
+        ...base,
+        type: 'ResolverUpdated',
+        asResolverUpdated: {
+          resolver: '0xb88b00000000000000000000000000000000Fa98',
+        },
+      } as TimelineIndexerEvent,
+      events: [],
+    })
+    expect(built).toEqual({
+      label: 'Update resolver',
       slots: [
         {
-          kind: 'address',
-          value: '0x00143024278442c1aa4b3bfa66796b4d21d06cd23f58',
+          kind: 'contract',
+          value: '0xb88b00000000000000000000000000000000Fa98',
+          isRegistry: undefined,
+          label: 'resolver',
+        },
+      ],
+    })
+  })
+
+  it('SubregistryUpdated includes a registry-labeled contract badge', () => {
+    const built = DESCRIPTORS.SubregistryUpdated.build({
+      primary: {
+        ...base,
+        type: 'SubregistryUpdated',
+        data: JSON.stringify({
+          registry: '0x541C00000000000000000000000000000000976F',
+        }),
+      } as TimelineIndexerEvent,
+      events: [],
+    })
+    expect(built).toEqual({
+      label: 'Deploy and link subregistry',
+      slots: [
+        {
+          kind: 'contract',
+          value: '0x541C00000000000000000000000000000000976F',
+          isRegistry: true,
+          label: 'registry',
         },
       ],
     })

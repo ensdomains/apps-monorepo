@@ -16,11 +16,6 @@ export const formatTimelineTime = (unixSeconds: number): string =>
       hour12: true,
     })
 
-/**
- * Timeline rail date label: "Today" / "Yesterday" for recent entries, otherwise an
- * abbreviated UTC date ("Jun 4, 2026"), matching the Figma. Uses UTC throughout to
- * line up with the indexer's block timestamps.
- */
 export const formatTimelineDate = (unixSeconds: number): string => {
   const date = unixSecondsToPlainDateUtc(unixSeconds)
   const today = Temporal.Now.plainDateISO('UTC')

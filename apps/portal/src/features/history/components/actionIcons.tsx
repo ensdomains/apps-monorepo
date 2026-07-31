@@ -1,17 +1,15 @@
 import type { LucideIcon } from 'lucide-react'
 import {
-  ArrowLeftRight,
   ArrowRightLeft,
-  Boxes,
   Circle,
   Clock,
+  EyeOff,
   GitBranch,
   Lock,
   RefreshCw,
   Route,
-  Settings2,
-  ShieldMinus,
-  ShieldPlus,
+  Sprout,
+  UserRoundPlus,
 } from 'lucide-react'
 import type { ActionIcon } from '../summarize/summarize.types'
 
@@ -20,15 +18,15 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
   text: Route,
   records: Route,
   contenthash: Route,
+  resolver: Route,
   primary: ArrowRightLeft,
-  transfer: ArrowLeftRight,
+  transfer: ArrowRightLeft,
   subname: GitBranch,
-  register: GitBranch,
+  registry: GitBranch,
+  register: Sprout,
   renew: RefreshCw,
-  resolver: Settings2,
-  registry: Boxes,
-  grant: ShieldPlus,
-  revoke: ShieldMinus,
+  grant: UserRoundPlus,
+  revoke: EyeOff,
   migrate: ArrowRightLeft,
   fuses: Lock,
   expiry: Clock,
@@ -37,5 +35,5 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
 
 export const ActionIconGlyph = ({ icon }: { icon: ActionIcon }) => {
   const Glyph = ICONS[icon]
-  return <Glyph className="size-4" aria-hidden />
+  return <Glyph className="size-4 text-neutral-5" aria-hidden />
 }

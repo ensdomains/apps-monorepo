@@ -14,14 +14,9 @@ import { AccountBadge } from './AccountBadge'
 import { TransactionMeta } from './EventDetail'
 
 interface TransactionHeaderRowProps {
-  /** A representative event from the transaction (for timestamp / hash / block). */
   readonly event: TimelineIndexerEvent
 }
 
-/**
- * Tier-2 "transaction" row: `{actor} initiated at {time}` on the left, the tx date +
- * hash on the right, expanding to the transaction metadata (Figma "Transaction details").
- */
 export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const txUrl = useBlockExplorerTxUrl(event.transactionHash)

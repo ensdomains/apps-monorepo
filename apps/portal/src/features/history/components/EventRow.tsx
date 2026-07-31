@@ -103,10 +103,6 @@ interface EventRowProps {
   readonly event: TimelineIndexerEvent
 }
 
-/**
- * Tier-2 event row: `{EventType} {description}` on the left with a down-caret, the
- * emitting-contract pill on the right, expanding inline to the decoded params (Figma).
- */
 export const EventRow = ({ event }: EventRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
   const chainId = useChainId()

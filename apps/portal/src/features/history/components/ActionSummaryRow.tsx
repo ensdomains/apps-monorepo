@@ -9,19 +9,11 @@ import { TransactionHeaderRow } from './TransactionHeaderRow'
 
 interface ActionSummaryRowProps {
   readonly action: Action
-  /** Date labels are grouped — only the first row of a date shows it (Figma). */
   readonly showDate?: boolean
-  /** Controlled open state (driven by the row and by "Expand all"). */
   readonly isOpen: boolean
   readonly onToggle: () => void
 }
 
-/**
- * Tier-1 summary row. Desktop is the Figma 3-column grid
- * [date+icon rail (180px) | label + chips | counts]; mobile stacks it — icon + date +
- * counts on the top line, label + chips below. The pieces are computed once and placed
- * into the two layout shells so nothing is duplicated but the markup.
- */
 export const ActionSummaryRow = ({
   action,
   showDate = true,
@@ -32,7 +24,7 @@ export const ActionSummaryRow = ({
   const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
 
   const iconBadge = (
-    <span className="relative z-10 right-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border-[3px] border-background bg-neutral-1 text-muted-foreground">
+    <span className="relative z-10 p-1.5 flex size-6 shrink-0 items-center justify-center rounded-lg bg-neutral-1 text-muted-foreground">
       <ActionIconGlyph icon={action.icon} />
     </span>
   )
@@ -68,7 +60,6 @@ export const ActionSummaryRow = ({
         </div>
       }
     >
-      {/* Mobile: icon + date + counts on top, label + chips below */}
       <div className="flex gap-2 py-2 pr-2 sm:hidden">
         {iconBadge}
         <div className="flex min-w-0 flex-1 flex-col gap-1">
