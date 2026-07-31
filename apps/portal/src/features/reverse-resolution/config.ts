@@ -2,6 +2,7 @@ import {
   getCoinTypeForReverseRegistrarChainId,
   type ReverseRegistrarChainId,
 } from '@ens-apps/l2-primary/v1'
+import type { Address } from 'viem'
 import { DEFAULT_EVM_COIN_TYPE, MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { icons, names } from '@/lib/reverseRegistrarChainId'
 
@@ -18,6 +19,20 @@ import { icons, names } from '@/lib/reverseRegistrarChainId'
  * coin 60 does not imply the default is set, and vice versa. They are shown as
  * distinct rows.
  */
+
+/**
+ * Standalone ENSv1 `DefaultReverseRegistrar` on Sepolia (ENSIP-19
+ * `default.reverse`, coin type `0x80000000`). `setName(string)` sets the
+ * caller's cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
+ *
+ * Do not use `ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrar`; that currently
+ * points at a different Sepolia deployment.
+ *
+ * TODO: Sepolia-only; move to a network-keyed source (e.g. `@ens-apps/l2-primary`)
+ * when mainnet is supported.
+ */
+export const DEFAULT_REVERSE_REGISTRAR_ADDRESS =
+  '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47' as Address
 
 /**
  * Chain/network configuration for reverse resolution display

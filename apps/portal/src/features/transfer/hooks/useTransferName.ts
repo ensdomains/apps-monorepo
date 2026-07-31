@@ -7,6 +7,7 @@ import { match } from 'ts-pattern'
 import type { Address, PublicClient, WalletClient } from 'viem'
 import { useConfig, usePublicClient } from 'wagmi'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
+import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { getEnsTokenId } from '@/features/profile/hooks/useTokenId'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
@@ -14,9 +15,11 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
-import { resetNameRegistry } from '../helpers/resetNameRegistry'
-import { resetNameResolver } from '../helpers/resetNameResolver'
+import { detachNameRegistry } from '../helpers/detachNameRegistry'
+import { detachNameResolver } from '../helpers/detachNameResolver'
+import { setEthAddress } from '../helpers/setEthAddress'
 import { transferToken } from '../helpers/transferToken'
+import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 import {
   buildTransferPlan,
   STEP_LABELS,
@@ -42,8 +45,9 @@ type SavedParams = {
 }
 
 const GAS_BY_STEP: Record<TransferStepKind, number> = {
-  'reset-resolver': 0.0001,
-  'reset-registry': 0.0001,
+  'set-eth-addr': 0.0002,
+  'detach-resolver': 0.0001,
+  'detach-registry': 0.0001,
   'transfer-token': 0.0003,
 }
 
@@ -82,9 +86,17 @@ export const useTransferName = ({
     clearTransaction()
     setSavedParams(null)
     const invalidate = () =>
-      queryClient.invalidateQueries({
-        queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
-      })
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: getEnsOwnerQueryOptions({ name }).queryKey,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getPrimaryNameQueryOptions(owner).queryKey,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: getEthAddressQueryOptions(name).queryKey,
+        }),
+      ]).then(() => undefined)
     void invalidate()
     pollForIndexerSync({ invalidateQueries: invalidate })
     void navigate({ to: '/$name/ownership', params: { name } })
@@ -127,11 +139,12 @@ export const useTransferName = ({
     const label = getLabel(name)
 
     await match(step)
-      .with('reset-resolver', () =>
-        resetNameResolver({ ...common, label, registryAddress, id }),
+      .with('set-eth-addr', () => setEthAddress({ ...common, recipient, id }))
+      .with('detach-resolver', () =>
+        detachNameResolver({ ...common, label, registryAddress, id }),
       )
-      .with('reset-registry', () =>
-        resetNameRegistry({ ...common, label, registryAddress, id }),
+      .with('detach-registry', () =>
+        detachNameRegistry({ ...common, label, registryAddress, id }),
       )
       .with('transfer-token', () =>
         transferToken({ ...common, registryAddress, tokenId, recipient, id }),
