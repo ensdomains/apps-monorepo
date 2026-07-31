@@ -569,6 +569,10 @@ export const registrationMachine = setup({
             commitment: () => undefined,
             commitmentTxId: () => undefined,
             permit: () => undefined,
+            // Balance is re-read by `checkingHcaFunding` on every run, but
+            // clear it so a stale value can never size a permit if some future
+            // path reaches `signingFundingPermit` without the read.
+            hcaUsdcBalance: () => undefined,
             approvalTxId: () => undefined,
             registrationTxId: () => undefined,
           }),

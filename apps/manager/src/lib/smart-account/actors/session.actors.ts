@@ -23,6 +23,7 @@ import {
   DEFAULT_SESSION_VALIDITY_SECONDS,
   getSkippedStatus,
   getValidSessionForAccount,
+  hasRegistrationHeadroom,
   isRhinestoneSession,
   type RhinestoneStoredSession,
   type SessionEnableError,
@@ -183,7 +184,16 @@ export function resolveSessionActor(
     ownerAddress,
     chainId: chain.id,
   })
-  if (!stored || !isRhinestoneSession(stored)) {
+  // Mint a fresh session rather than reusing one that would expire mid-flight:
+  // the reveal is session-signed and runs AFTER `MIN_COMMITMENT_AGE`, so a
+  // session that only just outlives the commit strands the commitment. This
+  // mirrors `needsSessionBeforeRegistration`; if the two disagreed, the gate
+  // would prompt and then be handed back the same expiring session forever.
+  if (
+    !stored ||
+    !isRhinestoneSession(stored) ||
+    !hasRegistrationHeadroom(stored)
+  ) {
     return createAndResolve(input)
   }
 

@@ -1,3 +1,4 @@
+import { SESSION_REGISTRATION_HEADROOM_SECONDS } from '@ens-apps/smart-account'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
@@ -8,8 +9,21 @@ import {
 
 type GateInput = Parameters<typeof needsSessionBeforeRegistration>[0]
 
-const rhinestone = (hasActiveSession: boolean): GateInput =>
-  ({ signer: { type: 'rhinestone' }, hasActiveSession }) as GateInput
+/** A stored session expiring `seconds` from now. */
+const expiringIn = (seconds: number) =>
+  ({
+    validUntil: Math.floor(Date.now() / 1000) + seconds,
+  }) as GateInput['activeStoredSession']
+
+const rhinestone = (
+  hasActiveSession: boolean,
+  activeStoredSession: GateInput['activeStoredSession'] = null,
+): GateInput =>
+  ({
+    signer: { type: 'rhinestone' },
+    hasActiveSession,
+    activeStoredSession,
+  }) as GateInput
 
 describe('needsSessionBeforeRegistration', () => {
   it('requires enabling a session on the HCA path when none is active', () => {
@@ -17,7 +31,25 @@ describe('needsSessionBeforeRegistration', () => {
   })
 
   it('does NOT require enabling when a session is already active (reuse)', () => {
-    expect(needsSessionBeforeRegistration(rhinestone(true))).toBe(false)
+    expect(
+      needsSessionBeforeRegistration(rhinestone(true, expiringIn(86_400))),
+    ).toBe(false)
+  })
+
+  it('requires a fresh session when the active one dies mid-registration', () => {
+    // Alive now, but gone before commit → MIN_COMMITMENT_AGE → reveal finishes.
+    // Reusing it would strand a paid-for commitment with an unsignable reveal.
+    expect(
+      needsSessionBeforeRegistration(rhinestone(true, expiringIn(120))),
+    ).toBe(true)
+  })
+
+  it('accepts a session with exactly the required headroom', () => {
+    expect(
+      needsSessionBeforeRegistration(
+        rhinestone(true, expiringIn(SESSION_REGISTRATION_HEADROOM_SECONDS + 5)),
+      ),
+    ).toBe(false)
   })
 
   it('does NOT require a session on the EOA path', () => {
@@ -25,13 +57,18 @@ describe('needsSessionBeforeRegistration', () => {
       needsSessionBeforeRegistration({
         signer: { type: 'eoa' } as GateInput['signer'],
         hasActiveSession: false,
+        activeStoredSession: null,
       }),
     ).toBe(false)
   })
 
   it('does NOT require a session when there is no signer yet', () => {
     expect(
-      needsSessionBeforeRegistration({ signer: null, hasActiveSession: false }),
+      needsSessionBeforeRegistration({
+        signer: null,
+        hasActiveSession: false,
+        activeStoredSession: null,
+      }),
     ).toBe(false)
   })
 })

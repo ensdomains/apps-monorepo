@@ -138,6 +138,39 @@ export function isSessionExpired(session: RhinestoneStoredSession): boolean {
   return Date.now() > session.validUntil * 1000
 }
 
+/**
+ * Remaining session lifetime required to START a registration.
+ *
+ * A registration spans TWO session-signed legs separated by the registrar's
+ * commitment cooldown: commit → `MIN_COMMITMENT_AGE` → reveal. A session that
+ * has merely not expired *yet* can therefore die during the cooldown, which
+ * strands a commitment the user has already paid gas for: the reveal reverts
+ * (`SessionExpired`, wrapped as `InvalidSignature()`), and recovering needs a
+ * fresh authorization AND a fresh commitment.
+ *
+ * Sized as a deliberately generous static bound on that window — the commit
+ * submission timeout (120s), the cooldown (60s on Sepolia), and the reveal
+ * submission timeout (120s), doubled for a retry of each leg. `MIN_COMMITMENT_AGE`
+ * itself is read on-chain where it is enforced; this is only a preflight bound,
+ * so it is intentionally over-generous rather than exact.
+ */
+export const SESSION_REGISTRATION_HEADROOM_SECONDS = 600
+
+/**
+ * Whether a session has enough lifetime left to see a whole registration
+ * through. PURE — unlike `isSessionExpired` it never evicts, because an
+ * in-flight registration must keep using its session right up to real expiry;
+ * dropping it mid-cooldown would leave the reveal unsignable. Use this to gate
+ * STARTING a registration, not to decide whether a session is still usable.
+ */
+export function hasRegistrationHeadroom(
+  session: RhinestoneStoredSession,
+  headroomSeconds: number = SESSION_REGISTRATION_HEADROOM_SECONDS,
+): boolean {
+  if (!session.validUntil) return true
+  return Date.now() + headroomSeconds * 1000 <= session.validUntil * 1000
+}
+
 /** Get a non-expired session for an account, evicting it on expiry. */
 export function getValidSession(
   accountAddress: Address,
