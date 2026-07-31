@@ -58,9 +58,11 @@ export const RenewToDatePopover = ({
           captionLayout="dropdown"
           defaultMonth={targetDate ?? minSelectableDate}
           disabled={(date) => {
-            const d = new Date(date)
-            d.setHours(0, 0, 0, 0)
-            return d.getTime() < minSelectableDate.getTime()
+            const minDate = new Date(minSelectableDate)
+            minDate.setHours(0, 0, 0, 0)
+            const dateToCheck = new Date(date)
+            dateToCheck.setHours(0, 0, 0, 0)
+            return dateToCheck.getTime() < minDate.getTime()
           }}
           endMonth={addDays(minSelectableDate, 365 * 100)}
           minimumDate={minSelectableDate}
