@@ -70,6 +70,10 @@ msgstr ""
 msgid "{0}% off"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
+msgstr ""
+
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx
 msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
@@ -1992,10 +1996,6 @@ msgstr ""
 #: src/features/grace/components/GracePeriodBanner.tsx
 #: src/features/renew/components/RenewNameButton.tsx
 msgid "Renew"
-msgstr ""
-
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-msgid "Renew {count} names for "
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx

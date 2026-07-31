@@ -1,5 +1,5 @@
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { Trans, useLingui } from '@lingui/react/macro'
+import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useEffect, useState } from 'react'
@@ -205,7 +205,11 @@ export const BulkRenewDialog = ({
       <>
         <DialogHeader>
           <DialogTitle className={dialogTitleClassName}>
-            <Trans>Renew {count} names for </Trans>
+            <Plural
+              one="Renew # name for"
+              other="Renew # names for"
+              value={count}
+            />{' '}
             <span className="text-ens-lapis-core">{durationLabel}</span>
           </DialogTitle>
         </DialogHeader>
