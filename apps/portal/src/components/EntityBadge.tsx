@@ -231,7 +231,6 @@ export const EntityBadge = ({
 
   const pillLabel =
     label ??
-    roleLabel ??
     (resolvedIsRegistry ? 'registry' : undefined) ??
     (isResolver ? 'resolver' : undefined)
   const labelContent = pillLabel ? (

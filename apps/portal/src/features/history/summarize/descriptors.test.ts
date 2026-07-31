@@ -61,7 +61,7 @@ describe('Figma history labels', () => {
     })
   })
 
-  it('ResolverUpdated includes a resolver-labeled contract badge', () => {
+  it('ResolverUpdated includes a resolver contract badge', () => {
     const built = DESCRIPTORS.ResolverUpdated.build({
       primary: {
         ...base,
@@ -78,14 +78,12 @@ describe('Figma history labels', () => {
         {
           kind: 'contract',
           value: '0xb88b00000000000000000000000000000000Fa98',
-          isRegistry: undefined,
-          label: 'resolver',
         },
       ],
     })
   })
 
-  it('SubregistryUpdated includes a registry-labeled contract badge', () => {
+  it('SubregistryUpdated marks the contract slot as a registry', () => {
     const built = DESCRIPTORS.SubregistryUpdated.build({
       primary: {
         ...base,
@@ -103,7 +101,6 @@ describe('Figma history labels', () => {
           kind: 'contract',
           value: '0x541C00000000000000000000000000000000976F',
           isRegistry: true,
-          label: 'registry',
         },
       ],
     })

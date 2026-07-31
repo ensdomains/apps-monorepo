@@ -2,12 +2,10 @@ import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { zeroAddress } from 'viem'
-import { useChainId } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getContractEntityLabel } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import {
@@ -105,12 +103,8 @@ interface EventRowProps {
 
 export const EventRow = ({ event }: EventRowProps) => {
   const [isOpen, setIsOpen] = useState(false)
-  const chainId = useChainId()
 
   const contractAddress = event.contractAddress ?? undefined
-  const contractLabel = contractAddress
-    ? getContractEntityLabel(chainId, contractAddress)
-    : undefined
   const contractExplorerUrl = useBlockExplorerAddressUrl(contractAddress)
 
   return (
@@ -140,8 +134,6 @@ export const EventRow = ({ event }: EventRowProps) => {
             <EntityBadge
               variant="contract"
               address={contractAddress}
-              label={contractLabel}
-              isRegistry={contractLabel === 'registry'}
               etherscanHref={contractExplorerUrl}
               compact
             >

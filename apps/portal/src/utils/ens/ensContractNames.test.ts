@@ -99,22 +99,15 @@ describe('getEnsContractName', () => {
 })
 
 describe('getContractEntityLabel', () => {
-  it('returns registry / resolver from param keys', () => {
-    const unknown = '0x0000000000000000000000000000000000001234' as Address
-    expect(getContractEntityLabel(MAINNET, unknown, 'registry')).toBe(
-      'registry',
-    )
-    expect(getContractEntityLabel(MAINNET, unknown, 'subregistry')).toBe(
-      'registry',
-    )
-    expect(getContractEntityLabel(MAINNET, unknown, 'resolver')).toBe(
-      'resolver',
-    )
-  })
-
   it('maps known ENS registry / resolver addresses to short role labels', () => {
     expect(
       getContractEntityLabel(SEPOLIA, sepoliaContracts.ensRegistry.address),
+    ).toBe('registry')
+    expect(
+      getContractEntityLabel(
+        SEPOLIA,
+        sepoliaContracts.ensUserRegistryImpl.address,
+      ),
     ).toBe('registry')
     expect(
       getContractEntityLabel(
@@ -133,6 +126,12 @@ describe('getContractEntityLabel', () => {
   it('returns undefined for non-registry / non-resolver contracts', () => {
     expect(
       getContractEntityLabel(SEPOLIA, sepoliaContracts.ensNameWrapper.address),
+    ).toBeUndefined()
+    expect(
+      getContractEntityLabel(
+        MAINNET,
+        '0x0000000000000000000000000000000000001234' as Address,
+      ),
     ).toBeUndefined()
   })
 })

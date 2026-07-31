@@ -16,7 +16,7 @@ import {
   useBlockExplorerAddressUrl,
   useBlockExplorerTxUrl,
 } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getContractEntityLabel } from '@/utils/ens/ensContractNames'
+import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { resolveDecodedName } from '../summarize/decodeRawData'
@@ -24,8 +24,13 @@ import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { getDecodedEntries } from './eventDecodedEntries'
 import { getTimelineFieldType } from './eventFieldTypes'
 
-/** Param keys that denote a contract even when the address has no known label. */
-const CONTRACT_PARAM_KEYS = new Set(['resolver', 'registry', 'implementer'])
+/** Param keys that denote a contract even when the address is not a known ENS contract. */
+const CONTRACT_PARAM_KEYS = new Set([
+  'resolver',
+  'registry',
+  'subregistry',
+  'implementer',
+])
 
 /**
  * One decoded value: entity-shaped values render as interactive EntityBadges —
@@ -47,18 +52,15 @@ const DecodedValue = ({
   const explorerUrl = useBlockExplorerAddressUrl(address)
 
   if (address && address !== zeroAddress) {
-    const entityLabel = getContractEntityLabel(chainId, address, paramKey)
-    if (entityLabel || CONTRACT_PARAM_KEYS.has(paramKey)) {
+    const isRegistryParam =
+      paramKey === 'registry' || paramKey === 'subregistry'
+    const knownContract = !!getEnsContractName(chainId, address)
+    if (knownContract || CONTRACT_PARAM_KEYS.has(paramKey)) {
       return (
         <EntityBadge
           variant="contract"
           address={address}
-          label={entityLabel}
-          isRegistry={
-            entityLabel === 'registry' ||
-            paramKey === 'registry' ||
-            paramKey === 'subregistry'
-          }
+          isRegistry={isRegistryParam}
           etherscanHref={explorerUrl}
           compact
         >
@@ -163,25 +165,27 @@ export const TransactionMeta = ({
 
   const pending = txQuery.isLoading || receiptQuery.isLoading ? '…' : '—'
   const toAddress = tx?.to ?? event.contractAddress ?? undefined
+  const toIsKnownContract = toAddress
+    ? !!getEnsContractName(chainId, toAddress)
+    : false
 
   const txUrl = useBlockExplorerTxUrl(txHash)
   const toUrl = useBlockExplorerAddressUrl(toAddress)
-  const toLabel = toAddress
-    ? getContractEntityLabel(chainId, toAddress)
-    : undefined
 
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
   const toValue = toAddress ? (
-    <EntityBadge
-      variant="contract"
-      address={toAddress}
-      etherscanHref={toUrl}
-      label={toLabel}
-      isRegistry={toLabel === 'registry'}
-      compact
-    >
-      <FullOnDesktop value={toAddress} />
-    </EntityBadge>
+    toIsKnownContract ? (
+      <EntityBadge
+        variant="contract"
+        address={toAddress}
+        etherscanHref={toUrl}
+        compact
+      >
+        <FullOnDesktop value={toAddress} />
+      </EntityBadge>
+    ) : (
+      <AccountBadge address={toAddress} full />
+    )
   ) : (
     pending
   )

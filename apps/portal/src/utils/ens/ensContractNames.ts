@@ -32,22 +32,41 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   dai: 'DAI',
 }
 
+const contractRoles: Partial<
+  Record<SupportedL1Contract, 'registry' | 'resolver'>
+> = {
+  ensRegistry: 'registry',
+  ensLegacyRegistry: 'registry',
+  ensUserRegistryImpl: 'registry',
+  ensPublicResolver: 'resolver',
+  ensUniversalResolver: 'resolver',
+  ensDefaultReverseResolver: 'resolver',
+  ensPermissionedResolverImpl: 'resolver',
+}
+
 type ContractLookup = Map<string, string>
+type RoleLookup = Map<string, 'registry' | 'resolver'>
 
 const lookupByChain = new Map<number, ContractLookup>()
+const roleByChain = new Map<number, RoleLookup>()
 
 for (const [chainIdStr, contracts] of Object.entries(ensL1Contracts)) {
   const chainId = Number(chainIdStr)
   const lookup: ContractLookup = new Map()
+  const roles: RoleLookup = new Map()
 
   for (const [key, contract] of Object.entries(contracts)) {
+    const contractKey = key as SupportedL1Contract
     const addr = (contract as { address: Address }).address
     if (!addr || addr === zeroAddress) continue
-    const label = contractDisplayNames[key as SupportedL1Contract] ?? key
-    lookup.set(addr.toLowerCase(), label)
+    const normalized = addr.toLowerCase()
+    lookup.set(normalized, contractDisplayNames[contractKey] ?? key)
+    const role = contractRoles[contractKey]
+    if (role) roles.set(normalized, role)
   }
 
   lookupByChain.set(chainId, lookup)
+  roleByChain.set(chainId, roles)
 }
 
 /**
@@ -64,20 +83,11 @@ export const getEnsContractName = (
 }
 
 /**
- * Pill label for registry / resolver entity badges (Figma history rows).
- * Prefer these short role labels over contract names like "ENSRegistry".
+ * Short role pill for known registry / resolver addresses.
+ * Prefer these over display names like "ENSRegistry".
  */
 export const getContractEntityLabel = (
   chainId: number,
   address: Address,
-  paramKey?: string,
-): 'registry' | 'resolver' | undefined => {
-  if (paramKey === 'registry' || paramKey === 'subregistry') return 'registry'
-  if (paramKey === 'resolver') return 'resolver'
-
-  const name = getEnsContractName(chainId, address)?.toLowerCase()
-  if (!name) return undefined
-  if (name.includes('resolver')) return 'resolver'
-  if (name.includes('registry')) return 'registry'
-  return undefined
-}
+): 'registry' | 'resolver' | undefined =>
+  roleByChain.get(chainId)?.get(address.toLowerCase())

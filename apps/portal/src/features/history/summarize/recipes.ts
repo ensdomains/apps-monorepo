@@ -27,12 +27,9 @@ export const multiRecordRecipe = (
   if (records.length < 2) return null
 
   const MAX_SHOWN = 4
-  const slots: ActionSlot[] = [
-    { kind: 'connective', value: 'text' },
-    ...records
-      .slice(0, MAX_SHOWN)
-      .map((event) => ({ kind: 'text' as const, value: recordLabel(event) })),
-  ]
+  const slots: ActionSlot[] = records
+    .slice(0, MAX_SHOWN)
+    .map((event) => ({ kind: 'text' as const, value: recordLabel(event) }))
   if (records.length > MAX_SHOWN) {
     slots.push({
       kind: 'connective',
