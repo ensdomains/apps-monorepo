@@ -80,23 +80,35 @@ export const formatChainSpecificAddress = (value: string): string => {
   return `${trimmed.slice(0, CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}...${trimmed.slice(-CHAIN_SPECIFIC_ADDRESS_EDGE_LENGTH)}`
 }
 
+/**
+ * The profile page is server-rendered, and the server can't know the viewer's
+ * timezone — so dates are formatted in UTC during SSR/first paint (deterministic,
+ * no hydration mismatch) and re-rendered in the viewer's local timezone once
+ * hydrated. Callers pass `timeZone: 'local'` after `useHydrated()` flips true.
+ * Local is the app-wide convention (dashboard, registration, and renewal all use
+ * it); UTC here is only the SSR default.
+ */
 export const formatProfileDetailDate = (
   date: Date | null | undefined,
   variant: ProfileDetailDateVariant = 'mobile',
+  timeZone: 'utc' | 'local' = 'utc',
 ) => {
   if (!date || Number.isNaN(date.getTime())) return undefined
 
-  const monthIndex = date.getUTCMonth()
+  const [monthIndex, dayOfMonth, fullYear] =
+    timeZone === 'local'
+      ? [date.getMonth(), date.getDate(), date.getFullYear()]
+      : [date.getUTCMonth(), date.getUTCDate(), date.getUTCFullYear()]
   const compactMonth = COMPACT_MONTH_LABELS[monthIndex]
   const fullMonth = FULL_MONTH_LABELS[monthIndex]
   if (!compactMonth || !fullMonth) return undefined
 
   if (variant === 'desktop') {
-    return `${fullMonth} ${date.getUTCDate()}, ${date.getUTCFullYear()}`
+    return `${fullMonth} ${dayOfMonth}, ${fullYear}`
   }
 
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  return `${compactMonth}.${day}.${date.getUTCFullYear()}`
+  const day = String(dayOfMonth).padStart(2, '0')
+  return `${compactMonth}.${day}.${fullYear}`
 }
 
 const toSafeHttpHref = (value: string): string | undefined => {

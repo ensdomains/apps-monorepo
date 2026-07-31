@@ -37,7 +37,12 @@ interface MyNamesListProps {
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
+  readonly selectedLabels?: ReadonlySet<string>
+  readonly onToggleSelect?: (label: string) => void
 }
+
+const EMPTY_SELECTION: ReadonlySet<string> = new Set()
+const noopToggleSelect = () => {}
 
 const NameRowSkeleton = () => (
   <div className="flex flex-col gap-4">
@@ -73,6 +78,8 @@ const AnimatedNameRow = ({
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
+  selectedLabels,
+  onToggleSelect,
 }: {
   readonly metadata: MergedNameRowMetadata
   readonly item: MergedItem
@@ -84,6 +91,8 @@ const AnimatedNameRow = ({
   readonly favoriteLabels: ReadonlySet<string>
   readonly onToggleFavorite: (label: string) => void
   readonly isAuthenticated: boolean
+  readonly selectedLabels: ReadonlySet<string>
+  readonly onToggleSelect: (label: string) => void
 }) => {
   const {
     label,
@@ -122,6 +131,10 @@ const AnimatedNameRow = ({
     }))
     .exhaustive()
 
+  // A v2 .eth 2LD still within its grace window is eligible for renewal — which
+  // drives both the row's "Renew" menu action and its bulk-selection checkbox.
+  const isRenewable = !isV1 && isRenewableV2EthName(label, metadata.expiryDate)
+
   return (
     <motion.div
       className="border-ens-quartz-250 border-b-[0.5px] py-8 first:pt-0 last:border-none md:first:pt-8"
@@ -140,17 +153,20 @@ const AnimatedNameRow = ({
       <NameRow
         avatarPending={profilePreview.isAvatarPending}
         avatarUrl={profilePreview.avatarUrl}
-        canRenew={!isV1 && isRenewableV2EthName(label, metadata.expiryDate)}
+        canRenew={isRenewable}
         cta={cta}
         expiringInDays={!isInGrace && expiringSoon ? daysUntilExpiry : null}
         expiryLabel={formattedExpiryDate}
         isAuthenticated={isAuthenticated}
         isFavorite={favoriteLabels.has(label.toLowerCase())}
         isInGrace={isInGrace}
+        isSelected={selectedLabels.has(label.toLowerCase())}
         label={label}
         nameRoles={nameRoles}
         nameVariant={isPrimary ? 'primary' : 'secondary'}
         onToggleFavorite={() => onToggleFavorite(label)}
+        onToggleSelect={() => onToggleSelect(label)}
+        selectable={isRenewable}
         showFavoriteButton
         status={status}
         themeColor={profilePreview.themeColor}
@@ -168,6 +184,8 @@ export const MyNamesList = ({
   favoriteLabels,
   onToggleFavorite,
   isAuthenticated,
+  selectedLabels = EMPTY_SELECTION,
+  onToggleSelect = noopToggleSelect,
 }: MyNamesListProps) => {
   const shouldReduceMotion = useReducedMotion()
   const [page, setPage] = useState(1)
@@ -302,7 +320,9 @@ export const MyNamesList = ({
                   metadata={row.metadata}
                   name={row.name}
                   onToggleFavorite={onToggleFavorite}
+                  onToggleSelect={onToggleSelect}
                   profileRecords={profileRecordState?.records}
+                  selectedLabels={selectedLabels}
                   shouldReduceMotion={shouldReduceMotion}
                 />
               )
