@@ -12,7 +12,6 @@ import {
   Settings2,
   ShieldMinus,
   ShieldPlus,
-  Sparkles,
 } from 'lucide-react'
 import type { ActionIcon } from '../summarize/summarize.types'
 
@@ -21,10 +20,10 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
   text: Route,
   records: Route,
   contenthash: Route,
-  primary: Route,
+  primary: ArrowRightLeft,
   transfer: ArrowLeftRight,
   subname: GitBranch,
-  register: Sparkles,
+  register: GitBranch,
   renew: RefreshCw,
   resolver: Settings2,
   registry: Boxes,

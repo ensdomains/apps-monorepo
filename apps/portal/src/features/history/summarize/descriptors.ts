@@ -17,16 +17,11 @@ import type {
 const isZero = (value?: string | null): boolean =>
   !value || value.toLowerCase() === zeroAddress
 
-/** App-standard role label, keeping the admin distinction the tables show as a column. */
 const humanizeRole = (role: string): string =>
   role.endsWith('_ADMIN')
     ? `${formatRoleLabel(role)} Admin`
     : formatRoleLabel(role)
 
-/**
- * Fallback label for an unknown event type: `SubregistryUpdated` → "Subregistry
- * updated", preserving acronyms: `EACRolesChanged` → "EAC roles changed".
- */
 export const humanizeType = (type: string): string =>
   type
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -83,16 +78,11 @@ const resolvedNameSlot = (
       eventName,
   )
 
-/**
- * The action catalogue. Keyed by the indexer `Event.type`.
- * A descriptor may inspect the payload to choose a conditional variant
- * (link vs unlink, grant vs revoke) — see the spec §4.
- */
-/** Figma: Set primary name {name} ↔ {address} — ETH forward match on this name. */
 const ethPrimaryNameAction = (
   name: string | null | undefined,
   address: string | null | undefined,
 ) => ({
+  icon: 'primary' as const,
   label: 'Set primary name',
   slots: [
     nameSlot(name),
@@ -100,7 +90,6 @@ const ethPrimaryNameAction = (
     addressSlot(address),
   ],
 })
-
 export const DESCRIPTORS: Record<string, Descriptor> = {
   AddressChanged: {
     icon: 'address',
@@ -211,12 +200,8 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   NameRegistered: {
     icon: 'register',
     build: (ctx) => ({
-      label: 'Register',
-      slots: [
-        resolvedNameSlot(ctx.primary.asNameRegistered?.name, ctx.primary.name),
-        { kind: 'connective', value: 'by' },
-        actorSlot(ctx, ctx.primary.asNameRegistered?.owner),
-      ],
+      label: 'Registered by',
+      slots: [actorSlot(ctx, ctx.primary.asNameRegistered?.owner)],
     }),
   },
   NameRenewed: {
@@ -307,5 +292,4 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   },
 }
 
-/** Icon fallback used when no descriptor matches. */
 export const FALLBACK_ICON = 'default' as const

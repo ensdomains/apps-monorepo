@@ -36,6 +36,7 @@ describe('AddressChanged descriptor', () => {
       events: [],
     })
     expect(built).toEqual({
+      icon: 'primary',
       label: 'Set primary name',
       slots: [
         { kind: 'name', value: 'absquatulate.eth' },
