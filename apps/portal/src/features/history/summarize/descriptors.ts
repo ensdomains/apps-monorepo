@@ -1,4 +1,5 @@
 import { zeroAddress } from 'viem'
+import { MAINNET_COIN_TYPE } from '@/lib/coinType'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
@@ -87,25 +88,41 @@ const resolvedNameSlot = (
  * A descriptor may inspect the payload to choose a conditional variant
  * (link vs unlink, grant vs revoke) — see the spec §4.
  */
+/** Figma: Set primary name {name} ↔ {address} — ETH forward match on this name. */
+const ethPrimaryNameAction = (
+  name: string | null | undefined,
+  address: string | null | undefined,
+) => ({
+  label: 'Set primary name',
+  slots: [
+    nameSlot(name),
+    { kind: 'glyph' as const, value: '↔' as const },
+    addressSlot(address),
+  ],
+})
+
 export const DESCRIPTORS: Record<string, Descriptor> = {
   AddressChanged: {
     icon: 'address',
-    build: ({ primary }) => ({
-      label: 'Set address to',
-      slots: [addressSlot(primary.asAddressChanged?.address)],
-    }),
+    build: ({ primary }) => {
+      const address = primary.asAddressChanged?.address
+      if (primary.asAddressChanged?.coinType === MAINNET_COIN_TYPE) {
+        return ethPrimaryNameAction(primary.name, address)
+      }
+      return {
+        label: 'Set address to',
+        slots: [addressSlot(address)],
+      }
+    },
   },
   AddrChanged: {
     icon: 'address',
-    build: ({ primary }) => ({
-      label: 'Set address to',
-      slots: [
-        addressSlot(
-          primary.asAddressChanged?.address ??
-            readString(parseEventData(primary.data), 'address', 'addr'),
-        ),
-      ],
-    }),
+    build: ({ primary }) => {
+      const address =
+        primary.asAddressChanged?.address ??
+        readString(parseEventData(primary.data), 'address', 'addr')
+      return ethPrimaryNameAction(primary.name, address)
+    },
   },
 
   TextChanged: {
