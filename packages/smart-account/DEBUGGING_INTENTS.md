@@ -1,7 +1,8 @@
 # Debugging Rhinestone HCA intents
 
 Field notes for the standalone-HCA registration flow (`src/providers/rhinestone/`).
-Written after two production bugs that both surfaced as the same useless error.
+Written after several production bugs that all surfaced as the same useless
+error. None of them were signature problems.
 
 ## 1. `InvalidSignature()` almost never means the signature is wrong
 
@@ -62,13 +63,20 @@ Known selectors:
 | `0xe50c42ea` | `PolicyRuleFailed()` | a hardcoded policy argument check failed |
 | `0xde1834f2` | `ActionNotAllowed(address,bytes4)` | target/selector outside the allowlist |
 | `0x0672e151` | `GasRefundNotAllowed()` | quoted executor refund exceeded the session caps |
-| `0x815e1d64` | `InvalidSigner()` | genuinely a bad signature |
+| `0x815e1d64` | `InvalidSigner()` | a bad key **or** a session that was never enabled — see below |
 | `0x9bdfc59f` | `InvalidSessionData()` | payload is not the Smart Session USE form |
 | `0x037b5679` | `CallerNotIntentExecutor()` | presented by someone other than the IntentExecutor |
 | `0x1fd05a4a` | `SessionExpired()` | `validUntil` elapsed |
 
 A trace only ever reveals the **first** violation. After fixing one, re-check
 the remaining calls against the policy loop rather than assuming.
+
+`InvalidSigner()` is the misleading one — it has three call sites in
+`_validateFixedSessionPayload` alone, and only the last is an actual key
+mismatch. **Use the trace depth to tell them apart:** if it reverts *before*
+`5aa6d3a9` (`ownerAndSessionNonce`) and *before* `ecrecover`, nothing was
+recovered and it is the very first check,
+`config.sessionKey == address(0)` — an unenabled session (§7), not a bad key.
 
 ## 4. The policy pins exact calldata — not just arguments
 
@@ -146,3 +154,61 @@ changes when they do. A quoted refund above the cap reverts with
 When reading a failing intent's fields, note the big `uint256` next to the
 account address is the **nonce**, not the salt. Confirm with `cast to-dec`
 before comparing it against anything.
+
+## 7. The session-enable proof belongs on EVERY commit
+
+`enableData` (the `SessionEnableProof`) is what selects the validator's
+first-use policy path. It is tempting to omit it once the session is enabled
+on-chain — the handoff doc says to, and `experimental_isSessionEnabled` exists
+to check. Doing so has broken production twice, in two *different* ways, both
+arriving as `InvalidSignature()`:
+
+| batch | without the proof | inner revert |
+|---|---|---|
+| carries `permit` + `transferFrom` | falls through to `_checkRegistrationExecutions`, whose payment-token branch allows only `approve` | `ActionNotAllowed(USDC, 0xd505accf)` `0xde1834f2` |
+| no funding pair | SDK signs mode `0x02`, but `_sessions[hca][permissionId]` is still empty on a session's first use | `InvalidSigner()` `0x815e1d64` |
+
+Two independent conditions require the proof — *"we are funding"* and *"the
+session is not enabled yet"* — so gating on either one alone leaves the other
+broken. That is exactly how the second bug was introduced while fixing the
+first. **Attach it unconditionally:**
+
+- **idempotent** — `_enableSessionFor` rewrites the same slot with identical
+  values; there is no "already enabled" revert.
+- **reusable** — `_validateSessionEnableProof` checks only `validUntil` and the
+  account's session nonce, and nothing increments that nonce outside
+  `revokeSessions()`.
+- **no wallet prompt** — `buildHcaSessionEnablePayload` rebuilds it from the
+  authorization signature captured once at the session gate. The user still
+  signs the authorization exactly once.
+
+The only cost is one extra `enableSessionWithRefund` per commit, over mostly
+warm slots.
+
+### Read the mode byte first
+
+`data[0]` of the validator signature tells you which path the failing intent
+took:
+
+| mode | constant | meaning |
+|---|---|---|
+| `0x01` | `FIXED_SESSION_MODE` | session only |
+| `0x02` | `FIXED_SESSION_REFUND_MODE` | session + gas refund — assumes ALREADY enabled |
+| `0x03` | `FIXED_SESSION_PERMIT2_MODE` | cross-chain, session only |
+| `0x04` | `FIXED_SESSION_PERMIT2_ENABLE_MODE` | cross-chain first use, carries the proof |
+| `0x05` | `FIXED_SESSION_REFUND_ENABLE_MODE` | same-chain first use, carries the proof |
+
+`0x02` against a session that was never enabled is the `InvalidSigner()` row
+above. The permissionId is `data[1:33]` of the same envelope, so check it
+directly:
+
+```bash
+cast call <validator> 'isPermissionEnabled(address,bytes32)(bool)' <hca> <permissionId> \
+  --block <details.blockNumber> --rpc-url "$ARCHIVE_RPC"
+```
+
+**`false` at the failing block and `true` at `latest` is the signature of this
+bug**, and explains why it looks intermittent: some later run enables the
+session, so every subsequent commit passes and only the first one under a fresh
+session fails. A registration funded entirely from leftover HCA balance is the
+usual trigger, because it needs no permit and so never took the funding branch.
