@@ -15,8 +15,8 @@ import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { pollForIndexerSync } from '@/utils/query/pollForIndexerSync'
 import { getLabel } from '@/utils/token/getLabel'
-import { resetNameRegistry } from '../helpers/resetNameRegistry'
-import { resetNameResolver } from '../helpers/resetNameResolver'
+import { detachNameRegistry } from '../helpers/detachNameRegistry'
+import { detachNameResolver } from '../helpers/detachNameResolver'
 import { setEthAddress } from '../helpers/setEthAddress'
 import { transferToken } from '../helpers/transferToken'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
@@ -46,8 +46,8 @@ type SavedParams = {
 
 const GAS_BY_STEP: Record<TransferStepKind, number> = {
   'set-eth-addr': 0.0002,
-  'reset-resolver': 0.0001,
-  'reset-registry': 0.0001,
+  'detach-resolver': 0.0001,
+  'detach-registry': 0.0001,
   'transfer-token': 0.0003,
 }
 
@@ -140,11 +140,11 @@ export const useTransferName = ({
 
     await match(step)
       .with('set-eth-addr', () => setEthAddress({ ...common, recipient, id }))
-      .with('reset-resolver', () =>
-        resetNameResolver({ ...common, label, registryAddress, id }),
+      .with('detach-resolver', () =>
+        detachNameResolver({ ...common, label, registryAddress, id }),
       )
-      .with('reset-registry', () =>
-        resetNameRegistry({ ...common, label, registryAddress, id }),
+      .with('detach-registry', () =>
+        detachNameRegistry({ ...common, label, registryAddress, id }),
       )
       .with('transfer-token', () =>
         transferToken({ ...common, registryAddress, tokenId, recipient, id }),

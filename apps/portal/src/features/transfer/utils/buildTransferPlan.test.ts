@@ -3,8 +3,8 @@ import { buildTransferPlan, type TransferOptions } from './buildTransferPlan'
 
 const NO_OPTIONS: TransferOptions = {
   setEthAddress: false,
-  resetResolver: false,
-  resetRegistry: false,
+  detachResolver: false,
+  detachRegistry: false,
 }
 
 describe('buildTransferPlan', () => {
@@ -17,40 +17,44 @@ describe('buildTransferPlan', () => {
     expect(plan).toEqual(['set-eth-addr', 'transfer-token'])
   })
 
-  it('skips the ETH step when the resolver is reset (redundant)', () => {
+  it('skips the ETH step when the resolver is detached (redundant)', () => {
     const plan = buildTransferPlan({
       ...NO_OPTIONS,
       setEthAddress: true,
-      resetResolver: true,
+      detachResolver: true,
     })
-    expect(plan).toEqual(['reset-resolver', 'transfer-token'])
+    expect(plan).toEqual(['detach-resolver', 'transfer-token'])
   })
 
-  it('resets the resolver (setResolver 0x0) before transferring', () => {
-    const plan = buildTransferPlan({ ...NO_OPTIONS, resetResolver: true })
-    expect(plan).toEqual(['reset-resolver', 'transfer-token'])
+  it('detaches the resolver (setResolver 0x0) before transferring', () => {
+    const plan = buildTransferPlan({ ...NO_OPTIONS, detachResolver: true })
+    expect(plan).toEqual(['detach-resolver', 'transfer-token'])
   })
 
-  it('resets the registry (setSubregistry 0x0) before transferring', () => {
-    const plan = buildTransferPlan({ ...NO_OPTIONS, resetRegistry: true })
-    expect(plan).toEqual(['reset-registry', 'transfer-token'])
+  it('detaches the registry (setSubregistry 0x0) before transferring', () => {
+    const plan = buildTransferPlan({ ...NO_OPTIONS, detachRegistry: true })
+    expect(plan).toEqual(['detach-registry', 'transfer-token'])
   })
 
-  it('orders the ETH step before the registry reset', () => {
+  it('orders the ETH step before the registry detach', () => {
     const plan = buildTransferPlan({
       setEthAddress: true,
-      resetResolver: false,
-      resetRegistry: true,
+      detachResolver: false,
+      detachRegistry: true,
     })
-    expect(plan).toEqual(['set-eth-addr', 'reset-registry', 'transfer-token'])
+    expect(plan).toEqual(['set-eth-addr', 'detach-registry', 'transfer-token'])
   })
 
-  it('combines resetting the resolver and the registry', () => {
+  it('combines detaching the resolver and the registry', () => {
     const plan = buildTransferPlan({
       ...NO_OPTIONS,
-      resetResolver: true,
-      resetRegistry: true,
+      detachResolver: true,
+      detachRegistry: true,
     })
-    expect(plan).toEqual(['reset-resolver', 'reset-registry', 'transfer-token'])
+    expect(plan).toEqual([
+      'detach-resolver',
+      'detach-registry',
+      'transfer-token',
+    ])
   })
 })

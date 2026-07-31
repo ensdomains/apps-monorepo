@@ -25,7 +25,7 @@ import {
 } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
 
-export interface ResetNameResolverParameters {
+export interface DetachNameResolverParameters {
   readonly name: string
   readonly label: string
   /** The registry the name's token lives in. */
@@ -37,12 +37,12 @@ export interface ResetNameResolverParameters {
   readonly id: string
 }
 
-export interface ResetNameResolverResult {
+export interface DetachNameResolverResult {
   readonly txId: string
   readonly hash: Hex
 }
 
-export const resetNameResolver = async ({
+export const detachNameResolver = async ({
   name,
   label,
   registryAddress,
@@ -51,7 +51,7 @@ export const resetNameResolver = async ({
   signer,
   chainId,
   id,
-}: ResetNameResolverParameters): Promise<ResetNameResolverResult> => {
+}: DetachNameResolverParameters): Promise<DetachNameResolverResult> => {
   if (!walletClient.account) {
     throw new Error('Wallet client must have account configured')
   }
@@ -84,7 +84,7 @@ export const resetNameResolver = async ({
     signer,
     {
       id,
-      description: `Reset resolver for ${name}`,
+      description: `Detach resolver for ${name}`,
       publicClient,
       timeout: 120_000,
     },

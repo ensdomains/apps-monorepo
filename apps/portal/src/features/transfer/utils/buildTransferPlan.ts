@@ -8,15 +8,15 @@ export type TransferOptions = {
   /** Point the name's ETH address record at the recipient. */
   readonly setEthAddress: boolean
   /** Detach the name from its resolver (`setResolver(0x0)`). */
-  readonly resetResolver: boolean
+  readonly detachResolver: boolean
   /** Detach the name from its subregistry (`setSubregistry(0x0)`). */
-  readonly resetRegistry: boolean
+  readonly detachRegistry: boolean
 }
 
 export type TransferStepKind =
   | 'set-eth-addr'
-  | 'reset-resolver'
-  | 'reset-registry'
+  | 'detach-resolver'
+  | 'detach-registry'
   | 'transfer-token'
 
 export const buildTransferPlan = (
@@ -25,16 +25,16 @@ export const buildTransferPlan = (
   const steps: TransferStepKind[] = []
 
   // Redundant once the resolver is detached, so only when the resolver is kept.
-  if (options.setEthAddress && !options.resetResolver) {
+  if (options.setEthAddress && !options.detachResolver) {
     steps.push('set-eth-addr')
   }
 
-  if (options.resetResolver) {
-    steps.push('reset-resolver')
+  if (options.detachResolver) {
+    steps.push('detach-resolver')
   }
 
-  if (options.resetRegistry) {
-    steps.push('reset-registry')
+  if (options.detachRegistry) {
+    steps.push('detach-registry')
   }
 
   steps.push('transfer-token')
@@ -44,7 +44,7 @@ export const buildTransferPlan = (
 
 export const STEP_LABELS: Record<TransferStepKind, string> = {
   'set-eth-addr': 'Update ETH address',
-  'reset-resolver': 'Reset resolver',
-  'reset-registry': 'Reset registry',
+  'detach-resolver': 'Detach resolver',
+  'detach-registry': 'Detach registry',
   'transfer-token': 'Transfer name',
 }

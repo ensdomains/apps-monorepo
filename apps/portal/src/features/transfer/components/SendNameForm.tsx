@@ -13,8 +13,8 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
 import { useTransferName } from '../hooks/useTransferName'
-import { useTransferResetTargets } from '../hooks/useTransferResetTargets'
 import type { TransferOptions } from '../utils/buildTransferPlan'
 
 type SendNameFormProps = {
@@ -23,7 +23,7 @@ type SendNameFormProps = {
   readonly owner: Address
 }
 
-type OptionKey = 'setEthAddress' | 'resetResolver' | 'resetRegistry'
+type OptionKey = 'setEthAddress' | 'detachResolver' | 'detachRegistry'
 
 type OptionConfig = {
   readonly key: OptionKey
@@ -43,16 +43,16 @@ const OPTIONS: readonly OptionConfig[] = [
       'This name’s ETH address will keep pointing to you after the transfer, so you could re-set it as your primary name. Turn this on to point it at the recipient instead.',
   },
   {
-    key: 'resetResolver',
-    label: 'Reset the resolver',
+    key: 'detachResolver',
+    label: 'Detach the resolver',
     description:
-      'Removes this name’s resolver so it stops resolving to your records entirely. The recipient starts clean and sets up their own.',
+      'Detaches this name’s resolver so it stops resolving to your records entirely. The recipient starts clean and sets up their own.',
     warning:
       'This name’s other records will keep resolving after the transfer. Until the recipient updates them, it could still be listed as the primary name for an address that no longer controls it.',
   },
   {
-    key: 'resetRegistry',
-    label: 'Reset the registry',
+    key: 'detachRegistry',
+    label: 'Detach the registry',
     description:
       'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean and deploys their own.',
     warning:
@@ -68,15 +68,15 @@ export const SendNameForm = ({
   const [recipientInput, setRecipientInput] = useState('')
   const [options, setOptions] = useState<Record<OptionKey, boolean>>({
     setEthAddress: true,
-    resetResolver: true,
-    resetRegistry: true,
+    detachResolver: true,
+    detachRegistry: true,
   })
 
   const {
     optionIsVisible,
-    settled: resetTargetsSettled,
-    failed: resetTargetsFailed,
-  } = useTransferResetTargets({ name })
+    settled: detachTargetsSettled,
+    failed: detachTargetsFailed,
+  } = useTransferDetachTargets({ name })
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -91,14 +91,14 @@ export const SendNameForm = ({
   // A hidden option never contributes to the plan, whatever its stored value.
   const effectiveOptions: TransferOptions = {
     setEthAddress: options.setEthAddress && optionIsVisible.setEthAddress,
-    resetResolver: options.resetResolver && optionIsVisible.resetResolver,
-    resetRegistry: options.resetRegistry && optionIsVisible.resetRegistry,
+    detachResolver: options.detachResolver && optionIsVisible.detachResolver,
+    detachRegistry: options.detachRegistry && optionIsVisible.detachRegistry,
   }
 
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
   const canStart =
-    hasValidRecipient && !isResolving && !isPreparing && resetTargetsSettled
+    hasValidRecipient && !isResolving && !isPreparing && detachTargetsSettled
 
   const toggleOption = (key: OptionKey) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -136,7 +136,7 @@ export const SendNameForm = ({
       </div>
 
       {hasValidRecipient && (
-        <TransferResetOptions
+        <TransferDetachOptions
           options={options}
           visibleOptions={visibleOptions}
           onToggle={toggleOption}
@@ -152,7 +152,7 @@ export const SendNameForm = ({
         {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
 
-      {hasValidRecipient && resetTargetsFailed && (
+      {hasValidRecipient && detachTargetsFailed && (
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
@@ -168,7 +168,7 @@ export const SendNameForm = ({
   )
 }
 
-const TransferResetOptions = ({
+const TransferDetachOptions = ({
   options,
   visibleOptions,
   onToggle,
@@ -182,7 +182,8 @@ const TransferResetOptions = ({
   return (
     <div className="flex flex-col gap-4">
       {visibleOptions.map((option) => {
-        const disabled = option.key === 'setEthAddress' && options.resetResolver
+        const disabled =
+          option.key === 'setEthAddress' && options.detachResolver
 
         return (
           <div key={option.key} className="flex flex-col gap-2">
@@ -198,7 +199,7 @@ const TransferResetOptions = ({
                 </span>
                 <span className="text-muted-foreground text-sm">
                   {disabled
-                    ? 'Not needed while the resolver is being reset.'
+                    ? 'Not needed while the resolver is being detached.'
                     : option.description}
                 </span>
               </span>

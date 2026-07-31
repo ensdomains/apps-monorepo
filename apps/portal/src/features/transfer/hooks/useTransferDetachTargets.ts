@@ -4,12 +4,12 @@ import { useNameResolverAddress } from '@/features/records/hooks/useNameResolver
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 
-type TransferResetTargets = {
-  /** Whether each option has a target worth showing/resetting. */
+type TransferDetachTargets = {
+  /** Whether each option has a target worth showing/detaching. */
   readonly optionIsVisible: {
     readonly setEthAddress: boolean
-    readonly resetResolver: boolean
-    readonly resetRegistry: boolean
+    readonly detachResolver: boolean
+    readonly detachRegistry: boolean
   }
   /** Every lookup succeeded — the targets are known. */
   readonly settled: boolean
@@ -20,17 +20,17 @@ type TransferResetTargets = {
 /**
  * Discover what a name currently points at, so the transfer form knows which
  * options to offer: the ETH-address repoint only when an ETH address is set,
- * the resolver/registry resets only when there's something to detach.
+ * the resolver/registry detaches only when there's something to detach.
  *
  * Keys off `isSuccess` (not `!isLoading`) so a failed lookup — which also has
- * `data === undefined` — doesn't look like "nothing to reset"; callers block on
+ * `data === undefined` — doesn't look like "nothing to detach"; callers block on
  * {@link failed} instead of transferring with the options silently disabled.
  */
-export const useTransferResetTargets = ({
+export const useTransferDetachTargets = ({
   name,
 }: {
   name: string
-}): TransferResetTargets => {
+}): TransferDetachTargets => {
   const resolverQuery = useNameResolverAddress({ name })
   const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
   const ethAddressQuery = useQuery(getEthAddressQueryOptions(name))
@@ -44,8 +44,8 @@ export const useTransferResetTargets = ({
   return {
     optionIsVisible: {
       setEthAddress: ethAddressQuery.isSuccess && hasEthAddress,
-      resetResolver: resolverQuery.isSuccess && hasResolver,
-      resetRegistry: registriesQuery.isSuccess && hasSubregistry,
+      detachResolver: resolverQuery.isSuccess && hasResolver,
+      detachRegistry: registriesQuery.isSuccess && hasSubregistry,
     },
     settled:
       resolverQuery.isSuccess &&
