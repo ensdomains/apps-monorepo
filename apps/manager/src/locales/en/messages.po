@@ -405,14 +405,6 @@ msgstr "Browser notifications enabled"
 msgid "Bug bounty"
 msgstr "Bug bounty"
 
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-msgid "Bulk renewal requires a smart account so every name renews in a single transaction. It isn’t available in EOA mode."
-msgstr "Bulk renewal requires a smart account so every name renews in a single transaction. It isn’t available in EOA mode."
-
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-msgid "Bulk renewal unavailable"
-msgstr "Bulk renewal unavailable"
-
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
 msgstr "Can I change my primary name later?"

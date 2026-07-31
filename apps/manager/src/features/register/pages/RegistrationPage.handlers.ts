@@ -104,9 +104,9 @@ export function handleStartRegistration(
   // an `approvalSigner` there's no EOA wallet to produce the permit signature
   // (e.g. a Para embedded wallet mid-reconnect exposing no client). Fail fast
   // with an actionable message here instead of entering the flow, doing
-  // commitment/deployment work, and stalling at the `signingPermit` step where
-  // `signPermitActor` would reject the rhinestone signer fallback. Mirrors the
-  // v2 guard in registrationUi.machine.ts.
+  // commitment/deployment work, and stalling at the `signingFundingPermit` step
+  // where `signFundingPermitActor` would reject the rhinestone signer fallback.
+  // Mirrors the v2 guard in registrationUi.machine.ts.
   const isHcaRegistration =
     signer.type === 'rhinestone' &&
     ownerAddress.toLowerCase() !== account.accountAddress.toLowerCase()

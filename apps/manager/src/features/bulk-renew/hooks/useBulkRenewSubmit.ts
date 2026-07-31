@@ -1,18 +1,17 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
-  authorizedPaymentAmount,
-  ensureHcaDeployedActor,
-  type PermitSignature,
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
-  signPermitActor,
-  submitBatchRenewActor,
+  submitApprovalActor,
+  submitRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useCallback, useRef, useState } from 'react'
-import type { Address } from 'viem'
+import type { Address, WalletClient } from 'viem'
+import { sepolia } from 'viem/chains'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -21,86 +20,104 @@ import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
 // How long to hold the completed progress bar before showing the success view.
 const SETTLE_MS = 600
 
-// WEB-427 requires the whole batch to renew in ONE transaction, which only a
-// smart account can do (atomic multi-call intents). A plain EOA — the dev-only
-// `USE_EOA` fork — physically can't (the registrar isn't Multicallable), so bulk
-// renewal is unsupported there rather than silently fanning out into one tx per
-// name. The dialog gates on this too; this is the transaction-boundary backstop.
-export const EOA_UNSUPPORTED_MESSAGE =
-  'Bulk renewal requires a smart account and is unavailable in EOA mode.'
+// Names registered by this app live on the STANDALONE-HCA registrar and are
+// priced in REAL Circle Sepolia USDC, not the legacy ensjs registrar / mock
+// tokens the actors default to. Allowance check + approve must target the same
+// pair `submitRenewActor` renews against, or they authorize the wrong contract.
+// Mirrors `renew/state/renewalUi.machine.ts`.
+const HCA_RENEW_CONTRACTS = getDestinationContracts(sepolia.id)
+const HCA_REGISTRAR_ADDRESS = HCA_RENEW_CONTRACTS.ethRegistrar
+const HCA_PAYMENT_TOKEN_ADDRESS = HCA_RENEW_CONTRACTS.usdc
+
+// Bulk renewal takes the DIRECT WALLET route, like single renewal: the connected
+// EOA approves once and then renews each name itself.
+//
+// It cannot go through the HCA. `AbstractETHRegistrar.renew` charges
+// `msg.sender` with no HCA unwrap, and the scoped session's policy allowlists
+// only `commit`/`register` on the registrar — a session-signed `renew` reverts
+// `ActionNotAllowed`. Routing it through the HCA would therefore mean paying
+// from the HCA (needing a funding permit) and signing the intent with the owner
+// key to bypass the policy. That was rejected in favour of keeping renewal on
+// the wallet, at the cost of one transaction per name instead of one atomic
+// batch.
+export const WALLET_REQUIRED_MESSAGE =
+  'Bulk renewal requires a connected wallet to approve and pay for each renewal.'
 
 type Context = {
+  /** The connected EOA — `_msgSender()` for `renew`, and the rent payer. */
   readonly signer: Signer
-  readonly approvalSigner: Signer | undefined
   readonly ownerAddress: Address
   readonly token: SUPPORTED_TOKEN
-  readonly isHca: boolean
 }
 
 /**
- * Authorize the whole batch once, gaslessly. Resolves to an EIP-2612 permit
- * (signed by the EOA owner, sized to cover the batch) to bundle into the batch
- * transaction, or `undefined` when the existing allowance already covers it.
+ * Authorize the whole batch once: approve the registrar for the summed price so
+ * the individual `renew` calls can each pull from the same allowance. Resolves
+ * immediately when the existing allowance already covers the batch.
  */
 const authorizeSpend = (
   ctx: Context,
   sumPriceRaw: bigint,
-): ResultAsync<PermitSignature | undefined, Error> =>
+): ResultAsync<void, Error> =>
   readPaymentTokenAllowanceActor({
     owner: ctx.ownerAddress,
     selectedToken: ctx.token,
     publicClient,
+    registrarAddress: HCA_REGISTRAR_ADDRESS,
+    paymentTokenAddress: HCA_PAYMENT_TOKEN_ADDRESS,
   })
     // A read failure shouldn't block — fall back to authorizing.
     .orElse(() => okAsync(0n))
-    .andThen((allowance): ResultAsync<PermitSignature | undefined, Error> => {
+    .andThen((allowance): ResultAsync<void, Error> => {
       if (allowance >= sumPriceRaw) return okAsync(undefined)
 
-      return signPermitActor({
-        owner: ctx.ownerAddress,
+      return submitApprovalActor({
+        tokenPrice: sumPriceRaw,
         selectedToken: ctx.token,
-        value: authorizedPaymentAmount(sumPriceRaw),
-        approvalSigner: ctx.approvalSigner ?? ctx.signer,
+        signer: ctx.signer,
         publicClient,
+        // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
+        sponsored: false,
+        registrarAddress: HCA_REGISTRAR_ADDRESS,
+        paymentTokenAddress: HCA_PAYMENT_TOKEN_ADDRESS,
       })
+        .andThen((txId) => pollTransactionStatusActor({ txId }))
+        .map(() => undefined)
     })
 
-/**
- * Submit and confirm the WHOLE batch as one transaction: a single smart-account
- * intent of `[permit?, renew, renew, …]` that executes atomically, per WEB-427.
- * Because it's atomic, the batch either fully renews or fully fails — there's no
- * partial-completion state to resume.
- */
-const renewBatch = (
-  ctx: Context,
-  items: readonly RenewItem[],
-  permit: PermitSignature | undefined,
-): ResultAsync<void, Error> =>
-  submitBatchRenewActor({
-    items,
+/** Renew one name and wait for it to land. */
+const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
+  submitRenewActor({
+    label: item.label,
+    duration: item.duration,
     selectedToken: ctx.token,
     signer: ctx.signer,
     publicClient,
-    permit,
-    sponsored: true,
-  }).andThen((txId) => pollTransactionStatusActor({ txId }))
+    // Direct wallet route — the EOA pays gas, never sponsored.
+    sponsored: false,
+  })
+    .andThen((txId) => pollTransactionStatusActor({ txId }))
+    .map(() => undefined)
 
 /**
- * Run the renewing phase and report per-row progress. The batch renews in one
- * atomic transaction, so all rows advance together. `onActive`/`onDone` drive
- * the row status UI and record completions.
+ * Renew each name in turn, reporting per-row progress.
+ *
+ * Sequential rather than atomic: each name is its own transaction, so a failure
+ * part-way leaves the earlier names genuinely renewed. `onDone` records them so
+ * a retry resumes from the first failure instead of re-paying for the batch.
  */
 const runRenewals = async (
   ctx: Context,
   remaining: readonly RenewItem[],
-  permit: PermitSignature | undefined,
   onActive: (label: string) => void,
   onDone: (label: string) => void,
 ): Promise<Result<void, Error>> => {
-  for (const item of remaining) onActive(item.label)
-  const renewed = await renewBatch(ctx, remaining, permit)
-  if (renewed.isErr()) return renewed
-  for (const item of remaining) onDone(item.label)
+  for (const item of remaining) {
+    onActive(item.label)
+    const renewed = await renewOne(ctx, item)
+    if (renewed.isErr()) return renewed
+    onDone(item.label)
+  }
   return ok(undefined)
 }
 
@@ -108,47 +125,42 @@ const runRenewals = async (
 const STALE = Symbol('stale-run')
 
 /**
- * Drive the `preparing`/`authorizing` phases: ensure the HCA is deployed and the
- * batch spend is authorized. Returns the permit to bundle (or `undefined` when
- * already authorized), an `Error` to fail with, or `STALE` if the run was
- * superseded (dialog reset) while awaiting.
+ * Drive the `authorizing` phase. Returns an `Error` to fail with, or `STALE` if
+ * the run was superseded (dialog reset) while awaiting.
  */
 const prepareSpend = async (
   ctx: Context,
   sumPriceRaw: bigint,
   isCurrent: () => boolean,
   setPhase: (phase: BulkRenewPhase) => void,
-): Promise<PermitSignature | undefined | Error | typeof STALE> => {
-  setPhase('preparing')
-  const deployed = await ensureHcaDeployedActor({ signer: ctx.signer })
-  if (!isCurrent()) return STALE
-  if (deployed.isErr()) return deployed.error
-
+): Promise<undefined | Error | typeof STALE> => {
   setPhase('authorizing')
   const authorized = await authorizeSpend(ctx, sumPriceRaw)
   if (!isCurrent()) return STALE
   if (authorized.isErr()) return authorized.error
-  return authorized.value
+  return undefined
 }
 
 type SmartAccount = ReturnType<typeof useSmartAccountContext>
 
-/** Resolve the signer/owner context, or `null` if the wallet isn't ready. */
+/**
+ * Resolve the signer/owner context, or `null` if no wallet is connected.
+ *
+ * The owner is the connected wallet, NOT `account.ownerAddress` — `renew`
+ * charges whoever sends it, so the allowance must be read for and authorized by
+ * the same EOA that submits.
+ */
 const resolveContext = (
   account: SmartAccount,
   token: SUPPORTED_TOKEN,
 ): Context | null => {
-  const signer = account.signer
-  const ownerAddress = account.ownerAddress ?? account.accountAddress
-  if (!signer || !ownerAddress) return null
+  const walletClient = account.walletClient
+  const ownerAddress = walletClient?.account?.address
+  if (!walletClient || !ownerAddress) return null
   return {
-    signer,
+    signer: { type: 'eoa', walletClient: walletClient as WalletClient },
     ownerAddress,
     token,
-    isHca: signer.type === 'rhinestone',
-    approvalSigner: account.walletClient
-      ? { type: 'eoa', walletClient: account.walletClient }
-      : undefined,
   }
 }
 
@@ -167,7 +179,7 @@ const invalidateDashboardNames = () =>
 type SubmitArgs = {
   readonly items: readonly RenewItem[]
   readonly token: SUPPORTED_TOKEN
-  /** Summed quoted price in token units, used to size the allowance/permit. */
+  /** Summed quoted price in token units, used to size the allowance. */
   readonly sumPriceRaw: bigint
 }
 
@@ -180,11 +192,9 @@ export type UseBulkRenewSubmit = {
 }
 
 /**
- * Drives the bulk renewal: authorize the summed spend once, then submit the
- * whole batch as a single atomic smart-account transaction (WEB-427). Requires a
- * smart account — the EOA path is refused up front (see `EOA_UNSUPPORTED_MESSAGE`).
- * Each row's status feeds the progress UI, and names that already renewed are
- * remembered so a retry resumes the batch.
+ * Drives the bulk renewal on the direct-wallet route: approve the summed spend
+ * once, then renew each name in its own transaction. Names that already renewed
+ * are remembered so a retry resumes rather than re-paying.
  */
 export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
   const account = useSmartAccountContext()
@@ -232,15 +242,7 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
 
     const ctx = resolveContext(account, token)
     if (!ctx) {
-      setErrorMessage('Wallet not connected')
-      setPhase('error')
-      return
-    }
-
-    // Enforce the one-transaction invariant: refuse the EOA path outright rather
-    // than submitting a renew tx per name.
-    if (!ctx.isHca) {
-      setErrorMessage(EOA_UNSUPPORTED_MESSAGE)
+      setErrorMessage(WALLET_REQUIRED_MESSAGE)
       setPhase('error')
       return
     }
@@ -262,13 +264,11 @@ export const useBulkRenewSubmit = (): UseBulkRenewSubmit => {
     const prepared = await prepareSpend(ctx, sumPriceRaw, isCurrent, setPhase)
     if (prepared === STALE) return
     if (prepared instanceof Error) return failWith(prepared)
-    const permit = prepared
 
     setPhase('renewing')
     const renewed = await runRenewals(
       ctx,
       remaining,
-      permit,
       (label) => isCurrent() && markStatus(label, 'active'),
       (label) => {
         // The renewal landed on-chain, so record it and refresh data even if the
