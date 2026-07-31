@@ -4,11 +4,10 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { formatExpiryDate } from '@/utils/formatting/formatDateTime'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import {
-  formatTimelineFullDate,
-  formatTimelineTime,
-} from '../formatTimelineDate'
+import { unixSecondsToPlainDateUtc } from '@/utils/temporal'
+import { formatTimelineTime } from '../formatTimelineDate'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { AccountBadge } from './AccountBadge'
 import { TransactionMeta } from './EventDetail'
@@ -48,7 +47,7 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
         <div className="justify-self-start whitespace-nowrap sm:justify-self-end">
           <EntityBadge
             variant="tx"
-            label={formatTimelineFullDate(event.timestamp)}
+            label={formatExpiryDate(unixSecondsToPlainDateUtc(event.timestamp))}
             copyValue={event.transactionHash}
             etherscanHref={txUrl}
             compact

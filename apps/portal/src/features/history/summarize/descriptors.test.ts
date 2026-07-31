@@ -33,7 +33,6 @@ describe('Figma history labels', () => {
           coinType: 60,
         },
       } as TimelineIndexerEvent,
-      events: [],
     })
     expect(built).toMatchObject({
       label: 'Set address to',
@@ -53,7 +52,6 @@ describe('Figma history labels', () => {
         type: 'NameRegistered',
         asNameRegistered: { name: 'collector.eth' },
       } as TimelineIndexerEvent,
-      events: [],
     })
     expect(built).toEqual({
       label: 'Register name',
@@ -70,7 +68,6 @@ describe('Figma history labels', () => {
           resolver: '0xb88b00000000000000000000000000000000Fa98',
         },
       } as TimelineIndexerEvent,
-      events: [],
     })
     expect(built).toEqual({
       label: 'Update resolver',
@@ -92,7 +89,6 @@ describe('Figma history labels', () => {
           registry: '0x541C00000000000000000000000000000000976F',
         }),
       } as TimelineIndexerEvent,
-      events: [],
     })
     expect(built).toEqual({
       label: 'Deploy and link subregistry',

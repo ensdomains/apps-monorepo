@@ -21,12 +21,11 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
     .with({ kind: 'actor' }, ({ address, txHash }) => (
       <AccountBadge address={address} txHash={txHash} />
     ))
-    .with({ kind: 'contract' }, ({ value, isRegistry, label }) => (
+    .with({ kind: 'contract' }, ({ value, isRegistry }) => (
       <EntityBadge
         variant="contract"
         address={value as Address}
         isRegistry={isRegistry}
-        label={label}
         compact
       >
         {truncateAddress(value)}

@@ -18,10 +18,12 @@ import {
 } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { getEnsContractName } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
-import { resolveDecodedName } from '../summarize/decodeRawData'
+import type {
+  TimelineDecoded,
+  TimelineIndexerEvent,
+} from '../hooks/useNameHistoryTimeline'
+import { parseEventData, resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
-import { getDecodedEntries } from './eventDecodedEntries'
 import { getTimelineFieldType } from './eventFieldTypes'
 
 /** Param keys that denote a contract even when the address is not a known ENS contract. */
@@ -31,6 +33,31 @@ const CONTRACT_PARAM_KEYS = new Set([
   'subregistry',
   'implementer',
 ])
+
+const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
+  AddressChanged: 'asAddressChanged',
+  AddrChanged: 'asAddressChanged',
+  TextChanged: 'asTextChanged',
+  Transfer: 'asTransfer',
+  RegistryTransfer: 'asRegistryTransfer',
+  LabelRegistered: 'asLabelRegistered',
+  NameRegistered: 'asNameRegistered',
+  NameRenewed: 'asNameRenewed',
+  ResolverUpdated: 'asResolverUpdated',
+  ReverseClaimed: 'asReverseClaimed',
+  NameWrapped: 'asNameWrapped',
+  NameUnwrapped: 'asNameUnwrapped',
+  FusesSet: 'asFusesSet',
+  ExpiryUpdated: 'asExpiryUpdated',
+}
+
+const getDecodedEntries = (event: TimelineIndexerEvent): [string, string][] => {
+  const payloadKey = PAYLOAD_KEY_BY_TYPE[event.type]
+  const source = (payloadKey && event[payloadKey]) || parseEventData(event.data)
+  return Object.entries(source)
+    .filter(([, value]) => value != null && value !== '')
+    .map(([key, value]) => [key, String(value)])
+}
 
 /**
  * One decoded value: entity-shaped values render as interactive EntityBadges —

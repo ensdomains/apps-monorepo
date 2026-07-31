@@ -5,22 +5,19 @@ import { humanizeType } from './summarize/descriptors'
 import type { Action } from './summarize/summarize.types'
 import { IGNORED_TYPES } from './summarize/summarizeEvents'
 
-const startOfDayMs = (date: Date): number => {
-  const day = new Date(date)
-  day.setHours(0, 0, 0, 0)
-  return day.getTime()
-}
-
-const endOfDayMs = (date: Date): number => {
-  const day = new Date(date)
-  day.setHours(23, 59, 59, 999)
-  return day.getTime()
-}
-
 const isWithinRange = (unixSeconds: number, range: DateRange): boolean => {
+  if (!range.from && !range.to) return true
   const ms = unixSeconds * 1000
-  if (range.from && ms < startOfDayMs(range.from)) return false
-  if (range.to && ms > endOfDayMs(range.to)) return false
+  if (range.from) {
+    const from = new Date(range.from)
+    from.setHours(0, 0, 0, 0)
+    if (ms < from.getTime()) return false
+  }
+  if (range.to) {
+    const to = new Date(range.to)
+    to.setHours(23, 59, 59, 999)
+    if (ms > to.getTime()) return false
+  }
   return true
 }
 

@@ -7,11 +7,7 @@ import {
   readString,
   resolveDecodedName,
 } from './decodeRawData'
-import type {
-  ActionSlot,
-  Descriptor,
-  DescriptorContext,
-} from './summarize.types'
+import type { ActionSlot, Descriptor } from './summarize.types'
 
 const isZero = (value?: string | null): boolean =>
   !value || value.toLowerCase() === zeroAddress
@@ -35,25 +31,6 @@ export const humanizeType = (type: string): string =>
     })
     .join(' ')
 
-/**
- * Actor slot for actions like "Register by {actor}". Prefers a payload address;
- * otherwise carries the txHash so EntityBadge (senderOfTxHash + resolveName) resolves
- * the sender (and its primary name) at render time — no more `—` placeholder.
- *
- * TODO(indexer): pass `Event.from` here so no RPC lookup is needed.
- */
-const actorSlot = (
-  ctx: DescriptorContext,
-  ...payloadCandidates: (string | null | undefined)[]
-): ActionSlot => {
-  const fromPayload = payloadCandidates.find((v) => v && !isZero(v))
-  return {
-    kind: 'actor',
-    txHash: ctx.primary.transactionHash,
-    address: fromPayload ?? undefined,
-  }
-}
-
 const nameSlot = (value?: string | null): ActionSlot =>
   value ? { kind: 'name', value } : { kind: 'placeholder', value: '—' }
 
@@ -62,14 +39,13 @@ const addressSlot = (value?: string | null): ActionSlot =>
 
 const contractSlot = (
   value?: string | null,
-  options?: { readonly isRegistry?: boolean; readonly label?: string },
+  isRegistry?: boolean,
 ): ActionSlot => {
   if (!value) return { kind: 'placeholder', value: '—' }
   return {
     kind: 'contract',
     value,
-    ...(options?.isRegistry ? { isRegistry: true } : {}),
-    ...(options?.label ? { label: options.label } : {}),
+    ...(isRegistry ? { isRegistry: true } : {}),
   }
 }
 
@@ -81,19 +57,6 @@ const resolvedNameSlot = (
     (candidate ? resolveDecodedName(candidate, eventName) : undefined) ??
       eventName,
   )
-
-const primaryNameAction = (
-  name: string | null | undefined,
-  address: string | null | undefined,
-) => ({
-  icon: 'primary' as const,
-  label: 'Set primary name',
-  slots: [
-    nameSlot(name),
-    { kind: 'glyph' as const, value: '↔' as const },
-    addressSlot(address),
-  ],
-})
 
 export const DESCRIPTORS: Record<string, Descriptor> = {
   AddressChanged: {
@@ -129,7 +92,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     },
   },
 
-  // No typed decoder — read from raw `data`. TODO(indexer): asContenthashChanged.
   ContenthashChanged: {
     icon: 'contenthash',
     build: ({ primary }) => {
@@ -150,13 +112,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     },
   },
 
-  // Reverse-registrar primary-name set. TODO(indexer): asNameChanged.
   NameChanged: {
     icon: 'primary',
     build: ({ primary }) => {
       const setName =
         readString(parseEventData(primary.data), 'name') ?? primary.name
-      // Address is on the reverse node — show name alone until indexer links it.
       return {
         label: 'Set primary name',
         slots: [nameSlot(setName)],
@@ -165,8 +125,14 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   },
   ReverseClaimed: {
     icon: 'primary',
-    build: ({ primary }) =>
-      primaryNameAction(primary.name, primary.asReverseClaimed?.address),
+    build: ({ primary }) => ({
+      label: 'Set primary name',
+      slots: [
+        nameSlot(primary.name),
+        { kind: 'glyph', value: '↔' },
+        addressSlot(primary.asReverseClaimed?.address),
+      ],
+    }),
   },
 
   Transfer: {
@@ -211,9 +177,12 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   },
   NameRenewed: {
     icon: 'renew',
-    build: (ctx) => ({
+    build: ({ primary }) => ({
       label: 'Renew',
-      slots: [{ kind: 'connective', value: 'by' }, actorSlot(ctx)],
+      slots: [
+        { kind: 'connective', value: 'by' },
+        { kind: 'actor', txHash: primary.transactionHash },
+      ],
     }),
   },
 
@@ -225,7 +194,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     }),
   },
 
-  // Conditional variant: linking a real registry vs clearing it. TODO(indexer): typed decoder.
   SubregistryUpdated: {
     icon: 'registry',
     build: ({ primary }) => {
@@ -239,7 +207,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
       }
       return {
         label: 'Deploy and link subregistry',
-        slots: [contractSlot(registry, { isRegistry: true })],
+        slots: [contractSlot(registry, true)],
       }
     },
   },
@@ -249,7 +217,6 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: ({ primary }) => {
       const change = decodeRoleChange(primary.data)
       const roleText = change.roles.map(humanizeRole).join(', ') || 'roles'
-      // Prefer actor so the account resolves to a primary-name badge when one exists (Figma).
       const account: ActionSlot = change.account
         ? {
             kind: 'actor',
@@ -303,5 +270,3 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     build: () => ({ label: 'Expiry updated', slots: [] }),
   },
 }
-
-export const FALLBACK_ICON = 'default' as const

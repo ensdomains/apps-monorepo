@@ -1,5 +1,5 @@
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
-import { DESCRIPTORS, FALLBACK_ICON, humanizeType } from './descriptors'
+import { DESCRIPTORS, humanizeType } from './descriptors'
 import { multiRecordRecipe } from './recipes'
 import type { Action } from './summarize.types'
 
@@ -62,12 +62,12 @@ const describeGroup = (
 
   for (const primary of byRank) {
     const descriptor = DESCRIPTORS[primary.type]
-    const built = descriptor?.build({ primary, events: group })
+    const built = descriptor?.build({ primary })
     if (built) return { ...built, icon: built.icon ?? descriptor.icon }
   }
 
   return {
-    icon: FALLBACK_ICON,
+    icon: 'default',
     label: humanizeType(byRank[0].type),
     slots: [],
   }
