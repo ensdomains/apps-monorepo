@@ -35,6 +35,7 @@ import { RecentActivity } from '@/features/profile/components/RecentActivity'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useCanEditRecords } from '@/features/records/hooks/useCanEditRecords'
 import { useSaveRecords } from '@/features/records/hooks/useSaveRecords'
+import { DEFAULT_REVERSE_REGISTRAR_ADDRESS } from '@/features/reverse-resolution/config'
 import { useSetL2ReverseName } from '@/features/reverse-resolution/hooks/useSetL2ReverseName'
 import { useSetReverseResolution } from '@/features/reverse-resolution/hooks/useSetReverseResolution'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
@@ -400,14 +401,6 @@ const ResolutionDetails = ({
 }
 
 const SET_PRIMARY_TX_ID = 'tx-forward-set-primary-name'
-
-// Standalone ENSv1 `DefaultReverseRegistrar` on Sepolia (ENSIP-19
-// `default.reverse`, coin type 0x80000000). `setName(string)` sets the caller's
-// cross-chain primary name — NOT the ENSv2 permissioned-resolver path.
-// TODO: Sepolia-only; move to a network-keyed source (e.g. @ens-apps/l2-primary)
-// when mainnet is supported.
-const DEFAULT_REVERSE_REGISTRAR_ADDRESS =
-  '0x4f382928805ba0e23b30cfb75fc9e848e82dfd47' as const
 
 /**
  * Owns the two write flows for the selected network — editing the

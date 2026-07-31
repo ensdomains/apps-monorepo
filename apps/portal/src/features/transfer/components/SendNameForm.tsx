@@ -6,14 +6,6 @@ import { type Address, isAddressEqual, zeroAddress } from 'viem'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { AddressNameInput } from '@/features/address/components/AddressNameInput'
@@ -21,8 +13,8 @@ import { useAddressResolution } from '@/features/address/hooks/useAddressResolut
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getPrimaryNameQueryOptions } from '@/features/profile/hooks/usePrimaryName'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
+import { useTransferDetachTargets } from '../hooks/useTransferDetachTargets'
 import { useTransferName } from '../hooks/useTransferName'
-import { useTransferResetTargets } from '../hooks/useTransferResetTargets'
 import type { TransferOptions } from '../utils/buildTransferPlan'
 
 type SendNameFormProps = {
@@ -31,24 +23,40 @@ type SendNameFormProps = {
   readonly owner: Address
 }
 
+type OptionKey = 'setEthAddress' | 'detachResolver' | 'detachRegistry'
+
 type OptionConfig = {
-  readonly key: keyof TransferOptions
+  readonly key: OptionKey
   readonly label: string
   readonly description: string
+  /** Shown right below the toggle when it's turned off. */
+  readonly warning: string
 }
 
 const OPTIONS: readonly OptionConfig[] = [
   {
-    key: 'resetResolver',
-    label: 'Reset the resolver',
+    key: 'setEthAddress',
+    label: 'Set the ETH address to the recipient',
     description:
-      'Removes this name’s resolver so it stops resolving to your records. The recipient starts clean and sets up their own.',
+      'Points this name’s ETH address record at the recipient, so it can no longer resolve to you.',
+    warning:
+      'This name’s ETH address will keep pointing to you after the transfer, so you could re-set it as your primary name. Turn this on to point it at the recipient instead.',
   },
   {
-    key: 'resetRegistry',
-    label: 'Reset the registry',
+    key: 'detachResolver',
+    label: 'Detach the resolver',
     description:
-      'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean and deploys their own.',
+      'Detaches this name’s resolver so it stops resolving to your records entirely. The recipient starts clean and sets up their own.',
+    warning:
+      'This name’s other records will keep resolving after the transfer. Until the recipient updates them, it could still be listed as the primary name for an address that no longer controls it.',
+  },
+  {
+    key: 'detachRegistry',
+    label: 'Detach the registry',
+    description:
+      'Detaches this name’s registry so its subnames stop resolving. The recipient starts clean.',
+    warning:
+      'You’ll keep control of this name’s subnames after transfer — the name will keep pointing at your registry.',
   },
 ]
 
@@ -58,17 +66,17 @@ export const SendNameForm = ({
   owner,
 }: SendNameFormProps) => {
   const [recipientInput, setRecipientInput] = useState('')
-  const [options, setOptions] = useState<TransferOptions>({
-    resetResolver: true,
-    resetRegistry: true,
+  const [options, setOptions] = useState<Record<OptionKey, boolean>>({
+    setEthAddress: true,
+    detachResolver: true,
+    detachRegistry: true,
   })
-  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const {
     optionIsVisible,
-    settled: resetTargetsSettled,
-    failed: resetTargetsFailed,
-  } = useTransferResetTargets({ name })
+    settled: detachTargetsSettled,
+    failed: detachTargetsFailed,
+  } = useTransferDetachTargets({ name })
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution
@@ -80,42 +88,24 @@ export const SendNameForm = ({
   const isZeroAddress = !!recipient && isAddressEqual(recipient, zeroAddress)
   const hasValidRecipient = !!recipient && !isSelf && !isZeroAddress
 
-  // A hidden option never contributes to the plan, regardless of its stored
-  // toggle value, so fold visibility into the options we hand off.
+  // A hidden option never contributes to the plan, whatever its stored value.
   const effectiveOptions: TransferOptions = {
-    resetResolver: options.resetResolver && optionIsVisible.resetResolver,
-    resetRegistry: options.resetRegistry && optionIsVisible.resetRegistry,
+    setEthAddress: options.setEthAddress && optionIsVisible.setEthAddress,
+    detachResolver: options.detachResolver && optionIsVisible.detachResolver,
+    detachRegistry: options.detachRegistry && optionIsVisible.detachRegistry,
   }
 
   const visibleOptions = OPTIONS.filter((option) => optionIsVisible[option.key])
 
   const canStart =
-    hasValidRecipient && !isResolving && !isPreparing && resetTargetsSettled
+    hasValidRecipient && !isResolving && !isPreparing && detachTargetsSettled
 
-  const keepsResolver = optionIsVisible.resetResolver && !options.resetResolver
-  const keepsRegistry = optionIsVisible.resetRegistry && !options.resetRegistry
-  const needsConfirmation = keepsResolver || keepsRegistry
-
-  const toggleOption = (key: keyof TransferOptions) =>
+  const toggleOption = (key: OptionKey) =>
     setOptions((prev) => ({ ...prev, [key]: !prev[key] }))
 
   const runTransfer = () => {
-    if (!recipient || !resetTargetsSettled) return
+    if (!recipient || !canStart) return
     startTransfer({ recipient, options: effectiveOptions })
-  }
-
-  const handleStart = () => {
-    if (!recipient) return
-    if (needsConfirmation) {
-      setConfirmOpen(true)
-      return
-    }
-    runTransfer()
-  }
-
-  const handleConfirmProceed = () => {
-    setConfirmOpen(false)
-    runTransfer()
   }
 
   return (
@@ -146,7 +136,7 @@ export const SendNameForm = ({
       </div>
 
       {hasValidRecipient && (
-        <TransferResetOptions
+        <TransferDetachOptions
           options={options}
           visibleOptions={visibleOptions}
           onToggle={toggleOption}
@@ -155,14 +145,14 @@ export const SendNameForm = ({
 
       <Button
         variant="default"
-        onClick={handleStart}
+        onClick={runTransfer}
         disabled={!canStart}
         className="flex items-center justify-center gap-2 w-fit"
       >
         {isPreparing ? 'Preparing…' : 'Transfer name'}
       </Button>
 
-      {hasValidRecipient && resetTargetsFailed && (
+      {hasValidRecipient && detachTargetsFailed && (
         <span className="text-destructive text-sm">
           Couldn’t check this name’s current resolver and registry. Refresh and
           try again before transferring.
@@ -173,53 +163,64 @@ export const SendNameForm = ({
         <span className="text-destructive text-sm">{prepError.message}</span>
       )}
 
-      <TransferConfirmDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        keepsResolver={keepsResolver}
-        keepsRegistry={keepsRegistry}
-        isPreparing={isPreparing}
-        onConfirm={handleConfirmProceed}
-      />
-
       <TransactionModal transactions={transactions} />
     </div>
   )
 }
 
-const TransferResetOptions = ({
+const TransferDetachOptions = ({
   options,
   visibleOptions,
   onToggle,
 }: {
-  readonly options: TransferOptions
+  readonly options: Record<OptionKey, boolean>
   readonly visibleOptions: readonly OptionConfig[]
-  readonly onToggle: (key: keyof TransferOptions) => void
+  readonly onToggle: (key: OptionKey) => void
 }) => {
   if (visibleOptions.length === 0) return null
 
   return (
-    <div className="flex flex-col gap-3">
-      {visibleOptions.map((option) => (
-        <label
-          key={option.key}
-          htmlFor={`transfer-option-${option.key}`}
-          className="flex items-start justify-between gap-3 cursor-pointer"
-        >
-          <span className="flex flex-col">
-            <span className="text-foreground font-medium">{option.label}</span>
-            <span className="text-muted-foreground text-sm">
-              {option.description}
-            </span>
-          </span>
-          <Switch
-            id={`transfer-option-${option.key}`}
-            checked={options[option.key]}
-            onCheckedChange={() => onToggle(option.key)}
-            className="mt-1 shrink-0"
-          />
-        </label>
-      ))}
+    <div className="flex flex-col gap-4">
+      {visibleOptions.map((option) => {
+        const disabled =
+          option.key === 'setEthAddress' && options.detachResolver
+
+        return (
+          <div key={option.key} className="flex flex-col gap-2">
+            <label
+              htmlFor={`transfer-option-${option.key}`}
+              className={`flex items-start justify-between gap-3 ${
+                disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              }`}
+            >
+              <span className="flex flex-col">
+                <span className="text-foreground font-medium">
+                  {option.label}
+                </span>
+                <span className="text-muted-foreground text-sm">
+                  {disabled
+                    ? 'Not needed while the resolver is being detached.'
+                    : option.description}
+                </span>
+              </span>
+              <Switch
+                id={`transfer-option-${option.key}`}
+                checked={options[option.key]}
+                onCheckedChange={() => onToggle(option.key)}
+                disabled={disabled}
+                className="mt-1 shrink-0"
+              />
+            </label>
+
+            {!disabled && !options[option.key] && (
+              <Alert variant="warning">
+                <AlertTriangle className="size-4" />
+                <AlertDescription>{option.warning}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -248,82 +249,6 @@ const RecipientResolvedContent = ({
       <RecipientPreview address={recipient} />
     ))
     .otherwise(() => null)
-
-const TransferConfirmDialog = ({
-  open,
-  onOpenChange,
-  keepsResolver,
-  keepsRegistry,
-  isPreparing,
-  onConfirm,
-}: {
-  readonly open: boolean
-  readonly onOpenChange: (open: boolean) => void
-  readonly keepsResolver: boolean
-  readonly keepsRegistry: boolean
-  readonly isPreparing: boolean
-  readonly onConfirm: () => void
-}) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="max-w-lg">
-      <DialogHeader>
-        <DialogTitle>Transfer without resetting?</DialogTitle>
-        <DialogDescription>
-          You’ve chosen to leave{' '}
-          {match({ keepsResolver, keepsRegistry })
-            .with({ keepsResolver: true, keepsRegistry: true }, () => (
-              <>this name’s resolver and registry</>
-            ))
-            .with({ keepsResolver: true }, () => <>this name’s resolver</>)
-            .otherwise(() => (
-              <>this name’s registry</>
-            ))}{' '}
-          in place. Before you continue, note that:
-        </DialogDescription>
-      </DialogHeader>
-
-      <ul className="flex flex-col gap-2 text-sm text-muted-foreground list-disc pl-5">
-        {keepsResolver && (
-          <li>
-            You may keep permission to edit this name’s records after the
-            transfer, since the resolver stays under your control.
-          </li>
-        )}
-        {keepsRegistry && (
-          <li>
-            You may keep control of this name’s subnames after the transfer,
-            since the registry stays under your control.
-          </li>
-        )}
-        <li>
-          The recipient may need to deploy their own{' '}
-          {match({ keepsResolver, keepsRegistry })
-            .with({ keepsResolver: true, keepsRegistry: true }, () => (
-              <>resolver and registry</>
-            ))
-            .with({ keepsResolver: true }, () => <>resolver</>)
-            .otherwise(() => (
-              <>registry</>
-            ))}{' '}
-          before they can edit records or set this name as their primary name.
-        </li>
-      </ul>
-
-      <DialogFooter>
-        <Button
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          disabled={isPreparing}
-        >
-          Back
-        </Button>
-        <Button variant="default" onClick={onConfirm} disabled={isPreparing}>
-          {isPreparing ? 'Preparing…' : 'Transfer anyway'}
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-)
 
 const RecipientPreview = ({ address }: { address: Address }) => {
   const { data: primaryName, isLoading } = useQuery(

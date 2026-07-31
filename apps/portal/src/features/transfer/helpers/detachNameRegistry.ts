@@ -25,7 +25,7 @@ import {
 } from 'viem'
 import type { WalletClientWithAccount } from '@/utils/types'
 
-export interface ResetNameRegistryParameters {
+export interface DetachNameRegistryParameters {
   readonly name: string
   readonly label: string
   /** The parent registry that holds the name's token. */
@@ -37,12 +37,12 @@ export interface ResetNameRegistryParameters {
   readonly id: string
 }
 
-export interface ResetNameRegistryResult {
+export interface DetachNameRegistryResult {
   readonly txId: string
   readonly hash: Hex
 }
 
-export const resetNameRegistry = async ({
+export const detachNameRegistry = async ({
   name,
   label,
   registryAddress,
@@ -51,7 +51,7 @@ export const resetNameRegistry = async ({
   signer,
   chainId,
   id,
-}: ResetNameRegistryParameters): Promise<ResetNameRegistryResult> => {
+}: DetachNameRegistryParameters): Promise<DetachNameRegistryResult> => {
   if (!walletClient.account) {
     throw new Error('Wallet client must have account configured')
   }
@@ -84,7 +84,7 @@ export const resetNameRegistry = async ({
     signer,
     {
       id,
-      description: `Reset registry for ${name}`,
+      description: `Detach registry for ${name}`,
       publicClient,
       timeout: 120_000,
     },
