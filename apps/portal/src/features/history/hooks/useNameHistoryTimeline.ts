@@ -124,6 +124,8 @@ type GetNameHistoryTimelineParameters = {
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
 
+export const HISTORY_TIMELINE_PAGE_SIZE = 100
+
 const HISTORY_TIMELINE_QUERY = gql`
   query getNameHistoryTimeline(
     $name: String!
@@ -164,7 +166,7 @@ const HISTORY_TIMELINE_QUERY = gql`
 
 const getNameHistoryTimeline = ResultFn(async function* ({
   name,
-  first = 100,
+  first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
 }: GetNameHistoryTimelineParameters) {
   const { domains } = yield* fromPromise(

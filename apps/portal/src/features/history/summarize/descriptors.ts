@@ -172,7 +172,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'register',
     build: (primary) => ({
       label: 'Register name',
-      slots: [resolvedNameSlot(primary.asNameRegistered?.name, primary.name)],
+      slots: [
+        resolvedNameSlot(primary.asNameRegistered?.name, primary.name),
+        { kind: 'connective', value: 'by' },
+        { kind: 'actor', txHash: primary.transactionHash },
+      ],
     }),
   },
   NameRenewed: {

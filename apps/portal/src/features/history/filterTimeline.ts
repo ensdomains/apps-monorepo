@@ -26,13 +26,22 @@ export const filterActions = (
   actions: readonly Action[],
   dateRange: DateRange,
   selectedTypes: readonly string[],
-): Action[] =>
-  actions.filter(
-    (action) =>
-      isWithinRange(action.timestamp, dateRange) &&
-      (selectedTypes.length === 0 ||
-        action.events.some((event) => selectedTypes.includes(event.type))),
-  )
+): Action[] => {
+  const result: Action[] = []
+  for (const action of actions) {
+    if (!isWithinRange(action.timestamp, dateRange)) continue
+    if (selectedTypes.length === 0) {
+      result.push(action)
+      continue
+    }
+    const events = action.events.filter((event) =>
+      selectedTypes.includes(event.type),
+    )
+    if (events.length === 0) continue
+    result.push({ ...action, events })
+  }
+  return result
+}
 
 /** Build the "Event" multi-select options from the event types present in the data. */
 export const buildEventTypeGroups = (

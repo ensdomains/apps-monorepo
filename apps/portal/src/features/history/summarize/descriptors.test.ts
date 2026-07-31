@@ -43,15 +43,22 @@ describe('Figma history labels', () => {
     })
   })
 
-  it('NameRegistered is Register name with the name chip', () => {
+  it('NameRegistered is Register name by the tx sender', () => {
     const built = DESCRIPTORS.NameRegistered.build({
       ...base,
       type: 'NameRegistered',
-      asNameRegistered: { name: 'collector.eth' },
+      asNameRegistered: {
+        name: 'collector.eth',
+        owner: '0xowner000000000000000000000000000000000001',
+      },
     } as TimelineIndexerEvent)
     expect(built).toEqual({
       label: 'Register name',
-      slots: [{ kind: 'name', value: 'collector.eth' }],
+      slots: [
+        { kind: 'name', value: 'collector.eth' },
+        { kind: 'connective', value: 'by' },
+        { kind: 'actor', txHash: '0xabc' },
+      ],
     })
   })
 

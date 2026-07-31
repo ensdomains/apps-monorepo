@@ -11,7 +11,10 @@ import { Timeline } from '@/components/ui/timeline'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import { formatTimelineDate } from '../formatTimelineDate'
-import { getNameHistoryTimelineQueryOptions } from '../hooks/useNameHistoryTimeline'
+import {
+  getNameHistoryTimelineQueryOptions,
+  HISTORY_TIMELINE_PAGE_SIZE,
+} from '../hooks/useNameHistoryTimeline'
 import { summarizeEvents } from '../summarize/summarizeEvents'
 import { ActionSummaryRow } from './ActionSummaryRow'
 
@@ -110,6 +113,11 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
         />
       ) : (
         <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:182px]">
+          {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
+            <p className="mb-3 text-muted-foreground text-sm">
+              Showing the most recent {HISTORY_TIMELINE_PAGE_SIZE} events.
+            </p>
+          )}
           <span
             aria-hidden
             className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-0.5 bg-neutral-2"
