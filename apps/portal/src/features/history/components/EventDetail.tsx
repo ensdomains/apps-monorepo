@@ -119,8 +119,8 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
     )
   }
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-separate border-spacing-y-2 text-sm">
+    <div className="w-full overflow-x-auto overscroll-x-contain [contain:inline-size] sm:overflow-x-visible sm:[contain:none]">
+      <table className="w-max min-w-full border-separate border-spacing-y-2 text-sm sm:w-full">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
             <th className="py-1.5 pr-6 font-medium">Parameter</th>
@@ -157,7 +157,9 @@ const MetaRow = ({
 }) => (
   <div className="flex items-baseline gap-4 py-1 text-muted-foreground">
     <span className="w-24 shrink-0 text-sm sm:w-40">{label}</span>
-    <span className="font-mono text-sm min-w-0">{children}</span>
+    <span className="shrink-0 font-mono text-sm sm:min-w-0 sm:shrink">
+      {children}
+    </span>
   </div>
 )
 
@@ -204,36 +206,38 @@ export const TransactionMeta = ({
   )
 
   return (
-    <div className="flex flex-col gap-y-2">
-      <MetaRow label="Transaction">
-        <EntityBadge
-          variant="tx"
-          copyValue={txHash}
-          etherscanHref={txUrl}
-          compact
-        >
-          <FullOnDesktop value={txHash} />
-        </EntityBadge>
-      </MetaRow>
-      <MetaRow label="Block">{event.blockNumber}</MetaRow>
-      <MetaRow label="Timestamp">
-        {formatTimestamp(BigInt(event.timestamp)) ?? '—'} UTC
-      </MetaRow>
-      <MetaRow label="From">{fromValue}</MetaRow>
-      <MetaRow label="To">{toValue}</MetaRow>
-      {tx?.value !== 0n && (
-        <MetaRow label="Value">
-          {tx ? `${formatEther(tx.value)} ETH` : pending}
+    <div className="w-full overflow-x-auto overscroll-x-contain [contain:inline-size] sm:overflow-x-visible sm:[contain:none]">
+      <div className="flex w-max min-w-full flex-col gap-y-2 sm:w-full">
+        <MetaRow label="Transaction">
+          <EntityBadge
+            variant="tx"
+            copyValue={txHash}
+            etherscanHref={txUrl}
+            compact
+          >
+            <FullOnDesktop value={txHash} />
+          </EntityBadge>
         </MetaRow>
-      )}
-      <MetaRow label="Gas used">
-        {receipt ? receipt.gasUsed.toString() : pending}
-      </MetaRow>
-      <MetaRow label="Gas price">
-        {receipt?.effectiveGasPrice
-          ? `${formatGwei(receipt.effectiveGasPrice)} gwei`
-          : pending}
-      </MetaRow>
+        <MetaRow label="Block">{event.blockNumber}</MetaRow>
+        <MetaRow label="Timestamp">
+          {formatTimestamp(BigInt(event.timestamp)) ?? '—'} UTC
+        </MetaRow>
+        <MetaRow label="From">{fromValue}</MetaRow>
+        <MetaRow label="To">{toValue}</MetaRow>
+        {tx?.value !== 0n && (
+          <MetaRow label="Value">
+            {tx ? `${formatEther(tx.value)} ETH` : pending}
+          </MetaRow>
+        )}
+        <MetaRow label="Gas used">
+          {receipt ? receipt.gasUsed.toString() : pending}
+        </MetaRow>
+        <MetaRow label="Gas price">
+          {receipt?.effectiveGasPrice
+            ? `${formatGwei(receipt.effectiveGasPrice)} gwei`
+            : pending}
+        </MetaRow>
+      </div>
     </div>
   )
 }
