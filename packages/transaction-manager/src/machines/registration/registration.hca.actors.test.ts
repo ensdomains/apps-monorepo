@@ -138,6 +138,30 @@ describe('submitFundingAndCommitActor', () => {
     )
   })
 
+  it('rejects a funding batch whose sessionEnable carries no enableData', async () => {
+    // The enable CALL is built from permissionId/sessionKey/validUntil while the
+    // PROOF is `enableData`, so a payload with the first three and not the
+    // fourth produced a batch containing `enableSessionWithRefund` that was
+    // nonetheless signed WITHOUT the proof. The SDK derives the mode solely
+    // from `signers.enableData` being truthy, so it silently signed mode 0x02
+    // and the validator rejected the permit with ActionNotAllowed(USDC, permit)
+    // -- surfaced as InvalidSignature(). The old guard tested the wrapper and
+    // let this straight through.
+    const { enableData: _dropped, ...hollow } = sessionEnable
+
+    const result = await submitFundingAndCommitActor({
+      ...input,
+      permit,
+      sessionEnable: hollow as typeof sessionEnable,
+    })
+
+    expect(result.isErr()).toBe(true)
+    expect(result._unsafeUnwrapErr().message).toMatch(/enableData=MISSING/)
+    // Nothing must reach the orchestrator: an intent signed without the proof
+    // burns a real commitment and a real fee before reverting.
+    expect(startTransaction).not.toHaveBeenCalled()
+  })
+
   it('declares the permit inflow as auxiliary funds so the intent can be planned', async () => {
     // The HCA's USDC arrives DURING the intent (permit → transferFrom), so the
     // planner cannot see it when it decides whether a route exists. Left

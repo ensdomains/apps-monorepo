@@ -668,12 +668,28 @@ export function submitFundingAndCommitActor(input: {
       // the emissary re-wraps as `InvalidSignature()` (0x8baa579f) — an error
       // that says nothing about the real cause. Fail here instead, where the
       // message can name it.
-      if (input.permit && !input.sessionEnable) {
+      // Check `enableData` itself, NOT just its wrapper.
+      //
+      // Testing `!input.sessionEnable` let a hollow object through: the enable
+      // CALL is built from `.permissionId`/`.sessionKey`/`.validUntil` below,
+      // while the PROOF is `.enableData`, so a payload carrying the first three
+      // and not the fourth produced a batch that contained
+      // `enableSessionWithRefund` yet signed without the proof. The SDK picks
+      // the mode purely from `signers.enableData` being truthy
+      // (`packStandaloneHcaFixedSessionSignature`: truthy -> 0x05 with proof,
+      // falsy + gas refund -> 0x02), so an absent proof silently downgrades to
+      // 0x02 and the validator then rejects `permit`. That is precisely the
+      // failure this guard exists to prevent, and it walked straight past it.
+      if (input.permit && !input.sessionEnable?.enableData) {
         throw new Error(
           'HCA funding permit requires the session-enable proof in the same ' +
             'batch: the validator rejects USDC.permit outside the initial ' +
-            'registration policy path (ActionNotAllowed(USDC, permit)). ' +
-            'Attach `sessionEnable` whenever `permit` is set.',
+            'registration policy path (ActionNotAllowed(USDC, permit), masked ' +
+            'as InvalidSignature()). Attach `sessionEnable.enableData` ' +
+            'whenever `permit` is set. Received: ' +
+            `sessionEnable=${input.sessionEnable ? 'present' : 'MISSING'}, ` +
+            `enableData=${input.sessionEnable?.enableData ? 'present' : 'MISSING'}, ` +
+            `permissionId=${input.sessionEnable?.permissionId ?? 'MISSING'}`,
         )
       }
 
