@@ -1,0 +1,77 @@
+name: Build DQA Server Image
+
+# The shared DQA server (QA tooling: design-review comments pinned to live
+# preview pages) is deployed from this image. Building it here rather than at
+# deploy time means the overlay bundle is produced against the repo's pinned
+# pnpm-lock.yaml instead of an unpinned `npm install` inside the Dockerfile.
+#
+# Pull requests build without pushing, purely to catch Dockerfile breakage:
+# nothing else in CI builds this image (the e2e compose stack doesn't start
+# `dqa`, and per railway-pr-infra.yml PR previews deliberately reuse the shared
+# instance rather than building one).
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/dqa-server/**'
+      - '.github/workflows/build-dqa-server.yml'
+  pull_request:
+    paths:
+      - 'packages/dqa-server/**'
+      - '.github/workflows/build-dqa-server.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Fork PRs get a read-only GITHUB_TOKEN, so only authenticate when we
+      # actually intend to push. `push: false` below keeps PR runs useful.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/ensdomains/dqa-server
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: packages/dqa-server
+          # arm64 roughly doubles build time and PR runs only need to prove the
+          # Dockerfile still builds; Railway runs amd64, arm64 is for local
+          # Apple Silicon pulls.
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
