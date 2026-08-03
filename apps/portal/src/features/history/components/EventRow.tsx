@@ -1,10 +1,6 @@
-import { ChevronDown } from 'lucide-react'
-import { useState } from 'react'
 import { match } from 'ts-pattern'
 import { zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
-import { TimelineRow } from '@/components/ui/timeline'
-import { cn } from '@/lib/utils'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { getContractLabel } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -15,6 +11,7 @@ import {
 } from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
 import { DecodedParams } from './EventDetail'
+import { ExpandableDetailRow } from './ExpandableDetailRow'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
   <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-sm">
@@ -103,53 +100,31 @@ interface EventRowProps {
 }
 
 export const EventRow = ({ event }: EventRowProps) => {
-  const [isOpen, setIsOpen] = useState(false)
-
   const contractAddress = event.contractAddress ?? undefined
   const contractExplorerUrl = useBlockExplorerAddressUrl(contractAddress)
 
   return (
-    <TimelineRow
-      isOpen={isOpen}
-      hoverHighlight={false}
-      onToggle={() => setIsOpen((open) => !open)}
-      className="ml-(--tier2-indent) pl-2"
-      disclosure={
-        <div className="py-1 pl-(--detail-indent)">
-          <DecodedParams event={event} />
-        </div>
+    <ExpandableDetailRow
+      left={
+        <>
+          <Mono>{event.type}</Mono>
+          <EventContent event={event} />
+        </>
       }
-    >
-      <div className="flex items-start gap-2 py-2 pr-3">
-        <span className="inline-flex shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1 text-neutral-5">
-          <ChevronDown
-            className={cn(
-              'size-5.25 stroke-[1.25] transition-transform duration-150',
-              isOpen && 'rotate-180 text-neutral-7',
-            )}
-            aria-hidden
-          />
-        </span>
-        <div className="grid min-w-0 flex-1 grid-cols-1 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Mono>{event.type}</Mono>
-            <EventContent event={event} />
-          </div>
-          <div className="justify-self-start sm:justify-self-end">
-            {contractAddress && (
-              <EntityBadge
-                variant="contract"
-                address={contractAddress}
-                label={getContractLabel(contractAddress)}
-                etherscanHref={contractExplorerUrl}
-                compact
-              >
-                {truncateAddress(contractAddress)}
-              </EntityBadge>
-            )}
-          </div>
-        </div>
-      </div>
-    </TimelineRow>
+      right={
+        contractAddress ? (
+          <EntityBadge
+            variant="contract"
+            address={contractAddress}
+            label={getContractLabel(contractAddress)}
+            etherscanHref={contractExplorerUrl}
+            compact
+          >
+            {truncateAddress(contractAddress)}
+          </EntityBadge>
+        ) : undefined
+      }
+      disclosure={<DecodedParams event={event} />}
+    />
   )
 }

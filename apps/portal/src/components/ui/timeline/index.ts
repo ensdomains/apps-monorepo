@@ -1,4 +1,3 @@
 export { Timeline } from './Timeline'
-export { TimelineDisclosure } from './TimelineDisclosure'
+export type { TimelineRowProps } from './TimelineRow'
 export { TimelineRow } from './TimelineRow'
-export type { TimelineRowProps } from './timeline.types'

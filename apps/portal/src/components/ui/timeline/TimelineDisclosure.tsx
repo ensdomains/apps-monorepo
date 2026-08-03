@@ -8,15 +8,9 @@ interface TimelineDisclosureProps {
 }
 
 /**
- * Two-phase reveal, per the History timeline design notes:
- *   1. Expand the whitespace to the height the new rows need — `grid-template-rows`
- *      0fr → 1fr over 150ms. (Animating grid rows avoids measuring `height:auto`.)
- *   2. THEN fade the content in — opacity over 100ms, delayed 150ms so it only
- *      begins once the space exists.
- *
- * `overflow-hidden` is required to clip the content to the animating height — but only
- * while animating. Once fully open we switch to `overflow-visible` so descendants'
- * hover popovers (EntityBadge chips overflow upward) aren't clipped.
+ * Expand/collapse nested timeline content: grow height, then fade in.
+ * Stays overflow-hidden while animating; overflow-visible when settled so
+ * EntityBadge hover chips aren't clipped.
  */
 const SETTLE_MS = 300
 

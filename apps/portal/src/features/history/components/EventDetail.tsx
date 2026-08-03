@@ -53,21 +53,32 @@ const inferFieldType = (value: unknown): string => {
   return 'string'
 }
 
-const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
-  AddressChanged: 'asAddressChanged',
-  AddrChanged: 'asAddressChanged',
-  TextChanged: 'asTextChanged',
-  Transfer: 'asTransfer',
-  RegistryTransfer: 'asRegistryTransfer',
-  LabelRegistered: 'asLabelRegistered',
-  NameRegistered: 'asNameRegistered',
-  NameRenewed: 'asNameRenewed',
-  ResolverUpdated: 'asResolverUpdated',
-  ReverseClaimed: 'asReverseClaimed',
-  NameWrapped: 'asNameWrapped',
-  NameUnwrapped: 'asNameUnwrapped',
-  FusesSet: 'asFusesSet',
-  ExpiryUpdated: 'asExpiryUpdated',
+const PAYLOAD_KEYS = [
+  'asAddressChanged',
+  'asTextChanged',
+  'asTransfer',
+  'asRegistryTransfer',
+  'asLabelRegistered',
+  'asNameRegistered',
+  'asNameRenewed',
+  'asResolverUpdated',
+  'asReverseClaimed',
+  'asNameWrapped',
+  'asNameUnwrapped',
+  'asFusesSet',
+  'asExpiryUpdated',
+] as const satisfies ReadonlyArray<keyof TimelineDecoded>
+
+const getDecodedPayload = (
+  event: TimelineIndexerEvent,
+): Record<string, unknown> => {
+  for (const key of PAYLOAD_KEYS) {
+    const payload = event[key]
+    if (payload && typeof payload === 'object') {
+      return payload as Record<string, unknown>
+    }
+  }
+  return parseEventData(event.data)
 }
 
 const DecodedValue = ({
@@ -122,9 +133,7 @@ const DecodedValue = ({
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
 export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
-  const payloadKey = PAYLOAD_KEY_BY_TYPE[event.type]
-  const source = (payloadKey && event[payloadKey]) || parseEventData(event.data)
-  const entries = Object.entries(source)
+  const entries = Object.entries(getDecodedPayload(event))
     .filter(([, value]) => value != null && value !== '')
     .map(([key, value]) => [key, String(value)] as const)
 
@@ -136,7 +145,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
     )
   }
   return (
-    <div className="w-full overflow-x-auto overscroll-x-contain [contain:inline-size] sm:overflow-x-visible sm:[contain:none]">
+    <div className="w-full overflow-x-auto overscroll-x-contain contain-[inline-size] sm:overflow-x-visible sm:[contain:none]">
       <table className="w-max min-w-full border-separate border-spacing-y-2 text-sm sm:w-full">
         <thead>
           <tr className="text-left text-[11px] text-muted-foreground uppercase tracking-wide">
