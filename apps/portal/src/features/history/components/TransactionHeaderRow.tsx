@@ -23,6 +23,7 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
   return (
     <TimelineRow
       isOpen={isOpen}
+      hoverHighlight={false}
       onToggle={() => setIsOpen((open) => !open)}
       className="ml-(--tier2-indent) pl-2"
       disclosure={
@@ -31,29 +32,36 @@ export const TransactionHeaderRow = ({ event }: TransactionHeaderRowProps) => {
         </div>
       }
     >
-      <div className="grid grid-cols-1 gap-y-1 py-2 pr-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex items-start gap-2 py-2 pr-3">
+        <span className="inline-flex shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1 text-neutral-5">
           <ChevronDown
             className={cn(
-              'size-3.5 shrink-0 text-muted-foreground transition-transform duration-150',
-              isOpen && 'rotate-180',
+              'size-5.25 stroke-[1.25] transition-transform duration-150',
+              isOpen && 'rotate-180 text-neutral-7',
             )}
+            aria-hidden
           />
-          <AccountBadge txHash={event.transactionHash} />
-          <span className="text-muted-foreground text-sm">
-            initiated at {formatTimelineTime(event.timestamp)}
-          </span>
-        </div>
-        <div className="justify-self-start whitespace-nowrap sm:justify-self-end">
-          <EntityBadge
-            variant="tx"
-            label={formatExpiryDate(unixSecondsToPlainDateUtc(event.timestamp))}
-            copyValue={event.transactionHash}
-            etherscanHref={txUrl}
-            compact
-          >
-            {truncateAddress(event.transactionHash)}
-          </EntityBadge>
+        </span>
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-3 sm:gap-y-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <AccountBadge txHash={event.transactionHash} />
+            <span className="text-muted-foreground text-sm">
+              initiated at {formatTimelineTime(event.timestamp)}
+            </span>
+          </div>
+          <div className="justify-self-start whitespace-nowrap sm:justify-self-end">
+            <EntityBadge
+              variant="tx"
+              label={formatExpiryDate(
+                unixSecondsToPlainDateUtc(event.timestamp),
+              )}
+              copyValue={event.transactionHash}
+              etherscanHref={txUrl}
+              compact
+            >
+              {truncateAddress(event.transactionHash)}
+            </EntityBadge>
+          </div>
         </div>
       </div>
     </TimelineRow>

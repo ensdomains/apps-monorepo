@@ -13,6 +13,7 @@ export type TimelineRowProps = {
   readonly isOpen?: boolean
   /** When false the row is static (no toggle, no hover affordance). */
   readonly isInteractive?: boolean
+  readonly hoverHighlight?: boolean
   readonly onToggle?: () => void
   readonly className?: string
   /** The full row content (the caller owns its layout/grid). */
