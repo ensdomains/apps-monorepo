@@ -546,7 +546,7 @@ app.post('/api/comments/:id/linear', requireAuth, async (req, res) => {
     action?: string
     priority?: number
   }
-  // A ticket chosen in the picker overrides the page's default data-linear-issue.
+  // A ticket chosen in the picker overrides the page's default (?issue=).
   const issueRef = body.issueRef || comment.issueRef || null
   const action: PushAction | null = PUSH_ACTIONS.includes(
     body.action as PushAction,
