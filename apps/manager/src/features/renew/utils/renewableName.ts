@@ -45,3 +45,18 @@ export const canRenewV2Name = (
   if (parsed.isErr()) return false
   return isRenewableV2EthName(`${parsed.value.label}.eth`, expiryDate)
 }
+
+/**
+ * Expiry-aware bulk-selection eligibility for a dashboard domain. Mirrors the
+ * single-name route's `canRenewV2Name` check so a name can only be selected for
+ * bulk renewal if it's still renewable (syntax + within the v2 grace window),
+ * not merely a `.eth` 2LD. `expirySeconds` is the on-chain expiry in seconds.
+ */
+export const isRenewableV2Domain = (
+  name: string,
+  expirySeconds: number | null | undefined,
+): boolean =>
+  canRenewV2Name(
+    name,
+    expirySeconds == null ? null : new Date(expirySeconds * 1000),
+  )

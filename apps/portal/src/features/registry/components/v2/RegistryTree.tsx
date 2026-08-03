@@ -27,8 +27,8 @@ export const RegistryTree = ({
   if (error)
     return (
       <ErrorMessage
-        title={error.cause.name}
-        description={error.message || error.cause.message}
+        compact
+        description="Error fetching the registry. Please refresh the page."
       />
     )
 

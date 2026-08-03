@@ -6,6 +6,7 @@ import { useWalletClient } from 'wagmi'
 import { DataTable } from '@/components/DataTable'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import {
   buildEditActionColumn,
   buildRoleColumns,
@@ -74,11 +75,20 @@ export const RegistryRolesTable = ({
   if (error) {
     return (
       <ErrorMessage
-        title="Failed to load roles"
-        description={error.cause?.message ?? error.message}
+        compact
+        description="Error fetching roles. Please refresh the page."
       />
     )
   }
+
+  if (rows.length === 0)
+    return (
+      <NoResultsMessage
+        title="No role holders yet"
+        description="Accounts with roles on this registry will appear here."
+        className="mx-0"
+      />
+    )
 
   return (
     <div className={rolesTableClassName(showActions)}>

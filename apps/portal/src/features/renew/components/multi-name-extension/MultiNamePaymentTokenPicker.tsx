@@ -131,8 +131,6 @@ export const MultiNamePaymentTokenPicker = ({
         icon={<AlertTriangle className="size-6" />}
         title="Couldn't load renewal prices"
         className="xl:min-w-none"
-        titleClassName="text-base text-inherit font-medium"
-        descriptionClassName="text-sm text-inherit"
         description="We couldn't fetch the renewal price for one or more names. Please try again in a moment."
       />
     )
@@ -217,8 +215,6 @@ export const MultiNamePaymentTokenPicker = ({
           icon={<AlertTriangle className="size-6" />}
           title="Insufficient balance"
           className="xl:min-w-none"
-          titleClassName="text-base text-inherit font-medium"
-          descriptionClassName="text-sm text-inherit"
           description="You'll need to hold USDC or DAI in your connected wallet to complete the renewal."
         />
       ) : (

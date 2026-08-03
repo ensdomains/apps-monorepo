@@ -6,7 +6,9 @@ import { GripHorizontal } from 'lucide-react'
 import type { Address } from 'viem/accounts'
 import { DataTable } from '@/components/DataTable'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Badge } from '@/components/ui/badge'
 import { NameMobileCard } from '@/features/names/components/NameMobileCard'
 import { GraceBadge } from '@/features/profile/components/GraceBadge'
@@ -113,18 +115,49 @@ export const NameList = ({ address, limit }: NameListProps) => {
     ],
   })
 
-  if (v1NamesQuery.error) {
-    return <div>Error: {v1NamesQuery.error.cause?.message}</div>
-  }
-  if (v1NamesQuery.isLoading) return <LoadingSpinner title="Loading V1 names" />
-  if (v2NamesQuery.isLoading) return <LoadingSpinner title="Loading V2 names" />
-  if (!v2NamesQuery.data && !v1NamesQuery.data) return <>No names</>
+  const v1Pending = v1NamesQuery.isLoading
+  const v2Pending = v2NamesQuery.isLoading
+
+  // Full spinner only while nothing is displayable; a source that already
+  // has data keeps rendering while the slower one settles.
+  if (v1Pending && !v2NamesQuery.data)
+    return <LoadingSpinner title="Loading V1 names" />
+  if (v2Pending && !v1NamesQuery.data)
+    return <LoadingSpinner title="Loading V2 names" />
+
+  const v1Failed = Boolean(v1NamesQuery.error)
+  const v2Failed = Boolean(v2NamesQuery.error)
 
   const allData = mergeNamesData(v1NamesQuery.data, v2NamesQuery.data)
   const data = limit ? allData.slice(0, limit) : allData
 
+  if (data.length === 0 && !v1Failed && !v2Failed && !v1Pending && !v2Pending)
+    return (
+      <NoResultsMessage
+        title="No names yet"
+        description="Names owned by this address will appear here."
+        className="mx-0 my-0"
+      />
+    )
+
   return (
     <div>
+      {v1Pending && <LoadingSpinner title="Loading V1 names" />}
+      {v2Pending && <LoadingSpinner title="Loading V2 names" />}
+      {v1Failed && (
+        <ErrorMessage
+          compact
+          description="Error fetching ENSv1 names. Please refresh the page."
+          className="mb-4"
+        />
+      )}
+      {v2Failed && (
+        <ErrorMessage
+          compact
+          description="Error fetching ENSv2 names. Please refresh the page."
+          className="mb-4"
+        />
+      )}
       {/* Mobile view - Card layout */}
       <div className="md:hidden">
         {data.map((name) => (
@@ -143,18 +176,22 @@ export const NameList = ({ address, limit }: NameListProps) => {
       </div>
 
       {/* Desktop view - Table layout */}
-      <div className="hidden md:block">
-        <DataTable data={data} columns={columns} />
-      </div>
+      {data.length > 0 && (
+        <div className="hidden md:block">
+          <DataTable data={data} columns={columns} />
+        </div>
+      )}
 
-      <Link
-        to="/addr/$addr/names"
-        params={{ addr: address }}
-        className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <GripHorizontal className="size-4" />
-        Go to full list ({allData.length})
-      </Link>
+      {allData.length > 0 && (
+        <Link
+          to="/addr/$addr/names"
+          params={{ addr: address }}
+          className="flex items-center justify-center gap-1 border-t border-border p-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <GripHorizontal className="size-4" />
+          Go to full list ({allData.length})
+        </Link>
+      )}
     </div>
   )
 }

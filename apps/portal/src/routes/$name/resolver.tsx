@@ -9,6 +9,7 @@ import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -233,15 +234,21 @@ const HistorySection = ({
 
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-h2">History</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/$name/history" params={{ name }}>
-              <ClockIcon className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        </div>
+        <HistorySectionHeader
+          action={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-neutral-7"
+              asChild
+            >
+              <Link to="/$name/history" params={{ name }}>
+                <ClockIcon className="size-4" />
+                Full history
+              </Link>
+            </Button>
+          }
+        />
         <NameSubgraphHistory
           name={name}
           v2Events={transformV2EventsToSubgraphFormat(
@@ -255,15 +262,16 @@ const HistorySection = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-h2">History</h2>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/$name/history" params={{ name }}>
-            <ClockIcon className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
       <NameSubgraphHistory name={name} enableHeader={false} />
     </div>
   )

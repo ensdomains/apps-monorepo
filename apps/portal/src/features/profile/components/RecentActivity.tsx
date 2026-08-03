@@ -8,7 +8,9 @@ import { Link } from '@tanstack/react-router'
 import { Clock } from 'lucide-react'
 import type { Hash } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Button } from '@/components/ui/button'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -32,22 +34,27 @@ const RecentActivityShell = ({
   children: React.ReactNode
 }) => (
   <div className="flex flex-col gap-4 w-full">
-    <div className="flex flex-row justify-between items-center">
-      <h2 className="text-h2">History</h2>
-      <Button variant="ghost" size="sm" asChild>
-        <Link to="/$name/history" params={{ name }}>
-          <Clock className="size-4" />
-          Full history
-        </Link>
-      </Button>
-    </div>
+    <HistorySectionHeader
+      action={
+        <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+          <Link to="/$name/history" params={{ name }}>
+            <Clock className="size-4" />
+            Full history
+          </Link>
+        </Button>
+      }
+    />
     {children}
   </div>
 )
 
 const NoRecentActivity = ({ name }: { name: string }) => (
   <RecentActivityShell name={name}>
-    <div className="p-6 border-t border-border">No recent activity</div>
+    <NoResultsMessage
+      title="No recent activity"
+      description="Events will appear here as they happen."
+      className="mx-0 my-0"
+    />
   </RecentActivityShell>
 )
 
@@ -87,22 +94,22 @@ const V1RecentActivityTable = ({
   if (timestampsError) {
     return (
       <ErrorMessage
-        title="Error loading timestamps"
-        description={timestampsError.cause?.message}
+        compact
+        description="Error fetching timestamps. Please refresh the page."
       />
     )
   }
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
 
   if (!timestampsData || !sendersData) {
-    return <ErrorMessage title="No data available" />
+    return <ErrorMessage compact description="No activity data available." />
   }
 
   const dataWithTimestampsAndSenders = groupedData.map((tx) => ({
@@ -147,13 +154,13 @@ const V2RecentActivityTable = ({
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
   if (!sendersData) {
-    return <ErrorMessage title="No sender data available" />
+    return <ErrorMessage compact description="No sender data available." />
   }
 
   // V2 events already have timestamps from the indexer
@@ -203,8 +210,8 @@ const V1RecentActivity = ({
   if (error)
     return (
       <ErrorMessage
-        title="Error loading history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   if (!data) return <NoRecentActivity name={name} />
@@ -246,8 +253,8 @@ const V2RecentActivity = ({
   if (error)
     return (
       <ErrorMessage
-        title="Error loading history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   if (!data || data.length === 0) return <NoRecentActivity name={name} />

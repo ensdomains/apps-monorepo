@@ -84,16 +84,23 @@ const createMockSubname = (
 
 describe('SubnamesTable', () => {
   it('renders the header with title and search input', () => {
-    render(<SubnamesTable subnames={[]} name="test.eth" />)
+    render(
+      <SubnamesTable
+        subnames={[createMockSubname('sub1.test.eth')]}
+        name="test.eth"
+      />,
+    )
 
-    expect(screen.getByText('0 subnames')).toBeInTheDocument()
+    expect(screen.getByText('1 subname')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
   })
 
-  it('renders empty state when no subnames', () => {
+  it('renders empty state without search input when no subnames', () => {
     render(<SubnamesTable subnames={[]} name="test.eth" />)
 
-    expect(screen.getAllByText('No subnames found.')).toHaveLength(2) // mobile + desktop
+    expect(screen.getByText('Subnames')).toBeInTheDocument()
+    expect(screen.getByText('No subnames yet')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument()
   })
 
   it('renders subnames in the table', () => {

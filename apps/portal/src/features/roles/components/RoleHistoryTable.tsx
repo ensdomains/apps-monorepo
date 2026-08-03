@@ -172,8 +172,8 @@ export const RoleHistoryTable = ({
   if (error) {
     return (
       <ErrorMessage
-        title="Failed to load role history"
-        description={error.cause?.message}
+        compact
+        description="Error fetching role history. Please refresh the page."
       />
     )
   }

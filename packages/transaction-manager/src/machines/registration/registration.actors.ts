@@ -1579,3 +1579,85 @@ export function submitPermitAndRenewActor(input: {
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
 }
+
+/**
+ * Submit an entire batch of renewals as ONE transaction. All `renew` calls (and
+ * the optional EIP-2612 `permit`, prepended so its allowance is visible to the
+ * renewals in the same tx) execute atomically in order. This is what WEB-427
+ * requires — a single transaction for the whole batch — and is only possible on
+ * a smart-account signer, since multi-call intents are a smart-account feature
+ * (`createTransactionRequest` rejects EOA batches).
+ */
+export function submitBatchRenewActor(input: {
+  items: readonly { label: string; duration: bigint }[]
+  selectedToken: 'USDC' | 'DAI'
+  signer: import('../..').Signer
+  publicClient: PublicClient
+  permit?: PermitSignature
+  sponsored?: boolean
+  id?: string
+}): ResultAsync<string, Error> {
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+
+  return fromPromise(
+    (async () => {
+      if (input.items.length === 0) {
+        throw new Error('submitBatchRenewActor requires at least one name')
+      }
+
+      const accountAddress = getSignerAddress(input.signer)
+
+      const paymentToken = getPaymentTokenAddress(input.selectedToken)
+      const normalizedPaymentToken = paymentToken.toLowerCase() as Address
+
+      await assertPaymentTokenSupported(
+        input.publicClient,
+        registrarAddress,
+        normalizedPaymentToken,
+      )
+
+      const renewCalls: Call[] = input.items.map((item) => ({
+        to: registrarAddress,
+        data: encodeRenewData(
+          item.label,
+          item.duration,
+          normalizedPaymentToken,
+        ),
+        value: 0n,
+      }))
+
+      const calls: Call[] = input.permit
+        ? [
+            {
+              to: normalizedPaymentToken,
+              data: encodePermitData(input.permit),
+              value: 0n,
+            },
+            ...renewCalls,
+          ]
+        : renewCalls
+
+      const request = createTransactionRequest({
+        signer: input.signer,
+        from: accountAddress,
+        chainId: input.publicClient.chain?.id ?? sepolia.id,
+        calls,
+        sponsored: input.sponsored ?? true,
+      })
+
+      const txId = transactionManager.startTransaction(
+        { type: 'custom', request },
+        input.signer,
+        {
+          id: input.id,
+          description: `Renew ${input.items.length} names`,
+          publicClient: input.publicClient,
+          timeout: 120_000,
+        },
+      )
+
+      return txId
+    })(),
+    (error) => (error instanceof Error ? error : new Error(String(error))),
+  )
+}

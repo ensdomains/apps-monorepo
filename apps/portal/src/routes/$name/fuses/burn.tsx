@@ -301,7 +301,7 @@ function RouteComponent() {
 
 const V2NameMessage = () => (
   <MessageCard
-    icon={<AlertTriangle className="size-8" />}
+    icon={<AlertTriangle className="size-6" />}
     title="Fuses not available"
     description={
       <>
@@ -316,7 +316,7 @@ const V2NameMessage = () => (
 
 const NotOwnerMessage = () => (
   <MessageCard
-    icon={<ShieldX className="size-8" />}
+    icon={<ShieldX className="size-6" />}
     title="Not authorized"
     description={
       <>

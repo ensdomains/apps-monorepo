@@ -5,6 +5,9 @@ import type {
   StaticRecordKey,
   TextRecordDef,
 } from './data/records/types'
+import type { AgentRegistrationRecord } from './utils/agentRegistration/transformAgentRegistrationRecord'
+
+export type { AgentRegistrationRecord }
 
 // Record value types
 export type TextRecordValue = {
@@ -34,6 +37,9 @@ export type ProfileRecords = Prettify<
     contentHash?: string
     abi?: string
     unknown: TextRecordValue[] // For any custom records
+    // ENSIP-25 agent-registration records, detected by the `agent-registration`
+    // key prefix and rendered with custom UI (see AgentRecordCard).
+    agentRegistrations: AgentRegistrationRecord[]
     resolverAddress?: Address
   }
 >

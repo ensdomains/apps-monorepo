@@ -19,6 +19,7 @@ const makeRecords = (
   links: [],
   social: [],
   unknown: [],
+  agentRegistrations: [],
   ...overrides,
 })
 
@@ -43,6 +44,16 @@ describe('ProfileView helpers', () => {
     expect(
       formatProfileDetailDate(new Date('2022-11-11T12:00:00Z'), 'desktop'),
     ).toBe('NOVEMBER 11, 2022')
+  })
+
+  it('uses the local calendar day when timeZone is "local"', () => {
+    const localNov11 = new Date(2022, 10, 11, 12, 0)
+    expect(formatProfileDetailDate(localNov11, 'mobile', 'local')).toBe(
+      'NOV.11.2022',
+    )
+    expect(formatProfileDetailDate(localNov11, 'desktop', 'local')).toBe(
+      'NOVEMBER 11, 2022',
+    )
   })
 
   it('uses ENSIP-18 primary contact keys before falling back to contact records', () => {

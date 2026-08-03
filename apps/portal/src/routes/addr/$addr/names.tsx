@@ -15,6 +15,7 @@ import { useId, useMemo, useState } from 'react'
 import type { Address } from 'viem'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
@@ -51,7 +52,6 @@ import {
   useActiveTransactionState,
 } from '@/features/transaction-manager/hooks/useActiveTransactionState'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { queryClient } from '@/utils/queryClient'
@@ -284,8 +284,8 @@ function RouteComponent() {
   if (v1NamesQuery.error) {
     return (
       <ErrorMessage
-        title="Error loading names"
-        description={extractErrorMessage(v1NamesQuery.error)}
+        compact
+        description="Error fetching names. Please refresh the page."
       />
     )
   }
@@ -293,8 +293,8 @@ function RouteComponent() {
   if (v2NamesQuery.error) {
     return (
       <ErrorMessage
-        title="Error loading names"
-        description={extractErrorMessage(v2NamesQuery.error)}
+        compact
+        description="Error fetching names. Please refresh the page."
       />
     )
   }
@@ -306,6 +306,20 @@ function RouteComponent() {
     expiryDateRange.to ||
     selectedStatuses.length > 0 ||
     selectedLengths.length > 0
+
+  if (totalCount === 0)
+    return (
+      <>
+        <header className="bg-background flex flex-col gap-4 sticky top-0 z-20">
+          <h1 className="text-h1">Names</h1>
+        </header>
+        <NoResultsMessage
+          title="No names yet"
+          description="Names owned by this address will appear here."
+          className="mx-0"
+        />
+      </>
+    )
 
   return (
     <>

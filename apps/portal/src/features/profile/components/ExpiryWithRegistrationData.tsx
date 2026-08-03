@@ -2,6 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -24,7 +25,12 @@ const RegistrationDate = ({ blockNumber }: RegistrationDateProps) => {
     blockNumber: BigInt(blockNumber),
   })
 
-  if (error) return <div>Error: {error.message}</div>
+  if (error)
+    return (
+      <span className="text-p text-message-danger-text">
+        Error loading date
+      </span>
+    )
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
@@ -111,10 +117,10 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
 
   if (error)
     return (
-      <div>
-        Failed to fetch registration data:{' '}
-        {error.cause?.message || error.message}
-      </div>
+      <ErrorMessage
+        compact
+        description="Error fetching registration data. Please refresh the page."
+      />
     )
 
   if (isLoading)

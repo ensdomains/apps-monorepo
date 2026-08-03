@@ -9,7 +9,7 @@ interface CoinTypeLabelProps {
 export const CoinTypeLabel = ({ coin }: CoinTypeLabelProps) =>
   coin in icons && coin in names ? (
     <span
-      className="flex flex-row gap-1 p-0.5 pr-2 bg-secondary rounded-2xl"
+      className="flex flex-row gap-1 p-0.5 pr-2 bg-secondary rounded-2xl items-center"
       key={coin}
     >
       <img

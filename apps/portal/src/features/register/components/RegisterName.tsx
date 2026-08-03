@@ -124,10 +124,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     return (
       <MessageCard
         variant="danger"
-        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+        icon={<AlertCircle className="size-6" strokeWidth={1.5} />}
         title="Could not check availability"
         description={
-          <div className="text-base">
+          <div>
             <p>
               We couldn&apos;t verify if this name is available. Please try
               again.
@@ -145,10 +145,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   if (isNameTaken && !isRegistering && !isSuccess) {
     return (
       <MessageCard
-        icon={<UserCheck className="size-8" strokeWidth={1.5} />}
+        icon={<UserCheck className="size-6" strokeWidth={1.5} />}
         title={`${name} is already registered`}
         description={
-          <div className="text-base">
+          <div>
             <p>
               This name is already registered. View its profile to see details
               and records.
