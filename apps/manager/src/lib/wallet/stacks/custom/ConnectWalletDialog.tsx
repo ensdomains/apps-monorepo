@@ -1,3 +1,4 @@
+import { logger } from '@ens-apps/utils/logger'
 import { Wallet } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import type { Connector } from 'wagmi'
@@ -148,6 +149,28 @@ export const ConnectWalletDialog = ({
   // failure (timeout, relay error) would otherwise vanish with both modals
   // closed, so reopen ours with the error.
   const handleConnectError = (e: unknown, usesOwnModal: boolean) => {
+    // Log the RAW error before it is normalised away.
+    //
+    // `normalizeConnectError` deliberately returns fixed copy so technical
+    // detail never reaches the UI, and `isConnectionCancelled` matches on
+    // message text as loosely as /cancell?ed/i. Between them a genuine
+    // failure -- a bad relay, a blocked origin, an aborted request -- is
+    // indistinguishable from the user closing the prompt, and nothing else
+    // records it. That left "Connection cancelled" on screen as the only
+    // evidence of failures that were never a cancellation.
+    logger.error('[wallet] connect failed', {
+      usesOwnModal,
+      classifiedAsCancelled: isConnectionCancelled(e),
+      name: e instanceof Error ? e.name : typeof e,
+      message: e instanceof Error ? e.message : String(e),
+      // EIP-1193 puts the real reason (4001 = user rejected) on the error or
+      // its cause chain; viem wraps provider errors, so the top level often
+      // carries neither.
+      code: (e as { code?: unknown })?.code,
+      cause: (e as { cause?: unknown })?.cause,
+      error: e,
+    })
+
     if (usesOwnModal && isConnectionCancelled(e)) return
 
     setError(normalizeConnectError(e))
