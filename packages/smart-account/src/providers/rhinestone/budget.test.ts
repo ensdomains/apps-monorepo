@@ -30,7 +30,7 @@ const market = (gasPriceWei: bigint): QuoteMarketData => ({
 })
 
 describe('estimateHcaBudget', () => {
-  it('sizes the permit from the orchestrator quote plus a 3% register buffer', async () => {
+  it('sizes the permit from the orchestrator quotes and the price, with no buffer', async () => {
     const quotes: Record<string, QuoteLegResult> = {
       commit: { spendUsdc: USDC(4) },
       register: { spendUsdc: USDC(6) },
@@ -45,9 +45,77 @@ describe('estimateHcaBudget', () => {
     expect(breakdown.fallbackReasons).toBeUndefined()
     expect(breakdown.commitCost).toBe(USDC(4))
     expect(breakdown.registerCost).toBe(USDC(6))
-    // Buffer applies to the register leg only (gas drift over the cooldown).
-    expect(breakdown.registerBuffer).toBe(180_000n)
-    expect(breakdown.total).toBe(USDC(4) + USDC(6) + 180_000n + USDC(5))
+    // Both quotes price the real batches, so nothing is added on top.
+    expect(breakdown.total).toBe(USDC(4) + USDC(6) + USDC(5))
+  })
+
+  it('declares the expected inflow to both legs so a low-balance HCA can be priced', async () => {
+    // Without this the planner sees an HCA that cannot cover the intent and
+    // refuses to quote at all (NO_PLAN_AVAILABLE), because the funding arrives
+    // mid-intent via permit + transferFrom and is invisible to it up front.
+    const declared: Record<string, bigint | undefined> = {}
+
+    await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      hcaBalanceUsdc: 0n,
+      quoteLegCostUsdc: async (leg, incomingUsdc) => {
+        declared[leg] = incomingUsdc
+        return { spendUsdc: USDC(1) }
+      },
+    })
+
+    // price + both flat per-leg fallbacks, since the real leg costs are the
+    // very thing being quoted here.
+    expect(declared.commit).toBeGreaterThan(USDC(5))
+    // The reveal is quoted before the commit has funded the HCA, so it needs
+    // the same declaration.
+    expect(declared.register).toBe(declared.commit)
+  })
+
+  it('does not declare funds the HCA already holds', async () => {
+    // Double-counting the standing balance inflates the planner's view and
+    // therefore the quote.
+    const seen: bigint[] = []
+
+    await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      hcaBalanceUsdc: USDC(4),
+      quoteLegCostUsdc: async (_leg, incomingUsdc) => {
+        seen.push(incomingUsdc ?? 0n)
+        return { spendUsdc: USDC(1) }
+      },
+    })
+
+    const withoutBalance = seen[0] as bigint
+
+    const unfunded: bigint[] = []
+    await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      hcaBalanceUsdc: 0n,
+      quoteLegCostUsdc: async (_leg, incomingUsdc) => {
+        unfunded.push(incomingUsdc ?? 0n)
+        return { spendUsdc: USDC(1) }
+      },
+    })
+
+    expect(withoutBalance).toBe((unfunded[0] as bigint) - USDC(4))
+  })
+
+  it('declares nothing when the HCA already covers the whole budget', async () => {
+    // An already-funded HCA needs no permit, so there is no inflow to declare —
+    // and declaring one would be a lie the planner prices against.
+    const seen: (bigint | undefined)[] = []
+
+    await estimateHcaBudget({
+      ...baseParams(USDC(5)),
+      hcaBalanceUsdc: USDC(500),
+      quoteLegCostUsdc: async (_leg, incomingUsdc) => {
+        seen.push(incomingUsdc)
+        return { spendUsdc: USDC(1) }
+      },
+    })
+
+    expect(seen).toEqual([0n, 0n])
   })
 
   it('prices an unquotable leg off the other leg’s market data, not the flat fee', async () => {
@@ -95,7 +163,7 @@ describe('estimateHcaBudget', () => {
     expect(breakdown.source).toBe('fallback')
     expect(breakdown.commitCost).toBe(USDC(5))
     expect(breakdown.registerCost).toBe(USDC(5))
-    expect(breakdown.total).toBe(USDC(5) + USDC(5) + 150_000n + USDC(5))
+    expect(breakdown.total).toBe(USDC(5) + USDC(5) + USDC(5))
     // A silent fallback over-funds, so the reason must be reported.
     expect(breakdown.fallbackReasons).toEqual([
       'commit: no quoter available',

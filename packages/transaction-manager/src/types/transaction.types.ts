@@ -92,6 +92,24 @@ export interface RhinestoneIntentParams {
   readonly sessionEnableData?: SessionEnableData
   /** Token requests for cross-chain txs. Defaults to [] (skip balance validation). */
   readonly tokenRequests?: readonly TokenRequest[]
+  /**
+   * Balances that will land DURING this intent and so are invisible to the
+   * orchestrator when it plans, keyed by chain then token.
+   *
+   * The planner credits only what it can already see, and refuses to quote when
+   * the account cannot cover the fee. The standalone-HCA route funds the HCA
+   * from the owner's `permit` + `transferFrom` *inside* the same batch, so
+   * without this declaration the inflow does not exist as far as planning is
+   * concerned and the intent is rejected with `NO_PLAN_AVAILABLE` whenever the
+   * HCA's standing balance sits below the quoted fee.
+   *
+   * Declare ONLY the incoming amount. Listing funds the account already holds
+   * double-counts them and inflates the quote's input amount — see
+   * https://docs.rhinestone.dev/intents/guides/getting-a-quote#auxiliary-funds
+   */
+  readonly auxiliaryFunds?: Readonly<
+    Record<number, Readonly<Record<Address, bigint>>>
+  >
 }
 
 /**

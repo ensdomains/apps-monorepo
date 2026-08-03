@@ -55,7 +55,6 @@ const startHcaRegistration = (overrides: {
       total: BUDGET,
       commitCost: 4_000_000n,
       registerCost: 6_000_000n,
-      registerBuffer: 180_000n,
       registrationPrice: 5_000_000n,
       source: 'quote' as const,
     }))

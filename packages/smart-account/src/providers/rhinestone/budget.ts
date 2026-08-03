@@ -54,8 +54,8 @@ export const HCA_LEG_GAS_LIMITS = {
 
 export type HcaLeg = keyof typeof HCA_LEG_GAS_LIMITS
 
-/** p95 gas-price drift over the ~60s commit→reveal window, register leg only. */
-const REGISTER_BUFFER_PERCENT = 3n
+/** `Math.max` for bigints (no bigint overload on `Math.max`). */
+const bigintMax = (a: bigint, b: bigint): bigint => (a > b ? a : b)
 
 /**
  * Sanity ceiling on the per-leg gas price used by the FALLBACK model, to stop
@@ -93,8 +93,16 @@ export interface QuoteLegResult {
 /**
  * Quote one leg from Rhinestone. Returns `null` when no quote could be made at
  * all. Injected by the caller (which owns the SDK account + session context).
+ *
+ * `incomingUsdc` is declared to the planner as auxiliary funds: the HCA is
+ * funded from the owner's permit INSIDE the commit, so at quote time it does
+ * not yet hold what the legs will spend. Without it the planner refuses to
+ * price either leg and every budget silently falls back to the gas model.
  */
-export type QuoteLegCostUsdc = (leg: HcaLeg) => Promise<QuoteLegResult | null>
+export type QuoteLegCostUsdc = (
+  leg: HcaLeg,
+  incomingUsdc?: bigint,
+) => Promise<QuoteLegResult | null>
 
 /** Fallback: convert a gas LIMIT to a USDC (6dp) cost at a clamped gas price. */
 function fallbackLegFee6dp(
@@ -124,6 +132,15 @@ export interface HcaBudgetParams {
    * priced from it; when it returns nothing, a flat per-leg fee is used.
    */
   readonly quoteLegCostUsdc?: QuoteLegCostUsdc
+  /**
+   * The HCA's current USDC balance (6dp), if known.
+   *
+   * Used only to size the auxiliary-funds declaration sent with the quotes:
+   * whatever the HCA already holds does not need declaring, and declaring it
+   * would double-count against the planner's own view. Omitting it is safe but
+   * over-declares by the current balance.
+   */
+  readonly hcaBalanceUsdc?: bigint
 }
 
 export interface HcaBudgetBreakdown {
@@ -131,7 +148,6 @@ export interface HcaBudgetBreakdown {
   readonly total: bigint
   readonly commitCost: bigint
   readonly registerCost: bigint
-  readonly registerBuffer: bigint
   readonly registrationPrice: bigint
   /** Which source produced the leg costs. */
   readonly source: 'quote' | 'fallback' | 'mixed'
@@ -144,7 +160,7 @@ export interface HcaBudgetBreakdown {
 
 /**
  * Compute the same-chain HCA funding budget at runtime:
- * `commitCost + registerCost + 3%·registerCost + registrationPrice`.
+ * `commitCost + registerCost + registrationPrice`.
  *
  * Prefers Rhinestone's per-leg quote; falls back to a clamped gas-limit model
  * per leg when the quote is unavailable.
@@ -161,9 +177,33 @@ export async function estimateHcaBudget(
     duration: params.duration,
   })
 
+  // First-pass estimate of what the funding permit will pull in, declared to
+  // the planner as auxiliary funds so it will price the legs at all.
+  //
+  // Chicken-and-egg: the exact inflow is `total - balance`, but `total` is what
+  // these quotes produce. The price dominates the total and is already known
+  // exactly, so price + the flat per-leg fallbacks is a close upper-ish bound —
+  // and it only has to be good enough for the planner to see the HCA covered.
+  // The permit itself is sized from the FINAL budget, not from this.
+  const balance = params.hcaBalanceUsdc ?? 0n
+  const declaredInflow = bigintMax(
+    registrationPrice + FALLBACK_LEG_FEE_6DP * 2n - balance,
+    0n,
+  )
+
   // Best-effort quote per leg.
-  const quotedCommit = await tryQuote(params.quoteLegCostUsdc, 'commit')
-  const quotedRegister = await tryQuote(params.quoteLegCostUsdc, 'register')
+  const quotedCommit = await tryQuote(
+    params.quoteLegCostUsdc,
+    'commit',
+    declaredInflow,
+  )
+  // The reveal runs after the commit has funded the HCA, but at quote time that
+  // has not happened yet — declare the same inflow or it cannot be priced.
+  const quotedRegister = await tryQuote(
+    params.quoteLegCostUsdc,
+    'register',
+    declaredInflow,
+  )
 
   const fallbackReasons = [quotedCommit.reason, quotedRegister.reason].filter(
     (r): r is string => r !== undefined,
@@ -203,8 +243,12 @@ export async function estimateHcaBudget(
   const commitCost = quotedCommit.value ?? (fallbackCommit as bigint)
   const registerCost = quotedRegister.value ?? (fallbackRegister as bigint)
 
-  const registerBuffer = (registerCost * REGISTER_BUFFER_PERCENT) / 100n
-  const total = commitCost + registerCost + registerBuffer + registrationPrice
+  // No percentage buffer: both quotes price the REAL batches — HCA deploy via
+  // the SDK's setup ops, commit, the conditional resolver `deployProxy`,
+  // `authorizeNameRoles`, and register — so every cost component is already
+  // summed here rather than approximated. A buffer on top only papered over
+  // quotes that failed, which is now surfaced instead (see `source`).
+  const total = commitCost + registerCost + registrationPrice
 
   const source: HcaBudgetBreakdown['source'] =
     quotedCommit.value !== null && quotedRegister.value !== null
@@ -217,7 +261,6 @@ export async function estimateHcaBudget(
     total,
     commitCost,
     registerCost,
-    registerBuffer,
     registrationPrice,
     source,
     ...(fallbackReasons.length > 0 ? { fallbackReasons } : {}),
@@ -232,6 +275,7 @@ export async function estimateHcaBudget(
 async function tryQuote(
   quoter: QuoteLegCostUsdc | undefined,
   leg: HcaLeg,
+  incomingUsdc?: bigint,
 ): Promise<{
   value: bigint | null
   market?: QuoteMarketData
@@ -239,7 +283,7 @@ async function tryQuote(
 }> {
   if (!quoter) return { value: null, reason: `${leg}: no quoter available` }
   try {
-    const result = await quoter(leg)
+    const result = await quoter(leg, incomingUsdc)
     if (result === null) return { value: null, reason: `${leg}: no quote` }
     const market = result.market ? { market: result.market } : {}
     return result.spendUsdc === null

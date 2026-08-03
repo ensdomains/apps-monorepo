@@ -110,6 +110,12 @@ async function quoteIntentSpendUsdc(
   calls: Call[],
   gasLimit: bigint,
   signers?: Transaction['signers'],
+  /**
+   * USDC (6dp) the HCA will hold by fill time but does not hold yet. Without
+   * it the planner refuses to price any leg while the HCA sits below the fee,
+   * and the budget silently degrades to the gas-limit fallback.
+   */
+  incomingUsdc?: bigint,
 ): Promise<QuoteLegResult> {
   const prepared = (await account.prepareTransaction({
     sourceChains: [chain],
@@ -119,6 +125,15 @@ async function quoteIntentSpendUsdc(
     feeAsset: 'USDC',
     tokenRequests: [],
     gasLimit,
+    ...(incomingUsdc !== undefined && incomingUsdc > 0n
+      ? {
+          auxiliaryFunds: {
+            [chain.id]: {
+              [getDestinationContracts(chain.id).usdc]: incomingUsdc,
+            },
+          } as Transaction['auxiliaryFunds'],
+        }
+      : {}),
     ...(signers ? { signers } : {}),
   } as Transaction)) as PreparedQuote
 
@@ -225,7 +240,7 @@ export function estimateHcaBudgetActor(input: {
 
   const quoteLegCostUsdc =
     rhinestone && chain
-      ? async (leg: HcaLeg): Promise<QuoteLegResult> => {
+      ? async (leg: HcaLeg, incomingUsdc?: bigint): Promise<QuoteLegResult> => {
           const hca = rhinestone.account.getAddress() as Address
           const resolver = computeResolverAddress({ chainId, hca })
           const baseSigners = sessionSigners(activeSession)
@@ -272,6 +287,7 @@ export function estimateHcaBudgetActor(input: {
               calls,
               HCA_LEG_GAS_LIMITS.commit,
               commitSigners,
+              incomingUsdc,
             )
           }
           // register leg: full reveal batch at the current price (the session
@@ -304,18 +320,33 @@ export function estimateHcaBudgetActor(input: {
             toCalls(revealCalls),
             HCA_LEG_GAS_LIMITS.register,
             baseSigners,
+            incomingUsdc,
           )
         }
       : undefined
 
   return fromPromise(
-    estimateHcaBudget({
-      publicClient: input.publicClient,
-      chainId,
-      label,
-      duration: input.duration,
-      ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
-    }).then((breakdown) => {
+    (async () => {
+      // Read the HCA balance here rather than relying on `checkingHcaFunding`,
+      // which runs AFTER this state — the auxiliary-funds declaration must not
+      // include funds the HCA already holds.
+      const hcaBalanceUsdc = rhinestone
+        ? await readHcaUsdcBalanceActor({
+            hca: rhinestone.account.getAddress() as Address,
+            publicClient: input.publicClient,
+            chainId,
+          }).unwrapOr(0n)
+        : 0n
+
+      const breakdown = await estimateHcaBudget({
+        publicClient: input.publicClient,
+        chainId,
+        label,
+        duration: input.duration,
+        hcaBalanceUsdc,
+        ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
+      })
+
       // `source` tells you whether the leg costs came from Rhinestone's own
       // quote or from the clamped gas-limit fallback. Without it there is no
       // way to tell which model actually sized the permit at runtime — a
@@ -325,14 +356,30 @@ export function estimateHcaBudgetActor(input: {
         total: breakdown.total,
         commitCost: breakdown.commitCost,
         registerCost: breakdown.registerCost,
-        registerBuffer: breakdown.registerBuffer,
         registrationPrice: breakdown.registrationPrice,
+        hcaBalanceUsdc,
         ...(breakdown.fallbackReasons
           ? { fallbackReasons: breakdown.fallbackReasons }
           : {}),
       })
+
+      // Fail loudly instead of funding off a guess.
+      //
+      // The budget carries no buffer any more — it is the sum of two real
+      // quotes plus the price — so a fallback is not a slightly-worse estimate,
+      // it is an unpriced guess that will over- or under-fund. Now that
+      // auxiliary funds let the planner price a low-balance HCA, a fallback
+      // means something genuinely broke and the reason is worth surfacing.
+      if (breakdown.source !== 'quote') {
+        throw new Error(
+          `HCA budget could not be quoted (source: ${breakdown.source}). ` +
+            `Refusing to size the funding permit from the fallback model. ` +
+            `Reasons: ${breakdown.fallbackReasons?.join('; ') ?? 'unknown'}`,
+        )
+      }
+
       return breakdown
-    }),
+    })(),
     (error) => (error instanceof Error ? error : new Error(String(error))),
   )
 }
@@ -348,7 +395,15 @@ function buildUserPaidRequest(params: {
   chainId: number
   calls: Call[]
   sessionEnableData?: SessionEnableData
+  /**
+   * USDC (6dp) this intent will pull into the HCA before it spends anything —
+   * i.e. the funding permit's value. Omit when the batch carries no funding
+   * pair. See `auxiliaryFunds` on `RhinestoneIntentParams` for why the planner
+   * needs telling.
+   */
+  incomingUsdc?: bigint
 }): RhinestoneTransactionRequest {
+  const contracts = getDestinationContracts(params.chainId)
   return {
     type: 'rhinestone-intent',
     from: params.from,
@@ -359,6 +414,13 @@ function buildUserPaidRequest(params: {
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
+        : {}),
+      ...(params.incomingUsdc !== undefined && params.incomingUsdc > 0n
+        ? {
+            auxiliaryFunds: {
+              [params.chainId]: { [contracts.usdc]: params.incomingUsdc },
+            },
+          }
         : {}),
     },
   }
@@ -652,6 +714,11 @@ export function submitFundingAndCommitActor(input: {
         chainId,
         calls,
         sessionEnableData: input.sessionEnable?.enableData,
+        // Exactly the permit's value — the amount this batch pulls in, and
+        // nothing the HCA already holds. `signFundingPermitActor` is signed for
+        // `budget - balance`, so the permit value IS the inflow; declaring the
+        // whole budget would double-count the standing balance.
+        ...(input.permit ? { incomingUsdc: input.permit.value } : {}),
       })
 
       const txId = transactionManager.startTransaction(

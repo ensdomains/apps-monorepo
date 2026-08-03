@@ -46,8 +46,14 @@ export function submitWarpTransaction(
     )
   }
 
-  const { calls, sponsored, feeAsset, sessionEnableData, tokenRequests } =
-    request.rhinestoneParams
+  const {
+    calls,
+    sponsored,
+    feeAsset,
+    sessionEnableData,
+    tokenRequests,
+    auxiliaryFunds,
+  } = request.rhinestoneParams
 
   if (sessionEnableData && !signer.session) {
     return errAsync(
@@ -90,6 +96,28 @@ export function submitWarpTransaction(
 
   const overallStart = nowMs()
 
+  // Authorization: if the signer carries an active scoped session, the SDK
+  // signs this Intent with the ephemeral SESSION KEY (no wallet prompt) via
+  // `experimental_session`. `enableData` is attached ONLY on the request that
+  // also carries the on-chain `enableSessionWithRefund` call (the first HCA
+  // action); afterwards it is omitted per the standalone-HCA spec. Without a
+  // session we omit `signers` and the SDK uses the connected owner
+  // (owner-signed).
+  const sessionSigners = signer.session
+    ? ({
+        type: 'experimental_session' as const,
+        session: signer.session.session,
+        ...(sessionEnableData ? { enableData: sessionEnableData } : {}),
+        verifyExecutions: true,
+      } satisfies NonNullable<Transaction['signers']>)
+    : undefined
+
+  // Funds arriving DURING this intent (the HCA's `permit` + `transferFrom`
+  // pair). The planner only credits balances it can already see, so without
+  // this it refuses to quote whenever the account's standing balance is below
+  // the fee.
+  const declaredFunds = auxiliaryFunds as Transaction['auxiliaryFunds']
+
   return fromPromise(
     (async () => {
       const chain = config.chain || sepolia
@@ -109,22 +137,6 @@ export function submitWarpTransaction(
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
       logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
-      // Authorization: if the signer carries an active scoped session, the SDK
-      // signs this Intent with the ephemeral SESSION KEY (no wallet prompt) via
-      // `experimental_session`. `enableData` is attached ONLY on the request
-      // that also carries the on-chain `enableSessionWithRefund` call (the
-      // first HCA action); afterwards it is omitted per the standalone-HCA
-      // spec. Without a session we omit `signers` and the SDK uses the
-      // connected owner (owner-signed).
-      const sessionSigners = signer.session
-        ? ({
-            type: 'experimental_session' as const,
-            session: signer.session.session,
-            ...(sessionEnableData ? { enableData: sessionEnableData } : {}),
-            verifyExecutions: true,
-          } satisfies NonNullable<Transaction['signers']>)
-        : undefined
-
       const sdkParams = {
         sourceChains: [chain],
         targetChain: chain,
@@ -142,6 +154,7 @@ export function submitWarpTransaction(
         // not assignable from TokenRequest[], but semantically equivalent here.
         tokenRequests: (tokenRequests ?? []) as TokenRequest[] &
           Transaction['tokenRequests'],
+        ...(declaredFunds ? { auxiliaryFunds: declaredFunds } : {}),
         ...(sessionSigners ? { signers: sessionSigners } : {}),
       } satisfies Transaction
 

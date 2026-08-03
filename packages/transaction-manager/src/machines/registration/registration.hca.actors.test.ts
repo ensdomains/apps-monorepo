@@ -137,6 +137,23 @@ describe('submitFundingAndCommitActor', () => {
     )
   })
 
+  it('declares the permit inflow as auxiliary funds so the intent can be planned', async () => {
+    // The HCA's USDC arrives DURING the intent (permit → transferFrom), so the
+    // planner cannot see it when it decides whether a route exists. Left
+    // undeclared it rejects the intent outright with NO_PLAN_AVAILABLE /
+    // SAME_CHAIN_INTENT_NOT_APPLICABLE.
+    const result = await submitFundingAndCommitActor({
+      ...input,
+      permit,
+      sessionEnable,
+    })
+
+    expect(result.isOk()).toBe(true)
+    expect(submittedRequest().rhinestoneParams.auxiliaryFunds).toEqual({
+      [sepolia.id]: { [C.usdc]: permit.value },
+    })
+  })
+
   it('submits the commit alone once the HCA is funded and the session is enabled', async () => {
     const result = await submitFundingAndCommitActor(input)
 
@@ -147,6 +164,9 @@ describe('submitFundingAndCommitActor', () => {
       C.ethRegistrar.toLowerCase(),
     )
     expect(request.rhinestoneParams.sessionEnableData).toBeUndefined()
+    // Nothing flows in on this path, so there is nothing to declare —
+    // over-declaring would inflate the planner's view and the quote with it.
+    expect(request.rhinestoneParams.auxiliaryFunds).toBeUndefined()
   })
 
   it('returns the commitment so the reveal can rebind to the same secret', async () => {
