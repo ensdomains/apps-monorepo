@@ -39,13 +39,14 @@ const addressSlot = (value?: string | null): ActionSlot =>
 
 const contractSlot = (
   value?: string | null,
-  isRegistry?: boolean,
+  opts?: { isRegistry?: boolean; label?: string },
 ): ActionSlot => {
   if (!value) return { kind: 'placeholder', value: '—' }
   return {
     kind: 'contract',
     value,
-    ...(isRegistry ? { isRegistry: true } : {}),
+    ...(opts?.isRegistry ? { isRegistry: true } : {}),
+    ...(opts?.label ? { label: opts.label } : {}),
   }
 }
 
@@ -194,7 +195,11 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'resolver',
     build: (primary) => ({
       label: 'Update resolver',
-      slots: [contractSlot(primary.asResolverUpdated?.resolver)],
+      slots: [
+        contractSlot(primary.asResolverUpdated?.resolver, {
+          label: 'resolver',
+        }),
+      ],
     }),
   },
 
@@ -211,7 +216,7 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
       }
       return {
         label: 'Deploy and link subregistry',
-        slots: [contractSlot(registry, true)],
+        slots: [contractSlot(registry, { isRegistry: true })],
       }
     },
   },

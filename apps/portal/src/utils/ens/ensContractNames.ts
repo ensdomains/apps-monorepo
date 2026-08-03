@@ -1,6 +1,8 @@
 import {
   ensL1Contracts,
   type SupportedL1Contract,
+  supportedL1Chains,
+  supportedL1Contracts,
 } from '@ensdomains/ensjs/chain'
 import { type Address, zeroAddress } from 'viem'
 
@@ -32,62 +34,39 @@ const contractDisplayNames: Record<SupportedL1Contract, string> = {
   dai: 'DAI',
 }
 
-const contractRoles: Partial<
-  Record<SupportedL1Contract, 'registry' | 'resolver'>
-> = {
-  ensRegistry: 'registry',
-  ensLegacyRegistry: 'registry',
-  ensUserRegistryImpl: 'registry',
-  ensPublicResolver: 'resolver',
-  ensUniversalResolver: 'resolver',
-  ensDefaultReverseResolver: 'resolver',
-  ensPermissionedResolverImpl: 'resolver',
+const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
+  ensRegistry: 'root registry',
+  ensLegacyRegistry: 'legacy registry',
+  ensUserRegistryImpl: 'permissioned registry',
+  ensPublicResolver: 'public resolver',
+  ensUniversalResolver: 'universal resolver',
+  ensDefaultReverseResolver: 'reverse resolver',
+  ensPermissionedResolverImpl: 'permissioned resolver',
 }
 
-type ContractLookup = Map<string, string>
-type RoleLookup = Map<string, 'registry' | 'resolver'>
+const contractNames = new Map<string, string>()
+const contractPills = new Map<string, string>()
 
-const lookupByChain = new Map<number, ContractLookup>()
-const roleByChain = new Map<number, RoleLookup>()
-
-for (const [chainIdStr, contracts] of Object.entries(ensL1Contracts)) {
-  const chainId = Number(chainIdStr)
-  const lookup: ContractLookup = new Map()
-  const roles: RoleLookup = new Map()
-
-  for (const [key, contract] of Object.entries(contracts)) {
-    const contractKey = key as SupportedL1Contract
-    const addr = (contract as { address: Address }).address
-    if (!addr || addr === zeroAddress) continue
-    const normalized = addr.toLowerCase()
-    lookup.set(normalized, contractDisplayNames[contractKey] ?? key)
-    const role = contractRoles[contractKey]
-    if (role) roles.set(normalized, role)
+for (const chainId of Object.values(supportedL1Chains)) {
+  const contracts = ensL1Contracts[chainId]
+  for (const key of supportedL1Contracts) {
+    const { address } = contracts[key]
+    if (address === zeroAddress) continue
+    const normalized = address.toLowerCase()
+    contractNames.set(normalized, contractDisplayNames[key])
+    const pill = contractPillLabels[key]
+    if (pill) contractPills.set(normalized, pill)
   }
-
-  lookupByChain.set(chainId, lookup)
-  roleByChain.set(chainId, roles)
 }
 
-/**
- * Returns the human-readable ENS contract name for a given address on a chain,
- * or undefined if the address is not a known ENS contract.
- */
-export const getEnsContractName = (
-  chainId: number,
-  address: Address,
-): string | undefined => {
-  const lookup = lookupByChain.get(chainId)
-  if (!lookup) return undefined
-  return lookup.get(address.toLowerCase())
-}
+/** Human-readable ENS contract name, or undefined if not a known ENS contract. */
+export const getEnsContractName = (address: Address): string | undefined =>
+  contractNames.get(address.toLowerCase())
 
-/**
- * Short role pill for known registry / resolver addresses.
- * Prefer these over display names like "ENSRegistry".
- */
-export const getContractEntityLabel = (
-  chainId: number,
-  address: Address,
-): 'registry' | 'resolver' | undefined =>
-  roleByChain.get(chainId)?.get(address.toLowerCase())
+/** Short pill label for known registry / resolver addresses. */
+export const getContractPillLabel = (address: Address): string | undefined =>
+  contractPills.get(address.toLowerCase())
+
+/** EntityBadge label: short pill when known, otherwise the contract display name. */
+export const getContractLabel = (address: Address): string | undefined =>
+  getContractPillLabel(address) ?? getEnsContractName(address)

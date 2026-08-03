@@ -76,6 +76,7 @@ describe('Figma history labels', () => {
         {
           kind: 'contract',
           value: '0xb88b00000000000000000000000000000000Fa98',
+          label: 'resolver',
         },
       ],
     })

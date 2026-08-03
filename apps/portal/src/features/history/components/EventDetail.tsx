@@ -16,7 +16,10 @@ import {
   useBlockExplorerAddressUrl,
   useBlockExplorerTxUrl,
 } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getEnsContractName } from '@/utils/ens/ensContractNames'
+import {
+  getContractLabel,
+  getEnsContractName,
+} from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type {
   TimelineDecoded,
@@ -26,7 +29,6 @@ import { parseEventData, resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
 import { getTimelineFieldType } from './eventFieldTypes'
 
-/** Param keys that denote a contract even when the address is not a known ENS contract. */
 const CONTRACT_PARAM_KEYS = new Set([
   'resolver',
   'registry',
@@ -51,12 +53,6 @@ const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
   ExpiryUpdated: 'asExpiryUpdated',
 }
 
-/**
- * One decoded value: entity-shaped values render as interactive EntityBadges —
- * addresses resolve to account badges (primary name when one exists), known ENS
- * contracts / resolver / registry params to contract badges, `name` params to name
- * badges — everything else stays plain monospace text.
- */
 const DecodedValue = ({
   event,
   paramKey,
@@ -66,22 +62,24 @@ const DecodedValue = ({
   paramKey: string
   value: string
 }) => {
-  const chainId = useChainId()
   const address = isAddress(value, { strict: false }) ? value : undefined
   const explorerUrl = useBlockExplorerAddressUrl(address)
 
   if (address && address !== zeroAddress) {
+    const known = getContractLabel(address)
     const isRegistryParam =
       paramKey === 'registry' || paramKey === 'subregistry'
-    if (
-      getEnsContractName(chainId, address) ||
-      CONTRACT_PARAM_KEYS.has(paramKey)
-    ) {
+    if (known || CONTRACT_PARAM_KEYS.has(paramKey)) {
       return (
         <EntityBadge
           variant="contract"
           address={address}
-          isRegistry={isRegistryParam}
+          label={
+            known ??
+            (paramKey === 'resolver' ? 'resolver' : undefined) ??
+            (isRegistryParam ? 'permissioned registry' : undefined)
+          }
+          isRegistry={isRegistryParam && !known}
           etherscanHref={explorerUrl}
           compact
         >
@@ -92,7 +90,6 @@ const DecodedValue = ({
     return <AccountBadge address={address} full />
   }
 
-  // Only `name` params carry display labels — `label` params are bytes32 labelhashes.
   const name =
     paramKey === 'name' ? resolveDecodedName(value, event.name) : undefined
   if (name) {
@@ -134,11 +131,13 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
         <tbody>
           {entries.map(([key, value]) => (
             <tr key={key}>
-              <td className="py-1.5 pr-6 align-top font-mono">{key}</td>
+              <td className="py-1.5 pr-6 align-top">
+                <EntityBadge variant="default">{key}</EntityBadge>
+              </td>
               <td className="py-1.5 pr-6 align-top font-mono text-muted-foreground">
                 {getTimelineFieldType(event.type, key)}
               </td>
-              <td className="py-1.5 break-all align-top font-mono">
+              <td className="py-1.5 break-all align-top font-mono text-neutral-7">
                 <DecodedValue event={event} paramKey={key} value={value} />
               </td>
             </tr>
@@ -156,18 +155,12 @@ const MetaRow = ({
   label: string
   children: React.ReactNode
 }) => (
-  <div className="flex items-baseline gap-4 py-1">
-    <span className="w-24 shrink-0 text-muted-foreground text-sm sm:w-40">
-      {label}
-    </span>
+  <div className="flex items-baseline gap-4 py-1 text-muted-foreground">
+    <span className="w-24 shrink-0 text-sm sm:w-40">{label}</span>
     <span className="font-mono text-sm min-w-0">{children}</span>
   </div>
 )
 
-/**
- * Tier-3 transaction metadata — inline key/value list. Fetched lazily from the RPC
- * when opened; the indexer does not carry from/to/value/gas.
- */
 export const TransactionMeta = ({
   event,
   txHash,
@@ -195,10 +188,12 @@ export const TransactionMeta = ({
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
   const toValue = !toAddress ? (
     pending
-  ) : getEnsContractName(chainId, toAddress) ? (
+  ) : getEnsContractName(toAddress) ||
+    event.contractAddress?.toLowerCase() === toAddress.toLowerCase() ? (
     <EntityBadge
       variant="contract"
       address={toAddress}
+      label={getContractLabel(toAddress)}
       etherscanHref={toUrl}
       compact
     >
@@ -226,9 +221,11 @@ export const TransactionMeta = ({
       </MetaRow>
       <MetaRow label="From">{fromValue}</MetaRow>
       <MetaRow label="To">{toValue}</MetaRow>
-      <MetaRow label="Value">
-        {tx ? `${formatEther(tx.value)} ETH` : pending}
-      </MetaRow>
+      {tx?.value !== 0n && (
+        <MetaRow label="Value">
+          {tx ? `${formatEther(tx.value)} ETH` : pending}
+        </MetaRow>
+      )}
       <MetaRow label="Gas used">
         {receipt ? receipt.gasUsed.toString() : pending}
       </MetaRow>

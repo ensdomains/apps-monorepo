@@ -4,7 +4,6 @@ import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { useChainId } from 'wagmi'
 import {
   ChipCopyIcon,
   ChipLinkIcon,
@@ -17,10 +16,7 @@ import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { getSupportsInterfacesQueryOptions } from '@/hooks/useSupportsInterfaces'
 import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { cn } from '@/lib/utils'
-import {
-  getContractEntityLabel,
-  getEnsContractName,
-} from '@/utils/ens/ensContractNames'
+import { getEnsContractName } from '@/utils/ens/ensContractNames'
 
 export type EntityVariant = 'name' | 'address' | 'contract' | 'tx' | 'default'
 
@@ -208,7 +204,11 @@ export const EntityBadge = ({
   format = 'inline',
   compact = false,
 }: EntityBadgeProps) => {
-  const chainId = useChainId()
+  const labelContent = label ? (
+    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
+      {label}
+    </span>
+  ) : null
 
   const { data: resolverInterfaces } = useQuery({
     ...getSupportsInterfacesQueryOptions({
@@ -217,27 +217,9 @@ export const EntityBadge = ({
     }),
     enabled: variant === 'contract' && !!address,
   })
-  const roleLabel =
-    variant === 'contract' && address
-      ? getContractEntityLabel(chainId, address)
-      : undefined
-  const isResolver =
-    (resolverInterfaces?.some(Boolean) ?? false) || roleLabel === 'resolver'
-  const resolvedIsRegistry = isRegistry || roleLabel === 'registry'
+  const isResolver = resolverInterfaces?.some(Boolean) ?? false
   const contractName =
-    variant === 'contract' && address
-      ? getEnsContractName(chainId, address)
-      : undefined
-
-  const pillLabel =
-    label ??
-    (resolvedIsRegistry ? 'registry' : undefined) ??
-    (isResolver ? 'resolver' : undefined)
-  const labelContent = pillLabel ? (
-    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
-      {pillLabel}
-    </span>
-  ) : null
+    variant === 'contract' && address ? getEnsContractName(address) : undefined
 
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
@@ -320,7 +302,7 @@ export const EntityBadge = ({
         </Link>
       )
     }
-    if (variant === 'contract' && resolvedIsRegistry && address) {
+    if (variant === 'contract' && isRegistry && address) {
       return (
         <Link
           to="/registry/$address"
@@ -349,12 +331,7 @@ export const EntityBadge = ({
         </Link>
       )
     }
-    if (
-      variant === 'contract' &&
-      !resolvedIsRegistry &&
-      !isResolver &&
-      etherscanHref
-    ) {
+    if (variant === 'contract' && !isRegistry && !isResolver && etherscanHref) {
       return (
         <a
           href={etherscanHref}
@@ -411,16 +388,16 @@ export const EntityBadge = ({
           // When a label is present its bg-background sub-chip acts as a visual
           // reference that makes the left strip read one pixel too wide, so
           // flush the x-inset to 0 in that case.
-          '-inset-y-0.5',
+          'inset-y-[-2px]',
           // No label: bg extends 1px beyond pill edge → ~5px colored strip to text (matches top)
           // With label: label sub-chip (~18px) in a 20px pill leaves only 1px above it, so
           //   push x inset 1px *inside* the pill edge → 3px strip to sub-chip (matches top)
           label
             ? 'inset-x-px'
             : resolvedAvatar
-              ? '-inset-x-0.5'
-              : '-inset-x-px',
-          'group-hover/entity:-inset-3',
+              ? 'inset-x-[-2px]'
+              : 'inset-x-[-1px]',
+          'group-hover/entity:inset-[-12px]',
           variantBgClass[variant],
         )}
         aria-hidden="true"
@@ -519,9 +496,9 @@ export const EntityBadge = ({
           </Link>
         )}
 
-        {/* Auto-derived contract-name chip — suppressed when the pill already
-            shows a role/explicit label (e.g. "registry", "resolver"). */}
-        {!pillLabel && contractName && (
+        {/* Auto-derived contract-name chip — suppressed when the caller gives an
+            explicit `label` (e.g. "root registry"), which already names the pill. */}
+        {!label && contractName && (
           <CopyChip
             value={contractName}
             label={contractName}
@@ -529,7 +506,7 @@ export const EntityBadge = ({
           />
         )}
 
-        {variant === 'contract' && resolvedIsRegistry && address && (
+        {variant === 'contract' && isRegistry && address && (
           <Link
             to="/registry/$address"
             params={{ address }}

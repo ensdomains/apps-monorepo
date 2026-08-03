@@ -33,6 +33,7 @@ export type ActionSlot =
       readonly kind: 'contract'
       readonly value: string
       readonly isRegistry?: boolean
+      readonly label?: string
     }
   | { readonly kind: 'text'; readonly value: string }
   | { readonly kind: 'glyph'; readonly value: '→' | '↔' }

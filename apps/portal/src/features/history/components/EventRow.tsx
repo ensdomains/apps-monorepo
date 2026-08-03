@@ -6,6 +6,7 @@ import { EntityBadge } from '@/components/EntityBadge'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { getContractLabel } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import {
@@ -134,6 +135,7 @@ export const EventRow = ({ event }: EventRowProps) => {
             <EntityBadge
               variant="contract"
               address={contractAddress}
+              label={getContractLabel(contractAddress)}
               etherscanHref={contractExplorerUrl}
               compact
             >
