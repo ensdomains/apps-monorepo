@@ -21,7 +21,8 @@ export const ActionSummaryRow = ({
   onToggle,
 }: ActionSummaryRowProps) => {
   const eventCount = action.events.length
-  const dateLabel = showDate ? formatTimelineDate(action.timestamp) : ''
+  const dateLabel = formatTimelineDate(action.timestamp)
+  const desktopDateLabel = showDate ? dateLabel : ''
 
   const iconBadge = (
     <span className="relative z-10 p-1.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 text-muted-foreground">
@@ -52,7 +53,7 @@ export const ActionSummaryRow = ({
       isOpen={isOpen}
       onToggle={onToggle}
       disclosure={
-        <div className="flex flex-col gap-y-4 pt-4">
+        <div className="flex flex-col gap-y-3 pt-2 sm:pt-4">
           <TransactionHeaderRow event={action.events[0]} />
           {action.events.map((event) => (
             <EventRow key={event.id} event={event} />
@@ -62,7 +63,7 @@ export const ActionSummaryRow = ({
     >
       <div className="flex gap-2 py-2 pr-2 sm:hidden">
         {iconBadge}
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-1">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[13px] text-muted-foreground">
               {dateLabel}
@@ -76,7 +77,7 @@ export const ActionSummaryRow = ({
       <div className="hidden grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3 sm:grid">
         <div className="flex items-center gap-5">
           <span className="w-30 shrink-0 text-right font-mono text-[13px] text-muted-foreground">
-            {dateLabel}
+            {desktopDateLabel}
           </span>
           {iconBadge}
         </div>
