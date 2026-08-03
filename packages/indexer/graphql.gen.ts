@@ -22,6 +22,7 @@ export type Account = {
   firstSeenTimestamp: Scalars['Int']['output'];
   id: Scalars['String']['output'];
   primaryName?: Maybe<Scalars['String']['output']>;
+  primaryNameVerification?: Maybe<PrimaryNameVerification>;
   registrations: Array<Registration>;
   seenV1: Scalars['Boolean']['output'];
   seenV2: Scalars['Boolean']['output'];
@@ -43,6 +44,8 @@ export type AccountWrappedDomainsArgs = {
 export type AccountFilter = {
   id?: InputMaybe<Scalars['String']['input']>;
   id_in?: InputMaybe<Array<Scalars['String']['input']>>;
+  seenV1?: InputMaybe<Scalars['Boolean']['input']>;
+  seenV2?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export enum Account_OrderBy {
@@ -71,6 +74,13 @@ export type CoinAddress = {
   coinTypeBig: Scalars['String']['output'];
 };
 
+export type Coverage = {
+  __typename?: 'Coverage';
+  chainId: Scalars['Int']['output'];
+  protocols: Array<ProtocolCoverage>;
+  stale: Scalars['Boolean']['output'];
+};
+
 export type Domain = {
   __typename?: 'Domain';
   canonicalId?: Maybe<Scalars['String']['output']>;
@@ -78,6 +88,7 @@ export type Domain = {
   events: Array<Event>;
   eventsCount: Scalars['Int']['output'];
   expiryDate?: Maybe<Scalars['Int']['output']>;
+  finality?: Maybe<DomainFinality>;
   fuses?: Maybe<Scalars['Int']['output']>;
   gracePeriodEnd?: Maybe<Scalars['Int']['output']>;
   id: Scalars['String']['output'];
@@ -131,6 +142,7 @@ export type DomainEdge = {
 };
 
 export type DomainFilter = {
+  and?: InputMaybe<Array<DomainFilter>>;
   expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
@@ -140,8 +152,10 @@ export type DomainFilter = {
   expiry_lt?: InputMaybe<Scalars['Int']['input']>;
   expiry_lte?: InputMaybe<Scalars['Int']['input']>;
   hasSubdomains?: InputMaybe<Scalars['Boolean']['input']>;
+  includeUnnormalized?: InputMaybe<Scalars['Boolean']['input']>;
   includeUnreachable?: InputMaybe<Scalars['Boolean']['input']>;
   isMigrated?: InputMaybe<Scalars['Boolean']['input']>;
+  isNormalized?: InputMaybe<Scalars['Boolean']['input']>;
   labelName?: InputMaybe<Scalars['String']['input']>;
   labelName_contains?: InputMaybe<Scalars['String']['input']>;
   labelName_contains_nocase?: InputMaybe<Scalars['String']['input']>;
@@ -164,6 +178,7 @@ export type DomainFilter = {
   name_not_in?: InputMaybe<Array<Scalars['String']['input']>>;
   name_starts_with?: InputMaybe<Scalars['String']['input']>;
   name_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
+  or?: InputMaybe<Array<DomainFilter>>;
   owner?: InputMaybe<Scalars['String']['input']>;
   owner_?: InputMaybe<AccountFilter>;
   owner_in?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -174,6 +189,12 @@ export type DomainFilter = {
   subdomainCount_gt?: InputMaybe<Scalars['Int']['input']>;
   subdomainCount_lt?: InputMaybe<Scalars['Int']['input']>;
 };
+
+export enum DomainFinality {
+  Finalized = 'FINALIZED',
+  Head = 'HEAD',
+  Safe = 'SAFE'
+}
 
 export enum Domain_OrderBy {
   CreatedAt = 'createdAt',
@@ -189,6 +210,7 @@ export type EacRoleAssignment = {
   blockNumber: Scalars['Int']['output'];
   id: Scalars['String']['output'];
   name?: Maybe<Scalars['String']['output']>;
+  permissions: Array<Scalars['String']['output']>;
   resource: Scalars['String']['output'];
   roleBitmap: Scalars['String']['output'];
   timestamp: Scalars['Int']['output'];
@@ -252,13 +274,16 @@ export type EventEdge = {
 };
 
 export type EventFilter = {
+  and?: InputMaybe<Array<EventFilter>>;
   blockNumber_gt?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_gte?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_lt?: InputMaybe<Scalars['Int']['input']>;
   blockNumber_lte?: InputMaybe<Scalars['Int']['input']>;
   contractAddress?: InputMaybe<Scalars['String']['input']>;
   domain?: InputMaybe<Scalars['String']['input']>;
+  involved?: InputMaybe<Scalars['String']['input']>;
   namehash?: InputMaybe<Scalars['String']['input']>;
+  or?: InputMaybe<Array<EventFilter>>;
   protocol?: InputMaybe<Scalars['String']['input']>;
   timestamp_gt?: InputMaybe<Scalars['Int']['input']>;
   timestamp_gte?: InputMaybe<Scalars['Int']['input']>;
@@ -281,6 +306,21 @@ export type ExpiryUpdatedData = {
   expiry?: Maybe<Scalars['Int']['output']>;
   node?: Maybe<Scalars['String']['output']>;
   tokenId?: Maybe<Scalars['String']['output']>;
+};
+
+export type Finality = {
+  __typename?: 'Finality';
+  finalized?: Maybe<FinalityBlock>;
+  head: FinalityBlock;
+  isStale: Scalars['Boolean']['output'];
+  safe?: Maybe<FinalityBlock>;
+};
+
+export type FinalityBlock = {
+  __typename?: 'FinalityBlock';
+  hash?: Maybe<Scalars['String']['output']>;
+  number: Scalars['Int']['output'];
+  updatedAt?: Maybe<Scalars['Int']['output']>;
 };
 
 export type FusesSetData = {
@@ -338,6 +378,17 @@ export type NameWrappedData = {
   owner?: Maybe<Scalars['String']['output']>;
 };
 
+export type NamedResourceEntry = {
+  __typename?: 'NamedResourceEntry';
+  blockNumber: Scalars['Int']['output'];
+  coinType: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  protocol: Scalars['String']['output'];
+  recordKey: Scalars['String']['output'];
+  recordKind: Scalars['String']['output'];
+  resource: Scalars['String']['output'];
+};
+
 export enum OrderDirection {
   Asc = 'asc',
   Desc = 'desc'
@@ -351,6 +402,21 @@ export type PageInfo = {
   startCursor?: Maybe<Scalars['String']['output']>;
 };
 
+export enum PrimaryNameVerification {
+  InvalidName = 'INVALID_NAME',
+  Mismatch = 'MISMATCH',
+  NotFound = 'NOT_FOUND',
+  Unverified = 'UNVERIFIED',
+  Verified = 'VERIFIED'
+}
+
+export type ProtocolCoverage = {
+  __typename?: 'ProtocolCoverage';
+  indexedHead: Scalars['Int']['output'];
+  lastSyncedAt?: Maybe<Scalars['Int']['output']>;
+  protocol: Scalars['String']['output'];
+};
+
 export type Pubkey = {
   __typename?: 'Pubkey';
   x: Scalars['String']['output'];
@@ -359,6 +425,8 @@ export type Pubkey = {
 
 export type Query = {
   __typename?: 'Query';
+  _coverage: Coverage;
+  _finality: Finality;
   _meta: _Meta_;
   account?: Maybe<Account>;
   accounts: Array<Account>;
@@ -425,6 +493,7 @@ export type QueryApprovalsArgs = {
 
 
 export type QueryDomainArgs = {
+  atBlock?: InputMaybe<Scalars['Int']['input']>;
   id: Scalars['String']['input'];
 };
 
@@ -684,10 +753,12 @@ export type RegistrationEdge = {
 };
 
 export type RegistrationFilter = {
+  and?: InputMaybe<Array<RegistrationFilter>>;
   expiryDate_gt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_gte?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lt?: InputMaybe<Scalars['Int']['input']>;
   expiryDate_lte?: InputMaybe<Scalars['Int']['input']>;
+  or?: InputMaybe<Array<RegistrationFilter>>;
   protocol?: InputMaybe<Scalars['String']['input']>;
   registrant?: InputMaybe<Scalars['String']['input']>;
   registrant_in?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -853,6 +924,7 @@ export type ResolverDetail = {
   aliases: Array<Alias>;
   events: Array<Event>;
   id: Scalars['String']['output'];
+  namedResources: Array<NamedResourceEntry>;
   nodeCount: Scalars['Int']['output'];
   nodes: Array<Domain>;
   roleHolderCount: Scalars['Int']['output'];
@@ -914,9 +986,14 @@ export type TextChangedData = {
 
 export type TransferData = {
   __typename?: 'TransferData';
+  count?: Maybe<Scalars['Int']['output']>;
   from?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['String']['output']>;
+  labelhash?: Maybe<Scalars['String']['output']>;
   operator?: Maybe<Scalars['String']['output']>;
+  owner?: Maybe<Scalars['String']['output']>;
+  parentNode?: Maybe<Scalars['String']['output']>;
+  subdomain?: Maybe<Scalars['String']['output']>;
   to?: Maybe<Scalars['String']['output']>;
   value?: Maybe<Scalars['String']['output']>;
 };
