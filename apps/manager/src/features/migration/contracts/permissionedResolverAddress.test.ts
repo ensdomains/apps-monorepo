@@ -1,4 +1,4 @@
-import { type Address, decodeFunctionData, parseAbiItem } from 'viem'
+import { type Address, decodeFunctionData, type Hex, parseAbiItem } from 'viem'
 import { describe, expect, it } from 'vitest'
 import {
   computeOwnedResolverSalt,
@@ -9,7 +9,9 @@ const OWNER_A: Address = '0x0000000000000000000000000000000000000001'
 const OWNER_B: Address = '0x0000000000000000000000000000000000000002'
 
 const initializeAbi = [
-  parseAbiItem('function initialize(address admin, uint256 allRoles) external'),
+  parseAbiItem(
+    'function initialize(address admin, uint256 allRoles, bytes[] setters) external',
+  ),
 ]
 
 describe('computeOwnedResolverSalt', () => {
@@ -42,15 +44,16 @@ describe('computeOwnedResolverSalt', () => {
 })
 
 describe('getOwnedPermResInitCalldata', () => {
-  it('encodes initialize(admin, non-zero roles)', () => {
+  it('encodes initialize(admin, non-zero roles, no setters)', () => {
     const { functionName, args } = decodeFunctionData({
       abi: initializeAbi,
       data: getOwnedPermResInitCalldata(OWNER_A),
     })
     expect(functionName).toBe('initialize')
-    const [admin, roles] = args as [Address, bigint]
+    const [admin, roles, setters] = args as [Address, bigint, readonly Hex[]]
     expect(admin.toLowerCase()).toBe(OWNER_A.toLowerCase())
     expect(roles).toBeGreaterThan(0n)
+    expect(setters).toEqual([])
   })
 
   it('differs across distinct admins', () => {
