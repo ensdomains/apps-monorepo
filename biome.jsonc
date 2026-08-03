@@ -93,5 +93,23 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      // Playwright derives a fixture's dependencies by parsing its first
+      // argument and rejects anything that is not an object destructuring
+      // pattern ("First argument must use the object destructuring pattern",
+      // playwright/lib/common/fixtures.js). `async ({}, use) => ...` is
+      // therefore the only way to declare a fixture with no dependencies;
+      // rewriting it to `_` fails at run time.
+      "includes": ["e2e/fixtures/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noEmptyPattern": "off"
+          }
+        }
+      }
+    }
+  ]
 }

@@ -726,7 +726,9 @@
       } catch {}
       ws = null
     }
-    cursorEls.forEach((el) => el.remove())
+    cursorEls.forEach((el) => {
+      el.remove()
+    })
     cursorEls.clear()
     comments = []
     renderPins()
@@ -735,7 +737,9 @@
 
   function teardown() {
     closePopover()
-    root.querySelectorAll('.toolbar, .signin').forEach((node) => node.remove())
+    root.querySelectorAll('.toolbar, .signin').forEach((node) => {
+      node.remove()
+    })
   }
 
   // ======================================================================
@@ -1439,9 +1443,9 @@
     const note = pop.querySelector('[data-inote]')
     const tabs = [...pop.querySelectorAll('.tab-bar .t')]
     function show(tabKey) {
-      tabs.forEach((t) =>
-        t.classList.toggle('active', t.dataset.itab === tabKey),
-      )
+      tabs.forEach((t) => {
+        t.classList.toggle('active', t.dataset.itab === tabKey)
+      })
       if (note) note.textContent = INSPECTOR_NOTES[tabKey]
       body.innerHTML = ''
       if (tabKey === 'styles') {
@@ -1690,11 +1694,11 @@
     if (c.inspect && c.inspect.viewport)
       chips.push(`<span class="tag2 mono">${esc(c.inspect.viewport)}</span>`)
     if (c.styleEdits && c.styleEdits.length)
-      c.styleEdits.forEach((e2) =>
+      c.styleEdits.forEach((e2) => {
         chips.push(
           `<span class="tag2 mono edit" title="Suggested change">${esc(e2.prop)}: <s>${esc(e2.from)}</s> → <b>${esc(e2.to)}</b></span>`,
-        ),
-      )
+        )
+      })
     const classes = (c.inspect && c.inspect.classes) || []
     const MAX = 6
     classes.slice(0, MAX).forEach((cl) => {
@@ -1952,7 +1956,9 @@
         } else {
           list.innerHTML = ''
         }
-        issues.forEach((it) => list.appendChild(rowFor(it)))
+        issues.forEach((it) => {
+          list.appendChild(rowFor(it))
+        })
         nextCursor = data.nextCursor || null
         if (nextCursor) {
           const more = document.createElement('div')
@@ -2248,7 +2254,9 @@
       if (msg.type === 'unauthorized') return signOut()
       if (msg.type === 'cursor') moveCursor(msg.user, msg.x, msg.y)
       else if (msg.type === 'presence') {
-        msg.users.forEach((u) => ensureCursor(u))
+        msg.users.forEach((u) => {
+          ensureCursor(u)
+        })
         renderPresence()
       } else if (msg.type === 'join') {
         ensureCursor(msg.user)
