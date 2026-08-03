@@ -99,10 +99,46 @@ export function hcaRegistrarAddress(chainId: number): Address {
 }
 
 /**
+ * Read the USDC (6dp) an intent will spend, from `intentCost.tokensSpent`.
+ *
+ * NOT `tokensReceived`: that array describes tokens the orchestrator delivers
+ * TO the account to satisfy `tokenRequests`, so on this route -- same-chain,
+ * nothing bridged in, `tokenRequests: []` -- it is ALWAYS `[]` and reading
+ * `[0].amountSpent` always yielded `undefined`. Every budget therefore fell
+ * back to the local gas model while reporting itself as a quote failure, which
+ * is what the 3% buffer was quietly compensating for. Verified live: a
+ * commit-only intent returns `tokensReceived: []` alongside
+ * `tokensSpent: {11155111: {<usdc>: {locked: '0', unlocked: '905736'}}}` and
+ * `gasCost.totalUSD: 0.9065`, i.e. `unlocked` IS the cost, in 6dp USDC.
+ *
+ * `locked` covers funds already committed to a resource lock; both are spent
+ * by the account, so the cost is their sum.
+ *
+ * Returns `null` if the quote can't be read.
+ */
+export function readUsdcSpend(
+  cost: IntentCostShape | undefined,
+  chainId: number,
+): bigint | null {
+  const perToken = cost?.tokensSpent?.[String(chainId)]
+  if (!perToken) return null
+
+  // The orchestrator echoes token addresses LOWERCASED while our contract
+  // constants are checksummed, so an exact key lookup silently misses and
+  // degrades to the fallback -- the same class of bug this function fixes.
+  const usdc = getDestinationContracts(chainId).usdc.toLowerCase()
+  const entry = Object.entries(perToken).find(
+    ([token]) => token.toLowerCase() === usdc,
+  )?.[1]
+  if (!entry) return null
+
+  return BigInt(entry.locked ?? '0') + BigInt(entry.unlocked ?? '0')
+}
+
+/**
  * Read the USDC (6dp) an intent will spend, straight from a Rhinestone
- * `prepareTransaction` quote (`intentCost.tokensReceived[0].amountSpent`).
- * This is the amount the orchestrator actually pulls, so it is immune to the
- * caller's local gas-price reads. Returns `null` if the quote can't be read.
+ * `prepareTransaction` quote. This is the amount the orchestrator actually
+ * pulls, so it is immune to the caller's local gas-price reads.
  */
 async function quoteIntentSpendUsdc(
   account: RhinestoneSigner['account'],
@@ -138,8 +174,7 @@ async function quoteIntentSpendUsdc(
   } as Transaction)) as PreparedQuote
 
   const route = prepared.intentRoute
-  const received = route?.intentCost?.tokensReceived?.[0]?.amountSpent
-  const spend = received === undefined ? null : BigInt(received)
+  const spend = readUsdcSpend(route?.intentCost, chain.id)
 
   // The same response carries the orchestrator's own ETH/USDC prices and the
   // destination gas price. Surface them so the fallback model never needs the
@@ -173,10 +208,25 @@ async function quoteIntentSpendUsdc(
  * Sepolia gas-price spikes. Falls back to a clamped gas-limit model per leg
  * when the account/session isn't available or a quote fails.
  */
+/**
+ * The subset of `intentCost` this module reads, keyed chain -> token.
+ *
+ * Mirrors the SDK's `IntentCost['tokensSpent']`, but deliberately re-declared
+ * as loose/optional: the SDK types the amounts as required and `tokensReceived`
+ * as a 1-tuple, while the wire really returns an empty array and may omit
+ * fields. Trusting the SDK's shape here is what hid the empty `tokensReceived`.
+ */
+type IntentCostShape = {
+  tokensSpent?: Record<
+    string,
+    Record<string, { locked?: string; unlocked?: string }>
+  >
+}
+
 /** The subset of `prepareTransaction`'s response this module reads. */
 type PreparedQuote = {
   intentRoute?: {
-    intentCost?: { tokensReceived?: { amountSpent?: string }[] }
+    intentCost?: IntentCostShape
     intentOp?: {
       signedMetadata?: {
         tokenPrices?: Record<string, number>

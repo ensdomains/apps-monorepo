@@ -12,6 +12,7 @@ import type { EOASigner, Signer } from '../../types/signer.types'
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 import {
+  readUsdcSpend,
   signFundingPermitActor,
   submitFundingAndCommitActor,
   verifyHcaRegistrationActor,
@@ -294,5 +295,68 @@ describe('signFundingPermitActor', () => {
     expect(typedData.message.spender.toLowerCase()).toBe(HCA.toLowerCase())
     expect(typedData.message.value).toBe(15_000_000n)
     expect(typedData.message.nonce).toBe(7n)
+  })
+})
+
+describe('readUsdcSpend', () => {
+  const usdc = C.usdc
+
+  it('reads the cost from tokensSpent, which is where it actually lives', () => {
+    // Captured verbatim from the live orchestrator for a commit-only
+    // same-chain intent (gasCost.totalUSD was 0.9065, matching 905736 6dp).
+    const cost = {
+      tokensSpent: {
+        '11155111': {
+          '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238': {
+            locked: '0',
+            unlocked: '905736',
+          },
+        },
+      },
+    }
+
+    expect(readUsdcSpend(cost, sepolia.id)).toBe(905_736n)
+  })
+
+  it('matches the token address case-insensitively', () => {
+    // The orchestrator echoes addresses lowercased while our contract
+    // constants are checksummed. An exact-key lookup misses and silently
+    // degrades the budget to the gas fallback.
+    expect(usdc).not.toBe(usdc.toLowerCase())
+
+    const cost = {
+      tokensSpent: {
+        '11155111': {
+          [usdc.toLowerCase()]: { locked: '0', unlocked: '12345' },
+        },
+      },
+    }
+
+    expect(readUsdcSpend(cost, sepolia.id)).toBe(12_345n)
+  })
+
+  it('sums locked and unlocked, since the account spends both', () => {
+    const cost = {
+      tokensSpent: {
+        '11155111': {
+          [usdc.toLowerCase()]: { locked: '1000', unlocked: '2000' },
+        },
+      },
+    }
+
+    expect(readUsdcSpend(cost, sepolia.id)).toBe(3_000n)
+  })
+
+  it('returns null rather than 0 when the quote carries no cost for the chain', () => {
+    // 0 would be indistinguishable from a free intent and would size a permit
+    // at exactly the registration price, leaving nothing for fees.
+    expect(readUsdcSpend({ tokensSpent: {} }, sepolia.id)).toBeNull()
+    expect(readUsdcSpend(undefined, sepolia.id)).toBeNull()
+    expect(
+      readUsdcSpend(
+        { tokensSpent: { '11155111': { '0xother': { unlocked: '5' } } } },
+        sepolia.id,
+      ),
+    ).toBeNull()
   })
 })
