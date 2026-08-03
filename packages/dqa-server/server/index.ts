@@ -53,6 +53,10 @@ import type {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.PORT) || 4000
 const PUBLIC_DIR = resolve(__dirname, '../public')
+// Vite output: overlay.js plus its lazily-imported chunks (see vite.config.ts).
+// Served ahead of PUBLIC_DIR so the public URL stays /overlay.js. Built in the
+// Docker build stage; run `pnpm build` before `pnpm start` locally.
+const DIST_DIR = resolve(__dirname, '../dist')
 const UPLOAD_DIR = resolve(__dirname, '../data/uploads')
 if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
 
@@ -589,6 +593,16 @@ app.use(
 // `no-cache` = browsers must revalidate (ETag/304) before reusing a cached
 // copy, so overlay.js updates are picked up on refresh instead of a stale
 // script silently serving until the heuristic cache expires.
+//
+// dist/ (built overlay bundle) is mounted first so it wins over anything of
+// the same name in public/; public/ holds hand-authored static assets only.
+app.use(
+  express.static(DIST_DIR, {
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache')
+    },
+  }),
+)
 app.use(
   express.static(PUBLIC_DIR, {
     setHeaders: (res) => {

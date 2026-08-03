@@ -1,8 +1,13 @@
 /* DQA Overlay — inject on any page with:
- *   <script src="http://localhost:4000/overlay.js" data-linear-issue="ENG-123"></script>
+ *   <script type="module" src="http://localhost:4000/overlay.js?issue=ENG-123"></script>
  * Legacy mode: floating sign-in card + toolbar (demo.html, manual embed).
- * DevDrawer mode: set window.__DQA_EMBED__ = "drawer" or data-embed="drawer" on the
- * script tag — only pins, cursors, and comment popovers render; auth UI lives in DevDrawer.
+ * DevDrawer mode: set window.__DQA_EMBED__ = "drawer" or add ?embed=drawer to the
+ * src — only pins, cursors, and comment popovers render; auth UI lives in DevDrawer.
+ *
+ * This is an ES module, bundled by Vite (see vite.config.ts) into ../dist.
+ * Config comes from the module's own URL rather than the script element:
+ * `document.currentScript` is always null in module scripts (per spec), so
+ * `import.meta.url` is the only way to recover where we were loaded from.
  */
 ;(() => {
   if (window.__DQA_OVERLAY__) {
@@ -12,10 +17,11 @@
   }
   window.__DQA_OVERLAY__ = true
 
-  const self =
-    document.currentScript ||
-    [...document.scripts].reverse().find((s) => /overlay\.js/.test(s.src))
-  const API = self ? new URL(self.src, location.href).origin : location.origin
+  // Where this module was served from — the DQA server. Config rides on the
+  // URL's query string because module scripts have no `document.currentScript`
+  // to read data-* attributes off of.
+  const SELF_URL = new URL(import.meta.url)
+  const API = SELF_URL.origin
   // Auth origin — same as API unless /auth/config reports a delegated
   // `authOrigin` (long-lived instance owning the Linear OAuth redirect URI).
   let AUTH = API
@@ -24,11 +30,11 @@
   // so PAGE_URL must be recomputed on every navigation (see the history hooks
   // near the bottom) — never cached as a constant.
   let PAGE_URL = location.origin + location.pathname
-  const ISSUE_REF = self ? self.getAttribute('data-linear-issue') : null // e.g. "ENG-123"
+  const ISSUE_REF = SELF_URL.searchParams.get('issue') // e.g. "ENG-123"
   /** DevDrawer embed — legacy floating sign-in/toolbar disabled. */
   const EMBED =
     window.__DQA_EMBED__ === 'drawer' ||
-    !!(self && self.getAttribute('data-embed') === 'drawer')
+    SELF_URL.searchParams.get('embed') === 'drawer'
 
   let TOKEN = null
   try {
@@ -960,33 +966,10 @@
   // html-to-image renders through the browser itself (SVG foreignObject), so
   // modern CSS — Tailwind v4 oklch() colors etc. — works. html2canvas parses
   // CSS in JS and throws `unsupported color function "oklch"` on these apps.
-  let h2iPromise = null
-  function loadHtmlToImage() {
-    if (window.htmlToImage) return Promise.resolve(window.htmlToImage)
-    if (h2iPromise) return h2iPromise
-    const sources = [
-      API + '/vendor/html-to-image.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js',
-    ]
-    h2iPromise = sources.reduce(
-      (p, src) =>
-        p.catch(
-          () =>
-            new Promise((res, rej) => {
-              const s = document.createElement('script')
-              s.src = src
-              s.onload = () =>
-                window.htmlToImage
-                  ? res(window.htmlToImage)
-                  : rej(new Error('html-to-image missing'))
-              s.onerror = () => rej(new Error('html-to-image load failed'))
-              document.head.appendChild(s)
-            }),
-        ),
-      Promise.reject(new Error('start')),
-    )
-    return h2iPromise
-  }
+  // Vite splits this dynamic import into its own chunk, so the ~17 kB of
+  // capture code is only fetched the first time someone actually attaches a
+  // screenshot. The module registry caches it — repeat calls don't re-fetch.
+  const loadHtmlToImage = () => import('html-to-image')
   // The element's OWN background is usually transparent — the page color
   // comes from an ancestor. Without it, captures of light-on-dark UIs render
   // light text on transparency (unreadable on the popover). Walk up to the
@@ -1076,7 +1059,10 @@
       const seen = new Set()
       for (const p of [
         { name: c.author, avatarUrl: c.authorAvatar },
-        ...(c.replies || []).map((r) => ({ name: r.author, avatarUrl: r.authorAvatar })),
+        ...(c.replies || []).map((r) => ({
+          name: r.author,
+          avatarUrl: r.authorAvatar,
+        })),
       ]) {
         const key = p.name || '?'
         if (seen.has(key)) continue
@@ -1101,10 +1087,11 @@
         pin.appendChild(more)
       }
       const snippet = String(c.body || '').slice(0, 80)
-      const names = participants.map((p) => p.name).filter(Boolean).join(', ')
-      pin.title = names
-        ? `${names}${snippet ? ' — ' + snippet : ''}`
-        : snippet
+      const names = participants
+        .map((p) => p.name)
+        .filter(Boolean)
+        .join(', ')
+      pin.title = names ? `${names}${snippet ? ' — ' + snippet : ''}` : snippet
       pin.addEventListener('click', (e) => {
         e.stopPropagation()
         activeCommentId = c.id
@@ -1443,7 +1430,8 @@
   const INSPECTOR_NOTES = {
     styles:
       'Style edits apply to the page live (like devtools) and attach as suggestions.',
-    classes: 'Class changes apply live and attach to the comment as suggestions.',
+    classes:
+      'Class changes apply live and attach to the comment as suggestions.',
     props: 'Read-only props of the selected component instance.',
   }
   function wireInspector(pop, el, inspect, styleEdits) {
@@ -1548,7 +1536,7 @@
         // Chip editor: × removes a class, the dashed input adds one. All
         // changes preview live and record a single class styleEdit.
         const fromClasses = inspect.classes.join(' ')
-        let current = (
+        const current = (
           (styleEdits.get('class') && styleEdits.get('class').to) ||
           fromClasses
         )
@@ -1674,7 +1662,9 @@
     const full = parts.length
       ? parts
           .map((p, i) =>
-            i === parts.length - 1 ? `<span class="cur">${esc(p)}</span>` : `<span>${esc(p)}</span>`,
+            i === parts.length - 1
+              ? `<span class="cur">${esc(p)}</span>`
+              : `<span>${esc(p)}</span>`,
           )
           .join('<span class="sep">›</span>')
       : `<span class="cur">${esc(fallback)}</span>`
@@ -2561,7 +2551,10 @@
     } catch {}
     const status = c.status === 'resolved' ? ' [resolved]' : ''
     lines.push(
-      `${idx}QA: ${String(c.body || '').split('\n').join(' ').trim()}${status}`,
+      `${idx}QA: ${String(c.body || '')
+        .split('\n')
+        .join(' ')
+        .trim()}${status}`,
     )
     lines.push(`page: ${route}`)
     if (inspect && inspect.componentPath)
@@ -2578,10 +2571,17 @@
     if (c.replies && c.replies.length) {
       lines.push('replies:')
       for (const r of c.replies)
-        lines.push(`  - ${String(r.body || '').split('\n').join(' ').trim()}`)
+        lines.push(
+          `  - ${String(r.body || '')
+            .split('\n')
+            .join(' ')
+            .trim()}`,
+        )
     }
     if (c.linear && c.linear.identifier)
-      lines.push(`linear: ${c.linear.identifier}${c.linearDeleted ? ' (deleted)' : ''}`)
+      lines.push(
+        `linear: ${c.linear.identifier}${c.linearDeleted ? ' (deleted)' : ''}`,
+      )
     return lines.join('\n')
   }
 

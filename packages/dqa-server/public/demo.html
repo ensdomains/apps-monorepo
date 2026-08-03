@@ -80,8 +80,8 @@
 
   <!-- This single line is the entire integration. In your PR preview builds,
        inject the same tag (preview only) and designers can comment on the live page.
-       data-linear-issue maps every comment on this page onto that ticket — your
+       ?issue= maps every comment on this page onto that ticket — your
        linear/<ticket-id> branch convention can fill this in automatically. -->
-  <script src="/overlay.js" data-linear-issue="ENG-123"></script>
+  <script type="module" src="/overlay.js?issue=ENG-123"></script>
 </body>
 </html>

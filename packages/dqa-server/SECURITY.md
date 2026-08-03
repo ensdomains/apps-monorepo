@@ -46,7 +46,7 @@ the client, and unauthenticated access to the API.
 - Secrets are provided via environment (`e2e/infra/.env` or
   `packages/dqa-server/.env`), both **gitignored**. `.env.example` files carry
   only placeholders.
-- The client (`overlay.js`) derives the API origin from its own `<script src>`
+- The client (`overlay.js`) derives the API origin from its own module URL (`import.meta.url`)
   and holds only the opaque session token in `localStorage`. It has no client
   id, no secret, no Linear token in cleartext.
 
