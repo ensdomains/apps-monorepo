@@ -25,8 +25,6 @@ export const FullOnDesktop = ({ value }: { value: string }) => (
  * Renders an account as its **primary ENS name** (no avatar) when one resolves,
  * otherwise the truncated address. Optionally resolves the address from a transaction's
  * sender first. Kept here (not in EntityBadge) so the shared badge stays presentational.
- *
- * TODO(indexer): once `Event.from` is indexed, pass it as `address` and drop the tx RPC.
  */
 export const AccountBadge = ({
   address,
