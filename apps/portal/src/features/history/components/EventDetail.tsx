@@ -4,6 +4,7 @@ import {
   formatGwei,
   type Hash,
   isAddress,
+  isHex,
   zeroAddress,
 } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
@@ -27,7 +28,6 @@ import type {
 } from '../hooks/useNameHistoryTimeline'
 import { parseEventData, resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
-import { getTimelineFieldType } from './eventFieldTypes'
 
 const CONTRACT_PARAM_KEYS = new Set([
   'resolver',
@@ -35,6 +35,23 @@ const CONTRACT_PARAM_KEYS = new Set([
   'subregistry',
   'implementer',
 ])
+
+/** Infer a Solidity-ish type from a decoded parameter value. */
+const inferFieldType = (value: unknown): string => {
+  if (typeof value === 'boolean') return 'bool'
+  if (typeof value === 'bigint') return 'uint256'
+  if (typeof value === 'number')
+    return Number.isInteger(value) ? 'uint256' : 'string'
+
+  const raw = String(value).trim()
+  if (!raw) return 'string'
+  if (isAddress(raw, { strict: false })) return 'address'
+  if (isHex(raw, { strict: true })) {
+    return raw.length === 66 ? 'bytes32' : 'bytes'
+  }
+  if (/^\d+$/.test(raw)) return 'uint256'
+  return 'string'
+}
 
 const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {
   AddressChanged: 'asAddressChanged',
@@ -135,7 +152,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
                 <EntityBadge variant="default">{key}</EntityBadge>
               </td>
               <td className="py-1.5 pr-6 align-top font-mono text-muted-foreground">
-                {getTimelineFieldType(event.type, key)}
+                {inferFieldType(value)}
               </td>
               <td className="py-1.5 break-all align-top font-mono text-neutral-7">
                 <DecodedValue event={event} paramKey={key} value={value} />
