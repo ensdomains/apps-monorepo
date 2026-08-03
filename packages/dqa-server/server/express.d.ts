@@ -1,5 +1,5 @@
 // Augment Express's Request with the DQA session attached by requireAuth().
-import type { Session } from "./types.ts"
+import type { Session } from './types.ts'
 
 declare global {
   namespace Express {
@@ -8,5 +8,3 @@ declare global {
     }
   }
 }
-
-export {}

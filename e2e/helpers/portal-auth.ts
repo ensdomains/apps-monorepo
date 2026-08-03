@@ -1,9 +1,9 @@
-import { expect, type Page } from '@playwright/test'
-import type { Address, Hash } from 'viem'
 import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
+import { expect, type Page } from '@playwright/test'
+import type { Address, Hash } from 'viem'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,7 +36,10 @@ export async function connectWithHeadlessWallet(
   wallet: Web3ProviderBackend,
 ): Promise<void> {
   // 1. Click the portal's Connect button
-  const connectButton = page.getByRole('button', { name: 'Connect', exact: true })
+  const connectButton = page.getByRole('button', {
+    name: 'Connect',
+    exact: true,
+  })
   await connectButton.waitFor({ state: 'visible', timeout: 15_000 })
   await connectButton.click()
 
@@ -48,16 +51,22 @@ export async function connectWithHeadlessWallet(
   // 3. RainbowKit asks the extension to confirm — authorize programmatically.
   //    The headless provider queues RequestPermissions then RequestAccounts.
   await expect
-    .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions), {
-      timeout: 15_000,
-    })
+    .poll(
+      () => wallet.getPendingRequestCount(Web3RequestKind.RequestPermissions),
+      {
+        timeout: 15_000,
+      },
+    )
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestPermissions)
 
   await expect
-    .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts), {
-      timeout: 15_000,
-    })
+    .poll(
+      () => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts),
+      {
+        timeout: 15_000,
+      },
+    )
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestAccounts)
 

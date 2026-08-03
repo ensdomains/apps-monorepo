@@ -55,10 +55,7 @@ export function DqaElementTree({ api }: DqaElementTreeProps) {
           ↻ Refresh
         </button>
       </div>
-      <div
-        style={treeStyle}
-        onMouseLeave={() => api.clearHoverElement?.()}
-      >
+      <div style={treeStyle} onMouseLeave={() => api.clearHoverElement?.()}>
         {ready && tree.length === 0 ? (
           <p style={mutedStyle}>No elements found.</p>
         ) : (
@@ -109,19 +106,18 @@ function TreeRow({ api, node, depth, expanded, onToggle }: TreeRowProps) {
             e.stopPropagation()
             onToggle(node.uid)
           }}
-          style={{ ...caretStyle, visibility: hasChildren ? 'visible' : 'hidden' }}
+          style={{
+            ...caretStyle,
+            visibility: hasChildren ? 'visible' : 'hidden',
+          }}
           type="button"
         >
           {isOpen ? '▾' : '▸'}
         </button>
-        <span style={node.component ? compStyle : tagStyle}>
-          {node.label}
-        </span>
+        <span style={node.component ? compStyle : tagStyle}>{node.label}</span>
         <span style={tagDimStyle}>{`<${node.tag}>`}</span>
         {node.hidden && <span style={hiddenBadgeStyle}>hidden</span>}
-        {hasChildren && (
-          <span style={countStyle}>{node.children.length}</span>
-        )}
+        {hasChildren && <span style={countStyle}>{node.children.length}</span>}
       </div>
       {isOpen &&
         node.children.map((child) => (

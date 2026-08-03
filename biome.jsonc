@@ -11,6 +11,7 @@
       "apps/**",
       "packages/**",
       "workers/**",
+      "e2e/**",
 
       "!**/node_modules",
 
@@ -23,6 +24,15 @@
       "!**/*.gen.ts",
       "!**/*.gen.d.ts",
       "!**/worker-configuration.d.ts",
+
+      // Third-party code checked into the repo verbatim. It is not ours to
+      // fix, and minified bundles trip nearly every lint rule
+      // (noAssignInExpressions, noCommaOperator, noParameterAssign, ...).
+      // NOTE: intentionally excluded from the linter, NOT from git — see
+      // packages/dqa-server/public/overlay.js, which loads the local copy
+      // first and only falls back to cdnjs.
+      "!**/vendor",
+      "!**/*.min.js",
 
       // Build & Temp files
       "!!**/dist",

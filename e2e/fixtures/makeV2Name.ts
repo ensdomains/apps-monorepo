@@ -17,12 +17,22 @@
  *   3. makeCommitment → commit (signed by EOA)
  *   4. getRegisterPrice → approve USDC → register (signed by EOA)
  */
+
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { setRecords } from '@ensdomains/ensjs/wallet'
+
+import {
+  permissionedRegistryGetExpirySnippet,
+  proxyDeployedEventSnippet,
+  subregistryInitializeSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2'
 import {
   type Address,
-  type Hash,
   createWalletClient,
   decodeEventLog,
   encodeFunctionData,
+  type Hash,
   http,
   keccak256,
   parseAbi,
@@ -58,7 +68,8 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
-const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const PERMISSIONED_RESOLVER_IMPL =
+  ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
 
 const REFERRER = zeroHash
@@ -120,9 +131,8 @@ const ANVIL_FUNDER = privateKeyToAccount(
  * The smart account calls contracts via HCA, and the resolver
  * resolves msg.sender → EOA via `getAccountOwner()`.
  */
-const PARA_EOA_KEY =
-  (process.env.ANVIL_PARA_PRIVATE_KEY ??
-    '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
+const PARA_EOA_KEY = (process.env.ANVIL_PARA_PRIVATE_KEY ??
+  '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
 const PARA_EOA = privateKeyToAccount(PARA_EOA_KEY)
 
 // ---------------------------------------------------------------------------
@@ -191,9 +201,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
    * If `duration` is negative the name is registered then anvil time is
    * advanced so the name appears expired by |duration| seconds.
    */
-  return async function makeV2Name(
-    config: V2NameConfig,
-  ): Promise<string> {
+  return async function makeV2Name(config: V2NameConfig): Promise<string> {
     const isOther = config.owner === 'other'
     const ownerAddress = isOther ? resolvedOther.address : resolvedUser.address
     const ownerAccount = isOther ? resolvedOther : resolvedUser
@@ -209,7 +217,10 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       registrationDuration = MIN_REGISTRATION_DURATION
       desiredGapPastExpiry = Math.abs(requestedDuration)
     } else {
-      registrationDuration = Math.max(requestedDuration, MIN_REGISTRATION_DURATION)
+      registrationDuration = Math.max(
+        requestedDuration,
+        MIN_REGISTRATION_DURATION,
+      )
     }
 
     const secret = keccak256(toHex(`v2-${uniqueLabel}:${Math.random()}`))
@@ -227,10 +238,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     // ── 1. Deploy dedicated resolver proxy ──────────────────────────
     // Initialized with the EOA as owner — matches the app's flow where
     // the resolver checks HCA ownership (smart account → EOA).
-    const resolverAddress = await deployResolverProxy(
-      uniqueLabel,
-      ownerAddress,
-    )
+    const resolverAddress = await deployResolverProxy(uniqueLabel, ownerAddress)
     console.log(`[makeV2Name] resolver proxy: ${resolverAddress}`)
 
     // Mirror the grant the app's own registration performs. There, the resolver
@@ -251,7 +259,8 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
 
     // ── 2. Fund the EOA ─────────────────────────────────────────────
     const balance = await publicClient.getBalance({ address: ownerAddress })
-    if (balance < 10000000000000000n) { // < 0.01 ETH
+    if (balance < 10000000000000000n) {
+      // < 0.01 ETH
       const fundTx = await walletClient.sendTransaction({
         account: ANVIL_FUNDER,
         to: ownerAddress,

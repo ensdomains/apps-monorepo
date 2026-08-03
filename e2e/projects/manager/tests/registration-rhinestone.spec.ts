@@ -24,9 +24,9 @@
  *   - Manager app with VITE_FF_USE_EOA=false.
  */
 import {
-  test,
-  expect,
   authorizeTransactionsWhile,
+  expect,
+  test,
 } from '../../../fixtures/playwright.manager.fixture.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
 import { clickThroughEnableSessions } from '../../../helpers/manager-auth.js'
@@ -45,7 +45,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
     const searchInput = await findSearchInput(page)
     await searchInput.click()
     await searchInput.fill(nameOnly)
-    await page.getByText('Available').first().waitFor({ state: 'visible', timeout: 15_000 })
+    await page
+      .getByText('Available')
+      .first()
+      .waitFor({ state: 'visible', timeout: 15_000 })
     await page.getByText(DOMAIN_TO_REGISTER).click()
 
     await page.getByRole('button', { name: /pay with stablecoins/i }).click()
@@ -78,12 +81,17 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
       wallet,
       () => registrationComplete,
     )
-    await expect(successBanner).toContainText('Registration Complete', { timeout: 240_000 })
+    await expect(successBanner).toContainText('Registration Complete', {
+      timeout: 240_000,
+    })
     registrationComplete = true
     await authorizeSetupTxs
 
     if (mockIndexer.enabled) {
-      mockIndexer.addName({ name: DOMAIN_TO_REGISTER, owner: accounts.getAddress('user') })
+      mockIndexer.addName({
+        name: DOMAIN_TO_REGISTER,
+        owner: accounts.getAddress('user'),
+      })
     }
   })
 })
