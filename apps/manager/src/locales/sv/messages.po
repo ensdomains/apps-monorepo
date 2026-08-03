@@ -55,9 +55,23 @@ msgstr ""
 msgid "{0} USD/year"
 msgstr ""
 
+#. placeholder {0}: preset.years
+#: src/features/bulk-renew/components/DurationPresets.tsx
+msgid "{0} years"
+msgstr ""
+
+#. placeholder {0}: summary?.discountPercentage ?? 0
+#: src/features/bulk-renew/components/DurationPresets.tsx
+msgid "{0}% discount"
+msgstr ""
+
 #. placeholder {0}: option.discount
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx
 msgid "{0}% off"
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "{count, plural, one {Renew # name for} other {Renew # names for}}"
 msgstr ""
 
 #: src/features/register/components/CheckAvailability/DurationSelector.tsx
@@ -71,6 +85,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationProgressBanner.tsx
 msgid "{migrated} out of {total} names upgraded"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "{selectedCount} selected"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
@@ -93,6 +111,10 @@ msgstr ""
 msgid "{value, plural, one {# year} other {# years}}"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "{years} years"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "<0>{totalSelected}</0><1> out of </1><2>{visibleCount}</2><3> eligible names selected</3>"
 msgstr ""
@@ -104,6 +126,11 @@ msgstr ""
 #. placeholder {0}: errorDisplay.message
 #: src/routes/wallet.tsx
 msgid "<0>Connection failed:</0> {0}"
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+#: src/features/bulk-renew/components/DurationPresets.tsx
+msgid "1 year"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/lib/premiumLabel.ts
@@ -206,6 +233,14 @@ msgstr ""
 msgid "After signing, your ENS operations (registrations, renewals, etc.) won't require additional wallet signatures."
 msgstr ""
 
+#: src/features/profile/components/view/AgentRecordCard.tsx
+msgid "Agent ID"
+msgstr ""
+
+#: src/features/profile/components/view/ProfileAgentSection.tsx
+msgid "Agents"
+msgstr ""
+
 #: src/routes/notifications/_authenticated/index.tsx
 msgid "All Notifications"
 msgstr ""
@@ -304,6 +339,7 @@ msgid "Awaiting approval signature"
 msgstr ""
 
 #: src/components/GlobalBackButton.tsx
+#: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Back"
@@ -358,10 +394,6 @@ msgstr ""
 msgid "Billing zip code"
 msgstr ""
 
-#: src/features/profile/components/view/ViewBioSection.tsx
-#~ msgid "Bio"
-#~ msgstr ""
-
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Blog"
 msgstr ""
@@ -380,6 +412,14 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Bug bounty"
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "Bulk renewal requires a smart account so every name renews in a single transaction. It isn’t available in EOA mode."
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "Bulk renewal unavailable"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -474,10 +514,6 @@ msgstr ""
 msgid "Click the button below to verify your email address and start receiving notifications."
 msgstr ""
 
-#: src/features/profile/components/view/ViewBioSection.tsx
-#~ msgid "Click to copy"
-#~ msgstr ""
-
 #: src/components/ui/dialog.tsx
 #: src/features/migration/components/MigrationModal.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
@@ -525,6 +561,7 @@ msgstr ""
 msgid "Complete your profile"
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
 #: src/features/payment/components/add.tsx
 #: src/routes/auto-renewal/index.tsx
 msgid "Confirm"
@@ -537,6 +574,10 @@ msgstr ""
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 msgid "Confirm purchase"
+msgstr ""
+
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "Confirm renewal"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -639,6 +680,10 @@ msgstr ""
 
 #: src/features/navigation/Header/account/WalletSection.tsx
 msgid "Copied!"
+msgstr ""
+
+#: src/features/profile/components/view/AgentRecordCard.tsx
+msgid "Copy"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -744,8 +789,16 @@ msgstr ""
 msgid "Deploying the resolver"
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx
+msgid "Deselect {label}"
+msgstr ""
+
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 msgid "Deselect all"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Deselect all names"
 msgstr ""
 
 #: src/features/dashboard/components/EducationCarousel.tsx
@@ -770,6 +823,10 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Domain transfer & expiry notifications"
+msgstr ""
+
+#: src/features/bulk-renew/components/SuccessStep.tsx
+msgid "Done"
 msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
@@ -1233,6 +1290,10 @@ msgstr ""
 msgid "Load more"
 msgstr ""
 
+#: src/features/bulk-renew/components/PaymentMethodSection.tsx
+msgid "Loading balances…"
+msgstr ""
+
 #: src/features/register/components/Pricing/Pricing.tsx
 msgid "Loading prices..."
 msgstr ""
@@ -1256,6 +1317,10 @@ msgstr "Laddar..."
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Long-term identity"
+msgstr ""
+
+#: src/features/bulk-renew/components/DurationPresets.tsx
+msgid "Lowest upfront cost"
 msgstr ""
 
 #: src/features/profile/components/view/ProfileAddressesSection.tsx
@@ -1407,6 +1472,10 @@ msgstr ""
 msgid "Never lose your name to expiry."
 msgstr ""
 
+#: src/features/bulk-renew/components/BulkRenewDialog.tsx
+msgid "Next"
+msgstr ""
+
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Next card"
 msgstr ""
@@ -1468,6 +1537,7 @@ msgstr ""
 msgid "No recent searches"
 msgstr ""
 
+#: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "No stablecoins available"
 msgstr ""
@@ -1479,10 +1549,6 @@ msgstr ""
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Not a valid name format"
 msgstr ""
-
-#: src/features/profile/components/view/ViewBioSection.tsx
-#~ msgid "Not set"
-#~ msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/register/components/CheckAvailability/CheckAvailability.tsx
@@ -1556,10 +1622,6 @@ msgstr ""
 msgid "Owned"
 msgstr ""
 
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx
-#~ msgid "Owned by"
-#~ msgstr ""
-
 #: src/features/dashboard/components/DashboardPills.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Owner"
@@ -1630,6 +1692,7 @@ msgstr ""
 msgid "Planting your name in the infinite garden"
 msgstr ""
 
+#: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
@@ -1715,10 +1778,6 @@ msgstr ""
 #: src/features/dashboard/components/EducationCarousel.tsx
 msgid "Previous card"
 msgstr ""
-
-#: src/features/profile/components/common/ProfileHeaderInfo.tsx
-#~ msgid "Previous owner"
-#~ msgstr ""
 
 #: src/features/dashboard/components/DashboardPagination.tsx
 msgid "Previous page"
@@ -1884,6 +1943,10 @@ msgstr ""
 msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
+#: src/features/profile/components/view/AgentRecordCard.tsx
+msgid "Registry"
+msgstr ""
+
 #: src/features/dashboard/components/NameRow.tsx
 msgid "Remind me"
 msgstr ""
@@ -1937,6 +2000,7 @@ msgid "Rendering"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
+#: src/features/dashboard/components/NamesTable.tsx
 #: src/features/grace/components/GracePeriodBanner.tsx
 #: src/features/renew/components/RenewNameButton.tsx
 msgid "Renew"
@@ -1952,8 +2016,21 @@ msgstr ""
 msgid "Renew Name"
 msgstr ""
 
+#. placeholder {0}: format(targetDate, 'MMM d, yyyy')
+#: src/features/bulk-renew/components/RenewToDatePopover.tsx
+msgid "Renew to {0}"
+msgstr ""
+
 #: src/features/register-v2/workflow/pricing/components/DurationCustomRow.tsx
 msgid "Renew to date"
+msgstr ""
+
+#: src/features/bulk-renew/components/RenewToDatePopover.tsx
+msgid "Renew to date instead"
+msgstr ""
+
+#: src/features/bulk-renew/components/SuccessStep.tsx
+msgid "Renewal Complete"
 msgstr ""
 
 #: src/features/renew/workflow/renewing/components/RenewalCompletionBanner.tsx
@@ -1962,6 +2039,10 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Renewal Details"
+msgstr ""
+
+#: src/features/bulk-renew/components/FailureStep.tsx
+msgid "Renewal failed"
 msgstr ""
 
 #: src/features/renew/workflow/result/FailureStep.tsx
@@ -1982,6 +2063,10 @@ msgstr ""
 
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "Renewing for"
+msgstr ""
+
+#: src/features/bulk-renew/components/RenewingStep.tsx
+msgid "Renewing names"
 msgstr ""
 
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
@@ -2024,6 +2109,11 @@ msgstr ""
 
 #: src/features/renew/workflow/result/FailureStep.tsx
 msgid "Retrying will attempt the renewal again from where it left off."
+msgstr ""
+
+#. placeholder {0}: formatUsdAmount(summary?.discountAmount ?? 0)
+#: src/features/bulk-renew/components/DurationPresets.tsx
+msgid "Save {0}"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
@@ -2106,13 +2196,22 @@ msgstr ""
 msgid "Select {0}"
 msgstr ""
 
+#: src/features/dashboard/components/NameRow.tsx
+msgid "Select {label}"
+msgstr ""
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Select {label} as primary name"
 msgstr "Välj {label} som primärt namn"
 
+#: src/features/dashboard/components/NamesTable.tsx
 #: src/features/migration/components/SelectNamesStepSelectionOptions.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Select all"
+msgstr ""
+
+#: src/features/dashboard/components/NamesTable.tsx
+msgid "Select all names"
 msgstr ""
 
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
@@ -2120,6 +2219,7 @@ msgstr ""
 msgid "Select coin"
 msgstr ""
 
+#: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Select payment"
 msgstr ""
@@ -2326,6 +2426,10 @@ msgstr ""
 msgid "Some names could not be loaded"
 msgstr ""
 
+#: src/features/bulk-renew/components/FailureStep.tsx
+msgid "Something went wrong"
+msgstr ""
+
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Something went wrong. Please refresh and try again."
 msgstr ""
@@ -2387,6 +2491,10 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Submitting token approval"
+msgstr ""
+
+#: src/features/bulk-renew/components/NamesBreakdown.tsx
+msgid "Subtotal:"
 msgstr ""
 
 #: src/routes/wallet.tsx
@@ -2463,6 +2571,10 @@ msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
 msgid "The registration for {label}.eth could not be completed. You can retry or go back to adjust your settings."
+msgstr ""
+
+#: src/features/bulk-renew/components/FailureStep.tsx
+msgid "The renewal could not be completed."
 msgstr ""
 
 #: src/features/renew/workflow/result/FailureStep.tsx
@@ -2553,6 +2665,10 @@ msgstr ""
 msgid "Total Paid"
 msgstr ""
 
+#: src/features/bulk-renew/components/NamesBreakdown.tsx
+msgid "Total:"
+msgstr ""
+
 #: src/features/migration/components/value-props/migrationValueProps.ts
 msgid "Track your favorite names"
 msgstr ""
@@ -2565,6 +2681,7 @@ msgstr ""
 msgid "Transfer your name to any wallet"
 msgstr ""
 
+#: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Try again"
 msgstr ""

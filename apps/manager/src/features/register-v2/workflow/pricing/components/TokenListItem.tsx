@@ -35,8 +35,8 @@ export const TokenListItem = ({
     <button
       aria-label={t`Select ${stablecoin.symbol}`}
       className={cn(
-        'flex h-11 items-center justify-between rounded px-2.5 py-4 transition-colors',
-        isSelected ? 'bg-ens-blue-light' : 'hover:bg-ens-gray-two/50',
+        'flex h-11 items-center justify-between rounded px-3 py-4 transition-colors',
+        isSelected ? 'bg-ens-quartz-75' : 'hover:bg-ens-quartz-50',
         hasInsufficientBalanceForCoin && 'cursor-not-allowed opacity-50',
       )}
       disabled={hasInsufficientBalanceForCoin}

@@ -26,8 +26,8 @@ function decodeRoleBitmap(data: `0x${string}`): bigint {
 describe('prepareCreateSubnameTransaction', () => {
   // Regression for WEB-448: subnames were created with an empty (0n) role
   // bitmap, leaving the owner with no roles. The default must grant all roles.
-  it('defaults the role bitmap to all roles, never an empty bitmap', async () => {
-    const result = await prepareCreateSubnameTransaction({
+  it('defaults the role bitmap to all roles, never an empty bitmap', () => {
+    const { request } = prepareCreateSubnameTransaction({
       registryAddress: REGISTRY,
       label: 'test',
       owner: OWNER,
@@ -36,10 +36,6 @@ describe('prepareCreateSubnameTransaction', () => {
       chainId: sepolia.id,
     })
 
-    expect(result.isOk()).toBe(true)
-    if (result.isErr()) throw result.error
-
-    const { request } = result.value
     expect(request.type).toBe('eoa')
     if (request.type !== 'eoa') throw new Error('expected an EOA request')
 

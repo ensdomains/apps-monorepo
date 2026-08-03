@@ -37,17 +37,21 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Roles unavailable"
-        description={error.cause?.message ?? error.message}
+        compact
+        description="Error fetching roles. Please refresh the page."
       />
     )
 
   if (owner?.protocolVersion !== 'ENSv2')
     return (
-      <NoResultsMessage
-        title="Roles unavailable"
-        description="Role management is only available for ENSv2 names."
-      />
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h2 md:text-h1">Roles</h1>
+        <NoResultsMessage
+          title="Roles unavailable"
+          description="Role management is only available for ENSv2 names."
+          className="mx-0"
+        />
+      </div>
     )
 
   return (

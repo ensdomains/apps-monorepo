@@ -1,5 +1,7 @@
 import type { RegistrationMachineActor } from '@ens-apps/transaction-manager'
 import {
+  encodeDeployDedicatedResolverCall,
+  encodeRegisterCall,
   REGISTRATION_TX_IDS,
   registrationMachine,
   transactionManager,
@@ -8,7 +10,13 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getWalletClient } from '@wagmi/core/actions'
 import { useActorRef, useSelector } from '@xstate/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { type Address, erc20Abi } from 'viem'
+import {
+  type Address,
+  erc20Abi,
+  hexToBigInt,
+  keccak256,
+  stringToBytes,
+} from 'viem'
 import {
   useConfig,
   useConnection,
@@ -17,6 +25,10 @@ import {
 } from 'wagmi'
 import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
+import {
+  buildApproveIntent,
+  toEoaCustomIntent,
+} from '@/features/transaction-manager/helpers/intents'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import type { Transaction } from '@/features/transaction-manager/types'
 import { sepoliaWithEns } from '@/lib/wagmi'
@@ -79,6 +91,7 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.resolverAddress,
   )
+  const commitment = useSelector(actor, (state) => state.context.commitment)
   const verifiedResolverRef = useRef<Address | null>(null)
   useEffect(() => {
     if (!resolverAddress || verifiedResolverRef.current === resolverAddress) {
@@ -91,9 +104,9 @@ export const useRegistrationTransactions = ({
     actor,
     (state) => state.context.registerReadyTimestamp,
   )
-  // Surface the commit-reveal cooldown to the modal. Approval can happen at
-  // any time; only the actual register call is gated by MIN_COMMITMENT_AGE,
-  // so attach the deadline to the register step.
+  // Keep the commit-reveal deadline on the register step whenever we know it.
+  // Visibility is gated in the modal (only when register is next), so Approve
+  // In Progress does not show a misleading "Ready in Xs" on Register.
   const registerWaitUntil =
     machineState === 'fetchingCommitmentAge' ||
     machineState === 'commitmentCooldown' ||
@@ -181,7 +194,26 @@ export const useRegistrationTransactions = ({
         id: REGISTRATION_TX_IDS.deployResolver,
         title: 'Deploy resolver',
         transactionName: `Deploy resolver for ${name}`,
-        estimatedGasCost: 0.001,
+        // Deploys the name's dedicated resolver via the shared package builder,
+        // so the estimate is byte-identical to what the machine submits. Uses a
+        // stable throwaway salt: deploy gas is salt-independent, and a
+        // name-derived salt never collides with a real (random-salt) deploy, so
+        // estimateGas won't revert on an already-deployed address.
+        intent: {
+          prepare: connection.address
+            ? ({ walletClient }) =>
+                toEoaCustomIntent({
+                  from: walletClient.account.address,
+                  ...encodeDeployDedicatedResolverCall({
+                    owner: connection.address as Address,
+                    salt: hexToBigInt(
+                      keccak256(stringToBytes(`estimate:${name}`)),
+                    ),
+                  }),
+                  chainId,
+                })
+            : undefined,
+        },
         onStart: handleStart,
         onDone: handleProceed,
       },
@@ -189,7 +221,6 @@ export const useRegistrationTransactions = ({
         id: REGISTRATION_TX_IDS.commit,
         title: 'Submit commitment',
         transactionName: `Commit to register ${name}`,
-        estimatedGasCost: 0.0005,
         onStart: handleProceed,
         onDone: handleProceed,
       },
@@ -200,7 +231,22 @@ export const useRegistrationTransactions = ({
         id: REGISTRATION_TX_IDS.approve,
         title: 'Approve payment',
         transactionName: `Approve ${savedParams?.tokenSymbol ?? 'token'} for registration`,
-        estimatedGasCost: 0.0003,
+        // A plain ERC-20 approval of the payment token to the registrar — known
+        // upfront (no dependency on an earlier step), so the modal can estimate
+        // it the moment it opens. approve gas is amount-independent, so the
+        // estimate holds even if the submitted allowance differs slightly.
+        intent: {
+          prepare: savedParams
+            ? ({ walletClient }) =>
+                buildApproveIntent({
+                  from: walletClient.account.address,
+                  token: savedParams.tokenAddress,
+                  spender: ethRegistrar,
+                  amount: savedParams.tokenPrice,
+                  chainId,
+                })
+            : undefined,
+        },
         onStart: handleProceed,
         onDone: handleProceed,
       })
@@ -210,7 +256,27 @@ export const useRegistrationTransactions = ({
       id: REGISTRATION_TX_IDS.register,
       title: 'Register name',
       transactionName: `Register ${name}`,
-      estimatedGasCost: 0.001,
+      // Known once commitment + resolver exist; gas cap covers the commitment-age
+      // window where live estimateGas reverts.
+      intent: {
+        prepare:
+          commitment && resolverAddress && connection.address && savedParams
+            ? ({ walletClient }) =>
+                toEoaCustomIntent({
+                  from: walletClient.account.address,
+                  ...encodeRegisterCall({
+                    name,
+                    owner: connection.address as Address,
+                    secret: commitment.secret,
+                    duration: BigInt(duration),
+                    paymentToken: savedParams.tokenAddress,
+                    resolverAddress,
+                  }),
+                  chainId,
+                  gas: 500_000n,
+                })
+            : undefined,
+      },
       onStart: handleProceed,
       onDone: handleDone,
       waitUntil: registerWaitUntil,
@@ -219,8 +285,12 @@ export const useRegistrationTransactions = ({
     return steps
   }, [
     name,
-    savedParams?.tokenSymbol,
+    duration,
+    connection.address,
+    savedParams,
     needsApproval,
+    commitment,
+    resolverAddress,
     registerWaitUntil,
     handleStart,
     handleProceed,

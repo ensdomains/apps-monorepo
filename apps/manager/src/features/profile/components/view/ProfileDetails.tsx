@@ -1,4 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro'
+import { useHydrated } from '@tanstack/react-router'
 import { Check, Copy } from 'lucide-react'
 import type { Address } from 'viem'
 import { MSymbol } from '@/components/ui/material-symbol'
@@ -52,8 +53,9 @@ const ProfileDetailDateValue = ({
 }: {
   readonly date: Date | null | undefined
 }) => {
-  const mobileValue = formatProfileDetailDate(date)
-  const desktopValue = formatProfileDetailDate(date, 'desktop')
+  const timeZone = useHydrated() ? 'local' : 'utc'
+  const mobileValue = formatProfileDetailDate(date, 'mobile', timeZone)
+  const desktopValue = formatProfileDetailDate(date, 'desktop', timeZone)
 
   if (!mobileValue || !desktopValue) return null
 

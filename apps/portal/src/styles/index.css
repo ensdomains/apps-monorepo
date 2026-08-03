@@ -358,13 +358,13 @@
   --button-warning-default: var(--signal-warning-800);
   --button-warning-hover: var(--signal-warning-700);
 
-  /* Message component tokens — dark */
-  --message-danger-fill: var(--signal-danger-900);
-  --message-danger-text: var(--signal-danger-300);
-  --message-success-fill: var(--signal-success-900);
-  --message-success-text: var(--signal-success-300);
-  --message-warning-fill: var(--signal-warning-900);
-  --message-warning-text: var(--signal-warning-300);
+  /* Message component tokens — dark: neutral fill, pale tinted text */
+  --message-danger-fill: var(--neutral-2);
+  --message-danger-text: var(--signal-danger-200);
+  --message-success-fill: var(--neutral-2);
+  --message-success-text: var(--signal-success-200);
+  --message-warning-fill: var(--neutral-2);
+  --message-warning-text: var(--signal-warning-200);
 
   /* 🪜 Neutral layers — dark */
   --neutral-0: #1e1e1e;

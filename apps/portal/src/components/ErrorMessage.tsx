@@ -1,24 +1,42 @@
-import { AlertCircle } from 'lucide-react'
+import { Frown } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { MessageCard } from '@/components/ui/message-card'
 
 interface ErrorMessageProps {
   title?: string
   description?: React.ReactNode
+  /** Icon + description only, for errors inside a page section */
+  compact?: boolean
+  className?: string
 }
 
 export function ErrorMessage({
-  title = 'Something went wrong',
+  title = 'Error loading page',
   description,
+  compact = false,
+  className,
 }: ErrorMessageProps) {
-  const defaultDescription =
-    description || 'Please try again or contact support if the issue persists.'
+  if (compact) {
+    return (
+      <Alert variant="destructive" className={className}>
+        <Frown strokeWidth={1.5} />
+        <AlertDescription>
+          {description || 'Error fetching data. Please refresh the page.'}
+        </AlertDescription>
+      </Alert>
+    )
+  }
 
   return (
     <MessageCard
       variant="danger"
-      icon={<AlertCircle size={30} strokeWidth={1.5} />}
+      icon={<Frown size={24} strokeWidth={1.5} />}
       title={title}
-      description={defaultDescription}
+      description={
+        description ||
+        'This page could not be loaded. Try refreshing the page and check the console log for detailed information.'
+      }
+      className={className}
     />
   )
 }

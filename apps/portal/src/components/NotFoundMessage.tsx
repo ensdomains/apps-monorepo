@@ -28,7 +28,7 @@ export function NotFoundMessage({
   return (
     <MessageCard
       variant="warning"
-      icon={<HelpCircle size={48} strokeWidth={1.5} />}
+      icon={<HelpCircle size={24} strokeWidth={1.5} />}
       title={title}
       description={description || defaultDescription}
     />

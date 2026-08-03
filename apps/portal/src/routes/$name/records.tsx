@@ -41,18 +41,22 @@ function App() {
   if (profileQuery.error) {
     return (
       <ErrorMessage
-        title="Records unavailable"
-        description={profileQuery.error.cause.message}
+        compact
+        description="Error fetching records. Please refresh the page."
       />
     )
   }
 
   if (!profileQuery.data) {
     return (
-      <NoResultsMessage
-        title="No records yet"
-        description="This name doesn't have any records set. Records will appear here once they're configured."
-      />
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h1">Records</h1>
+        <NoResultsMessage
+          title="No records yet"
+          description="This name doesn't have any records set. Records will appear here once they're configured."
+          className="mx-0"
+        />
+      </div>
     )
   }
 

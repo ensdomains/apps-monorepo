@@ -6,6 +6,7 @@ import type { Address } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
@@ -52,8 +53,8 @@ function RouteComponent() {
   if (error)
     return (
       <ErrorMessage
-        title="Roles unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching roles. Please refresh the page."
       />
     )
 
@@ -75,12 +76,20 @@ function RouteComponent() {
           </Button>
         )}
       </div>
-      <ResolverRolesTable
-        roles={roles}
-        nodes={nodes}
-        resolverAddress={address as Address}
-        canManageRoles={canManageRoles}
-      />
+      {roles.length === 0 ? (
+        <NoResultsMessage
+          title="No role holders yet"
+          description="Accounts with roles on this resolver will appear here."
+          className="mx-0"
+        />
+      ) : (
+        <ResolverRolesTable
+          roles={roles}
+          nodes={nodes}
+          resolverAddress={address as Address}
+          canManageRoles={canManageRoles}
+        />
+      )}
       <ResolverAddUserSheet
         open={addUserOpen}
         onOpenChange={setAddUserOpen}

@@ -5,7 +5,9 @@ import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { CounterCard, CounterCardRow } from '@/components/CounterCard'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { ResolverDetails } from '@/features/resolver/components/ResolverDetails'
@@ -100,18 +102,30 @@ function RouteComponent() {
       />
 
       <div className="flex flex-col gap-4 w-full">
-        <div className="flex flex-row justify-between items-center">
-          <h2 className="text-h2">History</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/resolver/$address/history" params={{ address }}>
-              <Clock className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        </div>
-        <div className="border border-border rounded-sm overflow-hidden">
+        <HistorySectionHeader
+          action={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-neutral-7"
+              asChild
+            >
+              <Link to="/resolver/$address/history" params={{ address }}>
+                <Clock className="size-4" />
+                Full history
+              </Link>
+            </Button>
+          }
+        />
+        {recentEvents.length === 0 ? (
+          <NoResultsMessage
+            title="No history yet"
+            description="Events for this resolver will appear here."
+            className="mx-0 my-0"
+          />
+        ) : (
           <ResolverEventsTable events={recentEvents} enableSidebar={false} />
-        </div>
+        )}
       </div>
     </div>
   )

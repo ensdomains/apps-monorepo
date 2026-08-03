@@ -1,3 +1,4 @@
+import type { CustomTransactionIntent } from '@ens-apps/transaction-manager'
 import {
   type Signer,
   transactionManager,
@@ -12,35 +13,27 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
+import { toEoaCustomIntent } from '@/features/transaction-manager/helpers/intents'
 import type { ResolverRoleKey } from '@/lib/roles/resolverRoles'
 
-export interface RevokeResolverRolesParameters {
+export interface RevokeResolverRolesTransactionParameters {
   readonly resolverAddress: Address
   readonly name: string
   readonly account: Address
   readonly roles: readonly ResolverRoleKey[]
   readonly walletClient: WalletClient
-  readonly publicClient: PublicClient
-  readonly signer: Signer
   readonly chainId: number
-  readonly id: string
 }
 
-export const revokeResolverRoles = async (
-  params: RevokeResolverRolesParameters,
-): Promise<Hash> => {
-  const {
-    resolverAddress,
-    name,
-    account,
-    roles,
-    walletClient,
-    publicClient,
-    signer,
-    chainId,
-    id,
-  } = params
-
+/** The revokeRoles intent, shared by the gas estimate and `revokeResolverRoles`. */
+export const prepareRevokeResolverRolesTransaction = ({
+  resolverAddress,
+  name,
+  account,
+  roles,
+  walletClient,
+  chainId,
+}: RevokeResolverRolesTransactionParameters): CustomTransactionIntent => {
   if (!walletClient.account || !walletClient.chain) {
     throw new Error('Wallet client must have account and chain configured')
   }
@@ -73,18 +66,45 @@ export const revokeResolverRoles = async (
     args: writeParams.args,
   } as Parameters<typeof encodeFunctionData>[0])
 
+  return toEoaCustomIntent({
+    from: walletClient.account.address,
+    to: resolverAddress,
+    data,
+    chainId,
+  })
+}
+
+export interface RevokeResolverRolesParameters
+  extends RevokeResolverRolesTransactionParameters {
+  readonly publicClient: PublicClient
+  readonly signer: Signer
+  readonly id: string
+}
+
+export const revokeResolverRoles = async (
+  params: RevokeResolverRolesParameters,
+): Promise<Hash> => {
+  const {
+    resolverAddress,
+    name,
+    account,
+    roles,
+    walletClient,
+    publicClient,
+    signer,
+    chainId,
+    id,
+  } = params
+
   const txId = transactionManager.startTransaction(
-    {
-      type: 'custom',
-      request: {
-        type: 'eoa',
-        from: walletClient.account.address,
-        to: resolverAddress,
-        data,
-        value: 0n,
-        chainId,
-      },
-    },
+    prepareRevokeResolverRolesTransaction({
+      resolverAddress,
+      name,
+      account,
+      roles,
+      walletClient,
+      chainId,
+    }),
     signer,
     {
       id,

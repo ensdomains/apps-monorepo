@@ -27,7 +27,7 @@ export function AvailableNameMessage({
     : `https://app.ens.domains/${name}/import`
 
   const defaultDescription = (
-    <div className="text-base">
+    <div>
       <p>
         {isEthName
           ? 'This name is available to register. Click below to claim it.'
@@ -45,7 +45,7 @@ export function AvailableNameMessage({
   return (
     <MessageCard
       variant="success"
-      icon={<BadgeCheck size={48} strokeWidth={1.5} />}
+      icon={<BadgeCheck size={24} strokeWidth={1.5} />}
       title={`${name} is available!`}
       description={description || defaultDescription}
       badge={badge}

@@ -321,4 +321,50 @@ test.describe('ENS profile', () => {
         const expiry = await renewFor28Days(page)
         console.log(`[profile] ✅ Extend unowned name by 28 days succeeded for ${name}, expires ${expiry}`)
     })
+
+    test('displays an agent-registration record as a labelled, copyable card', async ({
+        connectedPage: page,
+        makeV2Name,
+    }) => {
+        // ENSIP-25 agent-registration text record. The KEY encodes an ERC-7930
+        // registry address (mainnet 8004.eth, chain 1) plus the agent id; the
+        // stored value is the placeholder presence flag "1". The card resolves
+        // the registry to its known primary name and copies the FULL RAW KEY to
+        // the clipboard — not the parsed agent id and not the placeholder "1"
+        // (WEB-569 req 4).
+        const agentRecordKey =
+            'agent-registration[0x000100000101148004a169fb4a3325136eb29fa0ceb6d2e539a432][19151]'
+        const name = await makeV2Name({
+            label: 'agentrec',
+            records: [{ key: agentRecordKey, value: '1' }],
+        })
+        console.log(`[profile] name for agent-record test: ${name}`)
+
+        // The copy button writes to (and the assertion reads from) the clipboard.
+        await page
+            .context()
+            .grantPermissions(['clipboard-read', 'clipboard-write'])
+
+        await goToProfile(page, name)
+
+        // Labelled card renders with the resolved Registry + Agent ID (req 2 & 3).
+        const card = page.getByTestId('agent-record-card-19151')
+        await expect(card).toBeVisible({ timeout: 20_000 })
+        await expect(card.getByText('Registry')).toBeVisible()
+        await expect(card.getByText('Agent ID')).toBeVisible()
+        await expect(card.getByText('8004.eth')).toBeVisible()
+        await expect(card.getByText('19151')).toBeVisible()
+
+        // Copy yields the full raw text-record value (req 4).
+        await page.getByTestId('agent-record-copy-19151').click()
+        await expect
+            .poll(
+                async () =>
+                    page.evaluate(() => navigator.clipboard.readText()),
+                { timeout: 10_000 },
+            )
+            .toBe(agentRecordKey)
+
+        console.log(`[profile] ✅ Agent-record card displayed & copied for ${name}`)
+    })
 })

@@ -117,7 +117,7 @@ test.describe('Portal ENS name registration', () => {
         (await primaryButton.isVisible().catch(() => false)) &&
         (await primaryButton.isEnabled().catch(() => false))
       ) {
-        await primaryButton.click()
+        await primaryButton.click({ timeout: 2_000 }).catch(() => { })
         await page.waitForTimeout(500)
         continue
       }

@@ -306,7 +306,7 @@ const columns: ColumnDef<FuseRow>[] = [
 
 const V2NameMessage = () => (
   <MessageCard
-    icon={<Info className="size-8" />}
+    icon={<Info className="size-6" />}
     title="Fuses not available"
     description={
       <>

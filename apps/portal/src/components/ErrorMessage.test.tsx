@@ -6,12 +6,21 @@ describe('ErrorMessage', () => {
   it('renders with default title and description', () => {
     render(<ErrorMessage />)
 
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+    expect(screen.getByText('Error loading page')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Please try again or contact support if the issue persists.',
+        'This page could not be loaded. Try refreshing the page and check the console log for detailed information.',
       ),
     ).toBeInTheDocument()
+  })
+
+  it('renders compact mode with icon and description only', () => {
+    render(<ErrorMessage compact />)
+
+    expect(
+      screen.getByText('Error fetching data. Please refresh the page.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Error loading page')).not.toBeInTheDocument()
   })
 
   it('renders with custom title and description', () => {

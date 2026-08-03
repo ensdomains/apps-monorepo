@@ -79,16 +79,16 @@ export const HistoryDataTable = ({
   if (timestampsError) {
     return (
       <ErrorMessage
-        title="Error loading timestamps"
-        description={timestampsError.cause?.message}
+        compact
+        description="Error fetching timestamps. Please refresh the page."
       />
     )
   }
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }

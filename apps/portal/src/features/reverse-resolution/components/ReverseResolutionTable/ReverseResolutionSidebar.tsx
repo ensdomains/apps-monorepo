@@ -16,6 +16,8 @@ import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -39,6 +41,8 @@ import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
+import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
+import { prepareSetReverseResolutionTransaction } from '../../helpers/setReverseResolution'
 import type { ReverseResolutionResult } from '../../hooks/useReverseResolution'
 import { useSetForwardResolution } from '../../hooks/useSetForwardResolution'
 import { useSetL2ReverseName } from '../../hooks/useSetL2ReverseName'
@@ -86,13 +90,19 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   }
 
   if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching timestamps. Please refresh the page."
+      />
+    )
   }
   if (sendersError) {
     return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
+      <ErrorMessage
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
+      />
     )
   }
 
@@ -108,15 +118,16 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-row justify-between items-center">
-        <h3 className="text-2xl font-medium">History</h3>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/$name/history" params={{ name }}>
-            <Clock className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
       <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
     </div>
   )
@@ -139,7 +150,12 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   )
 
   if (error) {
-    return <div>History Error: {error.cause?.message || error.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching history. Please refresh the page."
+      />
+    )
   }
 
   if (isLoading) return <div>Loading history...</div>
@@ -717,7 +733,20 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: UPDATE_REVERSE_NAME_TX_ID,
                   title: 'Update reverse name',
                   transactionName: `Set reverse name to ${nameInput}`,
-                  estimatedGasCost: 0.0001,
+                  intent: {
+                    prepare:
+                      !isL2Target && isConnected && nameInput
+                        ? ({ walletClient, chainId }) => {
+                            const { request } =
+                              getReverseResolutionRequest(nameInput)
+                            return prepareSetReverseResolutionTransaction({
+                              request,
+                              from: walletClient.account.address,
+                              chainId,
+                            })
+                          }
+                        : undefined,
+                  },
                   onStart: handleUpdateReverseStart,
                   onDone: handleUpdateReverseDone,
                 },
@@ -727,7 +756,19 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   id: SET_PRIMARY_NAME_TX_ID,
                   title: 'Set primary name',
                   transactionName: `Set primary name to ${displayName}`,
-                  estimatedGasCost: 0.0002,
+                  intent: {
+                    prepare:
+                      isConnected && displayName
+                        ? ({ walletClient, chainId }) => {
+                            const request = getForwardResolutionRequest(address)
+                            return prepareSetForwardResolutionTransaction({
+                              request,
+                              from: walletClient.account.address,
+                              chainId,
+                            })
+                          }
+                        : undefined,
+                  },
                   onStart: handleSetPrimaryNameStart,
                   onDone: handleSetPrimaryNameDone,
                 },

@@ -16,7 +16,10 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { MessageCard } from '@/components/ui/message-card'
-import { burnFuses } from '@/features/fuses/helpers/burnFuses'
+import {
+  burnFuses,
+  prepareBurnFusesTransaction,
+} from '@/features/fuses/helpers/burnFuses'
 import { isFuseBurnt } from '@/features/fuses/utils/isFuseBurnt'
 import { createEOASigner } from '@/features/registry/utils/signer.helpers'
 import { getWrapperDataQueryOptions } from '@/features/resolver/hooks/useWrapperData'
@@ -266,7 +269,20 @@ function RouteComponent() {
             id: BURN_FUSES_TX_ID,
             title: 'Burn Fuses',
             transactionName: `Permanently burn selected fuses on ${name}`,
-            estimatedGasCost: 0.0001,
+            // Deterministic from the selected fuses, so the modal can estimate
+            // gas the moment it opens (shared with the burnFuses submit path).
+            intent: {
+              prepare:
+                selectedChildFuses.size > 0
+                  ? ({ walletClient, chainId }) =>
+                      prepareBurnFusesTransaction({
+                        name,
+                        fuses: Array.from(selectedChildFuses),
+                        walletClient,
+                        chainId,
+                      })
+                  : undefined,
+            },
             onStart: handleStartTransaction,
             onDone: () => {
               queryClient.invalidateQueries({
@@ -285,7 +301,7 @@ function RouteComponent() {
 
 const V2NameMessage = () => (
   <MessageCard
-    icon={<AlertTriangle className="size-8" />}
+    icon={<AlertTriangle className="size-6" />}
     title="Fuses not available"
     description={
       <>
@@ -300,7 +316,7 @@ const V2NameMessage = () => (
 
 const NotOwnerMessage = () => (
   <MessageCard
-    icon={<ShieldX className="size-8" />}
+    icon={<ShieldX className="size-6" />}
     title="Not authorized"
     description={
       <>

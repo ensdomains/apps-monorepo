@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection, useDisconnect, useEnsName } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
@@ -75,15 +76,16 @@ const AddressRecentHistory = ({ address }: AddressHistoryProps) => {
 
   return (
     <div className="flex flex-col gap-4 w-full">
-      <div className="flex flex-row justify-between items-center">
-        <h2 className="text-h2">History</h2>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/addr/$addr/history" params={{ addr: address }}>
-            <Clock className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/addr/$addr/history" params={{ addr: address }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
       <NameSubgraphHistory
         name={address}
         category="domain"

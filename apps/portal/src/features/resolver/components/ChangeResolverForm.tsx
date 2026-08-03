@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, ChevronDown, CircleCheckIcon } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
 import type { Address } from 'viem'
 import { isAddress } from 'viem'
@@ -11,13 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { prepareChangeResolverTransaction } from '@/features/resolver/helpers/changeResolver'
 import { useChangeResolver } from '@/features/resolver/hooks/useChangeResolver'
-import { useDeployPermissionedResolver } from '@/features/resolver/hooks/useDeployPermissionedResolver'
+import {
+  prepareDeployPermissionedResolverTransaction,
+  useDeployPermissionedResolver,
+} from '@/features/resolver/hooks/useDeployPermissionedResolver'
 import { useUserPermissionedResolvers } from '@/features/resolver/hooks/useUserPermissionedResolvers'
 import { getIsSubmitDisabled } from '@/features/resolver/utils/getIsSubmitDisabled'
+import { generateResolverSalt } from '@/features/resolver/utils/permissionedResolver'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { extractErrorMessage } from '@/utils/errors/extractErrorMessage'
 
 const DEPLOY_RESOLVER_TX_ID = 'tx-deploy-permissioned-resolver'
 const CHANGE_RESOLVER_TX_ID = 'tx-change-resolver'
@@ -93,6 +97,12 @@ export const ChangeResolverForm = ({
 
   const isDeployPath = deployNewResolver && !useCustomResolver
 
+  // A stable throwaway salt for the deploy step's pre-start gas estimate. Deploy
+  // gas is independent of the salt value, so this need not match the fresh salt
+  // the actual deploy generates — it just needs to be stable across renders so
+  // the estimate query doesn't churn.
+  const deployResolverSalt = useMemo(() => generateResolverSalt(name), [name])
+
   useAutoSelectFirstResolver(
     deployNewResolver,
     selectedExistingResolver,
@@ -105,23 +115,26 @@ export const ChangeResolverForm = ({
     .with({ deployNewResolver: true }, () => hasDeployWallet)
     .otherwise(() => hasChangeWallet)
 
-  const handleChangeResolverTransactionStart = () => {
-    const resolverToUse = match({ useCustomResolver })
-      .with({ useCustomResolver: true }, () =>
-        isAddress(resolverAddress) ? (resolverAddress as Address) : null,
-      )
-      .with({ useCustomResolver: false }, () =>
-        isAddress(selectedExistingResolver)
-          ? (selectedExistingResolver as Address)
-          : null,
-      )
-      .exhaustive()
+  // The resolver the non-deploy path will set: either the custom address the
+  // user typed or the existing one they selected. Known at modal-open time, so
+  // it can drive the pre-start gas estimate.
+  const customResolverToUse = match({ useCustomResolver })
+    .with({ useCustomResolver: true }, () =>
+      isAddress(resolverAddress) ? (resolverAddress as Address) : null,
+    )
+    .with({ useCustomResolver: false }, () =>
+      isAddress(selectedExistingResolver)
+        ? (selectedExistingResolver as Address)
+        : null,
+    )
+    .exhaustive()
 
-    if (!resolverToUse) {
+  const handleChangeResolverTransactionStart = () => {
+    if (!customResolverToUse) {
       return
     }
 
-    changeResolver(resolverToUse)
+    changeResolver(customResolverToUse)
   }
 
   const handleDeployResolverStart = async () => {
@@ -302,8 +315,8 @@ export const ChangeResolverForm = ({
 
       {existingResolversError && !deployNewResolver && !useCustomResolver && (
         <ErrorMessage
-          title="Failed to load resolvers"
-          description={extractErrorMessage(existingResolversError, '')}
+          compact
+          description="Error fetching resolvers. Please refresh the page."
         />
       )}
 
@@ -315,7 +328,14 @@ export const ChangeResolverForm = ({
                   id: DEPLOY_RESOLVER_TX_ID,
                   title: 'Deploy permissioned resolver',
                   transactionName: `Deploy resolver for ${name}`,
-                  estimatedGasCost: 0.001,
+                  intent: {
+                    prepare: ({ walletClient, chainId }) =>
+                      prepareDeployPermissionedResolverTransaction({
+                        from: walletClient.account.address,
+                        chainId,
+                        salt: deployResolverSalt,
+                      }),
+                  },
                   onStart: handleDeployResolverStart,
                   onDone: handleChangeResolverAfterDeployStart,
                 },
@@ -323,7 +343,9 @@ export const ChangeResolverForm = ({
                   id: CHANGE_RESOLVER_TX_ID,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
-                  estimatedGasCost: 0.0001,
+                  // No pre-start estimate by design: the target is the resolver
+                  // deployed by the step above, whose address isn't known until
+                  // it mines. Estimated once this step becomes active.
                   onStart: handleChangeResolverAfterDeployStart,
                   onDone: handleChangeResolverTransactionDone,
                 },
@@ -333,7 +355,18 @@ export const ChangeResolverForm = ({
                   id: CHANGE_RESOLVER_TX_ID,
                   title: 'Change resolver',
                   transactionName: `Set resolver for ${name}`,
-                  estimatedGasCost: 0.0001,
+                  intent: {
+                    prepare: customResolverToUse
+                      ? ({ walletClient, chainId }) =>
+                          prepareChangeResolverTransaction({
+                            name,
+                            registryAddress,
+                            resolverAddress: customResolverToUse,
+                            from: walletClient.account.address,
+                            chainId,
+                          })
+                      : undefined,
+                  },
                   onStart: handleChangeResolverTransactionStart,
                   onDone: handleChangeResolverTransactionDone,
                 },
