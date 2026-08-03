@@ -1,7 +1,22 @@
-export type GeneratorConfig = {
-  readonly authToken: string
+import {
+  CHROMIUM_GRAPHICS_MODES,
+  type ChromiumGraphicsMode,
+  type GeneratorRuntimeAdapter,
+  runtimeAdapterForGraphicsMode,
+} from './runtime.js'
+
+export type CaptureRuntimeConfig = {
   readonly captureTimeoutMs: number
   readonly chromiumExecutablePath?: string
+  readonly chromiumExtraArgs: readonly string[]
+  readonly chromiumGraphicsMode: ChromiumGraphicsMode
+  readonly rendererOrigin: string
+  readonly rendererRevision: string
+  readonly runtimeAdapter: GeneratorRuntimeAdapter
+}
+
+export type GeneratorConfig = CaptureRuntimeConfig & {
+  readonly authToken: string
   readonly externalOrigin?: string
   readonly port: number
   readonly publicAssetOrigin: string
@@ -10,9 +25,9 @@ export type GeneratorConfig = {
   readonly r2AccountId: string
   readonly r2BucketName: string
   readonly r2SecretAccessKey: string
-  readonly rendererOrigin: string
-  readonly rendererRevision: string
 }
+
+const STAGING_R2_BUCKET_NAME = 'ensv2-commemorative-nft-staging'
 
 const required = (
   environment: Readonly<Record<string, string | undefined>>,
@@ -47,23 +62,85 @@ const positiveInteger = (
   return parsed
 }
 
-export const loadGeneratorConfig = (
+const chromiumGraphicsMode = (
+  value: string | undefined,
+): ChromiumGraphicsMode => {
+  const mode = value?.trim() || 'ec2-nvidia'
+  if (!CHROMIUM_GRAPHICS_MODES.some((candidate) => candidate === mode)) {
+    throw new Error(
+      `CHROMIUM_GRAPHICS_MODE must be one of: ${CHROMIUM_GRAPHICS_MODES.join(', ')}`,
+    )
+  }
+  return mode as ChromiumGraphicsMode
+}
+
+const stringArray = (value: string | undefined, name: string): string[] => {
+  if (!value?.trim()) return []
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    throw new Error(`${name} must be a JSON array of strings`)
+  }
+  if (
+    !Array.isArray(parsed) ||
+    parsed.some((entry) => typeof entry !== 'string' || !entry.trim())
+  ) {
+    throw new Error(`${name} must be a JSON array of non-empty strings`)
+  }
+  return parsed
+}
+
+export const loadCaptureRuntimeConfig = (
   environment: Readonly<Record<string, string | undefined>> = process.env,
-): GeneratorConfig => {
-  const publicR2Origin = origin(
-    required(environment, 'R2_PUBLIC_ORIGIN'),
-    'R2_PUBLIC_ORIGIN',
-  )
+): CaptureRuntimeConfig => {
+  const graphicsMode = chromiumGraphicsMode(environment.CHROMIUM_GRAPHICS_MODE)
 
   return {
-    authToken: required(environment, 'GENERATOR_AUTH_TOKEN'),
     captureTimeoutMs: positiveInteger(
       environment.CAPTURE_TIMEOUT_MS,
-      600_000,
+      390_000,
       'CAPTURE_TIMEOUT_MS',
     ),
     chromiumExecutablePath:
       environment.CHROMIUM_EXECUTABLE_PATH?.trim() || undefined,
+    chromiumExtraArgs: stringArray(
+      environment.CHROMIUM_EXTRA_ARGS_JSON,
+      'CHROMIUM_EXTRA_ARGS_JSON',
+    ),
+    chromiumGraphicsMode: graphicsMode,
+    rendererOrigin: origin(
+      environment.RENDERER_ORIGIN || 'https://ens-renderer.pages.dev',
+      'RENDERER_ORIGIN',
+    ),
+    rendererRevision: required(environment, 'RENDERER_REVISION'),
+    runtimeAdapter: runtimeAdapterForGraphicsMode(graphicsMode),
+  }
+}
+
+export const loadGeneratorConfig = (
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): GeneratorConfig => {
+  const captureRuntime = loadCaptureRuntimeConfig(environment)
+  const publicR2Origin = origin(
+    required(environment, 'R2_PUBLIC_ORIGIN'),
+    'R2_PUBLIC_ORIGIN',
+  )
+  const r2BucketName =
+    environment.R2_BUCKET_NAME?.trim() || STAGING_R2_BUCKET_NAME
+  if (
+    captureRuntime.chromiumGraphicsMode === 'software' &&
+    r2BucketName === STAGING_R2_BUCKET_NAME
+  ) {
+    throw new Error(
+      'CHROMIUM_GRAPHICS_MODE=software requires a non-staging R2_BUCKET_NAME',
+    )
+  }
+
+  return {
+    ...captureRuntime,
+    authToken: required(environment, 'GENERATOR_AUTH_TOKEN'),
     externalOrigin: environment.NFT_EXTERNAL_ORIGIN
       ? origin(environment.NFT_EXTERNAL_ORIGIN, 'NFT_EXTERNAL_ORIGIN')
       : undefined,
@@ -75,13 +152,7 @@ export const loadGeneratorConfig = (
     publicR2Origin,
     r2AccessKeyId: required(environment, 'R2_ACCESS_KEY_ID'),
     r2AccountId: required(environment, 'R2_ACCOUNT_ID'),
-    r2BucketName:
-      environment.R2_BUCKET_NAME?.trim() || 'ensv2-commemorative-nft-staging',
+    r2BucketName,
     r2SecretAccessKey: required(environment, 'R2_SECRET_ACCESS_KEY'),
-    rendererOrigin: origin(
-      environment.RENDERER_ORIGIN || 'https://ens-renderer.pages.dev',
-      'RENDERER_ORIGIN',
-    ),
-    rendererRevision: required(environment, 'RENDERER_REVISION'),
   }
 }

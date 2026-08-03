@@ -5,9 +5,8 @@ import {
 } from 'cloudflare:workers'
 import { NonRetryableError } from 'cloudflare:workflows'
 import { getRenderInputKey, parseCanonicalTokenId } from './assets.js'
-import type { CommemorativeNftGeneratorBindings } from './container.js'
 import {
-  callContainerGenerator,
+  callRemoteGenerator,
   GeneratorRequestError,
   type GeneratorResponse,
   validateGeneratorResponseForAction,
@@ -23,8 +22,8 @@ export type CommemorativeNftWorkflowParams = {
 
 export const GENERATION_STEP_CONFIG = {
   capture: {
-    retries: { backoff: 'exponential', delay: '5 seconds', limit: 3 },
-    timeout: '10 minutes',
+    retries: { backoff: 'exponential', delay: '15 seconds', limit: 5 },
+    timeout: '11 minutes',
   },
   publish: {
     retries: { backoff: 'exponential', delay: '2 seconds', limit: 5 },
@@ -148,7 +147,7 @@ export const runCommemorativeNftGeneration = async (
 }
 
 export class CommemorativeNftGenerationWorkflow extends WorkflowEntrypoint<
-  CommemorativeNftGeneratorBindings,
+  CloudflareBindings,
   CommemorativeNftWorkflowParams
 > {
   override async run(
@@ -157,7 +156,7 @@ export class CommemorativeNftGenerationWorkflow extends WorkflowEntrypoint<
   ): Promise<GeneratorResponse> {
     return runCommemorativeNftGeneration(event.payload, step, {
       callGenerator: (tokenId, action) =>
-        callContainerGenerator(this.env, tokenId, action),
+        callRemoteGenerator(this.env, tokenId, action),
       loadRenderInput: async (tokenId) => {
         const object = await this.env.COMMEMORATIVE_NFT_BUCKET.get(
           getRenderInputKey(tokenId),

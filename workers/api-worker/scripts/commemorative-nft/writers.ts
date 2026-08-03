@@ -5,6 +5,7 @@ import { AwsClient } from 'aws4fetch'
 import type { ArtifactWriter } from './types'
 
 const DEFAULT_R2_MAX_ATTEMPTS = 5
+const DEFAULT_R2_REQUEST_TIMEOUT_MS = 30_000
 const DEFAULT_RETRY_DELAY_MS = 250
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429])
 const ACCOUNT_ID_PATTERN = /^[0-9a-f]{32}$/i
@@ -118,15 +119,65 @@ type UploadAttempt =
   | { readonly status: 'response'; readonly response: Response }
   | { readonly status: 'network-error'; readonly error: unknown }
 
+type UploadDisposition =
+  | { readonly status: 'complete' }
+  | { readonly status: 'retryable'; readonly error: unknown }
+
+const getExistingObjectMismatch = async (params: {
+  readonly bodyLength: number
+  readonly bodySha256: string
+  readonly expectedCacheControl: string
+  readonly expectedContentType: string
+  readonly response: Response
+}): Promise<string | undefined> => {
+  const storedSha256 = params.response.headers
+    .get('x-amz-meta-sha256')
+    ?.trim()
+    .toLowerCase()
+  if (!storedSha256) return 'is missing SHA-256 metadata'
+  if (storedSha256 !== params.bodySha256) return 'has a different SHA-256'
+
+  const storedContentType = params.response.headers
+    .get('content-type')
+    ?.toLowerCase()
+  if (storedContentType !== params.expectedContentType.toLowerCase()) {
+    return `has content type ${storedContentType ?? 'missing'}`
+  }
+
+  const storedContentLengthHeader =
+    params.response.headers.get('content-length')
+  const storedContentLength = storedContentLengthHeader
+    ? Number(storedContentLengthHeader)
+    : Number.NaN
+  if (storedContentLength !== params.bodyLength) {
+    return `has content length ${Number.isFinite(storedContentLength) ? storedContentLength : 'missing'}`
+  }
+
+  const storedCacheControl = params.response.headers
+    .get('cache-control')
+    ?.trim()
+  if (storedCacheControl !== params.expectedCacheControl) {
+    return `has cache control ${storedCacheControl ?? 'missing'}`
+  }
+
+  const storedBody = new Uint8Array(await params.response.arrayBuffer())
+  if (storedBody.byteLength !== params.bodyLength) {
+    return `contains ${storedBody.byteLength} bytes instead of ${params.bodyLength}`
+  }
+  const actualSha256 = createHash('sha256').update(storedBody).digest('hex')
+  if (actualSha256 !== params.bodySha256) {
+    return 'bytes do not match its SHA-256 metadata'
+  }
+
+  return undefined
+}
+
 const attemptUpload = async (params: {
   readonly artifact: Parameters<ArtifactWriter['write']>[0]
+  readonly bodySha256: string
   readonly signedFetch: SignedFetch
   readonly url: string
 }): Promise<UploadAttempt> => {
-  const bodySha256 = createHash('sha256')
-    .update(params.artifact.body)
-    .digest('hex')
-
   try {
     const response = await params.signedFetch(params.url, {
       method: 'PUT',
@@ -134,7 +185,7 @@ const attemptUpload = async (params: {
         'Cache-Control': params.artifact.cacheControl,
         'Content-Type': params.artifact.contentType,
         'If-None-Match': '*',
-        'x-amz-meta-sha256': bodySha256,
+        'x-amz-meta-sha256': params.bodySha256,
       },
       body: params.artifact.body,
     })
@@ -142,6 +193,78 @@ const attemptUpload = async (params: {
   } catch (error) {
     return { status: 'network-error', error }
   }
+}
+
+const checkExistingObject = async (params: {
+  readonly artifactCacheControl: string
+  readonly artifactContentType: string
+  readonly artifactKey: string
+  readonly bodyLength: number
+  readonly bodySha256: string
+  readonly signedFetch: SignedFetch
+  readonly url: string
+}): Promise<UploadDisposition> => {
+  let response: Response
+  try {
+    response = await params.signedFetch(params.url, { method: 'GET' })
+  } catch (error) {
+    return { status: 'retryable', error }
+  }
+
+  if (response.status === 404 || isRetryableStatus(response.status)) {
+    return {
+      status: 'retryable',
+      error: new Error(`R2 GET returned HTTP ${response.status}`),
+    }
+  }
+  if (!response.ok) {
+    throw new Error(
+      `R2 could not verify existing object ${params.artifactKey}; GET returned HTTP ${response.status}`,
+    )
+  }
+
+  let reason: string | undefined
+  try {
+    reason = await getExistingObjectMismatch({
+      bodyLength: params.bodyLength,
+      bodySha256: params.bodySha256,
+      expectedCacheControl: params.artifactCacheControl,
+      expectedContentType: params.artifactContentType,
+      response,
+    })
+  } catch (error) {
+    return { status: 'retryable', error }
+  }
+  if (!reason) return { status: 'complete' }
+  throw new Error(
+    `R2 object ${params.artifactKey} already exists and ${reason}; immutable artifacts cannot be overwritten`,
+  )
+}
+
+const classifyUploadResponse = async (params: {
+  readonly artifactCacheControl: string
+  readonly artifactContentType: string
+  readonly artifactKey: string
+  readonly bodyLength: number
+  readonly bodySha256: string
+  readonly response: Response
+  readonly signedFetch: SignedFetch
+  readonly url: string
+}): Promise<UploadDisposition> => {
+  if (params.response.ok) return { status: 'complete' }
+  if (params.response.status === 409 || params.response.status === 412) {
+    return checkExistingObject(params)
+  }
+  if (isRetryableStatus(params.response.status)) {
+    return {
+      status: 'retryable',
+      error: new Error(`R2 returned HTTP ${params.response.status}`),
+    }
+  }
+
+  throw new Error(
+    `R2 upload failed for ${params.artifactKey} with HTTP ${params.response.status}`,
+  )
 }
 
 const uploadArtifactWithRetry = async (params: {
@@ -153,25 +276,29 @@ const uploadArtifactWithRetry = async (params: {
   readonly url: string
 }): Promise<void> => {
   let lastError: unknown
+  const bodySha256 = createHash('sha256')
+    .update(params.artifact.body)
+    .digest('hex')
+  const bodyLength = Buffer.byteLength(params.artifact.body)
 
   for (let attempt = 1; attempt <= params.maxAttempts; attempt += 1) {
-    const result = await attemptUpload(params)
+    const result = await attemptUpload({ ...params, bodySha256 })
 
     if (result.status === 'network-error') {
       lastError = result.error
-    } else if (result.response.ok) {
-      return
-    } else if (!isRetryableStatus(result.response.status)) {
-      if (result.response.status === 409 || result.response.status === 412) {
-        throw new Error(
-          `R2 object ${params.artifact.key} already exists; immutable artifacts cannot be overwritten`,
-        )
-      }
-      throw new Error(
-        `R2 upload failed for ${params.artifact.key} with HTTP ${result.response.status}`,
-      )
     } else {
-      lastError = new Error(`R2 returned HTTP ${result.response.status}`)
+      const disposition = await classifyUploadResponse({
+        artifactCacheControl: params.artifact.cacheControl,
+        artifactContentType: params.artifact.contentType,
+        artifactKey: params.artifact.key,
+        bodyLength,
+        bodySha256,
+        response: result.response,
+        signedFetch: params.signedFetch,
+        url: params.url,
+      })
+      if (disposition.status === 'complete') return
+      lastError = disposition.error
     }
 
     if (attempt < params.maxAttempts) {
@@ -215,6 +342,7 @@ export const createR2ArtifactWriter = (
     ? undefined
     : new AwsClient({
         accessKeyId: params.accessKeyId,
+        retries: 0,
         secretAccessKey: params.secretAccessKey,
         service: 's3',
         region: 'auto',
@@ -223,7 +351,11 @@ export const createR2ArtifactWriter = (
     dependencies?.signedFetch ??
     ((input, init) => {
       if (!awsClient) throw new Error('R2 signing client is unavailable')
-      return awsClient.fetch(input, init)
+      return awsClient.fetch(input, {
+        ...init,
+        signal:
+          init?.signal ?? AbortSignal.timeout(DEFAULT_R2_REQUEST_TIMEOUT_MS),
+      })
     })
   const sleep = dependencies?.sleep ?? defaultSleep
   const origin = `https://${params.accountId}.r2.cloudflarestorage.com`

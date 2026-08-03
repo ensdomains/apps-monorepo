@@ -14,6 +14,8 @@ RUN pnpm --filter commemorative-nft-generator build
 FROM mcr.microsoft.com/playwright:v1.58.2-noble
 WORKDIR /app
 ENV NODE_ENV=production
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,graphics,utility,video
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/workers/commemorative-nft-generator/node_modules ./workers/commemorative-nft-generator/node_modules
 COPY --from=build /app/workers/commemorative-nft-generator/dist ./workers/commemorative-nft-generator/dist

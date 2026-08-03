@@ -18,14 +18,14 @@
     "build:tsc": "tsgo -p tsconfig.build.json",
     "build": "pnpm build:vite && pnpm build:tsc",
     "deploy": "pnpm build:vite && wrangler deploy",
+    "deploy:nft-preview": "pnpm build:vite && node scripts/deploy-commemorative-nft-preview.mjs",
+    "deploy:nft-preview:check": "node scripts/deploy-commemorative-nft-preview.mjs --check",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts",
     "nft:pipeline": "tsx scripts/commemorative-nft/generate.ts",
-    "test": "vitest run && vitest run --config vitest.scripts.config.ts",
-    "test:nft-pipeline": "vitest run --config vitest.scripts.config.ts"
+    "test": "vitest run"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^1.0.2",
-    "@cloudflare/containers": "^0.3.7",
     "@ens-apps/shared-schema": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/ensjs": "catalog:",

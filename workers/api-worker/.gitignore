@@ -37,3 +37,6 @@ lerna-debug.log*
 
 # Generated commemorative NFT snapshot artifacts
 /commemorative-nft-out/
+
+# Contains operator-specific preview resource IDs and origins.
+/wrangler.commemorative-nft-preview.jsonc

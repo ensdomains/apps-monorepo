@@ -1,11 +1,15 @@
-import { getContainer } from '@cloudflare/containers'
-import type {
-  CommemorativeNftGeneratorBindings,
-  CommemorativeNftGeneratorContainer,
-} from './container.js'
-
 export const GENERATOR_ACTIONS = ['capture', 'publish', 'verify'] as const
 export type GeneratorAction = (typeof GENERATOR_ACTIONS)[number]
+
+export const GENERATOR_RUNTIME_ADAPTERS = ['ec2-nvidia'] as const
+export type GeneratorRuntimeAdapter =
+  (typeof GENERATOR_RUNTIME_ADAPTERS)[number]
+
+export interface GeneratorClientBindings {
+  readonly COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN: string
+  readonly COMMEMORATIVE_NFT_GENERATOR_ORIGIN: string
+  readonly COMMEMORATIVE_NFT_RENDERER_REVISION: string
+}
 
 export type GeneratorArtifactRecord = {
   readonly contentType: string
@@ -17,7 +21,7 @@ export type GeneratorArtifactRecord = {
 export type GeneratorResponse = {
   readonly artifacts: readonly GeneratorArtifactRecord[]
   readonly rendererRevision: string
-  readonly runtimeAdapter: 'container'
+  readonly runtimeAdapter: GeneratorRuntimeAdapter
   readonly tokenId: string
 }
 
@@ -26,6 +30,12 @@ const expectedArtifactContentTypes = {
   mp4: 'video/mp4',
   png: 'image/png',
 } as const
+
+const actionTimeouts: Readonly<Record<GeneratorAction, number>> = {
+  capture: 600_000,
+  publish: 120_000,
+  verify: 120_000,
+}
 
 export class GeneratorRequestError extends Error {
   override readonly name = 'GeneratorRequestError'
@@ -40,11 +50,17 @@ export class GeneratorRequestError extends Error {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const isGeneratorRuntimeAdapter = (
+  value: unknown,
+): value is GeneratorRuntimeAdapter =>
+  typeof value === 'string' &&
+  GENERATOR_RUNTIME_ADAPTERS.includes(value as GeneratorRuntimeAdapter)
+
 const parseGeneratorResponse = (value: unknown): GeneratorResponse => {
   if (
     !isRecord(value) ||
     typeof value.tokenId !== 'string' ||
-    value.runtimeAdapter !== 'container' ||
+    !isGeneratorRuntimeAdapter(value.runtimeAdapter) ||
     typeof value.rendererRevision !== 'string' ||
     !Array.isArray(value.artifacts)
   ) {
@@ -146,47 +162,125 @@ const parseGeneratorError = async (response: Response): Promise<string> => {
     const value: unknown = await response.json()
     if (isRecord(value) && typeof value.error === 'string') return value.error
   } catch {
-    // The HTTP status remains useful when the container returned no JSON.
+    // The HTTP status remains useful when the generator returned no JSON.
   }
   return `Generator returned HTTP ${response.status}`
 }
 
-const getGeneratorSlot = (tokenId: string): string =>
-  `commemorative-nft-generator-${BigInt(tokenId) % 2n}`
+export const isRetryableGeneratorStatus = (status: number): boolean =>
+  status === 408 || status === 425 || status === 429 || status >= 500
 
-export const callContainerGenerator = async (
-  env: CommemorativeNftGeneratorBindings,
+const getGeneratorEndpoint = (
+  configuredOrigin: string,
   tokenId: string,
   action: GeneratorAction,
+): URL => {
+  let origin: URL
+  try {
+    origin = new URL(configuredOrigin)
+  } catch {
+    throw new GeneratorRequestError(
+      'Generator origin is not a valid URL',
+      false,
+    )
+  }
+
+  if (
+    origin.protocol !== 'https:' ||
+    origin.username ||
+    origin.password ||
+    origin.pathname !== '/' ||
+    origin.search ||
+    origin.hash
+  ) {
+    throw new GeneratorRequestError(
+      'Generator origin must be an HTTPS origin without credentials, a path, query, or fragment',
+      false,
+    )
+  }
+
+  return new URL(`/v1/tokens/${tokenId}/${action}`, origin)
+}
+
+export const isRemoteGeneratorConfigured = (
+  env: Partial<
+    Pick<
+      GeneratorClientBindings,
+      | 'COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN'
+      | 'COMMEMORATIVE_NFT_GENERATOR_ORIGIN'
+    >
+  >,
+): boolean => {
+  if (!env.COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN?.trim()) return false
+
+  try {
+    getGeneratorEndpoint(
+      env.COMMEMORATIVE_NFT_GENERATOR_ORIGIN ?? '',
+      '0',
+      'capture',
+    )
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const callRemoteGenerator = async (
+  env: GeneratorClientBindings,
+  tokenId: string,
+  action: GeneratorAction,
+  request: typeof fetch = fetch,
 ): Promise<GeneratorResponse> => {
-  const container = getContainer<CommemorativeNftGeneratorContainer>(
-    env.COMMEMORATIVE_NFT_GENERATOR,
-    getGeneratorSlot(tokenId),
+  if (!env.COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN.trim()) {
+    throw new GeneratorRequestError(
+      'Generator authentication token is not configured',
+      false,
+    )
+  }
+
+  const endpoint = getGeneratorEndpoint(
+    env.COMMEMORATIVE_NFT_GENERATOR_ORIGIN,
+    tokenId,
+    action,
   )
-  const response = await container.fetch(
-    new Request(
-      `http://commemorative-nft-generator.internal/v1/tokens/${tokenId}/${action}`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN}`,
-        },
-        signal: AbortSignal.timeout(600_000),
+  let response: Response
+  try {
+    response = await request(endpoint.toString(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN}`,
       },
-    ),
-  )
+      redirect: 'manual',
+      signal: AbortSignal.timeout(actionTimeouts[action]),
+    })
+  } catch (error) {
+    throw new GeneratorRequestError(
+      error instanceof Error
+        ? `Generator request failed: ${error.message}`
+        : 'Generator request failed',
+      true,
+    )
+  }
 
   if (!response.ok) {
     throw new GeneratorRequestError(
       await parseGeneratorError(response),
-      response.status !== 401 &&
-        response.status !== 409 &&
-        response.status !== 422,
+      isRetryableGeneratorStatus(response.status),
+    )
+  }
+
+  let value: unknown
+  try {
+    value = await response.json()
+  } catch {
+    throw new GeneratorRequestError(
+      'Generator returned invalid response JSON',
+      false,
     )
   }
 
   return validateGeneratorResponseForAction(
-    parseGeneratorResponse(await response.json()),
+    parseGeneratorResponse(value),
     tokenId,
     action,
     env.COMMEMORATIVE_NFT_RENDERER_REVISION,

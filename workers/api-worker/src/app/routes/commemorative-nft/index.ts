@@ -8,25 +8,27 @@ import {
   type CommemorativeNftGenerationBindings,
   createKvGenerationAdmission,
   createWorkflowGenerationCoordinator,
-  GENERATION_ADMISSION_WINDOW_SECONDS,
+  GENERATION_RETRY_WINDOW_SECONDS,
   type GenerationCoordinator,
   type GenerationPreparationStatus,
 } from '#services/commemorative-nft/generation.js'
+import { isRemoteGeneratorConfigured } from '#services/commemorative-nft/generatorClient.js'
 import {
   createSepoliaTokenOwnershipReader,
   type TokenOwnershipReader,
 } from '#services/commemorative-nft/ownership.js'
 import {
   getTokenAssetResponse,
-  hasCompleteTokenAssets,
-  hasCompleteTokenMedia,
   hasRenderInput,
+  hasVerifiedTokenCompletion,
 } from '#services/commemorative-nft/storage.js'
 
 const RETRY_AFTER_SECONDS = 15
 
 interface CommemorativeNftBindings extends CommemorativeNftGenerationBindings {
   readonly COMMEMORATIVE_NFT_BUCKET?: R2Bucket
+  readonly COMMEMORATIVE_NFT_GENERATOR_AUTH_TOKEN?: string
+  readonly COMMEMORATIVE_NFT_GENERATOR_ORIGIN?: string
 }
 
 type CommemorativeNftWorkerBindings = CloudflareBindings &
@@ -95,7 +97,7 @@ const preparationResponse = (
       { error: 'Asset preparation is rate limited' },
       429,
       {
-        'Retry-After': GENERATION_ADMISSION_WINDOW_SECONDS.toString(),
+        'Retry-After': GENERATION_RETRY_WINDOW_SECONDS.toString(),
       },
     )
   }
@@ -108,6 +110,7 @@ const serveAssetOrPrepare = async (params: {
   readonly bucket: R2Bucket
   readonly coordinator: GenerationCoordinator
   readonly ownershipReader: TokenOwnershipReader
+  readonly rendererRevision: string
   readonly request: Request
 }): Promise<Response> => {
   if (!(await hasRenderInput(params.bucket, params.asset.tokenId))) {
@@ -120,10 +123,12 @@ const serveAssetOrPrepare = async (params: {
   }
   if (ownership === 'unavailable') return unavailableResponse(params.request)
 
-  const canServeAsset =
-    params.asset.extension !== 'json' ||
-    (await hasCompleteTokenMedia(params.bucket, params.asset.tokenId))
-  const storedResponse = canServeAsset
+  const isComplete = await hasVerifiedTokenCompletion(
+    params.bucket,
+    params.asset.tokenId,
+    params.rendererRevision,
+  )
+  const storedResponse = isComplete
     ? await getTokenAssetResponse(params.bucket, params.asset, params.request)
     : null
   if (storedResponse) return storedResponse
@@ -139,7 +144,9 @@ export const createCommemorativeNftApp = (
     dependencies.createGenerationCoordinator ??
     ((env: CommemorativeNftWorkerBindings) =>
       createWorkflowGenerationCoordinator(
-        env.COMMEMORATIVE_NFT_GENERATION,
+        isRemoteGeneratorConfigured(env)
+          ? env.COMMEMORATIVE_NFT_GENERATION
+          : undefined,
         createKvGenerationAdmission(env.KV),
       ))
   const createTokenOwnershipReader =
@@ -165,6 +172,7 @@ export const createCommemorativeNftApp = (
           bucket,
           coordinator: createGenerationCoordinator(c.env),
           ownershipReader: createTokenOwnershipReader(c.env),
+          rendererRevision: c.env.COMMEMORATIVE_NFT_RENDERER_REVISION,
           request,
         })
       } catch {
@@ -201,7 +209,13 @@ export const createCommemorativeNftApp = (
           return unavailableResponse(request, 'Token ownership is unavailable')
         }
 
-        if (await hasCompleteTokenAssets(bucket, tokenId)) {
+        if (
+          await hasVerifiedTokenCompletion(
+            bucket,
+            tokenId,
+            c.env.COMMEMORATIVE_NFT_RENDERER_REVISION,
+          )
+        ) {
           return jsonResponse(request, { status: 'ready' }, 200)
         }
 

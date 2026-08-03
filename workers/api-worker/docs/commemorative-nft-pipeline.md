@@ -102,8 +102,11 @@ The uploader retries network failures, HTTP 408/425/429 responses, and 5xx
 responses with exponential backoff. Every PUT includes `If-None-Match: *`, so
 an existing immutable object cannot be overwritten, and includes the
 hex-encoded body digest as `x-amz-meta-sha256`. Generated objects also carry
-immutable cache headers. Use a fresh bucket or an agreed versioned origin for
-each finalized dataset rather than correcting published objects in place.
+immutable cache headers. A resumed upload re-downloads any conflicting object
+and accepts it only when its bytes, SHA-256, content length, content type, and
+cache policy all match the generated artifact. The manifest is still written
+last. Use a fresh bucket or an agreed versioned origin for each finalized
+dataset rather than correcting published objects in place.
 
 ## Verification checklist
 

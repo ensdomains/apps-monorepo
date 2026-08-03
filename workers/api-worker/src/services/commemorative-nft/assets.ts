@@ -30,6 +30,9 @@ export const getTokenAssetKey = (
   extension: TokenAssetExtension,
 ): string => `tokens/${tokenId}.${extension}`
 
+export const getTokenCompletionKey = (tokenId: string): string =>
+  `tokens/${tokenId}.complete.json`
+
 export const parseTokenAsset = (value: string): TokenAsset | undefined => {
   const match = TOKEN_ASSET_PATTERN.exec(value)
   if (!match) return undefined

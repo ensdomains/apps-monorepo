@@ -8,6 +8,7 @@ import { CaptureAdmission } from './admission.js'
 import { createLocalBrowserFactory, RendererMediaCapture } from './capture.js'
 import { loadGeneratorConfig } from './config.js'
 import { isNonRetryableGeneratorError } from './errors.js'
+import { createCachedGraphicsProbe } from './graphics.js'
 import { R2ObjectStore } from './r2.js'
 import { TokenGenerationService } from './service.js'
 
@@ -44,10 +45,18 @@ const store = new R2ObjectStore({
   secretAccessKey: config.r2SecretAccessKey,
   bucketName: config.r2BucketName,
 })
+const browserFactory = createLocalBrowserFactory({
+  executablePath: config.chromiumExecutablePath,
+  extraArgs: config.chromiumExtraArgs,
+  graphicsMode: config.chromiumGraphicsMode,
+})
+const probeGraphicsReadiness = createCachedGraphicsProbe({
+  browserFactory,
+  configuredMode: config.chromiumGraphicsMode,
+})
 const capture = new RendererMediaCapture({
-  browserFactory: createLocalBrowserFactory({
-    executablePath: config.chromiumExecutablePath,
-  }),
+  browserFactory,
+  graphicsRequirement: config.chromiumGraphicsMode,
   rendererOrigin: config.rendererOrigin,
   rendererRevision: config.rendererRevision,
   captureTimeoutMs: config.captureTimeoutMs,
@@ -59,6 +68,7 @@ const service = new TokenGenerationService({
   publicAssetOrigin: config.publicAssetOrigin,
   publicR2Origin: config.publicR2Origin,
   rendererRevision: config.rendererRevision,
+  runtimeAdapter: config.runtimeAdapter,
 })
 const captureAdmission = new CaptureAdmission()
 
@@ -131,10 +141,12 @@ const handleRequest = async (
 ): Promise<void> => {
   const url = new URL(request.url || '/', 'http://generator.internal')
   if (request.method === 'GET' && url.pathname === '/healthz') {
-    json(response, 200, {
+    const graphics = await probeGraphicsReadiness()
+    json(response, graphics.ready ? 200 : 503, {
+      graphics,
       rendererRevision: config.rendererRevision,
-      runtimeAdapter: 'container',
-      status: 'ok',
+      runtimeAdapter: config.runtimeAdapter,
+      status: graphics.ready ? 'ok' : 'not_ready',
     })
     return
   }
@@ -156,7 +168,10 @@ const handleRequest = async (
 const server = createServer(handleRequest)
 
 server.listen(config.port, () => {
-  console.log(`Commemorative NFT generator listening on :${config.port}`)
+  console.log(`Commemorative NFT generator listening on :${config.port}`, {
+    chromiumGraphicsMode: config.chromiumGraphicsMode,
+    runtimeAdapter: config.runtimeAdapter,
+  })
 })
 
 const shutdown = (): void => {

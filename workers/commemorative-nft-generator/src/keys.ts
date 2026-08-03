@@ -19,3 +19,6 @@ export const tokenAssetKey = (
   tokenId: string,
   extension: TokenAssetExtension,
 ): string => `tokens/${normalizeTokenId(tokenId)}.${extension}`
+
+export const tokenCompletionKey = (tokenId: string): string =>
+  `tokens/${normalizeTokenId(tokenId)}.complete.json`

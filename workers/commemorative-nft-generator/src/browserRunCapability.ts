@@ -1,10 +1,7 @@
 import { pathToFileURL } from 'node:url'
 import { chromium } from 'playwright-core'
-import {
-  type BrowserFactory,
-  type CapturedMedia,
-  RendererMediaCapture,
-} from './capture.js'
+import { type CapturedMedia, RendererMediaCapture } from './capture.js'
+import type { BrowserFactory } from './graphics.js'
 import { sha256Hex } from './media.js'
 import { parseRenderInput } from './renderInput.js'
 
@@ -21,7 +18,7 @@ export type BrowserRunCapabilityReport =
     }
   | {
       readonly reason: string
-      readonly selectedAdapter: 'container'
+      readonly selectedAdapter: 'ec2-nvidia'
       readonly status: 'failed'
     }
 
@@ -47,7 +44,7 @@ export const evaluateCapabilityRuns = (
   ) {
     return {
       reason: 'Browser Run outputs were not byte-identical across two runs',
-      selectedAdapter: 'container',
+      selectedAdapter: 'ec2-nvidia',
       status: 'failed',
     }
   }
@@ -94,6 +91,7 @@ const run = async (): Promise<BrowserRunCapabilityReport> => {
     return new RendererMediaCapture({
       browserFactory,
       captureTimeoutMs: remainingMs,
+      graphicsRequirement: 'browser-run',
       rendererOrigin,
       rendererRevision,
     }).capture(params)
@@ -113,7 +111,7 @@ if (entrypoint && import.meta.url === pathToFileURL(entrypoint).href) {
     .catch((error: unknown) => {
       const report: BrowserRunCapabilityReport = {
         reason: error instanceof Error ? error.message : String(error),
-        selectedAdapter: 'container',
+        selectedAdapter: 'ec2-nvidia',
         status: 'failed',
       }
       console.log(JSON.stringify(report, null, 2))

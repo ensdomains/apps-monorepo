@@ -12,6 +12,36 @@ const responseError = (response: Response, resource: string): Error =>
         `${resource} returned HTTP ${response.status}`,
       )
 
+type LoadedRendererResponse = {
+  readonly body: () => Promise<Uint8Array>
+  readonly ok: () => boolean
+  readonly status: () => number
+  readonly url: () => string
+}
+
+const expectedRevisionDigest = (rendererRevision: string): string => {
+  const revisionMatch = REVISION_PATTERN.exec(rendererRevision)
+  if (!revisionMatch) {
+    throw new UnsupportedRendererOutputError(
+      'Renderer revision must be a sha256-prefixed lowercase digest',
+    )
+  }
+  return revisionMatch[1]
+}
+
+const assertRendererBundleRevision = (
+  bundle: Uint8Array | ArrayBuffer,
+  rendererRevision: string,
+): void => {
+  const expectedRevision = expectedRevisionDigest(rendererRevision)
+  const actualRevision = sha256Hex(bundle)
+  if (actualRevision !== expectedRevision) {
+    throw new UnsupportedRendererOutputError(
+      `Renderer revision mismatch: expected ${expectedRevision}, received ${actualRevision}`,
+    )
+  }
+}
+
 export const findRendererBundleUrl = (
   rendererOrigin: string,
   html: string,
@@ -32,12 +62,7 @@ export const verifyRendererRevision = async (params: {
   readonly rendererRevision: string
   readonly fetcher?: typeof fetch
 }): Promise<string> => {
-  const revisionMatch = REVISION_PATTERN.exec(params.rendererRevision)
-  if (!revisionMatch) {
-    throw new UnsupportedRendererOutputError(
-      'Renderer revision must be a sha256-prefixed lowercase digest',
-    )
-  }
+  expectedRevisionDigest(params.rendererRevision)
 
   const fetcher = params.fetcher ?? fetch
   const htmlResponse = await fetcher(params.rendererOrigin, {
@@ -54,11 +79,47 @@ export const verifyRendererRevision = async (params: {
     throw responseError(bundleResponse, 'Renderer bundle')
   }
 
-  const actualRevision = sha256Hex(await bundleResponse.arrayBuffer())
-  if (actualRevision !== revisionMatch[1]) {
+  assertRendererBundleRevision(
+    await bundleResponse.arrayBuffer(),
+    params.rendererRevision,
+  )
+
+  return bundleUrl
+}
+
+/**
+ * Verifies the entry bundle response observed by Chromium for the exact HTML
+ * document being captured. This avoids labeling a render with a revision that
+ * was checked in a separate request before a deployment changed the page.
+ */
+export const verifyLoadedRendererRevision = async (params: {
+  readonly documentHtml: string
+  readonly documentUrl: string
+  readonly rendererRevision: string
+  readonly scriptResponses: readonly LoadedRendererResponse[]
+}): Promise<string> => {
+  expectedRevisionDigest(params.rendererRevision)
+
+  const bundleUrl = findRendererBundleUrl(
+    params.documentUrl,
+    params.documentHtml,
+  )
+  const bundleResponses = params.scriptResponses.filter(
+    (response) => response.url() === bundleUrl,
+  )
+  if (bundleResponses.length === 0) {
     throw new UnsupportedRendererOutputError(
-      `Renderer revision mismatch: expected ${revisionMatch[1]}, received ${actualRevision}`,
+      `Renderer entry bundle was not observed in the captured page: ${bundleUrl}`,
     )
+  }
+
+  for (const response of bundleResponses) {
+    if (!response.ok()) {
+      throw new UnsupportedRendererOutputError(
+        `Renderer bundle returned HTTP ${response.status()}`,
+      )
+    }
+    assertRendererBundleRevision(await response.body(), params.rendererRevision)
   }
 
   return bundleUrl

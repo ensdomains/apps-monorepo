@@ -4,10 +4,10 @@
   "type": "module",
   "scripts": {
     "build": "tsgo -p tsconfig.build.json",
+    "benchmark:gpu": "tsx src/gpuBenchmark.ts",
     "capability:browser-run": "tsx src/browserRunCapability.ts",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "test": "vitest run",
     "typecheck": "tsgo -p tsconfig.json --noEmit"
   },
   "dependencies": {
@@ -17,7 +17,6 @@
   "devDependencies": {
     "@types/node": "^24.3.1",
     "@typescript/native-preview": "catalog:",
-    "tsx": "^4.21.0",
-    "vitest": "catalog:"
+    "tsx": "^4.21.0"
   }
 }

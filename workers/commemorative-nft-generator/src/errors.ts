@@ -10,6 +10,10 @@ export class UnsupportedRendererOutputError extends Error {
   override readonly name = 'UnsupportedRendererOutputError'
 }
 
+export class GraphicsRequirementError extends Error {
+  override readonly name = 'GraphicsRequirementError'
+}
+
 export const isNonRetryableGeneratorError = (
   error: unknown,
 ): error is

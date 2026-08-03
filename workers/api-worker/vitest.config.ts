@@ -1,5 +1,5 @@
 import { cloudflareTest } from '@cloudflare/vitest-pool-workers'
-import { configDefaults, defineConfig } from 'vitest/config'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [
@@ -8,7 +8,6 @@ export default defineConfig({
     }),
   ],
   test: {
-    exclude: [...configDefaults.exclude, 'scripts/**'],
     deps: {
       optimizer: {
         ssr: {

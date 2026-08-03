@@ -43,32 +43,6 @@
     }
   ],
 
-  "containers": [
-    {
-      "class_name": "CommemorativeNftGeneratorContainer",
-      "image": "../commemorative-nft-generator/Dockerfile",
-      "image_build_context": "../..",
-      "instance_type": "standard-4",
-      "max_instances": 2
-    }
-  ],
-
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "COMMEMORATIVE_NFT_GENERATOR",
-        "class_name": "CommemorativeNftGeneratorContainer"
-      }
-    ]
-  },
-
-  "migrations": [
-    {
-      "tag": "commemorative-nft-generator-v1",
-      "new_sqlite_classes": ["CommemorativeNftGeneratorContainer"]
-    }
-  ],
-
   "queues": {
     "producers": [
       {
@@ -136,11 +110,8 @@
   "vars": {
     "CHAIN": "sepolia",
     "BASE_URL": "https://app-api.ens.dev",
-    "COMMEMORATIVE_NFT_ASSET_ORIGIN": "https://app-api.ens.dev/v1/commemorative-nft",
     "COMMEMORATIVE_NFT_CONTRACT_ADDRESS": "0xe49A9D706FCD82AA575496352B5633F80fBBC449",
-    "COMMEMORATIVE_NFT_EXTERNAL_ORIGIN": "",
-    "COMMEMORATIVE_NFT_R2_PUBLIC_ORIGIN": "https://pub-43406b099825402eb42ecfb3494a902b.r2.dev",
-    "COMMEMORATIVE_NFT_RENDERER_ORIGIN": "https://ens-renderer.pages.dev",
+    "COMMEMORATIVE_NFT_GENERATOR_ORIGIN": "",
     "COMMEMORATIVE_NFT_RENDERER_REVISION": "sha256:1571ef297695dea0e1b816bb27dc5302209124424cb224e8effdd0ac7a7a3102",
     "EMAIL_FROM_ADDRESS": "noreply@ens.dev",
     "ENS_INDEXER_GRAPHQL_URL": "https://graphql.ens.dev/",

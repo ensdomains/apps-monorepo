@@ -6,7 +6,6 @@ import { handleScheduled } from './scheduled'
 import { logger } from './utils/logger'
 
 export type AppRouter = typeof router
-export { CommemorativeNftGeneratorContainer } from './services/commemorative-nft/container'
 export { CommemorativeNftGenerationWorkflow } from './services/commemorative-nft/workflow'
 
 // @ts-expect-error

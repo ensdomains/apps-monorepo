@@ -1,5 +1,5 @@
 /**
- * A container accepts one expensive Chromium capture at a time. Busy requests
+ * A generator process accepts one expensive Chromium capture at a time. Busy requests
  * are rejected and retried durably by Cloudflare Workflows; nothing is queued
  * in this process.
  */

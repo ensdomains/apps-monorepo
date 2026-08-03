@@ -3,10 +3,16 @@ import {
   ImmutableArtifactConflictError,
   InvalidGenerationInputError,
 } from './errors.js'
-import { normalizeTokenId, renderInputKey, tokenAssetKey } from './keys.js'
+import {
+  normalizeTokenId,
+  renderInputKey,
+  tokenAssetKey,
+  tokenCompletionKey,
+} from './keys.js'
 import { sha256Hex } from './media.js'
 import type { ObjectStore, ReadObject, StoredObject } from './r2.js'
 import { parseRenderInput, type RenderInput } from './renderInput.js'
+import type { GeneratorRuntimeAdapter } from './runtime.js'
 
 export type ArtifactRecord = {
   readonly contentType?: string
@@ -18,9 +24,11 @@ export type ArtifactRecord = {
 export type GenerationRecord = {
   readonly artifacts: readonly ArtifactRecord[]
   readonly rendererRevision: string
-  readonly runtimeAdapter: 'container'
+  readonly runtimeAdapter: GeneratorRuntimeAdapter
   readonly tokenId: string
 }
+
+const COMPLETION_SCHEMA_VERSION = 1
 
 const requireStoredHash = (
   key: string,
@@ -38,10 +46,31 @@ const requireStoredHash = (
   }
 }
 
+const requireStoredArtifact = (params: {
+  readonly contentType: string
+  readonly key: string
+  readonly object: StoredObject | undefined
+  readonly rendererRevision: string
+  readonly runtimeAdapter: GeneratorRuntimeAdapter
+}): ArtifactRecord => {
+  const artifact = requireStoredHash(params.key, params.object)
+  if (
+    params.object?.contentType !== params.contentType ||
+    params.object.rendererRevision !== params.rendererRevision ||
+    params.object.runtimeAdapter !== params.runtimeAdapter
+  ) {
+    throw new ImmutableArtifactConflictError(
+      `Generated artifact ${params.key} has stale or invalid storage metadata`,
+    )
+  }
+  return artifact
+}
+
 const requireVerifiedObject = (
   key: string,
   object: ReadObject | undefined,
   rendererRevision: string,
+  runtimeAdapter: GeneratorRuntimeAdapter,
   contentType: string,
 ): ArtifactRecord => {
   if (!object || object.body.byteLength === 0) {
@@ -56,7 +85,7 @@ const requireVerifiedObject = (
   }
   if (
     object.rendererRevision !== rendererRevision ||
-    object.runtimeAdapter !== 'container'
+    object.runtimeAdapter !== runtimeAdapter
   ) {
     throw new ImmutableArtifactConflictError(
       `Generated artifact ${key} has stale runtime metadata`,
@@ -76,6 +105,27 @@ const requireVerifiedObject = (
   }
 }
 
+const requireStoredCompletion = (
+  key: string,
+  object: StoredObject | undefined,
+  bodySha256: string,
+  rendererRevision: string,
+  runtimeAdapter: GeneratorRuntimeAdapter,
+): void => {
+  if (
+    !object ||
+    object.size <= 0 ||
+    object.sha256 !== bodySha256 ||
+    object.contentType !== 'application/json; charset=utf-8' ||
+    object.rendererRevision !== rendererRevision ||
+    object.runtimeAdapter !== runtimeAdapter
+  ) {
+    throw new ImmutableArtifactConflictError(
+      `Generated completion marker ${key} has invalid storage metadata`,
+    )
+  }
+}
+
 const assetUrl = (
   publicAssetOrigin: string,
   tokenId: string,
@@ -88,6 +138,7 @@ export class TokenGenerationService {
   readonly #publicAssetOrigin: string
   readonly #publicR2Origin: string
   readonly #rendererRevision: string
+  readonly #runtimeAdapter: GeneratorRuntimeAdapter
   readonly #store: ObjectStore
 
   constructor(params: {
@@ -96,6 +147,7 @@ export class TokenGenerationService {
     readonly publicAssetOrigin: string
     readonly publicR2Origin: string
     readonly rendererRevision: string
+    readonly runtimeAdapter: GeneratorRuntimeAdapter
     readonly store: ObjectStore
   }) {
     this.#capture = params.capture
@@ -103,6 +155,7 @@ export class TokenGenerationService {
     this.#publicAssetOrigin = params.publicAssetOrigin
     this.#publicR2Origin = params.publicR2Origin
     this.#rendererRevision = params.rendererRevision
+    this.#runtimeAdapter = params.runtimeAdapter
     this.#store = params.store
   }
 
@@ -141,7 +194,7 @@ export class TokenGenerationService {
     return {
       artifacts,
       rendererRevision: this.#rendererRevision,
-      runtimeAdapter: 'container',
+      runtimeAdapter: this.#runtimeAdapter,
       tokenId,
     }
   }
@@ -158,7 +211,7 @@ export class TokenGenerationService {
 
     const customMetadata = {
       'renderer-revision': this.#rendererRevision,
-      'runtime-adapter': 'container',
+      'runtime-adapter': this.#runtimeAdapter,
     }
     const pngKey = tokenAssetKey(tokenId, 'png')
     const mp4Key = tokenAssetKey(tokenId, 'mp4')
@@ -174,8 +227,20 @@ export class TokenGenerationService {
     ])
 
     return this.#record(tokenId, [
-      requireStoredHash(pngKey, png),
-      requireStoredHash(mp4Key, mp4),
+      requireStoredArtifact({
+        contentType: 'image/png',
+        key: pngKey,
+        object: png,
+        rendererRevision: this.#rendererRevision,
+        runtimeAdapter: this.#runtimeAdapter,
+      }),
+      requireStoredArtifact({
+        contentType: 'video/mp4',
+        key: mp4Key,
+        object: mp4,
+        rendererRevision: this.#rendererRevision,
+        runtimeAdapter: this.#runtimeAdapter,
+      }),
     ])
   }
 
@@ -189,8 +254,20 @@ export class TokenGenerationService {
       this.#store.head(mp4Key),
     ])
     const mediaArtifacts = [
-      requireStoredHash(pngKey, png),
-      requireStoredHash(mp4Key, mp4),
+      requireStoredArtifact({
+        contentType: 'image/png',
+        key: pngKey,
+        object: png,
+        rendererRevision: this.#rendererRevision,
+        runtimeAdapter: this.#runtimeAdapter,
+      }),
+      requireStoredArtifact({
+        contentType: 'video/mp4',
+        key: mp4Key,
+        object: mp4,
+        rendererRevision: this.#rendererRevision,
+        runtimeAdapter: this.#runtimeAdapter,
+      }),
     ]
 
     const metadata = JSON.stringify({
@@ -202,7 +279,7 @@ export class TokenGenerationService {
         : {}),
       properties: {
         renderer_revision: this.#rendererRevision,
-        runtime_adapter: 'container',
+        runtime_adapter: this.#runtimeAdapter,
       },
     })
     const metadataKey = tokenAssetKey(tokenId, 'json')
@@ -213,7 +290,7 @@ export class TokenGenerationService {
         contentType: 'application/json; charset=utf-8',
         customMetadata: {
           'renderer-revision': this.#rendererRevision,
-          'runtime-adapter': 'container',
+          'runtime-adapter': this.#runtimeAdapter,
         },
       },
     )
@@ -251,8 +328,36 @@ export class TokenGenerationService {
         key,
         objects[index],
         this.#rendererRevision,
+        this.#runtimeAdapter,
         contentType,
       ),
+    )
+
+    const completionKey = tokenCompletionKey(tokenId)
+    const completion = JSON.stringify({
+      schemaVersion: COMPLETION_SCHEMA_VERSION,
+      tokenId,
+      rendererRevision: this.#rendererRevision,
+      runtimeAdapter: this.#runtimeAdapter,
+      artifacts,
+    })
+    const storedCompletion = await this.#store.putImmutable(
+      completionKey,
+      completion,
+      {
+        contentType: 'application/json; charset=utf-8',
+        customMetadata: {
+          'renderer-revision': this.#rendererRevision,
+          'runtime-adapter': this.#runtimeAdapter,
+        },
+      },
+    )
+    requireStoredCompletion(
+      completionKey,
+      storedCompletion,
+      sha256Hex(completion),
+      this.#rendererRevision,
+      this.#runtimeAdapter,
     )
 
     return this.#record(tokenId, artifacts)

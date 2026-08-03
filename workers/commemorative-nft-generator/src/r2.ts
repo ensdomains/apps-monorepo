@@ -34,14 +34,28 @@ export type ObjectStore = {
 }
 
 const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable'
+const R2_READ_ATTEMPTS = 3
+const R2_REQUEST_TIMEOUT_MS = 10_000
 const R2_WRITE_ATTEMPTS = 5
+const RETRYABLE_R2_STATUSES = new Set([408, 425, 429])
 
-const requireNonRetryableResponse = async (
+type SignedFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>
+
+type R2ObjectStoreDependencies = {
+  readonly requestTimeoutMs?: number
+  readonly signedFetch?: SignedFetch
+  readonly sleep?: (delayMs: number) => Promise<void>
+}
+
+const requireRetryableResponse = async (
   responsePromise: Promise<Response>,
   operation: string,
 ): Promise<Response> => {
   const response = await responsePromise
-  if (response.status === 429 || response.status >= 500) {
+  if (RETRYABLE_R2_STATUSES.has(response.status) || response.status >= 500) {
     throw new Error(`${operation} failed with HTTP ${response.status}`)
   }
   return response
@@ -68,39 +82,97 @@ const responseObject = (response: Response): StoredObject => {
   }
 }
 
+const requireMatchingImmutableObject = (params: {
+  readonly expectedSha256: string
+  readonly key: string
+  readonly object: StoredObject | undefined
+  readonly options: PutObjectOptions
+}): StoredObject => {
+  const expectedRendererRevision =
+    params.options.customMetadata['renderer-revision']
+  const expectedRuntimeAdapter =
+    params.options.customMetadata['runtime-adapter']
+
+  if (
+    !params.object ||
+    params.object.sha256 !== params.expectedSha256 ||
+    params.object.contentType !== params.options.contentType ||
+    params.object.rendererRevision !== expectedRendererRevision ||
+    params.object.runtimeAdapter !== expectedRuntimeAdapter
+  ) {
+    throw new ImmutableArtifactConflictError(
+      `Immutable R2 object ${params.key} does not match the requested content and runtime metadata`,
+    )
+  }
+
+  return params.object
+}
+
 export class R2ObjectStore implements ObjectStore {
   readonly #bucketName: string
-  readonly #client: AwsClient
   readonly #origin: string
+  readonly #requestTimeoutMs: number
+  readonly #signedFetch: SignedFetch
+  readonly #sleep?: (delayMs: number) => Promise<void>
 
-  constructor(params: {
-    readonly accessKeyId: string
-    readonly accountId: string
-    readonly bucketName: string
-    readonly secretAccessKey: string
-  }) {
+  constructor(
+    params: {
+      readonly accessKeyId: string
+      readonly accountId: string
+      readonly bucketName: string
+      readonly secretAccessKey: string
+    },
+    dependencies: R2ObjectStoreDependencies = {},
+  ) {
     this.#bucketName = params.bucketName
     this.#origin = `https://${params.accountId}.r2.cloudflarestorage.com`
-    this.#client = new AwsClient({
+    const client = new AwsClient({
       accessKeyId: params.accessKeyId,
+      retries: 0,
       secretAccessKey: params.secretAccessKey,
       region: 'auto',
       service: 's3',
     })
+    this.#requestTimeoutMs =
+      dependencies.requestTimeoutMs ?? R2_REQUEST_TIMEOUT_MS
+    if (
+      !Number.isSafeInteger(this.#requestTimeoutMs) ||
+      this.#requestTimeoutMs <= 0
+    ) {
+      throw new Error('R2 request timeout must be a positive integer')
+    }
+    this.#signedFetch =
+      dependencies.signedFetch ?? ((input, init) => client.fetch(input, init))
+    this.#sleep = dependencies.sleep
   }
 
   #url(key: string): string {
     return `${this.#origin}/${this.#bucketName}/${encodeKey(key)}`
   }
 
+  #fetch(key: string, init?: RequestInit): Promise<Response> {
+    return this.#signedFetch(this.#url(key), {
+      ...init,
+      signal: AbortSignal.timeout(this.#requestTimeoutMs),
+    })
+  }
+
+  #retryOptions(attempts: number, baseDelayMs: number) {
+    return {
+      attempts,
+      baseDelayMs,
+      ...(this.#sleep ? { sleep: this.#sleep } : {}),
+    }
+  }
+
   async head(key: string): Promise<StoredObject | undefined> {
     const response = await withRetry(
       () =>
-        requireNonRetryableResponse(
-          this.#client.fetch(this.#url(key), { method: 'HEAD' }),
+        requireRetryableResponse(
+          this.#fetch(key, { method: 'HEAD' }),
           `R2 HEAD ${key}`,
         ),
-      { attempts: 3, baseDelayMs: 250 },
+      this.#retryOptions(R2_READ_ATTEMPTS, 250),
     )
     if (response.status === 404) return undefined
     if (!response.ok) {
@@ -111,12 +183,8 @@ export class R2ObjectStore implements ObjectStore {
 
   async getJson(key: string): Promise<unknown | undefined> {
     const response = await withRetry(
-      () =>
-        requireNonRetryableResponse(
-          this.#client.fetch(this.#url(key)),
-          `R2 GET ${key}`,
-        ),
-      { attempts: 3, baseDelayMs: 250 },
+      () => requireRetryableResponse(this.#fetch(key), `R2 GET ${key}`),
+      this.#retryOptions(R2_READ_ATTEMPTS, 250),
     )
     if (response.status === 404) return undefined
     if (!response.ok) {
@@ -127,12 +195,8 @@ export class R2ObjectStore implements ObjectStore {
 
   async read(key: string): Promise<ReadObject | undefined> {
     const response = await withRetry(
-      () =>
-        requireNonRetryableResponse(
-          this.#client.fetch(this.#url(key)),
-          `R2 GET ${key}`,
-        ),
-      { attempts: 3, baseDelayMs: 250 },
+      () => requireRetryableResponse(this.#fetch(key), `R2 GET ${key}`),
+      this.#retryOptions(R2_READ_ATTEMPTS, 250),
     )
     if (response.status === 404) return undefined
     if (!response.ok) {
@@ -155,18 +219,20 @@ export class R2ObjectStore implements ObjectStore {
     const sha256 = sha256Hex(value)
     const existing = await this.head(key)
     if (existing) {
-      if (existing.sha256 === sha256) return existing
-      throw new ImmutableArtifactConflictError(
-        `Refusing to overwrite immutable R2 object ${key}`,
-      )
+      return requireMatchingImmutableObject({
+        expectedSha256: sha256,
+        key,
+        object: existing,
+        options,
+      })
     }
 
     const body =
       typeof value === 'string' ? value : Uint8Array.from(value).buffer
     const response = await withRetry(
       () =>
-        requireNonRetryableResponse(
-          this.#client.fetch(this.#url(key), {
+        requireRetryableResponse(
+          this.#fetch(key, {
             method: 'PUT',
             body,
             headers: {
@@ -185,8 +251,7 @@ export class R2ObjectStore implements ObjectStore {
           `R2 PUT ${key}`,
         ),
       {
-        attempts: R2_WRITE_ATTEMPTS,
-        baseDelayMs: 500,
+        ...this.#retryOptions(R2_WRITE_ATTEMPTS, 500),
         isRetryable: (error) =>
           !(error instanceof ImmutableArtifactConflictError),
       },
@@ -194,19 +259,23 @@ export class R2ObjectStore implements ObjectStore {
 
     if (response.status === 412) {
       const racedObject = await this.head(key)
-      if (racedObject?.sha256 === sha256) return racedObject
-      throw new ImmutableArtifactConflictError(
-        `Concurrent immutable R2 write conflicted for ${key}`,
-      )
+      return requireMatchingImmutableObject({
+        expectedSha256: sha256,
+        key,
+        object: racedObject,
+        options,
+      })
     }
     if (!response.ok) {
       throw new Error(`R2 PUT ${key} failed with HTTP ${response.status}`)
     }
 
     const stored = await this.head(key)
-    if (!stored || stored.sha256 !== sha256) {
-      throw new Error(`R2 verification failed after writing ${key}`)
-    }
-    return stored
+    return requireMatchingImmutableObject({
+      expectedSha256: sha256,
+      key,
+      object: stored,
+      options,
+    })
   }
 }
