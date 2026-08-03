@@ -1,4 +1,4 @@
-import { zeroAddress } from 'viem'
+import { isAddress, zeroAddress } from 'viem'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import {
@@ -11,11 +11,6 @@ import type { ActionSlot, Descriptor } from './summarize.types'
 
 const isZero = (value?: string | null): boolean =>
   !value || value.toLowerCase() === zeroAddress
-
-const humanizeRole = (role: string): string =>
-  role.endsWith('_ADMIN')
-    ? `${formatRoleLabel(role)} Admin`
-    : formatRoleLabel(role)
 
 export const humanizeType = (type: string): string =>
   type
@@ -35,13 +30,17 @@ const nameSlot = (value?: string | null): ActionSlot =>
   value ? { kind: 'name', value } : { kind: 'placeholder', value: '—' }
 
 const addressSlot = (value?: string | null): ActionSlot =>
-  value ? { kind: 'address', value } : { kind: 'placeholder', value: '—' }
+  value && isAddress(value, { strict: false })
+    ? { kind: 'address', value }
+    : { kind: 'placeholder', value: '—' }
 
 const contractSlot = (
   value?: string | null,
   opts?: { isRegistry?: boolean; label?: string },
 ): ActionSlot => {
-  if (!value) return { kind: 'placeholder', value: '—' }
+  if (!value || !isAddress(value, { strict: false })) {
+    return { kind: 'placeholder', value: '—' }
+  }
   return {
     kind: 'contract',
     value,
@@ -225,14 +224,22 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     icon: 'grant',
     build: (primary) => {
       const change = decodeRoleChange(primary.data)
-      const roleText = change.roles.map(humanizeRole).join(', ') || 'roles'
-      const account: ActionSlot = change.account
-        ? {
-            kind: 'actor',
-            txHash: primary.transactionHash,
-            address: change.account,
-          }
-        : { kind: 'placeholder', value: '—' }
+      const roleText =
+        change.roles
+          .map((role) =>
+            role.endsWith('_ADMIN')
+              ? `${formatRoleLabel(role)} Admin`
+              : formatRoleLabel(role),
+          )
+          .join(', ') || 'roles'
+      const account: ActionSlot =
+        change.account && isAddress(change.account, { strict: false })
+          ? {
+              kind: 'actor',
+              txHash: primary.transactionHash,
+              address: change.account,
+            }
+          : { kind: 'placeholder', value: '—' }
 
       if (change.direction === 'revoke') {
         return {

@@ -63,10 +63,6 @@ for (const chainId of Object.values(supportedL1Chains)) {
 export const getEnsContractName = (address: Address): string | undefined =>
   contractNames.get(address.toLowerCase())
 
-/** Short pill label for known registry / resolver addresses. */
-export const getContractPillLabel = (address: Address): string | undefined =>
-  contractPills.get(address.toLowerCase())
-
 /** EntityBadge label: short pill when known, otherwise the contract display name. */
 export const getContractLabel = (address: Address): string | undefined =>
-  getContractPillLabel(address) ?? getEnsContractName(address)
+  contractPills.get(address.toLowerCase()) ?? getEnsContractName(address)

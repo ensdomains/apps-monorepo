@@ -3,7 +3,7 @@ import { TimelineRow } from '@/components/ui/timeline'
 import { formatTimelineDate } from '../formatTimelineDate'
 import type { Action } from '../summarize/summarize.types'
 import { ActionSlots } from './ActionSlots'
-import { ActionIconGlyph } from './actionIcons'
+import { ACTION_ICONS } from './actionIcons'
 import { EventRow } from './EventRow'
 import { TransactionHeaderRow } from './TransactionHeaderRow'
 
@@ -23,10 +23,11 @@ export const ActionSummaryRow = ({
   const eventCount = action.events.length
   const dateLabel = formatTimelineDate(action.timestamp)
   const desktopDateLabel = showDate ? dateLabel : ''
+  const Glyph = ACTION_ICONS[action.icon]
 
   const iconBadge = (
     <span className="relative z-10 p-1.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 text-muted-foreground">
-      <ActionIconGlyph icon={action.icon} />
+      <Glyph className="size-4 text-neutral-5" strokeWidth={2.5} aria-hidden />
     </span>
   )
   const labelAndChips = (

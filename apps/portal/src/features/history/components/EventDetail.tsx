@@ -1,5 +1,7 @@
 import { useQueries } from '@tanstack/react-query'
+import { match, P } from 'ts-pattern'
 import {
+  type Address,
   formatEther,
   formatGwei,
   type Hash,
@@ -12,10 +14,7 @@ import {
   getTransactionReceiptQueryOptions,
 } from 'wagmi/query'
 import { EntityBadge } from '@/components/EntityBadge'
-import {
-  useBlockExplorerAddressUrl,
-  useBlockExplorerTxUrl,
-} from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import {
   getContractLabel,
   getEnsContractName,
@@ -24,6 +23,7 @@ import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import { resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
+import { ContractBadge } from './ContractBadge'
 import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
 
 const CONTRACT_PARAM_KEYS = new Set([
@@ -43,28 +43,24 @@ const DecodedValue = ({
   value: string
 }) => {
   const address = isAddress(value, { strict: false }) ? value : undefined
-  const explorerUrl = useBlockExplorerAddressUrl(address)
 
   if (address && address !== zeroAddress) {
-    const known = getContractLabel(address)
     const isRegistryParam =
       paramKey === 'registry' || paramKey === 'subregistry'
-    if (known || CONTRACT_PARAM_KEYS.has(paramKey)) {
+    if (getContractLabel(address) || CONTRACT_PARAM_KEYS.has(paramKey)) {
       return (
-        <EntityBadge
-          variant="contract"
+        <ContractBadge
           address={address}
-          label={
-            known ??
-            (paramKey === 'resolver' ? 'resolver' : undefined) ??
-            (isRegistryParam ? 'permissioned registry' : undefined)
-          }
-          isRegistry={isRegistryParam && !known}
-          etherscanHref={explorerUrl}
-          compact
-        >
-          <FullOnDesktop value={address} />
-        </EntityBadge>
+          label={match(paramKey)
+            .with('resolver', () => 'resolver')
+            .with(
+              P.union('registry', 'subregistry'),
+              () => 'permissioned registry',
+            )
+            .otherwise(() => undefined)}
+          isRegistry={isRegistryParam}
+          full
+        />
       )
     }
     return <AccountBadge address={address} full />
@@ -161,25 +157,19 @@ export const TransactionMeta = ({
   const toAddress = tx?.to ?? event.contractAddress ?? undefined
 
   const txUrl = useBlockExplorerTxUrl(txHash)
-  const toUrl = useBlockExplorerAddressUrl(toAddress)
 
   const fromValue = tx?.from ? <AccountBadge address={tx.from} full /> : pending
-  const toValue = !toAddress ? (
-    pending
-  ) : getEnsContractName(toAddress) ||
-    event.contractAddress?.toLowerCase() === toAddress.toLowerCase() ? (
-    <EntityBadge
-      variant="contract"
-      address={toAddress}
-      label={getContractLabel(toAddress)}
-      etherscanHref={toUrl}
-      compact
-    >
-      <FullOnDesktop value={toAddress} />
-    </EntityBadge>
-  ) : (
-    <AccountBadge address={toAddress} full />
-  )
+  const toValue = match(toAddress)
+    .with(P.nullish, () => pending)
+    .with(
+      P.when(
+        (addr: Address) =>
+          !!getEnsContractName(addr) ||
+          event.contractAddress?.toLowerCase() === addr.toLowerCase(),
+      ),
+      (addr) => <ContractBadge address={addr} full />,
+    )
+    .otherwise((addr) => <AccountBadge address={addr} full />)
 
   return (
     <div className="w-full overflow-x-auto overscroll-x-contain [contain:inline-size] sm:overflow-x-visible sm:[contain:none]">

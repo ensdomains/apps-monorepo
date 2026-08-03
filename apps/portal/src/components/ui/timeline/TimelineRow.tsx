@@ -2,7 +2,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { TimelineDisclosure } from './TimelineDisclosure'
 
-export type TimelineRowProps = {
+type TimelineRowProps = {
   readonly isOpen?: boolean
   readonly hoverHighlight?: boolean
   readonly onToggle?: () => void

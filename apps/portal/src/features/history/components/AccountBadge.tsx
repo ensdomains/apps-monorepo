@@ -1,4 +1,5 @@
 import type { Address, Hash } from 'viem'
+import { isAddress } from 'viem'
 import { useEnsName, useTransaction } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
@@ -6,7 +7,7 @@ import { truncateAddress } from '@/utils/formatting/truncateAddress'
 
 interface AccountBadgeProps {
   /** The account address, when known. */
-  readonly address?: string
+  readonly address?: Address
   /** When no address is known (e.g. "Renew by …"), resolve this tx's sender instead. */
   readonly txHash?: Hash
   readonly full?: boolean
@@ -32,12 +33,15 @@ export const AccountBadge = ({
   txHash,
   full = false,
 }: AccountBadgeProps) => {
-  const { data: tx } = useTransaction({
+  const needsTx = !!txHash && !address
+  const { data: tx, isPending } = useTransaction({
     hash: txHash,
-    query: { enabled: !!txHash && !address },
+    query: { enabled: needsTx },
   })
 
-  const resolved = (address ?? tx?.from) as Address | undefined
+  const resolved: Address | undefined =
+    address ??
+    (tx?.from && isAddress(tx.from, { strict: false }) ? tx.from : undefined)
 
   const { data: name } = useEnsName({
     address: resolved,
@@ -46,7 +50,11 @@ export const AccountBadge = ({
   const explorerUrl = useBlockExplorerAddressUrl(resolved)
 
   if (!resolved) {
-    return <span className="text-muted-foreground text-sm">…</span>
+    return (
+      <span className="text-muted-foreground text-sm">
+        {needsTx && isPending ? '…' : '—'}
+      </span>
+    )
   }
 
   if (name) {

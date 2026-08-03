@@ -1,22 +1,25 @@
 import type { FilterGroup } from '@/utils/filtering/multiSelectFilter'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
+import { dateToPlainDate, unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
 import { humanizeType } from './summarize/descriptors'
 import type { Action } from './summarize/summarize.types'
-import { IGNORED_TYPES } from './summarize/summarizeEvents'
+import { IGNORED_TYPES, summarizeEvents } from './summarize/summarizeEvents'
 
 const isWithinRange = (unixSeconds: number, range: DateRange): boolean => {
   if (!range.from && !range.to) return true
-  const ms = unixSeconds * 1000
-  if (range.from) {
-    const from = new Date(range.from)
-    from.setHours(0, 0, 0, 0)
-    if (ms < from.getTime()) return false
+  const eventDate = unixSecondsToPlainDateUtc(unixSeconds)
+  if (
+    range.from &&
+    Temporal.PlainDate.compare(eventDate, dateToPlainDate(range.from)) < 0
+  ) {
+    return false
   }
-  if (range.to) {
-    const to = new Date(range.to)
-    to.setHours(23, 59, 59, 999)
-    if (ms > to.getTime()) return false
+  if (
+    range.to &&
+    Temporal.PlainDate.compare(eventDate, dateToPlainDate(range.to)) > 0
+  ) {
+    return false
   }
   return true
 }
@@ -38,7 +41,7 @@ export const filterActions = (
       selectedTypes.includes(event.type),
     )
     if (events.length === 0) continue
-    result.push({ ...action, events })
+    result.push(...summarizeEvents(events))
   }
   return result
 }

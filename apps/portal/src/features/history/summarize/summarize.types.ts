@@ -1,4 +1,4 @@
-import type { Hex } from 'viem'
+import type { Address, Hex } from 'viem'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 
 /** Icon key for an action; mapped to a Lucide icon in `components/actionIcons.tsx`. */
@@ -28,10 +28,10 @@ export type ActionIcon =
  */
 export type ActionSlot =
   | { readonly kind: 'name'; readonly value: string }
-  | { readonly kind: 'address'; readonly value: string }
+  | { readonly kind: 'address'; readonly value: Address }
   | {
       readonly kind: 'contract'
-      readonly value: string
+      readonly value: Address
       readonly isRegistry?: boolean
       readonly label?: string
     }
@@ -42,7 +42,7 @@ export type ActionSlot =
   | {
       readonly kind: 'actor'
       readonly txHash: Hex
-      readonly address?: string
+      readonly address?: Address
     }
 
 /**

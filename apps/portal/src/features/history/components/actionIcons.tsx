@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import type { ActionIcon } from '../summarize/summarize.types'
 
-const ICONS: Record<ActionIcon, LucideIcon> = {
+export const ACTION_ICONS: Record<ActionIcon, LucideIcon> = {
   address: Route,
   text: Route,
   records: Route,
@@ -31,11 +31,4 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
   fuses: Lock,
   expiry: Clock,
   default: Circle,
-}
-
-export const ActionIconGlyph = ({ icon }: { icon: ActionIcon }) => {
-  const Glyph = ICONS[icon]
-  return (
-    <Glyph className="size-4 text-neutral-5" strokeWidth={2.5} aria-hidden />
-  )
 }

@@ -7,7 +7,6 @@ import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { TableDateRangeFilter } from '@/components/table/TableDateRangeFilter'
 import { TableMultiSelectFilter } from '@/components/table/TableMultiSelectFilter'
 import { Button } from '@/components/ui/button'
-import { Timeline } from '@/components/ui/timeline'
 import type { DateRange } from '@/utils/formatting/formatDateRange'
 import { buildEventTypeGroups, filterActions } from '../filterTimeline'
 import { formatTimelineDate } from '../formatTimelineDate'
@@ -122,7 +121,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
             aria-hidden
             className="pointer-events-none absolute inset-y-0 left-(--rail-x) w-0.5 bg-neutral-2"
           />
-          <Timeline className="gap-y-4">
+          <div className="flex flex-col gap-y-4">
             {filteredActions.map((action, index) => (
               <ActionSummaryRow
                 key={action.txHash}
@@ -136,7 +135,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
                 }
               />
             ))}
-          </Timeline>
+          </div>
         </div>
       )}
     </div>

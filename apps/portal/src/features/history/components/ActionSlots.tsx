@@ -1,38 +1,9 @@
 import { match } from 'ts-pattern'
-import type { Address } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
-import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getContractLabel } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ActionSlot } from '../summarize/summarize.types'
 import { AccountBadge } from './AccountBadge'
-
-const ContractBadge = ({
-  value,
-  isRegistry,
-  label: fallbackLabel,
-}: {
-  value: Address
-  isRegistry?: boolean
-  label?: string
-}) => {
-  const explorerUrl = useBlockExplorerAddressUrl(value)
-  const known = getContractLabel(value)
-  const label =
-    known ?? fallbackLabel ?? (isRegistry ? 'permissioned registry' : undefined)
-  return (
-    <EntityBadge
-      variant="contract"
-      address={value}
-      label={label}
-      isRegistry={known === 'permissioned registry' || (!!isRegistry && !known)}
-      etherscanHref={explorerUrl}
-      compact
-    >
-      {truncateAddress(value)}
-    </EntityBadge>
-  )
-}
+import { ContractBadge } from './ContractBadge'
 
 /** Renders one label slot — an entity chip, a monospace value, or a muted joiner. */
 const Slot = ({ slot }: { slot: ActionSlot }) =>
@@ -43,7 +14,7 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
       </EntityBadge>
     ))
     .with({ kind: 'address' }, ({ value }) => (
-      <EntityBadge variant="address" address={value as Address} compact>
+      <EntityBadge variant="address" address={value} compact>
         {truncateAddress(value)}
       </EntityBadge>
     ))
@@ -51,11 +22,7 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
       <AccountBadge address={address} txHash={txHash} />
     ))
     .with({ kind: 'contract' }, ({ value, isRegistry, label }) => (
-      <ContractBadge
-        value={value as Address}
-        isRegistry={isRegistry}
-        label={label}
-      />
+      <ContractBadge address={value} isRegistry={isRegistry} label={label} />
     ))
     .with({ kind: 'text' }, ({ value }) => (
       <code className="rounded bg-neutral-1 px-1.5 py-0.5 font-mono text-sm text-neutral-7">

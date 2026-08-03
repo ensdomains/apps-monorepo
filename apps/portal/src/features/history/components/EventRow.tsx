@@ -1,8 +1,6 @@
 import { match } from 'ts-pattern'
-import { zeroAddress } from 'viem'
+import { isAddress, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
-import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
-import { getContractLabel } from '@/utils/ens/ensContractNames'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
 import {
@@ -10,6 +8,7 @@ import {
   resolveDecodedName,
 } from '../summarize/decodeRawData'
 import { AccountBadge } from './AccountBadge'
+import { ContractBadge } from './ContractBadge'
 import { DecodedParams } from './EventDetail'
 import { ExpandableDetailRow } from './ExpandableDetailRow'
 
@@ -83,7 +82,9 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
             {change.roles.length || ''}{' '}
             {change.roles.length === 1 ? 'role' : 'roles'} {verb}
           </span>
-          {change.account && <AccountBadge address={change.account} />}
+          {change.account && isAddress(change.account, { strict: false }) && (
+            <AccountBadge address={change.account} />
+          )}
         </>
       )
     })
@@ -101,7 +102,6 @@ interface EventRowProps {
 
 export const EventRow = ({ event }: EventRowProps) => {
   const contractAddress = event.contractAddress ?? undefined
-  const contractExplorerUrl = useBlockExplorerAddressUrl(contractAddress)
 
   return (
     <ExpandableDetailRow
@@ -113,15 +113,7 @@ export const EventRow = ({ event }: EventRowProps) => {
       }
       right={
         contractAddress ? (
-          <EntityBadge
-            variant="contract"
-            address={contractAddress}
-            label={getContractLabel(contractAddress)}
-            etherscanHref={contractExplorerUrl}
-            compact
-          >
-            {truncateAddress(contractAddress)}
-          </EntityBadge>
+          <ContractBadge address={contractAddress} />
         ) : undefined
       }
       disclosure={<DecodedParams event={event} />}

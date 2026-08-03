@@ -1,11 +1,7 @@
 import { ensL1Contracts } from '@ensdomains/ensjs/chain'
 import type { Address } from 'viem'
 import { describe, expect, it } from 'vitest'
-import {
-  getContractLabel,
-  getContractPillLabel,
-  getEnsContractName,
-} from './ensContractNames'
+import { getContractLabel, getEnsContractName } from './ensContractNames'
 
 const SEPOLIA = 11155111
 const sepoliaContracts = ensL1Contracts[SEPOLIA]
@@ -83,53 +79,29 @@ describe('getEnsContractName', () => {
   })
 })
 
-describe('getContractPillLabel', () => {
-  it('maps known ENS registry / resolver addresses to short pill labels', () => {
-    expect(getContractPillLabel(sepoliaContracts.ensRegistry.address)).toBe(
-      'root registry',
-    )
-    expect(
-      getContractPillLabel(sepoliaContracts.ensLegacyRegistry.address),
-    ).toBe('legacy registry')
-    expect(
-      getContractPillLabel(sepoliaContracts.ensUserRegistryImpl.address),
-    ).toBe('permissioned registry')
-    expect(
-      getContractPillLabel(sepoliaContracts.ensPublicResolver.address),
-    ).toBe('public resolver')
-    expect(
-      getContractPillLabel(sepoliaContracts.ensUniversalResolver.address),
-    ).toBe('universal resolver')
-    expect(
-      getContractPillLabel(sepoliaContracts.ensDefaultReverseResolver.address),
-    ).toBe('reverse resolver')
-    expect(
-      getContractPillLabel(
-        sepoliaContracts.ensPermissionedResolverImpl.address,
-      ),
-    ).toBe('permissioned resolver')
-  })
-
-  it('returns undefined for non-registry / non-resolver contracts', () => {
-    expect(
-      getContractPillLabel(sepoliaContracts.ensNameWrapper.address),
-    ).toBeUndefined()
-    expect(
-      getContractPillLabel(
-        '0x0000000000000000000000000000000000001234' as Address,
-      ),
-    ).toBeUndefined()
-  })
-})
-
 describe('getContractLabel', () => {
   it('prefers the short pill label over the display name', () => {
     expect(getContractLabel(sepoliaContracts.ensRegistry.address)).toBe(
       'root registry',
     )
+    expect(getContractLabel(sepoliaContracts.ensLegacyRegistry.address)).toBe(
+      'legacy registry',
+    )
+    expect(getContractLabel(sepoliaContracts.ensUserRegistryImpl.address)).toBe(
+      'permissioned registry',
+    )
     expect(getContractLabel(sepoliaContracts.ensPublicResolver.address)).toBe(
       'public resolver',
     )
+    expect(
+      getContractLabel(sepoliaContracts.ensUniversalResolver.address),
+    ).toBe('universal resolver')
+    expect(
+      getContractLabel(sepoliaContracts.ensDefaultReverseResolver.address),
+    ).toBe('reverse resolver')
+    expect(
+      getContractLabel(sepoliaContracts.ensPermissionedResolverImpl.address),
+    ).toBe('permissioned resolver')
   })
 
   it('falls back to the display name for other known contracts', () => {
@@ -139,5 +111,11 @@ describe('getContractLabel', () => {
     expect(getContractLabel(sepoliaContracts.ensNameWrapper.address)).toBe(
       'NameWrapper',
     )
+  })
+
+  it('returns undefined for unrecognised addresses', () => {
+    expect(
+      getContractLabel('0x0000000000000000000000000000000000001234' as Address),
+    ).toBeUndefined()
   })
 })

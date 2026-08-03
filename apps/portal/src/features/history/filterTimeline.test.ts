@@ -4,13 +4,18 @@ import { filterActions } from './filterTimeline'
 import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
 import type { Action } from './summarize/summarize.types'
 
-const event = (type: string, id: string): TimelineIndexerEvent =>
+const event = (
+  type: string,
+  id: string,
+  extra: Partial<TimelineIndexerEvent> = {},
+): TimelineIndexerEvent =>
   ({
     id,
     type,
     transactionHash: '0xabc' as Hex,
     blockNumber: 1,
     timestamp: 1_700_000_000,
+    ...extra,
   }) as TimelineIndexerEvent
 
 const action = (events: TimelineIndexerEvent[]): Action => ({
@@ -23,12 +28,21 @@ const action = (events: TimelineIndexerEvent[]): Action => ({
 })
 
 describe('filterActions', () => {
-  it('keeps only selected event types inside a multi-event action', () => {
+  it('re-summarizes remaining events so the label matches the filter', () => {
     const filtered = filterActions(
       [
         action([
-          event('NameRegistered', '1'),
-          event('Transfer', '2'),
+          event('NameRegistered', '1', {
+            name: 'alice.eth',
+            asNameRegistered: { name: 'alice.eth' },
+          }),
+          event('Transfer', '2', {
+            name: 'alice.eth',
+            asTransfer: {
+              from: '0x1111111111111111111111111111111111111111',
+              to: '0x2222222222222222222222222222222222222222',
+            },
+          }),
           event('EACRolesChanged', '3'),
         ]),
       ],
@@ -37,6 +51,7 @@ describe('filterActions', () => {
     )
     expect(filtered).toHaveLength(1)
     expect(filtered[0].events.map((e) => e.type)).toEqual(['Transfer'])
+    expect(filtered[0].label).toBe('Transfer name')
   })
 
   it('drops actions with no matching event types', () => {
