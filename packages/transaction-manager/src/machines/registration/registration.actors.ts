@@ -61,8 +61,12 @@ type CommitmentData = {
   secret: Hash
 }
 
+// `PermissionedResolver.initialize` takes a third `setters` argument — a
+// multicall batch of setter calls run at init time. We pass an empty array:
+// the proxy is deployed with no initial records, exactly as before.
+// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
 const DEDICATED_RESOLVER_INIT_ABI = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
+  'function initialize(address owner, uint256 bitmap, bytes[] setters)',
 ])
 
 const DEDICATED_RESOLVER_ROLE_BITMAP = BigInt(
@@ -144,7 +148,7 @@ function getResolverInitCalldata(ownerAddress: Address): Hex {
   return encodeFunctionData({
     abi: DEDICATED_RESOLVER_INIT_ABI,
     functionName: 'initialize',
-    args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP],
+    args: [ownerAddress, DEDICATED_RESOLVER_ROLE_BITMAP, []],
   })
 }
 
