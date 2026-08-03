@@ -140,7 +140,13 @@ describe('useBulkRenewSubmit', () => {
     expect(mocks.submitRenewActor).not.toHaveBeenCalled()
   })
 
-  it('HCA: skips authorization when the allowance already covers the batch', async () => {
+  it('HCA: still permits even when the registrar allowance already covers the batch', async () => {
+    // A large existing allowance must NOT short-circuit the permit. The
+    // registrar collects from its literal `msg.sender` (the HCA), and the HCA
+    // holds no tokens between batches — so `allowance[HCA][registrar]` being
+    // huge is useless without first pulling funds in from the owner EOA.
+    // Skipping here would produce a batch the HCA cannot pay for, which is
+    // exactly the ERC20InsufficientAllowance failure this flow used to hit.
     mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(9_999_999n))
     const { result } = renderHook(() => useBulkRenewSubmit())
 
@@ -148,13 +154,27 @@ describe('useBulkRenewSubmit', () => {
       await result.current.submit(args)
     })
 
-    expect(mocks.signPermitActor).not.toHaveBeenCalled()
+    expect(mocks.signPermitActor).toHaveBeenCalledTimes(1)
     expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
-    // Still one batch transaction, just without a permit call bundled in.
+    // Still exactly one batch transaction, now with the permit bundled in.
     expect(mocks.submitBatchRenewActor).toHaveBeenCalledTimes(1)
-    expect(
-      mocks.submitBatchRenewActor.mock.calls[0]?.[0]?.permit,
-    ).toBeUndefined()
+    expect(mocks.submitBatchRenewActor.mock.calls[0]?.[0]?.permit).toBe(PERMIT)
+  })
+
+  it('HCA: the permit names the HCA as spender, not the registrar', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    // The permit authorizes the HCA to pull the owner's funds into itself;
+    // `buildHcaPaymentCalls` then approves the registrar from the HCA. A permit
+    // naming the registrar as spender would set an allowance the registrar
+    // never reads.
+    const permitArg = mocks.signPermitActor.mock.calls[0]?.[0]
+    expect(permitArg?.owner).toBe(hcaAccount.ownerAddress)
+    expect(permitArg?.spender).toBe(hcaAccount.accountAddress)
   })
 
   it('HCA: a failed batch retries the whole batch atomically (no partial resume)', async () => {

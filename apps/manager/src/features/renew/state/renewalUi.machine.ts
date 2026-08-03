@@ -3,6 +3,7 @@ import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/en
 import {
   authorizedPaymentAmount,
   ensureHcaDeployedActor,
+  getSignerAddress,
   type PermitSignature,
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -267,16 +268,17 @@ export const renewalUiMachine = setup({
         },
       },
     },
-    // Read the rent payer's (EOA owner's) current allowance to the registrar.
-    // The registrar charges `_msgSender()` and unwraps an HCA caller to its
-    // owner EOA, so payment authorization is always keyed off the EOA — exactly
-    // like the registration flow.
+    // Read the rent payer's current allowance to the registrar. The registrar
+    // charges its literal `msg.sender` — contracts-v2 #301 removed the
+    // `_msgSender()`/`HCAEquivalence` unwrapping on purpose, since resolving an
+    // HCA caller to its owner EOA broke registration via an HCA. So the payer
+    // is the caller itself: the HCA on smart-account flows, the EOA otherwise.
     checkingAllowance: {
       tags: 'renewing',
       invoke: {
         src: 'readPaymentTokenAllowance',
         input: ({ context }) => ({
-          owner: context.submissionData!.ownerAddress,
+          owner: getSignerAddress(context.submissionData!.signer),
           selectedToken: context.submissionData!.token,
           publicClient,
         }),
@@ -316,6 +318,11 @@ export const renewalUiMachine = setup({
           const submission = context.submissionData!
           return {
             owner: submission.ownerAddress,
+            // Spender is the HCA, not the registrar: the registrar collects
+            // from its literal `msg.sender`, so the permit's role is to let the
+            // HCA pull the owner's funds into itself. It then approves the
+            // registrar from its own balance (see `buildHcaPaymentCalls`).
+            spender: getSignerAddress(submission.signer),
             selectedToken: submission.token,
             // Authorize only what this renewal needs (+ headroom), never an
             // unlimited allowance. Mirrors registration.

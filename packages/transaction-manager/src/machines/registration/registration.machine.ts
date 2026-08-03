@@ -256,6 +256,7 @@ export const registrationMachine = setup({
     signPermit: fromResultAsync(
       (input: {
         owner: Address
+        spender: Address
         selectedToken: 'USDC' | 'DAI'
         value: bigint
         approvalSigner: Signer
@@ -978,28 +979,34 @@ export const registrationMachine = setup({
       invoke: {
         src: 'readPaymentTokenAllowance',
         input: ({ context }) => ({
+          // The registrar charges its literal `msg.sender`, so the allowance
+          // that matters belongs to whoever calls it: the HCA on the rhinestone
+          // path, the EOA on the pure-EOA path. `accountAddress` is exactly
+          // that caller in both cases.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
-          owner: context.ownerAddress ?? context.accountAddress!,
+          owner: context.accountAddress!,
           selectedToken: context.selectedToken,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
         }),
         onDone: [
           {
-            // Skip payment authorization entirely when the registrar already
-            // has enough allowance for this registration's price (e.g. a prior
-            // max permit/approve). The EOA signs nothing extra.
+            // Rhinestone/HCA: the HCA holds no tokens between registrations, so
+            // a sufficient registrar allowance alone is never enough — the
+            // batch must still pull funds in from the EOA. Always take the
+            // permit path. Checked BEFORE the skip below, which would otherwise
+            // strand the flow at a `register` the HCA can't pay for.
+            guard: 'isRhinestoneSigner',
+            target: 'signingPermit',
+          },
+          {
+            // Pure-EOA: skip authorization entirely when the registrar already
+            // has enough allowance over the EOA (e.g. a prior approve).
             guard: ({ context, event }) => {
               const allowance = event.output as bigint
               return allowance >= context.tokenPrice
             },
             target: 'commitmentCooldown',
-          },
-          {
-            // Rhinestone/HCA: authorize via a gasless EIP-2612 permit signed by
-            // the EOA and carried into the sponsored bundle. No EOA tx.
-            guard: 'isRhinestoneSigner',
-            target: 'signingPermit',
           },
           // Pure-EOA fallback: a bare EOA can't batch or sponsor, so it sets the
           // allowance with a plain on-chain `approve`.
@@ -1026,13 +1033,19 @@ export const registrationMachine = setup({
         input: ({ context }) => ({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          // Spender is the HCA, NOT the registrar: the registrar charges its
+          // literal `msg.sender` (the HCA), so the permit's job is to let the
+          // HCA pull the EOA's funds into itself. `buildHcaPaymentCalls` then
+          // has the HCA approve the registrar in the same atomic batch.
+          // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
+          spender: context.accountAddress!,
           selectedToken: context.selectedToken,
           // Authorize only what this registration needs — NOT an unlimited
           // allowance. See `authorizedPaymentAmount` for the headroom rationale.
           value: authorizedPaymentAmount(context.tokenPrice),
-          // The registrar pulls payment from the name owner (the EOA), so the
-          // permit MUST be signed by the EOA. Use the dedicated EOA
-          // `approvalSigner`; the rhinestone HCA can't produce a permit.
+          // The funds live in the name owner's EOA, so the permit MUST be
+          // signed by that EOA. Use the dedicated EOA `approvalSigner`; the
+          // rhinestone HCA can't produce a permit.
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           approvalSigner: context.approvalSigner ?? context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state

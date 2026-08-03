@@ -235,12 +235,20 @@ function encodeCommitmentData(commitment: Hash): Hash {
 /**
  * Encode token approval transaction data.
  *
- * Scoped approve to the registrar — NOT unlimited. The ENS registrar pulls the
- * payment token from the name owner (the EOA) on registration; on the pure-EOA
- * fallback path that approve is a direct EOA tx (the HCA path uses a gasless
- * EIP-2612 permit instead). We approve only this registration's price plus a
- * small headroom, matching the permit path, so a stale/compromised registrar
+ * Scoped approve to the registrar — NOT unlimited. We approve only this
+ * registration's price plus a small headroom, so a stale/compromised registrar
  * approval can never drain more than one registration's worth.
+ *
+ * IMPORTANT — whose allowance this must be. `ETHRegistrar.register` and
+ * `AbstractETHRegistrar.renew` both settle with
+ * `SafeERC20.safeTransferFrom(paymentToken, msg.sender, BENEFICIARY, amount)`.
+ * That is raw `msg.sender`: contracts-v2 #301 deleted `HCAEquivalence` /
+ * `HCAContext` and the registrar's `_msgSender()` indirection on purpose (the
+ * unwrapping made an HCA caller resolve to its owner EOA, which broke
+ * registration *via* an HCA). So the payer is always the literal caller:
+ *   - pure-EOA path: `msg.sender` is the EOA, so the EOA approves (this call).
+ *   - HCA path:      `msg.sender` is the HCA, so the HCA must hold the tokens
+ *                    and grant the allowance — see {@link buildHcaPaymentCalls}.
  */
 function encodeTokenApprovalData(
   registrarAddress: Address,
@@ -296,6 +304,68 @@ const PERMIT_DEADLINE_SECONDS = 60 * 60
  */
 export function authorizedPaymentAmount(price: bigint): bigint {
   return price + price / 10n
+}
+
+/**
+ * Encode `transferFrom(from, to, value)` — used to move the payment token from
+ * the owner EOA into the HCA, which is the address the registrar will charge.
+ */
+function encodeTransferFromData(
+  from: Address,
+  to: Address,
+  value: bigint,
+): Hex {
+  return encodeFunctionData({
+    abi: erc20Abi,
+    functionName: 'transferFrom',
+    args: [from, to, value],
+  })
+}
+
+/**
+ * The payment preamble prepended to every HCA (smart-account) batch.
+ *
+ * The registrar charges `msg.sender`, which on this path is the HCA — but the
+ * user's stablecoins live in their owner EOA (see `useSmartAccountBalances`).
+ * So before `register`/`renew` can settle, the batch must move value into the
+ * HCA and authorize the registrar *from* the HCA:
+ *
+ *   1. `permit(owner=EOA, spender=HCA, value)` — consumes the EOA's off-chain
+ *      signature, setting `allowance[EOA][HCA]`. Keeps the flow gasless: the
+ *      EOA signs but never sends a tx.
+ *   2. `transferFrom(EOA -> HCA, value)`      — the HCA (as `msg.sender`, now
+ *      holding that allowance) pulls the funds into itself.
+ *   3. `approve(registrar, value)`            — the HCA authorizes the
+ *      registrar to collect from it.
+ *
+ * All three run in the same atomic intent as the register/renew calls that
+ * follow, so the allowance is visible to them in the same tx.
+ *
+ * `value` carries {@link authorizedPaymentAmount}'s 10% headroom to absorb rent
+ * drift between quoting and execution. The registrar takes only the live price,
+ * so the unspent remainder stays in the HCA (recoverable — the HCA is
+ * user-controlled — and reusable by a later registration).
+ */
+export function buildHcaPaymentCalls(input: {
+  permit: PermitSignature
+  paymentToken: Address
+  registrarAddress: Address
+}): { to: Address; data: Hex; value: bigint }[] {
+  const { permit, paymentToken, registrarAddress } = input
+
+  return [
+    { to: paymentToken, data: encodePermitData(permit), value: 0n },
+    {
+      to: paymentToken,
+      data: encodeTransferFromData(permit.owner, permit.spender, permit.value),
+      value: 0n,
+    },
+    {
+      to: paymentToken,
+      data: encodeTokenApprovalData(registrarAddress, permit.value),
+      value: 0n,
+    },
+  ]
 }
 
 /**
@@ -1113,24 +1183,33 @@ export function submitRegistrationActor(input: {
 }
 
 /**
- * Produce an EIP-2612 permit signature authorizing the registrar to pull the
+ * Produce an EIP-2612 permit signature authorizing `spender` to pull the
  * payment token from the name owner (the EOA).
+ *
+ * `spender` MUST be the HCA, not the registrar. The registrar collects with
+ * `safeTransferFrom(token, msg.sender, ...)` and has no HCA unwrapping (see
+ * {@link encodeTokenApprovalData}), so an allowance granted directly to the
+ * registrar over the EOA's balance is never consulted — the registrar only ever
+ * looks at `allowance[HCA][registrar]`. The permit instead lets the HCA pull the
+ * EOA's funds into itself; {@link buildHcaPaymentCalls} then has the HCA approve
+ * the registrar.
  *
  * This is an OFF-CHAIN signature (gasless): the EOA never sends a transaction.
  * The on-chain `permit` call is executed later inside the sponsored Warp bundle
  * (see {@link submitPermitAndRegistrationActor}), so the owner needs no native
  * ETH. `permit` validates the signature against `owner` rather than
- * `msg.sender`, so the HCA can carry the EOA's permit in a sponsored intent and
- * it still sets `allowance[EOA][registrar]`.
+ * `msg.sender`, so the HCA can carry the EOA's permit in a sponsored intent.
  */
 export function signPermitActor(input: {
   owner: Address
+  /** The HCA/smart-account address that will execute the batch. */
+  spender: Address
   selectedToken: 'USDC' | 'DAI'
   value: bigint
   approvalSigner: import('../..').Signer
   publicClient: PublicClient
 }): ResultAsync<PermitSignature, Error> {
-  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const spenderAddress = input.spender
   const tokenAddress = getPaymentTokenAddress(input.selectedToken)
 
   // Permit signatures are an EOA capability — the rhinestone HCA can't produce
@@ -1220,7 +1299,7 @@ export function signPermitActor(input: {
         primaryType: 'Permit',
         message: {
           owner: input.owner,
-          spender: registrarAddress,
+          spender: spenderAddress,
           value: input.value,
           nonce,
           deadline,
@@ -1231,7 +1310,7 @@ export function signPermitActor(input: {
 
       return {
         owner: input.owner,
-        spender: registrarAddress,
+        spender: spenderAddress,
         value: input.value,
         deadline,
         v: Number(v ?? BigInt(yParity + 27)),
@@ -1280,8 +1359,6 @@ export function submitPermitAndRegistrationActor(input: {
         normalizedPaymentToken,
       )
 
-      const permitData = encodePermitData(input.permit)
-
       const registerCall = encodeRegisterCall({
         name: input.name,
         owner: input.owner,
@@ -1296,7 +1373,11 @@ export function submitPermitAndRegistrationActor(input: {
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
-          { to: normalizedPaymentToken, data: permitData, value: 0n },
+          ...buildHcaPaymentCalls({
+            permit: input.permit,
+            paymentToken: normalizedPaymentToken,
+            registrarAddress,
+          }),
           registerCall,
         ],
         sponsored: input.sponsored ?? true,
@@ -1428,15 +1509,17 @@ export function ensureHcaDeployedActor(input: {
 // ============================================================================
 //
 // `ETHRegistrar.renew(label, duration, paymentToken, referrer)` pulls the rent
-// from `_msgSender()` (see AbstractETHRegistrar.renew). Crucially, the registrar
-// uses HCA-aware sender resolution: when an HCA calls `renew`, `_msgSender()`
-// unwraps to the HCA's owner EOA (HCAEquivalence). So the registrar always pulls
-// payment from the EOA — never the HCA, which holds no tokens.
+// from `msg.sender` (see AbstractETHRegistrar.renew) — the literal caller, with
+// no HCA unwrapping: contracts-v2 #301 removed `HCAEquivalence`/`HCAContext`
+// deliberately, because resolving an HCA caller to its owner EOA broke
+// registration via an HCA.
 //
-// This is the same payer the `register` flow authorizes, so renewal reuses the
-// exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
-// (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
-// sponsored intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+// So the payer is whoever calls the registrar: the EOA on the pure-EOA path,
+// and the HCA on the smart-account path. Renewal therefore reuses the exact
+// same allowance machinery as `register`: either skip (the caller already has
+// enough allowance), prepend the gasless permit -> transferFrom -> approve
+// preamble that funds the HCA and authorizes the registrar from it (see
+// `buildHcaPaymentCalls`), or do a plain on-chain `approve` (EOA).
 
 /**
  * Encode `renew(label, duration, paymentToken, referrer)` calldata.
@@ -1549,7 +1632,6 @@ export function submitPermitAndRenewActor(input: {
         normalizedPaymentToken,
       )
 
-      const permitData = encodePermitData(input.permit)
       const renewData = encodeRenewData(
         input.label,
         input.duration,
@@ -1561,7 +1643,11 @@ export function submitPermitAndRenewActor(input: {
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [
-          { to: normalizedPaymentToken, data: permitData, value: 0n },
+          ...buildHcaPaymentCalls({
+            permit: input.permit,
+            paymentToken: normalizedPaymentToken,
+            registrarAddress,
+          }),
           { to: registrarAddress, data: renewData, value: 0n },
         ],
         sponsored: input.sponsored ?? true,
@@ -1632,11 +1718,11 @@ export function submitBatchRenewActor(input: {
 
       const calls: Call[] = input.permit
         ? [
-            {
-              to: normalizedPaymentToken,
-              data: encodePermitData(input.permit),
-              value: 0n,
-            },
+            ...buildHcaPaymentCalls({
+              permit: input.permit,
+              paymentToken: normalizedPaymentToken,
+              registrarAddress,
+            }),
             ...renewCalls,
           ]
         : renewCalls

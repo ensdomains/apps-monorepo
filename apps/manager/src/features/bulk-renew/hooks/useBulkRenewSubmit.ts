@@ -5,12 +5,11 @@ import {
   ensureHcaDeployedActor,
   type PermitSignature,
   pollTransactionStatusActor,
-  readPaymentTokenAllowanceActor,
   signPermitActor,
   submitBatchRenewActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.actors'
 import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
+import { ok, type Result, type ResultAsync } from 'neverthrow'
 import { useCallback, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { useSmartAccountContext } from '@/lib/smart-account'
@@ -33,37 +32,36 @@ type Context = {
   readonly signer: Signer
   readonly approvalSigner: Signer | undefined
   readonly ownerAddress: Address
+  readonly accountAddress: Address
   readonly token: SUPPORTED_TOKEN
   readonly isHca: boolean
 }
 
 /**
  * Authorize the whole batch once, gaslessly. Resolves to an EIP-2612 permit
- * (signed by the EOA owner, sized to cover the batch) to bundle into the batch
- * transaction, or `undefined` when the existing allowance already covers it.
+ * signed by the EOA owner and sized to cover the batch, letting the HCA pull
+ * those funds into itself inside the batch transaction.
+ *
+ * Bulk renewal is smart-account-only, and the registrar charges its literal
+ * `msg.sender` — the HCA — which holds no tokens between batches. So there is
+ * no "allowance already covers it" shortcut to take here: even a maxed-out
+ * `allowance[HCA][registrar]` is useless if the HCA has no balance to spend.
+ * Every batch re-funds the HCA from the owner EOA.
  */
 const authorizeSpend = (
   ctx: Context,
   sumPriceRaw: bigint,
 ): ResultAsync<PermitSignature | undefined, Error> =>
-  readPaymentTokenAllowanceActor({
+  signPermitActor({
     owner: ctx.ownerAddress,
+    // The HCA is the spender: it pulls the EOA's funds into itself, then
+    // approves the registrar from its own balance (see `buildHcaPaymentCalls`).
+    spender: ctx.accountAddress,
     selectedToken: ctx.token,
+    value: authorizedPaymentAmount(sumPriceRaw),
+    approvalSigner: ctx.approvalSigner ?? ctx.signer,
     publicClient,
   })
-    // A read failure shouldn't block — fall back to authorizing.
-    .orElse(() => okAsync(0n))
-    .andThen((allowance): ResultAsync<PermitSignature | undefined, Error> => {
-      if (allowance >= sumPriceRaw) return okAsync(undefined)
-
-      return signPermitActor({
-        owner: ctx.ownerAddress,
-        selectedToken: ctx.token,
-        value: authorizedPaymentAmount(sumPriceRaw),
-        approvalSigner: ctx.approvalSigner ?? ctx.signer,
-        publicClient,
-      })
-    })
 
 /**
  * Submit and confirm the WHOLE batch as one transaction: a single smart-account
@@ -140,10 +138,12 @@ const resolveContext = (
 ): Context | null => {
   const signer = account.signer
   const ownerAddress = account.ownerAddress ?? account.accountAddress
-  if (!signer || !ownerAddress) return null
+  const accountAddress = account.accountAddress
+  if (!signer || !ownerAddress || !accountAddress) return null
   return {
     signer,
     ownerAddress,
+    accountAddress,
     token,
     isHca: signer.type === 'rhinestone',
     approvalSigner: account.walletClient
