@@ -3,10 +3,6 @@ import { type ReactNode, useState } from 'react'
 import { TimelineRow } from '@/components/ui/timeline'
 import { cn } from '@/lib/utils'
 
-/**
- * Nested timeline row (tx header / event): chevron outside the content column so
- * wrapped mobile lines align under the text, not the icon.
- */
 export const ExpandableDetailRow = ({
   left,
   right,
@@ -21,8 +17,9 @@ export const ExpandableDetailRow = ({
   return (
     <TimelineRow
       isOpen={isOpen}
+      hoverHighlight={false}
       onToggle={() => setIsOpen((open) => !open)}
-      className="ml-(--tier2-indent) pl-2 hover:bg-transparent"
+      className="ml-(--tier2-indent) pl-2"
       disclosure={<div className="py-1 pl-(--detail-indent)">{disclosure}</div>}
     >
       <div className="flex items-start gap-2 py-2 pr-3">

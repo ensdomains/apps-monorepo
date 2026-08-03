@@ -4,7 +4,6 @@ import {
   formatGwei,
   type Hash,
   isAddress,
-  isHex,
   zeroAddress,
 } from 'viem'
 import { useChainId, useConfig } from 'wagmi'
@@ -22,12 +21,10 @@ import {
   getEnsContractName,
 } from '@/utils/ens/ensContractNames'
 import { formatTimestamp } from '@/utils/formatting/formatTimestamp'
-import type {
-  TimelineDecoded,
-  TimelineIndexerEvent,
-} from '../hooks/useNameHistoryTimeline'
-import { parseEventData, resolveDecodedName } from '../summarize/decodeRawData'
+import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import { resolveDecodedName } from '../summarize/decodeRawData'
 import { AccountBadge, FullOnDesktop } from './AccountBadge'
+import { getDecodedParamEntries, getTimelineFieldType } from './eventFieldTypes'
 
 const CONTRACT_PARAM_KEYS = new Set([
   'resolver',
@@ -35,51 +32,6 @@ const CONTRACT_PARAM_KEYS = new Set([
   'subregistry',
   'implementer',
 ])
-
-/** Infer a Solidity-ish type from a decoded parameter value. */
-const inferFieldType = (value: unknown): string => {
-  if (typeof value === 'boolean') return 'bool'
-  if (typeof value === 'bigint') return 'uint256'
-  if (typeof value === 'number')
-    return Number.isInteger(value) ? 'uint256' : 'string'
-
-  const raw = String(value).trim()
-  if (!raw) return 'string'
-  if (isAddress(raw, { strict: false })) return 'address'
-  if (isHex(raw, { strict: true })) {
-    return raw.length === 66 ? 'bytes32' : 'bytes'
-  }
-  if (/^\d+$/.test(raw)) return 'uint256'
-  return 'string'
-}
-
-const PAYLOAD_KEYS = [
-  'asAddressChanged',
-  'asTextChanged',
-  'asTransfer',
-  'asRegistryTransfer',
-  'asLabelRegistered',
-  'asNameRegistered',
-  'asNameRenewed',
-  'asResolverUpdated',
-  'asReverseClaimed',
-  'asNameWrapped',
-  'asNameUnwrapped',
-  'asFusesSet',
-  'asExpiryUpdated',
-] as const satisfies ReadonlyArray<keyof TimelineDecoded>
-
-const getDecodedPayload = (
-  event: TimelineIndexerEvent,
-): Record<string, unknown> => {
-  for (const key of PAYLOAD_KEYS) {
-    const payload = event[key]
-    if (payload && typeof payload === 'object') {
-      return payload as Record<string, unknown>
-    }
-  }
-  return parseEventData(event.data)
-}
 
 const DecodedValue = ({
   event,
@@ -133,9 +85,7 @@ const DecodedValue = ({
 
 /** Tier-3 decoded-parameter table (Parameter / Type / Decoded) — inline, no card. */
 export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
-  const entries = Object.entries(getDecodedPayload(event))
-    .filter(([, value]) => value != null && value !== '')
-    .map(([key, value]) => [key, String(value)] as const)
+  const entries = getDecodedParamEntries(event)
 
   if (entries.length === 0) {
     return (
@@ -161,7 +111,7 @@ export const DecodedParams = ({ event }: { event: TimelineIndexerEvent }) => {
                 <EntityBadge variant="default">{key}</EntityBadge>
               </td>
               <td className="py-1.5 pr-6 align-top font-mono text-muted-foreground">
-                {inferFieldType(value)}
+                {getTimelineFieldType(event.type, key)}
               </td>
               <td className="py-1.5 break-all align-top font-mono text-neutral-7">
                 <DecodedValue event={event} paramKey={key} value={value} />

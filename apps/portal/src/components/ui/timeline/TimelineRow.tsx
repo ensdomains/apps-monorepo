@@ -4,6 +4,7 @@ import { TimelineDisclosure } from './TimelineDisclosure'
 
 export type TimelineRowProps = {
   readonly isOpen?: boolean
+  readonly hoverHighlight?: boolean
   readonly onToggle?: () => void
   readonly className?: string
   readonly children: ReactNode
@@ -17,6 +18,7 @@ const isInteractiveTarget = (target: EventTarget | null): boolean =>
 
 export const TimelineRow = ({
   isOpen = false,
+  hoverHighlight = true,
   onToggle,
   className,
   children,
@@ -46,7 +48,8 @@ export const TimelineRow = ({
         onClick={handleClick}
         onKeyDown={handleKeyDown}
         className={cn(
-          'group/row cursor-pointer select-none rounded-md transition-none hover:bg-neutral-1',
+          'group/row cursor-pointer select-none rounded-md transition-none',
+          hoverHighlight && 'hover:bg-neutral-1',
           className,
         )}
       >
