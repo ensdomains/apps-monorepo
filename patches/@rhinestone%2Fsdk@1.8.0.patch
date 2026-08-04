@@ -372,7 +372,8 @@ index 8e43c7a3..67ded69a 100644
      const resolved = resolveSessionForChain(signers, chainId);
 -    const enabled = await (0, validators_1.isSessionEnabled)((0, accounts_1.getAddress)(config), config.provider, resolved.session, config.useDevContracts);
 +    const enabled = await (0, validators_1.isSessionEnabled)((0, accounts_1.getAddress)(config), config.provider, resolved.session, config.useDevContracts, (0, hca_1.isStandaloneHca)(config) ? config.account.validator : undefined);
-     const enableData = enabled ? undefined : resolved.enableData;
+-    const enableData = enabled ? undefined : resolved.enableData;
++    const enableData = enabled && !(0, hca_1.isStandaloneHca)(config) ? undefined : resolved.enableData;
      const hasExplicitActions = !!resolved.session.actions?.length;
      const verifyExecutions = resolved.verifyExecutions ?? signers.verifyExecutions ?? hasExplicitActions;
 @@ -65,7 +96,7 @@ async function resolveSignersForChain(config, signers, chainId) {

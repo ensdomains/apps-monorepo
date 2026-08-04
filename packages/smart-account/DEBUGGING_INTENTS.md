@@ -212,3 +212,45 @@ bug**, and explains why it looks intermittent: some later run enables the
 session, so every subsequent commit passes and only the first one under a fresh
 session fails. A registration funded entirely from leftover HCA balance is the
 usual trigger, because it needs no permit and so never took the funding branch.
+
+### The SDK strips the proof once the session is enabled
+
+Attaching `enableData` app-side is necessary but **not sufficient**. The exact
+inverse of the bug above also exists, and it fails on the SECOND registration
+rather than the first:
+
+```js
+// dist/src/execution/utils.js — resolveSignersForChain
+const enabled = await isSessionEnabled(...)
+const enableData = enabled ? undefined : resolved.enableData   // discards it
+```
+
+Registration 1 enables the session, so registration 2 sees `enabled === true`,
+the SDK drops the proof the app correctly supplied, and
+`packStandaloneHcaFixedSessionSignature` picks the mode purely from
+`signers.enableData`:
+
+| `enableData` | gas refund | mode |
+|---|---|---|
+| truthy | — | `0x05` (carries proof) |
+| falsy | yes | `0x02` |
+| falsy | no | `0x01` |
+
+A funded commit then signs `0x01`/`0x02`, the validator takes the non-first-use
+path, and `permit` is rejected — `ActionNotAllowed(USDC, 0xd505accf)` masked as
+`InvalidSignature()`. The app-side guard in `submitFundingAndCommitActor`
+cannot catch it: by then the proof has already been handed to the SDK.
+
+Note the trap in our own patch — teaching `isSessionEnabled` about the
+standalone-HCA validator (passing `config.account.validator`) makes it *more*
+accurate, which is what starts returning `true` and triggers the strip. The
+patch therefore also pins the line above to keep the proof for standalone HCA:
+
+```js
+const enableData = enabled && !isStandaloneHca(config) ? undefined : resolved.enableData
+```
+
+Symptom to recognise: first registration succeeds, every later one fails, and
+`isPermissionEnabled` is `true` at the failing block (not `false`, as in §7).
+Read the mode byte before anything else — `0x01`/`0x02` on a batch that also
+contains `enableSessionWithRefund` means the call and the signature disagree.
