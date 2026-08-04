@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface TimelineDisclosureProps {
@@ -12,26 +12,28 @@ interface TimelineDisclosureProps {
  * Stays overflow-hidden while animating; overflow-visible when settled so
  * EntityBadge hover chips aren't clipped.
  */
-const SETTLE_MS = 300
-
 export const TimelineDisclosure = ({
   isOpen,
   children,
   className,
 }: TimelineDisclosureProps) => {
   const [isSettled, setIsSettled] = useState(isOpen)
+  if (!isOpen && isSettled) setIsSettled(false)
 
-  useEffect(() => {
-    if (!isOpen) {
-      setIsSettled(false)
-      return
-    }
-    const timer = setTimeout(() => setIsSettled(true), SETTLE_MS)
-    return () => clearTimeout(timer)
-  }, [isOpen])
+  const [hasOpened, setHasOpened] = useState(isOpen)
+  if (isOpen && !hasOpened) setHasOpened(true)
 
   return (
     <div
+      onTransitionEnd={(e) => {
+        if (
+          e.target === e.currentTarget &&
+          e.propertyName === 'grid-template-rows' &&
+          isOpen
+        ) {
+          setIsSettled(true)
+        }
+      }}
       className={cn(
         'grid transition-[grid-template-rows] duration-150 ease-out',
         isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
@@ -50,7 +52,7 @@ export const TimelineDisclosure = ({
             isOpen ? 'opacity-100 delay-150' : 'opacity-0',
           )}
         >
-          {children}
+          {hasOpened ? children : null}
         </div>
       </div>
     </div>
