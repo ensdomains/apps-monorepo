@@ -114,25 +114,56 @@ export function hcaRegistrarAddress(chainId: number): Address {
  * `locked` covers funds already committed to a resource lock; both are spent
  * by the account, so the cost is their sum.
  *
- * Returns `null` if the quote can't be read.
+ * Returns `null` if the quote can't be read, `0n` if it prices the intent at
+ * nothing (see `declaresZeroCost`).
  */
 export function readUsdcSpend(
   cost: IntentCostShape | undefined,
   chainId: number,
 ): bigint | null {
   const perToken = cost?.tokensSpent?.[String(chainId)]
-  if (!perToken) return null
 
   // The orchestrator echoes token addresses LOWERCASED while our contract
   // constants are checksummed, so an exact key lookup silently misses and
   // degrades to the fallback -- the same class of bug this function fixes.
   const usdc = getDestinationContracts(chainId).usdc.toLowerCase()
-  const entry = Object.entries(perToken).find(
-    ([token]) => token.toLowerCase() === usdc,
-  )?.[1]
-  if (!entry) return null
+  const entry = perToken
+    ? Object.entries(perToken).find(
+        ([token]) => token.toLowerCase() === usdc,
+      )?.[1]
+    : undefined
+
+  if (!entry) return cost && declaresZeroCost(cost) ? 0n : null
 
   return BigInt(entry.locked ?? '0') + BigInt(entry.unlocked ?? '0')
+}
+
+/**
+ * Whether the quote affirmatively prices the intent at nothing.
+ *
+ * Only consulted when `tokensSpent` carries no entry for our token, because an
+ * empty `tokensSpent` is ambiguous: it means EITHER "this intent is free" OR
+ * "this quote has no cost data". Treating both as unreadable is what breaks the
+ * E2E orchestrator, which fills nothing in and settles every leg for free:
+ *
+ *   tokensSpent: {}, tokensReceived: [],
+ *   gasCost: {destination: {chainId: 11155111, gasUSD: 0}, totalUSD: 0},
+ *   feeBreakdownUSD: {..., totalFeeUSD: 0}
+ *
+ * A total of exactly $0 disambiguates it — the orchestrator has priced the
+ * intent and the price is zero, so `0n` is the true spend rather than a guess.
+ *
+ * Deliberately requires an explicit numeric zero: a quote that simply OMITS its
+ * totals stays `null` and still trips the no-fallback guard, so a real quote
+ * that fails to price a leg can never be mistaken for a free one.
+ */
+function declaresZeroCost(cost: IntentCostShape): boolean {
+  const totals = [
+    cost.feeBreakdownUSD?.totalFeeUSD,
+    cost.gasCost?.totalUSD,
+  ].filter((total): total is number => typeof total === 'number')
+
+  return totals.length > 0 && totals.every((total) => total === 0)
 }
 
 /**
@@ -221,6 +252,9 @@ type IntentCostShape = {
     string,
     Record<string, { locked?: string; unlocked?: string }>
   >
+  /** Aggregate of gas + bridge + protocol + swap + settlement fees. */
+  feeBreakdownUSD?: { totalFeeUSD?: number }
+  gasCost?: { totalUSD?: number }
 }
 
 /** The subset of `prepareTransaction`'s response this module reads. */

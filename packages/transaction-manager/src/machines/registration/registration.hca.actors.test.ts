@@ -383,4 +383,51 @@ describe('readUsdcSpend', () => {
       ),
     ).toBeNull()
   })
+
+  it('reads 0 when the quote itself prices the intent at nothing', () => {
+    // Captured verbatim from the E2E orchestrator, which settles every leg for
+    // free: `tokensSpent` is empty not because the quote failed but because
+    // there is nothing to spend. Reporting that as unreadable degrades the
+    // budget to the fallback, which the no-fallback guard turns into a hard
+    // "HCA budget could not be quoted" and fails every registration E2E.
+    const freeQuote = {
+      tokensSpent: {},
+      gasCost: { totalUSD: 0 },
+      feeBreakdownUSD: { totalFeeUSD: 0 },
+    }
+
+    expect(readUsdcSpend(freeQuote, sepolia.id)).toBe(0n)
+  })
+
+  it('requires an explicit zero total, so an unpriced quote stays null', () => {
+    // A quote that merely OMITS its totals has not priced anything, and must
+    // keep tripping the guard rather than passing as free.
+    expect(
+      readUsdcSpend({ tokensSpent: {}, gasCost: {} }, sepolia.id),
+    ).toBeNull()
+
+    // A non-zero total with no `tokensSpent` entry is a quote we failed to
+    // read, not a free intent.
+    expect(
+      readUsdcSpend(
+        { tokensSpent: {}, feeBreakdownUSD: { totalFeeUSD: 0.91 } },
+        sepolia.id,
+      ),
+    ).toBeNull()
+  })
+
+  it('prefers a real tokensSpent entry over the zero-cost path', () => {
+    // Totals reading 0 must never mask an actual spend.
+    expect(
+      readUsdcSpend(
+        {
+          tokensSpent: {
+            '11155111': { [usdc.toLowerCase()]: { unlocked: '7' } },
+          },
+          feeBreakdownUSD: { totalFeeUSD: 0 },
+        },
+        sepolia.id,
+      ),
+    ).toBe(7n)
+  })
 })
