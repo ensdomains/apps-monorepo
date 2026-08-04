@@ -153,6 +153,12 @@ interface EntityBadgeProps {
   readonly copyValue?: string
   /** Opt-in to a leading NameAvatar (only renders for variant="name" + name). */
   readonly showAvatar?: boolean
+  /**
+   * Figma entity type. "action" (default) always shows the fill; "content"
+   * shows plain text at rest and only fills on hover/focus — meant for long
+   * lists of hashes and values where permanent pills would be noisy.
+   */
+  readonly type?: 'action' | 'content'
 }
 
 export const EntityBadge = ({
@@ -169,6 +175,7 @@ export const EntityBadge = ({
   etherscanHref,
   copyValue,
   showAvatar = false,
+  type = 'action',
 }: EntityBadgeProps) => {
   const chainId = useChainId()
 
@@ -216,7 +223,13 @@ export const EntityBadge = ({
 
   if (!hasChips) {
     return (
-      <span className={cn(pillClass(variant, className), 'h-6 rounded')}>
+      <span
+        className={cn(
+          pillClass(variant, className),
+          'h-6 rounded',
+          type === 'content' && 'bg-transparent dark:bg-transparent',
+        )}
+      >
         {labelContent}
         {children}
       </span>
@@ -322,23 +335,27 @@ export const EntityBadge = ({
     <span className="relative inline-flex items-center">
       <span
         className={cn(
-          'absolute rounded transition-[inset] duration-150',
+          'absolute rounded transition-[inset,opacity] duration-150',
+          // Content entities keep the fill hidden until hover/focus reveals
+          // the chips, so resting rows read as plain text.
+          type === 'content' &&
+            'opacity-0 group-hover/entity:opacity-100 group-focus-within/entity:opacity-100',
           // Horizontal px-1 on the pill adds 4px of internal colored area on
           // each side; vertical centering in h-5 adds only 3px. Use -1px x-inset
           // vs -2px y-inset so the visible rim is equal (~5px) on all sides.
           // When a label is present its bg-background sub-chip acts as a visual
           // reference that makes the left strip read one pixel too wide, so
           // flush the x-inset to 0 in that case.
-          'inset-y-[-2px]',
+          '-inset-y-0.5',
           // No label: bg extends 1px beyond pill edge → ~5px colored strip to text (matches top)
           // With label: label sub-chip (~18px) in a 20px pill leaves only 1px above it, so
           //   push x inset 1px *inside* the pill edge → 3px strip to sub-chip (matches top)
           label
             ? 'inset-x-px'
             : resolvedAvatar
-              ? 'inset-x-[-2px]'
-              : 'inset-x-[-1px]',
-          'group-hover/entity:inset-[-12px]',
+              ? '-inset-x-0.5'
+              : '-inset-x-px',
+          'group-hover/entity:-inset-3',
           variantBgClass[variant],
         )}
         aria-hidden="true"
