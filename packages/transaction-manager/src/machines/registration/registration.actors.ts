@@ -35,7 +35,6 @@ const ethRegistrarMinCommitmentAgeSnippet = parseAbi([
   'function MIN_COMMITMENT_AGE() view returns (uint64)',
 ])
 
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   ENS_SEPOLIA_CONTRACTS,
   REFERER_ADDRESS,
@@ -1003,22 +1002,25 @@ export function submitRenewActor(input: {
   sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
-  // Names registered by this app live on the STANDALONE-HCA registrar and are
-  // priced/paid in REAL Circle Sepolia USDC — NOT the legacy
-  // `ENS_SEPOLIA_CONTRACTS.ETHRegistrar` + mock tokens. Renew against the same
-  // registrar + token the name was registered with, or the allowance check and
-  // `renew` call target the wrong contracts and revert.
+  // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
+  // canonical ENS deployment, so it uses the canonical registrar and token.
+  //
+  // This used to target the standalone-HCA deployment, which was a genuinely
+  // separate set of contracts. The deployment we ship against now carries those
+  // same contracts, so there is nothing left to target separately, and keeping
+  // the override meant renewing on a registrar that had never registered the
+  // name — which reverts `NameNotRenewable(label)`.
   const chainId = input.publicClient.chain?.id ?? sepolia.id
-  const hcaContracts = getDestinationContracts(chainId)
-  const registrarAddress = hcaContracts.ethRegistrar
+  const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
 
   return fromPromise(
     (async () => {
       const accountAddress = getSignerAddress(input.signer)
 
-      // Circle USDC is the only supported HCA payment token (its
-      // PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN). DAI is not accepted.
-      const paymentToken = hcaContracts.usdc
+      // The registrar only accepts its own PAYMENT_TOKEN /
+      // SECONDARY_PAYMENT_TOKEN; `assertPaymentTokenSupported` below rejects
+      // anything else (e.g. DAI) before we spend gas on it.
+      const paymentToken = getPaymentTokenAddress(input.selectedToken)
       // Normalize to lowercase to avoid Rhinestone SDK validation issues.
       const normalizedPaymentToken = paymentToken.toLowerCase() as Address
 

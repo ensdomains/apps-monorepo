@@ -1,4 +1,3 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
@@ -10,19 +9,15 @@ import {
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
 import type { Address } from 'viem'
-import { sepolia } from 'viem/chains'
 import { assign, setup } from 'xstate'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 
-// Names registered by this app live on the STANDALONE-HCA registrar and pay in
-// REAL Circle Sepolia USDC. Renewals (allowance check + approve + renew) must
-// target the SAME registrar + token, not the legacy ensjs registrar / mock
-// tokens the actors default to.
-const HCA_RENEW_CONTRACTS = getDestinationContracts(sepolia.id)
-const HCA_REGISTRAR_ADDRESS = HCA_RENEW_CONTRACTS.ethRegistrar
-const HCA_PAYMENT_TOKEN_ADDRESS = HCA_RENEW_CONTRACTS.usdc
+// Renewal is not an HCA flow: allowance check, approve and renew all run as
+// plain wallet transactions against the canonical ENS deployment, which is what
+// the actors already default to. Overriding them with the standalone-HCA
+// deployment renewed on a registrar that had never registered the name.
 
 type SubmissionData = {
   label: string
@@ -233,8 +228,6 @@ export const renewalUiMachine = setup({
           owner: context.submissionData!.ownerAddress,
           selectedToken: context.submissionData!.token,
           publicClient,
-          registrarAddress: HCA_REGISTRAR_ADDRESS,
-          paymentTokenAddress: HCA_PAYMENT_TOKEN_ADDRESS,
         }),
         onDone: [
           {
@@ -267,8 +260,6 @@ export const renewalUiMachine = setup({
             publicClient,
             // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
             sponsored: false,
-            registrarAddress: HCA_REGISTRAR_ADDRESS,
-            paymentTokenAddress: HCA_PAYMENT_TOKEN_ADDRESS,
           }
         },
         onDone: {

@@ -1,8 +1,6 @@
 // biome-ignore-all lint/suspicious/noExplicitAny: test fixtures use loose typing
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import { act, renderHook } from '@testing-library/react'
 import { errAsync, okAsync, ResultAsync } from 'neverthrow'
-import { sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RenewItem } from '../types'
 
@@ -132,10 +130,12 @@ describe('useBulkRenewSubmit', () => {
     expect(mocks.submitApprovalActor.mock.calls[0]?.[0]?.sponsored).toBe(false)
   })
 
-  it('authorizes against the standalone-HCA registrar and Circle USDC', async () => {
-    // Regression guard: defaulting to the legacy ensjs registrar / mock token
-    // would approve the wrong contract and every renew would revert.
-    const contracts = getDestinationContracts(sepolia.id)
+  it('authorizes against the canonical registrar, not a separate deployment', async () => {
+    // Regression guard, inverted from what it used to assert: renewal is NOT an
+    // HCA flow, so it must leave the registrar and token to the actors' own
+    // canonical defaults. Overriding them with the standalone-HCA deployment
+    // approved -- and renewed on -- a registrar that had never registered the
+    // name, which reverts `NameNotRenewable(label)`.
     const { result } = renderHook(() => useBulkRenewSubmit())
 
     await act(async () => {
@@ -147,8 +147,8 @@ describe('useBulkRenewSubmit', () => {
       mocks.submitApprovalActor,
     ]) {
       const arg = mock.mock.calls[0]?.[0]
-      expect(arg?.registrarAddress).toBe(contracts.ethRegistrar)
-      expect(arg?.paymentTokenAddress).toBe(contracts.usdc)
+      expect(arg?.registrarAddress).toBeUndefined()
+      expect(arg?.paymentTokenAddress).toBeUndefined()
     }
   })
 

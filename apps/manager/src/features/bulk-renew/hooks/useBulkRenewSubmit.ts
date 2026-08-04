@@ -1,4 +1,3 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
@@ -11,7 +10,6 @@ import { $qk, qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { ok, okAsync, type Result, type ResultAsync } from 'neverthrow'
 import { useCallback, useRef, useState } from 'react'
 import type { Address, WalletClient } from 'viem'
-import { sepolia } from 'viem/chains'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
@@ -20,14 +18,9 @@ import type { BulkRenewPhase, RenewItem, RowStatus } from '../types'
 // How long to hold the completed progress bar before showing the success view.
 const SETTLE_MS = 600
 
-// Names registered by this app live on the STANDALONE-HCA registrar and are
-// priced in REAL Circle Sepolia USDC, not the legacy ensjs registrar / mock
-// tokens the actors default to. Allowance check + approve must target the same
-// pair `submitRenewActor` renews against, or they authorize the wrong contract.
-// Mirrors `renew/state/renewalUi.machine.ts`.
-const HCA_RENEW_CONTRACTS = getDestinationContracts(sepolia.id)
-const HCA_REGISTRAR_ADDRESS = HCA_RENEW_CONTRACTS.ethRegistrar
-const HCA_PAYMENT_TOKEN_ADDRESS = HCA_RENEW_CONTRACTS.usdc
+// Renewal is not an HCA flow: allowance check + approve target the canonical
+// registrar + token that `submitRenewActor` renews against, which is what the
+// actors already default to. Mirrors `renew/state/renewalUi.machine.ts`.
 
 // Bulk renewal takes the DIRECT WALLET route, like single renewal: the connected
 // EOA approves once and then renews each name itself.
@@ -63,8 +56,6 @@ const authorizeSpend = (
     owner: ctx.ownerAddress,
     selectedToken: ctx.token,
     publicClient,
-    registrarAddress: HCA_REGISTRAR_ADDRESS,
-    paymentTokenAddress: HCA_PAYMENT_TOKEN_ADDRESS,
   })
     // A read failure shouldn't block — fall back to authorizing.
     .orElse(() => okAsync(0n))
@@ -78,8 +69,6 @@ const authorizeSpend = (
         publicClient,
         // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
         sponsored: false,
-        registrarAddress: HCA_REGISTRAR_ADDRESS,
-        paymentTokenAddress: HCA_PAYMENT_TOKEN_ADDRESS,
       })
         .andThen((txId) => pollTransactionStatusActor({ txId }))
         .map(() => undefined)
