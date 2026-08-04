@@ -4,14 +4,15 @@
  * Provenance: these addresses are the coordinated Sepolia / Base Sepolia
  * deployment that the standalone HCA in `ensdomains/contracts-v2` PR #362
  * (branch `feat/hca-final-maybe`, commit `12712e3`) was deployed against, as
- * published in the "HCA: New" handoff doc. They are NOT sourced from
- * `@ensdomains/ensjs`: ensjs' Sepolia v2 block points at a DIFFERENT, older
- * deployment (every overlapping contract — registrar, registry, verifiable
- * factory, resolver impl, USDC test token — has a different address there), and
- * ensjs' `ensHcaFactory` is the SDK's built-in *non-standalone* HCA factory
- * (`0x3586…Cf943`) that this migration replaces. ensjs has no entry at all for
+ * published in the "HCA: New" handoff doc.
+ *
+ * That is no longer true of the ENS-side contracts. ensjs now tracks the
+ * deployment the apps actually ship against, so the registrar and registry are
+ * read from it — registering somewhere the rest of the app does not read is
+ * what made renewal revert `NameNotRenewable`. ensjs still has no entry for
  * `StandaloneHCAImplementation`, `HCAOwnerAndSessionValidator`, the proxy
- * logic, the reverse adapter, or the funding validator.
+ * logic, the reverse adapter, or the funding validator, so those stay
+ * hardcoded here until it does.
  *
  * When ensjs ships the standalone-HCA deployment, re-point these to
  * `getChainContractAddress(...)`. Until then, this local, chain-keyed table is
@@ -21,8 +22,16 @@
  * SDK patch SHA-256: 5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867
  */
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type Address, encodeAbiParameters, keccak256, stringToHex } from 'viem'
 import { baseSepolia, sepolia } from 'viem/chains'
+
+/**
+ * The ENS-side contracts are sourced from ensjs, which is the source of truth
+ * for the deployment the apps ship against. The standalone-HCA extras below
+ * stay hardcoded only because ensjs has no entry for them yet.
+ */
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 export const SEPOLIA_CHAIN_ID = sepolia.id
 export const BASE_SEPOLIA_CHAIN_ID = baseSepolia.id
@@ -72,10 +81,16 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     verifiableFactory: '0x118bc31a50d559f7015a8da26d54b3b030cdb70f',
     verifiableFactoryProxyLogic: '0x7E98c31ae2Ac5C3C88f2CE00c22a10B8cb84BcE2',
     permissionedResolverImpl: '0x7e4b2d59938930168024201752ee5503df402303',
-    ethRegistrar: '0xa4449a0dd2b83007553d9b1d28b583a46a805a30',
-    ethRegistry: '0x67b728a792e789a8978b30cf1b3b641f19354b43',
+    // From ensjs — registration must land on the same registrar/registry the
+    // rest of the app (and renewal) reads, paying in the token that registrar
+    // actually accepts. Pinning these to the superseded standalone-HCA
+    // deployment is what made renewal revert `NameNotRenewable`.
+    ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
+    ethRegistry: ensjsSepolia.ensRegistry.address,
     defaultReverseRegistrarHcaAdapter:
       '0x5e2d105f1e6be8444c4ed96c06806093b829644e',
+    // Circle's real Sepolia USDC — deliberately NOT `ensjsSepolia.usdc`, which
+    // is MockUSDC. The app pays in the real token.
     usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
   },
 }

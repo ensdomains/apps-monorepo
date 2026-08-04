@@ -22,10 +22,18 @@
  */
 
 // Mirror of @ens-apps/smart-account manifest.ts DESTINATION_CONTRACTS[11155111].
+//
+// The registrar and registry now come from ensjs in the manifest — the app
+// registers, renews and reads on the canonical deployment, not the superseded
+// standalone-HCA one.
+//
+// `usdc` stays Circle's real Sepolia USDC. It is deliberately NOT ensjs' `usdc`
+// (MockUSDC): the app pays in the real token, and the canonical registrar's
+// rent price oracle whitelists both.
 const STANDALONE = {
   usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
-  ethRegistrar: '0xa4449a0dd2b83007553d9b1d28b583a46a805a30',
-  ethRegistry: '0x67b728a792e789a8978b30cf1b3b641f19354b43',
+  ethRegistrar: '0xa88553F454b77203B0D036A05c894d555EAAa2Cc',
+  ethRegistry: '0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2',
 }
 
 process.stdout.write(

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",
+    "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
     "neverthrow": "^8.1.1",

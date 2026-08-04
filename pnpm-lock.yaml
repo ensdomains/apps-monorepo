@@ -947,6 +947,9 @@ importers:
       '@ens-apps/utils':
         specifier: workspace:*
         version: link:../utils
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c(viem@2.52.2(bufferutil@4.0.9)(typescript@6.0.3)(utf-8-validate@5.0.10)(zod@4.1.13))
       '@ensdomains/ensjs-abi':
         specifier: 'catalog:'
         version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs-abi@e96662c
