@@ -66,8 +66,8 @@ export const PricingPaymentSection = ({
           <div className="flex-1">
             <p className="text-red-800 text-sm">
               <Trans>
-                Insufficient funds. You don't have enough Tether, USDC, or DAI
-                in your wallet for this purchase.
+                Insufficient funds. You don't have enough USDC in your wallet
+                for this purchase.
               </Trans>
             </p>
           </div>

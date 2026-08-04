@@ -22,7 +22,7 @@ describe('getRegistrationStageMessages', () => {
 
   it('maps the gasless permit-signing stage', () => {
     const message = getRegistrationStageMessages(
-      { value: 'signingPermit' },
+      { value: 'signingFundingPermit' },
       undefined,
     )
 

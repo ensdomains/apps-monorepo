@@ -1,134 +1,330 @@
 /**
- * Rhinestone HCA session helpers (owner-key model).
+ * Standalone-HCA session construction (scoped SmartSessions).
  *
- * A "session" here is an EPHEMERAL KEY added as a time-boxed OWNER of the HCA
- * (see ./registration-policy.ts for the model + security notes). Creating a
- * session:
- *   1. Generates an ephemeral key pair (persisted to localStorage by the
- *      caller via session-storage).
- *   2. Submits ONE owner-signed, sponsored Intent that calls the HCA
- *      validator's `updateConfig` to add the ephemeral key as a co-owner with
- *      a finite expiration. THIS IS THE SINGLE "ENABLE" WALLET SIGNATURE.
+ * A "session" here is a scoped ERC-7579 SmartSession on the standalone
+ * `HCAOwnerAndSessionValidator` — NOT the old ephemeral-owner model. The wallet
+ * signs ONE multi-chain authorization up front (before route selection); the
+ * session is then enabled lazily inside the first HCA action via
+ * `enableSessionWithRefund(...)`. No separate ENABLE transaction.
  *
- * Thereafter the ephemeral key signs registration Intents prompt-free as a
- * valid owner (the caller passes it via `signers: { type: 'owner', kind:
- * 'ecdsa', accounts: [ephemeralAccount] }`).
+ * First pass is SAME-CHAIN ONLY: we build just the destination (Sepolia) HCA
+ * session and its enable-data. The source-session salt encoder is included as a
+ * pure function (`computeSourceSessionSalt`) + tests so cross-chain can be
+ * added later without reshaping this module — re-authorization is required to
+ * add a source anyway.
+ *
+ * Field orders in the salt encoders are EXACT and load-bearing (they must match
+ * the on-chain validator + the reference `liveHcaRhinestoneRegistration`
+ * script). Do not reorder.
  */
 
-import type { RhinestoneAccount } from '@rhinestone/sdk'
-import { err, fromPromise, ok, type Result, type ResultAsync } from 'neverthrow'
-import type { Address, Chain, Hex } from 'viem'
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
-import { SessionEnableError, SessionRestoreError } from '../../errors'
+import type {
+  ChainSessionConfig,
+  RhinestoneAccount,
+  Session,
+} from '@rhinestone/sdk'
+import { getPermissionId } from '@rhinestone/sdk/smart-sessions'
+import { fromPromise, type ResultAsync } from 'neverthrow'
 import {
-  buildAddSessionOwnerCall,
-  REGISTRATION_SESSION_VALIDITY_SECONDS,
-} from './registration-policy'
-import type { RhinestoneStoredSession } from './types'
+  type Account,
+  type Address,
+  type Chain,
+  encodeAbiParameters,
+  encodeFunctionData,
+  type Hex,
+  keccak256,
+  type PublicClient,
+  parseAbi,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import { SessionEnableError } from '../../errors'
+import {
+  getDestinationContracts,
+  MAX_REFUND_AMOUNT,
+  MAX_REFUND_EXCHANGE_RATE,
+  MAX_REFUND_GAS_OVERHEAD,
+} from './manifest'
 
-export interface CreateRhinestoneSessionParams {
-  readonly ownerAddress: Address
-  readonly smartAccountAddress: Address
-  readonly chainId: number
+const standaloneHcaAbi = parseAbi([
+  'function ownerAndSessionNonce() view returns (address owner, uint96 sessionNonce)',
+])
+
+/**
+ * Per-session enable-data (the value passed to the Rhinestone signer). NOTE:
+ * this is NOT the raw authorization bytes — each entry references the session
+ * by index into the signed session set. Only the destination entry carries
+ * the HCA nonce.
+ *
+ * Aliased from the SDK's own (unexported) shape via `ChainSessionConfig` so
+ * values flow into `signers.enableData` without structural friction.
+ */
+export type SessionEnableData = NonNullable<ChainSessionConfig['enableData']>
+
+/** One chain digest entry from `SessionDetails.hashesAndChainIds`. */
+export type ChainDigest = SessionEnableData['hashesAndChainIds'][number]
+
+export interface DestinationSessionParams {
+  /** Live SDK account (used for getSessionDetails / signEnableSession). */
   readonly rhinestoneAccount: RhinestoneAccount
+  /** Public client for reading `ownerAndSessionNonce()` on existing HCAs. */
+  readonly publicClient: PublicClient
   readonly chain: Chain
-  readonly config?: {
-    /** Optional expiry (unix seconds). Default: now + 1 week. */
-    readonly validUntil?: number
-  }
+  readonly hca: Address
+  /** The resolver this session is bound to (a PermissionedResolver proxy). */
+  readonly resolver: Address
+  /** Ephemeral session key (single ECDSA session owner). */
+  readonly sessionAccount: Account
+  /** Session expiry (unix seconds). */
+  readonly validUntil: bigint
+  /** Whether the HCA already has code (determines the nonce source). */
+  readonly alreadyDeployed: boolean
+}
+
+export interface DestinationSessionResult {
+  readonly session: Session
+  readonly permissionId: Hex
+  readonly enableData: SessionEnableData
+  readonly hcaSessionNonce: bigint
+  readonly validUntil: bigint
 }
 
 /**
- * Create a session: add the ephemeral key as a time-boxed HCA owner via one
- * owner-signed sponsored Intent, and return the stored-session record.
+ * Compute the destination (HCA-side) session salt. EXACT field order:
+ * uint96 nonce, uint48 validUntil, address resolver, address refundToken,
+ * uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead,
+ * uint96 maxRefundAmount.
  */
-export function createRhinestoneSession(
-  params: CreateRhinestoneSessionParams,
-): ResultAsync<
-  { session: RhinestoneStoredSession; sessionPrivateKey: Hex },
-  SessionEnableError
-> {
-  const {
-    ownerAddress,
-    smartAccountAddress,
-    chainId,
-    rhinestoneAccount,
-    chain,
-    config,
-  } = params
+export function computeDestinationSessionSalt(params: {
+  readonly hcaSessionNonce: bigint
+  readonly validUntil: bigint
+  readonly resolver: Address
+  readonly refundToken: Address
+  readonly maxRefundExchangeRate?: bigint
+  readonly maxRefundGasOverhead?: bigint
+  readonly maxRefundAmount?: bigint
+}): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: 'uint96' },
+        { type: 'uint48' },
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'uint96' },
+        { type: 'uint48' },
+        { type: 'uint96' },
+      ],
+      [
+        params.hcaSessionNonce,
+        Number(params.validUntil),
+        params.resolver,
+        params.refundToken,
+        params.maxRefundExchangeRate ?? MAX_REFUND_EXCHANGE_RATE,
+        Number(params.maxRefundGasOverhead ?? MAX_REFUND_GAS_OVERHEAD),
+        params.maxRefundAmount ?? MAX_REFUND_AMOUNT,
+      ],
+    ),
+  )
+}
 
+/**
+ * Compute the source (funding Nexus-side) session salt. EXACT field order:
+ * address wallet, uint48 validUntil, address sourceToken, address hca,
+ * address destinationToken, uint64 destinationChainId, uint96 maxSourceAmount,
+ * uint96 maxDestinationAmount.
+ *
+ * NOTE: `acrossArbiter` is NOT part of the salt (updated handoff doc). The
+ * source validator reads the active Across adapter from the Rhinestone Router
+ * at claim time, so a compatible adapter change does not affect the source
+ * permission ID. Kept as a pure function for the deferred cross-chain path.
+ */
+export function computeSourceSessionSalt(params: {
+  readonly wallet: Address
+  readonly validUntil: bigint
+  readonly sourceToken: Address
+  readonly hca: Address
+  readonly destinationToken: Address
+  readonly destinationChainId: bigint
+  readonly maxSourceAmount: bigint
+  readonly maxDestinationAmount: bigint
+}): Hex {
+  return keccak256(
+    encodeAbiParameters(
+      [
+        { type: 'address' },
+        { type: 'uint48' },
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'address' },
+        { type: 'uint64' },
+        { type: 'uint96' },
+        { type: 'uint96' },
+      ],
+      [
+        params.wallet,
+        Number(params.validUntil),
+        params.sourceToken,
+        params.hca,
+        params.destinationToken,
+        params.destinationChainId,
+        params.maxSourceAmount,
+        params.maxDestinationAmount,
+      ],
+    ),
+  )
+}
+
+/**
+ * Read the HCA session nonce. Undeployed HCAs use nonce 0; deployed HCAs must
+ * read `ownerAndSessionNonce()` before a new authorization.
+ */
+async function readSessionNonce(params: {
+  publicClient: PublicClient
+  hca: Address
+  alreadyDeployed: boolean
+}): Promise<bigint> {
+  if (!params.alreadyDeployed) return 0n
+  const [, nonce] = await params.publicClient.readContract({
+    address: params.hca,
+    abi: standaloneHcaAbi,
+    functionName: 'ownerAndSessionNonce',
+  })
+  return nonce
+}
+
+/**
+ * Build + sign the destination HCA session authorization (same-chain route).
+ *
+ * This is the FIRST wallet prompt. The returned `enableData` is passed to the
+ * Rhinestone signer for the first HCA action; the session is enabled lazily
+ * there (no separate ENABLE tx).
+ */
+export function createDestinationSession(
+  params: DestinationSessionParams,
+): ResultAsync<DestinationSessionResult, SessionEnableError> {
   return fromPromise(
     (async () => {
-      const sessionPrivateKey = generatePrivateKey()
-      const sessionAccount = privateKeyToAccount(sessionPrivateKey)
-
-      const validUntil =
-        config?.validUntil ??
-        Math.floor(Date.now() / 1000) + REGISTRATION_SESSION_VALIDITY_SECONDS
-
-      // ENABLE: owner-signed, sponsored Intent that adds the ephemeral key as a
-      // time-boxed co-owner of the HCA. This is the single wallet prompt.
-      const addOwnerCall = buildAddSessionOwnerCall({
-        sessionKeyAddress: sessionAccount.address,
-        validUntil,
+      const c = getDestinationContracts(params.chain.id)
+      const hcaSessionNonce = await readSessionNonce({
+        publicClient: params.publicClient,
+        hca: params.hca,
+        alreadyDeployed: params.alreadyDeployed,
       })
-      const tx = await rhinestoneAccount.sendTransaction({
-        chain,
-        sponsored: true,
-        calls: [addOwnerCall],
-        tokenRequests: [],
-      })
-      // Accept preconfirmation rather than waiting for full settlement: the
-      // orchestrator/solver path adds seconds of settlement tail on top of
-      // on-chain inclusion. PRECONFIRMED means the solver has committed to
-      // filling the add-owner Intent, which is enough to proceed — the
-      // subsequent register Intent is itself session-signed and re-simulated.
-      await rhinestoneAccount.waitForExecution(tx, true)
 
-      const session: RhinestoneStoredSession = {
-        id: crypto.randomUUID(),
-        provider: 'rhinestone',
-        sessionKeyAddress: sessionAccount.address,
-        smartAccountAddress,
-        ownerAddress,
-        createdAt: Date.now(),
-        chainId,
-        validUntil,
-        sessionPrivateKey,
+      const salt = computeDestinationSessionSalt({
+        hcaSessionNonce,
+        validUntil: params.validUntil,
+        resolver: params.resolver,
+        refundToken: c.usdc,
+      })
+
+      const session: Session = {
+        chain: params.chain,
+        account: params.hca,
+        salt,
+        owners: { type: 'ecdsa', accounts: [params.sessionAccount] },
       }
 
-      return { session, sessionPrivateKey }
+      const permissionId = getPermissionId(session)
+
+      // ONE multi-chain authorization signature (destination only for now).
+      const details =
+        await params.rhinestoneAccount.experimental_getSessionDetails([session])
+      const userSignature =
+        await params.rhinestoneAccount.experimental_signEnableSession(details)
+
+      const enableData: SessionEnableData = {
+        userSignature,
+        hashesAndChainIds: details.hashesAndChainIds,
+        sessionToEnableIndex: 0,
+        hcaSessionNonce,
+      }
+
+      return {
+        session,
+        permissionId,
+        enableData,
+        hcaSessionNonce,
+        validUntil: params.validUntil,
+      }
     })(),
     (error: unknown) =>
       new SessionEnableError({
-        message: 'Failed to enable Rhinestone session (add owner)',
+        message: 'Failed to create destination HCA session authorization',
         cause: error,
       }),
   )
 }
 
-export interface RestoreRhinestoneSessionParams {
-  readonly session: RhinestoneStoredSession
+/**
+ * Build the `enableSessionWithRefund(...)` validator call for the first HCA
+ * action. Arg order is EXACT: permissionId, sessionKey, validUntil, resolver,
+ * refundToken, maxRefundExchangeRate, maxRefundGasOverhead, maxRefundAmount.
+ */
+const enableSessionWithRefundAbi = parseAbi([
+  'function enableSessionWithRefund(bytes32 permissionId, address sessionKey, uint48 validUntil, address resolver, address refundToken, uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead, uint96 maxRefundAmount)',
+])
+
+export function buildEnableSessionWithRefundCall(params: {
+  readonly chainId: number
+  readonly permissionId: Hex
+  readonly sessionKey: Address
+  readonly validUntil: bigint
+  readonly resolver: Address
+}): { to: Address; value: bigint; data: Hex } {
+  const c = getDestinationContracts(params.chainId)
+  return {
+    to: c.hcaOwnerAndSessionValidator,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: enableSessionWithRefundAbi,
+      functionName: 'enableSessionWithRefund',
+      args: [
+        params.permissionId,
+        params.sessionKey,
+        Number(params.validUntil),
+        params.resolver,
+        c.usdc,
+        MAX_REFUND_EXCHANGE_RATE,
+        Number(MAX_REFUND_GAS_OVERHEAD),
+        MAX_REFUND_AMOUNT,
+      ],
+    }),
+  }
 }
 
 /**
- * Validate a stored session for reuse. Refuses once `validUntil` has passed —
- * a UX preflight backed by the on-chain owner expiration (the ephemeral owner
- * stops being a valid signer after expiry).
+ * Rebuild the SDK `Session` object from a stored/persisted session, WITHOUT a
+ * new wallet prompt. Recomputes the exact salt (so the `permissionId` matches)
+ * and re-derives the ephemeral session-key account from its private key.
+ *
+ * Used on resume: the app persists the scalar fields (nonce, validUntil,
+ * resolver, key) and rebuilds the `Session` + `SessionEnableData` to hand to
+ * the Rhinestone signer.
  */
-export function restoreRhinestoneSession(
-  params: RestoreRhinestoneSessionParams,
-): Result<void, SessionRestoreError> {
-  const { session } = params
-
-  if (session.validUntil && Date.now() > session.validUntil * 1000) {
-    return err(
-      new SessionRestoreError({
-        message: 'Session has expired',
-        cause: new Error('Session has expired'),
-      }),
-    )
+export function rebuildDestinationSession(params: {
+  readonly chain: Chain
+  readonly hca: Address
+  readonly resolver: Address
+  readonly hcaSessionNonce: bigint
+  readonly validUntil: bigint
+  readonly sessionPrivateKey: Hex
+}): { session: Session; permissionId: Hex } {
+  const c = getDestinationContracts(params.chain.id)
+  const salt = computeDestinationSessionSalt({
+    hcaSessionNonce: params.hcaSessionNonce,
+    validUntil: params.validUntil,
+    resolver: params.resolver,
+    refundToken: c.usdc,
+  })
+  const session: Session = {
+    chain: params.chain,
+    account: params.hca,
+    salt,
+    owners: {
+      type: 'ecdsa',
+      accounts: [privateKeyToAccount(params.sessionPrivateKey)],
+    },
   }
-
-  return ok(undefined)
+  return { session, permissionId: getPermissionId(session) }
 }

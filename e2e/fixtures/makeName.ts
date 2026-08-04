@@ -32,9 +32,10 @@ import { privateKeyToAccount } from 'viem/accounts'
 import {
   permissionedRegistryGetExpirySnippet,
   proxyDeployedEventSnippet,
-  subregistryInitializeSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
+// ensjs-abi still ships the 2-arg initializer; see the local override.
+import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import { setRecords } from '@ensdomains/ensjs/wallet'
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 
@@ -374,7 +375,7 @@ async function deployResolverProxy(
   const initCalldata = encodeFunctionData({
     abi: subregistryInitializeSnippet,
     functionName: 'initialize',
-    args: [owner, FULL_ROLE_BITMAP],
+    args: [owner, FULL_ROLE_BITMAP, []],
   })
   const deployData = encodeFunctionData({
     abi: verifiableFactoryDeployProxySnippet,

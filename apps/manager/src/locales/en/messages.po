@@ -329,10 +329,6 @@ msgstr "Available"
 msgid "Available Wallets"
 msgstr "Available Wallets"
 
-#: src/features/renew/workflow/renewing/RenewingStep.tsx
-msgid "Awaiting approval signature"
-msgstr "Awaiting approval signature"
-
 #: src/components/GlobalBackButton.tsx
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/pages/MigrationPage.tsx
@@ -408,14 +404,6 @@ msgstr "Browser notifications enabled"
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Bug bounty"
 msgstr "Bug bounty"
-
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-msgid "Bulk renewal requires a smart account so every name renews in a single transaction. It isn’t available in EOA mode."
-msgstr "Bulk renewal requires a smart account so every name renews in a single transaction. It isn’t available in EOA mode."
-
-#: src/features/bulk-renew/components/BulkRenewDialog.tsx
-msgid "Bulk renewal unavailable"
-msgstr "Bulk renewal unavailable"
 
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "Can I change my primary name later?"
@@ -768,10 +756,6 @@ msgstr "Default"
 msgid "Delete"
 msgstr "Delete"
 
-#: src/lib/smart-account/rhinestone.ts
-msgid "Deploying on-chain…"
-msgstr "Deploying on-chain…"
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Deploying resolver"
 msgstr "Deploying resolver"
@@ -1021,10 +1005,6 @@ msgstr "Failed to add telegram: "
 msgid "Failed to authenticate with Telegram"
 msgstr "Failed to authenticate with Telegram"
 
-#: src/lib/smart-account/rhinestone.ts
-msgid "Failed to deploy smart account"
-msgstr "Failed to deploy smart account"
-
 #: src/lib/smart-account/SmartAccountContext.tsx
 msgid "Failed to fund wallet"
 msgstr "Failed to fund wallet"
@@ -1233,8 +1213,8 @@ msgid "Inbox"
 msgstr "Inbox"
 
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx
-msgid "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
-msgstr "Insufficient funds. You don't have enough Tether, USDC, or DAI in your wallet for this purchase."
+msgid "Insufficient funds. You don't have enough USDC in your wallet for this purchase."
+msgstr "Insufficient funds. You don't have enough USDC in your wallet for this purchase."
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Invalid character"
@@ -1712,10 +1692,6 @@ msgstr "Preferences"
 #: src/features/notifications/settings/preferences.tsx
 msgid "Preferences updated"
 msgstr "Preferences updated"
-
-#: src/features/renew/workflow/renewing/RenewingStep.tsx
-msgid "Preparing account"
-msgstr "Preparing account"
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
@@ -2283,10 +2259,6 @@ msgstr "Setting up registration"
 msgid "Setting up resolver"
 msgstr "Setting up resolver"
 
-#: src/lib/smart-account/rhinestone.ts
-msgid "Setting up your smart account"
-msgstr "Setting up your smart account"
-
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Setting..."
 msgstr "Setting..."
@@ -2389,10 +2361,6 @@ msgstr "Skipping SIWE verification means you won't get notifications about your 
 msgid "Smart Account"
 msgstr "Smart Account"
 
-#: src/lib/smart-account/rhinestone.ts
-msgid "Smart account ready"
-msgstr "Smart account ready"
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Smart sessions are required to use this app."
 msgstr "Smart sessions are required to use this app."
@@ -2493,8 +2461,8 @@ msgid "Support"
 msgstr "Support"
 
 #: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Supports USDC and DAI payments"
-msgstr "Supports USDC and DAI payments"
+msgid "Supports USDC payments"
+msgstr "Supports USDC payments"
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram"

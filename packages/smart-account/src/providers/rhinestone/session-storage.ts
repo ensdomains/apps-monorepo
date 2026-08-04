@@ -1,30 +1,31 @@
 /**
- * Session storage — localStorage persistence for Rhinestone HCA sessions.
+ * Session storage — localStorage persistence for standalone-HCA sessions.
  *
- * NOTE: "session" is NOT ERC-7579 SmartSessions. It is an ephemeral key added
- * as a time-boxed owner of the HCA's OwnableValidator (see ./registration-policy.ts).
- *
- * The ephemeral session key (and metadata: address, expiry, owner, chain) is
- * stored here, keyed by smart-account (HCA) address, so a session is reused
- * across Intents and across page reloads (persistent session). The owner only
- * signs the ENABLE Intent once per stored session.
+ * "Session" is a scoped ERC-7579 SmartSession on the standalone
+ * `HCAOwnerAndSessionValidator`. The stored record holds the ephemeral session
+ * key plus the resume state (permission ID, multi-chain authorization,
+ * per-chain digests, resolver binding, HCA nonce), keyed by smart-account (HCA)
+ * address, so a session — and an in-flight registration spanning the commit
+ * cooldown — survives page reloads. The wallet signs the authorization once per
+ * stored session.
  *
  * Storage-key versioning: the key is bumped whenever the stored-session SHAPE
  * changes, so stale rows from an incompatible layout are ignored rather than
- * mis-deserialized. Old rows are harmless cruft; a fresh session is enabled
- * lazily on the next registration with a single ENABLE prompt.
+ * mis-deserialized. Old rows are harmless cruft; a fresh session is authorized
+ * on the next registration with a single signature.
  *
- *   v4 → v5: dropped the obsolete SmartSessions fields (`enableSignature`,
- *            action set / PermissionId, etc.). The HCA does NOT use
- *            SmartSessions — a session is just a time-boxed owner added to the
- *            OwnableValidator — so the record now only needs the ephemeral key
- *            and its expiry. See ./registration-policy.ts.
+ *   v5 → v6: replaced the ephemeral-owner record with the scoped-SmartSession
+ *            record (permissionId, authorization, hashesAndChainIds, resolver,
+ *            hcaSessionNonce, sessionToEnableIndex). See ./types.ts.
+ *   v6 → v7: SDK patch bumped (5e0a5f32… → 7603298e…). The session
+ *            authorization / enable-data encoding changed, so any session
+ *            signed under the old patch is invalid and must be re-authorized.
  */
 
 import type { Address } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v5'
+const SESSION_STORAGE_KEY = 'ens-sessions-v7'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'
@@ -127,14 +128,47 @@ export function setSkippedStatus(
 
 /**
  * Client-side expiry check — a UX preflight that evicts stale rows and
- * surfaces a re-enable prompt before the user spends an Intent. The actual
- * expiry boundary is enforced on-chain by the owner's `uint48` expiration in
- * the OwnableValidator (an expired owner is excluded from signature validation).
- * Returns `false` for sessions with no `validUntil` (treat as non-expiring).
+ * surfaces a re-auth prompt before the user spends an Intent. The actual expiry
+ * boundary is enforced on-chain by the session's `validUntil` (an expired
+ * scoped session fails validation). Returns `false` for sessions with no
+ * `validUntil` (treat as non-expiring).
  */
 export function isSessionExpired(session: RhinestoneStoredSession): boolean {
   if (!session.validUntil) return false
   return Date.now() > session.validUntil * 1000
+}
+
+/**
+ * Remaining session lifetime required to START a registration.
+ *
+ * A registration spans TWO session-signed legs separated by the registrar's
+ * commitment cooldown: commit → `MIN_COMMITMENT_AGE` → reveal. A session that
+ * has merely not expired *yet* can therefore die during the cooldown, which
+ * strands a commitment the user has already paid gas for: the reveal reverts
+ * (`SessionExpired`, wrapped as `InvalidSignature()`), and recovering needs a
+ * fresh authorization AND a fresh commitment.
+ *
+ * Sized as a deliberately generous static bound on that window — the commit
+ * submission timeout (120s), the cooldown (60s on Sepolia), and the reveal
+ * submission timeout (120s), doubled for a retry of each leg. `MIN_COMMITMENT_AGE`
+ * itself is read on-chain where it is enforced; this is only a preflight bound,
+ * so it is intentionally over-generous rather than exact.
+ */
+export const SESSION_REGISTRATION_HEADROOM_SECONDS = 600
+
+/**
+ * Whether a session has enough lifetime left to see a whole registration
+ * through. PURE — unlike `isSessionExpired` it never evicts, because an
+ * in-flight registration must keep using its session right up to real expiry;
+ * dropping it mid-cooldown would leave the reveal unsignable. Use this to gate
+ * STARTING a registration, not to decide whether a session is still usable.
+ */
+export function hasRegistrationHeadroom(
+  session: RhinestoneStoredSession,
+  headroomSeconds: number = SESSION_REGISTRATION_HEADROOM_SECONDS,
+): boolean {
+  if (!session.validUntil) return true
+  return Date.now() + headroomSeconds * 1000 <= session.validUntil * 1000
 }
 
 /** Get a non-expired session for an account, evicting it on expiry. */
@@ -174,11 +208,10 @@ export interface SessionScope {
  * created for the SAME owner and chain before reuse.
  *
  * Sessions are keyed by `smartAccountAddress`, but an owner-keyed lookup can
- * return a session for a different HCA/chain — its ephemeral key is NOT an
- * owner of the current HCA, so reusing it would skip ENABLE and then fail
- * intent simulation. This lookup pins all three identifiers; on any mismatch
- * (or expiry) it evicts the stale row and returns `null` so the caller creates
- * a fresh session.
+ * return a session for a different HCA/chain — its scoped session is bound to a
+ * different account/resolver, so reusing it would fail intent simulation. This
+ * lookup pins all three identifiers; on any mismatch (or expiry) it evicts the
+ * stale row and returns `null` so the caller authorizes a fresh session.
  */
 export function getValidSessionForAccount(
   scope: SessionScope,

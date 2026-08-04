@@ -10,10 +10,12 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "echo \"No tests defined for @ens-apps/transaction-manager\"",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ens-apps/smart-account": "workspace:*",
     "@ens-apps/utils": "workspace:*",
     "@ensdomains/address-encoder": "^1.1.2",
     "@ensdomains/ensjs": "catalog:",

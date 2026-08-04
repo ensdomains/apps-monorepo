@@ -8,6 +8,7 @@ import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   type GetNameHistoryError,
   getNameHistoryQueryOptions,
+  NAME_HISTORY_PAGE_SIZE,
 } from '@/features/profile/hooks/useNameHistory'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -136,7 +137,7 @@ export const NameSubgraphHistory = ({
     isLoading,
     error,
   } = useQuery({
-    ...getNameHistoryQueryOptions({ name }),
+    ...getNameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     enabled: !isV2,
   })
 

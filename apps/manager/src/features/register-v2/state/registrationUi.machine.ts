@@ -1,3 +1,4 @@
+import type { HcaSessionEnablePayload } from '@ens-apps/smart-account'
 import {
   type RegistrationEvent,
   registrationMachine,
@@ -99,6 +100,14 @@ type Events =
       token: SUPPORTED_TOKEN
       totalPrice: bigint
       account: SmartAccountContextValue
+      /**
+       * Standalone-HCA session-enable payload, pre-resolved by the caller
+       * (`account.getSessionEnablePayload()`). Absent on the pure-EOA path and
+       * when the session is already enabled on-chain.
+       */
+      hcaSessionEnable?: HcaSessionEnablePayload
+      /** Optional primary name to set in the reveal batch (HCA path). */
+      primaryName?: string
       basePriceNumber: number
       premiumPriceNumber: number
       postRegistrationSetup?: RegistrationPostRegistrationSetup
@@ -454,11 +463,16 @@ const startRegistrationAction = machineSetup.createAction(
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,
+        // Funding permit signer (wallet → HCA budget) on the HCA path.
         approvalSigner,
         accountAddress: event.account.accountAddress,
         ownerAddress,
         resolverOwnerAddress,
         publicClient: defaultPublicClient,
+        // Standalone-HCA session-enable payload (omitted once enabled).
+        hcaSessionEnable: event.hcaSessionEnable,
+        primaryName: event.primaryName,
+        // No gas sponsorship for the HCA route; EOA path uses its own approve.
         sponsored:
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
             ? true

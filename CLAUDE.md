@@ -38,3 +38,16 @@ When working in specific packages, consult these design documents:
 - EOA vs ERC-4337 transaction flows
 
 **When to Consult**: When working on transaction submission, state management, or payment flows.
+
+### Smart Account (Rhinestone HCA)
+**Location**: `packages/smart-account/`
+**Documentation**: `DEBUGGING_INTENTS.md`
+
+**Key Concepts**:
+- `InvalidSignature()` from the orchestrator is a wrapper — get the inner revert first
+- Replaying a failed intent with `cast call --trace` + state overrides
+- Validator error selectors, and the policy's exact-calldata checks
+- Building a real signed intent outside the app to reproduce end-to-end
+
+**When to Consult**: Any time a registration intent fails simulation, or before
+changing the shape of a call in the commit/reveal batch.

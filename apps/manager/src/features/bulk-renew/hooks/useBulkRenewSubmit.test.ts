@@ -7,12 +7,9 @@ import type { RenewItem } from '../types'
 // Mocked transaction-manager actors + app singletons. Declared via vi.hoisted so
 // the vi.mock factories below can reference them.
 const mocks = vi.hoisted(() => ({
-  ensureHcaDeployedActor: vi.fn(),
   pollTransactionStatusActor: vi.fn(),
   readPaymentTokenAllowanceActor: vi.fn(),
-  signPermitActor: vi.fn(),
   submitApprovalActor: vi.fn(),
-  submitBatchRenewActor: vi.fn(),
   submitRenewActor: vi.fn(),
   useSmartAccountContext: vi.fn(),
   invalidateQueries: vi.fn(),
@@ -21,13 +18,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock(
   '@ens-apps/transaction-manager/machines/registration/registration.actors',
   () => ({
-    authorizedPaymentAmount: (value: bigint) => value + value / 10n,
-    ensureHcaDeployedActor: mocks.ensureHcaDeployedActor,
     pollTransactionStatusActor: mocks.pollTransactionStatusActor,
     readPaymentTokenAllowanceActor: mocks.readPaymentTokenAllowanceActor,
-    signPermitActor: mocks.signPermitActor,
     submitApprovalActor: mocks.submitApprovalActor,
-    submitBatchRenewActor: mocks.submitBatchRenewActor,
     submitRenewActor: mocks.submitRenewActor,
   }),
 )
@@ -40,25 +33,27 @@ vi.mock('@/lib/smart-account', () => ({
 }))
 
 import {
-  EOA_UNSUPPORTED_MESSAGE,
   useBulkRenewSubmit,
+  WALLET_REQUIRED_MESSAGE,
 } from './useBulkRenewSubmit'
 
 const EOA = '0x2222222222222222222222222222222222222222' as const
 const HCA = '0x1111111111111111111111111111111111111111' as const
-const PERMIT = { owner: EOA, spender: EOA, value: 0n, deadline: 0n } as any
 
+const walletClient = { account: { address: EOA } }
+
+/** HCA-mode account: still renews from the connected wallet, not the HCA. */
 const hcaAccount = {
   signer: { type: 'rhinestone' },
   ownerAddress: EOA,
   accountAddress: HCA,
-  walletClient: {},
+  walletClient,
 } as any
 const eoaAccount = {
-  signer: { type: 'eoa', walletClient: {} },
+  signer: { type: 'eoa', walletClient },
   ownerAddress: EOA,
   accountAddress: EOA,
-  walletClient: {},
+  walletClient,
 } as any
 const disconnected = {
   signer: null,
@@ -76,20 +71,20 @@ const args = {
   sumPriceRaw: 3_000_000n,
 }
 
+const renewedLabels = () =>
+  mocks.submitRenewActor.mock.calls.map((call) => call[0]?.label)
+
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.ensureHcaDeployedActor.mockReturnValue(okAsync(undefined))
   mocks.pollTransactionStatusActor.mockReturnValue(okAsync(undefined))
   mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(0n))
-  mocks.signPermitActor.mockReturnValue(okAsync(PERMIT))
   mocks.submitApprovalActor.mockReturnValue(okAsync('approval-tx'))
-  mocks.submitBatchRenewActor.mockReturnValue(okAsync('batch-renew-tx'))
   mocks.submitRenewActor.mockReturnValue(okAsync('renew-tx'))
   mocks.useSmartAccountContext.mockReturnValue(hcaAccount)
 })
 
 describe('useBulkRenewSubmit', () => {
-  it('fails fast when the wallet is not connected', async () => {
+  it('fails fast when no wallet is connected', async () => {
     mocks.useSmartAccountContext.mockReturnValue(disconnected)
     const { result } = renderHook(() => useBulkRenewSubmit())
 
@@ -98,12 +93,11 @@ describe('useBulkRenewSubmit', () => {
     })
 
     expect(result.current.phase).toBe('error')
-    expect(result.current.errorMessage).toBe('Wallet not connected')
-    expect(mocks.submitBatchRenewActor).not.toHaveBeenCalled()
+    expect(result.current.errorMessage).toBe(WALLET_REQUIRED_MESSAGE)
     expect(mocks.submitRenewActor).not.toHaveBeenCalled()
   })
 
-  it('HCA path: renews the whole batch in one transaction with the permit bundled', async () => {
+  it('approves the summed price once, then renews each name in its own tx', async () => {
     const { result } = renderHook(() => useBulkRenewSubmit())
 
     await act(async () => {
@@ -111,19 +105,68 @@ describe('useBulkRenewSubmit', () => {
     })
 
     expect(result.current.phase).toBe('success')
-    expect(mocks.signPermitActor).toHaveBeenCalledTimes(1)
-    // One transaction for the whole batch — no per-name renews.
-    expect(mocks.submitBatchRenewActor).toHaveBeenCalledTimes(1)
-    expect(mocks.submitRenewActor).not.toHaveBeenCalled()
-    const batchArg = mocks.submitBatchRenewActor.mock.calls[0]?.[0]
-    expect(batchArg?.permit).toBe(PERMIT)
-    expect(batchArg?.items).toHaveLength(3)
-    // Permit sized to the full sum + 10% headroom.
-    expect(mocks.signPermitActor.mock.calls[0]?.[0]?.value).toBe(3_300_000n)
+    // One approve for the whole batch — the per-name renews share the allowance.
+    expect(mocks.submitApprovalActor).toHaveBeenCalledTimes(1)
+    expect(mocks.submitApprovalActor.mock.calls[0]?.[0]?.tokenPrice).toBe(
+      3_000_000n,
+    )
+    expect(renewedLabels()).toEqual(['one', 'two', 'three'])
     expect(mocks.invalidateQueries).toHaveBeenCalled()
   })
 
-  it('EOA mode is unsupported: refuses without submitting any transaction', async () => {
+  it('renews from the connected wallet, never sponsored', async () => {
+    // `AbstractETHRegistrar.renew` charges `msg.sender` with no HCA unwrap, so
+    // the EOA must be the sender AND the payer — sponsoring would bill the HCA.
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    for (const call of mocks.submitRenewActor.mock.calls) {
+      expect(call[0]?.signer?.type).toBe('eoa')
+      expect(call[0]?.sponsored).toBe(false)
+    }
+    expect(mocks.submitApprovalActor.mock.calls[0]?.[0]?.sponsored).toBe(false)
+  })
+
+  it('authorizes against the canonical registrar, not a separate deployment', async () => {
+    // Regression guard, inverted from what it used to assert: renewal is NOT an
+    // HCA flow, so it must leave the registrar and token to the actors' own
+    // canonical defaults. Overriding them with the standalone-HCA deployment
+    // approved -- and renewed on -- a registrar that had never registered the
+    // name, which reverts `NameNotRenewable(label)`.
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    for (const mock of [
+      mocks.readPaymentTokenAllowanceActor,
+      mocks.submitApprovalActor,
+    ]) {
+      const arg = mock.mock.calls[0]?.[0]
+      expect(arg?.registrarAddress).toBeUndefined()
+      expect(arg?.paymentTokenAddress).toBeUndefined()
+    }
+  })
+
+  it('reads the allowance for the connected wallet, not the HCA', async () => {
+    const { result } = renderHook(() => useBulkRenewSubmit())
+
+    await act(async () => {
+      await result.current.submit(args)
+    })
+
+    expect(mocks.readPaymentTokenAllowanceActor.mock.calls[0]?.[0]?.owner).toBe(
+      EOA,
+    )
+  })
+
+  it('works in EOA mode', async () => {
+    // Previously refused outright: the atomic-batch model required a smart
+    // account. The direct-wallet route has no such constraint.
     mocks.useSmartAccountContext.mockReturnValue(eoaAccount)
     const { result } = renderHook(() => useBulkRenewSubmit())
 
@@ -131,16 +174,11 @@ describe('useBulkRenewSubmit', () => {
       await result.current.submit(args)
     })
 
-    expect(result.current.phase).toBe('error')
-    expect(result.current.errorMessage).toBe(EOA_UNSUPPORTED_MESSAGE)
-    // The one-transaction invariant is enforced before anything is submitted.
-    expect(mocks.ensureHcaDeployedActor).not.toHaveBeenCalled()
-    expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
-    expect(mocks.submitBatchRenewActor).not.toHaveBeenCalled()
-    expect(mocks.submitRenewActor).not.toHaveBeenCalled()
+    expect(result.current.phase).toBe('success')
+    expect(renewedLabels()).toEqual(['one', 'two', 'three'])
   })
 
-  it('HCA: skips authorization when the allowance already covers the batch', async () => {
+  it('skips approval when the allowance already covers the batch', async () => {
     mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(9_999_999n))
     const { result } = renderHook(() => useBulkRenewSubmit())
 
@@ -148,45 +186,42 @@ describe('useBulkRenewSubmit', () => {
       await result.current.submit(args)
     })
 
-    expect(mocks.signPermitActor).not.toHaveBeenCalled()
     expect(mocks.submitApprovalActor).not.toHaveBeenCalled()
-    // Still one batch transaction, just without a permit call bundled in.
-    expect(mocks.submitBatchRenewActor).toHaveBeenCalledTimes(1)
-    expect(
-      mocks.submitBatchRenewActor.mock.calls[0]?.[0]?.permit,
-    ).toBeUndefined()
+    expect(renewedLabels()).toEqual(['one', 'two', 'three'])
   })
 
-  it('HCA: a failed batch retries the whole batch atomically (no partial resume)', async () => {
+  it('resumes from the first failure instead of re-paying for renewed names', async () => {
+    // Sequential renewals are NOT atomic: names before the failure really did
+    // renew on-chain, so a retry must skip them.
     mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(9_999_999n))
-    mocks.submitBatchRenewActor.mockReturnValueOnce(errAsync(new Error('boom')))
+    mocks.submitRenewActor
+      .mockReturnValueOnce(okAsync('renew-one'))
+      .mockReturnValueOnce(errAsync(new Error('boom')))
     const { result } = renderHook(() => useBulkRenewSubmit())
 
     await act(async () => {
       await result.current.submit(args)
     })
     expect(result.current.phase).toBe('error')
+    expect(result.current.statuses.one).toBe('done')
+    expect(renewedLabels()).toEqual(['one', 'two'])
 
-    // Retry — the whole batch (all three names) is resubmitted, since an atomic
-    // batch has no per-name completion to resume from.
     await act(async () => {
       await result.current.submit(args)
     })
     expect(result.current.phase).toBe('success')
-    expect(
-      mocks.submitBatchRenewActor.mock.calls.at(-1)?.[0]?.items,
-    ).toHaveLength(3)
+    // 'one' is not renewed (or paid for) a second time.
+    expect(renewedLabels()).toEqual(['one', 'two', 'two', 'three'])
   })
 
   it('ignores a stale submission after the dialog is reset mid-flight', async () => {
-    // Allowance covers the batch → straight to the renewing await, no permit.
     mocks.readPaymentTokenAllowanceActor.mockReturnValue(okAsync(9_999_999n))
-    // Gate the batch confirmation so we can reset while it's in-flight.
-    let releaseBatch: () => void = () => {}
+    // Gate the first renewal's confirmation so we can reset while it's in-flight.
+    let releaseRenew: () => void = () => {}
     mocks.pollTransactionStatusActor.mockReturnValue(
       ResultAsync.fromSafePromise(
         new Promise<void>((resolve) => {
-          releaseBatch = resolve
+          releaseRenew = resolve
         }),
       ),
     )
@@ -195,7 +230,7 @@ describe('useBulkRenewSubmit', () => {
     let submitPromise!: Promise<void>
     await act(async () => {
       submitPromise = result.current.submit(args)
-      // Flush pre-batch microtasks so we park at the gated renewing await.
+      // Flush pre-renew microtasks so we park at the gated confirmation.
       for (let i = 0; i < 10; i++) await Promise.resolve()
     })
     expect(result.current.phase).toBe('renewing')
@@ -206,10 +241,10 @@ describe('useBulkRenewSubmit', () => {
     })
     expect(result.current.phase).toBe('idle')
 
-    // The in-flight batch now confirms; it must NOT flip the reset dialog to
+    // The in-flight renewal now confirms; it must NOT flip the reset dialog to
     // 'success' — the run is stale.
     await act(async () => {
-      releaseBatch()
+      releaseRenew()
       await submitPromise
     })
     expect(result.current.phase).toBe('idle')

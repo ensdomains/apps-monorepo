@@ -5,7 +5,10 @@ import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
-import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
+import {
+  getNameHistoryQueryOptions,
+  NAME_HISTORY_PAGE_SIZE,
+} from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { queryClient } from '@/utils/queryClient'
 
@@ -15,10 +18,16 @@ export const Route = createFileRoute('/$name/history')({
   loader: ({ params }) => {
     return Promise.all([
       queryClient.prefetchQuery(
-        getNameHistoryQueryOptions({ name: params.name }),
+        getNameHistoryQueryOptions({
+          name: params.name,
+          first: NAME_HISTORY_PAGE_SIZE,
+        }),
       ),
       queryClient.prefetchQuery(
-        getV2NameHistoryQueryOptions({ name: params.name }),
+        getV2NameHistoryQueryOptions({
+          name: params.name,
+          first: NAME_HISTORY_PAGE_SIZE,
+        }),
       ),
     ])
   },
@@ -29,8 +38,8 @@ function RouteComponent() {
 
   const [v1Query, v2Query] = useQueries({
     queries: [
-      getNameHistoryQueryOptions({ name }),
-      getV2NameHistoryQueryOptions({ name }),
+      getNameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
+      getV2NameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     ],
   })
 

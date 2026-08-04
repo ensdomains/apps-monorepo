@@ -11,7 +11,7 @@
 # Optional: override fork URL (e.g. for CI)
 #   SEPOLIA_FORK_URL=https://ethereum-sepolia-rpc.publicnode.com
 #
-# Paymaster is optional; host port 3002 to avoid clashing with app. VITE_PAYMASTER_URL=http://127.0.0.1:3002
+# Paymaster is optional; host port 3002 to avoid clashing with app.
 
 services:
   anvil:
@@ -159,7 +159,7 @@ services:
     restart: on-failure
 
   # Rhinestone mockestrator: local orchestrator for Rhinestone intent-based transactions.
-  # Only needed when running Rhinestone e2e tests (VITE_FF_RHINESTONE_SESSIONS=true).
+  # Only needed when running the standalone-HCA e2e tests (VITE_FF_USE_EOA=false).
   mockestrator:
     image: ghcr.io/ensdomains/mockestrator:latest
     networks:

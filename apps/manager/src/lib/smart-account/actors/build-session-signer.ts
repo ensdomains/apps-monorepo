@@ -1,21 +1,33 @@
 /**
  * Build the `RhinestoneSessionContext` to attach to a `RhinestoneSigner` from
- * a stored session (owner-key model).
+ * a stored standalone-HCA session.
  *
- * The ephemeral key was added as a time-boxed HCA owner at enable time, so all
- * we need at signing time is its viem `Account` — the warp transport passes it
- * as `signers: { type: 'owner', kind: 'ecdsa', accounts: [sessionAccount] }`
- * and the SDK signs Intents with it through the normal owner validator path.
+ * The scoped SmartSession is reconstructed (no wallet prompt) from the
+ * persisted scalar fields via `rebuildDestinationSession` — the salt is
+ * recomputed so the on-chain `permissionId` matches, and the ephemeral session
+ * key is re-derived from its private key. The warp transport then signs Intents
+ * with `signers: { type: 'experimental_session', session, ... }`.
  */
 
-import type { RhinestoneStoredSession } from '@ens-apps/smart-account'
+import {
+  type RhinestoneStoredSession,
+  rebuildDestinationSession,
+} from '@ens-apps/smart-account'
 import type { RhinestoneSessionContext } from '@ens-apps/transaction-manager'
-import { privateKeyToAccount } from 'viem/accounts'
+import type { Address, Chain } from 'viem'
 
 export function buildSessionContext(params: {
   readonly session: RhinestoneStoredSession
+  readonly chain: Chain
+  readonly hca: Address
 }): RhinestoneSessionContext {
-  return {
-    sessionAccount: privateKeyToAccount(params.session.sessionPrivateKey),
-  }
+  const { session } = rebuildDestinationSession({
+    chain: params.chain,
+    hca: params.hca,
+    resolver: params.session.resolver,
+    hcaSessionNonce: BigInt(params.session.hcaSessionNonce),
+    validUntil: BigInt(params.session.validUntil),
+    sessionPrivateKey: params.session.sessionPrivateKey,
+  })
+  return { session }
 }

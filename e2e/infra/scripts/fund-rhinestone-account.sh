@@ -1,66 +1,84 @@
 #!/usr/bin/env bash
-# Fund the Rhinestone smart account on the local Anvil Sepolia fork.
+# Fund accounts for the STANDALONE-HCA registration flow on the local Anvil
+# Sepolia fork.
 #
-# The Rhinestone smart account address is deterministic (counterfactual) —
-# it depends on the owner's address and the SDK config. This script mints
-# MockUSDC and MockDAI to the known address so registration can pay the
-# registrar via the mockestrator.
+# The standalone-HCA route is user-paid in Circle USDC (no gas sponsorship):
+#   - the WALLET (EOA) signs an EIP-2612 permit letting the HCA pull USDC, so
+#     the EOA must hold USDC;
+#   - the mockestrator impersonates the HCA to fill intents, so the HCA needs
+#     ETH for impersonated gas.
+#
+# Circle's Sepolia USDC (FiatTokenV2_2) has no open `mint`, so we set balances
+# directly via `anvil_setStorageAt` (balances mapping at slot 9). Addresses come
+# from `print-standalone-hca-addresses.mjs`, mirroring the app's manifest.
 #
 # Usage:
 #   ./fund-rhinestone-account.sh [ADDRESS]
-#
-# If ADDRESS is not provided, it mints to a set of known test addresses.
-# Add new addresses here as needed.
+# If ADDRESS is omitted, funds a set of known test addresses.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RPC_URL="${RPC_URL:-http://127.0.0.1:8545}"
-ANVIL_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 
-# Payment-token addresses, resolved from the ensjs Sepolia chain config — the
-# SAME source the app uses (`@ens-apps/transaction-manager` SUPPORTED_TOKENS),
-# so this script can never drift from the tokens the manager reads/registers
-# with. See print-token-addresses.mjs.
-eval "$(node "$SCRIPT_DIR/print-token-addresses.mjs")"
+# Standalone-HCA deployment addresses (Circle USDC etc.), from the app manifest.
+eval "$(node "$SCRIPT_DIR/print-standalone-hca-addresses.mjs")"
 
-# Known addresses to fund (add more as needed).
-# HCA accounts read balances from the EOA, so we fund BOTH the smart
-# account (for gas/impersonation) and the EOA (for token balances).
+# Circle USDC FiatTokenV2_2 storage layout: balances mapping base slot = 9.
+USDC_BALANCE_SLOT=9
+# 10,000 USDC (6 decimals) as a 32-byte hex value.
+USDC_AMOUNT_HEX=$(cast to-uint256 10000000000)
+# 10 ETH as a hex quantity (what `anvil_setBalance` expects).
+ETH_AMOUNT_HEX=$(cast to-hex 10000000000000000000)
+
+# Known addresses to fund. The standalone flow reads the EOA's USDC (permit
+# source) and needs ETH in the standalone HCA (mockestrator impersonation gas).
+# The standalone-HCA address is DIFFERENT from the old ephemeral-owner HCA — it
+# is derived from owner + StandaloneHCAImplementation + userSalt(0). For the E2E
+# headless wallet owner (Anvil account 0, 0xf39F…2266) that HCA is
+# 0x49C8…747a (verified via a local e2e run).
 KNOWN_ADDRESSES=(
-  "0xC9dDA331341ffE42E6377E35EEbaCC5d4fe24e74"  # Smart account (testing-2, no sessions)
-  "0x38Baa0d0240d293723dC9C4C9732f1792297A8aF"  # Smart account (ensjs-v2, with sessions)
+  "0x49C84566d2ecDa444d5e094F3804a605F46b747a"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
+  "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"  # Anvil account 0 (E2E headless wallet EOA — USDC permit source)
   "0xc9eec1b174a646d7c282820afe94acfba6c00a12"  # EOA for test1@test.getpara.com
-  "0xb0663cbab410d66b3c5b800d8db6231654e888b4"  # HCA for Anvil account 0 / E2E headless wallet (0xf39F…2266)
 )
+
+set_usdc_balance() {
+  local addr="$1"
+  # slot = keccak256(abi.encode(addr, USDC_BALANCE_SLOT))
+  local slot
+  slot=$(cast index address "$addr" "$USDC_BALANCE_SLOT")
+  cast rpc anvil_setStorageAt "$SH_USDC" "$slot" "$USDC_AMOUNT_HEX" \
+    --rpc-url "$RPC_URL" >/dev/null
+}
 
 fund_address() {
   local addr="$1"
-  echo "→ Funding Rhinestone account $addr"
+  echo "→ Funding $addr"
 
-  # Send 10 ETH for gas (needed for impersonated execution in mockestrator)
-  cast send "$addr" --value 10ether \
-    --private-key "$ANVIL_KEY" --rpc-url "$RPC_URL" --quiet 2>/dev/null
-  echo "  ✅ 10 ETH sent (for gas)"
+  # ETH for gas (impersonated HCA execution in the mockestrator).
+  #
+  # Set the balance directly instead of transferring from Anvil account 0. The
+  # funder's balance is NOT guaranteed on a fork — it inherits real Sepolia
+  # state and is drawn down by earlier setup — and once it dips below the
+  # transfer value every remaining address fails with
+  # "Insufficient funds for gas * price + value" (which `--quiet 2>/dev/null`
+  # then hides, surfacing only as a bare exit 1). `anvil_setBalance` needs no
+  # sender, spends no gas, and is idempotent.
+  cast rpc anvil_setBalance "$addr" "$ETH_AMOUNT_HEX" \
+    --rpc-url "$RPC_URL" >/dev/null
+  echo "  ✅ 10 ETH set (gas)"
 
-  # Mint 10,000 MockUSDC (6 decimals)
-  cast send "$MOCK_USDC" "mint(address,uint256)" "$addr" 10000000000 \
-    --private-key "$ANVIL_KEY" --rpc-url "$RPC_URL" --quiet 2>/dev/null
-  echo "  ✅ 10,000 USDC minted"
-
-  # Mint 10,000 MockDAI (18 decimals)
-  cast send "$MOCK_DAI" "mint(address,uint256)" "$addr" 10000000000000000000000 \
-    --private-key "$ANVIL_KEY" --rpc-url "$RPC_URL" --quiet 2>/dev/null
-  echo "  ✅ 10,000 DAI minted"
+  # 10,000 Circle USDC via direct storage write (no open mint).
+  set_usdc_balance "$addr"
+  echo "  ✅ 10,000 USDC set (Circle USDC slot $USDC_BALANCE_SLOT)"
 }
 
-echo "=== Funding Rhinestone smart accounts on fork at $RPC_URL ==="
+echo "=== Funding standalone-HCA accounts on fork at $RPC_URL ==="
 
 if [[ $# -gt 0 ]]; then
-  # Fund specific address from CLI arg
   fund_address "$1"
 else
-  # Fund all known addresses
   for addr in "${KNOWN_ADDRESSES[@]}"; do
     fund_address "$addr"
   done

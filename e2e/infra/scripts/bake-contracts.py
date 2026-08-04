@@ -140,6 +140,23 @@ PAYMENT_TOKENS = [
     ("0x302edecc2b8d1f3f4625b8a825a42f9adc102e65", "MockUSDC"),
     ("0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4", "MockDAI"),
 ]
+
+# ── Standalone-HCA deployment (ensdomains/contracts-v2 feat/hca-final-maybe) ──
+# A SEPARATE Sepolia deployment from the ENS_CONTRACTS above (different
+# registrar/registry/resolver/USDC). The manager's standalone-HCA flow targets
+# this set; sourced from `@ens-apps/smart-account`'s manifest.ts. The shared
+# Rhinestone modules (Intent Executor, etc.) are already baked by
+# bake_rhinestone_infrastructure() and are reused as-is.
+SH_STANDALONE_HCA_FACTORY       = "0x1915b0c8ae2c133b2b43845b5c545d1eea081c9a"
+SH_STANDALONE_HCA_IMPL          = "0xaff1833a2746373b749bca6f416b9d4eb5f4d7c4"
+SH_HCA_OWNER_SESSION_VALIDATOR  = "0x67a4f4f3ba93b7c1299cc79b901c4b2e4375ef42"
+SH_VERIFIABLE_FACTORY           = "0x118bc31a50d559f7015a8da26d54b3b030cdb70f"
+SH_VERIFIABLE_PROXY_LOGIC       = "0x7E98c31ae2Ac5C3C88f2CE00c22a10B8cb84BcE2"
+SH_PERMISSIONED_RESOLVER_IMPL   = "0x7e4b2d59938930168024201752ee5503df402303"
+SH_ETH_REGISTRAR                = "0xa4449a0dd2b83007553d9b1d28b583a46a805a30"
+SH_ETH_REGISTRY                 = "0x67b728a792e789a8978b30cf1b3b641f19354b43"
+SH_DEFAULT_REVERSE_HCA_ADAPTER  = "0x5e2d105f1e6be8444c4ed96c06806093b829644e"
+SH_USDC                         = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
 # _paymentRatios mapping is at storage slot 5 in StandardRentPriceOracle
 # (sequential slots 3 and 4 are dynamic arrays whose elements live at
 # keccak256(slot) + i — also baked by bake_oracle below)
@@ -268,12 +285,16 @@ def bake_dynamic_array(addr: str, base_slot: int) -> int:
     return copied
 
 
-def bake_oracle(addr: str):
-    """Bake price oracle: sequential slots + dynamic array elements + payment ratios."""
-    extra = [
-        mapping_slot(token, PAYMENT_RATIOS_SLOT)
-        for token, _ in PAYMENT_TOKENS
-    ]
+def bake_oracle(addr: str, payment_tokens: list[tuple[str, str]] | None = None):
+    """Bake price oracle: sequential slots + dynamic array elements + payment ratios.
+
+    `payment_tokens` are the tokens whose `_paymentRatios[token]` (a
+    hash-addressed mapping slot NOT reachable by the sequential scan) must be
+    copied so pricing survives anvil_dumpState. Defaults to the ENS-V2
+    MockUSDC/DAI set; the standalone oracle passes Circle USDC.
+    """
+    tokens = payment_tokens if payment_tokens is not None else PAYMENT_TOKENS
+    extra = [mapping_slot(token, PAYMENT_RATIOS_SLOT) for token, _ in tokens]
     bake_with_storage(addr, f"Price Oracle ({addr})", extra_slots=extra)
     # Sequential slots 3 and 4 hold dynamic arrays (base rates, duration coefficients).
     # scan_sequential_slots copies the length but not the keccak-addressed elements.
@@ -283,17 +304,22 @@ def bake_oracle(addr: str):
         print(f"       + dynamic arrays: slot3={arr3} elems, slot4={arr4} elems")
 
 
-def get_oracle_address() -> Optional[str]:
-    """Call rentPriceOracle() on ETH Registrar — it's an immutable, not in storage."""
+def cast_call_address(addr: str, sig: str) -> Optional[str]:
+    """`cast call addr 'sig()(address)'` → address, or None if zero/failed."""
     env = {**os.environ, "FOUNDRY_DISABLE_NIGHTLY_WARNING": "1"}
     result = subprocess.run(
-        ["cast", "call", ETH_REGISTRAR, "rentPriceOracle()(address)", "--rpc-url", RPC_URL],
+        ["cast", "call", addr, f"{sig}()(address)", "--rpc-url", RPC_URL],
         capture_output=True, text=True, env=env,
     )
-    addr = result.stdout.strip()
-    if addr and addr != "0x0000000000000000000000000000000000000000":
-        return addr
+    out = result.stdout.strip()
+    if out and out != "0x0000000000000000000000000000000000000000":
+        return out
     return None
+
+
+def get_oracle_address(registrar: str = ETH_REGISTRAR) -> Optional[str]:
+    """Read `rentPriceOracle()` on a registrar (public state var / getter)."""
+    return cast_call_address(registrar, "rentPriceOracle")
 
 
 def bake_ens_contracts():
@@ -354,6 +380,60 @@ def bake_ens_contracts():
     bake_code_only(USER_REGISTRY_IMPL, "UserRegistry Impl")
 
 
+def bake_standalone_hca():
+    """Bake the standalone-HCA deployment (manager's HCA registration flow).
+
+    A distinct Sepolia deployment from bake_ens_contracts(): its own registrar,
+    registry (PermissionedRegistry — same `_roles@slot2` layout), resolver impl,
+    factories, session validator, reverse adapter, and Circle USDC. The shared
+    Rhinestone modules (Intent Executor, etc.) are baked separately and reused.
+    """
+    # ETH Registrar — code + storage; discover + bake its price oracle.
+    bake_with_storage(SH_ETH_REGISTRAR, "Standalone ETH Registrar")
+    sh_oracle = get_oracle_address(SH_ETH_REGISTRAR)
+    if sh_oracle:
+        # The standalone oracle prices in Circle USDC, so its ratio slot (not the
+        # MockUSDC/DAI ones) must be baked.
+        bake_oracle(sh_oracle, payment_tokens=[(SH_USDC, "Circle USDC")])
+    else:
+        print("  ⚠  could not determine standalone oracle from rentPriceOracle()")
+
+    # ETH Registry (PermissionedRegistry) — nested _roles@slot2 (see the note in
+    # bake_ens_contracts): the registrar must hold ROLE_REGISTRAR at ROOT_RESOURCE.
+    role_slots = [
+        nested_mapping_slot(outer_key=hex(0), inner_key=SH_ETH_REGISTRAR, base_slot=2),
+        mapping_slot(hex(0), 3),  # _roleCount at the root resource
+    ]
+    bake_with_storage(SH_ETH_REGISTRY, "Standalone ETH Registry", extra_slots=role_slots)
+
+    # Reverse adapter — code + storage (trustedHCAImplementations mapping etc.).
+    bake_with_storage(SH_DEFAULT_REVERSE_HCA_ADAPTER, "DefaultReverseRegistrarHCAAdapter")
+
+    # Session validator — code + storage; then bake the intent executor +
+    # gas-refund paymaster it points at (public immutables), discovered on-chain.
+    bake_with_storage(SH_HCA_OWNER_SESSION_VALIDATOR, "HCAOwnerAndSessionValidator")
+    intent_executor = cast_call_address(SH_HCA_OWNER_SESSION_VALIDATOR, "INTENT_EXECUTOR")
+    if intent_executor:
+        bake_code_only(intent_executor, "HCA Intent Executor (validator immutable)")
+    gas_refund_paymaster = cast_call_address(
+        SH_HCA_OWNER_SESSION_VALIDATOR, "GAS_REFUND_PAYMASTER"
+    )
+    if gas_refund_paymaster:
+        bake_code_only(gas_refund_paymaster, "HCA Gas Refund Paymaster (validator immutable)")
+
+    # Factories + impls — code only (logic; per-account storage lives in proxies).
+    bake_code_only(SH_STANDALONE_HCA_FACTORY,     "StandaloneHCAFactory")
+    bake_code_only(SH_STANDALONE_HCA_IMPL,        "StandaloneHCAImplementation")
+    bake_code_only(SH_VERIFIABLE_FACTORY,         "Standalone VerifiableFactory")
+    bake_code_only(SH_VERIFIABLE_PROXY_LOGIC,     "Standalone VerifiableFactory proxy logic")
+    bake_code_only(SH_PERMISSIONED_RESOLVER_IMPL, "Standalone PermissionedResolver impl")
+
+    # Circle Sepolia USDC — the standalone registrar's payment token. Code +
+    # sequential storage; balances/allowances are minted per-account at
+    # fund-time (see fund scripts), so no mapping slots to copy here.
+    bake_with_storage(SH_USDC, "Circle Sepolia USDC (standalone)")
+
+
 def bake_rhinestone_infrastructure():
     """Bake Safe/Rhinestone infrastructure needed for smart account execution."""
     # Core Safe contracts — code only (logic contracts, storage lives in each proxy)
@@ -393,6 +473,9 @@ for addr, label in ERC4337_CONTRACTS:
 
 print("\nENS contracts (code + storage):")
 bake_ens_contracts()
+
+print("\nStandalone-HCA deployment (code + storage):")
+bake_standalone_hca()
 
 print("\nSafe / Rhinestone infrastructure:")
 bake_rhinestone_infrastructure()
