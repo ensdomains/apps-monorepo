@@ -291,7 +291,7 @@ export const ResolverEventsTable = ({
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
-              const cellClassName = cn('px-6', 'h-10 py-2')
+              const cellClassName = cn('px-6', 'h-10 py-0')
               const totalColumns = row.getVisibleCells().length
               const trailingColSpan = totalColumns - 4
 

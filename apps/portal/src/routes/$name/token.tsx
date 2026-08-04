@@ -108,7 +108,10 @@ const TokenInfoCard = ({
                 </SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-6 py-6">
-                <InfoCard title="Token ID details">
+                <InfoCard
+                  title="Token ID details"
+                  className="sm:[&_[data-slot=info-row]]:h-10"
+                >
                   <InfoRow label="Hash">
                     <div className="min-w-0 w-full">
                       <EntityBadge
@@ -310,7 +313,7 @@ function RouteComponent() {
 
       <InfoCard
         title="Normalization"
-        className="[&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0"
+        className="[&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0 sm:[&_[data-slot=info-row]]:h-10"
       >
         <InfoRow label="Input">
           <div className="flex flex-row gap-1 flex-wrap items-center">
@@ -402,7 +405,7 @@ function RouteComponent() {
       </InfoCard>
 
       {labels[0] ? (
-        <div className="rounded-sm bg-background overflow-hidden [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0">
+        <div className="rounded-sm bg-background overflow-hidden [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0 sm:[&_[data-slot=info-row]]:h-10">
           <div className="py-3">
             <span className="text-caps leading-none text-foreground">
               Labels

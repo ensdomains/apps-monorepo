@@ -401,7 +401,7 @@ export const SubnamesTable = ({
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
-                        className={cn('px-6', 'h-10 py-2')}
+                        className={cn('px-6', 'h-10 py-0')}
                         key={cell.id}
                       >
                         {flexRender(

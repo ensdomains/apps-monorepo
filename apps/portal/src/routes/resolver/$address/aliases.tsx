@@ -388,7 +388,7 @@ function RouteComponent() {
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
                           key={cell.id}
-                          className={cn('px-4 sm:px-6', 'h-10 py-2')}
+                          className={cn('px-4 sm:px-6', 'h-10 py-0')}
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
