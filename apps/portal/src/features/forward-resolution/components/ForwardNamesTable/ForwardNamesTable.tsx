@@ -13,25 +13,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  type TableViewSettings,
-  useTableViewSettings,
-} from '@/features/profile/hooks/useTableViewSettings'
 import { columns, type ForwardName } from './columns'
 import { ForwardNamesSidebar } from './ForwardNamesSidebar'
 
 export const ForwardNamesTable = ({
-  defaultTableSettings,
   table,
 }: {
-  defaultTableSettings?: TableViewSettings
   table: TableData<ForwardName>
 }) => {
   const [clickedRow, setClickedRow] = useState<Row<ForwardName> | null>(null)
 
   const [open, setOpen] = useState(false)
-
-  const [tableView] = useTableViewSettings(defaultTableSettings)
 
   return (
     <ForwardNamesSidebar row={clickedRow} {...{ open, setOpen }}>
@@ -61,7 +53,7 @@ export const ForwardNamesTable = ({
               .rows.map((row) => (
                 <SidebarTriggerRow
                   key={row.id}
-                  {...{ row, tableView, setOpen, setClickedRow, open }}
+                  {...{ row, setOpen, setClickedRow, open }}
                 />
               ))
           ) : (

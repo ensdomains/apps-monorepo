@@ -11,7 +11,6 @@ import { Check, Trash2, X } from 'lucide-react'
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { SortButton } from '@/components/table/SortButton'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -31,7 +30,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import type { NameRecord } from '@/features/records/components/RecordsTable/columns'
 import { cn } from '@/lib/utils'
 import {
@@ -105,7 +103,6 @@ export const EditRecordsTable = ({
 }: EditRecordsTableProps) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  const [tableView] = useTableViewSettings()
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
@@ -330,15 +327,12 @@ export const EditRecordsTable = ({
                 <React.Fragment key={row.id}>
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
-                    className={stripedRowClassName(tableView.strippedRows)}
+                    className={'hover:bg-muted'}
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className={cn(
-                          'px-4 sm:px-6',
-                          tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-                        )}
+                        className={cn('px-4 sm:px-6', 'h-10 py-2')}
                       >
                         {flexRender(
                           cell.column.columnDef.cell,

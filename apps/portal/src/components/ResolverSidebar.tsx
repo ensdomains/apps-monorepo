@@ -4,7 +4,6 @@ import {
   BookIcon,
   CircleQuestionMarkIcon,
   GridIcon,
-  SettingsIcon,
   SplitIcon,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -19,10 +18,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { HomeSearchInput } from '@/features/dashboard/components/HomeSearchInput'
-import { TableViewSwitch } from '@/features/records/components/RecordsTable/TableViewSwitch'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { createDefineLinkItem } from '@/utils/tsr'
 import { HelpMenu } from './HelpMenu'
+import { SettingsMenu } from './SettingsMenu'
 import {
   Sidebar,
   SidebarContent,
@@ -205,21 +204,7 @@ export const ResolverSidebar = ({ address }: ResolverSidebarProps) => {
             </PopoverContent>
           </Popover>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 text-neutral-6 hover:text-foreground"
-                aria-label="Settings"
-              >
-                <SettingsIcon className="size-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="right" align="end">
-              <TableViewSwitch />
-            </PopoverContent>
-          </Popover>
+          <SettingsMenu />
 
           <Button
             variant="ghost"
