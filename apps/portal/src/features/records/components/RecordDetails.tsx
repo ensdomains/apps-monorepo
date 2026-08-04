@@ -10,6 +10,7 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
+import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getRecordHistoryQueryOptions } from '@/features/records/hooks/useRecordHistory'
 import { universalResolverAddress } from '@/lib/constants/universalResolver'
@@ -194,7 +195,7 @@ const HistoryView = ({ name, record, protocolVersion }: HistoryViewProps) => {
   })
 
   const v2HistoryQuery = useQuery({
-    ...getV2NameHistoryQueryOptions({ name }),
+    ...getV2NameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     enabled: isV2,
   })
 

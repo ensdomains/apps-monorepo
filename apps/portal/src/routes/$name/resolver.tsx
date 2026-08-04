@@ -21,6 +21,7 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -215,7 +216,7 @@ const HistorySection = ({
   protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
 }) => {
   const v2HistoryQuery = useQuery({
-    ...getV2NameHistoryQueryOptions({ name }),
+    ...getV2NameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     enabled: protocolVersion === 'ENSv2',
   })
 
