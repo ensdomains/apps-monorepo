@@ -71,7 +71,7 @@ const TokenInfoCard = ({
       </HeaderInfoRow>
 
       <HeaderInfoRow label="Token Standard">
-        <EntityBadge variant="default" copyValue={tokenStandard}>
+        <EntityBadge type="content" variant="default" copyValue={tokenStandard}>
           {tokenStandard}
         </EntityBadge>
       </HeaderInfoRow>
@@ -85,8 +85,8 @@ const TokenInfoCard = ({
       <HeaderInfoRow label="Token ID">
         <div className="flex items-center gap-4 justify-between w-full ">
           <div className="flex-1 min-w-0">
-            <EntityBadge variant="default" copyValue={tokenId}>
-              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+            <EntityBadge type="content" variant="default" copyValue={tokenId}>
+              <span className="truncate max-w-[30vw] sm:max-w-167.5">
                 {tokenId}
               </span>
             </EntityBadge>
@@ -111,7 +111,11 @@ const TokenInfoCard = ({
                 <InfoCard title="Token ID details">
                   <InfoRow label="Hash">
                     <div className="min-w-0 w-full">
-                      <EntityBadge variant="default" copyValue={tokenId}>
+                      <EntityBadge
+                        type="content"
+                        variant="default"
+                        copyValue={tokenId}
+                      >
                         {tokenId}
                       </EntityBadge>
                     </div>
@@ -119,7 +123,11 @@ const TokenInfoCard = ({
 
                   <InfoRow label="HEX">
                     <div className="min-w-0 w-full">
-                      <EntityBadge variant="default" copyValue={hex}>
+                      <EntityBadge
+                        type="content"
+                        variant="default"
+                        copyValue={hex}
+                      >
                         {hex}
                       </EntityBadge>
                     </div>
@@ -350,7 +358,11 @@ function RouteComponent() {
 
         <InfoRow label="Unicode">
           <div>
-            <EntityBadge variant="default" copyValue={escapeUnicode(name)}>
+            <EntityBadge
+              type="content"
+              variant="default"
+              copyValue={escapeUnicode(name)}
+            >
               <span className="truncate max-w-[30vw] sm:max-w-[670px]">
                 {escapeUnicode(name)}
               </span>
@@ -360,7 +372,7 @@ function RouteComponent() {
 
         <InfoRow label="ASCII">
           <div>
-            <EntityBadge variant="default" copyValue={ascii}>
+            <EntityBadge type="content" variant="default" copyValue={ascii}>
               <span className="truncate max-w-[30vw] sm:max-w-[670px]">
                 {ascii}
               </span>
@@ -370,7 +382,7 @@ function RouteComponent() {
 
         <InfoRow label="DNS encoded">
           <div>
-            <EntityBadge variant="default" copyValue={dnsEncode}>
+            <EntityBadge type="content" variant="default" copyValue={dnsEncode}>
               <span className="truncate max-w-[30vw] sm:max-w-[670px]">
                 {dnsEncode}
               </span>
@@ -380,7 +392,7 @@ function RouteComponent() {
 
         <InfoRow label="Namehash">
           <div>
-            <EntityBadge variant="default" copyValue={hash}>
+            <EntityBadge type="content" variant="default" copyValue={hash}>
               <span className="truncate max-w-[30vw] sm:max-w-[670px]">
                 {hash}
               </span>
@@ -418,6 +430,7 @@ function RouteComponent() {
                   <InfoRow label="Input">
                     <div>
                       <EntityBadge
+                        type="content"
                         variant="default"
                         copyValue={escapeUnicode(label)}
                       >
@@ -435,6 +448,7 @@ function RouteComponent() {
                   <InfoRow label="Bytes">
                     <div>
                       <EntityBadge
+                        type="content"
                         variant="default"
                         copyValue={String(labelBytes)}
                       >
@@ -448,6 +462,7 @@ function RouteComponent() {
                   <InfoRow label="Characters">
                     <div>
                       <EntityBadge
+                        type="content"
                         variant="default"
                         copyValue={String(labelChars)}
                       >
@@ -461,6 +476,7 @@ function RouteComponent() {
                   <InfoRow label="Labelhash">
                     <div>
                       <EntityBadge
+                        type="content"
                         variant="default"
                         copyValue={labelhash(label)}
                       >
