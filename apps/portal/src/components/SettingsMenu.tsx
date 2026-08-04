@@ -1,86 +1,38 @@
-import { useId } from 'react'
-import { ProfileSettingsIcon, TableSettingsIcon } from '@/assets/icons'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
+import { usePostHog } from '@posthog/react'
+import { MessageSquareTextIcon } from 'lucide-react'
+import { ProfileSettingsIcon } from '@/assets/icons'
 import { ThemeToggle } from './ThemeToggle'
 import { Button } from './ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu'
-import { Label } from './ui/label'
-import { Switch } from './ui/switch'
 
-const TableSettingsSubmenu = () => {
-  const [tableView, setTableView] = useTableViewSettings()
-  const compactId = useId()
-  const strippedRowsId = useId()
-  const wrapTextId = useId()
+// PostHog feedback survey opened from the menu instead of the floating tab,
+// which competed with primary CTAs and covered the search input on mobile.
+const FEEDBACK_SURVEY_ID = import.meta.env
+  .VITE_PUBLIC_POSTHOG_FEEDBACK_SURVEY_ID
+
+const FeedbackMenuItem = () => {
+  const posthog = usePostHog()
+
+  if (!FEEDBACK_SURVEY_ID) return null
 
   return (
-    <DropdownMenuSub>
-      <DropdownMenuSubTrigger className="gap-2">
-        <TableSettingsIcon className="size-4" />
-        Table settings
-      </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="min-w-48">
-        <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="justify-between"
-        >
-          <Label htmlFor={compactId} className="cursor-pointer font-normal">
-            Compact rows
-          </Label>
-          <Switch
-            id={compactId}
-            checked={tableView.compact}
-            onCheckedChange={() =>
-              setTableView({ ...tableView, compact: !tableView.compact })
-            }
-          />
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="justify-between"
-        >
-          <Label
-            htmlFor={strippedRowsId}
-            className="cursor-pointer font-normal"
-          >
-            Striped rows
-          </Label>
-          <Switch
-            id={strippedRowsId}
-            checked={tableView.strippedRows}
-            onCheckedChange={() =>
-              setTableView({
-                ...tableView,
-                strippedRows: !tableView.strippedRows,
-              })
-            }
-          />
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={(e) => e.preventDefault()}
-          className="justify-between"
-        >
-          <Label htmlFor={wrapTextId} className="cursor-pointer font-normal">
-            Wrap text
-          </Label>
-          <Switch
-            id={wrapTextId}
-            checked={tableView.wrapText}
-            onCheckedChange={() =>
-              setTableView({ ...tableView, wrapText: !tableView.wrapText })
-            }
-          />
-        </DropdownMenuItem>
-      </DropdownMenuSubContent>
-    </DropdownMenuSub>
+    <DropdownMenuItem
+      onSelect={() =>
+        posthog.displaySurvey(FEEDBACK_SURVEY_ID, {
+          displayType: 'popover',
+          ignoreConditions: true,
+          ignoreDelay: true,
+        })
+      }
+    >
+      <MessageSquareTextIcon className="size-4" />
+      Feedback
+    </DropdownMenuItem>
   )
 }
 
@@ -99,7 +51,7 @@ export const SettingsMenu = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="end" className="min-w-52">
         <ThemeToggle />
-        <TableSettingsSubmenu />
+        <FeedbackMenuItem />
         {/* <DropdownMenuItem asChild>
           <ExternalLink href="https://sepolia.etherscan.io">
             <ChipLinkIcon className="size-3" />

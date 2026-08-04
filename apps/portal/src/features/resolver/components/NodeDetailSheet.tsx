@@ -4,7 +4,6 @@ import { ExternalLink } from 'lucide-react'
 import type { PropsWithChildren } from 'react'
 import { CopyButton } from '@/components/CopyButton'
 import { DataTable } from '@/components/DataTable'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -22,7 +21,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import {
   type NameRecord,
   columns as recordColumns,
@@ -55,7 +53,6 @@ export const NodeDetailSheet = ({
   setOpen,
 }: NodeDetailSheetProps) => {
   const isMobile = useIsMobile()
-  const [tableView] = useTableViewSettings()
 
   const isInactive =
     !!node &&
@@ -74,10 +71,7 @@ export const NodeDetailSheet = ({
     ? recordsToTableData(profile.records)
     : []
 
-  const cellClassName = cn(
-    'px-4 sm:px-6',
-    tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-  )
+  const cellClassName = cn('px-4 sm:px-6', 'h-10 py-2')
 
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>
@@ -169,9 +163,7 @@ export const NodeDetailSheet = ({
                         {roles.map((role) => (
                           <TableRow
                             key={`${role.account}-${role.roleBitmap}`}
-                            className={stripedRowClassName(
-                              tableView.strippedRows,
-                            )}
+                            className={'hover:bg-muted'}
                           >
                             <TableCell
                               className={cn(cellClassName, 'font-mono text-xs')}

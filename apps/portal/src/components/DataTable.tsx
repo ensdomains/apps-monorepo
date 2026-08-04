@@ -8,7 +8,6 @@ import {
 } from '@tanstack/react-table'
 import { useState } from 'react'
 
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import {
   Table,
   TableBody,
@@ -17,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 
 export interface DataTableProps<TData, TValue> {
@@ -30,7 +28,6 @@ export const DataTable = <TData, TValue>({
   data,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
-  const [tableView] = useTableViewSettings()
   const table = useReactTable({
     data,
     columns,
@@ -68,14 +65,14 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
-              className={stripedRowClassName(tableView.strippedRows)}
+              className={'hover:bg-muted'}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   className={cn(
                     'px-4 sm:px-6',
                     // 40px rows per the Builder layout spec (WEB-595)
-                    tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
+                    'h-10 py-2',
                   )}
                   key={cell.id}
                 >

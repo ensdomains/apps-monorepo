@@ -5,10 +5,6 @@ import { EventsTableRow } from './EventsTableRow'
 import type { BaseEvent, EventsTableData } from './types'
 
 // Mock dependencies
-vi.mock('@/features/profile/hooks/useTableViewSettings', () => ({
-  useTableViewSettings: () => [{ strippedRows: false, compact: false }],
-}))
-
 vi.mock('@/utils/events/extractFromAddress', () => ({
   extractFromAddress: vi.fn((details: Record<string, unknown>) => {
     if (details.owner) return details.owner
