@@ -61,7 +61,7 @@ const EventContent = ({ event }: { event: TimelineIndexerEvent }) =>
     ))
     .with('Transfer', () => {
       const from = event.asTransfer?.from
-      const isMint = !from || from.toLowerCase() === zeroAddress
+      const isMint = from?.toLowerCase() === zeroAddress
       return (
         <>
           <span className={muted}>
