@@ -5,10 +5,10 @@ import {
   type ServerResponse,
 } from 'node:http'
 import { CaptureAdmission } from './admission.js'
+import { createCachedBrowserReadinessProbe } from './browserReadiness.js'
 import { createLocalBrowserFactory, RendererMediaCapture } from './capture.js'
 import { loadGeneratorConfig } from './config.js'
 import { isNonRetryableGeneratorError } from './errors.js'
-import { createCachedGraphicsProbe } from './graphics.js'
 import { R2ObjectStore } from './r2.js'
 import { TokenGenerationService } from './service.js'
 
@@ -50,8 +50,10 @@ const browserFactory = createLocalBrowserFactory({
   extraArgs: config.chromiumExtraArgs,
   graphicsMode: config.chromiumGraphicsMode,
 })
-const probeGraphicsReadiness = createCachedGraphicsProbe({
+const captureAdmission = new CaptureAdmission()
+const probeBrowserReadiness = createCachedBrowserReadinessProbe({
   browserFactory,
+  cacheMs: 10 * 60_000,
   configuredMode: config.chromiumGraphicsMode,
 })
 const capture = new RendererMediaCapture({
@@ -70,8 +72,6 @@ const service = new TokenGenerationService({
   rendererRevision: config.rendererRevision,
   runtimeAdapter: config.runtimeAdapter,
 })
-const captureAdmission = new CaptureAdmission()
-
 type GenerationRoute = {
   readonly action: 'capture' | 'publish' | 'verify'
   readonly tokenId: string
@@ -140,14 +140,30 @@ const handleRequest = async (
   response: ServerResponse,
 ): Promise<void> => {
   const url = new URL(request.url || '/', 'http://generator.internal')
+  if (request.method === 'GET' && url.pathname === '/livez') {
+    json(response, 200, { status: 'ok' })
+    return
+  }
+
   if (request.method === 'GET' && url.pathname === '/healthz') {
-    const graphics = await probeGraphicsReadiness()
-    json(response, graphics.ready ? 200 : 503, {
-      graphics,
-      rendererRevision: config.rendererRevision,
-      runtimeAdapter: config.runtimeAdapter,
-      status: graphics.ready ? 'ok' : 'not_ready',
-    })
+    const releaseReadiness = captureAdmission.acquire()
+    if (!releaseReadiness) {
+      json(response, 503, { status: 'busy' }, { 'Retry-After': '15' })
+      return
+    }
+    try {
+      const readiness = await probeBrowserReadiness()
+      json(response, readiness.ready ? 200 : 503, {
+        browserVersion: readiness.browserVersion,
+        encoder: readiness.encoder,
+        graphics: readiness.graphics,
+        rendererRevision: config.rendererRevision,
+        runtimeAdapter: config.runtimeAdapter,
+        status: readiness.ready ? 'ok' : 'not_ready',
+      })
+    } finally {
+      releaseReadiness()
+    }
     return
   }
 

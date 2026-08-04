@@ -28,6 +28,17 @@ export type GeneratorConfig = CaptureRuntimeConfig & {
 }
 
 const STAGING_R2_BUCKET_NAME = 'ensv2-commemorative-nft-staging'
+const NVIDIA_PROTECTED_CHROMIUM_FLAGS = [
+  '--disable-gpu',
+  '--disable-gpu-rasterization',
+  '--disable-features=',
+  '--disable-webgl',
+  '--enable-features=',
+  '--enable-software-rasterizer',
+  '--enable-unsafe-swiftshader',
+  '--use-angle=',
+  '--use-gl=',
+] as const
 
 const required = (
   environment: Readonly<Record<string, string | undefined>>,
@@ -96,6 +107,22 @@ export const loadCaptureRuntimeConfig = (
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): CaptureRuntimeConfig => {
   const graphicsMode = chromiumGraphicsMode(environment.CHROMIUM_GRAPHICS_MODE)
+  const chromiumExtraArgs = stringArray(
+    environment.CHROMIUM_EXTRA_ARGS_JSON,
+    'CHROMIUM_EXTRA_ARGS_JSON',
+  )
+  if (graphicsMode === 'ec2-nvidia') {
+    const conflictingFlag = chromiumExtraArgs.find((argument) =>
+      NVIDIA_PROTECTED_CHROMIUM_FLAGS.some((flag) =>
+        flag.endsWith('=') ? argument.startsWith(flag) : argument === flag,
+      ),
+    )
+    if (conflictingFlag) {
+      throw new Error(
+        `CHROMIUM_EXTRA_ARGS_JSON cannot override the NVIDIA profile with ${conflictingFlag}`,
+      )
+    }
+  }
 
   return {
     captureTimeoutMs: positiveInteger(
@@ -105,10 +132,7 @@ export const loadCaptureRuntimeConfig = (
     ),
     chromiumExecutablePath:
       environment.CHROMIUM_EXECUTABLE_PATH?.trim() || undefined,
-    chromiumExtraArgs: stringArray(
-      environment.CHROMIUM_EXTRA_ARGS_JSON,
-      'CHROMIUM_EXTRA_ARGS_JSON',
-    ),
+    chromiumExtraArgs,
     chromiumGraphicsMode: graphicsMode,
     rendererOrigin: origin(
       environment.RENDERER_ORIGIN || 'https://ens-renderer.pages.dev',

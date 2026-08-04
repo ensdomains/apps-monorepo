@@ -5,6 +5,7 @@ import {
   type LaunchOptions,
   type Response as PlaywrightResponse,
 } from 'playwright-core'
+import { inspectPageH264 } from './browserReadiness.js'
 import { canonicalizeChromiumMp4 } from './canonicalizeMp4.js'
 import { UnsupportedRendererOutputError } from './errors.js'
 import {
@@ -25,6 +26,7 @@ export type CapturedMedia = {
 }
 
 export const BROWSER_CLOSE_TIMEOUT_MS = 10_000
+const DOWNLOAD_DELIVERY_TIMEOUT_MS = 10_000
 
 export type MediaCapture = {
   readonly capture: (params: {
@@ -45,6 +47,30 @@ const downloadBytes = async (download: Download): Promise<Uint8Array> => {
   return new Uint8Array(Buffer.concat(chunks))
 }
 
+const waitForDeliveredDownload = async (
+  downloadPromise: Promise<Download>,
+  mediaType: 'MP4' | 'PNG',
+): Promise<Download> => {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(
+      () =>
+        reject(
+          new UnsupportedRendererOutputError(
+            `Renderer completed without delivering ${mediaType}`,
+          ),
+        ),
+      DOWNLOAD_DELIVERY_TIMEOUT_MS,
+    )
+  })
+
+  try {
+    return await Promise.race([downloadPromise, timeout])
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle)
+  }
+}
+
 type RendererWindow = Window & {
   readonly ens?: {
     readonly faceCapture?: {
@@ -58,21 +84,39 @@ type RendererWindow = Window & {
   }
 }
 
+const browserEnvironment = (): Record<string, string> => {
+  const result: Record<string, string> = {}
+  for (const [name, value] of Object.entries(process.env)) {
+    if (
+      value !== undefined &&
+      !/(?:ACCESS_KEY|AUTH_TOKEN|CREDENTIAL|PASSWORD|SECRET)/i.test(name)
+    ) {
+      result[name] = value
+    }
+  }
+  return result
+}
+
 export const createLocalBrowserFactory = (
   options: Pick<LaunchOptions, 'executablePath'> & {
     readonly extraArgs?: readonly string[]
     readonly graphicsMode: ChromiumGraphicsMode
   },
 ): BrowserFactory => {
-  return () =>
-    chromium.launch({
+  return () => {
+    const isNvidia = options.graphicsMode === 'ec2-nvidia'
+    return chromium.launch({
+      channel: options.executablePath ? undefined : 'chromium',
       executablePath: options.executablePath,
       headless: true,
+      env: browserEnvironment(),
       args: [
         ...chromiumLaunchArguments(options.graphicsMode),
         ...(options.extraArgs ?? []),
       ],
+      ignoreDefaultArgs: isNvidia ? ['--enable-unsafe-swiftshader'] : undefined,
     })
+  }
 }
 
 export class RendererMediaCapture implements MediaCapture {
@@ -197,19 +241,39 @@ export class RendererMediaCapture implements MediaCapture {
           )
         }
 
-        await page.waitForFunction(() =>
-          Boolean(
-            (window as RendererWindow).ens?.faceCapture?.capturePng &&
-              (window as RendererWindow).ens?.faceCapture?.exportLoop,
-          ),
-        )
+        await page.waitForFunction(() => {
+          const rendererError = document.querySelector('[data-error], .error')
+          if (rendererError?.textContent?.trim()) return true
+
+          const ens = (window as RendererWindow).ens
+          return Boolean(ens?.faceCapture && ens.time)
+        })
+
+        const rendererError = await page.evaluate(() => {
+          const element = document.querySelector('[data-error], .error')
+          return element?.textContent?.trim() || undefined
+        })
+        if (rendererError) {
+          throw new UnsupportedRendererOutputError(
+            `Renderer reported an error: ${rendererError}`,
+          )
+        }
+
+        const encoder = await inspectPageH264(page)
+        if (!encoder.ready) {
+          throw new UnsupportedRendererOutputError(
+            encoder.reason || 'Renderer Chromium cannot encode H.264',
+          )
+        }
 
         assertGraphicsRequirement(
           await inspectPageWebGl(page),
           this.#graphicsRequirement,
         )
 
-        const pngDownload = page.waitForEvent('download')
+        const pngDownload = page.waitForEvent('download', {
+          timeout: this.#captureTimeoutMs,
+        })
         await page.evaluate(async () => {
           const ens = (window as RendererWindow).ens
           if (!ens?.faceCapture || !ens.time) {
@@ -224,7 +288,9 @@ export class RendererMediaCapture implements MediaCapture {
             ens.time.captureMode = false
           }
         })
-        const png = await downloadBytes(await pngDownload)
+        const png = await downloadBytes(
+          await waitForDeliveredDownload(pngDownload, 'PNG'),
+        )
         validatePng(png)
 
         const mp4Download = page.waitForEvent('download', {
@@ -235,7 +301,11 @@ export class RendererMediaCapture implements MediaCapture {
         })
         let mp4: Uint8Array
         try {
-          mp4 = canonicalizeChromiumMp4(await downloadBytes(await mp4Download))
+          mp4 = canonicalizeChromiumMp4(
+            await downloadBytes(
+              await waitForDeliveredDownload(mp4Download, 'MP4'),
+            ),
+          )
         } catch (error) {
           throw new UnsupportedRendererOutputError(
             `Renderer MP4 cannot be canonicalized: ${

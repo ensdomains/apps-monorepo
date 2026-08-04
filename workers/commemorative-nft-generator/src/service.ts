@@ -274,9 +274,7 @@ export class TokenGenerationService {
       ...input,
       image: assetUrl(this.#publicAssetOrigin, tokenId, 'png'),
       animation_url: assetUrl(this.#publicAssetOrigin, tokenId, 'mp4'),
-      ...(this.#externalOrigin
-        ? { external_url: `${this.#externalOrigin}/${tokenId}` }
-        : {}),
+      ...(this.#externalOrigin ? { external_url: this.#externalOrigin } : {}),
       properties: {
         renderer_revision: this.#rendererRevision,
         runtime_adapter: this.#runtimeAdapter,

@@ -16,7 +16,7 @@ For each token, the generator:
 8. Writes `tokens/<tokenId>.complete.json` last with the verified artifact
    records, then returns their hashes and byte sizes.
 
-Every API request except `/healthz` requires a bearer token. Do not rely on an
+Every API request except `/livez` and `/healthz` requires a bearer token. Do not rely on an
 EC2 security group to identify a particular Cloudflare Worker: Worker egress
 does not provide a stable, Worker-specific source address. Put the service
 behind HTTPS, keep the instance port private, and use the shared bearer token
@@ -26,22 +26,50 @@ as the application-level authorization boundary.
 
 `CHROMIUM_GRAPHICS_MODE` is explicit and fail-closed:
 
-- `ec2-nvidia` is the default for staging. Chromium disables its software
-  rasterizer, `/healthz` returns `503` unless WebGL reports an NVIDIA renderer,
-  and each capture checks the renderer again before creating media.
+- `ec2-nvidia` is the default for staging. It launches regular Chromium with a
+  Linux Vulkan profile derived from the upstream renderer harness, removes
+  Playwright's unsafe SwiftShader fallback, and disables the software rasterizer.
+  `/healthz` returns `503` unless WebGL reports an NVIDIA renderer and a one-frame
+  H.264 WebCodecs probe emits encoded bytes. Each capture checks both
+  capabilities again before creating media.
 - `software` deliberately uses SwiftShader for local development. Generated
   artifacts are labeled `local-software`, so they cannot be mistaken for
   staging GPU output. It must use a separate `R2_BUCKET_NAME`; configuration
   fails if software mode targets `ensv2-commemorative-nft-staging`.
 
-The service has not yet been validated on the shared GPU instance. A successful
-local test or process start is not proof of GPU acceleration. On EC2, require a
-`200` response from `/healthz` with `graphics.backend: "nvidia"` and
-`graphics.gpuBacked: true` before sending capture traffic.
+The upstream `ens_renderer` GPU harness at commit
+`ae4890dc53369d249f837a4c234b8ba11e772e2a` validated Puppeteer-managed Chrome
+for Testing on a Tesla T4 `g4dn.xlarge` with
+`--use-angle=vulkan --enable-features=Vulkan`. Those flags and its
+background-throttling safeguards are built into `ec2-nvidia`; Linux `gl` and
+default ANGLE modes did not create a usable WebGL context in that harness. Use
+`CHROMIUM_EXTRA_ARGS_JSON` only for additional reviewed flags. Known conflicts
+with the Vulkan profile are rejected, and runtime probes remain the final gate.
 
-The generic NVIDIA mode does not guess a machine-specific GL backend. Add only
-the Chromium flags validated by the EC2 benchmark through
-`CHROMIUM_EXTRA_ARGS_JSON`, for example `["--some-validated-flag"]`.
+The upstream 3.77-second result exercised `ens.loopExporter`, which renders the
+full 3D canvas directly into `VideoFrame`. This service intentionally uses the
+face-only `ens.faceCapture` path, including render-target readback, PNG capture,
+MP4 canonicalization, and validation. Do not use 3.77 seconds for service
+capacity or cost estimates. The exact face-only path still needs to be measured
+on the ENS GPU instance.
+
+A successful local test or process start is not proof of GPU acceleration. On
+EC2, require a `200` response from `/healthz` with
+`graphics.backend: "nvidia"`, `graphics.gpuBacked: true`, and
+`encoder.ready: true` before sending capture traffic. The health response also
+reports `encoder.quantizerSupported` for the renderer quality rollout.
+
+`/livez` is a cheap process-liveness route for frequent ingress checks.
+`/healthz` is the deployment-readiness gate: it runs the bounded Chromium/GPU
+probe, caches a success for ten minutes, retries failures after fifteen seconds,
+and never overlaps a media capture. A probe that does not complete within 30
+seconds fails closed.
+
+Simon's tested Chrome-for-Testing setup found its headless-shell binary lacked
+the required H.264 encoder. When `CHROMIUM_EXECUTABLE_PATH` is empty, the
+service selects Playwright's regular Chromium channel instead of its headless
+shell. A configured browser is accepted only when the runtime H.264 probe
+succeeds.
 
 ## GPU benchmark
 
@@ -58,7 +86,7 @@ pnpm benchmark:gpu
 
 Optional settings are `BENCHMARK_WARMUP_RUNS` (default `1`) and
 `BENCHMARK_REPEAT_RUNS` (default `3`, minimum `2`). The command uses the same
-Chromium launcher, GPU probe, renderer validation, PNG capture, MP4
+regular-Chromium launcher, NVIDIA/H.264 probe, renderer validation, PNG capture, MP4
 canonicalization, and media validation as the service. It prints JSON with
 per-run durations, byte sizes, and hashes, p50/p95 timing, and determinism. When
 `BENCHMARK_OUTPUT_DIR` is set, the first measured PNG/MP4 pair is written there
@@ -69,9 +97,24 @@ The default three measured runs are a quick determinism smoke test. Set
 hosts or estimate cost; include the EC2 hourly price and image/driver versions
 alongside the emitted JSON.
 
-The benchmark requires NVIDIA-backed WebGL and never reads or writes R2, so no
-R2 or generator-service credentials are required. It exits non-zero if GPU
-readiness or byte determinism fails.
+The benchmark requires NVIDIA-backed WebGL and a working H.264 encoder and never
+reads or writes R2, so no R2 or generator-service credentials are required. It
+exits non-zero if runtime readiness or byte determinism fails.
+
+## Renderer encoder quality dependency
+
+The renderer's face-only exporter currently requests a fixed 6 Mbps bitrate.
+The quantizer change in renderer PR 3 updates `LoopExporter`, not
+`FaceCapture`, so it does not improve media generated by this service. Its QP 20
+quality and file-size evidence is Windows-only. Before publishing immutable
+quality-approved media, the renderer must reuse the QP 20 encoder selection in
+`FaceCapture`, deploy it, and publish a new bundle digest. Then update
+`RENDERER_REVISION` in the generator and Worker configuration and use a fresh
+controlled token. The health report's `encoder.quantizerSupported` only proves
+that a one-frame QP 20 probe emitted bytes; the face-only benchmark and visual
+QA must establish Linux output quality. Do not switch this service to
+`LoopExporter`; that would change the product artifact from the face-only NFT
+to the full 3D scene.
 
 ## Environment
 
@@ -94,14 +137,15 @@ Optional staging defaults:
 - `RENDERER_ORIGIN=https://ens-renderer.pages.dev`
 - `PORT=3000`
 - `CAPTURE_TIMEOUT_MS=390000` (reserves the rest of the ten-minute request for bounded R2 reads and writes)
-- `CHROMIUM_EXECUTABLE_PATH=/path/to/chromium`
+- `CHROMIUM_EXECUTABLE_PATH=/path/to/chromium` (empty uses Playwright's regular Chromium channel)
 - `CHROMIUM_GRAPHICS_MODE=ec2-nvidia` (`software` for local development)
 - `CHROMIUM_EXTRA_ARGS_JSON=[]`
 - `NFT_EXTERNAL_ORIGIN=https://app.ens.dev/migration/nft`
 
 R2 credentials must be scoped to the staging bucket and supplied to the EC2
 service through the deployment secret store. They must never be exposed to
-Manager or committed.
+Manager or committed. Chromium child processes receive a filtered environment
+without token, access-key, password, credential, or secret variables.
 
 For an isolated Worker preview, override both URL-bearing values before the
 first capture:
@@ -111,9 +155,10 @@ NFT_PUBLIC_ASSET_ORIGIN=https://<preview-worker>.<account>.workers.dev/v1/commem
 NFT_EXTERNAL_ORIGIN=http://localhost:3000/migration/nft
 ```
 
-Metadata is immutable, so a capture created with the production asset origin
-cannot be corrected later. Use only an agreed controlled token in the shared
-staging bucket.
+`NFT_EXTERNAL_ORIGIN` is written exactly as the metadata `external_url`; the
+generator does not append a token ID. Metadata is immutable, so a capture
+created with the wrong asset or external origin cannot be corrected later. Use
+only an agreed controlled token in the shared staging bucket.
 
 ## Browser Run capability spike
 
@@ -151,11 +196,15 @@ docker build \
 docker run --detach \
   --name commemorative-nft-generator \
   --gpus all \
+  --init \
+  --ipc=host \
   --restart unless-stopped \
+  --security-opt seccomp=/etc/ens/playwright-seccomp.json \
   --env-file /etc/ens/commemorative-nft-generator.env \
   --publish 127.0.0.1:3000:3000 \
   commemorative-nft-generator:staging
 
+curl --fail http://127.0.0.1:3000/livez
 curl --fail http://127.0.0.1:3000/healthz
 ```
 
@@ -164,11 +213,20 @@ account. The loopback bind intentionally requires a same-host TLS proxy or an
 explicitly reviewed private ingress path; do not change it to a public bind as
 a shortcut.
 
+The image runs as Playwright's unprivileged `pwuser` and does not disable the
+Chromium sandbox. Install the upstream Playwright
+[`seccomp_profile.json`](https://github.com/microsoft/playwright/blob/main/utils/docker/seccomp_profile.json)
+at the path shown above; it is Docker's default profile with the user-namespace
+permissions required by Chromium. Do not replace it with `seccomp=unconfined`
+or add `SYS_ADMIN` in staging.
+
 The deployment must provide all of the following without requiring code
 changes:
 
-1. Launch the container with GPU access (for example, `--gpus all`) and the
-   benchmarked `CHROMIUM_EXTRA_ARGS_JSON` value.
+1. Launch the container with GPU access (for example, `--gpus all`). The
+   harness-derived Vulkan profile is built in; keep
+   `CHROMIUM_EXTRA_ARGS_JSON=[]` unless another flag has been reviewed on the
+   target image.
 2. Load `.env.example` values from the host's secret/configuration manager. The
    populated environment file must not be copied into the image or repository.
 3. Run behind a TLS-terminating reverse proxy or load balancer. Expose only
@@ -178,12 +236,16 @@ changes:
    depth only when the chosen egress path supplies a stable address.
 5. Supervise the process with the host scheduler or a container restart policy,
    and preserve stdout/stderr logs outside the container.
-6. Configure the ingress health check to call `GET /healthz`. Do not send jobs
-   until it returns `200`, `graphics.backend: "nvidia"`, and
-   `graphics.gpuBacked: true`.
+6. Configure the frequent ingress health check to call `GET /livez`. Before
+   enabling jobs, call `GET /healthz` and require `200`,
+   `graphics.backend: "nvidia"`, `graphics.gpuBacked: true`, and
+   `encoder.ready: true`.
 7. Publish a stable HTTPS origin with no path, query, credentials, or redirect;
    that exact origin becomes `COMMEMORATIVE_NFT_GENERATOR_ORIGIN` in the Worker.
 
-The final launch command and Chromium flags depend on the shared GPU host and
-must come from the benchmark. The environment-only graphics configuration is
-intended to avoid GPU-specific source changes.
+Simon validated bare Ubuntu plus Chrome for Testing, not this Playwright
+container.
+Run the face-only benchmark directly on the prepared host first, then repeat it
+inside the exact deployment image to verify the NVIDIA Vulkan ICD and H.264
+encoder survive container isolation. Only the in-container result represents
+production throughput.

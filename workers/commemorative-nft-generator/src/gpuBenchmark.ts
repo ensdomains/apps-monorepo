@@ -1,6 +1,7 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { probeBrowserReadiness } from './browserReadiness.js'
 import { createLocalBrowserFactory, RendererMediaCapture } from './capture.js'
 import {
   type CaptureRuntimeConfig,
@@ -11,7 +12,7 @@ import {
   type GpuBenchmarkRun,
   summarizeBenchmarkTimings,
 } from './gpuBenchmarkReport.js'
-import { probeBrowserGraphics } from './graphics.js'
+import { chromiumLaunchArguments } from './graphics.js'
 import { normalizeTokenId } from './keys.js'
 import { sha256Hex } from './media.js'
 import { parseRenderInput } from './renderInput.js'
@@ -108,20 +109,40 @@ const writeQaArtifacts = async (params: {
   return { mp4, png }
 }
 
+const readNvidiaDriverVersion = async (): Promise<string | undefined> => {
+  try {
+    return (await readFile('/proc/driver/nvidia/version', 'utf8')).trim()
+  } catch {
+    return undefined
+  }
+}
+
 export const runGpuBenchmark = async (config: GpuBenchmarkConfig) => {
+  const runtimeEvidence = {
+    configuredBrowser: config.chromiumExecutablePath || 'playwright:chromium',
+    configuredChromiumArguments: [
+      ...chromiumLaunchArguments(config.chromiumGraphicsMode),
+      ...config.chromiumExtraArgs,
+    ],
+    nvidiaDriverVersion: await readNvidiaDriverVersion(),
+  }
   const browserFactory = createLocalBrowserFactory({
     executablePath: config.chromiumExecutablePath,
     extraArgs: config.chromiumExtraArgs,
     graphicsMode: config.chromiumGraphicsMode,
   })
-  const graphics = await probeBrowserGraphics({
+  const readiness = await probeBrowserReadiness({
     browserFactory,
     configuredMode: 'ec2-nvidia',
   })
-  if (!graphics.ready) {
+  if (!readiness.ready) {
     return {
-      graphics,
+      browserArguments: readiness.browserArguments,
+      browserVersion: readiness.browserVersion,
+      encoder: readiness.encoder,
+      graphics: readiness.graphics,
       runtimeAdapter: config.runtimeAdapter,
+      runtimeEvidence,
       stage: 'readiness',
       status: 'failed',
     } as const
@@ -174,13 +195,17 @@ export const runGpuBenchmark = async (config: GpuBenchmarkConfig) => {
       : undefined
 
   return {
+    browserArguments: readiness.browserArguments,
+    browserVersion: readiness.browserVersion,
     determinism,
-    graphics,
+    encoder: readiness.encoder,
+    graphics: readiness.graphics,
     ...(qaArtifacts ? { qaArtifacts } : {}),
     rendererRevision: config.rendererRevision,
     repeatRuns: config.repeatRuns,
     runs,
     runtimeAdapter: config.runtimeAdapter,
+    runtimeEvidence,
     stage: 'complete',
     status: determinism.deterministic ? 'passed' : 'failed',
     timingMs: summarizeBenchmarkTimings(runs),

@@ -149,10 +149,23 @@ created or deployed.
 
 ## GPU service handoff
 
-Before enabling generation, benchmark the current renderer on the selected GPU
-host and record WebGL renderer evidence, PNG and canonicalized-MP4 repeat
-hashes, warm p50/p95 duration, output sizes, and cost per token. Keep the Worker
-origin empty until the service passes that gate and Simon completes visual QA.
+The upstream `ens_renderer` harness at commit
+`ae4890dc53369d249f837a4c234b8ba11e772e2a` proved Puppeteer-managed Chrome for
+Testing plus Vulkan on a Tesla T4, but its 3.77-second result is for the
+full-canvas `LoopExporter`.
+This service generates face-only PNG/MP4 through `FaceCapture`, which performs a
+different readback path. Before enabling generation, benchmark that exact path
+on the selected GPU host and record the Chromium version, NVIDIA WebGL
+renderer, successful one-frame H.264 WebCodecs probe, PNG and canonicalized-MP4 repeat hashes, warm
+p50/p95 duration, output sizes, and cost per token.
+
+Renderer PR 3 applies QP 20 only to `LoopExporter`; `FaceCapture` remains fixed
+at 6 Mbps. Do not treat the quality fix as integrated until the renderer shares
+that encoder selection with `FaceCapture`, the new bundle is deployed and
+pinned, and the generator reports quantizer support. That probe establishes API
+viability only; the face-only benchmark and visual QA must establish Linux
+quality. Keep the Worker origin empty until those gates pass and Simon completes
+visual QA.
 
 ## Publication and recovery guarantees
 
@@ -184,7 +197,10 @@ implementation:
 
 1. Confirm Workers Paid enables Workflows.
 2. Confirm the existing R2 health, CORS, eligibility, and render-input objects.
-3. Deploy and validate the NVIDIA generator behind a stable HTTPS origin.
+3. Deploy and validate the NVIDIA generator behind a stable HTTPS origin. Its
+   `/healthz` response must confirm NVIDIA-backed WebGL and a successful
+   one-frame H.264 WebCodecs probe. Use `/livez`, not the deep readiness route,
+   for frequent ingress liveness checks.
 4. Configure the Worker origin plus the two secrets above, then deploy the
    Worker.
 5. Use an unclaimed controlled Sepolia fixture; do not reset an existing one.

@@ -32,6 +32,7 @@ type RawWebGlRendererInfo = {
 const SOFTWARE_RENDERER_MARKERS = [
   'lavapipe',
   'llvmpipe',
+  'mesa offscreen',
   'microsoft basic render',
   'osmesa',
   'softpipe',
@@ -54,9 +55,18 @@ export const chromiumLaunchArguments = (
   return [
     '--enable-gpu',
     '--enable-gpu-rasterization',
+    '--enable-zero-copy',
     '--enable-webgl',
     '--ignore-gpu-blocklist',
     '--disable-software-rasterizer',
+    '--use-angle=vulkan',
+    '--enable-features=Vulkan',
+    '--disable-dev-shm-usage',
+    '--hide-scrollbars',
+    '--mute-audio',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
   ]
 }
 

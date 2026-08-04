@@ -20,4 +20,5 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY --from=dependencies /app/workers/commemorative-nft-generator/node_modules ./workers/commemorative-nft-generator/node_modules
 COPY --from=build /app/workers/commemorative-nft-generator/dist ./workers/commemorative-nft-generator/dist
 EXPOSE 3000
+USER pwuser
 CMD ["node", "workers/commemorative-nft-generator/dist/server.js"]
