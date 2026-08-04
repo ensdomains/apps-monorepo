@@ -240,7 +240,7 @@ export const EntityBadge = ({
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
   const primaryWrapperClass =
-    'inline-flex items-center gap-2 py-4 px-2 rounded cursor-pointer text-left no-underline'
+    'inline-flex items-center gap-2 py-2.5 px-2 rounded cursor-pointer text-left no-underline'
 
   const renderPrimary = () => {
     if (variant === 'name' && name) {
@@ -315,7 +315,7 @@ export const EntityBadge = ({
       )
     }
     return (
-      <div className="inline-flex items-center gap-2 py-4 px-2 rounded">
+      <div className="inline-flex items-center gap-2 py-2.5 px-2 rounded">
         {pillNode}
       </div>
     )
@@ -389,14 +389,14 @@ export const EntityBadge = ({
     >
       {/*
         Chip container's bottom-left corner sits INSIDE the hover zone:
-        - `bottom: calc(100% - 12px)` puts chip bottom 12px below wrapper top
-          (= 4px above pill top, bridged by the inner wrapper's py-4)
+        - `bottom: calc(100% - 6px)` puts chip bottom 6px below wrapper top
+          (= 4px above pill top, bridged by the inner wrapper's py-2.5)
         - `left-2` puts chip left 8px inside wrapper from left
           (matching Figma's chip-to-bg-edge gap of 8px)
       */}
       <div
         className={cn(
-          'absolute bottom-[calc(100%-12px)] left-2 flex flex-row gap-1 z-50',
+          'absolute bottom-[calc(100%-6px)] left-2 flex flex-row gap-1 z-50',
           // Reveal on mouse hover and on keyboard focus-within the badge;
           // opacity/pointer-events (not display:none) keeps chips in the tab
           // order and the accessibility tree.

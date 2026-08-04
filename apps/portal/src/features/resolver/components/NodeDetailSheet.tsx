@@ -71,7 +71,7 @@ export const NodeDetailSheet = ({
     ? recordsToTableData(profile.records)
     : []
 
-  const cellClassName = cn('px-4 sm:px-6', 'h-10 py-2')
+  const cellClassName = cn('px-4 sm:px-6', 'h-10 py-0')
 
   return (
     <Sheet open={open} onOpenChange={setOpen} defaultOpen={false}>

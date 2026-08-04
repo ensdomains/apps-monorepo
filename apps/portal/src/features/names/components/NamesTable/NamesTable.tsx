@@ -71,7 +71,7 @@ export const NamesTable = ({ table }: NamesTableProps) => {
                 className={'hover:bg-muted'}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell className={cn('px-6', 'h-10 py-2')} key={cell.id}>
+                  <TableCell className={cn('px-6', 'h-10 py-0')} key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

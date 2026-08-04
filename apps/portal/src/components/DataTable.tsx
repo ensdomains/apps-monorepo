@@ -72,7 +72,7 @@ export const DataTable = <TData, TValue>({
                   className={cn(
                     'px-4 sm:px-6',
                     // 40px rows per the Builder layout spec (WEB-595)
-                    'h-10 py-2',
+                    'h-10 py-0',
                   )}
                   key={cell.id}
                 >
