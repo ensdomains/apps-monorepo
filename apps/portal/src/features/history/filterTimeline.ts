@@ -4,7 +4,7 @@ import { dateToPlainDate, unixSecondsToPlainDateUtc } from '@/utils/temporal'
 import type { TimelineIndexerEvent } from './hooks/useNameHistoryTimeline'
 import { humanizeType } from './summarize/descriptors'
 import type { Action } from './summarize/summarize.types'
-import { IGNORED_TYPES, summarizeEvents } from './summarize/summarizeEvents'
+import { IGNORED_TYPES } from './summarize/summarizeEvents'
 
 const isWithinRange = (unixSeconds: number, range: DateRange): boolean => {
   if (!range.from && !range.to) return true
@@ -41,7 +41,11 @@ export const filterActions = (
       selectedTypes.includes(event.type),
     )
     if (events.length === 0) continue
-    result.push(...summarizeEvents(events))
+    // Filtering only hides non-matching tier-2 events — it must not re-headline
+    // the action (a register filtered to its Transfer stays "Register name").
+    result.push(
+      events.length === action.events.length ? action : { ...action, events },
+    )
   }
   return result
 }

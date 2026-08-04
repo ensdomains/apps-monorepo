@@ -28,30 +28,35 @@ const action = (events: TimelineIndexerEvent[]): Action => ({
 })
 
 describe('filterActions', () => {
-  it('re-summarizes remaining events so the label matches the filter', () => {
+  it('keeps the original action label and hides non-matching events', () => {
     const filtered = filterActions(
       [
-        action([
-          event('NameRegistered', '1', {
-            name: 'alice.eth',
-            asNameRegistered: { name: 'alice.eth' },
-          }),
-          event('Transfer', '2', {
-            name: 'alice.eth',
-            asTransfer: {
-              from: '0x1111111111111111111111111111111111111111',
-              to: '0x2222222222222222222222222222222222222222',
-            },
-          }),
-          event('EACRolesChanged', '3'),
-        ]),
+        {
+          ...action([
+            event('NameRegistered', '1', {
+              name: 'alice.eth',
+              asNameRegistered: { name: 'alice.eth' },
+            }),
+            event('Transfer', '2', {
+              name: 'alice.eth',
+              asTransfer: {
+                from: '0x1111111111111111111111111111111111111111',
+                to: '0x2222222222222222222222222222222222222222',
+              },
+            }),
+            event('EACRolesChanged', '3'),
+          ]),
+          label: 'Register name',
+        },
       ],
       {},
       ['Transfer'],
     )
     expect(filtered).toHaveLength(1)
+    // Detail narrows to the matching event, but the headline is unchanged —
+    // not re-derived to "Transfer name".
     expect(filtered[0].events.map((e) => e.type)).toEqual(['Transfer'])
-    expect(filtered[0].label).toBe('Transfer name')
+    expect(filtered[0].label).toBe('Register name')
   })
 
   it('drops actions with no matching event types', () => {
