@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
@@ -72,9 +71,9 @@ const TokenInfoCard = ({
       </HeaderInfoRow>
 
       <HeaderInfoRow label="Token Standard">
-        <div>
-          <CopyableRecord value={tokenStandard} />
-        </div>
+        <EntityBadge variant="default" copyValue={tokenStandard}>
+          {tokenStandard}
+        </EntityBadge>
       </HeaderInfoRow>
 
       <HeaderInfoRow label="Contract">
@@ -85,7 +84,13 @@ const TokenInfoCard = ({
 
       <HeaderInfoRow label="Token ID">
         <div className="flex items-center gap-4 justify-between w-full ">
-          <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
+          <div className="flex-1 min-w-0">
+            <EntityBadge variant="default" copyValue={tokenId}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {tokenId}
+              </span>
+            </EntityBadge>
+          </div>
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="default" size="sm" className="gap-1 shrink-0">
@@ -345,25 +350,41 @@ function RouteComponent() {
 
         <InfoRow label="Unicode">
           <div>
-            <CopyableRecord value={escapeUnicode(name)} />
+            <EntityBadge variant="default" copyValue={escapeUnicode(name)}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {escapeUnicode(name)}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
 
         <InfoRow label="ASCII">
           <div>
-            <CopyableRecord value={ascii} />
+            <EntityBadge variant="default" copyValue={ascii}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {ascii}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
 
         <InfoRow label="DNS encoded">
           <div>
-            <CopyableRecord value={dnsEncode} className="max-w-full" />
+            <EntityBadge variant="default" copyValue={dnsEncode}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {dnsEncode}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
 
         <InfoRow label="Namehash">
           <div>
-            <CopyableRecord value={hash} className="max-w-full" />
+            <EntityBadge variant="default" copyValue={hash}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {hash}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
       </InfoCard>
@@ -396,7 +417,14 @@ function RouteComponent() {
                 <TabsContent className="m-0 px-0" value={label} key={label}>
                   <InfoRow label="Input">
                     <div>
-                      <CopyableRecord value={escapeUnicode(label)} />
+                      <EntityBadge
+                        variant="default"
+                        copyValue={escapeUnicode(label)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {escapeUnicode(label)}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
@@ -406,19 +434,40 @@ function RouteComponent() {
 
                   <InfoRow label="Bytes">
                     <div>
-                      <CopyableRecord value={labelBytes} />
+                      <EntityBadge
+                        variant="default"
+                        copyValue={String(labelBytes)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {labelBytes}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Characters">
                     <div>
-                      <CopyableRecord value={labelChars} />
+                      <EntityBadge
+                        variant="default"
+                        copyValue={String(labelChars)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {labelChars}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Labelhash">
                     <div>
-                      <CopyableRecord value={labelhash(label)} />
+                      <EntityBadge
+                        variant="default"
+                        copyValue={labelhash(label)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {labelhash(label)}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
                 </TabsContent>
