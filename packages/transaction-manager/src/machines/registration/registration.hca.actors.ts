@@ -225,7 +225,13 @@ async function quoteIntentSpendUsdc(
       : undefined
 
   return {
-    spendUsdc: spend !== null && spend > 0n ? spend : null,
+    // `readUsdcSpend` already encodes readability: `null` means the quote could
+    // not be priced, `0n` means it was priced at nothing. Re-testing `> 0n`
+    // here would collapse that second case back into "unreadable" and drop the
+    // budget to the fallback model, which the no-fallback guard then turns into
+    // a hard registration failure -- exactly what breaks against an
+    // orchestrator that settles for free.
+    spendUsdc: spend,
     ...(market ? { market } : {}),
   }
 }
