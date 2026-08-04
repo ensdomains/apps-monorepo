@@ -57,11 +57,15 @@ export const Route = createRootRoute({
                 </PHProvider>
               </TransactionManagerSetup>
             </ConnectModalProvider>
+            {/* Inside QueryClientProvider on purpose: the dev panels use
+                useQueryClient/useQuery (to invalidate the app's own queries
+                after seeding a name or warping time), so mounting them outside
+                it throws as soon as the drawer is opened. */}
+            <DevDrawer />
           </QueryClientProvider>
         </WagmiProvider>
 
         <Toaster position="top-right" richColors duration={4000} />
-        <DevDrawer />
         <TanStackRouterDevtools position="bottom-right" />
       </>
     )

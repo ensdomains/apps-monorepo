@@ -8,6 +8,7 @@
  * Rendered only when `isMigrationToolEnabled()` — mounted by each app's root.
  */
 
+import { ensL1Subgraphs, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { useQueryClient } from '@tanstack/react-query'
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 import { MIGRATION_TOOL_RPC } from './config'
@@ -29,8 +30,29 @@ import {
   useInvalidateMigrationQueriesOnMount,
 } from './MigrationTestPanel.hooks'
 
-// V1 subgraph URL pattern — intercepted to inject panel-created names
-const V1_SUBGRAPH_PATTERN = 'ensnode.io/subgraph'
+/**
+ * The V1 subgraph endpoint the apps actually talk to, read from the same ensjs
+ * chain config their clients are built from. Hardcoding the host is what
+ * silently broke injection once before: ensjs moved Sepolia's V1 subgraph off
+ * `ensnode.io`, the pattern stopped matching, and every panel-created name
+ * looked non-existent (and therefore non-migratable) to the apps while real
+ * subgraph-indexed names kept working.
+ */
+const V1_SUBGRAPH_URL = ensL1Subgraphs[supportedL1Chains.sepolia].ens.url
+
+/**
+ * Whether a request is the V1 subgraph. Matches the configured endpoint first,
+ * then falls back to any `/subgraph` path so a proxied or relocated endpoint
+ * still gets injected — the V2 indexer serves `/graphql`, so there's no overlap.
+ */
+function isV1SubgraphRequest(url: string): boolean {
+  if (url.startsWith(V1_SUBGRAPH_URL)) return true
+  try {
+    return new URL(url, window.location.origin).pathname.endsWith('/subgraph')
+  } catch {
+    return false
+  }
+}
 
 /** Extract the `name` GraphQL variable from a subgraph request body. */
 function migrationLookupName(body: string): string | undefined {
@@ -88,7 +110,7 @@ export function setInjectedNames(names: ActiveName[]): void {
           ? input.href
           : (input as Request).url
 
-    if (!url.includes(V1_SUBGRAPH_PATTERN)) return origFetch(input, init)
+    if (!isV1SubgraphRequest(url)) return origFetch(input, init)
 
     // Two v1-subgraph queries need panel-created names injected:
     //  - getNamesForAddress: the dashboard name list (returns all names).
@@ -476,11 +498,7 @@ function presetChipStyle(disabled: boolean, active: boolean): CSSProperties {
     padding: '2px 8px',
     borderRadius: 4,
     border: '1px solid #cee1e8',
-    background: active
-      ? '#093c52'
-      : disabled
-        ? '#eeeded'
-        : '#0080bc',
+    background: active ? '#093c52' : disabled ? '#eeeded' : '#0080bc',
     color: disabled ? '#737373' : '#fff',
     cursor: disabled ? 'default' : 'pointer',
     fontSize: 11,
