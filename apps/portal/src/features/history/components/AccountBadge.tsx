@@ -11,6 +11,11 @@ interface AccountBadgeProps {
   /** When no address is known (e.g. "Renew by …"), resolve this tx's sender instead. */
   readonly txHash?: Hash
   readonly full?: boolean
+  /**
+   * Gate the network resolution (tx sender + reverse lookup). Defaults to
+   * eager; pass an in-view signal to defer it on long, always-visible lists.
+   */
+  readonly enabled?: boolean
 }
 
 /** Full value on desktop, truncated on mobile — for hashes/addresses in expanded detail. */
@@ -25,16 +30,19 @@ export const FullOnDesktop = ({ value }: { value: string }) => (
  * Renders an account as its **primary ENS name** (no avatar) when one resolves,
  * otherwise the truncated address. Optionally resolves the address from a transaction's
  * sender first. Kept here (not in EntityBadge) so the shared badge stays presentational.
+ *
+ * TODO(indexer): once `Event.from` is indexed, pass it as `address` and drop the tx RPC.
  */
 export const AccountBadge = ({
   address,
   txHash,
   full = false,
+  enabled = true,
 }: AccountBadgeProps) => {
   const needsTx = !!txHash && !address
   const { data: tx, isPending } = useTransaction({
     hash: txHash,
-    query: { enabled: needsTx },
+    query: { enabled: needsTx && enabled },
   })
 
   const resolved: Address | undefined =
@@ -43,14 +51,14 @@ export const AccountBadge = ({
 
   const { data: name } = useEnsName({
     address: resolved,
-    query: { enabled: !!resolved },
+    query: { enabled: !!resolved && enabled },
   })
   const explorerUrl = useBlockExplorerAddressUrl(resolved)
 
   if (!resolved) {
     return (
       <span className="text-muted-foreground text-sm">
-        {needsTx && isPending ? '…' : '—'}
+        {needsTx && enabled && isPending ? '…' : '—'}
       </span>
     )
   }

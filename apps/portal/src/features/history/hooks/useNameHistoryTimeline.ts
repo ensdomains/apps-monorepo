@@ -13,6 +13,11 @@ import { graphqlIndexerClient } from '@/lib/indexer'
  * this selects the emitting `contractAddress`, the raw `data` blob, and every typed
  * `as*` decoder the indexer exposes — everything the summarize engine needs to build
  * human-readable action labels and decoded-param detail views.
+ *
+ * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" / "initiated by"
+ * lines are first-class instead of RPC-backfilled (see useTransactionSenders).
+ * TODO(indexer): add typed decoders for ContenthashChanged / NameChanged so those
+ * actions don't rely on parsing the raw `data` JSON (see summarize/decodeRawData.ts).
  */
 
 class GetNameHistoryTimelineError extends TaggedError(

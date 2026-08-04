@@ -1,9 +1,46 @@
+import { useEffect, useRef, useState } from 'react'
 import { match } from 'ts-pattern'
+import type { Address, Hex } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import type { ActionSlot } from '../summarize/summarize.types'
 import { AccountBadge } from './AccountBadge'
 import { ContractBadge } from './ContractBadge'
+
+/**
+ * Actor slots sit on always-visible tier-1 rows, so their tx-sender + reverse
+ * lookups would all fire on page load. Defer each until its row scrolls near the
+ * viewport. Falls back to eager where IntersectionObserver is absent (SSR/tests).
+ */
+const ActorSlot = ({ address, txHash }: { address?: Address; txHash: Hex }) => {
+  const ref = useRef<HTMLSpanElement>(null)
+  const [inView, setInView] = useState(
+    typeof IntersectionObserver === 'undefined',
+  )
+
+  useEffect(() => {
+    if (inView) return
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setInView(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [inView])
+
+  return (
+    <span ref={ref} className="inline-flex">
+      <AccountBadge address={address} txHash={txHash} enabled={inView} />
+    </span>
+  )
+}
 
 /** Renders one label slot — an entity chip, a monospace value, or a muted joiner. */
 const Slot = ({ slot }: { slot: ActionSlot }) =>
@@ -19,7 +56,7 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
       </EntityBadge>
     ))
     .with({ kind: 'actor' }, ({ address, txHash }) => (
-      <AccountBadge address={address} txHash={txHash} />
+      <ActorSlot address={address} txHash={txHash} />
     ))
     .with({ kind: 'contract' }, ({ value, isRegistry, label }) => (
       <ContractBadge address={value} isRegistry={isRegistry} label={label} />
