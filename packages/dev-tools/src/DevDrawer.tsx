@@ -643,6 +643,11 @@ const panelStyle: CSSProperties = {
   left: 0,
   right: 0,
   zIndex: Z_PANEL,
+  // A Radix modal Dialog (portal's TransactionModal) sets
+  // `body { pointer-events: none }` while open, which children inherit — the
+  // drawer would render on top but swallow every click. Opt back in so dev
+  // tools (e.g. time-travel Skip+70s during the commit cooldown) stay usable.
+  pointerEvents: 'auto',
   display: 'flex',
   flexDirection: 'column',
   background: DRAWER.bg,
@@ -661,6 +666,7 @@ const sidebarPanelStyle: CSSProperties = {
   right: 0,
   bottom: 0,
   zIndex: Z_PANEL,
+  pointerEvents: 'auto', // see panelStyle
   display: 'flex',
   flexDirection: 'column',
   height: '100%',
@@ -809,6 +815,7 @@ const toggleStyle: CSSProperties = {
   bottom: 7,
   right: TANSTACK_DEVTOOLS_OFFSET,
   zIndex: Z_TOGGLE,
+  pointerEvents: 'auto', // see panelStyle
   display: 'inline-flex',
   alignItems: 'center',
   gap: 8,
