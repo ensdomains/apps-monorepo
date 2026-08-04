@@ -35,6 +35,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 
 import {
   permissionedRegistryGetExpirySnippet,
+  permissionedResolverAuthorizeNameRolesSnippet,
   proxyDeployedEventSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
@@ -91,6 +92,18 @@ const MIN_REGISTRATION_DURATION = 28 * 24 * 60 * 60
 const FULL_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
+
+/**
+ * Standalone HCA of the connected E2E wallet (Anvil account 0, 0xf39F…2266),
+ * derived from owner + StandaloneHCAImplementation + userSalt(0).
+ *
+ * Hardcoded for the same reason as the addresses in
+ * `infra/scripts/print-standalone-hca-addresses.mjs`: the derivation lives in
+ * `@ens-apps/smart-account`, which ships un-built `.ts` and is not an e2e
+ * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
+ * address for mockestrator impersonation gas — keep the two in sync.
+ */
+const STANDALONE_HCA = '0x49C84566d2ecDa444d5e094F3804a605F46b747a' as Address
 
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(
@@ -215,6 +228,22 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       ownerAddress,
     )
     console.log(`[makeV2Name] resolver proxy: ${resolverAddress}`)
+
+    // Mirror the grant the app's own registration performs. There, the resolver
+    // is initialized with the HCA as admin (`initialize(hca, ROLES_ALL, [])`)
+    // and the wallet is granted roles afterwards; here the EOA is admin, so we
+    // grant the HCA instead. Either way BOTH end up holding the root roles.
+    //
+    // Without it, record edits — which execute AS the HCA, since the manager
+    // signs them with the smart account — revert:
+    //   EACUnauthorizedAccountRoles(resource, 0x10, <hca>)
+    //
+    // Skipped for `owner: 'other'`: the connected user's HCA must not be able
+    // to write records on a name somebody else owns.
+    if (!isOther) {
+      await authorizeHcaOnResolver(resolverAddress, ownerAccount)
+      console.log(`[makeV2Name] granted resolver roles to HCA ${STANDALONE_HCA}`)
+    }
 
     // ── 2. Fund the EOA ─────────────────────────────────────────────
     const balance = await publicClient.getBalance({ address: ownerAddress })
@@ -393,6 +422,31 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
  * with `owner` having full permissions. Anyone can call deployProxy,
  * so we use ANVIL_FUNDER (no impersonation needed here).
  */
+/**
+ * Grant the connected wallet's standalone HCA the root roles on `resolver`.
+ *
+ * Sent by `admin`, the account `initialize` made resolver admin, so it is the
+ * one allowed to hand out roles. `toName` is `0x00` — the resolver's own root
+ * resource — matching `authorizeNameRoles` in the app's registration batch.
+ */
+async function authorizeHcaOnResolver(
+  resolver: Address,
+  admin: ReturnType<typeof privateKeyToAccount>,
+): Promise<void> {
+  const data = encodeFunctionData({
+    abi: permissionedResolverAuthorizeNameRolesSnippet,
+    functionName: 'authorizeNameRoles',
+    args: ['0x00', FULL_ROLE_BITMAP, STANDALONE_HCA, true],
+  })
+
+  const tx = await walletClient.sendTransaction({
+    account: admin,
+    to: resolver,
+    data,
+  })
+  await waitForTx(tx)
+}
+
 async function deployResolverProxy(
   nameLabel: string,
   owner: Address,
