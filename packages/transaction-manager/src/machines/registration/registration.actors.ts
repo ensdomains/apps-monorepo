@@ -13,7 +13,14 @@ import {
   ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import type {
+  Address,
+  Hash,
+  Hex,
+  MulticallErrorType,
+  PublicClient,
+  TransactionReceipt,
+} from 'viem'
 import {
   bytesToHex,
   decodeEventLog,
@@ -602,7 +609,7 @@ export function readPaymentAuthorizationActor(input: {
   registrarAddress?: Address
   /** Payment token to read. Defaults to the legacy mock token for the symbol. */
   paymentTokenAddress?: Address
-}): ResultAsync<{ allowance: bigint; livePrice: bigint }, Error> {
+}): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
   const registrarAddress =
     input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const tokenAddress =
@@ -629,7 +636,7 @@ export function readPaymentAuthorizationActor(input: {
       })
       return { allowance, livePrice: base + premium }
     })(),
-    (error) => error as Error,
+    (error) => error as MulticallErrorType,
   )
 }
 
