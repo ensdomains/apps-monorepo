@@ -44,6 +44,14 @@ const contractPillLabels: Partial<Record<SupportedL1Contract, string>> = {
   ensPermissionedResolverImpl: 'permissioned resolver',
 }
 
+// TODO(multichain): these lookups are keyed by address alone, so every
+// supported chain's contracts are merged into one table — an address that's an
+// ENS contract on one chain would also be labeled on another. Safe today: the
+// app is sepolia-scoped, and ENS deploys many core contracts (Registry,
+// BaseRegistrar, …) at the same address on both chains anyway. Once the UI
+// renders data from >1 L1 chain at once, key these maps by (chainId, address)
+// and thread chainId through getEnsContractName / getContractLabel and their
+// EntityBadge / ContractBadge callers.
 const contractNames = new Map<string, string>()
 const contractPills = new Map<string, string>()
 
