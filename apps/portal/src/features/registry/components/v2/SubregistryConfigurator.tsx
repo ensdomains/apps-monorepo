@@ -42,11 +42,11 @@ type SubregistryConfiguratorProps = {
   onComplete?: () => void
 }
 
-export function SubregistryConfigurator({
+export const SubregistryConfigurator = ({
   name,
   onCancel,
   onComplete,
-}: SubregistryConfiguratorProps) {
+}: SubregistryConfiguratorProps) => {
   const [registryOption, setRegistryOption] = useState<RegistryOption>('deploy')
   const [contractAddress, setContractAddress] = useState('')
   const [showSuccessButtonLabel, setShowSuccessButtonLabel] = useState(false)

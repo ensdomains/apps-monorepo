@@ -8,10 +8,10 @@ type ReconfigureRegistryFormProps = {
   onClose: () => void
 }
 
-export function ReconfigureRegistryForm({
+export const ReconfigureRegistryForm = ({
   name,
   onClose,
-}: ReconfigureRegistryFormProps) {
+}: ReconfigureRegistryFormProps) => {
   const isMobile = useIsMobile()
 
   return (

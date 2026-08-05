@@ -22,7 +22,11 @@ export const useHasSetSubregistryRole = (
   const label = name.split('.')[0]
   const parentRegistry = registries?.at(1) ?? null
 
-  const { data: hasRole, isLoading: isRoleLoading } = useQuery({
+  const {
+    data: hasRole,
+    isLoading: isRoleLoading,
+    error: roleError,
+  } = useQuery({
     ...getHasRolesQueryOptions({
       registryAddress: parentRegistry ?? zeroAddress,
       label,
@@ -36,7 +40,7 @@ export const useHasSetSubregistryRole = (
   return {
     hasRole: hasRole ?? false,
     isLoading: enabled && (isRegistriesLoading || isRoleLoading),
-    error: registriesError,
+    error: registriesError ?? roleError,
     parentRegistry,
     connectedAddress,
   }

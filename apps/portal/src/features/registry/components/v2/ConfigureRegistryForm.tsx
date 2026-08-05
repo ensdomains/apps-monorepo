@@ -15,7 +15,7 @@ type ConfigureRegistryFormProps = {
   name: string
 }
 
-export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
+export const ConfigureRegistryForm = ({ name }: ConfigureRegistryFormProps) => {
   const isMobile = useIsMobile()
   const { hasRole, isLoading, error, parentRegistry, connectedAddress } =
     useHasSetSubregistryRole(name)

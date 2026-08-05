@@ -44,7 +44,7 @@ const getRegistryBadgeLabel = ({
     .with({ isRoot: false, isParent: false, isLast: false }, () => undefined)
     .exhaustive()
 
-export function RegistryTreeItem({
+export const RegistryTreeItem = ({
   chainId,
   ownerData,
   index,
@@ -52,7 +52,7 @@ export function RegistryTreeItem({
   address,
   label,
   name,
-}: RegistryTreeItemProps) {
+}: RegistryTreeItemProps) => {
   const isMobile = useIsMobile()
 
   const isRoot = index === 0
