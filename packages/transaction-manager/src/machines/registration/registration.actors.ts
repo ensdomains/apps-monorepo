@@ -580,7 +580,7 @@ export function readPaymentTokenAllowanceActor(input: {
       abi: erc20Abi,
       functionName: 'allowance',
       args: [input.owner, registrarAddress],
-    }) as Promise<bigint>,
+    }),
     (error) => error as Error,
   )
 }
