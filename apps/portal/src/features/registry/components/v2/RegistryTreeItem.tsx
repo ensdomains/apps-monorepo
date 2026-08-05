@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowUpRight, TriangleAlert } from 'lucide-react'
-import { Fragment } from 'react'
+import { ArrowUpRight, Trash2, TriangleAlert } from 'lucide-react'
+import { Fragment, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
@@ -12,9 +12,11 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { useHasSetSubregistryRole } from '../../hooks/useHasSetSubregistryRole'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
 import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
+import { ReconfigureRegistryForm } from './ReconfigureRegistryForm'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -26,7 +28,9 @@ type RegistryTreeItemProps = {
   name: string
 }
 
-export const RegistryTreeItem = ({
+// Tree rows inherently branch on root/parent/leaf, configured/empty, and mobile.
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: layout branching is inherent
+export function RegistryTreeItem({
   chainId,
   ownerData,
   index,
@@ -34,7 +38,7 @@ export const RegistryTreeItem = ({
   address,
   label,
   name,
-}: RegistryTreeItemProps) => {
+}: RegistryTreeItemProps) {
   const isMobile = useIsMobile()
 
   const isRoot = index === 0
@@ -56,19 +60,10 @@ export const RegistryTreeItem = ({
   const isLastWithRegistryConfigured = isLast && isRegistryConfigured
   const isLastWithoutRegistryConfigured = isLast && !isRegistryConfigured
 
-  const {
-    data: summary,
-    isLoading: isSummaryLoading,
-    error: summaryError,
-  } = useQuery({
-    ...getRegistryLabelCountQueryOptions({ address }),
+  const [isReconfiguring, setIsReconfiguring] = useState(false)
+  const { hasRole: canReconfigure } = useHasSetSubregistryRole(name, {
     enabled: isLastWithRegistryConfigured,
   })
-
-  const creationTxUrl = useBlockExplorerTxUrl(
-    summary?.creationTransactionHash ?? undefined,
-    chainId,
-  )
 
   return (
     <Fragment>
@@ -120,66 +115,33 @@ export const RegistryTreeItem = ({
                   </span>
                 </div>
               ) : null}
+              {isLastWithRegistryConfigured && canReconfigure ? (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setIsReconfiguring(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Reconfigure
+                </Button>
+              ) : null}
             </Fragment>
           ) : null}
         </div>
         {isLastWithRegistryConfigured ? (
-          <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
-            <dt className="py-2 h-9">Chain ID:</dt>
-            <dd className="flex items-center h-9">{chainId}</dd>
-            <dt className="py-2 h-9">Protocol Version:</dt>
-            <dd className="flex items-center h-9">
-              {ownerData.protocolVersion}
-            </dd>
-            <dt className="py-2 h-9">Created:</dt>
-            <dd className="flex items-center h-9">
-              {match({ isSummaryLoading, summaryError })
-                .with({ isSummaryLoading: true }, () => (
-                  <Skeleton className="h-5 w-32" />
-                ))
-                .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
-                .otherwise(() =>
-                  summary?.creationTransactionHash ? (
-                    <EntityBadge
-                      variant="tx"
-                      className="font-normal"
-                      label={
-                        summary.createdAt
-                          ? (formatTimestampDate(summary.createdAt) ??
-                            undefined)
-                          : undefined
-                      }
-                      copyValue={summary.creationTransactionHash}
-                      etherscanHref={creationTxUrl}
-                    >
-                      {truncateAddress(summary.creationTransactionHash, 6, 4)}
-                    </EntityBadge>
-                  ) : summary?.createdAt ? (
-                    <span>{formatTimestampDate(summary.createdAt) ?? '—'}</span>
-                  ) : (
-                    <span>—</span>
-                  ),
-                )}
-            </dd>
-            <dt className="py-2 h-9">Labels:</dt>
-            <dd className="flex items-center gap-4 h-9">
-              {match({ isSummaryLoading, summaryError })
-                .with({ isSummaryLoading: true }, () => (
-                  <Skeleton className="h-5 w-8" />
-                ))
-                .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
-                .otherwise(() => (
-                  <span className="text-foreground">
-                    {summary?.labelCount ?? '—'}
-                  </span>
-                ))}
-              <Button variant="outline" size="xs" asChild>
-                <Link to="/registry/$address/labels" params={{ address }}>
-                  View subnames <ArrowUpRight className="size-4" />
-                </Link>
-              </Button>
-            </dd>
-          </dl>
+          <Fragment>
+            <RegistrySummaryDetails
+              address={address}
+              chainId={chainId}
+              protocolVersion={ownerData.protocolVersion}
+            />
+            {isReconfiguring ? (
+              <ReconfigureRegistryForm
+                name={name}
+                onClose={() => setIsReconfiguring(false)}
+              />
+            ) : null}
+          </Fragment>
         ) : null}
         {isLastWithoutRegistryConfigured && !isMobile ? (
           <RegistryEmptyState name={name} ownerData={ownerData} />
@@ -192,10 +154,84 @@ export const RegistryTreeItem = ({
   )
 }
 
-/**
- * What fills the unconfigured-registry slot: V2 names get the deploy form,
- * V1 names get the migrate prompt (or nothing when not migratable).
- */
+/** Metadata grid for a configured leaf registry — owns the summary query. */
+const RegistrySummaryDetails = ({
+  address,
+  chainId,
+  protocolVersion,
+}: {
+  address: Address
+  chainId: number
+  protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
+}) => {
+  const {
+    data: summary,
+    isLoading: isSummaryLoading,
+    error: summaryError,
+  } = useQuery(getRegistryLabelCountQueryOptions({ address }))
+
+  const creationTxUrl = useBlockExplorerTxUrl(
+    summary?.creationTransactionHash ?? undefined,
+    chainId,
+  )
+
+  return (
+    <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
+      <dt className="py-2 h-9">Chain ID:</dt>
+      <dd className="flex items-center h-9">{chainId}</dd>
+      <dt className="py-2 h-9">Protocol Version:</dt>
+      <dd className="flex items-center h-9">{protocolVersion}</dd>
+      <dt className="py-2 h-9">Created:</dt>
+      <dd className="flex items-center h-9">
+        {match({ isSummaryLoading, summaryError })
+          .with({ isSummaryLoading: true }, () => (
+            <Skeleton className="h-5 w-32" />
+          ))
+          .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
+          .otherwise(() =>
+            summary?.creationTransactionHash ? (
+              <EntityBadge
+                variant="tx"
+                className="font-normal"
+                label={
+                  summary.createdAt
+                    ? (formatTimestampDate(summary.createdAt) ?? undefined)
+                    : undefined
+                }
+                copyValue={summary.creationTransactionHash}
+                etherscanHref={creationTxUrl}
+              >
+                {truncateAddress(summary.creationTransactionHash, 6, 4)}
+              </EntityBadge>
+            ) : summary?.createdAt ? (
+              <span>{formatTimestampDate(summary.createdAt) ?? '—'}</span>
+            ) : (
+              <span>—</span>
+            ),
+          )}
+      </dd>
+      <dt className="py-2 h-9">Labels:</dt>
+      <dd className="flex items-center gap-4 h-9">
+        {match({ isSummaryLoading, summaryError })
+          .with({ isSummaryLoading: true }, () => (
+            <Skeleton className="h-5 w-8" />
+          ))
+          .with({ summaryError: P.not(null) }, () => <SummaryLoadError />)
+          .otherwise(() => (
+            <span className="text-foreground">
+              {summary?.labelCount ?? '—'}
+            </span>
+          ))}
+        <Button variant="outline" size="xs" asChild>
+          <Link to="/registry/$address/labels" params={{ address }}>
+            View subnames <ArrowUpRight className="size-4" />
+          </Link>
+        </Button>
+      </dd>
+    </dl>
+  )
+}
+
 const RegistryEmptyState = ({
   name,
   ownerData,

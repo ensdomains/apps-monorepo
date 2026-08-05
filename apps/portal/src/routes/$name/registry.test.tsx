@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { zeroAddress } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -56,6 +56,27 @@ vi.mock('@/features/registry/components/v2/ConfigureRegistryForm', () => ({
   ConfigureRegistryForm: ({ name }: { name: string }) => (
     <div data-testid="configure-registry-form" data-name={name} />
   ),
+}))
+
+// The reconfigure form owns its own deploy/set queries and modal (exercised by
+// its own tests); here we only assert that the tree mounts it when opened.
+vi.mock('@/features/registry/components/v2/ReconfigureRegistryForm', () => ({
+  ReconfigureRegistryForm: ({ name }: { name: string }) => (
+    <div data-testid="reconfigure-registry-form" data-name={name} />
+  ),
+}))
+
+// Toggle the connected account's ROLE_SET_SUBREGISTRY per test to drive the
+// Reconfigure affordance. `mock`-prefixed so vitest allows it in the factory.
+const mockHasSetSubregistryRole = { hasRole: false }
+vi.mock('@/features/registry/hooks/useHasSetSubregistryRole', () => ({
+  useHasSetSubregistryRole: () => ({
+    hasRole: mockHasSetSubregistryRole.hasRole,
+    isLoading: false,
+    error: null,
+    parentRegistry: null,
+    connectedAddress: mockAccount,
+  }),
 }))
 
 // EntityBadge is the actions-enabled badge: it pulls in `useNavigate` and wagmi
@@ -128,7 +149,15 @@ const truncated = (address: string) =>
 describe('V2RegistryInfo', () => {
   beforeEach(() => {
     setRegistries(undefined)
+    mockHasSetSubregistryRole.hasRole = false
   })
+
+  const configuredLeaf = (subregistry: string) =>
+    setRegistries([
+      subregistry, // foo.eth's subregistry
+      '0x1111111111111111111111111111111111111111', // .eth registry
+      '0x0000000000000000000000000000000000000000', // root
+    ])
 
   it('renders the section header', () => {
     setRegistries([
@@ -226,5 +255,42 @@ describe('V2RegistryInfo', () => {
     const form = screen.getByTestId('configure-registry-form')
     expect(form).toHaveAttribute('data-name', '5.4.testing.fresh.eth')
     expect(screen.getByText(truncated(parent))).toBeInTheDocument()
+  })
+
+  it('hides the Reconfigure button on a configured leaf without the role', () => {
+    configuredLeaf('0x2222222222222222222222222222222222222222')
+
+    render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+    expect(
+      screen.queryByRole('button', { name: /reconfigure/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows the Reconfigure button on a configured leaf with ROLE_SET_SUBREGISTRY', () => {
+    mockHasSetSubregistryRole.hasRole = true
+    configuredLeaf('0x2222222222222222222222222222222222222222')
+
+    render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+    expect(screen.getByRole('button', { name: /reconfigure/i })).toBeVisible()
+    // The reconfigure form stays closed until the button is clicked.
+    expect(
+      screen.queryByTestId('reconfigure-registry-form'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('opens the reconfigure form when Reconfigure is clicked', () => {
+    mockHasSetSubregistryRole.hasRole = true
+    configuredLeaf('0x2222222222222222222222222222222222222222')
+
+    render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /reconfigure/i }))
+
+    expect(screen.getByTestId('reconfigure-registry-form')).toHaveAttribute(
+      'data-name',
+      'foo.eth',
+    )
   })
 })
