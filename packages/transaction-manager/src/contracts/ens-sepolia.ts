@@ -22,8 +22,13 @@ export const ENS_SEPOLIA_CONTRACTS = {
   HCAFactory: ensjsSepolia.ensHcaFactory.address,
 
   // --- Not (yet) in ensjs chain definitions; canonical Sepolia V2 deployment ---
-  // Default reverse registrar (sets primary/default ENS name per coin type)
-  DefaultReverseRegistrar: '0xeb8269fb39290f31c4c29cec548807ca2133abb4',
+  // Default reverse registrar (ENSIP-19 `default.reverse`, sets the
+  // primary/default ENS name per coin type). This is the registrar the
+  // canonical deployment's DefaultReverseRegistrarAdapter wraps (its public
+  // immutable `DEFAULT_REVERSE_REGISTRAR`, read off `0x7a84e241…` on Sepolia)
+  // — NOT the superseded `0xeb8269fb…` standalone deployment, whose records
+  // nothing in the canonical resolution path reads.
+  DefaultReverseRegistrar: '0x4F382928805ba0e23B30cFB75fC9E848e82DFD47',
 } as const
 
 // Payment tokens the V2 registrar actually accepts (its PAYMENT_TOKEN /
