@@ -16,6 +16,7 @@ import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
+import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/')({
@@ -43,6 +44,22 @@ function RouteComponent() {
     name,
     protocolVersion: data?.protocolVersion ?? 'ENSv2',
     enabled: grace.isInGrace,
+  })
+
+  const isConnectedOwner =
+    !!address &&
+    !!data &&
+    data.protocolVersion === 'ENSv2' &&
+    isAddressEqual(address, data.owner)
+
+  // Owning the token isn't enough — the registry reverts the transfer unless the
+  // owner also holds ROLE_CAN_TRANSFER_ADMIN. Gate the button on it so we never
+  // route someone into a transfer that would revert after the detach steps land.
+  const { canTransfer: hasTransferRole } = useCanTransferName({
+    name,
+    registryAddress: data?.registryAddress,
+    account: data?.owner,
+    enabled: isConnectedOwner,
   })
 
   if (error)
@@ -80,10 +97,7 @@ function RouteComponent() {
       />
     )
 
-  const canTransfer =
-    data.protocolVersion === 'ENSv2' &&
-    !!address &&
-    isAddressEqual(address, data.owner)
+  const canTransfer = isConnectedOwner && hasTransferRole
 
   return (
     <div className="flex flex-col gap-8">
