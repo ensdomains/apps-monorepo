@@ -75,13 +75,13 @@ const findTimeoutError = (
   return null
 }
 
-const findRevertData = (err: unknown): Hex | null => {
-  for (const e of walkCauseChain(err)) {
-    const data = (e as { data?: unknown }).data
-    if (typeof data === 'string' && data.startsWith('0x')) return data as Hex
-  }
-  return null
-}
+const findRevertData = (err: unknown): readonly Hex[] =>
+  walkCauseChain(err).flatMap((error) => {
+    const data = (error as { data?: unknown }).data
+    return typeof data === 'string' && data.startsWith('0x')
+      ? [data as Hex]
+      : []
+  })
 
 // Length-prefixed DNS-encoded name → dotted human-readable name.
 const decodeDnsName = (encoded: Hex): string => {
@@ -133,6 +133,8 @@ const tryDecodeHelperError = (data: Hex): MigrationError | null => {
 }
 
 const ERROR_STRING_SELECTOR = '0x08c379a0'
+const WRAPPED_ERROR_PREFIX = 'WrappedError::0x'
+const MAX_REVERT_UNWRAP_DEPTH = 8
 
 const matchLibMigrationError = (data: Hex): MigrationError | null => {
   try {
@@ -163,46 +165,75 @@ const matchLibMigrationError = (data: Hex): MigrationError | null => {
   return null
 }
 
-const tryUnwrapControllerError = (data: Hex): MigrationError | null => {
+const decodeErrorStringPayload = (data: Hex): Hex | null => {
   if (!data.toLowerCase().startsWith(ERROR_STRING_SELECTOR)) return null
 
-  // NameWrapper rewraps typed reverts as revert(string(abi.encodePacked(returnData))),
-  // packing the inner revert bytes verbatim into the Error(string) payload. Read
-  // length+bytes directly from the ABI payload to sidestep viem's UTF-8 string
-  // decode (which mangles non-UTF-8 byte sequences).
-  const lengthOffset = 2 + 8 + 64 // '0x' + 4-byte selector + 32-byte offset
   try {
-    const length = Number.parseInt(
-      data.slice(lengthOffset, lengthOffset + 64),
-      16,
-    )
-    if (length >= 4) {
-      const inner = `0x${data.slice(
-        lengthOffset + 64,
-        lengthOffset + 64 + length * 2,
-      )}` as Hex
-      const match = matchLibMigrationError(inner)
-      if (match) return match
-    }
-  } catch {
-    // fall through to the hex-text path
-  }
+    const argsStart = 2 + 8
+    const offsetEnd = argsStart + 64
+    const offset = Number.parseInt(data.slice(argsStart, offsetEnd), 16)
+    const lengthStart = argsStart + offset * 2
+    const payloadStart = lengthStart + 64
+    const length = Number.parseInt(data.slice(lengthStart, payloadStart), 16)
+    const payloadEnd = payloadStart + length * 2
 
-  // Fallback: some encoders (and our older test fixtures) wrap the inner data
-  // as a "0x..." hex literal inside the string. Try that too.
-  try {
-    const wrapper = decodeErrorResult({
-      abi: [
-        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
-      ] as const,
-      data,
-    })
-    const raw = wrapper.args[0] as string
-    const inner = (raw.startsWith('0x') ? raw : `0x${raw}`) as Hex
-    return matchLibMigrationError(inner)
+    if (
+      !Number.isSafeInteger(offset) ||
+      !Number.isSafeInteger(length) ||
+      offset < 0 ||
+      length < 0 ||
+      payloadEnd > data.length
+    ) {
+      return null
+    }
+
+    return `0x${data.slice(payloadStart, payloadEnd)}` as Hex
   } catch {
     return null
   }
+}
+
+const hexBytesToAscii = (data: Hex): string => {
+  let result = ''
+  for (let i = 2; i < data.length; i += 2) {
+    result += String.fromCharCode(Number.parseInt(data.slice(i, i + 2), 16))
+  }
+  return result
+}
+
+const parseHexText = (value: string): Hex | null => {
+  const unprefixed = value.startsWith('0x') ? value.slice(2) : value
+  if (unprefixed.length < 8 || unprefixed.length % 2 !== 0) return null
+  if (!/^[0-9a-f]+$/i.test(unprefixed)) return null
+  return `0x${unprefixed}` as Hex
+}
+
+const getNestedRevertData = (data: Hex): readonly Hex[] => {
+  const payload = decodeErrorStringPayload(data)
+  if (!payload) return []
+
+  const text = hexBytesToAscii(payload)
+  if (text.startsWith(WRAPPED_ERROR_PREFIX)) {
+    const wrapped = parseHexText(text.slice(WRAPPED_ERROR_PREFIX.length))
+    return wrapped ? [wrapped] : []
+  }
+
+  const encodedAsText = parseHexText(text)
+  return encodedAsText ? [encodedAsText] : [payload]
+}
+
+const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
+  if (depth >= MAX_REVERT_UNWRAP_DEPTH) return null
+
+  const directMatch = tryDecodeHelperError(data) ?? matchLibMigrationError(data)
+  if (directMatch) return directMatch
+
+  for (const inner of getNestedRevertData(data)) {
+    const nestedMatch = matchMigrationRevert(inner, depth + 1)
+    if (nestedMatch) return nestedMatch
+  }
+
+  return null
 }
 
 export const decodeMigrationError = (err: unknown): MigrationError => {
@@ -228,12 +259,9 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     }
   }
 
-  const revertData = findRevertData(err)
-  if (revertData) {
-    const helperMatch = tryDecodeHelperError(revertData)
-    if (helperMatch) return helperMatch
-    const wrappedMatch = tryUnwrapControllerError(revertData)
-    if (wrappedMatch) return wrappedMatch
+  for (const revertData of findRevertData(err)) {
+    const match = matchMigrationRevert(revertData)
+    if (match) return match
   }
 
   return { type: 'generic', message: extractErrorMessage(err) }

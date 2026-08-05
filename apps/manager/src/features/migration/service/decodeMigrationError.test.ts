@@ -229,10 +229,7 @@ describe('decodeMigrationError — helper-typed reverts', () => {
 })
 
 describe('decodeMigrationError — wrapped LibMigration errors', () => {
-  // WrappedErrorLib serializes the inner revert by encoding the original revert
-  // data (selector + abi args) into the Error(string) payload. The decoder must
-  // unwrap Error(string), interpret the inner string as hex bytes, and decode
-  // against LIB_MIGRATION_ERRORS_ABI.
+  // Legacy fixtures encoded the original revert as a plain "0x..." string.
   const wrap = (inner: Hex): Hex =>
     encodeErrorResult({
       abi: [
@@ -240,6 +237,17 @@ describe('decodeMigrationError — wrapped LibMigration errors', () => {
       ] as const,
       errorName: 'Error',
       args: [inner],
+    })
+
+  // The deployed contracts-v2 WrappedErrorLib uses this detectable prefix
+  // before the hex-encoded typed revert.
+  const wrapDeployed = (inner: Hex): Hex =>
+    encodeErrorResult({
+      abi: [
+        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
+      ] as const,
+      errorName: 'Error',
+      args: [`WrappedError::0x${inner.slice(2)}`],
     })
 
   it('unwraps NameNotLocked', () => {
@@ -251,6 +259,40 @@ describe('decodeMigrationError — wrapped LibMigration errors', () => {
     expect(decodeMigrationError(revertWith(wrap(inner)))).toEqual({
       type: 'name-not-locked',
       tokenId: 7n,
+    })
+  })
+
+  it('unwraps the deployed WrappedErrorLib prefix', () => {
+    const inner = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameDataMismatch',
+      args: [8n],
+    })
+    expect(decodeMigrationError(revertWith(wrapDeployed(inner)))).toEqual({
+      type: 'name-data-mismatch',
+      tokenId: 8n,
+    })
+  })
+
+  it('checks deeper client errors when executeByOwner has outer revert data', () => {
+    const inner = encodeErrorResult({
+      abi: MIGRATION_HELPER_ABI,
+      errorName: 'NotApprovedOperator',
+      args: [
+        '0x1111111111111111111111111111111111111111',
+        '0x2222222222222222222222222222222222222222',
+      ],
+    })
+    const controllerRevert = revertWith(wrapDeployed(inner))
+    const hcaRevert = Object.assign(
+      new Error('executeByOwner reverted', { cause: controllerRevert }),
+      { data: '0xdeadbeef' as Hex },
+    )
+
+    expect(decodeMigrationError(hcaRevert)).toEqual({
+      type: 'not-approved-operator',
+      nft: '0x1111111111111111111111111111111111111111',
+      owner: '0x2222222222222222222222222222222222222222',
     })
   })
 
@@ -372,6 +414,26 @@ describe('decodeMigrationError — on-chain Error(string) raw-bytes wrap', () =>
     })
     expect(decodeMigrationError(revertWith(wrapRaw(inner)))).toEqual({
       type: 'name-requires-migration',
+    })
+  })
+
+  it('recursively unwraps nested Error(string) data', () => {
+    const typed = encodeErrorResult({
+      abi: LIB_MIGRATION_ERRORS_ABI,
+      errorName: 'NameIsLocked',
+      args: [123n],
+    })
+    const controller = encodeErrorResult({
+      abi: [
+        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
+      ] as const,
+      errorName: 'Error',
+      args: [`WrappedError::0x${typed.slice(2)}`],
+    })
+
+    expect(decodeMigrationError(revertWith(wrapRaw(controller)))).toEqual({
+      type: 'name-is-locked',
+      tokenId: 123n,
     })
   })
 })

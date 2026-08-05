@@ -20,12 +20,15 @@
  *   v6 → v7: SDK patch bumped (5e0a5f32… → 7603298e…). The session
  *            authorization / enable-data encoding changed, so any session
  *            signed under the old patch is invalid and must be re-authorized.
+ *   v7 → v8: rotated to the remediated PR #388 HCA, validator, factory, and
+ *            resolver namespace. Sessions bind those addresses into their
+ *            permission IDs and must not cross the deployment boundary.
  */
 
 import type { Address } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v7'
+const SESSION_STORAGE_KEY = 'ens-sessions-v8'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'

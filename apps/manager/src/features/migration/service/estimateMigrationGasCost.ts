@@ -1,15 +1,11 @@
-import { namehash, type PublicClient } from 'viem'
-import {
-  GRANT_ROLES_GAS,
-  MULTICALL_OVERHEAD,
-  SETADDR_GAS,
-  SETTEXT_GAS,
-} from './batchMigrate.constants'
+import type { PublicClient } from 'viem'
 import type { MigrationPlan } from './buildMigrationPlan'
-import { profileMapKey } from './fetchV1Profiles'
 
 const APPROVAL_GAS = 55_000n
-const OWNED_RESOLVER_SETUP_GAS = 220_000n
+const APPROVAL_CLEANUP_GAS = 55_000n
+// The same standalone HCA deployment used by registration consumes ~393k gas
+// on Sepolia. Keep a conservative margin for the owner-paid factory call.
+const HCA_DEPLOYMENT_GAS = 450_000n
 
 export type MigrationGasEstimate =
   | {
@@ -29,51 +25,24 @@ type EstimateMigrationGasCostParams = {
   readonly publicClient: PublicClient
 }
 
-const predictedProfileReplayGas = (plan: MigrationPlan): bigint => {
-  if (plan.profileReplayCalls.length === 0) return 0n
-
-  let recordGas = 0n
-  for (const name of plan.classified) {
-    if (name.resolverStrategy !== 'to-owned-permres') continue
-    const profile = plan.profiles.get(profileMapKey(namehash(name.domain.name)))
-    if (!profile) continue
-    recordGas += BigInt(profile.texts.length) * SETTEXT_GAS
-    recordGas += BigInt(profile.addresses.length) * SETADDR_GAS
-  }
-  return BigInt(plan.profileReplayCalls.length) * MULTICALL_OVERHEAD + recordGas
-}
-
 const predictedGasUnits = (plan: MigrationPlan): bigint => {
-  let gas = 0n
-  for (const step of plan.stepDescriptors) {
-    if (step.type === 'approve-base-registrar') {
-      gas += APPROVAL_GAS
-    }
-    if (step.type === 'approve-name-wrapper') {
-      gas += APPROVAL_GAS
-    }
-    if (step.type === 'ensure-resolver') {
-      gas += OWNED_RESOLVER_SETUP_GAS
-    }
-  }
-  gas += plan.batches.reduce((total, batch) => total + batch.estimatedGas, 0n)
-  gas += BigInt(plan.roleGrantCalls.length) * GRANT_ROLES_GAS
-  gas += predictedProfileReplayGas(plan)
-  return gas
+  const approvalCount = BigInt(plan.preflight.migrationApprovals?.length ?? 0)
+  const deploymentGas = plan.hcaDeploymentRequired ? HCA_DEPLOYMENT_GAS : 0n
+  const approvalLifecycleGas =
+    approvalCount * (APPROVAL_GAS + APPROVAL_CLEANUP_GAS)
+  const atomicBatchGas = plan.atomicBatches.reduce(
+    (total, batch) => total + batch.estimatedGas,
+    0n,
+  )
+
+  return deploymentGas + approvalLifecycleGas + atomicBatchGas
 }
 
 const predictedTransactionCount = (plan: MigrationPlan): number => {
-  const setupSteps = plan.stepDescriptors.filter(
-    (step) =>
-      step.type === 'approve-base-registrar' ||
-      step.type === 'approve-name-wrapper' ||
-      step.type === 'ensure-resolver',
-  ).length
+  const approvalCount = plan.preflight.migrationApprovals?.length ?? 0
+  const deploymentCount = plan.hcaDeploymentRequired ? 1 : 0
   return (
-    setupSteps +
-    plan.migrateCalls.length +
-    plan.roleGrantCalls.length +
-    plan.profileReplayCalls.length
+    deploymentCount + approvalCount + plan.atomicBatches.length + approvalCount
   )
 }
 

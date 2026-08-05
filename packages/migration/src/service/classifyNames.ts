@@ -76,7 +76,11 @@ const resolverStrategyFor = (params: {
     (tokenType === 'locked-2ld' || tokenType === 'locked-child') &&
     hasFuse(fuses, FUSES.CANNOT_SET_RESOLVER)
 
-  if (cannotSetResolverLocked && v1ResolverAddress) {
+  // LockedWrapperReceiver ignores the resolver supplied in Migration.Data when
+  // CANNOT_SET_RESOLVER is burned. It always reads the V1 registry instead,
+  // including preserving address(0), so this path can never move to the HCA
+  // resolver even when there is no existing resolver.
+  if (cannotSetResolverLocked) {
     return 'keep-v1'
   }
 

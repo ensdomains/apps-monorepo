@@ -141,15 +141,45 @@ describe('fetchV1Profiles', () => {
     expect(entry.addresses).toEqual([])
   })
 
-  it('skips entries with failed multicall status', async () => {
+  it('fails closed when any multicall record read fails', async () => {
     mockKeys([{ id: NODE_A, texts: ['email', 'url'], coinTypes: [] }])
-    const result = await run(
-      [A],
-      clientWith(() => [failCall(), okCall('ok-value')]),
+    await expect(
+      run(
+        [A],
+        clientWith(() => [failCall(), okCall('ok-value')]),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'onchain',
     )
-    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
-      { key: 'url', value: 'ok-value' },
-    ])
+  })
+
+  it('fails closed when multicall returns fewer results than requested', async () => {
+    mockKeys([{ id: NODE_A, texts: ['email', 'url'], coinTypes: [] }])
+    await expect(
+      run(
+        [A],
+        clientWith(() => [okCall('only-one')]),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'onchain',
+    )
+  })
+
+  it('fails closed when the profile-key inventory omits a requested node', async () => {
+    mockKeys([{ id: NODE_A, texts: [], coinTypes: [] }])
+    await expect(
+      run(
+        [A, B],
+        clientWith(() => {
+          throw new Error('should not be called')
+        }),
+      ),
+    ).rejects.toSatisfy(
+      (error) =>
+        error instanceof ProfileFetchError && error.phase === 'subgraph',
+    )
   })
 
   it('matches subgraph entries to names via lowercase node id', async () => {

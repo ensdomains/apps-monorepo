@@ -1,0 +1,845 @@
+import {
+  buildHcaOwnerExecutionCall,
+  computeResolverAddress,
+  computeResolverSalt,
+  getDestinationContracts,
+  ROLES_ALL,
+} from '@ens-apps/smart-account'
+import type { Call } from '@ens-apps/transaction-manager'
+import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
+import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import { type Address, encodeFunctionData, type Hex, namehash } from 'viem'
+
+import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
+import { V2_CONTRACTS } from '../contracts/addresses'
+import { buildMigrateCall } from './buildMigrateCall'
+import {
+  flattenProfileInnerCalls,
+  wrapInnerCallsAsMulticall,
+} from './buildProfileReplayCalls'
+import { buildRoleGrantCall } from './buildRoleGrantCalls'
+import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import { resolverFor } from './encodeMigration'
+import type { Profile } from './fetchV1Profiles'
+import { profileMapKey } from './fetchV1Profiles'
+
+const ROOT_NAME = '0x00' as const
+const ROOT_RESOURCE = 0n
+const ROLE_REGISTRAR = 1n << 0n
+const ROLE_RENEW = 1n << 16n
+const ROLE_SET_RESOLVER = 1n << 24n
+const ROLE_CAN_NAME = 1n << 120n
+const ROLE_UPGRADE = 1n << 124n
+const ROLE_CAN_TRANSFER_ADMIN = 1n << 156n
+
+export type AtomicMigrationExecutionPhase =
+  | 'resolver-deployment'
+  | 'wallet-co-admin-grant'
+  | 'migrate'
+  | 'manager-role-grant'
+  | 'profile-replay'
+
+export type AtomicMigrationInnerExecution = {
+  readonly phase: AtomicMigrationExecutionPhase
+  readonly name: string
+  readonly call: Call
+}
+
+export type AtomicMigrationRegistryPath =
+  | {
+      readonly type: 'eth-registry-2ld'
+      readonly registry: Address
+      readonly label: string
+      readonly resource: bigint
+    }
+  | {
+      readonly type: 'parent-subregistry'
+      readonly rootRegistry: Address
+      readonly parentName: string
+      /** Labels traversed from ETHRegistry to the immediate parent registry. */
+      readonly parentLabels: readonly string[]
+      readonly label: string
+      readonly resource: bigint
+    }
+
+type ResolverImplementationExpectation = {
+  readonly id: string
+  readonly type: 'resolver-implementation'
+  readonly name: string
+  readonly resolver: Address
+  readonly factory: Address
+  readonly expectedImplementation: Address
+  readonly deployer: Address
+  readonly salt: bigint
+}
+
+type ResolverRootRolesExpectation = {
+  readonly id: string
+  readonly type: 'resolver-root-roles'
+  readonly name: string
+  readonly resolver: Address
+  readonly account: Address
+  readonly rootName: Hex
+  readonly roleBitmap: bigint
+}
+
+type WalletNameRolesExpectation = {
+  readonly id: string
+  readonly type: 'wallet-name-roles'
+  readonly name: string
+  readonly resolver: Address
+  readonly account: Address
+  readonly rootName: Hex
+  readonly roleBitmap: bigint
+}
+
+type NameOwnerExpectation = {
+  readonly id: string
+  readonly type: 'name-owner'
+  readonly name: string
+  readonly label: string
+  readonly node: Hex
+  readonly resource: bigint
+  readonly tokenType: ClassifiedName['tokenType']
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly expectedOwner: Address
+}
+
+type NameResolverExpectation = {
+  readonly id: string
+  readonly type: 'name-resolver'
+  readonly name: string
+  readonly label: string
+  readonly node: Hex
+  readonly resource: bigint
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly expectedResolver: Address
+}
+
+type NameOwnerRolesExpectation = {
+  readonly id: string
+  readonly type: 'name-owner-roles'
+  readonly name: string
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly resource: bigint
+  readonly account: Address
+  readonly roleBitmap: bigint
+}
+
+type WrapperSubregistryExpectation = {
+  readonly id: string
+  readonly type: 'wrapper-subregistry'
+  readonly name: string
+  readonly node: Hex
+  readonly label: string
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly factory: Address
+  readonly expectedImplementation: Address
+}
+
+type WrapperRootRolesExpectation = {
+  readonly id: string
+  readonly type: 'wrapper-root-roles'
+  readonly name: string
+  readonly label: string
+  readonly registryPath: AtomicMigrationRegistryPath
+  readonly resource: typeof ROOT_RESOURCE
+  readonly account: Address
+  readonly roleBitmap: bigint
+}
+
+type ManagerRoleExpectation = {
+  readonly id: string
+  readonly type: 'manager-role'
+  readonly name: string
+  readonly label: string
+  readonly registry: Address
+  readonly resource: bigint
+  readonly account: Address
+  readonly roleBitmap: bigint
+}
+
+type ProfileTextExpectation = {
+  readonly id: string
+  readonly type: 'profile-text'
+  readonly name: string
+  readonly node: Hex
+  readonly resolver: Address
+  readonly key: string
+  readonly value: string
+}
+
+type ProfileAddressExpectation = {
+  readonly id: string
+  readonly type: 'profile-address'
+  readonly name: string
+  readonly node: Hex
+  readonly resolver: Address
+  readonly coinType: bigint
+  readonly value: Hex
+}
+
+export type AtomicMigrationVerificationExpectation =
+  | ResolverImplementationExpectation
+  | ResolverRootRolesExpectation
+  | WalletNameRolesExpectation
+  | NameOwnerExpectation
+  | NameResolverExpectation
+  | NameOwnerRolesExpectation
+  | WrapperSubregistryExpectation
+  | WrapperRootRolesExpectation
+  | ManagerRoleExpectation
+  | ProfileTextExpectation
+  | ProfileAddressExpectation
+
+export type AtomicMigrationNameExecution = {
+  readonly classified: ClassifiedName
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
+}
+
+export type AtomicMigrationBatch = {
+  readonly index: number
+  readonly names: readonly string[]
+  readonly nameExecutions: readonly AtomicMigrationNameExecution[]
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+  readonly outerCall: Call
+  readonly estimatedGas: bigint
+  readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
+}
+
+export type AtomicMigrationBatchPlan = {
+  readonly resolver: Address
+  readonly batches: readonly AtomicMigrationBatch[]
+}
+
+export type AtomicMigrationOuterGasEstimateRequest = {
+  readonly call: Call
+  readonly names: readonly string[]
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+}
+
+export type EstimateAtomicMigrationOuterGas = (
+  request: AtomicMigrationOuterGasEstimateRequest,
+) => bigint | Promise<bigint>
+
+export type AtomicMigrationExpectationResult = {
+  readonly expectationId: string
+  readonly satisfied: boolean
+}
+
+export type AtomicMigrationBatchVerification =
+  | {
+      readonly batchIndex: number
+      readonly status: 'reverted'
+    }
+  | {
+      readonly batchIndex: number
+      readonly status: 'confirmed'
+      readonly results: readonly AtomicMigrationExpectationResult[]
+    }
+
+export class AtomicMigrationNameGasLimitExceededError extends Error {
+  readonly ensName: string
+  readonly estimatedGas: bigint
+  readonly maxOuterGas: bigint
+
+  constructor(params: {
+    readonly ensName: string
+    readonly estimatedGas: bigint
+    readonly maxOuterGas: bigint
+  }) {
+    super(
+      `Atomic migration for "${params.ensName}" estimated at ${params.estimatedGas} gas; exceeds outer executeByOwner limit ${params.maxOuterGas}`,
+    )
+    this.name = 'AtomicMigrationNameGasLimitExceededError'
+    this.ensName = params.ensName
+    this.estimatedGas = params.estimatedGas
+    this.maxOuterGas = params.maxOuterGas
+  }
+}
+
+export type BuildAtomicMigrationBatchesParams = {
+  readonly chainId: number
+  readonly hca: Address
+  readonly wallet: Address
+  readonly classified: readonly ClassifiedName[]
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly defaultResolver?: Address
+  readonly resolverDeployed: boolean
+  readonly walletCoAdminGranted: boolean
+  readonly maxOuterGas: bigint
+  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+}
+
+const expectationId = (
+  name: string,
+  expectation: AtomicMigrationVerificationExpectation['type'],
+  detail?: string,
+): string => `${name}:${expectation}${detail ? `:${detail}` : ''}`
+
+const registryPathFor = (name: ClassifiedName): AtomicMigrationRegistryPath => {
+  const resource = labelToCanonicalId(name.label)
+  const is2ld =
+    name.tokenType === 'unwrapped' ||
+    name.tokenType === 'unlocked' ||
+    name.tokenType === 'locked-2ld'
+
+  if (is2ld) {
+    return {
+      type: 'eth-registry-2ld',
+      registry: V2_CONTRACTS.ETHRegistry,
+      label: name.label,
+      resource,
+    }
+  }
+
+  if (!name.parentName) {
+    throw new Error(
+      `Cannot build verification registry path for "${name.domain.name}" without a parent`,
+    )
+  }
+
+  return {
+    type: 'parent-subregistry',
+    rootRegistry: V2_CONTRACTS.ETHRegistry,
+    parentName: name.parentName,
+    parentLabels: name.parentName.split('.').slice(0, -1).reverse(),
+    label: name.label,
+    resource,
+  }
+}
+
+const isLockedName = (name: ClassifiedName): boolean =>
+  name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
+
+/** Mirrors LockedWrapperReceiver._tokenRoleBitmapFromFuses(). */
+export const lockedNameOwnerRoleBitmap = (fuses: bigint): bigint => {
+  let roleBitmap = 0n
+  if (hasFuse(fuses, FUSES.CAN_EXTEND_EXPIRY)) {
+    roleBitmap |= ROLE_RENEW
+  }
+  if (!hasFuse(fuses, FUSES.CANNOT_SET_RESOLVER)) {
+    roleBitmap |= ROLE_SET_RESOLVER
+  }
+  if (!hasFuse(fuses, FUSES.CANNOT_BURN_FUSES)) {
+    roleBitmap |= roleBitmap << 128n
+  }
+  if (!hasFuse(fuses, FUSES.CANNOT_TRANSFER)) {
+    roleBitmap |= ROLE_CAN_TRANSFER_ADMIN
+  }
+  return roleBitmap
+}
+
+/** Mirrors LockedWrapperReceiver._subregistryRoleBitmapFromFuses(). */
+export const lockedWrapperRootRoleBitmap = (fuses: bigint): bigint => {
+  let roleBitmap = ROLE_RENEW | ROLE_UPGRADE | ROLE_CAN_NAME
+  if (!hasFuse(fuses, FUSES.CANNOT_CREATE_SUBDOMAIN)) {
+    roleBitmap |= ROLE_REGISTRAR
+  }
+  if (!hasFuse(fuses, FUSES.CANNOT_BURN_FUSES)) {
+    roleBitmap |= roleBitmap << 128n
+  }
+  return roleBitmap
+}
+
+const buildResolverDeploymentCall = (params: {
+  readonly chainId: number
+  readonly hca: Address
+}): Call => {
+  const contracts = getDestinationContracts(params.chainId)
+  const initializeData = encodeFunctionData({
+    abi: PERMISSIONED_RESOLVER_ABI,
+    functionName: 'initialize',
+    args: [params.hca, ROLES_ALL, []],
+  })
+
+  return {
+    to: contracts.verifiableFactory,
+    data: encodeFunctionData({
+      abi: verifiableFactoryDeployProxySnippet,
+      functionName: 'deployProxy',
+      args: [
+        contracts.permissionedResolverImpl,
+        computeResolverSalt(params.hca),
+        initializeData,
+      ],
+    }),
+    value: 0n,
+  }
+}
+
+const buildWalletCoAdminCall = (params: {
+  readonly resolver: Address
+  readonly wallet: Address
+}): Call => ({
+  to: params.resolver,
+  data: encodeFunctionData({
+    abi: permissionedResolverAuthorizeNameRolesSnippet,
+    functionName: 'authorizeNameRoles',
+    args: [ROOT_NAME, ROLES_ALL, params.wallet, true],
+  }),
+  value: 0n,
+})
+
+const buildParentDependencyGraph = (
+  classified: readonly ClassifiedName[],
+): {
+  readonly childrenByParent: ReadonlyMap<string, readonly ClassifiedName[]>
+  readonly inDegree: Map<string, number>
+} => {
+  const selectedNames = new Set(classified.map((name) => name.domain.name))
+  const childrenByParent = new Map<string, readonly ClassifiedName[]>()
+  const inDegree = new Map<string, number>(
+    classified.map((name) => [name.domain.name, 0]),
+  )
+
+  for (const name of classified) {
+    const isChild =
+      name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
+    if (!isChild || !name.parentName || !selectedNames.has(name.parentName)) {
+      continue
+    }
+
+    inDegree.set(name.domain.name, 1)
+    const children = childrenByParent.get(name.parentName) ?? []
+    childrenByParent.set(name.parentName, [...children, name])
+  }
+
+  return { childrenByParent, inDegree }
+}
+
+const orderParentBeforeChild = (
+  classified: readonly ClassifiedName[],
+): readonly ClassifiedName[] => {
+  const { childrenByParent, inDegree } = buildParentDependencyGraph(classified)
+
+  const queue = classified.filter(
+    (name) => inDegree.get(name.domain.name) === 0,
+  )
+  const ordered: ClassifiedName[] = []
+  let cursor = 0
+
+  while (cursor < queue.length) {
+    const name = queue[cursor]
+    cursor += 1
+    if (!name) continue
+
+    ordered.push(name)
+    for (const child of childrenByParent.get(name.domain.name) ?? []) {
+      const nextDegree = (inDegree.get(child.domain.name) ?? 0) - 1
+      inDegree.set(child.domain.name, nextDegree)
+      if (nextDegree === 0) queue.push(child)
+    }
+  }
+
+  if (ordered.length === classified.length) return ordered
+
+  const emitted = new Set(ordered.map((name) => name.domain.name))
+  return [
+    ...ordered,
+    ...classified.filter((name) => !emitted.has(name.domain.name)),
+  ]
+}
+
+const profileForName = (
+  name: ClassifiedName,
+  profiles: ReadonlyMap<Hex, Profile>,
+): { readonly node: Hex; readonly profile: Profile } | null => {
+  if (name.resolverStrategy !== 'to-owned-permres') return null
+
+  const node = namehash(name.domain.name) as Hex
+  const profile = profiles.get(profileMapKey(node))
+  if (!profile) return null
+
+  const hasRecords = profile.texts.length > 0 || profile.addresses.length > 0
+  return hasRecords ? { node, profile } : null
+}
+
+const buildNameExecution = (params: {
+  readonly chainId: number
+  readonly hca: Address
+  readonly wallet: Address
+  readonly classified: ClassifiedName
+  readonly resolver: Address
+  readonly defaultResolver: Address
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly includeResolverVerification: boolean
+  readonly includeResolverDeployment: boolean
+  readonly includeWalletCoAdminGrant: boolean
+}): AtomicMigrationNameExecution => {
+  const {
+    chainId,
+    hca,
+    wallet,
+    classified,
+    resolver,
+    defaultResolver,
+    profiles,
+    includeResolverVerification,
+    includeResolverDeployment,
+    includeWalletCoAdminGrant,
+  } = params
+  const name = classified.domain.name
+  const node = namehash(name) as Hex
+  const expectedResolver = resolverFor(classified, defaultResolver, resolver)
+  const innerExecutions: AtomicMigrationInnerExecution[] = []
+  const verificationExpectations: AtomicMigrationVerificationExpectation[] = []
+  const contracts = getDestinationContracts(chainId)
+  const registryPath = registryPathFor(classified)
+
+  if (includeResolverVerification) {
+    verificationExpectations.push(
+      {
+        id: expectationId(name, 'resolver-implementation'),
+        type: 'resolver-implementation',
+        name,
+        resolver,
+        factory: contracts.verifiableFactory,
+        expectedImplementation: contracts.permissionedResolverImpl,
+        deployer: hca,
+        salt: computeResolverSalt(hca),
+      },
+      {
+        id: expectationId(name, 'resolver-root-roles'),
+        type: 'resolver-root-roles',
+        name,
+        resolver,
+        account: hca,
+        rootName: ROOT_NAME,
+        roleBitmap: ROLES_ALL,
+      },
+      {
+        id: expectationId(name, 'wallet-name-roles'),
+        type: 'wallet-name-roles',
+        name,
+        resolver,
+        account: wallet,
+        rootName: ROOT_NAME,
+        roleBitmap: ROLES_ALL,
+      },
+    )
+  }
+
+  if (includeResolverDeployment) {
+    innerExecutions.push({
+      phase: 'resolver-deployment',
+      name,
+      call: buildResolverDeploymentCall({ chainId, hca }),
+    })
+  }
+
+  if (includeWalletCoAdminGrant) {
+    innerExecutions.push({
+      phase: 'wallet-co-admin-grant',
+      name,
+      call: buildWalletCoAdminCall({ resolver, wallet }),
+    })
+  }
+
+  innerExecutions.push({
+    phase: 'migrate',
+    name,
+    call: buildMigrateCall({
+      classified: [classified],
+      migrationOwner: wallet,
+      defaultResolver,
+      ownedPermRes: resolver,
+    }),
+  })
+  verificationExpectations.push(
+    {
+      id: expectationId(name, 'name-owner'),
+      type: 'name-owner',
+      name,
+      label: classified.label,
+      node,
+      resource: labelToCanonicalId(classified.label),
+      tokenType: classified.tokenType,
+      registryPath,
+      expectedOwner: wallet,
+    },
+    {
+      id: expectationId(name, 'name-resolver'),
+      type: 'name-resolver',
+      name,
+      label: classified.label,
+      node,
+      resource: labelToCanonicalId(classified.label),
+      registryPath,
+      expectedResolver,
+    },
+  )
+
+  if (isLockedName(classified)) {
+    verificationExpectations.push(
+      {
+        id: expectationId(name, 'name-owner-roles'),
+        type: 'name-owner-roles',
+        name,
+        registryPath,
+        resource: labelToCanonicalId(classified.label),
+        account: wallet,
+        roleBitmap: lockedNameOwnerRoleBitmap(classified.fuses),
+      },
+      {
+        id: expectationId(name, 'wrapper-subregistry'),
+        type: 'wrapper-subregistry',
+        name,
+        node,
+        label: classified.label,
+        registryPath,
+        factory: contracts.verifiableFactory,
+        expectedImplementation: contracts.wrapperRegistryImpl,
+      },
+      {
+        id: expectationId(name, 'wrapper-root-roles'),
+        type: 'wrapper-root-roles',
+        name,
+        label: classified.label,
+        registryPath,
+        resource: ROOT_RESOURCE,
+        account: wallet,
+        roleBitmap: lockedWrapperRootRoleBitmap(classified.fuses),
+      },
+    )
+  }
+
+  if (classified.managerAddress) {
+    innerExecutions.push({
+      phase: 'manager-role-grant',
+      name,
+      call: buildRoleGrantCall(classified),
+    })
+    verificationExpectations.push({
+      id: expectationId(name, 'manager-role'),
+      type: 'manager-role',
+      name,
+      label: classified.label,
+      registry: V2_CONTRACTS.ETHRegistry,
+      resource: labelToCanonicalId(classified.label),
+      account: classified.managerAddress,
+      roleBitmap: ROLE_SET_RESOLVER,
+    })
+  }
+
+  const profileEntry = profileForName(classified, profiles)
+  if (profileEntry) {
+    const profileCalls = flattenProfileInnerCalls(
+      new Map([[profileEntry.node, profileEntry.profile]]),
+    )
+    innerExecutions.push({
+      phase: 'profile-replay',
+      name,
+      call: wrapInnerCallsAsMulticall(resolver, profileCalls),
+    })
+    verificationExpectations.push(
+      ...profileEntry.profile.texts.map((record, index) => ({
+        id: expectationId(name, 'profile-text', `${index}:${record.key}`),
+        type: 'profile-text' as const,
+        name,
+        node: profileEntry.node,
+        resolver,
+        key: record.key,
+        value: record.value,
+      })),
+      ...profileEntry.profile.addresses.map((record, index) => ({
+        id: expectationId(
+          name,
+          'profile-address',
+          `${index}:${record.coinType}`,
+        ),
+        type: 'profile-address' as const,
+        name,
+        node: profileEntry.node,
+        resolver,
+        coinType: record.coinType,
+        value: record.value,
+      })),
+    )
+  }
+
+  return { classified, innerExecutions, verificationExpectations }
+}
+
+const buildNameExecutions = (params: {
+  readonly chainId: number
+  readonly hca: Address
+  readonly wallet: Address
+  readonly classified: readonly ClassifiedName[]
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly resolver: Address
+  readonly defaultResolver: Address
+  readonly resolverDeployed: boolean
+  readonly walletCoAdminGranted: boolean
+}): readonly AtomicMigrationNameExecution[] => {
+  const ordered = orderParentBeforeChild(params.classified)
+  const firstResolverNameIndex = ordered.findIndex(
+    (name) => name.resolverStrategy === 'to-owned-permres',
+  )
+
+  return ordered.map((classified, index) => {
+    const receivesResolverSetup = index === firstResolverNameIndex
+    return buildNameExecution({
+      ...params,
+      classified,
+      includeResolverVerification: receivesResolverSetup,
+      includeResolverDeployment:
+        receivesResolverSetup && !params.resolverDeployed,
+      includeWalletCoAdminGrant:
+        receivesResolverSetup &&
+        (!params.resolverDeployed || !params.walletCoAdminGranted),
+    })
+  })
+}
+
+const estimateBatch = async (params: {
+  readonly index: number
+  readonly hca: Address
+  readonly nameExecutions: readonly AtomicMigrationNameExecution[]
+  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+}): Promise<AtomicMigrationBatch> => {
+  const innerExecutions = params.nameExecutions.flatMap(
+    (nameExecution) => nameExecution.innerExecutions,
+  )
+  const names = params.nameExecutions.map(
+    (nameExecution) => nameExecution.classified.domain.name,
+  )
+  const outerCall: Call = buildHcaOwnerExecutionCall({
+    hca: params.hca,
+    calls: innerExecutions.map((execution) => execution.call),
+  })
+  const estimatedGas = await params.estimateOuterGas({
+    call: outerCall,
+    names,
+    innerExecutions,
+  })
+
+  return {
+    index: params.index,
+    names,
+    nameExecutions: params.nameExecutions,
+    innerExecutions,
+    outerCall,
+    estimatedGas,
+    verificationExpectations: params.nameExecutions.flatMap(
+      (nameExecution) => nameExecution.verificationExpectations,
+    ),
+  }
+}
+
+/**
+ * Builds all-or-nothing HCA owner executions and greedily partitions them using
+ * estimates of the fully wrapped `executeByOwner` call. A name is never split
+ * across outer calls.
+ */
+export const buildAtomicMigrationBatches = async (
+  params: BuildAtomicMigrationBatchesParams,
+): Promise<AtomicMigrationBatchPlan> => {
+  if (params.maxOuterGas <= 0n) {
+    throw new Error('buildAtomicMigrationBatches: maxOuterGas must be positive')
+  }
+
+  const resolver = computeResolverAddress({
+    chainId: params.chainId,
+    hca: params.hca,
+  })
+  const nameExecutions = buildNameExecutions({
+    ...params,
+    resolver,
+    defaultResolver: params.defaultResolver ?? V2_CONTRACTS.DefaultResolver,
+  })
+  const batches: AtomicMigrationBatch[] = []
+  let currentNameExecutions: readonly AtomicMigrationNameExecution[] = []
+  let currentBatch: AtomicMigrationBatch | null = null
+
+  for (const nameExecution of nameExecutions) {
+    const candidateNameExecutions = [...currentNameExecutions, nameExecution]
+    const candidate = await estimateBatch({
+      index: batches.length,
+      hca: params.hca,
+      nameExecutions: candidateNameExecutions,
+      estimateOuterGas: params.estimateOuterGas,
+    })
+
+    if (candidate.estimatedGas <= params.maxOuterGas) {
+      currentNameExecutions = candidateNameExecutions
+      currentBatch = candidate
+      continue
+    }
+
+    if (!currentBatch) {
+      throw new AtomicMigrationNameGasLimitExceededError({
+        ensName: nameExecution.classified.domain.name,
+        estimatedGas: candidate.estimatedGas,
+        maxOuterGas: params.maxOuterGas,
+      })
+    }
+
+    batches.push(currentBatch)
+    const singleNameBatch = await estimateBatch({
+      index: batches.length,
+      hca: params.hca,
+      nameExecutions: [nameExecution],
+      estimateOuterGas: params.estimateOuterGas,
+    })
+    if (singleNameBatch.estimatedGas > params.maxOuterGas) {
+      throw new AtomicMigrationNameGasLimitExceededError({
+        ensName: nameExecution.classified.domain.name,
+        estimatedGas: singleNameBatch.estimatedGas,
+        maxOuterGas: params.maxOuterGas,
+      })
+    }
+    currentNameExecutions = [nameExecution]
+    currentBatch = singleNameBatch
+  }
+
+  if (currentBatch) batches.push(currentBatch)
+  return { resolver, batches }
+}
+
+export const isAtomicMigrationNameComplete = (
+  nameExecution: AtomicMigrationNameExecution,
+  results: readonly AtomicMigrationExpectationResult[],
+): boolean => {
+  const satisfiedById = new Map(
+    results.map((result) => [result.expectationId, result.satisfied] as const),
+  )
+  return nameExecution.verificationExpectations.every(
+    (expectation) => satisfiedById.get(expectation.id) === true,
+  )
+}
+
+/**
+ * Returns names that must be rebuilt for retry. A reverted or unverified outer
+ * batch retains every name because `executeByOwner` rolls back all inner calls.
+ */
+export const filterIncompleteAtomicMigrationNames = (params: {
+  readonly batches: readonly AtomicMigrationBatch[]
+  readonly verifications: readonly AtomicMigrationBatchVerification[]
+}): readonly ClassifiedName[] => {
+  const verificationByBatch = new Map(
+    params.verifications.map(
+      (verification) => [verification.batchIndex, verification] as const,
+    ),
+  )
+  const incomplete: ClassifiedName[] = []
+  const emittedNames = new Set<string>()
+
+  for (const batch of params.batches) {
+    const verification = verificationByBatch.get(batch.index)
+    for (const nameExecution of batch.nameExecutions) {
+      const name = nameExecution.classified.domain.name
+      const isComplete =
+        verification?.status === 'confirmed' &&
+        isAtomicMigrationNameComplete(nameExecution, verification.results)
+      if (isComplete || emittedNames.has(name)) continue
+
+      incomplete.push(nameExecution.classified)
+      emittedNames.add(name)
+    }
+  }
+
+  return incomplete
+}

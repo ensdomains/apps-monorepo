@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { type Address, formatEther, type PublicClient } from 'viem'
-import { useConfig, usePublicClient } from 'wagmi'
+import { usePublicClient } from 'wagmi'
 import {
   buildMigrationPlan,
   type MigrationPlan,
@@ -25,6 +25,7 @@ export type MigrationGasEstimateState =
 
 type UseMigrationGasEstimateParams = {
   readonly ownerAddress: Address | undefined
+  readonly hcaAddress: Address | undefined
   readonly selectedNames: readonly string[]
   readonly v1Names: readonly V1Domain[]
 }
@@ -46,13 +47,14 @@ const formatEstimatedEth = (wei: bigint): string => {
 
 export const useMigrationGasEstimate = ({
   ownerAddress,
+  hcaAddress,
   selectedNames,
   v1Names,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
   const publicClient = usePublicClient()
-  const wagmiConfig = useConfig()
   const { ensure: ensurePreflight } = useMigrationPreflight({
     eoa: ownerAddress,
+    hcaAddress,
   })
 
   const domains = selectDomainsFromNames(v1Names, selectedNames)
@@ -69,6 +71,7 @@ export const useMigrationGasEstimate = ({
   }
   const enabled =
     !!ownerAddress &&
+    !!hcaAddress &&
     !!publicClient &&
     selectedNames.length > 0 &&
     domains.length > 0
@@ -77,24 +80,25 @@ export const useMigrationGasEstimate = ({
     queryKey: [
       'migration-gas-estimate',
       ownerAddress?.toLowerCase() ?? '',
+      hcaAddress?.toLowerCase() ?? '',
       domainIds,
       selectionRevisionRef.current.revision,
     ] as const,
     enabled,
     staleTime: 0,
     queryFn: async () => {
-      if (!ownerAddress || !publicClient) {
-        throw new Error('Cannot estimate migration gas without a wallet')
+      if (!ownerAddress || !hcaAddress || !publicClient) {
+        throw new Error(
+          'Cannot estimate migration gas without a wallet and HCA address',
+        )
       }
       const preflight = await ensurePreflight(domains, { staleTime: 0 })
       const plan = await buildMigrationPlan({
         domains,
+        hcaAddress,
         migrationOwner: ownerAddress,
-        wagmiConfig,
         publicClient: publicClient as unknown as PublicClient,
         preflight,
-        hasBaseRegistrarApproval: preflight.baseRegistrarApproved,
-        hasNameWrapperApproval: preflight.nameWrapperApproved,
       })
       const estimate = await estimateMigrationGasCost({
         plan,

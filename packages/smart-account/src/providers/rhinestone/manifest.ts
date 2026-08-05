@@ -1,15 +1,9 @@
 /**
  * Standalone-HCA contract manifest.
  *
- * Provenance: these addresses are the coordinated Sepolia / Base Sepolia
- * deployment that the standalone HCA in `ensdomains/contracts-v2` PR #362
- * (branch `feat/hca-final-maybe`, commit `12712e3`) was deployed against, as
- * published in the "HCA: New" handoff doc.
- *
- * That is no longer true of the ENS-side contracts. ensjs now tracks the
- * deployment the apps actually ship against, so the registrar and registry are
- * read from it — registering somewhere the rest of the app does not read is
- * what made renewal revert `NameNotRenewable`. ensjs still has no entry for
+ * Provenance: the ENS-side addresses come from the ensjs `e96662c` Sepolia
+ * manifest, whose values match the remediated deployment published by
+ * `ensdomains/contracts-v2` PR #388 at `8d1c893`. ensjs has no entry for
  * `StandaloneHCAImplementation`, `HCAOwnerAndSessionValidator`, the proxy
  * logic, the reverse adapter, or the funding validator, so those stay
  * hardcoded here until it does.
@@ -47,10 +41,22 @@ export interface DestinationContracts {
   readonly hcaOwnerAndSessionValidator: Address
   readonly verifiableFactory: Address
   readonly verifiableFactoryProxyLogic: Address
+  /** Block where this VerifiableFactory was deployed; used as the log-scan floor. */
+  readonly verifiableFactoryDeployBlock: bigint
   readonly permissionedResolverImpl: Address
   readonly ethRegistrar: Address
   readonly ethRegistry: Address
-  readonly defaultReverseRegistrarHcaAdapter: Address
+  readonly rootRegistry: Address
+  readonly migrationHelper: Address
+  readonly unlockedMigrationController: Address
+  readonly lockedMigrationController: Address
+  /** Allowlist used to identify legacy public resolvers during migration. */
+  readonly publicResolverSet: Address
+  /** Implementation deployed for wrapper registries created by locked migration. */
+  readonly wrapperRegistryImpl: Address
+  /** Replacement/default resolver written during migration. */
+  readonly publicResolverV2: Address
+  readonly defaultReverseRegistrarAdapter: Address
   readonly usdc: Address
 }
 
@@ -75,24 +81,32 @@ export interface SharedContracts {
 
 export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
   [sepolia.id]: {
-    // From ensjs, which tracks the deployment the apps ship against.
+    // From ensjs e96662c, which matches the remediated PR #388 deployment.
     standaloneHcaFactory: ensjsSepolia.ensHcaFactory.address,
     verifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
     permissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
     ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
     ethRegistry: ensjsSepolia.ensRegistry.address,
+    migrationHelper: ensjsSepolia.ensMigrationHelper.address,
+    unlockedMigrationController:
+      ensjsSepolia.ensUnlockedMigrationController.address,
+    lockedMigrationController: ensjsSepolia.ensLockedMigrationController.address,
 
-    // Not in ensjs yet. Addresses from contracts-v2
-    // `contracts/docs/addresses/sepolia.md` @ 97a5729 (deployed 2026-07-30).
+    // Not in ensjs yet. Addresses from contracts-v2 PR #388 @ 8d1c893.
     standaloneHcaImplementation: '0xD213De41421Fed3a5E475943F9D634A0cf64a385',
     hcaOwnerAndSessionValidator: '0x976D90c51Afb2C11660EaeE94bD42A7e84751D08',
-    defaultReverseRegistrarHcaAdapter:
+    defaultReverseRegistrarAdapter:
       '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
     // constructor and exposes it as the immutable `proxyLogic`, so this is read
     // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
     verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
+    verifiableFactoryDeployBlock: 11_383_823n,
+    rootRegistry: '0x8115186e8f2e0b0281e86ab91f0f48ba90364354',
+    publicResolverSet: '0xf2794ebd70c1fa74094a9ec653da1c2df9f5a5a9',
+    wrapperRegistryImpl: '0x433f81a3e8921fc868ae1a04576f135d9a75b0f2',
+    publicResolverV2: '0xe7b9a25607e02da8145e4eb1836ca539e53f11f7',
 
     // Circle's real Sepolia USDC — deliberately NOT `ensjsSepolia.usdc`, which
     // is MockUSDC. The app pays in the real token.

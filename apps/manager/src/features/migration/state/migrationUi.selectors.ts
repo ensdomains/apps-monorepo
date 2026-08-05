@@ -30,6 +30,10 @@ export const useMigrationLastError = createMigrationUiSelector(
   (state) => state.context.lastError,
 )
 
+export const useMigrationCompleted = createMigrationUiSelector(
+  (state) => state.context.migrationCompleted,
+)
+
 export const useMigrationSelectedNames = createMigrationUiSelector(
   (state) => state.context.selectedNames,
 )

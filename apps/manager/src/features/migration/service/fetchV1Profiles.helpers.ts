@@ -31,6 +31,7 @@ export type MulticallContract = {
 export type MulticallResult = {
   readonly status: 'success' | 'failure'
   readonly result?: unknown
+  readonly error?: unknown
 }
 
 export const profileMapKey = (nodeHex: Hex): Hex => nodeHex.toLowerCase() as Hex

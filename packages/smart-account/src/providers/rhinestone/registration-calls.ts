@@ -9,7 +9,7 @@
  *   2. paymentToken.approve(ETHRegistrar, price)
  *   3. ETHRegistrar.register(..., wallet as owner, ...)
  *   4. resolver setters                        — only selected records
- *   5. DefaultReverseRegistrarHCAAdapter.setNameWithHCA(wallet, name) — primary only
+ *   5. DefaultReverseRegistrarAdapter.setNameWithHCA(wallet, name) — primary only
  *   6. PermissionedResolver.authorizeNameRoles(hex"00", ROLES.ALL, wallet, true)
  *
  * Price MUST be read immediately before the reveal (never cached from commit
@@ -323,7 +323,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   // 5. primary name (default.reverse) — only when selected
   if (params.setPrimaryName) {
     calls.push({
-      to: c.defaultReverseRegistrarHcaAdapter,
+      to: c.defaultReverseRegistrarAdapter,
       value: 0n,
       data: encodeFunctionData({
         abi: reverseAdapterAbi,

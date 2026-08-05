@@ -51,27 +51,35 @@ export const GameStep = () => {
     .with({ kind: 'progress' }, ({ text }) => text)
     .with({ kind: 'preparing' }, () => t`Getting ready...`)
     .with(
-      { kind: 'approve-base-registrar' },
-      () => `${t`Approve in your wallet`}...`,
+      { kind: 'deploy-hca' },
+      () => `${t`Setting up your migration account`}...`,
+    )
+    .with({ kind: 'approval' }, ({ approvalId }) =>
+      match(approvalId)
+        .with(
+          'base-registrar:migration-helper',
+          'name-wrapper:migration-helper',
+          () => `${t`Approve the migration helper in your wallet`}...`,
+        )
+        .with(
+          'base-registrar:hca',
+          'name-wrapper:hca',
+          () => `${t`Approve your migration account in your wallet`}...`,
+        )
+        .with(
+          'eth-registry:hca',
+          () => `${t`Approve manager restoration in your wallet`}...`,
+        )
+        .exhaustive(),
+    )
+    .with({ kind: 'atomic-batch' }, ({ index, total, count }) =>
+      total === 1
+        ? `${t`Upgrading ${count} name(s) atomically`}...`
+        : `${t`Upgrading atomic batch ${index + 1} of ${total} (${count} name(s))`}...`,
     )
     .with(
-      { kind: 'approve-name-wrapper' },
-      () => `${t`Approve in your wallet`}...`,
-    )
-    .with({ kind: 'ensure-resolver' }, () => `${t`Setting up resolver`}...`)
-    .with({ kind: 'migrate-batch' }, ({ index, total, count }) =>
-      total === 1
-        ? `${t`Upgrading ${count} name(s)`}...`
-        : `${t`Upgrading batch ${index + 1} of ${total} (${count} name(s))`}...`,
-    )
-    .with(
-      { kind: 'grant-role' },
-      ({ label }) => `${t`Saving manager for ${label}.eth`}...`,
-    )
-    .with({ kind: 'profile-replay-batch' }, ({ index, total }) =>
-      total === 1
-        ? `${t`Restoring your records`}...`
-        : `${t`Restoring records batch ${index + 1} of ${total}`}...`,
+      { kind: 'cleanup' },
+      ({ count }) => `${t`Removing ${count} temporary permission(s)`}...`,
     )
     .exhaustive()
 

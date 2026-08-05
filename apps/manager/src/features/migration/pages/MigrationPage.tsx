@@ -21,8 +21,10 @@ import {
   decodeMigrationError,
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
+import { loadMigrationApprovalLedger } from '@/features/migration/service/migrationApprovalLedger'
 import { useMigrationUiContext } from '@/features/migration/state/migrationUi.context'
 import {
+  useMigrationCompleted,
   useMigrationLastError,
   useMigrationMigratedNames,
   useMigrationSelectedNames,
@@ -30,6 +32,7 @@ import {
 } from '@/features/migration/state/migrationUi.selectors'
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { customSepolia } from '@/lib/wagmi'
 import { isMigrationQueryKey } from './MigrationPage.helpers'
 
 const ResultLayout = ({ children }: { children: ReactNode }) => (
@@ -136,8 +139,14 @@ export const MigrationPage = () => {
   const selectedNames = useMigrationSelectedNames(uiActor)
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
+  const migrationCompleted = useMigrationCompleted(uiActor)
   const { data: v1Names = [] } = useV1Names()
-  const { ownerAddress } = useSmartAccountContext()
+  const {
+    ownerAddress,
+    accountAddress: hcaAddress,
+    client: hcaClient,
+    refreshAccount,
+  } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
   const migrationNftEnabled = useFeatureFlagEnabled(
@@ -151,6 +160,7 @@ export const MigrationPage = () => {
   const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
+    hcaAddress: hcaAddress as Address | undefined,
     selectedNames,
     v1Names,
   })
@@ -167,6 +177,34 @@ export const MigrationPage = () => {
       invalidateMigrationQueries(queryClient)
     }
   }, [step, queryClient])
+
+  useEffect(() => {
+    if (
+      step !== 'select' ||
+      !ownerAddress ||
+      !hcaAddress ||
+      !wagmiWalletClient?.account
+    ) {
+      return
+    }
+    const approvals = loadMigrationApprovalLedger({
+      chainId: customSepolia.id,
+      owner: ownerAddress,
+      hca: hcaAddress,
+    })
+    if (approvals.length === 0) return
+
+    uiActor.send({
+      type: 'cleanup.restore',
+      approvals,
+      signer: {
+        type: 'eoa',
+        walletClient: wagmiWalletClient as WalletClient,
+      },
+      walletAddress: ownerAddress,
+      hcaAddress,
+    })
+  }, [step, ownerAddress, hcaAddress, wagmiWalletClient, uiActor])
 
   const handleSuccessClose = useCallback(
     (profileName?: string) => {
@@ -226,7 +264,13 @@ export const MigrationPage = () => {
   }, [canGoBack, navigate])
 
   const handleBeginUpgrade = useCallback(async () => {
-    if (!ownerAddress || !wagmiWalletClient?.account) return false
+    if (
+      !ownerAddress ||
+      !hcaAddress ||
+      !hcaClient ||
+      !wagmiWalletClient?.account
+    )
+      return false
     if (gasEstimate.status !== 'ready') return false
     // Don't let the owner start before their gas drip is confirmed on-chain.
     if (gasFundingStatus === 'funding') return false
@@ -240,7 +284,8 @@ export const MigrationPage = () => {
         type: 'migration.start',
         plan: gasEstimate.plan,
         signer,
-        accountAddress: ownerAddress as Address,
+        hcaClient,
+        refreshAccount,
       })
       return true
     } catch (err) {
@@ -250,7 +295,16 @@ export const MigrationPage = () => {
       })
       return true
     }
-  }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
+  }, [
+    ownerAddress,
+    hcaAddress,
+    hcaClient,
+    refreshAccount,
+    wagmiWalletClient,
+    gasEstimate,
+    gasFundingStatus,
+    uiActor,
+  ])
 
   return (
     <div
@@ -293,6 +347,56 @@ export const MigrationPage = () => {
           />
         ))
         .with('migrate', () => <GameStep />)
+        .with('cleanupRunning', () => <GameStep />)
+        .with('cleanupRequired', () => (
+          <ResultLayout>
+            <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">
+              {migrationCompleted ? (
+                <Trans>Your names are on ENS v2</Trans>
+              ) : (
+                <Trans>Remove temporary permissions</Trans>
+              )}
+            </p>
+            <p className="max-w-md text-center text-ens-garnet-900/70 text-sm leading-relaxed">
+              {migrationCompleted ? (
+                <Trans>
+                  Temporary migration permissions still need to be removed. Your
+                  names are safe and the cleanup can be retried separately.
+                </Trans>
+              ) : (
+                <Trans>
+                  A previous migration attempt left temporary permissions.
+                  Remove them before starting again.
+                </Trans>
+              )}
+            </p>
+            {lastError ? (
+              <div className="max-h-50 w-full max-w-md overflow-y-auto rounded-sm bg-ens-garnet-900/5 p-3">
+                <p className="whitespace-pre-wrap break-all font-mono text-ens-garnet-900/70 text-xs leading-normal">
+                  {formatMigrationError(lastError)}
+                </p>
+              </div>
+            ) : null}
+            <div className="flex gap-3">
+              {migrationCompleted ? (
+                <button
+                  className="rounded-sm bg-ens-garnet-900/10 px-4 py-3 font-semi-mono text-ens-garnet-900 text-sm uppercase tracking-[1.68px]"
+                  onClick={() => uiActor.send({ type: 'cleanup.continue' })}
+                  type="button"
+                >
+                  <Trans>Continue</Trans>
+                </button>
+              ) : null}
+              <button
+                className="rounded-sm bg-ens-garnet-900 px-4 py-3 font-semi-mono text-ens-garnet-50 text-sm uppercase tracking-[1.68px] shadow-[inset_0px_-3px_0px_0px_rgba(0,0,0,0.35)]"
+                onClick={() => uiActor.send({ type: 'cleanup.retry' })}
+                type="button"
+              >
+                <Trans>Remove permissions</Trans>
+              </button>
+            </div>
+          </ResultLayout>
+        ))
         .with('failure', () => (
           <ResultLayout>
             <p className="text-center text-[32px] text-ens-garnet-900 leading-[1.1] tracking-[-0.64px]">

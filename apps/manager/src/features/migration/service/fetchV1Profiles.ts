@@ -9,6 +9,7 @@ import {
   type MulticallResult,
   mergeMulticallResultsIntoProfiles,
   type NameForFetch,
+  profileMapKey,
 } from './fetchV1Profiles.helpers'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
 
@@ -43,7 +44,7 @@ const executeMulticallChunks = async (
       const index = cursor++
       const chunk = chunks[index]
       if (!chunk) return
-      chunkResults[index] = (await publicClient.multicall({
+      const results = (await publicClient.multicall({
         contracts: [...chunk] as {
           address: Address
           abi: typeof PERMISSIONED_RESOLVER_ABI
@@ -53,6 +54,23 @@ const executeMulticallChunks = async (
         allowFailure: true,
         batchSize: 0,
       })) as MulticallResult[]
+      if (results.length !== chunk.length) {
+        throw new Error(
+          `Profile multicall chunk ${index} returned ${results.length} results for ${chunk.length} calls`,
+        )
+      }
+      const failedIndex = results.findIndex(
+        (result) => result.status !== 'success',
+      )
+      if (failedIndex !== -1) {
+        const failedContract = chunk[failedIndex]
+        const failedResult = results[failedIndex]
+        throw new Error(
+          `Profile multicall failed at chunk ${index}, call ${failedIndex} (${failedContract?.functionName ?? 'unknown'})`,
+          { cause: failedResult?.error },
+        )
+      }
+      chunkResults[index] = results
     }
   }
   try {
@@ -82,6 +100,21 @@ export const fetchV1Profiles = async (params: {
         throw new ProfileFetchError({ cause: error, phase: 'subgraph' })
       },
     )
+
+  const keyEntryIds = new Set(
+    keyEntries.map((entry) => profileMapKey(entry.id as Hex)),
+  )
+  const missingNodes = [...byNode.keys()].filter(
+    (node) => !keyEntryIds.has(profileMapKey(node)),
+  )
+  if (missingNodes.length > 0) {
+    throw new ProfileFetchError({
+      phase: 'subgraph',
+      cause: new Error(
+        `Profile key inventory omitted ${missingNodes.length} requested node${missingNodes.length === 1 ? '' : 's'}`,
+      ),
+    })
+  }
 
   const { calls, contracts } = buildProfileMulticallPlan(keyEntries, byNode)
   const buckets = initEmptyProfileBuckets(byNode)
