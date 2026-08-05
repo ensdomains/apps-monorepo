@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowUpRight, Trash2, TriangleAlert } from 'lucide-react'
+import { ArrowLeftRight, ArrowUpRight, TriangleAlert } from 'lucide-react'
 import { Fragment, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
@@ -178,7 +178,7 @@ const RegistryContractRow = ({
     ) : null}
     {onReconfigure ? (
       <Button variant="outline" size="xs" onClick={onReconfigure}>
-        <Trash2 className="size-4" />
+        <ArrowLeftRight className="size-4" />
         Reconfigure
       </Button>
     ) : null}

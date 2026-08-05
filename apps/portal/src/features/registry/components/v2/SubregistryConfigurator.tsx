@@ -129,12 +129,17 @@ export const SubregistryConfigurator = ({
     setContractAddress('')
     setRegistryOption('deploy')
     deployedSubregistryAddressRef.current = null
+    // Reconfigure closes/unmounts immediately; only show the success label
+    // when this form stays mounted (initial configure flow).
+    if (onComplete) {
+      onComplete()
+      return
+    }
     setShowSuccessButtonLabel(true)
     setTimeout(
       () => setShowSuccessButtonLabel(false),
       SUCCESS_LABEL_DURATION_MS,
     )
-    onComplete?.()
   }
 
   const handleSubmit = () => {
