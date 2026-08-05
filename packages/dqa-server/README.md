@@ -59,12 +59,12 @@ is in [AUTH_PLAN.md](./AUTH_PLAN.md).** Env keys are in `.env.example`.
 The injected snippet carries the feature's ticket:
 
 ```html
-<script src="https://dqa-host/overlay.js" data-linear-issue="ENG-123"></script>
+<script type="module" src="https://dqa-host/overlay.js?issue=ENG-123"></script>
 ```
 
 Every comment on that page threads onto `ENG-123` as a Linear comment, authored by the
 reviewer. Your `linear/<ticket-id>` branch convention means preview builds already know
-their ticket, so this can be filled in automatically. No `data-linear-issue` → falls back
+their ticket, so this can be filled in automatically. No `?issue=` → falls back
 to creating a new issue (needs the `issues:create` scope + `LINEAR_TEAM_ID`).
 
 ## How it maps to what we discussed
@@ -89,6 +89,7 @@ builds** so every PR deployment gets the overlay for free:
 <script>
   if (import.meta.env.MODE !== 'production') {
     const s = document.createElement('script');
+    s.type = 'module';
     s.src = 'https://<your-dqa-host>/overlay.js';
     document.head.appendChild(s);
   }
@@ -149,8 +150,10 @@ dqa-overlay/
 │  ├─ index.js     REST + WebSocket + static serving
 │  ├─ db.js        JSON-file store (swap later)
 │  └─ linear.js    Linear issueCreate (dry-run gated)
+├─ client/
+│  └─ overlay.js   the injectable widget (shadow DOM, pins, cursors, Linear)
+│                 built by Vite into dist/ — see vite.config.ts
 ├─ public/
-│  ├─ overlay.js   the injectable widget (shadow DOM, pins, cursors, Linear)
 │  └─ demo.html    sample app to demo on
 └─ .env.example
 ```

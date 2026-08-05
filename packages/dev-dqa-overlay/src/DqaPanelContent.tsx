@@ -6,12 +6,12 @@
  */
 
 import { type CSSProperties, useState } from 'react'
+import { copyText } from './panel/copyText'
 import {
   type CommentFilter,
   type CommentOwnership,
   DqaCommentFilters,
 } from './panel/DqaCommentFilters'
-import { copyText } from './panel/copyText'
 import { DqaCommentList } from './panel/DqaCommentList'
 import { DqaElementTree } from './panel/DqaElementTree'
 import { DqaPagesList } from './panel/DqaPagesList'
@@ -98,7 +98,9 @@ export function DqaPanelContent() {
               {v === 'comments' ? (
                 <>
                   Comments{' '}
-                  <span style={viewTabCountStyle}>{visibleComments.length}</span>
+                  <span style={viewTabCountStyle}>
+                    {visibleComments.length}
+                  </span>
                 </>
               ) : v === 'elements' ? (
                 'Elements'

@@ -33,9 +33,10 @@
  * names further along their lifecycle. For a live walk-through, prefer seeding
  * an `active` name and advancing time with the in-app Time Travel panel.
  */
-import { bytesToHex, type Address, type Hash } from 'viem'
-import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
+
 import { pathToFileURL } from 'node:url'
+import { type Address, bytesToHex, type Hash } from 'viem'
+import { mnemonicToAccount, privateKeyToAccount } from 'viem/accounts'
 import { createMakeName } from '../fixtures/makeName.js'
 import type { Time } from '../fixtures/time.js'
 import { publicClient } from '../helpers/anvil-client.js'
@@ -195,7 +196,9 @@ async function main() {
   )
   console.log('  browser clock matches the (warped) Anvil time.')
   if (owner === 'user2') {
-    console.log('  Sign in as `user` — premium is hidden for a zero-address owner.')
+    console.log(
+      '  Sign in as `user` — premium is hidden for a zero-address owner.',
+    )
   }
   console.log('──────────────────────────────────────────────\n')
 }

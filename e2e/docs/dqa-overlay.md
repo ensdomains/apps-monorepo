@@ -9,7 +9,8 @@ Two pieces:
 
 - **`packages/dqa-server`** (`@ens-apps/dqa-server`) — small Node service:
   comment persistence, image uploads, WebSocket cursor relay, "Sign in with
-  Linear" (OAuth2), push-to-Linear. Serves `public/overlay.js`. Runs as the
+  Linear" (OAuth2), push-to-Linear. Serves the overlay bundle (built from
+  `client/overlay.js` by Vite into `dist/`). Runs as the
   `dqa` service in `e2e/infra/docker-compose.yml` (port **4000**).
 - **`packages/dev-dqa-overlay`** (`@ens-apps/dev-dqa-overlay`) — React panel +
   loader used by `@ens-apps/dev-tools` **DevDrawer**. When `VITE_DQA=1` the
@@ -133,7 +134,12 @@ Mock-only mode (`VITE_DQA_MOCK_UI=1`) needs no running DQA server — useful for
 Standalone embed (legacy — floating sign-in + toolbar at bottom-right):
 
 ```html
-<script src="http://localhost:4000/overlay.js" data-linear-issue="ENG-123"></script>
+<script type="module" src="http://localhost:4000/overlay.js?issue=ENG-123"></script>
 ```
+
+`overlay.js` is an ES module, so `type="module"` is required — loaded as a
+classic script it fails to parse. Configuration rides on the query string
+(`?issue=`, `?embed=drawer`) because module scripts cannot read `data-*`
+attributes off their own tag (`document.currentScript` is `null` in modules).
 
 ENS apps use **DevDrawer embed mode** instead — no floating DQA chrome.

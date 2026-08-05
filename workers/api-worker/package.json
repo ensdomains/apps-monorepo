@@ -19,7 +19,8 @@
     "build": "pnpm build:vite && pnpm build:tsc",
     "deploy": "pnpm build:vite && wrangler deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings worker-configuration.gen.d.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "biome check"
   },
   "dependencies": {
     "@block65/webcrypto-web-push": "^1.0.2",

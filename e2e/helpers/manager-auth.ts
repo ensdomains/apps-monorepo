@@ -1,8 +1,8 @@
-import { expect, type Page } from '@playwright/test'
 import {
   type Web3ProviderBackend,
   Web3RequestKind,
 } from '@ensdomains/headless-web3-provider'
+import { expect, type Page } from '@playwright/test'
 import type { Hash } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
@@ -56,9 +56,12 @@ export async function authorizeHeadlessConnection(
   await wallet.authorize(Web3RequestKind.RequestPermissions)
 
   await expect
-    .poll(() => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts), {
-      timeout: 15_000,
-    })
+    .poll(
+      () => wallet.getPendingRequestCount(Web3RequestKind.RequestAccounts),
+      {
+        timeout: 15_000,
+      },
+    )
     .toBeGreaterThanOrEqual(1)
   await wallet.authorize(Web3RequestKind.RequestAccounts)
 }
@@ -97,7 +100,7 @@ export async function connectWithHeadlessWallet(
   const headlessOption = page.getByText('Headless Web3 Provider')
   await expect(async () => {
     if (!(await modal.isVisible().catch(() => false))) {
-      await connectButton.click({ timeout: 5_000 }).catch(() => { })
+      await connectButton.click({ timeout: 5_000 }).catch(() => {})
     }
     await expect(headlessOption).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 40_000 })
@@ -123,7 +126,7 @@ export async function clickThroughEnableSessions(page: Page): Promise<void> {
     await enableBtn.waitFor({ state: 'visible', timeout: 30_000 })
     await enableBtn.click()
     const overlay = page.locator('[data-slot="dialog-overlay"]')
-    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => { })
+    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
   } catch {
     // Modal never appeared — sessions already enabled or feature flag off.
   }
@@ -244,7 +247,7 @@ export async function signInBackendAuthModal(
   })
 
   const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-  await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => { })
+  await overlay.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {})
 }
 
 // ---------------------------------------------------------------------------

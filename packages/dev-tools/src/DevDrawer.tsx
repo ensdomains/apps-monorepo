@@ -500,6 +500,7 @@ function DevDrawerInner() {
           {dqaAuthenticated && dqaApi?.setShowPins && (
             // Quick pins toggle without opening the drawer. A span (not a
             // nested <button>) because it sits inside the trigger button.
+            // biome-ignore lint/a11y/useSemanticElements: a <button> here would nest inside the trigger <button>, which is invalid HTML
             <span
               onClick={(event) => {
                 event.stopPropagation()
