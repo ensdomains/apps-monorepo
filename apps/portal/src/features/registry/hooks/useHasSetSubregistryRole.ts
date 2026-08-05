@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
+import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { getHasRolesQueryOptions } from './useHasRoles'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
+export type UseHasSetSubregistryRoleResult = {
+  hasRole: boolean | undefined
+  isLoading: boolean
+  error: Error | null
+  parentRegistry: Address | null
+  connectedAddress: Address | undefined
+}
+
 export const useHasSetSubregistryRole = (
   name: string,
   { enabled = true }: { enabled?: boolean } = {},
-) => {
+): UseHasSetSubregistryRoleResult => {
   const { address: connectedAddress } = useConnection()
 
   const {
