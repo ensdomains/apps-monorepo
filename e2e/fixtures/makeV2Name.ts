@@ -23,8 +23,8 @@ import { setRecords } from '@ensdomains/ensjs/wallet'
 
 import {
   permissionedRegistryGetExpirySnippet,
+  permissionedResolverAuthorizeNameRolesSnippet,
   proxyDeployedEventSnippet,
-  subregistryInitializeSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
 import {
@@ -42,23 +42,13 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-
-import {
-  permissionedRegistryGetExpirySnippet,
-  permissionedResolverAuthorizeNameRolesSnippet,
-  proxyDeployedEventSnippet,
-  verifiableFactoryDeployProxySnippet,
-} from '@ensdomains/ensjs-abi/v2'
-// ensjs-abi still ships the 2-arg initializer; see the local override.
-import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
-import { setRecords } from '@ensdomains/ensjs/wallet'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-
 import {
   publicClient,
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+// ensjs-abi still ships the 2-arg initializer; see the local override.
+import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -254,7 +244,9 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     // to write records on a name somebody else owns.
     if (!isOther) {
       await authorizeHcaOnResolver(resolverAddress, ownerAccount)
-      console.log(`[makeV2Name] granted resolver roles to HCA ${STANDALONE_HCA}`)
+      console.log(
+        `[makeV2Name] granted resolver roles to HCA ${STANDALONE_HCA}`,
+      )
     }
 
     // ── 2. Fund the EOA ─────────────────────────────────────────────

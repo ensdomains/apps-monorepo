@@ -20,7 +20,6 @@ import { setRecords } from '@ensdomains/ensjs/wallet'
 import {
   permissionedRegistryGetExpirySnippet,
   proxyDeployedEventSnippet,
-  subregistryInitializeSnippet,
   verifiableFactoryDeployProxySnippet,
 } from '@ensdomains/ensjs-abi/v2'
 import {
@@ -38,22 +37,13 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-
-import {
-  permissionedRegistryGetExpirySnippet,
-  proxyDeployedEventSnippet,
-  verifiableFactoryDeployProxySnippet,
-} from '@ensdomains/ensjs-abi/v2'
-// ensjs-abi still ships the 2-arg initializer; see the local override.
-import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
-import { setRecords } from '@ensdomains/ensjs/wallet'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-
 import {
   publicClient,
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+// ensjs-abi still ships the 2-arg initializer; see the local override.
+import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
