@@ -1,13 +1,149 @@
-import type { Page } from '@playwright/test'
-import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
-  test,
-  expect,
+  createSubnameV2,
+  deploySubregistry,
+  setSubregistry,
+} from '@ensdomains/ensjs/wallet'
+import {
+  permissionedRegistryGetResolverSnippet,
+  permissionedRegistryGetSubregistrySnippet,
+  proxyDeployedEventSnippet,
+} from '@ensdomains/ensjs-abi/v2'
+import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import type { Page } from '@playwright/test'
+import {
+  type Address,
+  createWalletClient,
+  type Hash,
+  http,
+  parseEventLogs,
+  zeroAddress,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import {
   connectWithHeadlessWallet,
+  expect,
+  test,
 } from '../../../fixtures/playwright.portal.fixture.js'
+import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
+
+// Same chain contracts `makeName` reads from — see e2e/fixtures/makeName.ts.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
+const USER_REGISTRY_IMPL = ensjsSepolia.ensUserRegistryImpl.address
+
+// `deploySubregistryWriteParameters`'s default for the admin it deploys with
+// (see ensjs's deploySubregistry.ts) — not exported, so redeclared here, same
+// as the app's own create-subname.helpers.ts does.
+const FULL_ROLE_BITMAP = BigInt(
+  '0x1111111111111111111111111111111111111111111111111111111111111111',
+)
+
+/** A wallet client for `ownerPrivateKey`, pointed at the local Anvil fork. */
+function getOwnerClient(ownerPrivateKey: Hash) {
+  return createWalletClient({
+    account: privateKeyToAccount(ownerPrivateKey),
+    chain: walletClient.chain!,
+    transport: http(ANVIL_RPC_URL),
+  })
+}
+
+/**
+ * Reads `label`'s current resolver and subregistry directly from the `.eth`
+ * registry — used to snapshot state before a transfer and confirm it's
+ * unchanged after.
+ */
+function readResolverAndSubregistry(
+  label: string,
+): Promise<[Address, Address]> {
+  return Promise.all([
+    publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: permissionedRegistryGetResolverSnippet,
+      functionName: 'getResolver',
+      args: [label],
+    }),
+    publicClient.readContract({
+      address: ETH_REGISTRY,
+      abi: permissionedRegistryGetSubregistrySnippet,
+      functionName: 'getSubregistry',
+      args: [label],
+    }),
+  ])
+}
+
+/**
+ * Deploys a fresh subregistry proxy and attaches it to `name` on the parent
+ * (`.eth`) registry, signed by `ownerPrivateKey`. `makeName` always registers
+ * with `subregistry: zeroAddress` (see makeName.ts), so a test that needs
+ * `useTransferDetachTargets` to show a "Detach the registry" target calls
+ * this first. Returns the deployed subregistry address.
+ */
+async function attachSubregistry(
+  name: string,
+  ownerPrivateKey: Hash,
+): Promise<Address> {
+  const label = name.replace(/\.eth$/, '')
+  const ownerClient = getOwnerClient(ownerPrivateKey)
+
+  const deployHash = await deploySubregistry(ownerClient, {
+    factoryAddress: VERIFIABLE_FACTORY,
+    implAddress: USER_REGISTRY_IMPL,
+  })
+  const deployReceipt = await publicClient.waitForTransactionReceipt({
+    hash: deployHash,
+  })
+
+  const [deployed] = parseEventLogs({
+    abi: proxyDeployedEventSnippet,
+    eventName: 'ProxyDeployed',
+    logs: deployReceipt.logs,
+  })
+  if (!deployed) {
+    throw new Error('Could not extract deployed subregistry address')
+  }
+  const subregistryAddress = deployed.args.proxyAddress
+
+  const setHash = await setSubregistry(ownerClient, {
+    registryAddress: ETH_REGISTRY,
+    label,
+    subregistryAddress,
+  })
+  await publicClient.waitForTransactionReceipt({ hash: setHash })
+
+  return subregistryAddress
+}
+
+/**
+ * Registers `label.<the name behind subregistryAddress>` as a fresh subname,
+ * owned by `ownerPrivateKey`, with no resolver and no subregistry of its own
+ * — just enough for a subname-transfer test with nothing else to detach.
+ * `subregistryAddress` must come from {@link attachSubregistry}, whose caller
+ * is deployed as that registry's admin with full permissions, so the same
+ * owner can register into it directly.
+ */
+async function registerSubname(
+  subregistryAddress: Address,
+  label: string,
+  ownerPrivateKey: Hash,
+): Promise<void> {
+  const ownerClient = getOwnerClient(ownerPrivateKey)
+
+  const hash = await createSubnameV2(ownerClient, {
+    registryAddress: subregistryAddress,
+    label,
+    owner: ownerClient.account.address,
+    subregistryAddress: zeroAddress,
+    resolverAddress: zeroAddress,
+    roleBitmap: FULL_ROLE_BITMAP,
+  })
+  await publicClient.waitForTransactionReceipt({ hash })
+}
 
 /**
  * Drives the shared `TransactionModal` (`[data-slot="dialog-content"]`) through
@@ -96,8 +232,8 @@ async function driveTransactionsToSuccess(
 
 /**
  * Confirms `ownerAddress` is shown as the owner on both the name's Overview
- * tab (`/$name`, labeled "Owner") and Ownership tab (`/$name/ownership`,
- * labeled "Name owner") — see the shared `Owner` component.
+ * tab (`/$name`) and Ownership tab (`/$name/ownership`) — both labeled
+ * "Owner" (they share the same `Owner` component; see WEB-649).
  */
 async function expectOwnerOnNamePages(
   page: Page,
@@ -115,9 +251,9 @@ async function expectOwnerOnNamePages(
   })
 
   await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
-  await expect(
-    page.getByText('Name owner', { exact: true }).first(),
-  ).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Owner', { exact: true }).first()).toBeVisible({
+    timeout: 30_000,
+  })
   await expect(page.getByText(shortenedOwner).first()).toBeVisible({
     timeout: 15_000,
   })
@@ -151,7 +287,13 @@ test.describe('Portal name transfer', () => {
     await transferButton.click()
 
     // ── 3. Authorize the on-chain transfer ────────────────────────────
+    // A name fresh from `makeName` always has a resolver attached (the
+    // shared DEDICATED_RESOLVER), and SendNameForm's "Detach the resolver"
+    // option defaults to on whenever a resolver is set — so even this
+    // hands-off transfer detaches it before the token moves (see
+    // buildTransferPlan.ts).
     await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-detach-resolver`,
       `transfer-${name}-transfer-token`,
     ])
     await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
@@ -162,7 +304,7 @@ test.describe('Portal name transfer', () => {
     await expectOwnerOnNamePages(page, name, recipient)
   })
 
-  test('transfers a name to wallet B with the resolver reset', async ({
+  test('transfers a name to wallet B with the resolver detached', async ({
     portalPage: page,
     wallet,
     accounts,
@@ -173,7 +315,7 @@ test.describe('Portal name transfer', () => {
     await connectWithHeadlessWallet(page, wallet)
 
     const name = await makeName({
-      label: 'test2-reset-resolver',
+      label: 'test2-detach-resolver',
       owner: 'user',
     })
     const recipient = accounts.getAddress('user2')
@@ -184,17 +326,22 @@ test.describe('Portal name transfer', () => {
     ).toBeVisible({ timeout: 15_000 })
 
     await page.getByPlaceholder('ENS name or address').fill(recipient)
-    await page.getByRole('switch', { name: /Reset the resolver/ }).click()
+
+    // "Detach the resolver" defaults to on whenever the name has one, so a
+    // name fresh from `makeName` shows it pre-checked — nothing to toggle.
+    await expect(
+      page.getByRole('switch', { name: /Detach the resolver/ }),
+    ).toBeChecked({ timeout: 15_000 })
 
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
     await expect(transferButton).toBeEnabled({ timeout: 15_000 })
     await transferButton.click()
 
-    // Resetting the resolver adds a step that must run before the token
+    // Detaching the resolver adds a step that must run before the token
     // transfer (see buildTransferPlan.ts — the sender loses the roles
     // needed to detach the resolver once the ERC-1155 token has moved).
     await driveTransactionsToSuccess(page, wallet, [
-      `transfer-${name}-reset-resolver`,
+      `transfer-${name}-detach-resolver`,
       `transfer-${name}-transfer-token`,
     ])
     await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
@@ -221,7 +368,10 @@ test.describe('Portal name transfer', () => {
 
     await connectWithHeadlessWallet(page, wallet)
 
-    const name = await makeName({ label: 'transfer-to-ens-name', owner: 'user' })
+    const name = await makeName({
+      label: 'transfer-to-ens-name',
+      owner: 'user',
+    })
     const recipientName = await makeName({
       label: 'test3-recipient',
       owner: 'user2',
@@ -245,7 +395,10 @@ test.describe('Portal name transfer', () => {
     await expect(transferButton).toBeEnabled({ timeout: 15_000 })
     await transferButton.click()
 
+    // See "transfers a name from wallet A to wallet B" — a fresh name always
+    // has a resolver attached, so it's detached by default here too.
     await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-detach-resolver`,
       `transfer-${name}-transfer-token`,
     ])
     await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
@@ -357,7 +510,10 @@ test.describe('Portal name transfer', () => {
     const transferButton = page.getByRole('button', { name: 'Transfer name' })
     await expect(transferButton).toBeEnabled({ timeout: 15_000 })
     await transferButton.click()
+    // A fresh name always has a resolver attached, so it's detached by
+    // default as part of the transfer — the new owner starts with none.
     await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-detach-resolver`,
       `transfer-${name}-transfer-token`,
     ])
     await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
@@ -376,11 +532,11 @@ test.describe('Portal name transfer', () => {
     ).toBeVisible({ timeout: 15_000 })
 
     // ── 3. New owner deploys their own resolver ────────────────────────
-    // Resolver write-permissions are a static role grant that stays with
-    // whoever held them at deploy time — they don't follow the ERC-1155
-    // token transfer. The new owner has to deploy a fresh resolver before
-    // they can write records (see buildTransferPlan.ts: "the recipient
-    // deploys their own afterward").
+    // The transfer above detached the resolver by default (step 1), and
+    // resolver write-permissions are a static role grant that stays with
+    // whoever held them at deploy time anyway — they don't follow the
+    // ERC-1155 token transfer. Either way the new owner has to deploy a
+    // fresh resolver before they can write records.
     await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
     await page.getByRole('switch', { name: /Use custom resolver/ }).click()
     await page.getByRole('button', { name: 'Save changes' }).click()
@@ -399,9 +555,7 @@ test.describe('Portal name transfer', () => {
     await page.getByLabel('Value').fill('Edited by the new owner')
     await page.getByRole('button', { name: 'Add record' }).click()
     await page.getByRole('button', { name: /Save \d+ change/ }).click()
-    await driveTransactionsToSuccess(page, wallet, [
-      'tx-save-resolver-records',
-    ])
+    await driveTransactionsToSuccess(page, wallet, ['tx-save-resolver-records'])
 
     await expect(page).toHaveURL(new RegExp(`/${name}/records$`), {
       timeout: 30_000,
@@ -409,5 +563,141 @@ test.describe('Portal name transfer', () => {
     await expect(page.getByText('Edited by the new owner')).toBeVisible({
       timeout: 15_000,
     })
+  })
+
+  test('keeps the resolver and registry attached when both detach options are turned off', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(180_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'test7-keep-attached',
+      owner: 'user',
+    })
+    const label = name.replace(/\.eth$/, '')
+    const recipient = accounts.getAddress('user2')
+
+    // Attach a subregistry on-chain so "Detach the registry" actually
+    // renders (see useTransferDetachTargets.ts — it's hidden otherwise).
+    const subregistryAddress = await attachSubregistry(
+      name,
+      accounts.getPrivateKey('user'),
+    )
+    const [originalResolver, originalSubregistry] =
+      await readResolverAndSubregistry(label)
+    expect(originalSubregistry.toLowerCase()).toBe(
+      subregistryAddress.toLowerCase(),
+    )
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await expect(
+      page.getByRole('heading', { name: 'Transfer ownership' }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+
+    // Both options default to on whenever they have a target — turn both
+    // off to exercise the "leave everything as-is" path.
+    const detachResolverSwitch = page.getByRole('switch', {
+      name: /Detach the resolver/,
+    })
+    const detachRegistrySwitch = page.getByRole('switch', {
+      name: /Detach the registry/,
+    })
+    await expect(detachResolverSwitch).toBeVisible({ timeout: 15_000 })
+    await detachResolverSwitch.click()
+    await expect(detachRegistrySwitch).toBeVisible({ timeout: 15_000 })
+    await detachRegistrySwitch.click()
+
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    // With both detach options off, buildTransferPlan.ts collapses the plan
+    // to the bare token transfer.
+    await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-transfer-token`,
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    // Neither the resolver nor the registry were detached, so both should
+    // still point at exactly what they did before the transfer.
+    const [resolverAfter, subregistryAfter] =
+      await readResolverAndSubregistry(label)
+    expect(resolverAfter.toLowerCase()).toBe(originalResolver.toLowerCase())
+    expect(subregistryAfter.toLowerCase()).toBe(
+      originalSubregistry.toLowerCase(),
+    )
+  })
+
+  test('transfers a subname from wallet A to wallet B without affecting the parent name', async ({
+    portalPage: page,
+    wallet,
+    accounts,
+    makeName,
+  }) => {
+    test.setTimeout(180_000)
+
+    await connectWithHeadlessWallet(page, wallet)
+
+    const parentName = await makeName({
+      label: 'test8-subname-parent',
+      owner: 'user',
+    })
+    const parentOwner = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+
+    // A subname only exists once its parent has a subregistry — same setup
+    // as the "registry attached" scenario above — then register the
+    // subname itself as a label inside it.
+    const subregistryAddress = await attachSubregistry(
+      parentName,
+      accounts.getPrivateKey('user'),
+    )
+    await registerSubname(
+      subregistryAddress,
+      'sub',
+      accounts.getPrivateKey('user'),
+    )
+    const name = `sub.${parentName}`
+
+    // ── 1. Start the transfer from the subname's Ownership tab ────────
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership`)
+    await page.getByRole('link', { name: 'Transfer' }).click()
+    await expect(
+      page.getByRole('heading', { name: 'Transfer ownership' }),
+    ).toBeVisible({ timeout: 15_000 })
+
+    // ── 2. Fill the recipient and submit ──────────────────────────────
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    // The subname has neither a resolver nor a registry of its own, so the
+    // plan is the bare token transfer — transferToken.ts moves the ERC-1155
+    // token in the subname's own leaf registry regardless of nesting depth.
+    await driveTransactionsToSuccess(page, wallet, [
+      `transfer-${name}-transfer-token`,
+    ])
+    await expect(page).toHaveURL(new RegExp(`/${name}/ownership$`), {
+      timeout: 30_000,
+    })
+
+    // ── 3. The subname's token moved to wallet B... ───────────────────
+    await expectOwnerOnNamePages(page, name, recipient)
+
+    // ── 4. ...but the parent name's own token is untouched — subnames and
+    // their parent are independent ERC-1155 tokens in ENSv2. ────────────
+    await expectOwnerOnNamePages(page, parentName, parentOwner)
   })
 })
