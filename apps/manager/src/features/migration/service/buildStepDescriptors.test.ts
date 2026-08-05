@@ -4,16 +4,27 @@ import type { AtomicMigrationBatch } from './buildAtomicMigrationBatches'
 import { buildStepDescriptors } from './buildStepDescriptors'
 import type {
   MigrationApproval,
-  MigrationApprovalId,
+  MigrationOperatorApprovalId,
 } from './migrationApprovals'
 
 const CONTRACT = '0x0000000000000000000000000000000000000001' as Address
-const OPERATOR = '0x0000000000000000000000000000000000000002' as Address
+const HCA = '0x0000000000000000000000000000000000000002' as Address
 
-const approval = (id: MigrationApprovalId): MigrationApproval => ({
+const operatorApproval = (
+  id: MigrationOperatorApprovalId,
+): MigrationApproval => ({
+  kind: 'operator',
   id,
   contractAddress: CONTRACT,
-  operatorAddress: OPERATOR,
+  operatorAddress: HCA,
+})
+
+const tokenApproval = (tokenId = 1n): MigrationApproval => ({
+  kind: 'erc721-token',
+  id: 'base-registrar:hca-token',
+  contractAddress: CONTRACT,
+  operatorAddress: HCA,
+  tokenId,
 })
 
 const batches = (
@@ -22,30 +33,45 @@ const batches = (
   namesByBatch.map((names) => ({ names }) as AtomicMigrationBatch)
 
 describe('buildStepDescriptors', () => {
-  it('orders HCA deployment, approvals, atomic batches, and cleanup', () => {
+  it('uses three successful-path steps for one unwrapped name and a fresh HCA', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: true,
-        approvals: [
-          approval('base-registrar:migration-helper'),
-          approval('base-registrar:hca'),
-        ],
-        atomicBatches: batches(['alice.eth', 'bob.eth'], ['c.eth']),
+        approvals: [tokenApproval()],
+        atomicBatches: batches(['alice.eth']),
       }),
     ).toEqual([
       { type: 'deploy-hca' },
-      {
-        type: 'approval',
-        approvalId: 'base-registrar:migration-helper',
-      },
-      { type: 'approval', approvalId: 'base-registrar:hca' },
-      { type: 'atomic-batch', index: 0, total: 2, count: 2 },
-      { type: 'atomic-batch', index: 1, total: 2, count: 1 },
-      { type: 'cleanup', count: 2 },
+      { type: 'approval', approvalId: 'base-registrar:hca-token' },
+      { type: 'atomic-batch', index: 0, total: 1, count: 1 },
     ])
   })
 
-  it('omits HCA deployment when the account is already deployed', () => {
+  it('uses two successful-path steps for one unwrapped name and an existing HCA', () => {
+    expect(
+      buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [tokenApproval()],
+        atomicBatches: batches(['alice.eth']),
+      }),
+    ).toHaveLength(2)
+  })
+
+  it('uses three steps for a wrapped selection and an existing HCA', () => {
+    expect(
+      buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [operatorApproval('name-wrapper:hca')],
+        atomicBatches: batches(['alice.eth', 'bob.eth']),
+      }),
+    ).toEqual([
+      { type: 'approval', approvalId: 'name-wrapper:hca' },
+      { type: 'atomic-batch', index: 0, total: 1, count: 2 },
+      { type: 'cleanup', count: 1 },
+    ])
+  })
+
+  it('uses one step when the HCA and required permissions already exist', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
@@ -55,44 +81,38 @@ describe('buildStepDescriptors', () => {
     ).toEqual([{ type: 'atomic-batch', index: 0, total: 1, count: 1 }])
   })
 
-  it('carries every approval id in plan order', () => {
-    const approvals = [
-      approval('name-wrapper:migration-helper'),
-      approval('name-wrapper:hca'),
-      approval('eth-registry:hca'),
-    ]
-
+  it('adds manager approval and cleanup around the migration batch', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
-        approvals,
-        atomicBatches: [],
-      }).filter((descriptor) => descriptor.type === 'approval'),
+        approvals: [operatorApproval('eth-registry:hca')],
+        atomicBatches: batches(['alice.eth']),
+      }),
     ).toEqual([
-      {
-        type: 'approval',
-        approvalId: 'name-wrapper:migration-helper',
-      },
-      { type: 'approval', approvalId: 'name-wrapper:hca' },
       { type: 'approval', approvalId: 'eth-registry:hca' },
+      { type: 'atomic-batch', index: 0, total: 1, count: 1 },
+      { type: 'cleanup', count: 1 },
     ])
   })
 
-  it('adds cleanup only when temporary approvals are planned', () => {
-    expect(
-      buildStepDescriptors({
-        hcaDeploymentRequired: true,
-        approvals: [],
-        atomicBatches: [],
-      }),
-    ).toEqual([{ type: 'deploy-hca' }])
-  })
-
-  it('uses an explicit cleanup count when execution has a confirmed approval ledger', () => {
+  it('adds one atomic step for every extra gas batch', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
-        approvals: [approval('name-wrapper:hca')],
+        approvals: [],
+        atomicBatches: batches(['alice.eth'], ['bob.eth']),
+      }),
+    ).toEqual([
+      { type: 'atomic-batch', index: 0, total: 2, count: 1 },
+      { type: 'atomic-batch', index: 1, total: 2, count: 1 },
+    ])
+  })
+
+  it('uses the confirmed ledger count when execution supplies one', () => {
+    expect(
+      buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [operatorApproval('name-wrapper:hca')],
         atomicBatches: [],
         cleanupApprovalCount: 0,
       }),

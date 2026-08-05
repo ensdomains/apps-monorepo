@@ -11,6 +11,7 @@ import {
   checkMigrationResolverReadiness,
   getMigrationResolverAddress,
   MigrationContractInvariantError,
+  REQUIRED_MIGRATION_CONTRACTS,
 } from './migrationInvariants'
 
 vi.mock('@ens-apps/smart-account', async (importActual) => ({
@@ -48,8 +49,19 @@ describe('assertRequiredMigrationContractCode', () => {
     ).resolves.toBeUndefined()
   })
 
+  it('does not require MigrationHelper bytecode for the direct route', async () => {
+    const publicClient = makePublicClient()
+    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
+
+    await expect(
+      assertRequiredMigrationContractCode({ publicClient }),
+    ).resolves.toBeUndefined()
+    expect(
+      REQUIRED_MIGRATION_CONTRACTS.map(([contractName]) => contractName),
+    ).not.toContain('MigrationHelper')
+  })
+
   it.each([
-    ['MigrationHelper', V2_CONTRACTS.MigrationHelper],
     ['PublicResolverSet', V2_CONTRACTS.PublicResolverSet],
     ['WrapperRegistryImpl', V2_CONTRACTS.WrapperRegistryImpl],
   ] as const)('identifies %s when the configured contract is missing code', async (contractName, missingAddress) => {

@@ -33,7 +33,6 @@ export type RequiredMigrationContractName =
   | 'LockedMigrationController'
   | 'PublicResolverSet'
   | 'WrapperRegistryImpl'
-  | 'MigrationHelper'
   | 'DefaultResolver'
   | 'StandaloneHCAFactory'
   | 'StandaloneHCAImplementation'
@@ -69,7 +68,6 @@ export const REQUIRED_MIGRATION_CONTRACTS = [
   ['LockedMigrationController', V2_CONTRACTS.LockedMigrationController],
   ['PublicResolverSet', V2_CONTRACTS.PublicResolverSet],
   ['WrapperRegistryImpl', V2_CONTRACTS.WrapperRegistryImpl],
-  ['MigrationHelper', V2_CONTRACTS.MigrationHelper],
   ['DefaultResolver', V2_CONTRACTS.DefaultResolver],
   ['StandaloneHCAFactory', V2_CONTRACTS.StandaloneHCAFactory],
   ['StandaloneHCAImplementation', V2_CONTRACTS.StandaloneHCAImplementation],

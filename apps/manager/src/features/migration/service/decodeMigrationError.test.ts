@@ -1,9 +1,6 @@
-import { encodeErrorResult, type Hex } from 'viem'
+import { encodeErrorResult, type Hex, parseAbi } from 'viem'
 import { describe, expect, it } from 'vitest'
-import {
-  LIB_MIGRATION_ERRORS_ABI,
-  MIGRATION_HELPER_ABI,
-} from '../contracts/abis'
+import { LIB_MIGRATION_ERRORS_ABI } from '../contracts/abis'
 import {
   decodeMigrationError,
   extractErrorMessage,
@@ -16,6 +13,18 @@ const revertWith = (data: Hex) =>
     name: 'ContractFunctionRevertedError',
     data,
   })
+
+const directMigrationErrorsAbi = parseAbi([
+  'error CallerNotOwner()',
+  'error UnauthorizedCaller(address caller)',
+  'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
+  'error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)',
+  'error ERC1155MissingApprovalForAll(address operator, address owner)',
+])
+
+const errorStringAbi = [
+  { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
+] as const
 
 describe('extractErrorMessage', () => {
   it.each([
@@ -59,6 +68,25 @@ describe('extractErrorMessage', () => {
 })
 
 describe('decodeMigrationError — direct mappings', () => {
+  it('maps permission-plan drift to a refreshable error', () => {
+    const planChanged = Object.assign(new Error('preview is stale'), {
+      name: 'MigrationPlanChangedError',
+    })
+    const outer = new Error('migration failed', { cause: planChanged })
+
+    expect(decodeMigrationError(outer)).toEqual({ type: 'plan-changed' })
+  })
+
+  it('maps an uncertain submitted batch to a fail-closed retry error', () => {
+    const uncertain = Object.assign(new Error('receipt unavailable'), {
+      name: 'SubmittedAtomicMigrationIndeterminateError',
+    })
+
+    expect(decodeMigrationError(uncertain)).toEqual({
+      type: 'retry-blocked',
+    })
+  })
+
   it.each([
     [
       'OwnedResolverDeployError → resolver-deploy-failed',
@@ -183,47 +211,68 @@ describe('decodeMigrationError — preflight timeout', () => {
   })
 })
 
-describe('decodeMigrationError — helper-typed reverts', () => {
-  it('maps WrappedOwnerMismatch', () => {
+describe('decodeMigrationError — direct HCA and token reverts', () => {
+  it('maps an HCA owner mismatch', () => {
     const data = encodeErrorResult({
-      abi: MIGRATION_HELPER_ABI,
-      errorName: 'WrappedOwnerMismatch',
-      args: [42n],
+      abi: directMigrationErrorsAbi,
+      errorName: 'CallerNotOwner',
     })
     expect(decodeMigrationError(revertWith(data))).toEqual({
-      type: 'wrapped-owner-mismatch',
+      type: 'hca-owner-mismatch',
+    })
+  })
+
+  it('maps a missing ERC-721 token approval', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'ERC721InsufficientApproval',
+      args: ['0x1111111111111111111111111111111111111111', 42n],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'permission-missing',
       tokenId: 42n,
     })
   })
 
-  it('maps ParentNotMigrated and decodes the DNS-encoded name to a human-readable string', () => {
-    // DNS-encoded 'vault.eth': 0x05 + 'vault' + 0x03 + 'eth' + 0x00
-    const dnsEncoded = '0x057661756c740365746800' as Hex
+  it('maps a missing NameWrapper operator approval', () => {
     const data = encodeErrorResult({
-      abi: MIGRATION_HELPER_ABI,
-      errorName: 'ParentNotMigrated',
-      args: [dnsEncoded],
-    })
-    const result = decodeMigrationError(revertWith(data))
-    expect(result.type).toBe('parent-not-migrated')
-    if (result.type === 'parent-not-migrated') {
-      expect(result.parentName).toBe('vault.eth')
-    }
-  })
-
-  it('maps NotApprovedOperator', () => {
-    const data = encodeErrorResult({
-      abi: MIGRATION_HELPER_ABI,
-      errorName: 'NotApprovedOperator',
+      abi: directMigrationErrorsAbi,
+      errorName: 'ERC1155MissingApprovalForAll',
       args: [
         '0x1111111111111111111111111111111111111111',
         '0x2222222222222222222222222222222222222222',
       ],
     })
     expect(decodeMigrationError(revertWith(data))).toEqual({
-      type: 'not-approved-operator',
-      nft: '0x1111111111111111111111111111111111111111',
-      owner: '0x2222222222222222222222222222222222222222',
+      type: 'permission-missing',
+    })
+  })
+
+  it('maps an ownership change after preflight', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'ERC721IncorrectOwner',
+      args: [
+        '0x1111111111111111111111111111111111111111',
+        43n,
+        '0x2222222222222222222222222222222222222222',
+      ],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'token-owner-changed',
+      tokenId: 43n,
+    })
+  })
+
+  it('maps a direct receiver caller mismatch', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'UnauthorizedCaller',
+      args: ['0x1111111111111111111111111111111111111111'],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'direct-transfer-unauthorized',
+      caller: '0x1111111111111111111111111111111111111111',
     })
   })
 })
@@ -232,9 +281,7 @@ describe('decodeMigrationError — wrapped LibMigration errors', () => {
   // Legacy fixtures encoded the original revert as a plain "0x..." string.
   const wrap = (inner: Hex): Hex =>
     encodeErrorResult({
-      abi: [
-        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
-      ] as const,
+      abi: errorStringAbi,
       errorName: 'Error',
       args: [inner],
     })
@@ -243,9 +290,7 @@ describe('decodeMigrationError — wrapped LibMigration errors', () => {
   // before the hex-encoded typed revert.
   const wrapDeployed = (inner: Hex): Hex =>
     encodeErrorResult({
-      abi: [
-        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
-      ] as const,
+      abi: errorStringAbi,
       errorName: 'Error',
       args: [`WrappedError::0x${inner.slice(2)}`],
     })
@@ -276,23 +321,74 @@ describe('decodeMigrationError — wrapped LibMigration errors', () => {
 
   it('checks deeper client errors when executeByOwner has outer revert data', () => {
     const inner = encodeErrorResult({
-      abi: MIGRATION_HELPER_ABI,
-      errorName: 'NotApprovedOperator',
-      args: [
-        '0x1111111111111111111111111111111111111111',
-        '0x2222222222222222222222222222222222222222',
-      ],
+      abi: directMigrationErrorsAbi,
+      errorName: 'ERC721InsufficientApproval',
+      args: ['0x1111111111111111111111111111111111111111', 44n],
     })
-    const controllerRevert = revertWith(wrapDeployed(inner))
+    const controllerRevert = revertWith(inner)
     const hcaRevert = Object.assign(
       new Error('executeByOwner reverted', { cause: controllerRevert }),
       { data: '0xdeadbeef' as Hex },
     )
 
     expect(decodeMigrationError(hcaRevert)).toEqual({
-      type: 'not-approved-operator',
-      nft: '0x1111111111111111111111111111111111111111',
-      owner: '0x2222222222222222222222222222222222222222',
+      type: 'permission-missing',
+      tokenId: 44n,
+    })
+  })
+
+  it('reads viem ContractFunctionRevertedError raw data', () => {
+    const raw = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'CallerNotOwner',
+    })
+    const error = Object.assign(new Error('executeByOwner reverted'), {
+      data: { errorName: 'CallerNotOwner' },
+      raw,
+    })
+
+    expect(decodeMigrationError(error)).toEqual({
+      type: 'hca-owner-mismatch',
+    })
+  })
+
+  it('reads nested raw RPC error data', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'ERC1155MissingApprovalForAll',
+      args: [
+        '0x1111111111111111111111111111111111111111',
+        '0x2222222222222222222222222222222222222222',
+      ],
+    })
+    const error = Object.assign(new Error('execution reverted'), {
+      data: { data },
+    })
+
+    expect(decodeMigrationError(error)).toEqual({
+      type: 'permission-missing',
+    })
+  })
+
+  it('recognizes legacy token permission errors wrapped as Error(string)', () => {
+    const data = encodeErrorResult({
+      abi: errorStringAbi,
+      errorName: 'Error',
+      args: ['ERC721: transfer caller is not owner nor approved'],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'permission-missing',
+    })
+  })
+
+  it('recognizes legacy ownership errors wrapped as Error(string)', () => {
+    const data = encodeErrorResult({
+      abi: errorStringAbi,
+      errorName: 'Error',
+      args: ['ERC721: transfer of token that is not own'],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'token-owner-changed',
     })
   })
 
@@ -424,9 +520,7 @@ describe('decodeMigrationError — on-chain Error(string) raw-bytes wrap', () =>
       args: [123n],
     })
     const controller = encodeErrorResult({
-      abi: [
-        { type: 'error', name: 'Error', inputs: [{ type: 'string' }] },
-      ] as const,
+      abi: errorStringAbi,
       errorName: 'Error',
       args: [`WrappedError::0x${typed.slice(2)}`],
     })

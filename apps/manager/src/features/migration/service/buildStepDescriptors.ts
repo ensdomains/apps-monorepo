@@ -3,6 +3,7 @@ import type {
   MigrationApproval,
   MigrationApprovalId,
 } from './migrationApprovals'
+import { migrationApprovalNeedsExplicitCleanup } from './migrationApprovals'
 
 export type MigrationStepDescriptor =
   | { readonly type: 'deploy-hca' }
@@ -51,7 +52,8 @@ export const buildStepDescriptors = (
   }
 
   const cleanupApprovalCount =
-    params.cleanupApprovalCount ?? params.approvals.length
+    params.cleanupApprovalCount ??
+    params.approvals.filter(migrationApprovalNeedsExplicitCleanup).length
   if (cleanupApprovalCount > 0) {
     descriptors.push({ type: 'cleanup', count: cleanupApprovalCount })
   }

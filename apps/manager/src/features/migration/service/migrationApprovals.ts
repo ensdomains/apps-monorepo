@@ -1,81 +1,157 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import type { Call } from '@ens-apps/transaction-manager'
 import { readContracts, type Config as WagmiConfig } from '@wagmi/core'
-import { type Address, encodeFunctionData, isAddressEqual } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  erc721Abi,
+  isAddress,
+  isAddressEqual,
+  type PublicClient,
+  zeroAddress,
+} from 'viem'
 import { OPERATOR_APPROVAL_ABI } from '@/features/migration/contracts/abis'
 import {
   V1_CONTRACTS,
   V2_CONTRACTS,
 } from '@/features/migration/contracts/addresses'
+import { sepoliaWithEns } from '@/lib/wagmi'
+
+const LEGACY_MIGRATION_HELPER = getDestinationContracts(
+  sepoliaWithEns.id,
+).migrationHelper
 
 export type MigrationApprovalNeeds = {
   readonly hasUnwrapped: boolean
+  readonly unwrappedTokenIds: readonly bigint[]
   readonly hasWrapped: boolean
   readonly requiresManagerRestoration: boolean
 }
 
+export type MigrationTokenApprovalStatus = {
+  readonly tokenId: bigint
+  readonly approved: boolean
+}
+
 export type MigrationApprovalStatus = {
-  readonly baseRegistrarHelperApproved: boolean
   readonly baseRegistrarHcaApproved: boolean
-  readonly nameWrapperHelperApproved: boolean
+  readonly unwrappedTokenApprovals: readonly MigrationTokenApprovalStatus[]
   readonly nameWrapperHcaApproved: boolean
   readonly ethRegistryHcaApproved: boolean
 }
 
-export type MigrationApprovalId =
-  | 'base-registrar:migration-helper'
+export type MigrationOperatorApprovalId =
   | 'base-registrar:hca'
-  | 'name-wrapper:migration-helper'
   | 'name-wrapper:hca'
   | 'eth-registry:hca'
 
-/**
- * A missing operator grant required by an HCA migration.
- *
- * The plan contains only approvals that were absent at preflight. Execution
- * records an item before wallet submission so an uncertain broadcast/receipt
- * can be recovered after reload. Cleanup re-reads live approval state before
- * revoking, and therefore never touches approvals that predated the migration.
- */
-export type MigrationApproval = {
-  readonly id: MigrationApprovalId
+export type LegacyMigrationHelperApprovalId =
+  | 'base-registrar:migration-helper'
+  | 'name-wrapper:migration-helper'
+
+export type MigrationApprovalId =
+  | MigrationOperatorApprovalId
+  | LegacyMigrationHelperApprovalId
+  | 'base-registrar:hca-token'
+
+export type MigrationOperatorApproval = {
+  readonly kind: 'operator'
+  readonly id: MigrationOperatorApprovalId | LegacyMigrationHelperApprovalId
   readonly contractAddress: Address
   readonly operatorAddress: Address
 }
 
-/** Rebuild a persisted approval id from the current, trusted deployment data. */
+export type MigrationTokenApproval = {
+  readonly kind: 'erc721-token'
+  readonly id: 'base-registrar:hca-token'
+  readonly contractAddress: Address
+  readonly operatorAddress: Address
+  readonly tokenId: bigint
+}
+
+/**
+ * A missing permission required by a direct HCA migration.
+ *
+ * Plans contain only HCA permissions that were absent at preflight. The two
+ * legacy helper ids can only be reconstructed from the v1 cleanup ledger; the
+ * planner never emits them and grant-call construction rejects them.
+ */
+export type MigrationApproval =
+  | MigrationOperatorApproval
+  | MigrationTokenApproval
+
+const LEGACY_HELPER_APPROVAL_IDS = [
+  'base-registrar:migration-helper',
+  'name-wrapper:migration-helper',
+] as const satisfies readonly LegacyMigrationHelperApprovalId[]
+
+export const isLegacyMigrationHelperApproval = (
+  approval: MigrationApproval,
+): approval is MigrationOperatorApproval & {
+  readonly id: LegacyMigrationHelperApprovalId
+} => (LEGACY_HELPER_APPROVAL_IDS as readonly string[]).includes(approval.id)
+
+/**
+ * Whether a successful migration normally needs a separate cleanup wallet
+ * transaction. ERC-721 token approvals clear automatically on transfer, but
+ * remain ledger-tracked so a reverted migration can explicitly clear them.
+ */
+export const migrationApprovalNeedsExplicitCleanup = (
+  approval: MigrationApproval,
+): boolean => approval.kind === 'operator'
+
+/** Rebuild a persisted permission from the current trusted deployment data. */
 export const migrationApprovalForId = (params: {
   readonly id: MigrationApprovalId
   readonly hcaAddress: Address
   readonly helperAddress?: Address
+  readonly tokenId?: bigint
 }): MigrationApproval => {
-  const helperAddress = params.helperAddress ?? V2_CONTRACTS.MigrationHelper
+  const helperAddress = params.helperAddress ?? LEGACY_MIGRATION_HELPER
   switch (params.id) {
     case 'base-registrar:migration-helper':
       return {
+        kind: 'operator',
         id: params.id,
         contractAddress: V1_CONTRACTS.BaseRegistrar,
         operatorAddress: helperAddress,
       }
     case 'base-registrar:hca':
       return {
+        kind: 'operator',
         id: params.id,
         contractAddress: V1_CONTRACTS.BaseRegistrar,
         operatorAddress: params.hcaAddress,
       }
+    case 'base-registrar:hca-token': {
+      if (params.tokenId === undefined) {
+        throw new Error('An ERC-721 migration approval requires a token id')
+      }
+      return {
+        kind: 'erc721-token',
+        id: params.id,
+        contractAddress: V1_CONTRACTS.BaseRegistrar,
+        operatorAddress: params.hcaAddress,
+        tokenId: params.tokenId,
+      }
+    }
     case 'name-wrapper:migration-helper':
       return {
+        kind: 'operator',
         id: params.id,
         contractAddress: V1_CONTRACTS.NameWrapper,
         operatorAddress: helperAddress,
       }
     case 'name-wrapper:hca':
       return {
+        kind: 'operator',
         id: params.id,
         contractAddress: V1_CONTRACTS.NameWrapper,
         operatorAddress: params.hcaAddress,
       }
     case 'eth-registry:hca':
       return {
+        kind: 'operator',
         id: params.id,
         contractAddress: V2_CONTRACTS.ETHRegistry,
         operatorAddress: params.hcaAddress,
@@ -83,166 +159,195 @@ export const migrationApprovalForId = (params: {
   }
 }
 
-type ApprovalStatusKey = keyof MigrationApprovalStatus
-type ApprovalRead = {
-  readonly key: ApprovalStatusKey
-  readonly contractAddress: Address
-  readonly operatorAddress: Address
-}
+type OperatorStatusKey = Exclude<
+  keyof MigrationApprovalStatus,
+  'unwrappedTokenApprovals'
+>
+type ApprovalRead =
+  | {
+      readonly kind: 'operator'
+      readonly key: OperatorStatusKey
+      readonly contractAddress: Address
+      readonly operatorAddress: Address
+    }
+  | {
+      readonly kind: 'erc721-token'
+      readonly tokenId: bigint
+    }
 type ApprovalContract = Parameters<typeof readContracts>[1]['contracts'][number]
 
-const APPROVED_WHEN_NOT_NEEDED: MigrationApprovalStatus = {
-  baseRegistrarHelperApproved: true,
-  baseRegistrarHcaApproved: true,
-  nameWrapperHelperApproved: true,
-  nameWrapperHcaApproved: true,
-  ethRegistryHcaApproved: true,
-}
+export const migrationApprovalKey = (approval: MigrationApproval): string =>
+  approval.kind === 'erc721-token'
+    ? `${approval.id}:${approval.tokenId}`
+    : `${approval.contractAddress.toLowerCase()}:${approval.operatorAddress.toLowerCase()}`
 
-const approvalKey = (approval: MigrationApproval): string =>
-  `${approval.contractAddress.toLowerCase()}:${approval.operatorAddress.toLowerCase()}`
-
-const appendApproval = (
-  approvals: MigrationApproval[],
-  approval: MigrationApproval,
-): void => {
-  if (
-    approvals.some(
-      (candidate) =>
-        isAddressEqual(candidate.contractAddress, approval.contractAddress) &&
-        isAddressEqual(candidate.operatorAddress, approval.operatorAddress),
-    )
-  ) {
-    return
-  }
-  approvals.push(approval)
-}
+const uniqueTokenIds = (tokenIds: readonly bigint[]): readonly bigint[] => [
+  ...new Set(tokenIds),
+]
 
 export const checkMigrationApprovals = async (params: {
   readonly eoa: Address
   readonly hcaAddress: Address
-  readonly helperAddress?: Address
   readonly needs: MigrationApprovalNeeds
   readonly wagmiConfig: WagmiConfig
 }): Promise<MigrationApprovalStatus> => {
-  const {
-    eoa,
-    hcaAddress,
-    helperAddress = V2_CONTRACTS.MigrationHelper,
-    needs,
-    wagmiConfig,
-  } = params
+  const { eoa, hcaAddress, needs, wagmiConfig } = params
+  const tokenIds = uniqueTokenIds(needs.unwrappedTokenIds)
   const reads: ApprovalRead[] = []
 
   if (needs.hasUnwrapped) {
+    reads.push({
+      kind: 'operator',
+      key: 'baseRegistrarHcaApproved',
+      contractAddress: V1_CONTRACTS.BaseRegistrar,
+      operatorAddress: hcaAddress,
+    })
     reads.push(
-      {
-        key: 'baseRegistrarHelperApproved',
-        contractAddress: V1_CONTRACTS.BaseRegistrar,
-        operatorAddress: helperAddress,
-      },
-      {
-        key: 'baseRegistrarHcaApproved',
-        contractAddress: V1_CONTRACTS.BaseRegistrar,
-        operatorAddress: hcaAddress,
-      },
+      ...tokenIds.map(
+        (tokenId): ApprovalRead => ({ kind: 'erc721-token', tokenId }),
+      ),
     )
   }
 
   if (needs.hasWrapped) {
-    reads.push(
-      {
-        key: 'nameWrapperHelperApproved',
-        contractAddress: V1_CONTRACTS.NameWrapper,
-        operatorAddress: helperAddress,
-      },
-      {
-        key: 'nameWrapperHcaApproved',
-        contractAddress: V1_CONTRACTS.NameWrapper,
-        operatorAddress: hcaAddress,
-      },
-    )
+    reads.push({
+      kind: 'operator',
+      key: 'nameWrapperHcaApproved',
+      contractAddress: V1_CONTRACTS.NameWrapper,
+      operatorAddress: hcaAddress,
+    })
   }
 
   if (needs.requiresManagerRestoration) {
     reads.push({
+      kind: 'operator',
       key: 'ethRegistryHcaApproved',
       contractAddress: V2_CONTRACTS.ETHRegistry,
       operatorAddress: hcaAddress,
     })
   }
 
-  if (reads.length === 0) return APPROVED_WHEN_NOT_NEEDED
+  const initialStatus: MigrationApprovalStatus = {
+    baseRegistrarHcaApproved: !needs.hasUnwrapped,
+    unwrappedTokenApprovals: tokenIds.map((tokenId) => ({
+      tokenId,
+      approved: !needs.hasUnwrapped,
+    })),
+    nameWrapperHcaApproved: !needs.hasWrapped,
+    ethRegistryHcaApproved: !needs.requiresManagerRestoration,
+  }
+  if (reads.length === 0) return initialStatus
 
-  const contracts: ApprovalContract[] = reads.map((read) => ({
-    address: read.contractAddress,
-    abi: OPERATOR_APPROVAL_ABI,
-    functionName: 'isApprovedForAll',
-    args: [eoa, read.operatorAddress],
-  }))
-  const approvals = (await readContracts(wagmiConfig, {
+  const contracts: ApprovalContract[] = reads.map((read) =>
+    read.kind === 'operator'
+      ? {
+          address: read.contractAddress,
+          abi: OPERATOR_APPROVAL_ABI,
+          functionName: 'isApprovedForAll',
+          args: [eoa, read.operatorAddress],
+        }
+      : {
+          address: V1_CONTRACTS.BaseRegistrar,
+          abi: erc721Abi,
+          functionName: 'getApproved',
+          args: [read.tokenId],
+        },
+  )
+  const results = (await readContracts(wagmiConfig, {
     contracts,
     allowFailure: false,
     batchSize: 0,
-  })) as readonly boolean[]
+  })) as readonly unknown[]
 
-  const status = { ...APPROVED_WHEN_NOT_NEEDED }
-  for (const [index, approved] of approvals.entries()) {
+  let baseRegistrarHcaApproved = initialStatus.baseRegistrarHcaApproved
+  let nameWrapperHcaApproved = initialStatus.nameWrapperHcaApproved
+  let ethRegistryHcaApproved = initialStatus.ethRegistryHcaApproved
+  const tokenApprovals = new Map(
+    initialStatus.unwrappedTokenApprovals.map(({ tokenId, approved }) => [
+      tokenId,
+      approved,
+    ]),
+  )
+
+  for (const [index, result] of results.entries()) {
     const read = reads[index]
-    if (read) status[read.key] = approved
+    if (!read) continue
+    if (read.kind === 'erc721-token') {
+      tokenApprovals.set(
+        read.tokenId,
+        typeof result === 'string' &&
+          isAddress(result) &&
+          isAddressEqual(result, hcaAddress),
+      )
+      continue
+    }
+    const approved = result === true
+    switch (read.key) {
+      case 'baseRegistrarHcaApproved':
+        baseRegistrarHcaApproved = approved
+        break
+      case 'nameWrapperHcaApproved':
+        nameWrapperHcaApproved = approved
+        break
+      case 'ethRegistryHcaApproved':
+        ethRegistryHcaApproved = approved
+        break
+    }
   }
-  return status
+
+  return {
+    baseRegistrarHcaApproved,
+    unwrappedTokenApprovals: tokenIds.map((tokenId) => ({
+      tokenId,
+      approved: tokenApprovals.get(tokenId) ?? false,
+    })),
+    nameWrapperHcaApproved,
+    ethRegistryHcaApproved,
+  }
 }
 
 export const planMigrationApprovals = (params: {
   readonly hcaAddress: Address
-  readonly helperAddress?: Address
   readonly needs: MigrationApprovalNeeds
   readonly status: MigrationApprovalStatus
 }): readonly MigrationApproval[] => {
-  const {
-    hcaAddress,
-    helperAddress = V2_CONTRACTS.MigrationHelper,
-    needs,
-    status,
-  } = params
+  const { hcaAddress, needs, status } = params
   const approvals: MigrationApproval[] = []
+  const tokenStatus = new Map(
+    status.unwrappedTokenApprovals.map(({ tokenId, approved }) => [
+      tokenId,
+      approved,
+    ]),
+  )
+  const tokenIds = uniqueTokenIds(needs.unwrappedTokenIds)
+  const missingTokenIds = tokenIds.filter(
+    (tokenId) => !tokenStatus.get(tokenId),
+  )
 
-  if (needs.hasUnwrapped && !status.baseRegistrarHelperApproved) {
-    appendApproval(
-      approvals,
-      migrationApprovalForId({
-        id: 'base-registrar:migration-helper',
-        hcaAddress,
-        helperAddress,
-      }),
-    )
-  }
   if (needs.hasUnwrapped && !status.baseRegistrarHcaApproved) {
-    appendApproval(
-      approvals,
-      migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress }),
-    )
-  }
-  if (needs.hasWrapped && !status.nameWrapperHelperApproved) {
-    appendApproval(
-      approvals,
-      migrationApprovalForId({
-        id: 'name-wrapper:migration-helper',
-        hcaAddress,
-        helperAddress,
-      }),
-    )
+    if (tokenIds.length > 0 && missingTokenIds.length <= 2) {
+      approvals.push(
+        ...missingTokenIds.map((tokenId) =>
+          migrationApprovalForId({
+            id: 'base-registrar:hca-token',
+            hcaAddress,
+            tokenId,
+          }),
+        ),
+      )
+    } else {
+      approvals.push(
+        migrationApprovalForId({ id: 'base-registrar:hca', hcaAddress }),
+      )
+    }
   }
   if (needs.hasWrapped && !status.nameWrapperHcaApproved) {
-    appendApproval(
-      approvals,
+    approvals.push(
       migrationApprovalForId({ id: 'name-wrapper:hca', hcaAddress }),
     )
   }
   if (needs.requiresManagerRestoration && !status.ethRegistryHcaApproved) {
-    appendApproval(
-      approvals,
+    approvals.push(
       migrationApprovalForId({ id: 'eth-registry:hca', hcaAddress }),
     )
   }
@@ -253,36 +358,76 @@ export const planMigrationApprovals = (params: {
 export const buildMigrationApprovalCall = (
   approval: MigrationApproval,
   approved: boolean,
-): Call => ({
-  to: approval.contractAddress,
-  data: encodeFunctionData({
-    abi: OPERATOR_APPROVAL_ABI,
-    functionName: 'setApprovalForAll',
-    args: [approval.operatorAddress, approved],
-  }),
-  value: 0n,
-})
+): Call => {
+  if (approved && isLegacyMigrationHelperApproval(approval)) {
+    throw new Error('Legacy MigrationHelper permissions are cleanup-only')
+  }
+  if (approval.kind === 'erc721-token') {
+    return {
+      to: approval.contractAddress,
+      data: encodeFunctionData({
+        abi: erc721Abi,
+        functionName: 'approve',
+        args: [
+          approved ? approval.operatorAddress : zeroAddress,
+          approval.tokenId,
+        ],
+      }),
+      value: 0n,
+    }
+  }
+  return {
+    to: approval.contractAddress,
+    data: encodeFunctionData({
+      abi: OPERATOR_APPROVAL_ABI,
+      functionName: 'setApprovalForAll',
+      args: [approval.operatorAddress, approved],
+    }),
+    value: 0n,
+  }
+}
 
 export const buildMigrationApprovalCalls = (
   approvals: readonly MigrationApproval[],
 ): readonly Call[] =>
   approvals.map((approval) => buildMigrationApprovalCall(approval, true))
 
-/** Add a potentially submitted grant to the cleanup ledger, without duplicates. */
+/** Add a potentially submitted permission to the cleanup ledger. */
 export const trackCreatedMigrationApproval = (
   created: readonly MigrationApproval[],
-  confirmedApproval: MigrationApproval,
+  submittedApproval: MigrationApproval,
 ): readonly MigrationApproval[] => {
-  const key = approvalKey(confirmedApproval)
-  return created.some((approval) => approvalKey(approval) === key)
+  const key = migrationApprovalKey(submittedApproval)
+  return created.some((approval) => migrationApprovalKey(approval) === key)
     ? created
-    : [...created, confirmedApproval]
+    : [...created, submittedApproval]
 }
 
-/**
- * Revoke tracked grants in reverse creation order. Passing the original plan
- * is intentionally not supported: callers must maintain the durable ledger.
- */
+/** Read whether a ledger entry is still active before sending cleanup. */
+export const checkMigrationApprovalActive = async (params: {
+  readonly approval: MigrationApproval
+  readonly owner: Address
+  readonly publicClient: Pick<PublicClient, 'readContract'>
+}): Promise<boolean> => {
+  const { approval, owner, publicClient } = params
+  if (approval.kind === 'erc721-token') {
+    const approvedAddress = await publicClient.readContract({
+      address: approval.contractAddress,
+      abi: erc721Abi,
+      functionName: 'getApproved',
+      args: [approval.tokenId],
+    })
+    return isAddressEqual(approvedAddress, approval.operatorAddress)
+  }
+  return publicClient.readContract({
+    address: approval.contractAddress,
+    abi: OPERATOR_APPROVAL_ABI,
+    functionName: 'isApprovedForAll',
+    args: [owner, approval.operatorAddress],
+  })
+}
+
+/** Build explicit recovery cleanup, in reverse submission order. */
 export const buildMigrationCleanupCalls = (
   createdApprovals: readonly MigrationApproval[],
 ): readonly Call[] =>

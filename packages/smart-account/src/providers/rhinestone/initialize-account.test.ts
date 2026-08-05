@@ -75,6 +75,12 @@ const mockGetInitData = vi.fn(() => ({
   factoryData: DEPLOY_DATA,
 }))
 
+describe('computeStandaloneHcaAddress', () => {
+  it('preserves the pinned VerifiableFactory CREATE2 address', () => {
+    expect(MOCK_HCA).toBe('0x053445394C538cBE86c06E92827bf7133a3610c6')
+  })
+})
+
 function makeOwnerAccount(): Account {
   return {
     address: OWNER,

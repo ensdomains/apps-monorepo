@@ -19,6 +19,7 @@ import {
   type AtomicMigrationBatch,
   type AtomicMigrationInnerExecution,
   buildAtomicMigrationBatches,
+  buildAtomicMigrationInnerExecutions,
 } from './buildAtomicMigrationBatches'
 import {
   buildStepDescriptors,
@@ -34,6 +35,10 @@ import {
   type IneligibleName,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
+import {
+  type DirectMigrationRoute,
+  resolveDirectMigrationRoutes,
+} from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
 import { getV1ProfileKeys, type V1Domain } from './v1SubgraphClient'
@@ -49,6 +54,7 @@ export type MigrationPlan = {
   readonly preflight: MigrationPreflight
   readonly ownedPermRes: Address | null
   readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly stepDescriptors: readonly MigrationStepDescriptor[]
 }
@@ -244,6 +250,9 @@ export const buildMigrationPlan = async (params: {
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
   const classified = classifiedNamesResult.classified
   await assertLockedResolverReplacementRecordSafety(classified)
+  const directRoutes =
+    preflight.directMigrationRoutes ??
+    (await resolveDirectMigrationRoutes({ publicClient, classified }))
   const { ineligible } = classifiedNamesResult
   const groups = groupClassifiedNames([...classified])
   const namesToOwnedPermRes = classified.filter(
@@ -278,6 +287,7 @@ export const buildMigrationPlan = async (params: {
     hca: hcaAddress,
     wallet: migrationOwner,
     classified,
+    directRoutes,
     profiles,
     defaultResolver: V2_CONTRACTS.DefaultResolver,
     resolverDeployed,
@@ -312,6 +322,7 @@ export const buildMigrationPlan = async (params: {
     preflight,
     ownedPermRes,
     profiles,
+    directRoutes,
     atomicBatches: atomicPlan.batches,
     stepDescriptors,
   }
@@ -344,9 +355,10 @@ export const adjustPlanForRetry = (
       const nameExecutions = batch.nameExecutions.filter((execution) =>
         remainingClassified.includes(execution.classified),
       )
-      const innerExecutions = nameExecutions.flatMap(
-        (execution) => execution.innerExecutions,
-      )
+      const innerExecutions = buildAtomicMigrationInnerExecutions({
+        wallet: plan.migrationOwner,
+        nameExecutions,
+      })
       return {
         ...batch,
         names: nameExecutions.map(

@@ -19,6 +19,7 @@ import {
 } from '@/features/migration/service/decodeMigrationError'
 import {
   type MigrationApproval,
+  migrationApprovalKey,
   trackCreatedMigrationApproval,
 } from '@/features/migration/service/migrationApprovals'
 import {
@@ -334,13 +335,14 @@ export const migrationUiMachine = setup({
     }),
     removeCreatedApproval: assign(({ event, context }) => {
       if (event.type !== 'migration.approvalRemoved') return {}
+      const removedKey = migrationApprovalKey(event.approval)
       const createdApprovals = context.createdApprovals.filter(
-        (approval) => approval.id !== event.approval.id,
+        (approval) => migrationApprovalKey(approval) !== removedKey,
       )
       return {
         createdApprovals,
         cleanupPending: context.cleanupPending.filter(
-          (approval) => approval.id !== event.approval.id,
+          (approval) => migrationApprovalKey(approval) !== removedKey,
         ),
       }
     }),

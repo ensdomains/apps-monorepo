@@ -57,9 +57,8 @@ export const GameStep = () => {
     .with({ kind: 'approval' }, ({ approvalId }) =>
       match(approvalId)
         .with(
-          'base-registrar:migration-helper',
-          'name-wrapper:migration-helper',
-          () => `${t`Approve the migration helper in your wallet`}...`,
+          'base-registrar:hca-token',
+          () => `${t`Approve this name for your migration account`}...`,
         )
         .with(
           'base-registrar:hca',
@@ -69,6 +68,11 @@ export const GameStep = () => {
         .with(
           'eth-registry:hca',
           () => `${t`Approve manager restoration in your wallet`}...`,
+        )
+        .with(
+          'base-registrar:migration-helper',
+          'name-wrapper:migration-helper',
+          () => `${t`Confirm a temporary permission in your wallet`}...`,
         )
         .exhaustive(),
     )

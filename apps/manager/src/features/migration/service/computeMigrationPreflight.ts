@@ -1,17 +1,16 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Address, PublicClient } from 'viem'
-import { V2_CONTRACTS } from '@/features/migration/contracts/addresses'
-import {
-  approvalNeedsFor,
-  checkHelperApprovals,
-} from '@/features/migration/service/checkHelperApprovals'
 import {
   type ClassifiedName,
   classifyNames,
   groupClassifiedNames,
 } from '@/features/migration/service/classifyNames'
-import { findExistingPermRes } from '@/features/migration/service/ensureOwnedPermRes'
+import {
+  type DirectMigrationRoute,
+  resolveDirectMigrationRoutes,
+} from '@/features/migration/service/directMigrationRoutes'
 import { ProfileFetchError } from '@/features/migration/service/fetchV1Profiles'
+import { approvalNeedsFor } from '@/features/migration/service/migrationApprovalNeeds'
 import {
   checkMigrationApprovals,
   type MigrationApproval,
@@ -49,6 +48,8 @@ export type MigrationPreflight = {
   hcaResolverAddress?: Address
   /** Direct owner-call readiness for the counterfactual HCA. */
   hcaReadiness?: MigrationHcaReadiness
+  /** Factory-certified direct receiver for every selected name. */
+  directMigrationRoutes?: ReadonlyMap<string, DirectMigrationRoute>
   profileKeys?: readonly V1ProfileKeys[]
 }
 
@@ -75,11 +76,7 @@ const computeResolverPreflight = async (params: {
   const { eoa, hcaAddress, needsOwnedPermRes, publicClient } = params
   if (!needsOwnedPermRes) return { preExistingOwnedPermRes: null }
 
-  if (!hcaAddress) {
-    return {
-      preExistingOwnedPermRes: await findExistingPermRes({ eoa, publicClient }),
-    }
-  }
+  if (!hcaAddress) return { preExistingOwnedPermRes: null }
 
   const hcaResolverAddress = getMigrationResolverAddress(hcaAddress)
   const hcaResolverReadiness =
@@ -114,38 +111,32 @@ const computeApprovalPreflight = async (params: {
   const { eoa, hcaAddress, needs, requiresManagerRestoration, wagmiConfig } =
     params
   if (!hcaAddress) {
-    const approvals = await checkHelperApprovals({
-      eoa,
-      helperAddress: V2_CONTRACTS.MigrationHelper,
-      needs,
-      wagmiConfig,
-    })
     return {
-      skipApprovalPhase:
-        (!needs.hasUnwrapped || approvals.baseRegistrarApproved) &&
-        (!needs.hasWrapped || approvals.nameWrapperApproved),
-      baseRegistrarApproved: approvals.baseRegistrarApproved,
-      nameWrapperApproved: approvals.nameWrapperApproved,
+      skipApprovalPhase: false,
+      baseRegistrarApproved: false,
+      nameWrapperApproved: false,
     }
   }
 
   const hcaApprovalStatus = await checkMigrationApprovals({
     eoa,
     hcaAddress,
-    helperAddress: V2_CONTRACTS.MigrationHelper,
     needs: { ...needs, requiresManagerRestoration },
     wagmiConfig,
   })
   const migrationApprovals = planMigrationApprovals({
     hcaAddress,
-    helperAddress: V2_CONTRACTS.MigrationHelper,
     needs: { ...needs, requiresManagerRestoration },
     status: hcaApprovalStatus,
   })
   return {
     skipApprovalPhase: migrationApprovals.length === 0,
-    baseRegistrarApproved: hcaApprovalStatus.baseRegistrarHelperApproved,
-    nameWrapperApproved: hcaApprovalStatus.nameWrapperHelperApproved,
+    baseRegistrarApproved:
+      hcaApprovalStatus.baseRegistrarHcaApproved ||
+      hcaApprovalStatus.unwrappedTokenApprovals.every(
+        ({ approved }) => approved,
+      ),
+    nameWrapperApproved: hcaApprovalStatus.nameWrapperHcaApproved,
     hcaApprovalStatus,
     migrationApprovals,
   }
@@ -217,43 +208,50 @@ export const computeMigrationPreflight = async (params: {
   )
   const needsOwnedPermRes = namesToOwnedPermRes.length > 0
 
-  const [resolverPreflight, approvalPreflight, profilePreflight, hcaReadiness] =
-    await Promise.all([
-      computeResolverPreflight({
-        eoa,
-        hcaAddress,
-        needsOwnedPermRes,
-        publicClient,
-      }),
-      computeApprovalPreflight({
-        eoa,
-        hcaAddress,
-        needs,
-        requiresManagerRestoration,
-        wagmiConfig,
-      }),
-      computeProfilePreflight(namesToOwnedPermRes),
-      hcaAddress
-        ? (async () => {
-            await assertRequiredMigrationContractCode({ publicClient })
-            await assertLockedPublicResolverSetMembership({
-              publicClient,
-              names: classified,
-            })
-            return checkMigrationHcaReadiness({
-              publicClient,
-              hca: hcaAddress,
-              expectedOwner: eoa,
-            })
-          })()
-        : Promise.resolve(undefined),
-    ])
+  const [
+    resolverPreflight,
+    approvalPreflight,
+    profilePreflight,
+    directMigrationRoutes,
+    hcaReadiness,
+  ] = await Promise.all([
+    computeResolverPreflight({
+      eoa,
+      hcaAddress,
+      needsOwnedPermRes,
+      publicClient,
+    }),
+    computeApprovalPreflight({
+      eoa,
+      hcaAddress,
+      needs,
+      requiresManagerRestoration,
+      wagmiConfig,
+    }),
+    computeProfilePreflight(namesToOwnedPermRes),
+    resolveDirectMigrationRoutes({ publicClient, classified }),
+    hcaAddress
+      ? (async () => {
+          await assertRequiredMigrationContractCode({ publicClient })
+          await assertLockedPublicResolverSetMembership({
+            publicClient,
+            names: classified,
+          })
+          return checkMigrationHcaReadiness({
+            publicClient,
+            hca: hcaAddress,
+            expectedOwner: eoa,
+          })
+        })()
+      : Promise.resolve(undefined),
+  ])
 
   return {
     ...resolverPreflight,
     ...approvalPreflight,
     ...profilePreflight,
     requiresManagerRestoration,
+    directMigrationRoutes,
     hcaReadiness,
   }
 }

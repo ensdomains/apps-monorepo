@@ -43,9 +43,21 @@ const HCA_CLIENT = {
 } as unknown as Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
 const REFRESH_ACCOUNT = vi.fn<() => Promise<void>>()
 const APPROVAL: MigrationApproval = {
+  kind: 'operator',
   id: 'base-registrar:hca',
   contractAddress: '0x0000000000000000000000000000000000000010',
   operatorAddress: SCA,
+}
+const TOKEN_APPROVAL_ONE: MigrationApproval = {
+  kind: 'erc721-token',
+  id: 'base-registrar:hca-token',
+  contractAddress: '0x0000000000000000000000000000000000000010',
+  operatorAddress: SCA,
+  tokenId: 1n,
+}
+const TOKEN_APPROVAL_TWO: MigrationApproval = {
+  ...TOKEN_APPROVAL_ONE,
+  tokenId: 2n,
 }
 
 const domain = (id: string): V1Domain =>
@@ -99,6 +111,7 @@ const makePlan = (
   atomicBatches: [],
   stepDescriptors: [],
   ...overrides,
+  directRoutes: overrides.directRoutes ?? new Map(),
 })
 
 const start = (domains: V1Domain[] = [domain('alice')]) => {
@@ -393,6 +406,36 @@ describe('migrationUiMachine', () => {
   })
 
   describe('cleanupRequired', () => {
+    it('removes only the matching per-token approval from cleanup state', async () => {
+      let onApprovalRemoved: ((approval: MigrationApproval) => void) | undefined
+      executeMigrationCleanupMock.mockImplementation((params) => {
+        onApprovalRemoved = params.onApprovalRemoved
+        return new Promise(() => {})
+      })
+      const actor = createActor(migrationUiMachine, {
+        input: { wagmiConfig: WAGMI },
+      })
+      actor.start()
+      actor.send({
+        type: 'cleanup.restore',
+        approvals: [TOKEN_APPROVAL_ONE, TOKEN_APPROVAL_TWO],
+        signer: SIGNER,
+        walletAddress: OWNER,
+        hcaAddress: SCA,
+      })
+      actor.send({ type: 'cleanup.retry' })
+
+      onApprovalRemoved?.(TOKEN_APPROVAL_ONE)
+      await vi.advanceTimersByTimeAsync(0)
+
+      expect(actor.getSnapshot().context.createdApprovals).toEqual([
+        TOKEN_APPROVAL_TWO,
+      ])
+      expect(actor.getSnapshot().context.cleanupPending).toEqual([
+        TOKEN_APPROVAL_TWO,
+      ])
+    })
+
     it('restores interrupted cleanup without marking migration complete', async () => {
       const actor = createActor(migrationUiMachine, {
         input: { wagmiConfig: WAGMI },

@@ -76,6 +76,24 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return error.message
+    case 'plan-changed':
+      return (
+        <div>
+          <Trans>
+            Migration permissions changed. Go back to review the updated
+            confirmation estimate.
+          </Trans>
+        </div>
+      )
+    case 'retry-blocked':
+      return (
+        <div>
+          <Trans>
+            The previous atomic transaction could not be safely retried. No new
+            migration was submitted.
+          </Trans>
+        </div>
+      )
     case 'resolver-deploy-failed':
       return <div>Couldn&apos;t finish setting up your account.</div>
     case 'profile-fetch-failed':
@@ -84,19 +102,27 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
       return <div>Request cancelled.</div>
     case 'preflight-timeout':
       return <div>This is taking longer than expected.</div>
-    case 'parent-not-migrated':
-      return (
-        <div>
-          <Trans>Upgrade {error.parentName} first.</Trans>
-        </div>
-      )
-    case 'not-approved-operator':
+    case 'permission-missing':
       return (
         <div>
           <Trans>Permission missing. Please try again.</Trans>
         </div>
       )
-    case 'wrapped-owner-mismatch':
+    case 'token-owner-changed':
+      return (
+        <div>
+          <Trans>
+            One of your names changed owners. Refresh and select it again.
+          </Trans>
+        </div>
+      )
+    case 'hca-owner-mismatch':
+      return (
+        <div>
+          <Trans>This migration account belongs to a different wallet.</Trans>
+        </div>
+      )
+    case 'direct-transfer-unauthorized':
     case 'name-data-mismatch':
     case 'invalid-data':
       return (

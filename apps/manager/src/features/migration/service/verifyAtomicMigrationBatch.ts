@@ -290,6 +290,11 @@ const checkExpectation = async (
     }
     case 'wrapper-subregistry': {
       const wrapperRegistry = await resolveWrapperRegistry(context, expectation)
+      if (
+        !isAddressEqual(wrapperRegistry, expectation.expectedWrapperRegistry)
+      ) {
+        return false
+      }
       if (!(await hasContractCode(context, wrapperRegistry))) return false
       const [implementation, wrappedNode] = await Promise.all([
         context.publicClient.readContract({

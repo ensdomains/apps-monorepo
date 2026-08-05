@@ -107,3 +107,7 @@ export {
   verifyStandaloneHca,
 } from './providers/rhinestone'
 export type { BaseStoredSession } from './types'
+export {
+  type ComputeVerifiableProxyAddressParams,
+  computeVerifiableProxyAddress,
+} from './verifiable-factory'

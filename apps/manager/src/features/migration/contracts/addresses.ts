@@ -36,7 +36,6 @@ export const V2_CONTRACTS = {
   LockedMigrationController: destination.lockedMigrationController,
   PublicResolverSet: destination.publicResolverSet,
   WrapperRegistryImpl: destination.wrapperRegistryImpl,
-  MigrationHelper: destination.migrationHelper,
   DefaultResolver: destination.publicResolverV2,
   StandaloneHCAFactory: destination.standaloneHcaFactory,
   StandaloneHCAImplementation: destination.standaloneHcaImplementation,

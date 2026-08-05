@@ -38,14 +38,18 @@ const GasEstimateMessage = ({
           Estimated network fee:{' '}
           <strong className="font-semibold">
             ~{estimate.formattedEth} ETH
-          </strong>{' '}
-          across{' '}
+          </strong>
+          . Expected:{' '}
           <strong className="font-semibold">
-            {estimate.transactionCount} transactions
+            <Plural
+              one="# wallet confirmation"
+              other="# wallet confirmations"
+              value={estimate.transactionCount}
+            />
           </strong>
           .
           <br />
-          Final fee confirmed in your wallet.
+          Final confirmations and fee are shown in your wallet.
         </Trans>
       </p>
     ))

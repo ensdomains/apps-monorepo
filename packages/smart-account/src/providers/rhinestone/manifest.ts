@@ -8,9 +8,9 @@
  * logic, the reverse adapter, or the funding validator, so those stay
  * hardcoded here until it does.
  *
- * When ensjs ships the standalone-HCA deployment, re-point these to
- * `getChainContractAddress(...)`. Until then, this local, chain-keyed table is
- * the only correct source. Keep it grouped per chain so a redeploy is a
+ * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
+ * when ensjs exposes them. Until then, this local, chain-keyed table remains
+ * the complete source. Keep it grouped per chain so a redeploy is a
  * single-block edit and adding a source chain is additive.
  *
  * SDK patch SHA-256: 5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867
@@ -90,7 +90,8 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     migrationHelper: ensjsSepolia.ensMigrationHelper.address,
     unlockedMigrationController:
       ensjsSepolia.ensUnlockedMigrationController.address,
-    lockedMigrationController: ensjsSepolia.ensLockedMigrationController.address,
+    lockedMigrationController:
+      ensjsSepolia.ensLockedMigrationController.address,
 
     // Not in ensjs yet. Addresses from contracts-v2 PR #388 @ 8d1c893.
     standaloneHcaImplementation: '0xD213De41421Fed3a5E475943F9D634A0cf64a385',

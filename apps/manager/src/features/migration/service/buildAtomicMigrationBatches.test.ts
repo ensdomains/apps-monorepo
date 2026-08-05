@@ -5,6 +5,7 @@ import {
 } from '@ens-apps/smart-account'
 import {
   type Address,
+  decodeAbiParameters,
   decodeFunctionData,
   type Hex,
   namehash,
@@ -13,19 +14,26 @@ import {
 import { sepolia } from 'viem/chains'
 import { assert, describe, expect, it, vi } from 'vitest'
 
-import { MIGRATION_HELPER_ABI } from '../contracts/abis'
+import {
+  MIGRATION_DATA_ABI_PARAMETERS,
+  NAME_WRAPPER_DIRECT_MIGRATION_ABI,
+} from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified } from './_fixtures'
 import {
   AtomicMigrationNameGasLimitExceededError,
   buildAtomicMigrationBatches,
+  buildAtomicMigrationInnerExecutions,
   filterIncompleteAtomicMigrationNames,
   isAtomicMigrationNameComplete,
   lockedNameOwnerRoleBitmap,
   lockedWrapperRootRoleBitmap,
 } from './buildAtomicMigrationBatches'
 import { type ClassifiedName, FUSES } from './classifyNames'
-import type { MigrationData } from './encodeMigration'
+import {
+  computeExpectedWrapperRegistry,
+  type DirectMigrationRoute,
+} from './directMigrationRoutes'
 import type { Profile } from './fetchV1Profiles'
 
 const HCA: Address = '0x00000000000000000000000000000000000000a1'
@@ -58,14 +66,45 @@ const makeName = (
     ...overrides,
   })
 
+const directRoutesFor = (
+  classified: readonly ClassifiedName[],
+): ReadonlyMap<string, DirectMigrationRoute> =>
+  new Map(
+    classified.map((name) => {
+      const isChild =
+        name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
+      const createsWrapper =
+        name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child'
+      const receiver = isChild
+        ? computeExpectedWrapperRegistry({ name: name.parentName ?? 'eth' })
+        : name.tokenType === 'locked-2ld'
+          ? V2_CONTRACTS.LockedMigrationController
+          : V2_CONTRACTS.UnlockedMigrationController
+      return [
+        name.domain.name,
+        {
+          name: name.domain.name,
+          receiver,
+          parentDependency: isChild ? name.parentName : null,
+          expectedWrapperRegistry: createsWrapper
+            ? computeExpectedWrapperRegistry({ name: name.domain.name })
+            : null,
+          receiverReadiness: isChild
+            ? 'created-earlier-in-plan'
+            : 'migration-controller',
+        } satisfies DirectMigrationRoute,
+      ] as const
+    }),
+  )
+
 const buildPlan = (
   overrides: Partial<Parameters<typeof buildAtomicMigrationBatches>[0]> = {},
-) =>
-  buildAtomicMigrationBatches({
+) => {
+  const classified = overrides.classified ?? [makeName('alice.eth')]
+  return buildAtomicMigrationBatches({
     chainId: sepolia.id,
     hca: HCA,
     wallet: WALLET,
-    classified: [makeName('alice.eth')],
     profiles: new Map(),
     defaultResolver: DEFAULT_RESOLVER,
     resolverDeployed: false,
@@ -73,7 +112,10 @@ const buildPlan = (
     maxOuterGas: 1_000_000n,
     estimateOuterGas: () => 100_000n,
     ...overrides,
+    classified,
+    directRoutes: overrides.directRoutes ?? directRoutesFor(classified),
   })
+}
 
 type OwnerExecution = {
   readonly target: Address
@@ -100,6 +142,9 @@ const expectationResultsFor = (
 describe('buildAtomicMigrationBatches', () => {
   it('keeps parent-before-child order and wraps complete per-name executions', async () => {
     const parent = makeName('parent.eth', {
+      tokenType: 'locked-2ld',
+      parentName: 'eth',
+      fuses: FUSES.CANNOT_UNWRAP,
       managerAddress: MANAGER,
       resolverStrategy: 'to-owned-permres',
     })
@@ -127,17 +172,17 @@ describe('buildAtomicMigrationBatches', () => {
       'resolver-deployment',
       'wallet-co-admin-grant',
       'migrate',
+      'migrate',
       'manager-role-grant',
       'profile-replay',
-      'migrate',
     ])
     expect(batch.innerExecutions.map((execution) => execution.name)).toEqual([
       'parent.eth',
       'parent.eth',
       'parent.eth',
-      'parent.eth',
-      'parent.eth',
       'sub.parent.eth',
+      'parent.eth',
+      'parent.eth',
     ])
 
     expect(batch.outerCall.to).toBe(HCA)
@@ -162,11 +207,18 @@ describe('buildAtomicMigrationBatches', () => {
     )
     assert(migrate)
     const decodedMigrate = decodeFunctionData({
-      abi: MIGRATION_HELPER_ABI,
+      abi: NAME_WRAPPER_DIRECT_MIGRATION_ABI,
       data: migrate.call.data,
     })
-    const unwrapped = decodedMigrate.args[0] as readonly MigrationData[]
-    expect(unwrapped[0]?.owner.toLowerCase()).toBe(WALLET.toLowerCase())
+    expect(decodedMigrate.functionName).toBe('safeTransferFrom')
+    expect(decodedMigrate.args[1].toLowerCase()).toBe(
+      V2_CONTRACTS.LockedMigrationController.toLowerCase(),
+    )
+    const [migrationData] = decodeAbiParameters(
+      MIGRATION_DATA_ABI_PARAMETERS,
+      decodedMigrate.args[4],
+    )
+    expect(migrationData.owner.toLowerCase()).toBe(WALLET.toLowerCase())
 
     const expectationTypes = batch.verificationExpectations.map(
       (expectation) => expectation.type,
@@ -177,6 +229,9 @@ describe('buildAtomicMigrationBatches', () => {
       'wallet-name-roles',
       'name-owner',
       'name-resolver',
+      'name-owner-roles',
+      'wrapper-subregistry',
+      'wrapper-root-roles',
       'manager-role',
       'profile-text',
       'profile-address',
@@ -223,7 +278,7 @@ describe('buildAtomicMigrationBatches', () => {
     assert(parentOwnerExpectation?.type === 'name-owner')
     expect(parentOwnerExpectation).toMatchObject({
       label: 'parent',
-      tokenType: 'unwrapped',
+      tokenType: 'locked-2ld',
       expectedOwner: WALLET,
       registryPath: {
         type: 'eth-registry-2ld',
@@ -430,6 +485,46 @@ describe('buildAtomicMigrationBatches', () => {
         ),
       ),
     ).toEqual(['alice.eth', 'bob.eth', 'carol.eth'])
+  })
+
+  it('regroups wrapped transfers after retry removes a name', async () => {
+    const plan = await buildPlan({
+      classified: [
+        makeName('alice.eth', { tokenType: 'unlocked' }),
+        makeName('bob.eth', { tokenType: 'unlocked' }),
+      ],
+      resolverDeployed: true,
+      walletCoAdminGranted: true,
+    })
+    const batch = plan.batches[0]
+    assert(batch)
+
+    const [groupedMigration] = batch.innerExecutions
+    assert(groupedMigration)
+    expect(groupedMigration.names).toEqual(['alice.eth', 'bob.eth'])
+    expect(
+      decodeFunctionData({
+        abi: NAME_WRAPPER_DIRECT_MIGRATION_ABI,
+        data: groupedMigration.call.data,
+      }).functionName,
+    ).toBe('safeBatchTransferFrom')
+
+    const bobExecution = batch.nameExecutions.find(
+      (execution) => execution.classified.domain.name === 'bob.eth',
+    )
+    assert(bobExecution)
+    const [retryMigration] = buildAtomicMigrationInnerExecutions({
+      wallet: WALLET,
+      nameExecutions: [bobExecution],
+    })
+    assert(retryMigration)
+    expect(retryMigration.names).toEqual(['bob.eth'])
+    expect(
+      decodeFunctionData({
+        abi: NAME_WRAPPER_DIRECT_MIGRATION_ABI,
+        data: retryMigration.call.data,
+      }).functionName,
+    ).toBe('safeTransferFrom')
   })
 
   it('blocks a single name whose wrapped execution exceeds the limit', async () => {

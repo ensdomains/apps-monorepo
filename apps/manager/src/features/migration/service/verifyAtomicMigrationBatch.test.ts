@@ -126,6 +126,7 @@ const expectations = [
     },
     factory: FACTORY,
     expectedImplementation: WRAPPER_IMPLEMENTATION,
+    expectedWrapperRegistry: WRAPPER_REGISTRY,
   },
   {
     id: 'name:wrapper-root-roles',

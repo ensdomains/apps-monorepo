@@ -22,8 +22,8 @@ const ethRegistryGetStatusSnippet = parseAbi([
 ])
 
 // Shared by the V1 NFT contracts and the V2 registry. Migration temporarily
-// grants operator access to the HCA/helper and later revokes only grants made by
-// the current run.
+// grants operator access to the HCA and later revokes only grants made by the
+// current run.
 export const OPERATOR_APPROVAL_ABI = parseAbi([
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
   'function setApprovalForAll(address operator, bool approved)',
@@ -60,15 +60,29 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...publicResolverMultiAddrSnippet,
 ] as const
 
-// MigrationHelper — single entrypoint plus typed errors raised directly by the helper.
-export const MIGRATION_HELPER_ABI = parseAbi([
-  'struct Data { string label; address owner; address subregistry; address resolver; }',
-  'struct LockedChildren { bytes parentName; Data[][] groups; }',
-  'function migrate(Data[] unwrapped, Data[][] unlockedGroups, Data[][] lockedGroups, LockedChildren[] lockedChildrenGroups)',
-  'error WrappedOwnerMismatch(uint256 tokenId)',
-  'error ParentNotMigrated(bytes name)',
-  'error NotApprovedOperator(address nft, address owner)',
+export const BASE_REGISTRAR_DIRECT_MIGRATION_ABI = parseAbi([
+  'function safeTransferFrom(address from, address to, uint256 tokenId, bytes data)',
 ])
+
+export const NAME_WRAPPER_DIRECT_MIGRATION_ABI = parseAbi([
+  'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)',
+  'function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)',
+])
+
+const migrationDataComponents = [
+  { name: 'label', type: 'string' },
+  { name: 'owner', type: 'address' },
+  { name: 'subregistry', type: 'address' },
+  { name: 'resolver', type: 'address' },
+] as const
+
+export const MIGRATION_DATA_ABI_PARAMETERS = [
+  { name: 'data', type: 'tuple', components: migrationDataComponents },
+] as const
+
+export const MIGRATION_DATA_ARRAY_ABI_PARAMETERS = [
+  { name: 'data', type: 'tuple[]', components: migrationDataComponents },
+] as const
 
 // LibMigration errors — these come back wrapped inside Error(string) due to
 // NameWrapper's transfer-error squelching. decodeMigrationError unwraps and

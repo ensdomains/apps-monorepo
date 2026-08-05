@@ -117,6 +117,16 @@ describe('describeNextStep', () => {
       { kind: 'approval', approvalId: 'base-registrar:hca' },
     ],
     [
+      'per-token approval descriptor',
+      {
+        descriptor: descriptor({
+          type: 'approval',
+          approvalId: 'base-registrar:hca-token',
+        }),
+      },
+      { kind: 'approval', approvalId: 'base-registrar:hca-token' },
+    ],
+    [
       'atomic-batch descriptor',
       {
         descriptor: descriptor({

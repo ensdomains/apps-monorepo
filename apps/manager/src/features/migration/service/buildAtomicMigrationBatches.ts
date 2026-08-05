@@ -9,17 +9,31 @@ import type { Call } from '@ens-apps/transaction-manager'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs-abi/v2/permissionedResolver'
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
-import { type Address, encodeFunctionData, type Hex, namehash } from 'viem'
+import {
+  type Address,
+  encodeFunctionData,
+  type Hex,
+  namehash,
+  zeroAddress,
+} from 'viem'
 
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
-import { buildMigrateCall } from './buildMigrateCall'
+import {
+  buildDirectMigrationCalls,
+  type DirectMigrationDataInput,
+  type DirectWrappedMigrationInput,
+} from './buildDirectMigrationCalls'
 import {
   flattenProfileInnerCalls,
   wrapInnerCallsAsMulticall,
 } from './buildProfileReplayCalls'
 import { buildRoleGrantCall } from './buildRoleGrantCalls'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
+import {
+  type DirectMigrationRoute,
+  orderDirectMigrationNamesParentFirst,
+} from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import type { Profile } from './fetchV1Profiles'
 import { profileMapKey } from './fetchV1Profiles'
@@ -42,7 +56,10 @@ export type AtomicMigrationExecutionPhase =
 
 export type AtomicMigrationInnerExecution = {
   readonly phase: AtomicMigrationExecutionPhase
+  /** First name, retained for single-name UI/profile accounting. */
   readonly name: string
+  /** Every name included by this call (multiple for ERC-1155 batches). */
+  readonly names: readonly string[]
   readonly call: Call
 }
 
@@ -136,6 +153,7 @@ type WrapperSubregistryExpectation = {
   readonly registryPath: AtomicMigrationRegistryPath
   readonly factory: Address
   readonly expectedImplementation: Address
+  readonly expectedWrapperRegistry: Address
 }
 
 type WrapperRootRolesExpectation = {
@@ -195,6 +213,16 @@ export type AtomicMigrationVerificationExpectation =
 
 export type AtomicMigrationNameExecution = {
   readonly classified: ClassifiedName
+  readonly directRoute: DirectMigrationRoute
+  readonly directMigration:
+    | {
+        readonly type: 'unwrapped'
+        readonly input: DirectMigrationDataInput
+      }
+    | {
+        readonly type: 'wrapped'
+        readonly input: DirectWrappedMigrationInput
+      }
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
   readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
 }
@@ -265,6 +293,7 @@ export type BuildAtomicMigrationBatchesParams = {
   readonly hca: Address
   readonly wallet: Address
   readonly classified: readonly ClassifiedName[]
+  readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly defaultResolver?: Address
   readonly resolverDeployed: boolean
@@ -383,66 +412,6 @@ const buildWalletCoAdminCall = (params: {
   value: 0n,
 })
 
-const buildParentDependencyGraph = (
-  classified: readonly ClassifiedName[],
-): {
-  readonly childrenByParent: ReadonlyMap<string, readonly ClassifiedName[]>
-  readonly inDegree: Map<string, number>
-} => {
-  const selectedNames = new Set(classified.map((name) => name.domain.name))
-  const childrenByParent = new Map<string, readonly ClassifiedName[]>()
-  const inDegree = new Map<string, number>(
-    classified.map((name) => [name.domain.name, 0]),
-  )
-
-  for (const name of classified) {
-    const isChild =
-      name.tokenType === 'locked-child' || name.tokenType === 'detached-child'
-    if (!isChild || !name.parentName || !selectedNames.has(name.parentName)) {
-      continue
-    }
-
-    inDegree.set(name.domain.name, 1)
-    const children = childrenByParent.get(name.parentName) ?? []
-    childrenByParent.set(name.parentName, [...children, name])
-  }
-
-  return { childrenByParent, inDegree }
-}
-
-const orderParentBeforeChild = (
-  classified: readonly ClassifiedName[],
-): readonly ClassifiedName[] => {
-  const { childrenByParent, inDegree } = buildParentDependencyGraph(classified)
-
-  const queue = classified.filter(
-    (name) => inDegree.get(name.domain.name) === 0,
-  )
-  const ordered: ClassifiedName[] = []
-  let cursor = 0
-
-  while (cursor < queue.length) {
-    const name = queue[cursor]
-    cursor += 1
-    if (!name) continue
-
-    ordered.push(name)
-    for (const child of childrenByParent.get(name.domain.name) ?? []) {
-      const nextDegree = (inDegree.get(child.domain.name) ?? 0) - 1
-      inDegree.set(child.domain.name, nextDegree)
-      if (nextDegree === 0) queue.push(child)
-    }
-  }
-
-  if (ordered.length === classified.length) return ordered
-
-  const emitted = new Set(ordered.map((name) => name.domain.name))
-  return [
-    ...ordered,
-    ...classified.filter((name) => !emitted.has(name.domain.name)),
-  ]
-}
-
 const profileForName = (
   name: ClassifiedName,
   profiles: ReadonlyMap<Hex, Profile>,
@@ -462,6 +431,7 @@ const buildNameExecution = (params: {
   readonly hca: Address
   readonly wallet: Address
   readonly classified: ClassifiedName
+  readonly directRoute: DirectMigrationRoute
   readonly resolver: Address
   readonly defaultResolver: Address
   readonly profiles: ReadonlyMap<Hex, Profile>
@@ -474,6 +444,7 @@ const buildNameExecution = (params: {
     hca,
     wallet,
     classified,
+    directRoute,
     resolver,
     defaultResolver,
     profiles,
@@ -488,6 +459,32 @@ const buildNameExecution = (params: {
   const verificationExpectations: AtomicMigrationVerificationExpectation[] = []
   const contracts = getDestinationContracts(chainId)
   const registryPath = registryPathFor(classified)
+  const directData: DirectMigrationDataInput = {
+    name,
+    label: classified.label,
+    subregistry: zeroAddress,
+    resolver: expectedResolver,
+  }
+  const directMigration: AtomicMigrationNameExecution['directMigration'] =
+    classified.tokenType === 'unwrapped'
+      ? { type: 'unwrapped', input: directData }
+      : {
+          type: 'wrapped',
+          input: {
+            ...directData,
+            tokenId: BigInt(node),
+            receiver: directRoute.receiver,
+          },
+        }
+  const [directCallExecution] = buildDirectMigrationCalls({
+    wallet,
+    unwrapped:
+      directMigration.type === 'unwrapped' ? [directMigration.input] : [],
+    wrapped: directMigration.type === 'wrapped' ? [directMigration.input] : [],
+  })
+  if (!directCallExecution) {
+    throw new Error(`No direct migration call was built for "${name}"`)
+  }
 
   if (includeResolverVerification) {
     verificationExpectations.push(
@@ -526,6 +523,7 @@ const buildNameExecution = (params: {
     innerExecutions.push({
       phase: 'resolver-deployment',
       name,
+      names: [name],
       call: buildResolverDeploymentCall({ chainId, hca }),
     })
   }
@@ -534,6 +532,7 @@ const buildNameExecution = (params: {
     innerExecutions.push({
       phase: 'wallet-co-admin-grant',
       name,
+      names: [name],
       call: buildWalletCoAdminCall({ resolver, wallet }),
     })
   }
@@ -541,12 +540,8 @@ const buildNameExecution = (params: {
   innerExecutions.push({
     phase: 'migrate',
     name,
-    call: buildMigrateCall({
-      classified: [classified],
-      migrationOwner: wallet,
-      defaultResolver,
-      ownedPermRes: resolver,
-    }),
+    names: [name],
+    call: directCallExecution.call,
   })
   verificationExpectations.push(
     {
@@ -573,6 +568,11 @@ const buildNameExecution = (params: {
   )
 
   if (isLockedName(classified)) {
+    if (!directRoute.expectedWrapperRegistry) {
+      throw new Error(
+        `Locked migration route for "${name}" has no deterministic WrapperRegistry`,
+      )
+    }
     verificationExpectations.push(
       {
         id: expectationId(name, 'name-owner-roles'),
@@ -592,6 +592,7 @@ const buildNameExecution = (params: {
         registryPath,
         factory: contracts.verifiableFactory,
         expectedImplementation: contracts.wrapperRegistryImpl,
+        expectedWrapperRegistry: directRoute.expectedWrapperRegistry,
       },
       {
         id: expectationId(name, 'wrapper-root-roles'),
@@ -610,6 +611,7 @@ const buildNameExecution = (params: {
     innerExecutions.push({
       phase: 'manager-role-grant',
       name,
+      names: [name],
       call: buildRoleGrantCall(classified),
     })
     verificationExpectations.push({
@@ -632,6 +634,7 @@ const buildNameExecution = (params: {
     innerExecutions.push({
       phase: 'profile-replay',
       name,
+      names: [name],
       call: wrapInnerCallsAsMulticall(resolver, profileCalls),
     })
     verificationExpectations.push(
@@ -660,7 +663,13 @@ const buildNameExecution = (params: {
     )
   }
 
-  return { classified, innerExecutions, verificationExpectations }
+  return {
+    classified,
+    directRoute,
+    directMigration,
+    innerExecutions,
+    verificationExpectations,
+  }
 }
 
 const buildNameExecutions = (params: {
@@ -668,22 +677,30 @@ const buildNameExecutions = (params: {
   readonly hca: Address
   readonly wallet: Address
   readonly classified: readonly ClassifiedName[]
+  readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
   readonly profiles: ReadonlyMap<Hex, Profile>
   readonly resolver: Address
   readonly defaultResolver: Address
   readonly resolverDeployed: boolean
   readonly walletCoAdminGranted: boolean
 }): readonly AtomicMigrationNameExecution[] => {
-  const ordered = orderParentBeforeChild(params.classified)
+  const ordered = orderDirectMigrationNamesParentFirst(params.classified)
   const firstResolverNameIndex = ordered.findIndex(
     (name) => name.resolverStrategy === 'to-owned-permres',
   )
 
   return ordered.map((classified, index) => {
     const receivesResolverSetup = index === firstResolverNameIndex
+    const directRoute = params.directRoutes.get(classified.domain.name)
+    if (!directRoute) {
+      throw new Error(
+        `No verified direct migration route for "${classified.domain.name}"`,
+      )
+    }
     return buildNameExecution({
       ...params,
       classified,
+      directRoute,
       includeResolverVerification: receivesResolverSetup,
       includeResolverDeployment:
         receivesResolverSetup && !params.resolverDeployed,
@@ -694,15 +711,57 @@ const buildNameExecutions = (params: {
   })
 }
 
+/**
+ * Finalize one outer HCA batch in contract-safe phase order. Wrapped transfers
+ * are regrouped from the names currently in the batch, so gas splitting and
+ * retry removal cannot leave stale ERC-1155 batch calldata behind.
+ */
+export const buildAtomicMigrationInnerExecutions = (params: {
+  readonly wallet: Address
+  readonly nameExecutions: readonly AtomicMigrationNameExecution[]
+}): readonly AtomicMigrationInnerExecution[] => {
+  const existingInner = params.nameExecutions.flatMap(
+    (nameExecution) => nameExecution.innerExecutions,
+  )
+  const directCalls = buildDirectMigrationCalls({
+    wallet: params.wallet,
+    unwrapped: params.nameExecutions.flatMap(({ directMigration }) =>
+      directMigration.type === 'unwrapped' ? [directMigration.input] : [],
+    ),
+    wrapped: params.nameExecutions.flatMap(({ directMigration }) =>
+      directMigration.type === 'wrapped' ? [directMigration.input] : [],
+    ),
+  }).map<AtomicMigrationInnerExecution>(({ names, call }) => {
+    const name = names[0]
+    if (!name) throw new Error('Direct migration call contains no names')
+    return { phase: 'migrate', name, names, call }
+  })
+
+  const executionsForPhase = (
+    phase: Exclude<AtomicMigrationExecutionPhase, 'migrate'>,
+  ): readonly AtomicMigrationInnerExecution[] =>
+    existingInner.filter((execution) => execution.phase === phase)
+
+  return [
+    ...executionsForPhase('resolver-deployment'),
+    ...executionsForPhase('wallet-co-admin-grant'),
+    ...directCalls,
+    ...executionsForPhase('manager-role-grant'),
+    ...executionsForPhase('profile-replay'),
+  ]
+}
+
 const estimateBatch = async (params: {
   readonly index: number
   readonly hca: Address
+  readonly wallet: Address
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
   readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
 }): Promise<AtomicMigrationBatch> => {
-  const innerExecutions = params.nameExecutions.flatMap(
-    (nameExecution) => nameExecution.innerExecutions,
-  )
+  const innerExecutions = buildAtomicMigrationInnerExecutions({
+    wallet: params.wallet,
+    nameExecutions: params.nameExecutions,
+  })
   const names = params.nameExecutions.map(
     (nameExecution) => nameExecution.classified.domain.name,
   )
@@ -759,6 +818,7 @@ export const buildAtomicMigrationBatches = async (
     const candidate = await estimateBatch({
       index: batches.length,
       hca: params.hca,
+      wallet: params.wallet,
       nameExecutions: candidateNameExecutions,
       estimateOuterGas: params.estimateOuterGas,
     })
@@ -781,6 +841,7 @@ export const buildAtomicMigrationBatches = async (
     const singleNameBatch = await estimateBatch({
       index: batches.length,
       hca: params.hca,
+      wallet: params.wallet,
       nameExecutions: [nameExecution],
       estimateOuterGas: params.estimateOuterGas,
     })

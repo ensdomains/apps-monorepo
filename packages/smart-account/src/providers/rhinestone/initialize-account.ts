@@ -36,18 +36,17 @@ import {
   type Account,
   type Address,
   type Chain,
-  concatHex,
   decodeFunctionData,
   encodeAbiParameters,
   encodeFunctionData,
   getAddress,
-  getContractAddress,
   isAddressEqual,
   keccak256,
   type PublicClient,
   parseAbi,
 } from 'viem'
 import { AccountInitError, AccountVerificationError } from '../../errors'
+import { computeVerifiableProxyAddress } from '../../verifiable-factory'
 import {
   getDestinationContracts,
   ONCHAIN_ACCOUNT_ID,
@@ -190,10 +189,6 @@ export class HcaDeploymentCallValidationError extends Error {
   }
 }
 
-const VERIFIABLE_PROXY_PREFIX =
-  '0x3d604d80600a3d3981f3363d3d373d3d3d363d73' as const
-const VERIFIABLE_PROXY_SUFFIX = '0x5af43d82803e903d91602b57fd5bf3' as const
-
 export const computeStandaloneHcaAddress = (params: {
   readonly chainId: number
   readonly owner: Address
@@ -213,23 +208,11 @@ export const computeStandaloneHcaAddress = (params: {
       ),
     ),
   )
-  const outerSalt = keccak256(
-    encodeAbiParameters(
-      [{ type: 'address' }, { type: 'uint256' }],
-      [contracts.standaloneHcaFactory, deploymentSalt],
-    ),
-  )
-  const bytecode = concatHex([
-    VERIFIABLE_PROXY_PREFIX,
-    contracts.verifiableFactoryProxyLogic,
-    VERIFIABLE_PROXY_SUFFIX,
-    outerSalt,
-  ])
-  return getContractAddress({
-    bytecode,
-    from: contracts.verifiableFactory,
-    opcode: 'CREATE2',
-    salt: outerSalt,
+  return computeVerifiableProxyAddress({
+    factory: contracts.verifiableFactory,
+    proxyLogic: contracts.verifiableFactoryProxyLogic,
+    deployer: contracts.standaloneHcaFactory,
+    salt: deploymentSalt,
   })
 }
 

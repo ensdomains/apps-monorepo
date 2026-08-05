@@ -5,16 +5,27 @@ import type { MigrationPlan } from './buildMigrationPlan'
 import { estimateMigrationGasCost } from './estimateMigrationGasCost'
 import type {
   MigrationApproval,
-  MigrationApprovalId,
+  MigrationOperatorApprovalId,
 } from './migrationApprovals'
 
 const account = '0x0000000000000000000000000000000000000001' as Address
 const contract = '0x0000000000000000000000000000000000000002' as Address
 
-const makeApproval = (id: MigrationApprovalId): MigrationApproval => ({
+const makeOperatorApproval = (
+  id: MigrationOperatorApprovalId,
+): MigrationApproval => ({
+  kind: 'operator',
   id,
   contractAddress: contract,
   operatorAddress: account,
+})
+
+const makeTokenApproval = (tokenId = 1n): MigrationApproval => ({
+  kind: 'erc721-token',
+  id: 'base-registrar:hca-token',
+  contractAddress: contract,
+  operatorAddress: account,
+  tokenId,
 })
 
 const makeAtomicBatch = (estimatedGas: bigint): AtomicMigrationBatch =>
@@ -60,7 +71,7 @@ const makePublicClient = (fee: {
   }) as unknown as PublicClient
 
 describe('estimateMigrationGasCost', () => {
-  it('includes HCA deployment, every approval lifecycle, and all atomic batches', async () => {
+  it('counts three confirmations for a fresh HCA and one unwrapped name', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 3n })
     const plan = makePlan({
       hcaDeploymentRequired: true,
@@ -70,42 +81,39 @@ describe('estimateMigrationGasCost', () => {
         skipFetchProfilesPhase: true,
         baseRegistrarApproved: false,
         nameWrapperApproved: true,
-        migrationApprovals: [
-          makeApproval('base-registrar:migration-helper'),
-          makeApproval('base-registrar:hca'),
-        ],
+        migrationApprovals: [makeTokenApproval()],
       },
-      atomicBatches: [makeAtomicBatch(100n), makeAtomicBatch(200n)],
+      atomicBatches: [makeAtomicBatch(100n)],
     })
 
     const estimate = await estimateMigrationGasCost({ plan, publicClient })
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    // 450k deployment + 2 * (55k grant + 55k cleanup) + 300 batch gas.
-    expect(estimate.gasUnits).toBe(670_300n)
-    expect(estimate.feeWei).toBe(2_010_900n)
-    // Deploy + two grants + two atomic batches + two cleanup revocations.
-    expect(estimate.transactionCount).toBe(7)
+    // 450k deployment + 55k token approval + 100 batch gas. The token
+    // approval clears during transfer and needs no successful-path cleanup.
+    expect(estimate.gasUnits).toBe(505_100n)
+    expect(estimate.feeWei).toBe(1_515_300n)
+    expect(estimate.transactionCount).toBe(3)
     expect(publicClient.estimateGas).not.toHaveBeenCalled()
   })
 
-  it('uses only atomic outer estimates for an existing HCA with no temporary approvals', async () => {
+  it('counts one confirmation for an existing HCA with permissions', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 4n })
     const plan = makePlan({
-      atomicBatches: [makeAtomicBatch(111n), makeAtomicBatch(222n)],
+      atomicBatches: [makeAtomicBatch(111n)],
     })
 
     const estimate = await estimateMigrationGasCost({ plan, publicClient })
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.gasUnits).toBe(333n)
-    expect(estimate.feeWei).toBe(1_332n)
-    expect(estimate.transactionCount).toBe(2)
+    expect(estimate.gasUnits).toBe(111n)
+    expect(estimate.feeWei).toBe(444n)
+    expect(estimate.transactionCount).toBe(1)
   })
 
-  it('counts one cleanup transaction for every planned temporary approval', async () => {
+  it('counts grant and cleanup for a missing wrapped operator approval', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const plan = makePlan({
       preflight: {
@@ -114,15 +122,57 @@ describe('estimateMigrationGasCost', () => {
         skipFetchProfilesPhase: true,
         baseRegistrarApproved: true,
         nameWrapperApproved: false,
-        migrationApprovals: [makeApproval('name-wrapper:hca')],
+        migrationApprovals: [makeOperatorApproval('name-wrapper:hca')],
       },
+      atomicBatches: [makeAtomicBatch(100n)],
     })
 
     const estimate = await estimateMigrationGasCost({ plan, publicClient })
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.gasUnits).toBe(110_000n)
+    expect(estimate.gasUnits).toBe(110_100n)
+    expect(estimate.transactionCount).toBe(3)
+  })
+
+  it('manager restoration adds a grant and cleanup confirmation', async () => {
+    const publicClient = makePublicClient({ maxFeePerGas: 2n })
+    const basePlan = makePlan({ atomicBatches: [makeAtomicBatch(100n)] })
+    const managerPlan = makePlan({
+      preflight: {
+        ...basePlan.preflight,
+        migrationApprovals: [makeOperatorApproval('eth-registry:hca')],
+      },
+      atomicBatches: [makeAtomicBatch(100n)],
+    })
+
+    const base = await estimateMigrationGasCost({
+      plan: basePlan,
+      publicClient,
+    })
+    const manager = await estimateMigrationGasCost({
+      plan: managerPlan,
+      publicClient,
+    })
+
+    expect(base.status).toBe('ready')
+    expect(manager.status).toBe('ready')
+    if (base.status !== 'ready' || manager.status !== 'ready') {
+      throw new Error('expected ready estimates')
+    }
+    expect(manager.transactionCount - base.transactionCount).toBe(2)
+  })
+
+  it('every additional atomic batch adds one confirmation', async () => {
+    const publicClient = makePublicClient({ maxFeePerGas: 2n })
+    const plan = makePlan({
+      atomicBatches: [makeAtomicBatch(100n), makeAtomicBatch(200n)],
+    })
+
+    const estimate = await estimateMigrationGasCost({ plan, publicClient })
+
+    expect(estimate.status).toBe('ready')
+    if (estimate.status !== 'ready') throw new Error('expected ready estimate')
     expect(estimate.transactionCount).toBe(2)
   })
 

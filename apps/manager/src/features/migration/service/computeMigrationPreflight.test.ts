@@ -7,10 +7,8 @@ import {
   makeDomain,
   DEFAULT_RESOLVER as RESOLVER,
 } from './_fixtures'
-import { checkHelperApprovals } from './checkHelperApprovals'
 import { FUSES } from './classifyNames'
 import { computeMigrationPreflight } from './computeMigrationPreflight'
-import { findExistingPermRes } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
 import {
   checkMigrationApprovals,
@@ -25,16 +23,9 @@ import {
 } from './migrationInvariants'
 import { getV1ProfileKeys } from './v1SubgraphClient'
 
-vi.mock('./ensureOwnedPermRes', () => ({
-  findExistingPermRes: vi.fn(),
-}))
 vi.mock('./v1SubgraphClient', async (importActual) => ({
   ...(await importActual<typeof import('./v1SubgraphClient')>()),
   getV1ProfileKeys: vi.fn(),
-}))
-vi.mock('./checkHelperApprovals', async (importActual) => ({
-  ...(await importActual<typeof import('./checkHelperApprovals')>()),
-  checkHelperApprovals: vi.fn(),
 }))
 vi.mock('./migrationApprovals', async (importActual) => ({
   ...(await importActual<typeof import('./migrationApprovals')>()),
@@ -51,9 +42,7 @@ vi.mock('./migrationInvariants', async (importActual) => ({
   ),
 }))
 
-const findExistingPermResMock = vi.mocked(findExistingPermRes)
 const getV1ProfileKeysMock = vi.mocked(getV1ProfileKeys)
-const checkSCAApprovalsMock = vi.mocked(checkHelperApprovals)
 const checkMigrationApprovalsMock = vi.mocked(checkMigrationApprovals)
 const checkResolverReadinessMock = vi.mocked(
   checkDeterministicMigrationResolverReadiness,
@@ -67,16 +56,14 @@ const assertLockedPublicResolverSetMembershipMock = vi.mocked(
 const checkMigrationHcaReadinessMock = vi.mocked(checkMigrationHcaReadiness)
 const getMigrationResolverAddressMock = vi.mocked(getMigrationResolverAddress)
 
-const EXISTING_PERMRES: Address = '0x00000000000000000000000000000000000000f0'
 const HCA: Address = '0x00000000000000000000000000000000000000ca'
 const HCA_RESOLVER: Address = '0x00000000000000000000000000000000000000ce'
 const KNOWN_PUBLIC_RESOLVER: Address =
   '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
 
 const ALL_HCA_APPROVED: MigrationApprovalStatus = {
-  baseRegistrarHelperApproved: true,
   baseRegistrarHcaApproved: true,
-  nameWrapperHelperApproved: true,
+  unwrappedTokenApprovals: [],
   nameWrapperHcaApproved: true,
   ethRegistryHcaApproved: true,
 }
@@ -84,19 +71,11 @@ const ALL_HCA_APPROVED: MigrationApprovalStatus = {
 const run = (
   opts: {
     domain?: Parameters<typeof makeDomain>[0]
-    approvals?: { baseRegistrarApproved: boolean; nameWrapperApproved: boolean }
-    permRes?: Address | null
     profileKeys?: Result<unknown, unknown>
     hcaAddress?: Address
     hcaApprovals?: MigrationApprovalStatus
   } = {},
 ) => {
-  checkSCAApprovalsMock.mockResolvedValueOnce(
-    opts.approvals ?? {
-      baseRegistrarApproved: true,
-      nameWrapperApproved: true,
-    },
-  )
   if (opts.hcaAddress) {
     checkMigrationApprovalsMock.mockResolvedValueOnce(
       opts.hcaApprovals ?? ALL_HCA_APPROVED,
@@ -106,9 +85,6 @@ const run = (
       status: 'deployment-required',
       hca: opts.hcaAddress,
     })
-  }
-  if (opts.permRes !== undefined) {
-    findExistingPermResMock.mockResolvedValueOnce(opts.permRes)
   }
   if (opts.profileKeys !== undefined) {
     getV1ProfileKeysMock.mockReturnValueOnce(opts.profileKeys as never)
@@ -123,9 +99,7 @@ const run = (
 }
 
 beforeEach(() => {
-  findExistingPermResMock.mockReset()
   getV1ProfileKeysMock.mockReset()
-  checkSCAApprovalsMock.mockReset()
   checkMigrationApprovalsMock.mockReset()
   checkResolverReadinessMock.mockReset()
   assertRequiredMigrationContractCodeMock.mockReset()
@@ -135,59 +109,26 @@ beforeEach(() => {
 })
 
 describe('computeMigrationPreflight — preExistingOwnedPermRes', () => {
-  it('skips findExistingPermRes when no name routes to owned-permres', async () => {
+  it('does not adopt an EOA-owned resolver for direct HCA migration', async () => {
     const result = await run()
     expect(result.preExistingOwnedPermRes).toBeNull()
-    expect(findExistingPermResMock).not.toHaveBeenCalled()
-  })
-
-  it('returns the existing permres when findExistingPermRes resolves to one', async () => {
-    const result = await run({
-      domain: { resolverAddress: null },
-      permRes: EXISTING_PERMRES,
-      profileKeys: ok([]),
-    })
-    expect(result.preExistingOwnedPermRes).toBe(EXISTING_PERMRES)
   })
 })
 
 describe('computeMigrationPreflight — skipApprovalPhase', () => {
-  it.each([
-    [
-      'both approvals granted',
-      { baseRegistrarApproved: true, nameWrapperApproved: true },
-      { isWrapped: false },
-      true,
-    ],
-    [
-      'only unwrapped + BaseRegistrar approved (wrapped irrelevant)',
-      { baseRegistrarApproved: true, nameWrapperApproved: false },
-      { isWrapped: false },
-      true,
-    ],
-    [
-      'BaseRegistrar not approved and unwrapped present',
-      { baseRegistrarApproved: false, nameWrapperApproved: true },
-      { isWrapped: false },
-      false,
-    ],
-    [
-      'NameWrapper not approved and wrapped present',
-      { baseRegistrarApproved: true, nameWrapperApproved: false },
-      { isWrapped: true },
-      false,
-    ],
-  ] as const)('is %s → %s', async (_, approvals, domain, expected) => {
-    const result = await run({
-      domain: { ...domain, resolverAddress: RESOLVER },
-      approvals,
-    })
-    expect(result.skipApprovalPhase).toBe(expected)
+  it('cannot skip direct-HCA permission checks before the HCA is known', async () => {
+    const result = await run()
+    expect(result.skipApprovalPhase).toBe(false)
+  })
+
+  it('skips permissions when the existing HCA is already an operator', async () => {
+    const result = await run({ hcaAddress: HCA })
+    expect(result.skipApprovalPhase).toBe(true)
   })
 })
 
 describe('computeMigrationPreflight — HCA approvals', () => {
-  it('plans helper, HCA, and manager-restoration approvals when missing', async () => {
+  it('plans a token approval and manager approval when missing', async () => {
     const result = await run({
       domain: {
         isWrapped: false,
@@ -196,8 +137,8 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       hcaAddress: HCA,
       hcaApprovals: {
         ...ALL_HCA_APPROVED,
-        baseRegistrarHelperApproved: false,
         baseRegistrarHcaApproved: false,
+        unwrappedTokenApprovals: [],
         ethRegistryHcaApproved: false,
       },
     })
@@ -205,11 +146,9 @@ describe('computeMigrationPreflight — HCA approvals', () => {
     expect(result.requiresManagerRestoration).toBe(true)
     expect(result.skipApprovalPhase).toBe(false)
     expect(result.migrationApprovals?.map((approval) => approval.id)).toEqual([
-      'base-registrar:migration-helper',
-      'base-registrar:hca',
+      'base-registrar:hca-token',
       'eth-registry:hca',
     ])
-    expect(checkHelperApprovals).not.toHaveBeenCalled()
     expect(checkMigrationApprovalsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         eoa: EOA,
@@ -274,7 +213,6 @@ describe('computeMigrationPreflight — HCA approvals', () => {
       profileKeys: ok([]),
     })
 
-    expect(findExistingPermResMock).not.toHaveBeenCalled()
     expect(getMigrationResolverAddress).toHaveBeenCalledWith(HCA)
     expect(checkResolverReadinessMock).toHaveBeenCalledWith(
       expect.objectContaining({ hca: HCA, wallet: EOA }),
@@ -298,7 +236,6 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
   it('is true when all profile keys are empty', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      permRes: null,
       profileKeys: ok([{ id: '0xabc', texts: [], coinTypes: [] }]),
     })
     expect(result.skipFetchProfilesPhase).toBe(true)
@@ -307,7 +244,6 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
   it('is false when any profile has at least one text or coin type', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      permRes: null,
       profileKeys: ok([{ id: '0xabc', texts: ['email'], coinTypes: [] }]),
     })
     expect(result.skipFetchProfilesPhase).toBe(false)
@@ -316,7 +252,6 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
   it('defaults to false when the subgraph query returns an Err', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      permRes: null,
       profileKeys: err(new Error('subgraph down')),
     })
     expect(result.skipFetchProfilesPhase).toBe(false)
@@ -326,7 +261,6 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
     await expect(
       run({
         domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-        permRes: null,
         profileKeys: ok([]),
       }),
     ).rejects.toBeInstanceOf(ProfileFetchError)

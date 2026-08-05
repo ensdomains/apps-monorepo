@@ -8,32 +8,51 @@ import {
   type TransactionRequest,
   transactionManager,
   waitForTransaction,
+  waitForTransactionHash,
 } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, Hex, PublicClient, TransactionReceipt } from 'viem'
+import {
+  type Address,
+  type Hex,
+  isAddressEqual,
+  type PublicClient,
+  type TransactionReceipt,
+} from 'viem'
 
-import { OPERATOR_APPROVAL_ABI } from '../contracts/abis'
-import { V2_CONTRACTS } from '../contracts/addresses'
+import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
+import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import { TARGET_GAS } from './batchMigrate.constants'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
-import { approvalNeedsFor } from './checkHelperApprovals'
 import type { IneligibleName } from './classifyNames'
+import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
 import {
   loadMigrationApprovalLedger,
   type MigrationApprovalLedgerScope,
   mergeMigrationApprovalLedgers,
   persistMigrationApprovalLedger,
 } from './migrationApprovalLedger'
+import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
   buildMigrationApprovalCall,
+  checkMigrationApprovalActive,
   checkMigrationApprovals,
   type MigrationApproval,
+  migrationApprovalKey,
   planMigrationApprovals,
   trackCreatedMigrationApproval,
 } from './migrationApprovals'
+import {
+  loadPendingAtomicMigrationIntents,
+  loadSubmittedAtomicMigrationBatches,
+  type MigrationBatchJournalScope,
+  persistPendingAtomicMigrationIntent,
+  persistSubmittedAtomicMigrationBatch,
+  removePendingAtomicMigrationIntent,
+  removeSubmittedAtomicMigrationBatch,
+} from './migrationBatchJournal'
 import { checkDeterministicMigrationResolverReadiness } from './migrationInvariants'
 import {
   reconcileAtomicMigrationBatch,
@@ -53,6 +72,48 @@ class MigrationUserRejectedError extends TaggedError(
   'MigrationUserRejectedError',
 )<{
   step: string
+}> {}
+
+export class MigrationPlanChangedError extends TaggedError(
+  'MigrationPlanChangedError',
+)<{
+  readonly message: string
+  readonly plannedApprovalKeys: readonly string[]
+  readonly currentApprovalKeys: readonly string[]
+}> {}
+
+export class SubmittedAtomicMigrationIndeterminateError extends TaggedError(
+  'SubmittedAtomicMigrationIndeterminateError',
+)<{
+  readonly message: string
+  readonly hash: Hex
+  readonly names: readonly string[]
+  readonly cause?: unknown
+}> {}
+
+export class AtomicMigrationIntentIndeterminateError extends TaggedError(
+  'AtomicMigrationIntentIndeterminateError',
+)<{
+  readonly message: string
+  readonly intentId: string
+  readonly names: readonly string[]
+}> {}
+
+export class SubmittedAtomicMigrationVerificationError extends TaggedError(
+  'SubmittedAtomicMigrationVerificationError',
+)<{
+  readonly message: string
+  readonly hash: Hex
+  readonly names: readonly string[]
+  readonly cause: unknown
+}> {}
+
+export class MigrationSourceOwnershipError extends TaggedError(
+  'MigrationSourceOwnershipError',
+)<{
+  readonly message: string
+  readonly names: readonly string[]
+  readonly cause?: unknown
 }> {}
 
 const isUserRejection = (error: unknown): boolean => {
@@ -142,6 +203,20 @@ const approvalLedgerScope = (
   }
 }
 
+const batchJournalScope = (
+  ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress' | 'hcaAddress'>,
+): MigrationBatchJournalScope => {
+  const chainId = ctx.publicClient.chain?.id
+  if (!chainId) {
+    throw new Error('publicClient is missing a chain configuration')
+  }
+  return {
+    chainId,
+    owner: ctx.walletAddress,
+    hca: ctx.hcaAddress,
+  }
+}
+
 const PENDING_TX_HASH = '0x0' as Hex
 const RECEIPT_TIMEOUT_MS = 300_000
 
@@ -176,6 +251,7 @@ const submitCall = async (
   ctx: MigrationCtx,
   call: Call,
   description: string,
+  onSubmitted?: (hash: Hex) => void,
 ): Promise<{ readonly hash: Hex; readonly receipt: TransactionReceipt }> => {
   const txId = transactionManager.startTransaction(
     { type: 'custom', request: buildEOARequest(ctx, call) },
@@ -186,12 +262,17 @@ const submitCall = async (
     },
   )
   ctx.tracker.emit(description, PENDING_TX_HASH)
+  const submittedHash = (await waitForTransactionHash(txId)) as Hex
+  onSubmitted?.(submittedHash)
   const result = await waitForTransaction(txId)
   const hash = result.hash as Hex
-  const receipt = await ctx.publicClient.waitForTransactionReceipt({
-    hash,
-    timeout: RECEIPT_TIMEOUT_MS,
-  })
+  if (hash.toLowerCase() !== submittedHash.toLowerCase()) onSubmitted?.(hash)
+  const receipt =
+    result.receipt ??
+    (await ctx.publicClient.waitForTransactionReceipt({
+      hash,
+      timeout: RECEIPT_TIMEOUT_MS,
+    }))
   if (receipt.status !== 'success') {
     throw new Error(`${description} reverted (tx ${hash})`)
   }
@@ -254,13 +335,16 @@ const ensureHcaDeployment = async (params: {
 }
 
 const approvalDescription = (approval: MigrationApproval): string => {
+  if (approval.kind === 'erc721-token') {
+    return 'Allowing your HCA to migrate this registration'
+  }
   switch (approval.id) {
     case 'base-registrar:migration-helper':
-      return 'Allowing the migration helper'
+      return 'Removing an old migration helper permission'
     case 'base-registrar:hca':
       return 'Allowing your HCA to migrate registrations'
     case 'name-wrapper:migration-helper':
-      return 'Allowing the migration helper to move wrapped names'
+      return 'Removing an old wrapped-name helper permission'
     case 'name-wrapper:hca':
       return 'Allowing your HCA to migrate wrapped names'
     case 'eth-registry:hca':
@@ -268,16 +352,11 @@ const approvalDescription = (approval: MigrationApproval): string => {
   }
 }
 
-const ensureMigrationApprovals = async (params: {
+const getMissingMigrationApprovals = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
-  readonly initialLedger: readonly MigrationApproval[]
-  readonly onApprovalCreated?: (approval: MigrationApproval) => void
-}): Promise<{
-  readonly hashes: readonly Hex[]
-  readonly ledger: readonly MigrationApproval[]
-}> => {
-  const { ctx, plan, onApprovalCreated } = params
+}): Promise<readonly MigrationApproval[]> => {
+  const { ctx, plan } = params
   const basicNeeds = approvalNeedsFor(plan.groups)
   const needs = {
     ...basicNeeds,
@@ -288,16 +367,59 @@ const ensureMigrationApprovals = async (params: {
   const status = await checkMigrationApprovals({
     eoa: ctx.walletAddress,
     hcaAddress: ctx.hcaAddress,
-    helperAddress: V2_CONTRACTS.MigrationHelper,
     needs,
     wagmiConfig: ctx.wagmiConfig,
   })
-  const missing = planMigrationApprovals({
+  return planMigrationApprovals({
     hcaAddress: ctx.hcaAddress,
-    helperAddress: V2_CONTRACTS.MigrationHelper,
     needs,
     status,
   })
+}
+
+const sortedApprovalKeys = (
+  approvals: readonly MigrationApproval[],
+): string[] => approvals.map(migrationApprovalKey).sort()
+
+const assertMigrationApprovalPlanCurrent = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+}): Promise<readonly MigrationApproval[]> => {
+  const missing = await getMissingMigrationApprovals(params)
+  const plannedApprovalKeys = sortedApprovalKeys(
+    params.plan.preflight.migrationApprovals ?? [],
+  )
+  const currentApprovalKeys = sortedApprovalKeys(missing)
+  const matches =
+    plannedApprovalKeys.length === currentApprovalKeys.length &&
+    plannedApprovalKeys.every(
+      (approvalKey, index) => approvalKey === currentApprovalKeys[index],
+    )
+
+  if (!matches) {
+    throw new MigrationPlanChangedError({
+      message:
+        'Migration permissions changed after the preview. Return to selection to review the updated confirmation estimate.',
+      plannedApprovalKeys,
+      currentApprovalKeys,
+    })
+  }
+  return missing
+}
+
+const ensureMigrationApprovals = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly initialLedger: readonly MigrationApproval[]
+  readonly currentMissing?: readonly MigrationApproval[]
+  readonly onApprovalCreated?: (approval: MigrationApproval) => void
+}): Promise<{
+  readonly hashes: readonly Hex[]
+  readonly ledger: readonly MigrationApproval[]
+}> => {
+  const { ctx, plan, onApprovalCreated } = params
+  const missing =
+    params.currentMissing ?? (await getMissingMigrationApprovals({ ctx, plan }))
 
   const hashes: Hex[] = []
   const scope = approvalLedgerScope(ctx)
@@ -306,18 +428,21 @@ const ensureMigrationApprovals = async (params: {
     loadMigrationApprovalLedger(scope),
   )
   const missingById = new Map(
-    missing.map((approval) => [approval.id, approval]),
+    missing.map((approval) => [migrationApprovalKey(approval), approval]),
   )
   const plannedApprovals = plan.preflight.migrationApprovals ?? []
   const orderedApprovals = [
     ...plannedApprovals.map((approval) => ({
       approval,
-      missing: missingById.get(approval.id),
+      missing: missingById.get(migrationApprovalKey(approval)),
     })),
     ...missing
       .filter(
         (approval) =>
-          !plannedApprovals.some((planned) => planned.id === approval.id),
+          !plannedApprovals.some(
+            (planned) =>
+              migrationApprovalKey(planned) === migrationApprovalKey(approval),
+          ),
       )
       .map((approval) => ({ approval, missing: approval })),
   ]
@@ -362,6 +487,201 @@ const removeNames = <T extends { readonly domain: { readonly name: string } }>(
 type MigrationRetryReconciliation = {
   readonly completedNameGroups: readonly (readonly string[])[]
   readonly incompleteNames: readonly string[]
+}
+
+type RecoveredSubmittedBatch = {
+  readonly names: readonly string[]
+  readonly hash: Hex
+}
+
+const nameExecutionsByName = (plan: MigrationPlan) =>
+  new Map(
+    plan.atomicBatches.flatMap((batch) =>
+      batch.nameExecutions.map(
+        (execution) => [execution.classified.domain.name, execution] as const,
+      ),
+    ),
+  )
+
+type AtomicNameExecution =
+  ReturnType<typeof nameExecutionsByName> extends Map<string, infer T>
+    ? T
+    : never
+
+const getSubmittedBatchReceipt = async (params: {
+  readonly ctx: MigrationCtx
+  readonly submission: RecoveredSubmittedBatch & { readonly intentId: string }
+}): Promise<TransactionReceipt> => {
+  try {
+    return await params.ctx.publicClient.getTransactionReceipt({
+      hash: params.submission.hash,
+    })
+  } catch (cause) {
+    throw new SubmittedAtomicMigrationIndeterminateError({
+      message: `Submitted atomic batch ${params.submission.hash} is still pending or its receipt is unavailable`,
+      hash: params.submission.hash,
+      names: params.submission.names,
+      cause,
+    })
+  }
+}
+
+const reconcileSubmittedAtomicBatch = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly scope: MigrationBatchJournalScope
+  readonly submission: RecoveredSubmittedBatch & { readonly intentId: string }
+  readonly expectedNames: ReadonlySet<string>
+  readonly executions: ReadonlyMap<string, AtomicNameExecution>
+}): Promise<RecoveredSubmittedBatch | null> => {
+  const { submission } = params
+  const missingNames = submission.names.filter(
+    (name) => !params.expectedNames.has(name) || !params.executions.has(name),
+  )
+  if (missingNames.length > 0) {
+    throw new SubmittedAtomicMigrationIndeterminateError({
+      message: `Submitted atomic batch ${submission.hash} no longer matches the migration plan`,
+      hash: submission.hash,
+      names: submission.names,
+    })
+  }
+
+  const receipt = await getSubmittedBatchReceipt({
+    ctx: params.ctx,
+    submission,
+  })
+  if (receipt.status === 'reverted') {
+    await assertSourceTokensOwnedForRetry({
+      publicClient: params.ctx.publicClient,
+      plan: params.plan,
+      names: submission.names,
+    })
+    removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
+    removePendingAtomicMigrationIntent(params.scope, submission.intentId)
+    return null
+  }
+
+  const verificationExpectations = submission.names.flatMap(
+    (name) => params.executions.get(name)?.verificationExpectations ?? [],
+  )
+  try {
+    await verifyAtomicMigrationBatch({
+      publicClient: params.ctx.publicClient,
+      batch: { index: 0, verificationExpectations },
+      blockNumber: receipt.blockNumber,
+    })
+  } catch (cause) {
+    // A successful receipt proves every inner call executed atomically. A
+    // post-state mismatch is an invariant/verification incident, never a
+    // signal to transfer the source token a second time.
+    throw new SubmittedAtomicMigrationVerificationError({
+      message: `Confirmed atomic batch ${submission.hash} could not be verified and will not be resubmitted`,
+      hash: submission.hash,
+      names: submission.names,
+      cause,
+    })
+  }
+
+  removeSubmittedAtomicMigrationBatch(params.scope, submission.hash)
+  removePendingAtomicMigrationIntent(params.scope, submission.intentId)
+  return submission
+}
+
+const reconcileSubmittedAtomicBatches = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+}): Promise<readonly RecoveredSubmittedBatch[]> => {
+  const scope = batchJournalScope(params.ctx)
+  const intents = loadPendingAtomicMigrationIntents(scope)
+  const submissions = loadSubmittedAtomicMigrationBatches(scope)
+  if (submissions.length === 0 && intents.length === 0) return []
+
+  const expectedNames = new Set(
+    params.plan.classified.map(({ domain }) => domain.name),
+  )
+  const executions = nameExecutionsByName(params.plan)
+  const recovered: RecoveredSubmittedBatch[] = []
+  const submittedIntentIds = new Set(
+    submissions.map((submission) => submission.intentId),
+  )
+
+  for (const intent of intents) {
+    if (submittedIntentIds.has(intent.id)) continue
+    if (!intent.names.some((name) => expectedNames.has(name))) continue
+    throw new AtomicMigrationIntentIndeterminateError({
+      message:
+        'An atomic migration wallet prompt started but its transaction hash was not durably recorded. It will not be retried automatically.',
+      intentId: intent.id,
+      names: intent.names,
+    })
+  }
+
+  for (const submission of submissions) {
+    const overlapsCurrentPlan = submission.names.some((name) =>
+      expectedNames.has(name),
+    )
+    if (!overlapsCurrentPlan) continue
+    const result = await reconcileSubmittedAtomicBatch({
+      ctx: params.ctx,
+      plan: params.plan,
+      scope,
+      submission,
+      expectedNames,
+      executions,
+    })
+    if (result) recovered.push(result)
+  }
+
+  return recovered
+}
+
+const assertSourceTokensOwnedForRetry = async (params: {
+  readonly publicClient: PublicClient
+  readonly plan: MigrationPlan
+  readonly names: readonly string[]
+}): Promise<void> => {
+  const requested = new Set(params.names)
+  const noLongerOwned: string[] = []
+
+  for (const classified of params.plan.classified) {
+    const name = classified.domain.name
+    if (!requested.has(name)) continue
+    try {
+      if (classified.tokenType === 'unwrapped') {
+        const owner = await params.publicClient.readContract({
+          address: V1_CONTRACTS.BaseRegistrar,
+          abi: BASE_REGISTRAR_ABI,
+          functionName: 'ownerOf',
+          args: [BigInt(classified.domain.labelhash)],
+        })
+        if (!isAddressEqual(owner, params.plan.migrationOwner)) {
+          noLongerOwned.push(name)
+        }
+        continue
+      }
+
+      const balance = await params.publicClient.readContract({
+        address: V1_CONTRACTS.NameWrapper,
+        abi: NAME_WRAPPER_ABI,
+        functionName: 'balanceOf',
+        args: [params.plan.migrationOwner, BigInt(classified.domain.id)],
+      })
+      if (balance < 1n) noLongerOwned.push(name)
+    } catch (cause) {
+      throw new MigrationSourceOwnershipError({
+        message: `Could not prove that ${name} is still owned by the wallet before retry`,
+        names: [name],
+        cause,
+      })
+    }
+  }
+
+  if (noLongerOwned.length > 0) {
+    throw new MigrationSourceOwnershipError({
+      message: `Refusing to retry ${noLongerOwned.join(', ')} because the source token is no longer owned by the wallet`,
+      names: noLongerOwned,
+    })
+  }
 }
 
 /**
@@ -442,6 +762,12 @@ const reconcileMigrationRetry = async (params: {
     .filter(({ reconciliation }) => reconciliation.status === 'incomplete')
     .map(({ name }) => name)
 
+  await assertSourceTokensOwnedForRetry({
+    publicClient: params.publicClient,
+    plan: params.plan,
+    names: incompleteNames,
+  })
+
   return { completedNameGroups, incompleteNames }
 }
 
@@ -456,12 +782,17 @@ const buildNextAtomicBatch = async (params: {
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
   })
+  const directRoutes = await resolveDirectMigrationRoutes({
+    publicClient: ctx.publicClient,
+    classified: remaining,
+  })
   let livePrefixStart: string | undefined
   const atomicPlan = await buildAtomicMigrationBatches({
     chainId: ctx.publicClient.chain?.id ?? 11155111,
     hca: ctx.hcaAddress,
     wallet: ctx.walletAddress,
     classified: remaining,
+    directRoutes,
     profiles: plan.profiles,
     defaultResolver: V2_CONTRACTS.DefaultResolver,
     resolverDeployed: resolverReadiness.status === 'verified',
@@ -493,6 +824,12 @@ export type OnBatchComplete = (names: readonly string[], txHash?: Hex) => void
 
 export type OnApprovalChanged = (approval: MigrationApproval) => void
 
+let atomicMigrationIntentNonce = 0
+const createAtomicMigrationIntentId = (): string => {
+  atomicMigrationIntentNonce += 1
+  return `${Date.now()}:${atomicMigrationIntentNonce}`
+}
+
 const prepareExecutionPlan = async (params: {
   readonly reconcileBeforeSubmit: boolean
   readonly publicClient: PublicClient
@@ -500,18 +837,41 @@ const prepareExecutionPlan = async (params: {
   readonly ctx: MigrationCtx
   readonly onBatchComplete?: OnBatchComplete
 }): Promise<MigrationPlan> => {
-  if (!params.reconcileBeforeSubmit) return params.plan
-
   try {
-    const reconciliation = await reconcileMigrationRetry({
-      publicClient: params.publicClient,
+    const recoveredSubmissions = await reconcileSubmittedAtomicBatches({
+      ctx: params.ctx,
       plan: params.plan,
     })
+    const recoveredNames = recoveredSubmissions.flatMap(({ names }) => names)
+    let executionPlan = adjustPlanForRetry(params.plan, recoveredNames)
+
+    for (const { names, hash } of recoveredSubmissions) {
+      params.onBatchComplete?.(names, hash)
+      params.ctx.tracker.next()
+      params.ctx.tracker.emit(
+        names.length === 1
+          ? `Recovered verified migration for ${names[0]}`
+          : `Recovered ${names.length} verified migrations`,
+        hash,
+      )
+    }
+
+    if (
+      !params.reconcileBeforeSubmit ||
+      executionPlan.classified.length === 0
+    ) {
+      return executionPlan
+    }
+
+    const reconciliation = await reconcileMigrationRetry({
+      publicClient: params.publicClient,
+      plan: executionPlan,
+    })
     const incompleteNames = new Set(reconciliation.incompleteNames)
-    const completedNames = params.plan.classified
+    const completedNames = executionPlan.classified
       .filter(({ domain }) => !incompleteNames.has(domain.name))
       .map(({ domain }) => domain.name)
-    const executionPlan = adjustPlanForRetry(params.plan, completedNames)
+    executionPlan = adjustPlanForRetry(executionPlan, completedNames)
 
     for (const names of reconciliation.completedNameGroups) {
       params.onBatchComplete?.(names)
@@ -537,6 +897,7 @@ const executeRemainingAtomicBatches = async (params: {
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
+  const journalScope = batchJournalScope(params.ctx)
 
   while (remaining.length > 0) {
     const batch = await buildNextAtomicBatch({
@@ -548,24 +909,50 @@ const executeRemainingAtomicBatches = async (params: {
       batch.names.length === 1
         ? `Atomically upgrading ${batch.names[0]}`
         : `Atomically upgrading ${batch.names.length} names`
+    const intent = {
+      id: createAtomicMigrationIntentId(),
+      names: batch.names,
+    }
+    persistPendingAtomicMigrationIntent(journalScope, intent)
+    let submittedHash: Hex | undefined
 
     try {
       const { hash, receipt } = await submitCall(
         params.ctx,
         batch.outerCall,
         description,
+        (nextHash) => {
+          const previousHash = submittedHash
+          submittedHash = nextHash
+          persistSubmittedAtomicMigrationBatch(journalScope, {
+            intentId: intent.id,
+            hash: nextHash,
+            names: batch.names,
+          })
+          if (
+            previousHash &&
+            previousHash.toLowerCase() !== nextHash.toLowerCase()
+          ) {
+            removeSubmittedAtomicMigrationBatch(journalScope, previousHash)
+          }
+          removePendingAtomicMigrationIntent(journalScope, intent.id)
+        },
       )
       await verifyAtomicMigrationBatch({
         publicClient: params.publicClient,
         batch,
         blockNumber: receipt.blockNumber,
       })
+      removeSubmittedAtomicMigrationBatch(journalScope, hash)
       hashes.push(hash)
       params.onBatchComplete?.(batch.names, hash)
       remaining = removeNames(remaining, batch.names)
       params.ctx.tracker.next()
       params.ctx.tracker.emit('Atomic batch verified', hash)
     } catch (error) {
+      if (!submittedHash && isUserRejection(error)) {
+        removePendingAtomicMigrationIntent(journalScope, intent.id)
+      }
       throw wrapMigrationError(error, description)
     }
   }
@@ -622,17 +1009,25 @@ export const executeMigrationCleanup = async (params: {
 
   for (const approval of [...pending].reverse()) {
     try {
-      const isActive = await params.publicClient.readContract({
-        address: approval.contractAddress,
-        abi: OPERATOR_APPROVAL_ABI,
-        functionName: 'isApprovedForAll',
-        args: [params.walletAddress, approval.operatorAddress],
+      const isActive = await checkMigrationApprovalActive({
+        approval,
+        owner: params.walletAddress,
+        publicClient: params.publicClient,
       })
       if (!isActive) {
-        pending = pending.filter((candidate) => candidate.id !== approval.id)
+        pending = pending.filter(
+          (candidate) =>
+            migrationApprovalKey(candidate) !== migrationApprovalKey(approval),
+        )
         persistMigrationApprovalLedger(scope, pending)
         params.onApprovalRemoved?.(approval)
-        markApprovalRemoved('Temporary permission already removed')
+        const isAutoClearedTokenApproval =
+          approval.kind === 'erc721-token' &&
+          params.tracker !== undefined &&
+          !params.plannedCleanupStep
+        if (!isAutoClearedTokenApproval) {
+          markApprovalRemoved('Temporary permission already removed')
+        }
         continue
       }
 
@@ -642,7 +1037,10 @@ export const executeMigrationCleanup = async (params: {
         'Removing temporary permission',
       )
       hashes.push(hash)
-      pending = pending.filter((candidate) => candidate.id !== approval.id)
+      pending = pending.filter(
+        (candidate) =>
+          migrationApprovalKey(candidate) !== migrationApprovalKey(approval),
+      )
       persistMigrationApprovalLedger(scope, pending)
       params.onApprovalRemoved?.(approval)
       markApprovalRemoved('Temporary permission removed', hash)
@@ -724,6 +1122,17 @@ export const executeMigration = async (params: {
   })
 
   if (executionPlan.classified.length > 0) {
+    // Permission state is mutable outside this flow. Check the preview against
+    // the latest chain state before opening the first wallet prompt, then use
+    // the same snapshot for approval submission. Retries intentionally retain
+    // their reconciliation behavior because a previous attempt may already
+    // have submitted one of the planned grants.
+    const currentMissing = params.reconcileBeforeSubmit
+      ? undefined
+      : await assertMigrationApprovalPlanCurrent({
+          ctx,
+          plan: executionPlan,
+        })
     const deploymentHash = await ensureHcaDeployment({
       ctx,
       hcaClient,
@@ -736,6 +1145,7 @@ export const executeMigration = async (params: {
       ctx,
       plan: executionPlan,
       initialLedger: createdApprovals,
+      currentMissing,
       onApprovalCreated: params.onApprovalCreated,
     })
     txHashes.push(...approvals.hashes)
@@ -764,7 +1174,8 @@ export const executeMigration = async (params: {
     ),
     onApprovalRemoved: (approval) => {
       createdApprovals = createdApprovals.filter(
-        (candidate) => candidate.id !== approval.id,
+        (candidate) =>
+          migrationApprovalKey(candidate) !== migrationApprovalKey(approval),
       )
       params.onApprovalRemoved?.(approval)
     },
