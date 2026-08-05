@@ -556,6 +556,36 @@ export function readMinCommitmentAgeActor(input: {
 }
 
 /**
+ * Read the current ERC20 allowance the spender (registrar) has on the user's
+ * payment token. Used by the renewal flows, whose price comes from the renew
+ * quote; the registration machine uses `readPaymentAuthorizationActor` below,
+ * which pairs the allowance with the live register price.
+ */
+export function readPaymentTokenAllowanceActor(input: {
+  owner: Address
+  selectedToken: TOKEN_SYMBOL
+  publicClient: PublicClient
+  /** Spender to read the allowance for. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
+}): ResultAsync<bigint, Error> {
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const tokenAddress =
+    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+  return fromPromise(
+    readContract(input.publicClient, {
+      address: tokenAddress,
+      abi: erc20Abi,
+      functionName: 'allowance',
+      args: [input.owner, registrarAddress],
+    }) as Promise<bigint>,
+    (error) => error as Error,
+  )
+}
+
+/**
  * Read, in one round-trip, the registrar's current allowance on the user's
  * payment token and the live register price. The approval must be for the live
  * price, never the UI quote: the quote was taken when the token was picked,
