@@ -28,34 +28,34 @@ const action = (events: TimelineIndexerEvent[]): Action => ({
 })
 
 describe('filterActions', () => {
-  it('keeps the original action label and hides non-matching events', () => {
-    const filtered = filterActions(
-      [
-        {
-          ...action([
-            event('NameRegistered', '1', {
-              name: 'alice.eth',
-              asNameRegistered: { name: 'alice.eth' },
-            }),
-            event('Transfer', '2', {
-              name: 'alice.eth',
-              asTransfer: {
-                from: '0x1111111111111111111111111111111111111111',
-                to: '0x2222222222222222222222222222222222222222',
-              },
-            }),
-            event('EACRolesChanged', '3'),
-          ]),
-          label: 'Register name',
-        },
-      ],
-      {},
-      ['Transfer'],
-    )
+  it('keeps the whole matching action without narrowing its events', () => {
+    const registerAction: Action = {
+      ...action([
+        event('NameRegistered', '1', {
+          name: 'alice.eth',
+          asNameRegistered: { name: 'alice.eth' },
+        }),
+        event('Transfer', '2', {
+          name: 'alice.eth',
+          asTransfer: {
+            from: '0x1111111111111111111111111111111111111111',
+            to: '0x2222222222222222222222222222222222222222',
+          },
+        }),
+        event('EACRolesChanged', '3'),
+      ]),
+      label: 'Register name',
+    }
+    const filtered = filterActions([registerAction], {}, ['Transfer'])
     expect(filtered).toHaveLength(1)
-    // Detail narrows to the matching event, but the headline is unchanged —
-    // not re-derived to "Transfer name".
-    expect(filtered[0].events.map((e) => e.type)).toEqual(['Transfer'])
+    // The filter only selects which transactions appear — it must not narrow
+    // events or relabel. The full action is preserved (same reference).
+    expect(filtered[0]).toBe(registerAction)
+    expect(filtered[0].events.map((e) => e.type)).toEqual([
+      'NameRegistered',
+      'Transfer',
+      'EACRolesChanged',
+    ])
     expect(filtered[0].label).toBe('Register name')
   })
 

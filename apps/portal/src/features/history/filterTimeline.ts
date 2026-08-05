@@ -37,15 +37,14 @@ export const filterActions = (
       result.push(action)
       continue
     }
-    const events = action.events.filter((event) =>
+    // The event-type filter selects which transactions appear; it does not
+    // narrow an action's events. Headline, slots, and detail rows all keep
+    // describing the whole transaction, so the filtered view stays consistent
+    // (a register containing a Transfer shows in full, not relabeled or trimmed).
+    const matches = action.events.some((event) =>
       selectedTypes.includes(event.type),
     )
-    if (events.length === 0) continue
-    // Filtering only hides non-matching tier-2 events — it must not re-headline
-    // the action (a register filtered to its Transfer stays "Register name").
-    result.push(
-      events.length === action.events.length ? action : { ...action, events },
-    )
+    if (matches) result.push(action)
   }
   return result
 }
