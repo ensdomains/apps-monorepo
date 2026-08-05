@@ -4,14 +4,15 @@
  * Provenance: these addresses are the coordinated Sepolia / Base Sepolia
  * deployment that the standalone HCA in `ensdomains/contracts-v2` PR #362
  * (branch `feat/hca-final-maybe`, commit `12712e3`) was deployed against, as
- * published in the "HCA: New" handoff doc. They are NOT sourced from
- * `@ensdomains/ensjs`: ensjs' Sepolia v2 block points at a DIFFERENT, older
- * deployment (every overlapping contract — registrar, registry, verifiable
- * factory, resolver impl, USDC test token — has a different address there), and
- * ensjs' `ensHcaFactory` is the SDK's built-in *non-standalone* HCA factory
- * (`0x3586…Cf943`) that this migration replaces. ensjs has no entry at all for
+ * published in the "HCA: New" handoff doc.
+ *
+ * That is no longer true of the ENS-side contracts. ensjs now tracks the
+ * deployment the apps actually ship against, so the registrar and registry are
+ * read from it — registering somewhere the rest of the app does not read is
+ * what made renewal revert `NameNotRenewable`. ensjs still has no entry for
  * `StandaloneHCAImplementation`, `HCAOwnerAndSessionValidator`, the proxy
- * logic, the reverse adapter, or the funding validator.
+ * logic, the reverse adapter, or the funding validator, so those stay
+ * hardcoded here until it does.
  *
  * When ensjs ships the standalone-HCA deployment, re-point these to
  * `getChainContractAddress(...)`. Until then, this local, chain-keyed table is
@@ -21,8 +22,16 @@
  * SDK patch SHA-256: 5e0a5f328ccf65514b051f255c217e693d81a9bfcf8ccbbd71dc2729e8932867
  */
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { type Address, encodeAbiParameters, keccak256, stringToHex } from 'viem'
 import { baseSepolia, sepolia } from 'viem/chains'
+
+/**
+ * The ENS-side contracts are sourced from ensjs, which is the source of truth
+ * for the deployment the apps ship against. The standalone-HCA extras below
+ * stay hardcoded only because ensjs has no entry for them yet.
+ */
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 
 export const SEPOLIA_CHAIN_ID = sepolia.id
 export const BASE_SEPOLIA_CHAIN_ID = baseSepolia.id
@@ -66,16 +75,27 @@ export interface SharedContracts {
 
 export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
   [sepolia.id]: {
-    standaloneHcaFactory: '0x1915b0c8ae2c133b2b43845b5c545d1eea081c9a',
-    standaloneHcaImplementation: '0xaff1833a2746373b749bca6f416b9d4eb5f4d7c4',
-    hcaOwnerAndSessionValidator: '0x67a4f4f3ba93b7c1299cc79b901c4b2e4375ef42',
-    verifiableFactory: '0x118bc31a50d559f7015a8da26d54b3b030cdb70f',
-    verifiableFactoryProxyLogic: '0x7E98c31ae2Ac5C3C88f2CE00c22a10B8cb84BcE2',
-    permissionedResolverImpl: '0x7e4b2d59938930168024201752ee5503df402303',
-    ethRegistrar: '0xa4449a0dd2b83007553d9b1d28b583a46a805a30',
-    ethRegistry: '0x67b728a792e789a8978b30cf1b3b641f19354b43',
+    // From ensjs, which tracks the deployment the apps ship against.
+    standaloneHcaFactory: ensjsSepolia.ensHcaFactory.address,
+    verifiableFactory: ensjsSepolia.ensVerifiableFactory.address,
+    permissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
+    ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
+    ethRegistry: ensjsSepolia.ensRegistry.address,
+
+    // Not in ensjs yet. Addresses from contracts-v2
+    // `contracts/docs/addresses/sepolia.md` @ 97a5729 (deployed 2026-07-30).
+    standaloneHcaImplementation: '0xD213De41421Fed3a5E475943F9D634A0cf64a385',
+    hcaOwnerAndSessionValidator: '0x976D90c51Afb2C11660EaeE94bD42A7e84751D08',
     defaultReverseRegistrarHcaAdapter:
-      '0x5e2d105f1e6be8444c4ed96c06806093b829644e',
+      '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
+    // Not deployed as its own artifact — VerifiableFactory creates it in its
+    // constructor and exposes it as the immutable `proxyLogic`, so this is read
+    // off `ensVerifiableFactory` above. It MUST stay paired with that factory:
+    // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
+    verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
+
+    // Circle's real Sepolia USDC — deliberately NOT `ensjsSepolia.usdc`, which
+    // is MockUSDC. The app pays in the real token.
     usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
   },
 }

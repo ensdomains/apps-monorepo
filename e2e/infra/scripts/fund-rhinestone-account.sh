@@ -38,7 +38,7 @@ ETH_AMOUNT_HEX=$(cast to-hex 10000000000000000000)
 # headless wallet owner (Anvil account 0, 0xf39F…2266) that HCA is
 # 0x49C8…747a (verified via a local e2e run).
 KNOWN_ADDRESSES=(
-  "0x49C84566d2ecDa444d5e094F3804a605F46b747a"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
+  "0x4e98a16ECa5Abea3325BFf8998787AEA8328779A"  # Standalone HCA for Anvil account 0 (0xf39F…2266)
   "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"  # Anvil account 0 (E2E headless wallet EOA — USDC permit source)
   "0xc9eec1b174a646d7c282820afe94acfba6c00a12"  # EOA for test1@test.getpara.com
 )

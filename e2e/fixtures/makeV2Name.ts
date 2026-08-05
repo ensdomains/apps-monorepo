@@ -94,8 +94,12 @@ const FULL_ROLE_BITMAP = BigInt(
 )
 
 /**
- * Standalone HCA of the connected E2E wallet (Anvil account 0, 0xf39F…2266),
- * derived from owner + StandaloneHCAImplementation + userSalt(0).
+ * Standalone HCA of the connected E2E wallet (Anvil account 0, 0xf39F…2266).
+ *
+ * A VerifiableFactory CREATE2 proxy, so it is derived from the whole account
+ * config — factory, implementation, verifiable factory, proxy logic and
+ * userSalt(0). It therefore MOVES whenever any of those change in the manifest;
+ * it last changed with the 2026-07-30 redeploy.
  *
  * Hardcoded for the same reason as the addresses in
  * `infra/scripts/print-standalone-hca-addresses.mjs`: the derivation lives in
@@ -103,7 +107,7 @@ const FULL_ROLE_BITMAP = BigInt(
  * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
  * address for mockestrator impersonation gas — keep the two in sync.
  */
-const STANDALONE_HCA = '0x49C84566d2ecDa444d5e094F3804a605F46b747a' as Address
+const STANDALONE_HCA = '0x4e98a16ECa5Abea3325BFf8998787AEA8328779A' as Address
 
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(
