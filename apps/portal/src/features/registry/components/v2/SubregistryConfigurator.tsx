@@ -70,9 +70,7 @@ export function SubregistryConfigurator({
   const parentRegistry = registries?.at(1) ?? null
 
   const customSubregistryAddress =
-    useCustomRegistry && isAddress(contractAddress)
-      ? (contractAddress as Address)
-      : null
+    useCustomRegistry && isAddress(contractAddress) ? contractAddress : null
 
   const isDeployPath = !customSubregistryAddress
 
@@ -183,7 +181,11 @@ export function SubregistryConfigurator({
       >
         <RadioGroup
           value={registryOption}
-          onValueChange={(value) => setRegistryOption(value as RegistryOption)}
+          onValueChange={(value) => {
+            if (value === 'deploy' || value === 'use-existing') {
+              setRegistryOption(value)
+            }
+          }}
         >
           <div className="flex items-center gap-3">
             <RadioGroupItem value="deploy" id="registry-option-deploy" />
@@ -260,7 +262,6 @@ export function SubregistryConfigurator({
                   id: SET_SUBREGISTRY_TX_ID,
                   title: 'Set subregistry',
                   transactionName: `Set subregistry for ${name}`,
-                  // Address unknown until deploy mines, so no pre-start estimate.
                   onStart: handleSetSubregistryAfterDeployStart,
                   onDone: handleSetSubregistryDone,
                 },

@@ -4,13 +4,9 @@ import { useConnection } from 'wagmi'
 import { getHasRolesQueryOptions } from './useHasRoles'
 import { getNameRegistriesQueryOptions } from './useNameRegistryDiscovery'
 
-type UseHasSetSubregistryRoleOptions = {
-  enabled?: boolean
-}
-
 export const useHasSetSubregistryRole = (
   name: string,
-  { enabled = true }: UseHasSetSubregistryRoleOptions = {},
+  { enabled = true }: { enabled?: boolean } = {},
 ) => {
   const { address: connectedAddress } = useConnection()
 

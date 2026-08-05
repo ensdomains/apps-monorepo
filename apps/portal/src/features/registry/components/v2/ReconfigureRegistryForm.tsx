@@ -21,7 +21,7 @@ export function ReconfigureRegistryForm({
         isMobile ? 'pl-0 pt-3' : 'pl-14',
       )}
     >
-      <Alert className="p-6 gap-2" variant="warning">
+      <Alert className="p-5 gap-2" variant="warning">
         <AlertTitle>Configure new registry</AlertTitle>
         <AlertDescription className="text-foreground">
           The current registry will still exist, but this name will no longer

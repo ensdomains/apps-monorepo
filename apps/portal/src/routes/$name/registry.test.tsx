@@ -58,16 +58,12 @@ vi.mock('@/features/registry/components/v2/ConfigureRegistryForm', () => ({
   ),
 }))
 
-// The reconfigure form owns its own deploy/set queries and modal (exercised by
-// its own tests); here we only assert that the tree mounts it when opened.
 vi.mock('@/features/registry/components/v2/ReconfigureRegistryForm', () => ({
   ReconfigureRegistryForm: ({ name }: { name: string }) => (
     <div data-testid="reconfigure-registry-form" data-name={name} />
   ),
 }))
 
-// Toggle the connected account's ROLE_SET_SUBREGISTRY per test to drive the
-// Reconfigure affordance. `mock`-prefixed so vitest allows it in the factory.
 const mockHasSetSubregistryRole = { hasRole: false }
 vi.mock('@/features/registry/hooks/useHasSetSubregistryRole', () => ({
   useHasSetSubregistryRole: () => ({
