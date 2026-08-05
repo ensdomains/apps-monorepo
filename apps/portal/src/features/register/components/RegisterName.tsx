@@ -179,6 +179,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           />
           <RegisterNameCheckoutSummary name={name} duration={duration} />
           <PaymentTokenSection
+            // The section snapshots the selected token WITH its quote, and the
+            // quote is duration-keyed — remount on duration change so a stale
+            // (lower) quote can never be carried into the approval.
+            key={duration}
             name={name}
             duration={duration}
             onConfirm={handleConfirm}

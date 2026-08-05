@@ -7,12 +7,20 @@
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
+  ethRegistrarGetRegisterPriceSnippet,
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
   ethRegistrarRenewSnippet,
 } from '@ensdomains/ensjs-abi/v2/ethRegistrar'
 import { errAsync, fromPromise, ResultAsync } from 'neverthrow'
-import type { Address, Hash, Hex, PublicClient, TransactionReceipt } from 'viem'
+import type {
+  Address,
+  Hash,
+  Hex,
+  MulticallErrorType,
+  PublicClient,
+  TransactionReceipt,
+} from 'viem'
 import {
   bytesToHex,
   decodeEventLog,
@@ -556,8 +564,9 @@ export function readMinCommitmentAgeActor(input: {
 
 /**
  * Read the current ERC20 allowance the spender (registrar) has on the user's
- * payment token. Used to skip the approval step when the user already
- * approved enough.
+ * payment token. Used by the renewal flows, whose price comes from the renew
+ * quote; the registration machine uses `readPaymentAuthorizationActor` below,
+ * which pairs the allowance with the live register price.
  */
 export function readPaymentTokenAllowanceActor(input: {
   owner: Address
@@ -578,8 +587,56 @@ export function readPaymentTokenAllowanceActor(input: {
       abi: erc20Abi,
       functionName: 'allowance',
       args: [input.owner, registrarAddress],
-    }) as Promise<bigint>,
+    }),
     (error) => error as Error,
+  )
+}
+
+/**
+ * Read, in one round-trip, the registrar's current allowance on the user's
+ * payment token and the live register price. The approval must be for the live
+ * price, never the UI quote: the quote was taken when the token was picked,
+ * while the registrar pulls the CURRENT price at settlement, so an approval
+ * for a stale (lower) quote makes register revert ERC20InsufficientAllowance.
+ */
+export function readPaymentAuthorizationActor(input: {
+  owner: Address
+  name: string
+  duration: bigint
+  selectedToken: TOKEN_SYMBOL
+  publicClient: PublicClient
+  /** Spender/pricer to read. Defaults to the legacy registrar. */
+  registrarAddress?: Address
+  /** Payment token to read. Defaults to the legacy mock token for the symbol. */
+  paymentTokenAddress?: Address
+}): ResultAsync<{ allowance: bigint; livePrice: bigint }, MulticallErrorType> {
+  const registrarAddress =
+    input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
+  const tokenAddress =
+    input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+  const label = input.name.replace('.eth', '')
+  return fromPromise(
+    (async () => {
+      const [allowance, [base, premium]] = await multicall(input.publicClient, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [input.owner, registrarAddress],
+          },
+          {
+            address: registrarAddress,
+            abi: ethRegistrarGetRegisterPriceSnippet,
+            functionName: 'getRegisterPrice',
+            args: [label, input.duration, tokenAddress],
+          },
+        ],
+      })
+      return { allowance, livePrice: base + premium }
+    })(),
+    (error) => error as MulticallErrorType,
   )
 }
 
