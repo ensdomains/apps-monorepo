@@ -1,4 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
+import { resultMutationOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { getWalletClient } from '@wagmi/core/actions'
@@ -105,28 +106,20 @@ export const useTransferName = ({
   // Prepares the flow: reads the token id up front (so a bad name fails before
   // the modal opens), then stores the plan and opens the modal. Loading and error
   // state come straight from the mutation — no manual bookkeeping.
-  const prepareMutation = useMutation({
-    mutationFn: async ({
-      recipient,
-      options,
-    }: StartTransferParams): Promise<SavedParams> => {
-      const tokenId = await getEnsTokenId({
-        label: getLabel(name),
-        registryAddress,
-      }).match(
-        (value) => value,
-        (error) => {
-          throw error
-        },
-      )
-      return { recipient, tokenId, options }
-    },
-    onSuccess: (params) => {
-      startedStepsRef.current = new Set()
-      setSavedParams(params)
-      openModal()
-    },
-  })
+  const prepareMutation = useMutation(
+    resultMutationOptions({
+      mutationFn: ({ recipient, options }: StartTransferParams) =>
+        getEnsTokenId({
+          label: getLabel(name),
+          registryAddress,
+        }).map((tokenId) => ({ recipient, tokenId, options })),
+      onSuccess: (params) => {
+        startedStepsRef.current = new Set()
+        setSavedParams(params)
+        openModal()
+      },
+    }),
+  )
 
   const runStep = async (
     step: TransferStepKind,
