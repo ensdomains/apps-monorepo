@@ -64,12 +64,15 @@ vi.mock('@/features/registry/components/v2/ReconfigureRegistryForm', () => ({
   ),
 }))
 
-const mockHasSetSubregistryRole = { hasRole: false }
+const mockHasSetSubregistryRole: {
+  hasRole: boolean | undefined
+  error: Error | null
+} = { hasRole: false, error: null }
 vi.mock('@/features/registry/hooks/useHasSetSubregistryRole', () => ({
   useHasSetSubregistryRole: () => ({
     hasRole: mockHasSetSubregistryRole.hasRole,
     isLoading: false,
-    error: null,
+    error: mockHasSetSubregistryRole.error,
     parentRegistry: null,
     connectedAddress: mockAccount,
   }),
@@ -146,6 +149,7 @@ describe('V2RegistryInfo', () => {
   beforeEach(() => {
     setRegistries(undefined)
     mockHasSetSubregistryRole.hasRole = false
+    mockHasSetSubregistryRole.error = null
   })
 
   const configuredLeaf = (subregistry: string) =>
@@ -288,5 +292,20 @@ describe('V2RegistryInfo', () => {
       'data-name',
       'foo.eth',
     )
+  })
+
+  it('surfaces a role-check failure instead of hiding Reconfigure silently', () => {
+    mockHasSetSubregistryRole.hasRole = undefined
+    mockHasSetSubregistryRole.error = new Error('rpc failed')
+    configuredLeaf('0x2222222222222222222222222222222222222222')
+
+    render(<V2RegistryInfo name="foo.eth" ownerData={ownerData} />)
+
+    expect(
+      screen.queryByRole('button', { name: /reconfigure/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/couldn't verify reconfigure permissions/i),
+    ).toBeVisible()
   })
 })

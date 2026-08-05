@@ -5,6 +5,7 @@ import { Fragment, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { type Address, zeroAddress } from 'viem'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GetEnsOwnerReturnType } from '@/features/profile/hooks/useEnsOwner'
@@ -73,9 +74,10 @@ export const RegistryTreeItem = ({
   const isLastUnconfigured = isLast && !isRegistryConfigured
 
   const [isReconfiguring, setIsReconfiguring] = useState(false)
-  const { hasRole: canReconfigure } = useHasSetSubregistryRole(name, {
-    enabled: isLastConfigured,
-  })
+  const { hasRole: canReconfigure, error: roleCheckError } =
+    useHasSetSubregistryRole(name, {
+      enabled: isLastConfigured,
+    })
 
   const emptyState = isLastUnconfigured ? (
     <RegistryEmptyState name={name} ownerData={ownerData} />
@@ -107,7 +109,7 @@ export const RegistryTreeItem = ({
               tld={isEthRegistry ? levelName : undefined}
               showInlineMeta={!isLastConfigured}
               onReconfigure={
-                isLastConfigured && canReconfigure
+                isLastConfigured && canReconfigure === true
                   ? () => setIsReconfiguring(true)
                   : undefined
               }
@@ -123,6 +125,7 @@ export const RegistryTreeItem = ({
             protocolVersion={ownerData.protocolVersion}
             isReconfiguring={isReconfiguring}
             onCloseReconfigure={() => setIsReconfiguring(false)}
+            roleCheckError={roleCheckError}
           />
         ) : null}
 
@@ -189,6 +192,7 @@ const RegistrySummaryDetails = ({
   protocolVersion,
   isReconfiguring,
   onCloseReconfigure,
+  roleCheckError,
 }: {
   name: string
   address: Address
@@ -196,6 +200,7 @@ const RegistrySummaryDetails = ({
   protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
   isReconfiguring: boolean
   onCloseReconfigure: () => void
+  roleCheckError: unknown
 }) => {
   const {
     data: summary,
@@ -210,6 +215,14 @@ const RegistrySummaryDetails = ({
 
   return (
     <Fragment>
+      {roleCheckError ? (
+        <div className="pt-4 pl-1 lg:pl-14 max-w-xl">
+          <ErrorMessage
+            compact
+            description="Couldn't verify reconfigure permissions. Refresh the page to try again."
+          />
+        </div>
+      ) : null}
       <dl className="grid lg:grid-cols-2 pt-4 items-center max-w-sm pl-1 lg:pl-14 text-sm text-muted-foreground lg:-mt-2">
         <dt className="py-2 h-9">Chain ID:</dt>
         <dd className="flex items-center h-9">{chainId}</dd>

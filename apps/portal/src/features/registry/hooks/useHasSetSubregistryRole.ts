@@ -37,10 +37,12 @@ export const useHasSetSubregistryRole = (
       enabled && !!connectedAddress && !!parentRegistry && !isRegistriesLoading,
   })
 
+  const error = registriesError ?? roleError
+
   return {
-    hasRole: hasRole ?? false,
+    hasRole: error ? undefined : (hasRole ?? false),
     isLoading: enabled && (isRegistriesLoading || isRoleLoading),
-    error: registriesError ?? roleError,
+    error,
     parentRegistry,
     connectedAddress,
   }
