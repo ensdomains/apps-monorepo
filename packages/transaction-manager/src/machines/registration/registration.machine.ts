@@ -1267,6 +1267,14 @@ export const registrationMachine = setup({
             // Skip payment authorization entirely when the registrar already
             // has enough allowance for this registration's LIVE price (e.g. a
             // prior max permit/approve). The EOA signs nothing extra.
+            //
+            // The price is sampled before the commitment cooldown on BOTH
+            // branches (the approve branch submits this same sampled amount),
+            // and it cannot rise on its own during the cooldown: base is
+            // time-independent and the expiry premium only decays. The one
+            // exception — an admin re-pricing the oracle mid-cooldown — is not
+            // defended here; a bare EOA cannot make approve+register atomic,
+            // which is what the HCA batch path is for.
             guard: ({ event }) => {
               const { allowance, livePrice } = event.output as {
                 allowance: bigint
