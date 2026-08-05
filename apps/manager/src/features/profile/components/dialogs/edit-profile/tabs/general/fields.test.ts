@@ -18,16 +18,29 @@ const createRecords = (base: ProfileRecords['base'] = {}): ProfileRecords => ({
 })
 
 describe('general profile fields', () => {
-  it('includes full name as an unselected shortcut by default', () => {
+  it('offers full name as a general shortcut', () => {
     const fields = generalShortcuts.map(({ field }) => field)
 
     expect(fields).toContain('name')
     expect(generalShortcuts.find(({ field }) => field === 'name')?.label).toBe(
       'Full name',
     )
+  })
+
+  it('selects the full name shortcut when the saved profile has a name', () => {
     expect(
-      getDefaultVisibleFields(createRecords({ name: 'Yoginth' })),
-    ).not.toContain('name')
+      getDefaultVisibleFields(createRecords({ name: 'Yoginth' })).has('name'),
+    ).toBe(true)
+  })
+
+  it.each([
+    [undefined],
+    [''],
+    ['   '],
+  ])('leaves the full name shortcut unselected when the saved name is %p', (name) => {
+    expect(getDefaultVisibleFields(createRecords({ name })).has('name')).toBe(
+      false,
+    )
   })
 
   it.each([

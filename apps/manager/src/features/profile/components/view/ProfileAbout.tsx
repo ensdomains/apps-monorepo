@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/react/macro'
 import { MSymbol } from '@/components/ui/material-symbol'
 import type { ProfileRecords } from '@/features/profile/types'
+import { cn } from '@/lib/utils'
 import { getDisplayHost, getSafeProfileHref } from './ProfileView.helpers'
 
 const getContactRecordValue = (records: ProfileRecords, key: string) =>
@@ -43,6 +44,7 @@ export const ProfileAbout = ({
   const websiteHref = records.base.url
     ? getSafeProfileHref(records.base.url)
     : undefined
+  const fullName = records.base.name?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
@@ -54,8 +56,18 @@ export const ProfileAbout = ({
           <h2 className="text-base text-ens-quartz-700 leading-normal">
             <Trans>About</Trans>
           </h2>
+          {fullName ? (
+            <p className="mt-3 break-words font-medium text-base text-ens-quartz-900 leading-normal">
+              {fullName}
+            </p>
+          ) : null}
           {records.base.description ? (
-            <p className="mt-3 text-ens-quartz-500 text-sm leading-normal">
+            <p
+              className={cn(
+                'text-ens-quartz-500 text-sm leading-normal',
+                fullName ? 'mt-1' : 'mt-3',
+              )}
+            >
               {records.base.description}
             </p>
           ) : null}
