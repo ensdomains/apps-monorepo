@@ -366,7 +366,7 @@ const Profile = ({
       </div>
 
       {/* Main section: profile | metadata rows | counters */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_2fr] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,2fr)_minmax(0,2fr)] gap-3">
         {/* Left: avatar + bio + socials */}
         <NameProfileCard name={name} stacked />
 
