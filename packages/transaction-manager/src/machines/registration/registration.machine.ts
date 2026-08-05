@@ -10,7 +10,7 @@ import {
   type PermitSignature,
   pollTransactionStatusActor,
   readMinCommitmentAgeActor,
-  readPaymentTokenAllowanceActor,
+  readPaymentAuthorizationActor,
   resolveResolverDeploymentActor,
   submitApprovalActor,
   submitCommitmentActor,
@@ -410,13 +410,15 @@ export const registrationMachine = setup({
         return readMinCommitmentAgeActor(input)
       },
     ),
-    readPaymentTokenAllowance: fromResultAsync(
+    readPaymentAuthorization: fromResultAsync(
       (input: {
         owner: Address
+        name: string
+        duration: bigint
         selectedToken: TOKEN_SYMBOL
         publicClient: PublicClient
       }) => {
-        return readPaymentTokenAllowanceActor(input)
+        return readPaymentAuthorizationActor(input)
       },
     ),
     verifyRegistration: fromResultAsync(
@@ -1250,10 +1252,12 @@ export const registrationMachine = setup({
     checkingAllowance: {
       entry: ['logTransition'],
       invoke: {
-        src: 'readPaymentTokenAllowance',
+        src: 'readPaymentAuthorization',
         input: ({ context }) => ({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           owner: context.ownerAddress ?? context.accountAddress!,
+          name: context.name,
+          duration: context.duration,
           selectedToken: context.selectedToken,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
@@ -1261,20 +1265,35 @@ export const registrationMachine = setup({
         onDone: [
           {
             // Skip payment authorization entirely when the registrar already
-            // has enough allowance for this registration's price (e.g. a prior
-            // max permit/approve). The EOA signs nothing extra.
-            guard: ({ context, event }) => {
-              const allowance = event.output as bigint
-              return allowance >= context.tokenPrice
+            // has enough allowance for this registration's LIVE price (e.g. a
+            // prior max permit/approve). The EOA signs nothing extra.
+            guard: ({ event }) => {
+              const { allowance, livePrice } = event.output as {
+                allowance: bigint
+                livePrice: bigint
+              }
+              return allowance >= livePrice
             },
             target: 'commitmentCooldown',
           },
           // Pure-EOA: a bare EOA can't batch or sponsor, so it sets the
           // allowance with a plain on-chain `approve`. (The HCA path never
           // reaches this state — it funds pre-commit and pays from the HCA.)
-          { target: 'approvingToken' },
+          // Approve the live price, not the UI quote: the registrar pulls the
+          // CURRENT price at settlement, so a quote gone stale between token
+          // selection and submission would under-approve and revert register
+          // with ERC20InsufficientAllowance.
+          {
+            target: 'approvingToken',
+            actions: assign({
+              tokenPrice: ({ event }) =>
+                (event.output as { allowance: bigint; livePrice: bigint })
+                  .livePrice,
+            }),
+          },
         ],
-        // If the read fails, fall back to authorizing rather than blocking.
+        // If the read fails, fall back to authorizing the quoted price rather
+        // than blocking.
         onError: { target: 'approvingToken' },
       },
       on: {

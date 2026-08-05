@@ -7,6 +7,7 @@
 import {
   ethRegistrarCommitmentsSnippet,
   ethRegistrarCommitSnippet,
+  ethRegistrarGetRegisterPriceSnippet,
   ethRegistrarMakeCommitmentSnippet,
   ethRegistrarRegisterSnippet,
   ethRegistrarRenewSnippet,
@@ -555,30 +556,49 @@ export function readMinCommitmentAgeActor(input: {
 }
 
 /**
- * Read the current ERC20 allowance the spender (registrar) has on the user's
- * payment token. Used to skip the approval step when the user already
- * approved enough.
+ * Read, in one round-trip, the registrar's current allowance on the user's
+ * payment token and the live register price. The approval must be for the live
+ * price, never the UI quote: the quote was taken when the token was picked,
+ * while the registrar pulls the CURRENT price at settlement, so an approval
+ * for a stale (lower) quote makes register revert ERC20InsufficientAllowance.
  */
-export function readPaymentTokenAllowanceActor(input: {
+export function readPaymentAuthorizationActor(input: {
   owner: Address
+  name: string
+  duration: bigint
   selectedToken: TOKEN_SYMBOL
   publicClient: PublicClient
-  /** Spender to read the allowance for. Defaults to the legacy registrar. */
+  /** Spender/pricer to read. Defaults to the legacy registrar. */
   registrarAddress?: Address
   /** Payment token to read. Defaults to the legacy mock token for the symbol. */
   paymentTokenAddress?: Address
-}): ResultAsync<bigint, Error> {
+}): ResultAsync<{ allowance: bigint; livePrice: bigint }, Error> {
   const registrarAddress =
     input.registrarAddress ?? ENS_SEPOLIA_CONTRACTS.ETHRegistrar
   const tokenAddress =
     input.paymentTokenAddress ?? getPaymentTokenAddress(input.selectedToken)
+  const label = input.name.replace('.eth', '')
   return fromPromise(
-    readContract(input.publicClient, {
-      address: tokenAddress,
-      abi: erc20Abi,
-      functionName: 'allowance',
-      args: [input.owner, registrarAddress],
-    }) as Promise<bigint>,
+    (async () => {
+      const [allowance, [base, premium]] = await multicall(input.publicClient, {
+        allowFailure: false,
+        contracts: [
+          {
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: 'allowance',
+            args: [input.owner, registrarAddress],
+          },
+          {
+            address: registrarAddress,
+            abi: ethRegistrarGetRegisterPriceSnippet,
+            functionName: 'getRegisterPrice',
+            args: [label, input.duration, tokenAddress],
+          },
+        ],
+      })
+      return { allowance, livePrice: base + premium }
+    })(),
     (error) => error as Error,
   )
 }
