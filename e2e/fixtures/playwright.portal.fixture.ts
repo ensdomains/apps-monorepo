@@ -1,6 +1,11 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import {
+  injectHeadlessWeb3Provider,
+  type Web3ProviderBackend,
+} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
 import {
@@ -17,22 +22,17 @@ import {
   privateKeyToAccount,
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
-  injectHeadlessWeb3Provider,
-  type Web3ProviderBackend,
-} from '@ensdomains/headless-web3-provider'
+  publicClient,
+  testClient,
+  walletClient,
+} from '../helpers/anvil-client.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
-import {
-  publicClient,
-  testClient,
-  walletClient,
-} from '../helpers/anvil-client.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -194,7 +194,7 @@ type PortalFixtures = {
 }
 
 export const test = base.extend<PortalFixtures>({
-  accounts: async ({ }, use) => {
+  accounts: async ({}, use) => {
     await use(createAccounts())
   },
 
@@ -213,14 +213,13 @@ export const test = base.extend<PortalFixtures>({
   },
 
   portalPage: async ({ page, wallet }, use) => {
-    const baseURL =
-      process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+    const baseURL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
     await page.goto(baseURL)
     // Brief wait for app initialisation
     await Promise.race([
       page.waitForLoadState('networkidle'),
       page.waitForTimeout(5_000),
-    ]).catch(() => { })
+    ]).catch(() => {})
     await use(page)
   },
 

@@ -62,6 +62,10 @@ const extractUniqueSearchCount = (payload: unknown): number => {
   return normalizeCount(rawCount) ?? 0
 }
 
+// This performs no fallible operations, so it never yields — but ResultFn
+// requires a generator so callers can unwrap it with `yield*` (see
+// fetchUniqueSearchesLast30d below). The generator shape is the contract.
+// biome-ignore lint/correctness/useYield: required by the ResultFn contract; nothing here can fail
 const resolveEndpointUrl = ResultFn(async function* (env: CloudflareBindings) {
   const host = env.POSTHOG?.host?.replace(/\/+$/, '') ?? ''
   const endpoint = env.POSTHOG?.unique_searches_endpoint?.trim() ?? ''

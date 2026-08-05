@@ -144,13 +144,11 @@ const CONNECT_HOSTS = [
 // `posthog-js/dist/module.full.no-external` (see lib/posthog/provider.tsx), so
 // the entire SDK is in our own bundle (served from 'self') and nothing loads
 // from the analytics host. PostHog ingestion calls go over connect-src instead.
-// The DQA overlay script (QA/preview builds only) is the one exception —
-// plus cdnjs, which overlay.js uses as the fallback source for its
-// html-to-image capture library when the DQA server's vendored copy is
-// unavailable (see packages/dqa-server/public/overlay.js).
-const SCRIPT_HOSTS = DQA_ORIGIN
-  ? [DQA_ORIGIN, 'https://cdnjs.cloudflare.com']
-  : []
+// The DQA overlay script (QA/preview builds only) is the one exception. It
+// self-hosts every dependency — html-to-image is bundled into a lazy chunk
+// served from the same origin (see packages/dqa-server/vite.config.ts) — so no
+// third-party host is needed here.
+const SCRIPT_HOSTS = DQA_ORIGIN ? [DQA_ORIGIN] : []
 
 // SHA-256 hashes of the inline scripts we allow (avoids 'unsafe-inline'). The
 // browser logs the expected hash in the CSP violation when it blocks a script.

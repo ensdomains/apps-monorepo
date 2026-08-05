@@ -1,12 +1,11 @@
 // e2e/projects/manager/tests/registration.spec.ts
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   authorizeHeadlessConnection,
   authorizeTransaction,
   clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
-
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
@@ -43,7 +42,9 @@ test.describe('ENS name registration', () => {
     // Click "Connect to Register" with retry — the button can be a no-op if
     // RainbowKit hasn't hydrated yet, and the modal can close before we
     // interact with it. Same pattern as connectWithHeadlessWallet.
-    const connectBtn = page.getByRole('button', { name: /connect to register/i })
+    const connectBtn = page.getByRole('button', {
+      name: /connect to register/i,
+    })
     const modal = page.getByRole('dialog')
     const headlessOption = page.getByText('Headless Web3 Provider')
     await expect(async () => {

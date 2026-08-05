@@ -69,7 +69,9 @@ export const createTime = ({ page }: Dependencies) => {
       const blockTime = Number(block.timestamp)
       const time = new Date(blockTime * 1000)
       await page.clock.setFixedTime(time)
-      console.log(`[time] syncFixed — browser clock fixed at ${time.toISOString()}`)
+      console.log(
+        `[time] syncFixed — browser clock fixed at ${time.toISOString()}`,
+      )
     },
 
     /**
@@ -87,7 +89,9 @@ export const createTime = ({ page }: Dependencies) => {
     logBlockTime: async () => {
       const block = await publicClient.getBlock()
       const blockTime = Number(block.timestamp)
-      console.log(`[time] block time: ${new Date(blockTime * 1000).toISOString()}`)
+      console.log(
+        `[time] block time: ${new Date(blockTime * 1000).toISOString()}`,
+      )
     },
   }
 }

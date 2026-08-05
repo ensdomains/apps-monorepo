@@ -30,11 +30,11 @@
  *   ROLES='ROLE_RENEW' pnpm --filter @ens-apps/e2e seed:managed-name    # semicolon/comma list of ensjs role names
  */
 import { pathToFileURL } from 'node:url'
-import { type Address, encodeFunctionData } from 'viem'
-import { mnemonicToAccount } from 'viem/accounts'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId, type Role } from '@ensdomains/ensjs/utils/v2'
 import { grantRolesWriteParameters } from '@ensdomains/ensjs/wallet/v2'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { type Address, encodeFunctionData } from 'viem'
+import { mnemonicToAccount } from 'viem/accounts'
 import { createMakeV2Name } from '../fixtures/makeV2Name.js'
 import { publicClient, walletClient } from '../helpers/anvil-client.js'
 
@@ -92,8 +92,7 @@ async function waitForIndexedRole(
       }
       const hit = json.data?.roles?.some(
         (r) =>
-          r.name?.toLowerCase() === name.toLowerCase() &&
-          r.roleBitmap !== '0',
+          r.name?.toLowerCase() === name.toLowerCase() && r.roleBitmap !== '0',
       )
       if (hit) return true
     } catch {
@@ -110,8 +109,7 @@ async function main() {
 
   // Connected manager wallet (mnemonic #0 = 0xf39…2266) — the grantee.
   const managerAddress = (process.env.MANAGER_ADDRESS ??
-    mnemonicToAccount(DEFAULT_MNEMONIC, { addressIndex: 0 })
-      .address) as Address
+    mnemonicToAccount(DEFAULT_MNEMONIC, { addressIndex: 0 }).address) as Address
 
   // Separate owner account (mnemonic #1) — owns the name, grants the role.
   const ownerAccount = mnemonicToAccount(DEFAULT_MNEMONIC, { addressIndex: 1 })
@@ -160,7 +158,9 @@ async function main() {
     data,
   })
   await publicClient.waitForTransactionReceipt({ hash: grantTx })
-  console.log(`[grant] ✅ granted [${roles.join(', ')}] on ${name} to ${managerAddress}`)
+  console.log(
+    `[grant] ✅ granted [${roles.join(', ')}] on ${name} to ${managerAddress}`,
+  )
 
   // ── 3. Wait for the indexer to pick it up ────────────────────────────
   console.log('[indexer] waiting for the role assignment to be indexed…')
@@ -172,7 +172,9 @@ async function main() {
   console.log(`  Owner:           ${ownerAccount.address}`)
   console.log(`  Manager (you):   ${managerAddress}`)
   console.log(`  Roles granted:   ${roles.join(', ')}`)
-  console.log(`  Indexed:         ${indexed ? 'yes' : 'NOT YET (check indexer)'}`)
+  console.log(
+    `  Indexed:         ${indexed ? 'yes' : 'NOT YET (check indexer)'}`,
+  )
   console.log(`  Profile view:    /${managerAddress}  → "Managed" chip`)
   console.log(
     `  Anvil block time: ${new Date(Number(block.timestamp) * 1000).toISOString()}`,

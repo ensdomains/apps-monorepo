@@ -11,7 +11,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest --typecheck",
-    "test:run": "vitest run --typecheck"
+    "test:run": "vitest run --typecheck",
+    "lint": "biome check"
   },
   "devDependencies": {
     "@types/react": "^19.1.12",

@@ -1,16 +1,16 @@
-# DQA Auth — Plan & Linear Setup
+# DQA Auth — Linear setup
 
 Use Linear as both **identity** (who you are) and **authorization** (whether you're
 allowed in) via **"Sign in with Linear" (OAuth2)**. No pasted API keys for end users.
 Comments thread onto the feature's existing Linear ticket, authored by the real person.
 
-This doc has two halves:
-- **Part 1 — what *you* set up in Linear** (manual, one-time).
-- **Part 2 — the build plan** (what we implement afterward; not started yet).
+This is the one-time manual setup you do in Linear. The implementation it was
+originally written against has shipped — see `MANUAL.md` for running the
+service and `SECURITY.md` for the threat model.
 
 ---
 
-## Part 1 — What to create in Linear (do this first)
+## What to create in Linear
 
 ### 1.1 Create the OAuth application
 
@@ -107,63 +107,6 @@ we migrate, then be removed.
 
 ---
 
-## Part 2 — Build plan (not started)
-
-Phased so each step is demoable on its own.
-
-### Phase 1 — OAuth login
-- Add `GET /auth/linear` → builds the authorize URL (`client_id`, `redirect_uri`,
-  `response_type=code`, `scope`, random `state`) and redirects to Linear.
-- Add `GET /auth/callback` → verify `state`, exchange `code` for an access token at
-  `POST https://api.linear.app/oauth/token`, then call `viewer { id name email organization { id } }`.
-- Issue a signed DQA session (cookie or JWT via `SESSION_SECRET`). Store the user's
-  Linear token server-side, encrypted with `TOKEN_ENCRYPTION_KEY` (only if actor=`user`).
-- Add `POST /auth/logout` → clear session, optionally hit `/oauth/revoke`.
-
-### Phase 2 — Whitelist enforcement
-- On callback, run the gate in order of configured strictness:
-  1. `organization.id === LINEAR_WORKSPACE_ID` (else reject — not in our workspace).
-  2. if `LINEAR_ALLOWED_TEAM_IDS` set: `viewer.teamMemberships` must intersect.
-  3. if `LINEAR_ALLOWED_PROJECT_IDS` set: viewer must be a member of an allowed project.
-- Reject with a clear "you don't have access to DQA" screen if any required gate fails.
-
-### Phase 3 — Gate the API + WebSocket
-- Middleware on every `/api/*` route: require a valid DQA session.
-- WebSocket `join`: require the session token in the connection; drop unauthenticated
-  sockets (no cursor, no presence, no comments).
-- Stamp each comment with the real Linear user (id + name) from the session, not a
-  free-text name prompt.
-
-### Phase 4 — Comment → ticket routing
-- The injected snippet carries the ticket: `<script src=".../overlay.js" data-linear-issue="ENG-123">`.
-  Preview builds already know their branch (`linear/<ticket-id>`), so the deploy template
-  fills this in automatically.
-- Resolve `ENG-123` → issue UUID once (query by team key + number), cache it.
-- On "Send to Linear": `commentCreate(input: { issueId, body })` using the reviewer's
-  token (actor=`user`) so the comment is authored by them.
-- No `data-linear-issue` present → fall back to `issueCreate` (needs `issues:create` scope),
-  or disable the button. *(Decision: keep the fallback or not.)*
-
-### Phase 5 — Sign-in UX
-- A minimal sign-in screen ("Sign in with Linear") shown when there's no session.
-- Replace the current name `prompt()` entirely — identity now comes from Linear.
-- Show the signed-in user in the toolbar; add a sign-out affordance.
-
-### Phase 6 — Verify
-- Test: non-workspace user blocked; workspace-but-wrong-project user blocked (if project
-  gate on); allowed user can comment and the comment appears on the right Linear ticket
-  authored by them; unauthenticated WebSocket rejected; token revoke works.
-
----
-
-## Open decisions (please confirm before we build)
-
-1. **Actor mode:** `user` (real authorship, store tokens) vs `application` (simpler). → default `user`.
-2. **Whitelist grain:** workspace-only to start, or go straight to team/project gating?
-3. **Ticket routing:** every page maps to an existing ticket via `data-linear-issue`, or
-   also keep the "create a new issue" fallback (needs `issues:create`)?
-4. **Session store:** stateless JWT in a cookie (no DB) vs server-side session records.
-
 ## Caveats
 
 - Redirect URIs must match exactly — every host (localhost, tunnel, prod) needs to be
@@ -173,7 +116,3 @@ Phased so each step is demoable on its own.
 - Token lifetime: handle expiry/refresh and revoke so a removed teammate loses access.
 - The client secret and user tokens live only on the server, never in `overlay.js`.
 
-## Rough effort
-
-Phases 1–3 (login + whitelist + gating) ~1 day. Phases 4–5 (routing + UX) ~half a day.
-Phase 6 verify ~couple hours. Roughly **2 days** for a solid v1.

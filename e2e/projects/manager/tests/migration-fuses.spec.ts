@@ -17,13 +17,21 @@
  *   - Manager app running on MANAGER_APP_URL (default localhost:3000)
  */
 import { privateKeyToAccount } from 'viem/accounts'
-import { test, expect, authorizeTransaction } from '../../../fixtures/playwright.manager.fixture.js'
-import { createMakeV1Name, FUSES, V1_PUBLIC_RESOLVER } from '../../../fixtures/makeV1Name.js'
-import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
+import {
+  createMakeV1Name,
+  FUSES,
+  V1_PUBLIC_RESOLVER,
+} from '../../../fixtures/makeV1Name.js'
+import {
+  authorizeTransaction,
+  expect,
+  test,
+} from '../../../fixtures/playwright.manager.fixture.js'
 import {
   assertLockedMigration,
   assertV2Resolver,
 } from '../../../helpers/migration-assertions.js'
+import { mockV1Subgraph } from '../../../helpers/mock-v1-subgraph.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -42,7 +50,9 @@ async function runMigrationFlow(
   await page.goto(`${MANAGER_APP_URL}/dashboard`)
   await page.waitForLoadState('networkidle')
 
-  const upgradeButton = page.getByRole('button', { name: 'Upgrade Names' }).first()
+  const upgradeButton = page
+    .getByRole('button', { name: 'Upgrade Names' })
+    .first()
   await upgradeButton.waitFor({ state: 'visible', timeout: 10_000 })
   await upgradeButton.click()
 
@@ -50,7 +60,10 @@ async function runMigrationFlow(
 
   const confirmButton = page.getByRole('button', { name: 'Upgrade Names' })
   await confirmButton.waitFor({ state: 'visible', timeout: 10_000 })
-  await Promise.all([confirmButton.click(), authorizeTransaction(wallet, 90_000)])
+  await Promise.all([
+    confirmButton.click(),
+    authorizeTransaction(wallet, 90_000),
+  ])
 
   const successIndicator = page.getByText("You're on ENS v2!")
   await successIndicator.waitFor({ state: 'visible', timeout: 60_000 })
@@ -81,7 +94,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       fuses: FUSES.CANNOT_BURN_FUSES,
     })
     const label = v1Name.replace('.eth', '')
-    console.log(`[migration-fuses] locked+CANNOT_BURN_FUSES name created: ${v1Name}`)
+    console.log(
+      `[migration-fuses] locked+CANNOT_BURN_FUSES name created: ${v1Name}`,
+    )
 
     // fuses param passed to mockV1Subgraph is the owner-controlled bits only;
     // the mock ORs in PARENT_CANNOT_CONTROL | IS_DOT_ETH (0x30000) automatically.
@@ -96,7 +111,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
     await assertLockedMigration(label)
-    console.log(`[migration-fuses] ✅ locked+CANNOT_BURN_FUSES migration verified for ${v1Name}`)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_BURN_FUSES migration verified for ${v1Name}`,
+    )
   })
 
   test('locked + CANNOT_TRANSFER migrates and produces locked V2 state', async ({
@@ -113,7 +130,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       fuses: FUSES.CANNOT_TRANSFER,
     })
     const label = v1Name.replace('.eth', '')
-    console.log(`[migration-fuses] locked+CANNOT_TRANSFER name created: ${v1Name}`)
+    console.log(
+      `[migration-fuses] locked+CANNOT_TRANSFER name created: ${v1Name}`,
+    )
 
     await mockV1Subgraph(page, [
       {
@@ -126,7 +145,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
     await assertLockedMigration(label)
-    console.log(`[migration-fuses] ✅ locked+CANNOT_TRANSFER migration verified for ${v1Name}`)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_TRANSFER migration verified for ${v1Name}`,
+    )
   })
 
   test('locked + CANNOT_SET_RESOLVER migrates and preserves V1 resolver', async ({
@@ -143,7 +164,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       fuses: FUSES.CANNOT_SET_RESOLVER,
     })
     const label = v1Name.replace('.eth', '')
-    console.log(`[migration-fuses] locked+CANNOT_SET_RESOLVER name created: ${v1Name}`)
+    console.log(
+      `[migration-fuses] locked+CANNOT_SET_RESOLVER name created: ${v1Name}`,
+    )
 
     await mockV1Subgraph(page, [
       {
@@ -161,7 +184,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
     // After migration the V2 registry resolver slot should point to the V1 public
     // resolver so that existing records remain resolvable without a re-write.
     await assertV2Resolver(label, V1_PUBLIC_RESOLVER)
-    console.log(`[migration-fuses] ✅ locked+CANNOT_SET_RESOLVER migration + resolver verified for ${v1Name}`)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_SET_RESOLVER migration + resolver verified for ${v1Name}`,
+    )
   })
 
   test('locked + CANNOT_CREATE_SUBDOMAIN migrates and produces locked V2 state', async ({
@@ -178,7 +203,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       fuses: FUSES.CANNOT_CREATE_SUBDOMAIN,
     })
     const label = v1Name.replace('.eth', '')
-    console.log(`[migration-fuses] locked+CANNOT_CREATE_SUBDOMAIN name created: ${v1Name}`)
+    console.log(
+      `[migration-fuses] locked+CANNOT_CREATE_SUBDOMAIN name created: ${v1Name}`,
+    )
 
     await mockV1Subgraph(page, [
       {
@@ -191,7 +218,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
     await assertLockedMigration(label)
-    console.log(`[migration-fuses] ✅ locked+CANNOT_CREATE_SUBDOMAIN migration verified for ${v1Name}`)
+    console.log(
+      `[migration-fuses] ✅ locked+CANNOT_CREATE_SUBDOMAIN migration verified for ${v1Name}`,
+    )
   })
 
   test('locked + CAN_EXTEND_EXPIRY migrates and produces locked V2 state', async ({
@@ -208,7 +237,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       fuses: FUSES.CAN_EXTEND_EXPIRY,
     })
     const label = v1Name.replace('.eth', '')
-    console.log(`[migration-fuses] locked+CAN_EXTEND_EXPIRY name created: ${v1Name}`)
+    console.log(
+      `[migration-fuses] locked+CAN_EXTEND_EXPIRY name created: ${v1Name}`,
+    )
 
     await mockV1Subgraph(page, [
       {
@@ -221,7 +252,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
     await assertLockedMigration(label)
-    console.log(`[migration-fuses] ✅ locked+CAN_EXTEND_EXPIRY migration verified for ${v1Name}`)
+    console.log(
+      `[migration-fuses] ✅ locked+CAN_EXTEND_EXPIRY migration verified for ${v1Name}`,
+    )
   })
 
   test('locked + all child fuses migrates and produces locked V2 state', async ({
@@ -246,7 +279,9 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
       fuses: allChildFuses,
     })
     const label = v1Name.replace('.eth', '')
-    console.log(`[migration-fuses] locked+all-child-fuses name created: ${v1Name}`)
+    console.log(
+      `[migration-fuses] locked+all-child-fuses name created: ${v1Name}`,
+    )
 
     await mockV1Subgraph(page, [
       {
@@ -260,6 +295,8 @@ test.describe('ENS V1→V2 Migration — Fuse Combinations', () => {
 
     await runMigrationFlow(page, wallet)
     await assertLockedMigration(label)
-    console.log(`[migration-fuses] ✅ locked+all-child-fuses migration verified for ${v1Name}`)
+    console.log(
+      `[migration-fuses] ✅ locked+all-child-fuses migration verified for ${v1Name}`,
+    )
   })
 })
