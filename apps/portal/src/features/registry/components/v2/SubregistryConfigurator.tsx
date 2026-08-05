@@ -42,7 +42,6 @@ type SubregistryConfiguratorProps = {
   onComplete?: () => void
 }
 
-/** Deploy-or-use-existing subregistry form + deploy → setSubregistry transaction flow. */
 export function SubregistryConfigurator({
   name,
   onCancel,
@@ -101,8 +100,6 @@ export function SubregistryConfigurator({
 
   const walletOk = isDeployPath ? hasDeployWallet : hasSetWallet
 
-  // `Transaction.onStart` is `() => void`, so this Promise is never awaited by
-  // the modal. Failures are handled inside ResultAsync so nothing rejects unhandled.
   const handleDeploySubregistryStart = async () => {
     await ResultAsync.fromPromise(
       deploySubregistryAsync({ id: DEPLOY_SUBREGISTRY_TX_ID }),
@@ -110,7 +107,6 @@ export function SubregistryConfigurator({
     ).match(
       (result) => {
         deployedSubregistryAddressRef.current = result.deployedAddress
-        // Fire-and-forget proxy verification — must not block the deploy flow.
         void verifyProxyContract(sepoliaWithEns, result.deployedAddress)
       },
       () => undefined,
@@ -120,8 +116,6 @@ export function SubregistryConfigurator({
   const handleSetSubregistryAfterDeployStart = () => {
     const deployed = deployedSubregistryAddressRef.current
     if (!deployed) return
-    // Both deploy onDone and set onStart route here; guard against double-submit.
-    // An errored set leaves both flags false, so "Try again" still works.
     if (isSetSubregistryPending || isSetSubregistrySuccess) return
     setSubregistry(deployed)
   }
@@ -161,7 +155,7 @@ export function SubregistryConfigurator({
     .with({ isDeployConfirming: true }, () => 'Deploying...')
     .with({ isSetSubregistryPending: true }, () => 'Setting subregistry...')
     .with({ showSuccessButtonLabel: true }, () => 'Complete!')
-    .otherwise(() => 'Deploy subregistry')
+    .otherwise(() => 'Deploy')
 
   if (isLoading) {
     return <LoadingSpinner title="Loading registry information" />

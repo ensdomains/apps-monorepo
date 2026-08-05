@@ -1,3 +1,4 @@
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { SubregistryConfigurator } from './SubregistryConfigurator'
@@ -20,15 +21,13 @@ export function ReconfigureRegistryForm({
         isMobile ? 'pl-0 pt-3' : 'pl-14',
       )}
     >
-      <div className="flex flex-col gap-4 bg-warning-fill p-6 rounded-xl">
-        <h3 className="text-3xl font-normal leading-none tracking-[-0.02em] font-serif text-warning-text">
-          Configure new registry
-        </h3>
-        <p className="text-p">
+      <Alert className="p-6 gap-2" variant="warning">
+        <AlertTitle>Configure new registry</AlertTitle>
+        <AlertDescription className="text-foreground">
           The current registry will still exist, but this name will no longer
           reference it or any subnames created within it.
-        </p>
-      </div>
+        </AlertDescription>
+      </Alert>
       <SubregistryConfigurator
         name={name}
         onCancel={onClose}
