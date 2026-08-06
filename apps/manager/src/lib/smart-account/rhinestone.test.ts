@@ -40,6 +40,14 @@ vi.mock('@/lib/wagmi', () => ({
     name: 'Sepolia',
     rpcUrls: { default: { http: ['https://sepolia.example/rpc'] } },
   },
+  // The SDK derives its RPC map from the account's chain (Sepolia only), so
+  // `resolveSdkEnv` injects the cross-chain funding source explicitly.
+  customBaseSepolia: {
+    id: 84532,
+    name: 'Base Sepolia',
+    rpcUrls: { default: { http: ['https://base-sepolia.example/rpc'] } },
+  },
+  BASE_SEPOLIA_RPC_URL: 'https://base-sepolia.example/rpc',
 }))
 
 import { RhinestoneSDK, walletClientToAccount } from '@rhinestone/sdk'

@@ -1,5 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -22,7 +22,7 @@ import { getQueryClient } from '@/utils/router/root-context'
 type SubmissionData = {
   label: string
   duration: bigint
-  token: SUPPORTED_TOKEN
+  token: TOKEN_SYMBOL
   /** Price in token units */
   priceRaw: bigint
 
@@ -49,7 +49,7 @@ export const renewalUiMachine = setup({
     context: {} as {
       currentExpiry: bigint
       duration: number
-      selectedToken: SUPPORTED_TOKEN | undefined
+      selectedToken: TOKEN_SYMBOL | undefined
       lastErrorMessage?: string
       submissionData?: SubmissionData
       approvalTxId?: string
@@ -63,12 +63,12 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
       | { type: 'pricing.duration.set'; duration: number }
-      | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+      | { type: 'pricing.token.select'; token: TOKEN_SYMBOL | undefined }
       | {
           type: 'renewal.start'
           label: string
           duration: bigint
-          token: SUPPORTED_TOKEN
+          token: TOKEN_SYMBOL
           /** Price in token units */
           priceRaw: bigint
           signer: Signer

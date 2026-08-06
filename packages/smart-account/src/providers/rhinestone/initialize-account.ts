@@ -67,6 +67,12 @@ export interface RhinestoneInitConfig {
 export interface RhinestoneInitResult {
   /** The live SDK account object. */
   readonly client: RhinestoneAccount
+  /**
+   * The SDK instance the HCA was created with. Reused to derive the source
+   * funding Nexus so both accounts share one orchestrator + RPC config; a
+   * second `RhinestoneSDK` would need its own key and RPC overrides.
+   */
+  readonly sdk: RhinestoneSDK
   /** Deterministic HCA address. */
   readonly address: Address
   /** The connected wallet (single ECDSA owner) address. */
@@ -307,6 +313,7 @@ export function initializeRhinestoneAccount(
 
       return {
         client,
+        sdk,
         address: hca,
         ownerAddress: params.eoaAddress,
         alreadyDeployed,

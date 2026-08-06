@@ -1,5 +1,5 @@
 import type { Signer } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import {
   pollTransactionStatusActor,
   readPaymentTokenAllowanceActor,
@@ -40,7 +40,7 @@ type Context = {
   /** The connected EOA — `_msgSender()` for `renew`, and the rent payer. */
   readonly signer: Signer
   readonly ownerAddress: Address
-  readonly token: SUPPORTED_TOKEN
+  readonly token: TOKEN_SYMBOL
 }
 
 /**
@@ -137,7 +137,7 @@ type SmartAccount = ReturnType<typeof useSmartAccountContext>
  */
 const resolveContext = (
   account: SmartAccount,
-  token: SUPPORTED_TOKEN,
+  token: TOKEN_SYMBOL,
 ): Context | null => {
   const walletClient = account.walletClient
   const ownerAddress = walletClient?.account?.address
@@ -163,7 +163,7 @@ const invalidateDashboardNames = () =>
 
 type SubmitArgs = {
   readonly items: readonly RenewItem[]
-  readonly token: SUPPORTED_TOKEN
+  readonly token: TOKEN_SYMBOL
   /** Summed quoted price in token units, used to size the allowance. */
   readonly sumPriceRaw: bigint
 }

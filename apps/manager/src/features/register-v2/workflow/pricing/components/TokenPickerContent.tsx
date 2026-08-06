@@ -1,5 +1,5 @@
 import {
-  type SUPPORTED_TOKEN,
+  type TOKEN_SYMBOL,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
@@ -8,6 +8,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import { baseSepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -71,7 +72,7 @@ export const TokenPickerContent = () => {
     }),
   })
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
+  const onSelectCoin = (coin: TOKEN_SYMBOL) => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
@@ -128,6 +129,8 @@ export const TokenPickerContent = () => {
     if (!pricingQuery.data || !selectedToken) return
     // Resolve the session-enable payload up front (checks on-chain enablement).
     const hcaSessionEnable = await account.getSessionEnablePayload()
+    const sourceChainId =
+      selectedToken === 'USDC_BASE' ? baseSepolia.id : undefined
     uiActor.send({
       type: 'registration.start',
       label,
@@ -141,6 +144,7 @@ export const TokenPickerContent = () => {
       postRegistrationSetup: resolvedSetAsPrimary
         ? { primaryName: { enabled: true, syncEthRecord: true } }
         : undefined,
+      sourceChainId,
     })
   }
 
@@ -238,9 +242,9 @@ export const TokenPickerContentBase = ({
   pricingLoading: boolean
   pricingData: number | undefined
   isInPriceCooldown?: boolean
-  selectedToken: SUPPORTED_TOKEN | undefined
+  selectedToken: TOKEN_SYMBOL | undefined
   errorMessage?: string | null
-  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  onSelectCoin: (coin: TOKEN_SYMBOL) => void
   onNext: () => void
   stablecoinBalances: StablecoinBalance[]
   isLoadingBalances: boolean

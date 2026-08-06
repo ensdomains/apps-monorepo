@@ -9,13 +9,19 @@ import {
   type RhinestoneStoredSession,
   removeSessionsByOwner,
 } from '@ens-apps/smart-account'
-import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
+import type {
+  CrossChainFundingContext,
+  RhinestoneSigner,
+  Signer,
+} from '@ens-apps/transaction-manager'
 import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useLingui } from '@lingui/react/macro'
+import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useActor, useSelector } from '@xstate/react'
+import { okAsync } from 'neverthrow'
 import {
   createContext,
   type ReactNode,
@@ -35,9 +41,10 @@ import {
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
-import { customSepolia } from '@/lib/wagmi'
+import { customBaseSepolia, customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
+import { buildCrossChainContext } from './actors/build-cross-chain-context'
 import { buildSessionContext } from './actors/build-session-signer'
 import { resolveSessionActor } from './actors/session.actors'
 import { resolveVerifiedOwner, sessionHydrationKey } from './sessionGate'
@@ -125,6 +132,12 @@ interface BuildRhinestoneSignerParams {
   readonly accountAddress: Address
   readonly rhinestoneApiKey: string
   readonly sessionContext: RhinestoneSigner['session'] | undefined
+  /**
+   * The funding Nexus + HCA recipient for L2-funded intents. Gated on the same
+   * verified owner as the session: without the session's per-chain proofs the
+   * source leg cannot be signed, so a Nexus alone is useless.
+   */
+  readonly crossChainContext: CrossChainFundingContext | null
   /** Verified owner (machine + wagmi agree), or null on divergence. */
   readonly sessionOwnerAddress: Address | null
   /** For the WEB-287 mismatch log only. */
@@ -163,6 +176,9 @@ function buildRhinestoneSigner(
       defaultInfra: 'warp',
     },
     ...(attachSession ? { session: sessionContext } : {}),
+    ...(attachSession && params.crossChainContext
+      ? { crossChain: params.crossChainContext }
+      : {}),
   }
 }
 
@@ -492,6 +508,8 @@ export const SmartAccountContextProvider = ({
   ])
 
   const baseClient = snapshot.context.client
+  const sdk = snapshot.context.sdk
+  const ownerAccount = snapshot.context.ownerAccount
   const infrastructure = snapshot.context.infrastructure
 
   const [isEnablingSession, setIsEnablingSession] = useState(false)
@@ -540,6 +558,57 @@ export const SmartAccountContextProvider = ({
     setActiveSession(stored && isRhinestoneSession(stored) ? stored : null)
   }, [sessionOwnerAddress, accountAddress])
 
+  // Re-derive the funding Nexus whenever a cross-chain session is active.
+  //
+  // Cross-chain intents are SENT FROM the Nexus (with the HCA as `recipient`),
+  // so the transport needs a live SDK account for it. Only its address is
+  // persisted; the account itself is deterministic but has to be rebuilt from
+  // the SDK on every mount. Nothing is deployed by this.
+  const [crossChainContext, setCrossChainContext] =
+    useState<CrossChainFundingContext | null>(null)
+  useEffect(() => {
+    if (!activeSession || !accountAddress || !baseClient || !sdk) {
+      setCrossChainContext(null)
+      return
+    }
+    if (!ownerAccount) {
+      setCrossChainContext(null)
+      return
+    }
+    const pending = buildCrossChainContext({
+      session: activeSession,
+      sdk,
+      walletAccount: ownerAccount,
+      chain: customSepolia,
+      hca: accountAddress,
+      hcaAccount: baseClient as unknown as RhinestoneAccount,
+    })
+    // Same-chain session — nothing to derive.
+    if (!pending) {
+      setCrossChainContext(null)
+      return
+    }
+
+    let cancelled = false
+    pending.match(
+      (context) => {
+        if (!cancelled) setCrossChainContext(context)
+      },
+      (error) => {
+        if (cancelled) return
+        // Leave the signer same-chain rather than attaching a Nexus the stored
+        // authorization does not cover. The L2 route then fails at submission
+        // with the transport's explicit "needs crossChain context" error
+        // instead of an opaque on-chain revert.
+        logger.error('Failed to derive the cross-chain funding Nexus', error)
+        setCrossChainContext(null)
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [activeSession, accountAddress, baseClient, sdk, ownerAccount])
+
   const enableSession = useCallback(async (): Promise<Signer | null> => {
     // EOA-only path has no sessions.
     if (isFeatureEnabled('USE_EOA')) return null
@@ -576,6 +645,19 @@ export const SmartAccountContextProvider = ({
     setSessionError(null)
     // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
     const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
+    // Authorize the source session in the SAME signature, before the user has
+    // picked a payment route. Per the standalone-HCA spec one authorization
+    // covers BOTH stablecoin routes; deferring the source half until the token
+    // picker knows the answer would cost a second wallet prompt for anyone who
+    // pays from L2. Same-chain registrations simply never use the source entry.
+    const crossChain =
+      sdk && ownerAccount
+        ? {
+            sourceChainId: customBaseSepolia.id,
+            sdk,
+            walletAccount: ownerAccount,
+          }
+        : {}
     const result = await resolveSessionActor({
       ownerAddress: sessionOwnerAddress,
       accountAddress,
@@ -583,6 +665,7 @@ export const SmartAccountContextProvider = ({
       rhinestoneAccount,
       publicClient: wagmiPublicClient as unknown as PublicClient,
       alreadyDeployed,
+      ...crossChain,
     })
     setIsEnablingSession(false)
 
@@ -601,6 +684,25 @@ export const SmartAccountContextProvider = ({
     // site stays in sync with the render-path signer and inherits any future
     // defaults/guards. `sessionOwnerAddress` is verified non-null above, so the
     // session is always attached here.
+    // Derive the funding Nexus inline rather than waiting for the effect
+    // above: this signer is handed straight back to the caller, which starts
+    // registration in the same tick. Without it the first L2-funded intent
+    // after enabling would submit from the HCA and never create a source leg.
+    const freshCrossChain =
+      sdk && ownerAccount
+        ? await (
+            buildCrossChainContext({
+              session: result.value.session,
+              sdk,
+              walletAccount: ownerAccount,
+              chain: customSepolia,
+              hca: accountAddress,
+              hcaAccount: baseClient as unknown as RhinestoneAccount,
+            }) ?? okAsync(null)
+          ).unwrapOr(null)
+        : null
+    setCrossChainContext(freshCrossChain)
+
     return buildRhinestoneSigner({
       baseClient,
       accountAddress,
@@ -610,12 +712,15 @@ export const SmartAccountContextProvider = ({
         chain: customSepolia,
         hca: accountAddress,
       }),
+      crossChainContext: freshCrossChain,
       sessionOwnerAddress,
       machineOwner: snapshot.context.ownerAddress,
       eoaAddress,
     })
   }, [
     baseClient,
+    sdk,
+    ownerAccount,
     accountAddress,
     sessionOwnerAddress,
     snapshot.context.ownerAddress,
@@ -692,6 +797,7 @@ export const SmartAccountContextProvider = ({
       accountAddress,
       rhinestoneApiKey,
       sessionContext,
+      crossChainContext,
       sessionOwnerAddress,
       machineOwner: snapshot.context.ownerAddress,
       eoaAddress,
@@ -699,6 +805,7 @@ export const SmartAccountContextProvider = ({
   }, [
     baseClient,
     accountAddress,
+    crossChainContext,
     wagmiWalletClient,
     sessionContext,
     sessionOwnerAddress,

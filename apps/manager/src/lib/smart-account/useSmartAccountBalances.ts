@@ -1,26 +1,39 @@
 'use client'
 
-import { getDestinationContracts } from '@ens-apps/smart-account'
+import {
+  getDestinationContracts,
+  getSourceContracts,
+} from '@ens-apps/smart-account'
 import { logger } from '@ens-apps/utils/logger'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { useQuery } from '@tanstack/react-query'
+import type { PublicClient } from 'viem'
 import { type Address, erc20Abi, formatUnits } from 'viem'
 import { getBalance, readContract } from 'viem/actions'
-import { sepolia } from 'viem/chains'
-import { publicClient } from '@/lib/wagmi'
+import { baseSepolia, sepolia } from 'viem/chains'
+import { baseSepoliaPublicClient, publicClient } from '@/lib/wagmi'
 import type { EthBalance, StablecoinBalance } from './types'
 
 /**
  * The stablecoins to read balances for, keyed by symbol → address.
  *
- * Standalone-HCA path: the only supported payment token is the REAL Circle
- * Sepolia USDC (the HCA validator's PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN).
- * The old mock-token faucet set (`/wallet/tokens` → MockUSDC/MockDAI) is not
- * used — registrations pay in Circle USDC, so that's the only balance the
- * picker and low-balance checks care about.
+ * Standalone-HCA path: the supported payment tokens are the REAL Circle Sepolia
+ * USDC (the HCA validator's PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN) and the
+ * Base Sepolia USDC (for cross-chain funding). The old mock-token faucet set
+ * (`/wallet/tokens` → MockUSDC/MockDAI) is not used.
  */
-const HCA_BALANCE_TOKENS: Record<string, Address> = {
-  USDC: getDestinationContracts(sepolia.id).usdc,
+const HCA_BALANCE_TOKENS: Record<
+  string,
+  { address: Address; chainId: number }
+> = {
+  USDC: {
+    address: getDestinationContracts(sepolia.id).usdc,
+    chainId: sepolia.id,
+  },
+  USDC_BASE: {
+    address: getSourceContracts(baseSepolia.id).usdc,
+    chainId: baseSepolia.id,
+  },
 }
 
 interface UseSmartAccountBalancesParams {
@@ -84,7 +97,9 @@ export function useSmartAccountBalances(
       $scope: 'wallet',
       $action: 'stablecoinBalances',
       address: balanceAddress,
-      tokens: Object.values(HCA_BALANCE_TOKENS).join(','),
+      tokens: Object.values(HCA_BALANCE_TOKENS)
+        .map((t) => t.address)
+        .join(','),
     }),
     queryFn: async () => {
       logger.info('🔍 [CONTEXT] Fetching balances for:', balanceAddress)
@@ -92,15 +107,22 @@ export function useSmartAccountBalances(
 
       const results = await Promise.allSettled(
         Object.entries(HCA_BALANCE_TOKENS).map(
-          async ([tokenName, tokenAddress]): Promise<StablecoinBalance> => {
+          async ([
+            tokenName,
+            { address: tokenAddress, chainId },
+          ]): Promise<StablecoinBalance> => {
+            const client: PublicClient =
+              chainId === baseSepolia.id
+                ? (baseSepoliaPublicClient as PublicClient)
+                : publicClient
             const [balance, decimals] = await Promise.all([
-              readContract(publicClient, {
+              readContract(client, {
                 address: tokenAddress,
                 abi: erc20Abi,
                 functionName: 'balanceOf',
                 args: [balanceAddress],
               }),
-              readContract(publicClient, {
+              readContract(client, {
                 address: tokenAddress,
                 abi: erc20Abi,
                 functionName: 'decimals',
@@ -110,6 +132,7 @@ export function useSmartAccountBalances(
             return {
               address: tokenAddress,
               symbol: tokenName,
+              chainId,
               balance: balance.toString(),
               decimals,
               formattedBalance: `${formatUnits(balance, decimals)} ${tokenName}`,

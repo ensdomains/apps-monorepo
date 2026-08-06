@@ -1,5 +1,5 @@
 import {
-  type SUPPORTED_TOKEN,
+  type TOKEN_SYMBOL,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
@@ -67,7 +67,7 @@ export const useBulkRenew = ({
 }: {
   readonly names: readonly BulkRenewName[]
   readonly selection: Selection
-  readonly selectedToken: SUPPORTED_TOKEN
+  readonly selectedToken: TOKEN_SYMBOL
   readonly open: boolean
 }): UseBulkRenewResult => {
   const count = names.length

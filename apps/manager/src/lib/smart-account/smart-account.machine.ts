@@ -1,6 +1,7 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
 import { fromResultAsync } from '@ens-apps/utils/xstate/neverthrow'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import type { RhinestoneSDK } from '@rhinestone/sdk'
+import type { Account, Address, PublicClient, WalletClient } from 'viem'
 import { assign, type StateFrom, setup } from 'xstate'
 import type { TransactionInfra } from '@/utils/feature-flags'
 import {
@@ -13,8 +14,12 @@ export type WalletSource = 'external-wallet'
 
 interface SmartAccountContext {
   readonly client: AccountClient | null
+  /** SDK instance, reused to derive the cross-chain funding Nexus. */
+  readonly sdk: RhinestoneSDK | null
   readonly accountAddress: Address | null
   readonly ownerAddress: Address | null
+  /** The connected wallet as a viem `Account` — the Nexus's ECDSA owner. */
+  readonly ownerAccount: Account | null
   readonly config: SmartAccountConfig | null
   readonly walletSource: WalletSource | null
   readonly walletClient: WalletClient | null
@@ -38,8 +43,10 @@ type SmartAccountEvent = WalletConnectedEvent | { type: 'WALLET_DISCONNECTED' }
 // per-wallet feature-flag decision.
 const INITIAL_CONTEXT: SmartAccountContext = {
   client: null,
+  sdk: null,
   accountAddress: null,
   ownerAddress: null,
+  ownerAccount: null,
   config: null,
   walletSource: null,
   walletClient: null,
@@ -111,8 +118,10 @@ export const smartAccountMachine = setup({
             const output = event.output as AccountInitResult
             return {
               client: output.client,
+              sdk: output.sdk,
               accountAddress: output.address,
               ownerAddress: output.ownerAddress,
+              ownerAccount: output.ownerAccount,
               config: output.config,
               error: null,
             }

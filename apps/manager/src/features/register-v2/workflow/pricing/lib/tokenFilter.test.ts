@@ -6,6 +6,7 @@ const balances: StablecoinBalance[] = [
   {
     address: '0x1',
     symbol: 'USDC',
+    chainId: 11155111,
     decimals: 6,
     balance: '1000000',
     formattedBalance: '1',
@@ -13,6 +14,7 @@ const balances: StablecoinBalance[] = [
   {
     address: '0x2',
     symbol: 'USDT',
+    chainId: 11155111,
     decimals: 6,
     balance: '2000000',
     formattedBalance: '2',

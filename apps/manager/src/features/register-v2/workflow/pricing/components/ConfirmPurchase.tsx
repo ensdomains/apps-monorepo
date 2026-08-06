@@ -1,5 +1,5 @@
 import {
-  type SUPPORTED_TOKEN,
+  type TOKEN_SYMBOL,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
@@ -152,7 +152,7 @@ export const ConfirmPurchaseBase = ({
   label: string
   pricingData: number | undefined
   onNext: () => void
-  selectedToken: SUPPORTED_TOKEN | undefined
+  selectedToken: TOKEN_SYMBOL | undefined
   errorMessage?: string | null
   nextMessage: ReactNode
   canNext: boolean
@@ -163,7 +163,10 @@ export const ConfirmPurchaseBase = ({
   const premiumLabel = getPremiumLabel(label.length)
   const domainName = `${label}.eth`
 
-  const selectedCoinConfig = selectedToken && STABLECOINS[selectedToken]
+  const selectedCoinConfig =
+    selectedToken && selectedToken in STABLECOINS
+      ? STABLECOINS[selectedToken as keyof typeof STABLECOINS]
+      : undefined
   const SelectedCoinIcon = selectedCoinConfig?.icon || USDCIcon
 
   return (

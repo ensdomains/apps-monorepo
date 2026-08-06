@@ -21,9 +21,17 @@ import {
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount as initializeRhinestoneAccountCore,
 } from '@ens-apps/smart-account'
-import { type RhinestoneAccount, walletClientToAccount } from '@rhinestone/sdk'
+import {
+  type RhinestoneAccount,
+  type RhinestoneSDK,
+  walletClientToAccount,
+} from '@rhinestone/sdk'
 import type { Account, Address, PublicClient, WalletClient } from 'viem'
-import { customSepolia } from '@/lib/wagmi'
+import {
+  BASE_SEPOLIA_RPC_URL,
+  customBaseSepolia,
+  customSepolia,
+} from '@/lib/wagmi'
 
 export interface RhinestoneConfig {
   chain: typeof customSepolia
@@ -39,8 +47,12 @@ export interface InitializeRhinestoneParams {
 
 export interface RhinestoneInitResult {
   client: RhinestoneAccount
+  /** SDK instance, reused to derive the cross-chain funding Nexus. */
+  sdk: RhinestoneSDK
   address: Address
   ownerAddress: Address
+  /** The connected wallet as a viem `Account` — the Nexus's ECDSA owner. */
+  ownerAccount: Account
   alreadyDeployed: boolean
   config: RhinestoneConfig
 }
@@ -103,7 +115,14 @@ function resolveSdkEnv(): {
   return {
     rhinestoneApiKey: apiKey,
     rhinestoneEndpointUrl: endpointUrl,
-    rhinestoneCustomRpcUrls: customRpcUrls,
+    rhinestoneCustomRpcUrls: {
+      // The SDK derives its own RPC map from the account's chain, which is
+      // Sepolia only. Cross-chain funding needs the source chain in there too
+      // or the Nexus derivation and source leg have no provider. Env overrides
+      // win, so a local/mockestrator setup can still repoint it.
+      [customBaseSepolia.id]: BASE_SEPOLIA_RPC_URL,
+      ...customRpcUrls,
+    },
   }
 }
 
@@ -142,8 +161,10 @@ export async function initializeRhinestoneAccount(
 
   return {
     client: result.client,
+    sdk: result.sdk,
     address: result.address,
     ownerAddress: result.ownerAddress,
+    ownerAccount,
     alreadyDeployed: result.alreadyDeployed,
     config: {
       chain: customSepolia,

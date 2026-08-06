@@ -20,6 +20,7 @@ import {
   verifyRegistrationActor,
 } from './registration.actors'
 import {
+  crossChainTotalSourceCap,
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
   hcaRegistrarAddress,
@@ -103,6 +104,18 @@ export type RegistrationContext = {
   duration: bigint
   selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
+  /**
+   * Cross-chain funding source chain. When set, the registration funds from
+   * this chain (e.g. Base Sepolia) instead of the destination chain (Sepolia).
+   * The HCA bridges source USDC to destination USDC to pay the registrar.
+   */
+  sourceChainId?: number
+  /** Cross-chain: Nexus address on the source chain. Required when
+   * `sourceChainId` is set. */
+  nexusAddress?: Address
+  /** Cross-chain: public client for the source chain. Required when
+   * `sourceChainId` is set. */
+  sourcePublicClient?: PublicClient
   /**
    * Standalone-HCA: USDC budget transferred wallet → HCA in the commit leg
    * (covers registration price + execution-cost refunds). Defaults to the
@@ -188,6 +201,14 @@ export type RegistrationEvent =
       token: TOKEN_SYMBOL
       price: bigint
       signer: Signer
+      /** Cross-chain funding source chain. */
+      sourceChainId?: number
+      /** Cross-chain: Nexus address on the source chain. Required when
+       * `sourceChainId` is set. */
+      nexusAddress?: Address
+      /** Cross-chain: public client for the source chain. Required when
+       * `sourceChainId` is set. */
+      sourcePublicClient?: PublicClient
       /**
        * Optional EOA signer used to sign the EIP-2612 FUNDING permit
        * (standalone-HCA flow). See `RegistrationContext.approvalSigner`. Omit
@@ -251,6 +272,10 @@ export const registrationMachine = setup({
         approvalSigner: Signer
         publicClient: PublicClient
         chainId: number
+        sourceChainId?: number
+        nexusAddress?: Address
+        sourcePublicClient?: PublicClient
+        sessionValidUntil?: bigint
       }) => {
         return signFundingPermitActor(input)
       },
@@ -266,6 +291,12 @@ export const registrationMachine = setup({
         signer: Signer
         publicClient: PublicClient
         id?: string
+        /** Cross-chain funding source chain. */
+        sourceChainId?: number
+        /** Cross-chain: Nexus address on the source chain. */
+        nexusAddress?: Address
+        /** Cross-chain: sizes this leg's pull and delivery. */
+        budget?: HcaBudgetBreakdown
       }) => {
         return submitFundingAndCommitActor(input)
       },
@@ -281,6 +312,14 @@ export const registrationMachine = setup({
         publicClient: PublicClient
         primaryName?: string
         id?: string
+        /** Cross-chain funding source chain. */
+        sourceChainId?: number
+        /** Cross-chain: Nexus address on the source chain. */
+        nexusAddress?: Address
+        /** Cross-chain: source client, to read the residual allowance. */
+        sourcePublicClient?: PublicClient
+        /** Cross-chain: sizes this leg's delivery. */
+        budget?: HcaBudgetBreakdown
       }) => {
         return submitRevealBatchActor(input)
       },
@@ -556,6 +595,9 @@ export const registrationMachine = setup({
               event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
+            sourceChainId: ({ event }) => event.sourceChainId,
+            nexusAddress: ({ event }) => event.nexusAddress,
+            sourcePublicClient: ({ event }) => event.sourcePublicClient,
             hcaBudget: ({ event }) => event.hcaBudget,
             hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
             primaryName: ({ event }) => event.primaryName,
@@ -677,6 +719,14 @@ export const registrationMachine = setup({
             target: 'submittingSetupBundle',
             actions: assign({
               hcaUsdcBalance: ({ event }) => event.output as bigint,
+              // Drop the cross-chain route: there is nothing left to bridge.
+              // Keeping it would build a source leg around an allowance the
+              // (skipped) permit never granted, so the commit would pull
+              // nothing and the reveal would fail on a zero allowance. Both
+              // legs run same-chain off the HCA's own balance instead.
+              sourceChainId: () => undefined,
+              nexusAddress: () => undefined,
+              sourcePublicClient: () => undefined,
             }),
           },
           {
@@ -730,6 +780,28 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           chainId: context.chainId,
+          ...(context.sourceChainId !== undefined
+            ? {
+                sourceChainId: context.sourceChainId,
+                nexusAddress: context.nexusAddress,
+                sourcePublicClient: context.sourcePublicClient,
+                sessionValidUntil: context.hcaSessionEnable?.validUntil,
+                // Cross-chain overrides `value` above. That figure is a
+                // DESTINATION-chain shortfall net of the HCA's standing
+                // balance; here the wallet is authorizing SOURCE-chain USDC,
+                // which additionally has to cover the Across relayer and
+                // bridge fees for both legs and cannot be offset by a balance
+                // sitting on the wrong chain. One permit covers commit and
+                // reveal — see `crossChainTotalSourceCap`.
+                ...(context.hcaBudgetBreakdown
+                  ? {
+                      value: crossChainTotalSourceCap(
+                        context.hcaBudgetBreakdown,
+                      ),
+                    }
+                  : {}),
+              }
+            : {}),
         }),
         onDone: {
           target: 'submittingSetupBundle',
@@ -795,6 +867,16 @@ export const registrationMachine = setup({
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
           id: REGISTRATION_TX_IDS.commit,
+          ...(context.sourceChainId !== undefined
+            ? {
+                sourceChainId: context.sourceChainId,
+                nexusAddress: context.nexusAddress,
+                // Sizes the source pull and the destination delivery for this
+                // leg. The commit pulls only its own quoted cost; the
+                // registration price waits for the reveal.
+                budget: context.hcaBudgetBreakdown,
+              }
+            : {}),
         }),
         onDone: {
           target: 'waitingForCommitment',
@@ -1194,6 +1276,17 @@ export const registrationMachine = setup({
           publicClient: context.publicClient!,
           primaryName: context.primaryName,
           id: REGISTRATION_TX_IDS.register,
+          // Cross-chain: the reveal is the leg that pulls the registration
+          // price. Its source budget is the allowance the commit left behind,
+          // read on-chain inside the actor.
+          ...(context.sourceChainId !== undefined
+            ? {
+                sourceChainId: context.sourceChainId,
+                nexusAddress: context.nexusAddress,
+                sourcePublicClient: context.sourcePublicClient,
+                budget: context.hcaBudgetBreakdown,
+              }
+            : {}),
         }),
         onDone: {
           target: 'waitingForRhinestoneBundle',

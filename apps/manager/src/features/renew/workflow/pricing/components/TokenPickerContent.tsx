@@ -1,5 +1,5 @@
 import {
-  type SUPPORTED_TOKEN,
+  type TOKEN_SYMBOL,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
@@ -33,7 +33,7 @@ export const TokenPickerContent = () => {
       ),
   })
 
-  const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
+  const onSelectCoin = (coin: TOKEN_SYMBOL) => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
