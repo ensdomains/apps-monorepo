@@ -17,7 +17,7 @@ import { useGraceStatus } from '@/features/profile/hooks/useGraceStatus'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
 import { useCanExtend } from '@/features/renew/hooks/useCanExtend'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
-import { isRegistrable } from '@/utils/ens/tldHelpers'
+import { is2LD, isRegistrable } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/')({
   component: RouteComponent,
@@ -97,7 +97,9 @@ function RouteComponent() {
       />
     )
 
-  const canTransfer = isConnectedOwner && hasTransferRole
+  const isSubname = !is2LD(name)
+
+  const canTransfer = isConnectedOwner && hasTransferRole && !isSubname
 
   return (
     <div className="flex flex-col gap-8">

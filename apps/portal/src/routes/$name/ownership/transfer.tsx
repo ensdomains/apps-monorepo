@@ -11,6 +11,7 @@ import { MessageCard } from '@/components/ui/message-card'
 import { getEnsOwnerQueryOptions } from '@/features/profile/hooks/useEnsOwner'
 import { SendNameForm } from '@/features/transfer/components/SendNameForm'
 import { useCanTransferName } from '@/features/transfer/hooks/useCanTransferName'
+import { is2LD } from '@/utils/ens/tldHelpers'
 
 export const Route = createFileRoute('/$name/ownership/transfer')({
   component: RouteComponent,
@@ -20,6 +21,8 @@ export const Route = createFileRoute('/$name/ownership/transfer')({
 function RouteComponent() {
   const { name } = Route.useParams()
   const { address } = useConnection()
+
+  const isSubname = !is2LD(name)
 
   const ownerQuery = useQuery(getEnsOwnerQueryOptions({ name }))
 
@@ -61,6 +64,28 @@ function RouteComponent() {
                 title="Transfer not available"
                 description={
                   <p>Sending a name is only available for ENSv2 names.</p>
+                }
+              />
+            ),
+          )
+          .with(
+            { data: P.nonNullable },
+            () => isSubname,
+            () => (
+              <MessageCard
+                icon={<AlertTriangle className="size-8" />}
+                title="Transfer not available"
+                description={
+                  <>
+                    <p>
+                      Transferring subnames isn’t supported yet. Sending a name
+                      is currently available for first-class names, like{' '}
+                      <span className="font-medium">name.eth</span>.
+                    </p>
+                    <p className="text-quartz-900/60 text-sm mt-2">
+                      Subname transfer support is coming in a future update.
+                    </p>
+                  </>
                 }
               />
             ),
