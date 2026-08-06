@@ -13,6 +13,7 @@ import { FUSES } from './classifyNames'
 import {
   checkFrozenApproval,
   checkOwnership,
+  checkPremigrationReservation,
   runEligibilityChecks,
 } from './preflightChecks'
 
@@ -151,6 +152,41 @@ describe('checkFrozenApproval', () => {
   })
 })
 
+describe('checkPremigrationReservation', () => {
+  it('marks 2LDs that are not RESERVED and ignores child registries', async () => {
+    multicallMock.mockResolvedValueOnce([ok(1), ok(0)])
+    const reserved = makeClassified({ id: '0xa1', labelhash: '0xa1' })
+    const available = makeClassified({ id: '0xb1', labelhash: '0xb1' })
+    const child = makeClassified({
+      id: '0xc1',
+      labelhash: '0xc1',
+      tokenType: 'locked-child',
+      parentName: 'parent.eth',
+    })
+
+    const ids = await checkPremigrationReservation(publicClient, [
+      reserved,
+      available,
+      child,
+    ])
+
+    expect([...ids]).toEqual(['0xb1'])
+    expect(multicallMock).toHaveBeenCalledOnce()
+    expect(multicallMock.mock.calls[0]?.[1].contracts).toHaveLength(2)
+  })
+
+  it('fails closed when a reservation read fails', async () => {
+    multicallMock.mockResolvedValueOnce([fail()])
+    const failed = new Set<string>()
+    const name = makeClassified({ id: '0xa1', labelhash: '0xa1' })
+
+    const ids = await checkPremigrationReservation(publicClient, [name], failed)
+
+    expect([...ids]).toEqual(['0xa1'])
+    expect([...failed]).toEqual(['0xa1'])
+  })
+})
+
 describe('runEligibilityChecks', () => {
   it('returns empty buckets for empty input and issues no RPC', async () => {
     const result = await runEligibilityChecks(publicClient, [], OWNER)
@@ -158,6 +194,7 @@ describe('runEligibilityChecks', () => {
       eligible: [],
       frozen: [],
       alreadyMigrated: [],
+      notPremigrated: [],
       failed: [],
     })
     expect(multicallMock).not.toHaveBeenCalled()
@@ -182,19 +219,23 @@ describe('runEligibilityChecks', () => {
         ok(OWNER),
       ]) // ownership
       .mockResolvedValueOnce([ok(OTHER)]) // frozen-approval (only B)
+      .mockResolvedValueOnce([ok(1), ok(1), ok(1)]) // v2 reservations
 
     const result = await runEligibilityChecks(publicClient, [A, B, C], OWNER)
 
     expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xa1'])
     expect(result.frozen.map((n) => n.domain.id)).toEqual(['0xb1'])
     expect(result.eligible.map((n) => n.domain.id)).toEqual(['0xc1'])
+    expect(result.notPremigrated).toEqual([])
     expect(result.failed).toEqual([])
-    expect(multicallMock).toHaveBeenCalledTimes(2)
+    expect(multicallMock).toHaveBeenCalledTimes(3)
   })
 
   it('reports unreadable ownership checks in `failed` (and keeps them out of eligible)', async () => {
     const A = makeClassified({ id: '0xa1', label: 'a', name: 'a.eth' })
-    multicallMock.mockResolvedValueOnce([fail()]) // ownership read failed
+    multicallMock
+      .mockResolvedValueOnce([fail()]) // ownership read failed
+      .mockResolvedValueOnce([ok(1)]) // v2 reservation
 
     const result = await runEligibilityChecks(publicClient, [A], OWNER)
 
@@ -202,5 +243,18 @@ describe('runEligibilityChecks', () => {
     expect(result.eligible).toEqual([])
     // stays fail-closed for the mutation path
     expect(result.alreadyMigrated.map((n) => n.domain.id)).toEqual(['0xa1'])
+  })
+
+  it('keeps an AVAILABLE v2 name out of the migration selection', async () => {
+    const A = makeClassified({ id: '0xa1', labelhash: '0xa1' })
+    multicallMock
+      .mockResolvedValueOnce([ok(OWNER)]) // ownership
+      .mockResolvedValueOnce([ok(0)]) // v2 reservation
+
+    const result = await runEligibilityChecks(publicClient, [A], OWNER)
+
+    expect(result.eligible).toEqual([])
+    expect(result.notPremigrated).toEqual([A])
+    expect(result.failed).toEqual([])
   })
 })

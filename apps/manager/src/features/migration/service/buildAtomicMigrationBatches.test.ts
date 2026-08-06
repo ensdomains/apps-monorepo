@@ -487,6 +487,125 @@ describe('buildAtomicMigrationBatches', () => {
     ).toEqual(['alice.eth', 'bob.eth', 'carol.eth'])
   })
 
+  it('seeds execution from the preview boundary instead of estimating every prefix', async () => {
+    const classified = Array.from({ length: 150 }, (_, index) =>
+      makeName(`name-${index}.eth`, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+    const estimatedSizes: number[] = []
+
+    const plan = await buildPlan({
+      classified,
+      maxOuterGas: 9_000n,
+      firstBatchOnly: true,
+      initialBatchSize: 90,
+      estimateOuterGas: ({ names }) => {
+        estimatedSizes.push(names.length)
+        return BigInt(names.length) * 100n
+      },
+    })
+
+    expect(plan.batches).toHaveLength(1)
+    expect(plan.batches[0]?.names).toHaveLength(90)
+    expect(plan.batches[0]?.estimatedGas).toBe(9_000n)
+    expect(estimatedSizes).toEqual([90])
+  })
+
+  it('propagates a preview estimate failure without replaying every prefix', async () => {
+    const classified = Array.from({ length: 120 }, (_, index) =>
+      makeName(`name-${index}.eth`, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+    const estimateOuterGas = vi.fn(
+      ({ names }: { names: readonly string[] }) => {
+        if (names.length > 38) {
+          throw new Error(
+            'ERC1155: transfer to non ERC1155Receiver implementer',
+          )
+        }
+        return BigInt(names.length) * 100n
+      },
+    )
+
+    await expect(
+      buildPlan({
+        classified,
+        maxOuterGas: 20_000n,
+        firstBatchOnly: true,
+        initialBatchSize: 90,
+        estimateOuterGas,
+      }),
+    ).rejects.toThrow('ERC1155: transfer to non ERC1155Receiver implementer')
+
+    expect(
+      estimateOuterGas.mock.calls.map(([{ names }]) => names.length),
+    ).toEqual([90])
+  })
+
+  it('does not split unrelated estimate failures', async () => {
+    const estimateOuterGas = vi.fn((_input: { names: readonly string[] }) => {
+      throw new Error('permission missing')
+    })
+
+    await expect(
+      buildPlan({
+        classified: [makeName('alice.eth'), makeName('bob.eth')],
+        firstBatchOnly: true,
+        initialBatchSize: 2,
+        estimateOuterGas,
+      }),
+    ).rejects.toThrow('permission missing')
+    expect(
+      estimateOuterGas.mock.calls.map(([{ names }]) => names.length),
+    ).toEqual([2])
+  })
+
+  it('uses a bounded downward search when the preview exceeds the live limit', async () => {
+    const classified = Array.from({ length: 120 }, (_, index) =>
+      makeName(`name-${index}.eth`, {
+        resolverStrategy: 'keep-v1',
+        v1ResolverAddress: V1_RESOLVER,
+      }),
+    )
+    const estimatedSizes: number[] = []
+
+    const plan = await buildPlan({
+      classified,
+      maxOuterGas: 6_500n,
+      firstBatchOnly: true,
+      initialBatchSize: 90,
+      estimateOuterGas: ({ names }) => {
+        estimatedSizes.push(names.length)
+        return BigInt(names.length) * 100n
+      },
+    })
+
+    expect(plan.batches[0]?.names).toHaveLength(65)
+    expect(plan.batches[0]?.estimatedGas).toBe(6_500n)
+    expect(estimatedSizes.length).toBeLessThanOrEqual(9)
+    expect(estimatedSizes[0]).toBe(90)
+  })
+
+  it('surfaces an estimate failure when one name cannot simulate', async () => {
+    const estimateOuterGas = vi.fn(() => {
+      throw new Error('ERC1155: transfer to non ERC1155Receiver implementer')
+    })
+
+    await expect(
+      buildPlan({
+        classified: [makeName('alice.eth')],
+        firstBatchOnly: true,
+        initialBatchSize: 1,
+        estimateOuterGas,
+      }),
+    ).rejects.toThrow('ERC1155: transfer to non ERC1155Receiver implementer')
+    expect(estimateOuterGas).toHaveBeenCalledOnce()
+  })
+
   it('regroups wrapped transfers after retry removes a name', async () => {
     const plan = await buildPlan({
       classified: [

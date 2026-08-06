@@ -2,6 +2,10 @@ import type { MigrationTokenType } from './classifyNames'
 
 export const TARGET_GAS = 20_000_000n
 
+// dRPC caps eth_estimateGas at 2^24 gas. Keep live migration calls below that
+// ceiling so an out-of-gas receiver callback is not masked as an ERC1155 error.
+export const EXECUTION_TARGET_GAS = 15_000_000n
+
 export const MAX_NAMES_HINT = 100
 
 export const PER_BATCH_OVERHEAD = 80_000n

@@ -300,6 +300,10 @@ export type BuildAtomicMigrationBatchesParams = {
   readonly walletCoAdminGranted: boolean
   readonly maxOuterGas: bigint
   readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+  /** Execution only: return once the leading executable batch is known. */
+  readonly firstBatchOnly?: boolean
+  /** Preview-derived leading batch size used to seed live gas discovery. */
+  readonly initialBatchSize?: number
 }
 
 const expectationId = (
@@ -788,6 +792,103 @@ const estimateBatch = async (params: {
   }
 }
 
+type EstimateAtomicPrefix = (size: number) => Promise<AtomicMigrationBatch>
+
+const createAtomicPrefixEstimator = (params: {
+  readonly hca: Address
+  readonly wallet: Address
+  readonly nameExecutions: readonly AtomicMigrationNameExecution[]
+  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+}): EstimateAtomicPrefix => {
+  const attempts = new Map<number, Promise<AtomicMigrationBatch>>()
+
+  return (size) => {
+    const cached = attempts.get(size)
+    if (cached) return cached
+
+    const pending = estimateBatch({
+      index: 0,
+      hca: params.hca,
+      wallet: params.wallet,
+      nameExecutions: params.nameExecutions.slice(0, size),
+      estimateOuterGas: params.estimateOuterGas,
+    })
+    attempts.set(size, pending)
+    return pending
+  }
+}
+
+const singleNameGasLimitError = (
+  batch: AtomicMigrationBatch,
+  maxOuterGas: bigint,
+): AtomicMigrationNameGasLimitExceededError =>
+  new AtomicMigrationNameGasLimitExceededError({
+    ensName: batch.names[0] ?? 'unknown',
+    estimatedGas: batch.estimatedGas,
+    maxOuterGas,
+  })
+
+const findLargestAtomicPrefixWithinGasLimit = async (params: {
+  readonly overLimitSize: number
+  readonly maxOuterGas: bigint
+  readonly estimatePrefix: EstimateAtomicPrefix
+}): Promise<AtomicMigrationBatch> => {
+  let lowerSize = 1
+  let upperSize = params.overLimitSize
+  let lowerBatch = await params.estimatePrefix(lowerSize)
+  if (lowerBatch.estimatedGas > params.maxOuterGas) {
+    throw singleNameGasLimitError(lowerBatch, params.maxOuterGas)
+  }
+
+  while (upperSize - lowerSize > 1) {
+    const midpoint = Math.floor((lowerSize + upperSize) / 2)
+    const candidate = await params.estimatePrefix(midpoint)
+    if (candidate.estimatedGas <= params.maxOuterGas) {
+      lowerSize = midpoint
+      lowerBatch = candidate
+      continue
+    }
+    upperSize = midpoint
+  }
+
+  return lowerBatch
+}
+
+/**
+ * Verifies the preview-derived leading batch with one live estimate.
+ *
+ * The preview already controls batch sizing, so execution does not grow past
+ * that boundary. If its live estimate numerically exceeds the execution limit,
+ * a downward binary search finds a safe prefix. Estimate errors are propagated
+ * immediately instead of being mistaken for a splittable gas boundary.
+ */
+const buildFirstAtomicMigrationBatch = async (params: {
+  readonly hca: Address
+  readonly wallet: Address
+  readonly nameExecutions: readonly AtomicMigrationNameExecution[]
+  readonly maxOuterGas: bigint
+  readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
+  readonly initialBatchSize?: number
+}): Promise<AtomicMigrationBatch | null> => {
+  const total = params.nameExecutions.length
+  if (total === 0) return null
+
+  const requestedHint = Math.trunc(params.initialBatchSize ?? 1)
+  const hint = Math.min(
+    total,
+    Math.max(1, Number.isFinite(requestedHint) ? requestedHint : 1),
+  )
+  const estimatePrefix = createAtomicPrefixEstimator(params)
+  const hintedBatch = await estimatePrefix(hint)
+  if (hintedBatch.estimatedGas <= params.maxOuterGas) return hintedBatch
+
+  return findLargestAtomicPrefixWithinGasLimit({
+    overLimitSize: hint,
+    maxOuterGas: params.maxOuterGas,
+    estimatePrefix,
+  })
+}
+
 /**
  * Builds all-or-nothing HCA owner executions and greedily partitions them using
  * estimates of the fully wrapped `executeByOwner` call. A name is never split
@@ -809,6 +910,19 @@ export const buildAtomicMigrationBatches = async (
     resolver,
     defaultResolver: params.defaultResolver ?? V2_CONTRACTS.DefaultResolver,
   })
+
+  if (params.firstBatchOnly) {
+    const batch = await buildFirstAtomicMigrationBatch({
+      hca: params.hca,
+      wallet: params.wallet,
+      nameExecutions,
+      maxOuterGas: params.maxOuterGas,
+      estimateOuterGas: params.estimateOuterGas,
+      initialBatchSize: params.initialBatchSize,
+    })
+    return { resolver, batches: batch ? [batch] : [] }
+  }
+
   const batches: AtomicMigrationBatch[] = []
   let currentNameExecutions: readonly AtomicMigrationNameExecution[] = []
   let currentBatch: AtomicMigrationBatch | null = null

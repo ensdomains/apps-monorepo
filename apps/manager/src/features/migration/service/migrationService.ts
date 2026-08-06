@@ -23,7 +23,7 @@ import {
 
 import { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
-import { TARGET_GAS } from './batchMigrate.constants'
+import { EXECUTION_TARGET_GAS, TARGET_GAS } from './batchMigrate.constants'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type { IneligibleName } from './classifyNames'
@@ -849,6 +849,51 @@ const reconcileMigrationRetry = async (params: {
   return { completedNameGroups, incompleteNames }
 }
 
+const MASKED_ERC1155_RECEIVER_ERROR =
+  /ERC1155: transfer to non ERC1155Receiver implementer/i
+
+/**
+ * dRPC can mask an estimate-only receiver out-of-gas as a generic ERC1155
+ * failure. Explicit calls at the execution and preview limits distinguish that
+ * provider ceiling from a real contract failure before the batch is reduced.
+ */
+const recoverMaskedRpcEstimate = async (params: {
+  readonly ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>
+  readonly call: Call
+  readonly error: ReturnType<typeof decodeMigrationError>
+}): Promise<bigint | null> => {
+  if (
+    params.error.type !== 'generic' ||
+    !MASKED_ERC1155_RECEIVER_ERROR.test(params.error.message)
+  ) {
+    return null
+  }
+
+  try {
+    await params.ctx.publicClient.call({
+      account: params.ctx.walletAddress,
+      to: params.call.to,
+      data: params.call.data,
+      value: params.call.value,
+      gas: EXECUTION_TARGET_GAS,
+    })
+    return EXECUTION_TARGET_GAS
+  } catch {
+    try {
+      await params.ctx.publicClient.call({
+        account: params.ctx.walletAddress,
+        to: params.call.to,
+        data: params.call.data,
+        value: params.call.value,
+        gas: TARGET_GAS,
+      })
+      return EXECUTION_TARGET_GAS + 1n
+    } catch {
+      return null
+    }
+  }
+}
+
 const buildNextAtomicBatch = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
@@ -865,7 +910,16 @@ const buildNextAtomicBatch = async (params: {
     publicClient: ctx.publicClient,
     classified: remaining,
   })
-  let livePrefixStart: string | undefined
+  const remainingNames = new Set(remaining.map(({ domain }) => domain.name))
+  const initialBatchSize =
+    plan.atomicBatches
+      .map((batch) =>
+        batch.names.reduce(
+          (count, name) => count + Number(remainingNames.has(name)),
+          0,
+        ),
+      )
+      .find((count) => count > 0) ?? 1
   const atomicPlan = await buildAtomicMigrationBatches({
     chainId: ctx.publicClient.chain?.id ?? 11155111,
     hca: ctx.hcaAddress,
@@ -878,14 +932,10 @@ const buildNextAtomicBatch = async (params: {
     walletCoAdminGranted:
       resolverReadiness.status === 'verified' &&
       resolverReadiness.walletHasWildcardRoles,
-    maxOuterGas: TARGET_GAS,
-    estimateOuterGas: async ({ call, names }) => {
-      const firstName = names[0]
-      livePrefixStart ??= firstName
-      // Later provisional batches may depend on a parent/resolver created by
-      // the first batch. They are discarded and rebuilt after the first batch
-      // confirms, so only live-estimate the executable leading prefix.
-      if (firstName !== livePrefixStart) return 1n
+    maxOuterGas: EXECUTION_TARGET_GAS,
+    firstBatchOnly: true,
+    initialBatchSize,
+    estimateOuterGas: async ({ call }) => {
       let retryIndex = 0
       while (true) {
         try {
@@ -896,16 +946,25 @@ const buildNextAtomicBatch = async (params: {
             value: call.value,
           })
         } catch (error) {
+          const decodedError = decodeMigrationError(error)
           const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
           if (
-            !retryPermissionHeadLag ||
-            retryDelay === undefined ||
-            decodeMigrationError(error).type !== 'permission-missing'
+            retryPermissionHeadLag &&
+            retryDelay !== undefined &&
+            decodedError.type === 'permission-missing'
           ) {
-            throw error
+            retryIndex += 1
+            await delay(retryDelay)
+            continue
           }
-          retryIndex += 1
-          await delay(retryDelay)
+
+          const recoveredEstimate = await recoverMaskedRpcEstimate({
+            ctx,
+            call,
+            error: decodedError,
+          })
+          if (recoveredEstimate !== null) return recoveredEstimate
+          throw error
         }
       }
     },
