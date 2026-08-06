@@ -12,7 +12,7 @@ type PaymentCardLineItemProps = {
   showPlus?: boolean
 }
 
-const PaymentCardLineItem = ({
+export const PaymentCardLineItem = ({
   label,
   amount,
   isLoading,
@@ -64,5 +64,27 @@ export const PaymentCardBaseLine = ({
     isLoading={isLoading}
     label={<Trans>Registration</Trans>}
     symbol="receipt_long"
+  />
+)
+
+/**
+ * The execution cost of the two on-chain legs (commit + register), which the
+ * wallet funds up front alongside the price. Shown so the headline total is the
+ * amount that actually leaves the wallet — the design omits this line, but
+ * hiding it is what let users start registrations they could not pay for.
+ */
+export const PaymentCardNetworkFeeLine = ({
+  networkFee,
+  isLoading,
+}: {
+  networkFee: number
+  isLoading: boolean
+}) => (
+  <PaymentCardLineItem
+    amount={networkFee}
+    isLoading={isLoading}
+    label={<Trans>Network fee</Trans>}
+    showPlus
+    symbol="local_gas_station"
   />
 )

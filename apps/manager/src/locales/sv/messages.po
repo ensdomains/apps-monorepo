@@ -1527,6 +1527,10 @@ msgstr ""
 msgid "Need more help? Visit ENS Support Docs"
 msgstr ""
 
+#: src/features/register-v2/workflow/pricing/components/PaymentCardLineItems.tsx
+msgid "Network fee"
+msgstr ""
+
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Never lose your name to expiry."
 msgstr ""
@@ -1603,6 +1607,20 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Not a valid name format"
+msgstr ""
+
+#. placeholder {0}: funding.total.toFixed(2)
+#. placeholder {1}: funding.registration.toFixed(2)
+#. placeholder {2}: funding.networkFee.toFixed(2)
+#. placeholder {3}: (funding.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+msgid "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network fee — but your wallet holds {3} USDC."
+msgstr ""
+
+#. placeholder {0}: mutationError.required.toFixed(2)
+#. placeholder {1}: mutationError.available.toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
+msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
 msgstr ""
 
 #: src/features/navigation/Header/search/SuggestionItem.tsx
