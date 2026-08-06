@@ -643,7 +643,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
 
             {/* Banner */}
             {isPrimaryName && displayName && (
-              <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
+              <div className="flex items-center gap-3 bg-success-fill text-success-text p-4 rounded-md">
                 <CheckCircle2 className="w-6 h-6 shrink-0" />
                 <span className="font-medium">
                   This is the primary name on {label}
@@ -652,7 +652,7 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
             )}
 
             {!isPrimaryName && displayName && (
-              <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
+              <div className="flex items-center gap-3 bg-danger-fill text-danger-text p-4 rounded-md">
                 <XCircle className="w-6 h-6 shrink-0" />
                 <span className="text-sm">
                   The set address does not resolve back to this name on {label}

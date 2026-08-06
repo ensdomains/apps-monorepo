@@ -82,7 +82,17 @@ const Banner = ({
   errorDetail?: string | null
   action?: ReactNode
 }) => (
-  <div className="flex items-center justify-between gap-3 bg-muted p-4 rounded-md">
+  <div
+    className={cn(
+      'flex items-center justify-between gap-3 p-4 rounded-md',
+      match(status)
+        .with('verified', () => 'bg-success-fill text-success-text')
+        .with('pending', () => 'bg-accent-fill text-accent-text')
+        .with('unverifiable', () => 'bg-danger-fill text-danger-text')
+        .with('mismatch', () => 'bg-danger-fill text-danger-text')
+        .exhaustive(),
+    )}
+  >
     <div className="flex items-center gap-3">
       {match(status)
         .with('verified', () => (
@@ -110,7 +120,7 @@ const Banner = ({
                 Can't verify reverse resolution on {label} right now
               </span>
               {errorDetail && (
-                <code className="font-mono text-xs text-muted-foreground break-all">
+                <code className="font-mono text-xs opacity-80 break-all">
                   {errorDetail}
                 </code>
               )}
