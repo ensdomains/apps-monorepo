@@ -66,7 +66,9 @@ const coinNetworkName = (coinType: number, fallback: string) => {
 }
 
 const RowLabel = ({ children }: PropsWithChildren) => (
-  <div className="w-40 font-medium shrink-0">{children}</div>
+  <div className="text-ui text-default-text w-28 shrink-0 whitespace-nowrap">
+    {children}
+  </div>
 )
 
 const Banner = ({
