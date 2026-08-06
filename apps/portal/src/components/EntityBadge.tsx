@@ -61,7 +61,7 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 // (text-entity-* utilities in src/styles/index.css): names are Semi-Mono 500,
 // everything else Mono (WEB-595).
 const pillBase =
-  'inline-flex items-center h-5 px-1 rounded w-fit ' +
+  'inline-flex items-center h-5 px-1 rounded w-fit max-w-full min-w-0 ' +
   'leading-none whitespace-nowrap no-underline'
 
 const pillType = (variant: EntityVariant) =>
@@ -231,7 +231,7 @@ export const EntityBadge = ({
         )}
       >
         {labelContent}
-        {children}
+        <span className="truncate">{children}</span>
       </span>
     )
   }
@@ -239,8 +239,12 @@ export const EntityBadge = ({
   // Real <Link>/<a> elements preserve middle-click, ⌘+click, "Open in new
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
-  const primaryWrapperClass =
-    'inline-flex items-center gap-2 py-2.5 px-2 rounded cursor-pointer text-left no-underline'
+  const primaryWrapperClass = cn(
+    'inline-flex items-center gap-2 py-2.5 px-2 rounded cursor-pointer text-left no-underline max-w-full min-w-0',
+    // avatar pills are h-6 (24px), so tighten the hover bridge to keep the
+    // whole badge at exactly 40px like text-only pills (20px + 2*10px)
+    resolvedAvatar && 'py-2',
+  )
 
   const renderPrimary = () => {
     if (variant === 'name' && name) {
@@ -314,11 +318,7 @@ export const EntityBadge = ({
         </a>
       )
     }
-    return (
-      <div className="inline-flex items-center gap-2 py-2.5 px-2 rounded">
-        {pillNode}
-      </div>
-    )
+    return <div className={primaryWrapperClass}>{pillNode}</div>
   }
 
   /*
@@ -332,7 +332,7 @@ export const EntityBadge = ({
    * makes it smooth without any layout shift.
    */
   const pillNode = (
-    <span className="relative inline-flex items-center">
+    <span className="relative inline-flex items-center max-w-full min-w-0">
       <span
         className={cn(
           'absolute rounded transition-[inset,opacity] duration-150',
@@ -366,15 +366,15 @@ export const EntityBadge = ({
           pillType(variant),
           'relative z-10',
           variantTextClass[variant],
-          // Avatar sits flush against the left edge — remove left padding
+          // Keep px-1 around the avatar so the fill visibly wraps it
           // and add gap-1 so avatar doesn't touch the text
-          resolvedAvatar && 'pl-0 gap-1.5',
+          resolvedAvatar && 'h-6 gap-1.5',
           className,
         )}
       >
-        {resolvedAvatar}
+        {resolvedAvatar && <span className="shrink-0">{resolvedAvatar}</span>}
         {labelContent}
-        {children}
+        <span className="truncate">{children}</span>
       </span>
     </span>
   )
@@ -382,7 +382,7 @@ export const EntityBadge = ({
   return (
     <div
       className={cn(
-        'relative group/entity inline-flex -ml-2',
+        'relative group/entity inline-flex -ml-2 max-w-full',
         // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
         // sits flush with the container's left edge.
       )}

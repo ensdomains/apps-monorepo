@@ -15,9 +15,10 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { HistorySectionHeader } from '@/components/HistorySectionHeader'
+import { InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -29,7 +30,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -39,6 +39,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { useIsMobile } from '@/hooks/use-mobile'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
 import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
@@ -128,7 +129,13 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
           </Button>
         }
       />
-      <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
+      <EventsDataTable
+        enableTransactionCount={false}
+        enableFilters={false}
+        enableSearch={false}
+        name={name}
+        data={dataWithTimestampsAndSenders}
+      />
     </div>
   )
 }
@@ -600,8 +607,8 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         side={isMobile ? 'bottom' : 'right'}
         className="sm:max-w-[880px] bg-background overflow-y-auto"
       >
-        <div className="p-6 flex flex-col gap-6">
-          <SheetHeader>
+        <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
+          <SheetHeader className="p-0">
             <div className="flex flex-row justify-between items-center">
               <SheetTitle className="font-sans text-h2">
                 {label} resolution
@@ -651,16 +658,14 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
           )}
 
           <div className="flex flex-col gap-6">
-            <div className="flex flex-row items-start">
-              <div className="w-40 font-medium">Network</div>
+            <InfoRow label="Network">
               <div className="flex items-center gap-2">
                 {icon && <img src={icon} alt={label} className="w-5 h-5" />}
                 <span>{label}</span>
               </div>
-            </div>
+            </InfoRow>
 
-            <div className="flex flex-row items-start">
-              <div className="w-40 font-medium">Name</div>
+            <InfoRow label="Name">
               <ReverseNameField
                 displayName={displayName}
                 isInheritingDefault={isInheritingDefault}
@@ -674,10 +679,9 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                 isSwitchingChain={isSwitchingChain}
                 isWrongChain={isWrongChain}
               />
-            </div>
+            </InfoRow>
 
-            <div className="flex flex-row items-start">
-              <div className="w-40 font-medium">Primary name</div>
+            <InfoRow label="Primary name">
               <div className="flex items-center gap-2 flex-wrap">
                 {isPrimaryName ? (
                   <Badge variant="outline" className="text-xs">
@@ -691,31 +695,18 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
                   </Badge>
                 )}
                 <div className="flex flex-row items-center gap-2">
-                  <CopyableRecord
-                    value={address}
-                    truncate
-                    displayValue={
-                      <span className="flex items-center gap-1">
-                        {address.slice(0, 5)}...
-                        {address.slice(-4)}
-                      </span>
-                    }
-                    className="font-mono text-sm"
-                  />
+                  <EntityBadge variant="address" address={address}>
+                    {truncateAddress(address, 5, 4, '...')}
+                  </EntityBadge>
                   <ArrowLeftRight className="w-5 h-5" />
                   {displayName && (
-                    <div className="flex items-center gap-2 flex-1">
-                      <NameAvatar
-                        name={displayName}
-                        width="20px"
-                        height="20px"
-                      />
-                      <span>{displayName}</span>
-                    </div>
+                    <EntityBadge variant="name" name={displayName} showAvatar>
+                      {displayName}
+                    </EntityBadge>
                   )}
                 </div>
               </div>
-            </div>
+            </InfoRow>
 
             {displayName && (
               <div className="border-t pt-6">

@@ -265,7 +265,7 @@ export const RegistryEditUserSheet = ({
         className="sm:max-w-3xl bg-background overflow-y-auto p-0"
       >
         <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
+          <SheetHeader className="p-0 flex flex-row items-center justify-between gap-4">
             <SheetTitle className="font-sans text-h2">{titleLabel}</SheetTitle>
             <Button
               type="button"

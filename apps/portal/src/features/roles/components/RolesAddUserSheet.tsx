@@ -173,7 +173,7 @@ export const RolesAddUserSheet = ({
         className="sm:max-w-3xl bg-background overflow-y-auto p-0"
       >
         <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0 pt-4">
+          <SheetHeader className="p-0">
             <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
           </SheetHeader>
 
