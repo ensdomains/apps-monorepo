@@ -415,11 +415,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-background overflow-y-auto"
+          className="bg-background p-0"
         >
-          <div className="p-6 flex flex-col gap-6">
-            <div className="text-muted-foreground text-center py-12">
-              No resolution selected
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 flex flex-col gap-6">
+              <div className="text-muted-foreground text-center py-12">
+                No resolution selected
+              </div>
             </div>
           </div>
         </SheetContent>
@@ -605,114 +607,116 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-background overflow-y-auto"
+        className="bg-background p-0"
       >
-        <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
-          <SheetHeader className="p-0">
-            <div className="flex flex-row justify-between items-center">
-              <SheetTitle className="font-sans text-h2">
-                {label} resolution
-              </SheetTitle>
-              {canSetAsPrimary && !isDefaultRow && (
-                <Button
-                  onClick={handleSetPrimaryName}
-                  variant="default"
-                  disabled={
-                    !isConnected ||
-                    isEnsOwnerLoading ||
-                    isForwardResolutionPending ||
-                    isSwitchingChainForForward
-                  }
-                >
-                  {match({
-                    isConnected,
-                    isSwitchingChain: isSwitchingChainForForward,
-                    isWrongChain: isWrongChainForForward,
-                  })
-                    .with({ isConnected: false }, () => 'Connect Wallet')
-                    .with({ isSwitchingChain: true }, () => 'Switching...')
-                    .with({ isWrongChain: true }, () => 'Switch Network')
-                    .otherwise(() => 'Set primary name')}
-                </Button>
-              )}
-            </div>
-          </SheetHeader>
-
-          {/* Banner */}
-          {isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
-              <CheckCircle2 className="w-6 h-6 shrink-0" />
-              <span className="font-medium">
-                This is the primary name on {label}
-              </span>
-            </div>
-          )}
-
-          {!isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
-              <XCircle className="w-6 h-6 shrink-0" />
-              <span className="text-sm">
-                The set address does not resolve back to this name on {label}
-              </span>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-6">
-            <InfoRow label="Network">
-              <div className="flex items-center gap-2">
-                {icon && <img src={icon} alt={label} className="w-5 h-5" />}
-                <span>{label}</span>
-              </div>
-            </InfoRow>
-
-            <InfoRow label="Name">
-              <ReverseNameField
-                displayName={displayName}
-                isInheritingDefault={isInheritingDefault}
-                isDefaultRow={isDefaultRow}
-                nameInput={nameInput}
-                onNameChange={handleNameChange}
-                onSubmit={handleUpdate}
-                isConnected={isConnected}
-                isReverseResolutionPending={isReverseResolutionPending}
-                isL2ReverseNamePending={isL2ReverseNamePending}
-                isSwitchingChain={isSwitchingChain}
-                isWrongChain={isWrongChain}
-              />
-            </InfoRow>
-
-            <InfoRow label="Primary name">
-              <div className="flex items-center gap-2 flex-wrap">
-                {isPrimaryName ? (
-                  <Badge variant="outline" className="text-xs">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>True</span>
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs">
-                    <XCircle className="w-4 h-4" />
-                    <span>False</span>
-                  </Badge>
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
+            <SheetHeader className="p-0">
+              <div className="flex flex-row justify-between items-center">
+                <SheetTitle className="font-sans text-h2">
+                  {label} resolution
+                </SheetTitle>
+                {canSetAsPrimary && !isDefaultRow && (
+                  <Button
+                    onClick={handleSetPrimaryName}
+                    variant="default"
+                    disabled={
+                      !isConnected ||
+                      isEnsOwnerLoading ||
+                      isForwardResolutionPending ||
+                      isSwitchingChainForForward
+                    }
+                  >
+                    {match({
+                      isConnected,
+                      isSwitchingChain: isSwitchingChainForForward,
+                      isWrongChain: isWrongChainForForward,
+                    })
+                      .with({ isConnected: false }, () => 'Connect Wallet')
+                      .with({ isSwitchingChain: true }, () => 'Switching...')
+                      .with({ isWrongChain: true }, () => 'Switch Network')
+                      .otherwise(() => 'Set primary name')}
+                  </Button>
                 )}
-                <div className="flex flex-row items-center gap-2">
-                  <EntityBadge variant="address" address={address}>
-                    {truncateAddress(address, 5, 4, '...')}
-                  </EntityBadge>
-                  <ArrowLeftRight className="w-5 h-5" />
-                  {displayName && (
-                    <EntityBadge variant="name" name={displayName} showAvatar>
-                      {displayName}
-                    </EntityBadge>
-                  )}
-                </div>
               </div>
-            </InfoRow>
+            </SheetHeader>
 
-            {displayName && (
-              <div className="border-t pt-6">
-                <HistoryView name={displayName} />
+            {/* Banner */}
+            {isPrimaryName && displayName && (
+              <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
+                <CheckCircle2 className="w-6 h-6 shrink-0" />
+                <span className="font-medium">
+                  This is the primary name on {label}
+                </span>
               </div>
             )}
+
+            {!isPrimaryName && displayName && (
+              <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
+                <XCircle className="w-6 h-6 shrink-0" />
+                <span className="text-sm">
+                  The set address does not resolve back to this name on {label}
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-6">
+              <InfoRow label="Network">
+                <div className="flex items-center gap-2">
+                  {icon && <img src={icon} alt={label} className="w-5 h-5" />}
+                  <span>{label}</span>
+                </div>
+              </InfoRow>
+
+              <InfoRow label="Name">
+                <ReverseNameField
+                  displayName={displayName}
+                  isInheritingDefault={isInheritingDefault}
+                  isDefaultRow={isDefaultRow}
+                  nameInput={nameInput}
+                  onNameChange={handleNameChange}
+                  onSubmit={handleUpdate}
+                  isConnected={isConnected}
+                  isReverseResolutionPending={isReverseResolutionPending}
+                  isL2ReverseNamePending={isL2ReverseNamePending}
+                  isSwitchingChain={isSwitchingChain}
+                  isWrongChain={isWrongChain}
+                />
+              </InfoRow>
+
+              <InfoRow label="Primary name">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isPrimaryName ? (
+                    <Badge variant="outline" className="text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>True</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      <XCircle className="w-4 h-4" />
+                      <span>False</span>
+                    </Badge>
+                  )}
+                  <div className="flex flex-row items-center gap-2">
+                    <EntityBadge variant="address" address={address}>
+                      {truncateAddress(address, 5, 4, '...')}
+                    </EntityBadge>
+                    <ArrowLeftRight className="w-5 h-5" />
+                    {displayName && (
+                      <EntityBadge variant="name" name={displayName} showAvatar>
+                        {displayName}
+                      </EntityBadge>
+                    )}
+                  </div>
+                </div>
+              </InfoRow>
+
+              {displayName && (
+                <div className="border-t pt-6">
+                  <HistoryView name={displayName} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </SheetContent>

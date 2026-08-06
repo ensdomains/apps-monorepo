@@ -43,10 +43,10 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
             <EntityBadge
               type="content"
               variant="default"
+              format="wrap"
               copyValue={record.value}
-              className="h-auto min-h-5 whitespace-normal"
             >
-              <span className="break-all">{record.value}</span>
+              {record.value}
             </EntityBadge>
           </InfoRow>
         </div>
@@ -61,10 +61,10 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
             <EntityBadge
               type="content"
               variant="default"
+              format="wrap"
               copyValue={record.value}
-              className="h-auto min-h-5 whitespace-normal"
             >
-              <span className="break-all">{record.value}</span>
+              {record.value}
             </EntityBadge>
           </InfoRow>
         </div>
@@ -77,10 +77,10 @@ const RecordDetailsView = ({ record }: { record: NameRecord }) => {
             <EntityBadge
               type="content"
               variant="default"
+              format="wrap"
               copyValue={record.value}
-              className="h-auto min-h-5 whitespace-normal"
             >
-              <span className="break-all">{record.value}</span>
+              {record.value}
             </EntityBadge>
           </InfoRow>
         </InfoCard>
@@ -120,10 +120,10 @@ const ResolverView = ({ name }: ResolverViewProps) => {
         <EntityBadge
           type="content"
           variant="default"
+          format="wrap"
           copyValue={resolverAddress}
-          className="h-auto min-h-5 whitespace-normal"
         >
-          <span className="break-all">{resolverAddress}</span>
+          {resolverAddress}
         </EntityBadge>
       </InfoRow>
     </InfoCard>

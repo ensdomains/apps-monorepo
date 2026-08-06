@@ -21,6 +21,7 @@ import { match } from 'ts-pattern'
 import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -173,11 +174,20 @@ const AddressField = ({
     <RowLabel>Address</RowLabel>
     <div className="flex-1 flex flex-col gap-2">
       {address ? (
-        <CopyableRecord
-          value={address}
-          truncate={false}
-          className="font-mono text-sm"
-        />
+        isAddress(address) ? (
+          <EntityBadge variant="address" address={address} format="wrap">
+            {address}
+          </EntityBadge>
+        ) : (
+          <EntityBadge
+            type="content"
+            variant="default"
+            format="wrap"
+            copyValue={address}
+          >
+            {address}
+          </EntityBadge>
+        )
       ) : (
         <span className="font-mono text-sm text-muted-foreground/50">null</span>
       )}
@@ -661,30 +671,32 @@ export const AddressResolutionSidebar: FC<
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-background overflow-y-auto"
+        className="bg-background p-0"
       >
-        {data ? (
-          <ResolutionDetails
-            row={data}
-            name={name}
-            address={data.address}
-            isOwner={editor.isOwner}
-            addressInput={editor.addressInput}
-            setAddressInput={editor.setAddressInput}
-            isBusy={editor.isBusy}
-            hasResolver={editor.hasResolver}
-            saveLabel={editor.saveLabel}
-            onSave={editor.onSave}
-            protocolVersion={editor.protocolVersion}
-            canSetPrimaryName={editor.canSetPrimaryName}
-            isSettingPrimaryName={editor.isSettingPrimaryName}
-            onSetPrimaryName={editor.onSetPrimaryName}
-          />
-        ) : (
-          <div className="p-6 text-muted-foreground text-center py-12">
-            No resolution selected
-          </div>
-        )}
+        <div className="h-full overflow-y-auto">
+          {data ? (
+            <ResolutionDetails
+              row={data}
+              name={name}
+              address={data.address}
+              isOwner={editor.isOwner}
+              addressInput={editor.addressInput}
+              setAddressInput={editor.setAddressInput}
+              isBusy={editor.isBusy}
+              hasResolver={editor.hasResolver}
+              saveLabel={editor.saveLabel}
+              onSave={editor.onSave}
+              protocolVersion={editor.protocolVersion}
+              canSetPrimaryName={editor.canSetPrimaryName}
+              isSettingPrimaryName={editor.isSettingPrimaryName}
+              onSetPrimaryName={editor.onSetPrimaryName}
+            />
+          ) : (
+            <div className="p-6 text-muted-foreground text-center py-12">
+              No resolution selected
+            </div>
+          )}
+        </div>
       </SheetContent>
       <TransactionModal transactions={editor.transactions} />
     </Sheet>

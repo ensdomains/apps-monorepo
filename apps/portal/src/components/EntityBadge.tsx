@@ -61,8 +61,22 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 // (text-entity-* utilities in src/styles/index.css): names are Semi-Mono 500,
 // everything else Mono (WEB-595).
 const pillBase =
-  'inline-flex items-center h-5 px-1 rounded w-fit max-w-full min-w-0 ' +
+  'inline-flex items-center h-5 px-1 rounded w-fit ' +
   'leading-none whitespace-nowrap no-underline'
+
+// format-specific classes: truncate needs the min-width chain broken at every
+// flex level so the fill shrinks WITH the text; wrap trades the fixed pill
+// height for multi-line content that stays inside the fill.
+const formatConstraintClass: Record<string, string> = {
+  inline: '',
+  truncate: 'max-w-full min-w-0',
+  wrap: '',
+}
+const formatPillClass: Record<string, string> = {
+  inline: '',
+  truncate: 'max-w-full min-w-0',
+  wrap: 'h-auto min-h-5 whitespace-normal',
+}
 
 const pillType = (variant: EntityVariant) =>
   variant === 'name' ? 'text-entity-name' : 'text-entity-base'
@@ -159,6 +173,12 @@ interface EntityBadgeProps {
    * lists of hashes and values where permanent pills would be noisy.
    */
   readonly type?: 'action' | 'content'
+  /**
+   * Figma entity format. "inline" (default) sizes to its content; "truncate"
+   * ellipsizes inside the fill when the container constrains it (tables);
+   * "wrap" breaks long values across lines inside the fill (overlays).
+   */
+  readonly format?: 'inline' | 'truncate' | 'wrap'
 }
 
 export const EntityBadge = ({
@@ -176,6 +196,7 @@ export const EntityBadge = ({
   copyValue,
   showAvatar = false,
   type = 'action',
+  format = 'inline',
 }: EntityBadgeProps) => {
   const chainId = useChainId()
 
@@ -221,17 +242,27 @@ export const EntityBadge = ({
     derivedCopyValue
   )
 
+  const content =
+    format === 'truncate' ? (
+      <span className="truncate">{children}</span>
+    ) : format === 'wrap' ? (
+      <span className="break-all">{children}</span>
+    ) : (
+      children
+    )
+
   if (!hasChips) {
     return (
       <span
         className={cn(
           pillClass(variant, className),
           'h-6 rounded',
+          formatPillClass[format],
           type === 'content' && 'bg-transparent dark:bg-transparent',
         )}
       >
         {labelContent}
-        <span className="truncate">{children}</span>
+        {content}
       </span>
     )
   }
@@ -240,7 +271,8 @@ export const EntityBadge = ({
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
   const primaryWrapperClass = cn(
-    'inline-flex items-center gap-2 py-2.5 px-2 rounded cursor-pointer text-left no-underline max-w-full min-w-0',
+    'inline-flex items-center gap-2 py-2.5 px-2 rounded cursor-pointer text-left no-underline',
+    formatConstraintClass[format],
     // avatar pills are h-6 (24px), so tighten the hover bridge to keep the
     // whole badge at exactly 40px like text-only pills (20px + 2*10px)
     resolvedAvatar && 'py-2',
@@ -332,7 +364,12 @@ export const EntityBadge = ({
    * makes it smooth without any layout shift.
    */
   const pillNode = (
-    <span className="relative inline-flex items-center max-w-full min-w-0">
+    <span
+      className={cn(
+        'relative inline-flex items-center',
+        formatConstraintClass[format],
+      )}
+    >
       <span
         className={cn(
           'absolute rounded transition-[inset,opacity] duration-150',
@@ -364,6 +401,7 @@ export const EntityBadge = ({
         className={cn(
           pillBase,
           pillType(variant),
+          formatPillClass[format],
           'relative z-10',
           variantTextClass[variant],
           // Keep px-1 around the avatar so the fill visibly wraps it
@@ -374,7 +412,7 @@ export const EntityBadge = ({
       >
         {resolvedAvatar && <span className="shrink-0">{resolvedAvatar}</span>}
         {labelContent}
-        <span className="truncate">{children}</span>
+        {content}
       </span>
     </span>
   )
@@ -382,7 +420,8 @@ export const EntityBadge = ({
   return (
     <div
       className={cn(
-        'relative group/entity inline-flex -ml-2 max-w-full',
+        'relative group/entity inline-flex -ml-2',
+        format === 'truncate' && 'max-w-full',
         // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
         // sits flush with the container's left edge.
       )}

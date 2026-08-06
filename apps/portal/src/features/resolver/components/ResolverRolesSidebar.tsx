@@ -363,77 +363,79 @@ export const ResolverRolesSidebar = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
+        className="bg-background p-0"
       >
-        <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0 flex flex-row items-center justify-between gap-4">
-            <SheetTitle className="font-sans text-h2 flex items-center gap-1">
-              {selectedAccount
-                ? truncateAddress(selectedAccount, 6, 4)
-                : 'Role Details'}
-              {selectedAccount && <CopyButton value={selectedAccount} />}
-            </SheetTitle>
-            {canEdit && selectedAccount && (
-              <Button
-                variant="outline"
-                disabled={removeUserMutation.isPending || !isWalletConnected}
-                onClick={() => setConfirmOpen(true)}
-              >
-                <Trash2 className="size-4" />
-                Remove user
-              </Button>
-            )}
-          </SheetHeader>
-
-          {row ? (
-            <div className="flex flex-col gap-6">
-              {selectedAccount && resolvedNames.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {resolvedNames.includes('(root)')
-                    ? 'Global roles (all names)'
-                    : `Roles scoped to ${resolvedNames.filter((n) => n !== '(root)').join(', ')}`}
-                </p>
-              )}
-
-              {(saveMutation.error || removeUserMutation.error) && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {saveMutation.error?.message ||
-                      removeUserMutation.error?.message}
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className={cn(isSelf && 'opacity-50 pointer-events-none')}>
-                <EditPermissionList
-                  editedPermissions={editedPermissions}
-                  onChange={handlePermissionChange}
-                  canManageRoles={canEdit}
-                  disabled={saveMutation.isPending}
-                />
-              </div>
-
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <SheetHeader className="p-0 flex flex-row items-center justify-between gap-4">
+              <SheetTitle className="font-sans text-h2 flex items-center gap-1">
+                {selectedAccount
+                  ? truncateAddress(selectedAccount, 6, 4)
+                  : 'Role Details'}
+                {selectedAccount && <CopyButton value={selectedAccount} />}
+              </SheetTitle>
               {canEdit && selectedAccount && (
-                <div className="flex justify-end">
-                  <Button
-                    variant="default"
-                    disabled={
-                      !hasChanges ||
-                      saveMutation.isPending ||
-                      !isWalletConnected
-                    }
-                    onClick={handleSaveChanges}
-                  >
-                    {saveMutation.isPending ? 'Saving...' : 'Save'}
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  disabled={removeUserMutation.isPending || !isWalletConnected}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Remove user
+                </Button>
               )}
-            </div>
-          ) : (
-            <div className="text-muted-foreground text-center py-12">
-              No role selected
-            </div>
-          )}
+            </SheetHeader>
+
+            {row ? (
+              <div className="flex flex-col gap-6">
+                {selectedAccount && resolvedNames.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {resolvedNames.includes('(root)')
+                      ? 'Global roles (all names)'
+                      : `Roles scoped to ${resolvedNames.filter((n) => n !== '(root)').join(', ')}`}
+                  </p>
+                )}
+
+                {(saveMutation.error || removeUserMutation.error) && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {saveMutation.error?.message ||
+                        removeUserMutation.error?.message}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <div className={cn(isSelf && 'opacity-50 pointer-events-none')}>
+                  <EditPermissionList
+                    editedPermissions={editedPermissions}
+                    onChange={handlePermissionChange}
+                    canManageRoles={canEdit}
+                    disabled={saveMutation.isPending}
+                  />
+                </div>
+
+                {canEdit && selectedAccount && (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="default"
+                      disabled={
+                        !hasChanges ||
+                        saveMutation.isPending ||
+                        !isWalletConnected
+                      }
+                      onClick={handleSaveChanges}
+                    >
+                      {saveMutation.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-muted-foreground text-center py-12">
+                No role selected
+              </div>
+            )}
+          </div>
         </div>
 
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
