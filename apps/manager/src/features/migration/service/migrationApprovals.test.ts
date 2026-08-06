@@ -1,25 +1,15 @@
 import type { Config as WagmiConfig } from '@wagmi/core'
 import { readContracts } from '@wagmi/core'
-import {
-  type Address,
-  decodeFunctionData,
-  erc721Abi,
-  type PublicClient,
-  zeroAddress,
-} from 'viem'
+import { type Address, decodeFunctionData, erc721Abi } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { OPERATOR_APPROVAL_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
   buildMigrationApprovalCall,
-  buildMigrationCleanupCalls,
-  checkMigrationApprovalActive,
   checkMigrationApprovals,
   type MigrationApprovalStatus,
   migrationApprovalForId,
-  migrationApprovalNeedsExplicitCleanup,
   planMigrationApprovals,
-  trackCreatedMigrationApproval,
 } from './migrationApprovals'
 
 vi.mock('@wagmi/core', () => ({
@@ -229,8 +219,8 @@ describe('planMigrationApprovals', () => {
   })
 })
 
-describe('approval calldata and cleanup', () => {
-  it('encodes ERC-721 approve and recovery revocation', () => {
+describe('approval calldata', () => {
+  it('encodes ERC-721 approval for the HCA', () => {
     const approval = migrationApprovalForId({
       id: 'base-registrar:hca-token',
       hcaAddress: HCA,
@@ -238,118 +228,21 @@ describe('approval calldata and cleanup', () => {
     })
     const grant = decodeFunctionData({
       abi: erc721Abi,
-      data: buildMigrationApprovalCall(approval, true).data,
-    })
-    const cleanup = decodeFunctionData({
-      abi: erc721Abi,
-      data: buildMigrationApprovalCall(approval, false).data,
+      data: buildMigrationApprovalCall(approval).data,
     })
     expect(grant.functionName).toBe('approve')
     expect(grant.args).toEqual([HCA, TOKEN_ONE])
-    expect(cleanup.args).toEqual([zeroAddress, TOKEN_ONE])
-    expect(migrationApprovalNeedsExplicitCleanup(approval)).toBe(false)
   })
 
-  it('encodes operator grants and marks them for explicit cleanup', () => {
+  it('encodes a persistent operator grant', () => {
     const approval = migrationApprovalForId({
       id: 'name-wrapper:hca',
       hcaAddress: HCA,
     })
     const decoded = decodeFunctionData({
       abi: OPERATOR_APPROVAL_ABI,
-      data: buildMigrationApprovalCall(approval, true).data,
+      data: buildMigrationApprovalCall(approval).data,
     })
     expect(decoded.args).toEqual([HCA, true])
-    expect(migrationApprovalNeedsExplicitCleanup(approval)).toBe(true)
-  })
-
-  it('allows legacy helper revocation but rejects any new helper grant', () => {
-    const legacy = migrationApprovalForId({
-      id: 'base-registrar:migration-helper',
-      hcaAddress: HCA,
-      helperAddress: HELPER,
-    })
-    expect(() => buildMigrationApprovalCall(legacy, true)).toThrow(
-      'cleanup-only',
-    )
-    const decoded = decodeFunctionData({
-      abi: OPERATOR_APPROVAL_ABI,
-      data: buildMigrationApprovalCall(legacy, false).data,
-    })
-    expect(decoded.args).toEqual([HELPER, false])
-  })
-
-  it('tracks token approvals independently and cleans up in reverse order', () => {
-    const first = migrationApprovalForId({
-      id: 'base-registrar:hca-token',
-      hcaAddress: HCA,
-      tokenId: TOKEN_ONE,
-    })
-    const second = migrationApprovalForId({
-      id: 'base-registrar:hca-token',
-      hcaAddress: HCA,
-      tokenId: TOKEN_TWO,
-    })
-    const tracked = trackCreatedMigrationApproval(
-      trackCreatedMigrationApproval([], first),
-      second,
-    )
-    expect(trackCreatedMigrationApproval(tracked, second)).toEqual(tracked)
-    const cleanup = buildMigrationCleanupCalls(tracked).map((call) =>
-      decodeFunctionData({ abi: erc721Abi, data: call.data }),
-    )
-    expect(cleanup.map((call) => call.args?.[1])).toEqual([
-      TOKEN_TWO,
-      TOKEN_ONE,
-    ])
-  })
-})
-
-describe('checkMigrationApprovalActive', () => {
-  it('checks the specific ERC-721 token approval', async () => {
-    const readContract = vi.fn().mockResolvedValue(HCA)
-    await expect(
-      checkMigrationApprovalActive({
-        approval: migrationApprovalForId({
-          id: 'base-registrar:hca-token',
-          hcaAddress: HCA,
-          tokenId: TOKEN_ONE,
-        }),
-        owner: EOA,
-        publicClient: { readContract } as unknown as Pick<
-          PublicClient,
-          'readContract'
-        >,
-      }),
-    ).resolves.toBe(true)
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        functionName: 'getApproved',
-        args: [TOKEN_ONE],
-      }),
-    )
-  })
-
-  it('checks operator approvals against the migration owner', async () => {
-    const readContract = vi.fn().mockResolvedValue(false)
-    await expect(
-      checkMigrationApprovalActive({
-        approval: migrationApprovalForId({
-          id: 'eth-registry:hca',
-          hcaAddress: HCA,
-        }),
-        owner: EOA,
-        publicClient: { readContract } as unknown as Pick<
-          PublicClient,
-          'readContract'
-        >,
-      }),
-    ).resolves.toBe(false)
-    expect(readContract).toHaveBeenCalledWith(
-      expect.objectContaining({
-        functionName: 'isApprovedForAll',
-        args: [EOA, HCA],
-      }),
-    )
   })
 })

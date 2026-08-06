@@ -28,11 +28,11 @@ export const Route = createFileRoute('/migration')({
 
 function RouteComponent() {
   return (
-    <RequireConnectedWallet>
-      <MigrationUiProvider>
+    <MigrationUiProvider>
+      <RequireConnectedWallet>
         <MigrationPage />
-      </MigrationUiProvider>
-    </RequireConnectedWallet>
+      </RequireConnectedWallet>
+    </MigrationUiProvider>
   )
 }
 

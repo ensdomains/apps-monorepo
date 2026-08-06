@@ -69,21 +69,12 @@ export const GameStep = () => {
           'eth-registry:hca',
           () => `${t`Approve manager restoration in your wallet`}...`,
         )
-        .with(
-          'base-registrar:migration-helper',
-          'name-wrapper:migration-helper',
-          () => `${t`Confirm a temporary permission in your wallet`}...`,
-        )
         .exhaustive(),
     )
     .with({ kind: 'atomic-batch' }, ({ index, total, count }) =>
       total === 1
         ? `${t`Upgrading ${count} name(s) atomically`}...`
         : `${t`Upgrading atomic batch ${index + 1} of ${total} (${count} name(s))`}...`,
-    )
-    .with(
-      { kind: 'cleanup' },
-      ({ count }) => `${t`Removing ${count} temporary permission(s)`}...`,
     )
     .exhaustive()
 

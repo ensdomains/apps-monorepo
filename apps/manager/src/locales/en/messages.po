@@ -144,10 +144,6 @@ msgstr "60-second wait prevents attacks"
 msgid "A marker for the move to a new era of ENS."
 msgstr "A marker for the move to a new era of ENS."
 
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "A previous migration attempt left temporary permissions. Remove them before starting again."
-msgstr "A previous migration attempt left temporary permissions. Remove them before starting again."
-
 #: src/features/migration/components/ProfileCardPreview.tsx
 msgid "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 msgstr "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
@@ -562,10 +558,6 @@ msgstr "Complete your profile"
 msgid "Confirm"
 msgstr "Confirm"
 
-#: src/features/migration/components/GameStep.tsx
-msgid "Confirm a temporary permission in your wallet"
-msgstr "Confirm a temporary permission in your wallet"
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Confirm Payment"
 msgstr "Confirm Payment"
@@ -656,10 +648,6 @@ msgstr "Contact"
 #: src/features/notifications/settings/contact-methods/index.tsx
 msgid "Contact methods"
 msgstr "Contact methods"
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Continue"
-msgstr "Continue"
 
 #: src/routes/notifications/channels/email/verify.tsx
 msgid "Continue to Home"
@@ -1964,21 +1952,9 @@ msgstr "Remove from favorites"
 msgid "Remove notification"
 msgstr "Remove notification"
 
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Remove permissions"
-msgstr "Remove permissions"
-
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove Telegram Contact Method?"
 msgstr "Remove Telegram Contact Method?"
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Remove temporary permissions"
-msgstr "Remove temporary permissions"
-
-#: src/features/migration/components/GameStep.tsx
-msgid "Removing {count} temporary permission(s)"
-msgstr "Removing {count} temporary permission(s)"
 
 #: src/features/notifications/settings/contact-methods/email.tsx
 msgid "Removing email channel"
@@ -2506,10 +2482,6 @@ msgstr "Telegram channel removed"
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram Notifications"
 msgstr "Telegram Notifications"
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Temporary migration permissions still need to be removed. Your names are safe and the cleanup can be retried separately."
-msgstr "Temporary migration permissions still need to be removed. Your names are safe and the cleanup can be retried separately."
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Terms of Use"
@@ -3155,10 +3127,6 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your name(s) have been upgraded!"
 msgstr "Your name(s) have been upgraded!"
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your names are on ENS v2"
-msgstr "Your names are on ENS v2"
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"

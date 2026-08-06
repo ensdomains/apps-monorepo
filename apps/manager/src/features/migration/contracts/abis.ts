@@ -21,9 +21,8 @@ const ethRegistryGetStatusSnippet = parseAbi([
   'function getStatus(uint256 anyId) view returns (uint8)',
 ])
 
-// Shared by the V1 NFT contracts and the V2 registry. Migration temporarily
-// grants operator access to the HCA and later revokes only grants made by the
-// current run.
+// Shared by the V1 NFT contracts and the V2 registry. Migration grants the
+// wallet-owned HCA operator access that can be reused for later operations.
 export const OPERATOR_APPROVAL_ABI = parseAbi([
   'function isApprovedForAll(address owner, address operator) view returns (bool)',
   'function setApprovalForAll(address operator, bool approved)',

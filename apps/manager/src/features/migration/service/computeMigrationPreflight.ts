@@ -40,7 +40,7 @@ export type MigrationPreflight = {
   nameWrapperApproved: boolean
   /** HCA-specific approval state, populated when an HCA address is available. */
   hcaApprovalStatus?: MigrationApprovalStatus
-  /** Missing grants only; confirmed entries become the cleanup ledger. */
+  /** Missing grants only; confirmed operator entries remain available to the HCA. */
   migrationApprovals?: readonly MigrationApproval[]
   requiresManagerRestoration?: boolean
   /** Deterministic HCA resolver, including deploy/role readiness. */

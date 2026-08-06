@@ -57,7 +57,7 @@ describe('buildStepDescriptors', () => {
     ).toHaveLength(2)
   })
 
-  it('uses three steps for a wrapped selection and an existing HCA', () => {
+  it('uses two steps for a wrapped selection and an existing HCA', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
@@ -67,7 +67,6 @@ describe('buildStepDescriptors', () => {
     ).toEqual([
       { type: 'approval', approvalId: 'name-wrapper:hca' },
       { type: 'atomic-batch', index: 0, total: 1, count: 2 },
-      { type: 'cleanup', count: 1 },
     ])
   })
 
@@ -81,7 +80,7 @@ describe('buildStepDescriptors', () => {
     ).toEqual([{ type: 'atomic-batch', index: 0, total: 1, count: 1 }])
   })
 
-  it('adds manager approval and cleanup around the migration batch', () => {
+  it('adds a persistent manager approval before the migration batch', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
@@ -91,7 +90,6 @@ describe('buildStepDescriptors', () => {
     ).toEqual([
       { type: 'approval', approvalId: 'eth-registry:hca' },
       { type: 'atomic-batch', index: 0, total: 1, count: 1 },
-      { type: 'cleanup', count: 1 },
     ])
   })
 
@@ -106,17 +104,6 @@ describe('buildStepDescriptors', () => {
       { type: 'atomic-batch', index: 0, total: 2, count: 1 },
       { type: 'atomic-batch', index: 1, total: 2, count: 1 },
     ])
-  })
-
-  it('uses the confirmed ledger count when execution supplies one', () => {
-    expect(
-      buildStepDescriptors({
-        hcaDeploymentRequired: false,
-        approvals: [operatorApproval('name-wrapper:hca')],
-        atomicBatches: [],
-        cleanupApprovalCount: 0,
-      }),
-    ).toEqual([{ type: 'approval', approvalId: 'name-wrapper:hca' }])
   })
 
   it('returns no descriptors when there is no work', () => {

@@ -90,8 +90,8 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    // 450k deployment + 55k token approval + 100 batch gas. The token
-    // approval clears during transfer and needs no successful-path cleanup.
+    // 450k deployment + 55k token approval + 100 batch gas. The ERC-721
+    // approval clears automatically when the registration transfers.
     expect(estimate.gasUnits).toBe(505_100n)
     expect(estimate.feeWei).toBe(1_515_300n)
     expect(estimate.transactionCount).toBe(3)
@@ -113,7 +113,7 @@ describe('estimateMigrationGasCost', () => {
     expect(estimate.transactionCount).toBe(1)
   })
 
-  it('counts grant and cleanup for a missing wrapped operator approval', async () => {
+  it('counts one persistent grant for a missing wrapped operator approval', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const plan = makePlan({
       preflight: {
@@ -131,11 +131,11 @@ describe('estimateMigrationGasCost', () => {
 
     expect(estimate.status).toBe('ready')
     if (estimate.status !== 'ready') throw new Error('expected ready estimate')
-    expect(estimate.gasUnits).toBe(110_100n)
-    expect(estimate.transactionCount).toBe(3)
+    expect(estimate.gasUnits).toBe(55_100n)
+    expect(estimate.transactionCount).toBe(2)
   })
 
-  it('manager restoration adds a grant and cleanup confirmation', async () => {
+  it('manager restoration adds one persistent grant confirmation', async () => {
     const publicClient = makePublicClient({ maxFeePerGas: 2n })
     const basePlan = makePlan({ atomicBatches: [makeAtomicBatch(100n)] })
     const managerPlan = makePlan({
@@ -160,7 +160,7 @@ describe('estimateMigrationGasCost', () => {
     if (base.status !== 'ready' || manager.status !== 'ready') {
       throw new Error('expected ready estimates')
     }
-    expect(manager.transactionCount - base.transactionCount).toBe(2)
+    expect(manager.transactionCount - base.transactionCount).toBe(1)
   })
 
   it('every additional atomic batch adds one confirmation', async () => {

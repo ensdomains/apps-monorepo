@@ -138,13 +138,6 @@ describe('describeNextStep', () => {
       },
       { kind: 'atomic-batch', index: 0, total: 1, count: 5 },
     ],
-    [
-      'cleanup descriptor',
-      {
-        descriptor: descriptor({ type: 'cleanup', count: 3 }),
-      },
-      { kind: 'cleanup', count: 3 },
-    ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)
   })

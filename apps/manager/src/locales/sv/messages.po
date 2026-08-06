@@ -149,10 +149,6 @@ msgstr ""
 msgid "A marker for the move to a new era of ENS."
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "A previous migration attempt left temporary permissions. Remove them before starting again."
-msgstr ""
-
 #: src/features/migration/components/ProfileCardPreview.tsx
 msgid "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
 msgstr ""
@@ -567,10 +563,6 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-#: src/features/migration/components/GameStep.tsx
-msgid "Confirm a temporary permission in your wallet"
-msgstr ""
-
 #: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Confirm Payment"
 msgstr ""
@@ -660,10 +652,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/index.tsx
 msgid "Contact methods"
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Continue"
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -1969,20 +1957,8 @@ msgstr ""
 msgid "Remove notification"
 msgstr ""
 
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Remove permissions"
-msgstr ""
-
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Remove Telegram Contact Method?"
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Remove temporary permissions"
-msgstr ""
-
-#: src/features/migration/components/GameStep.tsx
-msgid "Removing {count} temporary permission(s)"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2510,10 +2486,6 @@ msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
 msgid "Telegram Notifications"
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Temporary migration permissions still need to be removed. Your names are safe and the cleanup can be retried separately."
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -3159,10 +3131,6 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your name(s) have been upgraded!"
-msgstr ""
-
-#: src/features/migration/pages/MigrationPage.tsx
-msgid "Your names are on ENS v2"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx

@@ -1,7 +1,7 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, Hex, PublicClient } from 'viem'
+import type { Hex, PublicClient } from 'viem'
 import {
   type ActorRefFrom,
   assign,
@@ -18,14 +18,7 @@ import {
   type MigrationError,
 } from '@/features/migration/service/decodeMigrationError'
 import {
-  type MigrationApproval,
-  migrationApprovalKey,
-  trackCreatedMigrationApproval,
-} from '@/features/migration/service/migrationApprovals'
-import {
   executeMigration,
-  executeMigrationCleanup,
-  type MigrationCleanupResult,
   type MigrationProgress,
   type MigrationResult,
   type MigrationStepDescriptor,
@@ -42,11 +35,6 @@ type Context = {
   hcaClient?: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
   refreshAccount?: () => Promise<void>
   reconcileBeforeSubmit: boolean
-  createdApprovals: readonly MigrationApproval[]
-  cleanupPending: readonly MigrationApproval[]
-  cleanupWalletAddress?: Address
-  cleanupHcaAddress?: Address
-  migrationCompleted: boolean
   migratedNames: string[]
   txHashes: readonly Hex[]
   progress?: MigrationProgress
@@ -69,24 +57,11 @@ type Events =
       names: readonly string[]
       txHash?: Hex
     }
-  | { type: 'migration.approvalCreated'; approval: MigrationApproval }
-  | { type: 'migration.approvalRemoved'; approval: MigrationApproval }
   | {
       type: 'migration.complete'
       result: MigrationResult
     }
   | { type: 'migration.failed'; error: MigrationError }
-  | { type: 'cleanup.retry' }
-  | { type: 'cleanup.continue' }
-  | {
-      type: 'cleanup.restore'
-      approvals: readonly MigrationApproval[]
-      signer: Signer
-      walletAddress: Address
-      hcaAddress: Address
-    }
-  | { type: 'cleanup.complete'; result: MigrationCleanupResult }
-  | { type: 'cleanup.failed'; error: MigrationError }
   | { type: 'retry' }
   | { type: 'done' }
   | { type: 'cancel' }
@@ -96,11 +71,6 @@ const initialContext = (wagmiConfig: WagmiConfig): Context => ({
   selectedNames: [],
   plan: undefined,
   reconcileBeforeSubmit: false,
-  createdApprovals: [],
-  cleanupPending: [],
-  cleanupWalletAddress: undefined,
-  cleanupHcaAddress: undefined,
-  migrationCompleted: false,
   migratedNames: [],
   txHashes: [],
   progress: undefined,
@@ -128,7 +98,6 @@ export const migrationUiMachine = setup({
         hcaClient: Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
         refreshAccount: () => Promise<void>
         reconcileBeforeSubmit: boolean
-        createdApprovals: readonly MigrationApproval[]
       }
     >(({ input, sendBack }) => {
       let cancelled = false
@@ -143,16 +112,6 @@ export const migrationUiMachine = setup({
         sendBack({ type: 'migration.batchComplete', names, txHash })
       }
 
-      const onApprovalCreated = (approval: MigrationApproval) => {
-        if (cancelled) return
-        sendBack({ type: 'migration.approvalCreated', approval })
-      }
-
-      const onApprovalRemoved = (approval: MigrationApproval) => {
-        if (cancelled) return
-        sendBack({ type: 'migration.approvalRemoved', approval })
-      }
-
       executeMigration({
         plan: input.plan,
         wagmiConfig: input.wagmiConfig,
@@ -162,9 +121,6 @@ export const migrationUiMachine = setup({
         refreshAccount: input.refreshAccount,
         onProgress,
         onBatchComplete,
-        createdApprovals: input.createdApprovals,
-        onApprovalCreated,
-        onApprovalRemoved,
         reconcileBeforeSubmit: input.reconcileBeforeSubmit,
       })
         .then((result) => {
@@ -183,50 +139,6 @@ export const migrationUiMachine = setup({
         cancelled = true
       }
     }),
-    runCleanup: fromCallback<
-      Events,
-      {
-        wagmiConfig: WagmiConfig
-        signer: Signer
-        approvals: readonly MigrationApproval[]
-        walletAddress: Address
-        hcaAddress: Address
-      }
-    >(({ input, sendBack }) => {
-      let cancelled = false
-
-      executeMigrationCleanup({
-        approvals: input.approvals,
-        wagmiConfig: input.wagmiConfig,
-        publicClient: defaultPublicClient as PublicClient,
-        signer: input.signer,
-        walletAddress: input.walletAddress,
-        hcaAddress: input.hcaAddress,
-        onProgress: (progress) => {
-          if (cancelled) return
-          sendBack({ type: 'migration.progress', progress })
-        },
-        onApprovalRemoved: (approval) => {
-          if (cancelled) return
-          sendBack({ type: 'migration.approvalRemoved', approval })
-        },
-      })
-        .then((result) => {
-          if (cancelled) return
-          sendBack({ type: 'cleanup.complete', result })
-        })
-        .catch((error: unknown) => {
-          if (cancelled) return
-          sendBack({
-            type: 'cleanup.failed',
-            error: decodeMigrationError(error),
-          })
-        })
-
-      return () => {
-        cancelled = true
-      }
-    }),
   },
   guards: {
     hasSelection: ({ event }) =>
@@ -235,13 +147,6 @@ export const migrationUiMachine = setup({
       event.type === 'migration.complete' &&
       event.result.txHashes.length === 0 &&
       context.migratedNames.length === 0,
-    hasCleanupPending: ({ event }) =>
-      event.type === 'migration.complete' &&
-      event.result.cleanupPending.length > 0,
-    isCleanupComplete: ({ event }) =>
-      event.type === 'cleanup.complete' && event.result.pending.length === 0,
-    hasTrackedApprovals: ({ context }) => context.createdApprovals.length > 0,
-    migrationCompleted: ({ context }) => context.migrationCompleted,
   },
   actions: {
     setSelection: assign({
@@ -256,11 +161,6 @@ export const migrationUiMachine = setup({
         hcaClient: event.hcaClient,
         refreshAccount: event.refreshAccount,
         reconcileBeforeSubmit: false,
-        createdApprovals: [] as readonly MigrationApproval[],
-        cleanupPending: [] as readonly MigrationApproval[],
-        cleanupWalletAddress: event.plan.migrationOwner,
-        cleanupHcaAddress: event.plan.hcaAddress,
-        migrationCompleted: false,
         stepDescriptors: event.plan.stepDescriptors,
         progress: undefined,
         lastError: undefined,
@@ -300,70 +200,7 @@ export const migrationUiMachine = setup({
       ]
       return {
         txHashes: mergedHashes,
-        createdApprovals: event.result.cleanupPending,
-        cleanupPending: event.result.cleanupPending,
-        migrationCompleted: true,
       }
-    }),
-    restoreCleanup: assign(({ event }) => {
-      if (event.type !== 'cleanup.restore') return {}
-      return {
-        signer: event.signer,
-        createdApprovals: event.approvals,
-        cleanupPending: event.approvals,
-        cleanupWalletAddress: event.walletAddress,
-        cleanupHcaAddress: event.hcaAddress,
-        migrationCompleted: false,
-        progress: undefined,
-        lastError: undefined,
-      }
-    }),
-    prepareCancelledCleanup: assign({
-      cleanupPending: ({ context }) => context.createdApprovals,
-      migrationCompleted: false,
-      progress: undefined,
-      lastError: undefined,
-    }),
-    appendCreatedApproval: assign(({ event, context }) => {
-      if (event.type !== 'migration.approvalCreated') return {}
-      return {
-        createdApprovals: trackCreatedMigrationApproval(
-          context.createdApprovals,
-          event.approval,
-        ),
-      }
-    }),
-    removeCreatedApproval: assign(({ event, context }) => {
-      if (event.type !== 'migration.approvalRemoved') return {}
-      const removedKey = migrationApprovalKey(event.approval)
-      const createdApprovals = context.createdApprovals.filter(
-        (approval) => migrationApprovalKey(approval) !== removedKey,
-      )
-      return {
-        createdApprovals,
-        cleanupPending: context.cleanupPending.filter(
-          (approval) => migrationApprovalKey(approval) !== removedKey,
-        ),
-      }
-    }),
-    recordCleanupCompletion: assign(({ event, context }) => {
-      if (event.type !== 'cleanup.complete') return {}
-      const existingHashes = new Set(context.txHashes)
-      return {
-        txHashes: [
-          ...context.txHashes,
-          ...event.result.txHashes.filter((hash) => !existingHashes.has(hash)),
-        ],
-        createdApprovals: event.result.pending,
-        cleanupPending: event.result.pending,
-        lastError: event.result.error
-          ? decodeMigrationError(event.result.error)
-          : undefined,
-      }
-    }),
-    setCleanupError: assign({
-      lastError: ({ event, context }) =>
-        event.type === 'cleanup.failed' ? event.error : context.lastError,
     }),
     setError: assign({
       lastError: ({ event, context }) =>
@@ -391,12 +228,6 @@ export const migrationUiMachine = setup({
   context: ({ input }) => initialContext(input.wagmiConfig),
   initial: 'select',
   on: {
-    'migration.approvalCreated': {
-      actions: 'appendCreatedApproval',
-    },
-    'migration.approvalRemoved': {
-      actions: 'removeCreatedApproval',
-    },
     'migration.failed': {
       target: '.failure',
       actions: 'setError',
@@ -412,11 +243,6 @@ export const migrationUiMachine = setup({
           target: 'migrate',
           guard: 'hasSelection',
           actions: 'captureMigrationStart',
-        },
-        'cleanup.restore': {
-          target: 'cleanupRequired',
-          guard: ({ event }) => event.approvals.length > 0,
-          actions: 'restoreCleanup',
         },
       },
     },
@@ -444,7 +270,6 @@ export const migrationUiMachine = setup({
                 hcaClient: context.hcaClient,
                 refreshAccount: context.refreshAccount,
                 reconcileBeforeSubmit: context.reconcileBeforeSubmit,
-                createdApprovals: context.createdApprovals,
               }
             },
           },
@@ -456,11 +281,6 @@ export const migrationUiMachine = setup({
               actions: 'appendBatchComplete',
             },
             'migration.complete': [
-              {
-                target: '#migrationUi.cleanupRequired',
-                guard: 'hasCleanupPending',
-                actions: 'recordCompletion',
-              },
               {
                 target: 'failing',
                 guard: 'isOnlyFailures',
@@ -484,69 +304,6 @@ export const migrationUiMachine = setup({
         },
       },
     },
-    cleanupRequired: {
-      tags: 'result',
-      on: {
-        'cleanup.retry': {
-          target: 'cleanupRunning',
-        },
-        'cleanup.continue': {
-          target: 'success',
-          guard: 'migrationCompleted',
-        },
-      },
-    },
-    cleanupRunning: {
-      tags: 'running',
-      invoke: {
-        id: 'runCleanup',
-        src: 'runCleanup',
-        input: ({ context }) => {
-          if (
-            !context.signer ||
-            !context.cleanupWalletAddress ||
-            !context.cleanupHcaAddress
-          ) {
-            throw new Error('Migration cleanup context is incomplete')
-          }
-          return {
-            wagmiConfig: context.wagmiConfig,
-            signer: context.signer,
-            approvals: context.cleanupPending,
-            walletAddress: context.cleanupWalletAddress,
-            hcaAddress: context.cleanupHcaAddress,
-          }
-        },
-      },
-      on: {
-        'migration.progress': {
-          actions: 'setProgress',
-        },
-        'cleanup.complete': [
-          {
-            target: 'select',
-            guard: ({ context, event }) =>
-              event.type === 'cleanup.complete' &&
-              event.result.pending.length === 0 &&
-              !context.migrationCompleted,
-            actions: 'resetAll',
-          },
-          {
-            target: 'success',
-            guard: 'isCleanupComplete',
-            actions: 'recordCleanupCompletion',
-          },
-          {
-            target: 'cleanupRequired',
-            actions: 'recordCleanupCompletion',
-          },
-        ],
-        'cleanup.failed': {
-          target: 'cleanupRequired',
-          actions: 'setCleanupError',
-        },
-      },
-    },
     success: {
       tags: 'result',
       on: {
@@ -563,17 +320,10 @@ export const migrationUiMachine = setup({
           target: 'migrate',
           actions: 'resetForRetry',
         },
-        cancel: [
-          {
-            target: 'cleanupRunning',
-            guard: 'hasTrackedApprovals',
-            actions: 'prepareCancelledCleanup',
-          },
-          {
-            target: 'select',
-            actions: 'resetAll',
-          },
-        ],
+        cancel: {
+          target: 'select',
+          actions: 'resetAll',
+        },
       },
     },
   },

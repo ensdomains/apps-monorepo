@@ -6,7 +6,7 @@ Following HCA registration support in #989, ENS v2 migration now uses the
 remediated standalone HCA deployment on Sepolia. The connected wallet remains
 the name owner while each gas-safe HCA batch atomically transfers names to the
 correct v2 receiver, restores legacy manager access, and replays records. Fresh
-HCA setup and temporary permissions are handled in-flow, with execution paid in
+HCA setup and required permissions are handled in-flow, with execution paid in
 Sepolia ETH.
 
 ## Wallet confirmations
@@ -22,16 +22,16 @@ path, the common cases are:
 | Selection | Existing HCA | Fresh HCA |
 | --- | ---: | ---: |
 | One unwrapped name | 2 | 3 |
-| Wrapped names or multiple same-type names | 3 | 4 |
+| Wrapped names or multiple same-type names | 2 | 3 |
 | Required permissions already exist | 1 | 2 |
 
-The count includes the migration batch, required permission grants, expected
-operator cleanup, and HCA deployment when needed. An unwrapped selection of one
-or two names uses per-token ERC-721 approvals, which clear automatically when
-the transfer succeeds and therefore do not add a cleanup confirmation. A
-missing ETHRegistry approval for manager restoration adds one grant and one
-cleanup confirmation. Every additional gas-safe atomic batch adds one
-confirmation.
+The count includes the migration batch, required permission grants, and HCA
+deployment when needed. An unwrapped selection of one or two names uses
+per-token ERC-721 approvals, which clear automatically when the transfer
+succeeds. Operator approvals remain available to the wallet-owned HCA for later
+use, so migration does not add a separate revoke transaction. A missing
+ETHRegistry approval for manager restoration adds one confirmation. Every
+additional gas-safe atomic batch adds one confirmation.
 
 ## Operator notes
 
@@ -60,10 +60,10 @@ confirmation.
   mined receipt.
 - Custom resolvers are preserved. Locked names whose replaceable resolver is
   absent from the live `PublicResolverSet` remain blocked.
-- Only permissions submitted by this flow are recorded for cleanup.
-  Pre-existing operator approvals are never revoked. Token approvals that were
-  not consumed and operator cleanup failures remain separately retryable
-  without rolling back a verified migration.
+- Operator approvals are intentionally persistent and can be reused by the
+  wallet-owned HCA. Migration never asks the wallet for a follow-up revoke
+  transaction. Per-token approvals clear automatically when their transfers
+  succeed.
 - The rollout remains behind the existing migration feature flag.
 
 ## QA acceptance scenarios
@@ -72,8 +72,8 @@ QA should cover fresh and existing HCAs; unwrapped, unlocked wrapped, locked
 2LD, and locked/detached descendant names; parent-first locked hierarchies;
 legacy managers and records; multiple gas batches and retry reconciliation;
 transaction speed-up/replacement; complete atomic rollback; automatic
-token-approval clearing; operator cleanup; and separately retryable cleanup
-failure. No migration E2E implementation is included in this change.
+token-approval clearing; and persistent operator-approval reuse. No migration
+E2E implementation is included in this change.
 
 ## Release gate
 

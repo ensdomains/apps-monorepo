@@ -12,7 +12,6 @@ vi.mock('@ens-apps/transaction-manager', () => ({
 
 vi.mock('@/features/migration/service/migrationService', () => ({
   executeMigration: vi.fn(),
-  executeMigrationCleanup: vi.fn(),
 }))
 
 import type { MigrationPlan } from '@/features/migration/service/buildMigrationPlan'
@@ -20,10 +19,8 @@ import type {
   ClassifiedName,
   GroupedNames,
 } from '@/features/migration/service/classifyNames'
-import type { MigrationApproval } from '@/features/migration/service/migrationApprovals'
 import {
   executeMigration,
-  executeMigrationCleanup,
   type MigrationProgress,
   type MigrationResult,
 } from '@/features/migration/service/migrationService'
@@ -31,7 +28,6 @@ import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
 import { migrationUiMachine } from './migrationUi.machine'
 
 const executeMigrationMock = vi.mocked(executeMigration)
-const executeMigrationCleanupMock = vi.mocked(executeMigrationCleanup)
 
 const OWNER: Address = '0x0000000000000000000000000000000000000001'
 const SCA: Address = '0x0000000000000000000000000000000000000002'
@@ -42,24 +38,6 @@ const HCA_CLIENT = {
   getInitData: vi.fn(),
 } as unknown as Pick<RhinestoneAccount, 'getAddress' | 'getInitData'>
 const REFRESH_ACCOUNT = vi.fn<() => Promise<void>>()
-const APPROVAL: MigrationApproval = {
-  kind: 'operator',
-  id: 'base-registrar:hca',
-  contractAddress: '0x0000000000000000000000000000000000000010',
-  operatorAddress: SCA,
-}
-const TOKEN_APPROVAL_ONE: MigrationApproval = {
-  kind: 'erc721-token',
-  id: 'base-registrar:hca-token',
-  contractAddress: '0x0000000000000000000000000000000000000010',
-  operatorAddress: SCA,
-  tokenId: 1n,
-}
-const TOKEN_APPROVAL_TWO: MigrationApproval = {
-  ...TOKEN_APPROVAL_ONE,
-  tokenId: 2n,
-}
-
 const domain = (id: string): V1Domain =>
   ({
     id,
@@ -135,13 +113,11 @@ const migrationResult = (
   completed: 1,
   txHashes: ['0xabc'] as readonly Hex[],
   ineligible: [],
-  cleanupPending: [],
   ...overrides,
 })
 
 beforeEach(() => {
   executeMigrationMock.mockReset()
-  executeMigrationCleanupMock.mockReset()
   REFRESH_ACCOUNT.mockReset()
   vi.useFakeTimers()
 })
@@ -197,7 +173,6 @@ describe('migrationUiMachine', () => {
           signer: SIGNER,
           hcaClient: HCA_CLIENT,
           refreshAccount: REFRESH_ACCOUNT,
-          createdApprovals: [],
           reconcileBeforeSubmit: false,
         }),
       )
@@ -297,7 +272,6 @@ describe('migrationUiMachine', () => {
       expect(actor.getSnapshot().value).toEqual({ migrate: 'failing' })
       await vi.advanceTimersByTimeAsync(1500)
       expect(actor.getSnapshot().value).toBe('failure')
-      expect(actor.getSnapshot().context.migrationCompleted).toBe(false)
     })
 
     it('routes to failing on migration.failed event', async () => {
@@ -344,15 +318,10 @@ describe('migrationUiMachine', () => {
       expect(ctx.progress).toBeUndefined()
     })
 
-    it('passes confirmed approvals and reconciliation mode into retries', async () => {
-      executeMigrationMock.mockImplementationOnce(async (params) => {
-        params.onApprovalCreated?.(APPROVAL)
-        throw new Error('boom')
-      })
+    it('enables reconciliation mode for retries', async () => {
+      executeMigrationMock.mockRejectedValueOnce(new Error('boom'))
       const actor = start()
       await vi.advanceTimersByTimeAsync(1500)
-
-      expect(actor.getSnapshot().context.createdApprovals).toEqual([APPROVAL])
 
       executeMigrationMock.mockImplementation(() => new Promise(() => {}))
       actor.send({ type: 'retry' })
@@ -360,13 +329,12 @@ describe('migrationUiMachine', () => {
 
       expect(executeMigrationMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          createdApprovals: [APPROVAL],
           reconcileBeforeSubmit: true,
         }),
       )
     })
 
-    it('cancel returns to select and wipes context when no approval was created', async () => {
+    it('cancel returns to select and wipes context', async () => {
       executeMigrationMock.mockRejectedValueOnce(new Error('boom'))
       const actor = start()
       await vi.advanceTimersByTimeAsync(1500)
@@ -375,160 +343,6 @@ describe('migrationUiMachine', () => {
       actor.send({ type: 'cancel' })
       expect(actor.getSnapshot().value).toBe('select')
       expect(actor.getSnapshot().context.plan).toBeUndefined()
-    })
-
-    it('cancel removes tracked approvals before returning to selection', async () => {
-      executeMigrationMock.mockImplementationOnce(async (params) => {
-        params.onApprovalCreated?.(APPROVAL)
-        throw new Error('boom')
-      })
-      const actor = start()
-      await vi.advanceTimersByTimeAsync(1500)
-
-      executeMigrationCleanupMock.mockImplementationOnce(async (params) => {
-        params.onApprovalRemoved?.(APPROVAL)
-        return { txHashes: ['0xdef' as Hex], pending: [] }
-      })
-      actor.send({ type: 'cancel' })
-      expect(actor.getSnapshot().value).toBe('cleanupRunning')
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(executeMigrationCleanupMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          approvals: [APPROVAL],
-          walletAddress: OWNER,
-          hcaAddress: SCA,
-        }),
-      )
-      expect(actor.getSnapshot().value).toBe('select')
-      expect(actor.getSnapshot().context.createdApprovals).toEqual([])
-    })
-  })
-
-  describe('cleanupRequired', () => {
-    it('removes only the matching per-token approval from cleanup state', async () => {
-      let onApprovalRemoved: ((approval: MigrationApproval) => void) | undefined
-      executeMigrationCleanupMock.mockImplementation((params) => {
-        onApprovalRemoved = params.onApprovalRemoved
-        return new Promise(() => {})
-      })
-      const actor = createActor(migrationUiMachine, {
-        input: { wagmiConfig: WAGMI },
-      })
-      actor.start()
-      actor.send({
-        type: 'cleanup.restore',
-        approvals: [TOKEN_APPROVAL_ONE, TOKEN_APPROVAL_TWO],
-        signer: SIGNER,
-        walletAddress: OWNER,
-        hcaAddress: SCA,
-      })
-      actor.send({ type: 'cleanup.retry' })
-
-      onApprovalRemoved?.(TOKEN_APPROVAL_ONE)
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(actor.getSnapshot().context.createdApprovals).toEqual([
-        TOKEN_APPROVAL_TWO,
-      ])
-      expect(actor.getSnapshot().context.cleanupPending).toEqual([
-        TOKEN_APPROVAL_TWO,
-      ])
-    })
-
-    it('restores interrupted cleanup without marking migration complete', async () => {
-      const actor = createActor(migrationUiMachine, {
-        input: { wagmiConfig: WAGMI },
-      })
-      actor.start()
-      actor.send({
-        type: 'cleanup.restore',
-        approvals: [APPROVAL],
-        signer: SIGNER,
-        walletAddress: OWNER,
-        hcaAddress: SCA,
-      })
-
-      expect(actor.getSnapshot().value).toBe('cleanupRequired')
-      expect(actor.getSnapshot().context.migrationCompleted).toBe(false)
-      expect(actor.getSnapshot().context.cleanupPending).toEqual([APPROVAL])
-
-      actor.send({ type: 'cleanup.continue' })
-      expect(actor.getSnapshot().value).toBe('cleanupRequired')
-
-      executeMigrationCleanupMock.mockResolvedValueOnce({
-        txHashes: [],
-        pending: [],
-      })
-      actor.send({ type: 'cleanup.retry' })
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(executeMigrationCleanupMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          approvals: [APPROVAL],
-          walletAddress: OWNER,
-          hcaAddress: SCA,
-        }),
-      )
-      expect(actor.getSnapshot().value).toBe('select')
-    })
-
-    it('retries pending cleanup and reaches success only after it is clean', async () => {
-      executeMigrationMock.mockResolvedValueOnce(
-        migrationResult({ cleanupPending: [APPROVAL] }),
-      )
-      const actor = start()
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(actor.getSnapshot().value).toBe('cleanupRequired')
-      expect(actor.getSnapshot().context.cleanupPending).toEqual([APPROVAL])
-
-      executeMigrationCleanupMock.mockImplementationOnce(async (params) => {
-        params.onApprovalRemoved?.(APPROVAL)
-        return {
-          txHashes: ['0xdef' as Hex],
-          pending: [],
-        }
-      })
-      actor.send({ type: 'cleanup.retry' })
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(executeMigrationCleanupMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          approvals: [APPROVAL],
-          signer: SIGNER,
-          walletAddress: OWNER,
-          hcaAddress: SCA,
-        }),
-      )
-      expect(actor.getSnapshot().value).toBe('success')
-      expect(actor.getSnapshot().context.cleanupPending).toEqual([])
-      expect(actor.getSnapshot().context.createdApprovals).toEqual([])
-      expect(actor.getSnapshot().context.txHashes).toEqual(['0xabc', '0xdef'])
-    })
-
-    it('stays retryable after cleanup failure and can be acknowledged', async () => {
-      executeMigrationMock.mockResolvedValueOnce(
-        migrationResult({ cleanupPending: [APPROVAL] }),
-      )
-      const actor = start()
-      await vi.advanceTimersByTimeAsync(0)
-
-      executeMigrationCleanupMock.mockResolvedValueOnce({
-        txHashes: [],
-        pending: [APPROVAL],
-        error: new Error('cleanup reverted'),
-      })
-      actor.send({ type: 'cleanup.retry' })
-      await vi.advanceTimersByTimeAsync(0)
-
-      expect(actor.getSnapshot().value).toBe('cleanupRequired')
-      expect(actor.getSnapshot().context.cleanupPending).toEqual([APPROVAL])
-      expect(actor.getSnapshot().context.lastError?.type).toBe('generic')
-
-      actor.send({ type: 'cleanup.continue' })
-      expect(actor.getSnapshot().value).toBe('success')
-      expect(actor.getSnapshot().context.cleanupPending).toEqual([APPROVAL])
     })
   })
 })

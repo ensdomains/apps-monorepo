@@ -28,21 +28,13 @@ import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type { IneligibleName } from './classifyNames'
 import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
-import {
-  loadMigrationApprovalLedger,
-  type MigrationApprovalLedgerScope,
-  mergeMigrationApprovalLedgers,
-  persistMigrationApprovalLedger,
-} from './migrationApprovalLedger'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
   buildMigrationApprovalCall,
-  checkMigrationApprovalActive,
   checkMigrationApprovals,
   type MigrationApproval,
   migrationApprovalKey,
   planMigrationApprovals,
-  trackCreatedMigrationApproval,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -137,14 +129,6 @@ export type MigrationResult = {
   readonly completed: number
   readonly txHashes: readonly Hex[]
   readonly ineligible: readonly IneligibleName[]
-  /** Tracked grants which could not yet be cleared. Migration is complete. */
-  readonly cleanupPending: readonly MigrationApproval[]
-}
-
-export type MigrationCleanupResult = {
-  readonly txHashes: readonly Hex[]
-  readonly pending: readonly MigrationApproval[]
-  readonly error?: unknown
 }
 
 type Tracker = {
@@ -187,20 +171,6 @@ type MigrationCtx = {
   readonly walletAddress: Address
   readonly hcaAddress: Address
   readonly tracker: Tracker
-}
-
-const approvalLedgerScope = (
-  ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress' | 'hcaAddress'>,
-): MigrationApprovalLedgerScope => {
-  const chainId = ctx.publicClient.chain?.id
-  if (!chainId) {
-    throw new Error('publicClient is missing a chain configuration')
-  }
-  return {
-    chainId,
-    owner: ctx.walletAddress,
-    hca: ctx.hcaAddress,
-  }
 }
 
 const batchJournalScope = (
@@ -339,12 +309,8 @@ const approvalDescription = (approval: MigrationApproval): string => {
     return 'Allowing your HCA to migrate this registration'
   }
   switch (approval.id) {
-    case 'base-registrar:migration-helper':
-      return 'Removing an old migration helper permission'
     case 'base-registrar:hca':
       return 'Allowing your HCA to migrate registrations'
-    case 'name-wrapper:migration-helper':
-      return 'Removing an old wrapped-name helper permission'
     case 'name-wrapper:hca':
       return 'Allowing your HCA to migrate wrapped names'
     case 'eth-registry:hca':
@@ -410,23 +376,13 @@ const assertMigrationApprovalPlanCurrent = async (params: {
 const ensureMigrationApprovals = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
-  readonly initialLedger: readonly MigrationApproval[]
   readonly currentMissing?: readonly MigrationApproval[]
-  readonly onApprovalCreated?: (approval: MigrationApproval) => void
-}): Promise<{
-  readonly hashes: readonly Hex[]
-  readonly ledger: readonly MigrationApproval[]
-}> => {
-  const { ctx, plan, onApprovalCreated } = params
+}): Promise<readonly Hex[]> => {
+  const { ctx, plan } = params
   const missing =
     params.currentMissing ?? (await getMissingMigrationApprovals({ ctx, plan }))
 
   const hashes: Hex[] = []
-  const scope = approvalLedgerScope(ctx)
-  let ledger = mergeMigrationApprovalLedgers(
-    params.initialLedger,
-    loadMigrationApprovalLedger(scope),
-  )
   const missingById = new Map(
     missing.map((approval) => [migrationApprovalKey(approval), approval]),
   )
@@ -455,15 +411,9 @@ const ensureMigrationApprovals = async (params: {
     }
     const description = approvalDescription(approval)
     try {
-      // Persist before asking the wallet to sign. If broadcasting or receipt
-      // polling becomes uncertain, a reload still knows which exact grant may
-      // need removal. Cleanup checks on-chain state before sending a revoke.
-      ledger = trackCreatedMigrationApproval(ledger, approval)
-      persistMigrationApprovalLedger(scope, ledger)
-      onApprovalCreated?.(approval)
       const { hash } = await submitCall(
         ctx,
-        buildMigrationApprovalCall(approval, true),
+        buildMigrationApprovalCall(approval),
         description,
       )
       hashes.push(hash)
@@ -473,7 +423,7 @@ const ensureMigrationApprovals = async (params: {
       throw wrapMigrationError(error, description)
     }
   }
-  return { hashes, ledger }
+  return hashes
 }
 
 const removeNames = <T extends { readonly domain: { readonly name: string } }>(
@@ -822,8 +772,6 @@ const buildNextAtomicBatch = async (params: {
 
 export type OnBatchComplete = (names: readonly string[], txHash?: Hex) => void
 
-export type OnApprovalChanged = (approval: MigrationApproval) => void
-
 let atomicMigrationIntentNonce = 0
 const createAtomicMigrationIntentId = (): string => {
   atomicMigrationIntentNonce += 1
@@ -960,103 +908,6 @@ const executeRemainingAtomicBatches = async (params: {
   return hashes
 }
 
-export const executeMigrationCleanup = async (params: {
-  readonly approvals: readonly MigrationApproval[]
-  readonly wagmiConfig: WagmiConfig
-  readonly publicClient: PublicClient
-  readonly signer: Signer
-  readonly walletAddress: Address
-  readonly hcaAddress: Address
-  readonly onProgress?: (progress: MigrationProgress) => void
-  readonly onApprovalRemoved?: OnApprovalChanged
-  /** Reuse the active migration tracker when cleanup is part of the same run. */
-  readonly tracker?: Tracker
-  /** The active migration plan represents cleanup as one aggregate step. */
-  readonly plannedCleanupStep?: boolean
-}): Promise<MigrationCleanupResult> => {
-  const scope = approvalLedgerScope({
-    publicClient: params.publicClient,
-    walletAddress: params.walletAddress,
-    hcaAddress: params.hcaAddress,
-  })
-  let pending = mergeMigrationApprovalLedgers(
-    params.approvals,
-    loadMigrationApprovalLedger(scope),
-  )
-  const tracker =
-    params.tracker ??
-    createTracker(params.onProgress ?? (() => undefined), pending.length)
-  const ctx: MigrationCtx = {
-    wagmiConfig: params.wagmiConfig,
-    publicClient: params.publicClient,
-    signer: params.signer,
-    walletAddress: params.walletAddress,
-    hcaAddress: params.hcaAddress,
-    tracker,
-  }
-  const hashes: Hex[] = []
-  let lastCompletedHash: Hex | undefined
-
-  const markApprovalRemoved = (description: string, hash?: Hex) => {
-    if (params.tracker && params.plannedCleanupStep) {
-      tracker.emit(description, hash)
-      lastCompletedHash = hash ?? lastCompletedHash
-      return
-    }
-    tracker.next()
-    tracker.emit(description, hash)
-  }
-
-  for (const approval of [...pending].reverse()) {
-    try {
-      const isActive = await checkMigrationApprovalActive({
-        approval,
-        owner: params.walletAddress,
-        publicClient: params.publicClient,
-      })
-      if (!isActive) {
-        pending = pending.filter(
-          (candidate) =>
-            migrationApprovalKey(candidate) !== migrationApprovalKey(approval),
-        )
-        persistMigrationApprovalLedger(scope, pending)
-        params.onApprovalRemoved?.(approval)
-        const isAutoClearedTokenApproval =
-          approval.kind === 'erc721-token' &&
-          params.tracker !== undefined &&
-          !params.plannedCleanupStep
-        if (!isAutoClearedTokenApproval) {
-          markApprovalRemoved('Temporary permission already removed')
-        }
-        continue
-      }
-
-      const { hash } = await submitCall(
-        ctx,
-        buildMigrationApprovalCall(approval, false),
-        'Removing temporary permission',
-      )
-      hashes.push(hash)
-      pending = pending.filter(
-        (candidate) =>
-          migrationApprovalKey(candidate) !== migrationApprovalKey(approval),
-      )
-      persistMigrationApprovalLedger(scope, pending)
-      params.onApprovalRemoved?.(approval)
-      markApprovalRemoved('Temporary permission removed', hash)
-    } catch (error) {
-      return { txHashes: hashes, pending, error }
-    }
-  }
-
-  if (params.tracker && params.plannedCleanupStep) {
-    tracker.next()
-    tracker.emit('Temporary permissions removed', lastCompletedHash)
-  }
-
-  return { txHashes: hashes, pending }
-}
-
 export const executeMigration = async (params: {
   readonly plan: MigrationPlan
   readonly wagmiConfig: WagmiConfig
@@ -1066,9 +917,6 @@ export const executeMigration = async (params: {
   readonly refreshAccount: () => Promise<void>
   readonly onProgress: (progress: MigrationProgress) => void
   readonly onBatchComplete?: OnBatchComplete
-  readonly createdApprovals?: readonly MigrationApproval[]
-  readonly onApprovalCreated?: OnApprovalChanged
-  readonly onApprovalRemoved?: OnApprovalChanged
   /** Set on retry to reconcile a receipt whose post-state polling was uncertain. */
   readonly reconcileBeforeSubmit?: boolean
 }): Promise<MigrationResult> => {
@@ -1084,22 +932,11 @@ export const executeMigration = async (params: {
   } = params
   const { classified, ineligible } = plan
 
-  const scope: MigrationApprovalLedgerScope = {
-    chainId: publicClient.chain?.id ?? 11155111,
-    owner: plan.migrationOwner,
-    hca: plan.hcaAddress,
-  }
-  let createdApprovals = mergeMigrationApprovalLedgers(
-    params.createdApprovals ?? [],
-    loadMigrationApprovalLedger(scope),
-  )
-
   if (classified.length === 0) {
     return {
       completed: 0,
       txHashes: [],
       ineligible: [...ineligible],
-      cleanupPending: createdApprovals,
     }
   }
 
@@ -1141,15 +978,13 @@ export const executeMigration = async (params: {
     })
     if (deploymentHash) txHashes.push(deploymentHash)
 
-    const approvals = await ensureMigrationApprovals({
-      ctx,
-      plan: executionPlan,
-      initialLedger: createdApprovals,
-      currentMissing,
-      onApprovalCreated: params.onApprovalCreated,
-    })
-    txHashes.push(...approvals.hashes)
-    createdApprovals = approvals.ledger
+    txHashes.push(
+      ...(await ensureMigrationApprovals({
+        ctx,
+        plan: executionPlan,
+        currentMissing,
+      })),
+    )
 
     txHashes.push(
       ...(await executeRemainingAtomicBatches({
@@ -1160,35 +995,11 @@ export const executeMigration = async (params: {
       })),
     )
   }
-
-  const cleanup = await executeMigrationCleanup({
-    approvals: createdApprovals,
-    wagmiConfig,
-    publicClient,
-    signer,
-    walletAddress: plan.migrationOwner,
-    hcaAddress: plan.hcaAddress,
-    tracker: ctx.tracker,
-    plannedCleanupStep: plan.stepDescriptors.some(
-      (descriptor) => descriptor.type === 'cleanup',
-    ),
-    onApprovalRemoved: (approval) => {
-      createdApprovals = createdApprovals.filter(
-        (candidate) =>
-          migrationApprovalKey(candidate) !== migrationApprovalKey(approval),
-      )
-      params.onApprovalRemoved?.(approval)
-    },
-  })
-  txHashes.push(...cleanup.txHashes)
-  if (cleanup.pending.length === 0) {
-    ctx.tracker.complete('Migration complete', txHashes.at(-1))
-  }
+  ctx.tracker.complete('Migration complete', txHashes.at(-1))
 
   return {
     completed: classified.length,
     txHashes,
     ineligible: [...ineligible],
-    cleanupPending: cleanup.pending,
   }
 }
