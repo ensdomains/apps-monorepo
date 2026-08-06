@@ -18,11 +18,7 @@ export const SidebarTriggerRow = <T extends RowData = RowData>({
   showMoreButton?: boolean
 }) => {
   return (
-    <TableRow
-      className={'hover:bg-muted'}
-      key={row.id}
-      data-state={row.getIsSelected() && 'selected'}
-    >
+    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
       {row.getVisibleCells().map((cell) => (
         <TableCell key={cell.id} className={cn('px-6', 'h-10 py-0')}>
           {flexRender(cell.column.columnDef.cell, cell.getContext())}

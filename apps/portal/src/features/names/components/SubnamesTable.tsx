@@ -395,7 +395,6 @@ export const SubnamesTable = ({
                   <TableRow
                     data-state={row.getIsSelected() && 'selected'}
                     className={cn(
-                      'hover:bg-muted',
                       isPendingTx && 'opacity-50 pointer-events-none',
                     )}
                   >
@@ -412,7 +411,7 @@ export const SubnamesTable = ({
                     ))}
                   </TableRow>
                   {isPendingDelete && (
-                    <TableRow className="bg-muted hover:bg-muted">
+                    <TableRow className="bg-muted">
                       <TableCell colSpan={columns.length} className="px-6 py-3">
                         <div className="flex items-center justify-between">
                           <span className="font-medium">

@@ -276,7 +276,7 @@ function RouteComponent() {
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className={'hover:bg-muted'}>
+                  <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}

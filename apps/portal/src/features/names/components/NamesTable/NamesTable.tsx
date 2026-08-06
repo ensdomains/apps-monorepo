@@ -68,7 +68,6 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
-                className={'hover:bg-muted'}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell className={cn('px-6', 'h-10 py-0')} key={cell.id}>
