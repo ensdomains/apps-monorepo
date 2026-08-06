@@ -305,10 +305,15 @@ export const buildMigrationPlan = async (params: {
   const approvals = preflight.migrationApprovals ?? []
   const hcaDeploymentRequired =
     preflight.hcaReadiness?.status === 'deployment-required'
+  const registrationApprovalTargets = groups.unwrapped.map(({ domain }) => ({
+    name: domain.name,
+    tokenId: BigInt(domain.labelhash),
+  }))
   const stepDescriptors = buildStepDescriptors({
     hcaDeploymentRequired,
     approvals,
     atomicBatches: atomicPlan.batches,
+    registrationApprovalTargets,
   })
 
   return {
@@ -381,6 +386,10 @@ export const adjustPlanForRetry = (
     hcaDeploymentRequired: plan.hcaDeploymentRequired,
     approvals: plan.preflight.migrationApprovals ?? [],
     atomicBatches: remainingAtomicBatches,
+    registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
+      name: domain.name,
+      tokenId: BigInt(domain.labelhash),
+    })),
   })
 
   return {

@@ -32,6 +32,10 @@ const batches = (
 ): readonly AtomicMigrationBatch[] =>
   namesByBatch.map((names) => ({ names }) as AtomicMigrationBatch)
 
+const registrationApprovalTargets = (
+  ...targets: readonly (readonly [tokenId: bigint, name: string])[]
+) => targets.map(([tokenId, name]) => ({ name, tokenId }))
+
 describe('buildStepDescriptors', () => {
   it('uses three successful-path steps for one unwrapped name and a fresh HCA', () => {
     expect(
@@ -39,10 +43,19 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: true,
         approvals: [tokenApproval()],
         atomicBatches: batches(['alice.eth']),
+        registrationApprovalTargets: registrationApprovalTargets([
+          1n,
+          'alice.eth',
+        ]),
       }),
     ).toEqual([
       { type: 'deploy-hca' },
-      { type: 'approval', approvalId: 'base-registrar:hca-token' },
+      {
+        type: 'approval',
+        approvalId: 'base-registrar:hca-token',
+        name: 'alice.eth',
+        tokenId: 1n,
+      },
       { type: 'atomic-batch', index: 0, total: 1, count: 1 },
     ])
   })
@@ -53,6 +66,10 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: false,
         approvals: [tokenApproval()],
         atomicBatches: batches(['alice.eth']),
+        registrationApprovalTargets: registrationApprovalTargets([
+          1n,
+          'alice.eth',
+        ]),
       }),
     ).toHaveLength(2)
   })
@@ -63,9 +80,10 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: false,
         approvals: [operatorApproval('name-wrapper:hca')],
         atomicBatches: batches(['alice.eth', 'bob.eth']),
+        registrationApprovalTargets: [],
       }),
     ).toEqual([
-      { type: 'approval', approvalId: 'name-wrapper:hca' },
+      { type: 'approval', approvalId: 'name-wrapper:hca', count: undefined },
       { type: 'atomic-batch', index: 0, total: 1, count: 2 },
     ])
   })
@@ -76,6 +94,7 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: false,
         approvals: [],
         atomicBatches: batches(['alice.eth']),
+        registrationApprovalTargets: [],
       }),
     ).toEqual([{ type: 'atomic-batch', index: 0, total: 1, count: 1 }])
   })
@@ -86,9 +105,10 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: false,
         approvals: [operatorApproval('eth-registry:hca')],
         atomicBatches: batches(['alice.eth']),
+        registrationApprovalTargets: [],
       }),
     ).toEqual([
-      { type: 'approval', approvalId: 'eth-registry:hca' },
+      { type: 'approval', approvalId: 'eth-registry:hca', count: undefined },
       { type: 'atomic-batch', index: 0, total: 1, count: 1 },
     ])
   })
@@ -99,6 +119,7 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: false,
         approvals: [],
         atomicBatches: batches(['alice.eth'], ['bob.eth']),
+        registrationApprovalTargets: [],
       }),
     ).toEqual([
       { type: 'atomic-batch', index: 0, total: 2, count: 1 },
@@ -112,7 +133,36 @@ describe('buildStepDescriptors', () => {
         hcaDeploymentRequired: false,
         approvals: [],
         atomicBatches: [],
+        registrationApprovalTargets: [],
       }),
     ).toEqual([])
+  })
+
+  it('labels repeated token approvals with their registration names', () => {
+    expect(
+      buildStepDescriptors({
+        hcaDeploymentRequired: false,
+        approvals: [tokenApproval(1n), tokenApproval(2n)],
+        atomicBatches: batches(['alice.eth', 'bob.eth']),
+        registrationApprovalTargets: registrationApprovalTargets(
+          [1n, 'alice.eth'],
+          [2n, 'bob.eth'],
+        ),
+      }),
+    ).toEqual([
+      {
+        type: 'approval',
+        approvalId: 'base-registrar:hca-token',
+        name: 'alice.eth',
+        tokenId: 1n,
+      },
+      {
+        type: 'approval',
+        approvalId: 'base-registrar:hca-token',
+        name: 'bob.eth',
+        tokenId: 2n,
+      },
+      { type: 'atomic-batch', index: 0, total: 1, count: 2 },
+    ])
   })
 })

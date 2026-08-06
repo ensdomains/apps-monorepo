@@ -150,24 +150,23 @@ describe('planMigrationApprovals', () => {
     requiresManagerRestoration: false,
   })
 
-  it('uses per-token approval for one or two missing registrations', () => {
-    const twoTokenPlan = planMigrationApprovals({
+  it('uses per-token approval for one missing registration', () => {
+    const oneTokenPlan = planMigrationApprovals({
       hcaAddress: HCA,
-      needs: needsFor([TOKEN_ONE, TOKEN_TWO]),
-      status: statusFor([TOKEN_ONE, TOKEN_TWO]),
+      needs: needsFor([TOKEN_ONE]),
+      status: statusFor([TOKEN_ONE]),
     })
-    expect(twoTokenPlan).toMatchObject([
+    expect(oneTokenPlan).toMatchObject([
       { kind: 'erc721-token', tokenId: TOKEN_ONE },
-      { kind: 'erc721-token', tokenId: TOKEN_TWO },
     ])
   })
 
-  it('uses one operator approval when more than two registrations are missing', () => {
+  it('uses one operator approval when two registrations are missing', () => {
     expect(
       planMigrationApprovals({
         hcaAddress: HCA,
-        needs: needsFor([TOKEN_ONE, TOKEN_TWO, TOKEN_THREE]),
-        status: statusFor([TOKEN_ONE, TOKEN_TWO, TOKEN_THREE]),
+        needs: needsFor([TOKEN_ONE, TOKEN_TWO]),
+        status: statusFor([TOKEN_ONE, TOKEN_TWO]),
       }),
     ).toMatchObject([{ kind: 'operator', id: 'base-registrar:hca' }])
   })
@@ -185,10 +184,7 @@ describe('planMigrationApprovals', () => {
           ],
         }),
       }),
-    ).toMatchObject([
-      { kind: 'erc721-token', tokenId: TOKEN_TWO },
-      { kind: 'erc721-token', tokenId: TOKEN_THREE },
-    ])
+    ).toMatchObject([{ kind: 'operator', id: 'base-registrar:hca' }])
   })
 
   it('omits all registration grants when the HCA is already an operator', () => {
