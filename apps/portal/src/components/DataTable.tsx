@@ -18,6 +18,14 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
+declare module '@tanstack/react-table' {
+  // biome-ignore lint/correctness/noUnusedVariables: declaration merging must match the library's generic signature
+  interface ColumnMeta<TData, TValue> {
+    /** Fixed column width in px; switches the table to fixed layout. */
+    width?: number
+  }
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -39,14 +47,27 @@ export const DataTable = <TData, TValue>({
     },
   })
 
+  // Columns that declare meta.width get a fixed width; the table switches to
+  // fixed layout so sibling tables with the same widths align. (tanstack's
+  // `size` can't be used here — the resolved columnDef backfills a 150px
+  // default, which would leave no auto column to absorb leftover space.)
+  const hasSizedColumns = columns.some((column) => column.meta?.width != null)
+
   return (
-    <Table>
+    <Table className={cn(hasSizedColumns && 'table-fixed')}>
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => {
               return (
-                <TableHead key={header.id}>
+                <TableHead
+                  key={header.id}
+                  style={
+                    header.column.columnDef.meta?.width != null
+                      ? { width: header.column.columnDef.meta.width }
+                      : undefined
+                  }
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
