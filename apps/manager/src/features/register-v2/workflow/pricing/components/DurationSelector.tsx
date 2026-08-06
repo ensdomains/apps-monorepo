@@ -98,6 +98,14 @@ export const DurationSelector = () => {
         )
       })}
 
+      {/*
+        DurationCustomRow is memoized so this component's frequent price-query
+        re-renders don't reach the open calendar and dismiss its native
+        month/year <select>. Keep every prop below referentially stable
+        (primitives, or callbacks via useCallback) — passing an inline
+        arrow/object/array silently defeats the memo and the dropdown flicker
+        regresses.
+      */}
       <DurationCustomRow
         isSelected={selectedPresetIdx === -1}
         onDurationSet={handleDurationSet}
