@@ -376,7 +376,7 @@ export const EntityBadge = ({
           // Content entities keep the fill hidden until hover/focus reveals
           // the chips, so resting rows read as plain text.
           type === 'content' &&
-            'opacity-0 group-hover/entity:opacity-100 group-focus-within/entity:opacity-100',
+            'opacity-0 group-hover/entity:opacity-100 group-has-[:focus-visible]/entity:opacity-100',
           // Horizontal px-1 on the pill adds 4px of internal colored area on
           // each side; vertical centering in h-5 adds only 3px. Use -1px x-inset
           // vs -2px y-inset so the visible rim is equal (~5px) on all sides.
@@ -441,7 +441,7 @@ export const EntityBadge = ({
           // order and the accessibility tree.
           'opacity-0 pointer-events-none transition-opacity',
           'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
-          'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
+          'group-has-[:focus-visible]/entity:opacity-100 group-has-[:focus-visible]/entity:pointer-events-auto',
         )}
       >
         {variant === 'name' && name && (

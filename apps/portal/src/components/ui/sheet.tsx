@@ -55,6 +55,13 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
+        // focus the panel itself on open — Radix's default (first focusable
+        // element) lands on an entity link and lights up its hover chrome
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          ;(event.currentTarget as HTMLElement | null)?.focus()
+        }}
+        tabIndex={-1}
         className={cn(
           'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col shadow-lg transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500',
           side === 'right' &&
