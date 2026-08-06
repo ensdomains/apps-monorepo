@@ -25,6 +25,18 @@ export type MessageCardVariant = NonNullable<
   VariantProps<typeof messageCardVariants>['variant']
 >
 
+// Per the Builder Message spec the action button takes the message's text
+// color as its fill (e.g. dark green on the success card), not the default
+// black button.
+const messageButtonClass: Record<MessageCardVariant, string> = {
+  primary: '',
+  success:
+    'bg-message-success-text text-white hover:bg-message-success-text/90',
+  danger: 'bg-message-danger-text text-white hover:bg-message-danger-text/90',
+  warning:
+    'bg-message-warning-text text-white hover:bg-message-warning-text/90',
+}
+
 export type MessageCardProps = {
   icon: React.ReactNode
   title: string
@@ -99,6 +111,7 @@ export function MessageCard({
         {actionButton && (
           <Button
             variant={actionButton.variant || 'default'}
+            className={cn(!actionButton.variant && messageButtonClass[variant])}
             onClick={actionButton.onClick}
             asChild={!!actionButton.href}
           >
