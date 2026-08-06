@@ -78,7 +78,7 @@ const TransactionDetails = ({
   }
 
   return (
-    <div className="p-6 flex flex-col gap-6">
+    <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0 sm:[&_[data-slot=info-row]]:h-10">
       <InfoCard title="Transaction details">
         {displayName && (
           <InfoRow label="Name">
@@ -152,8 +152,8 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
         className="sm:max-w-220 bg-background p-0 flex flex-col h-dvh"
       >
         {/* Fixed header at the top */}
-        <div className="p-6 shrink-0 border-b">
-          <SheetHeader>
+        <div className="p-6 pb-0 shrink-0">
+          <SheetHeader className="p-0">
             <SheetTitle className="font-sans text-h2">{title}</SheetTitle>
           </SheetHeader>
         </div>
