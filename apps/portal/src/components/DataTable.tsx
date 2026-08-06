@@ -19,7 +19,6 @@ import {
 import { cn } from '@/lib/utils'
 
 declare module '@tanstack/react-table' {
-  // biome-ignore lint/correctness/noUnusedVariables: declaration merging must match the library's generic signature
   interface ColumnMeta<TData, TValue> {
     /** Fixed column width in px; switches the table to fixed layout. */
     width?: number
