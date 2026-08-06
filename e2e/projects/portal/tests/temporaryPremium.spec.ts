@@ -10,7 +10,7 @@
  *   3. "Temporary premium:" line item in the price breakdown
  *   4. The drawer showing current premium, end date, and calculator
  *
- * The portal uses a headless web3 wallet (RainbowKit) connected to the
+ * The portal uses a headless web3 wallet connected to the
  * anvil fork. The wallet address is passed as `owner` to `rentPrice`,
  * which enables the temporary premium (skipped for address(0)).
  *
