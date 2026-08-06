@@ -97,14 +97,16 @@ const chipClass = cn(
   'text-[11px] font-normal no-underline',
 )
 
-const CopyChip = ({
+export const CopyChip = ({
   value,
   label = 'Copy',
   showIcon = true,
+  className,
 }: {
   readonly value: string
   readonly label?: string
   readonly showIcon?: boolean
+  readonly className?: string
 }) => {
   const [copied, setCopied] = useState(false)
 
@@ -129,7 +131,7 @@ const CopyChip = ({
   return (
     <button
       type="button"
-      className={chipClass}
+      className={cn(chipClass, className)}
       onClick={handleCopy}
       aria-label={label || 'Copy'}
     >
