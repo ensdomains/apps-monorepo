@@ -22,6 +22,7 @@ import { type Address, isAddress, isAddressEqual } from 'viem'
 import { useConnection } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
 import { EntityBadge } from '@/components/EntityBadge'
+import { InfoRow } from '@/components/InfoCard'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,12 +65,6 @@ const coinNetworkName = (coinType: number, fallback: string) => {
     return fallback
   }
 }
-
-const RowLabel = ({ children }: PropsWithChildren) => (
-  <div className="text-ui text-default-text w-28 shrink-0 whitespace-nowrap">
-    {children}
-  </div>
-)
 
 const Banner = ({
   status,
@@ -152,15 +147,14 @@ const CoinTypeRow = ({
   icon: string
   label: string
 }) => (
-  <div className="flex flex-row items-start">
-    <RowLabel>Coin Type</RowLabel>
+  <InfoRow label="Coin Type">
     <div className="flex items-center gap-2">
       {icon && <img src={icon} alt={label} className="w-5 h-5" />}
       <span>
         {coinType} {coinNetworkName(coinType, label)}
       </span>
     </div>
-  </div>
+  </InfoRow>
 )
 
 const AddressField = ({
@@ -182,8 +176,7 @@ const AddressField = ({
   saveLabel: string
   onSave: () => void
 }) => (
-  <div className="flex flex-row items-start">
-    <RowLabel>Address</RowLabel>
+  <InfoRow label="Address">
     <div className="flex-1 flex flex-col gap-2">
       {address ? (
         isAddress(address) ? (
@@ -223,7 +216,7 @@ const AddressField = ({
         </div>
       )}
     </div>
-  </div>
+  </InfoRow>
 )
 
 const PrimaryNameRow = ({
@@ -239,8 +232,7 @@ const PrimaryNameRow = ({
   icon: string
   label: string
 }) => (
-  <div className="flex flex-row items-start">
-    <RowLabel>Primary name</RowLabel>
+  <InfoRow label="Primary name">
     <div className="flex items-center gap-2 flex-wrap">
       <Badge
         variant="outline"
@@ -293,7 +285,7 @@ const PrimaryNameRow = ({
         </div>
       )}
     </div>
-  </div>
+  </InfoRow>
 )
 
 const saveButtonLabel = (s: {
@@ -357,7 +349,7 @@ const ResolutionDetails = ({
   const offerSetPrimary = status === 'mismatch' && canSetPrimaryName
 
   return (
-    <div className="p-6 flex flex-col gap-6">
+    <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
       <SheetHeader className="p-0">
         <SheetTitle className="font-sans text-h2">
           {label} resolution
