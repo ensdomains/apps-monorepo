@@ -67,10 +67,10 @@ export const CoinRecord = ({
         side="top"
         align="start"
         sideOffset={6}
-        className="flex w-auto items-center gap-1.5 rounded-sm border border-neutral-3 bg-neutral-0 px-2 py-1.5 text-neutral-7 shadow-sm"
+        className="flex w-auto max-w-(--radix-hover-card-content-available-width) items-center gap-1.5 rounded-sm border border-neutral-3 bg-neutral-0 px-2 py-1.5 text-neutral-7 shadow-sm"
       >
         <CopyButton value={value} size="sm" />
-        <span className="font-mono text-xs">{value}</span>
+        <span className="min-w-0 font-mono text-xs break-all">{value}</span>
       </HoverCardContent>
     </HoverCard>
   )
