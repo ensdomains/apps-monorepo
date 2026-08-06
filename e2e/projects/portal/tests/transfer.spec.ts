@@ -1,9 +1,9 @@
-import type { Page } from '@playwright/test'
 import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
+import type { Page } from '@playwright/test'
 import {
-  test,
-  expect,
   connectWithHeadlessWallet,
+  expect,
+  test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 
@@ -221,7 +221,10 @@ test.describe('Portal name transfer', () => {
 
     await connectWithHeadlessWallet(page, wallet)
 
-    const name = await makeName({ label: 'transfer-to-ens-name', owner: 'user' })
+    const name = await makeName({
+      label: 'transfer-to-ens-name',
+      owner: 'user',
+    })
     const recipientName = await makeName({
       label: 'test3-recipient',
       owner: 'user2',
@@ -399,9 +402,7 @@ test.describe('Portal name transfer', () => {
     await page.getByLabel('Value').fill('Edited by the new owner')
     await page.getByRole('button', { name: 'Add record' }).click()
     await page.getByRole('button', { name: /Save \d+ change/ }).click()
-    await driveTransactionsToSuccess(page, wallet, [
-      'tx-save-resolver-records',
-    ])
+    await driveTransactionsToSuccess(page, wallet, ['tx-save-resolver-records'])
 
     await expect(page).toHaveURL(new RegExp(`/${name}/records$`), {
       timeout: 30_000,
