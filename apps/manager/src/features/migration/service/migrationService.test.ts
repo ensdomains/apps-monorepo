@@ -1,7 +1,14 @@
 import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
-import type { Address, Hex, PublicClient, TransactionReceipt } from 'viem'
+import {
+  type Address,
+  encodeErrorResult,
+  type Hex,
+  type PublicClient,
+  parseAbi,
+  type TransactionReceipt,
+} from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -53,6 +60,7 @@ vi.mock('./verifyAtomicMigrationBatch', async (importOriginal) => ({
   verifyAtomicMigrationBatch: mocks.verifyAtomicMigrationBatch,
 }))
 
+import type { BuildAtomicMigrationBatchesParams } from './buildAtomicMigrationBatches'
 import type { MigrationPlan } from './buildMigrationPlan'
 import type { ClassifiedName } from './classifyNames'
 import type { MigrationApproval } from './migrationApprovals'
@@ -79,6 +87,9 @@ const APPROVAL_CONTRACT: Address = '0x0000000000000000000000000000000000000006'
 const DEPLOY_DATA: Hex = '0xd3ad'
 const OUTER_DATA: Hex = '0xcafe'
 const GRANT_DATA: Hex = '0x01'
+const DIRECT_PERMISSION_ERROR_ABI = parseAbi([
+  'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
+])
 
 const WAGMI = {} as WagmiConfig
 const SIGNER = {
@@ -119,6 +130,15 @@ const SECOND_APPROVAL: MigrationApproval = {
 
 const hashFor = (value: number): Hex =>
   `0x${value.toString(16).padStart(64, '0')}` as Hex
+
+const permissionMissingError = (): Error & { readonly data: Hex } =>
+  Object.assign(new Error('ERC-721 approval is not visible yet'), {
+    data: encodeErrorResult({
+      abi: DIRECT_PERMISSION_ERROR_ABI,
+      errorName: 'ERC721InsufficientApproval',
+      args: [HCA, 2n],
+    }),
+  })
 
 const domainFor = (label: string): V1Domain =>
   ({
@@ -304,21 +324,33 @@ beforeEach(() => {
     walletHasWildcardRoles: true,
   })
   mocks.buildAtomicMigrationBatches.mockImplementation(
-    ({ hca, classified }: { hca: Address; classified: ClassifiedName[] }) =>
-      Promise.resolve({
+    async ({
+      hca,
+      classified,
+      estimateOuterGas,
+    }: BuildAtomicMigrationBatchesParams) => {
+      const names = classified.map(({ domain }) => domain.name)
+      const outerCall = { to: hca, data: OUTER_DATA, value: 0n }
+      const estimatedGas = await estimateOuterGas({
+        call: outerCall,
+        names,
+        innerExecutions: [],
+      })
+      return {
         resolver: RESOLVER,
         batches: [
           {
             index: 0,
-            names: classified.map(({ domain }) => domain.name),
+            names,
             nameExecutions: [],
             innerExecutions: [],
-            outerCall: { to: hca, data: OUTER_DATA, value: 0n },
-            estimatedGas: 500_000n,
+            outerCall,
+            estimatedGas,
             verificationExpectations: [],
           },
         ],
-      }),
+      }
+    },
   )
   mocks.reconcileAtomicMigrationBatch.mockResolvedValue({
     status: 'complete',
@@ -536,6 +568,89 @@ describe('executeMigration HCA orchestration', () => {
       totalSteps: 3,
       description: 'Atomic batch verified',
     })
+  })
+
+  it('retries a permission-shaped gas estimate after a freshly mined approval', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+      estimateGasMock
+        .mockRejectedValueOnce(permissionMissingError())
+        .mockResolvedValueOnce(500_000n)
+      const plan = {
+        ...planFor(),
+        preflight: {
+          ...planFor().preflight,
+          migrationApprovals: [APPROVAL],
+        },
+      }
+
+      const execution = runExecute({ plan })
+      await vi.runAllTimersAsync()
+      const { result } = await execution
+
+      expect(estimateGasMock).toHaveBeenCalledTimes(2)
+      expect(estimateGasMock).toHaveBeenNthCalledWith(1, {
+        account: OWNER,
+        to: HCA,
+        data: OUTER_DATA,
+        value: 0n,
+      })
+      expect(estimateGasMock).toHaveBeenNthCalledWith(2, {
+        account: OWNER,
+        to: HCA,
+        data: OUTER_DATA,
+        value: 0n,
+      })
+      expect(mocks.buildMigrationApprovalCall).toHaveBeenCalledOnce()
+      expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+      expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('bounds stale-approval estimate retries before opening the atomic wallet prompt', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+      estimateGasMock.mockRejectedValue(permissionMissingError())
+      const plan = {
+        ...planFor(),
+        preflight: {
+          ...planFor().preflight,
+          migrationApprovals: [APPROVAL],
+        },
+      }
+
+      const execution = runExecute({ plan }).catch((error: unknown) => error)
+      await vi.runAllTimersAsync()
+      const error = await execution
+
+      expect(error).toBeInstanceOf(Error)
+      expect(estimateGasMock).toHaveBeenCalledTimes(6)
+      expect(mocks.buildMigrationApprovalCall).toHaveBeenCalledOnce()
+      expect(mocks.startTransaction).toHaveBeenCalledOnce()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not retry unrelated gas-estimation failures', async () => {
+    mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+    estimateGasMock.mockRejectedValueOnce(new Error('RPC unavailable'))
+    const plan = {
+      ...planFor(),
+      preflight: {
+        ...planFor().preflight,
+        migrationApprovals: [APPROVAL],
+      },
+    }
+
+    await expect(runExecute({ plan })).rejects.toBeInstanceOf(Error)
+
+    expect(estimateGasMock).toHaveBeenCalledOnce()
+    expect(mocks.startTransaction).toHaveBeenCalledOnce()
   })
 
   it('blocks a stale permission preview before opening the first wallet prompt', async () => {

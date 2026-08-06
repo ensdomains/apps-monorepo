@@ -27,6 +27,7 @@ import { TARGET_GAS } from './batchMigrate.constants'
 import { buildAtomicMigrationBatches } from './buildAtomicMigrationBatches'
 import { adjustPlanForRetry, type MigrationPlan } from './buildMigrationPlan'
 import type { IneligibleName } from './classifyNames'
+import { decodeMigrationError } from './decodeMigrationError'
 import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
@@ -189,6 +190,12 @@ const batchJournalScope = (
 
 const PENDING_TX_HASH = '0x0' as Hex
 const RECEIPT_TIMEOUT_MS = 300_000
+const APPROVAL_HEAD_LAG_RETRY_DELAYS_MS = [
+  250, 500, 1_000, 2_000, 4_000,
+] as const
+
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms))
 
 const buildEOARequest = (
   ctx: Pick<MigrationCtx, 'publicClient' | 'walletAddress'>,
@@ -725,8 +732,9 @@ const buildNextAtomicBatch = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
   readonly remaining: MigrationPlan['classified']
+  readonly retryPermissionHeadLag: boolean
 }) => {
-  const { ctx, plan, remaining } = params
+  const { ctx, plan, remaining, retryPermissionHeadLag } = params
   const resolverReadiness = await checkDeterministicMigrationResolverReadiness({
     publicClient: ctx.publicClient,
     hca: ctx.hcaAddress,
@@ -757,12 +765,28 @@ const buildNextAtomicBatch = async (params: {
       // the first batch. They are discarded and rebuilt after the first batch
       // confirms, so only live-estimate the executable leading prefix.
       if (firstName !== livePrefixStart) return 1n
-      return ctx.publicClient.estimateGas({
-        account: ctx.walletAddress,
-        to: call.to,
-        data: call.data,
-        value: call.value,
-      })
+      let retryIndex = 0
+      while (true) {
+        try {
+          return await ctx.publicClient.estimateGas({
+            account: ctx.walletAddress,
+            to: call.to,
+            data: call.data,
+            value: call.value,
+          })
+        } catch (error) {
+          const retryDelay = APPROVAL_HEAD_LAG_RETRY_DELAYS_MS[retryIndex]
+          if (
+            !retryPermissionHeadLag ||
+            retryDelay === undefined ||
+            decodeMigrationError(error).type !== 'permission-missing'
+          ) {
+            throw error
+          }
+          retryIndex += 1
+          await delay(retryDelay)
+        }
+      }
     },
   })
   const batch = atomicPlan.batches[0]
@@ -842,17 +866,21 @@ const executeRemainingAtomicBatches = async (params: {
   readonly plan: MigrationPlan
   readonly publicClient: PublicClient
   readonly onBatchComplete?: OnBatchComplete
+  readonly retryPermissionHeadLag: boolean
 }): Promise<readonly Hex[]> => {
   const hashes: Hex[] = []
   let remaining = [...params.plan.classified]
   const journalScope = batchJournalScope(params.ctx)
+  let retryPermissionHeadLag = params.retryPermissionHeadLag
 
   while (remaining.length > 0) {
     const batch = await buildNextAtomicBatch({
       ctx: params.ctx,
       plan: params.plan,
       remaining,
+      retryPermissionHeadLag,
     })
+    retryPermissionHeadLag = false
     const description =
       batch.names.length === 1
         ? `Atomically upgrading ${batch.names[0]}`
@@ -978,13 +1006,12 @@ export const executeMigration = async (params: {
     })
     if (deploymentHash) txHashes.push(deploymentHash)
 
-    txHashes.push(
-      ...(await ensureMigrationApprovals({
-        ctx,
-        plan: executionPlan,
-        currentMissing,
-      })),
-    )
+    const approvalHashes = await ensureMigrationApprovals({
+      ctx,
+      plan: executionPlan,
+      currentMissing,
+    })
+    txHashes.push(...approvalHashes)
 
     txHashes.push(
       ...(await executeRemainingAtomicBatches({
@@ -992,6 +1019,7 @@ export const executeMigration = async (params: {
         plan: executionPlan,
         publicClient,
         onBatchComplete,
+        retryPermissionHeadLag: approvalHashes.length > 0,
       })),
     )
   }
