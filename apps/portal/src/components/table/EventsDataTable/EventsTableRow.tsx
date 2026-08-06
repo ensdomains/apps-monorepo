@@ -13,9 +13,9 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
 }) => {
   return (
     <>
-      <TableRow className={'hover:bg-muted'}>
+      <TableRow>
         {row.getVisibleCells().map((cell) => (
-          <TableCell key={cell.id} className={cn('px-6', 'h-10 py-0')}>
+          <TableCell key={cell.id} className={cn('px-6', 'h-10 py-1')}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         ))}
@@ -28,7 +28,7 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
           const eventAddress = extractFromAddress(eventDetails)
           const fromAddress = eventAddress ?? row.original.from
 
-          const cellClassName = cn('px-6', 'h-10 py-0')
+          const cellClassName = cn('px-6', 'h-10 py-1')
           const totalColumns = row.getVisibleCells().length
           const trailingColSpan = totalColumns - 4 // 2 leading + 1 event type + 1 address
 
@@ -36,7 +36,6 @@ export const EventsTableRow = <TEvent extends BaseEvent = BaseEvent>({
             <TableRow
               // biome-ignore lint/suspicious/noArrayIndexKey: multiple events can share an id within one transaction, so transactionID-event.id is not guaranteed unique; the index disambiguates same-id siblings
               key={`${row.original.transactionID}-${event.id}-${index}`}
-              className={'hover:bg-muted'}
             >
               <TableCell colSpan={2} className={cellClassName} />
 

@@ -221,19 +221,19 @@ export const RoleHistoryTable = ({
           <TableBody>
             {data.map((entry) => (
               <TableRow key={`${entry.transactionHash}-${entry.account}`}>
-                <TableCell className="px-4 sm:px-6 h-10 py-0 text-sm text-muted-foreground">
+                <TableCell className="px-4 sm:px-6 h-10 py-1 text-sm text-muted-foreground">
                   {formatTimestamp(BigInt(entry.timestamp))}
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-0">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <AddressDisplay address={entry.account} />
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-0">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <RoleDiff entry={entry} />
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-0">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <RoleCountChange entry={entry} />
                 </TableCell>
-                <TableCell className="px-4 sm:px-6 h-10 py-0">
+                <TableCell className="px-4 sm:px-6 h-10 py-1">
                   <div className="flex justify-end">
                     <MoreButton onClick={() => handleMoreClick(entry)} />
                   </div>
