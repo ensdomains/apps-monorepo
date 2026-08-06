@@ -91,10 +91,7 @@ export const NameProfileCard = ({
       }
     >
       <NameAvatar name={name} />
-      {/* On the stacked overview, cap the info (bio, socials, chain icons) to the
-          avatar's 142px width — the responsive constraint WEB-786 builds on. The
-          side-by-side (linked/default) usages stay full-width. */}
-      <div className={cn('flex flex-col gap-4', stacked && 'max-w-[142px]')}>
+      <div className={cn('flex flex-col gap-4', stacked && 'max-w-35.5')}>
         <div className="flex flex-col gap-0.5">
           {!stacked && (
             <h2 className="text-h2 w-max">

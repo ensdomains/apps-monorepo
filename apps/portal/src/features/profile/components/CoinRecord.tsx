@@ -3,7 +3,12 @@ import {
   type coinTypeToNameMap,
 } from '@ensdomains/address-encoder'
 import { Link } from '@tanstack/react-router'
-import { CopyChip } from '@/components/EntityBadge'
+import { CopyButton } from '@/components/CopyButton'
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import { cn } from '@/lib/utils'
 
 type CoinType = keyof typeof coinTypeToNameMap
@@ -39,33 +44,34 @@ export const CoinRecord = ({
 }) => {
   if (!value) return null
   return (
-    <div className="group/coin relative flex">
-      <div
-        className={cn(
-          'absolute bottom-full left-0 z-50 pb-1.5',
-          'opacity-0 pointer-events-none transition-opacity',
-          'group-hover/coin:opacity-100 group-hover/coin:pointer-events-auto',
-          'group-focus-within/coin:opacity-100 group-focus-within/coin:pointer-events-auto',
-        )}
+    <HoverCard openDelay={0} closeDelay={200}>
+      <HoverCardTrigger asChild>
+        <Link
+          to="/$name/address"
+          params={{ name }}
+          aria-label={`${coinType} address — view address resolution`}
+          className={cn(
+            'block rounded-full outline-hidden',
+            'hover:ring-[3px] hover:ring-neutral-8',
+            'focus-visible:ring-[3px] focus-visible:ring-neutral-8',
+          )}
+        >
+          <img
+            src={icons[coinType]}
+            alt={coinType}
+            className="block size-6 rounded-full"
+          />
+        </Link>
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="top"
+        align="start"
+        sideOffset={6}
+        className="flex w-auto items-center gap-1.5 rounded-sm border border-neutral-3 bg-neutral-0 px-2 py-1.5 text-neutral-7 shadow-sm"
       >
-        <CopyChip value={value} label={value} className="font-mono shadow-sm" />
-      </div>
-      <Link
-        to="/$name/address"
-        params={{ name }}
-        aria-label={`${coinType} address — view address resolution`}
-        className={cn(
-          'block rounded-full outline-hidden',
-          'group-hover/coin:ring-[3px] group-hover/coin:ring-neutral-8',
-          'focus-visible:ring-[3px] focus-visible:ring-neutral-8',
-        )}
-      >
-        <img
-          src={icons[coinType]}
-          alt={coinType}
-          className="block size-6 rounded-full"
-        />
-      </Link>
-    </div>
+        <CopyButton value={value} size="sm" />
+        <span className="font-mono text-xs">{value}</span>
+      </HoverCardContent>
+    </HoverCard>
   )
 }
