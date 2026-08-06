@@ -2734,8 +2734,8 @@ msgid "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Ea
 msgstr "This upgrade is split into {atomicBatchCount} gas-safe atomic batches. Each batch needs a wallet confirmation."
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
-msgid "Three or more .eth registrations share one access approval, reducing the number of wallet requests."
-msgstr "Three or more .eth registrations share one access approval, reducing the number of wallet requests."
+#~ msgid "Three or more .eth registrations share one access approval, reducing the number of wallet requests."
+#~ msgstr "Three or more .eth registrations share one access approval, reducing the number of wallet requests."
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Times shown in your local time zone ({timezoneLabel})"
@@ -3135,6 +3135,10 @@ msgstr "What would you like to do?"
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
 msgstr "When a name expires, a temporary fee is added on top of its base price to prevent instant sniping by bots. The fee starts at an intentionally high price ($100M) and drops continuously toward $0 over {periodDays} days."
+
+#: src/features/migration/components/WalletConfirmationStepsDialog.tsx
+msgid "When two or more .eth registrations need access, one approval covers them and reduces the number of wallet requests."
+msgstr "When two or more .eth registrations need access, one approval covers them and reduces the number of wallet requests."
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Why might I be ineligible?"

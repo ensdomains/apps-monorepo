@@ -272,9 +272,15 @@ export const planMigrationApprovals = (params: {
   const missingTokenIds = tokenIds.filter(
     (tokenId) => !tokenStatus.get(tokenId),
   )
+  const needsBaseRegistrarApproval =
+    tokenIds.length === 0 || missingTokenIds.length > 0
 
-  if (needs.hasUnwrapped && !status.baseRegistrarHcaApproved) {
-    if (tokenIds.length > 0 && missingTokenIds.length === 1) {
+  if (
+    needs.hasUnwrapped &&
+    !status.baseRegistrarHcaApproved &&
+    needsBaseRegistrarApproval
+  ) {
+    if (missingTokenIds.length === 1) {
       approvals.push(
         ...missingTokenIds.map((tokenId) =>
           migrationApprovalForId({

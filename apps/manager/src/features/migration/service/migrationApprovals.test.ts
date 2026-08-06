@@ -187,6 +187,21 @@ describe('planMigrationApprovals', () => {
     ).toMatchObject([{ kind: 'operator', id: 'base-registrar:hca' }])
   })
 
+  it('omits registration grants when every token is already approved', () => {
+    expect(
+      planMigrationApprovals({
+        hcaAddress: HCA,
+        needs: needsFor([TOKEN_ONE, TOKEN_TWO]),
+        status: statusFor([TOKEN_ONE, TOKEN_TWO], {
+          unwrappedTokenApprovals: [
+            { tokenId: TOKEN_ONE, approved: true },
+            { tokenId: TOKEN_TWO, approved: true },
+          ],
+        }),
+      }),
+    ).toEqual([])
+  })
+
   it('omits all registration grants when the HCA is already an operator', () => {
     expect(
       planMigrationApprovals({
