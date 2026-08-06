@@ -65,14 +65,14 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
-              className={'hover:bg-muted'}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   className={cn(
                     'px-4 sm:px-6',
-                    // 40px rows per the Builder layout spec (WEB-595)
-                    'h-10 py-0',
+                    // 40px content + py-1 so entity hover halos stay inside
+                    // the row (WEB-1194)
+                    'h-10 py-1',
                   )}
                   key={cell.id}
                 >
