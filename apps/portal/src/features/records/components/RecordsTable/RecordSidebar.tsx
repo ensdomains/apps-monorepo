@@ -27,7 +27,7 @@ export const RecordSidebar: FC<
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-background p-0 flex flex-col h-dvh"
+        className="bg-background p-0 flex flex-col h-dvh"
       >
         <div className="p-6 pb-0 shrink-0">
           <SheetHeader className="p-0">

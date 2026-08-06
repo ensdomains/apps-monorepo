@@ -149,7 +149,7 @@ export const EventsSidebar: FC<EventsSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-220 bg-background p-0 flex flex-col h-dvh"
+        className="bg-background p-0 flex flex-col h-dvh"
       >
         {/* Fixed header at the top */}
         <div className="p-6 pb-0 shrink-0">

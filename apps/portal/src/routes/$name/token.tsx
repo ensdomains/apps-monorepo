@@ -98,68 +98,64 @@ const TokenInfoCard = ({
                 <span className="text-xs font-medium">More</span>
               </Button>
             </SheetTrigger>
-            <SheetContent
-              side="right"
-              className="w-full sm:max-w-2xl overflow-y-auto"
-            >
-              <SheetHeader className="p-6 pb-0">
-                <SheetTitle className="font-sans text-h2">Token ID</SheetTitle>
-              </SheetHeader>
-              <div className="flex flex-col gap-6 p-6 [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0">
-                <InfoCard
-                  title="Token ID details"
-                  className="sm:[&_[data-slot=info-row]]:h-10"
-                >
-                  <InfoRow label="Hash">
-                    <div className="min-w-0 w-full">
-                      <EntityBadge
-                        type="content"
-                        variant="default"
-                        copyValue={tokenId}
-                        className="h-auto min-h-5 whitespace-normal"
-                      >
-                        <span className="break-all">{tokenId}</span>
-                      </EntityBadge>
-                    </div>
-                  </InfoRow>
+            <SheetContent side="right" className="w-full p-0">
+              <div className="h-full overflow-y-auto">
+                <div className="flex flex-col gap-6 p-6 **:data-[slot=info-row]:px-0">
+                  <SheetHeader className="p-0">
+                    <SheetTitle className="font-sans text-h2">
+                      Token ID
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="sm:**:data-[slot=info-row]:h-10">
+                    <InfoRow label="Hash">
+                      <div className="min-w-0 w-full">
+                        <EntityBadge
+                          type="content"
+                          variant="default"
+                          format="wrap"
+                          copyValue={tokenId}
+                        >
+                          {tokenId}
+                        </EntityBadge>
+                      </div>
+                    </InfoRow>
 
-                  <InfoRow label="HEX">
-                    <div className="min-w-0 w-full">
-                      <EntityBadge
-                        type="content"
-                        variant="default"
-                        copyValue={hex}
-                        className="h-auto min-h-5 whitespace-normal"
-                      >
-                        <span className="break-all">{hex}</span>
-                      </EntityBadge>
-                    </div>
-                  </InfoRow>
+                    <InfoRow label="HEX">
+                      <div className="min-w-0 w-full">
+                        <EntityBadge
+                          type="content"
+                          variant="default"
+                          format="wrap"
+                          copyValue={hex}
+                        >
+                          {hex}
+                        </EntityBadge>
+                      </div>
+                    </InfoRow>
 
-                  <InfoRow label="Last changed">
-                    <span className="font-mono text-sm ">—</span>
-                  </InfoRow>
-                </InfoCard>
+                    <InfoRow label="Last changed">
+                      <span className="font-mono text-sm ">—</span>
+                    </InfoRow>
+                  </div>
 
-                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
-                  <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-base">
-                    The Token ID will change anytime the roles are updated.
-                  </p>
-                </div>
+                  <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                    <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-base">
+                      The Token ID will change anytime the roles are updated.
+                    </p>
+                  </div>
 
-                <div>
-                  <h3 className="text-caps leading-none text-foreground mb-4">
-                    History
-                  </h3>
-                  <div className="border border-secondary rounded-lg overflow-hidden">
+                  <div>
+                    <h3 className="text-caps leading-none text-foreground mb-4">
+                      History
+                    </h3>
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b-2">
-                          <TableHead className="px-3">Date</TableHead>
-                          <TableHead className="px-3">Transaction</TableHead>
-                          <TableHead className="px-3">Token ID Hash</TableHead>
-                          <TableHead className="px-3">Token ID HEX</TableHead>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Transaction</TableHead>
+                          <TableHead>Token ID Hash</TableHead>
+                          <TableHead>Token ID HEX</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
