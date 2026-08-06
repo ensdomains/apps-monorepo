@@ -161,10 +161,7 @@ export const NodeDetailSheet = ({
                       </TableHeader>
                       <TableBody>
                         {roles.map((role) => (
-                          <TableRow
-                            key={`${role.account}-${role.roleBitmap}`}
-                            className={'hover:bg-muted'}
-                          >
+                          <TableRow key={`${role.account}-${role.roleBitmap}`}>
                             <TableCell
                               className={cn(cellClassName, 'font-mono text-xs')}
                             >
