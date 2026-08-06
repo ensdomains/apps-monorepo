@@ -2,6 +2,7 @@ import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
   readonly gasEstimate: MigrationGasEstimateState
@@ -40,13 +41,9 @@ const GasEstimateMessage = ({
             ~{estimate.formattedEth} ETH
           </strong>
           . Expected:{' '}
-          <strong className="font-semibold">
-            <Plural
-              one="# wallet confirmation"
-              other="# wallet confirmations"
-              value={estimate.transactionCount}
-            />
-          </strong>
+          <WalletConfirmationStepsDialog
+            steps={estimate.plan.stepDescriptors}
+          />
           .
           <br />
           Final confirmations and fee are shown in your wallet.
@@ -113,7 +110,7 @@ export const SelectNamesStepFooter = ({
       : 0
 
   return (
-    <div className="sticky bottom-0 z-20 flex min-h-36 shrink-0 flex-col items-stretch justify-start gap-4 bg-[rgba(251,249,250,0.3)] px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
+    <div className="sticky inset-x-0 bottom-0 z-20 flex min-h-36 w-full shrink-0 flex-col items-stretch justify-start gap-4 bg-ens-garnet-200 px-5 pt-4 pb-14 sm:min-h-28.75 sm:flex-row sm:items-center sm:justify-between sm:px-8 sm:py-8 lg:px-37.5">
       <div className="flex max-w-107.5 flex-col gap-1 text-ens-garnet-900/75 text-xs leading-normal tracking-[-0.24px] sm:text-sm sm:leading-[1.2] sm:tracking-[-0.28px]">
         <GasEstimateMessage
           gasEstimate={gasEstimate}

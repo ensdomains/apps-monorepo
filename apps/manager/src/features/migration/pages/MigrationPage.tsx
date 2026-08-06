@@ -301,9 +301,7 @@ export const MigrationPage = () => {
   ])
 
   return (
-    <div
-      className="relative flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 flex-col overflow-hidden" // 80px is the md+ Manager header height.
-    >
+    <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-clip">
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (
