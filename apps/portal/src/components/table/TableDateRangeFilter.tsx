@@ -1,4 +1,4 @@
-import { ChevronDown, XIcon } from 'lucide-react'
+import { ChevronDown, type LucideIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import {
   Button,
@@ -29,12 +29,18 @@ export const TableDateRangeFilter = ({
   onChange,
   variant = 'outline',
   size,
+  icon: Icon,
+  hideValue = false,
 }: {
   label: string
   dateRange: DateRange
   onChange: (range: DateRange) => void
   variant?: ButtonVariant
   size?: ButtonSize
+  /** Optional leading icon, rendered before the label (compact filter-chip style). */
+  icon?: LucideIcon
+  /** Hide the inline `: value` text and trailing chevron, leaving an icon + label chip. */
+  hideValue?: boolean
 }) => {
   const [open, setOpen] = useState(false)
   const [fromOpen, setFromOpen] = useState(false)
@@ -51,10 +57,11 @@ export const TableDateRangeFilter = ({
         <Button
           variant={variant}
           size={size}
-          className="flex items-center gap-2"
+          className={`flex items-center ${hideValue ? 'gap-1' : 'gap-2'}`}
         >
-          {label}: {getDateRangeLabel(dateRange)}
-          <ChevronDown className="h-4 w-4" />
+          {Icon && <Icon className="size-4" />}
+          {hideValue ? label : `${label}: ${getDateRangeLabel(dateRange)}`}
+          {!hideValue && <ChevronDown className="h-4 w-4" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80">

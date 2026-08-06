@@ -26,7 +26,7 @@ export const ExpandableDetailRow = ({
         <span className="inline-flex shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1 text-neutral-5">
           <ChevronDown
             className={cn(
-              'size-5.25 stroke-[1.25] transition-transform duration-150',
+              'size-4.5 stroke-[1.25] transition-transform duration-150',
               isOpen && 'rotate-180 text-neutral-7',
             )}
             aria-hidden

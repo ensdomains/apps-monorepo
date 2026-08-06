@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronsUpDownIcon } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronUp, ListFilter } from 'lucide-react'
 import { useState } from 'react'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -88,6 +88,8 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
             dateRange={dateRange}
             onChange={setDateRange}
             size="xs"
+            icon={Calendar}
+            hideValue
           />
           {eventTypeGroups.length > 0 && (
             <TableMultiSelectFilter
@@ -96,10 +98,16 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
               selectedValues={selectedTypes}
               onChange={setSelectedTypes}
               size="xs"
+              icon={ListFilter}
+              hideValue
             />
           )}
           <Button variant="outline" onClick={toggleExpandAll} size="xs">
-            <ChevronsUpDownIcon className="size-4" />
+            {allExpanded ? (
+              <ChevronUp className="size-4" />
+            ) : (
+              <ChevronDown className="size-4" />
+            )}
             {allExpanded ? 'Collapse all' : 'Expand all'}
           </Button>
         </div>

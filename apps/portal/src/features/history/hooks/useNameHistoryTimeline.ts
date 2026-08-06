@@ -132,7 +132,7 @@ const HISTORY_TIMELINE_QUERY = gql`
     $first: Int
     $orderDirection: OrderDirection
   ) {
-    domains(where: { name: $name }) {
+    domains(where: { name: $name }, first: 1) {
       events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
         id
         type
