@@ -24,6 +24,10 @@ export type MigrationStepDescriptor =
       readonly total: number
       readonly count: number
     }
+  | {
+      readonly type: 'cleanup'
+      readonly approvalId: MigrationApprovalId
+    }
 
 export type BuildStepDescriptorsParams = {
   readonly hcaDeploymentRequired: boolean
@@ -75,6 +79,12 @@ export const buildStepDescriptors = (
       total: params.atomicBatches.length,
       count: batch.names.length,
     })
+  }
+
+  for (const approval of params.approvals) {
+    if (approval.kind === 'operator') {
+      descriptors.push({ type: 'cleanup', approvalId: approval.id })
+    }
   }
 
   return descriptors

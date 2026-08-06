@@ -338,3 +338,18 @@ export const buildMigrationApprovalCall = (
 export const buildMigrationApprovalCalls = (
   approvals: readonly MigrationApproval[],
 ): readonly Call[] => approvals.map(buildMigrationApprovalCall)
+
+/** Revoke an operator permission created temporarily for migration. */
+export const buildMigrationOperatorApprovalRevocationCall = (
+  approval: MigrationOperatorApproval,
+): Call => {
+  return {
+    to: approval.contractAddress,
+    data: encodeFunctionData({
+      abi: OPERATOR_APPROVAL_ABI,
+      functionName: 'setApprovalForAll',
+      args: [approval.operatorAddress, false],
+    }),
+    value: 0n,
+  }
+}

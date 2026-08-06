@@ -91,6 +91,15 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           </Trans>
         </div>
       )
+    case 'cleanup-failed':
+      return (
+        <div>
+          <Trans>
+            Your names were upgraded, but temporary HCA access still needs to be
+            revoked.
+          </Trans>
+        </div>
+      )
     case 'resolver-deploy-failed':
       return <div>Couldn&apos;t finish setting up your account.</div>
     case 'profile-fetch-failed':
@@ -373,7 +382,11 @@ export const MigrationPage = () => {
                 onClick={() => uiActor.send({ type: 'retry' })}
                 type="button"
               >
-                <Trans>Retry</Trans>
+                {lastError?.type === 'cleanup-failed' ? (
+                  <Trans>Revoke temporary HCA access</Trans>
+                ) : (
+                  <Trans>Retry</Trans>
+                )}
               </button>
             </motion.div>
           </ResultLayout>

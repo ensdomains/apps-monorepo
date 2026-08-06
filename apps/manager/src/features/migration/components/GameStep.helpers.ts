@@ -83,6 +83,7 @@ export type StepDescription =
       readonly total: number
       readonly count: number
     }
+  | { readonly kind: 'cleanup' }
 
 export const describeNextStep = (params: {
   readonly progressDescription?: string
@@ -107,6 +108,9 @@ export const describeNextStep = (params: {
       index: descriptor.index,
       total: descriptor.total,
       count: descriptor.count,
+    }))
+    .with({ descriptor: { type: 'cleanup' } }, () => ({
+      kind: 'cleanup' as const,
     }))
     .exhaustive()
 

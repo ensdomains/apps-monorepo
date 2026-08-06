@@ -206,6 +206,7 @@ const resolveWrapperRegistry = (
 const checkExpectation = async (
   context: ReadContext,
   expectation: AtomicMigrationVerificationExpectation,
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: this exhaustive switch mirrors the verification expectation union and keeps each on-chain assertion visibly fail-closed.
 ): Promise<boolean> => {
   const block = readAtBlock(context.blockNumber)
 

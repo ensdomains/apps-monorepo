@@ -87,6 +87,16 @@ describe('decodeMigrationError — direct mappings', () => {
     })
   })
 
+  it('maps cleanup failure to its dedicated recovery state', () => {
+    const cleanup = Object.assign(new Error('cleanup rejected'), {
+      name: 'MigrationCleanupError',
+    })
+
+    expect(decodeMigrationError(cleanup)).toEqual({
+      type: 'cleanup-failed',
+    })
+  })
+
   it.each([
     [
       'OwnedResolverDeployError → resolver-deploy-failed',

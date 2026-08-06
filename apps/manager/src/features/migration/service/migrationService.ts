@@ -32,6 +32,7 @@ import { resolveDirectMigrationRoutes } from './directMigrationRoutes'
 import { approvalNeedsFor } from './migrationApprovalNeeds'
 import {
   buildMigrationApprovalCall,
+  buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
   type MigrationApproval,
   migrationApprovalKey,
@@ -107,6 +108,13 @@ export class MigrationSourceOwnershipError extends TaggedError(
   readonly message: string
   readonly names: readonly string[]
   readonly cause?: unknown
+}> {}
+
+export class MigrationCleanupError extends TaggedError(
+  'MigrationCleanupError',
+)<{
+  readonly message: string
+  readonly cause: unknown
 }> {}
 
 const isUserRejection = (error: unknown): boolean => {
@@ -433,6 +441,54 @@ const ensureMigrationApprovals = async (params: {
   return hashes
 }
 
+const cleanupDescription = (approval: MigrationApproval): string => {
+  switch (approval.id) {
+    case 'base-registrar:hca':
+      return 'Removing registration access from your HCA'
+    case 'name-wrapper:hca':
+      return 'Removing wrapped-name access from your HCA'
+    case 'eth-registry:hca':
+      return 'Removing manager-restoration access from your HCA'
+    case 'base-registrar:hca-token':
+      return 'Removing registration access from your HCA'
+  }
+}
+
+const revokeTemporaryOperatorApprovals = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+}): Promise<readonly Hex[]> => {
+  const temporaryOperators = (
+    params.plan.preflight.migrationApprovals ?? []
+  ).filter(
+    (approval): approval is Extract<MigrationApproval, { kind: 'operator' }> =>
+      approval.kind === 'operator',
+  )
+  const hashes: Hex[] = []
+
+  for (const approval of temporaryOperators) {
+    const description = cleanupDescription(approval)
+    try {
+      const { hash } = await submitCall(
+        params.ctx,
+        buildMigrationOperatorApprovalRevocationCall(approval),
+        description,
+      )
+      hashes.push(hash)
+      params.ctx.tracker.next()
+      params.ctx.tracker.emit('Temporary access removed', hash)
+    } catch (cause) {
+      throw new MigrationCleanupError({
+        message:
+          'Your names were upgraded, but temporary HCA access still needs to be revoked.',
+        cause,
+      })
+    }
+  }
+
+  return hashes
+}
+
 const removeNames = <T extends { readonly domain: { readonly name: string } }>(
   names: readonly T[],
   completedNames: readonly string[],
@@ -450,6 +506,18 @@ type RecoveredSubmittedBatch = {
   readonly names: readonly string[]
   readonly hash: Hex
 }
+
+type SubmittedBatchReconciliation = {
+  readonly recovered: readonly RecoveredSubmittedBatch[]
+  readonly unresolvedIntentIds: readonly string[]
+  readonly unresolvedSubmissions: readonly (RecoveredSubmittedBatch & {
+    readonly intentId: string
+  })[]
+}
+
+type JournaledSubmission = ReturnType<
+  typeof loadSubmittedAtomicMigrationBatches
+>[number]
 
 const nameExecutionsByName = (plan: MigrationPlan) =>
   new Map(
@@ -544,52 +612,105 @@ const reconcileSubmittedAtomicBatch = async (params: {
   return submission
 }
 
+const unresolvedIntentIdsFor = (params: {
+  readonly intents: ReturnType<typeof loadPendingAtomicMigrationIntents>
+  readonly submissions: readonly JournaledSubmission[]
+  readonly expectedNames: ReadonlySet<string>
+  readonly allowStateFallback: boolean
+}): readonly string[] => {
+  const submittedIntentIds = new Set(
+    params.submissions.map((submission) => submission.intentId),
+  )
+  const unresolvedIntentIds: string[] = []
+
+  for (const intent of params.intents) {
+    if (submittedIntentIds.has(intent.id)) continue
+    if (!intent.names.some((name) => params.expectedNames.has(name))) continue
+    if (!params.allowStateFallback) {
+      throw new AtomicMigrationIntentIndeterminateError({
+        message:
+          'An atomic migration wallet prompt started but its transaction hash was not durably recorded. It will not be retried automatically.',
+        intentId: intent.id,
+        names: intent.names,
+      })
+    }
+    unresolvedIntentIds.push(intent.id)
+  }
+
+  return unresolvedIntentIds
+}
+
+const reconcileJournaledSubmission = async (params: {
+  readonly ctx: MigrationCtx
+  readonly plan: MigrationPlan
+  readonly scope: MigrationBatchJournalScope
+  readonly submission: JournaledSubmission
+  readonly expectedNames: ReadonlySet<string>
+  readonly executions: ReadonlyMap<string, AtomicNameExecution>
+  readonly allowStateFallback: boolean
+}): Promise<RecoveredSubmittedBatch | 'unresolved' | null> => {
+  if (!params.submission.names.some((name) => params.expectedNames.has(name))) {
+    return null
+  }
+  try {
+    return await reconcileSubmittedAtomicBatch(params)
+  } catch (error) {
+    if (
+      params.allowStateFallback &&
+      error instanceof SubmittedAtomicMigrationIndeterminateError
+    ) {
+      return 'unresolved'
+    }
+    throw error
+  }
+}
+
 const reconcileSubmittedAtomicBatches = async (params: {
   readonly ctx: MigrationCtx
   readonly plan: MigrationPlan
-}): Promise<readonly RecoveredSubmittedBatch[]> => {
+  readonly allowStateFallback: boolean
+}): Promise<SubmittedBatchReconciliation> => {
   const scope = batchJournalScope(params.ctx)
   const intents = loadPendingAtomicMigrationIntents(scope)
   const submissions = loadSubmittedAtomicMigrationBatches(scope)
-  if (submissions.length === 0 && intents.length === 0) return []
+  if (submissions.length === 0 && intents.length === 0) {
+    return {
+      recovered: [],
+      unresolvedIntentIds: [],
+      unresolvedSubmissions: [],
+    }
+  }
 
   const expectedNames = new Set(
     params.plan.classified.map(({ domain }) => domain.name),
   )
   const executions = nameExecutionsByName(params.plan)
   const recovered: RecoveredSubmittedBatch[] = []
-  const submittedIntentIds = new Set(
-    submissions.map((submission) => submission.intentId),
-  )
-
-  for (const intent of intents) {
-    if (submittedIntentIds.has(intent.id)) continue
-    if (!intent.names.some((name) => expectedNames.has(name))) continue
-    throw new AtomicMigrationIntentIndeterminateError({
-      message:
-        'An atomic migration wallet prompt started but its transaction hash was not durably recorded. It will not be retried automatically.',
-      intentId: intent.id,
-      names: intent.names,
-    })
-  }
+  const unresolvedIntentIds = unresolvedIntentIdsFor({
+    intents,
+    submissions,
+    expectedNames,
+    allowStateFallback: params.allowStateFallback,
+  })
+  const unresolvedSubmissions: (RecoveredSubmittedBatch & {
+    readonly intentId: string
+  })[] = []
 
   for (const submission of submissions) {
-    const overlapsCurrentPlan = submission.names.some((name) =>
-      expectedNames.has(name),
-    )
-    if (!overlapsCurrentPlan) continue
-    const result = await reconcileSubmittedAtomicBatch({
+    const result = await reconcileJournaledSubmission({
       ctx: params.ctx,
       plan: params.plan,
       scope,
       submission,
       expectedNames,
       executions,
+      allowStateFallback: params.allowStateFallback,
     })
-    if (result) recovered.push(result)
+    if (result === 'unresolved') unresolvedSubmissions.push(submission)
+    else if (result) recovered.push(result)
   }
 
-  return recovered
+  return { recovered, unresolvedIntentIds, unresolvedSubmissions }
 }
 
 const assertSourceTokensOwnedForRetry = async (params: {
@@ -810,10 +931,12 @@ const prepareExecutionPlan = async (params: {
   readonly onBatchComplete?: OnBatchComplete
 }): Promise<MigrationPlan> => {
   try {
-    const recoveredSubmissions = await reconcileSubmittedAtomicBatches({
+    const journalReconciliation = await reconcileSubmittedAtomicBatches({
       ctx: params.ctx,
       plan: params.plan,
+      allowStateFallback: params.reconcileBeforeSubmit,
     })
+    const recoveredSubmissions = journalReconciliation.recovered
     const recoveredNames = recoveredSubmissions.flatMap(({ names }) => names)
     let executionPlan = adjustPlanForRetry(params.plan, recoveredNames)
 
@@ -844,6 +967,15 @@ const prepareExecutionPlan = async (params: {
       .filter(({ domain }) => !incompleteNames.has(domain.name))
       .map(({ domain }) => domain.name)
     executionPlan = adjustPlanForRetry(executionPlan, completedNames)
+
+    const scope = batchJournalScope(params.ctx)
+    for (const intentId of journalReconciliation.unresolvedIntentIds) {
+      removePendingAtomicMigrationIntent(scope, intentId)
+    }
+    for (const submission of journalReconciliation.unresolvedSubmissions) {
+      removeSubmittedAtomicMigrationBatch(scope, submission.hash)
+      removePendingAtomicMigrationIntent(scope, submission.intentId)
+    }
 
     for (const names of reconciliation.completedNameGroups) {
       params.onBatchComplete?.(names)
@@ -960,7 +1092,7 @@ export const executeMigration = async (params: {
   } = params
   const { classified, ineligible } = plan
 
-  if (classified.length === 0) {
+  if (classified.length === 0 && !params.reconcileBeforeSubmit) {
     return {
       completed: 0,
       txHashes: [],
@@ -1023,6 +1155,12 @@ export const executeMigration = async (params: {
       })),
     )
   }
+  txHashes.push(
+    ...(await revokeTemporaryOperatorApprovals({
+      ctx,
+      plan,
+    })),
+  )
   ctx.tracker.complete('Migration complete', txHashes.at(-1))
 
   return {

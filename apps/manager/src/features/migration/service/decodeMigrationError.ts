@@ -7,6 +7,7 @@ export type MigrationError =
   | { type: 'generic'; message: string }
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
+  | { type: 'cleanup-failed' }
   | { type: 'resolver-deploy-failed'; message: string }
   | {
       type: 'profile-fetch-failed'
@@ -282,6 +283,9 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
 
   if (hasNamedError(err, 'MigrationPlanChangedError')) {
     return { type: 'plan-changed' }
+  }
+  if (hasNamedError(err, 'MigrationCleanupError')) {
+    return { type: 'cleanup-failed' }
   }
   if (
     [

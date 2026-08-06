@@ -91,6 +91,7 @@ export const mergeMulticallResultsIntoProfiles = (params: {
   readonly buckets: Map<Hex, Profile>
   readonly calls: readonly ResolverCall[]
   readonly results: readonly MulticallResult[]
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: text and address result handling intentionally share one index-aligned multicall pass.
 }): Map<Hex, Profile> => {
   const { buckets, calls, results } = params
   for (const [i, call] of calls.entries()) {

@@ -74,7 +74,7 @@ describe('buildStepDescriptors', () => {
     ).toHaveLength(2)
   })
 
-  it('uses two steps for a wrapped selection and an existing HCA', () => {
+  it('adds cleanup for a wrapped selection and an existing HCA', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
@@ -85,6 +85,7 @@ describe('buildStepDescriptors', () => {
     ).toEqual([
       { type: 'approval', approvalId: 'name-wrapper:hca', count: undefined },
       { type: 'atomic-batch', index: 0, total: 1, count: 2 },
+      { type: 'cleanup', approvalId: 'name-wrapper:hca' },
     ])
   })
 
@@ -99,7 +100,7 @@ describe('buildStepDescriptors', () => {
     ).toEqual([{ type: 'atomic-batch', index: 0, total: 1, count: 1 }])
   })
 
-  it('adds a persistent manager approval before the migration batch', () => {
+  it('adds and removes a temporary manager approval around the migration batch', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
@@ -110,6 +111,7 @@ describe('buildStepDescriptors', () => {
     ).toEqual([
       { type: 'approval', approvalId: 'eth-registry:hca', count: undefined },
       { type: 'atomic-batch', index: 0, total: 1, count: 1 },
+      { type: 'cleanup', approvalId: 'eth-registry:hca' },
     ])
   })
 

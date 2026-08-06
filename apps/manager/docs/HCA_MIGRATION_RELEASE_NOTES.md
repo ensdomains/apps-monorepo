@@ -22,16 +22,15 @@ path, the common cases are:
 | Selection | Existing HCA | Fresh HCA |
 | --- | ---: | ---: |
 | One unwrapped name | 2 | 3 |
-| Wrapped names or multiple same-type names | 2 | 3 |
+| Wrapped names or multiple unwrapped names | 3 | 4 |
 | Required permissions already exist | 1 | 2 |
 
-The count includes the migration batch, required permission grants, and HCA
-deployment when needed. An unwrapped selection of one or two names uses
-per-token ERC-721 approvals, which clear automatically when the transfer
-succeeds. Operator approvals remain available to the wallet-owned HCA for later
-use, so migration does not add a separate revoke transaction. A missing
-ETHRegistry approval for manager restoration adds one confirmation. Every
-additional gas-safe atomic batch adds one confirmation.
+The count includes the migration batch, required permission grants, automatic
+operator-permission cleanup, and HCA deployment when needed. One unwrapped name
+uses a per-token ERC-721 approval, which clears automatically when the transfer
+succeeds. Multiple unwrapped names use one temporary operator approval. A
+missing ETHRegistry approval for manager restoration adds a grant and a cleanup
+confirmation. Every additional gas-safe atomic batch adds one confirmation.
 
 ## Operator notes
 
@@ -55,15 +54,15 @@ additional gas-safe atomic batch adds one confirmation.
   its transaction hash replaces that marker before receipt polling. A
   confirmed-success batch that fails post-state verification is blocked from
   resubmission; a reverted batch is rebuilt only after source-token ownership
-  is rechecked. Ambiguous pre-hash provider failures remain blocked for manual
-  reconciliation, while speed-ups and replacements follow the hash in the
-  mined receipt.
+  is rechecked. A retry after an ambiguous pre-hash provider failure or an
+  unavailable replacement receipt reconciles the latest post-state and proves
+  source-token ownership before it can rebuild an incomplete batch.
 - Custom resolvers are preserved. Locked names whose replaceable resolver is
   absent from the live `PublicResolverSet` remain blocked.
-- Operator approvals are intentionally persistent and can be reused by the
-  wallet-owned HCA. Migration never asks the wallet for a follow-up revoke
-  transaction. Per-token approvals clear automatically when their transfers
-  succeed.
+- Operator approvals created by the migration are temporary and are revoked
+  automatically after the atomic batches verify. If cleanup is rejected or
+  fails, the recovery action is labelled `Revoke temporary HCA access`.
+  Per-token approvals clear automatically when their transfers succeed.
 - The rollout remains behind the existing migration feature flag.
 
 ## QA acceptance scenarios
@@ -72,8 +71,8 @@ QA should cover fresh and existing HCAs; unwrapped, unlocked wrapped, locked
 2LD, and locked/detached descendant names; parent-first locked hierarchies;
 legacy managers and records; multiple gas batches and retry reconciliation;
 transaction speed-up/replacement; complete atomic rollback; automatic
-token-approval clearing; and persistent operator-approval reuse. No migration
-E2E implementation is included in this change.
+token-approval clearing; operator-approval cleanup and cleanup retry. No
+migration E2E implementation is included in this change.
 
 ## Release gate
 

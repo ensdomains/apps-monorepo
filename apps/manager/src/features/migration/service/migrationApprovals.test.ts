@@ -6,6 +6,7 @@ import { OPERATOR_APPROVAL_ABI } from '../contracts/abis'
 import { V1_CONTRACTS, V2_CONTRACTS } from '../contracts/addresses'
 import {
   buildMigrationApprovalCall,
+  buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
   type MigrationApprovalStatus,
   migrationApprovalForId,
@@ -250,10 +251,24 @@ describe('approval calldata', () => {
       id: 'name-wrapper:hca',
       hcaAddress: HCA,
     })
+    if (approval.kind !== 'operator') throw new Error('Expected operator')
     const decoded = decodeFunctionData({
       abi: OPERATOR_APPROVAL_ABI,
       data: buildMigrationApprovalCall(approval).data,
     })
     expect(decoded.args).toEqual([HCA, true])
+  })
+
+  it('encodes operator revocation after migration', () => {
+    const approval = migrationApprovalForId({
+      id: 'name-wrapper:hca',
+      hcaAddress: HCA,
+    })
+    if (approval.kind !== 'operator') throw new Error('Expected operator')
+    const decoded = decodeFunctionData({
+      abi: OPERATOR_APPROVAL_ABI,
+      data: buildMigrationOperatorApprovalRevocationCall(approval).data,
+    })
+    expect(decoded.args).toEqual([HCA, false])
   })
 })

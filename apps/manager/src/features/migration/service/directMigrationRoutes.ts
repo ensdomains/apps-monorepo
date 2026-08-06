@@ -115,6 +115,7 @@ export const computeExpectedWrapperRegistry = (params: {
 /** Stable topological ordering used before gas partitioning. */
 export const orderDirectMigrationNamesParentFirst = (
   classified: readonly ClassifiedName[],
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: keeping duplicate, dependency, and cycle validation in the same topological pass preserves the fail-closed ordering invariant.
 ): readonly ClassifiedName[] => {
   const byName = new Map<string, ClassifiedName>()
   for (const name of classified) {
@@ -302,6 +303,7 @@ const verifyExistingWrapperChain = async (params: {
 export const resolveDirectMigrationRoutes = async (params: {
   readonly publicClient: PublicClient
   readonly classified: readonly ClassifiedName[]
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: route selection keeps all parent-readiness branches together so every child is assigned exactly one verified receiver.
 }): Promise<ReadonlyMap<string, DirectMigrationRoute>> => {
   const ordered = orderDirectMigrationNamesParentFirst(params.classified)
   const selectedByName = new Map(

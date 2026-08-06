@@ -184,6 +184,7 @@ function useWalletConnectionSync(
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: wallet connection transitions must remain ordered to prevent stale sessions during disconnect and account switches.
   useEffect(() => {
     const walletSource = detectWalletSource(wagmiWalletClient)
 
