@@ -1,7 +1,7 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { getStartOfDay } from '@/features/register-v2/utils/time'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
@@ -28,6 +28,11 @@ export const DurationSelector = () => {
   const selectedDuration = useSelector(
     uiActor,
     (state) => state.context.duration,
+  )
+  const handleDurationSet = useCallback(
+    (duration: number) =>
+      uiActor.send({ type: 'pricing.duration.set', duration }),
+    [uiActor],
   )
   const presetDurations = useMemo(
     () => getComputedDurationPresets(getStartOfDay()),
@@ -95,9 +100,7 @@ export const DurationSelector = () => {
 
       <DurationCustomRow
         isSelected={selectedPresetIdx === -1}
-        onDurationSet={(duration) =>
-          uiActor.send({ type: 'pricing.duration.set', duration })
-        }
+        onDurationSet={handleDurationSet}
         selectedDuration={selectedDuration}
         type="register"
       />
