@@ -40,7 +40,7 @@ test.describe('ENS name registration', () => {
     await page.goto(`${MANAGER_APP_URL}/register/${label}`)
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
     // Click "Connect to Register" with retry — the button can be a no-op if
-    // RainbowKit hasn't hydrated yet, and the modal can close before we
+    // the wallet layer hasn't hydrated yet, and the modal can close before we
     // interact with it. Same pattern as connectWithHeadlessWallet.
     const connectBtn = page.getByRole('button', {
       name: /connect to register/i,

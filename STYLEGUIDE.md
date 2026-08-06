@@ -166,7 +166,7 @@ The Portal app uses modern web and Web3 technologies:
 - **wagmi 3** - React hooks for Ethereum
 - **viem 2** - TypeScript Ethereum library
 - **@ensdomains/ensjs** - ENS protocol interactions
-- **RainbowKit 2** - Wallet connection UI
+- **Custom wallet modal** - Wallet connection UI (EIP-6963 discovery + WalletConnect)
 
 ### UI & Styling
 - **Tailwind CSS 4** - Utility-first CSS framework

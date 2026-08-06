@@ -33,8 +33,8 @@ e2e/
 │   ├── playwright.portal.fixture.ts   # Portal app fixture (headless web3 wallet)
 │   └── stagehand.fixture.ts           # Optional Stagehand fixture (local dev)
 ├── helpers/
-│   ├── manager-auth.ts             # Manager RainbowKit connect + SIWE modal helpers
-│   ├── portal-auth.ts              # Portal RainbowKit connect helpers
+│   ├── manager-auth.ts             # Manager wallet connect + SIWE modal helpers
+│   ├── portal-auth.ts              # Portal wallet connect helpers
 │   ├── console-monitor.ts          # Transaction state tracking via console logs
 │   └── wait-helpers.ts             # sleep() utility
 ├── infra/                          # Docker stack (Anvil + Alto + Paymaster)
@@ -56,9 +56,9 @@ e2e/
 
 ## Wallet Authentication
 
-Both apps connect an injected wallet via RainbowKit using `@ensdomains/headless-web3-provider`:
+Both apps connect an injected wallet through their connect dialog using `@ensdomains/headless-web3-provider`:
 
-- **`injectHeadlessWeb3Provider({ page, privateKeys, chains })`** — injects an EIP-1193/EIP-6963 provider that RainbowKit discovers as "Headless Web3 Provider"
+- **`injectHeadlessWeb3Provider({ page, privateKeys, chains })`** — injects an EIP-1193/EIP-6963 provider that the apps' wallet discovery surfaces as "Headless Web3 Provider"
 - **`helpers/manager-auth.ts`** — `connectWithHeadlessWallet(page, wallet)` opens the nav connect modal and authorizes the connection; `authorizeHeadlessConnection(page, wallet)` handles an already-open modal. Also provides the SIWE `dismissBackendAuthModal` / `signInBackendAuthModal` helpers. The manager's Rhinestone HCA signs Intents through the wallet, so the fixture passes signing request kinds as `permitted` to auto-authorize them.
 - **`helpers/portal-auth.ts`** — the equivalent `connectWithHeadlessWallet` for the portal app
 
