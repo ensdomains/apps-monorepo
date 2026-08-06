@@ -45,7 +45,6 @@ updates:
           - "wagmi"
           - "viem"
           - "@wagmi/core"
-          - "@rainbow-me/rainbowkit"
         update-types:
           - "minor"
           - "patch"

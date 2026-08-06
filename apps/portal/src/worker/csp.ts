@@ -101,7 +101,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // the broad `img-src https:` below, so image hosts need no connect-src entry.
   'https://ipfs.io',
   'https://ipfs.euc.li',
-  // WalletConnect / RainbowKit relay, verify, pulse, explorer-api
+  // WalletConnect relay, verify, pulse, explorer-api
   'https://*.walletconnect.com',
   'wss://*.walletconnect.com',
   'https://*.walletconnect.org',

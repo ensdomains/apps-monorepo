@@ -164,7 +164,7 @@ type ManagerFixtures = {
   /** Headless web3 wallet backend — use to authorize transactions. */
   wallet: Web3ProviderBackend
   /**
-   * Page with the headless wallet connected via RainbowKit and the
+   * Page with the headless wallet connected via the connect dialog and the
    * BackendAuthModal dismissed (skip-for-now). The default page for tests
    * that don't need backend-gated state.
    */
@@ -203,7 +203,7 @@ type ManagerFixtures = {
 }
 
 /**
- * Connect the headless wallet through RainbowKit. CI runs the HCA path
+ * Connect the headless wallet through the connect dialog. CI runs the HCA path
  * (VITE_FF_USE_EOA=false; see apps/manager/.env.ci): the smart-account machine
  * initialises, but the EnableSessions modal is now gated behind the "Pay with
  * stablecoins" action — it does NOT appear on connect. Only the BackendAuth
@@ -236,7 +236,7 @@ export const test = base.extend<ManagerFixtures>({
     await use(createAccounts())
   },
 
-  // Inject the headless web3 provider before any navigation so RainbowKit's
+  // Inject the headless web3 provider before any navigation so EIP-6963
   // injected-wallet discovery surfaces it as "Headless Web3 Provider". Only
   // message-signing is auto-permitted; eth_sendTransaction is authorized
   // explicitly by the specs (see PERMITTED_SIGN_KINDS).

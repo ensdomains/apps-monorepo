@@ -22,9 +22,8 @@ const ConnectModalContext = createContext<ConnectModalContextValue | null>(null)
 // Stable no-op used when the provider isn't in the tree. In normal operation
 // `ConnectModalProvider` is mounted by `CustomWalletStack`, so this only
 // surfaces after a hot-reload invalidates the context module (cleared by a
-// page reload). Degrade gracefully rather than crash the whole route — this
-// mirrors RainbowKit's forgiving `useConnectModal`, which no-oped outside its
-// provider.
+// page reload). Degrade gracefully rather than crash the whole route:
+// `useConnectModal` no-ops outside its provider.
 const NOOP_CONNECT_MODAL: ConnectModalContextValue = {
   openConnectModal: () => {},
   connectModalOpen: false,
