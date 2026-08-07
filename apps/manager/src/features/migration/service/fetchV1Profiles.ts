@@ -1,6 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
 import type { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
+import { cleanResolverTextRecords } from './cleanResolverTextRecords'
 import {
   buildProfileMulticallPlan,
   indexNamesByNode,
@@ -121,5 +122,16 @@ export const fetchV1Profiles = async (params: {
   if (contracts.length === 0) return buckets
 
   const results = await executeMulticallChunks(publicClient, contracts)
-  return mergeMulticallResultsIntoProfiles({ buckets, calls, results })
+  const profiles = mergeMulticallResultsIntoProfiles({
+    buckets,
+    calls,
+    results,
+  })
+
+  return new Map(
+    [...profiles].map(([node, profile]) => [
+      node,
+      { ...profile, texts: cleanResolverTextRecords(profile.texts) },
+    ]),
+  )
 }

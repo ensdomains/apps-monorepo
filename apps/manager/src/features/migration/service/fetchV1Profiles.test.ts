@@ -116,6 +116,28 @@ describe('fetchV1Profiles', () => {
     ])
   })
 
+  it('cleans social text records before returning migration profiles', async () => {
+    mockKeys([
+      {
+        id: NODE_A,
+        texts: ['vnd.twitter', 'com.github'],
+        coinTypes: [],
+      },
+    ])
+    const result = await run(
+      [A],
+      clientWith(() => [
+        okCall('https://mobile.twitter.com/she_256/'),
+        okCall('github.com/rainbow-me/rainbow/'),
+      ]),
+    )
+
+    expect(result.get(profileMapKey(NODE_A))?.texts).toEqual([
+      { key: 'com.twitter', value: 'she_256' },
+      { key: 'com.github', value: 'rainbow-me' },
+    ])
+  })
+
   it('uses supplied profile keys without querying the subgraph again', async () => {
     const result = await fetchV1Profiles({
       names: [A],
