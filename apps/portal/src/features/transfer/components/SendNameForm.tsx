@@ -76,7 +76,7 @@ export const SendNameForm = ({
     optionIsVisible,
     settled: detachTargetsSettled,
     failed: detachTargetsFailed,
-  } = useTransferDetachTargets({ name })
+  } = useTransferDetachTargets({ name, registryAddress, owner })
 
   const resolution = useAddressResolution(recipientInput)
   const { address: recipient, isResolving } = resolution

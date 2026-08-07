@@ -3,10 +3,15 @@
  *
  * Used during a transfer to hand the recipient a clean name: afterwards the name
  * has no subregistry, so its existing subnames stop resolving and the recipient
- * can deploy their own. This is a *parent registry* operation authorized by the
- * name owner (the sender still holds the token at this point), NOT a write to the
- * subregistry contract — so it can't revert on permissions. It also never touches
- * the subregistry itself, which may be shared by the sender's other names.
+ * can deploy their own. It never touches the subregistry itself, which may be
+ * shared by the sender's other names — it only clears the parent's pointer.
+ *
+ * This is a registry write, so the registry gates it on the owner holding
+ * `ROLE_SET_SUBREGISTRY` for the token; a normally-registered owner auto-holds
+ * it, but a migrated/locked name never receives it (its subregistry is the
+ * emancipated-subnames wrapper). Callers must confirm the role first (see
+ * `useTransferDetachTargets`) — this step runs before the irreversible token
+ * transfer, so a revert here leaves the name degraded.
  */
 
 import {

@@ -2,11 +2,15 @@
  * Detach a v2 name from its resolver (`registry.setResolver(tokenId, 0x0)`).
  *
  * Used during a transfer to hand the recipient a clean name: afterwards the name
- * resolves to nothing, so the sender's stale records are no longer served. This
- * is a *registry* operation authorized by the name owner (the sender still holds
- * the token at this point), NOT a resolver-role write — so it can't revert on
- * permissions. It also never touches the resolver contract itself, which may be
- * shared by the sender's other names.
+ * resolves to nothing, so the sender's stale records are no longer served. It
+ * never touches the resolver contract itself, which may be shared by the sender's
+ * other names — it only clears the registry's resolver pointer.
+ *
+ * This is a registry write, so the registry gates it on the owner holding
+ * `ROLE_SET_RESOLVER` for the token; a normally-registered owner auto-holds it,
+ * but a migrated/locked name can own the token yet lack it. Callers must confirm
+ * the role first (see `useTransferDetachTargets`) — this step runs before the
+ * irreversible token transfer, so a revert here leaves the name degraded.
  */
 
 import {
