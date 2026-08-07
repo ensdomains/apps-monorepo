@@ -11,8 +11,6 @@ import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNam
 import { useRegistrationSuccessRedirect } from '@/features/register/hooks/useRegistrationSuccessRedirect'
 import { useRegistrationTransactions } from '@/features/register/hooks/useRegistrationTransactions'
 import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
-import { formatPriceDisplay } from '@/features/register/utils/registrationPrice'
-import { getTokenMetadataWithAddress } from '@/features/register/utils/tokenLookup'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
@@ -38,10 +36,8 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   const { openConnectModal } = useConnectModal()
   const { openModal } = useTransactionModal()
 
-  const { transactions, isRegistering, isSuccess, startFlow } =
+  const { transactions, isRegistering, isSuccess, paid, startFlow } =
     useRegistrationTransactions({ name, duration })
-
-  const [paid, setPaid] = useState<string>()
 
   const registrableEthError = validateRegistrableEthName(name)
   const nameLengthError = validateNameLength(name)
@@ -81,8 +77,6 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   usePreventUnload(isRegistering)
 
   const handleConfirm = (selectedTokenAddress: Address, tokenPrice: bigint) => {
-    const { decimals } = getTokenMetadataWithAddress(selectedTokenAddress)
-    setPaid(formatPriceDisplay(tokenPrice, decimals))
     startFlow(selectedTokenAddress, tokenPrice)
     openModal()
   }
