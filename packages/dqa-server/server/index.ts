@@ -1,16 +1,20 @@
 import './load-env.ts' // must be first — populates process.env before other modules read it
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync } from 'node:fs'
-import { createServer } from 'node:http'
+import { writeFile } from 'node:fs/promises'
+import type { Server } from 'node:http'
 import { networkInterfaces } from 'node:os'
-import { dirname, extname, resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Request, Response } from 'express'
-import express from 'express'
-import multer from 'multer'
+import { createAdaptorServer } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
+import { type Context, Hono, type MiddlewareHandler } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
+import { cors } from 'hono/cors'
 import { WebSocketServer } from 'ws'
 
 import {
+  type AuthEnv,
   authOrigin,
   buildAuthorizeUrl,
   checkWhitelist,
@@ -60,23 +64,41 @@ const DIST_DIR = resolve(__dirname, '../dist')
 const UPLOAD_DIR = resolve(__dirname, '../data/uploads')
 if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
 
-const app = express()
-app.use(express.json({ limit: '2mb' }))
+const app = new Hono<AuthEnv>()
 
 // CORS: reflect the request origin only when it's on the allowlist. Auth is
 // Bearer-token (never cookies), so we never send credentials; an un-allowed
 // origin simply gets no CORS headers and the browser blocks the response.
-app.use((req, res, next) => {
-  const origin = req.headers.origin
-  if (origin && isAllowedOrigin(origin)) {
-    res.header('Access-Control-Allow-Origin', origin)
-    res.header('Vary', 'Origin')
-  }
-  res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-  if (req.method === 'OPTIONS') return res.sendStatus(204)
-  next()
+app.use(
+  '*',
+  cors({
+    origin: (origin) => (isAllowedOrigin(origin) ? origin : null),
+    allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  }),
+)
+
+app.onError((err, c) => {
+  console.error('[http]', c.req.method, c.req.path, err)
+  return c.json({ error: 'internal error' }, 500)
 })
+
+// Request-body ceilings. JSON bodies carry screenshot metadata, so 2mb;
+// /api/upload gets its own, larger limit below.
+const MAX_JSON_BYTES = 2 * 1024 * 1024
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+const tooLarge = (c: Context) => c.json({ error: 'payload too large' }, 413)
+const jsonLimit = bodyLimit({ maxSize: MAX_JSON_BYTES, onError: tooLarge })
+
+/** Body of a JSON request, or `{}` when absent/unparseable (matches the old `req.body || {}`). */
+async function readJson<T>(c: Context): Promise<Partial<T>> {
+  try {
+    const parsed: unknown = await c.req.json()
+    return parsed && typeof parsed === 'object' ? (parsed as Partial<T>) : {}
+  } catch {
+    return {}
+  }
+}
 
 // Uploads: images only, with a server-forced safe extension. Prevents an
 // attacker uploading e.g. .html and having it served (as text/html) from the
@@ -87,17 +109,11 @@ const ALLOWED_IMAGE_EXT: Record<string, string> = {
   'image/gif': '.gif',
   'image/webp': '.webp',
 }
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: UPLOAD_DIR,
-    filename: (_req, file, cb) =>
-      cb(null, randomUUID() + (ALLOWED_IMAGE_EXT[file.mimetype] || '.bin')),
-  }),
-  limits: { fileSize: 8 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, cb) => cb(null, !!ALLOWED_IMAGE_EXT[file.mimetype]),
-})
 
-const baseUrl = (req: Request): string => `${req.protocol}://${req.get('host')}`
+// Built from the Host header and the scheme this process was actually reached
+// on — `x-forwarded-proto` is deliberately not trusted, so a TLS-terminating
+// proxy needs the public URL configured on its side rather than inferred here.
+const baseUrl = (c: Context): string => new URL(c.req.url).origin
 const esc = (s: unknown): string =>
   String(s == null ? '' : s).replace(
     /[&<>"]/g,
@@ -109,12 +125,12 @@ const esc = (s: unknown): string =>
 //  AUTH
 // ======================================================================
 
-app.get('/auth/config', (_req, res) => {
+app.get('/auth/config', (c) => {
   // authOrigin: delegated-auth instance the overlay should open sign-in
   // popups against (and trust postMessages from). Ephemeral deployments set
   // DQA_AUTH_URL to a long-lived instance whose domain is the registered
   // Linear redirect URI; its sessions are valid here via shared secrets.
-  res.json({
+  return c.json({
     oauthConfigured: oauthConfigured() || !!authOrigin(),
     devAllowed: devAllowed(),
     authOrigin: authOrigin(),
@@ -123,14 +139,15 @@ app.get('/auth/config', (_req, res) => {
 
 // Resolve + validate the caller-supplied origin/returnUrl against the
 // allowlist so a crafted `?returnUrl=` can never redirect the token elsewhere.
-function resolveReturn(req: Request): {
+function resolveReturn(c: Context): {
   origin: string | null
   returnUrl: string | null
 } {
-  const origin = safeOrigin(req.query.origin) || safeOrigin(req.headers.referer)
+  const referer = c.req.header('referer')
+  const origin = safeOrigin(c.req.query('origin')) || safeOrigin(referer)
   const returnUrl =
-    safeReturnUrl(req.query.returnUrl) ||
-    safeReturnUrl(req.headers.referer) ||
+    safeReturnUrl(c.req.query('returnUrl')) ||
+    safeReturnUrl(referer) ||
     (origin ? `${origin}/demo.html` : null)
   return { origin, returnUrl }
 }
@@ -138,37 +155,36 @@ function resolveReturn(req: Request): {
 // If this instance can't complete OAuth itself but delegates to another
 // (DQA_AUTH_URL), forward auth entrypoints there with the query intact — the
 // popup-blocked fallback navigates the page here directly, bypassing the
-// overlay's own authOrigin handling.
-function delegateAuth(req: Request, res: Response): boolean {
+// overlay's own authOrigin handling. Returns the redirect, or null when this
+// instance should handle the request itself.
+function delegateAuth(c: Context): Response | null {
   const remote = authOrigin()
-  if (oauthConfigured() || !remote) return false
-  const qs = req.originalUrl.split('?')[1] || ''
-  res.redirect(`${remote}${req.path}${qs ? `?${qs}` : ''}`)
-  return true
+  if (oauthConfigured() || !remote) return null
+  return c.redirect(`${remote}${c.req.path}${new URL(c.req.url).search}`)
 }
 
-app.get('/auth/linear', (req, res) => {
-  if (delegateAuth(req, res)) return
-  if (!oauthConfigured())
-    return res.status(400).send('Linear OAuth is not configured.')
-  const { origin, returnUrl } = resolveReturn(req)
+app.get('/auth/linear', (c) => {
+  const delegated = delegateAuth(c)
+  if (delegated) return delegated
+  if (!oauthConfigured()) return c.text('Linear OAuth is not configured.', 400)
+  const { origin, returnUrl } = resolveReturn(c)
   if (!origin)
-    return res.status(400).send('Origin not allowed. Set DQA_ALLOWED_ORIGINS.')
+    return c.text('Origin not allowed. Set DQA_ALLOWED_ORIGINS.', 400)
   const state = signJWT({ origin, returnUrl, n: randomUUID() }, 600)
-  res.redirect(buildAuthorizeUrl(state))
+  return c.redirect(buildAuthorizeUrl(state))
 })
 
 /** Popup helper when the user needs to log out of Linear and sign in with another account. */
-app.get('/auth/account-switch', (req, res) => {
-  if (delegateAuth(req, res)) return
-  if (!oauthConfigured())
-    return res.status(400).send('Linear OAuth is not configured.')
-  const { origin, returnUrl } = resolveReturn(req)
+app.get('/auth/account-switch', (c) => {
+  const delegated = delegateAuth(c)
+  if (delegated) return delegated
+  if (!oauthConfigured()) return c.text('Linear OAuth is not configured.', 400)
+  const { origin, returnUrl } = resolveReturn(c)
   if (!origin)
-    return res.status(400).send('Origin not allowed. Set DQA_ALLOWED_ORIGINS.')
+    return c.text('Origin not allowed. Set DQA_ALLOWED_ORIGINS.', 400)
   const state = signJWT({ origin, returnUrl, n: randomUUID() }, 600)
   const loginUrl = buildAuthorizeUrl(state)
-  res.set('Content-Type', 'text/html').send(`<!doctype html><meta charset=utf-8>
+  return c.html(`<!doctype html><meta charset=utf-8>
 <title>Switch Linear account</title>
 <body style="font:14px -apple-system,BlinkMacSystemFont,sans-serif;padding:24px;max-width:420px;color:#111827;line-height:1.5">
 <h1 style="font-size:18px;margin:0 0 8px">Switch Linear account</h1>
@@ -185,14 +201,14 @@ try { localStorage.removeItem("dqa_token"); } catch (e) {}
 })
 
 function popupResult(
-  res: Response,
+  c: Context,
   payload: { token?: string; error?: string },
   targetOrigin: string | null,
   returnUrl: string | null,
-) {
+): Response {
   // targetOrigin/returnUrl are pre-validated against the allowlist by callers.
   // Never fall back to "*": that would broadcast the token to any opener.
-  res.set('Content-Type', 'text/html').send(`<!doctype html><meta charset=utf-8>
+  return c.html(`<!doctype html><meta charset=utf-8>
 <body style="font:14px -apple-system,sans-serif;padding:24px;color:#111827">
 ${payload.token ? 'Signed in. Returning…' : 'Access denied: ' + esc(payload.error || '')}
 <script>
@@ -214,50 +230,50 @@ ${payload.token ? 'Signed in. Returning…' : 'Access denied: ' + esc(payload.er
 </script></body>`)
 }
 
-app.get('/auth/callback', async (req, res) => {
-  const code = typeof req.query.code === 'string' ? req.query.code : ''
-  const st = verifyJWT<OAuthState>(req.query.state)
+app.get('/auth/callback', async (c) => {
+  const code = c.req.query('code') ?? ''
+  const st = verifyJWT<OAuthState>(c.req.query('state'))
   if (!code || !st)
-    return popupResult(res, { error: 'invalid state' }, null, null)
+    return popupResult(c, { error: 'invalid state' }, null, null)
   // Re-validate the state's origin/returnUrl at redemption: the token is only
   // ever posted to / redirected to an allowlisted origin, never a bare "*".
   const origin = safeOrigin(st.origin)
   const returnUrl = safeReturnUrl(st.returnUrl)
   if (!origin)
-    return popupResult(res, { error: 'origin not allowed' }, null, null)
+    return popupResult(c, { error: 'origin not allowed' }, null, null)
   try {
     const tok = await exchangeCode(code)
     const viewer = await fetchViewer(tok.access_token)
     const gate = await checkWhitelist(viewer, tok.access_token)
     if (!gate.ok)
-      return popupResult(res, { error: gate.reason }, origin, returnUrl)
+      return popupResult(c, { error: gate.reason }, origin, returnUrl)
     const token = makeSession(viewer, tok.access_token)
-    return popupResult(res, { token }, origin, returnUrl)
+    return popupResult(c, { token }, origin, returnUrl)
   } catch (e) {
     console.error('[auth] callback', (e as Error).message)
-    return popupResult(res, { error: 'sign-in failed' }, origin, returnUrl)
+    return popupResult(c, { error: 'sign-in failed' }, origin, returnUrl)
   }
 })
 
 // Dev login — only when OAuth isn't configured or DQA_DEV_AUTH=true.
-app.get('/auth/dev', (req, res) => {
-  if (!devAllowed()) return res.status(403).json({ error: 'dev auth disabled' })
-  res.json({
+app.get('/auth/dev', (c) => {
+  if (!devAllowed()) return c.json({ error: 'dev auth disabled' }, 403)
+  return c.json({
     // Empty name → server auto-assigns "Dev N" (unique per session).
-    token: makeDevSession(String(req.query.name ?? '').slice(0, 40)),
+    token: makeDevSession((c.req.query('name') ?? '').slice(0, 40)),
   })
 })
 
-app.post('/auth/logout', requireAuth, async (req, res) => {
-  const lt = decrypt(req.session.lt)
+app.post('/auth/logout', requireAuth, async (c) => {
+  const lt = decrypt(c.get('session').lt)
   if (lt) await revoke(lt)
-  res.json({ ok: true })
+  return c.json({ ok: true })
 })
 
 // who am I (handy for the overlay to validate its token)
-app.get('/auth/me', requireAuth, (req, res) => {
-  const { sub, name, email, color, orgId, dev, avatarUrl } = req.session
-  res.json({
+app.get('/auth/me', requireAuth, (c) => {
+  const { sub, name, email, color, orgId, dev, avatarUrl } = c.get('session')
+  return c.json({
     id: sub,
     name,
     email,
@@ -277,54 +293,54 @@ const LINEAR_CHECK_INTERVAL_MS = 60_000
 
 // Distinct pages that have comments, with open/total counts — powers the
 // DevDrawer "Pages" navigator.
-app.get('/api/pages', requireAuth, (_req, res) => {
+app.get('/api/pages', requireAuth, (c) => {
   const byUrl = new Map<string, { url: string; open: number; total: number }>()
-  for (const c of listComments()) {
-    const e = byUrl.get(c.url) ?? { url: c.url, open: 0, total: 0 }
+  for (const comment of listComments()) {
+    const e = byUrl.get(comment.url) ?? { url: comment.url, open: 0, total: 0 }
     e.total += 1
-    if (c.status !== 'resolved') e.open += 1
-    byUrl.set(c.url, e)
+    if (comment.status !== 'resolved') e.open += 1
+    byUrl.set(comment.url, e)
   }
-  res.json(
+  return c.json(
     [...byUrl.values()].sort((a, b) => b.open - a.open || b.total - a.total),
   )
 })
 
-app.get('/api/comments', requireAuth, async (req, res) => {
-  const pageUrl = typeof req.query.url === 'string' ? req.query.url : undefined
+app.get('/api/comments', requireAuth, async (c) => {
+  const pageUrl = c.req.query('url')
   const comments = listComments(pageUrl)
   // Lazily detect Linear-side deletions using the reviewer's token (no-op for
   // dev sessions). Throttled per comment; failures leave the state untouched.
-  const token = decrypt(req.session.lt)
+  const token = decrypt(c.get('session').lt)
   if (token) {
     const now = Date.now()
     const due = comments.filter(
-      (c) =>
-        c.linear &&
-        !c.linearDeleted &&
-        (!c.linearCheckedAt ||
-          now - c.linearCheckedAt > LINEAR_CHECK_INTERVAL_MS),
+      (comment) =>
+        comment.linear &&
+        !comment.linearDeleted &&
+        (!comment.linearCheckedAt ||
+          now - comment.linearCheckedAt > LINEAR_CHECK_INTERVAL_MS),
     )
     await Promise.all(
-      due.map(async (c) => {
-        const status = await checkLinearStatus(c.linear, token)
-        const updated = updateComment(c.id, {
+      due.map(async (comment) => {
+        const status = await checkLinearStatus(comment.linear, token)
+        const updated = updateComment(comment.id, {
           linearCheckedAt: now,
           ...(status === 'deleted' ? { linearDeleted: true } : {}),
         })
         if (status === 'deleted' && updated)
-          broadcast(c.url, { type: 'comment:update', comment: updated })
+          broadcast(comment.url, { type: 'comment:update', comment: updated })
       }),
     )
   }
-  res.json(listComments(pageUrl))
+  return c.json(listComments(pageUrl))
 })
 
-app.delete('/api/comments/:id', requireAuth, (req, res) => {
-  const removed = removeComment(req.params.id)
-  if (!removed) return res.status(404).json({ error: 'not found' })
+app.delete('/api/comments/:id', requireAuth, (c) => {
+  const removed = removeComment(c.req.param('id'))
+  if (!removed) return c.json({ error: 'not found' }, 404)
   broadcast(removed.url, { type: 'comment:delete', id: removed.id })
-  res.json({ ok: true })
+  return c.json({ ok: true })
 })
 
 // Cap client-supplied inspection payloads (component snapshot + style edits).
@@ -381,8 +397,8 @@ function isSafeCssValue(v: string): boolean {
   )
 }
 // Cap free-text fields — bodies are rendered escaped everywhere, but there is
-// no reason to store megabytes per comment (express.json allows 2mb requests
-// for screenshot metadata).
+// no reason to store megabytes per comment (jsonLimit allows 2mb requests for
+// screenshot metadata).
 const MAX_BODY_LEN = 5_000
 const MAX_URL_LEN = 2_000
 
@@ -429,7 +445,7 @@ function sanitizeStyleEdits(edits: unknown): StyleEdit[] | null {
   return out.length ? out : null
 }
 
-app.post('/api/comments', requireAuth, (req, res) => {
+app.post('/api/comments', requireAuth, jsonLimit, async (c) => {
   const {
     url,
     body,
@@ -439,21 +455,21 @@ app.post('/api/comments', requireAuth, (req, res) => {
     issueRef,
     inspect,
     styleEdits,
-  } = req.body || {}
-  if (!url || !body)
-    return res.status(400).json({ error: 'url and body required' })
+  } = await readJson<Record<string, unknown>>(c)
+  if (!url || !body) return c.json({ error: 'url and body required' }, 400)
   // Server-hosted screenshots only — both image fields must point at our
   // own /uploads/ (same rule the "after" shot always had).
   const ownUpload = (v: unknown) =>
     typeof v === 'string' && v.startsWith('/uploads/') && v.length < 200
       ? v
       : null
+  const session = c.get('session')
   const comment: Comment = {
     id: randomUUID(),
     url: String(url).slice(0, MAX_URL_LEN),
-    author: req.session.name, // identity comes from the session, not the client
-    authorId: req.session.sub,
-    authorAvatar: req.session.avatarUrl || null,
+    author: session.name, // identity comes from the session, not the client
+    authorId: session.sub,
+    authorAvatar: session.avatarUrl || null,
     body: String(body).slice(0, MAX_BODY_LEN),
     anchor: sanitizeAnchor(anchor),
     imageUrl: ownUpload(imageUrl),
@@ -468,84 +484,96 @@ app.post('/api/comments', requireAuth, (req, res) => {
     createdAt: new Date().toISOString(),
   }
   addComment(comment)
-  broadcast(url, { type: 'comment:new', comment })
-  res.json(comment)
+  broadcast(comment.url, { type: 'comment:new', comment })
+  return c.json(comment)
 })
 
-app.post('/api/comments/:id/reply', requireAuth, async (req, res) => {
+app.post('/api/comments/:id/reply', requireAuth, jsonLimit, async (c) => {
+  const raw = await readJson<{ body: unknown }>(c)
   const body =
-    typeof req.body?.body === 'string'
-      ? req.body.body.trim().slice(0, MAX_BODY_LEN)
-      : ''
-  if (!body) return res.status(400).json({ error: 'body required' })
+    typeof raw.body === 'string' ? raw.body.trim().slice(0, MAX_BODY_LEN) : ''
+  if (!body) return c.json({ error: 'body required' }, 400)
 
+  const id = c.req.param('id')
   // If the parent comment was already pushed to Linear, mirror the reply
   // there as a THREADED reply (parentId) so the conversation continues on
   // the ticket. Best-effort — the DQA reply saves regardless.
-  const parent = listComments().find((c) => c.id === req.params.id)
+  const parent = listComments().find((comment) => comment.id === id)
   let linearSynced = false
   if (parent?.linear && !parent.linearDeleted) {
-    const userToken = decrypt(req.session.lt) // null for dev sessions
+    const userToken = decrypt(c.get('session').lt) // null for dev sessions
     linearSynced = await pushReplyToLinear(parent.linear, body, userToken)
   }
 
-  const updated = addReply(req.params.id, {
+  const updated = addReply(id, {
     id: randomUUID(),
-    author: req.session.name,
-    authorAvatar: req.session.avatarUrl || null,
+    author: c.get('session').name,
+    authorAvatar: c.get('session').avatarUrl || null,
     body,
     createdAt: new Date().toISOString(),
     linearSynced,
   })
-  if (!updated) return res.status(404).json({ error: 'not found' })
+  if (!updated) return c.json({ error: 'not found' }, 404)
   broadcast(updated.url, { type: 'comment:update', comment: updated })
-  res.json(updated)
+  return c.json(updated)
 })
 
-app.post('/api/comments/:id/resolve', requireAuth, (req, res) => {
-  const updated = updateComment(req.params.id, { status: 'resolved' })
-  if (!updated) return res.status(404).json({ error: 'not found' })
+app.post('/api/comments/:id/resolve', requireAuth, (c) => {
+  const updated = updateComment(c.req.param('id'), { status: 'resolved' })
+  if (!updated) return c.json({ error: 'not found' }, 404)
   broadcast(updated.url, { type: 'comment:update', comment: updated })
-  res.json(updated)
+  return c.json(updated)
 })
 
-app.post('/api/upload', requireAuth, upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'no file' })
-  res.json({ imageUrl: `/uploads/${req.file.filename}` })
-})
+app.post(
+  '/api/upload',
+  requireAuth,
+  bodyLimit({ maxSize: MAX_UPLOAD_BYTES, onError: tooLarge }),
+  async (c) => {
+    const file = (await c.req.parseBody()).image
+    if (!(file instanceof File)) return c.json({ error: 'no file' }, 400)
+    const ext = ALLOWED_IMAGE_EXT[file.type]
+    if (!ext) return c.json({ error: 'unsupported image type' }, 400)
+    const filename = randomUUID() + ext
+    await writeFile(
+      resolve(UPLOAD_DIR, filename),
+      Buffer.from(await file.arrayBuffer()),
+    )
+    return c.json({ imageUrl: `/uploads/${filename}` })
+  },
+)
 
 // Search the reviewer's Linear issues for the ticket picker.
-app.get('/api/linear/issues', requireAuth, async (req, res) => {
+app.get('/api/linear/issues', requireAuth, async (c) => {
   try {
-    const userToken = decrypt(req.session.lt)
-    const term = typeof req.query.term === 'string' ? req.query.term.trim() : ''
-    const after =
-      typeof req.query.after === 'string' && req.query.after.length < 500
-        ? req.query.after
-        : null
+    const userToken = decrypt(c.get('session').lt)
+    const term = (c.req.query('term') ?? '').trim()
+    const rawAfter = c.req.query('after')
+    const after = rawAfter && rawAfter.length < 500 ? rawAfter : null
     const page = await searchIssues(term, userToken, after)
-    res.json({
+    return c.json({
       issues: page.issues,
       nextCursor: page.nextCursor,
       dev: !userToken,
     })
   } catch (e) {
     console.error('[linear] search', (e as Error).message)
-    res.status(502).json({ error: (e as Error).message })
+    return c.json({ error: (e as Error).message }, 502)
   }
 })
 
 const PUSH_ACTIONS = ['comment', 'subissue', 'issue'] as const
 type PushAction = (typeof PUSH_ACTIONS)[number]
 
-app.post('/api/comments/:id/linear', requireAuth, async (req, res) => {
-  const comment = listComments().find((c) => c.id === req.params.id)
-  if (!comment) return res.status(404).json({ error: 'not found' })
-  const body = (req.body ?? {}) as {
-    issueRef?: string
-    action?: string
-    priority?: number
-  }
+app.post('/api/comments/:id/linear', requireAuth, jsonLimit, async (c) => {
+  const id = c.req.param('id')
+  const comment = listComments().find((entry) => entry.id === id)
+  if (!comment) return c.json({ error: 'not found' }, 404)
+  const body = await readJson<{
+    issueRef: string
+    action: string
+    priority: number
+  }>(c)
   // A ticket chosen in the picker overrides the page's default (?issue=).
   const issueRef = body.issueRef || comment.issueRef || null
   const action: PushAction | null = PUSH_ACTIONS.includes(
@@ -561,35 +589,53 @@ app.post('/api/comments/:id/linear', requireAuth, async (req, res) => {
       ? body.priority
       : null
   try {
-    const userToken = decrypt(req.session.lt) // reviewer's Linear token (actor=user)
+    const userToken = decrypt(c.get('session').lt) // reviewer's Linear token (actor=user)
     const result = await pushToLinear(
       { ...comment, issueRef },
-      { userToken, baseUrl: baseUrl(req), action, priority },
+      { userToken, baseUrl: baseUrl(c), action, priority },
     )
     const updated = updateComment(comment.id, {
       linear: result.issue,
       issueRef,
     })
     broadcast(comment.url, { type: 'comment:update', comment: updated })
-    res.json(result)
+    return c.json(result)
   } catch (e) {
     console.error('[linear]', (e as Error).message)
-    res.status(502).json({ error: (e as Error).message })
+    return c.json({ error: (e as Error).message }, 502)
   }
 })
+
+// ======================================================================
+//  STATIC
+// ======================================================================
+
+// serveStatic builds its Response before `onFound` runs, so headers set there
+// are dropped. Setting them after `await next()` mutates the finalized
+// response instead, which is the only thing that reaches the client.
+const staticHeaders =
+  (headers: Record<string, string>): MiddlewareHandler<AuthEnv> =>
+  async (c, next) => {
+    await next()
+    if (c.res.status !== 200) return
+    for (const [k, v] of Object.entries(headers)) c.header(k, v)
+  }
 
 // Screenshots. Filenames are unguessable UUIDs; served with a locked-down
 // Content-Type + nosniff so a stored file can never execute as script/HTML.
 app.use(
-  '/uploads',
-  express.static(UPLOAD_DIR, {
-    setHeaders: (res) => {
-      res.setHeader('X-Content-Type-Options', 'nosniff')
-      res.setHeader('Content-Disposition', 'inline')
-      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
-    },
+  '/uploads/*',
+  staticHeaders({
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Disposition': 'inline',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+  }),
+  serveStatic({
+    root: UPLOAD_DIR,
+    rewriteRequestPath: (path) => path.replace(/^\/uploads/, ''),
   }),
 )
+
 // `no-cache` = browsers must revalidate (ETag/304) before reusing a cached
 // copy, so overlay.js updates are picked up on refresh instead of a stale
 // script silently serving until the heuristic cache expires.
@@ -597,25 +643,19 @@ app.use(
 // dist/ (built overlay bundle) is mounted first so it wins over anything of
 // the same name in public/; public/ holds hand-authored static assets only.
 app.use(
-  express.static(DIST_DIR, {
-    setHeaders: (res) => {
-      res.setHeader('Cache-Control', 'no-cache')
-    },
-  }),
-)
-app.use(
-  express.static(PUBLIC_DIR, {
-    setHeaders: (res) => {
-      res.setHeader('Cache-Control', 'no-cache')
-    },
-  }),
+  '*',
+  staticHeaders({ 'Cache-Control': 'no-cache' }),
+  serveStatic({ root: DIST_DIR }),
+  serveStatic({ root: PUBLIC_DIR }),
 )
 
 // ======================================================================
 //  WebSocket — live cursors + presence (also gated)
 // ======================================================================
 
-const server = createServer(app)
+// createAdaptorServer's return type is the http/http2 union; with no
+// serverOptions it's a plain node:http Server, which is what `ws` attaches to.
+const server = createAdaptorServer({ fetch: app.fetch }) as Server
 const wss = new WebSocketServer({
   server,
   path: '/ws',
