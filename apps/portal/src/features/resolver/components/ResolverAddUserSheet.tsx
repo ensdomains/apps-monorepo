@@ -287,143 +287,149 @@ export const ResolverAddUserSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
-      >
-        <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0 pt-4">
-            <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
-          </SheetHeader>
+      <SheetContent side="right" className="bg-background p-0">
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <SheetHeader className="p-0">
+              <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
+            </SheetHeader>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field
-              data-invalid={
-                nameOrAddressInput.length > 0 && !isResolvingAddress && !address
-              }
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-6 flex-1"
             >
-              <Input
-                id="user"
-                name="user"
-                placeholder="User name or address"
-                required
-                value={nameOrAddressInput}
-                disabled={isPending || isSuccess}
-                aria-invalid={
+              <Field
+                data-invalid={
                   nameOrAddressInput.length > 0 &&
                   !isResolvingAddress &&
                   !address
                 }
-                onChange={handleInputChange}
-                className="h-12 bg-background border"
-              />
-              {isResolvingAddress && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolving address...
-                </p>
-              )}
-              {!isResolvingAddress && address && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolved: {truncateAddress(address, 6, 4)}
-                </p>
-              )}
-              {!isResolvingAddress && resolveError && (
-                <p className="text-sm mt-1.5 text-danger">{resolveError}</p>
-              )}
-            </Field>
-
-            <Field>
-              <Combobox
-                value={selectedNode}
-                onValueChange={(v) => setSelectedNode(v ?? ROOT_NODE_VALUE)}
               >
-                <ComboboxInput placeholder="Root (all nodes)" />
-                <ComboboxContent>
-                  <ComboboxList>
-                    <ComboboxItem value={ROOT_NODE_VALUE}>
-                      <span className="text-sm text-muted-foreground">
-                        Root (all nodes)
-                      </span>
-                    </ComboboxItem>
-                    {nameOptions.map((name) => {
-                      const node = nodes.find((n) => n.name === name)
-                      return (
-                        <ComboboxItem key={name} value={name}>
-                          <div className="flex items-center gap-2">
-                            <NameAvatar
-                              name={name}
-                              width="24px"
-                              height="24px"
-                              rounded="rounded-sm"
-                            />
-                            <span className="font-mono text-sm">{name}</span>
-                            {node?.owner?.id && (
-                              <span className="text-xs text-muted-foreground truncate ml-auto">
-                                {truncateAddress(
-                                  node.owner.id as Address,
-                                  6,
-                                  4,
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        </ComboboxItem>
-                      )
-                    })}
-                    <ComboboxEmpty>No names found</ComboboxEmpty>
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            </Field>
+                <Input
+                  id="user"
+                  name="user"
+                  placeholder="User name or address"
+                  required
+                  value={nameOrAddressInput}
+                  disabled={isPending || isSuccess}
+                  aria-invalid={
+                    nameOrAddressInput.length > 0 &&
+                    !isResolvingAddress &&
+                    !address
+                  }
+                  onChange={handleInputChange}
+                  className="h-12 bg-background border"
+                />
+                {isResolvingAddress && (
+                  <p className="text-sm mt-1.5 text-muted-foreground">
+                    Resolving address...
+                  </p>
+                )}
+                {!isResolvingAddress && address && (
+                  <p className="text-sm mt-1.5 text-muted-foreground">
+                    Resolved: {truncateAddress(address, 6, 4)}
+                  </p>
+                )}
+                {!isResolvingAddress && resolveError && (
+                  <p className="text-sm mt-1.5 text-danger">{resolveError}</p>
+                )}
+              </Field>
 
-            <Field data-invalid={formError?.field === 'roles'}>
-              <RolePermissionList
-                selectedRoles={selectedRoles}
-                onToggle={toggleRole}
-                disabled={isPending || isSuccess}
-                isInvalid={formError?.field === 'roles'}
-              />
-              {formError?.field === 'roles' && (
-                <FieldError className="mt-1.5">{formError.message}</FieldError>
-              )}
-            </Field>
+              <Field>
+                <Combobox
+                  value={selectedNode}
+                  onValueChange={(v) => setSelectedNode(v ?? ROOT_NODE_VALUE)}
+                >
+                  <ComboboxInput placeholder="Root (all nodes)" />
+                  <ComboboxContent>
+                    <ComboboxList>
+                      <ComboboxItem value={ROOT_NODE_VALUE}>
+                        <span className="text-sm text-muted-foreground">
+                          Root (all nodes)
+                        </span>
+                      </ComboboxItem>
+                      {nameOptions.map((name) => {
+                        const node = nodes.find((n) => n.name === name)
+                        return (
+                          <ComboboxItem key={name} value={name}>
+                            <div className="flex items-center gap-2">
+                              <NameAvatar
+                                name={name}
+                                width="24px"
+                                height="24px"
+                                rounded="rounded-sm"
+                              />
+                              <span className="font-mono text-sm">{name}</span>
+                              {node?.owner?.id && (
+                                <span className="text-xs text-muted-foreground truncate ml-auto">
+                                  {truncateAddress(
+                                    node.owner.id as Address,
+                                    6,
+                                    4,
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </ComboboxItem>
+                        )
+                      })}
+                      <ComboboxEmpty>No names found</ComboboxEmpty>
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              </Field>
 
-            <div className="flex justify-end pb-3">
-              <Button type="submit" variant="default" disabled={!canSave}>
-                {match({ isPending, isSuccess })
-                  .with({ isSuccess: true }, () => 'Transaction Complete')
-                  .with({ isPending: true }, () => 'Saving...')
-                  .otherwise(() => 'Save')}
-              </Button>
-            </div>
-          </form>
+              <Field data-invalid={formError?.field === 'roles'}>
+                <RolePermissionList
+                  selectedRoles={selectedRoles}
+                  onToggle={toggleRole}
+                  disabled={isPending || isSuccess}
+                  isInvalid={formError?.field === 'roles'}
+                />
+                {formError?.field === 'roles' && (
+                  <FieldError className="mt-1.5">
+                    {formError.message}
+                  </FieldError>
+                )}
+              </Field>
 
-          <TransactionModal
-            transactions={[
-              {
-                id: GRANT_RESOLVER_ROLES_TX_ID,
-                title: 'Grant resolver roles',
-                transactionName: `Grant resolver roles for ${pendingGrant?.name || '(root)'}`,
-                // Deterministic once the user has confirmed the grant, so the
-                // modal can estimate gas the moment it opens.
-                intent: {
-                  prepare: pendingGrant
-                    ? ({ walletClient, chainId }) =>
-                        prepareGrantResolverRolesTransaction({
-                          resolverAddress,
-                          name: pendingGrant.name,
-                          account: pendingGrant.account,
-                          roles: pendingGrant.roles,
-                          walletClient,
-                          chainId,
-                        })
-                    : undefined,
+              <div className="flex justify-end pb-3">
+                <Button type="submit" variant="default" disabled={!canSave}>
+                  {match({ isPending, isSuccess })
+                    .with({ isSuccess: true }, () => 'Transaction Complete')
+                    .with({ isPending: true }, () => 'Saving...')
+                    .otherwise(() => 'Save')}
+                </Button>
+              </div>
+            </form>
+
+            <TransactionModal
+              transactions={[
+                {
+                  id: GRANT_RESOLVER_ROLES_TX_ID,
+                  title: 'Grant resolver roles',
+                  transactionName: `Grant resolver roles for ${pendingGrant?.name || '(root)'}`,
+                  // Deterministic once the user has confirmed the grant, so the
+                  // modal can estimate gas the moment it opens.
+                  intent: {
+                    prepare: pendingGrant
+                      ? ({ walletClient, chainId }) =>
+                          prepareGrantResolverRolesTransaction({
+                            resolverAddress,
+                            name: pendingGrant.name,
+                            account: pendingGrant.account,
+                            roles: pendingGrant.roles,
+                            walletClient,
+                            chainId,
+                          })
+                      : undefined,
+                  },
+                  onStart: handleStartTransaction,
+                  onDone: handleDone,
                 },
-                onStart: handleStartTransaction,
-                onDone: handleDone,
-              },
-            ]}
-          />
+              ]}
+            />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

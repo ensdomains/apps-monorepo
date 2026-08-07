@@ -325,10 +325,7 @@ export const EditRecordsTable = ({
 
               return (
                 <React.Fragment key={row.id}>
-                  <TableRow
-                    data-state={row.getIsSelected() && 'selected'}
-                    className={'hover:bg-muted'}
-                  >
+                  <TableRow data-state={row.getIsSelected() && 'selected'}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell
                         key={cell.id}

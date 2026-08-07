@@ -192,98 +192,104 @@ export const RegistryAddUserSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
-      >
-        <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0">
-            <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
-          </SheetHeader>
+      <SheetContent side="right" className="bg-background p-0">
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <SheetHeader className="p-0">
+              <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
+            </SheetHeader>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field
-              data-invalid={
-                nameOrAddressInput.length > 0 && !isResolvingAddress && !address
-              }
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-6 flex-1"
             >
-              <Input
-                id="user"
-                name="user"
-                placeholder="User name or address"
-                required
-                disabled={isPending || isSuccess}
-                aria-invalid={
+              <Field
+                data-invalid={
                   nameOrAddressInput.length > 0 &&
                   !isResolvingAddress &&
                   !address
                 }
-                onChange={handleInputChange}
-                className="h-12 bg-background border"
-              />
-              {isResolvingAddress && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolving address...
-                </p>
-              )}
-              {!isResolvingAddress && address && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolved: {truncateAddress(address, 6, 4)}
-                </p>
-              )}
-              {!isResolvingAddress && resolveError && (
-                <p className="text-sm mt-1.5 text-danger">{resolveError}</p>
-              )}
-            </Field>
+              >
+                <Input
+                  id="user"
+                  name="user"
+                  placeholder="User name or address"
+                  required
+                  disabled={isPending || isSuccess}
+                  aria-invalid={
+                    nameOrAddressInput.length > 0 &&
+                    !isResolvingAddress &&
+                    !address
+                  }
+                  onChange={handleInputChange}
+                  className="h-12 bg-background border"
+                />
+                {isResolvingAddress && (
+                  <p className="text-sm mt-1.5 text-muted-foreground">
+                    Resolving address...
+                  </p>
+                )}
+                {!isResolvingAddress && address && (
+                  <p className="text-sm mt-1.5 text-muted-foreground">
+                    Resolved: {truncateAddress(address, 6, 4)}
+                  </p>
+                )}
+                {!isResolvingAddress && resolveError && (
+                  <p className="text-sm mt-1.5 text-danger">{resolveError}</p>
+                )}
+              </Field>
 
-            <Field data-invalid={formError?.field === 'roles'}>
-              <RegistryRolePermissionList
-                selectedRoles={selectedRoles}
-                callerAdminRoles={callerAdminRoles}
-                onToggle={toggleRole}
-                disabled={isPending || isSuccess}
-                invalid={formError?.field === 'roles'}
-              />
-              {formError?.field === 'roles' && (
-                <FieldError className="mt-1.5">{formError.message}</FieldError>
-              )}
-            </Field>
+              <Field data-invalid={formError?.field === 'roles'}>
+                <RegistryRolePermissionList
+                  selectedRoles={selectedRoles}
+                  callerAdminRoles={callerAdminRoles}
+                  onToggle={toggleRole}
+                  disabled={isPending || isSuccess}
+                  invalid={formError?.field === 'roles'}
+                />
+                {formError?.field === 'roles' && (
+                  <FieldError className="mt-1.5">
+                    {formError.message}
+                  </FieldError>
+                )}
+              </Field>
 
-            <div className="flex justify-end">
-              <Button type="submit" variant="default" disabled={!canSave}>
-                {match({ isPending, isSuccess })
-                  .with({ isSuccess: true }, () => 'Transaction Complete')
-                  .with({ isPending: true }, () => 'Saving...')
-                  .otherwise(() => 'Save')}
-              </Button>
-            </div>
-          </form>
+              <div className="flex justify-end">
+                <Button type="submit" variant="default" disabled={!canSave}>
+                  {match({ isPending, isSuccess })
+                    .with({ isSuccess: true }, () => 'Transaction Complete')
+                    .with({ isPending: true }, () => 'Saving...')
+                    .otherwise(() => 'Save')}
+                </Button>
+              </div>
+            </form>
 
-          <TransactionModal
-            transactions={[
-              {
-                id: GRANT_REGISTRY_ROLES_TX_ID,
-                title: 'Grant roles',
-                transactionName: 'Grant registry roles',
-                // Deterministic once the user has picked an account + roles, so
-                // the modal can estimate gas the moment it opens.
-                intent: {
-                  prepare: pendingGrant
-                    ? ({ walletClient, chainId }) =>
-                        prepareGrantRegistryRolesTransaction({
-                          registryAddress,
-                          account: pendingGrant.account,
-                          roles: pendingGrant.roles,
-                          walletClient,
-                          chainId,
-                        })
-                    : undefined,
+            <TransactionModal
+              transactions={[
+                {
+                  id: GRANT_REGISTRY_ROLES_TX_ID,
+                  title: 'Grant roles',
+                  transactionName: 'Grant registry roles',
+                  // Deterministic once the user has picked an account + roles, so
+                  // the modal can estimate gas the moment it opens.
+                  intent: {
+                    prepare: pendingGrant
+                      ? ({ walletClient, chainId }) =>
+                          prepareGrantRegistryRolesTransaction({
+                            registryAddress,
+                            account: pendingGrant.account,
+                            roles: pendingGrant.roles,
+                            walletClient,
+                            chainId,
+                          })
+                      : undefined,
+                  },
+                  onStart: handleStartTransaction,
+                  onDone: handleDone,
                 },
-                onStart: handleStartTransaction,
-                onDone: handleDone,
-              },
-            ]}
-          />
+              ]}
+            />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

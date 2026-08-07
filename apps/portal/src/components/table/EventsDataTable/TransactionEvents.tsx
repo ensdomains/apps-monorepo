@@ -3,9 +3,18 @@ import { useState } from 'react'
 import type { Hash } from 'viem'
 import { useTransactionReceipt } from 'wagmi'
 import { CopyableRecord } from '@/components/CopyableRecord'
+import { InfoRow } from '@/components/InfoCard'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   getEventFieldType,
@@ -41,7 +50,7 @@ const EventData = ({ event, txHash }: EventDataProps) => {
   return (
     <div>
       <div className="w-full flex items-center justify-between">
-        <h4 className="text-base font-semibold mb-3">Data</h4>
+        <h4 className="text-caps leading-none text-foreground">Data</h4>
 
         <div className="flex items-center gap-3 mb-4">
           <Label htmlFor="showDecoded">
@@ -56,32 +65,24 @@ const EventData = ({ event, txHash }: EventDataProps) => {
 
       {showDecoded ? (
         <div className="border rounded-sm overflow-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-sm font-medium text-foreground w-12">
-                  #
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
-                  Name
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
-                  Type
-                </th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-foreground">
-                  Data
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="[&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">#</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Data</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {dataFields.map(([key, value], index) => (
-                <tr key={key} className="border-t">
-                  <td className="px-4 py-3 text-sm">{index}</td>
-                  <td className="px-4 py-3 text-sm">{key}</td>
-                  <td className="px-4 py-3 text-sm">
+                <TableRow key={key} className="hover:bg-muted">
+                  <TableCell className="h-10 py-0 text-sm">{index}</TableCell>
+                  <TableCell className="h-10 py-0 text-sm">{key}</TableCell>
+                  <TableCell className="h-10 py-0 text-sm">
                     {getEventFieldType(event.type, key)}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
+                  </TableCell>
+                  <TableCell className="h-10 py-0 text-sm">
                     <CopyableRecord
                       value={String(value)}
                       displayValue={
@@ -90,11 +91,11 @@ const EventData = ({ event, txHash }: EventDataProps) => {
                         </span>
                       }
                     />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : (
         <div className="bg-muted p-4 rounded-sm">
@@ -167,7 +168,9 @@ export const TransactionEvents = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <h3 className="text-h3">{events.length} events</h3>
+      <h3 className="text-caps leading-none text-foreground">
+        {events.length} events
+      </h3>
       <div className="border rounded-sm overflow-hidden">
         <Tabs defaultValue={firstEventId} className="w-full">
           <div className="overflow-x-auto">
@@ -217,33 +220,29 @@ export const TransactionEvents = ({
                       </a>
                     </Button>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-start sm:items-center">
-                    <span className="text-base font-semibold shrink-0 sm:min-w-40">
-                      Transaction
-                    </span>
-                    <CopyableRecord
-                      value={txHash}
-                      displayValue={
-                        <span className="flex items-center gap-1">
-                          {truncateAddress(txHash, 10, 8, '...')}
-                        </span>
-                      }
-                      className="text-sm flex-1 min-w-0"
-                    />
-                  </div>
-                  <div className="flex flex-row gap-6 items-center">
-                    <span className="text-base font-semibold sm:min-w-40">
-                      Event
-                    </span>
-                    <CopyableRecord
-                      value={getEventSignature(event.type)}
-                      displayValue={
-                        <div className="w-full max-w-110">
-                          {getEventSignature(event.type)}
-                        </div>
-                      }
-                      truncate={false}
-                    />
+                  <div className="[&_[data-slot=info-row]]:px-0">
+                    <InfoRow label="Transaction">
+                      <CopyableRecord
+                        value={txHash}
+                        displayValue={
+                          <span className="flex items-center gap-1">
+                            {truncateAddress(txHash, 10, 8, '...')}
+                          </span>
+                        }
+                        className="text-sm flex-1 min-w-0"
+                      />
+                    </InfoRow>
+                    <InfoRow label="Event">
+                      <CopyableRecord
+                        value={getEventSignature(event.type)}
+                        displayValue={
+                          <div className="w-full max-w-110">
+                            {getEventSignature(event.type)}
+                          </div>
+                        }
+                        truncate={false}
+                      />
+                    </InfoRow>
                   </div>
                 </div>
                 <EventData event={event} txHash={txHash} />
