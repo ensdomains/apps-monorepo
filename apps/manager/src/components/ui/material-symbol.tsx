@@ -55,7 +55,6 @@ export const MATERIAL_SYMBOLS = [
   'language',
   'language_chinese_array',
   'link',
-  'local_gas_station',
   'login',
   'logout',
   'mail',

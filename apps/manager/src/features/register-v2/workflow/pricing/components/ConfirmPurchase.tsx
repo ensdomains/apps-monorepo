@@ -1,4 +1,3 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
@@ -9,8 +8,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { AlertCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { isAddressEqual } from 'viem'
-import { sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -23,30 +20,11 @@ import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
-import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { truncateName } from '../../../utils/truncate-name'
 import { getPremiumLabel } from '../lib/premiumLabel'
-import { computeRegistrationFunding } from '../lib/registrationFunding'
-import {
-  PaymentCardBaseLine,
-  PaymentCardNetworkFeeLine,
-} from './PaymentCardLineItems'
-
-const USDC_DECIMALS = TOKENS.USDC.decimals
-
-/** Raised when the wallet cannot cover the funding budget. */
-class InsufficientFundingError extends Error {
-  constructor(
-    readonly required: number,
-    readonly available: number,
-  ) {
-    super('Insufficient USDC to fund the registration')
-    this.name = 'InsufficientFundingError'
-  }
-}
 
 export const ConfirmPurchase = () => {
   const { t } = useLingui()
@@ -80,53 +58,8 @@ export const ConfirmPurchase = () => {
 
   const domainName = `${label}.eth`
 
-  // The wallet's Circle-USDC balance. This is the EOA owner's balance (see
-  // `useSmartAccountBalances`), which is the account the funding permit debits.
-  const usdcBalanceRaw = (() => {
-    const usdc = getDestinationContracts(sepolia.id).usdc
-    const entry = account.stablecoinBalances.find((balance) =>
-      isAddressEqual(balance.address, usdc),
-    )
-    return entry ? BigInt(entry.balance) : null
-  })()
-
-  const budgetQueryOptions = getHcaBudgetQueryOptions({
-    label,
-    durationInSeconds: duration,
-    hca: account.accountAddress,
-    signer: account.signer,
-    getSessionEnablePayload: account.getSessionEnablePayload,
-  })
-  const budgetQuery = useQuery(budgetQueryOptions)
-
-  // What the wallet is actually debited, itemised. Absent until the quote
-  // lands, and permanently absent if it fails — in which case the screen falls
-  // back to showing the price alone rather than blocking on a flaky quote.
-  const funding = computeRegistrationFunding({
-    budget: budgetQuery.data,
-    walletBalanceRaw: usdcBalanceRaw,
-    decimals: USDC_DECIMALS,
-  })
-
   const availabilityMutation = useMutation({
     mutationFn: async () => {
-      // Re-check funding on the click path, not just on render: the quote may
-      // still have been in flight when the screen painted, and a stale budget
-      // would let through exactly the registration this gate exists to stop.
-      // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
-      const budget = await queryClient
-        .fetchQuery(budgetQueryOptions)
-        // A quote failure is not a funding failure. Fall through and let the
-        // machine (and its own pre-permit balance check) surface the problem.
-        .catch(() => null)
-
-      if (budget && usdcBalanceRaw !== null && usdcBalanceRaw < budget.total) {
-        throw new InsufficientFundingError(
-          decimalBigintToNumber(budget.total, USDC_DECIMALS),
-          decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
-        )
-      }
-
       const [availability, existingPrimaryName, ownedNamesCount] =
         await Promise.all([
           queryClient.fetchQuery({
@@ -184,41 +117,22 @@ export const ConfirmPurchase = () => {
     },
   })
 
-  // Prefer the funding shortfall over the generic availability copy: it is the
-  // more specific failure and the only one the user can act on directly.
-  const mutationError = availabilityMutation.error
-  const errorMessage = funding?.isUnderfunded
-    ? t`Not enough USDC. This registration needs ${funding.total.toFixed(2)} USDC — a ${funding.registration.toFixed(2)} registration plus a ${funding.networkFee.toFixed(2)} network fee — but your wallet holds ${(funding.walletBalance ?? 0).toFixed(2)} USDC.`
-    : mutationError instanceof InsufficientFundingError
-      ? t`Not enough USDC. This registration needs ${mutationError.required.toFixed(2)} USDC but your wallet holds ${mutationError.available.toFixed(2)} USDC.`
-      : availabilityMutation.isError
-        ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
-        : null
+  const errorMessage = availabilityMutation.isError
+    ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
+    : null
 
   return (
     <ConfirmPurchaseBase
       canNext={
         !!pricingQuery.data &&
         selectedToken !== undefined &&
-        !pricingQuery.isLoading &&
-        !funding?.isUnderfunded
-      }
-      costBreakdown={
-        funding
-          ? {
-              registration: funding.registration,
-              networkFee: funding.networkFee,
-              isLoading: budgetQuery.isFetching,
-            }
-          : undefined
+        !pricingQuery.isLoading
       }
       errorMessage={errorMessage}
       label={label}
       nextMessage={<Trans>Register name</Trans>}
       onNext={() => availabilityMutation.mutate()}
-      // With a breakdown present this MUST be the funded total, not the rent —
-      // it is what leaves the wallet.
-      pricingData={funding?.total ?? pricingQuery.data?.totalPriceNumber}
+      pricingData={pricingQuery.data?.totalPriceNumber}
       selectedToken={selectedToken}
       supportingMessage={
         <Trans>
@@ -242,7 +156,6 @@ export const ConfirmPurchaseBase = ({
   canNext,
   title,
   supportingMessage,
-  costBreakdown,
 }: {
   label: string
   pricingData: number | undefined
@@ -253,18 +166,6 @@ export const ConfirmPurchaseBase = ({
   canNext: boolean
   title: ReactNode
   supportingMessage?: ReactNode
-  /**
-   * Itemises `pricingData` when the headline figure is more than the rent —
-   * the standalone-HCA route funds both on-chain legs from the same wallet
-   * transfer, so the amount debited is `registration + networkFee`. Omitted by
-   * the renew flow, which pays the registrar directly from the EOA and has no
-   * pre-funded budget to explain. When present, `pricingData` MUST be the sum.
-   */
-  costBreakdown?: {
-    registration: number
-    networkFee: number
-    isLoading: boolean
-  }
 }) => {
   const { t } = useLingui()
 
@@ -300,34 +201,19 @@ export const ConfirmPurchaseBase = ({
           </span>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-3">
-          <div className="flex flex-col items-center">
-            <span className="text-base text-ens-gray">
-              <Trans>for</Trans>
+        <div className="flex flex-col items-center">
+          <span className="text-base text-ens-gray">
+            <Trans>for</Trans>
+          </span>
+          <div className="flex items-baseline gap-1">
+            <SelectedCoinIcon className="h-6 w-6 self-center" />
+            <span className="font-medium text-2xl text-ens-gray tracking-tight">
+              {formatUsd(pricingData ?? 0)}
             </span>
-            <div className="flex items-baseline gap-1">
-              <SelectedCoinIcon className="h-6 w-6 self-center" />
-              <span className="font-medium text-2xl text-ens-gray tracking-tight">
-                {formatUsd(pricingData ?? 0)}
-              </span>
-              <span className="text-ens-gray-three text-lg">
-                {selectedToken || 'USDC'}
-              </span>
-            </div>
+            <span className="text-ens-gray-three text-lg">
+              {selectedToken || 'USDC'}
+            </span>
           </div>
-
-          {costBreakdown && (
-            <div className="w-full max-w-55 space-y-2 border-ens-quartz-75 border-t pt-3">
-              <PaymentCardBaseLine
-                basePrice={costBreakdown.registration}
-                isLoading={costBreakdown.isLoading}
-              />
-              <PaymentCardNetworkFeeLine
-                isLoading={costBreakdown.isLoading}
-                networkFee={costBreakdown.networkFee}
-              />
-            </div>
-          )}
         </div>
 
         {errorMessage && (

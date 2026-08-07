@@ -1,3 +1,4 @@
+import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
@@ -8,6 +9,8 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
+import { isAddressEqual } from 'viem'
+import { sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -18,18 +21,44 @@ import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
-import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
+import { getHcaBudgetQueryOptions } from '../../../data/queries/hcaBudget.query'
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
 import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPremiumLabel } from '../lib/premiumLabel'
+import { computeRegistrationFunding } from '../lib/registrationFunding'
+import { NetworkCostRow } from './NetworkCostRow'
+import { PaymentTotalRow } from './PaymentTotalRow'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
 
 const MEDIUM_NAME_CHAR_THRESHOLD = 10
 const LONG_NAME_CHAR_THRESHOLD = 43
+
+const USDC_DECIMALS = TOKENS.USDC.decimals
+
+/** Raised when the wallet cannot cover the funding budget. */
+class InsufficientFundingError extends Error {
+  constructor(
+    readonly required: number,
+    readonly available: number,
+  ) {
+    super('Insufficient USDC to fund the registration')
+    this.name = 'InsufficientFundingError'
+  }
+}
+
+/**
+ * What the wallet is actually debited, itemised — `rent + networkFee` on the
+ * standalone-HCA route. See {@link computeRegistrationFunding}.
+ */
+export type RegistrationFundingSummary = {
+  networkFee: number
+  total: number
+  isLoading: boolean
+}
 
 const getDomainSizeClasses = (domainName: string): string => {
   const charCount = Array.from(domainName).length
@@ -75,6 +104,34 @@ export const TokenPickerContent = () => {
   const onSelectCoin = (coin: SUPPORTED_TOKEN) => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
+
+  // The wallet's Circle-USDC balance. This is the EOA owner's balance (see
+  // `useSmartAccountBalances`), which is the account the funding permit debits.
+  const usdcBalanceRaw = (() => {
+    const usdc = getDestinationContracts(sepolia.id).usdc
+    const entry = account.stablecoinBalances.find((balance) =>
+      isAddressEqual(balance.address, usdc),
+    )
+    return entry ? BigInt(entry.balance) : null
+  })()
+
+  const budgetQueryOptions = getHcaBudgetQueryOptions({
+    label,
+    durationInSeconds: duration,
+    hca: account.accountAddress,
+    signer: account.signer,
+    getSessionEnablePayload: account.getSessionEnablePayload,
+  })
+  const budgetQuery = useQuery(budgetQueryOptions)
+
+  // Absent until the quote lands, and permanently absent if it fails — in which
+  // case the screen falls back to showing the rent alone rather than blocking
+  // on a flaky quote.
+  const funding = computeRegistrationFunding({
+    budget: budgetQuery.data,
+    walletBalanceRaw: usdcBalanceRaw,
+    decimals: USDC_DECIMALS,
+  })
 
   // Eligibility lookups run in the background (best-effort): they only seed the
   // default state of the primary-name toggle, so a slow/failed indexer never
@@ -147,6 +204,23 @@ export const TokenPickerContent = () => {
 
   const availabilityMutation = useMutation({
     mutationFn: async () => {
+      // Re-check funding on the click path, not just on render: the quote may
+      // still have been in flight when the screen painted, and a stale budget
+      // would let through exactly the registration this gate exists to stop.
+      // `fetchQuery` reuses the in-flight/fresh result, so this is usually free.
+      const budget = await queryClient
+        .fetchQuery(budgetQueryOptions)
+        // A quote failure is not a funding failure. Fall through and let the
+        // machine (and its own pre-permit balance check) surface the problem.
+        .catch(() => null)
+
+      if (budget && usdcBalanceRaw !== null && usdcBalanceRaw < budget.total) {
+        throw new InsufficientFundingError(
+          decimalBigintToNumber(budget.total, USDC_DECIMALS),
+          decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
+        )
+      }
+
       const [availability, resolvedSetAsPrimary] = await Promise.all([
         queryClient.fetchQuery({
           ...getRegistrationV2AvailabilityQueryOptions(`${label}.eth`),
@@ -177,13 +251,20 @@ export const TokenPickerContent = () => {
 
   const domainName = `${label}.eth`
 
+  // Prefer the funding shortfall over the generic availability copy: it is the
+  // more specific failure and the only one the user can act on directly.
+  const mutationError = availabilityMutation.error
+  const errorMessage = funding?.isUnderfunded
+    ? t`Not enough USDC. This registration needs ${funding.total.toFixed(2)} USDC — a ${funding.registration.toFixed(2)} registration plus a ${funding.networkFee.toFixed(2)} network cost — but your wallet holds ${(funding.walletBalance ?? 0).toFixed(2)} USDC.`
+    : mutationError instanceof InsufficientFundingError
+      ? t`Not enough USDC. This registration needs ${mutationError.required.toFixed(2)} USDC but your wallet holds ${mutationError.available.toFixed(2)} USDC.`
+      : availabilityMutation.isError
+        ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
+        : null
+
   return (
     <TokenPickerContentBase
-      errorMessage={
-        availabilityMutation.isError
-          ? t`We couldn't confirm that ${label}.eth is still available. Please try again.`
-          : null
-      }
+      errorMessage={errorMessage}
       footer={
         <div className="flex w-full items-center justify-between gap-3 rounded-xl bg-[rgb(250,250,250)] px-4 py-3 text-left">
           <div className="flex flex-col gap-0.5">
@@ -206,9 +287,19 @@ export const TokenPickerContent = () => {
           />
         </div>
       }
+      funding={
+        funding
+          ? {
+              networkFee: funding.networkFee,
+              total: funding.total,
+              isLoading: budgetQuery.isFetching,
+            }
+          : undefined
+      }
       isConnected={isConnected}
       isInPriceCooldown={(pricingQuery.data?.premiumPriceNumber ?? 0) > 0}
       isLoadingBalances={isLoadingBalances}
+      isQuotingFunding={budgetQuery.isLoading}
       label={label}
       onNext={() => availabilityMutation.mutate()}
       onSelectCoin={onSelectCoin}
@@ -234,6 +325,8 @@ export const TokenPickerContentBase = ({
   isConnected,
   nextMessage = <Trans>Register name</Trans>,
   footer,
+  funding,
+  isQuotingFunding = false,
 }: {
   label: string
   pricingLoading: boolean
@@ -249,6 +342,20 @@ export const TokenPickerContentBase = ({
   nextMessage?: ReactNode
   /** Optional content below the payment options (e.g. the primary-name toggle). */
   footer?: ReactNode
+  /**
+   * Itemises the funding budget when the wallet is debited more than the rent —
+   * the standalone-HCA route funds both on-chain legs from the same transfer.
+   * Absent until the quote lands, and for routes that have no budget to quote
+   * (a pure-EOA signer pays the registrar directly). When present, `total` —
+   * not `pricingData` — is what the wallet must cover.
+   */
+  funding?: RegistrationFundingSummary
+  /**
+   * The budget quote is still in flight. Reserves the network-cost row's space
+   * so the token list below it does not jump once the quote lands — two
+   * orchestrator round-trips is long enough for that shift to be felt.
+   */
+  isQuotingFunding?: boolean
 }) => {
   const { t } = useLingui()
   const domainName = `${label}.eth`
@@ -263,17 +370,21 @@ export const TokenPickerContentBase = ({
     stablecoinBalances,
   })
 
+  // Gate on the funded total, never the rent alone: the permit is signed for
+  // `rent + networkFee`, so a wallet holding only the rent cannot pay.
+  const requiredAmount = funding?.total ?? pricingData
+
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
   )
 
   const hasSufficientBalanceForSelectedCoin =
     selectedCoinBalance &&
-    pricingData &&
+    requiredAmount &&
     decimalBigintToNumber(
       BigInt(selectedCoinBalance.balance),
       selectedCoinBalance.decimals,
-    ) >= pricingData
+    ) >= requiredAmount
 
   const canNext =
     isConnected &&
@@ -285,7 +396,7 @@ export const TokenPickerContentBase = ({
   return (
     <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
       <div className="flex flex-1 flex-col items-center gap-8 overflow-y-auto">
-        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-xl bg-[rgb(250,250,250)] px-6 py-8">
+        <div className="flex w-full min-w-0 flex-col items-center gap-4 rounded-2xl bg-ens-quartz-50 p-6">
           {(premiumLabel || isInPriceCooldown) && (
             <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
               {premiumLabel && (
@@ -309,17 +420,12 @@ export const TokenPickerContentBase = ({
             {domainName}
           </span>
 
-          <div className="flex items-baseline gap-2">
-            <span className="text-center font-normal text-ens-gray-three text-lg leading-[100%] tracking-[-0.36px]">
-              <Trans>for</Trans>
-            </span>
-            <span className="font-medium text-ens-gray-dark text-xl leading-[100%] tracking-[0.36px]">
-              {formatUsd(pricingData ?? 0)}
-            </span>
-            <span className="text-center font-normal text-ens-gray-three text-lg leading-[100%] tracking-[-0.36px]">
-              USD
-            </span>
-          </div>
+          {(funding || isQuotingFunding) && (
+            <NetworkCostRow
+              isLoading={funding?.isLoading ?? true}
+              networkFee={funding?.networkFee}
+            />
+          )}
         </div>
 
         <div className="flex w-full flex-col gap-6">
@@ -372,7 +478,7 @@ export const TokenPickerContentBase = ({
                   <TokenListItem
                     key={stablecoin.address}
                     onSelectCoin={onSelectCoin}
-                    priceUSD={pricingData ?? 0}
+                    priceUSD={requiredAmount ?? 0}
                     selectedCoin={selectedToken}
                     stablecoin={stablecoin}
                   />
@@ -397,6 +503,9 @@ export const TokenPickerContentBase = ({
           {footer}
         </div>
       </div>
+
+      <PaymentTotalRow isEstimate={!!funding} total={requiredAmount} />
+
       <Button
         className={cn(
           'h-20 w-full rounded bg-ens-gray-two font-medium font-mono text-ens-gray-dark text-sm uppercase tracking-wider',
