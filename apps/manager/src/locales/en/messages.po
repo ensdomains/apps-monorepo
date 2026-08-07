@@ -171,10 +171,6 @@ msgstr "60-second wait prevents attacks"
 msgid "A marker for the move to a new era of ENS."
 msgstr "A marker for the move to a new era of ENS."
 
-#: src/features/migration/components/ProfileCardPreview.tsx
-msgid "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
-msgstr "A scrappy generalist builder with taste. Senior Product Designer and Researcher at ENS Labs, dedicated to making web3 feel straightforward to newcomers."
-
 #: src/features/register/pages/CheckDomainPage.tsx
 #: src/routes/index.tsx
 msgid "A simple, portable identity that you control"
@@ -374,10 +370,6 @@ msgstr "Approving the payment token"
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Are you sure?"
 msgstr "Are you sure?"
-
-#: src/features/migration/components/ProfileCardPreview.tsx
-msgid "August 28, 2024"
-msgstr "August 28, 2024"
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Auth address:"
@@ -1366,7 +1358,6 @@ msgid "Link copied to clipboard"
 msgstr "Link copied to clipboard"
 
 #: src/features/landing/components/ProfileCard.tsx
-#: src/features/migration/components/ProfileCardPreview.tsx
 msgid "links"
 msgstr "links"
 
@@ -1973,7 +1964,6 @@ msgstr "Register to date"
 #: src/components/molecules/DomainResultCard/DomainResultCard.tsx
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/landing/components/ProfileCard.tsx
-#: src/features/migration/components/ProfileCardPreview.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 msgid "Registered"

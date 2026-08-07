@@ -11,7 +11,6 @@ import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import { parseAbi } from 'viem'
 
 export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '@ens-apps/migration'
@@ -48,8 +47,6 @@ export const ETH_REGISTRY_V2_ABI = [
   ...OPERATOR_APPROVAL_ABI,
   ...eacGrantRolesSnippet,
 ] as const
-
-export const VERIFIABLE_FACTORY_ABI = verifiableFactoryDeployProxySnippet
 
 export const PERMISSIONED_RESOLVER_ABI = [
   ...subregistryInitializeSnippet,

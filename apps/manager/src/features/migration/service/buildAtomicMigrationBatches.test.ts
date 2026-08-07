@@ -22,8 +22,6 @@ import {
   AtomicMigrationNameGasLimitExceededError,
   buildAtomicMigrationBatches,
   buildAtomicMigrationInnerExecutions,
-  filterIncompleteAtomicMigrationNames,
-  isAtomicMigrationNameComplete,
   lockedNameOwnerRoleBitmap,
   lockedWrapperRootRoleBitmap,
 } from './buildAtomicMigrationBatches'
@@ -127,15 +125,6 @@ const decodeOwnerExecutions = (data: Hex): readonly OwnerExecution[] => {
   const [executions] = decoded.args as [readonly OwnerExecution[]]
   return executions
 }
-
-const expectationResultsFor = (
-  expectations: readonly { readonly id: string }[],
-  satisfied = true,
-) =>
-  expectations.map((expectation) => ({
-    expectationId: expectation.id,
-    satisfied,
-  }))
 
 describe('buildAtomicMigrationBatches', () => {
   it('keeps parent-before-child order and wraps complete per-name executions', async () => {
@@ -666,77 +655,5 @@ describe('buildAtomicMigrationBatches', () => {
     await expect(promise).rejects.toBeInstanceOf(
       AtomicMigrationNameGasLimitExceededError,
     )
-  })
-})
-
-describe('atomic migration retry filtering', () => {
-  it('retains every name from a reverted batch regardless of inner expectations', async () => {
-    const plan = await buildPlan({
-      classified: [makeName('alice.eth'), makeName('bob.eth')],
-      resolverDeployed: true,
-      walletCoAdminGranted: true,
-    })
-    const batch = plan.batches[0]
-    assert(batch)
-
-    const incomplete = filterIncompleteAtomicMigrationNames({
-      batches: plan.batches,
-      verifications: [{ batchIndex: batch.index, status: 'reverted' }],
-    })
-
-    expect(incomplete.map((name) => name.domain.name)).toEqual([
-      'alice.eth',
-      'bob.eth',
-    ])
-  })
-
-  it('filters confirmed names by expectations and rebuilds only incomplete names', async () => {
-    const alice = makeName('alice.eth')
-    const bob = makeName('bob.eth')
-    const plan = await buildPlan({
-      classified: [alice, bob],
-      resolverDeployed: true,
-      walletCoAdminGranted: true,
-    })
-    const batch = plan.batches[0]
-    assert(batch)
-    const [aliceExecution, bobExecution] = batch.nameExecutions
-    assert(aliceExecution && bobExecution)
-
-    const aliceResults = expectationResultsFor(
-      aliceExecution.verificationExpectations,
-    )
-    const bobResults = expectationResultsFor(
-      bobExecution.verificationExpectations,
-    ).map((result, index) =>
-      index === 0 ? { ...result, satisfied: false } : result,
-    )
-    expect(isAtomicMigrationNameComplete(aliceExecution, aliceResults)).toBe(
-      true,
-    )
-    expect(isAtomicMigrationNameComplete(bobExecution, bobResults)).toBe(false)
-
-    const incomplete = filterIncompleteAtomicMigrationNames({
-      batches: plan.batches,
-      verifications: [
-        {
-          batchIndex: batch.index,
-          status: 'confirmed',
-          results: [...aliceResults, ...bobResults],
-        },
-      ],
-    })
-    expect(incomplete.map((name) => name.domain.name)).toEqual(['bob.eth'])
-
-    const retryPlan = await buildPlan({
-      classified: incomplete,
-      resolverDeployed: true,
-      walletCoAdminGranted: true,
-    })
-    expect(
-      retryPlan.batches.flatMap((retryBatch) =>
-        retryBatch.innerExecutions.map((execution) => execution.phase),
-      ),
-    ).toEqual(['migrate'])
   })
 })

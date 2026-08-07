@@ -3,7 +3,6 @@ import {
   LIB_MIGRATION_ERRORS_ABI,
   MIGRATION_HELPER_ABI,
 } from '../contracts/abis'
-import { OwnedResolverDeployError } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
 
 export type MigrationError =
@@ -11,7 +10,6 @@ export type MigrationError =
   | { type: 'plan-changed' }
   | { type: 'retry-blocked' }
   | { type: 'cleanup-failed' }
-  | { type: 'resolver-deploy-failed'; message: string }
   | {
       type: 'profile-fetch-failed'
       phase: 'subgraph' | 'onchain'
@@ -327,9 +325,6 @@ export const decodeMigrationError = (err: unknown): MigrationError => {
     }
   }
 
-  if (err instanceof OwnedResolverDeployError) {
-    return { type: 'resolver-deploy-failed', message: extractErrorMessage(err) }
-  }
   if (err instanceof ProfileFetchError) {
     return {
       type: 'profile-fetch-failed',

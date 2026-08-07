@@ -17,8 +17,6 @@ export const V1_CONTRACTS = {
   }),
 } as const
 
-export const V2_DEPLOY_BLOCK = destination.verifiableFactoryDeployBlock
-
 // V2/HCA contracts are the pinned contracts-v2 PR #388 namespace. Do not source
 // these from ensjs until it publishes this exact coordinated deployment.
 //

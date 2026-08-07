@@ -365,29 +365,3 @@ export const checkDeterministicMigrationResolverReadiness = (params: {
     ...params,
     resolver: getMigrationResolverAddress(params.hca),
   })
-
-export type MigrationPreflightInvariantReport = {
-  readonly hca: MigrationHcaReadiness
-  readonly ownedResolver: MigrationResolverReadiness
-}
-
-export const assertMigrationPreflightInvariants = async (params: {
-  readonly publicClient: PublicClient
-  readonly hca: Address
-  readonly expectedOwner: Address
-  readonly ownedResolver: Address | null
-}): Promise<MigrationPreflightInvariantReport> => {
-  await assertRequiredMigrationContractCode({
-    publicClient: params.publicClient,
-  })
-  const [hca, ownedResolver] = await Promise.all([
-    checkMigrationHcaReadiness(params),
-    checkMigrationResolverReadiness({
-      publicClient: params.publicClient,
-      resolver: params.ownedResolver,
-      hca: params.hca,
-      wallet: params.expectedOwner,
-    }),
-  ])
-  return { hca, ownedResolver }
-}

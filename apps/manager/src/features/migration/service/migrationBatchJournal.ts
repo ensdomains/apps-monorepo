@@ -309,5 +309,3 @@ export const removeSubmittedAtomicMigrationBatch = (
     ],
   })
 }
-
-export const migrationBatchJournalStorageKey = STORAGE_KEY

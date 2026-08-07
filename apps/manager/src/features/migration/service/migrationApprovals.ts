@@ -351,10 +351,6 @@ export const buildMigrationApprovalCall = (
   }
 }
 
-export const buildMigrationApprovalCalls = (
-  approvals: readonly MigrationApproval[],
-): readonly Call[] => approvals.map(buildMigrationApprovalCall)
-
 /** Revoke an operator permission created temporarily for migration. */
 export const buildMigrationOperatorApprovalRevocationCall = (
   approval: MigrationOperatorApproval,

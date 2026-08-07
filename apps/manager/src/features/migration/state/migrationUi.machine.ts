@@ -2,13 +2,7 @@ import type { Signer } from '@ens-apps/transaction-manager'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import type { Config as WagmiConfig } from '@wagmi/core'
 import type { Hex, PublicClient } from 'viem'
-import {
-  type ActorRefFrom,
-  assign,
-  fromCallback,
-  type SnapshotFrom,
-  setup,
-} from 'xstate'
+import { assign, fromCallback, type SnapshotFrom, setup } from 'xstate'
 import {
   adjustPlanForRetry,
   type MigrationPlan,
@@ -329,5 +323,4 @@ export const migrationUiMachine = setup({
   },
 })
 
-export type MigrationUiActor = ActorRefFrom<typeof migrationUiMachine>
 export type MigrationUiSnapshot = SnapshotFrom<typeof migrationUiMachine>

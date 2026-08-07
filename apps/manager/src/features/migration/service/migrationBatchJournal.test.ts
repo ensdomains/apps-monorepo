@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import {
   loadPendingAtomicMigrationIntents,
   loadSubmittedAtomicMigrationBatches,
-  migrationBatchJournalStorageKey,
   persistPendingAtomicMigrationIntent,
   persistSubmittedAtomicMigrationBatch,
   removePendingAtomicMigrationIntent,
@@ -61,9 +60,13 @@ describe('migration batch journal', () => {
   })
 
   it('fails closed for malformed storage', () => {
-    localStorage.setItem(migrationBatchJournalStorageKey, '{bad json')
+    const storage = {
+      getItem: () => '{bad json',
+      setItem: () => undefined,
+      removeItem: () => undefined,
+    }
 
-    expect(() => loadSubmittedAtomicMigrationBatches(scope)).toThrow(
+    expect(() => loadSubmittedAtomicMigrationBatches(scope, storage)).toThrow(
       'Refusing to continue without retry state',
     )
   })

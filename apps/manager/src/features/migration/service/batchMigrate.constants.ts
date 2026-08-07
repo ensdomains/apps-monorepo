@@ -6,8 +6,6 @@ export const TARGET_GAS = 20_000_000n
 // ceiling so an out-of-gas receiver callback is not masked as an ERC1155 error.
 export const EXECUTION_TARGET_GAS = 15_000_000n
 
-export const MAX_NAMES_HINT = 100
-
 export const PER_BATCH_OVERHEAD = 80_000n
 
 export const GAS_HEURISTIC: Record<MigrationTokenType, bigint> = {

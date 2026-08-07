@@ -100,8 +100,6 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
           </Trans>
         </div>
       )
-    case 'resolver-deploy-failed':
-      return <div>Couldn&apos;t finish setting up your account.</div>
     case 'profile-fetch-failed':
       return <div>Couldn&apos;t read your current records.</div>
     case 'user-rejected':

@@ -5,7 +5,6 @@ import {
   decodeMigrationError,
   extractErrorMessage,
 } from './decodeMigrationError'
-import { OwnedResolverDeployError } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
 
 const revertWith = (data: Hex) =>
@@ -101,13 +100,6 @@ describe('decodeMigrationError — direct mappings', () => {
   })
 
   it.each([
-    [
-      'OwnedResolverDeployError → resolver-deploy-failed',
-      new OwnedResolverDeployError({
-        cause: new Error('deployProxy reverted'),
-      }),
-      { type: 'resolver-deploy-failed', message: 'deployProxy reverted' },
-    ],
     [
       'ProfileFetchError subgraph',
       new ProfileFetchError({
