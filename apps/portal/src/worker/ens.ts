@@ -2,11 +2,12 @@ import { getChainContractAddress } from '@ensdomains/ensjs/chain'
 import { getRecords } from '@ensdomains/ensjs/public'
 import type { Address, Hex } from 'viem'
 import { getStorageAt } from 'viem/actions'
-import { parseAvatarRecord } from 'viem/ens'
 
 import { decodeImplementationAddress } from '@/features/resolver/utils/permissionedResolver'
 import { resolveEnsOwner } from '@/utils/ens/resolveEnsOwner'
+import { resolveAvatarRecord } from './avatar'
 import { createClient, type EnsClient } from './clients'
+import { safeFetch } from './safe-fetch'
 
 export interface EnsData {
   avatar: string | null
@@ -14,8 +15,6 @@ export interface EnsData {
   owner: string | null
 }
 
-/** Abort the avatar fetch if the upstream is slow/hanging. */
-const AVATAR_FETCH_TIMEOUT_MS = 20_000
 /** Cap the avatar payload to avoid memory-exhaustion / amplification abuse. */
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
@@ -38,66 +37,39 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-/** Read a response body into a buffer, aborting once `maxBytes` is exceeded. */
-async function readCapped(
-  res: Response,
-  maxBytes: number,
-): Promise<Uint8Array | null> {
-  const reader = res.body?.getReader()
-  if (!reader) return null
-  const chunks: Uint8Array[] = []
-  let total = 0
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    if (!value) continue
-    total += value.byteLength
-    if (total > maxBytes) {
-      await reader.cancel()
-      return null
-    }
-    chunks.push(value)
-  }
-  const out = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    out.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return out
-}
-
+/**
+ * Resolve an ENS `avatar` text record to an inline `data:` URI for OG rendering.
+ *
+ * The record is attacker-controlled for any name, and this runs server-side on
+ * the worker's egress, so every dereference goes through {@link safeFetch} —
+ * see `safe-fetch.ts` for the guards and WEB-672 for the residual risk.
+ *
+ * `selfHost` is the worker's own host, rejected so an avatar pointing back at
+ * `/og/<name>.png` can't make the worker recurse into itself.
+ */
 export async function resolveAvatarDataUri(
   client: EnsClient,
   avatarRecord: string,
+  selfHost?: string,
 ): Promise<string | null> {
   try {
-    const url = await parseAvatarRecord(client, {
-      record: avatarRecord,
-      gatewayUrls: { ipfs: 'https://ipfs.euc.li' },
-    })
+    const resolved = await resolveAvatarRecord(client, avatarRecord, selfHost)
 
     // On-chain avatars (data:/base64 SVGs etc.) are already inline — pass them
     // through without re-fetching (fetching a huge data: URI is itself abusable).
     // Still enforce the image/* requirement on the embedded MIME type.
-    if (url.startsWith('data:')) {
-      return url.startsWith('data:image/') ? url : null
+    if (resolved.kind === 'inline') {
+      return resolved.uri.startsWith('data:image/') ? resolved.uri : null
     }
 
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS),
+    const result = await safeFetch(resolved.url, {
+      accept: (contentType) => contentType.startsWith('image/'),
+      maxBytes: AVATAR_MAX_BYTES,
+      selfHost,
     })
-    if (!res.ok) return null
+    if (!result) return null
 
-    const contentType = res.headers.get('content-type')
-    // Only embed actual images; reject anything else the upstream returns,
-    // including responses that omit Content-Type entirely.
-    if (!contentType?.startsWith('image/')) return null
-
-    const bytes = await readCapped(res, AVATAR_MAX_BYTES)
-    if (!bytes) return null
-
-    return `data:${contentType};base64,${bytesToBase64(bytes)}`
+    return `data:${result.contentType};base64,${bytesToBase64(result.bytes)}`
   } catch {
     return null
   }
@@ -160,7 +132,11 @@ export async function fetchIsPermissionedResolver(
   }
 }
 
-export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
+export async function fetchEnsData(
+  env: Env,
+  name: string,
+  selfHost?: string,
+): Promise<EnsData> {
   const client = createClient(env)
   try {
     const [records, owner] = await Promise.all([
@@ -183,7 +159,7 @@ export async function fetchEnsData(env: Env, name: string): Promise<EnsData> {
       records.texts.find((r) => r.key === 'avatar')?.value ?? null
 
     const avatar = avatarRecord
-      ? await resolveAvatarDataUri(client, avatarRecord)
+      ? await resolveAvatarDataUri(client, avatarRecord, selfHost)
       : null
 
     return {
