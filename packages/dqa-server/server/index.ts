@@ -617,7 +617,7 @@ const staticHeaders =
   (headers: Record<string, string>): MiddlewareHandler<AuthEnv> =>
   async (c, next) => {
     await next()
-    if (c.res.status !== 200) return
+    if (c.res.status < 200 || c.res.status >= 300) return
     for (const [k, v] of Object.entries(headers)) c.header(k, v)
   }
 
