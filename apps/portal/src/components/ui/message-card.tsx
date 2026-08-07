@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-xl p-6 flex items-start gap-3 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
+  'rounded-xl p-6 flex items-start gap-3 relative w-full max-w-lg mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
   {
     variants: {
       variant: {
@@ -24,6 +24,18 @@ const messageCardVariants = cva(
 export type MessageCardVariant = NonNullable<
   VariantProps<typeof messageCardVariants>['variant']
 >
+
+// Per the Builder Message spec the action button takes the message's text
+// color as its fill (e.g. dark green on the success card), not the default
+// black button.
+const messageButtonClass: Record<MessageCardVariant, string> = {
+  primary: '',
+  success:
+    'bg-message-success-text text-white hover:bg-message-success-text/90',
+  danger: 'bg-message-danger-text text-white hover:bg-message-danger-text/90',
+  warning:
+    'bg-message-warning-text text-white hover:bg-message-warning-text/90',
+}
 
 export type MessageCardProps = {
   icon: React.ReactNode
@@ -99,6 +111,7 @@ export function MessageCard({
         {actionButton && (
           <Button
             variant={actionButton.variant || 'default'}
+            className={cn(!actionButton.variant && messageButtonClass[variant])}
             onClick={actionButton.onClick}
             asChild={!!actionButton.href}
           >

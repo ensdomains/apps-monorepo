@@ -78,9 +78,9 @@ export const NodeDetailSheet = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[640px] bg-background p-0 flex flex-col h-dvh"
+        className="bg-background p-0 flex flex-col h-dvh"
       >
-        <div className="p-6 shrink-0 border-b">
+        <div className="p-6 pb-0 shrink-0">
           <SheetHeader className="p-0 flex flex-row items-center justify-between">
             <SheetTitle className="font-sans text-h2">
               {node?.name ?? 'Node Details'}
@@ -103,9 +103,9 @@ export const NodeDetailSheet = ({
                   This node is inactive. The records and roles are read only.
                 </div>
               )}
-              <section className="p-6 border-b flex flex-col gap-4">
+              <section className="p-6 pb-0 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-h3">Records</h3>
+                  <h3 className="text-caps leading-none">Records</h3>
                   <Button variant="default" size="sm" asChild>
                     <Link to="/$name/records" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
@@ -138,7 +138,7 @@ export const NodeDetailSheet = ({
 
               <section className="p-6 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-h3">Roles</h3>
+                  <h3 className="text-caps leading-none">Roles</h3>
                   <Button variant="default" size="sm" asChild>
                     <Link to="/$name/roles" params={{ name: node.name }}>
                       <ExternalLink className="size-3.5" />
@@ -161,10 +161,7 @@ export const NodeDetailSheet = ({
                       </TableHeader>
                       <TableBody>
                         {roles.map((role) => (
-                          <TableRow
-                            key={`${role.account}-${role.roleBitmap}`}
-                            className={'hover:bg-muted'}
-                          >
+                          <TableRow key={`${role.account}-${role.roleBitmap}`}>
                             <TableCell
                               className={cn(cellClassName, 'font-mono text-xs')}
                             >

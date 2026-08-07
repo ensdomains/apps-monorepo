@@ -18,6 +18,13 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData, TValue> {
+    /** Fixed column width in px; switches the table to fixed layout. */
+    width?: number
+  }
+}
+
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -39,14 +46,27 @@ export const DataTable = <TData, TValue>({
     },
   })
 
+  // Columns that declare meta.width get a fixed width; the table switches to
+  // fixed layout so sibling tables with the same widths align. (tanstack's
+  // `size` can't be used here — the resolved columnDef backfills a 150px
+  // default, which would leave no auto column to absorb leftover space.)
+  const hasSizedColumns = columns.some((column) => column.meta?.width != null)
+
   return (
-    <Table>
+    <Table className={cn(hasSizedColumns && 'table-fixed')}>
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => {
               return (
-                <TableHead key={header.id}>
+                <TableHead
+                  key={header.id}
+                  style={
+                    header.column.columnDef.meta?.width != null
+                      ? { width: header.column.columnDef.meta.width }
+                      : undefined
+                  }
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -65,14 +85,14 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
-              className={'hover:bg-muted'}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   className={cn(
                     'px-4 sm:px-6',
-                    // 40px rows per the Builder layout spec (WEB-595)
-                    'h-10 py-0',
+                    // 40px content + py-1 so entity hover halos stay inside
+                    // the row (WEB-1194)
+                    'h-10 py-1',
                   )}
                   key={cell.id}
                 >

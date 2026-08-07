@@ -168,155 +168,158 @@ export const RolesAddUserSheet = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="sm:max-w-3xl bg-background overflow-y-auto p-0"
-      >
-        <div className="p-6 flex flex-col gap-6 h-full">
-          <SheetHeader className="p-0 pt-4">
-            <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
-          </SheetHeader>
+      <SheetContent side="right" className="bg-background p-0">
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 h-full">
+            <SheetHeader className="p-0">
+              <SheetTitle className="font-sans text-h2">Add user</SheetTitle>
+            </SheetHeader>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-6 flex-1">
-            <Field>
-              <Input
-                id="user"
-                name="user"
-                aria-label="User name or address"
-                placeholder="User name or address"
-                required
-                value={userInput}
-                disabled={isPending || isSuccess}
-                onChange={handleInputChange}
-                className="h-12 bg-background border"
-              />
-              {isResolving && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  Resolving address...
-                </p>
-              )}
-              {!isResolving && address && (
-                <p className="text-sm mt-1.5 text-muted-foreground">
-                  {isAddress(userInput, { strict: false })
-                    ? `Using address: ${truncateAddress(address, 6, 4)}`
-                    : `Resolved: ${truncateAddress(address, 6, 4)}`}
-                </p>
-              )}
-              {resolveError && (
-                <p className="text-sm mt-1.5 text-danger">
-                  {resolveError.message}
-                </p>
-              )}
-            </Field>
-
-            <Field>
-              <div
-                className={cn(
-                  'border border-border rounded-sm overflow-hidden transition-colors',
-                  (isPending || isSuccess) && 'opacity-50 pointer-events-none',
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-6 flex-1"
+            >
+              <Field>
+                <Input
+                  id="user"
+                  name="user"
+                  aria-label="User name or address"
+                  placeholder="User name or address"
+                  required
+                  value={userInput}
+                  disabled={isPending || isSuccess}
+                  onChange={handleInputChange}
+                  className="h-12 bg-background border"
+                />
+                {isResolving && (
+                  <p className="text-sm mt-1.5 text-muted-foreground">
+                    Resolving address...
+                  </p>
                 )}
-              >
-                {permissions.map((permission, index) => {
-                  const managerRole = permission.key as Role
-                  const adminRole = `${permission.key}_ADMIN` as Role
-                  const callerHasAdminRole = callerAdminRoles.has(adminRole)
-                  const isManagerRoleDisabled =
-                    !isManagerRoleSettable(permission.key, { is2LD }) ||
-                    !callerHasAdminRole
+                {!isResolving && address && (
+                  <p className="text-sm mt-1.5 text-muted-foreground">
+                    {isAddress(userInput, { strict: false })
+                      ? `Using address: ${truncateAddress(address, 6, 4)}`
+                      : `Resolved: ${truncateAddress(address, 6, 4)}`}
+                  </p>
+                )}
+                {resolveError && (
+                  <p className="text-sm mt-1.5 text-danger">
+                    {resolveError.message}
+                  </p>
+                )}
+              </Field>
 
-                  return (
-                    <div
-                      key={permission.key}
-                      className={cn(
-                        'flex items-center justify-between px-6 py-4 gap-4',
-                        index !== 0 && 'border-t border-border',
-                        isManagerRoleDisabled && 'text-muted-foreground',
-                      )}
-                      title={
-                        callerHasAdminRole
-                          ? undefined
-                          : `Your account does not hold ${adminRole} on this name and cannot grant this role.`
-                      }
-                    >
-                      <div className="flex flex-col gap-1 flex-1 min-w-64">
-                        <div className="font-medium">{permission.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {permission.description}
+              <Field>
+                <div
+                  className={cn(
+                    'border border-border rounded-sm overflow-hidden transition-colors',
+                    (isPending || isSuccess) &&
+                      'opacity-50 pointer-events-none',
+                  )}
+                >
+                  {permissions.map((permission, index) => {
+                    const managerRole = permission.key as Role
+                    const adminRole = `${permission.key}_ADMIN` as Role
+                    const callerHasAdminRole = callerAdminRoles.has(adminRole)
+                    const isManagerRoleDisabled =
+                      !isManagerRoleSettable(permission.key, { is2LD }) ||
+                      !callerHasAdminRole
+
+                    return (
+                      <div
+                        key={permission.key}
+                        className={cn(
+                          'flex items-center justify-between px-6 py-4 gap-4',
+                          index !== 0 && 'border-t border-border',
+                          isManagerRoleDisabled && 'text-muted-foreground',
+                        )}
+                        title={
+                          callerHasAdminRole
+                            ? undefined
+                            : `Your account does not hold ${adminRole} on this name and cannot grant this role.`
+                        }
+                      >
+                        <div className="flex flex-col gap-1 flex-1 min-w-64">
+                          <div className="font-medium">{permission.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {permission.description}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+                          <div className="flex items-center gap-2 min-w-24">
+                            <Checkbox
+                              id={`add-${permission.key}-manager`}
+                              checked={selectedRoles.has(managerRole)}
+                              disabled={isManagerRoleDisabled}
+                              onCheckedChange={(checked) =>
+                                toggleRole(managerRole, checked as boolean)
+                              }
+                            />
+                            <Label
+                              htmlFor={`add-${permission.key}-manager`}
+                              className="font-medium cursor-pointer"
+                            >
+                              Manager
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2 min-w-24">
+                            <Checkbox
+                              id={`add-${permission.key}-admin`}
+                              checked={selectedRoles.has(adminRole)}
+                              disabled
+                            />
+                            <Label
+                              htmlFor={`add-${permission.key}-admin`}
+                              className="font-medium cursor-pointer"
+                            >
+                              Admin
+                            </Label>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
-                        <div className="flex items-center gap-2 min-w-24">
-                          <Checkbox
-                            id={`add-${permission.key}-manager`}
-                            checked={selectedRoles.has(managerRole)}
-                            disabled={isManagerRoleDisabled}
-                            onCheckedChange={(checked) =>
-                              toggleRole(managerRole, checked as boolean)
-                            }
-                          />
-                          <Label
-                            htmlFor={`add-${permission.key}-manager`}
-                            className="font-medium cursor-pointer"
-                          >
-                            Manager
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2 min-w-24">
-                          <Checkbox
-                            id={`add-${permission.key}-admin`}
-                            checked={selectedRoles.has(adminRole)}
-                            disabled
-                          />
-                          <Label
-                            htmlFor={`add-${permission.key}-admin`}
-                            className="font-medium cursor-pointer"
-                          >
-                            Admin
-                          </Label>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
+              </Field>
+
+              <div className="flex justify-end">
+                <Button type="submit" variant="default" disabled={!canSave}>
+                  {match({ isPending, isSuccess })
+                    .with({ isSuccess: true }, () => 'Transaction Complete')
+                    .with({ isPending: true }, () => 'Saving...')
+                    .otherwise(() => 'Save')}
+                </Button>
               </div>
-            </Field>
+            </form>
 
-            <div className="flex justify-end">
-              <Button type="submit" variant="default" disabled={!canSave}>
-                {match({ isPending, isSuccess })
-                  .with({ isSuccess: true }, () => 'Transaction Complete')
-                  .with({ isPending: true }, () => 'Saving...')
-                  .otherwise(() => 'Save')}
-              </Button>
-            </div>
-          </form>
-
-          <TransactionModal
-            transactions={[
-              {
-                id: GRANT_ROLES_TX_ID,
-                title: 'Grant roles',
-                transactionName: address
-                  ? `Grant roles for ${truncateAddress(address, 6, 4)}`
-                  : 'Grant roles',
-                intent: {
-                  prepare: pendingGrant
-                    ? ({ walletClient, chainId }) =>
-                        prepareGrantRolesTransaction({
-                          name,
-                          account: pendingGrant.account,
-                          roles: pendingGrant.roles,
-                          walletClient,
-                          chainId,
-                          registryAddress,
-                        })
-                    : undefined,
+            <TransactionModal
+              transactions={[
+                {
+                  id: GRANT_ROLES_TX_ID,
+                  title: 'Grant roles',
+                  transactionName: address
+                    ? `Grant roles for ${truncateAddress(address, 6, 4)}`
+                    : 'Grant roles',
+                  intent: {
+                    prepare: pendingGrant
+                      ? ({ walletClient, chainId }) =>
+                          prepareGrantRolesTransaction({
+                            name,
+                            account: pendingGrant.account,
+                            roles: pendingGrant.roles,
+                            walletClient,
+                            chainId,
+                            registryAddress,
+                          })
+                      : undefined,
+                  },
+                  onStart: handleStartTransaction,
+                  onDone: handleDone,
                 },
-                onStart: handleStartTransaction,
-                onDone: handleDone,
-              },
-            ]}
-          />
+              ]}
+            />
+          </div>
         </div>
       </SheetContent>
     </Sheet>

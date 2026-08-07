@@ -379,7 +379,6 @@ function RouteComponent() {
                     <TableRow
                       key={row.id}
                       className={cn(
-                        'hover:bg-muted',
                         deleteMutation.isPending &&
                           deleteMutation.variables === row.original.fromName &&
                           'opacity-50',

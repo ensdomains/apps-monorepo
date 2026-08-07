@@ -291,13 +291,13 @@ export const ResolverEventsTable = ({
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
-              const cellClassName = cn('px-6', 'h-10 py-0')
+              const cellClassName = cn('px-6', 'h-10 py-1')
               const totalColumns = row.getVisibleCells().length
               const trailingColSpan = totalColumns - 4
 
               return (
                 <Fragment key={row.id}>
-                  <TableRow key={row.id} className={'hover:bg-muted'}>
+                  <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cellClassName}>
                         {flexRender(

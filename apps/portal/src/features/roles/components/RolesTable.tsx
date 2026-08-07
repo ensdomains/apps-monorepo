@@ -6,6 +6,7 @@ import { DataTable } from '@/components/DataTable'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
 import {
+  buildActionSpacerColumn,
   buildEditActionColumn,
   buildRoleColumns,
   rolesTableClassName,
@@ -65,7 +66,7 @@ export const RolesTable = ({
           setOpen(true)
         }),
       ]
-    : baseColumns
+    : [...baseColumns, buildActionSpacerColumn<AccountGroup>()]
 
   return (
     <RolesSidebar
