@@ -2,7 +2,7 @@
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   authorizeHeadlessConnection,
-  authorizeTransaction,
+  authorizeTransactionsWhile,
   clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
@@ -70,22 +70,19 @@ test.describe('ENS name registration', () => {
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     // Authorize the EOA registration transactions (deploy-resolver? → commit →
-    // approve USDC → register) while waiting for completion. Break early once
-    // no further transaction appears.
-    const authorizeAll = (async () => {
-      for (let i = 0; i < 4; i++) {
-        try {
-          await authorizeTransaction(wallet, 120_000)
-        } catch {
-          break
-        }
-      }
-    })()
-    await Promise.all([
-      authorizeAll,
-      expect(successBanner).toContainText('Registration Complete', {
-        timeout: 180_000,
-      }),
-    ])
+    // approve USDC → register) as they arrive while waiting for completion.
+    // The completion banner is gated on the whole flow finishing, so once it
+    // shows, polling stops without a dangling authorize or a fixed-length tail.
+    let registrationComplete = false
+    const authorizeAll = authorizeTransactionsWhile(
+      page,
+      wallet,
+      () => registrationComplete,
+    )
+    await expect(successBanner).toContainText('Registration Complete', {
+      timeout: 180_000,
+    })
+    registrationComplete = true
+    await authorizeAll
   })
 })
