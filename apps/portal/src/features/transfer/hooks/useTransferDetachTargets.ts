@@ -1,10 +1,8 @@
-import type { Role } from '@ensdomains/ensjs/utils/v2'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 import { type Address, zeroAddress } from 'viem'
 import { useNameResolverAddress } from '@/features/records/hooks/useNameResolverAddress'
-import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
+import { getNameRolesForAccountQueryOptions } from '@/features/roles/hooks/useNameRolesForAccount'
 import { getLabel } from '@/utils/token/getLabel'
 import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 
@@ -18,8 +16,6 @@ import { getEthAddressQueryOptions } from '../queries/getEthAddress'
 // can't perform walks them into a partial, unrecoverable failure — the same
 // trap `useCanTransferName` guards for the transfer itself. So an option is only
 // shown when there's a target AND the owner holds the role to detach it.
-const SET_RESOLVER_ROLE: Role = 'ROLE_SET_RESOLVER'
-const SET_SUBREGISTRY_ROLE: Role = 'ROLE_SET_SUBREGISTRY'
 
 type TransferDetachTargets = {
   /** Whether each option has a target worth showing/detaching. */
@@ -37,9 +33,9 @@ type TransferDetachTargets = {
 type UseTransferDetachTargetsParams = {
   readonly name: string
   /** The registry the name's token lives in (its parent's subregistry). */
-  readonly registryAddress: Address | undefined
+  readonly registryAddress: Address
   /** The current token owner, whose detach permissions to check. */
-  readonly owner: Address | undefined
+  readonly owner: Address
 }
 
 /**
@@ -57,38 +53,24 @@ export const useTransferDetachTargets = ({
   registryAddress,
   owner,
 }: UseTransferDetachTargetsParams): TransferDetachTargets => {
-  const label = useMemo(() => {
-    try {
-      return getLabel(name)
-    } catch {
-      return null
-    }
-  }, [name])
-
-  const canCheckRoles = !!label && !!registryAddress && !!owner
+  // getLabel normalises and can throw on a malformed name; a name we can't parse
+  // is one whose roles we can't check, so fall back to "no permission".
+  let label: string | null = null
+  try {
+    label = getLabel(name)
+  } catch {}
 
   const resolverQuery = useNameResolverAddress({ name })
   const registriesQuery = useQuery(getNameRegistriesQueryOptions({ name }))
   const ethAddressQuery = useQuery(getEthAddressQueryOptions(name))
 
-  const setResolverRoleQuery = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress: registryAddress ?? zeroAddress,
+  const rolesQuery = useQuery({
+    ...getNameRolesForAccountQueryOptions({
+      registryAddress,
       label: label ?? '',
-      roles: [SET_RESOLVER_ROLE],
-      account: owner ?? zeroAddress,
+      account: owner,
     }),
-    enabled: canCheckRoles,
-  })
-
-  const setSubregistryRoleQuery = useQuery({
-    ...getHasRolesQueryOptions({
-      registryAddress: registryAddress ?? zeroAddress,
-      label: label ?? '',
-      roles: [SET_SUBREGISTRY_ROLE],
-      account: owner ?? zeroAddress,
-    }),
-    enabled: canCheckRoles,
+    enabled: label !== null,
   })
 
   const subregistryAddress = registriesQuery.data?.[0]
@@ -96,9 +78,7 @@ export const useTransferDetachTargets = ({
   const hasSubregistry =
     !!subregistryAddress && subregistryAddress !== zeroAddress
   const hasEthAddress = !!ethAddressQuery.data
-
-  const canSetResolver = setResolverRoleQuery.data === true
-  const canSetSubregistry = setSubregistryRoleQuery.data === true
+  const heldRoles = rolesQuery.data?.decoded ?? []
 
   return {
     optionIsVisible: {
@@ -106,24 +86,20 @@ export const useTransferDetachTargets = ({
       detachResolver:
         resolverQuery.isSuccess &&
         hasResolver &&
-        setResolverRoleQuery.isSuccess &&
-        canSetResolver,
+        rolesQuery.isSuccess &&
+        heldRoles.includes('ROLE_SET_RESOLVER'),
       detachRegistry:
         registriesQuery.isSuccess &&
         hasSubregistry &&
-        setSubregistryRoleQuery.isSuccess &&
-        canSetSubregistry,
+        rolesQuery.isSuccess &&
+        heldRoles.includes('ROLE_SET_SUBREGISTRY'),
     },
     settled:
       resolverQuery.isSuccess &&
       registriesQuery.isSuccess &&
       ethAddressQuery.isSuccess &&
-      setResolverRoleQuery.isSuccess &&
-      setSubregistryRoleQuery.isSuccess,
+      rolesQuery.isSuccess,
     failed:
-      resolverQuery.isError ||
-      registriesQuery.isError ||
-      setResolverRoleQuery.isError ||
-      setSubregistryRoleQuery.isError,
+      resolverQuery.isError || registriesQuery.isError || rolesQuery.isError,
   }
 }
