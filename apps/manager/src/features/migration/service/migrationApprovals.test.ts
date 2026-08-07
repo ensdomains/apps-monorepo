@@ -19,7 +19,6 @@ vi.mock('@wagmi/core', () => ({
 
 const readContractsMock = vi.mocked(readContracts)
 const EOA: Address = '0x0000000000000000000000000000000000000001'
-const HELPER: Address = '0x0000000000000000000000000000000000000002'
 const HCA: Address = '0x0000000000000000000000000000000000000003'
 const OTHER: Address = '0x0000000000000000000000000000000000000004'
 const WAGMI = {} as WagmiConfig
@@ -68,10 +67,10 @@ describe('checkMigrationApprovals', () => {
     expect(readContractsMock).not.toHaveBeenCalled()
   })
 
-  it('checks only HCA operator and per-token permissions in one batch', async () => {
+  it('checks helper NFT approvals and the HCA manager approval in one batch', async () => {
     readContractsMock.mockResolvedValueOnce([
       false,
-      HCA,
+      V2_CONTRACTS.MigrationHelper,
       OTHER,
       true,
       false,
@@ -109,7 +108,7 @@ describe('checkMigrationApprovals', () => {
     expect(options.contracts).toMatchObject([
       {
         address: V1_CONTRACTS.BaseRegistrar,
-        args: [EOA, HCA],
+        args: [EOA, V2_CONTRACTS.MigrationHelper],
         functionName: 'isApprovedForAll',
       },
       {
@@ -124,7 +123,7 @@ describe('checkMigrationApprovals', () => {
       },
       {
         address: V1_CONTRACTS.NameWrapper,
-        args: [EOA, HCA],
+        args: [EOA, V2_CONTRACTS.MigrationHelper],
         functionName: 'isApprovedForAll',
       },
       {
@@ -133,13 +132,10 @@ describe('checkMigrationApprovals', () => {
         functionName: 'isApprovedForAll',
       },
     ])
-    expect(
-      options.contracts.some((contract) =>
-        contract.args.some(
-          (arg) => typeof arg === 'string' && arg.toLowerCase() === HELPER,
-        ),
-      ),
-    ).toBe(false)
+    expect(options.contracts.at(-1)).toMatchObject({
+      address: V2_CONTRACTS.ETHRegistry,
+      args: [EOA, HCA],
+    })
   })
 })
 
@@ -203,7 +199,7 @@ describe('planMigrationApprovals', () => {
     ).toEqual([])
   })
 
-  it('omits all registration grants when the HCA is already an operator', () => {
+  it('omits all registration grants when the helper is already an operator', () => {
     expect(
       planMigrationApprovals({
         hcaAddress: HCA,
@@ -232,7 +228,7 @@ describe('planMigrationApprovals', () => {
 })
 
 describe('approval calldata', () => {
-  it('encodes ERC-721 approval for the HCA', () => {
+  it('encodes ERC-721 approval for MigrationHelper', () => {
     const approval = migrationApprovalForId({
       id: 'base-registrar:hca-token',
       hcaAddress: HCA,
@@ -243,7 +239,7 @@ describe('approval calldata', () => {
       data: buildMigrationApprovalCall(approval).data,
     })
     expect(grant.functionName).toBe('approve')
-    expect(grant.args).toEqual([HCA, TOKEN_ONE])
+    expect(grant.args).toEqual([V2_CONTRACTS.MigrationHelper, TOKEN_ONE])
   })
 
   it('encodes a persistent operator grant', () => {
@@ -256,7 +252,7 @@ describe('approval calldata', () => {
       abi: OPERATOR_APPROVAL_ABI,
       data: buildMigrationApprovalCall(approval).data,
     })
-    expect(decoded.args).toEqual([HCA, true])
+    expect(decoded.args).toEqual([V2_CONTRACTS.MigrationHelper, true])
   })
 
   it('encodes operator revocation after migration', () => {
@@ -269,6 +265,6 @@ describe('approval calldata', () => {
       abi: OPERATOR_APPROVAL_ABI,
       data: buildMigrationOperatorApprovalRevocationCall(approval).data,
     })
-    expect(decoded.args).toEqual([HCA, false])
+    expect(decoded.args).toEqual([V2_CONTRACTS.MigrationHelper, false])
   })
 })

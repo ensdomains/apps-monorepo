@@ -5,7 +5,14 @@ import {
   verifyStandaloneHca,
 } from '@ens-apps/smart-account'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import { type Address, isAddressEqual, type PublicClient, parseAbi } from 'viem'
+import {
+  type Address,
+  type Hex,
+  isAddressEqual,
+  keccak256,
+  type PublicClient,
+  parseAbi,
+} from 'viem'
 import { sepoliaWithEns } from '@/lib/wagmi'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { type ClassifiedName, FUSES, hasFuse } from './classifyNames'
@@ -31,6 +38,7 @@ export type RequiredMigrationContractName =
   | 'PermissionedResolverImpl'
   | 'UnlockedMigrationController'
   | 'LockedMigrationController'
+  | 'MigrationHelper'
   | 'PublicResolverSet'
   | 'WrapperRegistryImpl'
   | 'DefaultResolver'
@@ -40,6 +48,7 @@ export type RequiredMigrationContractName =
 
 export type MigrationContractInvariant =
   | 'missing-code'
+  | 'bytecode-hash'
   | 'hca-certification'
   | 'hca-implementation-approved'
   | 'resolver-certification'
@@ -66,6 +75,7 @@ export const REQUIRED_MIGRATION_CONTRACTS = [
   ['PermissionedResolverImpl', V2_CONTRACTS.PermissionedResolverImpl],
   ['UnlockedMigrationController', V2_CONTRACTS.UnlockedMigrationController],
   ['LockedMigrationController', V2_CONTRACTS.LockedMigrationController],
+  ['MigrationHelper', V2_CONTRACTS.MigrationHelper],
   ['PublicResolverSet', V2_CONTRACTS.PublicResolverSet],
   ['WrapperRegistryImpl', V2_CONTRACTS.WrapperRegistryImpl],
   ['DefaultResolver', V2_CONTRACTS.DefaultResolver],
@@ -80,7 +90,7 @@ export const REQUIRED_MIGRATION_CONTRACTS = [
 const hasCode = (code: string | undefined): boolean =>
   Boolean(code && code !== '0x')
 
-/** Fail closed when the configured PR #388 namespace is not deployed. */
+/** Fail closed when any configured migration contract is not deployed. */
 export const assertRequiredMigrationContractCode = async (params: {
   readonly publicClient: PublicClient
 }): Promise<void> => {
@@ -101,6 +111,43 @@ export const assertRequiredMigrationContractCode = async (params: {
         address,
       })
     }
+  }
+}
+
+export const MIGRATION_HELPER_RUNTIME_CODE_HASH =
+  '0x0b8acb00c2912a8b43085e0f55f9459b956cb51be1a16a5ff7ef0346dbd18143' as const
+
+/**
+ * Pin the exact HCA-aware helper runtime, including its immutable factory and
+ * controller wiring. The Sepolia deployment is not source-verified yet, so a
+ * code-existence check alone is insufficient.
+ */
+export const assertMigrationHelperRuntimeCode = async (params: {
+  readonly publicClient: PublicClient
+  readonly expectedRuntimeCodeHash?: Hex
+}): Promise<void> => {
+  const code = await params.publicClient.getCode({
+    address: V2_CONTRACTS.MigrationHelper,
+  })
+  if (!hasCode(code)) {
+    throw new MigrationContractInvariantError({
+      invariant: 'missing-code',
+      contractName: 'MigrationHelper',
+      address: V2_CONTRACTS.MigrationHelper,
+    })
+  }
+
+  const expected =
+    params.expectedRuntimeCodeHash ?? MIGRATION_HELPER_RUNTIME_CODE_HASH
+  const actual = keccak256(code as Hex)
+  if (actual.toLowerCase() !== expected.toLowerCase()) {
+    throw new MigrationContractInvariantError({
+      invariant: 'bytecode-hash',
+      contractName: 'MigrationHelper',
+      address: V2_CONTRACTS.MigrationHelper,
+      expected,
+      actual,
+    })
   }
 }
 
@@ -170,7 +217,7 @@ export type MigrationHcaReadiness =
     }
 
 /**
- * A counterfactual HCA is valid but must be deployed before direct owner calls.
+ * A counterfactual HCA is valid but must be deployed before owner execution.
  * An existing HCA is reused only after the shared factory/owner/accountId/
  * implementation certification succeeds.
  */

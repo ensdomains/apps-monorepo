@@ -1,12 +1,11 @@
 /**
  * Standalone-HCA contract manifest.
  *
- * Provenance: the ENS-side addresses come from the ensjs `e96662c` Sepolia
+ * Provenance: most ENS-side addresses come from the ensjs `e96662c` Sepolia
  * manifest, whose values match the remediated deployment published by
- * `ensdomains/contracts-v2` PR #388 at `8d1c893`. ensjs has no entry for
- * `StandaloneHCAImplementation`, `HCAOwnerAndSessionValidator`, the proxy
- * logic, the reverse adapter, or the funding validator, so those stay
- * hardcoded here until it does.
+ * `ensdomains/contracts-v2` PR #388 at `8d1c893`. The HCA-aware
+ * `MigrationHelper` was deployed separately from contracts-v2 PR #402, so it
+ * remains pinned below alongside the HCA contracts that ensjs does not expose.
  *
  * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
  * when ensjs exposes them. Until then, this local, chain-keyed table remains
@@ -87,7 +86,10 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     permissionedResolverImpl: ensjsSepolia.ensPermissionedResolverImpl.address,
     ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
     ethRegistry: ensjsSepolia.ensRegistry.address,
-    migrationHelper: ensjsSepolia.ensMigrationHelper.address,
+    // HCA-aware helper from contracts-v2 PR #402. The ensjs entry still points
+    // at the preceding helper deployment, which cannot resolve an HCA caller
+    // back to its certified EOA owner.
+    migrationHelper: '0xddC597d937618849348E18Db5D631Ce747bCDeEF',
     unlockedMigrationController:
       ensjsSepolia.ensUnlockedMigrationController.address,
     lockedMigrationController:

@@ -296,9 +296,9 @@ const verifyExistingWrapperChain = async (params: {
 }
 
 /**
- * Resolve every direct migration receiver before asking the wallet to approve
- * the HCA. Existing parent wrappers are verified recursively; selected locked
- * parents may satisfy a child route only when they execute earlier.
+ * Resolve every helper migration receiver before asking the wallet to approve
+ * MigrationHelper. Existing parent wrappers are verified recursively; selected
+ * locked parents may satisfy a child route only when they execute earlier.
  */
 export const resolveDirectMigrationRoutes = async (params: {
   readonly publicClient: PublicClient

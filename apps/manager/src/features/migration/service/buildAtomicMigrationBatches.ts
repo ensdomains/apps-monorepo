@@ -20,10 +20,9 @@ import {
 import { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import {
-  buildDirectMigrationCalls,
-  type DirectMigrationDataInput,
-  type DirectWrappedMigrationInput,
-} from './buildDirectMigrationCalls'
+  buildMigrationHelperCall,
+  type MigrationHelperNameInput,
+} from './buildMigrationHelperCall'
 import {
   flattenProfileInnerCalls,
   wrapInnerCallsAsMulticall,
@@ -34,7 +33,11 @@ import {
   type DirectMigrationRoute,
   orderDirectMigrationNamesParentFirst,
 } from './directMigrationRoutes'
-import { resolverFor } from './encodeMigration'
+import {
+  createMigrationData,
+  type MigrationData,
+  resolverFor,
+} from './encodeMigration'
 import type { Profile } from './fetchV1Profiles'
 import { profileMapKey } from './fetchV1Profiles'
 
@@ -214,15 +217,7 @@ export type AtomicMigrationVerificationExpectation =
 export type AtomicMigrationNameExecution = {
   readonly classified: ClassifiedName
   readonly directRoute: DirectMigrationRoute
-  readonly directMigration:
-    | {
-        readonly type: 'unwrapped'
-        readonly input: DirectMigrationDataInput
-      }
-    | {
-        readonly type: 'wrapped'
-        readonly input: DirectWrappedMigrationInput
-      }
+  readonly migrationData: MigrationData
   readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
   readonly verificationExpectations: readonly AtomicMigrationVerificationExpectation[]
 }
@@ -463,32 +458,12 @@ const buildNameExecution = (params: {
   const verificationExpectations: AtomicMigrationVerificationExpectation[] = []
   const contracts = getDestinationContracts(chainId)
   const registryPath = registryPathFor(classified)
-  const directData: DirectMigrationDataInput = {
-    name,
+  const migrationData = createMigrationData({
     label: classified.label,
+    owner: wallet,
     subregistry: zeroAddress,
     resolver: expectedResolver,
-  }
-  const directMigration: AtomicMigrationNameExecution['directMigration'] =
-    classified.tokenType === 'unwrapped'
-      ? { type: 'unwrapped', input: directData }
-      : {
-          type: 'wrapped',
-          input: {
-            ...directData,
-            tokenId: BigInt(node),
-            receiver: directRoute.receiver,
-          },
-        }
-  const [directCallExecution] = buildDirectMigrationCalls({
-    wallet,
-    unwrapped:
-      directMigration.type === 'unwrapped' ? [directMigration.input] : [],
-    wrapped: directMigration.type === 'wrapped' ? [directMigration.input] : [],
   })
-  if (!directCallExecution) {
-    throw new Error(`No direct migration call was built for "${name}"`)
-  }
 
   if (includeResolverVerification) {
     verificationExpectations.push(
@@ -541,12 +516,6 @@ const buildNameExecution = (params: {
     })
   }
 
-  innerExecutions.push({
-    phase: 'migrate',
-    name,
-    names: [name],
-    call: directCallExecution.call,
-  })
   verificationExpectations.push(
     {
       id: expectationId(name, 'name-owner'),
@@ -670,7 +639,7 @@ const buildNameExecution = (params: {
   return {
     classified,
     directRoute,
-    directMigration,
+    migrationData,
     innerExecutions,
     verificationExpectations,
   }
@@ -698,7 +667,7 @@ const buildNameExecutions = (params: {
     const directRoute = params.directRoutes.get(classified.domain.name)
     if (!directRoute) {
       throw new Error(
-        `No verified direct migration route for "${classified.domain.name}"`,
+        `No verified migration route for "${classified.domain.name}"`,
       )
     }
     return buildNameExecution({
@@ -716,30 +685,36 @@ const buildNameExecutions = (params: {
 }
 
 /**
- * Finalize one outer HCA batch in contract-safe phase order. Wrapped transfers
- * are regrouped from the names currently in the batch, so gas splitting and
- * retry removal cannot leave stale ERC-1155 batch calldata behind.
+ * Finalize one outer HCA batch in contract-safe phase order. Helper inputs are
+ * rebuilt from the names currently in the batch, so gas splitting and retry
+ * removal cannot leave stale migration calldata behind.
  */
 export const buildAtomicMigrationInnerExecutions = (params: {
-  readonly wallet: Address
   readonly nameExecutions: readonly AtomicMigrationNameExecution[]
 }): readonly AtomicMigrationInnerExecution[] => {
   const existingInner = params.nameExecutions.flatMap(
     (nameExecution) => nameExecution.innerExecutions,
   )
-  const directCalls = buildDirectMigrationCalls({
-    wallet: params.wallet,
-    unwrapped: params.nameExecutions.flatMap(({ directMigration }) =>
-      directMigration.type === 'unwrapped' ? [directMigration.input] : [],
-    ),
-    wrapped: params.nameExecutions.flatMap(({ directMigration }) =>
-      directMigration.type === 'wrapped' ? [directMigration.input] : [],
-    ),
-  }).map<AtomicMigrationInnerExecution>(({ names, call }) => {
-    const name = names[0]
-    if (!name) throw new Error('Direct migration call contains no names')
-    return { phase: 'migrate', name, names, call }
-  })
+  const helperInputs = params.nameExecutions.map<MigrationHelperNameInput>(
+    ({ classified, migrationData }) => ({
+      name: classified.domain.name,
+      tokenType: classified.tokenType,
+      parentName: classified.parentName,
+      data: migrationData,
+    }),
+  )
+  const firstMigration = helperInputs[0]
+  const helperExecutions: readonly AtomicMigrationInnerExecution[] =
+    firstMigration
+      ? [
+          {
+            phase: 'migrate',
+            name: firstMigration.name,
+            names: helperInputs.map(({ name }) => name),
+            call: buildMigrationHelperCall(helperInputs),
+          },
+        ]
+      : []
 
   const executionsForPhase = (
     phase: Exclude<AtomicMigrationExecutionPhase, 'migrate'>,
@@ -749,7 +724,7 @@ export const buildAtomicMigrationInnerExecutions = (params: {
   return [
     ...executionsForPhase('resolver-deployment'),
     ...executionsForPhase('wallet-co-admin-grant'),
-    ...directCalls,
+    ...helperExecutions,
     ...executionsForPhase('manager-role-grant'),
     ...executionsForPhase('profile-replay'),
   ]
@@ -763,7 +738,6 @@ const estimateBatch = async (params: {
   readonly estimateOuterGas: EstimateAtomicMigrationOuterGas
 }): Promise<AtomicMigrationBatch> => {
   const innerExecutions = buildAtomicMigrationInnerExecutions({
-    wallet: params.wallet,
     nameExecutions: params.nameExecutions,
   })
   const names = params.nameExecutions.map(

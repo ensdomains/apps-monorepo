@@ -21,11 +21,12 @@ export type MigrationGasEstimateState =
       readonly transactionCount: number
       readonly plan: MigrationPlan
     }
-  | { readonly status: 'error' }
+  | { readonly status: 'error'; readonly message?: string }
 
 type UseMigrationGasEstimateParams = {
   readonly ownerAddress: Address | undefined
   readonly hcaAddress: Address | undefined
+  readonly accountError?: string | null
   readonly selectedNames: readonly string[]
   readonly v1Names: readonly V1Domain[]
 }
@@ -48,6 +49,7 @@ const formatEstimatedEth = (wei: bigint): string => {
 export const useMigrationGasEstimate = ({
   ownerAddress,
   hcaAddress,
+  accountError,
   selectedNames,
   v1Names,
 }: UseMigrationGasEstimateParams): MigrationGasEstimateState => {
@@ -108,7 +110,21 @@ export const useMigrationGasEstimate = ({
     },
   })
 
-  if (!enabled) return { status: 'idle' }
+  if (!enabled) {
+    if (selectedNames.length > 0 && accountError) {
+      return { status: 'error', message: accountError }
+    }
+    if (
+      selectedNames.length > 0 &&
+      domains.length > 0 &&
+      ownerAddress &&
+      publicClient &&
+      !hcaAddress
+    ) {
+      return { status: 'loading' }
+    }
+    return { status: 'idle' }
+  }
   if (query.isPending) return { status: 'loading' }
   if (query.isError || query.data?.estimate.status === 'error')
     return { status: 'error' }

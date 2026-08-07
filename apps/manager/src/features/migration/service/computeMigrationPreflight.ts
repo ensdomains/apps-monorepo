@@ -19,6 +19,7 @@ import {
 } from '@/features/migration/service/migrationApprovals'
 import {
   assertLockedPublicResolverSetMembership,
+  assertMigrationHelperRuntimeCode,
   assertRequiredMigrationContractCode,
   checkDeterministicMigrationResolverReadiness,
   checkMigrationHcaReadiness,
@@ -46,9 +47,9 @@ export type MigrationPreflight = {
   /** Deterministic HCA resolver, including deploy/role readiness. */
   hcaResolverReadiness?: MigrationResolverReadiness
   hcaResolverAddress?: Address
-  /** Direct owner-call readiness for the counterfactual HCA. */
+  /** Owner-execution readiness for the counterfactual HCA. */
   hcaReadiness?: MigrationHcaReadiness
-  /** Factory-certified direct receiver for every selected name. */
+  /** Factory-certified helper receiver for every selected name. */
   directMigrationRoutes?: ReadonlyMap<string, DirectMigrationRoute>
   profileKeys?: readonly V1ProfileKeys[]
 }
@@ -233,6 +234,7 @@ export const computeMigrationPreflight = async (params: {
     hcaAddress
       ? (async () => {
           await assertRequiredMigrationContractCode({ publicClient })
+          await assertMigrationHelperRuntimeCode({ publicClient })
           await assertLockedPublicResolverSetMembership({
             publicClient,
             names: classified,

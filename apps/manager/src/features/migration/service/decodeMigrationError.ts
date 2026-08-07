@@ -1,5 +1,8 @@
 import { type Address, decodeErrorResult, type Hex, parseAbi } from 'viem'
-import { LIB_MIGRATION_ERRORS_ABI } from '../contracts/abis'
+import {
+  LIB_MIGRATION_ERRORS_ABI,
+  MIGRATION_HELPER_ABI,
+} from '../contracts/abis'
 import { OwnedResolverDeployError } from './ensureOwnedPermRes'
 import { ProfileFetchError } from './fetchV1Profiles'
 
@@ -99,20 +102,23 @@ const findRevertData = (err: unknown): readonly Hex[] => {
   return [...new Set(matches)]
 }
 
-const DIRECT_MIGRATION_ERRORS_ABI = parseAbi([
-  'error CallerNotOwner()',
-  'error UnauthorizedCaller(address caller)',
-  'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
-  'error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)',
-  'error ERC1155MissingApprovalForAll(address operator, address owner)',
-  'error ERC1155InsufficientBalance(address sender, uint256 balance, uint256 needed, uint256 tokenId)',
-  'error ERC1155InvalidArrayLength(uint256 idsLength, uint256 valuesLength)',
-])
+const MIGRATION_EXECUTION_ERRORS_ABI = [
+  ...MIGRATION_HELPER_ABI,
+  ...parseAbi([
+    'error CallerNotOwner()',
+    'error UnauthorizedCaller(address caller)',
+    'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
+    'error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)',
+    'error ERC1155MissingApprovalForAll(address operator, address owner)',
+    'error ERC1155InsufficientBalance(address sender, uint256 balance, uint256 needed, uint256 tokenId)',
+    'error ERC1155InvalidArrayLength(uint256 idsLength, uint256 valuesLength)',
+  ]),
+] as const
 
-const tryDecodeDirectMigrationError = (data: Hex): MigrationError | null => {
+const tryDecodeMigrationExecutionError = (data: Hex): MigrationError | null => {
   try {
     const decoded = decodeErrorResult({
-      abi: DIRECT_MIGRATION_ERRORS_ABI,
+      abi: MIGRATION_EXECUTION_ERRORS_ABI,
       data,
     })
     switch (decoded.errorName) {
@@ -122,6 +128,18 @@ const tryDecodeDirectMigrationError = (data: Hex): MigrationError | null => {
         return {
           type: 'direct-transfer-unauthorized',
           caller: decoded.args[0] as Address,
+        }
+      case 'NotApprovedOperator':
+        return { type: 'permission-missing' }
+      case 'WrappedOwnerMismatch':
+        return {
+          type: 'token-owner-changed',
+          tokenId: decoded.args[0] as bigint,
+        }
+      case 'ParentNotMigrated':
+        return {
+          type: 'generic',
+          message: 'A parent name must migrate before its child names.',
         }
       case 'ERC721InsufficientApproval':
         return {
@@ -144,7 +162,7 @@ const tryDecodeDirectMigrationError = (data: Hex): MigrationError | null => {
         return { type: 'invalid-data' }
     }
   } catch {
-    // not a direct HCA/token/receiver error
+    // not a helper/HCA/token/receiver error
   }
   return null
 }
@@ -265,7 +283,7 @@ const matchMigrationRevert = (data: Hex, depth = 0): MigrationError | null => {
   if (depth >= MAX_REVERT_UNWRAP_DEPTH) return null
 
   const directMatch =
-    tryDecodeDirectMigrationError(data) ??
+    tryDecodeMigrationExecutionError(data) ??
     matchLibMigrationError(data) ??
     matchDirectTransferErrorString(data)
   if (directMatch) return directMatch

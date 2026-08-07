@@ -17,6 +17,9 @@ const revertWith = (data: Hex) =>
 const directMigrationErrorsAbi = parseAbi([
   'error CallerNotOwner()',
   'error UnauthorizedCaller(address caller)',
+  'error NotApprovedOperator(address nft, address owner)',
+  'error WrappedOwnerMismatch(uint256 tokenId)',
+  'error ParentNotMigrated(bytes name)',
   'error ERC721InsufficientApproval(address operator, uint256 tokenId)',
   'error ERC721IncorrectOwner(address sender, uint256 tokenId, address owner)',
   'error ERC1155MissingApprovalForAll(address operator, address owner)',
@@ -221,7 +224,7 @@ describe('decodeMigrationError — preflight timeout', () => {
   })
 })
 
-describe('decodeMigrationError — direct HCA and token reverts', () => {
+describe('decodeMigrationError — helper, HCA, and token reverts', () => {
   it('maps an HCA owner mismatch', () => {
     const data = encodeErrorResult({
       abi: directMigrationErrorsAbi,
@@ -255,6 +258,44 @@ describe('decodeMigrationError — direct HCA and token reverts', () => {
     })
     expect(decodeMigrationError(revertWith(data))).toEqual({
       type: 'permission-missing',
+    })
+  })
+
+  it('maps a MigrationHelper operator approval mismatch', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'NotApprovedOperator',
+      args: [
+        '0x1111111111111111111111111111111111111111',
+        '0x2222222222222222222222222222222222222222',
+      ],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'permission-missing',
+    })
+  })
+
+  it('maps a MigrationHelper wrapped-owner mismatch', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'WrappedOwnerMismatch',
+      args: [44n],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'token-owner-changed',
+      tokenId: 44n,
+    })
+  })
+
+  it('explains a MigrationHelper parent-ordering failure', () => {
+    const data = encodeErrorResult({
+      abi: directMigrationErrorsAbi,
+      errorName: 'ParentNotMigrated',
+      args: ['0x06706172656e740365746800'],
+    })
+    expect(decodeMigrationError(revertWith(data))).toEqual({
+      type: 'generic',
+      message: 'A parent name must migrate before its child names.',
     })
   })
 

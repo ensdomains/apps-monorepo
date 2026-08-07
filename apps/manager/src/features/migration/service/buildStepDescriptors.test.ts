@@ -74,7 +74,7 @@ describe('buildStepDescriptors', () => {
     ).toHaveLength(2)
   })
 
-  it('adds cleanup for a wrapped selection and an existing HCA', () => {
+  it('keeps the reusable helper approval for a wrapped selection', () => {
     expect(
       buildStepDescriptors({
         hcaDeploymentRequired: false,
@@ -85,7 +85,6 @@ describe('buildStepDescriptors', () => {
     ).toEqual([
       { type: 'approval', approvalId: 'name-wrapper:hca', count: undefined },
       { type: 'atomic-batch', index: 0, total: 1, count: 2 },
-      { type: 'cleanup', approvalId: 'name-wrapper:hca' },
     ])
   })
 

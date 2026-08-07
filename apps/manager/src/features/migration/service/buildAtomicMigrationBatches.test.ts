@@ -5,8 +5,8 @@ import {
 } from '@ens-apps/smart-account'
 import {
   type Address,
-  decodeAbiParameters,
   decodeFunctionData,
+  getAddress,
   type Hex,
   namehash,
   parseAbi,
@@ -14,11 +14,9 @@ import {
 import { sepolia } from 'viem/chains'
 import { assert, describe, expect, it, vi } from 'vitest'
 
-import {
-  MIGRATION_DATA_ABI_PARAMETERS,
-  NAME_WRAPPER_DIRECT_MIGRATION_ABI,
-} from '../contracts/abis'
+import { MIGRATION_HELPER_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
+import { dnsEncodeName } from '../utils/dnsEncodeName'
 import { makeClassified } from './_fixtures'
 import {
   AtomicMigrationNameGasLimitExceededError,
@@ -172,7 +170,6 @@ describe('buildAtomicMigrationBatches', () => {
       'resolver-deployment',
       'wallet-co-admin-grant',
       'migrate',
-      'migrate',
       'manager-role-grant',
       'profile-replay',
     ])
@@ -180,7 +177,6 @@ describe('buildAtomicMigrationBatches', () => {
       'parent.eth',
       'parent.eth',
       'parent.eth',
-      'sub.parent.eth',
       'parent.eth',
       'parent.eth',
     ])
@@ -207,18 +203,28 @@ describe('buildAtomicMigrationBatches', () => {
     )
     assert(migrate)
     const decodedMigrate = decodeFunctionData({
-      abi: NAME_WRAPPER_DIRECT_MIGRATION_ABI,
+      abi: MIGRATION_HELPER_ABI,
       data: migrate.call.data,
     })
-    expect(decodedMigrate.functionName).toBe('safeTransferFrom')
-    expect(decodedMigrate.args[1].toLowerCase()).toBe(
-      V2_CONTRACTS.LockedMigrationController.toLowerCase(),
-    )
-    const [migrationData] = decodeAbiParameters(
-      MIGRATION_DATA_ABI_PARAMETERS,
-      decodedMigrate.args[4],
-    )
-    expect(migrationData.owner.toLowerCase()).toBe(WALLET.toLowerCase())
+    expect(migrate.call.to).toBe(V2_CONTRACTS.MigrationHelper)
+    expect(migrate.names).toEqual(['parent.eth', 'sub.parent.eth'])
+    expect(decodedMigrate.functionName).toBe('migrate')
+    expect(decodedMigrate.args[2]).toEqual([
+      [expect.objectContaining({ label: 'parent', owner: getAddress(WALLET) })],
+    ])
+    expect(decodedMigrate.args[3]).toEqual([
+      {
+        parentName: dnsEncodeName('parent.eth'),
+        groups: [
+          [
+            expect.objectContaining({
+              label: 'sub',
+              owner: getAddress(WALLET),
+            }),
+          ],
+        ],
+      },
+    ])
 
     const expectationTypes = batch.verificationExpectations.map(
       (expectation) => expectation.type,
@@ -427,7 +433,6 @@ describe('buildAtomicMigrationBatches', () => {
 
     expect(batch.innerExecutions.map((execution) => execution.phase)).toEqual([
       'migrate',
-      'migrate',
     ])
     expect(
       batch.verificationExpectations.map((expectation) => expectation.type),
@@ -606,7 +611,7 @@ describe('buildAtomicMigrationBatches', () => {
     expect(estimateOuterGas).toHaveBeenCalledOnce()
   })
 
-  it('regroups wrapped transfers after retry removes a name', async () => {
+  it('rebuilds the helper groups after retry removes a name', async () => {
     const plan = await buildPlan({
       classified: [
         makeName('alice.eth', { tokenType: 'unlocked' }),
@@ -623,27 +628,26 @@ describe('buildAtomicMigrationBatches', () => {
     expect(groupedMigration.names).toEqual(['alice.eth', 'bob.eth'])
     expect(
       decodeFunctionData({
-        abi: NAME_WRAPPER_DIRECT_MIGRATION_ABI,
+        abi: MIGRATION_HELPER_ABI,
         data: groupedMigration.call.data,
       }).functionName,
-    ).toBe('safeBatchTransferFrom')
+    ).toBe('migrate')
 
     const bobExecution = batch.nameExecutions.find(
       (execution) => execution.classified.domain.name === 'bob.eth',
     )
     assert(bobExecution)
     const [retryMigration] = buildAtomicMigrationInnerExecutions({
-      wallet: WALLET,
       nameExecutions: [bobExecution],
     })
     assert(retryMigration)
     expect(retryMigration.names).toEqual(['bob.eth'])
     expect(
       decodeFunctionData({
-        abi: NAME_WRAPPER_DIRECT_MIGRATION_ABI,
+        abi: MIGRATION_HELPER_ABI,
         data: retryMigration.call.data,
       }).functionName,
-    ).toBe('safeTransferFrom')
+    ).toBe('migrate')
   })
 
   it('blocks a single name whose wrapped execution exceeds the limit', async () => {

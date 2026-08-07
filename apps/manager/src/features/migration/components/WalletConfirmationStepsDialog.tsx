@@ -1,11 +1,10 @@
 import { Plural, Trans } from '@lingui/react/macro'
-import { Layers3, ShieldCheck, WalletCards, X } from 'lucide-react'
 import { match } from 'ts-pattern'
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
@@ -19,13 +18,10 @@ const StepCopy = ({ step }: StepCopyProps) =>
   match(step)
     .with({ type: 'deploy-hca' }, () => (
       <>
-        <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-          <Trans>Setup</Trans>
-        </span>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
           <Trans>Create migration account</Trans>
         </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>
             Create the secure account that performs the name upgrade.
           </Trans>
@@ -36,17 +32,14 @@ const StepCopy = ({ step }: StepCopyProps) =>
       { type: 'approval', approvalId: 'base-registrar:hca-token' },
       ({ name }) => (
         <>
-          <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-            <Trans>Permission</Trans>
-          </span>
-          <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+          <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
             {name ? (
               <Trans>Approve {name}</Trans>
             ) : (
               <Trans>Approve registration</Trans>
             )}
           </h3>
-          <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+          <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
             <Trans>
               Allow the migration account to move this registration.
             </Trans>
@@ -58,10 +51,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
       { type: 'approval', approvalId: 'base-registrar:hca' },
       ({ count }) => (
         <>
-          <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-            <Trans>Permission</Trans>
-          </span>
-          <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+          <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
             {count ? (
               <Plural
                 one="Approve # registration"
@@ -72,7 +62,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
               <Trans>Approve registrations</Trans>
             )}
           </h3>
-          <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+          <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
             <Trans>One approval covers the selected .eth registrations.</Trans>
           </p>
         </>
@@ -80,36 +70,27 @@ const StepCopy = ({ step }: StepCopyProps) =>
     )
     .with({ type: 'approval', approvalId: 'name-wrapper:hca' }, () => (
       <>
-        <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-          <Trans>Permission</Trans>
-        </span>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
           <Trans>Approve wrapped names</Trans>
         </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Allow the migration account to move your wrapped names.</Trans>
         </p>
       </>
     ))
     .with({ type: 'approval', approvalId: 'eth-registry:hca' }, () => (
       <>
-        <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-          <Trans>Permission</Trans>
-        </span>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
           <Trans>Approve manager restoration</Trans>
         </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Restore the existing managers for your names.</Trans>
         </p>
       </>
     ))
     .with({ type: 'atomic-batch' }, ({ count, index, total }) => (
       <>
-        <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-          <Trans>Upgrade</Trans>
-        </span>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
           {total > 1 ? (
             <Trans>
               Upgrade batch {index + 1} of {total}
@@ -122,20 +103,17 @@ const StepCopy = ({ step }: StepCopyProps) =>
             />
           )}
         </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Migrate the selected names and restore their records.</Trans>
         </p>
       </>
     ))
     .with({ type: 'cleanup' }, () => (
       <>
-        <span className="font-semi-mono text-ens-garnet-800/70 text-xs uppercase tracking-widest">
-          <Trans>Cleanup</Trans>
-        </span>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-sm leading-tight">
+        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
           <Trans>Revoke temporary HCA access</Trans>
         </h3>
-        <p className="text-pretty text-ens-garnet-800/75 text-xs leading-normal">
+        <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
           <Trans>Remove the temporary permission after the upgrade.</Trans>
         </p>
       </>
@@ -161,13 +139,6 @@ type WalletConfirmationStepsDialogProps = {
 export const WalletConfirmationStepsDialog = ({
   steps,
 }: WalletConfirmationStepsDialogProps) => {
-  const bulkRegistrationApproval = steps.find(
-    (step) =>
-      step.type === 'approval' &&
-      step.approvalId === 'base-registrar:hca' &&
-      (step.count ?? 0) >= 2,
-  )
-
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -184,91 +155,44 @@ export const WalletConfirmationStepsDialog = ({
       </DialogTrigger>
 
       <DialogContent
-        className="gap-0 overflow-hidden border-0 bg-ens-garnet-50 p-0 shadow-lg motion-reduce:duration-0 sm:max-w-md"
+        className="gap-0 overflow-hidden border-0 bg-ens-garnet-50 p-0 shadow-lg motion-reduce:duration-0 sm:max-w-[440px]"
         overlayClassName="bg-ens-garnet-900/50"
-        showCloseButton={false}
       >
-        <header className="relative px-5 pt-5 pb-4 sm:px-6 sm:pt-6">
-          <div className="flex items-start gap-3.5 pr-10">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-sm bg-ens-garnet-900 text-ens-garnet-50">
-              <WalletCards
-                aria-hidden="true"
-                className="size-4.5"
-                strokeWidth={1.8}
-              />
-            </span>
-            <div className="min-w-0 pt-0.5">
-              <DialogTitle className="text-balance font-normal text-ens-garnet-900 text-xl leading-tight tracking-tight">
-                <Trans>Wallet confirmations</Trans>
-              </DialogTitle>
-              <DialogDescription className="mt-1.5 text-pretty text-ens-garnet-800/75 text-sm leading-normal">
-                <Plural
-                  one="Your wallet will show one request."
-                  other="Your wallet will show # requests in this order."
-                  value={steps.length}
-                />
-              </DialogDescription>
-            </div>
-          </div>
-
-          <DialogClose asChild>
-            <button
-              className="absolute top-4 right-4 flex size-9 items-center justify-center rounded-sm text-ens-garnet-800/70 transition-colors duration-150 hover:bg-ens-garnet-100 hover:text-ens-garnet-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ens-garnet-900/40 motion-reduce:duration-0"
-              type="button"
-            >
-              <X aria-hidden="true" className="size-4.5" />
-              <span className="sr-only">
-                <Trans>Close</Trans>
-              </span>
-            </button>
-          </DialogClose>
-        </header>
-
-        {bulkRegistrationApproval ? (
-          <div className="mx-5 mb-1 flex gap-2.5 rounded-sm bg-ens-garnet-100 px-3 py-2.5 text-ens-garnet-900 sm:mx-6">
-            <Layers3
-              aria-hidden="true"
-              className="mt-0.5 size-4 shrink-0"
-              strokeWidth={1.8}
+        <DialogHeader className="gap-1.5 px-5 pt-5 pb-3 pr-12 text-left sm:px-6 sm:pt-6 sm:pr-12">
+          <DialogTitle className="text-balance font-normal text-ens-garnet-900 text-xl leading-tight tracking-tight">
+            <Trans>Wallet confirmations</Trans>
+          </DialogTitle>
+          <DialogDescription className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
+            <Plural
+              one="Your wallet will show one request."
+              other="Your wallet will show # requests in this order."
+              value={steps.length}
             />
-            <p className="text-pretty text-xs leading-normal">
-              <Trans>
-                When two or more .eth registrations need access, one approval
-                covers them and reduces the number of wallet requests.
-              </Trans>
-            </p>
-          </div>
-        ) : null}
+          </DialogDescription>
+        </DialogHeader>
 
-        <ol className="max-h-96 overflow-y-auto px-5 py-2 sm:px-6">
+        <ol className="max-h-96 overflow-y-auto px-5 py-1 sm:px-6">
           {steps.map((step, index) => (
             <li
-              className="flex gap-3 border-ens-garnet-900/10 border-b py-3.5 last:border-b-0"
+              className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3 py-3"
               key={stepKey(step)}
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-sm bg-ens-garnet-100 font-semi-mono text-ens-garnet-900 text-xs tabular-nums">
-                {String(index + 1).padStart(2, '0')}
+              <span className="pt-0.5 font-semi-mono text-ens-garnet-800/60 text-sm tabular-nums">
+                {index + 1}.
               </span>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-0.5">
+              <div className="flex min-w-0 flex-col gap-1">
                 <StepCopy step={step} />
               </div>
             </li>
           ))}
         </ol>
 
-        <footer className="flex items-start gap-2.5 border-ens-garnet-900/10 border-t px-5 py-3.5 text-ens-garnet-800/75 sm:px-6">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 size-4 shrink-0"
-            strokeWidth={1.8}
-          />
-          <p className="text-pretty text-xs leading-normal">
-            <Trans>
-              Nothing is signed automatically. Review every request in your
-              wallet.
-            </Trans>
-          </p>
-        </footer>
+        <p className="px-5 pt-2 pb-5 text-pretty text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
+          <Trans>
+            Nothing is signed automatically. Review every request in your
+            wallet.
+          </Trans>
+        </p>
       </DialogContent>
     </Dialog>
   )

@@ -50,9 +50,10 @@ const GasEstimateMessage = ({
         </Trans>
       </p>
     ))
-    .with({ status: 'error' }, () => (
+    .with({ status: 'error' }, (estimate) => (
       <p>
         <Trans>Gas estimate unavailable</Trans>
+        {estimate.message ? `: ${estimate.message}` : null}
       </p>
     ))
     .otherwise(() => null)

@@ -121,9 +121,9 @@ const APPROVAL: MigrationApproval = {
   contractAddress: APPROVAL_CONTRACT,
   operatorAddress: HCA,
 }
-const SECOND_APPROVAL: MigrationApproval = {
+const MANAGER_APPROVAL: MigrationApproval = {
   kind: 'operator',
-  id: 'name-wrapper:hca',
+  id: 'eth-registry:hca',
   contractAddress: APPROVAL_CONTRACT,
   operatorAddress: HCA,
 }
@@ -182,14 +182,11 @@ const planFor = (labels: readonly string[] = ['alice']): MigrationPlan => {
     return {
       classified: classifiedName,
       directRoute,
-      directMigration: {
-        type: 'unwrapped' as const,
-        input: {
-          name,
-          label: classifiedName.label,
-          subregistry: RESOLVER,
-          resolver: RESOLVER,
-        },
+      migrationData: {
+        label: classifiedName.label,
+        owner: OWNER,
+        subregistry: RESOLVER,
+        resolver: RESOLVER,
       },
       innerExecutions: [],
       verificationExpectations: [
@@ -544,19 +541,18 @@ describe('executeMigration HCA orchestration', () => {
   })
 
   it('keeps temporary-approval cleanup within the planned step count', async () => {
-    mocks.planMigrationApprovals.mockReturnValue([APPROVAL, SECOND_APPROVAL])
+    mocks.planMigrationApprovals.mockReturnValue([APPROVAL, MANAGER_APPROVAL])
     const plan = {
       ...planFor(),
       preflight: {
         ...planFor().preflight,
-        migrationApprovals: [APPROVAL, SECOND_APPROVAL],
+        migrationApprovals: [APPROVAL, MANAGER_APPROVAL],
       },
       stepDescriptors: [
         { type: 'approval' as const, approvalId: APPROVAL.id },
-        { type: 'approval' as const, approvalId: SECOND_APPROVAL.id },
+        { type: 'approval' as const, approvalId: MANAGER_APPROVAL.id },
         { type: 'atomic-batch' as const, index: 0, total: 1, count: 1 },
-        { type: 'cleanup' as const, approvalId: APPROVAL.id },
-        { type: 'cleanup' as const, approvalId: SECOND_APPROVAL.id },
+        { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
     }
 
@@ -564,10 +560,10 @@ describe('executeMigration HCA orchestration', () => {
 
     expect(
       Math.max(...progressEvents.map(({ currentStep }) => currentStep)),
-    ).toBe(5)
+    ).toBe(4)
     expect(progressEvents.at(-1)).toMatchObject({
-      currentStep: 5,
-      totalSteps: 5,
+      currentStep: 4,
+      totalSteps: 4,
       description: 'Temporary access removed',
     })
   })
@@ -605,8 +601,8 @@ describe('executeMigration HCA orchestration', () => {
         value: 0n,
       })
       expect(mocks.buildMigrationApprovalCall).toHaveBeenCalledOnce()
-      expect(mocks.startTransaction).toHaveBeenCalledTimes(3)
-      expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
+      expect(mocks.startTransaction).toHaveBeenCalledTimes(2)
+      expect(result.txHashes).toEqual([hashFor(1), hashFor(2)])
     } finally {
       vi.useRealTimers()
     }
@@ -985,13 +981,13 @@ describe('executeMigration HCA orchestration', () => {
       hcaDeploymentRequired: true,
       preflight: {
         ...planFor().preflight,
-        migrationApprovals: [APPROVAL],
+        migrationApprovals: [MANAGER_APPROVAL],
       },
       stepDescriptors: [
         { type: 'deploy-hca' as const },
-        { type: 'approval' as const, approvalId: APPROVAL.id },
+        { type: 'approval' as const, approvalId: MANAGER_APPROVAL.id },
         { type: 'atomic-batch' as const, index: 0, total: 1, count: 1 },
-        { type: 'cleanup' as const, approvalId: APPROVAL.id },
+        { type: 'cleanup' as const, approvalId: MANAGER_APPROVAL.id },
       ],
     }
 
@@ -1143,7 +1139,7 @@ describe('executeMigration HCA orchestration', () => {
   })
 
   it('revokes a temporary operator approval after a successful migration', async () => {
-    mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
     waitForReceiptMock
       .mockResolvedValueOnce({
         status: 'success',
@@ -1158,19 +1154,21 @@ describe('executeMigration HCA orchestration', () => {
       ...planFor(),
       preflight: {
         ...planFor().preflight,
-        migrationApprovals: [APPROVAL],
+        migrationApprovals: [MANAGER_APPROVAL],
       },
     }
     const { result } = await runExecute({ plan })
 
     expect(mocks.buildMigrationApprovalCall).toHaveBeenCalledOnce()
-    expect(mocks.buildMigrationApprovalCall).toHaveBeenCalledWith(APPROVAL)
+    expect(mocks.buildMigrationApprovalCall).toHaveBeenCalledWith(
+      MANAGER_APPROVAL,
+    )
     expect(result.completed).toBe(1)
     expect(result.txHashes).toEqual([hashFor(1), hashFor(2), hashFor(3)])
   })
 
   it('surfaces cleanup rejection for the dedicated recovery action', async () => {
-    mocks.planMigrationApprovals.mockReturnValue([APPROVAL])
+    mocks.planMigrationApprovals.mockReturnValue([MANAGER_APPROVAL])
     mocks.waitForTransactionHash.mockImplementation((txId: string) =>
       txId === 'tx-2'
         ? Promise.reject(new Error('cleanup rejected'))
@@ -1182,7 +1180,7 @@ describe('executeMigration HCA orchestration', () => {
       ...planFor(),
       preflight: {
         ...planFor().preflight,
-        migrationApprovals: [APPROVAL],
+        migrationApprovals: [MANAGER_APPROVAL],
       },
     }
 

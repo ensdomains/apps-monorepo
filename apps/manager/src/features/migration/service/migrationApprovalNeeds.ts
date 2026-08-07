@@ -8,7 +8,7 @@ export type ApprovalNeeds = {
   readonly hasWrapped: boolean
 }
 
-/** Derive the minimum direct-HCA permission surface for the selected names. */
+/** Derive the minimum helper/HCA permission surface for the selected names. */
 export const approvalNeedsFor = (groups: GroupedNames): ApprovalNeeds => {
   const unwrappedTokenIds = [
     ...new Set(groups.unwrapped.map((name) => BigInt(labelhash(name.label)))),

@@ -18,7 +18,7 @@ describe('remediated Sepolia destination manifest', () => {
       ethRegistrar: '0xa88553F454b77203B0D036A05c894d555EAAa2Cc',
       ethRegistry: '0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2',
       rootRegistry: '0x8115186e8f2e0b0281e86ab91f0f48ba90364354',
-      migrationHelper: '0x1D8c7aA9862F9b823309Ad87A4864Fb27C575e85',
+      migrationHelper: '0xddC597d937618849348E18Db5D631Ce747bCDeEF',
       unlockedMigrationController: '0x2FCf83232b93bD29C59dB18AaA1D4b62e9f9FC73',
       lockedMigrationController: '0x5c39E36a69A9897F08954c71aCB1F36E0Bd4f409',
       publicResolverSet: '0xf2794ebd70c1fa74094a9ec653da1c2df9f5a5a9',

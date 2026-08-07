@@ -57,15 +57,30 @@ export type MigrationTokenApproval = {
 }
 
 /**
- * A missing permission required by a direct HCA migration.
+ * A missing permission required by an HCA-batched helper migration.
  *
- * Plans contain only HCA permissions that were absent at preflight.
+ * The historical approval IDs remain stable for persisted UI step keys. NFT
+ * approvals target MigrationHelper; only manager restoration targets the HCA.
  */
 export type MigrationApproval =
   | MigrationOperatorApproval
   | MigrationTokenApproval
 
-/** Build a required HCA permission from the trusted deployment data. */
+export type MigrationCleanupApproval = MigrationOperatorApproval & {
+  readonly id: 'eth-registry:hca'
+}
+
+/**
+ * Only direct HCA permissions are temporary. MigrationHelper approvals are
+ * intentionally reusable: the helper resolves every caller back to its
+ * certified owner before it can move that owner's V1 names.
+ */
+export const requiresMigrationApprovalCleanup = (
+  approval: MigrationApproval,
+): approval is MigrationCleanupApproval =>
+  approval.kind === 'operator' && approval.id === 'eth-registry:hca'
+
+/** Build a required migration permission from the trusted deployment data. */
 export const migrationApprovalForId = (params: {
   readonly id: MigrationApprovalId
   readonly hcaAddress: Address
@@ -77,7 +92,7 @@ export const migrationApprovalForId = (params: {
         kind: 'operator',
         id: params.id,
         contractAddress: V1_CONTRACTS.BaseRegistrar,
-        operatorAddress: params.hcaAddress,
+        operatorAddress: V2_CONTRACTS.MigrationHelper,
       }
     case 'base-registrar:hca-token': {
       if (params.tokenId === undefined) {
@@ -87,7 +102,7 @@ export const migrationApprovalForId = (params: {
         kind: 'erc721-token',
         id: params.id,
         contractAddress: V1_CONTRACTS.BaseRegistrar,
-        operatorAddress: params.hcaAddress,
+        operatorAddress: V2_CONTRACTS.MigrationHelper,
         tokenId: params.tokenId,
       }
     }
@@ -96,7 +111,7 @@ export const migrationApprovalForId = (params: {
         kind: 'operator',
         id: params.id,
         contractAddress: V1_CONTRACTS.NameWrapper,
-        operatorAddress: params.hcaAddress,
+        operatorAddress: V2_CONTRACTS.MigrationHelper,
       }
     case 'eth-registry:hca':
       return {
@@ -141,6 +156,7 @@ export const checkMigrationApprovals = async (params: {
   readonly wagmiConfig: WagmiConfig
 }): Promise<MigrationApprovalStatus> => {
   const { eoa, hcaAddress, needs, wagmiConfig } = params
+  const migrationHelper = V2_CONTRACTS.MigrationHelper
   const tokenIds = uniqueTokenIds(needs.unwrappedTokenIds)
   const reads: ApprovalRead[] = []
 
@@ -149,7 +165,7 @@ export const checkMigrationApprovals = async (params: {
       kind: 'operator',
       key: 'baseRegistrarHcaApproved',
       contractAddress: V1_CONTRACTS.BaseRegistrar,
-      operatorAddress: hcaAddress,
+      operatorAddress: migrationHelper,
     })
     reads.push(
       ...tokenIds.map(
@@ -163,7 +179,7 @@ export const checkMigrationApprovals = async (params: {
       kind: 'operator',
       key: 'nameWrapperHcaApproved',
       contractAddress: V1_CONTRACTS.NameWrapper,
-      operatorAddress: hcaAddress,
+      operatorAddress: migrationHelper,
     })
   }
 
@@ -226,7 +242,7 @@ export const checkMigrationApprovals = async (params: {
         read.tokenId,
         typeof result === 'string' &&
           isAddress(result) &&
-          isAddressEqual(result, hcaAddress),
+          isAddressEqual(result, migrationHelper),
       )
       continue
     }

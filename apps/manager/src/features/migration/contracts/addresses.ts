@@ -34,6 +34,7 @@ export const V2_CONTRACTS = {
   PermissionedResolverImpl: destination.permissionedResolverImpl,
   UnlockedMigrationController: destination.unlockedMigrationController,
   LockedMigrationController: destination.lockedMigrationController,
+  MigrationHelper: destination.migrationHelper,
   PublicResolverSet: destination.publicResolverSet,
   WrapperRegistryImpl: destination.wrapperRegistryImpl,
   DefaultResolver: destination.publicResolverV2,

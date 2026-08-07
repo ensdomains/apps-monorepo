@@ -6,6 +6,7 @@ import {
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { migrationHelperMigrateSnippet } from '@ensdomains/ensjs-abi/v2/migrationHelper'
 import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
@@ -59,29 +60,7 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...publicResolverMultiAddrSnippet,
 ] as const
 
-export const BASE_REGISTRAR_DIRECT_MIGRATION_ABI = parseAbi([
-  'function safeTransferFrom(address from, address to, uint256 tokenId, bytes data)',
-])
-
-export const NAME_WRAPPER_DIRECT_MIGRATION_ABI = parseAbi([
-  'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)',
-  'function safeBatchTransferFrom(address from, address to, uint256[] ids, uint256[] amounts, bytes data)',
-])
-
-const migrationDataComponents = [
-  { name: 'label', type: 'string' },
-  { name: 'owner', type: 'address' },
-  { name: 'subregistry', type: 'address' },
-  { name: 'resolver', type: 'address' },
-] as const
-
-export const MIGRATION_DATA_ABI_PARAMETERS = [
-  { name: 'data', type: 'tuple', components: migrationDataComponents },
-] as const
-
-export const MIGRATION_DATA_ARRAY_ABI_PARAMETERS = [
-  { name: 'data', type: 'tuple[]', components: migrationDataComponents },
-] as const
+export const MIGRATION_HELPER_ABI = migrationHelperMigrateSnippet
 
 // LibMigration errors — these come back wrapped inside Error(string) due to
 // NameWrapper's transfer-error squelching. decodeMigrationError unwraps and

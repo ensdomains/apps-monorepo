@@ -361,7 +361,6 @@ export const adjustPlanForRetry = (
         remainingClassified.includes(execution.classified),
       )
       const innerExecutions = buildAtomicMigrationInnerExecutions({
-        wallet: plan.migrationOwner,
         nameExecutions,
       })
       return {

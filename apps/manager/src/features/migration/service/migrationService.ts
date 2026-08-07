@@ -35,8 +35,10 @@ import {
   buildMigrationOperatorApprovalRevocationCall,
   checkMigrationApprovals,
   type MigrationApproval,
+  type MigrationCleanupApproval,
   migrationApprovalKey,
   planMigrationApprovals,
+  requiresMigrationApprovalCleanup,
 } from './migrationApprovals'
 import {
   loadPendingAtomicMigrationIntents,
@@ -321,13 +323,13 @@ const ensureHcaDeployment = async (params: {
 
 const approvalDescription = (approval: MigrationApproval): string => {
   if (approval.kind === 'erc721-token') {
-    return 'Allowing your HCA to migrate this registration'
+    return 'Allowing the migration helper to migrate this registration'
   }
   switch (approval.id) {
     case 'base-registrar:hca':
-      return 'Allowing your HCA to migrate registrations'
+      return 'Allowing the migration helper to migrate registrations'
     case 'name-wrapper:hca':
-      return 'Allowing your HCA to migrate wrapped names'
+      return 'Allowing the migration helper to migrate wrapped names'
     case 'eth-registry:hca':
       return 'Allowing your HCA to restore managers'
   }
@@ -441,18 +443,8 @@ const ensureMigrationApprovals = async (params: {
   return hashes
 }
 
-const cleanupDescription = (approval: MigrationApproval): string => {
-  switch (approval.id) {
-    case 'base-registrar:hca':
-      return 'Removing registration access from your HCA'
-    case 'name-wrapper:hca':
-      return 'Removing wrapped-name access from your HCA'
-    case 'eth-registry:hca':
-      return 'Removing manager-restoration access from your HCA'
-    case 'base-registrar:hca-token':
-      return 'Removing registration access from your HCA'
-  }
-}
+const cleanupDescription = (_approval: MigrationCleanupApproval): string =>
+  'Removing manager-restoration access from your HCA'
 
 const revokeTemporaryOperatorApprovals = async (params: {
   readonly ctx: MigrationCtx
@@ -460,10 +452,7 @@ const revokeTemporaryOperatorApprovals = async (params: {
 }): Promise<readonly Hex[]> => {
   const temporaryOperators = (
     params.plan.preflight.migrationApprovals ?? []
-  ).filter(
-    (approval): approval is Extract<MigrationApproval, { kind: 'operator' }> =>
-      approval.kind === 'operator',
-  )
+  ).filter(requiresMigrationApprovalCleanup)
   const hashes: Hex[] = []
 
   for (const approval of temporaryOperators) {
@@ -480,7 +469,7 @@ const revokeTemporaryOperatorApprovals = async (params: {
     } catch (cause) {
       throw new MigrationCleanupError({
         message:
-          'Your names were upgraded, but temporary HCA access still needs to be revoked.',
+          'Your names were upgraded, but temporary migration access still needs to be revoked.',
         cause,
       })
     }

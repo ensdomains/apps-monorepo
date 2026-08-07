@@ -3,6 +3,7 @@ import type {
   MigrationApproval,
   MigrationApprovalId,
 } from './migrationApprovals'
+import { requiresMigrationApprovalCleanup } from './migrationApprovals'
 
 type RegistrationApprovalTarget = {
   readonly name: string
@@ -82,9 +83,8 @@ export const buildStepDescriptors = (
   }
 
   for (const approval of params.approvals) {
-    if (approval.kind === 'operator') {
-      descriptors.push({ type: 'cleanup', approvalId: approval.id })
-    }
+    if (!requiresMigrationApprovalCleanup(approval)) continue
+    descriptors.push({ type: 'cleanup', approvalId: approval.id })
   }
 
   return descriptors

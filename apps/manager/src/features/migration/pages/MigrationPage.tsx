@@ -176,6 +176,7 @@ export const MigrationPage = () => {
     ownerAddress,
     accountAddress: hcaAddress,
     client: hcaClient,
+    error: hcaError,
     refreshAccount,
   } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
@@ -192,6 +193,7 @@ export const MigrationPage = () => {
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
     hcaAddress: hcaAddress as Address | undefined,
+    accountError: hcaError,
     selectedNames,
     v1Names,
   })

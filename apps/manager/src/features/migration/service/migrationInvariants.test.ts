@@ -1,11 +1,12 @@
 import { ROLES_ALL, verifyStandaloneHca } from '@ens-apps/smart-account'
-import type { Address, PublicClient } from 'viem'
+import { type Address, keccak256, type PublicClient } from 'viem'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import { makeClassified } from './_fixtures'
 import { FUSES } from './classifyNames'
 import {
   assertLockedPublicResolverSetMembership,
+  assertMigrationHelperRuntimeCode,
   assertRequiredMigrationContractCode,
   checkMigrationHcaReadiness,
   checkMigrationResolverReadiness,
@@ -49,7 +50,7 @@ describe('assertRequiredMigrationContractCode', () => {
     ).resolves.toBeUndefined()
   })
 
-  it('does not require MigrationHelper bytecode for the direct route', async () => {
+  it('requires MigrationHelper bytecode for the HCA helper route', async () => {
     const publicClient = makePublicClient()
     vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
 
@@ -58,7 +59,7 @@ describe('assertRequiredMigrationContractCode', () => {
     ).resolves.toBeUndefined()
     expect(
       REQUIRED_MIGRATION_CONTRACTS.map(([contractName]) => contractName),
-    ).not.toContain('MigrationHelper')
+    ).toContain('MigrationHelper')
   })
 
   it.each([
@@ -76,6 +77,34 @@ describe('assertRequiredMigrationContractCode', () => {
       invariant: 'missing-code',
       contractName,
       address: missingAddress,
+    })
+  })
+})
+
+describe('assertMigrationHelperRuntimeCode', () => {
+  it('accepts the pinned helper runtime hash', async () => {
+    const publicClient = makePublicClient()
+    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
+
+    await expect(
+      assertMigrationHelperRuntimeCode({
+        publicClient,
+        expectedRuntimeCodeHash: keccak256('0x01'),
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('rejects helper bytecode from a different deployment', async () => {
+    const publicClient = makePublicClient()
+    vi.mocked(publicClient.getCode).mockResolvedValue('0x01')
+
+    await expect(
+      assertMigrationHelperRuntimeCode({ publicClient }),
+    ).rejects.toMatchObject({
+      invariant: 'bytecode-hash',
+      contractName: 'MigrationHelper',
+      address: V2_CONTRACTS.MigrationHelper,
+      actual: keccak256('0x01'),
     })
   })
 })
