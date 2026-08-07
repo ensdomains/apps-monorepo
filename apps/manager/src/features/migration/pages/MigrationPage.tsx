@@ -52,13 +52,16 @@ const disabledNftSuccessState = {
 const noop = () => undefined
 
 const PlainMigrationSuccessDialog = ({
+  migratedNameCount,
   onContinue,
 }: {
+  readonly migratedNameCount: number
   readonly onContinue: () => void
 }) => (
   <MigrationSuccessDialog
     canMint={false}
     context="migration"
+    migratedNameCount={migratedNameCount}
     onClose={onContinue}
     onMint={noop}
     onRetry={noop}
@@ -209,23 +212,15 @@ export const MigrationPage = () => {
     }
   }, [step, queryClient])
 
-  const handleSuccessClose = useCallback(
-    (profileName?: string) => {
-      if (isMigrationSuccess) {
-        uiActor.send({ type: 'done' })
-        const destinationName = profileName ?? dialogNames[0]
-        if (destinationName) {
-          navigate({ to: '/$name', params: { name: destinationName } })
-          return
-        }
-        navigate({ to: '/dashboard' })
-        return
-      }
+  const handleSuccessClose = useCallback(() => {
+    if (isMigrationSuccess) {
+      uiActor.send({ type: 'done' })
+      navigate({ to: '/dashboard', replace: true })
+      return
+    }
 
-      setIsPreviewOpen(false)
-    },
-    [dialogNames, isMigrationSuccess, uiActor, navigate],
-  )
+    setIsPreviewOpen(false)
+  }, [isMigrationSuccess, uiActor, navigate])
 
   const handleViewProfile = useCallback(
     (profileName?: string) => {
@@ -245,11 +240,6 @@ export const MigrationPage = () => {
       navigate({ to: '/dashboard' })
     },
     [dialogNames, isMigrationSuccess, uiActor, navigate],
-  )
-
-  const handlePlainSuccess = useCallback(
-    () => handleViewProfile(),
-    [handleViewProfile],
   )
 
   const handleNamesChange = useCallback(
@@ -393,7 +383,10 @@ export const MigrationPage = () => {
         ))
         .with('success', () =>
           migrationNftEnabled ? null : (
-            <PlainMigrationSuccessDialog onContinue={handlePlainSuccess} />
+            <PlainMigrationSuccessDialog
+              migratedNameCount={dialogNames.length}
+              onContinue={handleSuccessClose}
+            />
           ),
         )
         .exhaustive()}

@@ -1696,6 +1696,7 @@ msgstr "One of your names expired."
 msgid "One username everywhere"
 msgstr "One username everywhere"
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Open Dashboard"
 msgstr "Open Dashboard"
@@ -3163,6 +3164,10 @@ msgstr "You can buy this name at any point during the {periodDays}-day cooldown.
 msgid "You can now receive notifications at this email address."
 msgstr "You can now receive notifications at this email address."
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "You can manage your upgraded names from the dashboard."
+msgstr "You can manage your upgraded names from the dashboard."
+
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
 msgstr "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
@@ -3288,6 +3293,10 @@ msgstr "Your name was registered, but we couldn't set it as your primary name. Y
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your name(s) have been upgraded!"
 msgstr "Your name(s) have been upgraded!"
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
+msgstr "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 
 #: src/features/migration/components/SelectNamesStep.tsx
 msgid "Your names are ready to upgrade"

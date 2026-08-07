@@ -1701,6 +1701,7 @@ msgstr ""
 msgid "One username everywhere"
 msgstr ""
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "Open Dashboard"
 msgstr ""
@@ -3168,6 +3169,10 @@ msgstr ""
 msgid "You can now receive notifications at this email address."
 msgstr ""
 
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "You can manage your upgraded names from the dashboard."
+msgstr ""
+
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "You can preview the card after migrating one name, mint immediately, or return from your Dashboard or canonical profile later."
 msgstr ""
@@ -3292,6 +3297,10 @@ msgstr ""
 
 #: src/features/migration/components/MigrationSuccessDialog.tsx
 msgid "Your name(s) have been upgraded!"
+msgstr ""
+
+#: src/features/migration/components/MigrationSuccessDialog.tsx
+msgid "{migratedNameCount, plural, one {Your name has been upgraded!} other {Your names have been upgraded!}}"
 msgstr ""
 
 #: src/features/migration/components/SelectNamesStep.tsx
