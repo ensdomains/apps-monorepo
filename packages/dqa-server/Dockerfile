@@ -30,7 +30,7 @@ FROM node:22-alpine
 WORKDIR /app
 
 COPY package.json ./
-# Runtime needs only the prod deps (express/multer/ws); TypeScript runs via
+# Runtime needs only the prod deps (hono/@hono/node-server/ws); TypeScript runs via
 # Node's native type stripping, no transpile. devDependencies use pnpm's
 # `catalog:` protocol which plain npm can't parse, so strip them first — the
 # image never needs them.
