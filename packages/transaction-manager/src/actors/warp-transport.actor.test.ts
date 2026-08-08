@@ -213,10 +213,26 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })
 
-  it('defaults sponsored to true when not specified', async () => {
+  it('defaults to the user-paid USDC shape when sponsored is not specified', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest({
       rhinestoneParams: { calls: MOCK_CALLS },
+    })
+
+    await submitWarpTransaction({ request, signer })
+
+    expect(signer.account.sendTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sponsored: { gas: false, bridging: false, swaps: false },
+        feeAsset: 'USDC',
+      }),
+    )
+  })
+
+  it('keeps an explicit sponsored value', async () => {
+    const signer = createMockSigner()
+    const request = createRhinestoneRequest({
+      rhinestoneParams: { calls: MOCK_CALLS, sponsored: true },
     })
 
     await submitWarpTransaction({ request, signer })

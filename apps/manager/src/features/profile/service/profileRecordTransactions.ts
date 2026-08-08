@@ -117,7 +117,6 @@ interface CreateTransactionRequestParams {
    * store the batch verbatim with no divergent top-level copy.
    */
   readonly calls: TransactionCall[]
-  readonly sponsored?: boolean
 }
 
 interface BuildRecordsUpdateRequestParams {
@@ -299,7 +298,7 @@ const validateFinalCoinRecords = (
 function createTransactionRequest(
   params: CreateTransactionRequestParams,
 ): TransactionRequest {
-  const { signer, from, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls } = params
 
   if (calls.length === 0) {
     throw new Error('createTransactionRequest requires at least one call')
@@ -332,7 +331,6 @@ function createTransactionRequest(
       chainId,
       rhinestoneParams: {
         calls,
-        sponsored: sponsored ?? true,
       },
     } satisfies RhinestoneTransactionRequest
   }

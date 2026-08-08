@@ -333,7 +333,7 @@ export function createTransactionRequest(params: {
       chainId,
       rhinestoneParams: {
         calls,
-        sponsored: sponsored ?? true,
+        sponsored,
       },
     }
   }
@@ -369,7 +369,7 @@ export function submitResolverDeploymentActor(input: {
         calls: [
           encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
-        sponsored: input.sponsored ?? true,
+        sponsored: input.sponsored,
       })
 
       const txId = transactionManager.startTransaction(
@@ -512,7 +512,7 @@ export function submitCommitmentActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
+        sponsored: input.sponsored,
       })
 
       const txId = transactionManager.startTransaction(
@@ -874,7 +874,7 @@ export function submitApprovalActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
+        sponsored: input.sponsored,
       })
 
       const txId = transactionManager.startTransaction(
@@ -948,7 +948,7 @@ export function submitRegistrationActor(input: {
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [registerCall],
-        sponsored: input.sponsored ?? true,
+        sponsored: input.sponsored,
       })
 
       const txId = transactionManager.startTransaction(
@@ -1098,7 +1098,7 @@ export function submitRenewActor(input: {
         from: accountAddress,
         chainId,
         calls: [{ to: registrarAddress, data: renewData, value: 0n }],
-        sponsored: input.sponsored ?? true,
+        sponsored: input.sponsored,
       })
 
       const txId = transactionManager.startTransaction(

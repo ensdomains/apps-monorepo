@@ -202,10 +202,7 @@ describe('setPrimaryNameWithHca', () => {
         type: 'rhinestone-intent',
         from: HCA_ADDRESS,
         chainId: CHAIN_ID,
-        rhinestoneParams: {
-          sponsored: { gas: false, bridging: false, swaps: false },
-          feeAsset: 'USDC',
-        },
+        rhinestoneParams: {},
       },
     })
     expect(opts).toMatchObject({ operation: 'set-primary-name' })

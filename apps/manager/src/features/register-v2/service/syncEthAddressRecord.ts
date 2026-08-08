@@ -76,7 +76,6 @@ export async function startSyncEthAddressRecordTransaction(
           chainId,
           rhinestoneParams: {
             calls: [{ to: resolverAddress, data, value: 0n }],
-            sponsored: true,
           },
         }
 

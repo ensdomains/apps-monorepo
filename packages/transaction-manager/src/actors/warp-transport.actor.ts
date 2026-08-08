@@ -133,9 +133,22 @@ export function submitWarpTransaction(
           2,
         ),
       )
+      // We do not subsidize: an omitted `sponsored` resolves to the user-paid
+      // USDC shape. Test environments opt in with VITE_ENABLE_TX_SPONSORSHIP.
+      const feePolicy =
+        sponsored !== undefined
+          ? { sponsored, ...(feeAsset ? { feeAsset } : {}) }
+          : (import.meta as unknown as { env?: Record<string, string> }).env
+                ?.VITE_ENABLE_TX_SPONSORSHIP === 'true'
+            ? { sponsored: true }
+            : {
+                sponsored: { gas: false, bridging: false, swaps: false },
+                feeAsset: 'USDC' as const,
+              }
+
       logger.debug('📤 [WARP] Account address:', account.getAddress?.())
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
-      logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
+      logger.debug('📤 [WARP] Sponsored:', feePolicy.sponsored)
 
       const sdkParams = {
         sourceChains: [chain],
@@ -143,11 +156,7 @@ export function submitWarpTransaction(
         // Spread into a fresh mutable array: the SDK's CallInput[] is mutable
         // while rhinestoneParams.calls is readonly.
         calls: [...calls],
-        // No gas sponsorship for the standalone-HCA route: callers pass the
-        // user-paid shape `{ gas:false, bridging:false, swaps:false }` +
-        // `feeAsset: 'USDC'`. Legacy callers may still pass booleans.
-        sponsored: sponsored ?? true,
-        ...(feeAsset ? { feeAsset } : {}),
+        ...feePolicy,
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
         // Cast needed: SDK's internal TokenRequests is a strict discriminated union

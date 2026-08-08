@@ -60,7 +60,6 @@ export function changeResolver(params: ChangeResolverParams): string {
           chainId,
           rhinestoneParams: {
             calls: [{ to, data, value: 0n }],
-            sponsored: true,
           },
         }
 

@@ -561,7 +561,7 @@ export const registrationMachine = setup({
               event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
-            sponsored: ({ event }) => event.sponsored ?? true,
+            sponsored: ({ event }) => event.sponsored,
             hcaBudget: ({ event }) => event.hcaBudget,
             hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
             primaryName: ({ event }) => event.primaryName,

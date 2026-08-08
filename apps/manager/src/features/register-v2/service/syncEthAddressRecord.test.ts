@@ -108,7 +108,7 @@ describe('syncEthAddressRecord', () => {
     expect(wait).toHaveBeenCalledWith('tx-record')
   })
 
-  it('submits a sponsored rhinestone intent with a single call', async () => {
+  it('submits a rhinestone intent with a single call, fee policy left to the transport', async () => {
     await startSyncEthAddressRecordTransaction({
       name: 'leon.eth',
       ownerAddress: OWNER,
@@ -136,7 +136,6 @@ describe('syncEthAddressRecord', () => {
               value: 0n,
             }),
           ],
-          sponsored: true,
         },
       }),
     })
