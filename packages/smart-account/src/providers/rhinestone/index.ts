@@ -23,10 +23,12 @@
 export {
   estimateHcaBudget,
   HCA_LEG_GAS_LIMITS,
-  HCA_PRIMARY_NAME_GAS,
+  HCA_PRIMARY_NAME_BASE_GAS,
+  HCA_PRIMARY_NAME_WORD_GAS,
   type HcaBudgetBreakdown,
   type HcaBudgetParams,
   type HcaLeg,
+  primaryNameGas,
   type QuoteLegCostUsdc,
   type QuoteLegResult,
   type QuoteMarketData,

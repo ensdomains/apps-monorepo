@@ -424,7 +424,7 @@ export function estimateHcaBudgetActor(input: {
             rhinestone.account,
             chain,
             toCalls(revealCalls),
-            registerLegGasLimit(Boolean(input.primaryName)),
+            registerLegGasLimit(input.primaryName),
             baseSigners,
             incomingUsdc,
           )
@@ -450,7 +450,7 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
-        withPrimaryName: Boolean(input.primaryName),
+        ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
 

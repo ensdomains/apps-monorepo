@@ -3,7 +3,7 @@
 import {
   computeResolverAddress,
   getDestinationContracts,
-  HCA_PRIMARY_NAME_GAS,
+  primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
 import { decodeFunctionData, isAddressEqual, parseAbi } from 'viem'
@@ -517,8 +517,9 @@ describe('estimateHcaBudgetActor', () => {
   })
 
   it('widens the register gas limit by the primary-name delta', async () => {
-    // The rail prices the quote on the LIMIT, so a limit that does not cover
-    // the extra call under-funds the permit.
+    // The rail prices the quote on the LIMIT (measured: /intents/route returns
+    // an identical cost for 5 vs 6 executions at the same limit), so a limit
+    // that does not cover the extra call under-funds the permit.
     await estimateHcaBudgetActor({ ...input, primaryName: 'myname.eth' })
     const withName = registerLegParams().gasLimit
 
@@ -526,7 +527,27 @@ describe('estimateHcaBudgetActor', () => {
     await estimateHcaBudgetActor(input)
     const withoutName = registerLegParams().gasLimit
 
-    expect(withName - withoutName).toBe(HCA_PRIMARY_NAME_GAS)
+    expect(withName - withoutName).toBe(primaryNameGas('myname.eth'))
+  })
+
+  it('scales the widening with the name length', async () => {
+    // Measured on a Sepolia fork: <=31 bytes is one SSTORE (34_624 gas) but a
+    // 33-byte name is three (79_981). A flat allowance sized for the short
+    // case silently under-funds the long one.
+    const long = `${'n'.repeat(29)}.eth` // 33 bytes
+    expect(long.length).toBeGreaterThan(31)
+
+    await estimateHcaBudgetActor({ ...input, primaryName: long })
+    const withLong = registerLegParams().gasLimit
+
+    prepareTransaction.mockClear()
+    await estimateHcaBudgetActor({ ...input, primaryName: 'short.eth' })
+    const withShort = registerLegParams().gasLimit
+
+    expect(withLong).toBeGreaterThan(withShort)
+    expect(withLong - withShort).toBe(
+      primaryNameGas(long) - primaryNameGas('short.eth'),
+    )
   })
 
   it('omits the primary-name call when the user did not opt in', async () => {

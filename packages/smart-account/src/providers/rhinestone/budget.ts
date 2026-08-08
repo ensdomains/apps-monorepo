@@ -53,32 +53,74 @@ export const HCA_LEG_GAS_LIMITS = {
 } as const
 
 /**
- * Extra gas the reveal batch needs when the user opts into a primary name,
- * i.e. the `DefaultReverseRegistrarAdapter.setNameWithHCA` call in step 5.
+ * Gas for the first storage word of the primary name, plus the fixed overhead
+ * of the `DefaultReverseRegistrarAdapter.setNameWithHCA` call in step 5 (the
+ * HCA-factory authorization read, two hops of call overhead, and the event).
  *
- * That call forwards to `DefaultReverseRegistrar.setNameForAddr`, which writes
- * the name STRING to a fresh mapping slot — a cold SSTORE (20k) plus the two
- * hops of call overhead, the event, and the calldata, with room for names that
- * spill past one word.
+ * Measured on a Sepolia fork against the deployed adapter `0x7a84e241…`, with
+ * the HCA factory stubbed so `_requireHCAForAccount` passes, writing to an
+ * address that holds no prior record — the case a registration actually hits:
  *
- * The base `register` limit is only ~57k above the measured ~393k fill, which
- * is not enough to absorb this on top.
+ *   name bytes | SSTOREs | execution gas
+ *   -----------|---------|--------------
+ *     <=31     |    1    |  34_624
+ *      32      |    2    |  57_218
+ *      33-63   |    3    |  79_981
+ *      64-95   |    4    | 102_793
+ *
+ * Rounded up from 34_624 for ~15% headroom.
+ */
+export const HCA_PRIMARY_NAME_BASE_GAS = 40_000n
+
+/**
+ * Gas per ADDITIONAL storage word. Measured marginal cost is ~22_700 (a cold
+ * SSTORE at 22_100 plus overhead); rounded up to keep the same headroom.
+ */
+export const HCA_PRIMARY_NAME_WORD_GAS = 25_000n
+
+/**
+ * Storage words `DefaultReverseRegistrar` writes for a name.
+ *
+ * Solidity packs a string of <=31 bytes into the slot itself; anything longer
+ * spends the slot on the length and moves the data to `ceil(len/32)` slots at
+ * `keccak(slot)`. Byte length, not character count — a UTF-8 name costs by
+ * what it encodes to. The formula reproduces all six measurements above.
+ */
+function primaryNameStorageWords(name: string): bigint {
+  const bytes = new TextEncoder().encode(name).length
+  return bytes <= 31 ? 1n : 1n + BigInt(Math.ceil(bytes / 32))
+}
+
+/**
+ * Extra gas the reveal batch needs to also set `primaryName`.
+ *
+ * Length-aware because a flat allowance is not safe: a 33-byte name needs
+ * ~80k, so the flat 60k this replaced covered only names up to about 32 bytes
+ * and silently leaned on the base limit's slack for anything longer.
+ */
+export function primaryNameGas(name: string): bigint {
+  return (
+    HCA_PRIMARY_NAME_BASE_GAS +
+    (primaryNameStorageWords(name) - 1n) * HCA_PRIMARY_NAME_WORD_GAS
+  )
+}
+
+/**
+ * The `register` leg's gas limit, widened when the batch sets a primary name.
  *
  * This bump is what actually funds the extra call. Verified against the live
  * orchestrator: `/intents/route` prices purely on `destinationGasUnits` — the
  * same request at 450k costs an identical 3277666 (6dp) whether the batch
  * carries 5 executions or 6, while 450k → 510k moves it to ~3539296. So the
  * quote never sees the call; it only ever sees this number. An under-sized
- * limit under-funds the permit and the fill then fails for insufficient USDC,
- * which is why this is deliberately generous. Over-sizing only leaves spare
- * USDC in the HCA, where the next registration reuses it.
+ * limit under-funds the permit and the fill then fails for insufficient USDC.
+ * Over-sizing only leaves spare USDC in the HCA, which the next registration
+ * reuses.
  */
-export const HCA_PRIMARY_NAME_GAS = 60_000n
-
-/** The `register` leg's gas limit, widened when the batch sets a primary name. */
-export function registerLegGasLimit(withPrimaryName: boolean): bigint {
+export function registerLegGasLimit(primaryName?: string): bigint {
   return (
-    HCA_LEG_GAS_LIMITS.register + (withPrimaryName ? HCA_PRIMARY_NAME_GAS : 0n)
+    HCA_LEG_GAS_LIMITS.register +
+    (primaryName ? primaryNameGas(primaryName) : 0n)
   )
 }
 
@@ -172,12 +214,12 @@ export interface HcaBudgetParams {
    */
   readonly hcaBalanceUsdc?: bigint
   /**
-   * Whether the reveal batch will carry the primary-name call. Widens the
-   * `register` leg's gas limit by `HCA_PRIMARY_NAME_GAS` so the permit covers
-   * the batch that actually fills — the quote MUST be taken over the same
-   * batch shape that gets submitted.
+   * The primary name the reveal batch will set, when the user opted in.
+   * Widens the `register` leg's gas limit by `primaryNameGas(name)` so the
+   * permit covers the batch that actually fills. The NAME, not a boolean:
+   * the cost scales with its storage words.
    */
-  readonly withPrimaryName?: boolean
+  readonly primaryName?: string
 }
 
 export interface HcaBudgetBreakdown {
@@ -270,7 +312,7 @@ export async function estimateHcaBudget(
     fallbackRegister =
       prices && market
         ? fallbackLegFee6dp(
-            registerLegGasLimit(params.withPrimaryName ?? false),
+            registerLegGasLimit(params.primaryName),
             market.gasPriceWei,
             prices,
           )
