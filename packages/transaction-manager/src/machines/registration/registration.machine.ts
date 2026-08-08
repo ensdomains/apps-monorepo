@@ -231,6 +231,7 @@ export const registrationMachine = setup({
         signer?: Signer
         sessionEnable?: HcaSessionEnableParams
         apiKey?: string
+        primaryName?: string
       }) => {
         return estimateHcaBudgetActor(input)
       },
@@ -628,6 +629,9 @@ export const registrationMachine = setup({
           chainId: context.chainId,
           signer: context.signer,
           sessionEnable: context.hcaSessionEnable,
+          // Sizes the permit for the batch that will actually be submitted:
+          // the primary-name opt-in adds a call to the reveal leg.
+          primaryName: context.primaryName,
         }),
         onDone: {
           target: 'checkingHcaFunding',

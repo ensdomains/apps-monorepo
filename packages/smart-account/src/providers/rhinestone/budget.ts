@@ -52,6 +52,36 @@ export const HCA_LEG_GAS_LIMITS = {
   register: 450_000n,
 } as const
 
+/**
+ * Extra gas the reveal batch needs when the user opts into a primary name,
+ * i.e. the `DefaultReverseRegistrarAdapter.setNameWithHCA` call in step 5.
+ *
+ * That call forwards to `DefaultReverseRegistrar.setNameForAddr`, which writes
+ * the name STRING to a fresh mapping slot — a cold SSTORE (20k) plus the two
+ * hops of call overhead, the event, and the calldata, with room for names that
+ * spill past one word.
+ *
+ * The base `register` limit is only ~57k above the measured ~393k fill, which
+ * is not enough to absorb this on top.
+ *
+ * This bump is what actually funds the extra call. Verified against the live
+ * orchestrator: `/intents/route` prices purely on `destinationGasUnits` — the
+ * same request at 450k costs an identical 3277666 (6dp) whether the batch
+ * carries 5 executions or 6, while 450k → 510k moves it to ~3539296. So the
+ * quote never sees the call; it only ever sees this number. An under-sized
+ * limit under-funds the permit and the fill then fails for insufficient USDC,
+ * which is why this is deliberately generous. Over-sizing only leaves spare
+ * USDC in the HCA, where the next registration reuses it.
+ */
+export const HCA_PRIMARY_NAME_GAS = 60_000n
+
+/** The `register` leg's gas limit, widened when the batch sets a primary name. */
+export function registerLegGasLimit(withPrimaryName: boolean): bigint {
+  return (
+    HCA_LEG_GAS_LIMITS.register + (withPrimaryName ? HCA_PRIMARY_NAME_GAS : 0n)
+  )
+}
+
 export type HcaLeg = keyof typeof HCA_LEG_GAS_LIMITS
 
 /** `Math.max` for bigints (no bigint overload on `Math.max`). */
@@ -141,6 +171,13 @@ export interface HcaBudgetParams {
    * over-declares by the current balance.
    */
   readonly hcaBalanceUsdc?: bigint
+  /**
+   * Whether the reveal batch will carry the primary-name call. Widens the
+   * `register` leg's gas limit by `HCA_PRIMARY_NAME_GAS` so the permit covers
+   * the batch that actually fills — the quote MUST be taken over the same
+   * batch shape that gets submitted.
+   */
+  readonly withPrimaryName?: boolean
 }
 
 export interface HcaBudgetBreakdown {
@@ -233,7 +270,7 @@ export async function estimateHcaBudget(
     fallbackRegister =
       prices && market
         ? fallbackLegFee6dp(
-            HCA_LEG_GAS_LIMITS.register,
+            registerLegGasLimit(params.withPrimaryName ?? false),
             market.gasPriceWei,
             prices,
           )
