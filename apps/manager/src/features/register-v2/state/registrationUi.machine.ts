@@ -106,8 +106,6 @@ type Events =
        * when the session is already enabled on-chain.
        */
       hcaSessionEnable?: HcaSessionEnablePayload
-      /** Optional primary name to set in the reveal batch (HCA path). */
-      primaryName?: string
       basePriceNumber: number
       premiumPriceNumber: number
       postRegistrationSetup?: RegistrationPostRegistrationSetup
@@ -143,12 +141,8 @@ const shouldSetPrimaryName = (context: Context) =>
 
 const asEthName = (label: string) => `${label}.eth`
 
-// Primary names are an EOA interaction: the reverse registrars key on
-// msg.sender, so the owner wallet must send the transactions itself (an
-// HCA-sent setName writes the smart account's reverse node instead). The
-// owner wallet client is therefore required on every signer path, and it must
-// still control the captured owner address (the pair can diverge if the user
-// switches accounts mid-registration).
+// EOA fallback only: the HCA path sets the primary name inside the reveal
+// batch via the reverse-registrar adapter, so this flow never runs there.
 const canSetPrimaryName = (context: Context) => {
   if (!shouldSetPrimaryName(context) || !context.postRegistrationData) {
     return false
@@ -428,6 +422,14 @@ const startRegistrationAction = machineSetup.createAction(
       })
     }
 
+    // The HCA reveal batch sets the ETH addr record itself and, when opted
+    // in, the primary name through the reverse-registrar adapter, so the EOA
+    // post-registration setup is skipped entirely on that path.
+    const bundlePrimaryName =
+      isHcaRegistration && event.postRegistrationSetup?.primaryName?.enabled
+        ? asEthName(event.label)
+        : undefined
+
     enqueue.assign({
       confirmedData: {
         label: event.label,
@@ -438,7 +440,9 @@ const startRegistrationAction = machineSetup.createAction(
         basePriceNumber: event.basePriceNumber,
         premiumPriceNumber: event.premiumPriceNumber,
       },
-      postRegistrationSetup: event.postRegistrationSetup,
+      postRegistrationSetup: isHcaRegistration
+        ? undefined
+        : event.postRegistrationSetup,
       postRegistrationData: {
         label: event.label,
         signer: event.account.signer,
@@ -471,7 +475,7 @@ const startRegistrationAction = machineSetup.createAction(
         publicClient: defaultPublicClient,
         // Standalone-HCA session-enable payload (omitted once enabled).
         hcaSessionEnable: event.hcaSessionEnable,
-        primaryName: event.primaryName,
+        primaryName: bundlePrimaryName,
         // No gas sponsorship for the HCA route; EOA path uses its own approve.
         sponsored:
           import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
