@@ -25,6 +25,7 @@ import {
   zeroAddress,
 } from 'viem'
 import { normalize } from 'viem/ens'
+import { intentFeeParams } from '@/lib/smart-account/intentFee'
 
 export interface SetPrimaryNameParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -124,9 +125,7 @@ export async function setPrimaryNameWithHca(
     chainId,
     rhinestoneParams: {
       calls,
-      // No subsidy: the HCA pays the intent fee from its USDC balance.
-      sponsored: { gas: false, bridging: false, swaps: false },
-      feeAsset: 'USDC',
+      ...intentFeeParams(),
     },
   }
 
