@@ -6,7 +6,10 @@ import type { Address, Hex, PublicClient } from 'viem'
 import { useChainId } from 'wagmi'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import { setPrimaryName } from '../service/setPrimaryName'
+import {
+  setPrimaryName,
+  setPrimaryNameWithHca,
+} from '../service/setPrimaryName'
 
 export interface SetPrimaryNameArgs {
   name: string
@@ -54,10 +57,22 @@ export function useSetPrimaryName(
         throw new Error('Cannot set primary name - ENS owner is not available.')
       }
 
-      // Primary names are an EOA interaction: the reverse registrars key on
-      // msg.sender, so the owner wallet sends the transactions directly even
-      // when the session runs through a smart account.
-      const { walletClient, ownerAddress } = account
+      const { signer, walletClient, ownerAddress } = account
+
+      // HCA path: one owner-signed sponsored intent via the reverse adapters.
+      if (signer?.type === 'rhinestone' && ownerAddress) {
+        await setPrimaryNameWithHca({
+          name,
+          signer,
+          ownerAddress: ownerAddress as Address,
+          publicClient: publicClient as PublicClient,
+          chainId,
+          onTxId: setTxId,
+        })
+        return
+      }
+
+      // EOA fallback: the owner wallet sends the two transactions directly.
       if (!walletClient || !ownerAddress) {
         throw new Error(
           'Cannot set primary name - account not ready. Please wait for wallet to connect.',

@@ -1,5 +1,9 @@
 import {
+  type Call,
   ENS_SEPOLIA_CONTRACTS,
+  getSmartAccountAddress,
+  type RhinestoneSigner,
+  type RhinestoneTransactionRequest,
   type Signer,
   type TransactionRequest,
   transactionManager,
@@ -12,20 +16,21 @@ import {
 import {
   type Address,
   encodeFunctionData,
+  type Hex,
   isAddressEqual,
+  namehash,
   type PublicClient,
+  parseAbi,
   type WalletClient,
+  zeroAddress,
 } from 'viem'
 
 export interface SetPrimaryNameParams {
   /** ENS name, with or without the `.eth` suffix */
   name: string
   /**
-   * The EOA that claims the primary name. The deployed reverse registrars key
-   * `setName` on `msg.sender` and are not HCA-aware (no HCA adapter is
-   * deployed yet), so both transactions MUST be sent from this address —
-   * never from a smart account (an HCA-sent `setName` writes the HCA's
-   * reverse node, not the user's).
+   * The EOA that claims the primary name. The reverse registrars key
+   * `setName` on `msg.sender`, so this EOA sends both transactions itself.
    */
   ownerAddress: Address
   /** Wallet client for the owner EOA; signs and sends both transactions. */
@@ -38,6 +43,106 @@ export interface SetPrimaryNameParams {
 
 const withEthSuffix = (name: string) =>
   name.endsWith('.eth') ? name : `${name}.eth`
+
+const reverseAdapterAbi = parseAbi([
+  'function setNameWithHCA(address addr, string name)',
+  'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+])
+
+const registryResolverAbi = parseAbi([
+  'function resolver(bytes32 node) view returns (address)',
+])
+
+/** v1 reverse node for an address: namehash of `<hex-addr>.addr.reverse`. */
+export const addrReverseNode = (address: Address): Hex =>
+  namehash(`${address.slice(2).toLowerCase()}.addr.reverse`)
+
+export interface SetPrimaryNameWithHcaParams {
+  /** ENS name, with or without the `.eth` suffix */
+  name: string
+  /** The rhinestone signer from the smart-account context. */
+  signer: RhinestoneSigner
+  /** The owner EOA the primary name is claimed for. */
+  ownerAddress: Address
+  publicClient: PublicClient
+  chainId: number
+  /** Called with the submitted txId so the UI can track it via a selector */
+  onTxId?: (txId: string) => void
+}
+
+/**
+ * Set a primary name through the HCA in one sponsored, owner-signed intent:
+ * `DefaultReverseRegistrarAdapter.setNameWithHCA` writes `default.reverse`,
+ * and when the owner has a live `addr.reverse` entry (which would shadow the
+ * default), `ReverseRegistrarAdapter.claimWithHCA(owner, 0)` clears it so
+ * resolution falls back to the fresh default claim.
+ */
+export async function setPrimaryNameWithHca(
+  params: SetPrimaryNameWithHcaParams,
+): Promise<void> {
+  const { name, signer, ownerAddress, publicClient, chainId, onTxId } = params
+  const cleanName = withEthSuffix(name)
+
+  const calls: Call[] = [
+    {
+      to: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrarAdapter,
+      value: 0n,
+      data: encodeFunctionData({
+        abi: reverseAdapterAbi,
+        functionName: 'setNameWithHCA',
+        args: [ownerAddress, cleanName],
+      }),
+    },
+  ]
+
+  const staleResolver = await publicClient.readContract({
+    address: ENS_SEPOLIA_CONTRACTS.LegacyRegistry,
+    abi: registryResolverAbi,
+    functionName: 'resolver',
+    args: [addrReverseNode(ownerAddress)],
+  })
+
+  if (staleResolver !== zeroAddress) {
+    calls.push({
+      to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+      value: 0n,
+      data: encodeFunctionData({
+        abi: reverseAdapterAbi,
+        functionName: 'claimWithHCA',
+        args: [ownerAddress, zeroAddress],
+      }),
+    })
+  }
+
+  const request: RhinestoneTransactionRequest = {
+    type: 'rhinestone-intent',
+    from: getSmartAccountAddress(signer),
+    chainId,
+    rhinestoneParams: {
+      calls,
+      sponsored: true,
+    },
+  }
+
+  // Owner-signed on purpose: changing the primary identity warrants an
+  // explicit wallet approval, and it keeps the claim leg independent of the
+  // session's action allowlist.
+  const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
+
+  const txId = transactionManager.startTransaction(
+    { type: 'custom', request },
+    ownerSigner,
+    {
+      description: `Set primary name to ${cleanName}`,
+      publicClient,
+      chainId,
+      operation: 'set-primary-name',
+      name: cleanName,
+    },
+  )
+  onTxId?.(txId)
+  await waitForTransaction(txId)
+}
 
 /** EOA forward leg: setName on the default reverse registrar. */
 export function submitPrimaryNameForward(input: {
@@ -114,19 +219,8 @@ export function submitPrimaryNameReverse(input: {
 }
 
 /**
- * Set an ENS name as the account's primary name through the transaction
- * manager.
- *
- * A primary name is an EOA interaction: the deployed reverse registrars key
- * `setName` on `msg.sender` and are not HCA-aware (the reverse namespace runs
- * on v1 infrastructure at launch; no HCA adapter is deployed). The owner EOA
- * therefore sends two sequential transactions (forward on the default reverse
- * registrar, then reverse on the reverse registrar) and pays gas — even when
- * the session otherwise runs through a smart account. Routing these through
- * the HCA writes the smart account's reverse node and never produces a
- * resolvable coin-60 primary.
- *
- * Resolves once the final transaction is confirmed.
+ * EOA fallback (USE_EOA / no smart account): the owner sends two sequential
+ * gas-paying transactions. HCA accounts use `setPrimaryNameWithHca` instead.
  */
 export async function setPrimaryName(
   params: SetPrimaryNameParams,
