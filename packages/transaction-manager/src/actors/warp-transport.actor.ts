@@ -182,6 +182,27 @@ export function submitWarpTransaction(
       const transaction = await account.sendTransaction(sdkParams)
       const sendLatencyMs = nowMs() - sendStart
 
+      // The orchestrator's intent id — the handle for
+      // `GET /intent-operation/{id}`, and the only thing that lets Rhinestone
+      // look a specific intent up. Deliberately NOT `logger.debug`/`info`,
+      // which are gated on `isDev` and so never reach a deployed build; an
+      // identifier is worthless if it only exists on a developer's machine.
+      // Printed as a decimal string because it is a bigint and JSON/console
+      // formatting of one is inconsistent.
+      const intentId =
+        (transaction as { id?: bigint } | undefined)?.id?.toString() ??
+        'unknown'
+      // NOTE: no `gasLimit` to report — submitted intents deliberately carry
+      // none, so the ceiling on a filled intent is the orchestrator's own
+      // estimate, not something this app sets. (`gasLimit` is passed only to
+      // `prepareTransaction` when quoting, to size the funding permit.)
+      console.log('🧾 [WARP] intent submitted:', {
+        intentId,
+        chainId: chain.id,
+        account: account.getAddress?.(),
+        calls: calls.length,
+      })
+
       logger.debug(
         '📤 [WARP] sendTransaction latency (ms):',
         sendLatencyMs.toFixed(1),
@@ -203,6 +224,15 @@ export function submitWarpTransaction(
       )
 
       const txHash = receipt.fill.hash
+
+      // Pair the intent id with the fill hash in ONE line, so a gas or
+      // latency report can be handed over without cross-referencing two logs.
+      console.log('🧾 [WARP] intent filled:', {
+        intentId,
+        fillHash: txHash,
+        chainId: chain.id,
+        totalLatencyMs: Math.round(totalLatencyMs),
+      })
 
       if (!txHash) {
         throw new Error('No transaction hash returned from Warp execution')
