@@ -4,6 +4,7 @@
   "scripts": {
     "check": "biome check",
     "check:fix": "biome check --fix",
+    "knip": "LINGUI_CONFIG=apps/manager/lingui.config.ts knip",
     "prepare": "lefthook install",
     "test": "pnpm test:portal",
     "test:all": "pnpm -r test",
