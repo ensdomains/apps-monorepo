@@ -6,6 +6,13 @@ import { assign, createActor, createMachine } from 'xstate'
 vi.mock('@ens-apps/transaction-manager', () => ({
   registrationMachine: createMachine({
     id: 'registrationStub',
+    types: {} as {
+      events:
+        | { type: 'START_REGISTRATION'; primaryName?: string }
+        | { type: 'FORCE_SUCCESS' }
+        | { type: 'FORCE_ERROR'; error: Error }
+        | { type: 'RETRY' }
+    },
     context: {
       resolverAddress: undefined as Address | undefined,
       resolverTxId: 'tx-resolver',
@@ -24,7 +31,10 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           START_REGISTRATION: {
             target: 'running',
             actions: assign({
-              primaryName: ({ event }) => (event as any).primaryName,
+              primaryName: ({ event }) =>
+                event.type === 'START_REGISTRATION'
+                  ? event.primaryName
+                  : undefined,
             }),
           },
           RETRY: {
@@ -46,7 +56,8 @@ vi.mock('@ens-apps/transaction-manager', () => ({
           FORCE_ERROR: {
             target: 'error',
             actions: assign({
-              error: ({ event }) => event.error as Error,
+              error: ({ event }) =>
+                event.type === 'FORCE_ERROR' ? event.error : undefined,
             }),
           },
           RETRY: {
