@@ -1,5 +1,5 @@
 import type { Address, Hex, PublicClient, WalletClient } from 'viem'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@ens-apps/transaction-manager', () => ({
   ENS_SEPOLIA_CONTRACTS: {
@@ -13,11 +13,13 @@ vi.mock('@ens-apps/transaction-manager', () => ({
   getSmartAccountAddress: vi.fn(
     () => '0x1111111111111111111111111111111111111111',
   ),
+  planHcaIntentFunding: vi.fn(),
   transactionManager: { startTransaction: vi.fn() },
   waitForTransaction: vi.fn(async () => ({ hash: '0xhash' as Hex })),
 }))
 
 import {
+  planHcaIntentFunding,
   type RhinestoneSigner,
   transactionManager,
   waitForTransaction,
@@ -56,8 +58,21 @@ const hcaPublicClient = (staleResolver: Address) =>
     readContract: vi.fn(async () => staleResolver),
   }) as unknown as PublicClient
 
+const ownerWalletClient = {
+  account: { address: EOA_OWNER },
+} as unknown as WalletClient
+
 const start = vi.mocked(transactionManager.startTransaction)
 const wait = vi.mocked(waitForTransaction)
+const planFunding = vi.mocked(planHcaIntentFunding)
+
+beforeEach(() => {
+  // Default: the HCA covers its own fee, so the batch passes through unchanged.
+  planFunding.mockImplementation(async ({ calls }) => ({
+    calls: [...calls],
+    quotedFeeUsdc: 900_000n,
+  }))
+})
 
 afterEach(() => {
   vi.clearAllMocks()
@@ -186,6 +201,7 @@ describe('setPrimaryNameWithHca', () => {
       name: 'leon',
       signer: hcaSigner,
       ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
       publicClient: client,
       chainId: CHAIN_ID,
       onTxId,
@@ -202,7 +218,7 @@ describe('setPrimaryNameWithHca', () => {
         type: 'rhinestone-intent',
         from: HCA_ADDRESS,
         chainId: CHAIN_ID,
-        rhinestoneParams: { sponsored: true },
+        rhinestoneParams: { feeAsset: 'USDC' },
       },
     })
     expect(opts).toMatchObject({ operation: 'set-primary-name' })
@@ -233,6 +249,7 @@ describe('setPrimaryNameWithHca', () => {
       name: 'LeOn',
       signer: hcaSigner,
       ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
       publicClient: hcaPublicClient(zeroAddress),
       chainId: CHAIN_ID,
     })
@@ -261,6 +278,7 @@ describe('setPrimaryNameWithHca', () => {
       name: 'leon.eth',
       signer: hcaSigner,
       ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
       publicClient: client,
       chainId: CHAIN_ID,
     })
@@ -287,5 +305,127 @@ describe('setPrimaryNameWithHca', () => {
         args: [EOA_OWNER, zeroAddress],
       }),
     )
+  })
+})
+
+describe('setPrimaryNameWithHca funding', () => {
+  it('is user-paid, and carries no sponsorship knob at all', async () => {
+    // Gas sponsorship does not exist on this deployment and is not
+    // request-addressable: the transport always sends the user-paid shape, so
+    // a request can only name the fee asset.
+    await setPrimaryNameWithHca({
+      name: 'leon',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient: hcaPublicClient(zeroAddress),
+      chainId: CHAIN_ID,
+    })
+
+    const { rhinestoneParams } = (
+      start.mock.calls[0]?.[0] as unknown as {
+        request: { rhinestoneParams: Record<string, unknown> }
+      }
+    ).request
+
+    expect(rhinestoneParams.feeAsset).toBe('USDC')
+    expect(rhinestoneParams).not.toHaveProperty('sponsored')
+  })
+
+  it('carries the funding pair and declares the inflow when the HCA is short', async () => {
+    // Registration leaves the HCA with ~nothing (its budget carries no
+    // buffer), so a later standalone intent normally cannot pay its own fee.
+    const permitCall = { to: '0xusdc', value: 0n, data: '0xpermit' as Hex }
+    const transferCall = { to: '0xusdc', value: 0n, data: '0xtransfer' as Hex }
+    planFunding.mockImplementation(async ({ calls }) => ({
+      calls: [permitCall, transferCall, ...calls] as never,
+      incomingUsdc: 900_000n,
+      auxiliaryFunds: { [CHAIN_ID]: { '0xusdc': 900_000n } } as never,
+      quotedFeeUsdc: 900_000n,
+    }))
+
+    await setPrimaryNameWithHca({
+      name: 'leon',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient: hcaPublicClient(zeroAddress),
+      chainId: CHAIN_ID,
+    })
+
+    const { rhinestoneParams } = (
+      start.mock.calls[0]?.[0] as unknown as {
+        request: {
+          rhinestoneParams: {
+            calls: { data: Hex }[]
+            auxiliaryFunds?: Record<number, Record<string, bigint>>
+          }
+        }
+      }
+    ).request
+
+    // Funding first, then the action — the pair has to land before the fee is
+    // charged.
+    expect(rhinestoneParams.calls[0]?.data).toBe('0xpermit')
+    expect(rhinestoneParams.calls[1]?.data).toBe('0xtransfer')
+    expect(rhinestoneParams.calls).toHaveLength(3)
+
+    // Without this the planner cannot see the inflow and refuses to price an
+    // account sitting below the fee.
+    expect(rhinestoneParams.auxiliaryFunds).toEqual({
+      [CHAIN_ID]: { '0xusdc': 900_000n },
+    })
+  })
+
+  it('omits auxiliaryFunds when no funding was needed', async () => {
+    await setPrimaryNameWithHca({
+      name: 'leon',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient: hcaPublicClient(zeroAddress),
+      chainId: CHAIN_ID,
+    })
+
+    expect(
+      (
+        start.mock.calls[0]?.[0] as unknown as {
+          request: { rhinestoneParams: Record<string, unknown> }
+        }
+      ).request.rhinestoneParams,
+    ).not.toHaveProperty('auxiliaryFunds')
+  })
+
+  it('plans funding against the OWNER-signed signer, not the session one', async () => {
+    // The permit is only legal on the owner-signed path: a session-signed
+    // intent is checked against the validator's five-target allowlist, which
+    // rejects USDC.permit outside the initial-registration policy.
+    await setPrimaryNameWithHca({
+      name: 'leon',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      walletClient: ownerWalletClient,
+      publicClient: hcaPublicClient(zeroAddress),
+      chainId: CHAIN_ID,
+    })
+
+    expect(planFunding.mock.calls[0]?.[0]?.signer.session).toBeUndefined()
+  })
+
+  it('rejects when the connected wallet does not control the owner', async () => {
+    await expect(
+      setPrimaryNameWithHca({
+        name: 'leon',
+        signer: hcaSigner,
+        ownerAddress: EOA_OWNER,
+        walletClient: {
+          account: { address: '0x9999999999999999999999999999999999999999' },
+        } as unknown as WalletClient,
+        publicClient: hcaPublicClient(zeroAddress),
+        chainId: CHAIN_ID,
+      }),
+    ).rejects.toThrow(/does not control the owner address/)
+
+    expect(start).not.toHaveBeenCalled()
   })
 })

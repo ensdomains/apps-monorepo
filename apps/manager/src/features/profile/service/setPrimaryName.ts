@@ -2,6 +2,7 @@ import {
   type Call,
   ENS_SEPOLIA_CONTRACTS,
   getSmartAccountAddress,
+  planHcaIntentFunding,
   type RhinestoneSigner,
   type RhinestoneTransactionRequest,
   type Signer,
@@ -67,6 +68,11 @@ export interface SetPrimaryNameWithHcaParams {
   signer: RhinestoneSigner
   /** The owner EOA the primary name is claimed for. */
   ownerAddress: Address
+  /**
+   * Owner wallet client. Signs the intent, and the EIP-2612 funding permit
+   * when the HCA cannot cover its own fee.
+   */
+  walletClient: WalletClient
   publicClient: PublicClient
   chainId: number
   /** Called with the submitted txId so the UI can track it via a selector */
@@ -74,17 +80,39 @@ export interface SetPrimaryNameWithHcaParams {
 }
 
 /**
- * Set a primary name through the HCA in one sponsored, owner-signed intent:
+ * Set a primary name through the HCA in one owner-signed intent:
  * `DefaultReverseRegistrarAdapter.setNameWithHCA` writes `default.reverse`,
  * and when the owner has a live `addr.reverse` entry (which would shadow the
  * default), `ReverseRegistrarAdapter.claimWithHCA(owner, 0)` clears it so
  * resolution falls back to the fresh default claim.
+ *
+ * User-paid in USDC like every other intent on this route — NOT sponsored. The
+ * HCA is left near-empty by registration (the budget carries no buffer), so
+ * `planHcaIntentFunding` quotes the fee and pulls the shortfall in from the
+ * owner's wallet inside this same intent.
  */
 export async function setPrimaryNameWithHca(
   params: SetPrimaryNameWithHcaParams,
 ): Promise<void> {
-  const { name, signer, ownerAddress, publicClient, chainId, onTxId } = params
+  const {
+    name,
+    signer,
+    ownerAddress,
+    walletClient,
+    publicClient,
+    chainId,
+    onTxId,
+  } = params
   const cleanName = withEthSuffix(name)
+
+  if (
+    !walletClient.account ||
+    !isAddressEqual(walletClient.account.address, ownerAddress)
+  ) {
+    throw new Error(
+      'Cannot set primary name - the connected wallet does not control the owner address.',
+    )
+  }
 
   const calls: Call[] = [
     {
@@ -117,20 +145,38 @@ export async function setPrimaryNameWithHca(
     })
   }
 
+  // Owner-signed on purpose: changing the primary identity warrants an
+  // explicit wallet approval, and it keeps the claim leg independent of the
+  // session's action allowlist — `claimWithHCA` is NOT one of the five targets
+  // `HCAOwnerAndSessionValidator` allows a session to call, so a session-signed
+  // version of this batch would revert `ActionNotAllowed`. The owner-signed
+  // path takes the 65-byte ECDSA branch in `isValidSignatureWithSender`, which
+  // applies no action policy at all — which is also what makes the funding
+  // permit legal here, unlike inside the session-signed commit leg.
+  const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
+
+  const funding = await planHcaIntentFunding({
+    signer: ownerSigner,
+    ownerAddress,
+    approvalSigner: { type: 'eoa', walletClient },
+    publicClient,
+    chainId,
+    calls,
+  })
+
   const request: RhinestoneTransactionRequest = {
     type: 'rhinestone-intent',
     from: getSmartAccountAddress(signer),
     chainId,
     rhinestoneParams: {
-      calls,
-      sponsored: true,
+      calls: funding.calls,
+      // User-paid in USDC, like every intent on this route.
+      feeAsset: 'USDC',
+      ...(funding.auxiliaryFunds
+        ? { auxiliaryFunds: funding.auxiliaryFunds }
+        : {}),
     },
   }
-
-  // Owner-signed on purpose: changing the primary identity warrants an
-  // explicit wallet approval, and it keeps the claim leg independent of the
-  // session's action allowlist.
-  const ownerSigner: RhinestoneSigner = { ...signer, session: undefined }
 
   const txId = transactionManager.startTransaction(
     { type: 'custom', request },

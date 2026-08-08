@@ -4,6 +4,12 @@ export { ENS_SEPOLIA_CONTRACTS } from './contracts/ens-sepolia'
 export { TransactionSubmissionError } from './errors/transaction.errors'
 // Helpers
 export { getSmartAccountAddress } from './helpers/getSmartAccountAddress'
+export {
+  HCA_STANDALONE_INTENT_GAS_LIMIT,
+  type HcaIntentFunding,
+  type PlanHcaIntentFundingParams,
+  planHcaIntentFunding,
+} from './helpers/hca-intent-funding'
 export { pollTransactionStatus } from './helpers/pollTransactionStatus.actor'
 // Persistence
 export {

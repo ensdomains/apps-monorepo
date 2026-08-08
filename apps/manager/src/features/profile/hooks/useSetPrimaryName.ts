@@ -59,12 +59,15 @@ export function useSetPrimaryName(
 
       const { signer, walletClient, ownerAddress } = account
 
-      // HCA path: one owner-signed sponsored intent via the reverse adapters.
-      if (signer?.type === 'rhinestone' && ownerAddress) {
+      // HCA path: one owner-signed, user-paid intent via the reverse adapters.
+      // The wallet client is required even here — it signs the intent and, when
+      // the HCA cannot cover its own USDC fee, the funding permit as well.
+      if (signer?.type === 'rhinestone' && ownerAddress && walletClient) {
         await setPrimaryNameWithHca({
           name,
           signer,
           ownerAddress: ownerAddress as Address,
+          walletClient,
           publicClient: publicClient as PublicClient,
           chainId,
           onTxId: setTxId,

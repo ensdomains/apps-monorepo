@@ -598,6 +598,10 @@ msgstr ""
 msgid "Connect a wallet to continue to notification settings and activity."
 msgstr ""
 
+#: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
+msgid "Connect a wallet to set your ETH address record"
+msgstr ""
+
 #: src/features/register/components/Pricing/PricingPaymentSection.tsx
 msgid "Connect or sign in"
 msgstr ""
