@@ -74,11 +74,12 @@ export interface SetPrimaryNameWithHcaParams {
 }
 
 /**
- * Set a primary name through the HCA in one sponsored, owner-signed intent:
- * `DefaultReverseRegistrarAdapter.setNameWithHCA` writes `default.reverse`,
- * and when the owner has a live `addr.reverse` entry (which would shadow the
- * default), `ReverseRegistrarAdapter.claimWithHCA(owner, 0)` clears it so
- * resolution falls back to the fresh default claim.
+ * Set a primary name through the HCA in one user-paid (USDC), owner-signed
+ * intent: `DefaultReverseRegistrarAdapter.setNameWithHCA` writes
+ * `default.reverse`, and when the owner has a live `addr.reverse` entry
+ * (which would shadow the default), `ReverseRegistrarAdapter.claimWithHCA`
+ * with a zero resolver clears it so resolution falls back to the fresh
+ * default claim.
  */
 export async function setPrimaryNameWithHca(
   params: SetPrimaryNameWithHcaParams,
@@ -123,7 +124,9 @@ export async function setPrimaryNameWithHca(
     chainId,
     rhinestoneParams: {
       calls,
-      sponsored: true,
+      // No subsidy: the HCA pays the intent fee from its USDC balance.
+      sponsored: { gas: false, bridging: false, swaps: false },
+      feeAsset: 'USDC',
     },
   }
 
