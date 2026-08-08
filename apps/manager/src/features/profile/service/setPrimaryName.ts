@@ -24,6 +24,7 @@ import {
   type WalletClient,
   zeroAddress,
 } from 'viem'
+import { normalize } from 'viem/ens'
 
 export interface SetPrimaryNameParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -41,8 +42,10 @@ export interface SetPrimaryNameParams {
   onTxId?: (txId: string) => void
 }
 
+// Normalized claim string: a non-canonical name would fail the bidirectional
+// check at resolution time and read as "no primary name".
 const withEthSuffix = (name: string) =>
-  name.endsWith('.eth') ? name : `${name}.eth`
+  normalize(name.endsWith('.eth') ? name : `${name}.eth`)
 
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',

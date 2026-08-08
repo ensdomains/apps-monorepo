@@ -226,6 +226,31 @@ describe('setPrimaryNameWithHca', () => {
     )
   })
 
+  it('normalizes the claimed name before encoding it', async () => {
+    start.mockReturnValueOnce('tx-intent')
+
+    await setPrimaryNameWithHca({
+      name: 'LeOn',
+      signer: hcaSigner,
+      ownerAddress: EOA_OWNER,
+      publicClient: hcaPublicClient(zeroAddress),
+      chainId: CHAIN_ID,
+    })
+
+    const calls = (
+      start.mock.calls[0]?.[0] as unknown as {
+        request: { rhinestoneParams: { calls: { data: Hex }[] } }
+      }
+    ).request.rhinestoneParams.calls
+    expect(calls[0]?.data).toBe(
+      encodeFunctionData({
+        abi: adapterAbi,
+        functionName: 'setNameWithHCA',
+        args: [EOA_OWNER, 'leon.eth'],
+      }),
+    )
+  })
+
   it('clears a live addr.reverse entry that would shadow the default', async () => {
     start.mockReturnValueOnce('tx-intent')
     const client = hcaPublicClient(
