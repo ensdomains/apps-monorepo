@@ -15,12 +15,18 @@ vi.mock('@ens-apps/transaction-manager', () => ({
       registerReadyTimestamp: null as number | null,
       error: undefined as Error | undefined,
       retryCount: 0,
+      primaryName: undefined as string | undefined,
     },
     initial: 'idle',
     states: {
       idle: {
         on: {
-          START_REGISTRATION: 'running',
+          START_REGISTRATION: {
+            target: 'running',
+            actions: assign({
+              primaryName: ({ event }) => (event as any).primaryName,
+            }),
+          },
           RETRY: {
             actions: assign({
               retryCount: ({ context }) => context.retryCount + 1,
@@ -309,32 +315,32 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     ).toBe(true)
   })
 
-  it('sends the primary-name legs from the owner EOA on the smart-account path', async () => {
-    // The reverse registrars key setName on msg.sender, so even a smart
-    // account session must send these from the owner wallet — never as an
-    // HCA intent (which would write the HCA's reverse node).
-    startSyncEthRecord.mockResolvedValueOnce('tx-eth-record')
-    waitForKnownTransaction
-      .mockResolvedValueOnce({ hash: '0xeth' } as never)
-      .mockReturnValueOnce(deferred<{ hash: '0xforward' }>().promise as never)
-
+  it('sets the primary name inside the HCA bundle and skips the EOA legs', async () => {
+    // The reveal batch sets the ETH addr record and the primary name via the
+    // reverse-registrar adapter, so no post-registration EOA setup runs.
     const actor = startActorInTokens()
     actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
+
+    expect(getChild(actor).getSnapshot().context.primaryName).toBe(
+      'example.eth',
+    )
+
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(16)
 
-    expect(startPrimaryNameForward).toHaveBeenCalledTimes(1)
-    expect(startPrimaryNameForward).toHaveBeenCalledWith(
-      expect.objectContaining({
-        accountAddress: EOA_ADDRESS,
-        signer: expect.objectContaining({ type: 'eoa' }),
-      }),
-    )
+    expect(startSyncEthRecord).not.toHaveBeenCalled()
+    expect(startPrimaryNameForward).not.toHaveBeenCalled()
+    expect(startPrimaryNameReverse).not.toHaveBeenCalled()
     expect(
-      actor.getSnapshot().matches({
-        registering: { transaction: 'waitingForPrimaryNameForward' },
-      }),
+      actor.getSnapshot().matches({ registering: { transaction: 'success' } }),
     ).toBe(true)
+  })
+
+  it('does not put a primary name in the bundle when the user opted out', () => {
+    const actor = startActorInTokens()
+    actor.send(startEvent(smartAccount))
+
+    expect(getChild(actor).getSnapshot().context.primaryName).toBeUndefined()
   })
 
   it('completes successfully after post-registration setup', async () => {
@@ -441,7 +447,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     )
 
     const actor = startActorInTokens()
-    actor.send(startEvent(smartAccount, { enabled: true }))
+    actor.send(startEvent(eoaAccount, { enabled: true }))
     getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
     await flush(16)
 
