@@ -517,7 +517,6 @@ function buildUserPaidRequest(params: {
     chainId: params.chainId,
     rhinestoneParams: {
       calls: params.calls,
-      sponsored: { gas: false, bridging: false, swaps: false },
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }

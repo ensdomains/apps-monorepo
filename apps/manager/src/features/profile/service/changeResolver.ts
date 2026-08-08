@@ -69,7 +69,12 @@ export function changeResolver(params: ChangeResolverParams): string {
           chainId,
           rhinestoneParams: {
             calls: [call],
-            sponsored: true,
+            // User-paid in USDC out of the HCA's own balance — this deployment
+            // has no gas sponsorship. NOTE: no funding leg here, so this needs
+            // an HCA that already holds USDC. If an HCA caller is ever added,
+            // route the calls through `planHcaIntentFunding` first (as
+            // `setPrimaryNameWithHca` does).
+            feeAsset: 'USDC',
           },
         }
 

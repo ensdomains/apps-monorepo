@@ -24,6 +24,20 @@ import {
 import type { RhinestoneSigner } from '../types/signer.types'
 import type { TransactionRequest } from '../types/transaction.types'
 
+/**
+ * The ONLY sponsorship value this codebase ever sends.
+ *
+ * Gas sponsorship does not exist on the standalone-HCA deployment: intents are
+ * user-paid in USDC out of the HCA's own balance, funded by an EIP-2612 permit
+ * carried inside the batch. There is deliberately no caller-facing knob and no
+ * env flag — this used to default to `true` when `sponsored` was omitted, so
+ * every new call site silently asked for a subsidy no relayer here offers.
+ */
+const UNSPONSORED = { gas: false, bridging: false, swaps: false } as const
+
+/** Fee asset the HCA pays from when a request does not name one. */
+const DEFAULT_FEE_ASSET = 'USDC' as const
+
 export interface SubmitWarpTransactionInput {
   readonly request: TransactionRequest
   readonly signer: RhinestoneSigner
@@ -46,14 +60,8 @@ export function submitWarpTransaction(
     )
   }
 
-  const {
-    calls,
-    sponsored,
-    feeAsset,
-    sessionEnableData,
-    tokenRequests,
-    auxiliaryFunds,
-  } = request.rhinestoneParams
+  const { calls, feeAsset, sessionEnableData, tokenRequests, auxiliaryFunds } =
+    request.rhinestoneParams
 
   if (sessionEnableData && !signer.session) {
     return errAsync(
@@ -135,7 +143,6 @@ export function submitWarpTransaction(
       )
       logger.debug('📤 [WARP] Account address:', account.getAddress?.())
       logger.debug('📤 [WARP] Chain:', chain.name, chain.id)
-      logger.debug('📤 [WARP] Sponsored:', sponsored ?? true)
 
       const sdkParams = {
         sourceChains: [chain],
@@ -143,11 +150,9 @@ export function submitWarpTransaction(
         // Spread into a fresh mutable array: the SDK's CallInput[] is mutable
         // while rhinestoneParams.calls is readonly.
         calls: [...calls],
-        // No gas sponsorship for the standalone-HCA route: callers pass the
-        // user-paid shape `{ gas:false, bridging:false, swaps:false }` +
-        // `feeAsset: 'USDC'`. Legacy callers may still pass booleans.
-        sponsored: sponsored ?? true,
-        ...(feeAsset ? { feeAsset } : {}),
+        // Always user-paid; see UNSPONSORED above.
+        sponsored: UNSPONSORED,
+        feeAsset: feeAsset ?? DEFAULT_FEE_ASSET,
         // Pass through caller-provided tokenRequests (for cross-chain txs).
         // Defaults to [] which skips balance validation (needed for local mockestrator).
         // Cast needed: SDK's internal TokenRequests is a strict discriminated union

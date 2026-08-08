@@ -126,13 +126,9 @@ describe('submitFundingAndCommitActor', () => {
     expect((transfer.args as any)[1].toLowerCase()).toBe(HCA.toLowerCase())
     expect((transfer.args as any)[2]).toBe(permit.value)
 
-    // Paid by the HCA in USDC — no sponsorship on this route.
+    // Paid by the HCA in USDC. Sponsorship is not a request-level concern at
+    // all any more — the transport always sends the user-paid shape.
     expect(request.from.toLowerCase()).toBe(HCA.toLowerCase())
-    expect(request.rhinestoneParams.sponsored).toEqual({
-      gas: false,
-      bridging: false,
-      swaps: false,
-    })
     expect(request.rhinestoneParams.feeAsset).toBe('USDC')
     // First-use mode: enableData rides along with the intent.
     expect(request.rhinestoneParams.sessionEnableData).toBe(

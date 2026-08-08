@@ -476,11 +476,6 @@ const startRegistrationAction = machineSetup.createAction(
         // Standalone-HCA session-enable payload (omitted once enabled).
         hcaSessionEnable: event.hcaSessionEnable,
         primaryName: bundlePrimaryName,
-        // No gas sponsorship for the HCA route; EOA path uses its own approve.
-        sponsored:
-          import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
-            ? true
-            : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true',
       } satisfies RegistrationEvent),
     )
   }),

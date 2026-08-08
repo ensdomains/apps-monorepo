@@ -299,9 +299,8 @@ export function createTransactionRequest(params: {
   from: Address
   chainId: number
   calls: Call[]
-  sponsored?: boolean
 }): TransactionRequest {
-  const { signer, from, chainId, calls, sponsored } = params
+  const { signer, from, chainId, calls } = params
 
   if (calls.length === 0) {
     throw new Error('createTransactionRequest requires at least one call')
@@ -331,10 +330,7 @@ export function createTransactionRequest(params: {
       type: 'rhinestone-intent',
       from,
       chainId,
-      rhinestoneParams: {
-        calls,
-        sponsored: sponsored ?? true,
-      },
+      rhinestoneParams: { calls },
     }
   }
 
@@ -354,7 +350,6 @@ export function submitResolverDeploymentActor(input: {
   owner: Address
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<{ txId: string; salt: bigint }, Error> {
   return ResultAsync.fromSafePromise(
@@ -369,7 +364,6 @@ export function submitResolverDeploymentActor(input: {
         calls: [
           encodeDeployDedicatedResolverCall({ owner: input.owner, salt }),
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -475,7 +469,6 @@ export function submitCommitmentActor(input: {
   name: string
   duration: bigint
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
   const registrarAddress = ENS_SEPOLIA_CONTRACTS.ETHRegistrar
@@ -512,7 +505,6 @@ export function submitCommitmentActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -835,7 +827,6 @@ export function submitApprovalActor(input: {
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
   /** Spender to approve. Defaults to the legacy registrar. */
   registrarAddress?: Address
@@ -874,7 +865,6 @@ export function submitApprovalActor(input: {
             value: 0n,
           },
         ],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -908,7 +898,6 @@ export function submitRegistrationActor(input: {
   selectedToken: TOKEN_SYMBOL
   owner: Address
   publicClient: PublicClient
-  sponsored?: boolean
   resolverAddress: Address
   id?: string
 }): ResultAsync<string, Error> {
@@ -948,7 +937,6 @@ export function submitRegistrationActor(input: {
         from: accountAddress,
         chainId: input.publicClient.chain?.id ?? sepolia.id,
         calls: [registerCall],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(
@@ -1026,7 +1014,7 @@ export function pollTransactionStatusActor(input: {
 // This is the same payer the `register` flow authorizes, so renewal reuses the
 // exact allowance machinery: read `allowance[EOA][registrar]`, and either skip
 // (already enough), sign a gasless EIP-2612 permit batched with `renew` in one
-// sponsored intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
+// intent (rhinestone/HCA), or do a plain on-chain `approve` (EOA).
 
 /**
  * Encode `renew(label, duration, paymentToken, referrer)` calldata.
@@ -1056,7 +1044,6 @@ export function submitRenewActor(input: {
   selectedToken: TOKEN_SYMBOL
   signer: import('../..').Signer
   publicClient: PublicClient
-  sponsored?: boolean
   id?: string
 }): ResultAsync<string, Error> {
   // Renewal is NOT an HCA flow — it is a plain wallet transaction against the
@@ -1098,7 +1085,6 @@ export function submitRenewActor(input: {
         from: accountAddress,
         chainId,
         calls: [{ to: registrarAddress, data: renewData, value: 0n }],
-        sponsored: input.sponsored ?? true,
       })
 
       const txId = transactionManager.startTransaction(

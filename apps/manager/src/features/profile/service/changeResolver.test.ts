@@ -96,7 +96,7 @@ describe('changeResolver', () => {
     expect(options?.description).toBe('Update resolver for leon.eth')
   })
 
-  it('submits a sponsored, non-session rhinestone intent for smart accounts', () => {
+  it('submits a non-session rhinestone intent for smart accounts', () => {
     const signer: Signer = {
       type: 'rhinestone',
       account: {} as never,
@@ -127,7 +127,7 @@ describe('changeResolver', () => {
               value: 0n,
             },
           ],
-          sponsored: true,
+          feeAsset: 'USDC',
         },
       },
     })
