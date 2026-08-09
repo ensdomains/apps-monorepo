@@ -75,12 +75,9 @@ async function runMigrationFlow(
 test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  test('migrate active name — baseline happy path', async ({
-    migrationConnectedPage: page,
-    wallet,
-    accounts,
-    time,
-  }) => {
+  test('migrate active name — baseline happy path', {
+    tag: ['@scenario:G16'],
+  }, async ({ migrationConnectedPage: page, wallet, accounts, time }) => {
     const makeV1Name = createMakeV1Name({
       userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
     })

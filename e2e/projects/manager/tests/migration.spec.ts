@@ -285,10 +285,9 @@ test.describe('ENS V1 → V2 Migration', () => {
     )
   })
 
-  test('pre-registered V1 name is not available for new registration', async ({
-    page,
-    accounts,
-  }) => {
+  test('pre-registered V1 name is not available for new registration', {
+    tag: ['@scenario:A11'],
+  }, async ({ page, accounts }) => {
     const makeV1Name = createMakeV1Name({
       userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
     })
@@ -317,7 +316,7 @@ test.describe('ENS V1 → V2 Migration', () => {
     )
   })
 
-  test('can edit profile after migration', async ({
+  test('can edit profile after migration', { tag: ['@scenario:G24'] }, async ({
     migrationConnectedPage: page,
     wallet,
     accounts,

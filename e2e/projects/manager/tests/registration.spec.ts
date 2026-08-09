@@ -13,9 +13,9 @@ const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
 
 test.describe('ENS name registration', () => {
-  test('user is unable to register a name when disconnected', async ({
-    page,
-  }) => {
+  test('user is unable to register a name when disconnected', {
+    tag: ['@scenario:A16'],
+  }, async ({ page }) => {
     // Navigate directly to the register page — the search-dropdown click path
     // is tested in the late-auth test below and in registration-rhinestone.spec.ts.
     // This test's actual assertion is that disconnected users see the
@@ -28,10 +28,9 @@ test.describe('ENS name registration', () => {
     ).toBeVisible({ timeout: 15_000 })
   })
 
-  test('registers a name after connecting from the pricing page', async ({
-    page,
-    wallet,
-  }) => {
+  test('registers a name after connecting from the pricing page', {
+    tag: ['@scenario:A16'],
+  }, async ({ page, wallet }) => {
     // Navigate directly to avoid the fragile landing-page search-dropdown click
     // (getByText(domain) times out because the label and .eth are separate nodes).
     const label = LATE_AUTH_DOMAIN.replace(/\.eth$/i, '')
