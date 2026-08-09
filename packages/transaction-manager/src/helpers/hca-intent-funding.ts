@@ -130,7 +130,7 @@ async function quoteIntentUsdc(input: {
 
 export interface HcaIntentFunding {
   /** The batch to submit: `calls`, preceded by the funding pair when needed. */
-  readonly calls: Call[]
+  readonly calls: readonly Call[]
   /** USDC (6dp) this intent pulls in. Absent when no funding was needed. */
   readonly incomingUsdc?: bigint
   /**
@@ -185,11 +185,21 @@ export async function planHcaIntentFunding(
   const hca = signer.account.getAddress() as Address
   const usdc = getDestinationContracts(chainId).usdc
 
+  // Deliberately NOT `unwrapOr(0n)`: an unread balance is unknown, not empty.
+  // `balance` sets the shortfall the permit is signed for, so defaulting it to
+  // zero on a failed read is exactly the guess this function refuses to make
+  // elsewhere — it would pull the full fee out of the owner's wallet into an
+  // HCA that may already have been holding it.
   const balance = await readHcaUsdcBalanceActor({
     hca,
     publicClient,
     chainId,
-  }).unwrapOr(0n)
+  }).match(
+    (value) => value,
+    (error) => {
+      throw error
+    },
+  )
 
   const fundedCalls: Call[] = [
     ...placeholderPermitCalls(usdc, ownerAddress, hca),

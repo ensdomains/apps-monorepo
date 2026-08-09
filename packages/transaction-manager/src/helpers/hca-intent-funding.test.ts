@@ -193,4 +193,14 @@ describe('planHcaIntentFunding', () => {
     )
     expect(signFundingPermit).not.toHaveBeenCalled()
   })
+
+  it('throws rather than treating an unreadable balance as empty', async () => {
+    // An unread balance is unknown, not zero. Defaulting it to zero sizes the
+    // permit for the whole fee and pulls USDC out of the owner's wallet that
+    // the HCA may already have been holding.
+    readContract.mockRejectedValue(new Error('rpc down'))
+
+    await expect(planHcaIntentFunding(params)).rejects.toThrow()
+    expect(signFundingPermit).not.toHaveBeenCalled()
+  })
 })
