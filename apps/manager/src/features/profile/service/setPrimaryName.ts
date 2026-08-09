@@ -148,7 +148,12 @@ export async function setPrimaryNameWithHca(
     )
   }
 
-  const calls: Call[] = [
+  const clearsStaleAddrReverse = await hasStaleAddrReverse({
+    publicClient,
+    ownerAddress,
+  })
+
+  const calls: readonly Call[] = [
     {
       to: ENS_SEPOLIA_CONTRACTS.DefaultReverseRegistrarAdapter,
       value: 0n,
@@ -158,19 +163,20 @@ export async function setPrimaryNameWithHca(
         args: [ownerAddress, cleanName],
       }),
     },
+    ...(clearsStaleAddrReverse
+      ? [
+          {
+            to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+            value: 0n,
+            data: encodeFunctionData({
+              abi: reverseAdapterAbi,
+              functionName: 'claimWithHCA',
+              args: [ownerAddress, zeroAddress],
+            }),
+          },
+        ]
+      : []),
   ]
-
-  if (await hasStaleAddrReverse({ publicClient, ownerAddress })) {
-    calls.push({
-      to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
-      value: 0n,
-      data: encodeFunctionData({
-        abi: reverseAdapterAbi,
-        functionName: 'claimWithHCA',
-        args: [ownerAddress, zeroAddress],
-      }),
-    })
-  }
 
   // Owner-signed on purpose: changing the primary identity warrants an
   // explicit wallet approval, and it keeps the claim leg independent of the
