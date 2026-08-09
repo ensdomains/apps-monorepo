@@ -31,6 +31,7 @@ import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
+import { createMakeMigratedName } from './makeMigratedName.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
 
@@ -191,6 +192,8 @@ type PortalFixtures = {
   time: Time
   /** Register names on the anvil fork (supports expired / premium states). */
   makeName: ReturnType<typeof createMakeName>
+  /** Register a V1 name and migrate it to V2 (unwrapped / unlocked / locked). */
+  makeMigratedName: ReturnType<typeof createMakeMigratedName>
 }
 
 export const test = base.extend<PortalFixtures>({
@@ -229,6 +232,10 @@ export const test = base.extend<PortalFixtures>({
 
   makeName: async ({ accounts, time }, use) => {
     await use(createMakeName({ accounts, time }))
+  },
+
+  makeMigratedName: async ({ accounts }, use) => {
+    await use(createMakeMigratedName({ accounts }))
   },
 })
 

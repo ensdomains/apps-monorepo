@@ -49,9 +49,17 @@ export const V1_BASE_REGISTRAR_OWNER =
 export const V1_PUBLIC_RESOLVER =
   '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
 
-// V2 contracts — sourced from the same ensjs Sepolia manifest as Manager's
-// destination contract table so fixture reservations cannot drift to a retired
-// deployment while the migration flow targets the active one.
+// V2 contracts — read from the ensjs Sepolia chain config (same source as the
+// manager's migration/contracts/addresses.ts), NOT hardcoded.
+//
+// These used to be literals copied from a past deployment, and silently rotted
+// when ensjs was bumped to a new one. The panel then reserved each name's v2
+// slot in the OLD registry while the manager migrated against the NEW one, so
+// the label was AVAILABLE rather than RESERVED at migrate time. Migration
+// controllers hold only ROLE_REGISTER_RESERVED, so claiming an AVAILABLE label
+// needs ROLE_REGISTRAR, which they don't have — surfacing as
+// `EACUnauthorizedAccountRoles(0, 1, <controller>)` on the "Migration failed"
+// screen. Reading them from ensjs keeps the panel and the app on one deployment.
 export const V2_ETH_REGISTRY_ADDR = ensjsSepolia.ensRegistry.address
 export const V2_ETH_REGISTRAR_ADDR = ensjsSepolia.ensEthRegistrar.address
 const V2_MIGRATION_CONTROLLERS = [
