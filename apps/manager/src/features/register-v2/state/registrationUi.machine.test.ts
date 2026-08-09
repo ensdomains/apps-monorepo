@@ -3,16 +3,22 @@ import type { Address } from 'viem'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assign, createActor, createMachine } from 'xstate'
 
+/**
+ * Events the stubbed registration child accepts. `FORCE_*` are test-only
+ * drivers with no counterpart on the real machine. Declared at module scope so
+ * `sendToChild` can type its callers against it — types are erased, so the
+ * hoisted `vi.mock` factory below can still reference it.
+ */
+type RegistrationStubEvent =
+  | { type: 'START_REGISTRATION'; primaryName?: string }
+  | { type: 'FORCE_SUCCESS' }
+  | { type: 'FORCE_ERROR'; error: Error }
+  | { type: 'RETRY' }
+
 vi.mock('@ens-apps/transaction-manager', () => ({
   registrationMachine: createMachine({
     id: 'registrationStub',
-    types: {} as {
-      events:
-        | { type: 'START_REGISTRATION'; primaryName?: string }
-        | { type: 'FORCE_SUCCESS' }
-        | { type: 'FORCE_ERROR'; error: Error }
-        | { type: 'RETRY' }
-    },
+    types: {} as { events: RegistrationStubEvent },
     context: {
       resolverAddress: undefined as Address | undefined,
       resolverTxId: 'tx-resolver',
@@ -166,6 +172,24 @@ const getChild = (actor: ReturnType<typeof startActorInTokens>) => {
   return child
 }
 
+/**
+ * Drives the stubbed child. `getRegistrationV2ChildActor` is typed against the
+ * real `registrationMachine`, whose event union has no test-only `FORCE_*`
+ * members — but under `vi.mock` the running child is the stub above. Confining
+ * that mismatch to one cast here keeps every call site checked against
+ * `RegistrationStubEvent`, so a change to the stub's events breaks the tests
+ * instead of compiling silently.
+ */
+const sendToChild = (
+  actor: ReturnType<typeof startActorInTokens>,
+  event: RegistrationStubEvent,
+) => {
+  const child = getChild(actor) as unknown as {
+    send: (event: RegistrationStubEvent) => void
+  }
+  child.send(event)
+}
+
 const deferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void
   let reject!: (reason?: unknown) => void
@@ -259,7 +283,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount))
 
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     expect(
@@ -274,7 +298,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: false }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     const snap = actor.getSnapshot()
@@ -294,7 +318,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     expect(actor.getSnapshot().context.ethRecordSyncTxId).toBe('tx-eth-record')
@@ -319,7 +343,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     expect(startPrimaryNameForward).toHaveBeenCalledTimes(1)
@@ -344,7 +368,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
       'example.eth',
     )
 
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     expect(startSyncEthRecord).not.toHaveBeenCalled()
@@ -370,7 +394,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     expect(startAddrReverseClear).toHaveBeenCalledWith(
@@ -395,7 +419,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     // Attempted exactly once — the decision state is re-entered afterwards and
@@ -410,7 +434,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
   it('skips the addr.reverse cleanup when no primary name was bundled', async () => {
     const actor = startActorInTokens()
     actor.send(startEvent(smartAccount))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     expect(checkStaleAddrReverse).not.toHaveBeenCalled()
@@ -424,7 +448,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(smartAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     // The name is registered and the default claim is written; only the
@@ -451,7 +475,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(20)
 
     expect(
@@ -466,7 +490,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true, syncEthRecord: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     expect(actor.getSnapshot().matches('failure')).toBe(false)
@@ -485,7 +509,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(noWalletAccount, { enabled: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     expect(startPrimaryNameForward).not.toHaveBeenCalled()
@@ -508,7 +532,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(divergedAccount, { enabled: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     expect(startPrimaryNameForward).not.toHaveBeenCalled()
@@ -528,7 +552,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(accountlessAccount, { enabled: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush()
 
     expect(startPrimaryNameForward).not.toHaveBeenCalled()
@@ -547,7 +571,7 @@ describe('registrationV2UiMachine — explicit post-registration states', () => 
 
     const actor = startActorInTokens()
     actor.send(startEvent(eoaAccount, { enabled: true }))
-    getChild(actor).send({ type: 'FORCE_SUCCESS' } as any)
+    sendToChild(actor, { type: 'FORCE_SUCCESS' })
     await flush(16)
 
     expect(startPrimaryNameForward).toHaveBeenCalledTimes(1)
