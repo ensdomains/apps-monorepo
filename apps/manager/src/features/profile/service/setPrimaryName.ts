@@ -51,6 +51,11 @@ const withEthSuffix = (name: string) =>
 const reverseAdapterAbi = parseAbi([
   'function setNameWithHCA(address addr, string name)',
   'function claimWithHCA(address addr, address resolver) returns (bytes32)',
+  // `claim` is the non-HCA sibling of `claimWithHCA`: it authorizes through
+  // `AccountNamerLib.requireNamer(account, msg.sender)`, which passes on
+  // `account == msg.sender`. So the owner EOA can clear its own
+  // `addr.reverse` directly, with no HCA and no intent.
+  'function claim(address addr, address resolver) returns (bytes32)',
 ])
 
 const registryResolverAbi = parseAbi([
@@ -60,6 +65,35 @@ const registryResolverAbi = parseAbi([
 /** v1 reverse node for an address: namehash of `<hex-addr>.addr.reverse`. */
 export const addrReverseNode = (address: Address): Hex =>
   namehash(`${address.slice(2).toLowerCase()}.addr.reverse`)
+
+/**
+ * Whether the owner has a live `addr.reverse` entry that would shadow a
+ * `default.reverse` claim.
+ *
+ * `addr.reverse` is chain-specific and takes precedence over the
+ * chain-agnostic `default.reverse` (ENSIP-19), so a leftover entry makes a
+ * fresh default claim invisible. Worse, it does not merely lose — if the old
+ * name no longer resolves forward, the UniversalResolver *reverts*
+ * (`ResolverNotFound`) instead of falling through, and the address reads as
+ * having no primary name at all.
+ *
+ * Presence of a resolver on the node is the test, because that is exactly what
+ * the resolver-lookup step of reverse resolution keys on: clearing it is what
+ * lets resolution fall through to `default.reverse`.
+ */
+export async function hasStaleAddrReverse(input: {
+  publicClient: PublicClient
+  ownerAddress: Address
+}): Promise<boolean> {
+  const resolver = await input.publicClient.readContract({
+    address: ENS_SEPOLIA_CONTRACTS.LegacyRegistry,
+    abi: registryResolverAbi,
+    functionName: 'resolver',
+    args: [addrReverseNode(input.ownerAddress)],
+  })
+
+  return resolver !== zeroAddress
+}
 
 export interface SetPrimaryNameWithHcaParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -126,14 +160,7 @@ export async function setPrimaryNameWithHca(
     },
   ]
 
-  const staleResolver = await publicClient.readContract({
-    address: ENS_SEPOLIA_CONTRACTS.LegacyRegistry,
-    abi: registryResolverAbi,
-    functionName: 'resolver',
-    args: [addrReverseNode(ownerAddress)],
-  })
-
-  if (staleResolver !== zeroAddress) {
+  if (await hasStaleAddrReverse({ publicClient, ownerAddress })) {
     calls.push({
       to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
       value: 0n,
@@ -226,6 +253,54 @@ export function submitPrimaryNameForward(input: {
       chainId: input.chainId,
       operation: 'set-primary-name',
       name: cleanName,
+    },
+  )
+}
+
+/**
+ * Clears a shadowing `addr.reverse` entry so a `default.reverse` claim can be
+ * seen, as a plain owner-EOA transaction (~45k gas, no USDC, no intent).
+ *
+ * This exists because the HCA reveal batch *cannot* do it. The batch is
+ * session-signed, and `HCAOwnerAndSessionValidator` allowlists call targets as
+ * immutables: it carries `DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER` but has no
+ * counterpart for the `addr.reverse` adapter, so a session-signed
+ * `claimWithHCA` reverts `ActionNotAllowed`. Until the validator gains that
+ * target, the cleanup has to be a separate owner-signed transaction.
+ *
+ * Passing `resolver = 0` clears the resolver rather than writing a new name:
+ * we are not claiming `addr.reverse` for the new name, only getting it out of
+ * the way of `default.reverse`.
+ */
+export function submitClearAddrReverse(input: {
+  signer: Signer
+  ownerAddress: Address
+  publicClient: PublicClient
+  chainId: number
+}): string {
+  const data = encodeFunctionData({
+    abi: reverseAdapterAbi,
+    functionName: 'claim',
+    args: [input.ownerAddress, zeroAddress],
+  })
+
+  const request: TransactionRequest = {
+    type: 'eoa',
+    from: input.ownerAddress,
+    to: ENS_SEPOLIA_CONTRACTS.ReverseRegistrarAdapter,
+    data,
+    value: 0n,
+    chainId: input.chainId,
+  }
+
+  return transactionManager.startTransaction(
+    { type: 'custom', request },
+    input.signer,
+    {
+      description: 'Clear outdated primary name record',
+      publicClient: input.publicClient,
+      chainId: input.chainId,
+      operation: 'set-primary-name',
     },
   )
 }

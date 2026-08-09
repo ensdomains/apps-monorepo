@@ -30,6 +30,8 @@ import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountC
 import { publicClient as defaultPublicClient } from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
+  hasStaleAddrReverse,
+  submitClearAddrReverse,
   submitPrimaryNameForward,
   submitPrimaryNameReverse,
 } from '../../profile/service/setPrimaryName'
@@ -61,6 +63,12 @@ type PostRegistrationData = {
 type PostRegistrationProgress = {
   ethRecordSynced: boolean
   primaryNameForwardConfirmed: boolean
+  /**
+   * Set once the `addr.reverse` cleanup has run to completion — including the
+   * case where nothing needed clearing. Guards on this so the step is
+   * attempted exactly once per registration.
+   */
+  addrReverseClearAttempted: boolean
 }
 
 type Context = {
@@ -84,6 +92,14 @@ type Context = {
   postRegistrationSetupFailed: boolean
   ethRecordSyncTxId?: string
   primaryNameTxId?: string
+  /**
+   * The primary name the HCA reveal batch claimed on `default.reverse`, when
+   * the user opted in. Its presence is what marks the registration as needing
+   * the `addr.reverse` cleanup pass; the EOA path leaves it undefined and
+   * handles its own reverse leg.
+   */
+  hcaPrimaryName?: string
+  addrReverseClearTxId?: string
   maxProgressReached?: MaxProgressReached
 }
 
@@ -126,6 +142,7 @@ type Input = {
 const INITIAL_POST_REGISTRATION_PROGRESS: PostRegistrationProgress = {
   ethRecordSynced: false,
   primaryNameForwardConfirmed: false,
+  addrReverseClearAttempted: false,
 }
 
 const isRegistrationSnapshotEvent = (
@@ -141,23 +158,33 @@ const shouldSetPrimaryName = (context: Context) =>
 
 const asEthName = (label: string) => `${label}.eth`
 
-// EOA fallback only: the HCA path sets the primary name inside the reveal
-// batch via the reverse-registrar adapter, so this flow never runs there.
-const canSetPrimaryName = (context: Context) => {
-  if (!shouldSetPrimaryName(context) || !context.postRegistrationData) {
-    return false
-  }
+// Require a bound account that matches the owner: an account-less client
+// (possible mid-reconnect) gives no way to verify the wallet controls the
+// owner address, so treat it as unavailable rather than submitting blind.
+const hasOwnerWallet = (context: Context) => {
+  if (!context.postRegistrationData) return false
 
   const { walletClient, ownerAddress } = context.postRegistrationData
 
-  // Require a bound account that matches: an account-less client (possible
-  // mid-reconnect) gives no way to verify the wallet controls the owner
-  // address, so treat it as unavailable rather than submitting blind.
   return (
     !!walletClient?.account &&
     isAddressEqual(walletClient.account.address, ownerAddress)
   )
 }
+
+// EOA fallback only: the HCA path sets the primary name inside the reveal
+// batch via the reverse-registrar adapter, so this flow never runs there.
+const canSetPrimaryName = (context: Context) =>
+  shouldSetPrimaryName(context) && hasOwnerWallet(context)
+
+// HCA path only. The reveal batch claims `default.reverse`, but a leftover
+// `addr.reverse` entry shadows it — so the claim silently does nothing until
+// that entry is cleared, which only the owner EOA can do (see
+// `submitClearAddrReverse`).
+const hasAddrReverseClearRemaining = (context: Context) =>
+  !!context.hcaPrimaryName &&
+  !context.postRegistrationProgress.addrReverseClearAttempted &&
+  hasOwnerWallet(context)
 
 const hasPrimaryNameForwardRemaining = (context: Context) =>
   canSetPrimaryName(context) &&
@@ -205,6 +232,38 @@ const machineSetup = setup({
       async ({ input }: { input: { txId: string } }) =>
         waitForTransaction(input.txId),
     ),
+    // Reads first so the wallet is only prompted when there is genuinely a
+    // shadowing entry to clear — most registrations need nothing here, and an
+    // unnecessary prompt right after a prompt-free registration is worse than
+    // the stale record it would avoid.
+    submitAddrReverseClear: fromPromise(
+      async ({
+        input,
+      }: {
+        input: {
+          ownerAddress: Address
+          walletClient: WalletClient
+          publicClient: PublicClient
+          chainId: number
+        }
+      }): Promise<{ txId?: string }> => {
+        const stale = await hasStaleAddrReverse({
+          publicClient: input.publicClient,
+          ownerAddress: input.ownerAddress,
+        })
+
+        if (!stale) return {}
+
+        return {
+          txId: submitClearAddrReverse({
+            signer: { type: 'eoa', walletClient: input.walletClient },
+            ownerAddress: input.ownerAddress,
+            publicClient: input.publicClient,
+            chainId: input.chainId,
+          }),
+        }
+      },
+    ),
   },
   guards: {
     isDurationValid: ({ context }) =>
@@ -225,6 +284,12 @@ const machineSetup = setup({
       !context.postRegistrationProgress.primaryNameForwardConfirmed,
     hasEthRecordSyncTxId: ({ context }) => !!context.ethRecordSyncTxId,
     hasPrimaryNameTxId: ({ context }) => !!context.primaryNameTxId,
+    hasAddrReverseClearRemaining: ({ context }) =>
+      hasAddrReverseClearRemaining(context),
+    // Reads the actor's output, not context: guards run before the
+    // transition's actions, so `addrReverseClearTxId` is still unset here.
+    addrReverseClearSubmitted: ({ event }) =>
+      !!(event as unknown as { output?: { txId?: string } }).output?.txId,
   },
   actions: {
     setDuration: assign({
@@ -269,6 +334,8 @@ const machineSetup = setup({
       postRegistrationSetupFailed: () => false,
       ethRecordSyncTxId: () => undefined,
       primaryNameTxId: () => undefined,
+      hcaPrimaryName: () => undefined,
+      addrReverseClearTxId: () => undefined,
     }),
     invalidateNameQueries: ({ context }) => {
       const label = context.confirmedData?.label
@@ -324,7 +391,10 @@ const machineSetup = setup({
           : context.postRegistrationData,
       })
 
-      if (context.postRegistrationSetup) {
+      // `hcaPrimaryName` counts here too: the HCA path carries no
+      // `postRegistrationSetup`, but it still owes the `addr.reverse` cleanup
+      // pass, and skipping straight to success would never run it.
+      if (context.postRegistrationSetup || context.hcaPrimaryName) {
         enqueue.raise({ type: 'registration.completed' })
         return
       }
@@ -378,6 +448,16 @@ const machineSetup = setup({
       postRegistrationProgress: ({ context }) => ({
         ...context.postRegistrationProgress,
         primaryNameForwardConfirmed: true,
+      }),
+    }),
+    storeAddrReverseClearTxId: assign({
+      addrReverseClearTxId: ({ event }) =>
+        (event as unknown as { output: { txId?: string } }).output.txId,
+    }),
+    markAddrReverseClearAttempted: assign({
+      postRegistrationProgress: ({ context }) => ({
+        ...context.postRegistrationProgress,
+        addrReverseClearAttempted: true,
       }),
     }),
   },
@@ -457,6 +537,8 @@ const startRegistrationAction = machineSetup.createAction(
       postRegistrationSetupFailed: false,
       ethRecordSyncTxId: undefined,
       primaryNameTxId: undefined,
+      hcaPrimaryName: bundlePrimaryName,
+      addrReverseClearTxId: undefined,
     })
 
     enqueue(
@@ -666,6 +748,10 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                   target: 'settingPrimaryNameReverse',
                 },
                 {
+                  guard: 'hasAddrReverseClearRemaining',
+                  target: 'clearingStaleAddrReverse',
+                },
+                {
                   guard: 'primaryNameSetupUnavailable',
                   target: 'success',
                   actions: [
@@ -723,6 +809,75 @@ export const registrationV2UiMachine = machineSetup.createMachine({
                 onDone: {
                   target: 'postRegistrationDecision',
                   actions: ['markEthRecordSynced'],
+                },
+                onError: {
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
+                  ],
+                },
+              },
+            },
+            clearingStaleAddrReverse: {
+              entry: ['setPrimaryNameStage'],
+              invoke: {
+                src: 'submitAddrReverseClear',
+                input: ({ context }) => {
+                  const data = context.postRegistrationData
+                  if (!data?.walletClient) {
+                    throw new Error(
+                      'Cannot clear addr.reverse without the owner wallet',
+                    )
+                  }
+
+                  return {
+                    ownerAddress: data.ownerAddress,
+                    walletClient: data.walletClient,
+                    publicClient: data.publicClient,
+                    chainId: data.chainId,
+                  }
+                },
+                // Mark attempted on both branches: the no-op case is a
+                // completed cleanup, and re-entering the decision state
+                // without it would loop.
+                onDone: [
+                  {
+                    guard: 'addrReverseClearSubmitted',
+                    target: 'waitingForAddrReverseClear',
+                    actions: [
+                      'storeAddrReverseClearTxId',
+                      'markAddrReverseClearAttempted',
+                    ],
+                  },
+                  {
+                    target: 'postRegistrationDecision',
+                    actions: ['markAddrReverseClearAttempted'],
+                  },
+                ],
+                onError: {
+                  target: 'success',
+                  actions: [
+                    'setRegistrationSuccessStage',
+                    'logPostRegistrationSetupError',
+                    'markPostRegistrationSetupFailed',
+                  ],
+                },
+              },
+            },
+            waitingForAddrReverseClear: {
+              entry: ['setPrimaryNameStage'],
+              invoke: {
+                src: 'waitForKnownTransaction',
+                input: ({ context }) => {
+                  if (!context.addrReverseClearTxId) {
+                    throw new Error('addr.reverse clear transaction is missing')
+                  }
+                  return { txId: context.addrReverseClearTxId }
+                },
+                onDone: {
+                  target: 'postRegistrationDecision',
                 },
                 onError: {
                   target: 'success',
