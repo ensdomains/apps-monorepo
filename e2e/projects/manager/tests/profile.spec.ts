@@ -157,7 +157,9 @@ test.describe('ENS profile', () => {
     console.log(`[profile] ✅ Validation errors correctly shown for ${name}`)
   })
 
-  test('add and remove name from favourites', async ({
+  test('add and remove name from favourites', {
+    tag: ['@scenario:H7'],
+  }, async ({
     // Favorites require backend auth — the FavoriteButton's
     // `disabled` prop is bound to `useAtom(isBackendAuthed)` and
     // the API mutations call the deployed worker. Use the
@@ -255,7 +257,9 @@ test.describe('ENS profile', () => {
     console.log(`[profile] ✅ Favourites add/remove succeeded for ${name}`)
   })
 
-  test('can favourite a name not owned by the user', async ({
+  test('can favourite a name not owned by the user', {
+    tag: ['@scenario:H7'],
+  }, async ({
     // Same backend-auth requirement as the owned-name favorites
     // test above — see comment there.
     profileAuthenticatedPageWithBackend: page,
@@ -351,7 +355,7 @@ test.describe('ENS profile', () => {
     )
   })
 
-  test('extend unowned name by 28 days', async ({
+  test('extend unowned name by 28 days', { tag: ['@scenario:B2'] }, async ({
     profileConnectedPage: page,
     makeV2Name,
     wallet,

@@ -701,12 +701,9 @@ test.describe('Portal name transfer', () => {
    * (an earlier revision of this test did exactly that, successfully). The test
    * below therefore asserts what the *UI* offers, not what the chain permits.
    */
-  test('does not offer transfer for a subname', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('does not offer transfer for a subname', {
+    tag: ['@scenario:F3'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -944,12 +941,9 @@ test.describe('Portal name transfer — guards', () => {
 // ---------------------------------------------------------------------------
 test.describe('Portal name transfer — migrated V1 names', () => {
   for (const type of ['unwrapped', 'unlocked'] as const) {
-    test(`transfers a migrated ${type} V1 name`, async ({
-      portalPage: page,
-      wallet,
-      accounts,
-      makeMigratedName,
-    }) => {
+    test(`transfers a migrated ${type} V1 name`, {
+      tag: ['@scenario:F1'],
+    }, async ({ portalPage: page, wallet, accounts, makeMigratedName }) => {
       test.setTimeout(240_000)
 
       await connectWithHeadlessWallet(page, wallet)
@@ -1018,12 +1012,9 @@ test.describe('Portal name transfer — migrated V1 names', () => {
    * caused the bug are asserted directly, so it fails if either the role
    * behaviour or the gating regresses.
    */
-  test('transfers a migrated locked V1 name with the default options, without offering the registry detach it cannot perform', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeMigratedName,
-  }) => {
+  test('transfers a migrated locked V1 name with the default options, without offering the registry detach it cannot perform', {
+    tag: ['@scenario:F1'],
+  }, async ({ portalPage: page, wallet, accounts, makeMigratedName }) => {
     test.setTimeout(240_000)
 
     await connectWithHeadlessWallet(page, wallet)

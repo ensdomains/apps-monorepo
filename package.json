@@ -31,6 +31,7 @@
     "e2e:manager-premium": "pnpm --filter @ens-apps/e2e test:manager-premium",
     "e2e:portal": "pnpm --filter @ens-apps/e2e test:portal",
     "e2e:cross-app": "pnpm --filter @ens-apps/e2e test:cross-app",
+    "e2e:coverage": "pnpm --filter @ens-apps/e2e coverage",
     "e2e:infra:up": "pnpm --filter @ens-apps/e2e infra:up",
     "e2e:infra:down": "pnpm --filter @ens-apps/e2e infra:down"
   },

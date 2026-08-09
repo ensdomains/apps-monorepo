@@ -94,6 +94,31 @@ jobs:
             echo "has-configs=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # The coverage ledger. Cheap (no docker, no browsers) and always runs, because
+  # its job is to catch claims that outran the evidence: a scenario tag that is
+  # not in the registry, a test skipped without a written EXEMPT, a defect filed
+  # with no failing test proving it, or a phase's terminal count going down.
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: Reconcile E2E coverage
+        run: pnpm e2e:coverage
+      - name: Fail if the generated report is stale
+        run: |
+          if ! git diff --quiet -- e2e/docs/e2e-coverage.md; then
+            echo "::error::e2e/docs/e2e-coverage.md is out of date — run 'pnpm e2e:coverage' and commit the result."
+            git --no-pager diff -- e2e/docs/e2e-coverage.md
+            exit 1
+          fi
+
   e2e:
     needs: changes
     if: needs.changes.outputs.has-configs == 'true'

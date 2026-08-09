@@ -135,12 +135,36 @@ pnpm e2e:portal
 pnpm e2e:cross-app
 
 # Infrastructure
-pnpm e2e:infra:up    # Start Anvil + Alto + Paymaster
+pnpm e2e:infra:down && pnpm e2e:infra:up   # Start Anvil + Alto + Paymaster
 pnpm e2e:infra:down  # Stop the stack
 
 # Against a specific app URL
 MANAGER_APP_URL=https://staging.example.com pnpm e2e:manager
 ```
+
+---
+
+## Coverage Ledger
+
+```bash
+pnpm e2e:coverage                              # reconcile and regenerate the report
+pnpm e2e:coverage --results playwright.json    # verify PASS against a real run
+pnpm e2e:coverage --update                     # raise the ratchet after a batch lands
+```
+
+`pnpm e2e:coverage` reconciles the scenario registry in
+[`coverage/scenarios.ts`](./coverage/scenarios.ts) against the committed specs
+and the defect register, and regenerates
+[`docs/e2e-coverage.md`](./docs/e2e-coverage.md). A test claims a scenario with
+a `@scenario:<ID>` tag:
+
+```ts
+test('revokes ROLE_SET_RESOLVER', { tag: ['@scenario:C4'] }, async ({ … }) => {
+```
+
+Rules — what counts as terminal, when to tag, and what CI enforces — are in
+[`docs/e2e-goal.md`](./docs/e2e-goal.md). The generated report is checked in and
+CI fails if it is stale.
 
 ---
 
