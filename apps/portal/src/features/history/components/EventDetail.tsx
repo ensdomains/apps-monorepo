@@ -1,4 +1,3 @@
-import { useQueries } from '@tanstack/react-query'
 import { match, P } from 'ts-pattern'
 import {
   type Address,
@@ -8,11 +7,7 @@ import {
   isAddress,
   zeroAddress,
 } from 'viem'
-import { useChainId, useConfig } from 'wagmi'
-import {
-  getTransactionQueryOptions,
-  getTransactionReceiptQueryOptions,
-} from 'wagmi/query'
+import { useTransaction, useTransactionReceipt } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import {
@@ -142,18 +137,14 @@ export const TransactionMeta = ({
   event: TimelineIndexerEvent
   txHash: Hash
 }) => {
-  const chainId = useChainId()
-  const config = useConfig()
-  const [txQuery, receiptQuery] = useQueries({
-    queries: [
-      getTransactionQueryOptions(config, { hash: txHash, chainId }),
-      getTransactionReceiptQueryOptions(config, { hash: txHash, chainId }),
-    ],
+  const { data: tx, isLoading: isTxLoading } = useTransaction({
+    hash: txHash,
   })
-  const tx = txQuery.data
-  const receipt = receiptQuery.data
+  const { data: receipt, isLoading: isReceiptLoading } = useTransactionReceipt({
+    hash: txHash,
+  })
 
-  const pending = txQuery.isLoading || receiptQuery.isLoading ? '…' : '—'
+  const pending = isTxLoading || isReceiptLoading ? '…' : '—'
   const toAddress = tx?.to ?? event.contractAddress ?? undefined
 
   const txUrl = useBlockExplorerTxUrl(txHash)
