@@ -76,3 +76,25 @@ react-query caches that for the rest of the test.
 satisfied by the owner event that registration itself emits, while a grant made
 afterwards may still be unindexed. C1 passed and then failed on the flake-gate
 re-run for exactly that reason, before the helper was tightened.
+
+### E9's alias-mode matrix is not reachable through the UI
+
+Plan E9 asks for "the five alias modes: none, root, exact, subdomain,
+recursive (`test_alias_*`)". The portal's `create-alias` route exposes no mode
+selector at all — the form is two comboboxes, a source name and a target node,
+and the mode is whatever the app picks. So four of the five modes cannot be
+produced through the UI, and the fifth cannot be distinguished from the others
+by anything the page shows.
+
+E9 is therefore left **non-terminal** rather than partially claimed. It needs a
+ruling, and the options are genuinely different work:
+
+- **EXEMPT** — the mode matrix belongs to `PermissionedResolver.t.sol` and is
+  not a UI concern. Needs a written exemption with an approver.
+- **Narrow the scenario** — redefine E9 as "the one mode the UI can create,
+  asserted on-chain", which is a real test worth having, and drop the matrix
+  from the e2e plan's scope.
+- **It is a gap in the app** — if users are meant to be able to choose a mode,
+  the UI is missing it, and that is a feature defect rather than a test one.
+
+E10 (alias creation without `ROLE_SET_ALIAS`) is unaffected and passes.
