@@ -169,3 +169,32 @@ That adds **C14** (resolver per-key roles, `/resolver/$address/roles` →
 E11 passes on `/resolver/$address/nodes`, which does not go through that query
 — so the blocker is per-route, not per-section, and is worth checking before
 scoping any future batch that touches a detail page.
+
+### makeV1Name builds names in a V1 deployment the apps do not read (blocks all of §5.G / P3)
+
+`fixtures/makeV1Name.ts` registers through V1 contracts at `0xF42dF26c…` /
+`0x64096092…` / `0xc7e033b8…`. The manager's migration code resolves its V1
+contracts through ensjs — `features/migration/service/checkHelperApprovals.ts`
+calls `getChainContractAddress` for `ensBaseRegistrarImplementation` and
+`ensNameWrapper` — which gives `0x57f1887a…` / `0x0635513f…`.
+
+Both deployments are live on the fork and both have code, so registration
+succeeds and nothing errors. The names simply land in a registrar the app never
+looks at. **Every V1 name the suite creates is invisible to the app under
+test.** That is the root reason the §5.G migration matrix has no working
+coverage, and it compounds with the manager project's `testIgnore` excluding
+those specs — two independent problems, each of which would hide the other.
+
+Attempted the switch this tick and it is not address-only:
+
+- the two controllers share an ABI and produce **identical** commitment hashes,
+  so the encoding is compatible
+- but `register` reverts on the ensjs controller ("unknown reason"), so
+  something in the flow differs — fee, commitment age, or parameter semantics
+
+Reverted rather than left half-applied: a fixture pointing consistently at the
+wrong deployment is easier to reason about than one split across two. The V2
+half of the same file *was* fixed and verified (see the reserveInV2 commit).
+
+Next step is to decode that revert against the ensjs controller and adapt the
+registration flow. Until then §5.G, HW10 and P3 stay blocked.
