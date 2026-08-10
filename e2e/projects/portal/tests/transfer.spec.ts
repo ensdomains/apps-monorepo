@@ -25,7 +25,14 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
-import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
+import {
+  assertRoleBitmap,
+  readNameRoles,
+} from '../../../helpers/role-assertions.js'
+import {
+  driveTransactionsToSuccess,
+  transferTxId,
+} from '../../../helpers/transaction-modal.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
@@ -890,5 +897,75 @@ test.describe('Portal name transfer — migrated V1 names', () => {
     // The subregistry the owner couldn't detach is handed over untouched.
     const [, subregistryAfter] = await readResolverAndSubregistry(label)
     expect(subregistryAfter.toLowerCase()).toBe(subregistryBefore.toLowerCase())
+  })
+
+  test('hands the full role set to the recipient and leaves the sender none', {
+    tag: ['@scenario:F7'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({ label: 'transfer-f7', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    const sender = accounts.getAddress('user')
+    const recipient = accounts.getAddress('user2')
+
+    const senderRolesBefore = (await readNameRoles({ label }, sender)).decoded
+    expect(
+      senderRolesBefore.length,
+      'the owner should start holding roles',
+    ).toBeGreaterThan(0)
+    await assertRoleBitmap({ label }, recipient, [])
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(recipient)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    await driveTransactionsToSuccess(page, wallet, [
+      transferTxId(name, 'detach-resolver'),
+      transferTxId(name, 'transfer-token'),
+    ])
+
+    // The role set follows the token exactly. The half that matters is the
+    // second assertion: a transfer that left the sender any authority would
+    // still look successful from the recipient's side.
+    await assertRoleBitmap({ label }, recipient, senderRolesBefore)
+    await assertRoleBitmap({ label }, sender, [])
+  })
+
+  test('refuses to transfer an expired name', {
+    tag: ['@scenario:F4'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    // Expiry clears the role set outright — measured for C7 — so the former
+    // owner no longer holds ROLE_CAN_TRANSFER_ADMIN and has nothing to
+    // transfer, even though the name is still theirs in every colloquial
+    // sense.
+    const name = await makeName({
+      label: 'transfer-f4',
+      owner: 'user',
+      duration: -86_400,
+    })
+    const label = name.replace(/\.eth$/, '')
+    const owner = accounts.getAddress('user')
+
+    await assertRoleBitmap({ label }, owner, [])
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    // "Transfer not available", not the "Not authorized" used for a wallet
+    // that never owned the name — the distinction is that this wallet *is* the
+    // owner, it simply holds no roles any more.
+    await expect(
+      page.getByText('Transfer not available'),
+      'an expired name holds no transfer authority, so the form must be refused',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: 'Transfer name' }),
+      'and the transfer control must not be reachable',
+    ).toHaveCount(0)
   })
 })
