@@ -33,6 +33,7 @@ import {
 } from '../helpers/portal-auth.js'
 import { createMakeMigratedName } from './makeMigratedName.js'
 import { createMakeName } from './makeName.js'
+import { createMakeSubname, type MakeSubname } from './makeSubname.js'
 import { createTime, type Time } from './time.js'
 import { createWallets, type Wallets } from './wallets.js'
 
@@ -200,6 +201,8 @@ type PortalFixtures = {
    * Every authorization negative case needs this — see `fixtures/wallets.ts`.
    */
   wallets: Wallets
+  /** Create N-deep V2 subnames through UserRegistry — see `makeSubname.ts`. */
+  makeSubname: MakeSubname
 }
 
 export const test = base.extend<PortalFixtures>({
@@ -246,6 +249,10 @@ export const test = base.extend<PortalFixtures>({
 
   wallets: async ({ page, wallet, accounts }, use) => {
     await use(createWallets({ page, wallet, accounts }))
+  },
+
+  makeSubname: async ({ wallets }, use) => {
+    await use(createMakeSubname({ account: wallets.account('owner') }))
   },
 })
 
