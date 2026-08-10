@@ -116,7 +116,7 @@ re-derive it.
 Both need the same ruling as E9 — exempt to the contract suite, or redefine.
 Left non-terminal rather than claimed.
 
-### Panoptes never populates its `registries` table (blocks C13, D10–D14)
+### Panoptes never populates its `registries` or `resolvers` tables (blocks C13, C14, D10–D14)
 
 Every `/registry/$address/*` page renders "Registry not found". The route reads
 `getRegistryInfoQueryOptions` → the indexer's `registry(address:)` field
@@ -148,3 +148,24 @@ This is not a test problem, and it blocks more than one scenario:
 
 Needs a ruling on whether the gap is in Panoptes' schema coverage or in the
 app depending on an entity the indexer does not produce.
+
+**Widened 2026-08-10 (same tick, later):** `resolvers` is empty too. Table by
+table on a fully synced indexer:
+
+| table | state |
+|---|---|
+| `domains` | populated |
+| `events` | populated |
+| `registries` | **empty** |
+| `resolvers` | **empty** |
+
+So the pattern is not one missing table — Panoptes indexes *events and names*
+but produces none of the entity records the portal's detail pages are built
+on. Anything reading `registry(address:)` or `resolver(id:)` renders
+not-found, while anything reading names or replaying events works.
+
+That adds **C14** (resolver per-key roles, `/resolver/$address/roles` →
+`getResolverOverviewQueryOptions` → `resolver(id:)`) to the blocked set. Note
+E11 passes on `/resolver/$address/nodes`, which does not go through that query
+— so the blocker is per-route, not per-section, and is worth checking before
+scoping any future batch that touches a detail page.
