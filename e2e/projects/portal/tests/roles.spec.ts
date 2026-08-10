@@ -18,13 +18,17 @@
  *    Set Subregistry — which is precisely the pair the owner has admin over.
  */
 
+import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
+import type { Address } from 'viem'
 import {
   connectWithHeadlessWallet,
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
+import { waitForIndexedRoles } from '../../../helpers/indexer-sync.js'
 import {
   assertRoleBitmap,
+  ETH_REGISTRY,
   grantNameRoles,
   readNameRoles,
   readRoleHolders,
@@ -71,6 +75,15 @@ const nameRolesSection = (page: import('@playwright/test').Page) =>
     .locator('h3', { hasText: 'parent registry roles' })
     .locator('xpath=following::table[1]')
 
+/**
+ * The roles table is indexer-backed, so it can only be asserted once Panoptes
+ * holds the role events for every account the assertion names. Without this
+ * the page renders its empty state — or a partial one — and caches it. See
+ * `helpers/indexer-sync.ts`.
+ */
+const awaitIndexed = (label: string, accounts: Address[]) =>
+  waitForIndexedRoles(ETH_REGISTRY, labelToCanonicalId(label), accounts)
+
 test.describe('Portal name roles', () => {
   test.describe.configure({ timeout: 240_000 })
 
@@ -101,6 +114,7 @@ test.describe('Portal name roles', () => {
       'chain should show exactly the owner and the granted manager',
     ).toEqual([owner.toLowerCase(), manager.toLowerCase()].sort())
 
+    await awaitIndexed(label, expectedHolders)
     await page.goto(rolesPage(name))
     const table = nameRolesSection(page)
     await expect(table).toBeVisible({ timeout: 30_000 })
@@ -213,6 +227,7 @@ test.describe('Portal name roles', () => {
       'ROLE_SET_SUBREGISTRY',
     ])
 
+    await awaitIndexed(label, [manager])
     await page.goto(rolesPage(name))
     const table = nameRolesSection(page)
     const managerRow = table.locator('tr', { hasText: truncate(manager) })
@@ -244,6 +259,7 @@ test.describe('Portal name roles', () => {
 
     await assertRoleBitmap({ label }, stranger, [])
 
+    await awaitIndexed(label, [wallets.address('owner')])
     await wallets.switchTo('stranger')
     await page.goto(rolesPage(name))
 
