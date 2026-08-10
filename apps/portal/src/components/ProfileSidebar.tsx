@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CopyIcon, FlameIcon } from 'lucide-react'
+import { FlameIcon, WalletIcon } from 'lucide-react'
 import {
   CardsStackIcon,
   GraphIcon,
@@ -46,6 +46,14 @@ type SidebarItemData = {
 const defineProfileSidebarItem = createDefineLinkItem<SidebarItemData>()
 
 const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
+  defineProfileSidebarItem({
+    title: 'Address Resolution',
+    icon: WalletIcon,
+    link: {
+      to: '/$name/address',
+      params: { name },
+    },
+  }),
   defineProfileSidebarItem({
     title: 'Records',
     icon: CardsStackIcon,
@@ -104,14 +112,6 @@ const getItems = (name: string, protocolVersion?: ProtocolVersion) => [
     icon: HubIcon,
     link: {
       to: '/$name/registry',
-      params: { name },
-    },
-  }),
-  defineProfileSidebarItem({
-    title: 'Address Resolution',
-    icon: CopyIcon,
-    link: {
-      to: '/$name/address',
       params: { name },
     },
   }),
