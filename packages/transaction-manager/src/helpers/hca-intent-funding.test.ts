@@ -182,6 +182,22 @@ describe('planHcaIntentFunding', () => {
     expect(quoted.auxiliaryFunds?.[sepolia.id]?.[C.usdc]).toBeGreaterThan(0n)
   })
 
+  it('declares an inflow for a dust balance too, not just an empty one', async () => {
+    // 0.3 USDC against a 0.9 fee is exactly as unpriceable to the planner as
+    // an empty account — and it is where a settled registration leaves the
+    // HCA. Keying the declaration on "exactly zero" made this band throw.
+    readContract.mockResolvedValue(300_000n)
+
+    const funding = await planHcaIntentFunding(params)
+
+    const quoted = prepareTransaction.mock.calls[0]?.[0] as {
+      auxiliaryFunds?: Record<number, Record<Address, bigint>>
+    }
+    expect(quoted.auxiliaryFunds?.[sepolia.id]?.[C.usdc]).toBeGreaterThan(0n)
+    // And the permit still covers only what the HCA is actually short.
+    expect(funding.incomingUsdc).toBe(600_000n)
+  })
+
   it('throws rather than guessing when the quote cannot be priced', async () => {
     // A wrong permit either under-funds (the fill reverts) or moves more of
     // the user's USDC than the action needed.

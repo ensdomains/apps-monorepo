@@ -44,6 +44,15 @@ const erc2612Abi = parseAbi([
 export const HCA_STANDALONE_INTENT_GAS_LIMIT = 300_000n
 
 /**
+ * Balance (USDC, 6dp) the first-pass quote pretends the HCA will hold.
+ *
+ * Only has to comfortably clear any plausible fee for these small intents —
+ * the planner refuses to price an account it sees as unable to pay, and the
+ * fee itself is read back from the resulting quote.
+ */
+const FIRST_PASS_BALANCE_USDC = 5_000_000n
+
+/**
  * A permit whose SHAPE matches the real one but whose values are dummies.
  *
  * Quoting is a chicken-and-egg problem: the permit's value is the fee, and the
@@ -206,10 +215,21 @@ export async function planHcaIntentFunding(
     ...calls,
   ]
 
-  // First-pass inflow: only has to be large enough that the planner sees the
-  // HCA as covered and prices the legs at all. The real permit is sized from
-  // the quote this produces, never from this number.
-  const declaredInflow = balance > 0n ? 0n : 5_000_000n
+  // First-pass inflow: tops the HCA up to `FIRST_PASS_BALANCE_USDC` so the
+  // planner sees it as covered and prices the legs at all. The real permit is
+  // sized from the quote this produces, never from this number.
+  //
+  // Keyed on "below the target", NOT on "exactly zero". The planner refuses to
+  // price ANY account sitting under the fee, so a dust balance — say 0.3 USDC
+  // against a 0.9 fee — is just as unpriceable as an empty one, and declaring
+  // nothing there made the quote fail and this function throw. A settled
+  // registration lands squarely in that band.
+  //
+  // Declaring an inflow for an HCA that turns out to cover the fee anyway is
+  // harmless: the quote prices on `gasLimit`, so the fee comes back the same,
+  // and the `balance >= quotedFeeUsdc` branch below then drops the funding pair.
+  const declaredInflow =
+    balance >= FIRST_PASS_BALANCE_USDC ? 0n : FIRST_PASS_BALANCE_USDC - balance
 
   const quotedFeeUsdc = await quoteIntentUsdc({
     account: signer.account,
