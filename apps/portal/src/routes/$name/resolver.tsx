@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import type { GetEnsResolverErrorType } from '@wagmi/core'
 import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
@@ -418,10 +419,20 @@ function RouteComponent() {
   const [ownerQuery, resolverQuery] = useQueries({
     queries: [
       getEnsOwnerQueryOptions({ name }),
-      getEnsResolverQueryOptions(wagmiConfig, {
-        name,
-        universalResolverAddress,
-      }),
+      {
+        ...getEnsResolverQueryOptions(wagmiConfig, {
+          name,
+          universalResolverAddress,
+        }),
+        // useQueries reads each query's error type off `throwOnError`, and
+        // wagmi's factory returns query-core options, which have no such field
+        // — so TError falls back to DefaultError and collides with the
+        // factory's own `retry: RetryValue<GetEnsResolverErrorType>`. Naming
+        // the error here is what restores the narrowed type the
+        // ChainDoesNotSupportContract branch below reads. `false` is already
+        // the default, so behaviour is unchanged.
+        throwOnError: (_error: GetEnsResolverErrorType) => false,
+      },
     ],
   })
 

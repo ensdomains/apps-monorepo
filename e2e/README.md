@@ -17,7 +17,6 @@ The E2E test suite lives in `e2e/` at the monorepo root and uses **Playwright** 
 | Test runner + automation | Playwright (`@playwright/test`) | Orchestration, browser control, assertions |
 | Wallet | Para (email-based) | Signs transactions in-browser |
 | AI test authoring | Playwright Agents (planner/generator/healer) | Dev-time test scaffolding via Claude |
-| Local dev (optional) | Stagehand (`@browserbasehq/stagehand`) | LLM-driven prototyping of new flows |
 
 **Config**: `playwright.config.base.ts` — shared settings (single worker, no parallelism, retries on CI only). Each project extends it in `projects/<app>/playwright.config.ts`.
 
@@ -30,8 +29,7 @@ e2e/
 ├── playwright.config.base.ts       # Shared config
 ├── fixtures/
 │   ├── playwright.manager.fixture.ts  # Manager app fixture (headless web3 wallet)
-│   ├── playwright.portal.fixture.ts   # Portal app fixture (headless web3 wallet)
-│   └── stagehand.fixture.ts           # Optional Stagehand fixture (local dev)
+│   └── playwright.portal.fixture.ts   # Portal app fixture (headless web3 wallet)
 ├── helpers/
 │   ├── manager-auth.ts             # Manager wallet connect + SIWE modal helpers
 │   ├── portal-auth.ts              # Portal wallet connect helpers
