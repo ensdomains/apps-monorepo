@@ -40,7 +40,7 @@ export interface SetupControlledResolverParams {
 
 /**
  * Give the connected owner a resolver they control on a transferred `name`,
- * point the name at it, and optionally write records — one sponsored atomic
+ * point the name at it, and optionally write records — one atomic
  * intent: deploy the owned resolver (skipped when it already exists),
  * `setResolver`, record write. The owned resolver's address is deterministic
  * (CREATE2 keyed off the owner's salt and the smart account as deployer), so
@@ -115,7 +115,9 @@ export async function setupControlledResolver({
     type: 'rhinestone-intent',
     from: smartAccount,
     chainId,
-    rhinestoneParams: { calls, sponsored: true },
+    // User-paid in USDC out of the HCA's own balance; this deployment offers
+    // no gas sponsorship. See `signer.types.ts`.
+    rhinestoneParams: { calls, feeAsset: 'USDC' },
   }
 
   const txId = transactionManager.startTransaction(

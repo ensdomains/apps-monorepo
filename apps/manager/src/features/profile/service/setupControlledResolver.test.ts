@@ -71,7 +71,7 @@ afterEach(() => {
 })
 
 describe('setupControlledResolver', () => {
-  it('bundles deploy + setResolver + records into one sponsored intent', async () => {
+  it('bundles deploy + setResolver + records into one user-paid intent', async () => {
     mockedFindExisting.mockResolvedValue(null)
 
     const resolver = await setupControlledResolver({
@@ -100,7 +100,7 @@ describe('setupControlledResolver', () => {
         chainId: CHAIN_ID,
         rhinestoneParams: {
           calls: [DEPLOY_CALL, SET_RESOLVER_CALL, ...RECORD_CALLS],
-          sponsored: true,
+          feeAsset: 'USDC',
         },
       },
     })

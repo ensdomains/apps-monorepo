@@ -1,14 +1,16 @@
-import type {
-  ChainSessionConfig,
-  Transaction as RhinestoneSdkTransaction,
-  TokenRequest,
-} from '@rhinestone/sdk'
+import type { ChainSessionConfig, TokenRequest } from '@rhinestone/sdk'
 
 /**
- * SDK sponsorship shape (`boolean | { gas, bridging, swaps }`). Derived via
- * indexed access — the SDK does not export it from its public surface.
+ * There is deliberately NO sponsorship knob on this type.
+ *
+ * Gas sponsorship does not exist on the standalone-HCA deployment: every
+ * intent is user-paid in USDC out of the HCA's own balance, funded by an
+ * EIP-2612 permit (see `signer.types.ts`). The SDK still takes a `sponsored`
+ * argument, so the warp transport passes the user-paid shape and nothing else
+ * — see `UNSPONSORED` there. Callers cannot opt in, and there is no flag that
+ * turns it on, because asking for a subsidy no relayer here offers fails late
+ * and unhelpfully.
  */
-export type Sponsorship = NonNullable<RhinestoneSdkTransaction['sponsored']>
 
 /**
  * Per-session enable payload for `experimental_session` signing. Derived via
@@ -75,13 +77,7 @@ export interface RhinestoneIntentParams {
    * summaries/telemetry; see {@link getPrimaryCall}. Must be non-empty.
    */
   readonly calls: readonly Call[]
-  /**
-   * SDK sponsorship shape. The standalone-HCA user-paid route sets
-   * `{ gas: false, bridging: false, swaps: false }` (+ `feeAsset: 'USDC'`);
-   * legacy callers may still pass a boolean.
-   */
-  sponsored?: Sponsorship
-  /** Fee asset for user-paid (non-sponsored) requests, e.g. 'USDC'. */
+  /** Fee asset the HCA pays from. Defaults to USDC in the transport. */
   readonly feeAsset?: 'USDC'
   /**
    * Per-request session enable payload. Present ONLY on the request that
