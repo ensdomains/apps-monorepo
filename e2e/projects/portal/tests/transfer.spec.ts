@@ -15,10 +15,12 @@ import {
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { withChainSnapshot } from '../../../fixtures/chain-snapshot.js'
 import {
   registerSubname as createSubname,
   attachSubregistry as deployAndAttachSubregistry,
 } from '../../../fixtures/makeSubname.js'
+import { FUSES } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -26,6 +28,7 @@ import {
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import {
+  assertLacksRoles,
   assertRoleBitmap,
   readNameRoles,
 } from '../../../helpers/role-assertions.js'
@@ -551,7 +554,11 @@ test.describe('Portal name transfer', () => {
       privateKeyToAccount(accounts.getPrivateKey('user')),
     )
     await createSubname(
-      { registryAddress: subregistryAddress, label: 'sub' },
+      {
+        registryAddress: subregistryAddress,
+        label: 'sub',
+        parentLabel: parentName.replace(/\.eth$/, ''),
+      },
       privateKeyToAccount(accounts.getPrivateKey('user')),
     )
     const name = `sub.${parentName}`
@@ -941,31 +948,65 @@ test.describe('Portal name transfer — migrated V1 names', () => {
     test.setTimeout(180_000)
     await connectWithHeadlessWallet(page, wallet)
 
-    // Expiry clears the role set outright — measured for C7 — so the former
-    // owner no longer holds ROLE_CAN_TRANSFER_ADMIN and has nothing to
-    // transfer, even though the name is still theirs in every colloquial
-    // sense.
-    const name = await makeName({
-      label: 'transfer-f4',
-      owner: 'user',
-      duration: -86_400,
+    // Reaching an expired name means fast-forwarding the chain, and that jump
+    // outlives the test: a later subname registration then computes an expiry
+    // behind the new clock and reverts CannotSetPastExpiry. Snapshot/revert
+    // (plan item H5) keeps the time travel inside this test.
+    await withChainSnapshot(async () => {
+      // Expiry clears the role set outright — measured for C7 — so the former
+      // owner no longer holds ROLE_CAN_TRANSFER_ADMIN and has nothing to
+      // transfer, even though the name is still theirs in every colloquial
+      // sense.
+      const name = await makeName({
+        label: 'transfer-f4',
+        owner: 'user',
+        duration: -86_400,
+      })
+      const label = name.replace(/\.eth$/, '')
+      const owner = accounts.getAddress('user')
+
+      await assertRoleBitmap({ label }, owner, [])
+
+      await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+      // "Transfer not available", not the "Not authorized" used for a wallet
+      // that never owned the name — the distinction is that this wallet *is* the
+      // owner, it simply holds no roles any more.
+      await expect(
+        page.getByText('Transfer not available'),
+        'an expired name holds no transfer authority, so the form must be refused',
+      ).toBeVisible({ timeout: 30_000 })
+      await expect(
+        page.getByRole('button', { name: 'Transfer name' }),
+        'and the transfer control must not be reachable',
+      ).toHaveCount(0)
+    })
+  })
+
+  test('does not offer transfer for a name with CANNOT_TRANSFER burnt', {
+    tag: ['@scenario:F2'],
+  }, async ({ portalPage: page, wallet, accounts, makeMigratedName }) => {
+    test.setTimeout(240_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    // §3.4 of the plan: CANNOT_TRANSFER in V1 must map to the migrated name
+    // *not* receiving ROLE_CAN_TRANSFER_ADMIN in V2.
+    const name = await makeMigratedName({
+      label: 'transfer-f2',
+      type: 'locked',
+      fuses: FUSES.CANNOT_TRANSFER,
     })
     const label = name.replace(/\.eth$/, '')
     const owner = accounts.getAddress('user')
 
-    await assertRoleBitmap({ label }, owner, [])
+    await assertLacksRoles({ label }, owner, ['ROLE_CAN_TRANSFER_ADMIN'])
 
     await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
-    // "Transfer not available", not the "Not authorized" used for a wallet
-    // that never owned the name — the distinction is that this wallet *is* the
-    // owner, it simply holds no roles any more.
     await expect(
       page.getByText('Transfer not available'),
-      'an expired name holds no transfer authority, so the form must be refused',
+      'a name that burnt CANNOT_TRANSFER in V1 must not be transferable in V2',
     ).toBeVisible({ timeout: 30_000 })
     await expect(
       page.getByRole('button', { name: 'Transfer name' }),
-      'and the transfer control must not be reachable',
     ).toHaveCount(0)
   })
 })

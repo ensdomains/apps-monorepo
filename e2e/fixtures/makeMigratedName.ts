@@ -91,6 +91,13 @@ export type MigratedNameConfig = {
   readonly type?: MigratedNameType
   /** Which test account owns the name, before and after migration. Default `'user'`. */
   readonly owner?: string
+  /**
+   * Extra owner-controlled fuses to burn alongside `CANNOT_UNWRAP`, e.g.
+   * `FUSES.CANNOT_TRANSFER`. Only meaningful for `type: 'locked'` — the
+   * NameWrapper requires `CANNOT_UNWRAP` before any other owner fuse can be
+   * burnt on a 2LD, and the other types never burn it.
+   */
+  readonly fuses?: number
 }
 
 type Dependencies = {
@@ -258,7 +265,7 @@ export function createMakeMigratedName({ accounts }: Dependencies) {
         encodeFunctionData({
           abi: nameWrapperSetFusesSnippet,
           functionName: 'setFuses',
-          args: [nodeFor(label), CANNOT_UNWRAP],
+          args: [nodeFor(label), CANNOT_UNWRAP | (config.fuses ?? 0)],
         }),
       )
     }

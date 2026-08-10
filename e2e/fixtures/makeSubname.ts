@@ -28,8 +28,10 @@ import {
   createWalletClient,
   http,
   keccak256,
+  parseAbi,
   parseEventLogs,
   stringToBytes,
+  toHex,
   zeroAddress,
 } from 'viem'
 import { publicClient } from '../helpers/anvil-client.js'
@@ -79,6 +81,28 @@ export interface SubnameResult {
     /** Registry deployed *for* this level, when it has one. */
     subregistryAddress?: Address
   }[]
+}
+
+/**
+ * The expiry to give a subname: its parent's, read from the registry.
+ *
+ * ensjs's `createSubnameV2` defaults `expires` to `Date.now()/1000 + 1 year`,
+ * which is wrong here twice over. It uses wall-clock time, which drifts from a
+ * fork that time-travels; and a year is longer than a test parent's 28-day
+ * term, and a registry refuses a subname that would outlive its parent
+ * (`CannotSetPastExpiry`, the same error used for an expiry out of range).
+ * Inheriting the parent's expiry is both correct and always in range.
+ */
+async function parentExpiry(
+  registryAddress: Address,
+  label: string,
+): Promise<bigint> {
+  return publicClient.readContract({
+    address: registryAddress,
+    abi: parseAbi(['function getExpiry(uint256 id) view returns (uint64)']),
+    functionName: 'getExpiry',
+    args: [BigInt(keccak256(toHex(label)))],
+  }) as Promise<bigint>
 }
 
 function clientFor(account: Account) {
@@ -165,11 +189,21 @@ export async function registerSubname(
     label,
     owner,
     roleBitmap = FULL_ROLE_BITMAP,
+    parentLabel,
+    expires,
   }: {
     registryAddress: Address
     label: string
     owner?: Address
     roleBitmap?: bigint
+    /**
+     * The parent 2LD's label, used to inherit its expiry. Required unless
+     * `expires` is given — see {@link parentExpiry} for why the ensjs default
+     * cannot be used here.
+     */
+    parentLabel?: string
+    /** Explicit expiry; overrides `parentLabel`. */
+    expires?: bigint
   },
   signer: Account,
 ): Promise<void> {
@@ -183,6 +217,11 @@ export async function registerSubname(
       subregistryAddress: zeroAddress,
       resolverAddress: zeroAddress,
       roleBitmap,
+      expires:
+        expires ??
+        (parentLabel
+          ? await parentExpiry(ETH_REGISTRY, parentLabel)
+          : undefined),
     } as never,
   )
   await publicClient.waitForTransactionReceipt({
@@ -218,6 +257,9 @@ export function createMakeSubname({ account }: Dependencies) {
     }
 
     const parentLabel = parent.replace(/\.eth$/, '')
+    // Every level inherits the 2LD's expiry; a registry rejects a subname that
+    // would outlive its parent.
+    const parentTermExpiry = await parentExpiry(ETH_REGISTRY, parentLabel)
     // The parent is a 2LD in the .eth registry and needs a registry of its own
     // before anything can be registered beneath it.
     let registryAddress = await attachSubregistry(
@@ -242,6 +284,7 @@ export function createMakeSubname({ account }: Dependencies) {
           subregistryAddress: zeroAddress,
           resolverAddress: zeroAddress,
           roleBitmap: level.roleBitmap ?? FULL_ROLE_BITMAP,
+          expires: parentTermExpiry,
         } as never,
       )
       await publicClient.waitForTransactionReceipt({
