@@ -1,13 +1,21 @@
-import type { Signer } from '@ens-apps/transaction-manager'
+import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
 import type { Address, PublicClient } from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
-import type { SaveRecordsParams } from '@/features/profile/service/profileRecordTransactions'
+import type {
+  SaveRecordsParams,
+  ServiceRecordSnapshot,
+} from '@/features/profile/service/profileRecordTransactions'
 import type { ProfileRecords } from '@/features/profile/types'
-import { transformToServiceFormat } from '@/features/profile/utils/transformRecords'
+import {
+  newEmptyProfileRecords,
+  transformToServiceFormat,
+} from '@/features/profile/utils/transformRecords'
 import {
   type GeneralField,
   getDefaultVisibleFields,
 } from './tabs/general/fields'
+
+const ETH_COIN_TYPE = 60
 
 interface SaveDeps {
   readonly accountAddress?: Address | null
@@ -18,12 +26,36 @@ interface SaveDeps {
   readonly publicClient: PublicClient
   readonly retryCount?: number
   readonly signer?: Signer | null
+  /**
+   * When true, deploy/assign a controlled resolver and apply the before→after
+   * record diff instead of writing in place.
+   */
+  readonly needsResolverSetup?: boolean
 }
 
-interface PendingSave {
+interface PendingUpdateSave {
+  readonly kind: 'update'
   readonly currentRecords: ProfileRecords
   readonly params: SaveRecordsParams
 }
+
+interface PendingSetupSave {
+  readonly kind: 'setup'
+  readonly currentRecords: ProfileRecords
+  readonly before: ServiceRecordSnapshot
+  readonly after: ServiceRecordSnapshot
+  readonly ethAddressChanged: boolean
+  readonly name: string
+  readonly chainId: number
+  readonly ownerAddress: Address
+  readonly signer: RhinestoneSigner
+  readonly publicClient: PublicClient
+}
+
+const ethCoinValue = (coins: readonly { coinType: number; value: string }[]) =>
+  coins.find(({ coinType }) => coinType === ETH_COIN_TYPE)?.value
+
+export type PendingSave = PendingUpdateSave | PendingSetupSave
 
 interface EditProfileDialogContext {
   readonly ethAddressChanged: boolean
@@ -53,6 +85,11 @@ const getMissingAccount = (event: EditProfileDialogEvent) =>
   event.type === 'SAVE_REQUESTED' &&
   (!event.deps.signer || !event.deps.accountAddress)
 
+const getMissingSetupSigner = (event: EditProfileDialogEvent) =>
+  event.type === 'SAVE_REQUESTED' &&
+  Boolean(event.deps.needsResolverSetup) &&
+  (event.deps.signer?.type !== 'rhinestone' || !event.deps.ownerAddress)
+
 const getPendingSave = (
   savedRecords: ProfileRecords,
   currentRecords: ProfileRecords,
@@ -62,14 +99,36 @@ const getPendingSave = (
     throw new Error('Account not ready. Please wait for wallet to connect.')
   }
 
+  const before = transformToServiceFormat(savedRecords)
+  const after = transformToServiceFormat(currentRecords)
+  const ethAddressChanged =
+    ethCoinValue(before.coins) !== ethCoinValue(after.coins)
+
+  if (deps.needsResolverSetup) {
+    if (deps.signer.type !== 'rhinestone' || !deps.ownerAddress) {
+      throw new Error('Please finish connecting your wallet, then try again')
+    }
+
+    return {
+      kind: 'setup',
+      currentRecords: newEmptyProfileRecords(),
+      before,
+      after,
+      ethAddressChanged,
+      name: deps.name,
+      chainId: deps.chainId,
+      ownerAddress: deps.ownerAddress,
+      signer: deps.signer,
+      publicClient: deps.publicClient,
+    }
+  }
+
   if (!savedRecords.resolverAddress) {
     throw new Error('Cannot save profile - resolver address is not available.')
   }
 
-  const before = transformToServiceFormat(savedRecords)
-  const after = transformToServiceFormat(currentRecords)
-
   return {
+    kind: 'update',
     currentRecords,
     params: {
       name: deps.name,
@@ -97,7 +156,7 @@ const saveRequestedTransitions = [
     actions: 'clearSaveState',
   },
   {
-    guard: 'missingResolver',
+    guard: 'missingSetupSigner',
     target: 'idle',
     actions: 'clearSaveState',
   },
@@ -117,7 +176,7 @@ export const editProfileDialogMachine = setup({
     missingOwner: ({ event }) =>
       event.type === 'SAVE_REQUESTED' && !event.deps.owner,
     missingAccount: ({ event }) => getMissingAccount(event),
-    missingResolver: ({ context }) => !context.savedRecords.resolverAddress,
+    missingSetupSigner: ({ event }) => getMissingSetupSigner(event),
   },
   actions: {
     openDialog: assign({
