@@ -7,7 +7,7 @@
  */
 
 import { permissionedRegistryGetResolverSnippet } from '@ensdomains/ensjs-abi/v2'
-import type { Address } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -127,5 +127,34 @@ test.describe('Portal resolver', () => {
       (await readResolver(label)).toLowerCase(),
       'no malformed input may have reached the registry',
     ).toBe(before.toLowerCase())
+  })
+
+  test('detaches the resolver by setting it to the zero address', {
+    tag: ['@scenario:E8'],
+  }, async ({ portalPage: page, wallet, makeName }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'res-e8',
+      owner: 'user',
+      records: [{ key: 'seed', value: 'a' }],
+    })
+    const label = name.replace(/\.eth$/, '')
+    expect(
+      (await readResolver(label)).toLowerCase(),
+      'the name must start with a resolver attached',
+    ).not.toBe(zeroAddress)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
+    await enableCustomResolver(page)
+    await page.locator('#resolver-address').fill(zeroAddress)
+    await page.getByRole('button', { name: 'Save changes' }).click()
+
+    await driveTransactionsToSuccess(page, wallet, [CHANGE_RESOLVER_TX])
+
+    expect(
+      (await readResolver(label)).toLowerCase(),
+      'detaching should clear the resolver slot on the registry',
+    ).toBe(zeroAddress)
   })
 })

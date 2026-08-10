@@ -3,12 +3,12 @@
   "note": "Terminal scenario counts per phase (PASS + DEFECT + EXEMPT). May only increase — see e2e/docs/e2e-goal.md. Raise with `pnpm e2e:coverage --update`.",
   "phases": {
     "P0": 3,
-    "P1": 14,
+    "P1": 16,
     "P2": 2,
     "P3": 0,
     "P4": 0,
     "P5": 3,
     "P6": 0
   },
-  "totalTerminal": 22
+  "totalTerminal": 24
 }
