@@ -132,3 +132,33 @@ export async function waitForIndexedRoles(
       `e2e/infra/panoptes/contracts.json.`,
   )
 }
+
+/**
+ * Block until Panoptes lists `name` in its `domains` table — the source the
+ * portal's subnames list reads through `useSubnames`.
+ *
+ * Names inside a subregistry need more than a current block height. Panoptes
+ * only learns a subregistry exists when it sees the `setSubregistry` event,
+ * and then backfills that registry's history as a separate step ("Backfilling
+ * N newly discovered subregistry" in its log). So a subname can be several
+ * blocks old, with the indexer at chain head, and still be absent. Waiting on
+ * the name itself is the only wait that actually covers it.
+ */
+export async function waitForIndexedName(
+  name: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const data = await query<{ domains: { name: string }[] }>(
+      `{ domains(where: { name: "${name}" }) { name } }`,
+    )
+    if ((data?.domains?.length ?? 0) > 0) return
+    await new Promise((r) => setTimeout(r, POLL_MS))
+  }
+  throw new Error(
+    `Panoptes has not indexed ${name} after ${timeoutMs}ms. ` +
+      `For a name inside a subregistry this usually means the registry has ` +
+      `not been discovered and backfilled yet.`,
+  )
+}
