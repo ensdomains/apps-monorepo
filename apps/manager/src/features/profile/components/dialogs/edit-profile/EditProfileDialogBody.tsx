@@ -20,6 +20,7 @@ import { getLinkValidationIssues } from './tabs/links/validation'
 
 interface EditProfileDialogBodyProps {
   readonly isFinalizingImageSave: boolean
+  readonly isResolverAccessPending: boolean
   readonly name: string
   readonly onSave: EditProfileSaveHandler
   readonly onImageUploadPrepared: (upload: PreparedProfileImageUpload) => void
@@ -33,6 +34,7 @@ export const EditProfileDialogBody = withForm({
   ...sharedOptions,
   props: {
     isFinalizingImageSave: false,
+    isResolverAccessPending: false,
     name: '',
     onSave: () => {},
     onImageUploadPrepared: () => {},
@@ -43,6 +45,7 @@ export const EditProfileDialogBody = withForm({
   render: ({
     form,
     isFinalizingImageSave,
+    isResolverAccessPending,
     name,
     onSave,
     onImageUploadPrepared,
@@ -94,6 +97,7 @@ export const EditProfileDialogBody = withForm({
             (hasChanges || hasPreparedImageUpload) &&
             canSubmit &&
             !isFinalizingImageSave &&
+            !isResolverAccessPending &&
             !hasAddressValidationIssues &&
             !hasGeneralValidationIssues &&
             !hasLinkValidationIssues &&

@@ -1,4 +1,5 @@
 import {
+  type Call,
   ENS_SEPOLIA_CONTRACTS,
   getSmartAccountAddress,
   type Signer,
@@ -12,6 +13,25 @@ import {
   labelhash,
   type PublicClient,
 } from 'viem'
+
+/** Strip a trailing `.eth` so a name and its bare label normalize alike. */
+const toLabel = (name: string): string => name.replace('.eth', '')
+
+export function buildSetResolverCall({
+  name,
+  newResolver,
+}: {
+  name: string
+  newResolver: Address
+}): Call {
+  const data = encodeFunctionData({
+    abi: permissionedRegistrySetResolverSnippet,
+    functionName: 'setResolver',
+    args: [BigInt(labelhash(toLabel(name))), newResolver],
+  })
+
+  return { to: ENS_SEPOLIA_CONTRACTS.ETHRegistry, data, value: 0n }
+}
 
 export interface ChangeResolverParams {
   /** ENS name, with or without the `.eth` suffix */
@@ -38,28 +58,17 @@ export function changeResolver(params: ChangeResolverParams): string {
   const from =
     signer.type === 'eoa' ? accountAddress : getSmartAccountAddress(signer)
 
-  const cleanName = name.replace('.eth', '')
-  // V2 permissioned registry derives the tokenId from labelhash directly,
-  // so no on-chain lookup is needed.
-  const tokenId = BigInt(labelhash(cleanName))
-
-  const data = encodeFunctionData({
-    abi: permissionedRegistrySetResolverSnippet,
-    functionName: 'setResolver',
-    args: [tokenId, newResolver],
-  })
-
-  const to = ENS_SEPOLIA_CONTRACTS.ETHRegistry
+  const call = buildSetResolverCall({ name, newResolver })
 
   const request: TransactionRequest =
     signer.type === 'eoa'
-      ? { type: 'eoa', from, to, data, value: 0n, chainId }
+      ? { type: 'eoa', from, to: call.to, data: call.data, value: 0n, chainId }
       : {
           type: 'rhinestone-intent',
           from,
           chainId,
           rhinestoneParams: {
-            calls: [{ to, data, value: 0n }],
+            calls: [call],
             sponsored: true,
           },
         }
@@ -68,7 +77,7 @@ export function changeResolver(params: ChangeResolverParams): string {
     { type: 'custom', request },
     signer,
     {
-      description: `Update resolver for ${cleanName}.eth`,
+      description: `Update resolver for ${toLabel(name)}.eth`,
       publicClient,
       chainId,
       operation: 'set-resolver',
