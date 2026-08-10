@@ -111,4 +111,34 @@ test.describe('Portal resolver records', () => {
       'the resolver should hold the new value, not the original',
     ).toBe('rewritten')
   })
+  test('blocks record editing for a wallet with no resolver roles', {
+    tag: ['@scenario:E5'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'rec-e5',
+      owner: 'user',
+      records: [{ key: 'description', value: 'owner only' }],
+    })
+
+    await wallets.switchTo('stranger')
+    await page.goto(`${PORTAL_APP_URL}/${name}/edit-records`)
+
+    // The guard must be the editor refusing to open, not the chain rejecting
+    // a transaction — "blocked" has to mean no transaction is constructible.
+    await expect(
+      page.getByText(/don't have permission to edit records/i),
+      'a wallet with no resolver roles must be refused up front',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: 'Add record' }),
+      'the editor controls must not be reachable at all',
+    ).toHaveCount(0)
+
+    expect(
+      await readText(name, 'description'),
+      'the existing record must be untouched',
+    ).toBe('owner only')
+  })
 })
