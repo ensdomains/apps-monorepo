@@ -12,7 +12,6 @@ import {
   permissionedRegistryGetSubregistrySnippet,
   proxyDeployedEventSnippet,
 } from '@ensdomains/ensjs-abi/v2'
-import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import {
   type Address,
@@ -31,7 +30,6 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
-import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
