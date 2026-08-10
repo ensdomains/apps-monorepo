@@ -331,7 +331,7 @@ describe('readUsdcSpend', () => {
     const cost = {
       tokensSpent: {
         '11155111': {
-          '0x1c7d4b196cb0c7b01d743fbc6116a902379c7238': {
+          '0x768f42455a2d082e23ceef7d51e5787c82d67a39': {
             locked: '0',
             unlocked: '905736',
           },

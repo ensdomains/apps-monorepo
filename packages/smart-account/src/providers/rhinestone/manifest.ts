@@ -94,9 +94,9 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
     verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
 
-    // Circle's real Sepolia USDC — deliberately NOT `ensjsSepolia.usdc`, which
-    // is MockUSDC. The app pays in the real token.
-    usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    // MockUSDC: the orchestrator accepts it as a payment token, and the
+    // api-worker faucet can mint it, so the whole route runs on one token.
+    usdc: ensjsSepolia.usdc.address,
   },
 }
 
