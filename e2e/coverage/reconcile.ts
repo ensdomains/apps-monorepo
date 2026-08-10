@@ -386,6 +386,7 @@ function loadDefects(): Defect[] {
 function harnessStatus(
   row: Scenario,
   specSources: string,
+  fixtureSources: string,
 ): { ok: boolean; evidence: string } {
   const modules = row.modules ?? []
   const missing = modules.filter((m) => !existsSync(join(e2eRoot, m)))
@@ -394,9 +395,16 @@ function harnessStatus(
   // Every module, not just one of them: the P0 exit criterion is that the
   // helper is *used*, and a harness item whose oracle half nothing imports has
   // not been exercised no matter how many other files it ships alongside.
+  //
+  // "Used" includes reaching a spec through a Playwright fixture, which is the
+  // normal way harness is consumed — a spec destructures `{ wallets }`, it does
+  // not import `wallets.js`. So a module also counts when a fixture module a
+  // spec imports pulls it in.
   const unused = modules.filter((m) => {
     const stem = m.replace(/\.ts$/, '').split('/').pop()
-    return stem ? !new RegExp(`${stem}(\\.js)?['"\`]`).test(specSources) : true
+    if (!stem) return true
+    const referenced = new RegExp(`${stem}(\\.js)?['"\`]`)
+    return !referenced.test(specSources) && !referenced.test(fixtureSources)
   })
   if (unused.length > 0) {
     return {
@@ -411,6 +419,16 @@ function harnessStatus(
 
 const allSpecFiles = specFiles()
 const specSources = allSpecFiles.map((f) => readFileSync(f, 'utf8')).join('\n')
+
+/**
+ * Fixture modules a spec pulls in transitively. Harness reaches a spec through
+ * fixture injection far more often than through a direct import, so a module
+ * referenced here counts as used — see {@link harnessStatus}.
+ */
+const fixtureSources = readdirSync(join(e2eRoot, 'fixtures'))
+  .filter((f) => f.endsWith('.ts'))
+  .map((f) => readFileSync(join(e2eRoot, 'fixtures', f), 'utf8'))
+  .join('\n')
 const taggedTests = allSpecFiles.flatMap(scanSpec)
 const executable = listExecutable()
 const outcomes = loadOutcomes()
@@ -462,7 +480,7 @@ const rows: Row[] = scenarios.map((scenario) => {
   }
 
   if (scenario.kind === 'harness') {
-    const h = harnessStatus(scenario, specSources)
+    const h = harnessStatus(scenario, specSources, fixtureSources)
     return {
       scenario,
       status: h.ok ? 'pass' : 'not-started',
@@ -535,15 +553,20 @@ const rows: Row[] = scenarios.map((scenario) => {
     }
   }
 
-  if (outcomes.size > 0) {
-    const passed = run.filter((t) => t.outcome === 'passed')
+  // A results file is usually partial — one batch, one project, one --grep.
+  // Only scenarios it actually reports on are judged by it; the rest keep
+  // their static evidence. Otherwise running a five-test batch would downgrade
+  // every other scenario in the ledger and trip the ratchet.
+  const reported = run.filter((t) => t.outcome !== undefined)
+  if (reported.length > 0) {
+    const passed = reported.filter((t) => t.outcome === 'passed')
     if (passed.length === 0) {
       return {
         scenario,
         status: 'not-started',
         tests,
         defects: open,
-        evidence: `ran but did not pass (${run.map((t) => t.outcome ?? 'no result').join(', ')})`,
+        evidence: `ran but did not pass (${reported.map((t) => t.outcome).join(', ')})`,
       }
     }
     return {
@@ -692,7 +715,7 @@ function writeReport() {
   lines.push('')
   lines.push(
     outcomes.size > 0
-      ? 'Evidence mode: **run results** — PASS means a test ran and passed.'
+      ? 'Evidence mode: **run results** — scenarios covered by the supplied report are judged on whether they actually passed; the rest keep their static evidence.'
       : 'Evidence mode: **static** — PASS means a committed, non-skipped test exists and a project config runs it. Re-run with `--results <playwright.json>` to verify against a real run.',
   )
   lines.push('')
