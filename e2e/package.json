@@ -22,8 +22,6 @@
     "viem": "catalog:"
   },
   "devDependencies": {
-    "@browserbasehq/stagehand": "^3.0.8",
-    "@playwright/mcp": "^0.0.19",
     "@playwright/test": "1.58.2",
     "tsx": "^4.20.6"
   }

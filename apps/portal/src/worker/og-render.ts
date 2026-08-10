@@ -92,22 +92,37 @@ function getPageLabel(
     : defaultLabel
 }
 
+/**
+ * Rasterise a card, or `null` when the render fails.
+ *
+ * satori/resvg run in a WASM instance that is a per-isolate singleton whose
+ * linear memory only ever grows, so a render can throw for reasons unrelated to
+ * this particular request — an avatar large enough in *pixels* (the size cap in
+ * `ens.ts` bounds encoded bytes, not decoded area) exhausts that heap on a warm
+ * isolate while the same request succeeds on a cold one.
+ *
+ * Nothing above this used to catch, so such a throw escaped to the runtime as a
+ * 1101 and the card 500'd on `/<name>` and every subpage at once. Failures are
+ * reported as `null` instead, and callers degrade to something renderable.
+ */
 async function renderOgResponse(
   html: string,
   fonts: OgFonts,
-): Promise<Response> {
-  const imageResponse = new ImageResponse(html, {
-    width: 1200,
-    height: 630,
-    fonts: buildOgFontList(fonts),
-  })
-
-  const buf = await imageResponse.arrayBuffer()
-  if (buf.byteLength === 0) {
-    return new Response('OG image rendering produced empty output', {
-      status: 500,
+): Promise<Response | null> {
+  let buf: ArrayBuffer
+  try {
+    const imageResponse = new ImageResponse(html, {
+      width: 1200,
+      height: 630,
+      fonts: buildOgFontList(fonts),
     })
+    buf = await imageResponse.arrayBuffer()
+  } catch {
+    return null
   }
+
+  // workers-og can also fail by producing no bytes rather than throwing.
+  if (buf.byteLength === 0) return null
 
   return new Response(buf, {
     headers: {
@@ -124,15 +139,12 @@ function renderOgHeader(): string {
     </div>`
 }
 
-export async function renderOgImage(
+function nameOgHtml(
   name: string,
   avatar: string | null,
   owner: string | null,
-  requestUrl: string,
-  env: Env,
-  subpage: string | null = null,
-): Promise<Response> {
-  const fonts = await loadOgFonts(env, requestUrl)
+  subpage: string | null,
+): string {
   const available = !owner
   const displayName = truncate(name, 28)
   const headerHtml = renderOgHeader()
@@ -183,7 +195,35 @@ export async function renderOgImage(
   `
   }
 
-  return renderOgResponse(html, fonts)
+  return html
+}
+
+/**
+ * Render the name card, falling back to the avatar-less variant if the avatar
+ * is what the renderer choked on.
+ *
+ * The avatar is the only part of this card whose cost is set by someone else —
+ * every other element is fixed-size markup we control — so a render that fails
+ * with one and succeeds without it is the expected shape of the failure. The
+ * fallback is the same initial-letter tile a name with no avatar record gets.
+ */
+export async function renderOgImage(
+  name: string,
+  avatar: string | null,
+  owner: string | null,
+  requestUrl: string,
+  env: Env,
+  subpage: string | null = null,
+): Promise<Response | null> {
+  const fonts = await loadOgFonts(env, requestUrl)
+
+  const rendered = await renderOgResponse(
+    nameOgHtml(name, avatar, owner, subpage),
+    fonts,
+  )
+  if (rendered || !avatar) return rendered
+
+  return renderOgResponse(nameOgHtml(name, null, owner, subpage), fonts)
 }
 
 export async function renderAddressOgImage(
@@ -191,7 +231,7 @@ export async function renderAddressOgImage(
   requestUrl: string,
   env: Env,
   subpage: string | null = null,
-): Promise<Response> {
+): Promise<Response | null> {
   const fonts = await loadOgFonts(env, requestUrl)
   const displayAddress = truncateAddress(address, 6, 5)
   const headerHtml = renderOgHeader()
@@ -240,7 +280,7 @@ async function renderContractOgImage(params: {
   pageLabel: string
   requestUrl: string
   env: Env
-}): Promise<Response> {
+}): Promise<Response | null> {
   const fonts = await loadOgFonts(params.env, params.requestUrl)
   const displayAddress = truncateAddress(params.address, 6, 5)
   const headerHtml = renderOgHeader()
@@ -291,7 +331,7 @@ export async function renderResolverOgImage(
   env: Env,
   subpage: string | null = null,
   isPermissioned = false,
-): Promise<Response> {
+): Promise<Response | null> {
   return renderContractOgImage({
     address,
     // Sync icon (per Figma) rendered at its native 93×90 aspect ratio.
@@ -310,7 +350,7 @@ export async function renderRegistryOgImage(
   requestUrl: string,
   env: Env,
   subpage: string | null = null,
-): Promise<Response> {
+): Promise<Response | null> {
   return renderContractOgImage({
     address,
     // Shield icon rendered at its native 25×31 aspect ratio (scaled up).
@@ -327,7 +367,7 @@ export async function renderRegistryOgImage(
 export async function renderDefaultOgImage(
   requestUrl: string,
   env: Env,
-): Promise<Response> {
+): Promise<Response | null> {
   const fonts = await loadOgFonts(env, requestUrl)
 
   const html = `
@@ -346,7 +386,7 @@ export async function renderTldOgImage(
   tld: string,
   requestUrl: string,
   env: Env,
-): Promise<Response> {
+): Promise<Response | null> {
   const fonts = await loadOgFonts(env, requestUrl)
   const displayTld = tld.toUpperCase()
   const headerHtml = renderOgHeader()

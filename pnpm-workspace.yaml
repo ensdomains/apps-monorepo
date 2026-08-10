@@ -24,9 +24,12 @@ catalog:
   # v3 all connector deps are optional peers, and autoInstallPeers is false, so it
   # must be declared explicitly or the prod bundle fails to resolve it at runtime.
   "@walletconnect/ethereum-provider": ~2.21.1
-  wagmi: ^3.0.2
-  "@wagmi/core": ^3.0.0
-  "@wagmi/connectors": ^7.1.1
+  # wagmi pins @wagmi/core and @wagmi/connectors to exact versions, so these
+  # three only ever move together — bumping one alone just re-duplicates the
+  # tree at wagmi's pinned version.
+  wagmi: ^3.7.6
+  "@wagmi/core": ^3.6.4
+  "@wagmi/connectors": ^8.1.0
 
 catalogs:
   typescript6:
