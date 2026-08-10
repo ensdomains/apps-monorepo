@@ -11,7 +11,6 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
 export const Route = createFileRoute('/$name/')({
@@ -37,22 +36,11 @@ export const Route = createFileRoute('/$name/')({
     const isPastGrace = isPastGracePeriod(expiryDate, true)
 
     if (isPastGrace) {
-      throw redirect(
-        isFeatureEnabled('REGISTRATION_V2')
-          ? {
-              params: { name },
-              to: '/register/$name',
-              replace: true,
-            }
-          : {
-              search: {
-                name,
-                duration: 1,
-              },
-              to: '/register',
-              replace: true,
-            },
-      )
+      throw redirect({
+        params: { name },
+        to: '/register/$name',
+        replace: true,
+      })
     }
 
     if (ownerData?.owner) {
