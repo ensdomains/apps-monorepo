@@ -196,8 +196,11 @@ export const getPrimaryContactItems = (
 export const getSecondarySocialRecords = (
   records: ProfileRecords,
 ): TextRecordValue[] => {
+  const configuredPrimaryContactKeys = parsePrimaryContactKeys(records.base)
   const primaryContactKeys = new Set<string>(
-    parsePrimaryContactKeys(records.base),
+    configuredPrimaryContactKeys.length > 0
+      ? getPrimaryContactItems(records).map((item) => item.key)
+      : configuredPrimaryContactKeys,
   )
 
   return records.social.filter(
