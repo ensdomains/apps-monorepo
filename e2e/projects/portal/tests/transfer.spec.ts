@@ -1,16 +1,10 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAddressRecord } from '@ensdomains/ensjs/public'
 import { hasRoles } from '@ensdomains/ensjs/public/v2'
-import {
-  createSubnameV2,
-  deploySubregistry,
-  setRecords,
-  setSubregistry,
-} from '@ensdomains/ensjs/wallet'
+import { setRecords } from '@ensdomains/ensjs/wallet'
 import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
-  proxyDeployedEventSnippet,
 } from '@ensdomains/ensjs-abi/v2'
 import type { Page } from '@playwright/test'
 import {
@@ -18,9 +12,6 @@ import {
   createWalletClient,
   type Hash,
   http,
-  keccak256,
-  parseEventLogs,
-  stringToBytes,
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -42,15 +33,6 @@ const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
 // Same chain contracts `makeName` reads from — see e2e/fixtures/makeName.ts.
 const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
-const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
-const USER_REGISTRY_IMPL = ensjsSepolia.ensUserRegistryImpl.address
-
-// `deploySubregistryWriteParameters`'s default for the admin it deploys with
-// (see ensjs's deploySubregistry.ts) — not exported, so redeclared here, same
-// as the app's own create-subname.helpers.ts does.
-const FULL_ROLE_BITMAP = BigInt(
-  '0x1111111111111111111111111111111111111111111111111111111111111111',
-)
 
 /** A wallet client for `ownerPrivateKey`, pointed at the local Anvil fork. */
 function getOwnerClient(ownerPrivateKey: Hash) {
