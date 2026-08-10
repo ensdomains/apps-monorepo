@@ -100,7 +100,7 @@ const FULL_ROLE_BITMAP = BigInt(
  * A VerifiableFactory CREATE2 proxy, so it is derived from the whole account
  * config — factory, implementation, verifiable factory, proxy logic and
  * userSalt(0). It therefore MOVES whenever any of those change in the manifest;
- * it last changed with the 2026-07-30 redeploy.
+ * it last changed with the 2026-08-10 redeploy (contracts-v2 #409).
  *
  * Hardcoded for the same reason as the addresses in
  * `infra/scripts/print-standalone-hca-addresses.mjs`: the derivation lives in
@@ -108,7 +108,7 @@ const FULL_ROLE_BITMAP = BigInt(
  * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
  * address for mockestrator impersonation gas — keep the two in sync.
  */
-const STANDALONE_HCA = '0x4e98a16ECa5Abea3325BFf8998787AEA8328779A' as Address
+const STANDALONE_HCA = '0x48B9c6898baFc8A3D3a495BF7c44CF3351486628' as Address
 
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(
