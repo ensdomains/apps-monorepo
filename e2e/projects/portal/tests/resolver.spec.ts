@@ -219,4 +219,35 @@ test.describe('Portal resolver', () => {
       `${name} resolves through ${resolver} and should be listed as a node`,
     ).toContainText(name, { timeout: 30_000 })
   })
+
+  test('refuses alias creation without ROLE_SET_ALIAS', {
+    tag: ['@scenario:E10'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'res-e10',
+      owner: 'user',
+      records: [{ key: 'seed', value: 'a' }],
+    })
+    const resolver = await readResolver(name.replace(/\.eth$/, ''))
+
+    // The route short-circuits with "This resolver has no nodes" before it
+    // evaluates permissions at all, and its node list is indexer-backed — so
+    // without this wait the test intermittently asserts against the wrong
+    // page entirely.
+    await waitForIndexedName(name)
+
+    await wallets.switchTo('stranger')
+    await page.goto(`${PORTAL_APP_URL}/resolver/${resolver}/create-alias`)
+
+    await expect(
+      page.getByText(/does not have the ROLE_SET_ALIAS permission/i),
+      'a wallet without ROLE_SET_ALIAS must be told so',
+    ).toBeVisible({ timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: /^Create alias$/ }),
+      'and must not be able to submit',
+    ).toBeDisabled()
+  })
 })
