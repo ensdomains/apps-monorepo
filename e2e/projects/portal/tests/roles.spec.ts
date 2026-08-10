@@ -20,6 +20,7 @@
 
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { type Account, type Address, encodeFunctionData, parseAbi } from 'viem'
+import { createMakeV1Name } from '../../../fixtures/makeV1Name.js'
 import {
   connectWithHeadlessWallet,
   expect,
@@ -59,6 +60,17 @@ const roleLabel = (role: string) =>
     .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
+
+/** `PermissionedRegistry.getStatus` — 1 is RESERVED. */
+const RESERVED = 1
+
+const readStatus = (label: string) =>
+  publicClient.readContract({
+    address: ETH_REGISTRY,
+    abi: parseAbi(['function getStatus(uint256 anyId) view returns (uint8)']),
+    functionName: 'getStatus',
+    args: [labelToCanonicalId(label)],
+  })
 
 const rolesPage = (name: string) => `${PORTAL_APP_URL}/${name}/roles`
 
@@ -503,6 +515,41 @@ test.describe('Portal name roles', () => {
     await expect(
       table.locator('tr', { hasText: truncate(oldOwner) }),
       'the previous owner must no longer be listed',
+    ).toHaveCount(0)
+  })
+
+  test('shows no role holders for a name that is only reserved', {
+    tag: ['@scenario:C8'],
+  }, async ({ portalPage: page, wallet, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    // A V1 registration reserves the V2 slot with owner = 0 and an empty role
+    // bitmap, so there is genuinely nobody to list. Measured: getStatus is
+    // RESERVED(1), the V1 owner holds no V2 roles, and a grant against the
+    // reserved slot reverts EACCannotGrantRoles.
+    const makeV1Name = createMakeV1Name({
+      userAccount: wallets.account('owner'),
+    })
+    const v1Name = await makeV1Name({ label: 'roles-c8' })
+    const label = v1Name.replace(/\.eth$/, '')
+
+    expect(
+      await readStatus(label),
+      'the V1 registration should have reserved the V2 slot',
+    ).toBe(RESERVED)
+    await assertRoleBitmap({ label }, wallets.address('owner'), [])
+
+    await page.goto(rolesPage(v1Name))
+
+    await expect(
+      nameRolesSection(page).locator('tr', {
+        hasText: truncate(wallets.address('owner')),
+      }),
+      'a reserved slot has no owner, so nobody may be listed as a role holder',
+    ).toHaveCount(0, { timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: 'Add user' }),
+      'and role management must not be offered on a slot nobody owns',
     ).toHaveCount(0)
   })
 })
