@@ -18,7 +18,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
   match(step)
     .with({ type: 'deploy-hca' }, () => (
       <>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
           <Trans>Create migration account</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
@@ -32,7 +32,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
       { type: 'approval', approvalId: 'base-registrar:hca-token' },
       ({ name }) => (
         <>
-          <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+          <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
             {name ? (
               <Trans>Approve {name}</Trans>
             ) : (
@@ -51,7 +51,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
       { type: 'approval', approvalId: 'base-registrar:hca' },
       ({ count }) => (
         <>
-          <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+          <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
             {count ? (
               <Plural
                 one="Approve # registration"
@@ -70,7 +70,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
     )
     .with({ type: 'approval', approvalId: 'name-wrapper:hca' }, () => (
       <>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
           <Trans>Approve wrapped names</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
@@ -80,7 +80,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
     ))
     .with({ type: 'approval', approvalId: 'eth-registry:hca' }, () => (
       <>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
           <Trans>Approve manager restoration</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
@@ -90,7 +90,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
     ))
     .with({ type: 'atomic-batch' }, ({ count, index, total }) => (
       <>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
           {total > 1 ? (
             <Trans>
               Upgrade batch {index + 1} of {total}
@@ -110,7 +110,7 @@ const StepCopy = ({ step }: StepCopyProps) =>
     ))
     .with({ type: 'cleanup' }, () => (
       <>
-        <h3 className="text-pretty font-medium text-ens-garnet-900 text-base leading-tight">
+        <h3 className="text-pretty font-medium text-base text-ens-garnet-900 leading-tight">
           <Trans>Revoke temporary HCA access</Trans>
         </h3>
         <p className="text-pretty text-ens-garnet-800/75 text-sm leading-normal">
@@ -158,7 +158,7 @@ export const WalletConfirmationStepsDialog = ({
         className="gap-0 overflow-hidden border-0 bg-ens-garnet-50 p-0 shadow-lg motion-reduce:duration-0 sm:max-w-[440px]"
         overlayClassName="bg-ens-garnet-900/50"
       >
-        <DialogHeader className="gap-1.5 px-5 pt-5 pb-3 pr-12 text-left sm:px-6 sm:pt-6 sm:pr-12">
+        <DialogHeader className="gap-1.5 px-5 pt-5 pr-12 pb-3 text-left sm:px-6 sm:pt-6 sm:pr-12">
           <DialogTitle className="text-balance font-normal text-ens-garnet-900 text-xl leading-tight tracking-tight">
             <Trans>Wallet confirmations</Trans>
           </DialogTitle>
@@ -187,7 +187,7 @@ export const WalletConfirmationStepsDialog = ({
           ))}
         </ol>
 
-        <p className="px-5 pt-2 pb-5 text-pretty text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
+        <p className="text-pretty px-5 pt-2 pb-5 text-ens-garnet-800/70 text-xs leading-normal sm:px-6 sm:pb-6">
           <Trans>
             Nothing is signed automatically. Review every request in your
             wallet.
