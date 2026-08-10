@@ -15,6 +15,7 @@
  *
  * The registered name is owned by the specified account's EOA address.
  */
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
   type Address,
   encodeFunctionData,
@@ -51,11 +52,20 @@ export const V1_ENS_REGISTRY =
 // ---------------------------------------------------------------------------
 // V2 Contract addresses — used by reserveInV2()
 // ---------------------------------------------------------------------------
-// ETH Registry (PermissionedRegistry for .eth)
-const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
-// ETH Registrar — has ROLE_REGISTRAR on V2_ETH_REGISTRY (baked by bake-contracts.py)
-// We impersonate it to create RESERVED entries for dynamically-created test names.
-const V2_ETH_REGISTRAR = '0x68586418353b771cf2425ed14a07512aa880c532' as Address
+// Resolved from the ensjs Sepolia chain config, the same source the apps read.
+// These were hardcoded to 0x796fff2e… / 0x68586418…, a superseded deployment
+// that is still present on the fork — so reservations landed in a registry the
+// apps never look at, and `getStatus` on the live registry kept reporting
+// AVAILABLE while this fixture logged "already RESERVED". Same failure family
+// as the address fixed in helpers/migration-assertions.ts.
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+/** PermissionedRegistry for `.eth`. */
+const V2_ETH_REGISTRY = ensjsSepolia.ensRegistry.address
+/**
+ * Holds `ROLE_REGISTRAR` on the registry above. Impersonated to create
+ * RESERVED entries for dynamically created test names.
+ */
+const V2_ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 
 // ---------------------------------------------------------------------------
 // ABIs — struct-based V1 controller
@@ -191,6 +201,13 @@ export async function reserveInV2(
   console.log(`[reserveInV2] reserving ${label}.eth in V2 (expiry=${v1Expiry})`)
 
   await testClient.impersonateAccount({ address: V2_ETH_REGISTRAR })
+  // The registrar is a contract, so it holds no ETH to pay for gas as an
+  // impersonated sender. Fund it rather than let the send fail — the previous
+  // catch-all made that failure look like a successful no-op.
+  await testClient.setBalance({
+    address: V2_ETH_REGISTRAR,
+    value: 10_000_000_000_000_000_000n, // 10 ETH
+  })
   try {
     const hash = await walletClient.sendTransaction({
       account: V2_ETH_REGISTRAR,
@@ -211,9 +228,13 @@ export async function reserveInV2(
     await waitForTx(hash)
     console.log(`[reserveInV2] ✅ ${label}.eth RESERVED in V2`)
   } catch (err: unknown) {
-    // LabelAlreadyReserved → already RESERVED, nothing to do
+    // Only a genuine "already reserved" is benign. This used to also match any
+    // message containing "0x" — which is every viem revert, since they all
+    // carry an address or selector — so every failure was swallowed and logged
+    // as a success. The reservation silently never happened and callers had no
+    // way to tell.
     const msg = err instanceof Error ? err.message : String(err)
-    if (msg.includes('LabelAlreadyReserved') || msg.includes('0x')) {
+    if (msg.includes('LabelAlreadyReserved')) {
       console.log(`[reserveInV2] ${label}.eth already RESERVED, skipping`)
     } else {
       throw err
