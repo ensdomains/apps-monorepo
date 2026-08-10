@@ -37,14 +37,17 @@ class SignatureVerificationError extends TaggedError(
 
 class VerificationKeyConfigurationError extends TaggedError(
   'VERIFICATION_KEY_CONFIGURATION_ERROR',
-) {}
+)<{
+  cause: unknown
+}> {}
 
 const importVerificationKey = ResultFn(async function* (publicKey: string) {
   const keyData = yield* fromSync(
     () => Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
-    () =>
+    (cause) =>
       new VerificationKeyConfigurationError({
         message: 'Invalid base64 encoding',
+        cause,
       }),
   )
 
@@ -56,9 +59,10 @@ const importVerificationKey = ResultFn(async function* (publicKey: string) {
       false,
       ['verify'],
     ),
-    () =>
+    (cause) =>
       new VerificationKeyConfigurationError({
         message: 'Invalid SPKI verification key',
+        cause,
       }),
   )
 
