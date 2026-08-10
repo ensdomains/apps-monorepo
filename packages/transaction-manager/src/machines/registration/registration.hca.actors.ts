@@ -34,6 +34,7 @@ import {
   type QuoteLegResult,
   readCommitment,
   readRegisterPrice,
+  registerLegGasLimit,
 } from '@ens-apps/smart-account'
 import type { Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
@@ -310,6 +311,12 @@ export function estimateHcaBudgetActor(input: {
   chainId: number
   signer?: Signer
   sessionEnable?: HcaSessionEnableParams
+  /**
+   * The primary name the reveal batch will set, when the user opted in. Must
+   * be the SAME value handed to `submitRevealBatchActor` — it changes the
+   * batch, and this budget sizes the funding permit.
+   */
+  primaryName?: string
 }): ResultAsync<HcaBudgetBreakdown, Error> {
   const label = cleanLabel(input.name)
   const chainId = input.chainId
@@ -403,12 +410,21 @@ export function estimateHcaBudgetActor(input: {
             secret: `0x${'22'.repeat(32)}` as Hex,
             price,
             duration: input.duration,
+            // Quote the SAME batch `submitRevealBatchActor` submits.
+            //
+            // This is for fidelity, NOT for pricing. Measured against the live
+            // orchestrator: an identical request differing only in this call
+            // prices to the same USDC unit (450k gas limit, 5 vs 6 executions
+            // → 3277666 both times). The rail prices `/intents/route` purely
+            // on `destinationGasUnits`, so what actually funds this call is
+            // `registerLegGasLimit` below.
+            ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
           })
           return quoteIntentSpendUsdc(
             rhinestone.account,
             chain,
             toCalls(revealCalls),
-            HCA_LEG_GAS_LIMITS.register,
+            registerLegGasLimit(input.primaryName),
             baseSigners,
             incomingUsdc,
           )
@@ -434,6 +450,7 @@ export function estimateHcaBudgetActor(input: {
         label,
         duration: input.duration,
         hcaBalanceUsdc,
+        ...(input.primaryName ? { primaryName: input.primaryName } : {}),
         ...(quoteLegCostUsdc ? { quoteLegCostUsdc } : {}),
       })
 
@@ -500,7 +517,6 @@ function buildUserPaidRequest(params: {
     chainId: params.chainId,
     rhinestoneParams: {
       calls: params.calls,
-      sponsored: { gas: false, bridging: false, swaps: false },
       feeAsset: 'USDC',
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }

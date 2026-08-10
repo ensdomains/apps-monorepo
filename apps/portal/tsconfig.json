@@ -4,7 +4,11 @@
     "target": "es2023",
     "jsx": "react-jsx",
     "module": "ESNext",
-    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // ESNext.Temporal supplies the ambient `Temporal` namespace. temporal-polyfill
+    // v1 no longer ships it: `/global` is runtime-only there, so the types must
+    // come from the TS lib. Still esnext-only — fold into the ES lib once
+    // TypeScript ships an ES2026 lib.
+    "lib": ["ES2023", "ESNext.Temporal", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
 
     /* Bundler mode */
