@@ -36,11 +36,11 @@ Committed tests that no project config executes. Not counted as terminal.
 
 | ID | § | Scenario | Status | Evidence |
 |---|---|---|---|---|
-| HW1 <sub>(H1)</sub> | 2 | makeV2Name role parameterisation + assertRoleBitmap oracle | not-started | missing: helpers/role-assertions.ts |
+| HW1 <sub>(H1)</sub> | 2 | makeV2Name role parameterisation + assertRoleBitmap oracle | not-started | exists but no spec imports fixtures/makeV2Name.ts, helpers/role-assertions.ts |
 | HW2 <sub>(H2)</sub> | 2 | makeSubname fixture — N-deep V2 subnames with per-level owner and roles | not-started | missing: fixtures/makeSubname.ts |
-| HW3 <sub>(H3)</sub> | 2 | Multi-wallet fixture — owner/manager/stranger switchable without reload | not-started | missing: fixtures/wallets.ts |
+| HW3 <sub>(H3)</sub> | 2 | Multi-wallet fixture — owner/manager/stranger switchable without reload | not-started | exists but no spec imports fixtures/wallets.ts |
 | HW4 <sub>(H4)</sub> | 2 | Deterministic time presets — atExpiry/inGrace/atGraceEnd/inPremium/afterPremium | not-started | missing: fixtures/time-presets.ts |
-| HW5 <sub>(H5)</sub> | 2 | Snapshot/revert per test (evm_snapshot / evm_revert) | not-started | missing: fixtures/chain-snapshot.ts |
+| HW5 <sub>(H5)</sub> | 2 | Snapshot/revert per test (evm_snapshot / evm_revert) | not-started | exists but no spec imports fixtures/chain-snapshot.ts |
 | HW6 <sub>(H6)</sub> | 2 | Panoptes seeding path — real indexer fixture for indexer-oracle tests | not-started | missing: fixtures/panoptes.ts |
 | HW7 <sub>(H7)</sub> | 2 | Cross-app fixture — one context, two base URLs, shared wallet and chain state | not-started | missing: fixtures/playwright.cross-app.fixture.ts |
 | HW8 <sub>(H8)</sub> | 2 | ConsoleMonitor transaction-id catalogue | not-started | missing: helpers/transaction-ids.ts |

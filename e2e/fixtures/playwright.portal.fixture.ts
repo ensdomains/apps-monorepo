@@ -34,6 +34,7 @@ import {
 import { createMakeMigratedName } from './makeMigratedName.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
+import { createWallets, type Wallets } from './wallets.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -194,6 +195,11 @@ type PortalFixtures = {
   makeName: ReturnType<typeof createMakeName>
   /** Register a V1 name and migrate it to V2 (unwrapped / unlocked / locked). */
   makeMigratedName: ReturnType<typeof createMakeMigratedName>
+  /**
+   * Named participants (owner / manager / stranger) with mid-test switching.
+   * Every authorization negative case needs this — see `fixtures/wallets.ts`.
+   */
+  wallets: Wallets
 }
 
 export const test = base.extend<PortalFixtures>({
@@ -236,6 +242,10 @@ export const test = base.extend<PortalFixtures>({
 
   makeMigratedName: async ({ accounts }, use) => {
     await use(createMakeMigratedName({ accounts }))
+  },
+
+  wallets: async ({ page, wallet, accounts }, use) => {
+    await use(createWallets({ page, wallet, accounts }))
   },
 })
 
