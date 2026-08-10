@@ -33,7 +33,7 @@ export const ENS_SEPOLIA_CONTRACTS = {
   // HCA forwarders for the two v1 reverse registrars (canonical deployment,
   // contracts-v2 docs/addresses/sepolia.md @ 97a5729).
   DefaultReverseRegistrarAdapter: '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
-  ReverseRegistrarAdapter: '0x035ae6188AC22ab79B5018039DFbDA4FFE7990e9',
+  ReverseRegistrarAdapter: '0x035ae6188ac22ab79b5018039dFbda4FFe7990e9',
 } as const
 
 // Payment tokens the V2 registrar actually accepts (its PAYMENT_TOKEN /
