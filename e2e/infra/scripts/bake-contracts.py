@@ -150,8 +150,8 @@ PAYMENT_TOKENS = [
 # modules (Intent Executor, etc.) are already baked by
 # bake_rhinestone_infrastructure() and are reused as-is.
 SH_STANDALONE_HCA_FACTORY       = "0x900ff7cf617ef9d802178b4ef480491e3a782672"
-SH_STANDALONE_HCA_IMPL          = "0xd213de41421fed3a5e475943f9d634a0cf64a385"
-SH_HCA_OWNER_SESSION_VALIDATOR  = "0x976d90c51afb2c11660eaee94bd42a7e84751d08"
+SH_STANDALONE_HCA_IMPL          = "0xaa761541620fc1a42bb701a26a9f107a9df1e904"
+SH_HCA_OWNER_SESSION_VALIDATOR  = "0x5f249fca8bb4949105651146858c347e8bfb0f7e"
 SH_VERIFIABLE_FACTORY           = "0x10dc6333cdfe1fcef624c6e0a8221b91804cd7ef"
 # Not a standalone artifact — VerifiableFactory creates it in its constructor
 # and exposes it as the `proxyLogic` immutable; must stay paired with the factory.

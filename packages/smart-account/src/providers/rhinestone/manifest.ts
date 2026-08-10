@@ -82,10 +82,12 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     ethRegistrar: ensjsSepolia.ensEthRegistrar.address,
     ethRegistry: ensjsSepolia.ensRegistry.address,
 
-    // Not in ensjs yet. Addresses from contracts-v2
-    // `contracts/docs/addresses/sepolia.md` @ 97a5729 (deployed 2026-07-30).
-    standaloneHcaImplementation: '0xD213De41421Fed3a5E475943F9D634A0cf64a385',
-    hcaOwnerAndSessionValidator: '0x976D90c51Afb2C11660EaeE94bD42A7e84751D08',
+    // Not in ensjs yet. Addresses from contracts-v2 PR #409 (deployed
+    // 2026-08-10): validator accepts Circle USDC (primary) and MockUSDC
+    // (secondary) as session refund tokens; the implementation follows because
+    // it pins the validator as a constructor immutable.
+    standaloneHcaImplementation: '0xAA761541620fC1a42bb701a26a9f107A9DF1E904',
+    hcaOwnerAndSessionValidator: '0x5f249FCa8bB4949105651146858c347E8BFb0F7E',
     defaultReverseRegistrarHcaAdapter:
       '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
