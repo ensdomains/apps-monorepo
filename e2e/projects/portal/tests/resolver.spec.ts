@@ -14,6 +14,7 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient } from '../../../helpers/anvil-client.js'
+import { waitForIndexedName } from '../../../helpers/indexer-sync.js'
 import { ETH_REGISTRY } from '../../../helpers/role-assertions.js'
 import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 
@@ -156,5 +157,66 @@ test.describe('Portal resolver', () => {
       (await readResolver(label)).toLowerCase(),
       'detaching should clear the resolver slot on the registry',
     ).toBe(zeroAddress)
+  })
+
+  test('refuses to change the resolver without ROLE_SET_RESOLVER', {
+    tag: ['@scenario:E7'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'res-e7',
+      owner: 'user',
+      records: [{ key: 'seed', value: 'a' }],
+    })
+    const label = name.replace(/\.eth$/, '')
+    const before = await readResolver(label)
+
+    await wallets.switchTo('stranger')
+    await page.goto(`${PORTAL_APP_URL}/${name}/change-resolver`)
+
+    // Route-level guard, not a disabled button: the form must not render at
+    // all for a wallet that cannot perform the write.
+    await expect(page.getByText('Permission Denied')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(page.getByText('ROLE_SET_RESOLVER')).toBeVisible()
+    await expect(
+      page.getByRole('switch', { name: 'Use custom resolver' }),
+      'the resolver form must not be reachable',
+    ).toHaveCount(0)
+
+    expect(
+      (await readResolver(label)).toLowerCase(),
+      'the resolver must be untouched',
+    ).toBe(before.toLowerCase())
+  })
+
+  test('lists the names a resolver serves on its nodes page', {
+    tag: ['@scenario:E11'],
+  }, async ({ portalPage: page, wallet, makeName }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({
+      label: 'res-e11',
+      owner: 'user',
+      records: [{ key: 'seed', value: 'a' }],
+    })
+    const resolver = await readResolver(name.replace(/\.eth$/, ''))
+
+    await waitForIndexedName(name)
+    await page.goto(`${PORTAL_APP_URL}/resolver/${resolver}/nodes`)
+
+    // The dedicated resolver serves exactly this name, so it must appear as
+    // one of its nodes — the page is derived from resolver state, and this
+    // is the on-chain fact it should reflect.
+    // Assert the table's text rather than matching an element by name: the
+    // name cell wraps an EntityBadge that keeps a hidden copy-to-clipboard
+    // duplicate of the name, so element-level matches resolve to the hidden
+    // one and report `hidden` even though the row is plainly on screen.
+    await expect(
+      page.locator('table'),
+      `${name} resolves through ${resolver} and should be listed as a node`,
+    ).toContainText(name, { timeout: 30_000 })
   })
 })
