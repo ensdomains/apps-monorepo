@@ -35,9 +35,26 @@ import {
   walletClient,
 } from '../helpers/anvil-client.js'
 
+const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
+
 // ---------------------------------------------------------------------------
 // V1 Contract addresses (Sepolia fork)
 // ---------------------------------------------------------------------------
+// NOTE: these point at a *different* V1 deployment from the one the apps read.
+// `apps/manager/.../checkHelperApprovals.ts` resolves
+// `ensBaseRegistrarImplementation` / `ensNameWrapper` through ensjs, giving
+// 0x57f1887a… / 0x0635513f…, while these are 0x64096092… / 0xc7e033b8…. Both
+// deployments are live on the fork, so registration succeeds — into a
+// registrar the migration UI never reads. Every name this fixture creates is
+// therefore invisible to the app under test, which is the root reason §5.G is
+// untestable.
+//
+// Switching them is not address-only despite the two controllers sharing an
+// ABI (verified: identical commitment hashes). `register` reverts on the ensjs
+// controller, so the registration flow needs adapting — fee, commitment age or
+// parameter semantics. Tracked in e2e/docs/e2e-defects.md; left pointing at
+// the old deployment until that work is done, because a half-rewired fixture
+// is worse than a consistently wrong one.
 const V1_ETH_REGISTRAR_CONTROLLER =
   '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
 export const V1_BASE_REGISTRAR =
@@ -58,7 +75,6 @@ export const V1_ENS_REGISTRY =
 // apps never look at, and `getStatus` on the live registry kept reporting
 // AVAILABLE while this fixture logged "already RESERVED". Same failure family
 // as the address fixed in helpers/migration-assertions.ts.
-const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 /** PermissionedRegistry for `.eth`. */
 const V2_ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 /**
