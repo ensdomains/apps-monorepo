@@ -98,3 +98,20 @@ ruling, and the options are genuinely different work:
   the UI is missing it, and that is a feature defect rather than a test one.
 
 E10 (alias creation without `ROLE_SET_ALIAS`) is unaffected and passes.
+
+### E12 and E14 are not reachable through the portal
+
+Checked while scoping the §5.E tail; recording so the next session does not
+re-derive it.
+
+- **E14 (resolver upgrade)** — there is no upgrade affordance anywhere under
+  `routes/resolver/` or `features/resolver/`. `test_upgrade` / `canUpgradeFrom`
+  are contract-level only.
+- **E12 (multicall partial failure)** — record saves go through
+  `multicallWithNodeCheck` (`features/records/helpers/saveRecords.ts`), which
+  is atomic: the batch either lands or reverts. There is no partial-success
+  state for the UI to surface, so "partial error semantics surfaced, not
+  silently swallowed" has nothing to assert against.
+
+Both need the same ruling as E9 — exempt to the contract suite, or redefine.
+Left non-terminal rather than claimed.

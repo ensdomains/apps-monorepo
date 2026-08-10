@@ -32,6 +32,7 @@ import {
   grantNameRoles,
   readNameRoles,
   readRoleHolders,
+  revokeNameRoles,
 } from '../../../helpers/role-assertions.js'
 import {
   driveTransactionsToSuccess,
@@ -275,6 +276,89 @@ test.describe('Portal name roles', () => {
     await expect(
       table.getByRole('button', { name: 'Edit user roles' }),
       'a non-admin must not be offered the per-row role editor',
+    ).toHaveCount(0)
+  })
+
+  test('records every grant and revoke in the role history', {
+    tag: ['@scenario:C11'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const manager = wallets.address('manager')
+    const name = await makeName({ label: 'roles-c11', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+
+    // Grant two, revoke one. Revoking everything would drop the account from
+    // the table entirely (RolesTable filters empty role sets), taking the row
+    // that opens the history with it.
+    await grantNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER', 'ROLE_SET_SUBREGISTRY'],
+      wallets.account('owner'),
+    )
+    await revokeNameRoles(
+      { label },
+      manager,
+      ['ROLE_SET_RESOLVER'],
+      wallets.account('owner'),
+    )
+    await assertRoleBitmap({ label }, manager, ['ROLE_SET_SUBREGISTRY'])
+
+    await awaitIndexed(label, [manager])
+    await page.goto(rolesPage(name))
+    const table = nameRolesSection(page)
+    const managerRow = table.locator('tr', { hasText: truncate(manager) })
+    await expect(managerRow).toHaveCount(1, { timeout: 30_000 })
+    await managerRow.getByRole('button', { name: 'Edit user roles' }).click()
+
+    await expect(page.getByRole('heading', { name: 'History' })).toBeVisible({
+      timeout: 20_000,
+    })
+
+    // Both transitions must be present as signed diffs — a history that only
+    // shows the current state, or drops the revoke, is not a history.
+    const history = page.locator('table').last()
+    await expect(
+      history,
+      'the grant of both roles should appear',
+    ).toContainText('+ ROLE_SET_SUBREGISTRY', { timeout: 20_000 })
+    await expect(
+      history,
+      'the later revoke should appear as a removal, not as an absence',
+    ).toContainText('- ROLE_SET_RESOLVER')
+  })
+
+  test('shows no role holders once the name has expired', {
+    tag: ['@scenario:C7'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    // Measured on the fork: expiry takes the name to AVAILABLE and clears the
+    // owner's roles outright — a grant attempted afterwards reverts
+    // EACCannotGrantRoles. So there is nothing for the roles table to list.
+    const name = await makeName({
+      label: 'roles-c7',
+      owner: 'user',
+      duration: -86_400,
+    })
+    const label = name.replace(/\.eth$/, '')
+    const owner = wallets.address('owner')
+
+    await assertRoleBitmap({ label }, owner, [])
+
+    await page.goto(rolesPage(name))
+
+    // The table is rebuilt by replaying EACRolesChanged events, and expiry
+    // emits none — so a table that still lists the former owner is reporting
+    // authority that no longer exists on chain.
+    await expect(
+      nameRolesSection(page).locator('tr', { hasText: truncate(owner) }),
+      'an expired name must not still list its former owner as a role holder',
+    ).toHaveCount(0, { timeout: 30_000 })
+    await expect(
+      page.getByRole('button', { name: 'Add user' }),
+      'and must not offer role management',
     ).toHaveCount(0)
   })
 })
