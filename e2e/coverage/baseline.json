@@ -1,14 +1,14 @@
 {
-  "updated": "2026-08-09",
+  "updated": "2026-08-10",
   "note": "Terminal scenario counts per phase (PASS + DEFECT + EXEMPT). May only increase — see e2e/docs/e2e-goal.md. Raise with `pnpm e2e:coverage --update`.",
   "phases": {
-    "P0": 0,
-    "P1": 0,
+    "P0": 2,
+    "P1": 2,
     "P2": 2,
     "P3": 0,
     "P4": 0,
     "P5": 3,
     "P6": 0
   },
-  "totalTerminal": 5
+  "totalTerminal": 9
 }

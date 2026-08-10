@@ -32,6 +32,7 @@ import {
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { authorizeTransaction } from '../../../helpers/portal-auth.js'
+import { driveTransactionsToSuccess } from '../../../helpers/transaction-modal.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const ANVIL_RPC_URL = process.env.ANVIL_RPC_URL ?? 'http://127.0.0.1:8545'
@@ -157,91 +158,6 @@ async function registerSubname(
     roleBitmap: FULL_ROLE_BITMAP,
   })
   await publicClient.waitForTransactionReceipt({ hash })
-}
-
-/**
- * Drives the shared `TransactionModal` (`[data-slot="dialog-content"]`) through
- * however many steps a flow needs, authorizing each wallet prompt as it appears,
- * until every transaction id in `successTxIds` has logged a `state: success`
- * console line (the format emitted by `transactionManager.ts`). Reused across
- * the transfer, change-resolver (2-step: deploy + set), and save-records flows.
- */
-async function driveTransactionsToSuccess(
-  page: Page,
-  wallet: Web3ProviderBackend,
-  successTxIds: string[],
-  timeoutMs = 180_000,
-): Promise<void> {
-  const transactionDialog = page.locator('[data-slot="dialog-content"]')
-  await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
-
-  const succeeded = new Set<string>()
-  const onConsole = (msg: { text(): string }) => {
-    const text = msg.text()
-    for (const id of successTxIds) {
-      if (text.includes(`Transaction ${id} state: success`)) succeeded.add(id)
-    }
-  }
-  page.on('console', onConsole)
-
-  try {
-    const deadline = Date.now() + timeoutMs
-    // Loop on wall-clock time alone, not on `succeeded.size` — the final
-    // step's "Done" button only renders *after* its success console line
-    // lands, and only clicking it fires `finishFlow` (see
-    // useAutoAdvanceTransaction.ts: auto-advance deliberately skips the last
-    // transaction, so nothing else triggers the redirect). Exiting the
-    // moment the count matches races ahead of that button ever appearing.
-    while (Date.now() < deadline) {
-      const openWalletButton = transactionDialog.getByRole('button', {
-        name: /open wallet/i,
-      })
-      if (await openWalletButton.isVisible().catch(() => false)) {
-        await openWalletButton.click()
-        await authorizeTransaction(wallet, 60_000)
-        await page.waitForTimeout(500)
-        continue
-      }
-
-      const waitingButton = transactionDialog.getByRole('button', {
-        name: /^Waiting\.\.\.$/i,
-      })
-      if (await waitingButton.isVisible().catch(() => false)) {
-        const iconWalletButton = waitingButton.locator(
-          'xpath=preceding-sibling::button[1]',
-        )
-        if (await iconWalletButton.isVisible().catch(() => false)) {
-          await iconWalletButton.click()
-          await authorizeTransaction(wallet, 60_000)
-          await page.waitForTimeout(500)
-          continue
-        }
-      }
-
-      const primaryButton = transactionDialog.getByRole('button', {
-        name: /^(Start|Next|Done)$/i,
-      })
-      if (
-        (await primaryButton.isVisible().catch(() => false)) &&
-        (await primaryButton.isEnabled().catch(() => false))
-      ) {
-        await primaryButton.click()
-        await page.waitForTimeout(500)
-        continue
-      }
-
-      // Every tracked tx has succeeded and there's nothing left to click
-      // (the last "Done" press already fired `finishFlow` and closed the
-      // modal) — safe to stop polling.
-      if (succeeded.size === successTxIds.length) break
-
-      await page.waitForTimeout(1_000)
-    }
-  } finally {
-    page.off('console', onConsole)
-  }
-
-  expect(succeeded.size).toBe(successTxIds.length)
 }
 
 /**
