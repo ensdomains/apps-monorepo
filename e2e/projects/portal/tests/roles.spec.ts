@@ -19,12 +19,13 @@
  */
 
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
-import type { Address } from 'viem'
+import { type Account, type Address, encodeFunctionData, parseAbi } from 'viem'
 import {
   connectWithHeadlessWallet,
   expect,
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
+import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
 import { waitForIndexedRoles } from '../../../helpers/indexer-sync.js'
 import {
   assertRoleBitmap,
@@ -84,6 +85,75 @@ const nameRolesSection = (page: import('@playwright/test').Page) =>
  */
 const awaitIndexed = (label: string, accounts: Address[]) =>
   waitForIndexedRoles(ETH_REGISTRY, labelToCanonicalId(label), accounts)
+
+const REGISTRY_WRITE_ABI = parseAbi([
+  'function setApprovalForAll(address operator, bool approved)',
+  'function setResolver(uint256 anyId, address resolver)',
+  'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)',
+])
+
+/** Send a registry write signed by `signer`. */
+async function registryWrite(signer: Account, data: `0x${string}`) {
+  const hash = await walletClient.sendTransaction({
+    account: signer,
+    to: ETH_REGISTRY,
+    data,
+  })
+  return publicClient.waitForTransactionReceipt({ hash })
+}
+
+const setApprovalForAll = (
+  operator: Address,
+  approved: boolean,
+  signer: Account,
+) =>
+  registryWrite(
+    signer,
+    encodeFunctionData({
+      abi: REGISTRY_WRITE_ABI,
+      functionName: 'setApprovalForAll',
+      args: [operator, approved],
+    }),
+  )
+
+const transferName = (
+  label: string,
+  from: Address,
+  to: Address,
+  signer: Account,
+) =>
+  registryWrite(
+    signer,
+    encodeFunctionData({
+      abi: REGISTRY_WRITE_ABI,
+      functionName: 'safeTransferFrom',
+      args: [from, to, labelToCanonicalId(label), 1n, '0x'],
+    }),
+  )
+
+/**
+ * Whether `signer` can actually change the resolver — the behavioural half of
+ * the operator-approval oracle. `setResolver` takes the canonical id, not the
+ * label; passing a string silently reverts for the wrong reason.
+ */
+async function canSetResolver(
+  label: string,
+  signer: Account,
+): Promise<boolean> {
+  try {
+    await registryWrite(
+      signer,
+      encodeFunctionData({
+        abi: REGISTRY_WRITE_ABI,
+        functionName: 'setResolver',
+        args: [labelToCanonicalId(label), signer.address],
+      }),
+    )
+    return true
+  } catch {
+    return false
+  }
+}
 
 test.describe('Portal name roles', () => {
   test.describe.configure({ timeout: 240_000 })
@@ -359,6 +429,80 @@ test.describe('Portal name roles', () => {
     await expect(
       page.getByRole('button', { name: 'Add user' }),
       'and must not offer role management',
+    ).toHaveCount(0)
+  })
+
+  test('gives an approved operator the blended role set, and takes it back', {
+    tag: ['@scenario:C9'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const operator = wallets.address('manager')
+    const name = await makeName({ label: 'roles-c9', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    const owner = wallets.address('owner')
+
+    await assertRoleBitmap({ label }, operator, [])
+    expect(
+      await canSetResolver(label, wallets.account('manager')),
+      'an unapproved operator must not be able to set the resolver',
+    ).toBe(false)
+
+    await setApprovalForAll(operator, true, wallets.account('owner'))
+
+    // Approval is not a stored grant — it is blended in at authorization time,
+    // so both halves matter: the reported bitmap AND the ability to act on it.
+    const ownerRoles = (await readNameRoles({ label }, owner)).decoded
+    await assertRoleBitmap({ label }, operator, ownerRoles)
+    expect(
+      await canSetResolver(label, wallets.account('manager')),
+      'an approved operator should be able to set the resolver',
+    ).toBe(true)
+
+    await setApprovalForAll(operator, false, wallets.account('owner'))
+
+    await assertRoleBitmap({ label }, operator, [])
+    expect(
+      await canSetResolver(label, wallets.account('manager')),
+      'revoking approval must take the authority back',
+    ).toBe(false)
+  })
+
+  test('moves the whole role set to the new owner on transfer', {
+    tag: ['@scenario:C12'],
+  }, async ({ portalPage: page, wallet, makeName, wallets }) => {
+    await connectWithHeadlessWallet(page, wallet)
+
+    const oldOwner = wallets.address('owner')
+    const newOwner = wallets.address('manager')
+    const name = await makeName({ label: 'roles-c12', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+
+    const before = (await readNameRoles({ label }, oldOwner)).decoded
+    expect(before.length, 'the owner should start with roles').toBeGreaterThan(
+      0,
+    )
+    await assertRoleBitmap({ label }, newOwner, [])
+
+    await transferName(label, oldOwner, newOwner, wallets.account('owner'))
+
+    // The set moves wholesale: the recipient gains exactly what the sender
+    // held, and the sender is left with nothing. A transfer that left the old
+    // owner any authority would be the dangerous half of this.
+    await assertRoleBitmap({ label }, newOwner, before)
+    await assertRoleBitmap({ label }, oldOwner, [])
+
+    await awaitIndexed(label, [newOwner])
+    await page.goto(rolesPage(name))
+    const table = nameRolesSection(page)
+    await expect(table).toBeVisible({ timeout: 30_000 })
+    await expect(
+      table.locator('tr', { hasText: truncate(newOwner) }),
+      'the new owner should be listed as a role holder',
+    ).toHaveCount(1)
+    await expect(
+      table.locator('tr', { hasText: truncate(oldOwner) }),
+      'the previous owner must no longer be listed',
     ).toHaveCount(0)
   })
 })
