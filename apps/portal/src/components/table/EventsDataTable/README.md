@@ -142,11 +142,6 @@ const eventsData = transformHistoryToEvents(ensHistory)
 <EventsDataTable data={eventsData} name={name} />
 ```
 
-Or use the wrapper:
-```typescript
-<HistoryDataTable name={name} history={ensHistory} />
-```
-
 ## Type Definitions
 
 ```typescript
