@@ -232,3 +232,19 @@ Two things would each be sufficient: reject a recipient that is a contract
 without ERC-1155 receiver support before the plan starts, or order
 `transfer-token` first so the irreversible step only runs once the transfer is
 known to succeed.
+
+**Confirmed present on `origin/main` @ c3be87173** (2026-08-10), i.e. after
+#926 "Ability to Transfer Ownership V2 names" landed. Verified two ways, since
+#926 reworked this exact route:
+
+- *Source*: `buildTransferPlan.ts` still pushes `detach-resolver` before
+  `transfer-token`, and `SendNameForm.tsx`'s `hasValidRecipient` checks only
+  non-empty / not-self / not-zero-address — nothing tests whether the recipient
+  can receive an ERC-1155.
+- *Empirically*: main checked out in a worktree, portal built and served from
+  it, F5 run against it. Identical result — resolver
+  `0x640294A2b2D87E7f522db3e3E3E876764BCe170D` → `0x0000…0000`, token
+  unmoved, no error surfaced.
+
+So this is not something the branch introduced and not something main has since
+fixed.
