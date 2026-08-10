@@ -115,3 +115,36 @@ re-derive it.
 
 Both need the same ruling as E9 — exempt to the contract suite, or redefine.
 Left non-terminal rather than claimed.
+
+### Panoptes never populates its `registries` table (blocks C13, D10–D14)
+
+Every `/registry/$address/*` page renders "Registry not found". The route reads
+`getRegistryInfoQueryOptions` → the indexer's `registry(address:)` field
+(`features/registry/hooks/useRegistry.ts`), and that returns `null` for every
+address.
+
+Measured 2026-08-10, after the contract-manifest fix:
+
+- `{ registries(first: 5) { address } }` returns `[]` — the table is empty, not
+  merely missing one entry
+- yet the indexer log shows `Subregistry indexing: … from 47 subregistries` and
+  `Backfilled 1 historical events for subregistry 0xc65230bb…`, and names
+  inside those registries resolve fine
+
+So Panoptes discovers subregistries and indexes their *events and names*, but
+never creates a `registry` entity for any of them — including the `.eth`
+registry itself. The sidebar can show a registry (it derives it from name data)
+while the page built on `registry(address:)` cannot.
+
+This is not a test problem, and it blocks more than one scenario:
+
+- **C13** (registry-level vs name-level roles are independent) — the on-chain
+  half is verified and correct: a grant at a name resource inside a subregistry
+  does *not* appear at that registry's root resource. But the registry-level
+  table cannot render, so the "two tables are independent" oracle is not
+  assertable. Left non-terminal.
+- **D10–D14** (registry labels, tree, history, add/edit user sheets, upgrade)
+  all live under the same route and will hit this first.
+
+Needs a ruling on whether the gap is in Panoptes' schema coverage or in the
+app depending on an entity the indexer does not produce.
