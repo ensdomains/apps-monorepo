@@ -26,12 +26,8 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import { waitForIndexedRoles } from '../../../helpers/indexer-sync.js'
 import {
-  waitForIndexedName,
-  waitForIndexedRoles,
-} from '../../../helpers/indexer-sync.js'
-import {
-  assertHasRoles,
   assertRoleBitmap,
   ETH_REGISTRY,
   grantNameRoles,
