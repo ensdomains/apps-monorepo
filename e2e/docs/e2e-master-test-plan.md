@@ -113,6 +113,25 @@ Resolver roles: `ROLE_SET_ADDR`, `ROLE_SET_TEXT`, `ROLE_SET_DATA`,
 `ROLE_SET_INTERFACE`, `ROLE_SET_ALIAS`. Every role has an `_ADMIN` counterpart;
 holding the admin role is what lets you grant/revoke it.
 
+**Role encoding.** Roles are **nybble-packed** — each role owns 4 bits, and its
+admin counterpart sits 128 bits higher (`RegistryRolesLib.sol`). Never hand-roll
+the constants: `1n << 3n` is not "the fourth role", it lands inside another
+role's nybble. `helpers/role-assertions.ts` re-exports ensjs's `Role` type,
+which mirrors the Solidity exactly.
+
+**What a fresh 2LD owner actually holds** (measured on the fork, not assumed):
+
+```
+ROLE_SET_RESOLVER      ROLE_SET_RESOLVER_ADMIN
+ROLE_SET_SUBREGISTRY   ROLE_SET_SUBREGISTRY_ADMIN
+ROLE_CAN_TRANSFER_ADMIN
+```
+
+Registration does **not** hand the owner `ROLE_RENEW`, `ROLE_UNREGISTER` or
+`ROLE_REGISTRAR` — those stay at the registry root, and an owner attempting to
+grant one reverts `EACCannotGrantRoles`. C2/C5/C6 and B13 must be written
+against this set, not against "the owner can do everything".
+
 **The universal role oracle:** for role R and UI action A gated by R —
 (1) holder sees A enabled and it succeeds; (2) non-holder sees A absent or
 disabled with the correct copy; (3) revoking R mid-session makes A disappear

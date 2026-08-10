@@ -391,17 +391,20 @@ function harnessStatus(
   const missing = modules.filter((m) => !existsSync(join(e2eRoot, m)))
   if (missing.length > 0)
     return { ok: false, evidence: `missing: ${missing.join(', ')}` }
-  const imported = modules.filter((m) => {
+  // Every module, not just one of them: the P0 exit criterion is that the
+  // helper is *used*, and a harness item whose oracle half nothing imports has
+  // not been exercised no matter how many other files it ships alongside.
+  const unused = modules.filter((m) => {
     const stem = m.replace(/\.ts$/, '').split('/').pop()
-    return stem ? new RegExp(`${stem}(\\.js)?['"\`]`).test(specSources) : false
+    return stem ? !new RegExp(`${stem}(\\.js)?['"\`]`).test(specSources) : true
   })
-  if (imported.length === 0) {
+  if (unused.length > 0) {
     return {
       ok: false,
-      evidence: `exists but no spec imports it (${modules.join(', ')})`,
+      evidence: `exists but no spec imports ${unused.join(', ')}`,
     }
   }
-  return { ok: true, evidence: `${imported.join(', ')} imported by a spec` }
+  return { ok: true, evidence: `${modules.join(', ')} imported by a spec` }
 }
 
 // ── 6. reconcile ─────────────────────────────────────────────────────────

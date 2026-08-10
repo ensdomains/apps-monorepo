@@ -6,6 +6,7 @@
  * the migration transaction actually landed correctly in the V2 registry.
  */
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { expect } from '@playwright/test'
 import { type Address, keccak256, parseAbi, toHex, zeroAddress } from 'viem'
 import { publicClient } from './anvil-client.js'
@@ -13,7 +14,22 @@ import { publicClient } from './anvil-client.js'
 // ---------------------------------------------------------------------------
 // V2 Contract addresses
 // ---------------------------------------------------------------------------
-const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
+/**
+ * Resolved from the ensjs Sepolia chain config — the same source
+ * `makeV2Name.ts`, `playwright.portal.fixture.ts` and `transfer.spec.ts` use.
+ *
+ * This was previously hardcoded to `0x796fff2e…`, added with the 2026-05-14
+ * single-chain deployment and since superseded. The superseded registry is
+ * still deployed on the fork, which is the dangerous part: reads against it
+ * succeed and return plausible answers that simply describe a different
+ * contract than the one the app writes to. Measured on the fork at block
+ * 0xaecd04, the two disagree — `getStatus(vitalik)` is RESERVED(1) on the
+ * current registry and REGISTERED(2) on the superseded one. Nothing caught it
+ * because the only specs calling these helpers are excluded by the manager
+ * project's `testIgnore`.
+ */
+const V2_ETH_REGISTRY = ensL1Contracts[supportedL1Chains.sepolia].ensRegistry
+  .address as Address
 
 const ETH_REGISTRY_ABI = parseAbi([
   // PermissionedRegistry read functions
@@ -34,28 +50,6 @@ export const V2Status = {
 } as const
 
 export type V2StatusValue = (typeof V2Status)[keyof typeof V2Status]
-
-// ---------------------------------------------------------------------------
-// Role bitmap constants (RegistryRolesLib)
-// ---------------------------------------------------------------------------
-export const REGISTRY_ROLES = {
-  ROLE_REGISTRAR: 1n << 0n,
-  ROLE_UNREGISTER: 1n << 1n,
-  ROLE_RENEW: 1n << 2n,
-  ROLE_SET_SUBREGISTRY: 1n << 3n,
-  ROLE_SET_RESOLVER: 1n << 4n,
-  ROLE_REGISTER_RESERVED: 1n << 5n,
-  ROLE_SET_PARENT: 1n << 6n,
-  ROLE_SET_URI: 1n << 7n,
-  ROLE_UPGRADE: 1n << 8n,
-  ROLE_CAN_TRANSFER_ADMIN: 1n << 9n,
-  // Admin variants live at bit + 128
-  ROLE_REGISTRAR_ADMIN: 1n << 128n,
-  ROLE_UNREGISTER_ADMIN: 1n << 129n,
-  ROLE_RENEW_ADMIN: 1n << 130n,
-  ROLE_SET_RESOLVER_ADMIN: 1n << 132n,
-  ROLE_CAN_TRANSFER_ADMIN_A: 1n << 137n,
-} as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,54 +154,17 @@ export async function assertV2Resolver(
 }
 
 /**
- * Assert that `account` has the given role bits set on `label`'s V2 token resource.
- * `expectedRoles` is a bigint bitmap (use REGISTRY_ROLES constants).
- *
- * Checks that every bit in `expectedRoles` is present in the actual bitmap;
- * does NOT require an exact match (other roles may also be set).
+ * Role assertions live in `role-assertions.ts` (plan item H1), which sources
+ * its constants from ensjs rather than restating them. An earlier version of
+ * this file exported a `REGISTRY_ROLES` map with one bit per role — but V2
+ * roles are nybble-packed, four bits each, so all but `ROLE_REGISTRAR` named
+ * the wrong bit. Nothing had used them yet.
  */
-export async function assertHasRoles(
-  label: string,
-  account: Address,
-  expectedRoles: bigint,
-): Promise<void> {
-  const labelHash = labelHashBigInt(label)
-  const actualBitmap = await publicClient.readContract({
-    address: V2_ETH_REGISTRY,
-    abi: ETH_REGISTRY_ABI,
-    functionName: 'roles',
-    args: [labelHash, account],
-  })
-  const missing = expectedRoles & ~actualBitmap
-  expect(
-    missing,
-    `Account ${account} is missing roles 0x${missing.toString(16)} on ${label}.eth ` +
-      `(actual=0x${actualBitmap.toString(16)}, expected=0x${expectedRoles.toString(16)})`,
-  ).toBe(0n)
-}
-
-/**
- * Assert that `account` does NOT have specific role bits on `label`'s V2 token resource.
- */
-export async function assertLacksRoles(
-  label: string,
-  account: Address,
-  forbiddenRoles: bigint,
-): Promise<void> {
-  const labelHash = labelHashBigInt(label)
-  const actualBitmap = await publicClient.readContract({
-    address: V2_ETH_REGISTRY,
-    abi: ETH_REGISTRY_ABI,
-    functionName: 'roles',
-    args: [labelHash, account],
-  })
-  const present = forbiddenRoles & actualBitmap
-  expect(
-    present,
-    `Account ${account} unexpectedly has roles 0x${present.toString(16)} on ${label}.eth ` +
-      `(actual=0x${actualBitmap.toString(16)})`,
-  ).toBe(0n)
-}
+export {
+  assertHasRoles,
+  assertLacksRoles,
+  assertRoleBitmap,
+} from './role-assertions.js'
 
 /**
  * Run all standard post-migration assertions for an unwrapped or unlocked name:
