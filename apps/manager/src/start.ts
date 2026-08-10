@@ -15,16 +15,6 @@ import {
   SECURITY_HEADER_VALUES,
 } from './server/csp'
 
-function generateCspNonce(): string {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
-  let binary = ''
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte)
-  }
-  return btoa(binary)
-}
-
 const securityHeadersMiddleware = createMiddleware().server(
   ({ next, request }) => {
     // Always set the clickjacking / MIME / referrer baselines (cheap, no
@@ -37,7 +27,14 @@ const securityHeadersMiddleware = createMiddleware().server(
       return next()
     }
 
-    const cspNonce = generateCspNonce()
+    const bytes = new Uint8Array(16)
+    crypto.getRandomValues(bytes)
+    let binary = ''
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte)
+    }
+    const cspNonce = btoa(binary)
+
     setResponseHeader(
       'Content-Security-Policy',
       buildCspWithFrameAncestors({ nonce: cspNonce }),

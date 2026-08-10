@@ -1,7 +1,6 @@
 import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
 import { describe, expect, it } from 'vitest'
 import {
-  buildCspMetaTag,
   buildCspWithFrameAncestors,
   buildCspWithoutFrameAncestors,
   originFromEnvUrl,
@@ -83,9 +82,9 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://jakob.ens.domains')
     })
 
-    it('allowlists Rhinestone orchestrator and Intercom', () => {
-      expect(connectSrc).toContain('https://v1.orchestrator.rhinestone.dev')
+    it('allowlists Rhinestone orchestrator and Intercom as wildcards', () => {
       expect(connectSrc).toContain('https://*.rhinestone.dev')
+      expect(connectSrc).not.toContain('https://v1.orchestrator.rhinestone.dev')
       expect(connectSrc).toContain('https://*.intercom.io')
       expect(connectSrc).toContain('https://*.intercomcdn.com')
       expect(connectSrc).toContain('wss://*.intercom.io')
@@ -135,13 +134,10 @@ describe('csp', () => {
       expect(meta).toHaveProperty('upgrade-insecure-requests')
     })
 
-    it('wraps the meta policy in a meta tag without frame-ancestors', () => {
-      const tag = buildCspMetaTag({ nonce: TEST_NONCE })
-      expect(tag).toContain('http-equiv="Content-Security-Policy"')
-      expect(tag).toContain(
+    it('omits frame-ancestors from the meta policy', () => {
+      expect(
         buildCspWithoutFrameAncestors({ nonce: TEST_NONCE }),
-      )
-      expect(tag).not.toContain('frame-ancestors')
+      ).not.toContain('frame-ancestors')
     })
   })
 

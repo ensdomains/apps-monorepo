@@ -12,8 +12,7 @@ import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
-import { buildCspWithoutFrameAncestors } from '@/server/csp'
-import { getCspNonce } from '@/server/csp-nonce'
+import { buildCspWithoutFrameAncestors, getCspNonce } from '@/server/csp'
 import appCss from '@/styles/index.css?url'
 
 type RootRouterContext = {

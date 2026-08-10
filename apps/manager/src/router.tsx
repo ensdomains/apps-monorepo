@@ -9,7 +9,7 @@ import { NotFoundPage } from './features/not-found/pages/NotFoundPage'
 import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
 import { routeTree } from './routeTree.gen'
-import { getCspNonce } from './server/csp-nonce'
+import { getCspNonce } from './server/csp'
 import {
   deserializeBigInts,
   serializeBigInts,

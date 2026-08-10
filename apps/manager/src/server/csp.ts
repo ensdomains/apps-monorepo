@@ -17,10 +17,8 @@
  */
 
 import { SEPOLIA_FALLBACK_RPC_URLS } from '@ens-apps/indexer/chain'
-
-/** Mirrors `DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN` in commemorative-nft/config. */
-const DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN =
-  'https://ens-renderer.pages.dev'
+import { getGlobalStartContext } from '@tanstack/react-start'
+import { DEFAULT_COMMEMORATIVE_NFT_RENDERER_ORIGIN } from '@/features/migration/commemorative-nft/config'
 
 /**
  * Extract the `scheme://host[:port]` origin from a build-time env URL so it can
@@ -92,8 +90,8 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://ipfs.euc.li',
   // Alchemy NFT API — src/features/profile/service/profileNfts.ts
   'https://*.g.alchemy.com',
-  // Rhinestone orchestrator (HCA intents) — @rhinestone/sdk default.
-  'https://v1.orchestrator.rhinestone.dev',
+  // Rhinestone orchestrator (HCA intents) — @rhinestone/sdk default
+  // (v1.orchestrator.rhinestone.dev).
   'https://*.rhinestone.dev',
   // Intercom messenger — @intercom/messenger-js-sdk
   'https://*.intercom.io',
@@ -187,9 +185,16 @@ export function buildCspWithFrameAncestors(options: CspBuildOptions): string {
   return `${[...baseDirectives(options), ...HEADER_ONLY_DIRECTIVES].join('; ')};`
 }
 
-/** A `<meta>` tag carrying the CSP, for injection into every HTML `<head>`. */
-export function buildCspMetaTag(options: CspBuildOptions): string {
-  return `<meta http-equiv="Content-Security-Policy" content="${buildCspWithoutFrameAncestors(options)}" />`
+/**
+ * Per-request CSP nonce set by security-headers middleware in `src/start.ts`.
+ *
+ * `getGlobalStartContext()` is typed against `@tanstack/router-core`'s empty
+ * `Register`, which this app can't augment (not a direct dependency — see
+ * TS2664). Cast the runtime context that middleware actually provides.
+ */
+export function getCspNonce(): string | undefined {
+  const context = getGlobalStartContext() as { cspNonce?: string } | undefined
+  return context?.cspNonce
 }
 
 /** Standard security headers applied alongside CSP (portal parity). */
