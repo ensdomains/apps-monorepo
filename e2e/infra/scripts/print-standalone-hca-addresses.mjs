@@ -27,11 +27,10 @@
 // registers, renews and reads on the canonical deployment, not the superseded
 // standalone-HCA one.
 //
-// `usdc` stays Circle's real Sepolia USDC. It is deliberately NOT ensjs' `usdc`
-// (MockUSDC): the app pays in the real token, and the canonical registrar's
-// rent price oracle whitelists both.
+// `usdc` is ensjs' MockUSDC: the orchestrator accepts it as payment token and
+// the faucet can mint it, so the whole route runs on one token.
 const STANDALONE = {
-  usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+  usdc: '0x768F42455A2D082E23ceeF7d51e5787C82d67a39',
   ethRegistrar: '0xa88553F454b77203B0D036A05c894d555EAAa2Cc',
   ethRegistry: '0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2',
 }
