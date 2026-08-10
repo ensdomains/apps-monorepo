@@ -1,6 +1,7 @@
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { getAddressRecord } from '@ensdomains/ensjs/public'
 import { hasRoles } from '@ensdomains/ensjs/public/v2'
+import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { setRecords } from '@ensdomains/ensjs/wallet'
 import {
   permissionedRegistryGetResolverSnippet,
@@ -12,6 +13,7 @@ import {
   createWalletClient,
   type Hash,
   http,
+  parseAbi,
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -27,6 +29,7 @@ import {
   test,
 } from '../../../fixtures/playwright.portal.fixture.js'
 import { publicClient, walletClient } from '../../../helpers/anvil-client.js'
+import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 import {
   assertLacksRoles,
   assertRoleBitmap,
@@ -58,6 +61,16 @@ function getOwnerClient(ownerPrivateKey: Hash) {
  * registry — used to snapshot state before a transfer and confirm it's
  * unchanged after.
  */
+/** On-chain ERC-1155 owner of a 2LD in the `.eth` registry. */
+function ownerOfName(label: string): Promise<Address> {
+  return publicClient.readContract({
+    address: ETH_REGISTRY,
+    abi: parseAbi(['function ownerOf(uint256 id) view returns (address)']),
+    functionName: 'ownerOf',
+    args: [labelToCanonicalId(label)],
+  }) as Promise<Address>
+}
+
 function readResolverAndSubregistry(
   label: string,
 ): Promise<[Address, Address]> {
@@ -1008,5 +1021,74 @@ test.describe('Portal name transfer — migrated V1 names', () => {
     await expect(
       page.getByRole('button', { name: 'Transfer name' }),
     ).toHaveCount(0)
+  })
+
+  test('surfaces an error when the recipient cannot receive the token', {
+    tag: ['@scenario:F5'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
+    test.setTimeout(180_000)
+    await connectWithHeadlessWallet(page, wallet)
+
+    const name = await makeName({ label: 'transfer-f5', owner: 'user' })
+    const label = name.replace(/\.eth$/, '')
+    const owner = accounts.getAddress('user')
+    // Multicall3: definitely deployed, definitely not an ERC-1155 receiver, so
+    // safeTransferFrom to it reverts.
+    const notAReceiver = '0xcA11bde05977b3631167028862bE2a173976CA11'
+
+    const [resolverBefore] = await readResolverAndSubregistry(label)
+    expect(resolverBefore).not.toBe(zeroAddress)
+
+    await page.goto(`${PORTAL_APP_URL}/${name}/ownership/transfer`)
+    await page.getByPlaceholder('ENS name or address').fill(notAReceiver)
+    const transferButton = page.getByRole('button', { name: 'Transfer name' })
+    await expect(transferButton).toBeEnabled({ timeout: 15_000 })
+    await transferButton.click()
+
+    // Drive the modal as far as it will go, authorising whatever it asks for.
+    const dialog = page.locator('[data-slot="dialog-content"]')
+    await expect(dialog).toBeVisible({ timeout: 30_000 })
+    const deadline = Date.now() + 90_000
+    while (Date.now() < deadline) {
+      const open = dialog.getByRole('button', { name: /open wallet/i })
+      if (await open.isVisible().catch(() => false)) {
+        await open.click()
+        await authorizeTransaction(wallet, 30_000).catch(() => {})
+        await page.waitForTimeout(500)
+        continue
+      }
+      const primary = dialog.getByRole('button', { name: /^(Start|Next)$/i })
+      if (
+        (await primary.isVisible().catch(() => false)) &&
+        (await primary.isEnabled().catch(() => false))
+      ) {
+        await primary.click()
+        await page.waitForTimeout(500)
+        continue
+      }
+      break
+    }
+
+    // The token must not have moved…
+    expect(
+      (await ownerOfName(label)).toLowerCase(),
+      'a transfer to a non-receiver must not move the token',
+    ).toBe(owner.toLowerCase())
+
+    // …and nothing irreversible may have been done on its behalf. The plan
+    // runs detach-resolver *before* transfer-token, so a recipient that cannot
+    // receive leaves the name stripped of its resolver with the token still in
+    // place — the same shape as E2E-001.
+    const [resolverAfter] = await readResolverAndSubregistry(label)
+    expect(
+      resolverAfter,
+      'the resolver must not be detached for a transfer that cannot complete',
+    ).toBe(resolverBefore)
+
+    // …and the failure must be visible rather than a silent stall.
+    await expect(
+      dialog.getByText(/fail|error|revert|unable/i).first(),
+      'the failed step must be surfaced, not left hanging',
+    ).toBeVisible({ timeout: 30_000 })
   })
 })

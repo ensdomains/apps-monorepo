@@ -16,6 +16,7 @@ with its original, unweakened assertion).
 
 | ID | Scenario | App | Sev | Summary | Expected (oracle) | Repro | Issue | Status |
 |---|---|---|---|---|---|---|---|---|
+| E2E-002 | F5 | portal | S1 | Transfer to a non-receiver contract detaches the resolver irreversibly, then hangs — token never moves, no error shown | `buildTransferPlan` must not execute `detach-resolver` before a `transfer-token` that cannot succeed; `test_safeTransferFrom_invalidReceiver` must surface as an error, not a stall (plan §5.F F5, and the S1 rule in e2e-goal.md) | `pnpm e2e:portal --grep "@scenario:F5"` | _pending_ | open |
 | E2E-001 | F1 | portal | S1 | Migrated locked V1 name offered a `detach-registry` step its owner cannot execute — `detach-resolver` had already run irreversibly | Owner lacks `ROLE_SET_SUBREGISTRY` on the locked name's `WrapperRegistry`, so `buildTransferPlan` must not offer the step. Measured in [`transfer-web446-test-plan.md`](./transfer-web446-test-plan.md) §2 finding F1 | `pnpm e2e:portal --grep "without offering the registry detach it cannot perform"` | _pending_ | fixed |
 
 Status legend for the row above: **fixed** = the code fix landed
@@ -198,3 +199,36 @@ half of the same file *was* fixed and verified (see the reserveInV2 commit).
 
 Next step is to decode that revert against the ensjs controller and adapt the
 registration flow. Until then §5.G, HW10 and P3 stay blocked.
+
+---
+
+## E2E-002 detail
+
+Recipient `0xcA11bde05977b3631167028862bE2a173976CA11` (Multicall3) is deployed
+but is not an ERC-1155 receiver, so `safeTransferFrom` to it reverts. The
+portal's transfer form accepts it with no client-side warning and the "Transfer
+name" button stays enabled.
+
+Measured 2026-08-10 on the fork:
+
+- **Step 1, `detach-resolver`: executed and confirmed on-chain.** The resolver
+  goes from `0x640294A2b2D87E7f522db3e3E3E876764BCe170D` to
+  `0x0000000000000000000000000000000000000000`.
+- **Step 2, `transfer-token`: never completes.** The dialog sits on a disabled
+  "Waiting…" button indefinitely. No error, no revert reason, no retry.
+- **`ownerOf` is unchanged** — the token never moved.
+
+Net effect: a user who mistypes a contract address loses their resolver and
+gets no indication anything went wrong. The name stops resolving, and the
+transfer they asked for did not happen.
+
+This is the same shape as E2E-001 — an irreversible write ordered ahead of a
+step that cannot succeed — but reached through a different door. E2E-001 was
+fixed by validating *roles* before offering `detach-registry`; nothing
+validates that the *recipient* can receive the token before `detach-resolver`
+runs.
+
+Two things would each be sufficient: reject a recipient that is a contract
+without ERC-1155 receiver support before the plan starts, or order
+`transfer-token` first so the irreversible step only runs once the transfer is
+known to succeed.
