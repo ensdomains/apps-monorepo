@@ -1,0 +1,37 @@
+import type { Address } from 'viem'
+import { EntityBadge } from '@/components/EntityBadge'
+import { useBlockExplorerAddressUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
+import { getContractLabel } from '@/utils/ens/ensContractNames'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { FullOnDesktop } from './AccountBadge'
+
+/** Contract chip with known ENS label / permissioned-registry fallback. */
+export const ContractBadge = ({
+  address,
+  isRegistry,
+  label: fallbackLabel,
+  full = false,
+}: {
+  readonly address: Address
+  readonly isRegistry?: boolean
+  readonly label?: string
+  readonly full?: boolean
+}) => {
+  const explorerUrl = useBlockExplorerAddressUrl(address)
+  const known = getContractLabel(address)
+  const label =
+    known ?? fallbackLabel ?? (isRegistry ? 'permissioned registry' : undefined)
+
+  return (
+    <EntityBadge
+      variant="contract"
+      address={address}
+      label={label}
+      isRegistry={known === 'permissioned registry' || (!!isRegistry && !known)}
+      etherscanHref={explorerUrl}
+      compact
+    >
+      {full ? <FullOnDesktop value={address} /> : truncateAddress(address)}
+    </EntityBadge>
+  )
+}

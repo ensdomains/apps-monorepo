@@ -103,7 +103,6 @@ export type RegistrationContext = {
   duration: bigint
   selectedToken: TOKEN_SYMBOL
   tokenPrice: bigint
-  sponsored?: boolean
   /**
    * Standalone-HCA: USDC budget transferred wallet → HCA in the commit leg
    * (covers registration price + execution-cost refunds). Defaults to the
@@ -205,7 +204,6 @@ export type RegistrationEvent =
       ownerAddress?: Address // ENS name owner — the EOA on every signer path (eoa + rhinestone). The rhinestone smart-session UAP pins `register.owner == EOA`, so this MUST be the EOA for rhinestone flows or the userOp fails orchestrator simulation with `InvalidSignature()`. Defaults to `accountAddress` only as a legacy fallback for the now-removed "simple" account type.
       resolverOwnerAddress?: Address // EOA to grant EACL roles to on the dedicated resolver (must match the address the resolver checks at write time after SCA→EOA unwrap). Defaults to ownerAddress.
       publicClient: PublicClient
-      sponsored?: boolean
     }
   | { type: 'RETRY' }
   | { type: 'CANCEL' }
@@ -231,6 +229,7 @@ export const registrationMachine = setup({
         signer?: Signer
         sessionEnable?: HcaSessionEnableParams
         apiKey?: string
+        primaryName?: string
       }) => {
         return estimateHcaBudgetActor(input)
       },
@@ -292,7 +291,6 @@ export const registrationMachine = setup({
         owner: Address
         signer: Signer
         publicClient: PublicClient
-        sponsored?: boolean
         id?: string
       }) => {
         return submitResolverDeploymentActor(input)
@@ -334,7 +332,6 @@ export const registrationMachine = setup({
         name: string
         duration: bigint
         publicClient: PublicClient
-        sponsored?: boolean
         id?: string
       }) => {
         return submitCommitmentActor(input)
@@ -346,7 +343,6 @@ export const registrationMachine = setup({
         selectedToken: TOKEN_SYMBOL
         signer: Signer
         publicClient: PublicClient
-        sponsored?: boolean
         id?: string
       }) => {
         return submitApprovalActor(input)
@@ -361,7 +357,6 @@ export const registrationMachine = setup({
         selectedToken: TOKEN_SYMBOL
         owner: Address
         publicClient: PublicClient
-        sponsored?: boolean
         resolverAddress: Address
         id?: string
       }) => {
@@ -561,7 +556,6 @@ export const registrationMachine = setup({
               event.accountAddress, // EACL grantee for the dedicated resolver. Should be the EOA.
             publicClient: ({ event }) => event.publicClient,
             registerReadyTimestamp: () => undefined,
-            sponsored: ({ event }) => event.sponsored ?? true,
             hcaBudget: ({ event }) => event.hcaBudget,
             hcaSessionEnable: ({ event }) => event.hcaSessionEnable,
             primaryName: ({ event }) => event.primaryName,
@@ -628,6 +622,9 @@ export const registrationMachine = setup({
           chainId: context.chainId,
           signer: context.signer,
           sessionEnable: context.hcaSessionEnable,
+          // Sizes the permit for the batch that will actually be submitted:
+          // the primary-name opt-in adds a call to the reveal leg.
+          primaryName: context.primaryName,
         }),
         onDone: {
           target: 'checkingHcaFunding',
@@ -847,7 +844,6 @@ export const registrationMachine = setup({
           signer: context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.deployResolver,
         }),
         onDone: {
@@ -974,7 +970,6 @@ export const registrationMachine = setup({
           duration: context.duration,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          sponsored: context.sponsored,
           id: REGISTRATION_TX_IDS.commit,
         }),
         onDone: {
@@ -1014,7 +1009,7 @@ export const registrationMachine = setup({
           target: 'fetchingCommitmentAge',
         },
         // Receipt polling can fail (timeout / lost tx actor) even after the
-        // commitment lands on-chain — especially for the sponsored HCA bundle,
+        // commitment lands on-chain — especially for the HCA bundle,
         // where the commit is one call inside `submittingSetupBundle`. Don't
         // surface a false failure and resubmit a standalone `commit` (the
         // registrar rejects an already-recorded commitment, stranding the user
@@ -1324,8 +1319,6 @@ export const registrationMachine = setup({
           signer: context.approvalSigner ?? context.signer!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
-          sponsored: false,
           id: REGISTRATION_TX_IDS.approve,
         }),
         onDone: {
@@ -1399,7 +1392,6 @@ export const registrationMachine = setup({
           owner: context.ownerAddress ?? context.accountAddress!,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           publicClient: context.publicClient!,
-          sponsored: context.sponsored,
           // biome-ignore lint/style/noNonNullAssertion: value guaranteed by machine state
           resolverAddress: context.resolverAddress!,
           id: REGISTRATION_TX_IDS.register,

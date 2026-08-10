@@ -68,7 +68,6 @@ function createRhinestoneRequest(
     chainId: 11155111,
     rhinestoneParams: {
       calls: MOCK_CALLS,
-      sponsored: true,
     },
     ...overrides,
   }
@@ -102,7 +101,7 @@ describe('submitWarpTransaction', () => {
   it('returns error for empty calls array', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest({
-      rhinestoneParams: { calls: [], sponsored: true },
+      rhinestoneParams: { calls: [] },
     })
 
     const result = await submitWarpTransaction({ request, signer })
@@ -124,7 +123,8 @@ describe('submitWarpTransaction', () => {
       sourceChains: [sepolia],
       targetChain: sepolia,
       calls: MOCK_CALLS,
-      sponsored: true,
+      sponsored: { gas: false, bridging: false, swaps: false },
+      feeAsset: 'USDC',
       tokenRequests: [],
     })
     // No active session → `signers` must not be passed.
@@ -158,7 +158,6 @@ describe('submitWarpTransaction', () => {
     const request = createRhinestoneRequest({
       rhinestoneParams: {
         calls: MOCK_CALLS,
-        sponsored: { gas: false, bridging: false, swaps: false },
         feeAsset: 'USDC',
         sessionEnableData,
       },
@@ -213,7 +212,11 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })
 
-  it('defaults sponsored to true when not specified', async () => {
+  it('always sends the user-paid shape — sponsorship is not requestable', async () => {
+    // Gas sponsorship does not exist on this deployment, and there is no
+    // caller-facing knob or env flag to turn it on. This used to default to
+    // `true` whenever `sponsored` was omitted, so every new call site
+    // silently asked for a subsidy no relayer here offers.
     const signer = createMockSigner()
     const request = createRhinestoneRequest({
       rhinestoneParams: { calls: MOCK_CALLS },
@@ -222,7 +225,10 @@ describe('submitWarpTransaction', () => {
     await submitWarpTransaction({ request, signer })
 
     expect(signer.account.sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ sponsored: true }),
+      expect.objectContaining({
+        sponsored: { gas: false, bridging: false, swaps: false },
+        feeAsset: 'USDC',
+      }),
     )
   })
 

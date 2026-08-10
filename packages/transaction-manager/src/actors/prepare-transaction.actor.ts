@@ -95,7 +95,6 @@ function prepareENSRenewal(
                   value,
                 },
               ],
-              sponsored: true,
             },
           }
         : {
@@ -148,7 +147,6 @@ function prepareETHTransfer(
               value,
             },
           ],
-          sponsored: true,
         },
       }
     : {

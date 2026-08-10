@@ -6,7 +6,7 @@ import { ArrowLeftIcon, Loader2 } from 'lucide-react'
 import { ResultAsync } from 'neverthrow'
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { type Address, isAddress, zeroAddress } from 'viem'
+import { type Address, zeroAddress } from 'viem'
 import { useConnection } from 'wagmi'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
@@ -14,6 +14,8 @@ import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { AddressNameInput } from '@/features/address/components/AddressNameInput'
+import { useAddressResolution } from '@/features/address/hooks/useAddressResolution'
 import {
   type GetEnsOwnerReturnType,
   getEnsOwnerQueryOptions,
@@ -22,17 +24,11 @@ import { getSubnamesQueryOptions } from '@/features/profile/hooks/useSubnames'
 import { useCreateSubname } from '@/features/registry/hooks/useCreateSubname'
 import { getNameRegistriesQueryOptions } from '@/features/registry/hooks/useNameRegistryDiscovery'
 import { prepareCreateSubnameTransaction } from '@/features/registry/utils/create-subname.helpers'
-import { resolveAddressOrName } from '@/features/roles/helpers/addUser.handlers'
 import { TransactionModal } from '@/features/transaction-manager/components/TransactionModal'
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
-import { wagmiConfig } from '@/lib/wagmi'
 import { safeGetClient } from '@/lib/wagmi/helpers'
-import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { isNameOrAddress } from '@/utils/token/isNameOrAddress'
 import { getLabelRegistrationError } from '@/utils/token/isNormalized'
 import type { ProtocolVersion } from '@/utils/types'
-
-const getClient = () => wagmiConfig.getClient()
 
 export const Route = createFileRoute('/$name/create-subname')({
   component: RouteComponent,
@@ -64,14 +60,12 @@ function useSyncOwnerWithConnectedAddress(
   connectedAddress: Address | undefined,
   hasUserEdited: React.RefObject<boolean>,
   setOwnerInput: (value: string) => void,
-  setOwnerAddress: (value: Address | null) => void,
 ) {
   useEffect(() => {
     if (connectedAddress && !hasUserEdited.current) {
       setOwnerInput(connectedAddress)
-      setOwnerAddress(connectedAddress)
     }
-  }, [connectedAddress, hasUserEdited, setOwnerInput, setOwnerAddress])
+  }, [connectedAddress, hasUserEdited, setOwnerInput])
 }
 
 interface CreateSubnameFormProps {
@@ -104,25 +98,25 @@ const CreateSubnameForm = ({
 
   const [label, setLabel] = useState('')
   const [ownerInput, setOwnerInput] = useState(connectedAddress ?? '')
-  const [ownerAddress, setOwnerAddress] = useState<Address | null>(
-    connectedAddress ?? null,
-  )
-  const [resolveError, setResolveError] = useState<string | null>(null)
-  const [isResolving, setIsResolving] = useState(false)
   const [prepareError, setPrepareError] = useState<string | null>(null)
   const [resolverAddress, setResolverAddress] = useState<Address | null>(null)
   // A stable expiry for the pre-start gas estimate. Gas is independent of the
   // expiry value, so this need not match the fresh one the submit computes — it
   // just has to be stable across renders so the estimate query doesn't churn.
   const estimateExpires = useMemo(() => computeSubnameExpires(), [])
-  const resolveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hasUserEditedOwner = useRef(false)
+
+  const ownerResolution = useAddressResolution(ownerInput)
+  const ownerAddress = ownerResolution.address
+  const ownerInvalid =
+    ownerResolution.status === 'invalid' ||
+    ownerResolution.status === 'unresolved' ||
+    ownerResolution.status === 'error'
 
   useSyncOwnerWithConnectedAddress(
     connectedAddress,
     hasUserEditedOwner,
     setOwnerInput,
-    setOwnerAddress,
   )
 
   const {
@@ -272,97 +266,28 @@ const CreateSubnameForm = ({
           {labelError && <p className="text-sm text-danger">{labelError}</p>}
         </Field>
 
-        <Field data-invalid={!ownerAddress && !isResolving}>
+        <Field data-invalid={ownerInvalid}>
           <FieldLabel htmlFor="owner">Owner</FieldLabel>
-          <Input
+          <AddressNameInput
             id="owner"
             name="owner"
             placeholder="ENS name or HEX address"
-            value={ownerInput}
             required
             disabled={isSubmitting || isSuccess}
-            onChange={(e) => {
+            value={ownerInput}
+            onChange={(value) => {
               hasUserEditedOwner.current = true
-              const value = e.target.value.trim()
               setOwnerInput(value)
-              setResolveError(null)
-
-              if (resolveTimeoutRef.current) {
-                clearTimeout(resolveTimeoutRef.current)
-              }
-
-              if (isNameOrAddress(value)) {
-                if (isAddress(value)) {
-                  setOwnerAddress(value)
-                  setIsResolving(false)
-                } else if (!value.endsWith('.eth')) {
-                  setOwnerAddress(null)
-                  setIsResolving(false)
-                  setResolveError('Only .eth names can be resolved')
-                } else {
-                  setOwnerAddress(null)
-                  setIsResolving(true)
-                  resolveTimeoutRef.current = setTimeout(async () => {
-                    try {
-                      const resolved = await resolveAddressOrName({
-                        client: getClient(),
-                        nameOrAddress: value,
-                      })
-                      setOwnerAddress(resolved)
-                      setIsResolving(false)
-                      if (!resolved) {
-                        setResolveError(
-                          `Could not resolve address for ${value}`,
-                        )
-                      }
-                    } catch (error) {
-                      setOwnerAddress(null)
-                      setIsResolving(false)
-                      setResolveError(
-                        error instanceof Error
-                          ? error.message
-                          : 'Failed to resolve ENS name',
-                      )
-                    }
-                  }, 500)
-                }
-              } else {
-                setOwnerAddress(null)
-                setIsResolving(false)
-              }
             }}
+            resolution={ownerResolution}
           />
-          {isResolving && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              <Loader2 className="size-3 animate-spin" />
-              Resolving...
-            </p>
-          )}
-          {ownerAddress && !isAddress(ownerInput) && !isResolving && (
-            <p className="text-sm text-muted-foreground">
-              Resolved: {truncateAddress(ownerAddress)}
-            </p>
-          )}
-          {ownerInput &&
-            !ownerAddress &&
-            !isResolving &&
-            !resolveError &&
-            !ownerInput.includes('.') &&
-            !isAddress(ownerInput) && (
-              <p className="text-sm text-muted-foreground">
-                Enter a full ENS name (e.g. name.eth) or a HEX address
-              </p>
-            )}
         </Field>
 
-        {match({ isConnected, prepareError, resolveError })
+        {match({ isConnected, prepareError })
           .with({ isConnected: false }, () => (
             <p className="text-sm text-warning">
               Please connect your wallet to create a subname.
             </p>
-          ))
-          .with({ resolveError: P.string.minLength(1) }, ({ resolveError }) => (
-            <p className="text-sm text-danger">{resolveError}</p>
           ))
           .with({ prepareError: P.string.minLength(1) }, ({ prepareError }) => (
             <p className="text-sm text-danger">Error: {prepareError}</p>

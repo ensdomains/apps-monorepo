@@ -103,7 +103,7 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
 export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
   [baseSepolia.id]: {
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-    hcaFundingSessionValidator: '0x6FC0FdE0960003AcB24810FFd5dB6224B3d88974',
+    hcaFundingSessionValidator: '0x6Fc0FdE0960003acb24810fFd5dB6224b3d88974',
   },
 }
 
