@@ -38,7 +38,7 @@ vi.mock('@posthog/react', () => ({
   PostHogProvider: ({ children }: { children: unknown }) => children,
 }))
 
-vi.mock('posthog-js', () => ({
+vi.mock('posthog-js/dist/module.full.no-external', () => ({
   default: {
     init: vi.fn(),
     identify: vi.fn(),

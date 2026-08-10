@@ -9,6 +9,7 @@ import { NotFoundPage } from './features/not-found/pages/NotFoundPage'
 import { initializeIntercom } from './lib/intercom'
 import { getLocale, loadCatalog } from './lib/locale'
 import { routeTree } from './routeTree.gen'
+import { getCspNonce } from './server/csp-nonce'
 import {
   deserializeBigInts,
   serializeBigInts,
@@ -57,6 +58,10 @@ export async function getRouter() {
 
   await loadCatalog(getLocale())
 
+  // Nonce from security-headers middleware (src/start.ts). TanStack stamps it
+  // onto framework <script> tags so the CSP `script-src 'nonce-…'` allows them.
+  const cspNonce = getCspNonce()
+
   const router = createTanStackRouter({
     routeTree,
     scrollRestoration: true,
@@ -66,6 +71,7 @@ export async function getRouter() {
     context: {
       queryClient,
     },
+    ...(cspNonce ? { ssr: { nonce: cspNonce } } : {}),
   })
 
   setupRouterSsrQueryIntegration({

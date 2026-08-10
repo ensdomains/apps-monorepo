@@ -12,6 +12,8 @@ import { Layout } from '@/components/Layout'
 import { MATERIAL_SYMBOLS_URL, MSymbol } from '@/components/ui/material-symbol'
 import { NotFoundPage } from '@/features/not-found/pages/NotFoundPage'
 import { RootProviders } from '@/lib/RootProviders'
+import { buildCspWithoutFrameAncestors } from '@/server/csp'
+import { getCspNonce } from '@/server/csp-nonce'
 import appCss from '@/styles/index.css?url'
 
 type RootRouterContext = {
@@ -22,34 +24,49 @@ const toastIconClassName =
   'ens-sonner-icon ms-fill ms-opsz-24 ms-wght-400 size-6 text-2xl leading-none'
 
 export const Route = createRootRouteWithContext<RootRouterContext>()({
-  head: () => ({
-    meta: [
-      {
-        charSet: 'utf-8',
-      },
-      {
-        name: 'viewport',
-        content: 'width=device-width, initial-scale=1',
-      },
-      {
-        title: 'ENS App',
-      },
-      { name: 'theme-color', content: '#0082BB' },
-    ],
-    links: [
-      {
-        rel: 'stylesheet',
-        href: appCss,
-      },
-      {
-        rel: 'stylesheet',
-        href: MATERIAL_SYMBOLS_URL,
-      },
-      { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
-      { rel: 'apple-touch-icon', href: '/apple-icon-180x180.png' },
-      { rel: 'manifest', href: '/manifest.json' },
-    ],
-  }),
+  head: () => {
+    // CSP meta is a defense-in-depth complement to the HTTP header set in
+    // src/start.ts. frame-ancestors is omitted (invalid in <meta>). Skip in
+    // DEV — Vite HMR needs eval/ws that the production policy forbids.
+    const cspNonce = import.meta.env.DEV ? undefined : getCspNonce()
+
+    return {
+      meta: [
+        {
+          charSet: 'utf-8',
+        },
+        {
+          name: 'viewport',
+          content: 'width=device-width, initial-scale=1',
+        },
+        {
+          title: 'ENS App',
+        },
+        { name: 'theme-color', content: '#0082BB' },
+        ...(cspNonce
+          ? [
+              {
+                httpEquiv: 'Content-Security-Policy' as const,
+                content: buildCspWithoutFrameAncestors({ nonce: cspNonce }),
+              },
+            ]
+          : []),
+      ],
+      links: [
+        {
+          rel: 'stylesheet',
+          href: appCss,
+        },
+        {
+          rel: 'stylesheet',
+          href: MATERIAL_SYMBOLS_URL,
+        },
+        { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        { rel: 'apple-touch-icon', href: '/apple-icon-180x180.png' },
+        { rel: 'manifest', href: '/manifest.json' },
+      ],
+    }
+  },
   component: RootComponent,
   notFoundComponent: NotFoundPage,
 })
