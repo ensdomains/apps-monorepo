@@ -25,6 +25,10 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import {
+  registerSubname as createSubname,
+  attachSubregistry as deployAndAttachSubregistry,
+} from '../../../fixtures/makeSubname.js'
+import {
   connectWithHeadlessWallet,
   expect,
   test,
@@ -79,83 +83,6 @@ function readResolverAndSubregistry(
       args: [label],
     }),
   ])
-}
-
-/**
- * Deploys a fresh subregistry proxy and attaches it to `name` on the parent
- * (`.eth`) registry, signed by `ownerPrivateKey`. `makeName` always registers
- * with `subregistry: zeroAddress` (see makeName.ts), so a test that needs
- * `useTransferDetachTargets` to show a "Detach the registry" target calls
- * this first. Returns the deployed subregistry address.
- *
- * The salt is derived from the name rather than left to ensjs's default.
- * `deploySubregistry` computes its `DEFAULT_SALT` **once at module load**
- * (`keccak256(new Date().toISOString())`), so every call within a single
- * Playwright worker reuses it — and since the CREATE2 address is a function of
- * (deployer, salt), the second deploy from the same account reverts on an
- * already-deployed proxy. That made any run containing more than one
- * `attachSubregistry` fail, whichever test happened to go second.
- */
-async function attachSubregistry(
-  name: string,
-  ownerPrivateKey: Hash,
-): Promise<Address> {
-  const label = name.replace(/\.eth$/, '')
-  const ownerClient = getOwnerClient(ownerPrivateKey)
-
-  const deployHash = await deploySubregistry(ownerClient, {
-    factoryAddress: VERIFIABLE_FACTORY,
-    implAddress: USER_REGISTRY_IMPL,
-    salt: BigInt(keccak256(stringToBytes(`subregistry:${name}`))),
-  })
-  const deployReceipt = await publicClient.waitForTransactionReceipt({
-    hash: deployHash,
-  })
-
-  const [deployed] = parseEventLogs({
-    abi: proxyDeployedEventSnippet,
-    eventName: 'ProxyDeployed',
-    logs: deployReceipt.logs,
-  })
-  if (!deployed) {
-    throw new Error('Could not extract deployed subregistry address')
-  }
-  const subregistryAddress = deployed.args.proxyAddress
-
-  const setHash = await setSubregistry(ownerClient, {
-    registryAddress: ETH_REGISTRY,
-    label,
-    subregistryAddress,
-  })
-  await publicClient.waitForTransactionReceipt({ hash: setHash })
-
-  return subregistryAddress
-}
-
-/**
- * Registers `label.<the name behind subregistryAddress>` as a fresh subname,
- * owned by `ownerPrivateKey`, with no resolver and no subregistry of its own
- * — just enough for a subname-transfer test with nothing else to detach.
- * `subregistryAddress` must come from {@link attachSubregistry}, whose caller
- * is deployed as that registry's admin with full permissions, so the same
- * owner can register into it directly.
- */
-async function registerSubname(
-  subregistryAddress: Address,
-  label: string,
-  ownerPrivateKey: Hash,
-): Promise<void> {
-  const ownerClient = getOwnerClient(ownerPrivateKey)
-
-  const hash = await createSubnameV2(ownerClient, {
-    registryAddress: subregistryAddress,
-    label,
-    owner: ownerClient.account.address,
-    subregistryAddress: zeroAddress,
-    resolverAddress: zeroAddress,
-    roleBitmap: FULL_ROLE_BITMAP,
-  })
-  await publicClient.waitForTransactionReceipt({ hash })
 }
 
 /**
@@ -550,9 +477,9 @@ test.describe('Portal name transfer', () => {
 
     // Attach a subregistry on-chain so "Detach the registry" actually
     // renders (see useTransferDetachTargets.ts — it's hidden otherwise).
-    const subregistryAddress = await attachSubregistry(
-      name,
-      accounts.getPrivateKey('user'),
+    const subregistryAddress = await deployAndAttachSubregistry(
+      { label: name.replace(/\.eth$/, '') },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
     )
     const [originalResolver, originalSubregistry] =
       await readResolverAndSubregistry(label)
@@ -630,14 +557,13 @@ test.describe('Portal name transfer', () => {
     // A subname only exists once its parent has a subregistry — same setup as
     // the "registry attached" scenario above — then register the subname
     // itself as a label inside it.
-    const subregistryAddress = await attachSubregistry(
-      parentName,
-      accounts.getPrivateKey('user'),
+    const subregistryAddress = await deployAndAttachSubregistry(
+      { label: parentName.replace(/\.eth$/, '') },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
     )
-    await registerSubname(
-      subregistryAddress,
-      'sub',
-      accounts.getPrivateKey('user'),
+    await createSubname(
+      { registryAddress: subregistryAddress, label: 'sub' },
+      privateKeyToAccount(accounts.getPrivateKey('user')),
     )
     const name = `sub.${parentName}`
 
