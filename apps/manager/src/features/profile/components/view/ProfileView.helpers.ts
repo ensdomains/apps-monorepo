@@ -193,6 +193,19 @@ export const getPrimaryContactItems = (
     .slice(0, limit)
 }
 
+export const getSecondarySocialRecords = (
+  records: ProfileRecords,
+): TextRecordValue[] => {
+  const primaryContactKeys = new Set<string>(
+    parsePrimaryContactKeys(records.base),
+  )
+
+  return records.social.filter(
+    (record) =>
+      record.value.trim() !== '' && !primaryContactKeys.has(record.key),
+  )
+}
+
 const toAddressItem = (
   address: AddressRecordValue,
   sourceIndex: number,

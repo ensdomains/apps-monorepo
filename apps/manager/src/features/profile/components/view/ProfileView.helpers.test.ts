@@ -8,6 +8,7 @@ import {
   getPrimaryContactItems,
   getReceivingAddressChains,
   getSafeProfileLinks,
+  getSecondarySocialRecords,
 } from './ProfileView.helpers'
 
 const makeRecords = (
@@ -99,6 +100,39 @@ describe('ProfileView helpers', () => {
       'location',
       'email',
       'com.github',
+    ])
+  })
+
+  it('excludes primary contacts from the social records', () => {
+    const records = makeRecords({
+      base: {
+        'domains.ens.primary-contacts': JSON.stringify([
+          'com.twitter',
+          'email',
+        ]),
+      },
+      contact: [{ key: 'email', value: 'person@example.com' }],
+      social: [
+        { key: 'com.twitter', value: 'ernieth' },
+        { key: 'org.telegram', value: 'erni_eth' },
+      ],
+    })
+
+    expect(getSecondarySocialRecords(records)).toEqual([
+      { key: 'org.telegram', value: 'erni_eth' },
+    ])
+  })
+
+  it('restores a social record when it is no longer a primary contact', () => {
+    const records = makeRecords({
+      social: [
+        { key: 'com.twitter', value: 'ernieth' },
+        { key: 'org.telegram', value: '' },
+      ],
+    })
+
+    expect(getSecondarySocialRecords(records)).toEqual([
+      { key: 'com.twitter', value: 'ernieth' },
     ])
   })
 
