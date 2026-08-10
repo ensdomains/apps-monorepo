@@ -72,14 +72,9 @@ export function handleStartRegistration(
   const token = 'USDC' as const
   const durationInSeconds = durationYearsToSeconds(duration)
 
-  const enableSponsorship =
-    import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
-      ? true // Default to true for testnet
-      : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true'
-
   // For HCA accounts:
   //   - Use the EOA address as the owner (ownerAddress is set)
-  //   - The smart account will be used for the transaction (sponsorship)
+  //   - The smart account will be used for the transaction
   //   - But the ENS name will be owned by the EOA
   // For Para embedded wallets, ownerAddress contains the EOA address from the Para account
   // For external wallets, ownerAddress contains the wagmi address (EOA)
@@ -93,7 +88,7 @@ export function handleStartRegistration(
 
   // EOA signer used to produce the gasless EIP-2612 permit signature for HCA
   // flows (the registrar pulls payment from the EOA owner, so the EOA must
-  // authorize the allowance). Carried into the sponsored bundle; the EOA sends
+  // authorize the allowance). Carried into the HCA bundle; the EOA sends
   // no tx. Pure-EOA flows don't need it (they use a plain on-chain `approve`).
   const approvalSigner: Signer | undefined = account.walletClient
     ? { type: 'eoa', walletClient: account.walletClient }
@@ -133,7 +128,6 @@ export function handleStartRegistration(
     price: tokenPrice,
     hasSigner: !!signer,
     hasPublicClient: !!publicClient,
-    sponsored: enableSponsorship,
     ownerAddress,
     smartAccountAddress: account.accountAddress,
   })
@@ -151,6 +145,5 @@ export function handleStartRegistration(
     ownerAddress, // HCA-only: register the ENS name to the EOA
     resolverOwnerAddress, // Always the EOA — resolver EACL grantee
     publicClient,
-    sponsored: enableSponsorship,
   })
 }

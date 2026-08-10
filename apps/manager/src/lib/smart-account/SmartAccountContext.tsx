@@ -338,7 +338,7 @@ export const SmartAccountContextProvider = ({
   })
 
   // Smart account is HCA-only: fund the EOA (which holds the ENS name and
-  // stablecoins the smart account spends from). ETH for gas is sponsored
+  // stablecoins the smart account spends from). Execution costs are paid
   // by Rhinestone, so the SCA itself doesn't need funding.
   const addressToFund = ownerAddress
 
@@ -468,7 +468,7 @@ export const SmartAccountContextProvider = ({
 
     // Fund when the owner is low on stablecoins. The api-worker faucet mints
     // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
-    // (HCA gas is Warp-sponsored and the payment approval is a gasless permit,
+    // (HCA execution costs are paid in USDC and the payment approval is a gasless permit,
     // so the EOA owner never needs native ETH.)
     if (!needsStablecoins) return
 
