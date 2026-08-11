@@ -9,7 +9,7 @@
  *   2. paymentToken.approve(ETHRegistrar, price)
  *   3. ETHRegistrar.register(..., wallet as owner, ...)
  *   4. resolver setters                        — only selected records
- *   5. DefaultReverseRegistrarHCAAdapter.setNameWithHCA(wallet, name) — primary only
+ *   5. DefaultReverseRegistrarAdapter.setNameWithHCA(wallet, name) — primary only
  *   6. PermissionedResolver.authorizeNameRoles(hex"00", ROLES.ALL, wallet, true)
  *
  * Price MUST be read immediately before the reveal (never cached from commit
@@ -24,16 +24,13 @@ import { permissionedResolverAuthorizeNameRolesSnippet } from '@ensdomains/ensjs
 import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import {
   type Address,
-  concatHex,
-  encodeAbiParameters,
   encodeFunctionData,
-  getContractAddress,
   type Hex,
-  keccak256,
   namehash,
   type PublicClient,
   parseAbi,
 } from 'viem'
+import { computeVerifiableProxyAddress } from '../../verifiable-factory'
 import {
   COIN_TYPE_ETH,
   computeResolverSalt,
@@ -85,23 +82,11 @@ export function computeResolverAddress(params: {
 }): Address {
   const c = getDestinationContracts(params.chainId)
   const salt = computeResolverSalt(params.hca)
-  const outerSalt = keccak256(
-    encodeAbiParameters(
-      [{ type: 'address' }, { type: 'uint256' }],
-      [params.hca, salt],
-    ),
-  )
-  const bytecode = concatHex([
-    '0x3d604d80600a3d3981f3363d3d373d3d3d363d73',
-    c.verifiableFactoryProxyLogic,
-    '0x5af43d82803e903d91602b57fd5bf3',
-    outerSalt,
-  ])
-  return getContractAddress({
-    bytecode,
-    from: c.verifiableFactory,
-    opcode: 'CREATE2',
-    salt: outerSalt,
+  return computeVerifiableProxyAddress({
+    factory: c.verifiableFactory,
+    proxyLogic: c.verifiableFactoryProxyLogic,
+    deployer: params.hca,
+    salt,
   })
 }
 

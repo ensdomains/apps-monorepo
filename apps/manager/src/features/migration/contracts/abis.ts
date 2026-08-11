@@ -1,11 +1,16 @@
 import {
+  publicResolverAbiSnippet,
+  publicResolverContenthashSnippet,
   publicResolverMultiAddrSnippet,
   publicResolverMulticallSnippet,
+  publicResolverSetAbiSnippet,
   publicResolverSetAddrSnippet,
+  publicResolverSetContenthashSnippet,
   publicResolverSetTextSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
 import { eacGrantRolesSnippet } from '@ensdomains/ensjs-abi/v2/enhancedAccessControl'
+import { migrationHelperMigrateSnippet } from '@ensdomains/ensjs-abi/v2/migrationHelper'
 import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
@@ -19,6 +24,13 @@ export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '@ens-apps/migration'
 // to @ensdomains/ensjs-abi/v2/permissionedRegistry and drop this local snippet.
 const ethRegistryGetStatusSnippet = parseAbi([
   'function getStatus(uint256 anyId) view returns (uint8)',
+])
+
+// Shared by the V1 NFT contracts and the V2 registry. Migration grants the
+// wallet-owned HCA operator access that can be reused for later operations.
+export const OPERATOR_APPROVAL_ABI = parseAbi([
+  'function isApprovedForAll(address owner, address operator) view returns (bool)',
+  'function setApprovalForAll(address operator, bool approved)',
 ])
 
 // TODO(ensjs): `subregistryInitializeSnippet` in
@@ -37,6 +49,7 @@ export const ETH_REGISTRY_V2_ABI = [
   ...permissionedRegistryGetSubregistrySnippet,
   ...permissionedRegistryGetResolverSnippet,
   ...ethRegistryGetStatusSnippet,
+  ...OPERATOR_APPROVAL_ABI,
   ...eacGrantRolesSnippet,
 ] as const
 
@@ -47,19 +60,15 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...publicResolverMulticallSnippet,
   ...publicResolverSetTextSnippet,
   ...publicResolverSetAddrSnippet,
+  ...publicResolverSetContenthashSnippet,
+  ...publicResolverSetAbiSnippet,
   ...publicResolverTextSnippet,
   ...publicResolverMultiAddrSnippet,
+  ...publicResolverContenthashSnippet,
+  ...publicResolverAbiSnippet,
 ] as const
 
-// MigrationHelper — single entrypoint plus typed errors raised directly by the helper.
-export const MIGRATION_HELPER_ABI = parseAbi([
-  'struct Data { string label; address owner; address subregistry; address resolver; }',
-  'struct LockedChildren { bytes parentName; Data[][] groups; }',
-  'function migrate(Data[] unwrapped, Data[][] unlockedGroups, Data[][] lockedGroups, LockedChildren[] lockedChildrenGroups)',
-  'error WrappedOwnerMismatch(uint256 tokenId)',
-  'error ParentNotMigrated(bytes name)',
-  'error NotApprovedOperator(address nft, address owner)',
-])
+export const MIGRATION_HELPER_ABI = migrationHelperMigrateSnippet
 
 // LibMigration errors — these come back wrapped inside Error(string) due to
 // NameWrapper's transfer-error squelching. decodeMigrationError unwraps and

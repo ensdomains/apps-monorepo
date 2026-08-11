@@ -213,12 +213,12 @@ describe('classifyName — resolver strategy for locked', () => {
       'keep-v1' as const,
     ],
     [
-      'to-owned-permres when CANNOT_SET_RESOLVER burnt but no v1 resolver',
+      'keep-v1 when CANNOT_SET_RESOLVER burnt and the v1 resolver is empty',
       {
         fuses: FUSES.CANNOT_UNWRAP | FUSES.CANNOT_SET_RESOLVER,
         resolverAddress: null,
       },
-      'to-owned-permres' as const,
+      'keep-v1' as const,
     ],
     [
       'keep-v1 with custom v1 resolver even without CANNOT_SET_RESOLVER',

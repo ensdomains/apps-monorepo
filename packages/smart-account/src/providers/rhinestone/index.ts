@@ -35,11 +35,20 @@ export {
   registerLegGasLimit,
 } from './budget'
 export {
+  type BuildHcaDeploymentCallParams,
+  buildHcaDeploymentCall,
   buildStandaloneAccountConfig,
+  computeStandaloneHcaAddress,
+  getHcaDirectExecutionReadiness,
+  HcaDeploymentCallValidationError,
+  type HcaDirectExecutionReadiness,
   type InitializeRhinestoneAccountParams,
   initializeRhinestoneAccount,
   type RhinestoneInitConfig,
+  type RhinestoneInitError,
   type RhinestoneInitResult,
+  type VerifyStandaloneHcaParams,
+  verifyStandaloneHca,
 } from './initialize-account'
 export {
   computeResolverSalt,
@@ -49,6 +58,7 @@ export {
   getDestinationContracts,
   getSourceContracts,
   ONCHAIN_ACCOUNT_ID,
+  ROLES_ALL,
   SHARED_CONTRACTS,
   type SharedContracts,
   SOURCE_CONTRACTS,
@@ -56,6 +66,10 @@ export {
   STANDALONE_HCA_VERSION,
   USER_SALT,
 } from './manifest'
+export {
+  type BuildHcaOwnerExecutionCallParams,
+  buildHcaOwnerExecutionCall,
+} from './owner-execution'
 export {
   buildCommitCall,
   buildRevealBatch,

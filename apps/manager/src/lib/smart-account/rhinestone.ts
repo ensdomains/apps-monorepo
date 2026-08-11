@@ -70,10 +70,10 @@ function resolveOwnerAccount(params: { walletClient?: WalletClient }): {
 /**
  * Resolve env-derived SDK options.
  *
- * A local orchestrator (`VITE_RHINESTONE_ENDPOINT_URL` set) is considered
- * API-key-eligible even without `VITE_RHINESTONE_API_KEY`, using the
- * placeholder `'local-dev'`. Lets us run against the mockestrator in e2e
- * without a production key.
+ * Development is API-key-eligible without `VITE_RHINESTONE_API_KEY`, using the
+ * placeholder `'local-dev'`. Deterministic HCA construction and EOA-paid flows
+ * such as migration do not call the orchestrator, while local-orchestrator e2e
+ * can use the same placeholder. Production remains fail-closed.
  *
  * `VITE_RHINESTONE_CUSTOM_RPC_URLS` is JSON-encoded in the env.
  */
@@ -83,11 +83,11 @@ function resolveSdkEnv(): {
   rhinestoneCustomRpcUrls?: Record<number, string>
 } {
   const endpointUrl = import.meta.env.VITE_RHINESTONE_ENDPOINT_URL || undefined
-  const isLocalOrchestrator = !!endpointUrl
+  const allowsDevPlaceholder = import.meta.env.DEV || !!endpointUrl
 
   const apiKey =
     import.meta.env.VITE_RHINESTONE_API_KEY ||
-    (isLocalOrchestrator ? 'local-dev' : undefined)
+    (allowsDevPlaceholder ? 'local-dev' : undefined)
 
   if (!apiKey) {
     throw new Error(

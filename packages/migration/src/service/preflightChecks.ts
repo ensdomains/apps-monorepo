@@ -1,4 +1,5 @@
 import { getChainContractAddress } from '@ensdomains/ensjs/chain'
+import { permissionedRegistryGetStatusSnippet } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
 import type { Address, PublicClient } from 'viem'
 import { zeroAddress } from 'viem'
 import { sepoliaWithEns } from '../chain'
@@ -15,6 +16,11 @@ const NAME_WRAPPER = getChainContractAddress({
   chain: sepoliaWithEns,
   contract: 'ensNameWrapper',
 })
+const ETH_REGISTRY_V2 = getChainContractAddress({
+  chain: sepoliaWithEns,
+  contract: 'ensRegistry',
+})
+const RESERVED_STATUS = 1
 
 // Whether a NameWrapper token can actually be transferred right now, matching
 // `NameWrapper._beforeTransfer`: `.eth` 2LDs (`IS_DOT_ETH`) become non-transferable
@@ -34,6 +40,7 @@ export type EligibilityResult = {
   eligible: ClassifiedName[]
   frozen: ClassifiedName[]
   alreadyMigrated: ClassifiedName[]
+  notPremigrated: ClassifiedName[]
   failed: ClassifiedName[]
 }
 
@@ -130,6 +137,48 @@ export const checkFrozenApproval = async (
   return ids
 }
 
+/**
+ * ENSv2 migration controllers can register only pre-migrated RESERVED 2LDs.
+ * Check that invariant in one multicall before a name can reach gas estimation;
+ * otherwise NameWrapper masks the receiver's typed revert behind the misleading
+ * legacy "non ERC1155Receiver implementer" error.
+ */
+export const checkPremigrationReservation = async (
+  publicClient: PublicClient,
+  names: readonly ClassifiedName[],
+  failed?: Set<string>,
+): Promise<Set<string>> => {
+  const ids = new Set<string>()
+  const candidates = names.filter(
+    (name) =>
+      name.tokenType === 'unwrapped' ||
+      name.tokenType === 'unlocked' ||
+      name.tokenType === 'locked-2ld',
+  )
+  if (candidates.length === 0) return ids
+
+  const results = await batchedMulticall<number>(
+    publicClient,
+    candidates.map((name) => ({
+      address: ETH_REGISTRY_V2,
+      abi: permissionedRegistryGetStatusSnippet,
+      functionName: 'getStatus' as const,
+      args: [BigInt(name.domain.labelhash)] as const,
+    })),
+  )
+
+  for (const [index, name] of candidates.entries()) {
+    const result = results[index]
+    if (!result || result.status === 'failure') {
+      ids.add(name.domain.id)
+      failed?.add(name.domain.id)
+      continue
+    }
+    if (result.result !== RESERVED_STATUS) ids.add(name.domain.id)
+  }
+  return ids
+}
+
 const frozenApprovalCandidates = (
   names: readonly ClassifiedName[],
 ): ClassifiedName[] =>
@@ -145,23 +194,34 @@ export const runEligibilityChecks = async (
   migrationOwner: Address,
 ): Promise<EligibilityResult> => {
   if (names.length === 0) {
-    return { eligible: [], frozen: [], alreadyMigrated: [], failed: [] }
+    return {
+      eligible: [],
+      frozen: [],
+      alreadyMigrated: [],
+      notPremigrated: [],
+      failed: [],
+    }
   }
 
   const frozenCandidates = frozenApprovalCandidates(names)
   const failedIds = new Set<string>()
 
-  const [migratedIds, frozenIds] = await Promise.all([
+  const [migratedIds, frozenIds, notPremigratedIds] = await Promise.all([
     checkOwnership(publicClient, names, migrationOwner, failedIds),
     checkFrozenApproval(publicClient, frozenCandidates, failedIds),
+    checkPremigrationReservation(publicClient, names, failedIds),
   ])
 
   return {
     eligible: names.filter(
-      (n) => !frozenIds.has(n.domain.id) && !migratedIds.has(n.domain.id),
+      (n) =>
+        !frozenIds.has(n.domain.id) &&
+        !migratedIds.has(n.domain.id) &&
+        !notPremigratedIds.has(n.domain.id),
     ),
     frozen: names.filter((n) => frozenIds.has(n.domain.id)),
     alreadyMigrated: names.filter((n) => migratedIds.has(n.domain.id)),
+    notPremigrated: names.filter((n) => notPremigratedIds.has(n.domain.id)),
     failed: names.filter((n) => failedIds.has(n.domain.id)),
   }
 }

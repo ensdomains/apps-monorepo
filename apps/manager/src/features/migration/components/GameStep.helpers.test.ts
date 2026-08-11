@@ -70,6 +70,16 @@ describe('computeBridgeLayout', () => {
     const stepsFromEnd = 10 - 8
     expect(r.frensX).toBeCloseTo(600 - (stepsFromEnd - 0.5) * plank)
   })
+
+  it('keeps the frens on the final plank after every step completes', () => {
+    const r = computeBridgeLayout({
+      totalSteps: 4,
+      completedSteps: 4,
+      trackWidth: 400,
+      visiblePlanks: 6,
+    })
+    expect(r.frensX).toBeCloseTo(350)
+  })
 })
 
 describe('describeNextStep', () => {
@@ -90,55 +100,43 @@ describe('describeNextStep', () => {
       { kind: 'preparing' },
     ],
     [
-      'approve-base-registrar descriptor',
+      'deploy-hca descriptor',
       {
-        descriptor: descriptor({ type: 'approve-base-registrar' }),
+        descriptor: descriptor({ type: 'deploy-hca' }),
       },
-      { kind: 'approve-base-registrar' },
+      { kind: 'deploy-hca' },
     ],
     [
-      'approve-name-wrapper descriptor',
-      {
-        descriptor: descriptor({ type: 'approve-name-wrapper' }),
-      },
-      { kind: 'approve-name-wrapper' },
-    ],
-    [
-      'ensure-resolver descriptor',
-      {
-        descriptor: descriptor({ type: 'ensure-resolver' }),
-      },
-      { kind: 'ensure-resolver' },
-    ],
-    [
-      'migrate-batch descriptor',
+      'approval descriptor',
       {
         descriptor: descriptor({
-          type: 'migrate-batch',
+          type: 'approval',
+          approvalId: 'base-registrar:hca',
+        }),
+      },
+      { kind: 'approval', approvalId: 'base-registrar:hca' },
+    ],
+    [
+      'per-token approval descriptor',
+      {
+        descriptor: descriptor({
+          type: 'approval',
+          approvalId: 'base-registrar:hca-token',
+        }),
+      },
+      { kind: 'approval', approvalId: 'base-registrar:hca-token' },
+    ],
+    [
+      'atomic-batch descriptor',
+      {
+        descriptor: descriptor({
+          type: 'atomic-batch',
           index: 0,
           total: 1,
           count: 5,
         }),
       },
-      { kind: 'migrate-batch', index: 0, total: 1, count: 5 },
-    ],
-    [
-      'grant-role descriptor',
-      {
-        descriptor: descriptor({ type: 'grant-role', label: 'myname' }),
-      },
-      { kind: 'grant-role', label: 'myname' },
-    ],
-    [
-      'profile-replay-batch descriptor',
-      {
-        descriptor: descriptor({
-          type: 'profile-replay-batch',
-          index: 0,
-          total: 1,
-        }),
-      },
-      { kind: 'profile-replay-batch', index: 0, total: 1 },
+      { kind: 'atomic-batch', index: 0, total: 1, count: 5 },
     ],
   ] as const)('%s', (_, params, expected) => {
     expect(describeNextStep(params)).toEqual(expected)

@@ -52,13 +52,16 @@ const disabledNftSuccessState = {
 const noop = () => undefined
 
 const PlainMigrationSuccessDialog = ({
+  migratedNameCount,
   onContinue,
 }: {
+  readonly migratedNameCount: number
   readonly onContinue: () => void
 }) => (
   <MigrationSuccessDialog
     canMint={false}
     context="migration"
+    migratedNameCount={migratedNameCount}
     onClose={onContinue}
     onMint={noop}
     onRetry={noop}
@@ -73,27 +76,60 @@ const formatMigrationError = (error: MigrationError): ReactNode => {
   switch (error.type) {
     case 'generic':
       return error.message
-    case 'resolver-deploy-failed':
-      return <div>Couldn&apos;t finish setting up your account.</div>
+    case 'plan-changed':
+      return (
+        <div>
+          <Trans>
+            Migration permissions changed. Go back to review the updated
+            confirmation estimate.
+          </Trans>
+        </div>
+      )
+    case 'retry-blocked':
+      return (
+        <div>
+          <Trans>
+            The previous atomic transaction could not be safely retried. No new
+            migration was submitted.
+          </Trans>
+        </div>
+      )
+    case 'cleanup-failed':
+      return (
+        <div>
+          <Trans>
+            Your names were upgraded, but temporary HCA access still needs to be
+            revoked.
+          </Trans>
+        </div>
+      )
     case 'profile-fetch-failed':
       return <div>Couldn&apos;t read your current records.</div>
     case 'user-rejected':
       return <div>Request cancelled.</div>
     case 'preflight-timeout':
       return <div>This is taking longer than expected.</div>
-    case 'parent-not-migrated':
-      return (
-        <div>
-          <Trans>Upgrade {error.parentName} first.</Trans>
-        </div>
-      )
-    case 'not-approved-operator':
+    case 'permission-missing':
       return (
         <div>
           <Trans>Permission missing. Please try again.</Trans>
         </div>
       )
-    case 'wrapped-owner-mismatch':
+    case 'token-owner-changed':
+      return (
+        <div>
+          <Trans>
+            One of your names changed owners. Refresh and select it again.
+          </Trans>
+        </div>
+      )
+    case 'hca-owner-mismatch':
+      return (
+        <div>
+          <Trans>This migration account belongs to a different wallet.</Trans>
+        </div>
+      )
+    case 'direct-transfer-unauthorized':
     case 'name-data-mismatch':
     case 'invalid-data':
       return (
@@ -137,7 +173,13 @@ export const MigrationPage = () => {
   const migratedNames = useMigrationMigratedNames(uiActor)
   const lastError = useMigrationLastError(uiActor)
   const { data: v1Names = [] } = useV1Names()
-  const { ownerAddress } = useSmartAccountContext()
+  const {
+    ownerAddress,
+    accountAddress: hcaAddress,
+    client: hcaClient,
+    error: hcaError,
+    refreshAccount,
+  } = useSmartAccountContext()
   const { data: wagmiWalletClient } = useWalletClient()
   const queryClient = useQueryClient()
   const migrationNftEnabled = useFeatureFlagEnabled(
@@ -151,6 +193,8 @@ export const MigrationPage = () => {
   const dialogNames = isMigrationSuccess ? migratedNames : selectedNames
   const gasEstimate = useMigrationGasEstimate({
     ownerAddress: ownerAddress as Address | undefined,
+    hcaAddress: hcaAddress as Address | undefined,
+    accountError: hcaError,
     selectedNames,
     v1Names,
   })
@@ -168,23 +212,15 @@ export const MigrationPage = () => {
     }
   }, [step, queryClient])
 
-  const handleSuccessClose = useCallback(
-    (profileName?: string) => {
-      if (isMigrationSuccess) {
-        uiActor.send({ type: 'done' })
-        const destinationName = profileName ?? dialogNames[0]
-        if (destinationName) {
-          navigate({ to: '/$name', params: { name: destinationName } })
-          return
-        }
-        navigate({ to: '/dashboard' })
-        return
-      }
+  const handleSuccessClose = useCallback(() => {
+    if (isMigrationSuccess) {
+      uiActor.send({ type: 'done' })
+      navigate({ to: '/dashboard', replace: true })
+      return
+    }
 
-      setIsPreviewOpen(false)
-    },
-    [dialogNames, isMigrationSuccess, uiActor, navigate],
-  )
+    setIsPreviewOpen(false)
+  }, [isMigrationSuccess, uiActor, navigate])
 
   const handleViewProfile = useCallback(
     (profileName?: string) => {
@@ -206,11 +242,6 @@ export const MigrationPage = () => {
     [dialogNames, isMigrationSuccess, uiActor, navigate],
   )
 
-  const handlePlainSuccess = useCallback(
-    () => handleViewProfile(),
-    [handleViewProfile],
-  )
-
   const handleNamesChange = useCallback(
     (names: string[]) => uiActor.send({ type: 'selection.set', names }),
     [uiActor],
@@ -226,7 +257,13 @@ export const MigrationPage = () => {
   }, [canGoBack, navigate])
 
   const handleBeginUpgrade = useCallback(async () => {
-    if (!ownerAddress || !wagmiWalletClient?.account) return false
+    if (
+      !ownerAddress ||
+      !hcaAddress ||
+      !hcaClient ||
+      !wagmiWalletClient?.account
+    )
+      return false
     if (gasEstimate.status !== 'ready') return false
     // Don't let the owner start before their gas drip is confirmed on-chain.
     if (gasFundingStatus === 'funding') return false
@@ -240,7 +277,8 @@ export const MigrationPage = () => {
         type: 'migration.start',
         plan: gasEstimate.plan,
         signer,
-        accountAddress: ownerAddress as Address,
+        hcaClient,
+        refreshAccount,
       })
       return true
     } catch (err) {
@@ -250,12 +288,19 @@ export const MigrationPage = () => {
       })
       return true
     }
-  }, [ownerAddress, wagmiWalletClient, gasEstimate, gasFundingStatus, uiActor])
+  }, [
+    ownerAddress,
+    hcaAddress,
+    hcaClient,
+    refreshAccount,
+    wagmiWalletClient,
+    gasEstimate,
+    gasFundingStatus,
+    uiActor,
+  ])
 
   return (
-    <div
-      className="relative flex h-[calc(100dvh-80px)] min-h-0 w-full flex-1 flex-col overflow-hidden" // 80px is the md+ Manager header height.
-    >
+    <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-clip">
       <GrainOverlay className="opacity-70" />
 
       {step === 'select' && (
@@ -327,14 +372,21 @@ export const MigrationPage = () => {
                 onClick={() => uiActor.send({ type: 'retry' })}
                 type="button"
               >
-                <Trans>Retry</Trans>
+                {lastError?.type === 'cleanup-failed' ? (
+                  <Trans>Revoke temporary HCA access</Trans>
+                ) : (
+                  <Trans>Retry</Trans>
+                )}
               </button>
             </motion.div>
           </ResultLayout>
         ))
         .with('success', () =>
           migrationNftEnabled ? null : (
-            <PlainMigrationSuccessDialog onContinue={handlePlainSuccess} />
+            <PlainMigrationSuccessDialog
+              migratedNameCount={dialogNames.length}
+              onContinue={handleSuccessClose}
+            />
           ),
         )
         .exhaustive()}

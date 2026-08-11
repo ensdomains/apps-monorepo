@@ -1,6 +1,7 @@
 import { TaggedError } from '@ens-apps/utils/neverthrow'
 import type { Address, Hex, PublicClient } from 'viem'
 import type { PERMISSIONED_RESOLVER_ABI } from '../contracts/abis'
+import { cleanResolverTextRecords } from './cleanResolverTextRecords'
 import {
   buildProfileMulticallPlan,
   indexNamesByNode,
@@ -9,6 +10,7 @@ import {
   type MulticallResult,
   mergeMulticallResultsIntoProfiles,
   type NameForFetch,
+  profileMapKey,
 } from './fetchV1Profiles.helpers'
 import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
 
@@ -24,8 +26,10 @@ export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
 }> {}
 
 export type Profile = {
-  texts: readonly { key: string; value: string }[]
-  addresses: readonly { coinType: bigint; value: Hex }[]
+  readonly texts: readonly { key: string; value: string }[]
+  readonly addresses: readonly { coinType: bigint; value: Hex }[]
+  readonly contentHash: Hex | null
+  readonly abis: readonly { contentType: bigint; value: Hex }[]
 }
 
 const executeMulticallChunks = async (
@@ -43,16 +47,33 @@ const executeMulticallChunks = async (
       const index = cursor++
       const chunk = chunks[index]
       if (!chunk) return
-      chunkResults[index] = (await publicClient.multicall({
+      const results = (await publicClient.multicall({
         contracts: [...chunk] as {
           address: Address
           abi: typeof PERMISSIONED_RESOLVER_ABI
-          functionName: 'text' | 'addr'
+          functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
           args: readonly unknown[]
         }[],
         allowFailure: true,
         batchSize: 0,
       })) as MulticallResult[]
+      if (results.length !== chunk.length) {
+        throw new Error(
+          `Profile multicall chunk ${index} returned ${results.length} results for ${chunk.length} calls`,
+        )
+      }
+      const failedIndex = results.findIndex(
+        (result) => result.status !== 'success',
+      )
+      if (failedIndex !== -1) {
+        const failedContract = chunk[failedIndex]
+        const failedResult = results[failedIndex]
+        throw new Error(
+          `Profile multicall failed at chunk ${index}, call ${failedIndex} (${failedContract?.functionName ?? 'unknown'})`,
+          { cause: failedResult?.error },
+        )
+      }
+      chunkResults[index] = results
     }
   }
   try {
@@ -83,10 +104,36 @@ export const fetchV1Profiles = async (params: {
       },
     )
 
+  const keyEntryIds = new Set(
+    keyEntries.map((entry) => profileMapKey(entry.id as Hex)),
+  )
+  const missingNodes = [...byNode.keys()].filter(
+    (node) => !keyEntryIds.has(profileMapKey(node)),
+  )
+  if (missingNodes.length > 0) {
+    throw new ProfileFetchError({
+      phase: 'subgraph',
+      cause: new Error(
+        `Profile key inventory omitted ${missingNodes.length} requested node${missingNodes.length === 1 ? '' : 's'}`,
+      ),
+    })
+  }
+
   const { calls, contracts } = buildProfileMulticallPlan(keyEntries, byNode)
   const buckets = initEmptyProfileBuckets(byNode)
   if (contracts.length === 0) return buckets
 
   const results = await executeMulticallChunks(publicClient, contracts)
-  return mergeMulticallResultsIntoProfiles({ buckets, calls, results })
+  const profiles = mergeMulticallResultsIntoProfiles({
+    buckets,
+    calls,
+    results,
+  })
+
+  return new Map(
+    [...profiles].map(([node, profile]) => [
+      node,
+      { ...profile, texts: cleanResolverTextRecords(profile.texts) },
+    ]),
+  )
 }
