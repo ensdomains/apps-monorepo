@@ -10,7 +10,7 @@ export type PricingAction =
   | { type: 'SET_DATE'; payload: Date | null }
   | { type: 'SET_DURATION_AND_DATE'; payload: { duration: number; date: Date } }
 
-export function createInitialStateFactory(_discountsEnabled: boolean) {
+export function createInitialStateFactory() {
   const initialState: PricingState = {
     selectedDuration: 1,
     selectedExpirationDate: null,

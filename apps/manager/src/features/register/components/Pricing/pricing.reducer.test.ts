@@ -15,7 +15,7 @@ const createDefaultState = (
 
 describe('createInitialStateFactory', () => {
   it('creates initial state with given duration', () => {
-    const factory = createInitialStateFactory(false)
+    const factory = createInitialStateFactory()
     const state = factory(3)
     expect(state.selectedDuration).toBe(3)
     expect(state.selectedExpirationDate).toBeNull()
