@@ -483,7 +483,7 @@ describe('buildSearchSuggestions', () => {
 })
 
 describe('getSearchNotice', () => {
-  const NOTICE = 'Names must be 3 characters or more to register.'
+  const NOTICE = 'Names are at least 3 characters'
 
   it('flags one and two character labels', () => {
     expect(getSearchNotice('a')).toBe(NOTICE)

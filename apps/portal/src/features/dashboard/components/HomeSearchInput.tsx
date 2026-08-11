@@ -274,7 +274,13 @@ export const HomeSearchInput = ({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="p-1 w-max min-w-[max(var(--radix-popover-trigger-width),20rem)] max-w-md max-h-[min(60vh,400px)] overflow-y-auto"
+          className={cn(
+            'p-1 max-h-[min(60vh,400px)] overflow-y-auto max-w-[min(28rem,calc(100vw-1rem))]',
+            // min-width beats max-width below the minimum, so the cap repeats inside it
+            hasAnySection
+              ? 'w-max min-w-[min(max(var(--radix-popover-trigger-width),20rem),calc(100vw-1rem))]'
+              : 'w-(--radix-popover-trigger-width)',
+          )}
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
