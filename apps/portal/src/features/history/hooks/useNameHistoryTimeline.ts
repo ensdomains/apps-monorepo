@@ -4,7 +4,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
-import { namehash } from 'viem/ens'
+import { namehash, normalize } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 import { adaptV1Events } from '../v1/adaptV1Events'
@@ -174,24 +174,28 @@ const HISTORY_TIMELINE_QUERY = gql`
   }
 `
 
+const normalizeName = (name: string): string => {
+  try {
+    return normalize(name)
+  } catch {
+    return name.toLowerCase()
+  }
+}
+
 const getNameHistoryTimeline = ResultFn(async function* ({
   name,
   first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
 }: GetNameHistoryTimelineParameters) {
   const client = yield* safeGetClient()
-  const lowercaseName = name.toLowerCase()
-  const node = namehash(lowercaseName)
+  const normalizedName = normalizeName(name)
+  const node = namehash(normalizedName)
 
-  // Both protocols are queried together, and each is allowed to come back empty
-  // — a v1-only name has no v2 row and a v2-native name has no v1 domain. Only
-  // a failure on BOTH sides is an error; a single indexer being down should
-  // still render the half of the history we can read.
   const [v2Result, v1Result] = yield* fromPromise(
     Promise.allSettled([
       graphqlIndexerClient
         .request<{ domains: DomainWithEvents[] }>(HISTORY_TIMELINE_QUERY, {
-          name: lowercaseName,
+          name: normalizedName,
           first,
           orderDirection,
         })
@@ -221,7 +225,7 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   // they can be sorted or grouped alongside v2 events.
   const v1Events = adaptV1Events({
     events: v1Raw,
-    name: lowercaseName,
+    name: normalizedName,
     namehash: node,
     blockTimestamps: await fetchBlockTimestamps(client, [
       ...new Set(v1Raw.map((event) => event.blockNumber)),
@@ -237,7 +241,9 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   })
 
   return ok(
-    [...v2Events, ...v1Events].sort((a, b) => b.timestamp - a.timestamp),
+    [...v2Events, ...v1Events]
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, first),
   )
 })
 

@@ -19,7 +19,7 @@ import type { V1SubgraphEvent } from './adaptV1Events'
 const V1_NAME_HISTORY_QUERY = gql`
   query getV1NameHistoryTimeline($id: String!, $first: Int, $orderDirection: OrderDirection) {
     domain(id: $id) {
-      events(first: $first, orderDirection: $orderDirection) {
+      events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
         id
         blockNumber
         transactionID
@@ -36,7 +36,7 @@ const V1_NAME_HISTORY_QUERY = gql`
       }
       registration {
         cost
-        events(first: $first, orderDirection: $orderDirection) {
+        events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
           id
           blockNumber
           transactionID
@@ -47,7 +47,7 @@ const V1_NAME_HISTORY_QUERY = gql`
         }
       }
       resolver {
-        events(first: $first, orderDirection: $orderDirection) {
+        events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
           id
           blockNumber
           transactionID
