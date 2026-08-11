@@ -87,9 +87,7 @@ function buildV1Domain(params: {
         : null,
     // For unwrapped: owner is the EOA. For wrapped: owner is the NameWrapper.
     owner: {
-      id: isWrapped
-        ? '0xc7e033b8836e4bd55d069d113f018b98478cb091' // NameWrapper
-        : owner,
+      id: isWrapped ? V1_NAME_WRAPPER : owner,
     },
     // registrant is always the EOA (BaseRegistrar ERC-721 holder or original registrant)
     registrant: { id: owner },
