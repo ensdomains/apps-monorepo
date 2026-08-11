@@ -98,7 +98,7 @@ export const RegistrationDurationPresets = ({
               className={cn(
                 'text-sm',
                 isSelected
-                  ? 'text-signal-success-700'
+                  ? 'text-success-text'
                   : 'text-muted-foreground group-hover:text-foreground',
               )}
             >
@@ -108,7 +108,7 @@ export const RegistrationDurationPresets = ({
               className={cn(
                 'text-base font-medium',
                 isSelected
-                  ? 'text-signal-success-700'
+                  ? 'text-success-text'
                   : 'text-muted-foreground group-hover:text-foreground',
               )}
             >
