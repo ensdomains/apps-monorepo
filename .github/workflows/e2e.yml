@@ -94,10 +94,12 @@ jobs:
             echo "has-configs=true" >> "$GITHUB_OUTPUT"
           fi
 
-  # The coverage ledger. Cheap (no docker, no browsers) and always runs, because
-  # its job is to catch claims that outran the evidence: a scenario tag that is
-  # not in the registry, a test skipped without a written EXEMPT, a defect filed
-  # with no failing test proving it, or a phase's terminal count going down.
+  # The coverage ledger and the harness integrity gates. Cheap (no docker, no
+  # browsers) and always runs, because their job is to catch claims that outran
+  # the evidence: a scenario tag that is not in the registry, a test skipped
+  # without a written EXEMPT, a defect filed with no failing test proving it, a
+  # tier's terminal count going down, or a contract address that stopped coming
+  # from the config the apps read.
   coverage:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -109,6 +111,12 @@ jobs:
           node-version: "lts/*"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
+      # Rule 7 — no contract address literals, and no address bound to two
+      # different names. Runs before the reconciler: a suite built on a drifted
+      # address produces confident wrong results, so there is no point counting
+      # its coverage.
+      - name: Harness integrity — address literals
+        run: pnpm e2e:check:addresses
       - name: Reconcile E2E coverage
         run: pnpm e2e:coverage
       - name: Fail if the generated report is stale

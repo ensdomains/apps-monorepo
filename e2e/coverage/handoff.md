@@ -5,6 +5,130 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 2 — 2026-08-11
+
+**Batch:** BOOTSTRAP · goal §6 B2, first half — the rule-7 address-literal gate.
+
+**Result:** PASS 0 · DEFECT 0 · EXEMPT 0 · PRODUCT-GAP 0 (no scenarios worked)
+
+- Terminal: **39 → 39**. Ledger untouched.
+- Invariant sites: 0 checked.
+- Ratchet: unchanged.
+- New gate: `pnpm e2e:check:addresses`, wired into `.github/workflows/e2e.yml`
+  ahead of the reconciler. **Green.**
+
+**In flight:** nothing.
+
+### FINDING — one address, two contradictory identities
+
+`0x640294a2b2d87e7f522db3e3e3e876764bce170d` is declared as
+**`V1_PUBLIC_RESOLVER`** in `fixtures/makeV1Name.ts:65` and as
+**`DEDICATED_RESOLVER`** — a V2 resolver — in `fixtures/makeName.ts:57`. It
+cannot be both.
+
+Measured on the fork at block 11467283, 2026-08-11:
+
+| | address | size | codehash |
+|---|---|---|---|
+| the disputed address | `0x640294a2…` | 15115 B | `0xd1d78319` |
+| ensjs `ensPublicResolver` | `0x5239A812…` | 14001 B | `0x6cce3025` |
+| ensjs `ensPermissionedResolverImpl` | `0x9EAe5C27…` | 17597 B | `0x7a5bbb7f` |
+| V1 registry's resolver for `eth` | `0x18CB116a…` | 10700 B | `0x090b6561` |
+
+It answers ERC165 / `addr` / multicoin `addr` / `text` / `contenthash` but not
+`IExtendedResolver`, and **it does not appear anywhere in
+`ensL1Contracts[sepolia]`**. So it is a third contract carrying two names, and
+at least one of those names is wrong.
+
+Not filed in `e2e-defects.md`: the reconciler requires a defect row to name a
+scenario *and* have a failing test proving it, and this is a harness fault with
+neither — filing it would trip the `defect-unproven` CI failure. It lives here,
+in a comment at `makeName.ts:57`, and in the gate's allowlist with
+`conflictAcceptedUntil: 2026-08-18`, owner **sugh01**. The gate goes red on that
+date. Per §10 the ruling defaults to EXEMPT after 5 working days — but note that
+an EXEMPT here would mean *accepting an unidentified resolver*, which is not a
+real option; someone has to say which name is correct.
+
+**Consequence: no `GR*` record-replay result can be trusted until this is
+settled.** GR1/GR3/GR12 all turn on which resolver a V1 name is reported to
+have. Do not spend an iteration on the GR batch before resolving it.
+
+### What changed
+
+- **`scripts/check-address-literals.ts`** — new. Two checks:
+  1. *unaccounted literal* — a 20-byte hex literal with no allowlist entry;
+  2. *conflicting binding* — one address bound to two identifier names, which is
+     the drift incident itself. Waivable only with an owner and a date.
+- **`helpers/mock-v1-subgraph.ts`** — was re-declaring `V1_PUBLIC_RESOLVER` and
+  the NameWrapper address as its own literals. Now imports both from
+  `makeV1Name.ts`, which is the single place the V1 deployment is pinned. This
+  was the "same registry, three different addresses, three files" pattern in
+  progress.
+- **`.github/workflows/e2e.yml`** — the gate runs in the `coverage` job, before
+  the reconciler.
+
+### Learned — do not re-derive
+
+- **Anchor the regex on both sides: `\b0x[0-9a-fA-F]{40}\b`.** Without the
+  trailing `\b` it matches the first 40 characters of every 32-byte Anvil
+  private key in the tree. That is the difference between 35 hits and 12, and
+  it is why the "35 literals" number in iteration 1's handoff overstated the
+  problem — the real count is 14 occurrences of 12 distinct addresses.
+- **Detect the binding by looking back two lines, not one.** The formatter wraps
+  `export const V1_PUBLIC_RESOLVER =` onto its own line. A line-local match
+  found zero bindings in `makeV1Name.ts` and reported the tree clean — it missed
+  the one conflict the gate exists to catch. First version of this gate was
+  green and useless; a passing gate is worth nothing until you have watched it
+  fail.
+- **The gate must skip itself.** The allowlist necessarily contains every
+  address it governs, so scanning it makes every entry conflict with its own
+  subject (7 false conflicts).
+- **`pnpm --filter @ens-apps/e2e lint` (`biome check`) already fails** on
+  pre-existing issues across ~12 files. The gate is deliberately *not* chained
+  behind it with `&&` — it would never run. It is its own script and its own CI
+  step.
+- **Gate self-test, actually run:** planted an unaccounted literal → exit 1;
+  planted a second name for `V1_ENS_REGISTRY` → exit 1 naming both sites; clean
+  tree → exit 0. Both violation classes reproduce.
+- The 12 accounted-for addresses split into: 2 Anvil dev EOAs, 2 placeholder
+  sentinels, 1 canonical cross-chain deployment (Multicall3), 4 pinned-V1-
+  deployment contracts, 1 HCA account derived outside the e2e dependency graph,
+  1 ENSIP-25 identifier, and the disputed resolver above.
+
+### Parked
+
+`0x640294a2…` identity — owner **sugh01**, expires **2026-08-18**. See above.
+
+### Skipped-blocked
+
+Nothing.
+
+### Next
+
+**B2, second half — `e2e/specs/harness.spec.ts`.** Not started; nothing is
+half-applied. It is the higher-value half (it defends the fixture-invisible-to-
+the-app class that cost weeks of confidently wrong results) and it is a batch on
+its own because it needs live infra and browsers, where the address gate needed
+neither.
+
+Each fixture asserts (a) its own postcondition by read-back and (b) that the app
+can see the state through the app's own read path — rules 5 and 6. Subjects, in
+dependency order: `makeV2Name`, `makeSubname`, `makeName`, `wallets`,
+`chain-snapshot`, `time`, `makeV1Name` (expected red — see its header comment;
+it registers into a registrar the migration UI never reads, which is the known
+blocker on all 61 `G*` rows). This suite must run first and red must abort the
+run.
+
+Infra was up and healthy this iteration: Anvil at block **11467283**, manager
+and portal both 200. `pnpm e2e:infra:up` did not need re-running.
+
+After that: B0 (fork block + Panoptes manifest vs `ensL1Contracts[sepolia]`) and
+B4 (audit the ~16 inherited specs). Then R0 — **83 rows, 77 not-started**, with
+the `G*` matrix at zero and blocked on the V1 fixture, so per §16.3 the unblock
+outranks any batch inside the tier.
+
+---
+
 ## Iteration 1 — 2026-08-11
 
 **Batch:** BOOTSTRAP · goal §6 B1 + B3 — rebuild the ledger against
