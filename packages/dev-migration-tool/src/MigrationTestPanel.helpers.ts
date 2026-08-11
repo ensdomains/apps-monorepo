@@ -17,10 +17,13 @@ import { userRegistryRegisterSnippet } from '@ensdomains/ensjs-abi/v2/userRegist
 import {
   type Address,
   concat,
+  decodeAbiParameters,
   encodeAbiParameters,
   encodeFunctionData,
+  type Hex,
   hexToBytes,
   keccak256,
+  parseAbi,
   toBytes,
   toHex,
 } from 'viem'
@@ -48,6 +51,194 @@ export const V1_BASE_REGISTRAR_OWNER =
   '0xB359d7d04F750E9C008A5a47Bd2b64134bD180F9' as const
 export const V1_PUBLIC_RESOLVER =
   '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5' as const
+
+/**
+ * Resolver used by the record-bearing presets.
+ *
+ * It MUST be one of `KNOWN_PUBLIC_RESOLVERS` in @ens-apps/migration, because
+ * `resolverStrategyFor` only returns `to-owned-permres` — the branch that
+ * actually replays records onto a fresh owned resolver — for a *recognised*
+ * public resolver. An unrecognised one yields `keep-v1`, where the V2 name is
+ * simply pointed back at the V1 resolver and nothing is replayed. Using
+ * V1_PUBLIC_RESOLVER (0xE99638b4…, not in that list) would therefore make a
+ * "records" fixture silently exercise the wrong path.
+ */
+export const V1_RECORD_RESOLVER =
+  '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD' as const
+
+/**
+ * Resolver used by the `custom-resolver` preset — the mirror image of
+ * V1_RECORD_RESOLVER: a resolver the user deployed themselves, so it is not in
+ * `KNOWN_PUBLIC_RESOLVERS` and `resolverStrategyFor` degrades to `keep-v1`.
+ *
+ * It must NOT be V1_PUBLIC_RESOLVER, even though that address is also
+ * unrecognised: `reserveKnownAvailableNameInV2` writes V1_PUBLIC_RESOLVER into
+ * the V2 registry slot of EVERY seeded name at reservation time, so a fixture
+ * using it cannot distinguish "migration carried the custom resolver across"
+ * from "the reservation default was never overwritten". A distinct address makes
+ * that read unambiguous.
+ *
+ * Nothing is deployed here on Sepolia — `ensureCustomResolverDeployed` clones
+ * the live PublicResolver's runtime code onto this address on the fork. The
+ * clone starts with empty record storage and its immutable ENS-registry and
+ * NameWrapper wiring is baked into that code, so it authorises writes exactly
+ * like a self-deployed resolver would.
+ */
+export const V1_CUSTOM_RESOLVER =
+  '0xC0FFEe0000000000000000000000000000000001' as const
+
+/**
+ * Manager (V1 registry `owner`) used by the `managed` preset — Anvil account 1,
+ * deliberately different from DEFAULT_ACCOUNT (the registrant).
+ *
+ * `classifyNames` only sets `managerAddress` when the registry owner differs
+ * from the registrant, and that is the sole trigger for the ETHRegistry
+ * approval and its revocation. Without this preset that whole branch is
+ * unreachable from the UI.
+ */
+export const V1_DISTINCT_MANAGER =
+  '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' as const
+
+/** BaseRegistrar.reclaim sets the V1 registry owner (manager) for a token. */
+const baseRegistrarReclaimSnippet = parseAbi([
+  'function reclaim(uint256 id, address owner)',
+])
+
+/**
+ * The classic ENS registry. `ensjsSepolia.ensRegistry` is the **V2** registry in
+ * this manifest, so the V1 one has to be named explicitly. Deterministic
+ * deployment — same address on mainnet and Sepolia.
+ */
+export const V1_ENS_REGISTRY =
+  '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e' as const
+
+const setResolverSnippet = parseAbi([
+  'function setResolver(bytes32 node, address resolver)',
+])
+const resolverWriteSnippet = parseAbi([
+  'function setText(bytes32 node, string key, string value)',
+  'function setAddr(bytes32 node, uint256 coinType, bytes a)',
+  'function setContenthash(bytes32 node, bytes hash)',
+  'function setABI(bytes32 node, uint256 contentType, bytes data)',
+  'function setPubkey(bytes32 node, bytes32 x, bytes32 y)',
+  'function setInterface(bytes32 node, bytes4 interfaceID, address implementer)',
+])
+const resolverReadSnippet = parseAbi([
+  'function text(bytes32 node, string key) view returns (string)',
+  'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
+  'function contenthash(bytes32 node) view returns (bytes)',
+  'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
+  'function pubkey(bytes32 node) view returns (bytes32 x, bytes32 y)',
+  'function interfaceImplementer(bytes32 node, bytes4 interfaceID) view returns (address)',
+])
+
+/**
+ * An IPFS contenthash, written by the record presets on purpose.
+ *
+ * The migration's `Profile` type carries only `texts` and coin-type `addresses`
+ * — `contenthash` appears nowhere in packages/migration or the migration feature
+ * — so a name serving a site this way looks like it should LOSE it. Writing one
+ * into the fixture turns that suspicion into an observable assertion instead of
+ * a code-reading argument.
+ */
+export const QA_RECORD_CONTENTHASH =
+  '0xe3010170122029f2d17be6139079dc48696d1f582a8530eb9805b561eda517e22a892c7e3f1f' as const
+
+/**
+ * V1 records written by the record-bearing presets. Deliberately small and
+ * recognisable so a tester can eyeball whether migration replayed them onto the
+ * V2 resolver. Derived from the preset type rather than stored per name — the
+ * active list lives in a 4096-byte cookie, and every extra field shrinks how
+ * many names fit (currently 29).
+ */
+/**
+ * Text records. `migratedValue`, where present, is what the record is expected to
+ * read as AFTER migration — migration deliberately normalises social handles
+ * (`cleanResolverTextRecords` → `createSocialProfileValueNormalizer`), so
+ * `@ens_qa` legitimately becomes `ens_qa`. Encoding that here means the fixture
+ * tests the normalisation rather than reporting it as data loss.
+ */
+/**
+ * ERC-7930 encoded mainnet address of the known 8004.eth agent registry, as used
+ * by the ENSIP-25 `agent-registration[...]` key format.
+ */
+const AGENT_REGISTRY_HEX =
+  '0x000100000101148004a169fb4a3325136eb29fa0ceb6d2e539a432' as const
+/** ENSIP-25 agent-registration key. Dynamic — cannot be a default lookup key. */
+export const QA_AGENT_RECORD_KEY =
+  `agent-registration[${AGENT_REGISTRY_HEX}][19151]` as const
+
+export const QA_RECORD_TEXTS = [
+  { key: 'description', value: 'QA migration fixture' },
+  // Leading `@` on purpose: exercises the social normaliser.
+  { key: 'com.twitter', value: '@ens_qa', migratedValue: 'ens_qa' },
+  // Deliberately NOT one of the portal's default text keys, so this one is only
+  // discoverable through the subgraph key list rather than the hardcoded
+  // defaults — which is how a real user's arbitrary key has to be found.
+  { key: 'com.github', value: 'ens-qa-fixture' },
+  // The two most user-visible records: losing either is immediately obvious to an
+  // owner, so they are worth asserting explicitly rather than assuming "it's just
+  // another text record". `header` is what the UI calls Banner.
+  {
+    key: 'avatar',
+    value: 'https://avatar-upload-staging.ens-cf.workers.dev/sepolia/qa.eth',
+  },
+  { key: 'header', value: 'https://example.com/qa-banner.png' },
+  // ENSIP-25 agent registration. The key encodes a registry and agent id, so it
+  // is unguessable — it can only be migrated if the key LIST is carried, never
+  // by a default-key lookup. Same risk class as com.github but a live feature.
+  { key: QA_AGENT_RECORD_KEY, value: '1' },
+] as const satisfies readonly {
+  key: string
+  value: string
+  migratedValue?: string
+}[]
+
+/**
+ * Coin addresses. coinType 60 = ETH, 0 = BTC.
+ *
+ * ETH alone is not a sufficient test: `getRecords` requests a hardcoded default
+ * coin list, so an ETH record can be picked up even when the coinType list is
+ * wrong. BTC is not special-cased anywhere in the migration, so it only survives
+ * if the coinType list is genuinely carried.
+ *
+ * BTC value is the P2PKH scriptPubkey for `1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa`,
+ * which is what the resolver stores for coinType 0.
+ */
+export const QA_RECORD_ADDRESSES = [
+  { coinType: 60, value: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8' },
+  {
+    coinType: 0,
+    value: '0x76a91462e907b15cbf27d5425399ebf6f0fb50ebb88f1888ac',
+  },
+] as const
+/** Kept for callers that only care about the ETH address. */
+export const QA_RECORD_ADDRESS = QA_RECORD_ADDRESSES[0]
+
+/**
+ * Record kinds that `Profile` ({ texts, addresses }) cannot represent, written
+ * so their loss is demonstrable rather than merely inferred from the type.
+ * contenthash is already confirmed lost; these extend the same proof to the rest
+ * of what a V1 PublicResolver can hold.
+ */
+export const QA_RECORD_ABI = {
+  // contentType 1 = JSON (the PublicResolver accepts powers of two).
+  contentType: 1n,
+  // toHex, not Buffer — this module runs in the browser.
+  value: toHex('[{"type":"function","name":"qaFixture"}]'),
+} as const
+export const QA_RECORD_PUBKEY = {
+  x: '0x1111111111111111111111111111111111111111111111111111111111111111',
+  y: '0x2222222222222222222222222222222222222222222222222222222222222222',
+} as const
+export const QA_RECORD_INTERFACE = {
+  // ERC-165 id for a made-up interface + an implementer that is easy to spot.
+  interfaceId: '0x12345678',
+  implementer: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+} as const
+
+export const QA_RECORD_TEXT_KEYS = QA_RECORD_TEXTS.map((r) => r.key)
+export const QA_RECORD_COIN_TYPES = QA_RECORD_ADDRESSES.map((a) => a.coinType)
 
 // V2 contracts — read from the ensjs Sepolia chain config (same source as the
 // manager's migration/contracts/addresses.ts), NOT hardcoded.
@@ -116,6 +307,140 @@ export type PresetType =
   | 'grace-renewable-wrapped'
   | 'grace-renewable-unwrapped'
   | 'emancipated'
+  | 'managed'
+  | 'records'
+  | 'custom-resolver'
+  | 'subname'
+  | 'subname-records'
+  | 'detached-child'
+  | 'wrapped-subname'
+  | 'unwrapped-subname'
+  | 'locked-no-transfer'
+  | 'locked-no-resolver'
+
+/**
+ * Single source of truth for the SHAPE each preset creates.
+ *
+ * The subgraph mock and the on-chain creation must agree exactly. When they did
+ * not — the `records` preset was created unwrapped but described as wrapped —
+ * `classifyNames` read it as a locked 2LD holding an ERC-1155 that did not
+ * exist, and the name silently vanished from the migration list. Deriving the
+ * mock from this table instead of ad-hoc `type === …` checks keeps that class of
+ * bug out.
+ *
+ * `parentFuses` is what the parent's `wrappedDomain.fuses` reports (0 when
+ * unwrapped). `child` is present only for presets that also OFFER a child;
+ * `emancipated` creates one on-chain but deliberately does not offer it.
+ */
+export type PresetShape = {
+  readonly parentWrapped: boolean
+  readonly parentFuses: number
+  readonly child?: {
+    /** false = registry-only subname, no NameWrapper involvement. */
+    readonly wrapped: boolean
+    readonly fuses: number
+  }
+}
+
+const EMANCIPATED_2LD = PARENT_CANNOT_CONTROL | IS_DOT_ETH
+const LOCKED_2LD = EMANCIPATED_2LD | CANNOT_UNWRAP
+
+/**
+ * The part of a fuse set that `NameWrapper.setFuses` accepts — a uint16 of
+ * child-controlled fuses. PARENT_CANNOT_CONTROL (1<<16) and IS_DOT_ETH (1<<17)
+ * are burned by `wrapETH2LD` itself and are not settable, so passing a full
+ * parent fuse set reverts with "not in safe 16-bit unsigned integer range".
+ */
+export const childSettableFuses = (fuses: number): number => fuses & 0xffff
+
+export const PRESET_SHAPES: Record<PresetType, PresetShape> = {
+  unwrapped: { parentWrapped: false, parentFuses: 0 },
+  wrapped: { parentWrapped: true, parentFuses: EMANCIPATED_2LD },
+  locked: { parentWrapped: true, parentFuses: LOCKED_2LD },
+  'locked-all': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD | ALL_CHILD_FUSES,
+  },
+  grace: { parentWrapped: true, parentFuses: LOCKED_2LD },
+  'grace-renewable-wrapped': { parentWrapped: true, parentFuses: LOCKED_2LD },
+  'grace-renewable-unwrapped': { parentWrapped: false, parentFuses: 0 },
+  // Creates an emancipated child on-chain but offers only the parent, so `child`
+  // is intentionally absent. Use `subname` to migrate a child.
+  emancipated: { parentWrapped: true, parentFuses: LOCKED_2LD },
+  managed: { parentWrapped: false, parentFuses: 0 },
+  records: { parentWrapped: false, parentFuses: 0 },
+  // Same shape as `records` — only the resolver differs, which is the whole
+  // point: it isolates resolver recognition from every other variable.
+  'custom-resolver': { parentWrapped: false, parentFuses: 0 },
+  subname: {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD,
+    child: { wrapped: true, fuses: PARENT_CANNOT_CONTROL | CANNOT_UNWRAP },
+  },
+  'subname-records': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD,
+    child: { wrapped: true, fuses: PARENT_CANNOT_CONTROL | CANNOT_UNWRAP },
+  },
+  // PCC burned but NOT CANNOT_UNWRAP, under a locked parent -> `detached-child`,
+  // which routes to the parent's certified WrapperRegistry.
+  'detached-child': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD,
+    child: { wrapped: true, fuses: PARENT_CANNOT_CONTROL },
+  },
+  // No PCC at all: the parent can still control it, so migration must reject it
+  // as `unlocked-subname`.
+  'wrapped-subname': {
+    parentWrapped: true,
+    parentFuses: EMANCIPATED_2LD,
+    child: { wrapped: true, fuses: 0 },
+  },
+  // Registry-only child of an unwrapped parent. `classifyName` returns a bare
+  // null for this, so it vanishes without even an ineligible entry.
+  'unwrapped-subname': {
+    parentWrapped: false,
+    parentFuses: 0,
+    child: { wrapped: false, fuses: 0 },
+  },
+  'locked-no-transfer': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD | CANNOT_TRANSFER,
+  },
+  'locked-no-resolver': {
+    parentWrapped: true,
+    parentFuses: LOCKED_2LD | CANNOT_SET_RESOLVER,
+  },
+}
+
+/** Presets that also OFFER a child for migration. */
+export const presetHasSubname = (type: PresetType): boolean =>
+  PRESET_SHAPES[type].child !== undefined
+/** Presets whose 2LD carries V1 records. */
+export const presetHasParentRecords = (type: PresetType): boolean =>
+  type === 'records' || type === 'subname-records' || type === 'custom-resolver'
+/**
+ * Which resolver a preset's records live on. `custom-resolver` writes to an
+ * unrecognised one on purpose; everything else uses the recognised resolver so
+ * replay is reachable. Creation, the subgraph mock and the read-back all go
+ * through this so they cannot disagree about where the records are.
+ */
+export const recordResolverFor = (type: PresetType): Address =>
+  type === 'custom-resolver' ? V1_CUSTOM_RESOLVER : V1_RECORD_RESOLVER
+/** Presets whose child carries V1 records. */
+export const presetHasSubnameRecords = (type: PresetType): boolean =>
+  type === 'subname-records'
+/** Child label convention, shared by creation and the subgraph mock. */
+export const childLabelFor = (parentLabel: string): string =>
+  `sub-${parentLabel}`
+/** Every ENS name a preset puts in front of the migration flow. */
+export const fullNamesFor = (name: {
+  label: string
+  type: PresetType
+}): string[] =>
+  presetHasSubname(name.type)
+    ? [`${name.label}.eth`, `${childLabelFor(name.label)}.${name.label}.eth`]
+    : [`${name.label}.eth`]
 
 export interface ActiveName {
   label: string
@@ -161,7 +486,68 @@ export const PRESETS: { type: PresetType; label: string; title: string }[] = [
   {
     type: 'emancipated',
     label: 'Emancipated',
-    title: 'Locked subname with PARENT_CANNOT_CONTROL',
+    title:
+      'Locked 2LD with an emancipated child beneath it. NOTE: only the PARENT is offered for migration — use "Subname" to migrate the child itself.',
+  },
+  {
+    type: 'records',
+    label: 'Records',
+    title:
+      'Unwrapped 2LD with a V1 resolver and real text + ETH-address records, so record replay is observable.',
+  },
+  {
+    type: 'custom-resolver',
+    label: 'Custom Res',
+    title:
+      'Same as "Records" but the resolver is NOT in KNOWN_PUBLIC_RESOLVERS -> strategy degrades to keep-v1: the V2 name points back at the V1 resolver and NO records are read or replayed.',
+  },
+  {
+    type: 'subname',
+    label: 'Subname',
+    title:
+      'Locked 2LD + locked child, BOTH offered for migration — exercises parent-first ordering and descendant routing.',
+  },
+  {
+    type: 'subname-records',
+    label: 'Subname+Rec',
+    title:
+      'Locked 2LD + locked child, both offered AND both carrying V1 records — the fullest hierarchy fixture.',
+  },
+  {
+    type: 'managed',
+    label: 'Managed',
+    title:
+      'Unwrapped, V1 registry owner (manager) != registrant via reclaim(). The only preset that triggers "Approve manager restoration" + "Revoke temporary HCA access".',
+  },
+  {
+    type: 'detached-child',
+    label: 'Detached',
+    title:
+      "Locked 2LD + child with PARENT_CANNOT_CONTROL but NOT CANNOT_UNWRAP -> tokenType 'detached-child', routed to the parent's certified WrapperRegistry.",
+  },
+  {
+    type: 'wrapped-subname',
+    label: 'Wrapped sub',
+    title:
+      "Emancipated 2LD + child with NO fuses (parent can still control it) -> must be rejected as ineligible 'unlocked-subname'.",
+  },
+  {
+    type: 'unwrapped-subname',
+    label: 'Registry sub',
+    title:
+      'Unwrapped 2LD + registry-only child (no NameWrapper token) -> classifyName returns bare null, so it vanishes with no ineligible reason at all.',
+  },
+  {
+    type: 'locked-no-transfer',
+    label: 'Locked -xfer',
+    title:
+      "Locked 2LD with ONLY CANNOT_TRANSFER added -> ineligible 'not-transferable'. Isolates the one fuse that Locked+All hides among seven.",
+  },
+  {
+    type: 'locked-no-resolver',
+    label: 'Locked -res',
+    title:
+      'Locked 2LD with ONLY CANNOT_SET_RESOLVER added -> migrates, but resolverStrategy is forced to keep-v1 so records are NOT replayed.',
   },
 ]
 
@@ -174,6 +560,16 @@ export const TYPE_BADGE_COLORS: Record<PresetType, string> = {
   'grace-renewable-wrapped': '#c2410c',
   'grace-renewable-unwrapped': '#ea580c',
   emancipated: '#065f46',
+  managed: '#0e7490',
+  records: '#a16207',
+  'custom-resolver': '#78350f',
+  subname: '#4338ca',
+  'subname-records': '#6d28d9',
+  'detached-child': '#0369a1',
+  'wrapped-subname': '#b91c1c',
+  'unwrapped-subname': '#7f1d1d',
+  'locked-no-transfer': '#991b1b',
+  'locked-no-resolver': '#a21caf',
 }
 
 // --- ABI fragments ----------------------------------------------------------
@@ -424,6 +820,431 @@ export async function registerV1Name(
   )
 }
 
+/**
+ * Point the V1 registry owner (the "manager") at `manager` while the registrant
+ * keeps the ERC-721. Called by DEFAULT_ACCOUNT, which must be the registrant.
+ */
+export async function reclaimV1Manager(
+  endpoint: string,
+  label: string,
+  manager: Address,
+): Promise<void> {
+  await sendTx(
+    endpoint,
+    V1_BASE_REGISTRAR,
+    encodeFunctionData({
+      abi: baseRegistrarReclaimSnippet,
+      functionName: 'reclaim',
+      args: [BigInt(labelhash(label)), manager],
+    }),
+  )
+}
+
+/**
+ * The `resolver` field for a mock domain. Record-bearing names must report the
+ * exact resolver their records were actually written to — recognised or not;
+ * other wrapped names keep reporting the resolver they are created with;
+ * unwrapped ones have none.
+ */
+const resolverRefFor = (
+  hasRecords: boolean,
+  isWrapped: boolean,
+  recordResolver: Address = V1_RECORD_RESOLVER,
+): { id: string; address: string } | null => {
+  if (hasRecords) return { id: recordResolver, address: recordResolver }
+  if (isWrapped) return { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
+  return null
+}
+
+/** namehash of `<label>.eth`. */
+export const nodeForLabel = (label: string): `0x${string}` =>
+  namehashFromLabelAndParent(labelhash(label), ETH_NODE)
+
+const registrySetSubnodeOwnerSnippet = parseAbi([
+  'function setSubnodeOwner(bytes32 node, bytes32 label, address owner) returns (bytes32)',
+])
+
+/**
+ * Create a registry-only subname: owned directly in the V1 registry with no
+ * NameWrapper token. Requires the parent to be unwrapped (its registry owner is
+ * this account). This is the `eth-unwrapped-subname` state.
+ */
+export async function createRegistryOnlySubname(
+  endpoint: string,
+  parentLabel: string,
+  sublabel: string,
+): Promise<void> {
+  await sendTx(
+    endpoint,
+    V1_ENS_REGISTRY,
+    encodeFunctionData({
+      abi: registrySetSubnodeOwnerSnippet,
+      functionName: 'setSubnodeOwner',
+      args: [nodeForLabel(parentLabel), labelhash(sublabel), DEFAULT_ACCOUNT],
+    }),
+  )
+}
+
+/**
+ * Create a wrapped child with an explicit fuse set. Unlike
+ * `createEmancipatedSubname` this does not assume PCC|CANNOT_UNWRAP, so it can
+ * produce the `detached-child` (PCC only) and `wrapped-subname` (no fuses)
+ * states as well.
+ *
+ * NOTE: burning PARENT_CANNOT_CONTROL requires the parent to have CANNOT_UNWRAP
+ * burned first, so callers must match `PRESET_SHAPES`.
+ */
+export async function createWrappedSubnameWithFuses(
+  endpoint: string,
+  parentLabel: string,
+  sublabel: string,
+  fuses: number,
+): Promise<void> {
+  const now = await getBlockTimestamp(endpoint)
+  await sendTx(
+    endpoint,
+    V1_NAME_WRAPPER,
+    encodeFunctionData({
+      abi: nameWrapperSetSubnodeOwnerSnippet,
+      functionName: 'setSubnodeOwner',
+      args: [
+        nodeForLabel(parentLabel),
+        sublabel,
+        DEFAULT_ACCOUNT,
+        fuses,
+        BigInt(now + ONE_YEAR * 2),
+      ],
+    }),
+  )
+}
+
+/** namehash of `sub-<label>.<label>.eth`. */
+export const childNodeForLabel = (label: string): `0x${string}` =>
+  namehashFromLabelAndParent(
+    labelhash(childLabelFor(label)),
+    nodeForLabel(label),
+  )
+
+/**
+ * Put a "user deployed this themselves" resolver on the fork at
+ * V1_CUSTOM_RESOLVER by cloning the live PublicResolver's runtime code.
+ * Idempotent, so re-seeding the preset costs one `eth_getCode`.
+ *
+ * A clone rather than the live address on purpose: see V1_CUSTOM_RESOLVER for
+ * why reusing V1_PUBLIC_RESOLVER makes the fixture unfalsifiable.
+ */
+export async function ensureCustomResolverDeployed(
+  endpoint: string,
+): Promise<void> {
+  const existing = (await rpcCall(endpoint, 'eth_getCode', [
+    V1_CUSTOM_RESOLVER,
+    'latest',
+  ])) as string | undefined
+  if (existing && existing !== '0x') return
+
+  const code = (await rpcCall(endpoint, 'eth_getCode', [
+    V1_PUBLIC_RESOLVER,
+    'latest',
+  ])) as string | undefined
+  if (!code || code === '0x') {
+    throw new Error(
+      `Cannot clone a custom resolver: no code at ${V1_PUBLIC_RESOLVER} on this fork`,
+    )
+  }
+  await rpcCall(endpoint, 'anvil_setCode', [V1_CUSTOM_RESOLVER, code])
+}
+
+/**
+ * Point a node at a V1 resolver and write the QA record set.
+ *
+ * `setResolver` has to go through whoever owns the node in the V1 registry: the
+ * account itself for an unwrapped name, the NameWrapper for a wrapped one (which
+ * includes every subname of a wrapped parent).
+ *
+ * The record writes then go straight to the resolver in both cases: the V1
+ * PublicResolver is NameWrapper-aware, so when the registry owner is the wrapper
+ * it authorises `nameWrapper.ownerOf(node)` — which is this account.
+ */
+export async function writeV1Records(
+  endpoint: string,
+  node: `0x${string}`,
+  isWrapped: boolean,
+  resolver: Address = V1_RECORD_RESOLVER,
+): Promise<void> {
+  await sendTx(
+    endpoint,
+    isWrapped ? V1_NAME_WRAPPER : V1_ENS_REGISTRY,
+    encodeFunctionData({
+      abi: setResolverSnippet,
+      functionName: 'setResolver',
+      args: [node, resolver],
+    }),
+  )
+
+  for (const { key, value } of QA_RECORD_TEXTS) {
+    await sendTx(
+      endpoint,
+      resolver,
+      encodeFunctionData({
+        abi: resolverWriteSnippet,
+        functionName: 'setText',
+        args: [node, key, value],
+      }),
+    )
+  }
+
+  for (const { coinType, value } of QA_RECORD_ADDRESSES) {
+    await sendTx(
+      endpoint,
+      resolver,
+      encodeFunctionData({
+        abi: resolverWriteSnippet,
+        functionName: 'setAddr',
+        args: [node, BigInt(coinType), value],
+      }),
+    )
+  }
+
+  // Kinds `Profile` cannot represent. Written so their loss is demonstrable.
+  await sendTx(
+    endpoint,
+    resolver,
+    encodeFunctionData({
+      abi: resolverWriteSnippet,
+      functionName: 'setContenthash',
+      args: [node, QA_RECORD_CONTENTHASH],
+    }),
+  )
+  await sendTx(
+    endpoint,
+    resolver,
+    encodeFunctionData({
+      abi: resolverWriteSnippet,
+      functionName: 'setABI',
+      args: [node, QA_RECORD_ABI.contentType, QA_RECORD_ABI.value],
+    }),
+  )
+  await sendTx(
+    endpoint,
+    resolver,
+    encodeFunctionData({
+      abi: resolverWriteSnippet,
+      functionName: 'setPubkey',
+      args: [node, QA_RECORD_PUBKEY.x, QA_RECORD_PUBKEY.y],
+    }),
+  )
+  await sendTx(
+    endpoint,
+    resolver,
+    encodeFunctionData({
+      abi: resolverWriteSnippet,
+      functionName: 'setInterface',
+      args: [
+        node,
+        QA_RECORD_INTERFACE.interfaceId,
+        QA_RECORD_INTERFACE.implementer,
+      ],
+    }),
+  )
+
+  // `sendTx` uses eth_sendTransaction, which returns a hash even for a call that
+  // reverts — so a rejected write would leave a record-less fixture and migration
+  // would look like it dropped them. Read every kind back and fail loudly.
+  // Going through readAllV1Records means a kind added above is automatically
+  // verified here too, rather than needing a matching assertion by hand.
+  const written = await readAllV1Records(endpoint, node, resolver)
+  const missing = written.filter((r) => !r.present)
+  if (missing.length > 0) {
+    throw new Error(
+      `V1 records did not persist on ${node}: ${missing.map((r) => r.kind).join(', ')} — the resolver rejected the write(s) (not authorised for this node, or the resolver lacks that interface). A fixture missing a kind silently stops testing it.`,
+    )
+  }
+}
+
+/** One record kind read back off a resolver. */
+export type RecordProbe = {
+  readonly kind: string
+  /** Whether migration's `Profile` type can represent this kind at all. */
+  readonly migratable: boolean
+  readonly present: boolean
+  readonly value: string | null
+}
+
+type ResolverReadFn =
+  | 'text'
+  | 'addr'
+  | 'contenthash'
+  | 'ABI'
+  | 'pubkey'
+  | 'interfaceImplementer'
+
+const encResolverRead = (
+  functionName: ResolverReadFn,
+  args: readonly unknown[],
+): Hex =>
+  encodeFunctionData({
+    abi: resolverReadSnippet,
+    functionName,
+    args: args as never,
+  })
+
+const decodeStrResult = (raw?: string): string => {
+  if (!raw || raw === '0x') return ''
+  try {
+    const [v] = decodeAbiParameters([{ type: 'string' }], raw as Hex)
+    return v
+  } catch {
+    return ''
+  }
+}
+
+const decodeBytesResult = (raw?: string): string | null => {
+  if (!raw || raw === '0x') return null
+  try {
+    const [v] = decodeAbiParameters([{ type: 'bytes' }], raw as Hex)
+    return v && v !== '0x' ? v : null
+  } catch {
+    return null
+  }
+}
+
+/** Bind eth_call to one resolver so the readers below stay terse. */
+const resolverReader =
+  (endpoint: string, resolver: string) =>
+  async (fn: ResolverReadFn, args: readonly unknown[]) =>
+    (await rpcCall(endpoint, 'eth_call', [
+      { to: resolver, data: encResolverRead(fn, args) },
+      'latest',
+    ])) as string | undefined
+
+/** text + coin-address records — the kinds `Profile` CAN carry. */
+const readMigratableRecords = async (
+  node: `0x${string}`,
+  read: ReturnType<typeof resolverReader>,
+  /** Compare against post-migration expectations (normalised social handles). */
+  expectMigrated = false,
+): Promise<RecordProbe[]> => {
+  const out: RecordProbe[] = []
+  for (const record of QA_RECORD_TEXTS) {
+    const { key, value } = record
+    const expected =
+      expectMigrated && 'migratedValue' in record
+        ? (record.migratedValue as string)
+        : value
+    const got = decodeStrResult(await read('text', [node, key]))
+    out.push({
+      kind: `text:${key}`,
+      migratable: true,
+      present: got === expected,
+      value: got || null,
+    })
+  }
+  for (const { coinType, value } of QA_RECORD_ADDRESSES) {
+    const got = decodeBytesResult(await read('addr', [node, BigInt(coinType)]))
+    out.push({
+      kind: `addr:${coinType}`,
+      migratable: true,
+      present: (got ?? '').toLowerCase() === value.toLowerCase(),
+      value: got,
+    })
+  }
+  return out
+}
+
+/**
+ * contenthash / ABI / pubkey / interface.
+ *
+ * contenthash and ABI became migratable when preservation landed (they are now
+ * fields on `Profile`); pubkey and interface still have no representation, so
+ * they are expected to be dropped.
+ */
+const readUnmigratableRecords = async (
+  node: `0x${string}`,
+  read: ReturnType<typeof resolverReader>,
+): Promise<RecordProbe[]> => {
+  const ch = decodeBytesResult(await read('contenthash', [node]))
+
+  let abiData: string | null = null
+  const abiRaw = await read('ABI', [node, QA_RECORD_ABI.contentType])
+  try {
+    if (abiRaw && abiRaw !== '0x') {
+      const [, data] = decodeAbiParameters(
+        [{ type: 'uint256' }, { type: 'bytes' }],
+        abiRaw as Hex,
+      )
+      abiData = data && data !== '0x' ? data : null
+    }
+  } catch {
+    abiData = null
+  }
+
+  // pubkey returns (bytes32 x, bytes32 y). Comparing x distinguishes a written
+  // key from an all-zero unset one.
+  const pkRaw = await read('pubkey', [node])
+  const pkX = pkRaw && pkRaw !== '0x' ? `0x${pkRaw.slice(2, 66)}` : null
+
+  const ifaceRaw = await read('interfaceImplementer', [
+    node,
+    QA_RECORD_INTERFACE.interfaceId,
+  ])
+  const iface = ifaceRaw && ifaceRaw !== '0x' ? `0x${ifaceRaw.slice(26)}` : null
+
+  return [
+    {
+      kind: 'contenthash',
+      migratable: true,
+      present: ch === QA_RECORD_CONTENTHASH,
+      value: ch,
+    },
+    {
+      kind: 'ABI',
+      migratable: true,
+      present: abiData === QA_RECORD_ABI.value,
+      value: abiData,
+    },
+    {
+      kind: 'pubkey',
+      migratable: false,
+      present: pkX === QA_RECORD_PUBKEY.x,
+      value: pkX,
+    },
+    {
+      kind: 'interface',
+      migratable: false,
+      present:
+        (iface ?? '').toLowerCase() ===
+        QA_RECORD_INTERFACE.implementer.toLowerCase(),
+      value: iface,
+    },
+  ]
+}
+
+/**
+ * Every record kind the fixture writes, read off one resolver.
+ *
+ * Point it at the V1 record resolver to confirm the fixture landed, or at a
+ * migrated name's V2 resolver to see which kinds survived. `migratable` marks
+ * the kinds `Profile` can represent — those are expected to be carried; the rest
+ * are expected to be lost, and this is what proves it either way.
+ */
+export async function readAllV1Records(
+  endpoint: string,
+  node: `0x${string}`,
+  resolver: string = V1_RECORD_RESOLVER,
+  /**
+   * Set when probing a MIGRATED name's V2 resolver: social handles are
+   * normalised by migration, so `@ens_qa` is expected to read as `ens_qa`.
+   * Without this the transform looks identical to the record being dropped.
+   */
+  expectMigrated = false,
+): Promise<RecordProbe[]> {
+  const read = resolverReader(endpoint, resolver)
+  return [
+    ...(await readMigratableRecords(node, read, expectMigrated)),
+    ...(await readUnmigratableRecords(node, read)),
+  ]
+}
+
 export async function setNameFuses(
   endpoint: string,
   label: string,
@@ -637,10 +1458,19 @@ async function ensureV2MigrationControllerRoles(
  * For grace-period names (expiryDate in the past), also skips — those slots
  * would immediately be AVAILABLE and migration controllers can't use them.
  */
+/**
+ * @param resolver Resolver recorded on the V2 reservation. MUST be the same
+ * resolver the fixture set on V1, because the explorer reads a name's resolver
+ * from the V2 side: if the two disagree it renders that V2 address and reports
+ * "Records set 0" for a name whose V1 records are perfectly fine. Real Sepolia
+ * names hide this because their V1 resolver usually *is* V1_PUBLIC_RESOLVER,
+ * which is what this used to hardcode.
+ */
 export async function reserveInV2(
   endpoint: string,
   label: string,
   expiryDate: number,
+  resolver: Address = V1_PUBLIC_RESOLVER,
 ): Promise<void> {
   const now = await getBlockTimestamp(endpoint)
   if (expiryDate <= now) return // expired slot = AVAILABLE, controllers can't migrate
@@ -651,13 +1481,14 @@ export async function reserveInV2(
     throw new Error(`Unable to read the V2 registry status for ${label}.eth`)
   }
 
-  await reserveKnownAvailableNameInV2(endpoint, label, expiryDate)
+  await reserveKnownAvailableNameInV2(endpoint, label, expiryDate, resolver)
 }
 
 async function reserveKnownAvailableNameInV2(
   endpoint: string,
   label: string,
   expiryDate: number,
+  resolver: Address = V1_PUBLIC_RESOLVER,
 ): Promise<void> {
   await rpcCall(endpoint, 'anvil_impersonateAccount', [V2_ETH_REGISTRAR_ADDR])
   try {
@@ -668,7 +1499,7 @@ async function reserveKnownAvailableNameInV2(
         label,
         ZERO_ADDRESS,
         ZERO_ADDRESS,
-        V1_PUBLIC_RESOLVER,
+        resolver,
         0n,
         BigInt(expiryDate),
       ],
@@ -784,6 +1615,121 @@ export async function createV1NameOnAnvil(
       await increaseTime(endpoint, ONE_YEAR + 45 * 86_400)
       return { label, expiryDate }
     }
+    case 'records':
+    case 'custom-resolver': {
+      // Unwrapped on purpose: the registry owner is this account, so setResolver
+      // and the record writes all authorise directly. The two presets differ
+      // ONLY in which resolver the records go to, so any difference in the
+      // migration outcome is attributable to resolver recognition alone.
+      await registerV1Name(endpoint, label, false)
+      if (type === 'custom-resolver') {
+        await ensureCustomResolverDeployed(endpoint)
+      }
+      await writeV1Records(
+        endpoint,
+        nodeForLabel(label),
+        false,
+        recordResolverFor(type),
+      )
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      // Reserve with the SAME resolver the records went to, so the explorer
+      // (which reads the resolver off V2) shows them instead of reporting zero.
+      await reserveInV2(endpoint, label, expiryDate, recordResolverFor(type))
+      return { label, expiryDate }
+    }
+    case 'locked-no-transfer':
+    case 'locked-no-resolver': {
+      // Isolate ONE extra fuse on top of a locked 2LD. `Locked+All` burns all
+      // seven at once, so it cannot show which fuse caused an outcome:
+      // CANNOT_TRANSFER is what actually makes it ineligible.
+      await registerV1Name(endpoint, label, true)
+      await setNameFuses(
+        endpoint,
+        label,
+        childSettableFuses(PRESET_SHAPES[type].parentFuses),
+      )
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      await reserveInV2(endpoint, label, expiryDate)
+      return { label, expiryDate }
+    }
+    case 'unwrapped-subname': {
+      // Parent stays UNWRAPPED so the child can be created directly in the V1
+      // registry, with no wrapper token — the `eth-unwrapped-subname` state.
+      await registerV1Name(endpoint, label, false)
+      await createRegistryOnlySubname(endpoint, label, childLabelFor(label))
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      await reserveInV2(endpoint, label, expiryDate)
+      return { label, expiryDate }
+    }
+    case 'wrapped-subname': {
+      // Parent emancipated but NOT locked, child with no fuses at all, so the
+      // parent retains control and migration must reject it.
+      await registerV1Name(endpoint, label, true)
+      await createWrappedSubnameWithFuses(
+        endpoint,
+        label,
+        childLabelFor(label),
+        0,
+      )
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      await reserveInV2(endpoint, label, expiryDate)
+      return { label, expiryDate }
+    }
+    case 'detached-child': {
+      await registerV1Name(endpoint, label, true)
+      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
+      await createWrappedSubnameWithFuses(
+        endpoint,
+        label,
+        childLabelFor(label),
+        PARENT_CANNOT_CONTROL,
+      )
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      await reserveInV2(endpoint, label, expiryDate)
+      return { label, expiryDate }
+    }
+    case 'subname':
+    case 'subname-records': {
+      // Parent must burn CANNOT_UNWRAP before it can emancipate a child, and the
+      // child needs CANNOT_UNWRAP itself to classify as `locked-child` rather
+      // than being rejected as `unlocked-subname`.
+      await registerV1Name(endpoint, label, true)
+      await setNameFuses(endpoint, label, CANNOT_UNWRAP)
+      await createEmancipatedSubname(endpoint, label, childLabelFor(label))
+      if (type === 'subname-records') {
+        // Both nodes are owned by the NameWrapper in the V1 registry.
+        await writeV1Records(endpoint, nodeForLabel(label), true)
+        await writeV1Records(endpoint, childNodeForLabel(label), true)
+      }
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      // Same-resolver reservation for the record-bearing variant, so the
+      // explorer reads the resolver the records are actually on.
+      await reserveInV2(
+        endpoint,
+        label,
+        expiryDate,
+        type === 'subname-records' ? recordResolverFor(type) : undefined,
+      )
+      return { label, expiryDate }
+    }
+    case 'managed': {
+      // Registrant stays DEFAULT_ACCOUNT (holds the ERC-721); reclaim() moves the
+      // V1 registry owner to a different address, which is what makes
+      // `classifyNames` report a managerAddress and what the migration then has
+      // to restore on V2.
+      await registerV1Name(endpoint, label, false)
+      await reclaimV1Manager(endpoint, label, V1_DISTINCT_MANAGER)
+      const ts = await getBlockTimestamp(endpoint)
+      const expiryDate = ts + ONE_YEAR
+      await reserveInV2(endpoint, label, expiryDate)
+      return { label, expiryDate }
+    }
     case 'emancipated': {
       const sublabel = `sub-${label}`
       await registerV1Name(endpoint, label, true)
@@ -806,15 +1752,17 @@ export async function createV1NameOnAnvil(
 export function buildMockDomain(name: ActiveName): unknown {
   const lh = labelhash(name.label)
   const node = namehashFromLabelAndParent(lh, ETH_NODE)
-  const isWrapped =
-    name.type !== 'unwrapped' && name.type !== 'grace-renewable-unwrapped'
+  // Shape comes from PRESET_SHAPES so the mock cannot drift from what
+  // `createV1NameOnAnvil` actually writes on-chain.
+  const shape = PRESET_SHAPES[name.type]
+  const isWrapped = shape.parentWrapped
+  const fuses = shape.parentFuses
   const owner = DEFAULT_ACCOUNT.toLowerCase()
+  // `owner` is the V1 registry owner == the manager. For `managed` it is
+  // deliberately not the registrant, which is what classifyNames keys on.
+  const registryOwner =
+    name.type === 'managed' ? V1_DISTINCT_MANAGER.toLowerCase() : owner
   const now = Math.floor(Date.now() / 1000)
-
-  let fuses = PARENT_CANNOT_CONTROL | IS_DOT_ETH
-  if (name.type !== 'unwrapped' && name.type !== 'wrapped')
-    fuses |= CANNOT_UNWRAP
-  if (name.type === 'locked-all') fuses |= ALL_CHILD_FUSES
 
   return {
     id: node,
@@ -824,10 +1772,17 @@ export function buildMockDomain(name: ActiveName): unknown {
     isMigrated: false,
     createdAt: String(now - 3600),
     resolvedAddress: null,
-    resolver: isWrapped
-      ? { id: V1_PUBLIC_RESOLVER, address: V1_PUBLIC_RESOLVER }
-      : null,
-    owner: { id: isWrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
+    // A record-bearing preset must report a resolver even when unwrapped —
+    // `classifyNames` reads `resolver.address` as `v1ResolverAddress`, and the
+    // profile fetch multicalls that address for the record values. It must also
+    // be the SAME resolver the records were written to, and a recognised one, or
+    // the strategy degrades to `keep-v1` and nothing is replayed.
+    resolver: resolverRefFor(
+      presetHasParentRecords(name.type),
+      isWrapped,
+      recordResolverFor(name.type),
+    ),
+    owner: { id: isWrapped ? V1_NAME_WRAPPER.toLowerCase() : registryOwner },
     registrant: { id: owner },
     wrappedOwner: isWrapped ? { id: owner } : null,
     parent: { name: 'eth', id: ETH_NODE, wrappedDomain: null },
@@ -839,6 +1794,108 @@ export function buildMockDomain(name: ActiveName): unknown {
       ? { expiryDate: String(name.expiryDate), fuses }
       : null,
   }
+}
+
+/**
+ * The emancipated child of a `subname*` preset, shaped so `classifyNames` reads
+ * it as `locked-child`: wrapped-owned by this account, CANNOT_UNWRAP burned, and
+ * a `parent` whose own `wrappedDomain.fuses` also has CANNOT_UNWRAP (which is
+ * what the detached-child branch inspects).
+ *
+ * Subnames have no `registration` — that is 2LD-only, and supplying one would
+ * make the expiry checks treat this as a .eth registration.
+ */
+export function buildMockChildDomain(name: ActiveName): unknown {
+  const shape = PRESET_SHAPES[name.type]
+  const child = shape.child
+  if (!child) throw new Error(`${name.type} does not define a child`)
+
+  const parentNode = nodeForLabel(name.label)
+  const sublabel = childLabelFor(name.label)
+  const childLh = labelhash(sublabel)
+  const now = Math.floor(Date.now() / 1000)
+  const owner = DEFAULT_ACCOUNT.toLowerCase()
+
+  return {
+    id: childNodeForLabel(name.label),
+    labelName: sublabel,
+    labelhash: childLh,
+    name: `${sublabel}.${name.label}.eth`,
+    isMigrated: false,
+    createdAt: String(now - 3600),
+    resolvedAddress: null,
+    resolver: resolverRefFor(
+      presetHasSubnameRecords(name.type),
+      false,
+      recordResolverFor(name.type),
+    ),
+    // A registry-only subname is owned directly in the V1 registry and has no
+    // wrapper token at all, which is what makes `classifyName` drop it silently.
+    owner: { id: child.wrapped ? V1_NAME_WRAPPER.toLowerCase() : owner },
+    // Subnames never have a .eth registration — that is 2LD-only.
+    registrant: null,
+    wrappedOwner: child.wrapped ? { id: owner } : null,
+    parent: {
+      name: `${name.label}.eth`,
+      id: parentNode,
+      wrappedDomain: shape.parentWrapped
+        ? {
+            expiryDate: String(name.expiryDate),
+            fuses: shape.parentFuses,
+          }
+        : null,
+    },
+    registration: null,
+    wrappedDomain: child.wrapped
+      ? { expiryDate: String(name.expiryDate), fuses: child.fuses }
+      : null,
+  }
+}
+
+/** Every subgraph domain a single active name contributes (2LD, plus child). */
+export function buildMockDomains(name: ActiveName): unknown[] {
+  const domains: unknown[] = [buildMockDomain(name)]
+  if (presetHasSubname(name.type)) domains.push(buildMockChildDomain(name))
+  return domains
+}
+
+/**
+ * Profile-key rows for the `getProfilesForDomains` query, which the migration
+ * flow uses to learn WHICH records a name has before multicalling the resolver
+ * for their values. Without this the hosted subgraph is asked about Anvil-only
+ * names, returns nothing, and record replay silently has nothing to replay.
+ */
+type MockProfileRow = {
+  id: string
+  resolver: {
+    texts: string[]
+    coinTypes: number[]
+    /**
+     * contenthash and ABI content types were added to `getProfilesForDomains`
+     * when contenthash/ABI preservation landed. They are how the migration
+     * learns those records EXIST — omit them and both are silently skipped, so
+     * a stale mock here looks exactly like the preservation fix not working.
+     */
+    contentHash: string | null
+    abiChangeds: { contentType: number }[]
+  }
+}
+
+export function buildMockProfileRows(name: ActiveName): MockProfileRow[] {
+  const rows: MockProfileRow[] = []
+  const keys = () => ({
+    texts: [...QA_RECORD_TEXT_KEYS],
+    coinTypes: [...QA_RECORD_COIN_TYPES],
+    contentHash: QA_RECORD_CONTENTHASH,
+    abiChangeds: [{ contentType: Number(QA_RECORD_ABI.contentType) }],
+  })
+  if (presetHasParentRecords(name.type)) {
+    rows.push({ id: nodeForLabel(name.label), resolver: keys() })
+  }
+  if (presetHasSubnameRecords(name.type)) {
+    rows.push({ id: childNodeForLabel(name.label), resolver: keys() })
+  }
+  return rows
 }
 
 // --- Anvil on-chain sync helpers --------------------------------------------
