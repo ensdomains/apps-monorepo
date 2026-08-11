@@ -53,7 +53,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
 
   try {
     // First, let's test if the network is reachable
-    yield* await fromPromise(getChainId(publicClient), (e) => {
+    yield* fromPromise(getChainId(publicClient), (e) => {
       return new NameChainContractError({
         cause: `Network unreachable: ${e}`,
       })
@@ -63,7 +63,7 @@ export const checkRealNameAvailability = ResultFn(async function* (
     // action reads `client.chain.contracts.ensEthRegistrar` and is
     // eth-2ld-only, which matches what `validateENSName` already guarantees
     // here.
-    const availability = yield* await fromPromise(
+    const availability = yield* fromPromise(
       getAvailable(publicClient, { name: `${cleanName}.eth` }),
       (e) =>
         new NameChainContractError({
@@ -92,12 +92,12 @@ export const getENSNameInfo = ResultFn(async function* (
 
   try {
     // Check availability via the v2 registrar's `isAvailable` action.
-    const availability = yield* await fromPromise(
+    const availability = yield* fromPromise(
       getAvailable(publicClient, { name: `${cleanName}.eth` }),
       (e) => new NameChainContractError({ cause: e }),
     )
 
-    const { base, premium } = yield* await fromPromise(
+    const { base, premium } = yield* fromPromise(
       getRegisterPrice(publicClient, {
         label: cleanName,
         duration: BigInt(durationInSeconds),
@@ -137,7 +137,7 @@ export const getTokenPrices = ResultFn(async function* (
     // Get prices for each supported token
     for (const [tokenName, tokenAddress] of Object.entries(SUPPORTED_TOKENS)) {
       try {
-        const { base, premium } = yield* await fromPromise(
+        const { base, premium } = yield* fromPromise(
           getRegisterPrice(publicClient, {
             label: cleanName,
             duration: BigInt(durationInSeconds),
@@ -184,7 +184,7 @@ export const getUSDCPrice = ResultFn(async function* (
 export const isPaymentTokenSupported = ResultFn(async function* (
   tokenAddress: Address,
 ) {
-  const isSupported = yield* await fromPromise(
+  const isSupported = yield* fromPromise(
     readIsPaymentTokenSupported(publicClient, ETH_REGISTRAR, tokenAddress),
     (e) => new NameChainContractError({ cause: e }),
   )
