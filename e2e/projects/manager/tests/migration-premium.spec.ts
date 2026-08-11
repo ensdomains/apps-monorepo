@@ -75,9 +75,19 @@ async function runMigrationFlow(
 test.describe('ENS V1→V2 Migration — Time-Based Scenarios', () => {
   test.describe.configure({ timeout: 300_000 })
 
-  test('migrate active name — baseline happy path', {
-    tag: ['@scenario:G16'],
-  }, async ({ migrationConnectedPage: page, wallet, accounts, time }) => {
+  // Untagged pending the §6 B4 audit. The superseded plan's G16 ("migrate an
+  // active name") has no catalogue equivalent on its own; the fixture here is
+  // `locked`, so the candidate row is GW3 — but GW3's oracle also requires
+  // asserting the name was NOT unwrapped and that a WrapperRegistry was set as
+  // the V2 subregistry, and this test asserts neither. Tagging it GW3 would be
+  // a partial tag, which the ledger cannot detect. Widen the assertions, then
+  // tag it.
+  test('migrate active name — baseline happy path', async ({
+    migrationConnectedPage: page,
+    wallet,
+    accounts,
+    time,
+  }) => {
     const makeV1Name = createMakeV1Name({
       userAccount: privateKeyToAccount(accounts.getPrivateKey('user')),
     })
