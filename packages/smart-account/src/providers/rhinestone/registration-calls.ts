@@ -308,7 +308,7 @@ export function buildRevealBatch(params: RevealBatchParams): Call[] {
   // 5. primary name (default.reverse) — only when selected
   if (params.setPrimaryName) {
     calls.push({
-      to: c.defaultReverseRegistrarAdapter,
+      to: c.defaultReverseRegistrarHcaAdapter,
       value: 0n,
       data: encodeFunctionData({
         abi: reverseAdapterAbi,

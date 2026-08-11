@@ -85,7 +85,6 @@ export interface TransactionRunInitialSnapshot {
     enabled: boolean
     signerType?: string
     accountType?: string
-    sponsored?: boolean
   }
 }
 

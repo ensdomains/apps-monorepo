@@ -151,7 +151,8 @@ describe('buildRevealBatch ordering', () => {
     })
     const adapterIdx = calls.findIndex(
       (c) =>
-        c.to.toLowerCase() === C.defaultReverseRegistrarAdapter.toLowerCase(),
+        c.to.toLowerCase() ===
+        C.defaultReverseRegistrarHcaAdapter.toLowerCase(),
     )
     const authIdx = calls.length - 1
     expect(adapterIdx).toBeGreaterThan(-1)

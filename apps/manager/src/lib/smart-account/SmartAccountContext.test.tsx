@@ -21,14 +21,11 @@ vi.mock('@ens-apps/smart-account', async (importOriginal) => {
   return { ...actual, removeSessionsByOwner: vi.fn() }
 })
 
-// The mock-USDC/DAI faucet auto-fund is gated on `isTimeTravelEnabled()` (only
-// runs with a local Anvil fork; real Sepolia pays in Circle USDC the faucet
-// can't mint). Force it on so the auto-funding loop-prevention tests exercise
-// that dev-only path.
+// Keep the dev-only Anvil owner setup out of these tests.
 vi.mock('@ens-apps/dev-time-travel', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@ens-apps/dev-time-travel')>()
-  return { ...actual, isTimeTravelEnabled: () => true }
+  return { ...actual, isTimeTravelEnabled: () => false }
 })
 
 import { removeSessionsByOwner } from '@ens-apps/smart-account'

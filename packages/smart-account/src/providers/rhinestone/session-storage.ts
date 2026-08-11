@@ -23,12 +23,18 @@
  *   v7 → v8: rotated to the remediated PR #388 HCA, validator, factory, and
  *            resolver namespace. Sessions bind those addresses into their
  *            permission IDs and must not cross the deployment boundary.
+ *   v8 → v9: payment/refund token switched from Circle Sepolia USDC to
+ *            MockUSDC. The refund token is part of the session salt, so a
+ *            session authorized under the old token would refund in a token
+ *            the HCA no longer holds. The validator + HCA implementation were
+ *            also redeployed (contracts-v2 #409) so the validator accepts that
+ *            token. Sessions are bound to the validator and HCA addresses.
  */
 
 import type { Address } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v8'
+const SESSION_STORAGE_KEY = 'ens-sessions-v9'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'

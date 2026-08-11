@@ -4,6 +4,8 @@ import { sepoliaWithEns } from '@/lib/wagmi'
 
 const destination = getDestinationContracts(sepoliaWithEns.id)
 
+export const V2_DEPLOY_BLOCK = destination.verifiableFactoryDeployBlock
+
 // V1 contracts remain the canonical Sepolia ENS deployment. The PR #388
 // namespace rotation only applies to the V2/HCA contracts below.
 export const V1_CONTRACTS = {

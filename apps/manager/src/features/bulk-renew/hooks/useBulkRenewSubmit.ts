@@ -67,8 +67,6 @@ const authorizeSpend = (
         selectedToken: ctx.token,
         signer: ctx.signer,
         publicClient,
-        // EOA approve is a normal (non-sponsored) tx — the EOA pays gas.
-        sponsored: false,
       })
         .andThen((txId) => pollTransactionStatusActor({ txId }))
         .map(() => undefined)
@@ -82,8 +80,6 @@ const renewOne = (ctx: Context, item: RenewItem): ResultAsync<void, Error> =>
     selectedToken: ctx.token,
     signer: ctx.signer,
     publicClient,
-    // Direct wallet route — the EOA pays gas, never sponsored.
-    sponsored: false,
   })
     .andThen((txId) => pollTransactionStatusActor({ txId }))
     .map(() => undefined)

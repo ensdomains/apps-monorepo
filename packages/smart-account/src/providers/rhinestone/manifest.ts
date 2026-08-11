@@ -4,8 +4,10 @@
  * Provenance: most ENS-side addresses come from the ensjs `e96662c` Sepolia
  * manifest, whose values match the remediated deployment published by
  * `ensdomains/contracts-v2` PR #388 at `8d1c893`. The HCA-aware
- * `MigrationHelper` was deployed separately from contracts-v2 PR #402, so it
- * remains pinned below alongside the HCA contracts that ensjs does not expose.
+ * `MigrationHelper` was deployed separately from contracts-v2 PR #402. The
+ * standalone HCA implementation and validator were redeployed in PR #409 so
+ * the validator accepts MockUSDC refunds. These contracts remain pinned below
+ * because ensjs does not expose them yet.
  *
  * Re-point the remaining hardcoded extras to `getChainContractAddress(...)`
  * when ensjs exposes them. Until then, this local, chain-keyed table remains
@@ -55,7 +57,7 @@ export interface DestinationContracts {
   readonly wrapperRegistryImpl: Address
   /** Replacement/default resolver written during migration. */
   readonly publicResolverV2: Address
-  readonly defaultReverseRegistrarAdapter: Address
+  readonly defaultReverseRegistrarHcaAdapter: Address
   readonly usdc: Address
 }
 
@@ -95,10 +97,13 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     lockedMigrationController:
       ensjsSepolia.ensLockedMigrationController.address,
 
-    // Not in ensjs yet. Addresses from contracts-v2 PR #388 @ 8d1c893.
-    standaloneHcaImplementation: '0xD213De41421Fed3a5E475943F9D634A0cf64a385',
-    hcaOwnerAndSessionValidator: '0x976D90c51Afb2C11660EaeE94bD42A7e84751D08',
-    defaultReverseRegistrarAdapter:
+    // Not in ensjs yet. Addresses from contracts-v2 PR #409 (deployed
+    // 2026-08-10): validator accepts Circle USDC (primary) and MockUSDC
+    // (secondary) as session refund tokens; the implementation follows because
+    // it pins the validator as a constructor immutable.
+    standaloneHcaImplementation: '0xAA761541620fC1a42bb701a26a9f107A9DF1E904',
+    hcaOwnerAndSessionValidator: '0x5f249FCa8bB4949105651146858c347E8BFb0F7E',
+    defaultReverseRegistrarHcaAdapter:
       '0x7a84e241f862D73960D73c26d68c3C8F89F0B18F',
     // Not deployed as its own artifact — VerifiableFactory creates it in its
     // constructor and exposes it as the immutable `proxyLogic`, so this is read
@@ -106,21 +111,21 @@ export const DESTINATION_CONTRACTS: Record<number, DestinationContracts> = {
     // it is the EIP-1167 runtime hashed into every CREATE2 proxy address.
     verifiableFactoryProxyLogic: '0xA136BeE4E37B44586242e516a39893EfD54315e9',
     verifiableFactoryDeployBlock: 11_383_823n,
-    rootRegistry: '0x8115186e8f2e0b0281e86ab91f0f48ba90364354',
-    publicResolverSet: '0xf2794ebd70c1fa74094a9ec653da1c2df9f5a5a9',
-    wrapperRegistryImpl: '0x433f81a3e8921fc868ae1a04576f135d9a75b0f2',
-    publicResolverV2: '0xe7b9a25607e02da8145e4eb1836ca539e53f11f7',
+    rootRegistry: '0x8115186E8f2E0B0281e86ab91f0f48Ba90364354',
+    publicResolverSet: '0xf2794eBD70C1fa74094A9eC653DA1c2dF9f5a5A9',
+    wrapperRegistryImpl: '0x433F81a3E8921Fc868ae1A04576f135d9A75B0f2',
+    publicResolverV2: '0xe7B9A25607E02da8145E4eB1836CA539e53F11f7',
 
-    // Circle's real Sepolia USDC — deliberately NOT `ensjsSepolia.usdc`, which
-    // is MockUSDC. The app pays in the real token.
-    usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    // MockUSDC: the orchestrator accepts it as a payment token, and the
+    // api-worker faucet can mint it, so the whole route runs on one token.
+    usdc: ensjsSepolia.usdc.address,
   },
 }
 
 export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
   [baseSepolia.id]: {
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-    hcaFundingSessionValidator: '0x6FC0FdE0960003AcB24810FFd5dB6224B3d88974',
+    hcaFundingSessionValidator: '0x6Fc0FdE0960003acb24810fFd5dB6224b3d88974',
   },
 }
 
