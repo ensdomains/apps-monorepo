@@ -6,7 +6,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
@@ -23,6 +23,7 @@ import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -255,12 +256,12 @@ export const TokenPickerContentBase = ({
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
 
-  // Nothing to choose between when there is a single option.
-  useEffect(() => {
-    const onlyCoin = stablecoinBalances?.length === 1 && stablecoinBalances[0]
-    if (selectedToken || isLoadingBalances || !onlyCoin) return
-    onSelectCoin(onlyCoin.symbol as SUPPORTED_TOKEN)
-  }, [selectedToken, isLoadingBalances, stablecoinBalances, onSelectCoin])
+  useAutoSelectOnlyToken({
+    isLoadingBalances,
+    onSelectCoin,
+    selectedToken,
+    stablecoinBalances,
+  })
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
