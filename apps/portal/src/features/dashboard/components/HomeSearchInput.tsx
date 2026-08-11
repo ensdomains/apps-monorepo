@@ -279,7 +279,7 @@ export const HomeSearchInput = ({
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
-          {searchNotice && !hasAnySection && (
+          {searchNotice && (
             <div className="px-3 py-2 text-p text-message-warning-text">
               {searchNotice}
             </div>

@@ -27,38 +27,17 @@ type BuildSuggestionsOptions = {
   validTlds?: readonly string[]
 }
 
-export const SHORT_LABEL_NOTICE =
-  'Names must be 3 characters or more to register.'
+const SHORT_LABEL_NOTICE = 'Names must be 3 characters or more to register.'
 
 /**
- * Returns a notice when the input is a 2LD whose label is too short to register.
+ * Returns a notice when the input is a 2LD whose label is too short to
+ * register. The 3-character minimum is a .eth registrar rule, and subnames
+ * have no minimum, so both are left alone.
  */
-export const getSearchNotice = ({
-  value,
-  validTlds,
-}: {
-  readonly value: string
-  readonly validTlds?: readonly string[]
-}): string | null => {
-  const trimmed = value.trim()
-  if (!trimmed || isAddress(trimmed, { strict: false })) return null
-
-  const lowercase = trimmed.toLowerCase()
-  const dotCount = lowercase.split('.').length - 1
-  const firstDotIndex = lowercase.indexOf('.')
-  const afterFirstDot =
-    firstDotIndex >= 0 ? lowercase.slice(firstDotIndex + 1) : ''
-  const label =
-    firstDotIndex >= 0 ? lowercase.slice(0, firstDotIndex) : lowercase
-
-  const isTldPrefix =
-    afterFirstDot === '' ||
-    (validTlds ?? []).some((t) => t.startsWith(afterFirstDot))
-  const isSubname = dotCount >= 2 || (dotCount === 1 && !isTldPrefix)
-  if (isSubname) return null
-
-  // The minimum is a .eth registrar rule, so stay quiet for other TLDs.
-  if (!'eth'.startsWith(afterFirstDot)) return null
+export const getSearchNotice = (value: string): string | null => {
+  const [label = '', ...rest] = value.trim().toLowerCase().split('.')
+  if (rest.length > 1) return null
+  if (rest[0] !== undefined && !'eth'.startsWith(rest[0])) return null
 
   const length = [...label].length
   return length > 0 && length < 3 ? SHORT_LABEL_NOTICE : null

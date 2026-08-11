@@ -226,9 +226,7 @@ export const useSearchResults = ({
   const hasSuggestions = suggestionsFiltered.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
   const hasAnySection = hasSuggestions || hasOwned
-  const searchNotice = hasAnySection
-    ? null
-    : getSearchNotice({ value: searchValue, validTlds })
+  const searchNotice = hasAnySection ? null : getSearchNotice(searchValue)
 
   const allItems = useMemo(
     () =>

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildSearchSuggestions,
   getSearchNotice,
-  SHORT_LABEL_NOTICE,
 } from './buildSearchSuggestions'
 
 describe('buildSearchSuggestions', () => {
@@ -484,67 +483,46 @@ describe('buildSearchSuggestions', () => {
 })
 
 describe('getSearchNotice', () => {
-  const tlds = ['eth', 'com'] as const
+  const NOTICE = 'Names must be 3 characters or more to register.'
 
   it('flags one and two character labels', () => {
-    expect(getSearchNotice({ value: 'a', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
-    expect(getSearchNotice({ value: 'tt', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
-    expect(getSearchNotice({ value: 'tt.eth', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
-    expect(getSearchNotice({ value: '12.eth', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
+    expect(getSearchNotice('a')).toBe(NOTICE)
+    expect(getSearchNotice('tt')).toBe(NOTICE)
+    expect(getSearchNotice('tt.eth')).toBe(NOTICE)
+    expect(getSearchNotice('12.eth')).toBe(NOTICE)
   })
 
   it('stays quiet for registrable labels', () => {
-    expect(getSearchNotice({ value: 'abc', validTlds: tlds })).toBeNull()
-    expect(getSearchNotice({ value: 'abc.eth', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice('abc')).toBeNull()
+    expect(getSearchNotice('abc.eth')).toBeNull()
   })
 
   it('stays quiet for subnames, which have no minimum', () => {
-    expect(
-      getSearchNotice({ value: 'a.florin.eth', validTlds: tlds }),
-    ).toBeNull()
-    expect(getSearchNotice({ value: 'tt.florin', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice('a.florin.eth')).toBeNull()
+    expect(getSearchNotice('tt.florin')).toBeNull()
   })
 
   it('stays quiet for TLDs other than .eth, where the rule does not apply', () => {
-    expect(getSearchNotice({ value: 'tt.co', validTlds: tlds })).toBeNull()
-    expect(getSearchNotice({ value: 'tt.com', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice('tt.co')).toBeNull()
+    expect(getSearchNotice('tt.com')).toBeNull()
   })
 
   it('still warns while the .eth suffix is being typed', () => {
-    expect(getSearchNotice({ value: 'tt.', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
-    expect(getSearchNotice({ value: 'tt.e', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
-    expect(getSearchNotice({ value: 'tt.et', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
+    expect(getSearchNotice('tt.')).toBe(NOTICE)
+    expect(getSearchNotice('tt.e')).toBe(NOTICE)
+    expect(getSearchNotice('tt.et')).toBe(NOTICE)
   })
 
   it('stays quiet for addresses and empty input', () => {
     expect(
-      getSearchNotice({
-        value: '0xA6362Dcb7Db14C357E788C876eE99e1f982f1115',
-        validTlds: tlds,
-      }),
+      getSearchNotice('0xA6362Dcb7Db14C357E788C876eE99e1f982f1115'),
     ).toBeNull()
-    expect(getSearchNotice({ value: '', validTlds: tlds })).toBeNull()
-    expect(getSearchNotice({ value: '   ', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice('')).toBeNull()
+    expect(getSearchNotice('   ')).toBeNull()
   })
 
   it('counts emoji labels by code point', () => {
-    expect(getSearchNotice({ value: '👍👍', validTlds: tlds })).toBe(
-      SHORT_LABEL_NOTICE,
-    )
-    expect(getSearchNotice({ value: '👍👍👍', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice('👍👍')).toBe(NOTICE)
+    expect(getSearchNotice('👍👍👍')).toBeNull()
   })
 })
