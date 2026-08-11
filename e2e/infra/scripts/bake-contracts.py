@@ -150,8 +150,8 @@ PAYMENT_TOKENS = [
 # modules (Intent Executor, etc.) are already baked by
 # bake_rhinestone_infrastructure() and are reused as-is.
 SH_STANDALONE_HCA_FACTORY       = "0x900ff7cf617ef9d802178b4ef480491e3a782672"
-SH_STANDALONE_HCA_IMPL          = "0xd213de41421fed3a5e475943f9d634a0cf64a385"
-SH_HCA_OWNER_SESSION_VALIDATOR  = "0x976d90c51afb2c11660eaee94bd42a7e84751d08"
+SH_STANDALONE_HCA_IMPL          = "0xaa761541620fc1a42bb701a26a9f107a9df1e904"
+SH_HCA_OWNER_SESSION_VALIDATOR  = "0x5f249fca8bb4949105651146858c347e8bfb0f7e"
 SH_VERIFIABLE_FACTORY           = "0x10dc6333cdfe1fcef624c6e0a8221b91804cd7ef"
 # Not a standalone artifact — VerifiableFactory creates it in its constructor
 # and exposes it as the `proxyLogic` immutable; must stay paired with the factory.
@@ -160,7 +160,7 @@ SH_PERMISSIONED_RESOLVER_IMPL   = "0x9eae5c2730a7dd16bdd1dee6421a1b91e3b0365e"
 SH_ETH_REGISTRAR                = "0xa88553f454b77203b0d036a05c894d555eaaa2cc"
 SH_ETH_REGISTRY                 = "0xbdc85dd5b15d7ecb354cd7cb6f2c50b4f2c4f0e2"
 SH_DEFAULT_REVERSE_HCA_ADAPTER  = "0x7a84e241f862d73960d73c26d68c3c8f89f0b18f"
-SH_USDC                         = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+SH_USDC                         = "0x768F42455A2D082E23ceeF7d51e5787C82d67a39"
 
 # ── StandardRentPriceOracle storage layouts (differ per deployment) ────────
 # ENS-V2 mock-set oracle: _baseRatePerCp@3, _discountPoints@4, _paymentRatios@5.
@@ -421,7 +421,7 @@ def bake_standalone_hca():
         # MockUSDC/DAI ones) must be baked — at the canonical layout's slots.
         bake_oracle(
             sh_oracle,
-            payment_tokens=[(SH_USDC, "Circle USDC")],
+            payment_tokens=[(SH_USDC, "MockUSDC")],
             ratios_slot=SH_PAYMENT_RATIOS_SLOT,
             array_slots=SH_ORACLE_ARRAY_SLOTS,
         )
@@ -458,10 +458,10 @@ def bake_standalone_hca():
     bake_code_only(SH_VERIFIABLE_PROXY_LOGIC,     "Standalone VerifiableFactory proxy logic")
     bake_code_only(SH_PERMISSIONED_RESOLVER_IMPL, "Standalone PermissionedResolver impl")
 
-    # Circle Sepolia USDC — the standalone registrar's payment token. Code +
+    # MockUSDC — payment token for the standalone route. Code +
     # sequential storage; balances/allowances are minted per-account at
     # fund-time (see fund scripts), so no mapping slots to copy here.
-    bake_with_storage(SH_USDC, "Circle Sepolia USDC (standalone)")
+    bake_with_storage(SH_USDC, "MockUSDC (standalone)")
 
 
 def bake_rhinestone_infrastructure():

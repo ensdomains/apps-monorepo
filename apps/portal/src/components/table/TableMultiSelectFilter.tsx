@@ -1,7 +1,11 @@
-import { ChevronDown, XIcon } from 'lucide-react'
+import { ChevronDown, type LucideIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import {
+  Button,
+  type ButtonSize,
+  type ButtonVariant,
+} from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
@@ -21,12 +25,20 @@ export const TableMultiSelectFilter = ({
   selectedValues,
   onChange,
   variant = 'outline',
+  size,
+  icon: Icon,
+  hideValue = false,
 }: {
   label: string
   groups: FilterGroup[]
   selectedValues: string[]
   onChange: (values: string[]) => void
-  variant?: 'default' | 'outline'
+  variant?: ButtonVariant
+  size?: ButtonSize
+  /** Optional leading icon, rendered before the label (compact filter-chip style). */
+  icon?: LucideIcon
+  /** Hide the inline `: All` text and trailing chevron, leaving an icon + label chip. */
+  hideValue?: boolean
 }) => {
   const [open, setOpen] = useState(false)
 
@@ -42,15 +54,29 @@ export const TableMultiSelectFilter = ({
       <DropdownMenuTrigger asChild>
         <Button
           variant={variant}
-          className="flex items-center gap-2 focus-visible:outline-none"
+          size={size}
+          className={`flex items-center focus-visible:outline-none ${hideValue ? 'gap-1' : 'gap-2'}`}
         >
-          {label}:
-          {selectedCount > 0 && selectedCount < allValues.length ? (
-            <Badge className="ml-1">{selectedCount}</Badge>
+          {Icon && <Icon className="size-4" />}
+          {hideValue ? (
+            <>
+              {label}
+              {/* Keep the count as the only active-filter cue once `: All` is hidden. */}
+              {selectedCount > 0 && selectedCount < allValues.length && (
+                <Badge className="ml-1">{selectedCount}</Badge>
+              )}
+            </>
           ) : (
-            ' All'
+            <>
+              {label}:
+              {selectedCount > 0 && selectedCount < allValues.length ? (
+                <Badge className="ml-1">{selectedCount}</Badge>
+              ) : (
+                ' All'
+              )}
+              <ChevronDown className="h-4 w-4" />
+            </>
           )}
-          <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-80">

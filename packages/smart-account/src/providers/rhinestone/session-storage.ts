@@ -20,12 +20,20 @@
  *   v6 → v7: SDK patch bumped (5e0a5f32… → 7603298e…). The session
  *            authorization / enable-data encoding changed, so any session
  *            signed under the old patch is invalid and must be re-authorized.
+ *   v7 → v8: payment/refund token switched from Circle Sepolia USDC to
+ *            MockUSDC. The refund token is part of the session salt, so a
+ *            session authorized under the old token would refund in a token
+ *            the HCA no longer holds.
+ *   v8 → v9: validator + HCA implementation redeployed (contracts-v2 #409) so
+ *            the validator accepts MockUSDC as a refund token. Sessions are
+ *            bound to the old validator, and the HCA address itself rotates
+ *            with the implementation.
  */
 
 import type { Address } from 'viem'
 import type { RhinestoneStoredSession } from './types'
 
-const SESSION_STORAGE_KEY = 'ens-sessions-v7'
+const SESSION_STORAGE_KEY = 'ens-sessions-v9'
 const SKIPPED_SESSION_KEY = 'ens-session-skipped'
 
 const hasWindow = (): boolean => typeof window !== 'undefined'
