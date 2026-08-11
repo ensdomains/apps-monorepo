@@ -5,6 +5,126 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 4 — 2026-08-12
+
+**Batch:** BOOTSTRAP · extend the harness gate to the manager project —
+`specs/harness-manager.spec.ts`.
+
+**Result:** PASS 0 · DEFECT 0 · EXEMPT 0 · PRODUCT-GAP 0 (no scenarios worked)
+
+- Terminal: **39 → 39**. Ratchet unchanged. Invariant sites 0/32.
+- 5 tests: **4 passed, 1 skipped**, two consecutive runs. Wired as a blocking
+  dependency of `manager-e2e`.
+- Portal harness re-verified green (7 passed). Address gate green.
+
+**In flight:** nothing.
+
+### FINDING — the `makeV1Name` blocker is now proven, precisely and citably
+
+The rule-6 test fails exactly as predicted, and the diagnosis is no longer
+inference:
+
+- `makeV1Name` registers into `V1_BASE_REGISTRAR` = `0x64096092…`
+  (`fixtures/makeV1Name.ts:61`).
+- The migration code resolves `ensBaseRegistrarImplementation` through ensjs =
+  `0x57f1887a…`, at **`apps/manager/src/features/migration/contracts/addresses.ts:14`**
+  and **`packages/migration/src/service/preflightChecks.ts:13`**. Same story for
+  `ensNameWrapper` at lines 18 and 17 of those files.
+- Both registrars are deployed and live on the fork (asserted, so the diagnosis
+  cannot silently rot).
+- So registration succeeds and **the app cannot see any name this fixture
+  makes**. Existing migration specs paper over it with a V1-subgraph route mock,
+  which answers for a name the chain-reading half cannot find — that is why the
+  suite above it stayed green for weeks.
+
+Encoded as **`test.fail()`**, not skipped, so it *executes* every run:
+- while the fixture is broken → the assertion fails → `test.fail()` passes;
+- the moment someone rewires it → the assertion passes → Playwright reports
+  "expected to fail but passed" → **red**, which is precisely when a human
+  should look, because that is when the 61 `G*` rows unblock and the annotation
+  must come off.
+
+`makeV1Name`'s **rule 5 passes** — it genuinely registers into the registrar it
+targets. The fault is only ever "wrong registrar", not "does nothing". Worth
+knowing before anyone starts rewiring.
+
+### BLOCKER — the whole `manager-e2e` project cannot run
+
+`connectWithHeadlessWallet` (`helpers/manager-auth.ts:92`) waits 15s for a
+Connect button the manager does not render under `VITE_FF_USE_EOA=false` in
+`apps/manager/.env` — Para-embedded has no wagmi client for the headless
+provider to attach to.
+
+**Verified not caused by this batch**: `profile.spec.ts:113 "shows validation
+errors for invalid records"` fails at the identical line under `--no-deps`, with
+no harness project running. This blocks *every* manager-side rule-6 check and
+every manager scenario, not just this file.
+
+Not fixed here on purpose: flipping that flag restarts the owner's dev server
+and changes which wallet path the app runs. That is their call, not a test-side
+infra fix. Recorded as **blocked-env, owner sugh01, expires 2026-08-19**, and
+the one affected test is `test.skip()`'d at its declaration with the reason at
+the site.
+
+### Learned — do not re-derive
+
+- **`test.skip(true, …)` inside a test body does not work when the test uses a
+  fixture.** Fixtures resolve *before* the body runs, so the in-body skip is
+  reached only after the fixture has already thrown — the test fails instead of
+  skipping. Use the static form `test.skip('title', fn)`, which takes no
+  message, so the reason has to live in a comment.
+- **`test.fail()` vs `test.skip()` mean different things and both are legitimate
+  here.** `fail` keeps the test executing against a correct assertion whose
+  current outcome is failure; `skip` is for blocked-env, and needs an owner and
+  a date. Neither weakens an oracle — that distinction is what makes them
+  allowed under §16.5.
+- **The address gate caught one of my own violations this iteration**: a
+  hardcoded zero-address literal in the new spec. Use viem's `zeroAddress`.
+  Small, but it is the gate paying for itself two iterations after landing.
+- V1 registration is a permanent fork write, so both `makeV1Name` tests are
+  snapshot-wrapped — same reasoning as iteration 3's clock leak, since this file
+  is also a project dependency.
+- `ERC721.ownerOf` **reverts** on an unregistered token rather than returning
+  zero. The helper catches it and returns `null`; a revert here is the answer,
+  not an error.
+
+### Parked
+
+- `0x640294a2…` identity — owner **sugh01**, expires **2026-08-18** (iteration 2).
+- Manager connect flow / `VITE_FF_USE_EOA` — owner **sugh01**, expires
+  **2026-08-19** (this iteration).
+
+Both need a human. Neither blocks portal-side work.
+
+### Skipped-blocked
+
+Every manager-side scenario, on the connect blocker above. R0's `F*` (transfer)
+and `I*` (fuses) rows are portal-side and unaffected.
+
+### Next
+
+**B0 + B4, portal-side, then the first real batch.**
+
+B2 is complete on both projects. Remaining bootstrap:
+
+1. **B0** — Panoptes manifest vs `ensL1Contracts[sepolia]`. The API is on
+   **:5655** (not 42069). This is the "success with zero rows" failure mode, and
+   `INV4` has 8 sites waiting on it.
+2. **B4** — audit the ~16 inherited specs against §5. Note
+   `projects/manager/playwright.config.ts` carries
+   `testIgnore: /temporaryPremium|migration|notification/`, which is a live
+   instance of trap #6 (config exclusion) and explains the `A11` warning the
+   reconciler still prints.
+
+Then R0, portal-side only while the manager is blocked: **F** (transfer, 14
+rows) and **I** (fuses, 6) are reachable; **G** (61) is not, on the fixture
+above.
+
+Infra: Anvil ✅ :8545, manager ✅ :3000 (serving, but not e2e-connectable),
+portal ✅ :3001, panoptes-api ✅ :5655.
+
+---
+
 ## Iteration 3 — 2026-08-12
 
 **Batch:** BOOTSTRAP · goal §6 B2, second half — `specs/harness.spec.ts`.
