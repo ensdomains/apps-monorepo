@@ -27,7 +27,7 @@ type BuildSuggestionsOptions = {
   validTlds?: readonly string[]
 }
 
-const SHORT_LABEL_NOTICE = 'Names must be 3 characters or more to register.'
+const SHORT_LABEL_NOTICE = 'Names are at least 3 characters'
 
 /**
  * Returns a notice when the input is a 2LD whose label is too short to

@@ -1,5 +1,10 @@
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
 import type {
   SaveRecordsParams,
@@ -17,7 +22,7 @@ import {
 
 const ETH_COIN_TYPE = 60
 
-interface SaveDeps {
+export interface SaveDeps {
   readonly accountAddress?: Address | null
   readonly chainId: number
   readonly name: string
@@ -25,7 +30,14 @@ interface SaveDeps {
   readonly ownerAddress?: Address | null
   readonly publicClient: PublicClient
   readonly retryCount?: number
+  /**
+   * The account context's signer. Used ONLY by the resolver-setup path, which
+   * is an HCA intent by construction. In-place record writes go out from
+   * `walletClient` — see `getPendingSave`.
+   */
   readonly signer?: Signer | null
+  /** Connected owner wallet; the sender for in-place record writes. */
+  readonly walletClient?: WalletClient | null
   /**
    * When true, deploy/assign a controlled resolver and apply the before→after
    * record diff instead of writing in place.
@@ -81,9 +93,31 @@ type EditProfileDialogEvent =
       ethAddressChanged?: boolean
     }
 
-const getMissingAccount = (event: EditProfileDialogEvent) =>
-  event.type === 'SAVE_REQUESTED' &&
-  (!event.deps.signer || !event.deps.accountAddress)
+/**
+ * Require a bound account that matches the owner. An account-less client
+ * (possible mid-reconnect) gives no way to verify the wallet controls the owner
+ * address, and a client bound to a *different* EOA (mid account switch) means
+ * the sender has diverged from the address `resolverWriteAccess` probed — the
+ * write would revert on-chain instead of blocking here with a "wallet not
+ * ready" message.
+ */
+export const hasOwnerWallet = (
+  walletClient: WalletClient | null | undefined,
+  ownerAddress: Address | null | undefined,
+) =>
+  !!walletClient?.account &&
+  !!ownerAddress &&
+  isAddressEqual(walletClient.account.address, ownerAddress)
+
+const getMissingAccount = (event: EditProfileDialogEvent) => {
+  if (event.type !== 'SAVE_REQUESTED') return false
+
+  // Each path has a different sender: setup rides the HCA signer, an in-place
+  // record write is a plain transaction from the connected owner wallet.
+  return event.deps.needsResolverSetup
+    ? !event.deps.signer || !event.deps.accountAddress
+    : !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress)
+}
 
 const getMissingSetupSigner = (event: EditProfileDialogEvent) =>
   event.type === 'SAVE_REQUESTED' &&
@@ -95,17 +129,13 @@ const getPendingSave = (
   currentRecords: ProfileRecords,
   deps: SaveDeps,
 ): PendingSave => {
-  if (!deps.signer || !deps.accountAddress) {
-    throw new Error('Account not ready. Please wait for wallet to connect.')
-  }
-
   const before = transformToServiceFormat(savedRecords)
   const after = transformToServiceFormat(currentRecords)
   const ethAddressChanged =
     ethCoinValue(before.coins) !== ethCoinValue(after.coins)
 
   if (deps.needsResolverSetup) {
-    if (deps.signer.type !== 'rhinestone' || !deps.ownerAddress) {
+    if (deps.signer?.type !== 'rhinestone' || !deps.ownerAddress) {
       throw new Error('Please finish connecting your wallet, then try again')
     }
 
@@ -127,6 +157,26 @@ const getPendingSave = (
     throw new Error('Cannot save profile - resolver address is not available.')
   }
 
+  // In-place record writes are ALWAYS plain owner-EOA transactions, never HCA
+  // intents. Registration hands the owner wallet every role on the resolver
+  // (`authorizeNameRoles('0x00', ROLES.ALL, wallet, true)` closes the reveal
+  // batch), so the EOA can write directly. Routing the same write through the
+  // HCA instead fails twice over: a session-signed intent hits
+  // `HCAOwnerAndSessionValidator`, whose action policy allowlists only the
+  // registration selectors, and reverts `PolicyRuleFailed()` re-wrapped as
+  // `InvalidSignature()`; an owner-signed one needs USDC for the intent fee
+  // that registration leaves the HCA without, with no funding leg here to
+  // cover it.
+  const walletClient = deps.walletClient
+  const walletAccount = walletClient?.account
+  if (
+    !walletClient ||
+    !walletAccount ||
+    !hasOwnerWallet(walletClient, deps.ownerAddress)
+  ) {
+    throw new Error('Account not ready. Please wait for wallet to connect.')
+  }
+
   return {
     kind: 'update',
     currentRecords,
@@ -134,8 +184,8 @@ const getPendingSave = (
       name: deps.name,
       before,
       after,
-      signer: deps.signer,
-      accountAddress: deps.ownerAddress ?? deps.accountAddress,
+      signer: { type: 'eoa', walletClient },
+      accountAddress: walletAccount.address,
       publicClient: deps.publicClient,
       chainId: deps.chainId,
       resolverAddress: savedRecords.resolverAddress,

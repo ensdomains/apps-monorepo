@@ -3,15 +3,33 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
+import {
+  NameFallbackCard,
+  type NameFallbackReason,
+} from '@/components/NameFallbackCard'
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import { ProfileLoading } from '@/features/profile/components/view/ProfileLoading'
 import { ProfileView } from '@/features/profile/components/view/ProfileView'
+import { dnsSecEnabledQuery } from '@/features/profile/service/dnsSecEnabled'
 import { profileExpiryQuery } from '@/features/profile/service/profileExpiry'
 import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { parseName } from '@/features/register-v2/utils/name-parser'
 import { seo } from '@/utils/seo'
+
+// Classifies an ownerless name: .eth 2LDs with 3+ code points (the
+// registrar counts code points, not UTF-16 units) can be registered,
+// everything else maps to a fallback card reason
+const classifyMissingName = (
+  parsed: ReturnType<typeof parseName>,
+): NameFallbackReason | 'registrable' => {
+  if (!parsed.isOk() || parsed.value.tld !== 'eth') return 'not-imported'
+  if (parsed.value.subLabels.length > 0) return 'not-found'
+  if ([...parsed.value.label].length >= 3) return 'registrable'
+  return 'too-short'
+}
 
 export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -19,6 +37,39 @@ export const Route = createFileRoute('/$name/')({
       queryClient.ensureQueryData(profileRecordsQuery(name)),
       queryClient.ensureQueryData(profileOwnerQuery(name)),
     ])
+
+    const parsed = parseName(name)
+    const isEth = parsed.isOk() && parsed.value.tld === 'eth'
+
+    // Validate the TLD before showing any profile data: a TLD is supported
+    // if it's .eth or has DNSSEC enabled. On DoH failure, prefer the profile
+    // fallback over a false "unsupported"
+    if (!isEth) {
+      const dnsSecEnabled = parsed.isOk()
+        ? await queryClient
+            .ensureQueryData(dnsSecEnabledQuery(parsed.value.tld))
+            .catch(() => true)
+        : false
+
+      if (!dnsSecEnabled) {
+        return { fallback: 'unsupported-tld' as const, description: undefined }
+      }
+    }
+
+    // Name doesn't exist in v2 or v1
+    if (!ownerData) {
+      const missing = classifyMissingName(parsed)
+
+      if (missing === 'registrable') {
+        throw redirect({
+          params: { name },
+          to: '/register/$name',
+          replace: true,
+        })
+      }
+
+      return { fallback: missing, description: undefined }
+    }
 
     const [expiryData] = await Promise.all([
       queryClient.ensureQueryData(
@@ -52,6 +103,7 @@ export const Route = createFileRoute('/$name/')({
     )?.value
 
     return {
+      fallback: undefined,
       description,
     }
   },
@@ -91,5 +143,11 @@ function ProfileRouteError({ error }: ErrorComponentProps) {
 
 function RouteComponent() {
   const name = Route.useParams({ select: (params) => params.name })
+  const fallback = Route.useLoaderData({
+    select: (data) => data.fallback,
+  })
+
+  if (fallback) return <NameFallbackCard name={name} reason={fallback} />
+
   return <ProfileView name={name} />
 }
