@@ -146,8 +146,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
     enabled: isRegistrable(name),
   })
   const protocolVersion = ownerData?.protocolVersion
-  const isUnregistered = availability?.isAvailable === true
-  const items = isUnregistered ? [] : getItems(name, protocolVersion)
+  const items = getItems(name, protocolVersion)
   const { state, isMobile, setOpenMobile } = useSidebar()
   const isIconMode = state === 'collapsed' && !isMobile
 
@@ -213,7 +212,7 @@ export const ProfileSidebar = ({ name }: ProfileSidebarProps) => {
           </Link>
         </div>
 
-        {items.length > 0 && (
+        {!availability?.isAvailable && (
           <SidebarGroup className="px-6 py-0 group-data-[collapsible=icon]:px-2">
             <SidebarGroupContent>
               <SidebarMenu className="gap-3">

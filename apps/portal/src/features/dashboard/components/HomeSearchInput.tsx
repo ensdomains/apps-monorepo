@@ -27,14 +27,6 @@ import type { Suggestion } from '../utils/buildSearchSuggestions'
 import { SearchModalContent } from './SearchModalContent'
 import { SearchResultsList } from './SearchResultsList'
 
-// Arbitrary widths: these track the trigger and the viewport, which no design
-// token expresses. The viewport bound is repeated inside min-width because
-// min-width otherwise beats max-width on screens narrower than the minimum.
-const POPOVER_WIDTH_WITH_RESULTS =
-  'w-max min-w-[min(max(var(--radix-popover-trigger-width),20rem),calc(100vw-1rem))] max-w-[min(28rem,calc(100vw-1rem))]'
-const POPOVER_WIDTH_NOTICE_ONLY =
-  'w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)]'
-
 const SEARCH_DEBOUNCE_MS = 300
 
 export const HomeSearchInput = ({
@@ -283,10 +275,11 @@ export const HomeSearchInput = ({
         <PopoverContent
           align="start"
           className={cn(
-            'p-1 max-h-[min(60vh,400px)] overflow-y-auto',
+            'p-1 max-h-[min(60vh,400px)] overflow-y-auto max-w-[min(28rem,calc(100vw-1rem))]',
+            // min-width beats max-width below the minimum, so the cap repeats inside it
             hasAnySection
-              ? POPOVER_WIDTH_WITH_RESULTS
-              : POPOVER_WIDTH_NOTICE_ONLY,
+              ? 'w-max min-w-[min(max(var(--radix-popover-trigger-width),20rem),calc(100vw-1rem))]'
+              : 'w-(--radix-popover-trigger-width)',
           )}
           sideOffset={4}
           onOpenAutoFocus={(e) => e.preventDefault()}
