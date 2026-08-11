@@ -15,6 +15,16 @@ import {
   SECURITY_HEADER_VALUES,
 } from './server/csp'
 
+declare module '@tanstack/router-core' {
+  interface Register {
+    server: {
+      requestContext: {
+        cspNonce?: string
+      }
+    }
+  }
+}
+
 const securityHeadersMiddleware = createMiddleware().server(
   ({ next, request }) => {
     // Always set the clickjacking / MIME / referrer baselines (cheap, no

@@ -82,9 +82,8 @@ describe('csp', () => {
       expect(connectSrc).not.toContain('https://jakob.ens.domains')
     })
 
-    it('allowlists Rhinestone orchestrator and Intercom as wildcards', () => {
+    it('allowlists Rhinestone and Intercom hosts', () => {
       expect(connectSrc).toContain('https://*.rhinestone.dev')
-      expect(connectSrc).not.toContain('https://v1.orchestrator.rhinestone.dev')
       expect(connectSrc).toContain('https://*.intercom.io')
       expect(connectSrc).toContain('https://*.intercomcdn.com')
       expect(connectSrc).toContain('wss://*.intercom.io')

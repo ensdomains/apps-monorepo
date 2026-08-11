@@ -90,8 +90,7 @@ const DEFAULT_CONNECT_HOSTS = [
   'https://ipfs.euc.li',
   // Alchemy NFT API — src/features/profile/service/profileNfts.ts
   'https://*.g.alchemy.com',
-  // Rhinestone orchestrator (HCA intents) — @rhinestone/sdk default
-  // (v1.orchestrator.rhinestone.dev).
+  // Rhinestone orchestrator (HCA intents) — @rhinestone/sdk default.
   'https://*.rhinestone.dev',
   // Intercom messenger — @intercom/messenger-js-sdk
   'https://*.intercom.io',
@@ -185,16 +184,9 @@ export function buildCspWithFrameAncestors(options: CspBuildOptions): string {
   return `${[...baseDirectives(options), ...HEADER_ONLY_DIRECTIVES].join('; ')};`
 }
 
-/**
- * Per-request CSP nonce set by security-headers middleware in `src/start.ts`.
- *
- * `getGlobalStartContext()` is typed against `@tanstack/router-core`'s empty
- * `Register`, which this app can't augment (not a direct dependency — see
- * TS2664). Cast the runtime context that middleware actually provides.
- */
+/** Per-request CSP nonce set by security-headers middleware in `src/start.ts`. */
 export function getCspNonce(): string | undefined {
-  const context = getGlobalStartContext() as { cspNonce?: string } | undefined
-  return context?.cspNonce
+  return getGlobalStartContext()?.cspNonce
 }
 
 /** Standard security headers applied alongside CSP (portal parity). */
