@@ -34,6 +34,40 @@ type BuildSuggestionsOptions = {
  * @param options - Configuration object
  * @returns Array of suggestions to display
  */
+export const SHORT_LABEL_NOTICE =
+  'Names must be 3 characters or more to register.'
+
+/**
+ * Returns a notice when the input is a 2LD whose label is too short to register.
+ */
+export const getSearchNotice = ({
+  value,
+  validTlds,
+}: {
+  value: string
+  validTlds?: readonly string[]
+}): string | null => {
+  const trimmed = value.trim()
+  if (!trimmed || isAddress(trimmed, { strict: false })) return null
+
+  const lowercase = trimmed.toLowerCase()
+  const dotCount = lowercase.split('.').length - 1
+  const firstDotIndex = lowercase.indexOf('.')
+  const afterFirstDot =
+    firstDotIndex >= 0 ? lowercase.slice(firstDotIndex + 1) : ''
+  const label =
+    firstDotIndex >= 0 ? lowercase.slice(0, firstDotIndex) : lowercase
+
+  const isTldPrefix =
+    afterFirstDot === '' ||
+    (validTlds ?? []).some((t) => t.startsWith(afterFirstDot))
+  const isSubname = dotCount >= 2 || (dotCount === 1 && !isTldPrefix)
+  if (isSubname) return null
+
+  const length = [...label].length
+  return length > 0 && length < 3 ? SHORT_LABEL_NOTICE : null
+}
+
 export const buildSearchSuggestions = ({
   value,
   isMobile,
@@ -106,9 +140,6 @@ export const buildSearchSuggestions = ({
     dotCount >= 2 ||
     (dotCount === 1 && afterFirstDot !== '' && !isTldPrefix(afterFirstDot))
 
-  // Hide suggestions for non-subname searches when the label is under 3 chars.
-  // ENS names require a minimum of 3 characters; showing shorter names as
-  // "available" is misleading since they can't be registered.
   if (!isSubname && [...labelBeforeFirstDot].length < 3) return []
 
   if (isSubname) {

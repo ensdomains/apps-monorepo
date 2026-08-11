@@ -40,6 +40,7 @@ import {
 } from '@/utils/ens/tldHelpers'
 import { queryClient } from '@/utils/queryClient'
 import { isValidEnsName } from '@/utils/token/isNormalized'
+import { validateNameLength } from '@/utils/token/nameValidation'
 
 type NameSearch = {
   readonly registered?: boolean
@@ -205,6 +206,15 @@ const Profile = ({
     if (availabilityQuery.data?.isAvailable) {
       // .eth names can be registered
       if (isRegistrable(name)) {
+        const lengthError = validateNameLength(name)
+        if (lengthError) {
+          return (
+            <InvalidNameMessage
+              title="Name too short"
+              description={lengthError}
+            />
+          )
+        }
         return <AvailableNameMessage name={name} />
       }
       // Other valid TLD names - DNS import not available on ENSv2 yet
@@ -307,6 +317,12 @@ const Profile = ({
   }
 
   if (availabilityQuery.data?.isAvailable && isRegistrable(name)) {
+    const lengthError = validateNameLength(name)
+    if (lengthError) {
+      return (
+        <InvalidNameMessage title="Name too short" description={lengthError} />
+      )
+    }
     return <AvailableNameMessage name={name} />
   }
 
