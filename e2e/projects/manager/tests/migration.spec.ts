@@ -320,7 +320,9 @@ test.describe('ENS V1 → V2 Migration', () => {
   // requires reading the written records back off the new V2 resolver on
   // chain; this test asserts a "Profile updated" toast, which is the lowest
   // oracle rank and does not prove the write landed. Add the chain read, then
-  // tag it @scenario:GU4.
+  // tag it with scenario GU4. (Written without the literal tag prefix: the
+  // reconciler scans text, and a tag-shaped string in a comment is one
+  // refactor away from becoming a coverage claim nobody made.)
   test('can edit profile after migration', async ({
     migrationConnectedPage: page,
     wallet,

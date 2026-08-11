@@ -102,6 +102,17 @@ async function expectOwnerOnNamePages(
 ): Promise<void> {
   const shortenedOwner = `${ownerAddress.slice(0, 6)}…${ownerAddress.slice(-4)}`
 
+  // Chain first. Everything below this line is the *app's rendering* of
+  // ownership, and §4's first hard rule is that rendering is not evidence the
+  // token moved — "the page says Owner: 0xabc" is the example it gives. This
+  // helper was text-only, which left F1's central postcondition resting on a
+  // string, with `ownerOfName` sitting unused in this same file. Added by the
+  // §6 B4 audit; see docs/e2e-spec-audit.md.
+  expect(
+    (await ownerOfName(name.replace(/\.eth$/, ''))).toLowerCase(),
+    `the .eth registry does not report ${ownerAddress} as the owner of ${name} — the UI may still be rendering the pre-transfer owner`,
+  ).toBe(ownerAddress.toLowerCase())
+
   await page.goto(`${PORTAL_APP_URL}/${name}`)
   await expect(page.getByText('Owner', { exact: true }).first()).toBeVisible({
     timeout: 30_000,

@@ -5,6 +5,106 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 6 — 2026-08-12
+
+**Batch:** BOOTSTRAP · goal §6 **B4** — audit the inherited specs. R0 slice:
+`portal/tests/transfer.spec.ts`, scenarios F1–F5 and F7.
+
+**Result:** 5 KEEP · 1 STRENGTHENED · 0 DEMOTE (of 6 audited)
+
+- Terminal: **40 → 40**. Ratchet unchanged, deliberately — see below.
+- Audit record: **`docs/e2e-spec-audit.md`** (new). That file, not this one, is
+  the durable per-spec verdict.
+
+**In flight:** nothing.
+
+### FINDING — the terminal count overstates what actually passes
+
+The reconciler's default evidence mode is **static**: `PASS` means "a committed,
+non-skipped test exists and a project config runs it", *not* "it passed". Its
+own report header says so.
+
+Running F1 to verify the strengthening below produced **three failures**, all
+`TimeoutError` on `locator.click` / `locator.fill` at the Transfer link and the
+recipient field. Pre-existing, not caused by the audit: iteration 3 verified the
+same locator family failing at `transfer.spec.ts:687` under `--no-deps` with no
+harness running, and the error *type* rules out the new assertion (an
+`expect().toBe()` fails as an assertion error, never as a locator timeout).
+
+So **R0's six terminal rows are static claims for tests that fail when run.**
+Nobody should read `R0 6/83` as six working transfer scenarios.
+
+**Do this before trusting any tier number:** run the portal suite with
+`--reporter=json` and feed it to `pnpm e2e:coverage --results <file>`. That
+converts static PASSes into run-verified ones and shows how much of the 40 is
+real. I did not do it this iteration — it is a full portal suite run and a batch
+of its own.
+
+I did **not** lower the ratchet. Demoting on this evidence would be a scope
+change (§12), and the honest reading is that the ledger is behaving exactly as
+documented while the *mode* is too weak. Escalating rather than guessing.
+
+### Audit verdicts — R0 / transfer
+
+| # | Verdict | Why |
+|---|---|---|
+| F1 | **STRENGTHENED** | postcondition was text-only; chain `ownerOf` added |
+| F2 | KEEP | `assertLacksRoles(owner, [ROLE_CAN_TRANSFER_ADMIN])` — rank 1, exactly the catalogue oracle |
+| F3 | KEEP | text-only, but the catalogue's oracle *is* the copy — §4 rank 6 expressly permits it |
+| F4 | KEEP | `assertRoleBitmap(owner, [])` + reason string |
+| F5 | KEEP | `ownerOfName` chain read after the attempt |
+| F7 | KEEP | `assertRoleBitmap` both parties, before and after — exemplary |
+
+**F1's fault:** its final postcondition ran through `expectOwnerOnNamePages()`,
+which asserted ownership purely as rendered text — verbatim §4's own example of
+what does not count. `ownerOfName()` was already defined thirty lines above and
+used by exactly one test. Fixed additively (rule 1: never weaken); the helper is
+shared, so untagged transfer tests gained it too. **Unverified** — see above.
+
+### Learned — do not re-derive
+
+- **Grep-based auditing systematically under-reports chain assertions.** I
+  nearly filed F2 as a finding because my pattern omitted `assertLacksRoles`.
+  Chain reads here almost always hide behind domain-named helpers —
+  `assertRoleBitmap`, `assertLacksRoles`, `ownerHasRole`,
+  `readResolverAndSubregistry`, `driveTransactionsToSuccess`. Read the body; if
+  you must grep, build the pattern from the file's imports.
+- **A tag-shaped string in a comment is a latent false claim.** Iteration 1's
+  untagging comment contained the literal `@scenario:GU4`, and my own file-level
+  grep counted it as coverage. The reconciler did *not* — it only attributes
+  tags within 6 lines after a `test(` declaration, and the comment sits before
+  it — so no false claim ever reached the ledger. Defused anyway; it was one
+  refactor from becoming real.
+- `pnpm e2e:coverage --no-list` reports `Terminal 7/300`, not 40. That is the
+  flag working: it skips the config query, so nothing is "run by" anything and
+  everything reads as `excluded`. Do not mistake it for a regression.
+
+### Parked
+
+- `0x640294a2…` identity — owner **sugh01**, expires **2026-08-18** (iteration 2).
+- Manager connect flow / `VITE_FF_USE_EOA` — owner **sugh01**, expires
+  **2026-08-19** (iteration 4).
+- **New:** whether to demote statically-passing rows whose tests fail when run —
+  owner **sugh01**, expires **2026-08-19**. Needs the `--results` run first.
+
+### Skipped-blocked
+
+All manager-side scenarios (connect blocker, iteration 4). The portal transfer
+UI flow now also looks broken — scope unknown beyond F1 and `:687`.
+
+### Next
+
+**B4 continued — the R2 block.** 26 of the ledger's 40 terminal rows are R2 and
+rest on four portal files: `roles.spec.ts` (C1–C12, 10 tags), `subnames.spec.ts`
+(D1–D6), `resolver.spec.ts` (E3, E6–E8, E10, E11), `records.spec.ts` (E1, E2,
+E4, E5). That is the largest single block of unaudited inheritance and the
+biggest lever on whether 40 is a real number.
+
+Cheaper and higher-value first, if you only do one thing: the `--results` run
+described above. It reprices the whole ledger in one pass.
+
+---
+
 ## Iteration 5 — 2026-08-12
 
 **Batch:** BOOTSTRAP · goal §6 **B0** (prove the environment) + **HW6**
