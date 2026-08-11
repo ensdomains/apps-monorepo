@@ -90,6 +90,22 @@ describe('useMultiNamePricing pure helpers', () => {
       expect(result).toBe(CONTRACT_SECONDS_PER_YEAR)
     })
 
+    it('keeps calendar picks on whole days across a DST transition', () => {
+      // Nov 2026 → Mar 2027 spans the US fall-back and spring-forward; an epoch
+      // delta would come out an hour short or long of the picked interval.
+      const baseDate = plainDate('2026-11-01')
+      const result = getRenewalDurationSeconds({
+        spanType: 'date',
+        duration: new Date(2027, 2, 15).getTime(),
+        baseDate,
+      })
+
+      expect(result).toBe(
+        baseDate.until(plainDate('2027-03-15'), { largestUnit: 'day' }).days *
+          86400,
+      )
+    })
+
     it('measures each name from its own expiry towards a shared target date', () => {
       const target = new Date(2029, 0, 1).getTime()
       const durations = [plainDate('2026-01-01'), plainDate('2027-01-01')].map(

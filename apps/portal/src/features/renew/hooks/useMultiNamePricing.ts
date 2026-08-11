@@ -7,11 +7,15 @@ import {
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import {
   getDurationInSecondsFromYears,
-  getMaxExpiryDateForPicker,
   getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
-import { MIN_REGISTRATION_DURATION } from '@/lib/constants/duration'
+import {
+  MIN_REGISTRATION_DURATION,
+  SECONDS_PER_DAY,
+  SECONDS_PER_HOUR,
+  SECONDS_PER_MINUTE,
+} from '@/lib/constants/duration'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
@@ -66,17 +70,22 @@ export const getRenewalDurationSeconds = ({
     throw new Error('Date mode duration must be a valid timestamp')
   }
 
-  const timeZone = Temporal.Now.timeZoneId()
-  const start = baseDate.toZonedDateTime(timeZone)
-  const maxEpochMs =
-    getMaxExpiryDateForPicker(baseDate).toZonedDateTime(
-      timeZone,
-    ).epochMilliseconds
+  // Wall-clock arithmetic, never an epoch delta: a DST transition inside the
+  // span must not add or drop an hour, so a date picked from the calendar is
+  // exactly the whole days it looks like. The seconds-of-day tail carries the
+  // 6h/yr a contract year has over a calendar one, keeping the year presets
+  // priced as whole years.
+  const target = Temporal.Instant.fromEpochMilliseconds(
+    duration,
+  ).toZonedDateTimeISO(Temporal.Now.timeZoneId())
+  const days = baseDate.until(target.toPlainDate(), { largestUnit: 'day' }).days
+  const secondsOfDay =
+    target.hour * SECONDS_PER_HOUR +
+    target.minute * SECONDS_PER_MINUTE +
+    target.second
 
   return Math.max(
-    Math.round(
-      (Math.min(duration, maxEpochMs) - start.epochMilliseconds) / 1000,
-    ),
+    days * SECONDS_PER_DAY + secondsOfDay,
     MIN_REGISTRATION_DURATION,
   )
 }
