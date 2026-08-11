@@ -43,6 +43,7 @@ export const ProfileAbout = ({
   const websiteHref = records.base.url
     ? getSafeProfileHref(records.base.url)
     : undefined
+  const fullName = records.base.name?.trim()
   const timezone = getContactRecordValue(records, 'timezone')
   const language = formatLanguage(records.base.language)
   const location = getContactRecordValue(records, 'location')?.toUpperCase()
@@ -52,7 +53,7 @@ export const ProfileAbout = ({
       <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
         <div className="min-w-0">
           <h2 className="text-base text-ens-quartz-700 leading-normal">
-            <Trans>About</Trans>
+            {fullName || <Trans>About</Trans>}
           </h2>
           {records.base.description ? (
             <p className="mt-3 text-ens-quartz-500 text-sm leading-normal">
