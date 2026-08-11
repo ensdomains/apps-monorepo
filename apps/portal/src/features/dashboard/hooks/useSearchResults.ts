@@ -190,11 +190,15 @@ export const useSearchResults = ({
     return m
   }, [nameSuggestions, ownerQueries])
 
+  // Check every registrable name, not just the ownerless ones: an expired name
+  // keeps a registry entry pointing at the NameWrapper, so it has an owner and
+  // is still available to register.
   const namesToCheckAvailability = useMemo(
     () =>
       nameSuggestions.filter(
         (s) =>
-          ownerBySuggestionId.get(s.id) === null && isRegistrable(s.inputValue),
+          ownerBySuggestionId.get(s.id) !== undefined &&
+          isRegistrable(s.inputValue),
       ),
     [nameSuggestions, ownerBySuggestionId],
   )
