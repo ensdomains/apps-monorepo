@@ -28,12 +28,13 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { invariants, type Site, siteById } from './invariants.js'
 import {
-  PHASES,
-  type Phase,
   type Scenario,
   scenarioById,
   scenarios,
+  TIERS,
+  type Tier,
 } from './scenarios.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -41,6 +42,8 @@ const e2eRoot = resolve(here, '..')
 const repoRoot = resolve(e2eRoot, '..')
 
 const TAG_RE = /@scenario:([A-Za-z]+[0-9]+)/g
+/** Invariant sweep tags — `@inv:INV1-transfer-plan`. */
+const INV_TAG_RE = /@inv:(INV[1-5]-[a-z0-9-]+)/g
 const QUARANTINE_TAG = '@quarantine'
 
 /** Playwright configs the reconciler asks "what do you actually run?". */
@@ -74,6 +77,8 @@ interface TaggedTest {
   file: string
   title: string
   tags: string[]
+  /** `@inv:` sweep-site tags — orthogonal to `tags`; a test may carry both. */
+  invTags: string[]
   skipped: boolean
   quarantined: boolean
   /** Which playwright configs list this test. Empty = committed but never run. */
@@ -140,9 +145,11 @@ function scanSpec(file: string): TaggedTest[] {
   // in the file into every test is close enough for "is this covered", and
   // per-test tags stay exact.
   const describeTags = new Set<string>()
+  const describeInvTags = new Set<string>()
   for (const line of lines) {
     if (/^\s*test\.describe\b/.test(line)) {
       for (const m of line.matchAll(TAG_RE)) describeTags.add(m[1])
+      for (const m of line.matchAll(INV_TAG_RE)) describeInvTags.add(m[1])
     }
   }
 
@@ -160,11 +167,18 @@ function scanSpec(file: string): TaggedTest[] {
         ...describeTags,
       ]),
     ]
-    if (tags.length > 0) {
+    const invTags = [
+      ...new Set([
+        ...[...current.buffer.matchAll(INV_TAG_RE)].map((m) => m[1]),
+        ...describeInvTags,
+      ]),
+    ]
+    if (tags.length > 0 || invTags.length > 0) {
       found.push({
         file: rel,
         title: current.title,
         tags,
+        invTags,
         skipped: current.skipped,
         quarantined: current.buffer.includes(QUARANTINE_TAG),
         runBy: [],
@@ -295,11 +309,15 @@ function walkSpecs(report: unknown): ListedSpec[] {
     if (!node || typeof node !== 'object') return
     const f = node.file ?? file
     for (const spec of node.specs ?? []) {
-      const titleTags = [...String(spec.title ?? '').matchAll(TAG_RE)].map(
-        (m) => m[1],
-      )
+      // Scenario and invariant-site tags share the `tag::` key namespace —
+      // their id shapes cannot collide (`GW3` vs `INV1-transfer-plan`).
+      const both = (text: string) => [
+        ...[...text.matchAll(TAG_RE)].map((m) => m[1]),
+        ...[...text.matchAll(INV_TAG_RE)].map((m) => m[1]),
+      ]
+      const titleTags = both(String(spec.title ?? ''))
       const arrayTags = (spec.tags ?? []).flatMap((t: string) =>
-        [...String(t).matchAll(TAG_RE)].map((m) => m[1]),
+        both(String(t)),
       )
       out.push({
         file: resolve(rootDir, String(spec.file ?? f ?? '')),
@@ -435,12 +453,13 @@ const outcomes = loadOutcomes()
 const defects = loadDefects()
 
 for (const t of taggedTests) {
+  const allTags = [...t.tags, ...t.invTags]
   t.runBy =
     executable.get(`${join(e2eRoot, t.file)}::${t.title}`) ??
-    t.tags.flatMap((tag) => executable.get(`tag::${tag}`) ?? [])
+    allTags.flatMap((tag) => executable.get(`tag::${tag}`) ?? [])
   t.outcome =
     outcomes.get(`${join(e2eRoot, t.file)}::${t.title}`) ??
-    t.tags.map((tag) => outcomes.get(`tag::${tag}`)).find(Boolean)
+    allTags.map((tag) => outcomes.get(`tag::${tag}`)).find(Boolean)
 }
 
 /** Hard failures — a false claim in the ledger, or a ratchet regression. */
@@ -452,12 +471,21 @@ const problems: string[] = []
  */
 const warnings: string[] = []
 
-// Tags that name a scenario the registry has never heard of.
+// Tags that name a scenario or an invariant site the registry has never heard
+// of. Both are hard failures: a tag pointing at nothing is a coverage claim
+// with no definition behind it.
 for (const t of taggedTests) {
   for (const tag of t.tags) {
     if (!scenarioById.has(tag)) {
       problems.push(
         `unknown scenario tag @scenario:${tag} in ${t.file} — "${t.title}"`,
+      )
+    }
+  }
+  for (const tag of t.invTags) {
+    if (!siteById.has(tag)) {
+      problems.push(
+        `unknown invariant site tag @inv:${tag} in ${t.file} — "${t.title}"`,
       )
     }
   }
@@ -589,7 +617,7 @@ const rows: Row[] = scenarios.map((scenario) => {
 
 // ── 7. rollups ───────────────────────────────────────────────────────────
 
-interface PhaseCount {
+interface TierCount {
   total: number
   terminal: number
   pass: number
@@ -601,7 +629,7 @@ interface PhaseCount {
   notStarted: number
 }
 
-const emptyCount = (): PhaseCount => ({
+const emptyCount = (): TierCount => ({
   total: 0,
   terminal: 0,
   pass: 0,
@@ -613,9 +641,9 @@ const emptyCount = (): PhaseCount => ({
   notStarted: 0,
 })
 
-const byPhase = new Map<Phase, PhaseCount>(PHASES.map((p) => [p, emptyCount()]))
+const byTier = new Map<Tier, TierCount>(TIERS.map((t) => [t, emptyCount()]))
 for (const row of rows) {
-  const c = byPhase.get(row.scenario.phase)
+  const c = byTier.get(row.scenario.tier)
   if (!c) continue
   c.total++
   if (TERMINAL.has(row.status)) c.terminal++
@@ -627,6 +655,61 @@ for (const row of rows) {
   else if (row.status === 'excluded') c.excluded++
   else c.notStarted++
 }
+
+// ── 7b. invariant sweeps (Track B) ───────────────────────────────────────
+//
+// A site is `checked` on exactly the evidence a scenario is PASS on: a
+// committed, non-skipped, non-quarantined test carrying its `@inv:` tag that a
+// project config actually runs. Anything weaker is `unchecked` — the sweep's
+// value is that it can state what it has *not* looked at.
+
+type SiteStatus = 'checked' | 'exempt' | 'excluded' | 'unchecked'
+
+interface SiteRow {
+  site: Site
+  status: SiteStatus
+  evidence: string
+}
+
+const siteRows: SiteRow[] = invariants.flatMap((inv) =>
+  inv.sites.map((site): SiteRow => {
+    if (site.exempt)
+      return { site, status: 'exempt', evidence: site.exempt.reason }
+    const tests = taggedTests.filter((t) => t.invTags.includes(site.id))
+    const live = tests.filter((t) => !t.skipped && !t.quarantined)
+    const run = live.filter((t) => t.runBy.length > 0)
+    if (run.length === 0) {
+      if (live.length > 0) {
+        warnings.push(
+          `${site.id}: sweep test exists but no playwright config runs it (${live[0].file})`,
+        )
+        return {
+          site,
+          status: 'excluded',
+          evidence: `${live[0].file} — excluded by every project config`,
+        }
+      }
+      return { site, status: 'unchecked', evidence: '—' }
+    }
+    const reported = run.filter((t) => t.outcome !== undefined)
+    if (reported.length > 0 && !reported.some((t) => t.outcome === 'passed')) {
+      return {
+        site,
+        status: 'unchecked',
+        evidence: `ran but did not pass (${reported.map((t) => t.outcome).join(', ')})`,
+      }
+    }
+    return {
+      site,
+      status: 'checked',
+      evidence: `${run.length} test(s) in ${[...new Set(run.flatMap((t) => t.runBy))].join(', ')}`,
+    }
+  }),
+)
+
+const sitesChecked = siteRows.filter(
+  (r) => r.status === 'checked' || r.status === 'exempt',
+).length
 
 const openBySeverity = defects
   .filter((d) => d.status === 'open' || d.status === 'triaged')
@@ -641,37 +724,53 @@ const baselinePath = join(here, 'baseline.json')
 interface Baseline {
   updated: string
   note: string
-  phases: Record<string, number>
+  tiers: Record<string, number>
   totalTerminal: number
+  invariantSitesChecked: number
+  /** Frozen P0–P6 counts from the superseded phase model. Audit trail only. */
+  phasesLegacy?: Record<string, number>
 }
 
 const baseline: Baseline = existsSync(baselinePath)
   ? JSON.parse(readFileSync(baselinePath, 'utf8'))
   : {
       updated: 'never',
-      note: 'Terminal scenario counts per phase. May only increase — see e2e-goal.md.',
-      phases: Object.fromEntries(PHASES.map((p) => [p, 0])),
+      note: 'Terminal scenario counts per risk tier. May only increase — see e2e-build-goal.md §16.5.',
+      tiers: Object.fromEntries(TIERS.map((t) => [t, 0])),
       totalTerminal: 0,
+      invariantSitesChecked: 0,
     }
 
 const totalTerminal = rows.filter((r) => TERMINAL.has(r.status)).length
-const regressions = PHASES.flatMap((p) => {
-  const now = byPhase.get(p)?.terminal ?? 0
-  const was = baseline.phases[p] ?? 0
-  return now < was ? [`${p}: terminal ${was} → ${now}`] : []
-})
+const regressions = [
+  ...TIERS.flatMap((t) => {
+    const now = byTier.get(t)?.terminal ?? 0
+    const was = baseline.tiers?.[t] ?? 0
+    return now < was ? [`${t}: terminal ${was} → ${now}`] : []
+  }),
+  ...(sitesChecked < (baseline.invariantSitesChecked ?? 0)
+    ? [
+        `invariant sites checked ${baseline.invariantSitesChecked} → ${sitesChecked}`,
+      ]
+    : []),
+]
 
 if (hasFlag('--update')) {
   const next: Baseline = {
     updated: new Date().toISOString().slice(0, 10),
     note: baseline.note,
-    phases: Object.fromEntries(
-      PHASES.map((p) => [
-        p,
-        Math.max(baseline.phases[p] ?? 0, byPhase.get(p)?.terminal ?? 0),
+    tiers: Object.fromEntries(
+      TIERS.map((t) => [
+        t,
+        Math.max(baseline.tiers?.[t] ?? 0, byTier.get(t)?.terminal ?? 0),
       ]),
     ),
     totalTerminal: Math.max(baseline.totalTerminal ?? 0, totalTerminal),
+    invariantSitesChecked: Math.max(
+      baseline.invariantSitesChecked ?? 0,
+      sitesChecked,
+    ),
+    ...(baseline.phasesLegacy ? { phasesLegacy: baseline.phasesLegacy } : {}),
   }
   writeFileSync(baselinePath, `${JSON.stringify(next, null, 2)}\n`)
   console.log(`✅ baseline updated → ${relative(repoRoot, baselinePath)}`)
@@ -690,14 +789,20 @@ const STATUS_LABEL: Record<Status, string> = {
   'not-started': 'not-started',
 }
 
-const PHASE_NAME: Record<Phase, string> = {
-  P0: 'Harness',
-  P1: 'Protocol core',
-  P2: 'Lifecycle',
-  P3: 'Migration matrix',
-  P4: 'Cross-app',
-  P5: 'Surfaces',
-  P6: 'Resilience & quality',
+const TIER_NAME: Record<Tier, string> = {
+  HW: 'Harness',
+  R0: 'Irreversible & one-shot',
+  R1: 'Financial',
+  R2: 'Authorization',
+  R3: 'Display correctness',
+  R4: 'Resilience & quality',
+}
+
+const SITE_LABEL: Record<SiteStatus, string> = {
+  checked: 'checked',
+  exempt: 'EXEMPT',
+  excluded: 'excluded',
+  unchecked: 'unchecked',
 }
 
 function writeReport() {
@@ -719,17 +824,47 @@ function writeReport() {
       : 'Evidence mode: **static** — PASS means a committed, non-skipped test exists and a project config runs it. Re-run with `--results <playwright.json>` to verify against a real run.',
   )
   lines.push('')
-  lines.push('## Phases')
+  lines.push('## Risk tiers')
   lines.push('')
   lines.push(
-    '| Phase | Scope | Terminal | PASS | DEFECT | EXEMPT | quarantined | skipped | excluded | not-started |',
+    'Ordered by cost of being wrong (`e2e-build-goal.md` §8). Work R0 first.',
+  )
+  lines.push('')
+  lines.push(
+    '| Tier | Scope | Terminal | PASS | DEFECT | EXEMPT | quarantined | skipped | excluded | not-started |',
   )
   lines.push('|---|---|---|---|---|---|---|---|---|---|')
-  for (const p of PHASES) {
-    const c = byPhase.get(p)
+  for (const t of TIERS) {
+    const c = byTier.get(t)
     if (!c) continue
     lines.push(
-      `| **${p}** | ${PHASE_NAME[p]} | ${c.terminal}/${c.total} | ${c.pass} | ${c.defect} | ${c.exempt} | ${c.quarantined} | ${c.skipped} | ${c.excluded} | ${c.notStarted} |`,
+      `| **${t}** | ${TIER_NAME[t]} | ${c.terminal}/${c.total} | ${c.pass} | ${c.defect} | ${c.exempt} | ${c.quarantined} | ${c.skipped} | ${c.excluded} | ${c.notStarted} |`,
+    )
+  }
+  lines.push('')
+  lines.push('## Invariant sweeps')
+  lines.push('')
+  lines.push(
+    `Sites checked: **${sitesChecked} / ${siteRows.length}**. ` +
+      'A site is `checked` on the same evidence a scenario is PASS on — a committed, ' +
+      'non-skipped test carrying its `@inv:` tag that a project config runs.',
+  )
+  lines.push('')
+  lines.push('| Invariant | Statement | Sites checked |')
+  lines.push('|---|---|---|')
+  for (const inv of invariants) {
+    const mine = siteRows.filter((r) => r.site.invariant === inv.id)
+    const done = mine.filter(
+      (r) => r.status === 'checked' || r.status === 'exempt',
+    ).length
+    lines.push(`| **${inv.id}** | ${inv.statement} | ${done}/${mine.length} |`)
+  }
+  lines.push('')
+  lines.push('| Site | Invariant | Surface | Status | Evidence |')
+  lines.push('|---|---|---|---|---|')
+  for (const r of siteRows) {
+    lines.push(
+      `| \`${r.site.id}\` | ${r.site.invariant} | ${r.site.title} | ${SITE_LABEL[r.status]} | ${r.evidence} |`,
     )
   }
   lines.push('')
@@ -762,14 +897,14 @@ function writeReport() {
   }
   lines.push('## Scenarios')
   lines.push('')
-  for (const p of PHASES) {
-    const phaseRows = rows.filter((r) => r.scenario.phase === p)
-    if (phaseRows.length === 0) continue
-    lines.push(`### ${p} — ${PHASE_NAME[p]}`)
+  for (const t of TIERS) {
+    const tierRows = rows.filter((r) => r.scenario.tier === t)
+    if (tierRows.length === 0) continue
+    lines.push(`### ${t} — ${TIER_NAME[t]}`)
     lines.push('')
     lines.push('| ID | § | Scenario | Status | Evidence |')
     lines.push('|---|---|---|---|---|')
-    for (const r of phaseRows) {
+    for (const r of tierRows) {
       const id = r.scenario.planId
         ? `${r.scenario.id} <sub>(${r.scenario.planId})</sub>`
         : r.scenario.id
@@ -792,14 +927,22 @@ if (hasFlag('--json')) {
       {
         totalTerminal,
         total: rows.length,
-        phases: Object.fromEntries([...byPhase].map(([p, c]) => [p, c])),
+        tiers: Object.fromEntries([...byTier].map(([t, c]) => [t, c])),
+        invariantSites: { checked: sitesChecked, total: siteRows.length },
         rows: rows.map((r) => ({
           id: r.scenario.id,
+          tier: r.scenario.tier,
           phase: r.scenario.phase,
           section: r.scenario.section,
           status: r.status,
           evidence: r.evidence,
           tests: r.tests.map((t) => `${t.file}::${t.title}`),
+        })),
+        sites: siteRows.map((r) => ({
+          id: r.site.id,
+          invariant: r.site.invariant,
+          status: r.status,
+          evidence: r.evidence,
         })),
         problems,
         warnings,
@@ -809,8 +952,8 @@ if (hasFlag('--json')) {
     ),
   )
 } else {
-  for (const p of PHASES) {
-    const c = byPhase.get(p)
+  for (const t of TIERS) {
+    const c = byTier.get(t)
     if (!c) continue
     const extra = [
       c.quarantined > 0 ? `quarantined ${c.quarantined}` : '',
@@ -819,12 +962,18 @@ if (hasFlag('--json')) {
     ]
       .filter(Boolean)
       .join(' · ')
-    console.log(
-      `Phase ${p} (${PHASE_NAME[p]}) — ${c.terminal}/${c.total} terminal`,
-    )
+    console.log(`${t} (${TIER_NAME[t]}) — ${c.terminal}/${c.total} terminal`)
     console.log(
       `  PASS ${c.pass} · DEFECT ${c.defect} · EXEMPT ${c.exempt} · not-started ${c.notStarted}${extra ? ` · ${extra}` : ''}`,
     )
+  }
+  console.log('')
+  for (const inv of invariants) {
+    const mine = siteRows.filter((r) => r.site.invariant === inv.id)
+    const done = mine.filter(
+      (r) => r.status === 'checked' || r.status === 'exempt',
+    ).length
+    console.log(`${inv.id} — ${done}/${mine.length} sites checked`)
   }
   console.log('')
   const sev = Object.entries(openBySeverity)
@@ -833,6 +982,7 @@ if (hasFlag('--json')) {
     .join(' · ')
   console.log(`Open defects: ${sev || 'none'}`)
   console.log(`Terminal overall: ${totalTerminal}/${rows.length}`)
+  console.log(`Invariant sites checked: ${sitesChecked}/${siteRows.length}`)
   console.log(`Report: ${relative(repoRoot, reportPath)}`)
 }
 

@@ -162,9 +162,19 @@ a `@scenario:<ID>` tag:
 test('revokes ROLE_SET_RESOLVER', { tag: ['@scenario:C4'] }, async ({ … }) => {
 ```
 
+An invariant *sweep site* is claimed the same way, with an `@inv:` tag from
+[`coverage/invariants.ts`](./coverage/invariants.ts):
+
+```ts
+test('detach is not ordered first', { tag: ['@inv:INV1-resolver-detach'] }, …)
+```
+
 Rules — what counts as terminal, when to tag, and what CI enforces — are in
-[`docs/e2e-goal.md`](./docs/e2e-goal.md). The generated report is checked in and
-CI fails if it is stale.
+[`docs/e2e-build-goal.md`](./docs/e2e-build-goal.md), and the scenario space
+itself is [`docs/e2e-test-catalogue.md`](./docs/e2e-test-catalogue.md). The
+generated report is checked in and CI fails if it is stale.
+[`coverage/handoff.md`](./coverage/handoff.md) says where the last iteration
+stopped.
 
 ---
 

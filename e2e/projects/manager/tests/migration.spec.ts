@@ -316,7 +316,12 @@ test.describe('ENS V1 → V2 Migration', () => {
     )
   })
 
-  test('can edit profile after migration', { tag: ['@scenario:G24'] }, async ({
+  // Untagged pending the §6 B4 audit. Candidate row is GU4, but GU4's oracle
+  // requires reading the written records back off the new V2 resolver on
+  // chain; this test asserts a "Profile updated" toast, which is the lowest
+  // oracle rank and does not prove the write landed. Add the chain read, then
+  // tag it @scenario:GU4.
+  test('can edit profile after migration', async ({
     migrationConnectedPage: page,
     wallet,
     accounts,
