@@ -36,7 +36,8 @@ vi.mock('@/features/profile/components/NameAvatar', () => ({
 }))
 
 const mockBuildSearchSuggestions = vi.fn()
-vi.mock('../utils/buildSearchSuggestions', () => ({
+vi.mock('../utils/buildSearchSuggestions', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/buildSearchSuggestions')>()),
   buildSearchSuggestions: (opts: { value: string }) =>
     mockBuildSearchSuggestions(opts),
 }))
