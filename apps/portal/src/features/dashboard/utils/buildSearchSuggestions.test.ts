@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildSearchSuggestions } from './buildSearchSuggestions'
+import {
+  buildSearchSuggestions,
+  getSearchNotice,
+  SHORT_LABEL_NOTICE,
+} from './buildSearchSuggestions'
 
 describe('buildSearchSuggestions', () => {
   const mockNavigateToAddress = vi.fn()
@@ -476,5 +480,54 @@ describe('buildSearchSuggestions', () => {
       expect(result.length).toBe(1)
       expect(result[0].label).toBe('test.florin.xyz')
     })
+  })
+})
+
+describe('getSearchNotice', () => {
+  const tlds = ['eth', 'com'] as const
+
+  it('flags one and two character labels', () => {
+    expect(getSearchNotice({ value: 'a', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+    expect(getSearchNotice({ value: 'tt', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+    expect(getSearchNotice({ value: 'tt.eth', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+    expect(getSearchNotice({ value: '12.eth', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+  })
+
+  it('stays quiet for registrable labels', () => {
+    expect(getSearchNotice({ value: 'abc', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice({ value: 'abc.eth', validTlds: tlds })).toBeNull()
+  })
+
+  it('stays quiet for subnames, which have no minimum', () => {
+    expect(
+      getSearchNotice({ value: 'a.florin.eth', validTlds: tlds }),
+    ).toBeNull()
+    expect(getSearchNotice({ value: 'tt.florin', validTlds: tlds })).toBeNull()
+  })
+
+  it('stays quiet for addresses and empty input', () => {
+    expect(
+      getSearchNotice({
+        value: '0xA6362Dcb7Db14C357E788C876eE99e1f982f1115',
+        validTlds: tlds,
+      }),
+    ).toBeNull()
+    expect(getSearchNotice({ value: '', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice({ value: '   ', validTlds: tlds })).toBeNull()
+  })
+
+  it('counts emoji labels by code point', () => {
+    expect(getSearchNotice({ value: '👍👍', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+    expect(getSearchNotice({ value: '👍👍👍', validTlds: tlds })).toBeNull()
   })
 })
