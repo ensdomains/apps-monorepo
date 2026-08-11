@@ -2,13 +2,14 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
-import { err, fromPromise, ok } from 'neverthrow'
+import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
 import { namehash, normalize } from 'viem/ens'
+import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
 import { safeGetClient } from '@/lib/wagmi/helpers'
+import { truncateToTransactions } from '../truncateToTransactions'
 import { adaptV1Events } from '../v1/adaptV1Events'
-import { fetchBlockTimestamps } from '../v1/fetchBlockTimestamps'
 import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
@@ -36,10 +37,19 @@ class GetNameHistoryTimelineError extends TaggedError(
   cause: ClientError
 }> {}
 
+/**
+ * On-chain integer params. The v2 indexer sends these as JSON numbers, but v1
+ * values are adapted from subgraph strings and must not round-trip through
+ * `Number` — a uint64 expiry or uint256 coin type exceeds
+ * `Number.MAX_SAFE_INTEGER`. Nothing does arithmetic on them; they are
+ * stringified for the decoded-param table, which handles either.
+ */
+type OnChainInt = number | bigint | null
+
 export type TimelineDecoded = {
   readonly asAddressChanged?: {
     address?: string | null
-    coinType?: number | null
+    coinType?: OnChainInt
     resolver?: string | null
     namehash?: string | null
   } | null
@@ -67,7 +77,7 @@ export type TimelineDecoded = {
     tokenId?: string | null
     sender?: string | null
     canonicalId?: string | null
-    expiry?: number | null
+    expiry?: OnChainInt
   } | null
   readonly asNameRegistered?: {
     name?: string | null
@@ -77,11 +87,11 @@ export type TimelineDecoded = {
     baseCost?: string | null
     premium?: string | null
     referrer?: string | null
-    expires?: number | null
+    expires?: OnChainInt
   } | null
   readonly asNameRenewed?: {
     id?: string | null
-    expires?: number | null
+    expires?: OnChainInt
   } | null
   readonly asResolverUpdated?: {
     resolver?: string | null
@@ -95,18 +105,18 @@ export type TimelineDecoded = {
   readonly asNameWrapped?: {
     node?: string | null
     owner?: string | null
-    fuses?: number | null
-    expiry?: number | null
+    fuses?: OnChainInt
+    expiry?: OnChainInt
   } | null
   readonly asNameUnwrapped?: {
     node?: string | null
     owner?: string | null
   } | null
-  readonly asFusesSet?: { node?: string | null; fuses?: number | null } | null
+  readonly asFusesSet?: { node?: string | null; fuses?: OnChainInt } | null
   readonly asExpiryUpdated?: {
     node?: string | null
     tokenId?: string | null
-    expiry?: number | null
+    expiry?: OnChainInt
   } | null
 }
 
@@ -135,7 +145,6 @@ type GetNameHistoryTimelineParameters = {
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
 
 export const V1_PROTOCOL = 'v1'
-export const V2_PROTOCOL = 'v2'
 
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
 
@@ -192,8 +201,11 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   })()
   const node = namehash(normalizedName)
 
-  const [v2Result, v1Result] = yield* fromPromise(
-    Promise.allSettled([
+  // Each source returns `[]` for a name the other owns, so an empty result is
+  // normal and only a genuine failure rejects — same all-or-nothing behaviour
+  // the page had before the timeline.
+  const [v2Events, v1Raw] = yield* fromPromise(
+    Promise.all([
       graphqlIndexerClient
         .request<{ domains: DomainWithEvents[] }>(HISTORY_TIMELINE_QUERY, {
           name: normalizedName,
@@ -201,34 +213,24 @@ const getNameHistoryTimeline = ResultFn(async function* ({
           orderDirection,
         })
         .then(({ domains }) => domains[0]?.events ?? []),
-
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
         namehash: node,
         first,
         orderDirection,
-      }).then(async (events) => ({
-        events,
-        blockTimestamps: await fetchBlockTimestamps(client, [
-          ...new Set(events.map((event) => event.blockNumber)),
-        ]),
-      })),
+      }),
     ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
   )
 
-  if (v2Result.status === 'rejected' && v1Result.status === 'rejected') {
-    return err(new GetNameHistoryTimelineError({ cause: v2Result.reason }))
-  }
-
-  const v2Events = v2Result.status === 'fulfilled' ? v2Result.value : []
-  const v1 =
-    v1Result.status === 'fulfilled'
-      ? v1Result.value
-      : { events: [], blockTimestamps: new Map<number, number>() }
+  // v1 events carry no timestamp; the timeline sorts and dates on one.
+  const blockTimestamps = yield* getBlockTimestamps({
+    blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
+  })
 
   const v1Events = adaptV1Events({
-    ...v1,
+    events: v1Raw,
+    blockTimestamps,
     name: normalizedName,
     namehash: node,
     // Static chain constants, not lookups — the v1 subgraph records no
@@ -241,15 +243,16 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     },
   })
 
-  return ok({
-    events: [...v2Events, ...v1Events]
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, first),
-    unavailable: [
-      ...(v2Result.status === 'rejected' ? [V2_PROTOCOL] : []),
-      ...(v1Result.status === 'rejected' ? [V1_PROTOCOL] : []),
-    ],
-  })
+  // `first` bounds each source's query independently — one v2 collection plus
+  // three v1 ones — so the merge can hold up to 4x it. Truncation happens on
+  // transaction boundaries because `summarizeEvents` groups by transaction: a
+  // half-included transaction would be summarized from a subset of its events.
+  return ok(
+    truncateToTransactions(
+      [...v2Events, ...v1Events].sort((a, b) => b.timestamp - a.timestamp),
+      first,
+    ),
+  )
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<

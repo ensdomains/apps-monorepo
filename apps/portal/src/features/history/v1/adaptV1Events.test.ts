@@ -41,8 +41,8 @@ const adapt = (
     namehash: NODE,
     contracts: CONTRACTS,
     blockTimestamps: new Map([
-      [BLOCK, 1_786_000_000],
-      [9530454, 1_786_012_000],
+      [BigInt(BLOCK), 1_786_000_000n],
+      [9530454n, 1_786_012_000n],
     ]),
   })
 
@@ -93,12 +93,12 @@ describe('adaptV1Events', () => {
     expect(registered.asNameRegistered).toMatchObject({
       name: NAME,
       owner: REGISTRANT,
-      expires: 1793442936,
+      expires: 1793442936n,
     })
-    expect(renewed.asNameRenewed?.expires).toBe(1801218936)
+    expect(renewed.asNameRenewed?.expires).toBe(1801218936n)
     expect(multicoin).toMatchObject({
       type: 'AddressChanged',
-      asAddressChanged: { address: OWNER, coinType: 2147568180 },
+      asAddressChanged: { address: OWNER, coinType: 2147568180n },
     })
   })
 
@@ -148,6 +148,22 @@ describe('parity fields reconstructed without extra requests', () => {
     expect(text.asTextChanged?.resolver).toBe(RESOLVER)
   })
 
+  it('keeps on-chain integers exact past Number.MAX_SAFE_INTEGER', () => {
+    // uint64 max: `Number('18446744073709551615')` rounds to
+    // 18446744073709552000, so the detail table would show a value the chain
+    // never emitted.
+    const uint64Max = '18446744073709551615'
+    const [wrapped, multicoin] = adapt([
+      { id: '1', type: 'NameWrapped', expiryDate: uint64Max, fuses: 196608 },
+      { id: '2', type: 'MulticoinAddrChanged', coinType: uint64Max },
+    ])
+
+    expect(wrapped.asNameWrapped?.expiry).toBe(BigInt(uint64Max))
+    expect(String(wrapped.asNameWrapped?.expiry)).toBe(uint64Max)
+    expect(wrapped.asNameWrapped?.fuses).toBe(196608n)
+    expect(multicoin.asAddressChanged?.coinType).toBe(BigInt(uint64Max))
+  })
+
   it('derives contractAddress per event type from chain constants', () => {
     const byType = Object.fromEntries(
       adapt([
@@ -192,7 +208,7 @@ describe('parity fields reconstructed without extra requests', () => {
     })
     expect(addr.asAddressChanged).toMatchObject({
       address: OWNER,
-      coinType: 60,
+      coinType: 60n,
       resolver: RESOLVER,
       namehash: NODE,
     })

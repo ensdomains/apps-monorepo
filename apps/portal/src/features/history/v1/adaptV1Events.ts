@@ -75,10 +75,18 @@ const refId = (value: unknown): string | undefined => {
 const str = (value: unknown): string | undefined =>
   typeof value === 'string' && value.length > 0 ? value : undefined
 
-const num = (value: unknown): number | undefined => {
-  const parsed = Number(value)
-  return typeof value !== 'object' && value !== '' && Number.isFinite(parsed)
-    ? parsed
+/**
+ * On-chain integers stay `bigint`. The subgraph sends uint64 expiries and
+ * uint256 coin types as decimal strings; `Number()` would round anything past
+ * `Number.MAX_SAFE_INTEGER` before it ever reached the detail table.
+ */
+const big = (value: unknown): bigint | undefined => {
+  if (typeof value === 'bigint') return value
+  if (typeof value === 'number') {
+    return Number.isInteger(value) ? BigInt(value) : undefined
+  }
+  return typeof value === 'string' && /^-?\d+$/.test(value)
+    ? BigInt(value)
     : undefined
 }
 
@@ -144,18 +152,18 @@ const payloadFor = (
       asNameWrapped: {
         node,
         owner: refId(event.owner),
-        fuses: num(event.fuses),
-        expiry: num(event.expiryDate),
+        fuses: big(event.fuses),
+        expiry: big(event.expiryDate),
       },
     }))
     .with('NameUnwrapped', () => ({
       asNameUnwrapped: { node, owner: refId(event.owner) },
     }))
     .with('FusesSet', () => ({
-      asFusesSet: { node, fuses: num(event.fuses) },
+      asFusesSet: { node, fuses: big(event.fuses) },
     }))
     .with('ExpiryExtended', () => ({
-      asExpiryUpdated: { node, expiry: num(event.expiryDate) },
+      asExpiryUpdated: { node, expiry: big(event.expiryDate) },
     }))
     .with('NameRegistered', () => ({
       asNameRegistered: {
@@ -166,16 +174,16 @@ const payloadFor = (
         // `labelName` — which `name` already shows.
         cost: str(event.cost),
         owner: refId(event.registrant),
-        expires: num(event.expiryDate),
+        expires: big(event.expiryDate),
       },
     }))
     .with('NameRenewed', () => ({
-      asNameRenewed: { expires: num(event.expiryDate) },
+      asNameRenewed: { expires: big(event.expiryDate) },
     }))
     .with('AddrChanged', () => ({
       asAddressChanged: {
         address: refId(event.addr),
-        coinType: MAINNET_COIN_TYPE,
+        coinType: BigInt(MAINNET_COIN_TYPE),
         resolver,
         namehash: node,
       },
@@ -184,7 +192,7 @@ const payloadFor = (
     .with('MulticoinAddrChanged', () => ({
       asAddressChanged: {
         address: str(event.multiaddr) ?? str(event.addr),
-        coinType: num(event.coinType),
+        coinType: big(event.coinType),
         resolver,
         namehash: node,
       },
@@ -220,7 +228,7 @@ const dropDuplicateEthAddrEvents = (
     (event) =>
       !(
         event.type === 'AddressChanged' &&
-        event.asAddressChanged?.coinType === MAINNET_COIN_TYPE &&
+        event.asAddressChanged?.coinType === BigInt(MAINNET_COIN_TYPE) &&
         txsWithAddrChanged.has(event.transactionHash.toLowerCase())
       ),
   )
@@ -237,7 +245,12 @@ export const adaptV1Events = ({
   /** The name being viewed; v1 events carry no name of their own. */
   readonly name: string
   readonly namehash: Hex
-  readonly blockTimestamps: ReadonlyMap<number, number>
+  /**
+   * blockNumber → unix seconds, covering every block in `events`.
+   * `getBlockTimestamps` rejects rather than returning a partial map, so the
+   * `?? 0n` below is a type-level default, not a reachable epoch date.
+   */
+  readonly blockTimestamps: ReadonlyMap<bigint, bigint>
   readonly contracts: V1Contracts
 }): TimelineIndexerEvent[] =>
   dropDuplicateEthAddrEvents(
@@ -255,7 +268,7 @@ export const adaptV1Events = ({
         protocol: V1_PROTOCOL,
         transactionHash: event.transactionID as Hex,
         blockNumber: event.blockNumber,
-        timestamp: blockTimestamps.get(event.blockNumber) ?? 0,
+        timestamp: Number(blockTimestamps.get(BigInt(event.blockNumber)) ?? 0n),
         contractAddress: contract
           ? contracts[contract]
           : (resolver as Address | undefined),
