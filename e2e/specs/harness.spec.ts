@@ -33,6 +33,14 @@ import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { parseAbi } from 'viem'
 import { revertTo, takeSnapshot } from '../fixtures/chain-snapshot.js'
 import {
+  assertQueryFields,
+  isReachable,
+  manifestMismatches,
+  newestIndexedBlock,
+  PANOPTES_URL,
+  query,
+} from '../fixtures/panoptes.js'
+import {
   connectWithHeadlessWallet,
   expect,
   test,
@@ -347,6 +355,82 @@ test.describe('Harness integrity', () => {
       Math.abs(restored - chainBefore),
       'the time test did not restore the chain clock — it is leaking 30 days per run into every suite that depends on it',
     ).toBeLessThan(120)
+  })
+
+  // ── panoptes (goal §6 B0) ──────────────────────────────────────────────
+
+  test('panoptes: the indexer is watching the contracts the apps actually talk to', async () => {
+    // B0, as an assertion rather than a comment. A misconfigured-but-running
+    // indexer answers HTTP 200 with zero rows and the UI renders that as a
+    // confident negative — the single most expensive failure mode available
+    // here, and one that has already shipped once.
+    const bad = manifestMismatches()
+    expect(
+      bad,
+      `Panoptes is indexing contracts the apps do not talk to:\n${bad
+        .map(
+          (m) => `  ${m.manifestKey}: manifest=${m.manifest} ensjs=${m.ensjs}`,
+        )
+        .join('\n')}`,
+    ).toEqual([])
+  })
+
+  test('panoptes: it is reachable, synced, and distinguishes empty from broken', async () => {
+    expect(
+      await isReachable(),
+      `Panoptes did not answer at ${PANOPTES_URL} — every indexer-backed oracle in the suite is inert`,
+    ).toBe(true)
+
+    // Synced to something recent. An indexer parked far behind the chain head
+    // returns real-looking rows for a stale world.
+    const indexed = await newestIndexedBlock()
+    expect(
+      indexed,
+      'Panoptes holds no events at all — it is running but has indexed nothing',
+    ).not.toBeNull()
+    const head = Number(await publicClient.getBlockNumber())
+    expect(
+      head - (indexed ?? 0),
+      `Panoptes is ${head - (indexed ?? 0)} blocks behind the chain head (${head})`,
+    ).toBeLessThan(50_000)
+
+    // The property that makes this fixture an oracle rather than scenery: a
+    // bad query must *throw*, never come back as an innocent empty result.
+    // Without this, "no rows" and "the indexer is broken" are the same value
+    // and INV4 cannot be checked at all.
+    //
+    // Panoptes itself does NOT give us this — measured 2026-08-12, it answers
+    // an unknown field with HTTP 200, no errors array, and a null field value.
+    // The guard lives in fixtures/panoptes.ts, and this asserts the guard.
+    await expect(
+      query('{ thisFieldDoesNotExist { id } }'),
+      'the unknown-field guard is not firing — this fixture cannot tell an empty result from a broken one, so it is unusable as an oracle',
+    ).rejects.toThrow(/does not reject unknown fields|resolved .* to null/i)
+  })
+
+  test('panoptes: an unrecognised query argument is caught before it silently unfilters a result set', async () => {
+    // The nastier half of the same defect. Panoptes silently ignores arguments
+    // it does not recognise: `events(bogusArg: 1, first: 1)` returned ten-plus
+    // rows, so the unknown argument was dropped *and took `first` with it*. A
+    // `where:` clause it does not understand is ignored the same way, so a
+    // filtered query quietly returns the unfiltered set — every assertion over
+    // it then passes or fails for reasons unrelated to what it claims to test.
+    //
+    // `assertQueryFields` introspects the real schema, which is the only way to
+    // find out, since the server will never say no.
+    await expect(
+      assertQueryFields('events', ['bogusArg']),
+      'assertQueryFields accepted an argument Panoptes does not have — filtered queries can silently return unfiltered data',
+    ).rejects.toThrow(/does not accept/i)
+
+    await expect(
+      assertQueryFields('thisFieldDoesNotExist'),
+      'assertQueryFields accepted a query-root field that does not exist',
+    ).rejects.toThrow(/no query-root field/i)
+
+    // And it must accept the real thing, or it is just a thing that always
+    // throws — which would be its own kind of useless.
+    await assertQueryFields('events', ['first'])
   })
 
   // ── the chain itself ───────────────────────────────────────────────────

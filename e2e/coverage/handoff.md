@@ -5,6 +5,120 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 5 — 2026-08-12
+
+**Batch:** BOOTSTRAP · goal §6 **B0** (prove the environment) + **HW6**
+(`fixtures/panoptes.ts`). **B0 complete.**
+
+**Result:** PASS 0 · DEFECT 0 · EXEMPT 0 · PRODUCT-GAP 0 (no scenarios worked)
+
+- Terminal: **39 → 40**. **HW 4 → 5.** Ratchet raised.
+- Portal harness 10 tests, two consecutive green runs. Manager harness 4 passed
+  / 1 skipped. Address gate green.
+
+**In flight:** nothing.
+
+### Why this batch, and a note on the anti-stall rule
+
+Four iterations had run with terminal stuck at 39. §16.6 permits that during
+bootstrap **but explicitly says `HW*` is what should move meanwhile** — and it
+had not. That is the anti-stall rule biting for real, not a false alarm. This
+batch was chosen to satisfy both: B0 needs a verified indexer, HW6 *is* that
+verification made permanent, so the check cannot decay into a stale comment.
+
+### B0 — PASSED
+
+Every mapped key in `infra/panoptes/contracts.json` equals
+`ensL1Contracts[sepolia]`: `ens_registry` (legacy), `base_registrar`,
+`eth_registrar_controller`, `public_resolver`, `reverse_registrar`,
+`name_wrapper`, `eth_registry` (V2), `migration_helper`,
+`locked_migration_controller`, `unlocked_migration_controller` — 10/10. The
+indexer is watching what the apps talk to. Now asserted by
+`assertManifestMatchesConfig()`, run on every harness pass.
+
+Unmapped manifest keys are each accounted for in a comment in `panoptes.ts`
+rather than silently skipped (`root_registry` is not exposed by ensjs;
+`registry_datastore` is vestigial; the `l2_*` are L2; `*_block` are block
+numbers).
+
+**Note when mapping:** the manifest's `ens_registry` is the **V1/legacy**
+registry (ensjs `ensLegacyRegistry`); V2 is `eth_registry` (ensjs
+`ensRegistry`). Mapping `ens_registry → ensRegistry` produces a false mismatch —
+I hit it on the first pass.
+
+### FINDING — Panoptes accepts broken queries and answers them plausibly
+
+Three separate behaviours, all HTTP 200, all with no `errors` array. Measured
+2026-08-12 against the running instance:
+
+| Query | Response | Consequence |
+|---|---|---|
+| `{ thisFieldDoesNotExist { id } }` | `{"data":{"thisFieldDoesNotExist":null}}` | a typo, or a field Panoptes later renames, silently becomes "no data" |
+| `events(bogusArg: 1, first: 1)` | 10+ rows | unknown argument dropped — **and it took `first` with it** |
+| `events(first: 1, where: {blockNumber: 999999999})` | same row as unfiltered | a `where` clause it does not understand is ignored, so a filtered query returns the unfiltered set |
+| `__schema { queryType { fields { … } } }` | `queryType: {name}` only, plus `mutationType`/`subscriptionType`/`types` unasked-for | it does not honour selection sets on `__schema`; it serves a canned payload |
+
+This is the **INV4 confident-negative defect through a door that needs no
+misconfiguration at all** — B0 can pass, the manifest can be perfect, and a
+query with a drifted field name still returns a plausible empty. The goal's
+field guide has "indexer success-with-zero-rows" as a *misconfiguration* trap;
+this is the same outcome from ordinary schema drift.
+
+Defences, both in `fixtures/panoptes.ts` and both asserted in the harness:
+
+1. `query()` throws when any top-level field resolves to `null`. A valid list
+   field returns `[]`, never `null`, so a null top-level field reliably means
+   "this field does not exist".
+2. `assertQueryFields(field, args)` introspects the real schema and throws on an
+   unknown field or an unknown argument. Call it once per query shape before
+   trusting a result — the server will never tell you.
+
+**Consequence for INV4's 8 sites:** any of them written with a hand-guessed
+field or filter name would silently pass. Use `assertQueryFields` first.
+
+### Learned — do not re-derive
+
+- **Panoptes GraphQL is at `:5655/graphql`.** `/`, `/health`, `/subgraph` all
+  404. Iteration 4's handoff said :5655; the path is `/graphql`.
+- Introspect via `__schema { types { name fields { … } } }` and find the root
+  type by name. Asking for `queryType { fields }` returns no fields, per the
+  table above.
+- `helpers/indexer-sync.ts`'s internal `query` **swallows** transport and
+  GraphQL errors and returns `null` — correct for polling, catastrophic for
+  asserting. `fixtures/panoptes.ts` is the asserting counterpart; they are
+  deliberately opposite and both are right for their job. Do not merge them.
+
+### Parked
+
+- `0x640294a2…` identity — owner **sugh01**, expires **2026-08-18** (iteration 2).
+- Manager connect flow / `VITE_FF_USE_EOA` — owner **sugh01**, expires
+  **2026-08-19** (iteration 4).
+
+### Skipped-blocked
+
+Every manager-side scenario, on the connect blocker. Unchanged.
+
+### Next
+
+**Bootstrap is done except B4.** B0 ✅, B1 ✅, B2 ✅, B3 ✅.
+
+1. **B4 — audit the ~16 inherited specs** against §5. Do not count any of them
+   as coverage until then; that is the explicit instruction in §1. Start with
+   `projects/manager/playwright.config.ts`'s
+   `testIgnore: /temporaryPremium|migration|notification/`, a live instance of
+   trap #6 (config exclusion) and the source of the `A11` reconciler warning.
+2. Then the first real scenario batch: **R0 portal-side** — `F` transfer (14
+   rows) and `I` fuses (6). `G` (61) stays blocked on the V1 fixture.
+
+Other harness rows still missing modules, each worth a batch when its tier needs
+it: HW4 `time-presets`, HW7 `cross-app fixture`, HW8 `transaction-ids`, HW9
+`fault-injection`, HW10 `premigration`.
+
+Infra: Anvil ✅ :8545, manager ✅ :3000 (not e2e-connectable), portal ✅ :3001,
+panoptes ✅ :5655/graphql, indexed head within 50k blocks of chain head.
+
+---
+
 ## Iteration 4 — 2026-08-12
 
 **Batch:** BOOTSTRAP · extend the harness gate to the manager project —
