@@ -5,6 +5,118 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 3 — 2026-08-12
+
+**Batch:** BOOTSTRAP · goal §6 B2, second half — `specs/harness.spec.ts`.
+**B2 is now complete.**
+
+**Result:** PASS 0 · DEFECT 0 · EXEMPT 0 · PRODUCT-GAP 0 (no scenarios worked)
+
+- Terminal: **39 → 39**. The suite carries no `@scenario:` tags — its subject is
+  the fixtures, not the app. It moves the gate, not the ledger.
+- Invariant sites: 0 checked. Ratchet: unchanged.
+- **7 tests, two consecutive green runs** (12.0s, 12.0s), wired as a Playwright
+  project dependency of `portal-e2e`, so red aborts the run.
+
+**In flight:** nothing.
+
+### What it covers
+
+Each subject gets both halves — rule 5 (read the postcondition back
+independently) and, where it applies, rule 6 (through the app's own read path).
+
+| Subject | Rule 5 | Rule 6 |
+|---|---|---|
+| `makeName` | registered in the `.eth` registry, owned by the requested account, expiry in the future | the portal's `/$name` page renders it |
+| `makeName` negative duration | the name really is expired at the current block | — |
+| `makeSubname` | every level registered *in its stated parent registry*, owner matches, claimed subregistry actually attached, deepest owner holds a non-empty bitmap | — |
+| `wallets` | three distinct, funded participants | the portal's header shows the injected account |
+| `chain-snapshot` | `revert` actually undoes a registration | — |
+| `time` | `increaseTime` moves `block.timestamp`, page clock follows, clock restored after | — |
+| anvil | fork block > 1e6, `.eth` registry has bytecode at the address the apps' config names | — |
+
+### Learned — do not re-derive
+
+- **`ownerOf` needs `labelToCanonicalId(label)`, not `keccak256(label)`.** Note
+  the registry ABI: `getStatus(uint256 anyId)` canonicalises internally,
+  `ownerOf(uint256 id)` does not. Reading `ownerOf(keccak256(label))` returns
+  **the zero address for a perfectly healthy name** — it looks exactly like "the
+  fixture registered nothing". Idiom to copy: `transfer.spec.ts:65`.
+- **`makeName`'s `owner` takes a portal *User* slot, not a `wallets`
+  participant.** `wallets.ROLES` maps owner→user, manager→user2,
+  stranger→user3; passing `'owner'` throws `User not found: owner`. Pair
+  `makeName({owner:'user'})` with `wallets.account('owner')` — same account.
+- **The portal header truncates to `0xf39…266`** — five leading characters, a
+  U+2026 ellipsis, three trailing. A four-character prefix match finds nothing.
+- **Three of my seven assertions were wrong on the first run**, and all three
+  failed in ways that read as fixture or app faults rather than test faults.
+  That is the argument for this suite existing, applied to itself: a harness
+  gate written and never watched fail is worth nothing.
+
+### The state leak this batch introduced, and closed
+
+The first working version pushed the shared fork clock **+29 days per run**.
+Because this project is a *dependency* of the whole portal suite, that is a
+30-day jump before every run of everything.
+
+Two separate causes, and the obvious one was not the culprit:
+
+1. `time`'s explicit `increaseTime` — snapshotted and reverted. Suspected first.
+2. **`makeName({duration: -1 day})` — the actual source.** The fixture
+   implements "expired name" as *register for the 28-day minimum, then advance
+   the clock past expiry*, so asking for an expired name costs ~29 days of fork
+   clock, permanently. Harmless in a leaf spec; not harmless in a dependency.
+
+Measured before/after each fix: **+29 days → +158 seconds** (block mining
+only). Both are now snapshot-wrapped, and the `time` test *asserts* the restore
+rather than assuming it.
+
+**Generalisation worth carrying:** anything that runs as a project dependency
+must be clock-neutral. The fork is at **2027-06-02** against a wall clock of
+2026-08-11 — ~295 days ahead, accumulated by prior runs. Most of that predates
+this batch; 90 days of it was mine before the fix.
+
+### Not caused by this batch
+
+`transfer.spec.ts:687 "rejects the zero address as a recipient"` fails —
+`getByPlaceholder('ENS name or address')` times out on
+`/$name/ownership/transfer`. **Verified pre-existing**: it fails identically
+under `--no-deps`, with the harness project not running at all. Not triaged
+further; it belongs to whoever takes the F-area batch. It is the only portal
+test this iteration executed, so no claim is made about the other 57.
+
+### Parked
+
+`0x640294a2…` identity — owner **sugh01**, expires **2026-08-18**. Unchanged
+from iteration 2, and still blocking any trustworthy `GR*` result.
+
+### Skipped-blocked
+
+Nothing.
+
+### Next
+
+Two candidates; take the first.
+
+1. **Extend the harness gate to the manager project.** `makeV1Name` and
+   `makeV2Name` have no self-test, and `makeV1Name` is the fixture whose known
+   fault (registering into a deployment the migration UI never reads) is the
+   documented blocker on all 61 `G*` rows. A self-test there turns an
+   undocumented weeks-long silent failure into an immediate red. Expect it to
+   fail on the rule-6 half — that is the point, and the failure should be filed,
+   not weakened. **Do not wire it as a blocking dependency while it is red**;
+   put it in its own non-blocking project first, or the manager suite cannot
+   run at all.
+2. **B0 / B4** — Panoptes manifest vs `ensL1Contracts[sepolia]` (the API is on
+   **:5655**, not 42069), then audit the ~16 inherited specs.
+
+Then R0: **83 rows, 77 not-started**.
+
+Infra this iteration: Anvil ✅ :8545, manager ✅ :3000, portal ✅ :3001,
+panoptes-api ✅ :5655, mockestrator :3007, alto :4337.
+
+---
+
 ## Iteration 2 — 2026-08-11
 
 **Batch:** BOOTSTRAP · goal §6 B2, first half — the rule-7 address-literal gate.
