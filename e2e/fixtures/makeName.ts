@@ -53,7 +53,16 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
-// Shared dedicated resolver for names that don't need custom records
+// Shared dedicated resolver for names that don't need custom records.
+//
+// ⚠️ DISPUTED — this exact address is also declared as `V1_PUBLIC_RESOLVER` in
+// `makeV1Name.ts`. It cannot be both a V2 dedicated resolver and the V1 public
+// resolver. Measured on the fork 2026-08-11: absent from
+// `ensL1Contracts[sepolia]` entirely, and its bytecode matches neither
+// `ensPublicResolver` nor `ensPermissionedResolverImpl` nor the resolver the V1
+// registry returns for `eth`. One of the two names is wrong and no GR* record
+// -replay result can be trusted until it is settled. Tracked by the rule-7 gate
+// (`pnpm e2e:check:addresses`), which fails once the waiver expires.
 const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
 const PERMISSIONED_RESOLVER_IMPL =
   ensjsSepolia.ensPermissionedResolverImpl.address

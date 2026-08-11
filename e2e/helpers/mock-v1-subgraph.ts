@@ -10,13 +10,18 @@
  */
 import type { Page } from '@playwright/test'
 import { keccak256, namehash, toHex } from 'viem'
-import type {
-  V1AddressRecord,
-  V1NameType,
-  V1TextRecord,
+import {
+  V1_NAME_WRAPPER,
+  V1_PUBLIC_RESOLVER,
+  type V1AddressRecord,
+  type V1NameType,
+  type V1TextRecord,
 } from '../fixtures/makeV1Name.js'
 
-const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
+// Rule 7 (no address literals): these come from `makeV1Name.ts`, which is the
+// single place the V1 deployment is pinned. They were duplicated here, which
+// is exactly how the same registry ended up with three different addresses
+// across three files.
 
 const V1_SUBGRAPH_URL = 'ensnode-api-sepolia-staging-v1.up.railway.app/subgraph'
 

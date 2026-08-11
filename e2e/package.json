@@ -8,6 +8,7 @@
     "test:portal": "playwright test --config=projects/portal/playwright.config.ts",
     "test:cross-app": "playwright test --config=projects/cross-app/playwright.config.ts",
     "coverage": "tsx coverage/reconcile.ts",
+    "check:addresses": "tsx scripts/check-address-literals.ts",
     "infra:up": "bash infra/scripts/start-local-env.sh",
     "infra:down": "bash infra/scripts/start-local-env.sh --down",
     "seed:name": "tsx scripts/seed-name.ts",
