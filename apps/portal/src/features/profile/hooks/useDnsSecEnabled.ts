@@ -1,54 +1,5 @@
+import { getDnsSecEnabled } from '@ens-apps/utils/dnssec'
 import { useQuery } from '@tanstack/react-query'
-
-const DNS_OVER_HTTP_ENDPOINT = 'https://1.1.1.1/dns-query'
-
-type DnsRecord = {
-  name: string
-  type: number
-  TTL: number
-  data: string
-}
-
-type DnsQuestion = {
-  name: string
-  type: number
-}
-
-type DohResponse = {
-  AD: boolean
-  Answer: DnsRecord[]
-  CD: false
-  Question: DnsQuestion[]
-  RA: boolean
-  RD: boolean
-  Status: number
-  TC: boolean
-}
-
-/**
- * Fetches DNSSEC enabled status for a TLD via DNS-over-HTTPS.
- *
- * @param tld - The TLD to check (e.g., "eth", "xyz", "com")
- * @returns true if DNSSEC is enabled, false otherwise
- */
-export const getDnsSecEnabled = async (tld: string): Promise<boolean> => {
-  const response = await fetch(
-    `${DNS_OVER_HTTP_ENDPOINT}?${new URLSearchParams({
-      name: tld,
-      do: 'true',
-    })}`,
-    {
-      headers: {
-        accept: 'application/dns-json',
-      },
-    },
-  )
-  const result: DohResponse = await response.json()
-  // NXDOMAIN (Status 3) means the domain doesn't exist
-  if (result?.Status === 3) return false
-  // AD flag indicates DNSSEC validation passed
-  return result?.AD ?? false
-}
 
 type UseDnsSecEnabledParams = {
   /** The TLD to check (without dot, e.g., "eth", "xyz") */

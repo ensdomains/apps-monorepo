@@ -67,6 +67,10 @@ test.describe('ENS name registration (Rhinestone HCA)', () => {
 
     await page.getByRole('button', { name: /register name/i }).click()
 
+    // RegistrationDetails (including the completion banner) stays hidden while
+    // the parallel notification-settings region is waiting for a choice.
+    await page.getByRole('button', { name: 'Set up later' }).click()
+
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
 
     // The registration itself needs no eth_sendTransaction on the HCA path

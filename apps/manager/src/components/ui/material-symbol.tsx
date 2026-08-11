@@ -76,6 +76,7 @@ export const MATERIAL_SYMBOLS = [
   'text_ad',
   'text_fields_alt',
   'translate',
+  'undo',
   'upload',
   'wall_art',
   'warning',

@@ -2,9 +2,8 @@ import { fromSync, ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { eq } from 'drizzle-orm'
 import { fromPromise, ok } from 'neverthrow'
 import * as v from 'valibot'
-import { injectDb } from '#app/middleware/database.js'
 import { createApp } from '#app/middleware/hono.js'
-import { TABLE } from '#core/database/index.js'
+import { type Database, getDatabase, TABLE } from '#core/database/index.js'
 import { logger } from '#utils/logger.js'
 
 // SendGrid event types we care about
@@ -36,25 +35,22 @@ class SignatureVerificationError extends TaggedError(
   'SIGNATURE_VERIFICATION_ERROR',
 ) {}
 
-/**
- * verify SendGrid webhook signature using ECDSA.
- * https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
- */
-const verifySignature = ResultFn(async function* (
-  publicKey: string,
-  payload: string,
-  signature: string,
-  timestamp: string,
-) {
-  // SendGrid signs: timestamp + payload
-  const signedPayload = timestamp + payload
+class VerificationKeyConfigurationError extends TaggedError(
+  'VERIFICATION_KEY_CONFIGURATION_ERROR',
+)<{
+  cause: unknown
+}> {}
 
-  // import the public key (base64 encoded ECDSA P-256 key)
+const importVerificationKey = ResultFn(async function* (publicKey: string) {
   const keyData = yield* fromSync(
     () => Uint8Array.from(atob(publicKey), (c) => c.charCodeAt(0)),
-    () =>
-      new SignatureVerificationError({ message: 'Invalid base64 public key' }),
+    (cause) =>
+      new VerificationKeyConfigurationError({
+        message: 'Invalid base64 encoding',
+        cause,
+      }),
   )
+
   const cryptoKey = yield* fromPromise(
     crypto.subtle.importKey(
       'spki',
@@ -63,8 +59,28 @@ const verifySignature = ResultFn(async function* (
       false,
       ['verify'],
     ),
-    () => new SignatureVerificationError({ message: 'Failed to import key' }),
+    (cause) =>
+      new VerificationKeyConfigurationError({
+        message: 'Invalid SPKI verification key',
+        cause,
+      }),
   )
+
+  return ok(cryptoKey)
+})
+
+/**
+ * verify SendGrid webhook signature using ECDSA.
+ * https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
+ */
+const verifySignature = ResultFn(async function* (
+  verificationKey: CryptoKey,
+  payload: string,
+  signature: string,
+  timestamp: string,
+) {
+  // SendGrid signs: timestamp + payload
+  const signedPayload = timestamp + payload
 
   // decode signature (base64)
   const signatureData = yield* fromSync(
@@ -78,7 +94,7 @@ const verifySignature = ResultFn(async function* (
   const isValid = yield* fromPromise(
     crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
-      cryptoKey,
+      verificationKey,
       signatureData,
       encoder.encode(signedPayload),
     ),
@@ -90,64 +106,66 @@ const verifySignature = ResultFn(async function* (
 
 export default createApp()
   .basePath('/sendgrid')
-  .post('/events', injectDb, async (c) => {
-    // verify webhook signature if secret is configured
-    if (c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY) {
-      const signature = c.req.header('X-Twilio-Email-Event-Webhook-Signature')
-      const timestamp = c.req.header('X-Twilio-Email-Event-Webhook-Timestamp')
+  .post('/events', async (c) => {
+    const configuredVerificationKey =
+      c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY?.trim()
 
-      if (!signature || !timestamp) {
-        return c.json({ error: 'Missing signature headers' }, 401)
-      }
-
-      const rawBody = await c.req.text()
-      const verifyResult = await verifySignature(
-        c.env.SENDGRID_WEBHOOK_VERIFICATION_KEY,
-        rawBody,
-        signature,
-        timestamp,
-      )
-
-      if (verifyResult.isErr()) {
-        logger.error('SendGrid signature verification failed', {
-          error: verifyResult.error,
-        })
-        return c.json({ error: 'Invalid signature' }, 401)
-      }
-
-      if (!verifyResult.value) {
-        return c.json({ error: 'Invalid signature' }, 401)
-      }
-
-      // re-parse the body since we consumed it
-      const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
-      if (!events.success) {
-        logger.warn('Invalid SendGrid webhook payload', {
-          issues: events.issues,
-        })
-        return c.json({ error: 'Invalid payload' }, 400)
-      }
-
-      await processEvents(c.var.db, events.output)
-    } else {
-      // no signature verification, parse with safe JSON handling
-      const rawBody = await c.req.text()
-      const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
-      if (!events.success) {
-        logger.warn('Invalid SendGrid webhook payload', {
-          issues: events.issues,
-        })
-        return c.json({ error: 'Invalid payload' }, 400)
-      }
-
-      await processEvents(c.var.db, events.output)
+    if (!configuredVerificationKey) {
+      logger.error('SendGrid webhook verification key is not configured')
+      return c.json({ error: 'Internal server error' }, 500)
     }
+
+    const verificationKeyResult = await importVerificationKey(
+      configuredVerificationKey,
+    )
+    if (verificationKeyResult.isErr()) {
+      logger.error('SendGrid webhook verification key is invalid', {
+        reason: verificationKeyResult.error.message,
+      })
+      return c.json({ error: 'Internal server error' }, 500)
+    }
+
+    const signature = c.req.header('X-Twilio-Email-Event-Webhook-Signature')
+    const timestamp = c.req.header('X-Twilio-Email-Event-Webhook-Timestamp')
+
+    if (!signature || !timestamp) {
+      return c.json({ error: 'Missing signature headers' }, 401)
+    }
+
+    const rawBody = await c.req.text()
+    const verifyResult = await verifySignature(
+      verificationKeyResult.value,
+      rawBody,
+      signature,
+      timestamp,
+    )
+
+    if (verifyResult.isErr()) {
+      logger.error('SendGrid signature verification failed', {
+        reason: verifyResult.error.message,
+      })
+      return c.json({ error: 'Invalid signature' }, 401)
+    }
+
+    if (!verifyResult.value) {
+      return c.json({ error: 'Invalid signature' }, 401)
+    }
+
+    const events = v.safeParse(SendGridWebhookRawBodySchema, rawBody)
+    if (!events.success) {
+      logger.warn('Invalid SendGrid webhook payload', {
+        issues: events.issues,
+      })
+      return c.json({ error: 'Invalid payload' }, 400)
+    }
+
+    await processEvents(getDatabase(c.env), events.output)
 
     return c.json({ ok: true })
   })
 
 async function processEvents(
-  db: Parameters<typeof injectDb>[0]['var']['db'],
+  db: Database,
   events: v.InferOutput<typeof SendGridWebhookPayloadSchema>,
 ) {
   for (const event of events) {

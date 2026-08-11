@@ -1009,12 +1009,18 @@ importers:
 
   packages/utils:
     dependencies:
+      '@ensdomains/ensjs':
+        specifier: 'catalog:'
+        version: https://pkg.pr.new/ensdomains/ensjs/@ensdomains/ensjs@e96662c(viem@2.52.2(typescript@6.0.3)(zod@4.1.13))
       '@tanstack/react-query':
         specifier: ^5.87.1
         version: 5.90.12(react@19.2.5)
       neverthrow:
         specifier: ^8.2.0
         version: 8.2.0
+      viem:
+        specifier: 'catalog:'
+        version: 2.52.2(typescript@6.0.3)(zod@4.1.13)
       xstate:
         specifier: 'catalog:'
         version: 5.24.0(patch_hash=cd60a6eae163806e90144605b7835f441bcc3c7b456b9ad4eb0a7215997f36a5)

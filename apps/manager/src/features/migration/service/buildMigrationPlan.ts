@@ -1,11 +1,28 @@
-import type { Call } from '@ens-apps/transaction-manager'
-import type { Config as WagmiConfig } from '@wagmi/core'
+import {
+  buildHcaOwnerExecutionCall,
+  computeResolverAddress,
+} from '@ens-apps/smart-account'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { type Address, type Hex, namehash, type PublicClient } from 'viem'
 
 import { V2_CONTRACTS } from '../contracts/addresses'
-import { buildBatchedMigrateCalls, type MigrationBatch } from './batchMigrate'
-import { buildBatchedProfileReplayCalls } from './batchProfileReplay'
-import { buildRoleGrantCall } from './buildRoleGrantCalls'
+import {
+  GAS_HEURISTIC,
+  GRANT_ROLES_GAS,
+  MULTICALL_OVERHEAD,
+  PER_BATCH_OVERHEAD,
+  SETABI_GAS,
+  SETADDR_GAS,
+  SETCONTENTHASH_GAS,
+  SETTEXT_GAS,
+  TARGET_GAS,
+} from './batchMigrate.constants'
+import {
+  type AtomicMigrationBatch,
+  type AtomicMigrationInnerExecution,
+  buildAtomicMigrationBatches,
+  buildAtomicMigrationInnerExecutions,
+} from './buildAtomicMigrationBatches'
 import {
   buildStepDescriptors,
   type MigrationStepDescriptor,
@@ -20,11 +37,21 @@ import {
   type IneligibleName,
 } from './classifyNames'
 import type { MigrationPreflight } from './computeMigrationPreflight'
-import { predictOwnedPermResAddress } from './ensureOwnedPermRes'
+import {
+  type DirectMigrationRoute,
+  resolveDirectMigrationRoutes,
+} from './directMigrationRoutes'
+import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import { getV1ProfileKeys, type V1Domain } from './v1SubgraphClient'
+import {
+  getV1ProfileKeys,
+  type V1Domain,
+  type V1ProfileKeys,
+} from './v1SubgraphClient'
 
 export type MigrationPlan = {
+  readonly hcaAddress: Address
+  readonly hcaDeploymentRequired: boolean
   readonly migrationOwner: Address
   readonly domains: readonly V1Domain[]
   readonly classified: readonly ClassifiedName[]
@@ -33,10 +60,8 @@ export type MigrationPlan = {
   readonly preflight: MigrationPreflight
   readonly ownedPermRes: Address | null
   readonly profiles: ReadonlyMap<Hex, Profile>
-  readonly migrateCalls: readonly Call[]
-  readonly roleGrantCalls: readonly Call[]
-  readonly profileReplayCalls: readonly Call[]
-  readonly batches: readonly MigrationBatch[]
+  readonly directRoutes: ReadonlyMap<string, DirectMigrationRoute>
+  readonly atomicBatches: readonly AtomicMigrationBatch[]
   readonly stepDescriptors: readonly MigrationStepDescriptor[]
 }
 
@@ -61,125 +86,250 @@ const fetchProfilesForNames = async (params: {
   })
 }
 
-const buildReplayProfiles = (params: {
-  classified: readonly ClassifiedName[]
-  ownedPermRes: Address | null
-  profiles: ReadonlyMap<Hex, Profile>
-}): Map<Hex, Profile> => {
-  const replay = new Map<Hex, Profile>()
-  if (!params.ownedPermRes) return replay
-  for (const n of params.classified) {
-    if (n.resolverStrategy !== 'to-owned-permres') continue
-    const node = namehash(n.domain.name) as Hex
-    const profile = params.profiles.get(profileMapKey(node))
-    if (profile && (profile.texts.length > 0 || profile.addresses.length > 0)) {
-      replay.set(node, profile)
+const previewAtomicBatchGas = (params: {
+  readonly classifiedByName: ReadonlyMap<string, ClassifiedName>
+  readonly profiles: ReadonlyMap<Hex, Profile>
+  readonly names: readonly string[]
+  readonly innerExecutions: readonly AtomicMigrationInnerExecution[]
+}): bigint => {
+  let gas = PER_BATCH_OVERHEAD
+
+  for (const name of params.names) {
+    const classified = params.classifiedByName.get(name)
+    if (!classified) continue
+    gas += GAS_HEURISTIC[classified.tokenType]
+  }
+
+  for (const execution of params.innerExecutions) {
+    switch (execution.phase) {
+      case 'resolver-deployment':
+        gas += 240_000n
+        break
+      case 'wallet-co-admin-grant':
+        gas += 70_000n
+        break
+      case 'manager-role-grant':
+        gas += GRANT_ROLES_GAS
+        break
+      case 'profile-replay': {
+        const classified = params.classifiedByName.get(execution.name)
+        if (!classified) break
+        const profile = params.profiles.get(
+          profileMapKey(namehash(classified.domain.name)),
+        )
+        if (!profile) break
+        gas += MULTICALL_OVERHEAD
+        gas += BigInt(profile.texts.length) * SETTEXT_GAS
+        gas += BigInt(profile.addresses.length) * SETADDR_GAS
+        if (profile.contentHash) gas += SETCONTENTHASH_GAS
+        gas += BigInt(profile.abis.length) * SETABI_GAS
+        break
+      }
+      case 'migrate':
+        // Included above via GAS_HEURISTIC.
+        break
     }
   }
-  return replay
+
+  return gas
 }
 
-const isResolverReplaceableWhenProfileEmpty = (
-  name: ClassifiedName,
-): boolean => {
-  if (name.resolverStrategy !== 'keep-v1') return false
-  if (!name.v1ResolverAddress) return false
+export class LockedResolverRecordSafetyError extends TaggedError(
+  'LockedResolverRecordSafetyError',
+)<{
+  readonly ensName: string
+  readonly v1Resolver: Address
+  readonly replacementResolver: Address
+  readonly reason:
+    | 'inventory-unavailable'
+    | 'inventory-missing'
+    | 'records-not-replayable'
+  readonly textRecordCount?: number
+  readonly addressRecordCount?: number
+  readonly contentHashRecordCount?: number
+  readonly abiRecordCount?: number
+  readonly cause?: unknown
+}> {}
 
-  const cannotSetResolverLocked =
-    (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
-    hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
-
-  return !cannotSetResolverLocked
+type LockedResolverReplacement = {
+  readonly name: ClassifiedName
+  readonly v1Resolver: Address
+  readonly replacementResolver: Address
 }
 
-const routeEmptyProfilesToOwnedPermRes = async (
+const lockedResolverReplacementsWithoutAtomicReplay = (
   classified: readonly ClassifiedName[],
-): Promise<readonly ClassifiedName[]> => {
-  const candidates = classified.filter(isResolverReplaceableWhenProfileEmpty)
-  if (candidates.length === 0) return classified
+): readonly LockedResolverReplacement[] =>
+  classified.flatMap((name) => {
+    const isLockedCannotSetResolver =
+      (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
+      hasFuse(name.fuses, FUSES.CANNOT_SET_RESOLVER)
+    if (
+      !isLockedCannotSetResolver ||
+      !name.v1ResolverAddress ||
+      name.resolverStrategy === 'to-owned-permres'
+    ) {
+      return []
+    }
 
-  const result = await getV1ProfileKeys(candidates.map((n) => n.domain.id))
-  if (result.isErr()) {
-    console.warn(
-      '[migration] getV1ProfileKeys failed while checking empty custom resolvers; preserving existing resolvers:',
-      result.error,
+    const replacementResolver = resolverFor(
+      name,
+      V2_CONTRACTS.DefaultResolver,
+      null,
     )
-    return classified
-  }
+    if (
+      replacementResolver.toLowerCase() === name.v1ResolverAddress.toLowerCase()
+    ) {
+      return []
+    }
 
-  const emptyProfileIds = new Set(
-    result.value
-      .filter((keys) => keys.texts.length === 0 && keys.coinTypes.length === 0)
-      .map((keys) => keys.id.toLowerCase()),
-  )
-
-  if (emptyProfileIds.size === 0) return classified
-
-  return classified.map((name) =>
-    emptyProfileIds.has(name.domain.id.toLowerCase())
-      ? { ...name, resolverStrategy: 'to-owned-permres' as const }
-      : name,
-  )
-}
-
-const assemblePlanParts = (params: {
-  classified: readonly ClassifiedName[]
-  migrationOwner: Address
-  ownedPermRes: Address | null
-  profiles: ReadonlyMap<Hex, Profile>
-}): {
-  migrateCalls: readonly Call[]
-  batches: readonly MigrationBatch[]
-  roleGrantCalls: readonly Call[]
-  profileReplayCalls: readonly Call[]
-} => {
-  const { classified, migrationOwner, ownedPermRes, profiles } = params
-
-  const { calls: migrateCalls, batches } = buildBatchedMigrateCalls({
-    classified,
-    migrationOwner,
-    defaultResolver: V2_CONTRACTS.DefaultResolver,
-    ownedPermRes,
+    return [
+      {
+        name,
+        v1Resolver: name.v1ResolverAddress as Address,
+        replacementResolver,
+      },
+    ]
   })
 
-  const roleGrantCalls: Call[] = []
-  for (const n of classified) {
-    if (n.managerAddress) roleGrantCalls.push(buildRoleGrantCall(n))
+const assertLockedResolverInventoryComplete = (
+  candidates: readonly LockedResolverReplacement[],
+  profileKeys: readonly V1ProfileKeys[],
+): void => {
+  const inventoryIds = new Set(profileKeys.map((keys) => keys.id.toLowerCase()))
+  for (const candidate of candidates) {
+    if (inventoryIds.has(candidate.name.domain.id.toLowerCase())) continue
+    throw new LockedResolverRecordSafetyError({
+      message: `The record inventory for "${candidate.name.domain.name}" is incomplete; migration is blocked to prevent record loss`,
+      ensName: candidate.name.domain.name,
+      v1Resolver: candidate.v1Resolver,
+      replacementResolver: candidate.replacementResolver,
+      reason: 'inventory-missing',
+    })
+  }
+}
+
+const fetchLockedResolverProfiles = async (params: {
+  readonly candidates: readonly LockedResolverReplacement[]
+  readonly profileKeys: readonly V1ProfileKeys[]
+  readonly publicClient: PublicClient
+}): Promise<ReadonlyMap<Hex, Profile>> => {
+  try {
+    return await fetchV1Profiles({
+      names: params.candidates.map(({ name, v1Resolver }) => ({
+        nodeHex: namehash(name.domain.name) as Hex,
+        v1ResolverAddress: v1Resolver,
+      })),
+      publicClient: params.publicClient,
+      profileKeys: params.profileKeys,
+    })
+  } catch (cause) {
+    const first = params.candidates[0]
+    if (!first) return new Map()
+    throw new LockedResolverRecordSafetyError({
+      message: `Unable to verify records for "${first.name.domain.name}"; migration is blocked to prevent record loss`,
+      ensName: first.name.domain.name,
+      v1Resolver: first.v1Resolver,
+      replacementResolver: first.replacementResolver,
+      reason: 'inventory-unavailable',
+      cause,
+    })
+  }
+}
+
+const assertLockedResolverProfilesEmpty = (
+  candidates: readonly LockedResolverReplacement[],
+  profiles: ReadonlyMap<Hex, Profile>,
+): void => {
+  for (const candidate of candidates) {
+    const profile = profiles.get(
+      profileMapKey(namehash(candidate.name.domain.name)),
+    )
+    if (!profile) {
+      throw new LockedResolverRecordSafetyError({
+        message: `The record inventory for "${candidate.name.domain.name}" is incomplete; migration is blocked to prevent record loss`,
+        ensName: candidate.name.domain.name,
+        v1Resolver: candidate.v1Resolver,
+        replacementResolver: candidate.replacementResolver,
+        reason: 'inventory-missing',
+      })
+    }
+    if (
+      profile.texts.length === 0 &&
+      profile.addresses.length === 0 &&
+      profile.contentHash === null &&
+      profile.abis.length === 0
+    ) {
+      continue
+    }
+    throw new LockedResolverRecordSafetyError({
+      message: `"${candidate.name.domain.name}" has records that cannot be replayed atomically during its locked resolver replacement`,
+      ensName: candidate.name.domain.name,
+      v1Resolver: candidate.v1Resolver,
+      replacementResolver: candidate.replacementResolver,
+      reason: 'records-not-replayable',
+      textRecordCount: profile.texts.length,
+      addressRecordCount: profile.addresses.length,
+      contentHashRecordCount: profile.contentHash ? 1 : 0,
+      abiRecordCount: profile.abis.length,
+    })
+  }
+}
+
+/**
+ * The locked receiver can rotate an allowlisted public resolver even though
+ * CANNOT_SET_RESOLVER is burned, but the current atomic plan cannot replay
+ * records into the shared PublicResolverV2. Permit that rotation only after
+ * proving the supported record inventory is empty on-chain.
+ */
+export const assertLockedResolverReplacementRecordSafety = async (
+  classified: readonly ClassifiedName[],
+  publicClient: PublicClient,
+): Promise<void> => {
+  const candidates = lockedResolverReplacementsWithoutAtomicReplay(classified)
+  if (candidates.length === 0) return
+
+  const result = await getV1ProfileKeys(
+    candidates.map(({ name }) => name.domain.id),
+  )
+  if (result.isErr()) {
+    const first = candidates[0]
+    if (!first) return
+    throw new LockedResolverRecordSafetyError({
+      message: `Unable to verify records for "${first.name.domain.name}"; migration is blocked to prevent record loss`,
+      ensName: first.name.domain.name,
+      v1Resolver: first.v1Resolver,
+      replacementResolver: first.replacementResolver,
+      reason: 'inventory-unavailable',
+      cause: result.error,
+    })
   }
 
-  const replay = buildReplayProfiles({ classified, ownedPermRes, profiles })
-  const profileReplayCalls = ownedPermRes
-    ? buildBatchedProfileReplayCalls({
-        resolver: ownedPermRes,
-        profiles: replay,
-      })
-    : []
-
-  return { migrateCalls, batches, roleGrantCalls, profileReplayCalls }
+  assertLockedResolverInventoryComplete(candidates, result.value)
+  const profiles = await fetchLockedResolverProfiles({
+    candidates,
+    profileKeys: result.value,
+    publicClient,
+  })
+  assertLockedResolverProfilesEmpty(candidates, profiles)
 }
 
 export const buildMigrationPlan = async (params: {
   domains: readonly V1Domain[]
+  hcaAddress: Address
   migrationOwner: Address
-  wagmiConfig: WagmiConfig
   publicClient: PublicClient
   preflight: MigrationPreflight
-  hasBaseRegistrarApproval: boolean
-  hasNameWrapperApproval: boolean
 }): Promise<MigrationPlan> => {
-  const {
-    domains,
-    migrationOwner,
-    publicClient,
-    preflight,
-    hasBaseRegistrarApproval,
-    hasNameWrapperApproval,
-  } = params
+  const { domains, hcaAddress, migrationOwner, publicClient, preflight } =
+    params
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
-  const classified = await routeEmptyProfilesToOwnedPermRes(
-    classifiedNamesResult.classified,
-  )
+  const classified = classifiedNamesResult.classified
+  await assertLockedResolverReplacementRecordSafety(classified, publicClient)
+  const directRoutes =
+    preflight.directMigrationRoutes ??
+    (await resolveDirectMigrationRoutes({ publicClient, classified }))
   const { ineligible } = classifiedNamesResult
   const groups = groupClassifiedNames([...classified])
   const namesToOwnedPermRes = classified.filter(
@@ -189,11 +339,11 @@ export const buildMigrationPlan = async (params: {
   let ownedPermRes: Address | null = null
   if (namesToOwnedPermRes.length > 0) {
     ownedPermRes =
-      preflight.preExistingOwnedPermRes ??
-      (await predictOwnedPermResAddress({
-        eoa: migrationOwner,
-        publicClient,
-      }))
+      preflight.hcaResolverAddress ??
+      computeResolverAddress({
+        chainId: publicClient.chain?.id ?? 11155111,
+        hca: hcaAddress,
+      })
   }
 
   const profiles = await fetchProfilesForNames({
@@ -202,25 +352,50 @@ export const buildMigrationPlan = async (params: {
     publicClient,
   })
 
-  const parts = assemblePlanParts({
+  const classifiedByName = new Map(
+    classified.map((name) => [name.domain.name, name] as const),
+  )
+  const resolverDeployed = preflight.hcaResolverReadiness?.status === 'verified'
+  const walletCoAdminGranted =
+    preflight.hcaResolverReadiness?.status === 'verified' &&
+    preflight.hcaResolverReadiness.walletHasWildcardRoles
+  const atomicPlan = await buildAtomicMigrationBatches({
+    chainId: publicClient.chain?.id ?? 11155111,
+    hca: hcaAddress,
+    wallet: migrationOwner,
     classified,
-    migrationOwner,
-    ownedPermRes,
+    directRoutes,
     profiles,
+    defaultResolver: V2_CONTRACTS.DefaultResolver,
+    resolverDeployed,
+    walletCoAdminGranted,
+    maxOuterGas: TARGET_GAS,
+    estimateOuterGas: ({ names, innerExecutions }) =>
+      previewAtomicBatchGas({
+        classifiedByName,
+        profiles,
+        names,
+        innerExecutions,
+      }),
   })
 
+  const approvals = preflight.migrationApprovals ?? []
+  const hcaDeploymentRequired =
+    preflight.hcaReadiness?.status === 'deployment-required'
+  const registrationApprovalTargets = groups.unwrapped.map(({ domain }) => ({
+    name: domain.name,
+    tokenId: BigInt(domain.labelhash),
+  }))
   const stepDescriptors = buildStepDescriptors({
-    classified,
-    groups,
-    preflight,
-    hasBaseRegistrarApproval,
-    hasNameWrapperApproval,
-    hasProfileReplay: parts.profileReplayCalls.length > 0,
-    migrateBatchCount: parts.migrateCalls.length,
-    profileReplayBatchCount: parts.profileReplayCalls.length,
+    hcaDeploymentRequired,
+    approvals,
+    atomicBatches: atomicPlan.batches,
+    registrationApprovalTargets,
   })
 
   return {
+    hcaAddress,
+    hcaDeploymentRequired,
     migrationOwner,
     domains,
     classified,
@@ -229,10 +404,8 @@ export const buildMigrationPlan = async (params: {
     preflight,
     ownedPermRes,
     profiles,
-    migrateCalls: parts.migrateCalls,
-    roleGrantCalls: parts.roleGrantCalls,
-    profileReplayCalls: parts.profileReplayCalls,
-    batches: parts.batches,
+    directRoutes,
+    atomicBatches: atomicPlan.batches,
     stepDescriptors,
   }
 }
@@ -253,31 +426,46 @@ export const adjustPlanForRetry = (
       ...plan,
       classified: [],
       domains: remainingDomains,
-      migrateCalls: [],
-      roleGrantCalls: [],
-      profileReplayCalls: [],
-      batches: [],
+      atomicBatches: [],
       stepDescriptors: [],
     }
   }
 
   const groups = groupClassifiedNames(remainingClassified)
-  const parts = assemblePlanParts({
-    classified: remainingClassified,
-    migrationOwner: plan.migrationOwner,
-    ownedPermRes: plan.ownedPermRes,
-    profiles: plan.profiles,
-  })
+  const remainingAtomicBatches = plan.atomicBatches
+    .map((batch) => {
+      const nameExecutions = batch.nameExecutions.filter((execution) =>
+        remainingClassified.includes(execution.classified),
+      )
+      const innerExecutions = buildAtomicMigrationInnerExecutions({
+        nameExecutions,
+      })
+      return {
+        ...batch,
+        names: nameExecutions.map(
+          (execution) => execution.classified.domain.name,
+        ),
+        nameExecutions,
+        innerExecutions,
+        outerCall: buildHcaOwnerExecutionCall({
+          hca: plan.hcaAddress,
+          calls: innerExecutions.map((execution) => execution.call),
+        }),
+        verificationExpectations: nameExecutions.flatMap(
+          (execution) => execution.verificationExpectations,
+        ),
+      }
+    })
+    .filter((batch) => batch.names.length > 0)
 
   const stepDescriptors = buildStepDescriptors({
-    classified: remainingClassified,
-    groups,
-    preflight: plan.preflight,
-    hasBaseRegistrarApproval: true,
-    hasNameWrapperApproval: true,
-    hasProfileReplay: parts.profileReplayCalls.length > 0,
-    migrateBatchCount: parts.migrateCalls.length,
-    profileReplayBatchCount: parts.profileReplayCalls.length,
+    hcaDeploymentRequired: plan.hcaDeploymentRequired,
+    approvals: plan.preflight.migrationApprovals ?? [],
+    atomicBatches: remainingAtomicBatches,
+    registrationApprovalTargets: groups.unwrapped.map(({ domain }) => ({
+      name: domain.name,
+      tokenId: BigInt(domain.labelhash),
+    })),
   })
 
   return {
@@ -285,10 +473,7 @@ export const adjustPlanForRetry = (
     classified: remainingClassified,
     domains: remainingDomains,
     groups,
-    migrateCalls: parts.migrateCalls,
-    roleGrantCalls: parts.roleGrantCalls,
-    profileReplayCalls: parts.profileReplayCalls,
-    batches: parts.batches,
+    atomicBatches: remainingAtomicBatches,
     stepDescriptors,
   }
 }

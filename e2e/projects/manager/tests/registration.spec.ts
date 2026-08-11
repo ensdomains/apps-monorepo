@@ -11,9 +11,6 @@ const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
 const LATE_AUTH_DOMAIN = `e2e-${(Date.now() + 2).toString(36)}.eth`
 
-// Skipped for now (per QA): these two overlap with the EOA registration
-// coverage in registration-rhinestone.spec.ts and have been flaky on the
-// search-result interaction. Re-enable once the search flow is stabilised.
 test.describe('ENS name registration', () => {
   test('user is unable to register a name when disconnected', async ({
     page,
@@ -67,6 +64,10 @@ test.describe('ENS name registration', () => {
     await clickThroughEnableSessions(page)
     await page.getByText('USDC', { exact: true }).click()
     await page.getByRole('button', { name: /register name/i }).click()
+
+    // RegistrationDetails (including the completion banner) stays hidden while
+    // the parallel notification-settings region is waiting for a choice.
+    await page.getByRole('button', { name: 'Set up later' }).click()
 
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     // Authorize the EOA registration transactions (deploy-resolver? → commit →

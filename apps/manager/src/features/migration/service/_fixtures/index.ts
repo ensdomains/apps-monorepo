@@ -31,20 +31,31 @@ export type DomainOverrides = {
   isWrapped?: boolean
 }
 
+const parentFor = (o: DomainOverrides): V1Domain['parent'] =>
+  o.parentName === null
+    ? null
+    : {
+        name: o.parentName ?? 'eth',
+        wrappedDomain:
+          o.parentFuses == null ? null : { fuses: Number(o.parentFuses) },
+      }
+
+const wrappedOwnerFor = (
+  o: DomainOverrides,
+  isWrapped: boolean,
+): V1Domain['wrappedOwner'] => {
+  if (o.wrappedOwnerId === null || !isWrapped) return null
+  return { id: o.wrappedOwnerId ?? OWNER }
+}
+
 export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
   const isWrapped = o.isWrapped ?? false
-  const parent: V1Domain['parent'] =
-    o.parentName === null
-      ? null
-      : {
-          name: o.parentName ?? 'eth',
-          wrappedDomain:
-            o.parentFuses == null ? null : { fuses: Number(o.parentFuses) },
-        }
   return {
     id: o.id ?? '0xabc',
     labelName: o.labelName === undefined ? 'alice' : o.labelName,
-    labelhash: o.labelhash ?? '0xlabelhash',
+    labelhash:
+      o.labelhash ??
+      '0x0000000000000000000000000000000000000000000000000000000000000001',
     name: o.name ?? 'alice.eth',
     resolver:
       o.resolverAddress === null
@@ -53,13 +64,8 @@ export const makeDomain = (o: DomainOverrides = {}): V1Domain => {
     owner: { id: o.ownerId ?? OWNER },
     registrant:
       o.registrantId === null ? null : { id: o.registrantId ?? OWNER },
-    wrappedOwner:
-      o.wrappedOwnerId === null
-        ? null
-        : isWrapped
-          ? { id: o.wrappedOwnerId ?? OWNER }
-          : null,
-    parent,
+    wrappedOwner: wrappedOwnerFor(o, isWrapped),
+    parent: parentFor(o),
     registration: o.registrationExpiry
       ? { expiryDate: o.registrationExpiry }
       : null,

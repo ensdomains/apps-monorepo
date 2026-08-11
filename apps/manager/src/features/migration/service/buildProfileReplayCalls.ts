@@ -26,6 +26,24 @@ export const flattenProfileInnerCalls = (
         }),
       )
     }
+    if (profile.contentHash) {
+      innerCalls.push(
+        encodeFunctionData({
+          abi: PERMISSIONED_RESOLVER_ABI,
+          functionName: 'setContenthash',
+          args: [nodeHex, profile.contentHash],
+        }),
+      )
+    }
+    for (const abiRecord of profile.abis) {
+      innerCalls.push(
+        encodeFunctionData({
+          abi: PERMISSIONED_RESOLVER_ABI,
+          functionName: 'setABI',
+          args: [nodeHex, abiRecord.contentType, abiRecord.value],
+        }),
+      )
+    }
   }
   return innerCalls
 }

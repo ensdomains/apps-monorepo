@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { buildSearchSuggestions } from './buildSearchSuggestions'
+import {
+  buildSearchSuggestions,
+  getSearchNotice,
+} from './buildSearchSuggestions'
 
 describe('buildSearchSuggestions', () => {
   const mockNavigateToAddress = vi.fn()
@@ -476,5 +479,50 @@ describe('buildSearchSuggestions', () => {
       expect(result.length).toBe(1)
       expect(result[0].label).toBe('test.florin.xyz')
     })
+  })
+})
+
+describe('getSearchNotice', () => {
+  const NOTICE = 'Names must be 3 characters or more to register.'
+
+  it('flags one and two character labels', () => {
+    expect(getSearchNotice('a')).toBe(NOTICE)
+    expect(getSearchNotice('tt')).toBe(NOTICE)
+    expect(getSearchNotice('tt.eth')).toBe(NOTICE)
+    expect(getSearchNotice('12.eth')).toBe(NOTICE)
+  })
+
+  it('stays quiet for registrable labels', () => {
+    expect(getSearchNotice('abc')).toBeNull()
+    expect(getSearchNotice('abc.eth')).toBeNull()
+  })
+
+  it('stays quiet for subnames, which have no minimum', () => {
+    expect(getSearchNotice('a.florin.eth')).toBeNull()
+    expect(getSearchNotice('tt.florin')).toBeNull()
+  })
+
+  it('stays quiet for TLDs other than .eth, where the rule does not apply', () => {
+    expect(getSearchNotice('tt.co')).toBeNull()
+    expect(getSearchNotice('tt.com')).toBeNull()
+  })
+
+  it('still warns while the .eth suffix is being typed', () => {
+    expect(getSearchNotice('tt.')).toBe(NOTICE)
+    expect(getSearchNotice('tt.e')).toBe(NOTICE)
+    expect(getSearchNotice('tt.et')).toBe(NOTICE)
+  })
+
+  it('stays quiet for addresses and empty input', () => {
+    expect(
+      getSearchNotice('0xA6362Dcb7Db14C357E788C876eE99e1f982f1115'),
+    ).toBeNull()
+    expect(getSearchNotice('')).toBeNull()
+    expect(getSearchNotice('   ')).toBeNull()
+  })
+
+  it('counts emoji labels by code point', () => {
+    expect(getSearchNotice('👍👍')).toBe(NOTICE)
+    expect(getSearchNotice('👍👍👍')).toBeNull()
   })
 })
