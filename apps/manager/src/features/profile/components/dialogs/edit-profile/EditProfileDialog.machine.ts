@@ -1,5 +1,10 @@
 import type { RhinestoneSigner, Signer } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
 import { assign, type SnapshotFrom, setup } from 'xstate'
 import type {
   SaveRecordsParams,
@@ -88,6 +93,22 @@ type EditProfileDialogEvent =
       ethAddressChanged?: boolean
     }
 
+/**
+ * Require a bound account that matches the owner. An account-less client
+ * (possible mid-reconnect) gives no way to verify the wallet controls the owner
+ * address, and a client bound to a *different* EOA (mid account switch) means
+ * the sender has diverged from the address `resolverWriteAccess` probed — the
+ * write would revert on-chain instead of blocking here with a "wallet not
+ * ready" message.
+ */
+export const hasOwnerWallet = (
+  walletClient: WalletClient | null | undefined,
+  ownerAddress: Address | null | undefined,
+) =>
+  !!walletClient?.account &&
+  !!ownerAddress &&
+  isAddressEqual(walletClient.account.address, ownerAddress)
+
 const getMissingAccount = (event: EditProfileDialogEvent) => {
   if (event.type !== 'SAVE_REQUESTED') return false
 
@@ -95,7 +116,7 @@ const getMissingAccount = (event: EditProfileDialogEvent) => {
   // record write is a plain transaction from the connected owner wallet.
   return event.deps.needsResolverSetup
     ? !event.deps.signer || !event.deps.accountAddress
-    : !event.deps.walletClient?.account
+    : !hasOwnerWallet(event.deps.walletClient, event.deps.ownerAddress)
 }
 
 const getMissingSetupSigner = (event: EditProfileDialogEvent) =>
@@ -146,8 +167,13 @@ const getPendingSave = (
   // `InvalidSignature()`; an owner-signed one needs USDC for the intent fee
   // that registration leaves the HCA without, with no funding leg here to
   // cover it.
-  const walletAccount = deps.walletClient?.account
-  if (!deps.walletClient || !walletAccount) {
+  const walletClient = deps.walletClient
+  const walletAccount = walletClient?.account
+  if (
+    !walletClient ||
+    !walletAccount ||
+    !hasOwnerWallet(walletClient, deps.ownerAddress)
+  ) {
     throw new Error('Account not ready. Please wait for wallet to connect.')
   }
 
@@ -158,7 +184,7 @@ const getPendingSave = (
       name: deps.name,
       before,
       after,
-      signer: { type: 'eoa', walletClient: deps.walletClient },
+      signer: { type: 'eoa', walletClient },
       accountAddress: walletAccount.address,
       publicClient: deps.publicClient,
       chainId: deps.chainId,

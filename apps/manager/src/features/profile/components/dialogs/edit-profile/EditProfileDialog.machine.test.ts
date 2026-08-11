@@ -252,4 +252,19 @@ describe('editProfileDialogMachine', () => {
     expect(snapshot.matches({ editing: 'idle' })).toBe(true)
     expect(snapshot.context.pendingSave).toBeUndefined()
   })
+
+  it('blocks an in-place update when the wallet has switched away from the owner', () => {
+    // `resolverWriteAccess` probes from `ownerAddress`; sending from a wallet
+    // that has since switched accounts would revert on-chain instead of
+    // surfacing the not-ready message.
+    const snapshot = startWritableUpdate({
+      signer: rhinestoneSigner,
+      walletClient: {
+        account: { address: ACCOUNT },
+      } as WalletClient,
+    })
+
+    expect(snapshot.matches({ editing: 'idle' })).toBe(true)
+    expect(snapshot.context.pendingSave).toBeUndefined()
+  })
 })

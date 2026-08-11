@@ -31,9 +31,10 @@ import { setupControlledResolver } from '@/features/profile/service/setupControl
 import type { ProfileRecords } from '@/features/profile/types'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { publicClient } from '@/lib/wagmi'
-import type {
-  editProfileDialogMachine,
-  PendingSave,
+import {
+  type editProfileDialogMachine,
+  hasOwnerWallet,
+  type PendingSave,
 } from './EditProfileDialog.machine'
 import type {
   EditProfileForm,
@@ -405,10 +406,11 @@ export const useEditProfileDialogSave = ({
         description: getSaveBlockedDescription({
           hasOwner: Boolean(owner),
           // Mirrors the machine's `missingAccount` guard: setup needs the HCA
-          // signer, an in-place write needs the connected owner wallet.
+          // signer, an in-place write needs a connected wallet still bound to
+          // the owner address.
           hasAccount: needsResolverSetup
             ? Boolean(account.signer && account.accountAddress)
-            : Boolean(account.walletClient?.account),
+            : hasOwnerWallet(account.walletClient, ownerAddress),
           hasSetupSigner: !(
             needsResolverSetup &&
             (account.signer?.type !== 'rhinestone' || !ownerAddress)
