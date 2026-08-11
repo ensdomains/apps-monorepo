@@ -1,5 +1,6 @@
-import { SUPPORTED_TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
-import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { getDestinationContracts } from '@ens-apps/smart-account'
+import { sepolia } from 'viem/chains'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { NameAvailabilityError } from './machines/searchNameMachine'
 
 export type ValidationError =
@@ -131,29 +132,16 @@ export const validateENSName = (name: string): ValidationError => {
   return null
 }
 
+// Standalone-HCA payment tokens. The HCA validator only accepts the REAL
+// Circle Sepolia USDC (its PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN are both
+// this address), so the picker offers USDC only — no mock USDC/DAI/USDT.
 export const STABLECOINS = {
   USDC: {
     id: 'usdc',
     name: 'USD Coin',
     symbol: 'USDC',
     decimals: 6,
-    address: SUPPORTED_TOKENS.USDC,
+    address: getDestinationContracts(sepolia.id).usdc,
     icon: USDCIcon,
-  },
-  DAI: {
-    id: 'dai',
-    name: 'Dai Stablecoin',
-    symbol: 'DAI',
-    decimals: 18,
-    address: SUPPORTED_TOKENS.DAI,
-    icon: DAI,
-  },
-  USDT: {
-    id: 'usdt',
-    name: 'Tether',
-    symbol: 'USDT',
-    decimals: 6,
-    address: '0x0000000000000000000000000000000000000000', // Placeholder
-    icon: USDTIcon,
   },
 } as const

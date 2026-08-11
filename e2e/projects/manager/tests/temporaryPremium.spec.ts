@@ -20,7 +20,7 @@
  *   - Manager app running on MANAGER_APP_URL (default localhost:3000)
  */
 import type { Page } from '@playwright/test'
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 
@@ -45,7 +45,9 @@ async function dismissSiweModal(page: Page) {
       await signInBtn.click()
       // Wait for the signing to complete — the button changes to "Signing in..."
       // then the modal disappears once the SIWE session is established.
-      await signInBtn.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => { })
+      await signInBtn
+        .waitFor({ state: 'hidden', timeout: 30_000 })
+        .catch(() => {})
     } else {
       await skipBtn.click()
     }
@@ -63,161 +65,161 @@ async function dismissSiweModal(page: Page) {
     await enableBtn.waitFor({ state: 'visible', timeout: 8_000 })
     await enableBtn.click()
     const overlay = page.locator('[data-slot="alert-dialog-overlay"]')
-    await overlay
-      .waitFor({ state: 'hidden', timeout: 30_000 })
-      .catch(() => { })
+    await overlay.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {})
   } catch {
     // Modal didn't appear — sessions already enabled or feature flag off
   }
 
   // Wait for the "Pay with stablecoins" button to confirm the wallet
   // session is fully established (replaces "Connect or sign in")
-  await page.getByRole('button', { name: /pay with stablecoins/i })
+  await page
+    .getByRole('button', { name: /pay with stablecoins/i })
     .waitFor({ state: 'visible', timeout: 30_000 })
-    .catch(() => { })
+    .catch(() => {})
 }
 
-test.describe.skip('Temporary Premium Names', () => {
-  /**
-   * Register a name, expire it by ~4 days (within the 21-day premium window),
-   * navigate to /register/<name>.eth, and verify the pricing step reflects
-   * a non-zero premium in the total price.
-   */
-  test('should show premium pricing for a recently expired name', async ({
-    connectedPage: page,
-    makeName,
-    time,
-  }) => {
-    test.setTimeout(180_000)
+test.describe
+  .skip('Temporary Premium Names', () => {
+    /**
+     * Register a name, expire it by ~4 days (within the 21-day premium window),
+     * navigate to /register/<name>.eth, and verify the pricing step reflects
+     * a non-zero premium in the total price.
+     */
+    test('should show premium pricing for a recently expired name', async ({
+      connectedPage: page,
+      makeName,
+      time,
+    }) => {
+      test.setTimeout(180_000)
 
-    // ── 1. Create an expired name (expired ~4 days ago) ───────────
-    // duration = -(4 days in seconds) → name expired 4 days ago
-    // This puts it in the 21-day premium window (price halves daily)
-    const name = await makeName(
-      { label: 'temppremium', duration: -(4 * 24 * 60 * 60) },
-      { timeOffset: 0 },
-    )
+      // ── 1. Create an expired name (expired ~4 days ago) ───────────
+      // duration = -(4 days in seconds) → name expired 4 days ago
+      // This puts it in the 21-day premium window (price halves daily)
+      const name = await makeName(
+        { label: 'temppremium', duration: -(4 * 24 * 60 * 60) },
+        { timeOffset: 0 },
+      )
 
-    console.log(`[test] Created expired name: ${name}`)
+      console.log(`[test] Created expired name: ${name}`)
 
-    // ── 2. Navigate to the V2 registration page for the expired name
-    // Must be authenticated — the StandardRentPriceOracle skips the
-    // temporary premium when owner is address(0) (unauthenticated).
-    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+      // ── 2. Navigate to the V2 registration page for the expired name
+      // Must be authenticated — the StandardRentPriceOracle skips the
+      // temporary premium when owner is address(0) (unauthenticated).
+      await page.goto(`${MANAGER_APP_URL}/register/${name}`)
 
-    // Dismiss the "Verify your wallet" / SIWE modal if it appears
-    await dismissSiweModal(page)
+      // Dismiss the "Verify your wallet" / SIWE modal if it appears
+      await dismissSiweModal(page)
 
-    // Wait for the pricing step to load
-    await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
-      timeout: 30_000,
+      // Wait for the pricing step to load
+      await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
+        timeout: 30_000,
+      })
+
+      // ── 3. Verify the "Pay with stablecoins" button is visible ────
+      // (confirms user is authenticated and pricing loaded)
+      await expect(
+        page.getByRole('button', { name: /pay with stablecoins/i }),
+      ).toBeVisible({ timeout: 15_000 })
+
+      // ── 4. Verify the price includes a premium ────────────────────
+      // A 4-day-old premium should be ~$6.25M. The total price displayed
+      // in the PaymentCard should be dramatically higher than the ~$5
+      // base price for 1 year. We check for a dollar amount with at
+      // least 4 digits (i.e. >= $1,000) to confirm premium is included.
+      const totalText = page.locator('span').filter({ hasText: /^\$[\d,]+/ })
+      await expect(totalText.first()).toBeVisible({ timeout: 15_000 })
     })
 
-    // ── 3. Verify the "Pay with stablecoins" button is visible ────
-    // (confirms user is authenticated and pricing loaded)
-    await expect(
-      page.getByRole('button', { name: /pay with stablecoins/i }),
-    ).toBeVisible({ timeout: 15_000 })
+    /**
+     * Register a name expired by 1 day — very early in the premium window.
+     * The premium is extremely high (~$50M). Verify the registration page loads.
+     */
+    test('should load registration page for a 1-day-expired name', async ({
+      connectedPage: page,
+      makeName,
+      time,
+    }) => {
+      test.setTimeout(180_000)
 
-    // ── 4. Verify the price includes a premium ────────────────────
-    // A 4-day-old premium should be ~$6.25M. The total price displayed
-    // in the PaymentCard should be dramatically higher than the ~$5
-    // base price for 1 year. We check for a dollar amount with at
-    // least 4 digits (i.e. >= $1,000) to confirm premium is included.
-    const totalText = page.locator('span').filter({ hasText: /^\$[\d,]+/ })
-    await expect(totalText.first()).toBeVisible({ timeout: 15_000 })
-  })
+      const name = await makeName(
+        { label: 'recentexpiry', duration: -(1 * 24 * 60 * 60) },
+        { timeOffset: 0 },
+      )
 
-  /**
-   * Register a name expired by 1 day — very early in the premium window.
-   * The premium is extremely high (~$50M). Verify the registration page loads.
-   */
-  test('should load registration page for a 1-day-expired name', async ({
-    connectedPage: page,
-    makeName,
-    time,
-  }) => {
-    test.setTimeout(180_000)
+      console.log(`[test] Created recently expired name: ${name}`)
 
-    const name = await makeName(
-      { label: 'recentexpiry', duration: -(1 * 24 * 60 * 60) },
-      { timeOffset: 0 },
-    )
+      await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+      await dismissSiweModal(page)
 
-    console.log(`[test] Created recently expired name: ${name}`)
+      // The page should load and show the name
+      await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
+        timeout: 30_000,
+      })
 
-    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
-    await dismissSiweModal(page)
-
-    // The page should load and show the name
-    await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
-      timeout: 30_000,
+      // Authenticated user should see "Pay with stablecoins" (not "Connect")
+      await expect(
+        page.getByRole('button', { name: /pay with stablecoins/i }),
+      ).toBeVisible({ timeout: 15_000 })
     })
 
-    // Authenticated user should see "Pay with stablecoins" (not "Connect")
-    await expect(
-      page.getByRole('button', { name: /pay with stablecoins/i }),
-    ).toBeVisible({ timeout: 15_000 })
-  })
+    /**
+     * Register a name expired 18 days ago
+     * premium window. Premium should be very small (< $1).
+     */
+    test('should show a low premium for a name expired 18 days ago', async ({
+      connectedPage: page,
+      makeName,
+      time,
+    }) => {
+      test.setTimeout(180_000)
 
-  /**
-   * Register a name expired 18 days ago
-   * premium window. Premium should be very small (< $1).
-   */
-  test('should show a low premium for a name expired 18 days ago', async ({
-    connectedPage: page,
-    makeName,
-    time,
-  }) => {
-    test.setTimeout(180_000)
+      const name = await makeName(
+        { label: 'lowpremium', duration: -(18 * 24 * 60 * 60) },
+        { timeOffset: 0 },
+      )
 
-    const name = await makeName(
-      { label: 'lowpremium', duration: -(18 * 24 * 60 * 60) },
-      { timeOffset: 0 },
-    )
+      console.log(`[test] Created name with low premium: ${name}`)
 
-    console.log(`[test] Created name with low premium: ${name}`)
+      await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+      await dismissSiweModal(page)
 
-    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
-    await dismissSiweModal(page)
+      // Should still load the registration page (name is available with low premium)
+      await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
+        timeout: 30_000,
+      })
 
-    // Should still load the registration page (name is available with low premium)
-    await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
-      timeout: 30_000,
+      await expect(
+        page.getByRole('button', { name: /pay with stablecoins/i }),
+      ).toBeVisible({ timeout: 15_000 })
     })
 
-    await expect(
-      page.getByRole('button', { name: /pay with stablecoins/i }),
-    ).toBeVisible({ timeout: 15_000 })
-  })
+    /**
+     * Register a name expired 25 days ago
+     * The premium should be 0 and the name should register at base price only.
+     */
+    test('should show no premium for a name expired past the 21-day window', async ({
+      connectedPage: page,
+      makeName,
+      time,
+    }) => {
+      test.setTimeout(180_000)
 
-  /**
-   * Register a name expired 25 days ago
-   * The premium should be 0 and the name should register at base price only.
-   */
-  test('should show no premium for a name expired past the 21-day window', async ({
-    connectedPage: page,
-    makeName,
-    time,
-  }) => {
-    test.setTimeout(180_000)
+      const name = await makeName(
+        { label: 'nopremium', duration: -(25 * 24 * 60 * 60) },
+        { timeOffset: 0 },
+      )
 
-    const name = await makeName(
-      { label: 'nopremium', duration: -(25 * 24 * 60 * 60) },
-      { timeOffset: 0 },
-    )
+      console.log(`[test] Created name past premium window: ${name}`)
 
-    console.log(`[test] Created name past premium window: ${name}`)
+      await page.goto(`${MANAGER_APP_URL}/register/${name}`)
+      await dismissSiweModal(page)
 
-    await page.goto(`${MANAGER_APP_URL}/register/${name}`)
-    await dismissSiweModal(page)
+      await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
+        timeout: 30_000,
+      })
 
-    await expect(page.getByText(name, { exact: false }).first()).toBeVisible({
-      timeout: 30_000,
+      await expect(
+        page.getByRole('button', { name: /pay with stablecoins/i }),
+      ).toBeVisible({ timeout: 15_000 })
     })
-
-    await expect(
-      page.getByRole('button', { name: /pay with stablecoins/i }),
-    ).toBeVisible({ timeout: 15_000 })
   })
-})

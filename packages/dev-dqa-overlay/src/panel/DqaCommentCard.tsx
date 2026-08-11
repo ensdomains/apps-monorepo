@@ -33,7 +33,8 @@ export function DqaCommentCard({
   const linearLabel = comment.linear?.identifier ?? comment.issueRef
   const clickable = showFocusAction
   const resolved = comment.status === 'resolved'
-  const hasActions = showFocusAction && (onResolve || onDelete || onCopyMarkdown)
+  const hasActions =
+    showFocusAction && (onResolve || onDelete || onCopyMarkdown)
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: clickable card with inner controls
@@ -67,7 +68,9 @@ export function DqaCommentCard({
           name={comment.author}
           size={22}
         />
-        <span style={pinNumStyle}>{resolved ? '✓' : `#${comment.pinIndex}`}</span>
+        <span style={pinNumStyle}>
+          {resolved ? '✓' : `#${comment.pinIndex}`}
+        </span>
         {comment.anchorLabel && (
           <span style={tagElStyle} title={comment.anchorLabel}>
             {comment.anchorLabel}

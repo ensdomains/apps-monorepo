@@ -31,6 +31,7 @@ export interface SetForwardResolutionParameters {
   readonly signer: Signer
   readonly chainId: number
   readonly id: string
+  readonly description?: string
 }
 
 export interface SetForwardResolutionResult {
@@ -66,6 +67,7 @@ export const setForwardResolution = async ({
   signer,
   chainId,
   id,
+  description,
 }: SetForwardResolutionParameters): Promise<SetForwardResolutionResult> => {
   if (!walletClient.account) {
     throw new Error('Wallet client must have account configured')
@@ -81,7 +83,7 @@ export const setForwardResolution = async ({
 
   const txId = transactionManager.startTransaction(intent, signer, {
     id,
-    description: `Set primary name for ${name}`,
+    description: description ?? `Set primary name for ${name}`,
     publicClient,
     chainId,
   })

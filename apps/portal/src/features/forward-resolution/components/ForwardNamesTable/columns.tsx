@@ -1,6 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { SortButton } from '@/components/table/SortButton'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn, fromCoinType } from '@/lib/utils'
 import { CoinTypeLabel } from '../CoinTypeLabel'
 
@@ -38,14 +37,9 @@ export const columns: ColumnDef<ForwardName>[] = [
         .getValue<string[]>(column.id)
         .map((coin) => fromCoinType(BigInt(Number.parseInt(coin, 10))))
 
-      const [settings] = useTableViewSettings()
-
       return (
         <div
-          className={cn(
-            `w-max flex flex-row gap-2`,
-            settings.wrapText ? 'break-all whitespace-normal' : 'truncate',
-          )}
+          className={cn(`w-max flex flex-row items-center gap-2`, 'truncate')}
         >
           {coins.map((coin) => (
             <CoinTypeLabel coin={coin} key={coin} />

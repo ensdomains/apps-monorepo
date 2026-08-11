@@ -67,7 +67,8 @@ export async function renewFor28Days(page: Page): Promise<string> {
   const dateMatch = expiringOnText?.match(
     /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/,
   )
-  if (!dateMatch) throw new Error('Could not read expected expiry date from pricing summary')
+  if (!dateMatch)
+    throw new Error('Could not read expected expiry date from pricing summary')
   const expectedExpiry = dateMatch[0]
 
   await page.getByRole('button', { name: /pay with stablecoins/i }).click()
@@ -79,7 +80,9 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
 
-  await expect(page.getByText('Renewal Complete!')).toBeVisible({ timeout: 90_000 })
+  await expect(page.getByText('Renewal Complete!')).toBeVisible({
+    timeout: 90_000,
+  })
   await expect(page.getByText(expectedExpiry)).toBeVisible({ timeout: 5_000 })
 
   return expectedExpiry

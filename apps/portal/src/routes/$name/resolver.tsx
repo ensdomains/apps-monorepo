@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, useParams } from '@tanstack/react-router'
+import type { GetEnsResolverErrorType } from '@wagmi/core'
 import { ClockIcon } from 'lucide-react'
 import { ExternalLink } from 'react-external-link'
 import { type Address, isAddressEqual, namehash, zeroAddress } from 'viem'
@@ -9,6 +10,7 @@ import { getEnsResolverQueryOptions } from 'wagmi/query'
 import { EditNoteIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
@@ -20,6 +22,7 @@ import {
   getEnsOwnerQueryOptions,
 } from '@/features/profile/hooks/useEnsOwner'
 import { getNameAvailabilityQueryOptions } from '@/features/profile/hooks/useNameAvailability'
+import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
 import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { getIsPermissionedResolverQueryOptions } from '@/features/resolver/hooks/useIsPermissionedResolver'
@@ -214,7 +217,7 @@ const HistorySection = ({
   protocolVersion: NonNullable<GetEnsOwnerReturnType>['protocolVersion']
 }) => {
   const v2HistoryQuery = useQuery({
-    ...getV2NameHistoryQueryOptions({ name }),
+    ...getV2NameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     enabled: protocolVersion === 'ENSv2',
   })
 
@@ -233,15 +236,21 @@ const HistorySection = ({
 
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-h2">History</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/$name/history" params={{ name }}>
-              <ClockIcon className="size-4" />
-              Full history
-            </Link>
-          </Button>
-        </div>
+        <HistorySectionHeader
+          action={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-neutral-7"
+              asChild
+            >
+              <Link to="/$name/history" params={{ name }}>
+                <ClockIcon className="size-4" />
+                Full history
+              </Link>
+            </Button>
+          }
+        />
         <NameSubgraphHistory
           name={name}
           v2Events={transformV2EventsToSubgraphFormat(
@@ -255,15 +264,16 @@ const HistorySection = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-h2">History</h2>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/$name/history" params={{ name }}>
-            <ClockIcon className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <ClockIcon className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
       <NameSubgraphHistory name={name} enableHeader={false} />
     </div>
   )
@@ -409,10 +419,20 @@ function RouteComponent() {
   const [ownerQuery, resolverQuery] = useQueries({
     queries: [
       getEnsOwnerQueryOptions({ name }),
-      getEnsResolverQueryOptions(wagmiConfig, {
-        name,
-        universalResolverAddress,
-      }),
+      {
+        ...getEnsResolverQueryOptions(wagmiConfig, {
+          name,
+          universalResolverAddress,
+        }),
+        // useQueries reads each query's error type off `throwOnError`, and
+        // wagmi's factory returns query-core options, which have no such field
+        // — so TError falls back to DefaultError and collides with the
+        // factory's own `retry: RetryValue<GetEnsResolverErrorType>`. Naming
+        // the error here is what restores the narrowed type the
+        // ChainDoesNotSupportContract branch below reads. `false` is already
+        // the default, so behaviour is unchanged.
+        throwOnError: (_error: GetEnsResolverErrorType) => false,
+      },
     ],
   })
 

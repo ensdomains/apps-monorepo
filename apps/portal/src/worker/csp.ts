@@ -40,12 +40,26 @@ export function originFromEnvUrl(value: string | undefined): string | null {
   }
 }
 
+// DQA overlay origin (QA/preview builds only): needed in script-src and
+// connect-src (https + wss). Statically null unless the build sets VITE_DQA=1.
+// The localhost fallback mirrors the overlay loader's own default
+// (packages/dev-dqa-overlay/src/config.ts) so a plain `pnpm build:dqa` without
+// VITE_DQA_URL still passes CSP.
+const DQA_ORIGIN =
+  import.meta.env?.VITE_DQA === '1'
+    ? (originFromEnvUrl(import.meta.env?.VITE_DQA_URL) ??
+      'http://localhost:4000')
+    : null
+
 // Deployment-specific override origins, derived from the same build-time envs
 // the RPC/indexer clients read (lib/wagmi.ts, packages/indexer/urql/client.ts).
 const OVERRIDE_CONNECT_ORIGINS = [
   originFromEnvUrl(import.meta.env?.VITE_SEPOLIA_RPC_URL),
   originFromEnvUrl(import.meta.env?.VITE_INDEXER_GRAPHQL_URL),
-].filter((origin): origin is string => origin !== null)
+  originFromEnvUrl(import.meta.env?.VITE_TIME_TRAVEL_RPC),
+  DQA_ORIGIN,
+  DQA_ORIGIN?.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:'),
+].filter((origin): origin is string => origin != null)
 
 // Hosts the SPA opens network connections to (fetch / XHR / WebSocket).
 // Keep this list tight and annotated; a missing host silently breaks a flow.
@@ -87,7 +101,7 @@ const DEFAULT_CONNECT_HOSTS = [
   // the broad `img-src https:` below, so image hosts need no connect-src entry.
   'https://ipfs.io',
   'https://ipfs.euc.li',
-  // WalletConnect / RainbowKit relay, verify, pulse, explorer-api
+  // WalletConnect relay, verify, pulse, explorer-api
   'https://*.walletconnect.com',
   'wss://*.walletconnect.com',
   'https://*.walletconnect.org',
@@ -130,7 +144,11 @@ const CONNECT_HOSTS = [
 // `posthog-js/dist/module.full.no-external` (see lib/posthog/provider.tsx), so
 // the entire SDK is in our own bundle (served from 'self') and nothing loads
 // from the analytics host. PostHog ingestion calls go over connect-src instead.
-const SCRIPT_HOSTS = [] as const
+// The DQA overlay script (QA/preview builds only) is the one exception. It
+// self-hosts every dependency — html-to-image is bundled into a lazy chunk
+// served from the same origin (see packages/dqa-server/vite.config.ts) — so no
+// third-party host is needed here.
+const SCRIPT_HOSTS = DQA_ORIGIN ? [DQA_ORIGIN] : []
 
 // SHA-256 hashes of the inline scripts we allow (avoids 'unsafe-inline'). The
 // browser logs the expected hash in the CSP violation when it blocks a script.

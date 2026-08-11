@@ -29,6 +29,14 @@ const MOCK_CALLS = [
   },
 ]
 
+/** Scoped SmartSession object the SDK signs Intents with. */
+const MOCK_SESSION = {
+  owners: {
+    type: 'ecdsa',
+    accounts: [{ address: '0x5555555555555555555555555555555555555555' }],
+  },
+} as unknown as NonNullable<RhinestoneSigner['session']>['session']
+
 function createMockSigner(): RhinestoneSigner {
   return {
     type: 'rhinestone',
@@ -60,7 +68,6 @@ function createRhinestoneRequest(
     chainId: 11155111,
     rhinestoneParams: {
       calls: MOCK_CALLS,
-      sponsored: true,
     },
     ...overrides,
   }
@@ -94,7 +101,7 @@ describe('submitWarpTransaction', () => {
   it('returns error for empty calls array', async () => {
     const signer = createMockSigner()
     const request = createRhinestoneRequest({
-      rhinestoneParams: { calls: [], sponsored: true },
+      rhinestoneParams: { calls: [] },
     })
 
     const result = await submitWarpTransaction({ request, signer })
@@ -116,7 +123,8 @@ describe('submitWarpTransaction', () => {
       sourceChains: [sepolia],
       targetChain: sepolia,
       calls: MOCK_CALLS,
-      sponsored: true,
+      sponsored: { gas: false, bridging: false, swaps: false },
+      feeAsset: 'USDC',
       tokenRequests: [],
     })
     // No active session → `signers` must not be passed.
@@ -125,12 +133,9 @@ describe('submitWarpTransaction', () => {
     )
   })
 
-  it('session attached: signs the Intent with the ephemeral owner key (owner/ecdsa signers)', async () => {
+  it('session attached: signs the Intent with the scoped session (experimental_session)', async () => {
     const signer = createMockSigner()
-    const sessionAccount = {
-      address: '0x5555555555555555555555555555555555555555',
-    }
-    signer.session = { sessionAccount: sessionAccount as never }
+    signer.session = { session: MOCK_SESSION }
     const request = createRhinestoneRequest()
 
     await submitWarpTransaction({ request, signer })
@@ -138,12 +143,59 @@ describe('submitWarpTransaction', () => {
     expect(signer.account.sendTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         signers: {
-          type: 'owner',
-          kind: 'ecdsa',
-          accounts: [sessionAccount],
+          type: 'experimental_session',
+          session: MOCK_SESSION,
+          verifyExecutions: true,
         },
       }),
     )
+  })
+
+  it('attaches enableData only on the request that carries it (first HCA action)', async () => {
+    const signer = createMockSigner()
+    signer.session = { session: MOCK_SESSION }
+    const sessionEnableData = { mode: 'enable' } as never
+    const request = createRhinestoneRequest({
+      rhinestoneParams: {
+        calls: MOCK_CALLS,
+        feeAsset: 'USDC',
+        sessionEnableData,
+      },
+    })
+
+    await submitWarpTransaction({ request, signer })
+
+    expect(signer.account.sendTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signers: {
+          type: 'experimental_session',
+          session: MOCK_SESSION,
+          enableData: sessionEnableData,
+          verifyExecutions: true,
+        },
+        // User-paid standalone-HCA route: no sponsorship, fees in USDC.
+        sponsored: { gas: false, bridging: false, swaps: false },
+        feeAsset: 'USDC',
+      }),
+    )
+  })
+
+  it('rejects enableData without an active session (it can only ride a session signer)', async () => {
+    const signer = createMockSigner()
+    const request = createRhinestoneRequest({
+      rhinestoneParams: {
+        calls: MOCK_CALLS,
+        sessionEnableData: { mode: 'enable' } as never,
+      },
+    })
+
+    const result = await submitWarpTransaction({ request, signer })
+
+    expect(result._unsafeUnwrapErr()).toBeInstanceOf(TransactionSubmissionError)
+    expect(result._unsafeUnwrapErr().message).toContain(
+      'requires a signer with an active session',
+    )
+    expect(signer.account.sendTransaction).not.toHaveBeenCalled()
   })
 
   it('calls waitForExecution and returns receipt.fill.hash', async () => {
@@ -160,7 +212,11 @@ describe('submitWarpTransaction', () => {
     expect(result._unsafeUnwrap()).toBe(MOCK_TX_HASH)
   })
 
-  it('defaults sponsored to true when not specified', async () => {
+  it('always sends the user-paid shape — sponsorship is not requestable', async () => {
+    // Gas sponsorship does not exist on this deployment, and there is no
+    // caller-facing knob or env flag to turn it on. This used to default to
+    // `true` whenever `sponsored` was omitted, so every new call site
+    // silently asked for a subsidy no relayer here offers.
     const signer = createMockSigner()
     const request = createRhinestoneRequest({
       rhinestoneParams: { calls: MOCK_CALLS },
@@ -169,7 +225,10 @@ describe('submitWarpTransaction', () => {
     await submitWarpTransaction({ request, signer })
 
     expect(signer.account.sendTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ sponsored: true }),
+      expect.objectContaining({
+        sponsored: { gas: false, bridging: false, swaps: false },
+        feeAsset: 'USDC',
+      }),
     )
   })
 

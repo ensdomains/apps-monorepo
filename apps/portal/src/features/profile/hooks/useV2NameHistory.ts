@@ -50,9 +50,19 @@ const getV2NameHistory = ResultFn(async function* ({
     graphqlIndexerClient.request<{
       domains: V2DomainWithEvents[]
     }>(
+      // `domains` MUST be bounded. The name filter matches at most one domain
+      // (we read `domains[0]` below), but an unbounded connection is costed at
+      // the server's default page size of 100, and the cost multiplies through
+      // `events`: 100 x 1000 x fields = 600100, over the complexity limit.
+      // With `first: 1` even `events(first: 1000)` is comfortably under.
+      //
+      // Ordering is applied server-side, in SQL, BEFORE `first` truncates —
+      // which is what makes `{ first: n, orderDirection: 'asc' }` return the
+      // OLDEST n rather than the newest n rearranged. Sorting the page in the
+      // client cannot reproduce that.
       gql`
         query getV2NameHistory($name: String!, $first: Int, $orderDirection: OrderDirection) {
-          domains(where: { name: $name }) {
+          domains(where: { name: $name }, first: 1) {
             events(first: $first, orderBy: timestamp, orderDirection: $orderDirection${typeFilter}) {
               name
               type

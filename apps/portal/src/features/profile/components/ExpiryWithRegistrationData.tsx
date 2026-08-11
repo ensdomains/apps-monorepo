@@ -2,6 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ClockIcon } from 'lucide-react'
 import { useBlock } from 'wagmi'
 import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useBlockExplorerTxUrl } from '@/utils/blockExplorer/useBlockExplorerUrl'
 import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
@@ -24,7 +25,12 @@ const RegistrationDate = ({ blockNumber }: RegistrationDateProps) => {
     blockNumber: BigInt(blockNumber),
   })
 
-  if (error) return <div>Error: {error.message}</div>
+  if (error)
+    return (
+      <span className="text-p text-message-danger-text">
+        Error loading date
+      </span>
+    )
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (!data) return null
@@ -100,21 +106,29 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     getV2RegistrationDataQueryOptions({ name }),
   )
 
-  const { data: earliestEvents } = useQuery(
-    getV2NameHistoryQueryOptions({ name, first: 10, orderDirection: 'asc' }),
+  // Ask the indexer for the registration event directly rather than scanning a
+  // window of recent history for it. `orderDirection` is applied in SQL before
+  // `first` truncates, so `asc` + `first: 1` is genuinely the earliest
+  // NameRegistered — a fixed window would miss it on any name with more
+  // history than the window.
+  const { data: registrationEvents } = useQuery(
+    getV2NameHistoryQueryOptions({
+      name,
+      first: 1,
+      orderDirection: 'asc',
+      eventTypes: ['NameRegistered'],
+    }),
   )
 
-  const registrationTxHash = earliestEvents?.find(
-    (event) => event.type === 'NameRegistered',
-  )?.transactionHash
+  const registrationTxHash = registrationEvents?.[0]?.transactionHash
   const registrationTxUrl = useBlockExplorerTxUrl(registrationTxHash)
 
   if (error)
     return (
-      <div>
-        Failed to fetch registration data:{' '}
-        {error.cause?.message || error.message}
-      </div>
+      <ErrorMessage
+        compact
+        description="Error fetching registration data. Please refresh the page."
+      />
     )
 
   if (isLoading)

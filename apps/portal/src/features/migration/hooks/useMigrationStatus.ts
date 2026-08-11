@@ -9,7 +9,7 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { createSubgraphClient } from '@ensdomains/ensjs/subgraph'
 import { gql } from 'graphql-request'
 import { err, fromPromise, ok } from 'neverthrow'
-import type { Address, PublicClient } from 'viem'
+import { type Address, isAddress, type PublicClient } from 'viem'
 import { safeGetClient } from '@/lib/wagmi/helpers'
 
 /**
@@ -28,16 +28,22 @@ class GetMigrationStatusError extends TaggedError('GetMigrationStatusError')<{
 
 type GetMigrationStatusParameters = {
   name: string
-  /** The wallet to evaluate migratability for; the verdict is owner-scoped. */
-  address: Address | undefined
+  /**
+   * The wallet to evaluate migratability for. Omit for a name-scoped verdict:
+   * migratability is then evaluated against the name's own V1 token holder —
+   * wrappedOwner while the wrap is live, otherwise the Base Registrar
+   * registrant (the registry `owner` is the controller, which may be a
+   * different address, so it is only a last-resort fallback). Use the
+   * name-scoped form for surfaces shown to any visitor (e.g. the registry
+   * page's migrate prompt).
+   */
+  address?: Address
 }
 
 const getMigrationStatus = ResultFn(async function* ({
   name,
   address,
 }: GetMigrationStatusParameters) {
-  if (!address) return ok<MigrationStatus>({ migratable: false })
-
   const client = yield* safeGetClient()
   const subgraphClient = createSubgraphClient(client)
 
@@ -68,7 +74,16 @@ const getMigrationStatus = ResultFn(async function* ({
   const domain = domains[0] ?? null
   if (!domain) return ok<MigrationStatus>({ migratable: false })
 
-  const classified = classifyName(domain, address)
+  const holderCandidate =
+    address ??
+    domain.wrappedOwner?.id ??
+    domain.registrant?.id ??
+    domain.owner?.id
+  if (!holderCandidate || !isAddress(holderCandidate))
+    return ok<MigrationStatus>({ migratable: false })
+  const evaluationAddress = holderCandidate
+
+  const classified = classifyName(domain, evaluationAddress)
   if (classified?.type !== 'classified')
     return ok<MigrationStatus>({ migratable: false })
 
@@ -76,7 +91,7 @@ const getMigrationStatus = ResultFn(async function* ({
     runEligibilityChecks(
       client as unknown as PublicClient,
       [classified.name],
-      address,
+      evaluationAddress,
     ),
     (e) => new GetMigrationStatusError({ cause: e }),
   )
@@ -106,6 +121,6 @@ export const getMigrationStatusQueryOptions = (
   resultQueryOptions({
     queryKey: getMigrationStatusQueryKey(params),
     queryFn: ({ queryKey: [, params] }) => getMigrationStatus(params),
-    enabled: !!params.name && !!params.address,
+    enabled: !!params.name,
     retry: 2,
   })

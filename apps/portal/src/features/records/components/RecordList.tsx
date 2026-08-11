@@ -11,6 +11,7 @@ import {
 import { Search } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { EditNoteIcon } from '@/assets/icons'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -30,7 +31,7 @@ export const RecordList = ({
 }: {
   name: string
   records: GetRecordsReturnType
-  /** Whether the connected user can edit records (owner check) */
+  /** Whether the connected user can edit records */
   canEdit?: boolean
   /** The protocol version of the name */
   protocolVersion?: ProtocolVersion
@@ -63,7 +64,9 @@ export const RecordList = ({
     <>
       <header className="flex flex-col gap-4">
         <div className="flex flex-row justify-between">
-          <h1 className="text-h1">{recordCount} Records</h1>
+          <h1 className="text-h1">
+            {recordCount > 0 ? `${recordCount} Records` : 'Records'}
+          </h1>
           {canEdit && (
             <Button
               variant="default"
@@ -77,25 +80,35 @@ export const RecordList = ({
             </Button>
           )}
         </div>
-        <InputGroup className="bg-background rounded-sm">
-          <InputGroupInput
-            id={searchRecordsId}
-            className="w-full"
-            placeholder="Search records..."
-            onChange={(event) => table.setGlobalFilter(event.target.value)}
-          />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
+        {recordCount > 0 && (
+          <InputGroup className="bg-background rounded-sm">
+            <InputGroupInput
+              id={searchRecordsId}
+              className="w-full"
+              placeholder="Search records..."
+              onChange={(event) => table.setGlobalFilter(event.target.value)}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        )}
       </header>
-      <div className="overflow-x-auto">
-        <RecordsTable
-          name={name}
-          table={table}
-          protocolVersion={protocolVersion}
+      {recordCount > 0 ? (
+        <div className="overflow-x-auto">
+          <RecordsTable
+            name={name}
+            table={table}
+            protocolVersion={protocolVersion}
+          />
+        </div>
+      ) : (
+        <NoResultsMessage
+          title="No records set"
+          description="Records store information linked to this name like addresses or profile information."
+          className="mx-0"
         />
-      </div>
+      )}
     </>
   )
 }

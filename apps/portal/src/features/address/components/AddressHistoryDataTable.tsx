@@ -78,16 +78,16 @@ export const AddressHistoryDataTable = ({
   if (timestampsError) {
     return (
       <ErrorMessage
-        title="Error loading timestamps"
-        description={timestampsError.cause?.message}
+        compact
+        description="Error fetching timestamps. Please refresh the page."
       />
     )
   }
   if (sendersError) {
     return (
       <ErrorMessage
-        title="Error loading transaction senders"
-        description={sendersError.cause?.message}
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
       />
     )
   }
@@ -95,10 +95,14 @@ export const AddressHistoryDataTable = ({
   // Check if there's no history data
   if (eventsDataWithTimestampsAndSenders.length === 0) {
     return (
-      <NoResultsMessage
-        title="No history yet"
-        description="This address doesn't have any recorded history. Activity will appear here once transactions are made."
-      />
+      <div className="flex flex-col gap-8">
+        <h1 className="text-h1">History</h1>
+        <NoResultsMessage
+          title="No history yet"
+          description="This address doesn't have any recorded history. Activity will appear here once transactions are made."
+          className="mx-0"
+        />
+      </div>
     )
   }
 

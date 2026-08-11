@@ -124,10 +124,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     return (
       <MessageCard
         variant="danger"
-        icon={<AlertCircle className="size-8" strokeWidth={1.5} />}
+        icon={<AlertCircle className="size-6" strokeWidth={1.5} />}
         title="Could not check availability"
         description={
-          <div className="text-base">
+          <div>
             <p>
               We couldn&apos;t verify if this name is available. Please try
               again.
@@ -145,10 +145,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
   if (isNameTaken && !isRegistering && !isSuccess) {
     return (
       <MessageCard
-        icon={<UserCheck className="size-8" strokeWidth={1.5} />}
+        icon={<UserCheck className="size-6" strokeWidth={1.5} />}
         title={`${name} is already registered`}
         description={
-          <div className="text-base">
+          <div>
             <p>
               This name is already registered. View its profile to see details
               and records.
@@ -179,6 +179,10 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
           />
           <RegisterNameCheckoutSummary name={name} duration={duration} />
           <PaymentTokenSection
+            // The section snapshots the selected token WITH its quote, and the
+            // quote is duration-keyed — remount on duration change so a stale
+            // (lower) quote can never be carried into the approval.
+            key={duration}
             name={name}
             duration={duration}
             onConfirm={handleConfirm}

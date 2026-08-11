@@ -121,7 +121,6 @@ describe('run telemetry service v2', () => {
             value: 5n,
           },
         ],
-        sponsored: true,
       },
     }
 

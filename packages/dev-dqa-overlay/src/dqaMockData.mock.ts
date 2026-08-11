@@ -91,8 +91,9 @@ export const mockComments: readonly DqaCommentSummary[] = [
   },
 ]
 
-export const mockOpenCount = mockComments.filter((c) => c.status !== 'resolved')
-  .length
+export const mockOpenCount = mockComments.filter(
+  (c) => c.status !== 'resolved',
+).length
 
 export const mockPageIssueRef = DQA_LINEAR_ISSUE ?? 'WEB-495'
 

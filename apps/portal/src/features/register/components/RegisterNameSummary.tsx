@@ -79,7 +79,7 @@ export const RegisterNameCheckoutSummary = ({
     <Fragment>
       {premiumRange && (
         <Alert variant="warning" className="flex p-5 items-center">
-          <AlertDescription className="text-base flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
+          <AlertDescription className="flex flex-col md:flex-row items-center justify-center md:justify-between gap-4">
             <SirenIcon className="size-6 shrink-0" />
             <p className="text-center md:text-left">
               This name is subject to a temporary premium for{' '}

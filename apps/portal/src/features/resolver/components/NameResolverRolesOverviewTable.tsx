@@ -26,14 +26,15 @@ export const NameResolverRolesOverviewTable = ({ name }: { name: string }) => {
   if (error)
     return (
       <ErrorMessage
-        title="Resolver address unavailable"
-        description={error.message}
+        compact
+        description="Error fetching the resolver address. Please refresh the page."
       />
     )
 
   if (!resolverAddress)
     return (
       <NoResultsMessage
+        className="mx-0"
         title="No resolver set"
         description={`${name} doesn't have a resolver, so there are no resolver roles to show.`}
       />
@@ -64,8 +65,8 @@ const ResolverRolesOverview = ({
   if (error)
     return (
       <ErrorMessage
-        title="Resolver roles unavailable"
-        description={error.cause?.message}
+        compact
+        description="Error fetching resolver roles. Please refresh the page."
       />
     )
 
@@ -85,13 +86,21 @@ const ResolverRolesOverview = ({
           </Link>
         </Button>
       </div>
-      <ResolverRolesTable
-        roles={roles}
-        nodes={overview?.nodes ?? []}
-        resolverAddress={resolverAddress}
-        canManageRoles={false}
-        disableEdit
-      />
+      {roles.length === 0 ? (
+        <NoResultsMessage
+          title="No role holders yet"
+          description="Accounts with roles on this resolver will appear here."
+          className="mx-0"
+        />
+      ) : (
+        <ResolverRolesTable
+          roles={roles}
+          nodes={overview?.nodes ?? []}
+          resolverAddress={resolverAddress}
+          canManageRoles={false}
+          disableEdit
+        />
+      )}
     </div>
   )
 }

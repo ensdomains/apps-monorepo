@@ -13,12 +13,21 @@
  *   4. getRegisterPrice → approve USDC → register
  *   5. (If negative duration) increaseTime to push past expiry
  */
+
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { setRecords } from '@ensdomains/ensjs/wallet'
+
+import {
+  permissionedRegistryGetExpirySnippet,
+  proxyDeployedEventSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2'
 import {
   type Address,
-  type Hash,
   createWalletClient,
   decodeEventLog,
   encodeFunctionData,
+  type Hash,
   http,
   keccak256,
   parseAbi,
@@ -28,21 +37,13 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-
-import {
-  permissionedRegistryGetExpirySnippet,
-  proxyDeployedEventSnippet,
-  subregistryInitializeSnippet,
-  verifiableFactoryDeployProxySnippet,
-} from '@ensdomains/ensjs-abi/v2'
-import { setRecords } from '@ensdomains/ensjs/wallet'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-
 import {
   publicClient,
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+// ensjs-abi still ships the 2-arg initializer; see the local override.
+import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -54,7 +55,8 @@ const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
 // Shared dedicated resolver for names that don't need custom records
 const DEDICATED_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d' as const
-const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const PERMISSIONED_RESOLVER_IMPL =
+  ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
 const REFERRER = zeroHash
 
@@ -179,7 +181,10 @@ export function createMakeName({ accounts, time }: Dependencies) {
       registrationDuration = MIN_REGISTRATION_DURATION
       desiredGapPastExpiry = Math.abs(requestedDuration)
     } else {
-      registrationDuration = Math.max(requestedDuration, MIN_REGISTRATION_DURATION)
+      registrationDuration = Math.max(
+        requestedDuration,
+        MIN_REGISTRATION_DURATION,
+      )
     }
 
     const secret = keccak256(toHex(`${uniqueLabel}:${Math.random()}`))
@@ -374,7 +379,7 @@ async function deployResolverProxy(
   const initCalldata = encodeFunctionData({
     abi: subregistryInitializeSnippet,
     functionName: 'initialize',
-    args: [owner, FULL_ROLE_BITMAP],
+    args: [owner, FULL_ROLE_BITMAP, []],
   })
   const deployData = encodeFunctionData({
     abi: verifiableFactoryDeployProxySnippet,

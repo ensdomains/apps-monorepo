@@ -20,3 +20,25 @@ export class SessionRestoreError extends TaggedError('SessionRestoreError')<{
   message: string
   cause?: unknown
 }> {}
+
+/** Raised when creating the in-memory HCA account via the SDK fails. */
+export class AccountInitError extends TaggedError('AccountInitError')<{
+  message: string
+  cause?: unknown
+}> {}
+
+/**
+ * Raised when adopting an already-deployed HCA fails verification
+ * (owner / accountId / implementation mismatch). Carries the offending
+ * field so the UI can show a precise recovery state and NEVER silently
+ * fall back to a different HCA.
+ */
+export class AccountVerificationError extends TaggedError(
+  'AccountVerificationError',
+)<{
+  message: string
+  field: 'owner' | 'authorizedOwner' | 'accountId' | 'implementation'
+  expected: string
+  actual: string
+  cause?: unknown
+}> {}

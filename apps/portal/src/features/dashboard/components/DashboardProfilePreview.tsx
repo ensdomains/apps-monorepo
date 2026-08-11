@@ -1,5 +1,6 @@
 import { disconnect } from '@wagmi/core'
 import { useConnection, useEnsName } from 'wagmi'
+import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { wagmiConfig } from '@/lib/wagmi'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
@@ -18,7 +19,13 @@ export const DashboardProfilePreview = () => {
     address,
   })
 
-  if (error) return <div>Error loading profile: {error.message}</div>
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error loading your profile. Please refresh the page."
+      />
+    )
   if (isLoading) return <LoadingSpinner title="Loading..." />
 
   if (address) {

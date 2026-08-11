@@ -15,7 +15,10 @@ import { toast } from 'sonner'
 import { match } from 'ts-pattern'
 import type { Address, Hash } from 'viem'
 import { useConnection } from 'wagmi'
-import { CopyableRecord } from '@/components/CopyableRecord'
+import { EntityBadge } from '@/components/EntityBadge'
+import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
+import { InfoRow } from '@/components/InfoCard'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +30,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { getEnsOwner } from '@/features/profile/hooks/useEnsOwner'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
@@ -37,6 +39,7 @@ import { useTransactionModal } from '@/features/transaction-manager/hooks/useTra
 import { useIsMobile } from '@/hooks/use-mobile'
 import { DEFAULT_EVM_COIN_TYPE } from '@/lib/coinType'
 import { isL1ReverseRegistrarChainId } from '@/lib/reverseRegistrarChainId'
+import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { groupEventsByTransactionId } from '@/utils/history/groupEventsByTransactionId'
 import { computeDisplayNameState } from '@/utils/reverseResolution/computeDisplayNameState'
 import { prepareSetForwardResolutionTransaction } from '../../helpers/setForwardResolution'
@@ -88,13 +91,19 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
   }
 
   if (timestampsError) {
-    return <div>Error loading timestamps: {timestampsError.cause?.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching timestamps. Please refresh the page."
+      />
+    )
   }
   if (sendersError) {
     return (
-      <div>
-        Error loading transaction senders: {sendersError.cause?.message}
-      </div>
+      <ErrorMessage
+        compact
+        description="Error fetching transaction senders. Please refresh the page."
+      />
     )
   }
 
@@ -110,16 +119,23 @@ const AddressHistory = ({ history, name }: AddressHistoryProps) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-row justify-between items-center">
-        <h3 className="text-2xl font-medium">History</h3>
-        <Button variant="ghost" size="sm" asChild>
-          <Link to="/$name/history" params={{ name }}>
-            <Clock className="size-4" />
-            Full history
-          </Link>
-        </Button>
-      </div>
-      <EventsDataTable name={name} data={dataWithTimestampsAndSenders} />
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" asChild>
+            <Link to="/$name/history" params={{ name }}>
+              <Clock className="size-4" />
+              Full history
+            </Link>
+          </Button>
+        }
+      />
+      <EventsDataTable
+        enableTransactionCount={false}
+        enableFilters={false}
+        enableSearch={false}
+        name={name}
+        data={dataWithTimestampsAndSenders}
+      />
     </div>
   )
 }
@@ -141,7 +157,12 @@ const HistoryView = ({ name }: HistoryViewProps) => {
   )
 
   if (error) {
-    return <div>History Error: {error.cause?.message || error.message}</div>
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching history. Please refresh the page."
+      />
+    )
   }
 
   if (isLoading) return <div>Loading history...</div>
@@ -394,11 +415,13 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-[880px] bg-background overflow-y-auto"
+          className="bg-background p-0"
         >
-          <div className="p-6 flex flex-col gap-6">
-            <div className="text-muted-foreground text-center py-12">
-              No resolution selected
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 flex flex-col gap-6">
+              <div className="text-muted-foreground text-center py-12">
+                No resolution selected
+              </div>
             </div>
           </div>
         </SheetContent>
@@ -584,130 +607,116 @@ export const ReverseResolutionSidebar: FC<ReverseResolutionSidebarProps> = ({
       {children}
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
-        className="sm:max-w-[880px] bg-background overflow-y-auto"
+        className="bg-background p-0"
       >
-        <div className="p-6 flex flex-col gap-6">
-          <SheetHeader>
-            <div className="flex flex-row justify-between items-center">
-              <SheetTitle className="font-sans text-h2">
-                {label} resolution
-              </SheetTitle>
-              {canSetAsPrimary && !isDefaultRow && (
-                <Button
-                  onClick={handleSetPrimaryName}
-                  variant="default"
-                  disabled={
-                    !isConnected ||
-                    isEnsOwnerLoading ||
-                    isForwardResolutionPending ||
-                    isSwitchingChainForForward
-                  }
-                >
-                  {match({
-                    isConnected,
-                    isSwitchingChain: isSwitchingChainForForward,
-                    isWrongChain: isWrongChainForForward,
-                  })
-                    .with({ isConnected: false }, () => 'Connect Wallet')
-                    .with({ isSwitchingChain: true }, () => 'Switching...')
-                    .with({ isWrongChain: true }, () => 'Switch Network')
-                    .otherwise(() => 'Set primary name')}
-                </Button>
-              )}
-            </div>
-          </SheetHeader>
-
-          {/* Banner */}
-          {isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
-              <CheckCircle2 className="w-6 h-6 shrink-0" />
-              <span className="font-medium">
-                This is the primary name on {label}
-              </span>
-            </div>
-          )}
-
-          {!isPrimaryName && displayName && (
-            <div className="flex items-center gap-3 bg-muted p-4 rounded-md">
-              <XCircle className="w-6 h-6 shrink-0" />
-              <span className="text-sm">
-                The set address does not resolve back to this name on {label}
-              </span>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-row items-start">
-              <div className="w-40 font-medium">Network</div>
-              <div className="flex items-center gap-2">
-                {icon && <img src={icon} alt={label} className="w-5 h-5" />}
-                <span>{label}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-row items-start">
-              <div className="w-40 font-medium">Name</div>
-              <ReverseNameField
-                displayName={displayName}
-                isInheritingDefault={isInheritingDefault}
-                isDefaultRow={isDefaultRow}
-                nameInput={nameInput}
-                onNameChange={handleNameChange}
-                onSubmit={handleUpdate}
-                isConnected={isConnected}
-                isReverseResolutionPending={isReverseResolutionPending}
-                isL2ReverseNamePending={isL2ReverseNamePending}
-                isSwitchingChain={isSwitchingChain}
-                isWrongChain={isWrongChain}
-              />
-            </div>
-
-            <div className="flex flex-row items-start">
-              <div className="w-40 font-medium">Primary name</div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {isPrimaryName ? (
-                  <Badge variant="outline" className="text-xs">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>True</span>
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs">
-                    <XCircle className="w-4 h-4" />
-                    <span>False</span>
-                  </Badge>
-                )}
-                <div className="flex flex-row items-center gap-2">
-                  <CopyableRecord
-                    value={address}
-                    truncate
-                    displayValue={
-                      <span className="flex items-center gap-1">
-                        {address.slice(0, 5)}...
-                        {address.slice(-4)}
-                      </span>
+        <div className="h-full overflow-y-auto">
+          <div className="p-6 flex flex-col gap-6 [&_[data-slot=info-row]]:px-0">
+            <SheetHeader className="p-0">
+              <div className="flex flex-row justify-between items-center">
+                <SheetTitle className="font-sans text-h2">
+                  {label} resolution
+                </SheetTitle>
+                {canSetAsPrimary && !isDefaultRow && (
+                  <Button
+                    onClick={handleSetPrimaryName}
+                    variant="default"
+                    disabled={
+                      !isConnected ||
+                      isEnsOwnerLoading ||
+                      isForwardResolutionPending ||
+                      isSwitchingChainForForward
                     }
-                    className="font-mono text-sm"
-                  />
-                  <ArrowLeftRight className="w-5 h-5" />
-                  {displayName && (
-                    <div className="flex items-center gap-2 flex-1">
-                      <NameAvatar
-                        name={displayName}
-                        width="20px"
-                        height="20px"
-                      />
-                      <span>{displayName}</span>
-                    </div>
-                  )}
-                </div>
+                  >
+                    {match({
+                      isConnected,
+                      isSwitchingChain: isSwitchingChainForForward,
+                      isWrongChain: isWrongChainForForward,
+                    })
+                      .with({ isConnected: false }, () => 'Connect Wallet')
+                      .with({ isSwitchingChain: true }, () => 'Switching...')
+                      .with({ isWrongChain: true }, () => 'Switch Network')
+                      .otherwise(() => 'Set primary name')}
+                  </Button>
+                )}
               </div>
-            </div>
+            </SheetHeader>
 
-            {displayName && (
-              <div className="border-t pt-6">
-                <HistoryView name={displayName} />
+            {/* Banner */}
+            {isPrimaryName && displayName && (
+              <div className="flex items-center gap-3 bg-success-fill text-success-text p-4 rounded-md">
+                <CheckCircle2 className="w-6 h-6 shrink-0" />
+                <span className="font-medium">
+                  This is the primary name on {label}
+                </span>
               </div>
             )}
+
+            {!isPrimaryName && displayName && (
+              <div className="flex items-center gap-3 bg-danger-fill text-danger-text p-4 rounded-md">
+                <XCircle className="w-6 h-6 shrink-0" />
+                <span className="text-sm">
+                  The set address does not resolve back to this name on {label}
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-6">
+              <InfoRow label="Network">
+                <div className="flex items-center gap-2">
+                  {icon && <img src={icon} alt={label} className="w-5 h-5" />}
+                  <span>{label}</span>
+                </div>
+              </InfoRow>
+
+              <InfoRow label="Name">
+                <ReverseNameField
+                  displayName={displayName}
+                  isInheritingDefault={isInheritingDefault}
+                  isDefaultRow={isDefaultRow}
+                  nameInput={nameInput}
+                  onNameChange={handleNameChange}
+                  onSubmit={handleUpdate}
+                  isConnected={isConnected}
+                  isReverseResolutionPending={isReverseResolutionPending}
+                  isL2ReverseNamePending={isL2ReverseNamePending}
+                  isSwitchingChain={isSwitchingChain}
+                  isWrongChain={isWrongChain}
+                />
+              </InfoRow>
+
+              <InfoRow label="Primary name">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isPrimaryName ? (
+                    <Badge variant="outline" className="text-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>True</span>
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs">
+                      <XCircle className="w-4 h-4" />
+                      <span>False</span>
+                    </Badge>
+                  )}
+                  <div className="flex flex-row items-center gap-2">
+                    <EntityBadge variant="address" address={address}>
+                      {truncateAddress(address, 5, 4, '...')}
+                    </EntityBadge>
+                    <ArrowLeftRight className="w-5 h-5" />
+                    {displayName && (
+                      <EntityBadge variant="name" name={displayName} showAvatar>
+                        {displayName}
+                      </EntityBadge>
+                    )}
+                  </div>
+                </div>
+              </InfoRow>
+
+              {displayName && (
+                <div className="border-t pt-6">
+                  <HistoryView name={displayName} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </SheetContent>

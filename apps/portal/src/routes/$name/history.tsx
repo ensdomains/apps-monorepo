@@ -1,84 +1,20 @@
-import { useQueries } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { ErrorMessage } from '@/components/ErrorMessage'
-import { LoadingMessage } from '@/components/LoadingMessage'
-import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { HistoryDataTable } from '@/features/history/components/HistoryDataTable'
-import { getNameHistoryQueryOptions } from '@/features/profile/hooks/useNameHistory'
-import { getV2NameHistoryQueryOptions } from '@/features/profile/hooks/useV2NameHistory'
+import { HistoryTimeline } from '@/features/history/components/HistoryTimeline'
+import { getNameHistoryTimelineQueryOptions } from '@/features/history/hooks/useNameHistoryTimeline'
 import { queryClient } from '@/utils/queryClient'
 
 export const Route = createFileRoute('/$name/history')({
   component: RouteComponent,
   notFoundComponent: () => <NotFoundMessage />,
-  loader: ({ params }) => {
-    return Promise.all([
-      queryClient.prefetchQuery(
-        getNameHistoryQueryOptions({ name: params.name }),
-      ),
-      queryClient.prefetchQuery(
-        getV2NameHistoryQueryOptions({ name: params.name }),
-      ),
-    ])
-  },
+  loader: ({ params }) =>
+    queryClient.prefetchQuery(
+      getNameHistoryTimelineQueryOptions({ name: params.name }),
+    ),
 })
 
 function RouteComponent() {
   const { name } = Route.useParams()
 
-  const [v1Query, v2Query] = useQueries({
-    queries: [
-      getNameHistoryQueryOptions({ name }),
-      getV2NameHistoryQueryOptions({ name }),
-    ],
-  })
-
-  if (v1Query.isLoading || v2Query.isLoading) {
-    return <LoadingMessage />
-  }
-
-  if (v1Query.error) {
-    return (
-      <ErrorMessage
-        title="Error loading V1 history"
-        description={v1Query.error.cause?.message}
-      />
-    )
-  }
-
-  if (v2Query.error) {
-    return (
-      <ErrorMessage
-        title="Error loading V2 history"
-        description={v2Query.error.cause?.message}
-      />
-    )
-  }
-
-  const hasV1Data =
-    v1Query.data &&
-    Object.values(v1Query.data).some(
-      (arr) => Array.isArray(arr) && arr.length > 0,
-    )
-  const hasV2Data = v2Query.data && v2Query.data.length > 0
-
-  if (!hasV1Data && !hasV2Data) {
-    return (
-      <NoResultsMessage
-        title="No history yet"
-        description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
-      />
-    )
-  }
-
-  return (
-    <HistoryDataTable
-      name={name}
-      history={{
-        v1History: v1Query.data,
-        v2History: v2Query.data,
-      }}
-    />
-  )
+  return <HistoryTimeline name={name} />
 }

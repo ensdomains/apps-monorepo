@@ -4,7 +4,6 @@ import { CheckIcon } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { useChainId } from 'wagmi'
 import {
   ChipCopyIcon,
   ChipLinkIcon,
@@ -63,6 +62,20 @@ export const hoverBgClass: Record<EntityVariant, string> = {
 const pillBase =
   'inline-flex items-center h-5 px-1 rounded w-fit ' +
   'leading-none whitespace-nowrap no-underline'
+
+// format-specific classes: truncate needs the min-width chain broken at every
+// flex level so the fill shrinks WITH the text; wrap trades the fixed pill
+// height for multi-line content that stays inside the fill.
+const formatConstraintClass: Record<string, string> = {
+  inline: '',
+  truncate: 'max-w-full min-w-0',
+  wrap: '',
+}
+const formatPillClass: Record<string, string> = {
+  inline: '',
+  truncate: 'max-w-full min-w-0',
+  wrap: 'h-auto min-h-5 whitespace-normal',
+}
 
 const pillType = (variant: EntityVariant) =>
   variant === 'name' ? 'text-entity-name' : 'text-entity-base'
@@ -153,6 +166,24 @@ interface EntityBadgeProps {
   readonly copyValue?: string
   /** Opt-in to a leading NameAvatar (only renders for variant="name" + name). */
   readonly showAvatar?: boolean
+  /**
+   * Figma entity type. "action" (default) always shows the fill; "content"
+   * shows plain text at rest and only fills on hover/focus — meant for long
+   * lists of hashes and values where permanent pills would be noisy.
+   */
+  readonly type?: 'action' | 'content'
+  /**
+   * Figma entity format. "inline" (default) sizes to its content; "truncate"
+   * ellipsizes inside the fill when the container constrains it (tables);
+   * "wrap" breaks long values across lines inside the fill (overlays).
+   */
+  readonly format?: 'inline' | 'truncate' | 'wrap'
+  /**
+   * Drop the vertical padding the chip-enhanced variant reserves for its hover
+   * chips, so the badge doesn't inflate dense rows. The chips still overflow on
+   * hover (they're absolutely positioned) — only the reserved layout height is gone.
+   */
+  readonly compact?: boolean
 }
 
 export const EntityBadge = ({
@@ -169,9 +200,10 @@ export const EntityBadge = ({
   etherscanHref,
   copyValue,
   showAvatar = false,
+  type = 'action',
+  format = 'inline',
+  compact = false,
 }: EntityBadgeProps) => {
-  const chainId = useChainId()
-
   const labelContent = label ? (
     <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
       {label}
@@ -187,9 +219,7 @@ export const EntityBadge = ({
   })
   const isResolver = resolverInterfaces?.some(Boolean) ?? false
   const contractName =
-    variant === 'contract' && address
-      ? getEnsContractName(chainId, address)
-      : undefined
+    variant === 'contract' && address ? getEnsContractName(address) : undefined
 
   const derivedCopyValue =
     copyValue ?? (variant === 'name' ? name : address) ?? ''
@@ -214,11 +244,27 @@ export const EntityBadge = ({
     derivedCopyValue
   )
 
+  const content =
+    format === 'truncate' ? (
+      <span className="truncate">{children}</span>
+    ) : format === 'wrap' ? (
+      <span className="break-all">{children}</span>
+    ) : (
+      children
+    )
+
   if (!hasChips) {
     return (
-      <span className={cn(pillClass(variant, className), 'h-6 rounded')}>
+      <span
+        className={cn(
+          pillClass(variant, className),
+          'h-6 rounded',
+          formatPillClass[format],
+          type === 'content' && 'bg-transparent dark:bg-transparent',
+        )}
+      >
         {labelContent}
-        {children}
+        {content}
       </span>
     )
   }
@@ -226,8 +272,16 @@ export const EntityBadge = ({
   // Real <Link>/<a> elements preserve middle-click, ⌘+click, "Open in new
   // tab", status-bar URL preview, and right-click affordances — none of
   // which work with a button + navigate() pattern.
-  const primaryWrapperClass =
-    'inline-flex items-center gap-2 py-4 px-2 rounded cursor-pointer text-left no-underline'
+  const primaryWrapperClass = cn(
+    'inline-flex items-center gap-2 px-2 rounded cursor-pointer text-left no-underline',
+    formatConstraintClass[format],
+    // `py-2.5` reserves room for the hover chips (which sit above the pill). `compact`
+    // drops it for dense rows — the chips still overflow, they just aren't reserved for.
+    compact ? 'py-0' : 'py-2.5',
+    // avatar pills are h-6 (24px), so tighten the hover bridge to keep the
+    // whole badge at exactly 40px like text-only pills (20px + 2*10px)
+    resolvedAvatar && !compact && 'py-2',
+  )
 
   const renderPrimary = () => {
     if (variant === 'name' && name) {
@@ -301,11 +355,7 @@ export const EntityBadge = ({
         </a>
       )
     }
-    return (
-      <div className="inline-flex items-center gap-2 py-4 px-2 rounded">
-        {pillNode}
-      </div>
-    )
+    return <div className={primaryWrapperClass}>{pillNode}</div>
   }
 
   /*
@@ -319,10 +369,19 @@ export const EntityBadge = ({
    * makes it smooth without any layout shift.
    */
   const pillNode = (
-    <span className="relative inline-flex items-center">
+    <span
+      className={cn(
+        'relative inline-flex items-center',
+        formatConstraintClass[format],
+      )}
+    >
       <span
         className={cn(
-          'absolute rounded transition-[inset] duration-150',
+          'absolute rounded transition-[inset,opacity] duration-150',
+          // Content entities keep the fill hidden until hover/focus reveals
+          // the chips, so resting rows read as plain text.
+          type === 'content' &&
+            'opacity-0 group-hover/entity:opacity-100 group-has-[:focus-visible]/entity:opacity-100',
           // Horizontal px-1 on the pill adds 4px of internal colored area on
           // each side; vertical centering in h-5 adds only 3px. Use -1px x-inset
           // vs -2px y-inset so the visible rim is equal (~5px) on all sides.
@@ -347,17 +406,18 @@ export const EntityBadge = ({
         className={cn(
           pillBase,
           pillType(variant),
+          formatPillClass[format],
           'relative z-10',
           variantTextClass[variant],
-          // Avatar sits flush against the left edge — remove left padding
+          // Keep px-1 around the avatar so the fill visibly wraps it
           // and add gap-1 so avatar doesn't touch the text
-          resolvedAvatar && 'pl-0 gap-1.5',
+          resolvedAvatar && 'h-6 gap-1.5',
           className,
         )}
       >
-        {resolvedAvatar}
+        {resolvedAvatar && <span className="shrink-0">{resolvedAvatar}</span>}
         {labelContent}
-        {children}
+        {content}
       </span>
     </span>
   )
@@ -366,26 +426,27 @@ export const EntityBadge = ({
     <div
       className={cn(
         'relative group/entity inline-flex -ml-2',
+        format === 'truncate' && 'max-w-full',
         // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
         // sits flush with the container's left edge.
       )}
     >
       {/*
         Chip container's bottom-left corner sits INSIDE the hover zone:
-        - `bottom: calc(100% - 12px)` puts chip bottom 12px below wrapper top
-          (= 4px above pill top, bridged by the inner wrapper's py-4)
+        - `bottom: calc(100% - 6px)` puts chip bottom 6px below wrapper top
+          (= 4px above pill top, bridged by the inner wrapper's py-2.5)
         - `left-2` puts chip left 8px inside wrapper from left
           (matching Figma's chip-to-bg-edge gap of 8px)
       */}
       <div
         className={cn(
-          'absolute bottom-[calc(100%-12px)] left-2 flex flex-row gap-1 z-50',
+          'absolute bottom-[calc(100%-6px)] left-2 flex flex-row gap-1 z-50',
           // Reveal on mouse hover and on keyboard focus-within the badge;
           // opacity/pointer-events (not display:none) keeps chips in the tab
           // order and the accessibility tree.
           'opacity-0 pointer-events-none transition-opacity',
           'group-hover/entity:opacity-100 group-hover/entity:pointer-events-auto',
-          'group-focus-within/entity:opacity-100 group-focus-within/entity:pointer-events-auto',
+          'group-has-[:focus-visible]/entity:opacity-100 group-has-[:focus-visible]/entity:pointer-events-auto',
         )}
       >
         {variant === 'name' && name && (

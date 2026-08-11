@@ -138,13 +138,14 @@ export function createIndexerMock() {
         let count = domains.length
         if (where?.registrant) {
           const reg = (where.registrant as string).toLowerCase()
-          count = domains.filter(
-            (d) => d.owner.toLowerCase() === reg,
-          ).length
+          count = domains.filter((d) => d.owner.toLowerCase() === reg).length
         }
         return {
           data: {
-            registrationConnection: { __typename: 'RegistrationConnection', totalCount: count },
+            registrationConnection: {
+              __typename: 'RegistrationConnection',
+              totalCount: count,
+            },
           },
         }
       }
@@ -188,9 +189,8 @@ export function createIndexerMock() {
     //   http://127.0.0.1:5655/graphql  (direct)
     //   http://localhost:3000/indexer/graphql  (Vite proxy)
     //   https://staging-graphql.ens.dev/  (SSR fallback)
-    const pattern = new RegExp(
-      ':5655/graphql(?!\\.)|/indexer/graphql(?!\\.)|staging-graphql\\.ens\\.dev',
-    )
+    const pattern =
+      /:5655\/graphql(?!\.)|\/indexer\/graphql(?!\.)|staging-graphql\.ens\.dev/
     await page.route(pattern, routeHandler)
   }
 
@@ -200,7 +200,9 @@ export function createIndexerMock() {
   /** Install only when the flag is on; no-op otherwise. */
   async function installIfEnabled(page: Page) {
     if (!enabled) return
-    console.log('[mock-indexer] E2E_MOCK_INDEXER=true — intercepting indexer requests')
+    console.log(
+      '[mock-indexer] E2E_MOCK_INDEXER=true — intercepting indexer requests',
+    )
     await install(page)
   }
 

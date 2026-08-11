@@ -5,18 +5,14 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const messageCardVariants = cva(
-  'rounded-lg p-6 flex items-start gap-3 relative max-w-2xl mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
+  'rounded-xl p-6 flex items-start gap-3 relative w-full max-w-lg mx-auto my-4 **:data-[slot=button]:dark:hover:bg-white/10',
   {
     variants: {
       variant: {
-        primary:
-          'bg-secondary **:data-[slot=icon]:text-foreground **:data-[slot=title]:text-foreground',
-        success:
-          'bg-message-success-fill **:data-[slot=icon]:text-message-success-text **:data-[slot=title]:text-message-success-text',
-        danger:
-          'bg-message-danger-fill **:data-[slot=icon]:text-message-danger-text **:data-[slot=title]:text-message-danger-text',
-        warning:
-          'bg-message-warning-fill **:data-[slot=icon]:text-message-warning-text **:data-[slot=title]:text-message-warning-text',
+        primary: 'bg-neutral-2 text-foreground',
+        success: 'bg-message-success-fill text-message-success-text',
+        danger: 'bg-message-danger-fill text-message-danger-text',
+        warning: 'bg-message-warning-fill text-message-warning-text',
       },
     },
     defaultVariants: {
@@ -28,6 +24,18 @@ const messageCardVariants = cva(
 export type MessageCardVariant = NonNullable<
   VariantProps<typeof messageCardVariants>['variant']
 >
+
+// Per the Builder Message spec the action button takes the message's text
+// color as its fill (e.g. dark green on the success card), not the default
+// black button.
+const messageButtonClass: Record<MessageCardVariant, string> = {
+  primary: '',
+  success:
+    'bg-message-success-text text-white hover:bg-message-success-text/90',
+  danger: 'bg-message-danger-text text-white hover:bg-message-danger-text/90',
+  warning:
+    'bg-message-warning-text text-white hover:bg-message-warning-text/90',
+}
 
 export type MessageCardProps = {
   icon: React.ReactNode
@@ -72,16 +80,16 @@ export function MessageCard({
 
       <div
         data-slot="icon"
-        className="flex items-center justify-center mt-2 shrink-0"
+        className="flex items-center justify-center mt-[3px] shrink-0"
       >
         {icon}
       </div>
 
-      <div className="flex flex-col items-start gap-6 flex-1 min-w-0">
+      <div className="flex flex-col items-start gap-4 flex-1 min-w-0">
         <h2
           data-slot="title"
           className={cn(
-            'text-[34px] font-medium leading-[1.35]',
+            'font-serif text-3xl font-normal leading-none tracking-[-0.02em]',
             titleClassName,
           )}
         >
@@ -90,8 +98,9 @@ export function MessageCard({
 
         {description && (
           <div
+            data-slot="description"
             className={cn(
-              'text-base leading-relaxed wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere text-foreground',
+              'text-p wrap-break-word whitespace-normal max-w-full overflow-wrap-anywhere',
               descriptionClassName,
             )}
           >
@@ -102,6 +111,7 @@ export function MessageCard({
         {actionButton && (
           <Button
             variant={actionButton.variant || 'default'}
+            className={cn(!actionButton.variant && messageButtonClass[variant])}
             onClick={actionButton.onClick}
             asChild={!!actionButton.href}
           >

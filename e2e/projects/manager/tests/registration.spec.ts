@@ -1,12 +1,11 @@
 // e2e/projects/manager/tests/registration.spec.ts
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import {
   authorizeHeadlessConnection,
-  authorizeTransaction,
+  authorizeTransactionsWhile,
   clickThroughEnableSessions,
   dismissBackendAuthModal,
 } from '../../../helpers/manager-auth.js'
-
 
 const MANAGER_APP_URL = process.env.MANAGER_APP_URL ?? 'http://localhost:3000'
 const DISCONNECTED_DOMAIN = `e2e-${(Date.now() + 1).toString(36)}.eth`
@@ -41,9 +40,11 @@ test.describe('ENS name registration', () => {
     await page.goto(`${MANAGER_APP_URL}/register/${label}`)
     await page.waitForURL(/\/register\//, { timeout: 15_000 })
     // Click "Connect to Register" with retry — the button can be a no-op if
-    // RainbowKit hasn't hydrated yet, and the modal can close before we
+    // the wallet layer hasn't hydrated yet, and the modal can close before we
     // interact with it. Same pattern as connectWithHeadlessWallet.
-    const connectBtn = page.getByRole('button', { name: /connect to register/i })
+    const connectBtn = page.getByRole('button', {
+      name: /connect to register/i,
+    })
     const modal = page.getByRole('dialog')
     const headlessOption = page.getByText('Headless Web3 Provider')
     await expect(async () => {
@@ -67,24 +68,25 @@ test.describe('ENS name registration', () => {
     await page.getByText('USDC', { exact: true }).click()
     await page.getByRole('button', { name: /register name/i }).click()
 
+    // RegistrationDetails (including the completion banner) stays hidden while
+    // the parallel notification-settings region is waiting for a choice.
+    await page.getByRole('button', { name: 'Set up later' }).click()
+
     const successBanner = page.locator('p.text-ens-peridot-text-dark')
     // Authorize the EOA registration transactions (deploy-resolver? → commit →
-    // approve USDC → register) while waiting for completion. Break early once
-    // no further transaction appears.
-    const authorizeAll = (async () => {
-      for (let i = 0; i < 4; i++) {
-        try {
-          await authorizeTransaction(wallet, 120_000)
-        } catch {
-          break
-        }
-      }
-    })()
-    await Promise.all([
-      authorizeAll,
-      expect(successBanner).toContainText('Registration Complete', {
-        timeout: 180_000,
-      }),
-    ])
+    // approve USDC → register) as they arrive while waiting for completion.
+    // The completion banner is gated on the whole flow finishing, so once it
+    // shows, polling stops without a dangling authorize or a fixed-length tail.
+    let registrationComplete = false
+    const authorizeAll = authorizeTransactionsWhile(
+      page,
+      wallet,
+      () => registrationComplete,
+    )
+    await expect(successBanner).toContainText('Registration Complete', {
+      timeout: 180_000,
+    })
+    registrationComplete = true
+    await authorizeAll
   })
 })

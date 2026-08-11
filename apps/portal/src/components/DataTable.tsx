@@ -8,7 +8,6 @@ import {
 } from '@tanstack/react-table'
 import { useState } from 'react'
 
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import {
   Table,
   TableBody,
@@ -17,8 +16,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
+
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData, TValue> {
+    /** Fixed column width in px; switches the table to fixed layout. */
+    width?: number
+  }
+}
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -30,7 +35,6 @@ export const DataTable = <TData, TValue>({
   data,
 }: DataTableProps<TData, TValue>) => {
   const [sorting, setSorting] = useState<SortingState>([])
-  const [tableView] = useTableViewSettings()
   const table = useReactTable({
     data,
     columns,
@@ -42,14 +46,27 @@ export const DataTable = <TData, TValue>({
     },
   })
 
+  // Columns that declare meta.width get a fixed width; the table switches to
+  // fixed layout so sibling tables with the same widths align. (tanstack's
+  // `size` can't be used here — the resolved columnDef backfills a 150px
+  // default, which would leave no auto column to absorb leftover space.)
+  const hasSizedColumns = columns.some((column) => column.meta?.width != null)
+
   return (
-    <Table>
+    <Table className={cn(hasSizedColumns && 'table-fixed')}>
       <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => {
               return (
-                <TableHead key={header.id}>
+                <TableHead
+                  key={header.id}
+                  style={
+                    header.column.columnDef.meta?.width != null
+                      ? { width: header.column.columnDef.meta.width }
+                      : undefined
+                  }
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
@@ -68,14 +85,14 @@ export const DataTable = <TData, TValue>({
             <TableRow
               key={row.id}
               data-state={row.getIsSelected() && 'selected'}
-              className={stripedRowClassName(tableView.strippedRows)}
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   className={cn(
                     'px-4 sm:px-6',
-                    // 40px rows per the Builder layout spec (WEB-595)
-                    tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
+                    // 40px content + py-1 so entity hover halos stay inside
+                    // the row (WEB-1194)
+                    'h-10 py-1',
                   )}
                   key={cell.id}
                 >

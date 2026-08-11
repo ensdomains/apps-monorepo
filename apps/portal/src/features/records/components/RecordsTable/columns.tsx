@@ -1,7 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
+import { isAddress } from 'viem'
+import { EntityBadge } from '@/components/EntityBadge'
 import { SortButton } from '@/components/table/SortButton'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
-import { cn } from '@/lib/utils'
 
 type AddressRecord = { type: 'address'; id: number; key: string }
 type ContentHashRecord = { type: 'contentHash' }
@@ -78,17 +78,22 @@ export const columns: ColumnDef<NameRecord>[] = [
     cell: ({ column, row }) => {
       const value = row.getValue(column.id) as NameRecord['value']
 
-      const [settings] = useTableViewSettings()
+      // Entity pill keeps records rows consistent with the other tables
+      // (same hover chips and row rhythm). EVM address values link to the
+      // address page; everything else gets the default pill + copy chip.
+      const address =
+        row.original.type === 'address' && isAddress(value) ? value : undefined
 
       return (
-        <div
-          className={cn(
-            `font-mono w-full max-w-[30vw] sm:max-w-[670px]`,
-            settings.wrapText ? 'break-all whitespace-normal' : 'truncate',
-          )}
+        <EntityBadge
+          variant={address ? 'address' : 'default'}
+          address={address}
+          copyValue={value}
         >
-          <span>{value}</span>
-        </div>
+          <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+            {value}
+          </span>
+        </EntityBadge>
       )
     },
   },

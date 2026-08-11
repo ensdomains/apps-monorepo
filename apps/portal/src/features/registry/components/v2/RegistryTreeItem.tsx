@@ -14,6 +14,7 @@ import { formatTimestampDate } from '@/utils/formatting/formatTimestamp'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
 import { getRegistryLabelCountQueryOptions } from '../../hooks/useRegistryLabelCount'
 import { ConfigureRegistryForm } from './ConfigureRegistryForm'
+import { MigrateRegistryPrompt } from './MigrateRegistryPrompt'
 
 type RegistryTreeItemProps = {
   chainId: number
@@ -181,15 +182,32 @@ export const RegistryTreeItem = ({
           </dl>
         ) : null}
         {isLastWithoutRegistryConfigured && !isMobile ? (
-          <ConfigureRegistryForm name={name} />
+          <RegistryEmptyState name={name} ownerData={ownerData} />
         ) : null}
       </div>
       {isLastWithoutRegistryConfigured && isMobile ? (
-        <ConfigureRegistryForm name={name} />
+        <RegistryEmptyState name={name} ownerData={ownerData} />
       ) : null}
     </Fragment>
   )
 }
+
+/**
+ * What fills the unconfigured-registry slot: V2 names get the deploy form,
+ * V1 names get the migrate prompt (or nothing when not migratable).
+ */
+const RegistryEmptyState = ({
+  name,
+  ownerData,
+}: {
+  name: string
+  ownerData: NonNullable<GetEnsOwnerReturnType>
+}) =>
+  ownerData.protocolVersion === 'ENSv1' ? (
+    <MigrateRegistryPrompt name={name} />
+  ) : (
+    <ConfigureRegistryForm name={name} />
+  )
 
 const SummaryLoadError = () => (
   <span className="inline-flex items-center gap-1 text-destructive">

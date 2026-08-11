@@ -13,30 +13,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  type TableViewSettings,
-  useTableViewSettings,
-} from '@/features/profile/hooks/useTableViewSettings'
 import type { ProtocolVersion } from '@/utils/types'
 import { columns, type NameRecord } from './columns'
 import { RecordSidebar } from './RecordSidebar'
 
 export const RecordsTable = ({
-  defaultTableSettings,
   name,
   table,
   protocolVersion,
 }: {
   name: string
-  defaultTableSettings?: TableViewSettings
   table: TableData<NameRecord>
   protocolVersion?: ProtocolVersion
 }) => {
   const [clickedRow, setClickedRow] = useState<Row<NameRecord> | null>(null)
 
   const [open, setOpen] = useState(false)
-
-  const [tableView] = useTableViewSettings(defaultTableSettings)
 
   return (
     <RecordSidebar
@@ -69,7 +61,7 @@ export const RecordsTable = ({
               .rows.map((row) => (
                 <SidebarTriggerRow
                   key={row.id}
-                  {...{ row, tableView, setOpen, setClickedRow, open }}
+                  {...{ row, setOpen, setClickedRow, open }}
                 />
               ))
           ) : (

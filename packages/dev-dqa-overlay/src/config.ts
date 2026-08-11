@@ -22,9 +22,7 @@ export const DQA_LINEAR_ISSUE: string | undefined = import.meta.env
 
 /** True only in builds with the flag set; statically false otherwise. */
 export function isDQAEnabled(): boolean {
-  return (
-    import.meta.env.VITE_DQA === '1' || import.meta.env.VITE_DQA === 'true'
-  )
+  return import.meta.env.VITE_DQA === '1' || import.meta.env.VITE_DQA === 'true'
 }
 
 /** Mock-only UI — no DQA server; full inbox with sample data. */

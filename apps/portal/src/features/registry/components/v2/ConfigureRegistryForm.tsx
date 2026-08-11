@@ -47,9 +47,11 @@ type ConfigureRegistryFormProps = {
 }
 
 const NoRegistryConfiguredCard = ({ name }: { name: string }) => (
-  <div className="flex flex-col gap-2 bg-muted p-5 rounded-lg">
-    <h3 className="text-3xl font-medium font-serif">No registry configured</h3>
-    <p className="text-base">
+  <div className="flex flex-col gap-4 bg-neutral-2 p-6 rounded-[8px]">
+    <h3 className="text-3xl font-normal leading-none tracking-[-0.02em] font-serif">
+      No registry configured
+    </h3>
+    <p className="text-p">
       This name doesn't have a contract set to create and manage subnames.
       Create one to turn <strong>{name}</strong> into its own namespace with
       subnames like <strong>cold.{name}</strong> or{' '}
@@ -202,8 +204,8 @@ export function ConfigureRegistryForm({ name }: ConfigureRegistryFormProps) {
   if (error) {
     return (
       <ErrorMessage
-        title={error.cause.name}
-        description={error.message || error.cause.message}
+        compact
+        description="Error fetching registry data. Please refresh the page."
       />
     )
   }

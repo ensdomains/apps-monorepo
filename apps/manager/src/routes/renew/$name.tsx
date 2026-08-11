@@ -111,13 +111,10 @@ function PageContent() {
     .with('pricing', () => <RenewPricingStep />)
     .with(
       P.union(
-        'ensuringHcaDeployed',
         'checkingAllowance',
-        'signingPermit',
         'submittingTokenApproval',
         'waitingForTokenApproval',
         'submittingRenewal',
-        'submittingRenewalBundle',
         'submittingPlainRenewal',
         'waitingForRenewal',
       ),

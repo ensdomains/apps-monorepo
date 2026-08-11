@@ -1,11 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import type { Hash } from 'viem'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { EventsDataTable } from '@/components/table/EventsDataTable'
 import { useBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import {
   type GetNameHistoryError,
   getNameHistoryQueryOptions,
+  NAME_HISTORY_PAGE_SIZE,
 } from '@/features/profile/hooks/useNameHistory'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { enrichEventsWithMetadata } from '@/utils/history/enrichEventsWithMetadata'
@@ -134,7 +137,7 @@ export const NameSubgraphHistory = ({
     isLoading,
     error,
   } = useQuery({
-    ...getNameHistoryQueryOptions({ name }),
+    ...getNameHistoryQueryOptions({ name, first: NAME_HISTORY_PAGE_SIZE }),
     enabled: !isV2,
   })
 
@@ -156,23 +159,19 @@ export const NameSubgraphHistory = ({
 
   if (!data || data.length === 0)
     return (
-      <div className="flex flex-col gap-1 p-4 sm:p-6 w-full">
-        {enableHeader && (
-          <div>
-            <h2 className="text-h2">History</h2>
-          </div>
-        )}
-        <div>No recent activity.</div>
+      <div className="flex flex-col gap-4 w-full">
+        {enableHeader && <HistorySectionHeader />}
+        <NoResultsMessage
+          title="No recent activity"
+          description="Events will appear here as they happen."
+          className="mx-0 my-0"
+        />
       </div>
     )
 
   return (
-    <div className="flex flex-col gap-1 p-4 sm:p-6w-full">
-      {enableHeader && (
-        <div>
-          <h2 className="text-h2">History</h2>
-        </div>
-      )}
+    <div className="flex flex-col gap-4 w-full">
+      {enableHeader && <HistorySectionHeader />}
       <NameSubgraphHistoryTable {...{ name, data, category, isV2 }} />
     </div>
   )

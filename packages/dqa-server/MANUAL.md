@@ -10,7 +10,7 @@ It has two halves:
 
 | Package | What it is |
 | --- | --- |
-| `@ens-apps/dqa-server` | The backend service (TypeScript, run directly by Node — no build). Stores comments, relays cursors over WebSocket, handles "Sign in with Linear", pushes to Linear, hosts `overlay.js`. |
+| `@ens-apps/dqa-server` | The backend service (TypeScript server, run directly by Node — no transpile; the browser overlay is bundled by Vite). Stores comments, relays cursors over WebSocket, handles "Sign in with Linear", pushes to Linear, hosts `overlay.js`. |
 | `@ens-apps/dev-dqa-overlay` | The build-time injector + the **Design QA** tab inside the shared **Dev tools** drawer in `apps/manager` and `apps/portal`. |
 
 ---
@@ -93,7 +93,7 @@ In a comment thread, choose **Send to Linear** (or a comment created with
   or create a standalone *Triage issue*.
 - **Priority** — for created issues.
 - **Target ticket** — search your Linear issues, or use the page's default
-  ticket (from `data-linear-issue` / `VITE_DQA_LINEAR_ISSUE`). Branches named
+  ticket (from the `?issue=` param / `VITE_DQA_LINEAR_ISSUE`). Branches named
   `linear/<TICKET>` auto-target that ticket on PR previews.
 
 The Linear item gets a structured body: reviewer, page, component path,
@@ -226,6 +226,6 @@ for those preview builds.
 | Sign-in loops / "origin not allowed" | The app's origin isn't in `DQA_ALLOWED_ORIGINS`. Add it and recreate the container. |
 | Linear screenshots show "Failed to load" | Token minted before `write` scope. Set `LINEAR_SCOPES=read,write`, recreate the container, then **Sign out → Sign in** (consent screen must show write access). |
 | Screenshots never attach | Old capture engine on Tailwind v4 `oklch()` colors — fixed; hard-refresh so the new `overlay.js` loads. |
-| Config change ignored | `overlay.js`/static assets are live-mounted (hard-refresh); **server code** changes need `docker compose ... up -d --build dqa`. |
+| Config change ignored | `public/` assets are live-mounted (hard-refresh). `client/overlay.js` is bundled, so overlay **and** server code changes need `docker compose ... up -d --build dqa`. |
 
 See **`SECURITY.md`** for the security model and audit.

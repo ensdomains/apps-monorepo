@@ -1,5 +1,5 @@
-import { type Address } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import type { Address } from 'viem'
+import type { privateKeyToAccount } from 'viem/accounts'
 
 import { FUSES } from './makeV1Name.js'
 import { makeV1Subname } from './makeV1Subname.js'
@@ -24,8 +24,16 @@ export type V1HierarchyConfig = {
  * Creates a locked multi-level NameWrapper hierarchy under an existing locked 2LD.
  * The caller is responsible for creating the root 2LD via makeV1Name with type:'locked'.
  */
-export async function makeV1Hierarchy(config: V1HierarchyConfig): Promise<string[]> {
-  const { rootLabel, childLabels, ownerAddress, ownerAccount, fusesPerLevel = [] } = config
+export async function makeV1Hierarchy(
+  config: V1HierarchyConfig,
+): Promise<string[]> {
+  const {
+    rootLabel,
+    childLabels,
+    ownerAddress,
+    ownerAccount,
+    fusesPerLevel = [],
+  } = config
 
   const allNames: string[] = [`${rootLabel}.eth`]
 

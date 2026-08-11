@@ -68,7 +68,12 @@ export const V1NameManagerRecord = ({
           </span>
         </InfoRow>
       )
-    return <ErrorMessage title={error.name} description={error.message} />
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching the manager. Please refresh the page."
+      />
+    )
   }
   if (isLoading) {
     if (asRow)

@@ -3,8 +3,10 @@ import type { ColumnDef, Row } from '@tanstack/react-table'
 import { useState } from 'react'
 import type { Address } from 'viem'
 import { DataTable } from '@/components/DataTable'
+import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { RolesSidebar } from '@/features/roles/components/RolesSidebar'
 import {
+  buildActionSpacerColumn,
   buildEditActionColumn,
   buildRoleColumns,
   rolesTableClassName,
@@ -47,6 +49,15 @@ export const RolesTable = ({
     .filter(([, roleNames]) => roleNames.length > 0)
     .map(([account, roleNames]) => ({ account, items: roleNames }))
 
+  if (data.length === 0)
+    return (
+      <NoResultsMessage
+        title="No role holders yet"
+        description="Accounts with roles will appear here."
+        className="mx-0"
+      />
+    )
+
   const columns: ColumnDef<AccountGroup>[] = canManageRoles
     ? [
         ...baseColumns,
@@ -55,7 +66,7 @@ export const RolesTable = ({
           setOpen(true)
         }),
       ]
-    : baseColumns
+    : [...baseColumns, buildActionSpacerColumn<AccountGroup>()]
 
   return (
     <RolesSidebar

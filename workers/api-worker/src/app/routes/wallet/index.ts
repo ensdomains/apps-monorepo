@@ -36,12 +36,12 @@ const TOKENS = {
 
 // Migration-gas ETH drip.
 //
-// The v1→v2 migration flow is entirely EOA-paid: setApprovalForAll on the
-// BaseRegistrar/NameWrapper, the owned PermissionedResolver deploy, and the
-// migrate/grantRoles/profile-replay batches are all plain EOA transactions
-// (no Warp sponsorship — the EOA holds the v1 NFTs, so it must send them).
-// Migrate batches are sized up to ~20M gas (TARGET_GAS in the manager), so the
-// owner needs real sepETH — far more than the old one-shot approve drip.
+// The v1→v2 migration flow is entirely wallet-paid: direct setApprovalForAll
+// transactions authorize the helper/HCA, then direct EOA transactions call
+// HCA.executeByOwner for atomic resolver setup, migration, manager restoration,
+// and profile replay. Nothing is Warp-sponsored. Batches are sized up to ~20M
+// gas (TARGET_GAS in the manager), so the owner needs real sepETH — far more
+// than the old one-shot approve drip.
 //
 // Gated server-side on BOTH:
 //   1. the address owns at least one live v1 name (V1 subgraph existence

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react'
 import type { Address, Hex } from 'viem'
 import { labelhash, namehash } from 'viem/ens'
-import { CopyableRecord } from '@/components/CopyableRecord'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
 import { InfoCard, InfoRow } from '@/components/InfoCard'
@@ -72,9 +71,9 @@ const TokenInfoCard = ({
       </HeaderInfoRow>
 
       <HeaderInfoRow label="Token Standard">
-        <div>
-          <CopyableRecord value={tokenStandard} />
-        </div>
+        <EntityBadge type="content" variant="default" copyValue={tokenStandard}>
+          {tokenStandard}
+        </EntityBadge>
       </HeaderInfoRow>
 
       <HeaderInfoRow label="Contract">
@@ -85,7 +84,13 @@ const TokenInfoCard = ({
 
       <HeaderInfoRow label="Token ID">
         <div className="flex items-center gap-4 justify-between w-full ">
-          <CopyableRecord value={tokenId} className="flex-1 min-w-0" />
+          <div className="flex-1 min-w-0">
+            <EntityBadge type="content" variant="default" copyValue={tokenId}>
+              <span className="truncate max-w-[30vw] sm:max-w-167.5">
+                {tokenId}
+              </span>
+            </EntityBadge>
+          </div>
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="default" size="sm" className="gap-1 shrink-0">
@@ -93,57 +98,64 @@ const TokenInfoCard = ({
                 <span className="text-xs font-medium">More</span>
               </Button>
             </SheetTrigger>
-            <SheetContent
-              side="right"
-              className="w-full sm:max-w-2xl overflow-y-auto"
-            >
-              <SheetHeader className="px-8 pt-8">
-                <SheetTitle className="text-[30px] font-medium leading-tight">
-                  Token ID
-                </SheetTitle>
-              </SheetHeader>
-              <div className="flex flex-col gap-6 py-6">
-                <InfoCard title="Token ID details">
-                  <InfoRow label="Hash">
-                    <div className="min-w-0 w-full">
-                      <EntityBadge variant="default" copyValue={tokenId}>
-                        {tokenId}
-                      </EntityBadge>
-                    </div>
-                  </InfoRow>
+            <SheetContent side="right" className="w-full p-0">
+              <div className="h-full overflow-y-auto">
+                <div className="flex flex-col gap-6 p-6 **:data-[slot=info-row]:px-0">
+                  <SheetHeader className="p-0">
+                    <SheetTitle className="font-sans text-h2">
+                      Token ID
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="sm:**:data-[slot=info-row]:h-10">
+                    <InfoRow label="Hash">
+                      <div className="min-w-0 w-full">
+                        <EntityBadge
+                          type="content"
+                          variant="default"
+                          format="wrap"
+                          copyValue={tokenId}
+                        >
+                          {tokenId}
+                        </EntityBadge>
+                      </div>
+                    </InfoRow>
 
-                  <InfoRow label="HEX">
-                    <div className="min-w-0 w-full">
-                      <EntityBadge variant="default" copyValue={hex}>
-                        {hex}
-                      </EntityBadge>
-                    </div>
-                  </InfoRow>
+                    <InfoRow label="HEX">
+                      <div className="min-w-0 w-full">
+                        <EntityBadge
+                          type="content"
+                          variant="default"
+                          format="wrap"
+                          copyValue={hex}
+                        >
+                          {hex}
+                        </EntityBadge>
+                      </div>
+                    </InfoRow>
 
-                  <InfoRow label="Last changed">
-                    <span className="font-mono text-sm ">—</span>
-                  </InfoRow>
-                </InfoCard>
+                    <InfoRow label="Last changed">
+                      <span className="font-mono text-sm ">—</span>
+                    </InfoRow>
+                  </div>
 
-                <div className="bg-muted rounded-lg p-3 flex gap-2 items-start mx-8">
-                  <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
-                  <p className="text-base">
-                    The Token ID will change anytime the roles are updated.
-                  </p>
-                </div>
+                  <div className="bg-muted rounded-lg p-3 flex gap-2 items-start">
+                    <InfoIcon className="size-6 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-base">
+                      The Token ID will change anytime the roles are updated.
+                    </p>
+                  </div>
 
-                <div className="px-8">
-                  <h3 className="text-caps leading-none text-foreground mb-4">
-                    History
-                  </h3>
-                  <div className="border border-secondary rounded-lg overflow-hidden">
+                  <div>
+                    <h3 className="text-caps leading-none text-foreground mb-4">
+                      History
+                    </h3>
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b-2">
-                          <TableHead className="px-3">Date</TableHead>
-                          <TableHead className="px-3">Transaction</TableHead>
-                          <TableHead className="px-3">Token ID Hash</TableHead>
-                          <TableHead className="px-3">Token ID HEX</TableHead>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Transaction</TableHead>
+                          <TableHead>Token ID Hash</TableHead>
+                          <TableHead>Token ID HEX</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -257,7 +269,13 @@ function RouteComponent() {
 
   const { data, isLoading, error } = useQuery(getEnsOwnerQueryOptions({ name }))
 
-  if (error) return <div>Error loading owner: {error.cause?.message}</div>
+  if (error)
+    return (
+      <ErrorMessage
+        compact
+        description="Error fetching the owner. Please refresh the page."
+      />
+    )
 
   if (isLoading) return <LoadingSpinner title="Loading owner data" />
 
@@ -289,7 +307,10 @@ function RouteComponent() {
         <TokenV2Name name={name} registryAddress={data.registryAddress} />
       ) : null}
 
-      <InfoCard title="Normalization">
+      <InfoCard
+        title="Normalization"
+        className="[&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0 sm:[&_[data-slot=info-row]]:h-10"
+      >
         <InfoRow label="Input">
           <div className="flex flex-row gap-1 flex-wrap items-center">
             {parts.map((label, idx) => (
@@ -336,38 +357,58 @@ function RouteComponent() {
 
         <InfoRow label="Unicode">
           <div>
-            <CopyableRecord value={escapeUnicode(name)} />
+            <EntityBadge
+              type="content"
+              variant="default"
+              copyValue={escapeUnicode(name)}
+            >
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {escapeUnicode(name)}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
 
         <InfoRow label="ASCII">
           <div>
-            <CopyableRecord value={ascii} />
+            <EntityBadge type="content" variant="default" copyValue={ascii}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {ascii}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
 
         <InfoRow label="DNS encoded">
           <div>
-            <CopyableRecord value={dnsEncode} className="max-w-full" />
+            <EntityBadge type="content" variant="default" copyValue={dnsEncode}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {dnsEncode}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
 
         <InfoRow label="Namehash">
           <div>
-            <CopyableRecord value={hash} className="max-w-full" />
+            <EntityBadge type="content" variant="default" copyValue={hash}>
+              <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                {hash}
+              </span>
+            </EntityBadge>
           </div>
         </InfoRow>
       </InfoCard>
 
       {labels[0] ? (
-        <div className="rounded-sm bg-background overflow-hidden">
-          <div className="px-6 py-3">
+        <div className="rounded-sm bg-background overflow-hidden [&_[data-slot=info-card-title]]:px-0 [&_[data-slot=info-row]]:px-0 sm:[&_[data-slot=info-row]]:h-10">
+          <div className="py-3">
             <span className="text-caps leading-none text-foreground">
               Labels
             </span>
           </div>
           <Tabs defaultValue={labels[0]} className="gap-0">
-            <div className="px-6 flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <TabsList>
                 {labels.map((label, idx) => (
                   <div key={label} className="contents">
@@ -384,10 +425,18 @@ function RouteComponent() {
               const labelBytes = new TextEncoder().encode(label).length
               const labelChars = [...label].length
               return (
-                <TabsContent className="m-0" value={label} key={label}>
+                <TabsContent className="m-0 px-0" value={label} key={label}>
                   <InfoRow label="Input">
                     <div>
-                      <CopyableRecord value={escapeUnicode(label)} />
+                      <EntityBadge
+                        type="content"
+                        variant="default"
+                        copyValue={escapeUnicode(label)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {escapeUnicode(label)}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
@@ -397,19 +446,43 @@ function RouteComponent() {
 
                   <InfoRow label="Bytes">
                     <div>
-                      <CopyableRecord value={labelBytes} />
+                      <EntityBadge
+                        type="content"
+                        variant="default"
+                        copyValue={String(labelBytes)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {labelBytes}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Characters">
                     <div>
-                      <CopyableRecord value={labelChars} />
+                      <EntityBadge
+                        type="content"
+                        variant="default"
+                        copyValue={String(labelChars)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {labelChars}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
 
                   <InfoRow label="Labelhash">
                     <div>
-                      <CopyableRecord value={labelhash(label)} />
+                      <EntityBadge
+                        type="content"
+                        variant="default"
+                        copyValue={labelhash(label)}
+                      >
+                        <span className="truncate max-w-[30vw] sm:max-w-[670px]">
+                          {labelhash(label)}
+                        </span>
+                      </EntityBadge>
                     </div>
                   </InfoRow>
                 </TabsContent>

@@ -1,116 +1,201 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
-import type { Address, Chain, Hex } from 'viem'
+import type { Account, Address, Chain, Hex } from 'viem'
 import { decodeFunctionData, parseAbi } from 'viem'
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
-import { ENS_HCA_MODULE } from './registration-policy'
-import { createRhinestoneSession, restoreRhinestoneSession } from './session'
-import type { RhinestoneStoredSession } from './types'
+import {
+  getDestinationContracts,
+  MAX_REFUND_AMOUNT,
+  MAX_REFUND_EXCHANGE_RATE,
+  MAX_REFUND_GAS_OVERHEAD,
+} from './manifest'
+import {
+  buildEnableSessionWithRefundCall,
+  computeDestinationSessionSalt,
+  computeSourceSessionSalt,
+  createDestinationSession,
+} from './session'
 
-const OWNER = '0x1111111111111111111111111111111111111111' as const
-const HCA = '0xaAaA000000000000000000000000000000000001' as const
+const VALIDATOR = getDestinationContracts(
+  sepolia.id,
+).hcaOwnerAndSessionValidator
 
-const updateConfigAbi = parseAbi([
-  'struct Owner { address addr; uint48 expiration; }',
-  'function updateConfig(uint256 newThreshold, Owner[] ownersToAdd, address[] ownersToRemove)',
-])
+const HCA = '0xaaaa000000000000000000000000000000000001' as const
+const RESOLVER = '0x3333333333333333333333333333333333333333' as const
+const SESSION_KEY = '0x9999999999999999999999999999999999999999' as const
+const REFUND_TOKEN = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const
 
-function mockAccount() {
-  const sendTransaction = vi.fn().mockResolvedValue('mock-intent-id')
-  const waitForExecution = vi.fn().mockResolvedValue({ fill: { hash: '0x1' } })
-  return {
-    account: {
-      sendTransaction,
-      waitForExecution,
-    } as unknown as RhinestoneAccount,
-    sendTransaction,
-    waitForExecution,
-  }
-}
-
-describe('createRhinestoneSession (owner-key model)', () => {
-  it('submits ONE owner-signed add-owner Intent and returns a stored session', async () => {
-    const { account, sendTransaction, waitForExecution } = mockAccount()
-
-    const result = await createRhinestoneSession({
-      ownerAddress: OWNER,
-      smartAccountAddress: HCA,
-      chainId: 11155111,
-      rhinestoneAccount: account,
-      chain: sepolia as Chain,
-    })
-
-    expect(result.isOk()).toBe(true)
-    expect(sendTransaction).toHaveBeenCalledTimes(1)
-    expect(waitForExecution).toHaveBeenCalledTimes(1)
-    // Accept preconfirmation (true) rather than waiting for full settlement.
-    expect(waitForExecution).toHaveBeenCalledWith(expect.anything(), true)
-
-    // The single Intent adds the ephemeral key as an HCA owner via updateConfig.
-    const tx = sendTransaction.mock.calls[0][0]
-    expect(tx.sponsored).toBe(true)
-    expect(tx.calls).toHaveLength(1)
-    expect(tx.calls[0].to).toBe(ENS_HCA_MODULE)
-    const decoded = decodeFunctionData({
-      abi: updateConfigAbi,
-      data: tx.calls[0].data as Hex,
-    })
-    expect(decoded.functionName).toBe('updateConfig')
-
-    const { session, sessionPrivateKey } = result._unsafeUnwrap()
-    expect(session.provider).toBe('rhinestone')
-    expect(session.ownerAddress).toBe(OWNER)
-    expect(session.smartAccountAddress).toBe(HCA)
-    expect(session.sessionKeyAddress.toLowerCase()).not.toBe(
-      OWNER.toLowerCase(),
-    )
-    expect(sessionPrivateKey).toMatch(/^0x[0-9a-f]{64}$/)
-    // The added owner in calldata is the session key.
-    const addedOwner = (
-      decoded.args as readonly [bigint, readonly { addr: Address }[], unknown]
-    )[1][0].addr
-    expect(addedOwner.toLowerCase()).toBe(
-      session.sessionKeyAddress.toLowerCase(),
+describe('computeDestinationSessionSalt', () => {
+  it('is deterministic for the same inputs', () => {
+    const args = {
+      hcaSessionNonce: 0n,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER as Address,
+      refundToken: REFUND_TOKEN as Address,
+    }
+    expect(computeDestinationSessionSalt(args)).toBe(
+      computeDestinationSessionSalt(args),
     )
   })
 
-  it('surfaces a tagged SessionEnableError when the add-owner Intent fails', async () => {
-    const { account, sendTransaction } = mockAccount()
-    sendTransaction.mockRejectedValueOnce(new Error('user rejected'))
-    const result = await createRhinestoneSession({
-      ownerAddress: OWNER,
-      smartAccountAddress: HCA,
-      chainId: 11155111,
-      rhinestoneAccount: account,
-      chain: sepolia as Chain,
-    })
-    expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr()._tag).toBe('SessionEnableError')
+  it('changes when the nonce changes (so a new authorization is required)', () => {
+    const base = {
+      hcaSessionNonce: 0n,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER as Address,
+      refundToken: REFUND_TOKEN as Address,
+    }
+    expect(computeDestinationSessionSalt(base)).not.toBe(
+      computeDestinationSessionSalt({ ...base, hcaSessionNonce: 1n }),
+    )
+  })
+
+  it('changes when the resolver changes (rebinding needs re-auth)', () => {
+    const base = {
+      hcaSessionNonce: 0n,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER as Address,
+      refundToken: REFUND_TOKEN as Address,
+    }
+    expect(computeDestinationSessionSalt(base)).not.toBe(
+      computeDestinationSessionSalt({
+        ...base,
+        resolver: '0x4444444444444444444444444444444444444444',
+      }),
+    )
   })
 })
 
-describe('restoreRhinestoneSession', () => {
-  const base: RhinestoneStoredSession = {
-    id: 'x',
-    provider: 'rhinestone',
-    sessionKeyAddress: '0x9999999999999999999999999999999999999999',
-    smartAccountAddress: HCA,
-    ownerAddress: OWNER,
-    createdAt: Date.now(),
-    chainId: 11155111,
-    validUntil: Math.floor(Date.now() / 1000) + 3600,
-    sessionPrivateKey: `0x${'1'.repeat(64)}` as Hex,
-  }
+describe('computeSourceSessionSalt', () => {
+  it('is deterministic and sensitive to maxSourceAmount', () => {
+    const base = {
+      wallet: '0x1111111111111111111111111111111111111111' as Address,
+      validUntil: 1_800_000_000n,
+      sourceToken: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as Address,
+      hca: HCA as Address,
+      destinationToken: REFUND_TOKEN as Address,
+      destinationChainId: 11155111n,
+      maxSourceAmount: 20_000_000n,
+      maxDestinationAmount: 14_000_000n,
+    }
+    expect(computeSourceSessionSalt(base)).toBe(computeSourceSessionSalt(base))
+    expect(computeSourceSessionSalt(base)).not.toBe(
+      computeSourceSessionSalt({ ...base, maxSourceAmount: 21_000_000n }),
+    )
+  })
+})
 
-  it('restores a non-expired session', async () => {
-    const result = await restoreRhinestoneSession({ session: base })
-    expect(result.isOk()).toBe(true)
+describe('buildEnableSessionWithRefundCall', () => {
+  const abi = parseAbi([
+    'function enableSessionWithRefund(bytes32 permissionId, address sessionKey, uint48 validUntil, address resolver, address refundToken, uint96 maxRefundExchangeRate, uint48 maxRefundGasOverhead, uint96 maxRefundAmount)',
+  ])
+
+  it('encodes exact arg order with value 0', () => {
+    const call = buildEnableSessionWithRefundCall({
+      chainId: sepolia.id,
+      permissionId: `0x${'2'.repeat(64)}` as Hex,
+      sessionKey: SESSION_KEY,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER,
+    })
+    expect(call.value).toBe(0n)
+    const decoded = decodeFunctionData({ abi, data: call.data })
+    expect(decoded.functionName).toBe('enableSessionWithRefund')
+    const args = decoded.args as readonly [
+      Hex,
+      Address,
+      number,
+      Address,
+      Address,
+      bigint,
+      number,
+      bigint,
+    ]
+    expect(args[1].toLowerCase()).toBe(SESSION_KEY.toLowerCase())
+    expect(args[2]).toBe(1_800_000_000)
+    expect(args[3].toLowerCase()).toBe(RESOLVER.toLowerCase())
+    expect(args[5]).toBe(MAX_REFUND_EXCHANGE_RATE)
+    expect(args[6]).toBe(Number(MAX_REFUND_GAS_OVERHEAD))
+    expect(args[7]).toBe(MAX_REFUND_AMOUNT)
   })
 
-  it('rejects an expired session with a tagged error', async () => {
-    const expired = { ...base, validUntil: Math.floor(Date.now() / 1000) - 10 }
-    const result = await restoreRhinestoneSession({ session: expired })
+  it('targets the standalone validator', () => {
+    const call = buildEnableSessionWithRefundCall({
+      chainId: sepolia.id,
+      permissionId: `0x${'2'.repeat(64)}` as Hex,
+      sessionKey: SESSION_KEY,
+      validUntil: 1_800_000_000n,
+      resolver: RESOLVER,
+    })
+    expect(call.to.toLowerCase()).toBe(VALIDATOR.toLowerCase())
+  })
+})
+
+describe('createDestinationSession', () => {
+  function mockAccount() {
+    const experimental_getSessionDetails = vi.fn().mockResolvedValue({
+      nonces: [0n],
+      hashesAndChainIds: [
+        { chainId: 11155111n, sessionDigest: `0x${'5'.repeat(64)}` },
+      ],
+      data: { message: { sessionsAndChainIds: [] } },
+    })
+    const experimental_signEnableSession = vi
+      .fn()
+      .mockResolvedValue(`0x${'ab'.repeat(65)}`)
+    return {
+      account: {
+        experimental_getSessionDetails,
+        experimental_signEnableSession,
+      } as unknown as RhinestoneAccount,
+      experimental_getSessionDetails,
+      experimental_signEnableSession,
+    }
+  }
+
+  const publicClient = {
+    readContract: vi.fn().mockResolvedValue([HCA, 0n]),
+  } as never
+
+  const sessionAccount = { address: SESSION_KEY } as unknown as Account
+
+  it('signs ONE authorization and returns destination enable-data (index 0)', async () => {
+    const { account, experimental_signEnableSession } = mockAccount()
+    const result = await createDestinationSession({
+      rhinestoneAccount: account,
+      publicClient,
+      chain: sepolia as Chain,
+      hca: HCA,
+      resolver: RESOLVER,
+      sessionAccount,
+      validUntil: 1_800_000_000n,
+      alreadyDeployed: false,
+    })
+    expect(result.isOk()).toBe(true)
+    expect(experimental_signEnableSession).toHaveBeenCalledTimes(1)
+    const value = result._unsafeUnwrap()
+    expect(value.enableData.sessionToEnableIndex).toBe(0)
+    expect(value.enableData.hcaSessionNonce).toBe(0n)
+    expect(value.enableData.userSignature).toMatch(/^0x[0-9a-f]+$/)
+    expect(value.session.account?.toLowerCase()).toBe(HCA.toLowerCase())
+  })
+
+  it('surfaces a tagged SessionEnableError when signing fails', async () => {
+    const { account, experimental_signEnableSession } = mockAccount()
+    experimental_signEnableSession.mockRejectedValueOnce(
+      new Error('user rejected'),
+    )
+    const result = await createDestinationSession({
+      rhinestoneAccount: account,
+      publicClient,
+      chain: sepolia as Chain,
+      hca: HCA,
+      resolver: RESOLVER,
+      sessionAccount,
+      validUntil: 1_800_000_000n,
+      alreadyDeployed: false,
+    })
     expect(result.isErr()).toBe(true)
-    expect(result._unsafeUnwrapErr()._tag).toBe('SessionRestoreError')
+    expect(result._unsafeUnwrapErr()._tag).toBe('SessionEnableError')
   })
 })

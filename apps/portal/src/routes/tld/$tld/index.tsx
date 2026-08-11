@@ -1,21 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { ClockIcon } from 'lucide-react'
 import { useMemo } from 'react'
-import type { Address } from 'viem'
 import { zeroAddress } from 'viem'
-import { CardsStackIcon, HubIcon } from '@/assets/icons'
-import { CopyButton } from '@/components/CopyButton'
+import { CardsStackIcon, HubIcon, SupervisorAccountIcon } from '@/assets/icons'
 import { EntityBadge } from '@/components/EntityBadge'
 import { ErrorMessage } from '@/components/ErrorMessage'
+import { HistorySectionHeader } from '@/components/HistorySectionHeader'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
 import { NameSubgraphHistory } from '@/components/table/NameSubgraphHistory/NameSubgraphHistory'
 import { Button } from '@/components/ui/button'
-import { NameAvatar } from '@/features/profile/components/NameAvatar'
+import { InfoRow } from '@/features/profile/components/InfoRow'
 import { Owner } from '@/features/profile/components/Owner'
+import { ProtocolRow } from '@/features/profile/components/ProtocolRow'
 import { getDnsSecEnabledQueryOptions } from '@/features/profile/hooks/useDnsSecEnabled'
+import { NAME_HISTORY_PAGE_SIZE } from '@/features/profile/hooks/useNameHistory'
 import { getProfileQueryOptions } from '@/features/profile/hooks/useProfile'
 import {
   type GetTldDataReturnType,
@@ -38,34 +39,29 @@ export const Route = createFileRoute('/tld/$tld/')({
       : undefined,
 })
 
-const ParentRoot = ({
-  rootRegistryAddress,
+/** Chevron-less counter card: the TLD subpages these would link to are not
+    live yet, so the counters are display-only. */
+const TldCounterCard = ({
+  icon: Icon,
+  label,
+  value,
 }: {
-  rootRegistryAddress: Address
-}) => {
-  const content = (
-    <>
-      <NameAvatar width="40px" height="40px" name="[root]" />
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-muted-foreground">Parent</span>
-        <span>[root]</span>
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: number
+}) => (
+  <div className="flex items-center gap-3 p-4 rounded-lg bg-background border border-secondary">
+    <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
+      <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+        <Icon className="size-4 shrink-0" />
+        <span className="text-sm truncate">{label}</span>
       </div>
-    </>
-  )
-
-  const className =
-    'h-21.5 px-6 flex flex-row rounded-sm gap-6 items-center border border-border hover:bg-muted'
-
-  return (
-    <Link
-      to="/addr/$addr"
-      params={{ addr: rootRegistryAddress }}
-      className={className}
-    >
-      {content}
-    </Link>
-  )
-}
+      <span className="text-xl font-medium text-foreground shrink-0">
+        {value}
+      </span>
+    </div>
+  </div>
+)
 
 const TldRecordCount = ({ tld }: { tld: string }) => {
   const tldDataQuery = useQuery(getTldDataQueryOptions({ tld }))
@@ -83,60 +79,36 @@ const TldRecordCount = ({ tld }: { tld: string }) => {
   }, [profileQuery.data?.records])
 
   return (
-    <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
-      <div className="w-full px-6 flex flex-row items-center gap-6">
-        <CardsStackIcon className="size-8 shrink-0 text-icon-foreground" />
-        <div className="flex-1">
-          <span className="font-medium text-foreground">{recordCount}</span>{' '}
-          <span className="text-muted-foreground">records set</span>
-        </div>
-      </div>
-    </div>
+    <TldCounterCard
+      icon={CardsStackIcon}
+      label="Records set"
+      value={recordCount}
+    />
   )
 }
 
-const TldRegistryCard = ({
+const TldRegistryRow = ({
   registryAddress,
 }: {
   registryAddress: GetTldDataReturnType['registryAddress']
-}) => {
-  const hasRegistry = registryAddress !== zeroAddress
-
-  return (
-    <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
-      <div className="w-full px-6 flex flex-row items-center gap-6">
-        <HubIcon className="size-8 shrink-0 text-icon-foreground" />
-        <div className="flex flex-col gap-1 min-w-0">
-          <span className="text-sm text-muted-foreground">Registry</span>
-          {hasRegistry ? (
-            <EntityBadge variant="contract" address={registryAddress}>
-              {truncateAddress(registryAddress, 6, 4, '...')}
-            </EntityBadge>
-          ) : (
-            <span className="text-muted-foreground">No registry deployed</span>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const ProtocolCard = () => (
-  <div className="h-21.5 w-full flex rounded-sm overflow-hidden border border-border items-center">
-    <div className="w-full px-6 flex flex-row items-center gap-6">
-      <span className="size-8 shrink-0 flex items-center justify-center text-lg font-bold text-icon-foreground">
-        #
+}) => (
+  <InfoRow icon={HubIcon} label="Registry">
+    {registryAddress !== zeroAddress ? (
+      <EntityBadge variant="contract" address={registryAddress}>
+        {truncateAddress(registryAddress, 6, 4, '...')}
+      </EntityBadge>
+    ) : (
+      <span className="text-sm text-muted-foreground">
+        No registry deployed
       </span>
-      <div className="flex flex-col gap-1">
-        <span className="text-sm text-muted-foreground">Protocol</span>
-        <span>ENSv2</span>
-      </div>
-    </div>
-  </div>
+    )}
+  </InfoRow>
 )
 
 const HistorySection = ({ tld }: { tld: string }) => {
-  const v2HistoryQuery = useQuery(getV2NameHistoryQueryOptions({ name: tld }))
+  const v2HistoryQuery = useQuery(
+    getV2NameHistoryQueryOptions({ name: tld, first: NAME_HISTORY_PAGE_SIZE }),
+  )
 
   if (v2HistoryQuery.isLoading) {
     return <LoadingSpinner title="Loading history..." />
@@ -145,23 +117,22 @@ const HistorySection = ({ tld }: { tld: string }) => {
   if (v2HistoryQuery.error) {
     return (
       <ErrorMessage
-        title={v2HistoryQuery.error.name}
-        description={
-          v2HistoryQuery.error.cause?.message || v2HistoryQuery.error.message
-        }
+        compact
+        description="Error fetching history. Please refresh the page."
       />
     )
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-h2">History</h2>
-        <Button variant="ghost" size="sm" disabled>
-          <ClockIcon className="size-4" />
-          Full history
-        </Button>
-      </div>
+      <HistorySectionHeader
+        action={
+          <Button variant="ghost" size="sm" className="text-neutral-7" disabled>
+            <ClockIcon className="size-4" />
+            Full history
+          </Button>
+        }
+      />
       <NameSubgraphHistory
         name={tld}
         v2Events={transformV2EventsToSubgraphFormat(v2HistoryQuery.data || [])}
@@ -191,12 +162,7 @@ function TldOverview() {
   if (!isEthTld && dnsSecQuery.isLoading) return <LoadingMessage />
 
   if (dnsSecQuery.error) {
-    return (
-      <ErrorMessage
-        title={dnsSecQuery.error.name}
-        description={dnsSecQuery.error.message}
-      />
-    )
+    return <ErrorMessage />
   }
 
   if (!isTldValid) {
@@ -215,12 +181,7 @@ function TldOverview() {
   if (tldDataQuery.isLoading) return <LoadingMessage />
 
   if (tldDataQuery.error) {
-    return (
-      <ErrorMessage
-        title={tldDataQuery.error.cause.name}
-        description={tldDataQuery.error.cause.message}
-      />
-    )
+    return <ErrorMessage />
   }
 
   if (!tldDataQuery.data) {
@@ -240,28 +201,28 @@ function TldOverview() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-row justify-between items-center">
-        <h1 className="text-h1">{tld}</h1>
-        <CopyButton value={tld} />
-      </div>
+      <h1 className="text-h1">{tld}</h1>
 
-      <div className="flex flex-col gap-3">
-        {/* Owner + Parent */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <Owner owner={owner ?? undefined} />
-          <ParentRoot rootRegistryAddress={rootRegistryAddress} />
+      {/* Main section: metadata rows | counters */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="flex flex-col flex-1">
+          <Owner owner={owner ?? undefined} asRow />
+          <InfoRow icon={SupervisorAccountIcon} label="Parent">
+            <EntityBadge variant="contract" address={rootRegistryAddress}>
+              [root]
+            </EntityBadge>
+          </InfoRow>
+          <TldRegistryRow registryAddress={registryAddress} />
+          <ProtocolRow protocolVersion="ENSv2" />
         </div>
 
-        {/* Records / Registry / Protocol */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex flex-col gap-3 shrink-0">
           <TldRecordCount tld={tld} />
-          <TldRegistryCard registryAddress={registryAddress} />
-          <ProtocolCard />
         </div>
-
-        {/* History */}
-        <HistorySection tld={tld} />
       </div>
+
+      {/* History */}
+      <HistorySection tld={tld} />
     </div>
   )
 }

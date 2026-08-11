@@ -37,12 +37,13 @@ export const Layout = ({ children }: LayoutProps) => {
   return (
     <div
       className={tw(
-        'relative flex min-h-screen flex-col bg-[#FCFBFB]',
-        isMigrationPage &&
-          'bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200',
+        'relative flex flex-col bg-[#FCFBFB]',
+        isMigrationPage
+          ? 'h-dvh overflow-hidden bg-linear-to-b from-ens-garnet-100 to-ens-garnet-200'
+          : 'min-h-screen',
       )}
     >
-      <div className="sticky inset-x-0 top-0 z-50">
+      <div className="sticky inset-x-0 top-0 z-50 shrink-0">
         <Header
           desktopBreakpoint={isEnsNameProfilePage ? 'lg-landscape' : 'md'}
           hasMobileBlurredBackground={isEnsNameProfilePage}
@@ -54,7 +55,12 @@ export const Layout = ({ children }: LayoutProps) => {
       </div>
 
       <GlobalBackButtonProvider>
-        <main className="relative isolate flex flex-1 flex-col">
+        <main
+          className={tw(
+            'relative isolate flex flex-1 flex-col',
+            isMigrationPage && 'min-h-0',
+          )}
+        >
           <LayoutBackAndNoticeRow
             isHidden={isEnsNameProfilePage}
             isSepoliaBannerVisible={isSepoliaBannerVisible}

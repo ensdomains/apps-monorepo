@@ -1,6 +1,11 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import {
+  injectHeadlessWeb3Provider,
+  type Web3ProviderBackend,
+} from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { test as base } from '@playwright/test'
 import {
@@ -17,22 +22,17 @@ import {
   privateKeyToAccount,
 } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import {
-  injectHeadlessWeb3Provider,
-  type Web3ProviderBackend,
-} from '@ensdomains/headless-web3-provider'
+  publicClient,
+  testClient,
+  walletClient,
+} from '../helpers/anvil-client.js'
 import {
   connectWithHeadlessWallet,
   type PortalAccounts,
 } from '../helpers/portal-auth.js'
 import { createMakeName } from './makeName.js'
 import { createTime, type Time } from './time.js'
-import {
-  publicClient,
-  testClient,
-  walletClient,
-} from '../helpers/anvil-client.js'
 
 // Override Sepolia chain to point at the local Anvil fork.
 // The headless provider's internal walletClient uses this RPC URL
@@ -119,11 +119,20 @@ async function waitForTx(hash: Hash) {
   await publicClient.waitForTransactionReceipt({ hash })
 }
 
-async function ensurePortalStablecoinBalances(address: Address) {
-  // The default Anvil account has contract code on Sepolia.
-  // Clearing code avoids ERC1155 receiver checks failing during registration.
+// Anvil's default mnemonic ("test test test ... junk") is public, so its
+// derived addresses are widely known. Bots watch live Sepolia for funds
+// landing on them and sweep automatically — some via an EIP-7702 delegation,
+// which the fork inherits as real contract bytecode. That turns a plain
+// recipient EOA into an ERC1155 receiver whose callback doesn't return the
+// correct magic value, reverting any `safeTransferFrom` to it (e.g.
+// transfer.spec.ts sending to `user2`). Wiping the code restores a plain EOA
+// on the fork. Clear it for every test account, since any of them can end up
+// as a transfer recipient or registration owner.
+async function clearAnvilSquattedCode(address: Address) {
   await testClient.setCode({ address, bytecode: '0x' })
+}
 
+async function ensurePortalStablecoinBalances(address: Address) {
   const [usdcBalance, daiBalance] = await Promise.all([
     publicClient.readContract({
       address: MOCK_USDC,
@@ -185,11 +194,14 @@ type PortalFixtures = {
 }
 
 export const test = base.extend<PortalFixtures>({
-  accounts: async ({ }, use) => {
+  accounts: async ({}, use) => {
     await use(createAccounts())
   },
 
   wallet: async ({ page, accounts }, use) => {
+    await Promise.all(
+      users.map((user) => clearAnvilSquattedCode(accounts.getAddress(user))),
+    )
     await ensurePortalStablecoinBalances(accounts.getAddress('user'))
     const privateKeys = accounts.getAllPrivateKeys()
     const wallet = await injectHeadlessWeb3Provider({
@@ -201,14 +213,13 @@ export const test = base.extend<PortalFixtures>({
   },
 
   portalPage: async ({ page, wallet }, use) => {
-    const baseURL =
-      process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+    const baseURL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
     await page.goto(baseURL)
     // Brief wait for app initialisation
     await Promise.race([
       page.waitForLoadState('networkidle'),
       page.waitForTimeout(5_000),
-    ]).catch(() => { })
+    ]).catch(() => {})
     await use(page)
   },
 
