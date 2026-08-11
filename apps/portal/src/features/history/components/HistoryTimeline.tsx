@@ -27,16 +27,15 @@ interface HistoryTimelineProps {
  * filters and an expand-all toggle.
  */
 export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
-  const {
-    data: events,
-    isLoading,
-    error,
-  } = useQuery(getNameHistoryTimelineQueryOptions({ name }))
+  const { data, isLoading, error } = useQuery(
+    getNameHistoryTimelineQueryOptions({ name }),
+  )
 
   const [dateRange, setDateRange] = useState<DateRange>({})
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
   const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set())
 
+  const events = data?.events
   const actions = events ? summarizeEvents(events) : []
   const eventTypeGroups = buildEventTypeGroups(events ?? [])
   const filteredActions = filterActions(actions, dateRange, selectedTypes)
@@ -69,17 +68,28 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
     )
   }
 
+  const unavailableNotice = data?.unavailable.length ? (
+    <p className="text-warning text-sm">
+      {data.unavailable.map((p) => `ENS ${p}`).join(' and ')} history is
+      currently unavailable, so this timeline may be incomplete.
+    </p>
+  ) : null
+
   if (actions.length === 0) {
     return (
-      <NoResultsMessage
-        title="No history yet"
-        description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
-      />
+      <div className="flex w-full flex-col gap-4">
+        {unavailableNotice}
+        <NoResultsMessage
+          title="No history yet"
+          description="This name doesn't have any recorded history. Activity will appear here once transactions are made."
+        />
+      </div>
     )
   }
 
   return (
     <div className="flex w-full flex-col gap-4 sm:gap-6">
+      {unavailableNotice}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <h1 className="text-4xl">History</h1>
         <div className="flex flex-wrap items-center gap-2">

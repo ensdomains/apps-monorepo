@@ -11,29 +11,23 @@ import type { sepoliaWithEns } from '@/lib/wagmi'
  * history usually touches only a handful of them; the transport batches the
  * resulting `eth_getBlockByNumber` calls.
  *
- * A block that fails to load is simply absent from the map rather than failing
- * the whole history — `adaptV1Events` falls back to 0 for it.
+ * Rejects if any block fails to load. Tolerating a partial map would mean
+ * dating those events to the epoch — sorted to the bottom of the timeline and
+ * rendered as Jan 1 1970 — which reads as real history rather than as a
+ * failure. The caller degrades to "v1 unavailable" instead.
  */
 export const fetchBlockTimestamps = async (
   client: Client<Transport, typeof sepoliaWithEns>,
   blockNumbers: readonly number[],
-): Promise<Map<number, number>> => {
-  const results = await Promise.allSettled(
-    blockNumbers.map(async (blockNumber) => {
-      const block = await getBlock(client, {
-        blockNumber: BigInt(blockNumber),
-        includeTransactions: false,
-      })
-      return [blockNumber, Number(block.timestamp)] as const
-    }),
+): Promise<Map<number, number>> =>
+  new Map(
+    await Promise.all(
+      blockNumbers.map(async (blockNumber) => {
+        const block = await getBlock(client, {
+          blockNumber: BigInt(blockNumber),
+          includeTransactions: false,
+        })
+        return [blockNumber, Number(block.timestamp)] as const
+      }),
+    ),
   )
-
-  const timestamps = new Map<number, number>()
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      const [blockNumber, timestamp] = result.value
-      timestamps.set(blockNumber, timestamp)
-    }
-  }
-  return timestamps
-}

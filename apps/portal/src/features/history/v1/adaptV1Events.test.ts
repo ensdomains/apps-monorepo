@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { V1_PROTOCOL } from '../hooks/useNameHistoryTimeline'
 import { parseEventData } from '../summarize/decodeRawData'
 import { summarizeEvents } from '../summarize/summarizeEvents'
-import {
-  adaptV1Events,
-  V1_PROTOCOL,
-  type V1SubgraphEvent,
-} from './adaptV1Events'
+import { adaptV1Events, type V1SubgraphEvent } from './adaptV1Events'
 
 /**
  * Fixtures are the real Sepolia history of `fgeorgescu.eth` — a wrapped v1 name
@@ -30,18 +27,16 @@ const CONTRACTS = {
   baseRegistrar: '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85',
 } as const
 
-const event = (partial: Partial<V1SubgraphEvent> & { type: string }) => ({
-  id: partial.id ?? '1',
-  blockNumber: BLOCK,
-  transactionID: REGISTER_TX,
-  ...partial,
-})
-
 const adapt = (
   events: ReadonlyArray<Partial<V1SubgraphEvent> & { type: string }>,
 ) =>
   adaptV1Events({
-    events: events.map(event),
+    events: events.map((partial) => ({
+      id: partial.id ?? '1',
+      blockNumber: BLOCK,
+      transactionID: REGISTER_TX,
+      ...partial,
+    })),
     name: NAME,
     namehash: NODE,
     contracts: CONTRACTS,
@@ -66,17 +61,6 @@ describe('adaptV1Events', () => {
     })
   })
 
-  it('falls back to timestamp 0 when the block could not be resolved', () => {
-    const [adapted] = adaptV1Events({
-      events: [event({ type: 'NewOwner', blockNumber: 999 })],
-      name: NAME,
-      namehash: NODE,
-      contracts: CONTRACTS,
-      blockTimestamps: new Map(),
-    })
-    expect(adapted.timestamp).toBe(0)
-  })
-
   it('maps the registry Transfer to RegistryTransfer, not the ERC-721 Transfer', () => {
     // The v2 `Transfer` descriptor reads asTransfer.from/to and bails on a zero
     // `from` — a registry owner change has neither, so it must not land there.
@@ -86,14 +70,7 @@ describe('adaptV1Events', () => {
   })
 
   it('extracts the resolver address from an ENSNode resolver id', () => {
-    const [adapted] = adapt([
-      {
-        type: 'NewResolver',
-        resolver: {
-          id: RESOLVER_ID,
-        },
-      },
-    ])
+    const [adapted] = adapt([{ type: 'NewResolver', resolverId: RESOLVER_ID }])
     expect(adapted.type).toBe('ResolverUpdated')
     expect(adapted.asResolverUpdated?.resolver).toBe(RESOLVER)
   })
@@ -161,6 +138,16 @@ describe('adaptV1Events', () => {
 })
 
 describe('parity fields reconstructed without extra requests', () => {
+  it('reads the resolver from resolverId on both domain and resolver events', () => {
+    const [newResolver, text] = adapt([
+      { id: '1', type: 'NewResolver', resolverId: RESOLVER_ID },
+      { id: '2', type: 'TextChanged', key: 'a', resolverId: RESOLVER_ID },
+    ])
+
+    expect(newResolver.asResolverUpdated?.resolver).toBe(RESOLVER)
+    expect(text.asTextChanged?.resolver).toBe(RESOLVER)
+  })
+
   it('derives contractAddress per event type from chain constants', () => {
     const byType = Object.fromEntries(
       adapt([
@@ -258,13 +245,7 @@ describe('summarizeEvents over adapted v1 history', () => {
       expiryDate: '1801218936',
       owner: { id: OWNER },
     },
-    {
-      id: 'd',
-      type: 'NewResolver',
-      resolver: {
-        id: RESOLVER_ID,
-      },
-    },
+    { id: 'd', type: 'NewResolver', resolverId: RESOLVER_ID },
     {
       id: 'e',
       type: 'NameRegistered',

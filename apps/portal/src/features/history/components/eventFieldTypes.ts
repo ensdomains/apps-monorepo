@@ -78,7 +78,6 @@ const FIELD_TYPES: Record<string, Record<string, string>> = {
     oldRoleBitmap: 'uint256',
     newRoleBitmap: 'uint256',
   },
-  // ENS v1-only types (see `v1/adaptV1Events.ts`); their params arrive via `data`.
   NewOwner: { owner: 'address', node: 'bytes32', parent: 'string' },
   NewTTL: { node: 'bytes32', ttl: 'uint64' },
   WrappedTransfer: { node: 'bytes32', owner: 'address' },

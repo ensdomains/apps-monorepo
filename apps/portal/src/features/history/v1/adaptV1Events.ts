@@ -1,5 +1,10 @@
+import { match } from 'ts-pattern'
 import { type Address, type Hex, isAddress } from 'viem'
-import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
+import { MAINNET_COIN_TYPE } from '@/lib/coinType'
+import {
+  type TimelineIndexerEvent,
+  V1_PROTOCOL,
+} from '../hooks/useNameHistoryTimeline'
 
 /**
  * Adapts ENS v1 subgraph events into the shape the history timeline speaks
@@ -10,13 +15,6 @@ import type { TimelineIndexerEvent } from '../hooks/useNameHistoryTimeline'
  * timeline component a second event shape, we normalize v1 events here and let
  * the existing summarize/descriptor/detail pipeline render both.
  */
-
-/**
- * Written to `protocol` on adapted events, mirroring the `"v2"` the indexer
- * stamps on its own. `descriptors.ts` reads it to disambiguate the two type
- * names that mean different things across protocols.
- */
-export const V1_PROTOCOL = 'v1'
 
 export type V1SubgraphEvent = {
   readonly id: string
@@ -46,7 +44,7 @@ const TYPE_ALIASES: Record<string, string> = {
  * Resolver events are the exception: they name their resolver per-event via
  * `resolverId`, since a name can change resolver over its life.
  */
-export type V1Contracts = {
+type V1Contracts = {
   readonly registry: Address
   readonly nameWrapper: Address
   readonly baseRegistrar: Address
@@ -68,9 +66,6 @@ const CONTRACT_BY_TYPE: Record<string, keyof V1Contracts> = {
   NameRenewed: 'baseRegistrar',
   NameTransferred: 'baseRegistrar',
 }
-
-/** Coin type for ETH — the coin `AddrChanged` implicitly refers to. */
-const ETH_COIN_TYPE = 60
 
 const refId = (value: unknown): string | undefined => {
   const id = (value as { id?: string | null } | null | undefined)?.id
@@ -126,11 +121,7 @@ const dataBlob = (
     // Flatten `{ id }` references to the bare id/address.
     params[key] = typeof value === 'object' ? (refId(value) ?? value) : value
   }
-  if (event.type === 'NewResolver') {
-    params.resolver = resolverAddress(refId(event.resolver))
-  } else if (resolver) {
-    params.resolver = resolver
-  }
+  if (resolver) params.resolver = resolver
   const parent = (event.parentDomain as { name?: string } | undefined)?.name
   if (parent) params.parent = parent
   return JSON.stringify(params)
@@ -142,67 +133,63 @@ const payloadFor = (
   name: string,
   node: Hex,
   resolver?: string,
-): Partial<TimelineIndexerEvent> => {
-  switch (event.type) {
-    case 'NewOwner':
-    case 'Transfer':
-      return { asRegistryTransfer: { node, owner: refId(event.owner) } }
-    case 'NewResolver':
-      return {
-        asResolverUpdated: { resolver: resolverAddress(refId(event.resolver)) },
-      }
-    case 'WrappedTransfer':
-      return { asTransfer: { to: refId(event.owner) } }
-    case 'NameWrapped':
-      return {
-        asNameWrapped: {
-          node,
-          owner: refId(event.owner),
-          fuses: num(event.fuses),
-          expiry: num(event.expiryDate),
-        },
-      }
-    case 'NameUnwrapped':
-      return { asNameUnwrapped: { node, owner: refId(event.owner) } }
-    case 'FusesSet':
-      return { asFusesSet: { node, fuses: num(event.fuses) } }
-    case 'ExpiryExtended':
-      return { asExpiryUpdated: { node, expiry: num(event.expiryDate) } }
-    case 'NameRegistered':
-      return {
-        asNameRegistered: {
-          name,
-          // `cost` is folded on by the fetcher from the Registration entity,
-          // which is where the subgraph records it. `label` is deliberately
-          // absent: v2's is the labelhash, and v1 only stores the plain
-          // `labelName` — which `name` already shows.
-          cost: str(event.cost),
-          owner: refId(event.registrant),
-          expires: num(event.expiryDate),
-        },
-      }
-    case 'NameRenewed':
-      return { asNameRenewed: { expires: num(event.expiryDate) } }
-    case 'AddrChanged':
-      return {
-        asAddressChanged: {
-          address: refId(event.addr),
-          coinType: ETH_COIN_TYPE,
-          resolver,
-          namehash: node,
-        },
-      }
-    case 'MulticoinAddrChanged':
-      // ensjs aliases the field to `multiaddr` to dodge the `addr` ref above.
-      return {
-        asAddressChanged: {
-          address: str(event.multiaddr) ?? str(event.addr),
-          coinType: num(event.coinType),
-          resolver,
-          namehash: node,
-        },
-      }
-    case 'TextChanged': {
+): Partial<TimelineIndexerEvent> =>
+  match(event.type)
+    .with('NewOwner', 'Transfer', () => ({
+      asRegistryTransfer: { node, owner: refId(event.owner) },
+    }))
+    .with('NewResolver', () => ({ asResolverUpdated: { resolver } }))
+    .with('WrappedTransfer', () => ({ asTransfer: { to: refId(event.owner) } }))
+    .with('NameWrapped', () => ({
+      asNameWrapped: {
+        node,
+        owner: refId(event.owner),
+        fuses: num(event.fuses),
+        expiry: num(event.expiryDate),
+      },
+    }))
+    .with('NameUnwrapped', () => ({
+      asNameUnwrapped: { node, owner: refId(event.owner) },
+    }))
+    .with('FusesSet', () => ({
+      asFusesSet: { node, fuses: num(event.fuses) },
+    }))
+    .with('ExpiryExtended', () => ({
+      asExpiryUpdated: { node, expiry: num(event.expiryDate) },
+    }))
+    .with('NameRegistered', () => ({
+      asNameRegistered: {
+        name,
+        // `cost` is folded on by the fetcher from the Registration entity,
+        // which is where the subgraph records it. `label` is deliberately
+        // absent: v2's is the labelhash, and v1 only stores the plain
+        // `labelName` — which `name` already shows.
+        cost: str(event.cost),
+        owner: refId(event.registrant),
+        expires: num(event.expiryDate),
+      },
+    }))
+    .with('NameRenewed', () => ({
+      asNameRenewed: { expires: num(event.expiryDate) },
+    }))
+    .with('AddrChanged', () => ({
+      asAddressChanged: {
+        address: refId(event.addr),
+        coinType: MAINNET_COIN_TYPE,
+        resolver,
+        namehash: node,
+      },
+    }))
+    // ensjs aliases the field to `multiaddr` to dodge the `addr` ref above.
+    .with('MulticoinAddrChanged', () => ({
+      asAddressChanged: {
+        address: str(event.multiaddr) ?? str(event.addr),
+        coinType: num(event.coinType),
+        resolver,
+        namehash: node,
+      },
+    }))
+    .with('TextChanged', () => {
       const key = str(event.key)
       const value = str(event.value)
       return {
@@ -210,13 +197,10 @@ const payloadFor = (
         value,
         asTextChanged: { key, value, resolver, namehash: node },
       }
-    }
+    })
     // NewTTL, NameTransferred and the remaining resolver events (NameChanged,
     // ContenthashChanged, AbiChanged, …) read their params from `data`.
-    default:
-      return {}
-  }
-}
+    .otherwise(() => ({}))
 
 /**
  * Drop the coin-60 `AddressChanged` when the same transaction also carries an
@@ -236,7 +220,7 @@ const dropDuplicateEthAddrEvents = (
     (event) =>
       !(
         event.type === 'AddressChanged' &&
-        event.asAddressChanged?.coinType === ETH_COIN_TYPE &&
+        event.asAddressChanged?.coinType === MAINNET_COIN_TYPE &&
         txsWithAddrChanged.has(event.transactionHash.toLowerCase())
       ),
   )
@@ -253,7 +237,6 @@ export const adaptV1Events = ({
   /** The name being viewed; v1 events carry no name of their own. */
   readonly name: string
   readonly namehash: Hex
-  /** blockNumber → unix seconds. Missing entries fall back to 0. */
   readonly blockTimestamps: ReadonlyMap<number, number>
   readonly contracts: V1Contracts
 }): TimelineIndexerEvent[] =>

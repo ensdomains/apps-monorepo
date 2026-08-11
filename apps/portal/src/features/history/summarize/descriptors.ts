@@ -1,7 +1,7 @@
 import { isAddress, zeroAddress } from 'viem'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
-import { V1_PROTOCOL } from '../v1/adaptV1Events'
+import { V1_PROTOCOL } from '../hooks/useNameHistoryTimeline'
 import {
   decodeRoleChange,
   parseEventData,

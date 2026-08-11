@@ -2,73 +2,6 @@ import { GraphQLClient, gql } from 'graphql-request'
 import type { Hex } from 'viem'
 import type { V1SubgraphEvent } from './adaptV1Events'
 
-/**
- * The ENS v1 subgraph query behind the history timeline.
- *
- * This deliberately does not go through ensjs's `getNameHistory`: that action
- * flattens `{ id }` references with `id.split('-')[0]`, which returns the chain
- * id for ENSNode's `"{chainId}-{address}-{node}"` resolver ids and so loses the
- * resolver address entirely. We keep the raw refs and flatten them in
- * `adaptV1Events`.
- *
- * `$first` is passed explicitly for the same reason it is on the v1 history
- * hook: the three sibling `events` selections are each costed at their worst
- * case when the variable is unsupplied, and the query is rejected for exceeding
- * the complexity limit.
- */
-const V1_NAME_HISTORY_QUERY = gql`
-  query getV1NameHistoryTimeline($id: String!, $first: Int, $orderDirection: OrderDirection) {
-    domain(id: $id) {
-      events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
-        id
-        blockNumber
-        transactionID
-        type: __typename
-        ... on Transfer { owner { id } }
-        ... on NewOwner { owner { id } parentDomain { name } }
-        ... on NewResolver { resolver { id } }
-        ... on NewTTL { ttl }
-        ... on WrappedTransfer { owner { id } }
-        ... on NameWrapped { name fuses expiryDate owner { id } }
-        ... on NameUnwrapped { owner { id } }
-        ... on FusesSet { fuses }
-        ... on ExpiryExtended { expiryDate }
-      }
-      registration {
-        cost
-        events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
-          id
-          blockNumber
-          transactionID
-          type: __typename
-          ... on NameRegistered { registrant { id } expiryDate }
-          ... on NameRenewed { expiryDate }
-          ... on NameTransferred { newOwner { id } }
-        }
-      }
-      resolver {
-        events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
-          id
-          blockNumber
-          transactionID
-          type: __typename
-          resolverId
-          ... on AddrChanged { addr { id } }
-          ... on MulticoinAddrChanged { coinType multiaddr: addr }
-          ... on NameChanged { name }
-          ... on AbiChanged { contentType }
-          ... on PubkeyChanged { x y }
-          ... on TextChanged { key value }
-          ... on ContenthashChanged { hash }
-          ... on InterfaceChanged { interfaceID implementer }
-          ... on AuthorisationChanged { owner target isAuthorized }
-          ... on VersionChanged { version }
-        }
-      }
-    }
-  }
-`
-
 type V1SubgraphResult = {
   domain: {
     events: V1SubgraphEvent[]
@@ -82,6 +15,19 @@ type V1SubgraphResult = {
  * resolver split is a quirk of the subgraph schema and carries no meaning once
  * the events are grouped by transaction. Returns `[]` (not an error) when the
  * subgraph has no record of the name, the common case for a v2-native name.
+ *
+ * This deliberately does not go through ensjs's `getNameHistory`: that action
+ * flattens `{ id }` references with `id.split('-')[0]`, which returns the chain
+ * id for ENSNode's `"{chainId}-{address}-{node}"` resolver ids and so loses the
+ * resolver address entirely. We keep the raw refs and flatten them in
+ * `adaptV1Events`.
+ *
+ * `$first` is passed explicitly because the three sibling `events` selections
+ * are each costed at their worst case when the variable is unsupplied, and the
+ * query is then rejected for exceeding the complexity limit. `orderBy:
+ * blockNumber` is what makes it mean "the newest N" — the connection otherwise
+ * orders by `id`, and ids are `"{chainId}-{blockNumber}-{logIndex}"` strings,
+ * so they sort lexicographically and put block 10000000 before block 9529458.
  *
  * `cost` lives on the `Registration` entity rather than on the `NameRegistered`
  * event (the subgraph writes it from a second handler), so it is folded onto
@@ -98,20 +44,71 @@ export const fetchV1NameHistory = async ({
   readonly first: number
   readonly orderDirection: 'asc' | 'desc'
 }): Promise<V1SubgraphEvent[]> => {
-  const client = new GraphQLClient(subgraphUrl)
-  const { domain } = await client.request<V1SubgraphResult>(
-    V1_NAME_HISTORY_QUERY,
+  const { domain } = await new GraphQLClient(
+    subgraphUrl,
+  ).request<V1SubgraphResult>(
+    gql`
+      query getV1NameHistoryTimeline($id: String!, $first: Int, $orderDirection: OrderDirection) {
+        domain(id: $id) {
+          events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+            id
+            blockNumber
+            transactionID
+            type: __typename
+            ... on Transfer { owner { id } }
+            ... on NewOwner { owner { id } parentDomain { name } }
+            ... on NewResolver { resolverId }
+            ... on NewTTL { ttl }
+            ... on WrappedTransfer { owner { id } }
+            ... on NameWrapped { name fuses expiryDate owner { id } }
+            ... on NameUnwrapped { owner { id } }
+            ... on FusesSet { fuses }
+            ... on ExpiryExtended { expiryDate }
+          }
+          registration {
+            cost
+            events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+              id
+              blockNumber
+              transactionID
+              type: __typename
+              ... on NameRegistered { registrant { id } expiryDate }
+              ... on NameRenewed { expiryDate }
+              ... on NameTransferred { newOwner { id } }
+            }
+          }
+          resolver {
+            events(first: $first, orderBy: blockNumber, orderDirection: $orderDirection) {
+              id
+              blockNumber
+              transactionID
+              type: __typename
+              resolverId
+              ... on AddrChanged { addr { id } }
+              ... on MulticoinAddrChanged { coinType multiaddr: addr }
+              ... on NameChanged { name }
+              ... on AbiChanged { contentType }
+              ... on PubkeyChanged { x y }
+              ... on TextChanged { key value }
+              ... on ContenthashChanged { hash }
+              ... on InterfaceChanged { interfaceID implementer }
+              ... on AuthorisationChanged { owner target isAuthorized }
+              ... on VersionChanged { version }
+            }
+          }
+        }
+      }
+    `,
     { id: namehash, first, orderDirection },
   )
 
   const cost = domain?.registration?.cost
-  const registrationEvents = (domain?.registration?.events ?? []).map(
-    (event) => (event.type === 'NameRegistered' ? { ...event, cost } : event),
-  )
 
   return [
     ...(domain?.events ?? []),
-    ...registrationEvents,
+    ...(domain?.registration?.events ?? []).map((event) =>
+      event.type === 'NameRegistered' ? { ...event, cost } : event,
+    ),
     ...(domain?.resolver?.events ?? []),
   ]
 }

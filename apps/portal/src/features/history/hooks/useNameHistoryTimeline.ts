@@ -134,6 +134,9 @@ type GetNameHistoryTimelineParameters = {
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
 
+export const V1_PROTOCOL = 'v1'
+export const V2_PROTOCOL = 'v2'
+
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
 
 const HISTORY_TIMELINE_QUERY = gql`
@@ -174,21 +177,19 @@ const HISTORY_TIMELINE_QUERY = gql`
   }
 `
 
-const normalizeName = (name: string): string => {
-  try {
-    return normalize(name)
-  } catch {
-    return name.toLowerCase()
-  }
-}
-
 const getNameHistoryTimeline = ResultFn(async function* ({
   name,
   first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
 }: GetNameHistoryTimelineParameters) {
   const client = yield* safeGetClient()
-  const normalizedName = normalizeName(name)
+  const normalizedName = (() => {
+    try {
+      return normalize(name)
+    } catch {
+      return name.toLowerCase()
+    }
+  })()
   const node = namehash(normalizedName)
 
   const [v2Result, v1Result] = yield* fromPromise(
@@ -200,36 +201,36 @@ const getNameHistoryTimeline = ResultFn(async function* ({
           orderDirection,
         })
         .then(({ domains }) => domains[0]?.events ?? []),
+
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
         namehash: node,
         first,
         orderDirection,
-      }),
+      }).then(async (events) => ({
+        events,
+        blockTimestamps: await fetchBlockTimestamps(client, [
+          ...new Set(events.map((event) => event.blockNumber)),
+        ]),
+      })),
     ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
   )
 
   if (v2Result.status === 'rejected' && v1Result.status === 'rejected') {
-    return err(
-      new GetNameHistoryTimelineError({
-        cause: v2Result.reason as ClientError,
-      }),
-    )
+    return err(new GetNameHistoryTimelineError({ cause: v2Result.reason }))
   }
 
   const v2Events = v2Result.status === 'fulfilled' ? v2Result.value : []
-  const v1Raw = v1Result.status === 'fulfilled' ? v1Result.value : []
+  const v1 =
+    v1Result.status === 'fulfilled'
+      ? v1Result.value
+      : { events: [], blockTimestamps: new Map<number, number>() }
 
-  // v1 events carry no timestamp, so their blocks are resolved over RPC before
-  // they can be sorted or grouped alongside v2 events.
   const v1Events = adaptV1Events({
-    events: v1Raw,
+    ...v1,
     name: normalizedName,
     namehash: node,
-    blockTimestamps: await fetchBlockTimestamps(client, [
-      ...new Set(v1Raw.map((event) => event.blockNumber)),
-    ]),
     // Static chain constants, not lookups — the v1 subgraph records no
     // emitting address, so the contract badge is reconstructed from these.
     contracts: {
@@ -240,11 +241,15 @@ const getNameHistoryTimeline = ResultFn(async function* ({
     },
   })
 
-  return ok(
-    [...v2Events, ...v1Events]
+  return ok({
+    events: [...v2Events, ...v1Events]
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, first),
-  )
+    unavailable: [
+      ...(v2Result.status === 'rejected' ? [V2_PROTOCOL] : []),
+      ...(v1Result.status === 'rejected' ? [V1_PROTOCOL] : []),
+    ],
+  })
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<
