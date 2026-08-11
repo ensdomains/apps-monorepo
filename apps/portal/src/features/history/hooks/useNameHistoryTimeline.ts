@@ -2,9 +2,14 @@ import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
-import { fromPromise, ok } from 'neverthrow'
+import { err, fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
+import { namehash } from 'viem/ens'
 import { graphqlIndexerClient } from '@/lib/indexer'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+import { adaptV1Events } from '../v1/adaptV1Events'
+import { fetchBlockTimestamps } from '../v1/fetchBlockTimestamps'
+import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
  * Widened per-name history query for the timeline.
@@ -13,6 +18,11 @@ import { graphqlIndexerClient } from '@/lib/indexer'
  * this selects the emitting `contractAddress`, the raw `data` blob, and every typed
  * `as*` decoder the indexer exposes — everything the summarize engine needs to build
  * human-readable action labels and decoded-param detail views.
+ *
+ * Events are read from BOTH protocols and merged: the v2 indexer has no `domains`
+ * row at all for a name that never migrated, so a v1-only name would otherwise
+ * render an empty timeline. v1 events are normalized to this same shape by
+ * `v1/adaptV1Events.ts`.
  *
  * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" / "initiated by"
  * lines are first-class instead of RPC-backfilled (see useTransactionSenders).
@@ -169,15 +179,66 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
 }: GetNameHistoryTimelineParameters) {
-  const { domains } = yield* fromPromise(
-    graphqlIndexerClient.request<{ domains: DomainWithEvents[] }>(
-      HISTORY_TIMELINE_QUERY,
-      { name: name.toLowerCase(), first, orderDirection },
-    ),
+  const client = yield* safeGetClient()
+  const lowercaseName = name.toLowerCase()
+  const node = namehash(lowercaseName)
+
+  // Both protocols are queried together, and each is allowed to come back empty
+  // — a v1-only name has no v2 row and a v2-native name has no v1 domain. Only
+  // a failure on BOTH sides is an error; a single indexer being down should
+  // still render the half of the history we can read.
+  const [v2Result, v1Result] = yield* fromPromise(
+    Promise.allSettled([
+      graphqlIndexerClient
+        .request<{ domains: DomainWithEvents[] }>(HISTORY_TIMELINE_QUERY, {
+          name: lowercaseName,
+          first,
+          orderDirection,
+        })
+        .then(({ domains }) => domains[0]?.events ?? []),
+      fetchV1NameHistory({
+        subgraphUrl: client.chain.subgraphs.ens.url,
+        namehash: node,
+        first,
+        orderDirection,
+      }),
+    ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
   )
 
-  return ok(domains[0]?.events ?? [])
+  if (v2Result.status === 'rejected' && v1Result.status === 'rejected') {
+    return err(
+      new GetNameHistoryTimelineError({
+        cause: v2Result.reason as ClientError,
+      }),
+    )
+  }
+
+  const v2Events = v2Result.status === 'fulfilled' ? v2Result.value : []
+  const v1Raw = v1Result.status === 'fulfilled' ? v1Result.value : []
+
+  // v1 events carry no timestamp, so their blocks are resolved over RPC before
+  // they can be sorted or grouped alongside v2 events.
+  const v1Events = adaptV1Events({
+    events: v1Raw,
+    name: lowercaseName,
+    namehash: node,
+    blockTimestamps: await fetchBlockTimestamps(client, [
+      ...new Set(v1Raw.map((event) => event.blockNumber)),
+    ]),
+    // Static chain constants, not lookups — the v1 subgraph records no
+    // emitting address, so the contract badge is reconstructed from these.
+    contracts: {
+      registry: client.chain.contracts.ensRegistry.address,
+      nameWrapper: client.chain.contracts.ensNameWrapper.address,
+      baseRegistrar:
+        client.chain.contracts.ensBaseRegistrarImplementation.address,
+    },
+  })
+
+  return ok(
+    [...v2Events, ...v1Events].sort((a, b) => b.timestamp - a.timestamp),
+  )
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<

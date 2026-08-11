@@ -29,7 +29,19 @@ const TYPE_RANK: Record<string, number> = {
   ContenthashChanged: 30,
   FusesSet: 20,
   ExpiryUpdated: 20,
+  // ENS v1 types with no v2 counterpart (see `v1/adaptV1Events.ts`).
+  NameTransferred: 72,
+  WrappedTransfer: 70,
+  NewOwner: 15,
 }
+
+/**
+ * Rank at or above which an event outranks the multi-record recipe: a
+ * transaction that both registers a name and seeds its records is one "Register
+ * name", not "Set 5 records". Deliberately above `ResolverUpdated` (60) — "set
+ * the resolver and write records" is still best headlined by the records.
+ */
+const STRUCTURAL_RANK = 70
 
 const RECORD_TYPES = new Set([
   'TextChanged',
@@ -90,8 +102,10 @@ const describeGroup = (
   group: readonly TimelineIndexerEvent[],
   byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
-  const fromRecipe = multiRecordRecipe(group)
-  if (fromRecipe) return fromRecipe
+  if (rankOf(byRank[0]) < STRUCTURAL_RANK) {
+    const fromRecipe = multiRecordRecipe(group)
+    if (fromRecipe) return fromRecipe
+  }
 
   for (const primary of byRank) {
     const descriptor = DESCRIPTORS[primary.type]

@@ -1,6 +1,7 @@
 import { isAddress, zeroAddress } from 'viem'
 import { formatRoleLabel } from '@/lib/roles/formatRoleLabel'
 import { truncateAddress } from '@/utils/formatting/truncateAddress'
+import { V1_PROTOCOL } from '../v1/adaptV1Events'
 import {
   decodeRoleChange,
   parseEventData,
@@ -269,13 +270,35 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
     },
   },
 
+  // The only two type names that mean different things across protocols: under
+  // v1 these are the NameWrapper's wrap/unwrap, not the migration to v2.
   NameWrapped: {
     icon: 'migrate',
-    build: () => ({ label: 'Migrated to ENSv2', slots: [] }),
+    build: (primary) =>
+      primary.protocol === V1_PROTOCOL
+        ? {
+            label: 'Wrap name',
+            slots: [
+              nameSlot(primary.name),
+              { kind: 'connective', value: 'for' },
+              addressSlot(primary.asNameWrapped?.owner),
+            ],
+          }
+        : { label: 'Migrated to ENSv2', slots: [] },
   },
   NameUnwrapped: {
     icon: 'migrate',
-    build: () => ({ label: 'Unwrapped from ENSv2', slots: [] }),
+    build: (primary) =>
+      primary.protocol === V1_PROTOCOL
+        ? {
+            label: 'Unwrap name',
+            slots: [
+              nameSlot(primary.name),
+              { kind: 'connective', value: 'to' },
+              addressSlot(primary.asNameUnwrapped?.owner),
+            ],
+          }
+        : { label: 'Unwrapped from ENSv2', slots: [] },
   },
   FusesSet: {
     icon: 'fuses',
@@ -284,5 +307,37 @@ export const DESCRIPTORS: Record<string, Descriptor> = {
   ExpiryUpdated: {
     icon: 'expiry',
     build: () => ({ label: 'Expiry updated', slots: [] }),
+  },
+
+  // ENS v1 types with no v2 counterpart, so no collision to disambiguate.
+  // The v1 resolver events left out here (AbiChanged, PubkeyChanged,
+  // VersionChanged, …) read fine straight from `humanizeType`.
+  NewOwner: {
+    icon: 'registry',
+    build: (primary) => ({
+      label: 'Set registry owner',
+      slots: [addressSlot(primary.asRegistryTransfer?.owner)],
+    }),
+  },
+  WrappedTransfer: {
+    icon: 'transfer',
+    build: (primary) => ({
+      label: 'Transfer wrapped name',
+      slots: [
+        nameSlot(primary.name),
+        { kind: 'glyph', value: '→' },
+        addressSlot(primary.asTransfer?.to),
+      ],
+    }),
+  },
+  NameTransferred: {
+    icon: 'transfer',
+    build: (primary) => ({
+      label: 'Transfer registrant',
+      slots: [
+        { kind: 'connective', value: 'to' },
+        addressSlot(readString(parseEventData(primary.data), 'newOwner')),
+      ],
+    }),
   },
 }
