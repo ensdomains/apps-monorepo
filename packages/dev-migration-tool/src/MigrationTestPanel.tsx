@@ -14,10 +14,12 @@ import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 import { MIGRATION_TOOL_RPC } from './config'
 import {
   type ActiveName,
-  buildMockDomain,
+  buildMockDomains,
+  buildMockProfileRows,
   createV1NameOnAnvil,
   DEFAULT_ACCOUNT,
   ensureNamesOnAnvil,
+  fullNamesFor,
   getOnchainExpiries,
   PRESETS,
   type PresetType,
@@ -90,6 +92,99 @@ export function setInjectedNames(names: ActiveName[]): void {
   _injectedNames = names
 }
 
+const jsonDomains = (domains: unknown[]): Response =>
+  new Response(JSON.stringify({ data: { domains } }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+const realDomainsOf = async (
+  response: Promise<Response>,
+): Promise<unknown[]> => {
+  try {
+    const json = (await (await response).json()) as {
+      data?: { domains?: unknown[] }
+    }
+    return json?.data?.domains ?? []
+  } catch {
+    return [] /* subgraph unreachable */
+  }
+}
+
+/**
+ * `getProfilesForDomains` answers "which text/addr keys does this name have".
+ * The values are then read on-chain, so only the KEYS need injecting — but
+ * without them the hosted subgraph is asked about Anvil-only names, returns
+ * nothing, and record replay silently has nothing to replay.
+ */
+const respondWithProfileRows = async (
+  body: string,
+  real: Promise<Response>,
+): Promise<Response> => {
+  let requestedIds: string[] | null = null
+  try {
+    const parsed = JSON.parse(body) as {
+      variables?: { whereFilter?: { id_in?: string[] } }
+    }
+    const ids = parsed.variables?.whereFilter?.id_in
+    if (Array.isArray(ids)) requestedIds = ids.map((id) => id.toLowerCase())
+  } catch {
+    /* inject everything we know about */
+  }
+  const mockRows = _injectedNames
+    .flatMap((name) => buildMockProfileRows(name))
+    .filter(
+      (row) => !requestedIds || requestedIds.includes(row.id.toLowerCase()),
+    )
+  return jsonDomains([...(await realDomainsOf(real)), ...mockRows])
+}
+
+/**
+ * `getNamesForAddress` (the whole list) and `getV1DomainForMigration` (one name).
+ *
+ * The single-name lookup may ask about a CHILD of a `subname*` preset, so match
+ * against every name a preset contributes, then narrow the emitted domains back
+ * down to the one requested.
+ */
+const respondWithNameDomains = async (
+  body: string,
+  isNameList: boolean,
+  real: Promise<Response>,
+): Promise<Response> => {
+  const lookupName = isNameList ? null : migrationLookupName(body)
+  const listInjected = nameListTargetsMockOwner(body) ? _injectedNames : []
+  const injected = isNameList
+    ? listInjected
+    : _injectedNames.filter((n) =>
+        lookupName ? fullNamesFor(n).includes(lookupName) : false,
+      )
+
+  const realDomains = await realDomainsOf(real)
+
+  // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
+  // the value captured at creation — otherwise a renewed grace name still reads
+  // as expired and migration eligibility keeps hiding the upgrade banner.
+  const liveExpiries = await getOnchainExpiries(
+    MIGRATION_TOOL_RPC,
+    injected.map((name) => name.label),
+  )
+  // flatMap: a `subname*` preset contributes its 2LD *and* its child, so the
+  // migration list can show a hierarchy rather than the parent alone.
+  const mockDomains = injected
+    .flatMap((name, index) => {
+      const liveExpiry = liveExpiries[index]
+      return buildMockDomains(
+        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
+      )
+    })
+    .filter(
+      (domain) =>
+        !lookupName || (domain as { name?: string }).name === lookupName,
+    )
+
+  return jsonDomains([...realDomains, ...mockDomains])
+}
+
 ;(function installSubgraphInterceptor() {
   if (typeof window === 'undefined') return
   // HMR guard: store the true original fetch under a well-known key so that
@@ -121,48 +216,18 @@ export function setInjectedNames(names: ActiveName[]): void {
     const body = typeof init?.body === 'string' ? init.body : ''
     const isNameList = body.includes('getNamesForAddress')
     const isMigrationLookup = body.includes('getV1DomainForMigration')
-    if (!isNameList && !isMigrationLookup) return origFetch(input, init)
+    //  - getProfilesForDomains: which text/addr keys a name has. The values are
+    //    then read on-chain, so only the KEYS need injecting — but without them
+    //    record replay has nothing to replay for Anvil-only names.
+    const isProfileLookup = body.includes('getProfilesForDomains')
+    if (!isNameList && !isMigrationLookup && !isProfileLookup)
+      return origFetch(input, init)
 
-    const nameListInjected = nameListTargetsMockOwner(body)
-      ? _injectedNames
-      : []
-    const injected = isNameList
-      ? nameListInjected
-      : _injectedNames.filter(
-          (n) => `${n.label}.eth` === migrationLookupName(body),
-        )
-
-    let realDomains: unknown[] = []
-    try {
-      const real = await origFetch(input, init)
-      const json = (await real.json()) as { data?: { domains?: unknown[] } }
-      realDomains = json?.data?.domains ?? []
-    } catch {
-      /* subgraph unreachable */
+    if (isProfileLookup) {
+      return respondWithProfileRows(body, origFetch(input, init))
     }
 
-    // Reflect the live on-chain expiry (renewals/time-travel move it) rather than
-    // the value captured at creation — otherwise a renewed grace name still reads
-    // as expired and migration eligibility keeps hiding the upgrade banner.
-    const liveExpiries = await getOnchainExpiries(
-      MIGRATION_TOOL_RPC,
-      injected.map((name) => name.label),
-    )
-    const mockDomains = injected.map((name, index) => {
-      const liveExpiry = liveExpiries[index]
-      return buildMockDomain(
-        liveExpiry != null ? { ...name, expiryDate: liveExpiry } : name,
-      )
-    })
-
-    return new Response(
-      JSON.stringify({
-        data: {
-          domains: [...realDomains, ...mockDomains],
-        },
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    )
+    return respondWithNameDomains(body, isNameList, origFetch(input, init))
   }
 })()
 
@@ -238,7 +303,9 @@ export function MigrationPanelContent() {
         void queryClient.invalidateQueries({
           queryKey: [{ $scope: 'migration' }],
         })
-        const nameParam = refreshed.map((n) => `${n.label}.eth`).join(',')
+        // Include child names, so a `subname*` preset arrives with the whole
+        // hierarchy pre-selected instead of just its 2LD.
+        const nameParam = refreshed.flatMap((n) => fullNamesFor(n)).join(',')
         window.location.href = `/migration?names=${encodeURIComponent(nameParam)}`
       } catch (e) {
         setActionError(`Failed to sync names to Anvil: ${String(e)}`)
