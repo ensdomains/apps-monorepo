@@ -1607,7 +1607,7 @@ msgstr "No wallet connected yet"
 msgid "Not a valid name format"
 msgstr "Not a valid name format"
 
-#. placeholder {0}: funding.total.toFixed(2)
+#. placeholder {0}: funding.walletDebit.toFixed(2)
 #. placeholder {1}: funding.registration.toFixed(2)
 #. placeholder {2}: funding.networkFee.toFixed(2)
 #. placeholder {3}: (funding.walletBalance ?? 0).toFixed(2)
@@ -2850,11 +2850,6 @@ msgstr "Updating address..."
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "Updating profile..."
 msgstr "Updating profile..."
-
-#. placeholder {0}: error.parentName
-#: src/features/migration/pages/MigrationPage.tsx
-#~ msgid "Upgrade {0} first."
-#~ msgstr "Upgrade {0} first."
 
 #: src/features/migration/components/SelectNamesStepFooter.tsx
 msgid "Upgrade all names to receive NFT"

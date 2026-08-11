@@ -56,7 +56,13 @@ class InsufficientFundingError extends Error {
  */
 export type RegistrationFundingSummary = {
   networkFee: number
+  /** What the registration costs — the figure shown on the total row. */
   total: number
+  /**
+   * What the wallet must hold: `total` less anything the HCA already carries.
+   * This, not `total`, is what the affordability gates compare against.
+   */
+  walletDebit: number
   isLoading: boolean
 }
 
@@ -130,6 +136,7 @@ export const TokenPickerContent = () => {
   const funding = computeRegistrationFunding({
     budget: budgetQuery.data,
     walletBalanceRaw: usdcBalanceRaw,
+    ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
     decimals: USDC_DECIMALS,
   })
 
@@ -214,9 +221,22 @@ export const TokenPickerContent = () => {
         // machine (and its own pre-permit balance check) surface the problem.
         .catch(() => null)
 
-      if (budget && usdcBalanceRaw !== null && usdcBalanceRaw < budget.total) {
+      // Against the shortfall, not the budget: the permit tops the HCA up to
+      // the budget, so an HCA still holding USDC from a prior registration
+      // covers part of it and the wallet is debited only the difference.
+      const walletDebitRaw = budget
+        ? budget.total > budget.hcaBalance
+          ? budget.total - budget.hcaBalance
+          : 0n
+        : null
+
+      if (
+        walletDebitRaw !== null &&
+        usdcBalanceRaw !== null &&
+        usdcBalanceRaw < walletDebitRaw
+      ) {
         throw new InsufficientFundingError(
-          decimalBigintToNumber(budget.total, USDC_DECIMALS),
+          decimalBigintToNumber(walletDebitRaw, USDC_DECIMALS),
           decimalBigintToNumber(usdcBalanceRaw, USDC_DECIMALS),
         )
       }
@@ -255,7 +275,10 @@ export const TokenPickerContent = () => {
   // more specific failure and the only one the user can act on directly.
   const mutationError = availabilityMutation.error
   const errorMessage = funding?.isUnderfunded
-    ? t`Not enough USDC. This registration needs ${funding.total.toFixed(2)} USDC — a ${funding.registration.toFixed(2)} registration plus a ${funding.networkFee.toFixed(2)} network cost — but your wallet holds ${(funding.walletBalance ?? 0).toFixed(2)} USDC.`
+    ? // The debit, not the budget — with a part-funded HCA the wallet owes less
+      // than the registration costs, and quoting the budget would name a figure
+      // the user does not actually have to hold.
+      t`Not enough USDC. This registration needs ${funding.walletDebit.toFixed(2)} USDC — a ${funding.registration.toFixed(2)} registration plus a ${funding.networkFee.toFixed(2)} network cost — but your wallet holds ${(funding.walletBalance ?? 0).toFixed(2)} USDC.`
     : mutationError instanceof InsufficientFundingError
       ? t`Not enough USDC. This registration needs ${mutationError.required.toFixed(2)} USDC but your wallet holds ${mutationError.available.toFixed(2)} USDC.`
       : availabilityMutation.isError
@@ -292,6 +315,7 @@ export const TokenPickerContent = () => {
           ? {
               networkFee: funding.networkFee,
               total: funding.total,
+              walletDebit: funding.walletDebit,
               isLoading: budgetQuery.isFetching,
             }
           : undefined
@@ -370,9 +394,16 @@ export const TokenPickerContentBase = ({
     stablecoinBalances,
   })
 
-  // Gate on the funded total, never the rent alone: the permit is signed for
-  // `rent + networkFee`, so a wallet holding only the rent cannot pay.
-  const requiredAmount = funding?.total ?? pricingData
+  // Gate on the funded amount, never the rent alone: the permit is signed for
+  // `rent + networkFee`, so a wallet holding only the rent cannot pay. It is
+  // the wallet's DEBIT rather than the budget, since a part-funded HCA covers
+  // the remainder itself — gating on the budget would block a wallet that only
+  // owes the shortfall.
+  const requiredAmount = funding?.walletDebit ?? pricingData
+
+  // What the registration costs, shown on the total row. Diverges from
+  // `requiredAmount` only when the HCA is already carrying USDC.
+  const displayTotal = funding?.total ?? pricingData
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,
@@ -504,7 +535,7 @@ export const TokenPickerContentBase = ({
         </div>
       </div>
 
-      <PaymentTotalRow isEstimate={!!funding} total={requiredAmount} />
+      <PaymentTotalRow isEstimate={!!funding} total={displayTotal} />
 
       <Button
         className={cn(

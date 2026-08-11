@@ -63,6 +63,60 @@ describe('computeRegistrationFunding', () => {
     expect(funding?.walletBalance).toBeNull()
   })
 
+  it('debits the wallet only the shortfall when the HCA is part-funded', () => {
+    // An HCA holding 20.00 from a prior registration against a 20.196054
+    // budget: the permit is signed for the 0.196054 difference, so a wallet
+    // holding 1 USDC can pay even though it is far short of the budget.
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 1_000_000n,
+      hcaBalanceRaw: 20_000_000n,
+      decimals: USDC,
+    })
+
+    expect(funding?.walletDebit).toBe(0.196054)
+    expect(funding?.isUnderfunded).toBe(false)
+    // The registration still COSTS the full budget — only the debit shrinks.
+    expect(funding?.total).toBe(20.196054)
+  })
+
+  it('still blocks when the wallet cannot cover even the shortfall', () => {
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 100_000n, // 0.10 < 0.196054
+      hcaBalanceRaw: 20_000_000n,
+      decimals: USDC,
+    })
+
+    expect(funding?.isUnderfunded).toBe(true)
+  })
+
+  it('asks nothing of the wallet when the HCA already covers the budget', () => {
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 0n,
+      hcaBalanceRaw: 25_000_000n,
+      decimals: USDC,
+    })
+
+    // Floored at zero rather than going negative.
+    expect(funding?.walletDebit).toBe(0)
+    expect(funding?.isUnderfunded).toBe(false)
+  })
+
+  it('gates on the whole budget when the HCA balance is unknown', () => {
+    // A failed balance read defaults to 0n — the conservative direction, since
+    // over-crediting the HCA would wave through a failing commit simulation.
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 20_000_000n,
+      decimals: USDC,
+    })
+
+    expect(funding?.walletDebit).toBe(20.196054)
+    expect(funding?.isUnderfunded).toBe(true)
+  })
+
   it('returns null when no budget has been quoted', () => {
     // A flaky orchestrator must fall back to showing the price, not to a block.
     expect(

@@ -3,6 +3,7 @@ import type { Signer } from '@ens-apps/transaction-manager'
 import {
   estimateHcaBudgetActor,
   type HcaSessionEnableParams,
+  readHcaUsdcBalanceActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { queryOptions } from '@tanstack/react-query'
@@ -36,6 +37,21 @@ import { publicClient } from '@/lib/wagmi'
  */
 const HCA_BUDGET_STALE_TIME_MS = 60_000
 
+/**
+ * The quoted budget plus the HCA's standing USDC balance.
+ *
+ * Both numbers are needed to know what the WALLET pays. The funding permit tops
+ * the HCA up to the budget, so it is signed for `total - hcaBalance` (see
+ * `registration.machine.ts` — signing for the full budget would re-fund the
+ * leftover from every prior registration). A checkout gate that compares the
+ * wallet against `total` therefore blocks a wallet that only has to cover the
+ * shortfall.
+ */
+export type HcaBudgetQuote = HcaBudgetBreakdown & {
+  /** The HCA's USDC balance, or `0n` when it could not be read. */
+  readonly hcaBalance: bigint
+}
+
 export interface HcaBudgetQueryParams {
   readonly label: string
   readonly durationInSeconds: number
@@ -67,7 +83,7 @@ export const getHcaBudgetQueryOptions = ({
       durationInSeconds,
       hca,
     }),
-    queryFn: async (): Promise<HcaBudgetBreakdown> => {
+    queryFn: async (): Promise<HcaBudgetQuote> => {
       const sessionEnable = await getSessionEnablePayload()
 
       const result = await estimateHcaBudgetActor({
@@ -82,7 +98,20 @@ export const getHcaBudgetQueryOptions = ({
       // The estimator refuses to return a fallback-sourced budget (it would
       // over- or under-fund), so an error here means "no quote", not "cheap".
       if (result.isErr()) throw result.error
-      return result.value
+
+      // Read the standing balance the same way the machine does — including
+      // `unwrapOr(0n)`. A failed read must fall back to "the HCA holds
+      // nothing", i.e. gate on the whole budget: erring the other way would
+      // wave through a wallet that then fails the commit simulation.
+      const hcaBalance = hca
+        ? await readHcaUsdcBalanceActor({
+            hca,
+            publicClient,
+            chainId: sepolia.id,
+          }).unwrapOr(0n)
+        : 0n
+
+      return { ...result.value, hcaBalance }
     },
     // Only the HCA route has a funding budget; a pure-EOA signer pays the
     // registrar directly and the estimator has nothing to quote against.

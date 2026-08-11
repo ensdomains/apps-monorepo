@@ -19,14 +19,24 @@ export interface RegistrationFunding {
   readonly registration: number
   /** Execution cost of the commit + register legs, funded up front. */
   readonly networkFee: number
-  /** `registration + networkFee` — the figure the wallet is debited. */
+  /** `registration + networkFee` — what the registration costs in total. */
   readonly total: number
+  /**
+   * What the WALLET is actually debited: `total - hcaBalance`, floored at zero.
+   *
+   * The permit tops the HCA up to the budget rather than re-funding it, so an
+   * HCA still holding USDC from a prior registration covers part of the cost
+   * itself. Gating on `total` here would block a wallet that only has to cover
+   * the shortfall. Equals `total` in the common case of an empty HCA.
+   */
+  readonly walletDebit: number
   /** The wallet's balance, or `null` when it could not be read. */
   readonly walletBalance: number | null
   /**
-   * True only when the balance is KNOWN to be short. An unreadable balance is
-   * not treated as insufficient — the machine re-checks before signing the
-   * permit, so a failed read must not block a wallet that can in fact pay.
+   * True only when the balance is KNOWN to be short of {@link walletDebit}. An
+   * unreadable balance is not treated as insufficient — the machine re-checks
+   * before signing the permit, so a failed read must not block a wallet that
+   * can in fact pay.
    */
   readonly isUnderfunded: boolean
 }
@@ -43,10 +53,22 @@ export function computeRegistrationFunding(params: {
     | Pick<HcaBudgetBreakdown, 'total' | 'registrationPrice'>
     | undefined
   readonly walletBalanceRaw: bigint | null
+  /**
+   * The HCA's standing USDC balance. Defaults to `0n` ("HCA holds nothing"),
+   * which gates on the whole budget — the conservative direction when the
+   * balance is unknown.
+   */
+  readonly hcaBalanceRaw?: bigint
   readonly decimals: number
 }): RegistrationFunding | null {
-  const { budget, walletBalanceRaw, decimals } = params
+  const { budget, walletBalanceRaw, hcaBalanceRaw = 0n, decimals } = params
   if (!budget) return null
+
+  // The permit tops the HCA up rather than re-funding it, so the wallet only
+  // covers the shortfall. Floored at zero: an HCA already holding more than the
+  // budget needs nothing from the wallet.
+  const walletDebitRaw =
+    budget.total > hcaBalanceRaw ? budget.total - hcaBalanceRaw : 0n
 
   // Clamp: a quote that priced the legs at nothing would otherwise render a
   // negative fee line if the price component ever exceeded the total.
@@ -59,10 +81,12 @@ export function computeRegistrationFunding(params: {
     registration: decimalBigintToNumber(budget.registrationPrice, decimals),
     networkFee: decimalBigintToNumber(feeRaw, decimals),
     total: decimalBigintToNumber(budget.total, decimals),
+    walletDebit: decimalBigintToNumber(walletDebitRaw, decimals),
     walletBalance:
       walletBalanceRaw === null
         ? null
         : decimalBigintToNumber(walletBalanceRaw, decimals),
-    isUnderfunded: walletBalanceRaw !== null && walletBalanceRaw < budget.total,
+    isUnderfunded:
+      walletBalanceRaw !== null && walletBalanceRaw < walletDebitRaw,
   }
 }
