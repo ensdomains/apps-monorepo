@@ -67,7 +67,7 @@ wait_for_service "anvil" 60
 
 # ---------- fund accounts as soon as Anvil is ready ----------
 # Funding only needs Anvil (mints tokens via cast). Do it early so the
-# smart account has ETH/USDC/DAI before the app tries to deploy or register.
+# accounts have ETH/USDC before the app tries to deploy or register.
 
 # Always fund the default Anvil account (used by portal headless wallet tests)
 echo ""
@@ -102,7 +102,6 @@ echo ""
 echo "  # Local bundler/paymaster (used by ERC-4337 fallback path)"
 echo "  VITE_SEPOLIA_RPC_URL=http://127.0.0.1:8545"
 echo "  VITE_PIMLICO_BUNDLER_URL=/bundler   (Vite proxy → 127.0.0.1:4337)"
-echo "  VITE_PAYMASTER_URL=/paymaster       (Vite proxy → 127.0.0.1:3002)"
 echo ""
 echo "  # Rhinestone path (default smart-account provider)"
 echo "  VITE_RHINESTONE_ENDPOINT_URL=/orchestrator   (Vite proxy → 127.0.0.1:3007)"

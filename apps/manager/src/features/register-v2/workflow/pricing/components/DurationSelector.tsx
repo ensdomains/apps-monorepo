@@ -1,7 +1,7 @@
 import { TOKENS } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { useQueries } from '@tanstack/react-query'
 import { useSelector } from '@xstate/react'
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { getStartOfDay } from '@/features/register-v2/utils/time'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import {
@@ -28,6 +28,11 @@ export const DurationSelector = () => {
   const selectedDuration = useSelector(
     uiActor,
     (state) => state.context.duration,
+  )
+  const handleDurationSet = useCallback(
+    (duration: number) =>
+      uiActor.send({ type: 'pricing.duration.set', duration }),
+    [uiActor],
   )
   const presetDurations = useMemo(
     () => getComputedDurationPresets(getStartOfDay()),
@@ -93,11 +98,17 @@ export const DurationSelector = () => {
         )
       })}
 
+      {/*
+        DurationCustomRow is memoized so this component's frequent price-query
+        re-renders don't reach the open calendar and dismiss its native
+        month/year <select>. Keep every prop below referentially stable
+        (primitives, or callbacks via useCallback) — passing an inline
+        arrow/object/array silently defeats the memo and the dropdown flicker
+        regresses.
+      */}
       <DurationCustomRow
         isSelected={selectedPresetIdx === -1}
-        onDurationSet={(duration) =>
-          uiActor.send({ type: 'pricing.duration.set', duration })
-        }
+        onDurationSet={handleDurationSet}
         selectedDuration={selectedDuration}
         type="register"
       />

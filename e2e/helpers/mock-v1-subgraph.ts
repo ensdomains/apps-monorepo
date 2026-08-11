@@ -10,7 +10,11 @@
  */
 import type { Page } from '@playwright/test'
 import { keccak256, namehash, toHex } from 'viem'
-import type { V1NameType, V1TextRecord, V1AddressRecord } from '../fixtures/makeV1Name.js'
+import type {
+  V1AddressRecord,
+  V1NameType,
+  V1TextRecord,
+} from '../fixtures/makeV1Name.js'
 
 const V1_PUBLIC_RESOLVER = '0x640294a2b2d87e7f522db3e3e3e876764bce170d'
 
@@ -102,7 +106,7 @@ function buildV1Domain(params: {
           // Otherwise fall back to the defaults derived from type.
           fuses:
             params.fuses !== undefined
-              ? (params.fuses | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH)
+              ? params.fuses | FUSES.PARENT_CANNOT_CONTROL | FUSES.IS_DOT_ETH
               : type === 'locked'
                 ? LOCKED_2LD_FUSES
                 : UNLOCKED_2LD_FUSES,
@@ -167,7 +171,9 @@ export async function mockV1Subgraph(
       try {
         const body = JSON.parse(postData)
         requestedIds = body?.variables?.whereFilter?.id_in ?? []
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       // Build mock profile entries for our names that have records
       const mockProfileDomains = requestedIds
@@ -178,7 +184,8 @@ export async function mockV1Subgraph(
             id,
             resolver: {
               texts: mockName.records?.texts?.map((t) => t.key) ?? [],
-              coinTypes: mockName.records?.addresses?.map((a) => a.coinType) ?? [],
+              coinTypes:
+                mockName.records?.addresses?.map((a) => a.coinType) ?? [],
             },
           }
         })
@@ -189,7 +196,9 @@ export async function mockV1Subgraph(
         const response = await route.fetch()
         const json = await response.json()
         realDomains = json?.data?.domains ?? []
-      } catch { /* subgraph unreachable */ }
+      } catch {
+        /* subgraph unreachable */
+      }
 
       const allDomains = [...realDomains, ...mockProfileDomains]
 

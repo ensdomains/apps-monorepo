@@ -10,7 +10,7 @@ export type TransactionState =
   | 'success'
   | 'error'
 
-/** Page-like object that can listen to console events (Stagehand or Playwright page). */
+/** Page-like object that can listen to console events. */
 export interface PageWithConsole {
   on(event: 'console', handler: (msg: { text(): string }) => void): void
 }
@@ -27,7 +27,7 @@ export interface ConsoleMonitorOptions {
 
 /**
  * Captures console messages from the page and extracts transaction manager state updates.
- * Use with stagehand.context.pages()[0] (or any page with .on('console')).
+ * Use with any page that supports `.on('console')`.
  */
 export function createConsoleMonitor(
   page: PageWithConsole,

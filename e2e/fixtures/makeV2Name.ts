@@ -17,12 +17,22 @@
  *   3. makeCommitment → commit (signed by EOA)
  *   4. getRegisterPrice → approve USDC → register (signed by EOA)
  */
+
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
+import { setRecords } from '@ensdomains/ensjs/wallet'
+
+import {
+  permissionedRegistryGetExpirySnippet,
+  permissionedResolverAuthorizeNameRolesSnippet,
+  proxyDeployedEventSnippet,
+  verifiableFactoryDeployProxySnippet,
+} from '@ensdomains/ensjs-abi/v2'
 import {
   type Address,
-  type Hash,
   createWalletClient,
   decodeEventLog,
   encodeFunctionData,
+  type Hash,
   http,
   keccak256,
   parseAbi,
@@ -32,21 +42,13 @@ import {
   zeroHash,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-
-import {
-  permissionedRegistryGetExpirySnippet,
-  proxyDeployedEventSnippet,
-  subregistryInitializeSnippet,
-  verifiableFactoryDeployProxySnippet,
-} from '@ensdomains/ensjs-abi/v2'
-import { setRecords } from '@ensdomains/ensjs/wallet'
-import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-
 import {
   publicClient,
   testClient,
   walletClient,
 } from '../helpers/anvil-client.js'
+// ensjs-abi still ships the 2-arg initializer; see the local override.
+import { subregistryInitializeSnippet } from '../helpers/permissioned-resolver-abi.js'
 import type { Time } from './time.js'
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,8 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 const ETH_REGISTRAR = ensjsSepolia.ensEthRegistrar.address
 const ETH_REGISTRY = ensjsSepolia.ensRegistry.address
 const MOCK_USDC = ensjsSepolia.usdc.address
-const PERMISSIONED_RESOLVER_IMPL = ensjsSepolia.ensPermissionedResolverImpl.address
+const PERMISSIONED_RESOLVER_IMPL =
+  ensjsSepolia.ensPermissionedResolverImpl.address
 const VERIFIABLE_FACTORY = ensjsSepolia.ensVerifiableFactory.address
 
 const REFERRER = zeroHash
@@ -91,6 +94,22 @@ const FULL_ROLE_BITMAP = BigInt(
   '0x1111111111111111111111111111111111111111111111111111111111111111',
 )
 
+/**
+ * Standalone HCA of the connected E2E wallet (Anvil account 0, 0xf39F…2266).
+ *
+ * A VerifiableFactory CREATE2 proxy, so it is derived from the whole account
+ * config — factory, implementation, verifiable factory, proxy logic and
+ * userSalt(0). It therefore MOVES whenever any of those change in the manifest;
+ * it last changed with the 2026-08-10 redeploy (contracts-v2 #409).
+ *
+ * Hardcoded for the same reason as the addresses in
+ * `infra/scripts/print-standalone-hca-addresses.mjs`: the derivation lives in
+ * `@ens-apps/smart-account`, which ships un-built `.ts` and is not an e2e
+ * dependency. `infra/scripts/fund-rhinestone-account.sh` funds this very
+ * address for mockestrator impersonation gas — keep the two in sync.
+ */
+const STANDALONE_HCA = '0x48B9c6898baFc8A3D3a495BF7c44CF3351486628' as Address
+
 /** Anvil's first default account (has 10 000 ETH — used for minting & funding). */
 const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
@@ -102,9 +121,8 @@ const ANVIL_FUNDER = privateKeyToAccount(
  * The smart account calls contracts via HCA, and the resolver
  * resolves msg.sender → EOA via `getAccountOwner()`.
  */
-const PARA_EOA_KEY =
-  (process.env.ANVIL_PARA_PRIVATE_KEY ??
-    '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
+const PARA_EOA_KEY = (process.env.ANVIL_PARA_PRIVATE_KEY ??
+  '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
 const PARA_EOA = privateKeyToAccount(PARA_EOA_KEY)
 
 // ---------------------------------------------------------------------------
@@ -173,9 +191,7 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
    * If `duration` is negative the name is registered then anvil time is
    * advanced so the name appears expired by |duration| seconds.
    */
-  return async function makeV2Name(
-    config: V2NameConfig,
-  ): Promise<string> {
+  return async function makeV2Name(config: V2NameConfig): Promise<string> {
     const isOther = config.owner === 'other'
     const ownerAddress = isOther ? resolvedOther.address : resolvedUser.address
     const ownerAccount = isOther ? resolvedOther : resolvedUser
@@ -191,7 +207,10 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
       registrationDuration = MIN_REGISTRATION_DURATION
       desiredGapPastExpiry = Math.abs(requestedDuration)
     } else {
-      registrationDuration = Math.max(requestedDuration, MIN_REGISTRATION_DURATION)
+      registrationDuration = Math.max(
+        requestedDuration,
+        MIN_REGISTRATION_DURATION,
+      )
     }
 
     const secret = keccak256(toHex(`v2-${uniqueLabel}:${Math.random()}`))
@@ -209,15 +228,31 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
     // ── 1. Deploy dedicated resolver proxy ──────────────────────────
     // Initialized with the EOA as owner — matches the app's flow where
     // the resolver checks HCA ownership (smart account → EOA).
-    const resolverAddress = await deployResolverProxy(
-      uniqueLabel,
-      ownerAddress,
-    )
+    const resolverAddress = await deployResolverProxy(uniqueLabel, ownerAddress)
     console.log(`[makeV2Name] resolver proxy: ${resolverAddress}`)
+
+    // Mirror the grant the app's own registration performs. There, the resolver
+    // is initialized with the HCA as admin (`initialize(hca, ROLES_ALL, [])`)
+    // and the wallet is granted roles afterwards; here the EOA is admin, so we
+    // grant the HCA instead. Either way BOTH end up holding the root roles.
+    //
+    // Without it, record edits — which execute AS the HCA, since the manager
+    // signs them with the smart account — revert:
+    //   EACUnauthorizedAccountRoles(resource, 0x10, <hca>)
+    //
+    // Skipped for `owner: 'other'`: the connected user's HCA must not be able
+    // to write records on a name somebody else owns.
+    if (!isOther) {
+      await authorizeHcaOnResolver(resolverAddress, ownerAccount)
+      console.log(
+        `[makeV2Name] granted resolver roles to HCA ${STANDALONE_HCA}`,
+      )
+    }
 
     // ── 2. Fund the EOA ─────────────────────────────────────────────
     const balance = await publicClient.getBalance({ address: ownerAddress })
-    if (balance < 10000000000000000n) { // < 0.01 ETH
+    if (balance < 10000000000000000n) {
+      // < 0.01 ETH
       const fundTx = await walletClient.sendTransaction({
         account: ANVIL_FUNDER,
         to: ownerAddress,
@@ -392,6 +427,31 @@ export function createMakeV2Name(deps: MakeV2NameDependencies = {}) {
  * with `owner` having full permissions. Anyone can call deployProxy,
  * so we use ANVIL_FUNDER (no impersonation needed here).
  */
+/**
+ * Grant the connected wallet's standalone HCA the root roles on `resolver`.
+ *
+ * Sent by `admin`, the account `initialize` made resolver admin, so it is the
+ * one allowed to hand out roles. `toName` is `0x00` — the resolver's own root
+ * resource — matching `authorizeNameRoles` in the app's registration batch.
+ */
+async function authorizeHcaOnResolver(
+  resolver: Address,
+  admin: ReturnType<typeof privateKeyToAccount>,
+): Promise<void> {
+  const data = encodeFunctionData({
+    abi: permissionedResolverAuthorizeNameRolesSnippet,
+    functionName: 'authorizeNameRoles',
+    args: ['0x00', FULL_ROLE_BITMAP, STANDALONE_HCA, true],
+  })
+
+  const tx = await walletClient.sendTransaction({
+    account: admin,
+    to: resolver,
+    data,
+  })
+  await waitForTx(tx)
+}
+
 async function deployResolverProxy(
   nameLabel: string,
   owner: Address,
@@ -400,7 +460,7 @@ async function deployResolverProxy(
   const initCalldata = encodeFunctionData({
     abi: subregistryInitializeSnippet,
     functionName: 'initialize',
-    args: [owner, FULL_ROLE_BITMAP],
+    args: [owner, FULL_ROLE_BITMAP, []],
   })
 
   const deployData = encodeFunctionData({

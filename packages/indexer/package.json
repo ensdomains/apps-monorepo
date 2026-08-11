@@ -12,7 +12,8 @@
   "scripts": {
     "codegen": "graphql-codegen",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"No tests defined for @ens-apps/indexer\""
+    "test": "echo \"No tests defined for @ens-apps/indexer\"",
+    "lint": "biome check"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^6.0.1",

@@ -83,7 +83,7 @@ const stateMessages: Record<string, StateMessage[]> = {
     },
     {
       primary: msg`Authorizing payment`,
-      fact: msg`Supports USDC and DAI payments`,
+      fact: msg`Supports USDC payments`,
     },
   ],
   waitingForApproval: [

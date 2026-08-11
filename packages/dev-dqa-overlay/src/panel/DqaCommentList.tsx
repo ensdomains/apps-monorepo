@@ -1,4 +1,4 @@
-import { type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import type { DqaCommentSummary } from '../types'
 import { DqaCommentCard } from './DqaCommentCard'
 import { PANEL } from './panelTheme'

@@ -365,8 +365,8 @@ const Profile = ({
         )}
       </div>
 
-      {/* Main section: profile | metadata rows | counters */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_2fr] gap-3">
+      {/* Profile | metadata | counters at xl; counters wrap to their own row below that */}
+      <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(min-content,1fr)] xl:grid-cols-[180px_auto_300px] xl:justify-between gap-3">
         {/* Left: avatar + bio + socials */}
         <NameProfileCard name={name} stacked />
 
@@ -398,8 +398,8 @@ const Profile = ({
           />
         </div>
 
-        {/* Right: counter cards */}
-        <div className="flex flex-col gap-3 shrink-0">
+        {/* Counter cards */}
+        <div className="grid grid-cols-1 gap-3 content-start sm:grid-cols-3 lg:col-span-2 xl:col-span-1 xl:grid-cols-1">
           <SubnameCount name={name} protocolVersion={resolvedProtocolVersion} />
           <ProtocolVersionWithCounter
             name={name}

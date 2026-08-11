@@ -78,7 +78,13 @@ async function injectMeta(
   return rewriter.transform(response)
 }
 
-/** Serve a pre-rendered PNG asset, falling back to a rendered default. */
+/**
+ * Serve a pre-rendered PNG asset, falling back to a rendered default.
+ *
+ * Also the last resort for every other OG route: a card whose own render failed
+ * degrades to this rather than 500ing, so a name with an unrenderable avatar
+ * still gets a usable preview instead of a broken image on every page.
+ */
 async function serveDefaultOgImage(
   request: Request,
   url: URL,
@@ -95,7 +101,11 @@ async function serveDefaultOgImage(
       },
     })
   }
-  return renderDefaultOgImage(request.url, env)
+
+  return (
+    (await renderDefaultOgImage(request.url, env)) ??
+    new Response('OG image rendering failed', { status: 500 })
+  )
 }
 
 const OG_ADDRESS_RE = /^addr\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
@@ -103,12 +113,17 @@ const OG_RESOLVER_RE = /^resolver\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
 const OG_REGISTRY_RE = /^registry\/(0x[0-9a-fA-F]{40})(?:\/(.+))?$/
 const OG_TLD_RE = /^tld\/(.+)$/
 
-/** Dispatch an `/og/...png` request to the matching OG renderer. */
+/**
+ * Dispatch an `/og/...png` request to the matching OG renderer.
+ *
+ * Returns `null` when the chosen renderer couldn't produce an image, so the
+ * caller can serve the default card instead of letting the failure surface.
+ */
 async function handleOgImage(
   decoded: string,
   request: Request,
   env: Env,
-): Promise<Response> {
+): Promise<Response | null> {
   const addrMatch = decoded.match(OG_ADDRESS_RE)
   if (addrMatch) {
     return renderAddressOgImage(
@@ -151,7 +166,11 @@ async function handleOgImage(
 
   // Name OG image with optional subpage: /og/name/subpage.png
   const nameParts = decoded.split('/')
-  const { avatar, owner } = await fetchEnsData(env, nameParts[0])
+  const { avatar, owner } = await fetchEnsData(
+    env,
+    nameParts[0],
+    new URL(request.url).host,
+  )
   return renderOgImage(
     nameParts[0],
     avatar,
@@ -230,7 +249,7 @@ async function handleNamePage(
   const decodedName = decodeURIComponent(name)
   const [response, ensData] = await Promise.all([
     env.ASSETS.fetch(request),
-    fetchEnsData(env, decodedName),
+    fetchEnsData(env, decodedName, url.host),
   ])
 
   const { description, avatar } = ensData
@@ -361,7 +380,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
   // OG image route: /og/:name.png or /og/:name/:subpage.png
   const ogMatch = pathname.match(/^\/og\/(.+)\.png$/)
   if (ogMatch) {
-    return handleOgImage(decodeURIComponent(ogMatch[1]), request, env)
+    const rendered = await handleOgImage(
+      decodeURIComponent(ogMatch[1]),
+      request,
+      env,
+    )
+    return rendered ?? serveDefaultOgImage(request, url, env)
   }
 
   // Page routes: only inject meta tags for HTML navigations, never assets.

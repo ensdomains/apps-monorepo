@@ -8,7 +8,11 @@ export const RESOLVER_INTERFACE_IDS = {
   InterfaceResolver: '0x124a319c',
   ExtendedResolver: '0x9061b923',
   VersionableResolver: '0xd700ff33',
-  DedicatedResolver: '0x92349baa',
+  // XOR of initialize/setAlias/getAlias — verified against the deployed
+  // implementation via supportsInterface. The old `DedicatedResolver`
+  // (0x92349baa) pointed at namechain, which no longer exists; the deployed
+  // resolver returns false for it.
+  PermissionedResolver: '0x91413117',
   CompositeExtendedResolver: '0xc7e45d73',
 } as const
 export type ResolverInterfaceName = keyof typeof RESOLVER_INTERFACE_IDS
@@ -38,9 +42,9 @@ export const RESOLVER_FEATURES: Record<
     name: 'Text records',
     link: 'https://github.com/ensdomains/ens-contracts/blob/be53b9c25be5b2c7326f524bbd34a3939374ab1f/contracts/resolvers/profiles/TextResolver.sol',
   },
-  DedicatedResolver: {
-    name: 'Dedicated resolver',
-    link: 'https://github.com/ensdomains/namechain/blob/b0478e71449be67a3cf21c308e84842fdfc18d45/contracts/src/common/resolver/libraries/DedicatedResolverLib.sol',
+  PermissionedResolver: {
+    name: 'Permissioned resolver',
+    link: 'https://github.com/ensdomains/contracts-v2/blob/main/contracts/src/resolver/PermissionedResolver.sol',
   },
   CompositeExtendedResolver: {
     name: 'Composite',

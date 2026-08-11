@@ -149,7 +149,7 @@ export const transactionMachine = setup({
 
           case 'rhinestone':
             // Rhinestone HCA operations always route through the Warp
-            // orchestrator (intent-based, relayer-sponsored).
+            // orchestrator (intent-based, user-paid).
             return submitWarpTransaction({ request, signer })
 
           default:

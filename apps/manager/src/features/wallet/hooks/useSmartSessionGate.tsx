@@ -1,8 +1,8 @@
 /**
- * Reusable smart-session gate for any "start a sponsored HCA flow" action
+ * Reusable smart-session gate for any "start an HCA flow" action
  * (register, renew, …).
  *
- * On the HCA (rhinestone) path, sponsored flows run prompt-free via a smart
+ * On the HCA (rhinestone) path, session flows run prompt-free via a smart
  * session. Enabling that session is a PREREQUISITE for the whole flow, so this
  * gate prompts for it BEFORE the action proceeds — never mid-flow over another
  * modal. The EOA path has no session, so the action runs immediately.

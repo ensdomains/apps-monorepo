@@ -6,6 +6,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { cn } from '@/lib/utils'
 import { parseLabelsAndParent } from '@/utils/ens/parseLabelsAndParent'
 import {
   filterEvmChains,
@@ -90,7 +91,7 @@ export const NameProfileCard = ({
       }
     >
       <NameAvatar name={name} />
-      <div className="flex flex-col gap-4">
+      <div className={cn('flex flex-col gap-4', stacked && 'max-w-35.5')}>
         <div className="flex flex-col gap-0.5">
           {!stacked && (
             <h2 className="text-h2 w-max">
@@ -148,28 +149,18 @@ export const NameProfileCard = ({
             />
           </div>
         </div>
-        <Link
-          search={{ view: 'list' }}
-          to="/$name/records"
-          params={{ name }}
-          className="flex flex-row gap-x-2 gap-y-1"
-        >
-          <div className="flex flex-row">
-            {Object.entries(evmChains).map(([k, v]) => (
+        <div className="flex max-w-35.5 flex-row flex-wrap gap-1">
+          {[...Object.entries(evmChains), ...Object.entries(nonEvmChains)].map(
+            ([k, v]) => (
               <CoinRecord
                 key={k}
+                name={name}
                 coinType={k as CoinTypeWithIcon}
                 value={v}
-                className="first:-mr-1"
               />
-            ))}
-          </div>
-          <div className="flex flex-row gap-2">
-            {Object.entries(nonEvmChains).map(([k, v]) => (
-              <CoinRecord key={k} coinType={k as CoinTypeWithIcon} value={v} />
-            ))}
-          </div>
-        </Link>
+            ),
+          )}
+        </div>
       </div>
     </div>
   )

@@ -18,7 +18,6 @@ import { ErrorMessage } from '@/components/ErrorMessage'
 import { LoadingMessage } from '@/components/LoadingMessage'
 import { NoResultsMessage } from '@/components/NoResultsMessage'
 import { NotFoundMessage } from '@/components/NotFoundMessage'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,7 +34,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { NameAvatar } from '@/features/profile/components/NameAvatar'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { getHasRolesQueryOptions } from '@/features/registry/hooks/useHasRoles'
 import { prepareDeleteAliasTransaction } from '@/features/resolver/helpers/setAlias'
 import { useDeleteAlias } from '@/features/resolver/hooks/useDeleteAlias'
@@ -142,7 +140,6 @@ function RouteComponent() {
   const { address } = Route.useParams()
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
-  const [tableView] = useTableViewSettings()
   const chainId = sepoliaWithEns.id
   const { data: walletClient } = useWalletClient()
   const publicClient = usePublicClient()
@@ -382,7 +379,6 @@ function RouteComponent() {
                     <TableRow
                       key={row.id}
                       className={cn(
-                        stripedRowClassName(tableView.strippedRows),
                         deleteMutation.isPending &&
                           deleteMutation.variables === row.original.fromName &&
                           'opacity-50',
@@ -391,10 +387,7 @@ function RouteComponent() {
                       {row.getVisibleCells().map((cell) => (
                         <TableCell
                           key={cell.id}
-                          className={cn(
-                            'px-4 sm:px-6',
-                            tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-                          )}
+                          className={cn('px-4 sm:px-6', 'h-10 py-0')}
                         >
                           {flexRender(
                             cell.column.columnDef.cell,

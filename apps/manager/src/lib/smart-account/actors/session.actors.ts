@@ -1,39 +1,41 @@
 /**
- * Session actors (manager-app side).
+ * Session actors (manager-app side) — standalone-HCA scoped SmartSessions.
  *
- * Thin wrappers around `@ens-apps/smart-account`'s session helpers, used by
- * the pre-registration ENABLE step. The session is created/restored HERE (in
- * the app), then attached to the `RhinestoneSigner` passed into the
- * registration machine — the machine itself never imports smart-account
- * (that would be a circular dependency).
+ * Thin wrappers around `@ens-apps/smart-account`'s session helpers. The session
+ * is authorized HERE (in the app) BEFORE route selection — the single wallet
+ * authorization signature — then the persisted session is rebuilt and attached
+ * to the `RhinestoneSigner` passed into the registration machine.
  *
  * Flow:
  *   1. checkExistingSessionActor — reuse a valid stored session if present.
- *   2. createSessionActor — otherwise create one (the single ENABLE prompt)
- *      and persist it to localStorage.
+ *   2. createSessionActor — otherwise authorize one (the authorization
+ *      signature) and persist it to localStorage.
  *   3. restoreSessionActor — validate a stored session before reuse.
  *
- * The returned `SessionClient` carries everything signer-construction needs to
- * rebuild the SDK `SessionSignerSet`. `validUntil` MUST round-trip so the
- * rebuilt action set (with its on-chain `time-frame` policy) reproduces the
- * same PermissionId.
+ * The stored record carries everything signer-construction needs to rebuild the
+ * SDK `Session` (permissionId, resolver, nonce, validUntil, session key) so the
+ * recomputed salt reproduces the same PermissionId.
  */
 
 import {
-  createRhinestoneSession,
+  computeResolverAddress,
+  createDestinationSession,
+  DEFAULT_SESSION_VALIDITY_SECONDS,
   getSkippedStatus,
   getValidSessionForAccount,
+  hasRegistrationHeadroom,
   isRhinestoneSession,
   type RhinestoneStoredSession,
-  restoreRhinestoneSession,
   type SessionEnableError,
   SessionRestoreError,
   type SessionScope,
   saveSession,
+  serializeChainDigests,
 } from '@ens-apps/smart-account'
 import type { RhinestoneAccount } from '@rhinestone/sdk'
 import { errAsync, okAsync, type ResultAsync } from 'neverthrow'
-import type { Address, Chain } from 'viem'
+import type { Address, Chain, PublicClient } from 'viem'
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
 export type CheckSessionInput = SessionScope
 
@@ -43,10 +45,9 @@ export interface CheckSessionOutput {
 }
 
 /**
- * Reuse a valid stored Rhinestone session for THIS HCA (owner + chain
- * verified), if any. An owner-keyed lookup alone can return a session for a
- * different account/chain whose ephemeral key is not an owner of the current
- * HCA; this scopes to the account and evicts on mismatch.
+ * Reuse a valid stored session for THIS HCA (owner + chain verified), if any.
+ * An owner-keyed lookup alone can return a session bound to a different
+ * account/resolver; this scopes to the account and evicts on mismatch.
  */
 export function checkExistingSessionActor(
   input: CheckSessionInput,
@@ -66,6 +67,9 @@ export interface CreateSessionInput {
   readonly chainId: number
   readonly rhinestoneAccount: RhinestoneAccount
   readonly chain: Chain
+  readonly publicClient: PublicClient
+  /** Whether the HCA already has code (affects the session nonce source). */
+  readonly alreadyDeployed: boolean
   readonly config?: { readonly validUntil?: number }
 }
 
@@ -73,18 +77,53 @@ export interface CreateSessionOutput {
   readonly session: RhinestoneStoredSession
 }
 
-/** Create + persist a new session. Performs the single owner ENABLE signature. */
+/**
+ * Authorize + persist a new session. Performs the single authorization
+ * signature (destination-only, same-chain route).
+ */
 export function createSessionActor(
   input: CreateSessionInput,
 ): ResultAsync<CreateSessionOutput, SessionEnableError> {
-  return createRhinestoneSession({
-    ownerAddress: input.ownerAddress,
-    smartAccountAddress: input.accountAddress,
+  const sessionPrivateKey = generatePrivateKey()
+  const sessionAccount = privateKeyToAccount(sessionPrivateKey)
+  const resolver = computeResolverAddress({
     chainId: input.chainId,
+    hca: input.accountAddress,
+  })
+  const validUntil = BigInt(
+    input.config?.validUntil ??
+      Math.floor(Date.now() / 1000) + DEFAULT_SESSION_VALIDITY_SECONDS,
+  )
+
+  return createDestinationSession({
     rhinestoneAccount: input.rhinestoneAccount,
+    publicClient: input.publicClient,
     chain: input.chain,
-    config: input.config,
-  }).map(({ session }) => {
+    hca: input.accountAddress,
+    resolver,
+    sessionAccount,
+    validUntil,
+    alreadyDeployed: input.alreadyDeployed,
+  }).map((result) => {
+    const session: RhinestoneStoredSession = {
+      id: crypto.randomUUID(),
+      provider: 'rhinestone',
+      sessionKeyAddress: sessionAccount.address,
+      smartAccountAddress: input.accountAddress,
+      ownerAddress: input.ownerAddress,
+      createdAt: Date.now(),
+      chainId: input.chainId,
+      validUntil: Number(result.validUntil),
+      sessionPrivateKey,
+      permissionId: result.permissionId,
+      resolver,
+      hcaSessionNonce: result.hcaSessionNonce.toString(),
+      authorization: result.enableData.userSignature,
+      hashesAndChainIds: serializeChainDigests(
+        result.enableData.hashesAndChainIds,
+      ),
+      sessionToEnableIndex: result.enableData.sessionToEnableIndex,
+    }
     saveSession(session)
     return { session }
   })
@@ -107,10 +146,10 @@ export function restoreSessionActor(
       }),
     )
   }
-
-  const result = restoreRhinestoneSession({ session })
-  if (result.isErr()) return errAsync(result.error)
-  return okAsync(result.value)
+  if (session.validUntil && Date.now() > session.validUntil * 1000) {
+    return errAsync(new SessionRestoreError({ message: 'Session has expired' }))
+  }
+  return okAsync(undefined)
 }
 
 export interface ResolveSessionInput {
@@ -118,6 +157,8 @@ export interface ResolveSessionInput {
   readonly accountAddress: Address
   readonly chain: Chain
   readonly rhinestoneAccount: RhinestoneAccount
+  readonly publicClient: PublicClient
+  readonly alreadyDeployed: boolean
 }
 
 export interface ResolvedSession {
@@ -125,33 +166,37 @@ export interface ResolvedSession {
 }
 
 /**
- * Reuse a valid stored session if present, else create one (the single ENABLE
- * signature that adds the ephemeral key as a time-boxed HCA owner).
+ * Reuse a valid stored session if present, else authorize one (the single
+ * authorization signature).
  *
- * Encapsulates the restore-or-create branching so the React provider's
- * `enableSession` stays a thin state-setter. No on-chain "is enabled" check is
- * needed — the add-owner Intent enables it, and `restore` checks expiry.
+ * On resume, expiry is checked client-side here. Enable-data is NOT gated on
+ * on-chain enablement: it is replayed from the stored authorization whenever a
+ * batch carries the funding permit, since the validator only accepts that pair
+ * on the path the proof unlocks.
  */
 export function resolveSessionActor(
   input: ResolveSessionInput,
 ): ResultAsync<ResolvedSession, SessionEnableError> {
   const { ownerAddress, accountAddress, chain } = input
 
-  // Scope reuse to THIS HCA (owner + chain verified): an owner-keyed lookup
-  // can return a session for a different account/chain whose ephemeral key is
-  // not an owner of the current HCA, which would skip ENABLE and then fail
-  // intent simulation. On mismatch the stale row is evicted and we create
-  // fresh.
   const stored = getValidSessionForAccount({
     accountAddress,
     ownerAddress,
     chainId: chain.id,
   })
-  if (!stored || !isRhinestoneSession(stored)) {
+  // Mint a fresh session rather than reusing one that would expire mid-flight:
+  // the reveal is session-signed and runs AFTER `MIN_COMMITMENT_AGE`, so a
+  // session that only just outlives the commit strands the commitment. This
+  // mirrors `needsSessionBeforeRegistration`; if the two disagreed, the gate
+  // would prompt and then be handed back the same expiring session forever.
+  if (
+    !stored ||
+    !isRhinestoneSession(stored) ||
+    !hasRegistrationHeadroom(stored)
+  ) {
     return createAndResolve(input)
   }
 
-  // Valid stored session: validate (expiry) and reuse; on failure create fresh.
   return restoreSessionActor({ session: stored })
     .map((): ResolvedSession => ({ session: stored }))
     .orElse(() => createAndResolve(input))
@@ -166,5 +211,7 @@ function createAndResolve(
     chainId: input.chain.id,
     rhinestoneAccount: input.rhinestoneAccount,
     chain: input.chain,
+    publicClient: input.publicClient,
+    alreadyDeployed: input.alreadyDeployed,
   }).map(({ session }) => ({ session }))
 }

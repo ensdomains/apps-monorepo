@@ -76,7 +76,11 @@ export const ConfirmPurchase = () => {
 
       return { availability, existingPrimaryName, ownedNamesCount }
     },
-    onSuccess: ({ availability, existingPrimaryName, ownedNamesCount }) => {
+    onSuccess: async ({
+      availability,
+      existingPrimaryName,
+      ownedNamesCount,
+    }) => {
       if (!pricingQuery.data || !selectedToken) {
         return
       }
@@ -90,6 +94,10 @@ export const ConfirmPurchase = () => {
         return
       }
 
+      // Resolve the session-enable payload up front (checks on-chain
+      // enablement so an already-enabled session skips the enable call).
+      const hcaSessionEnable = await account.getSessionEnablePayload()
+
       uiActor.send({
         type: 'registration.start',
         label,
@@ -97,6 +105,7 @@ export const ConfirmPurchase = () => {
         token: selectedToken,
         totalPrice: pricingQuery.data.rawPrice,
         account,
+        hcaSessionEnable,
         basePriceNumber: pricingQuery.data.basePriceNumber,
         premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
         postRegistrationSetup: getManagerRegistrationPostRegistrationSetup({

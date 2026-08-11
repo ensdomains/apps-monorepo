@@ -8,7 +8,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
-import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -124,8 +124,10 @@ export const TokenPickerContent = () => {
   // PaymentCard, before this chooser opens), so on the HCA path a session is
   // already active here and `account.signer` carries it — no signer override
   // or enable prompt is needed at this step.
-  const startRegistration = (resolvedSetAsPrimary: boolean) => {
+  const startRegistration = async (resolvedSetAsPrimary: boolean) => {
     if (!pricingQuery.data || !selectedToken) return
+    // Resolve the session-enable payload up front (checks on-chain enablement).
+    const hcaSessionEnable = await account.getSessionEnablePayload()
     uiActor.send({
       type: 'registration.start',
       label,
@@ -133,6 +135,7 @@ export const TokenPickerContent = () => {
       token: selectedToken,
       totalPrice: pricingQuery.data.rawPrice,
       account,
+      hcaSessionEnable,
       basePriceNumber: pricingQuery.data.basePriceNumber,
       premiumPriceNumber: pricingQuery.data.premiumPriceNumber,
       postRegistrationSetup: resolvedSetAsPrimary
@@ -152,7 +155,7 @@ export const TokenPickerContent = () => {
       ])
       return { availability, resolvedSetAsPrimary }
     },
-    onSuccess: ({ availability, resolvedSetAsPrimary }) => {
+    onSuccess: async ({ availability, resolvedSetAsPrimary }) => {
       if (!pricingQuery.data || !selectedToken) return
 
       if (!availability.isAvailable) {
@@ -164,7 +167,7 @@ export const TokenPickerContent = () => {
         return
       }
 
-      startRegistration(resolvedSetAsPrimary)
+      await startRegistration(resolvedSetAsPrimary)
     },
   })
 
@@ -379,9 +382,7 @@ export const TokenPickerContentBase = ({
               <Trans>Stables accepted</Trans>
             </p>
             <div className="flex items-center gap-1">
-              <USDTIcon className="h-7 w-7" />
               <USDCIcon className="h-7 w-7" />
-              <DAI className="h-7 w-7" />
             </div>
           </div>
 

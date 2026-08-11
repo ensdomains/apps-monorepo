@@ -5,7 +5,7 @@ import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
 import { Button } from '@/components/ui/button'
-import { formatDate } from '@/utils/formatting/formatDateRange'
+import { formatUnixDateTimeLocal } from '@/utils/formatting/formatDateTime'
 import type { BaseEvent, EventsTableData } from './types'
 
 type ColumnConfig = {
@@ -52,7 +52,7 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
     },
     {
       accessorKey: 'timestamp',
-      size: 160,
+      size: 190,
       header: ({ column }) => (
         <SortButton
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
@@ -65,8 +65,11 @@ export const createEventsColumns = <TEvent extends BaseEvent = BaseEvent>({
         const timestamp = row.original.timestamp
         if (!timestamp) return <div>-</div>
 
-        const date = new Date(Number(timestamp) * 1000)
-        return <div>{formatDate(date)}</div>
+        return (
+          <div className="whitespace-nowrap">
+            {formatUnixDateTimeLocal(timestamp)}
+          </div>
+        )
       },
     },
     {

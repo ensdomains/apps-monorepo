@@ -5,7 +5,7 @@
 //   The browser only ever holds ciphertext it cannot read.
 // - Dev fallback issues a session without Linear when OAuth isn't configured.
 import crypto from 'node:crypto'
-import type { IncomingMessage } from 'node:http'
+import { createMiddleware } from 'hono/factory'
 import type { LinearViewer, Session } from './types.ts'
 
 // Cap every outbound Linear request so an upstream outage can't hang a DQA
@@ -402,20 +402,24 @@ export function makeDevSession(name: string): string {
   })
 }
 
-// Read + verify Bearer token from a request. Returns payload or null.
-export function sessionFromAuthHeader(req: IncomingMessage): Session | null {
-  const h = req.headers.authorization || ''
-  const m = h.match(/^Bearer\s+(.+)$/i)
+// Read + verify a Bearer token from an Authorization header. Returns payload or null.
+export function sessionFromAuthHeader(
+  header: string | undefined,
+): Session | null {
+  const m = (header || '').match(/^Bearer\s+(.+)$/i)
   return m ? verifyJWT(m[1]) : null
 }
 
-// Express middleware (typed loosely to avoid an @types/express dependency here)
-export function requireAuth(req: any, res: any, next: any): void {
-  const s = sessionFromAuthHeader(req)
-  if (!s) {
-    res.status(401).json({ error: 'auth required' })
-    return
-  }
-  req.session = s
-  next()
-}
+/**
+ * Hono env for gated routes: `c.get('session')` is the verified DQA session.
+ * The app is typed with this throughout, so only routes that actually mount
+ * `requireAuth` have a session at runtime.
+ */
+export type AuthEnv = { Variables: { session: Session } }
+
+export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
+  const s = sessionFromAuthHeader(c.req.header('authorization'))
+  if (!s) return c.json({ error: 'auth required' }, 401)
+  c.set('session', s)
+  await next()
+})

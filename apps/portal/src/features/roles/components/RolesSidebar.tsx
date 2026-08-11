@@ -184,151 +184,156 @@ export const RolesSidebar = <
         {children}
         <SheetContent
           side={isMobile ? 'bottom' : 'right'}
-          className="sm:max-w-3xl bg-background overflow-y-auto p-0"
+          className="bg-background p-0"
         >
-          <div className="p-6 flex flex-col gap-6 h-full">
-            <SheetHeader className="p-0 pt-4 flex flex-row items-center justify-between gap-4">
-              {selectedAccount ? (
-                <SheetTitle className="font-sans text-h2 flex items-center gap-1">
-                  {truncateAddress(selectedAccount, 6, 4)}
-                  <CopyButton value={selectedAccount} />
-                </SheetTitle>
-              ) : null}
-              {canManageRoles && selectedAccount && (
-                <Button
-                  variant="outline"
-                  disabled={!isWalletConnected}
-                  onClick={() => setConfirmOpen(true)}
-                >
-                  <Trash2 className="size-4" />
-                  Remove user
-                </Button>
-              )}
-            </SheetHeader>
-
-            {row ? (
-              <div className="flex flex-col gap-6">
-                {/* Permissions Section */}
-                <div className="border border-border rounded-sm overflow-hidden">
-                  {permissions.map((permission, index) => {
-                    const roleKey = permission.key
-                    const isManagerRoleDisabled = !isManagerRoleSettable(
-                      permission.key,
-                      { is2LD },
-                    )
-                    const rolePerms = editedPermissions.get(roleKey) || {
-                      admin: false,
-                      manager: false,
-                    }
-
-                    return (
-                      <div
-                        key={permission.key}
-                        className={cn(
-                          'flex items-center justify-between px-6 py-4 gap-4',
-                          index !== 0 && 'border-t border-border',
-                          isManagerRoleDisabled && 'text-muted-foreground',
-                        )}
-                      >
-                        <div className="flex flex-col gap-1 flex-1 min-w-64">
-                          <div className="font-medium">{permission.title}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {permission.description}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
-                          <div className="flex items-center gap-2 min-w-24">
-                            <Checkbox
-                              id={`${permission.key}-manager`}
-                              checked={rolePerms.manager}
-                              disabled={
-                                !canManageRoles || isManagerRoleDisabled
-                              }
-                              onCheckedChange={(checked) =>
-                                handlePermissionChange(
-                                  roleKey,
-                                  'manager',
-                                  checked as boolean,
-                                )
-                              }
-                            />
-                            <Label
-                              htmlFor={`${permission.key}-manager`}
-                              className={cn(
-                                'font-medium cursor-pointer',
-                                canManageRoles
-                                  ? 'text-foreground'
-                                  : 'text-muted-foreground',
-                              )}
-                            >
-                              Manager
-                            </Label>
-                          </div>
-                          <div className="flex items-center gap-2 min-w-24">
-                            <Checkbox
-                              id={`${permission.key}-admin`}
-                              checked={rolePerms.admin}
-                              disabled
-                            />
-                            <Label
-                              htmlFor={`${permission.key}-admin`}
-                              className={cn(
-                                'font-medium cursor-pointer',
-                                canManageRoles
-                                  ? 'text-foreground'
-                                  : 'text-muted-foreground',
-                              )}
-                            >
-                              Admin
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {isOwnerRole && canManageRoles && (
-                  <Alert variant="warning">
-                    <AlertDescription>
-                      This account is the owner of {name}. Removing or changing
-                      its roles can lock you out of managing the name.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="flex justify-end">
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 flex flex-col gap-6 h-full">
+              <SheetHeader className="p-0 flex flex-row items-center justify-between gap-4">
+                {selectedAccount ? (
+                  <SheetTitle className="font-sans text-h2 flex items-center gap-1">
+                    {truncateAddress(selectedAccount, 6, 4)}
+                    <CopyButton value={selectedAccount} />
+                  </SheetTitle>
+                ) : null}
+                {canManageRoles && selectedAccount && (
                   <Button
-                    variant="default"
-                    disabled={!hasChanges || !isWalletConnected}
-                    onClick={handleSaveChanges}
+                    variant="outline"
+                    disabled={!isWalletConnected}
+                    onClick={() => setConfirmOpen(true)}
                   >
-                    Save
+                    <Trash2 className="size-4" />
+                    Remove user
                   </Button>
-                </div>
+                )}
+              </SheetHeader>
 
-                {/* History Section */}
-                <div className="flex flex-col gap-4 mt-5">
-                  <div className="flex flex-wrap justify-between items-center gap-4">
-                    <h3 className="text-2xl font-medium leading-snug">
-                      History
-                    </h3>
+              {row ? (
+                <div className="flex flex-col gap-6">
+                  {/* Permissions Section */}
+                  <div className="border border-border rounded-sm overflow-hidden">
+                    {permissions.map((permission, index) => {
+                      const roleKey = permission.key
+                      const isManagerRoleDisabled = !isManagerRoleSettable(
+                        permission.key,
+                        { is2LD },
+                      )
+                      const rolePerms = editedPermissions.get(roleKey) || {
+                        admin: false,
+                        manager: false,
+                      }
+
+                      return (
+                        <div
+                          key={permission.key}
+                          className={cn(
+                            'flex items-center justify-between px-6 py-4 gap-4',
+                            index !== 0 && 'border-t border-border',
+                            isManagerRoleDisabled && 'text-muted-foreground',
+                          )}
+                        >
+                          <div className="flex flex-col gap-1 flex-1 min-w-64">
+                            <div className="font-medium">
+                              {permission.title}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {permission.description}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 flex-1 min-w-64 justify-end">
+                            <div className="flex items-center gap-2 min-w-24">
+                              <Checkbox
+                                id={`${permission.key}-manager`}
+                                checked={rolePerms.manager}
+                                disabled={
+                                  !canManageRoles || isManagerRoleDisabled
+                                }
+                                onCheckedChange={(checked) =>
+                                  handlePermissionChange(
+                                    roleKey,
+                                    'manager',
+                                    checked as boolean,
+                                  )
+                                }
+                              />
+                              <Label
+                                htmlFor={`${permission.key}-manager`}
+                                className={cn(
+                                  'font-medium cursor-pointer',
+                                  canManageRoles
+                                    ? 'text-foreground'
+                                    : 'text-muted-foreground',
+                                )}
+                              >
+                                Manager
+                              </Label>
+                            </div>
+                            <div className="flex items-center gap-2 min-w-24">
+                              <Checkbox
+                                id={`${permission.key}-admin`}
+                                checked={rolePerms.admin}
+                                disabled
+                              />
+                              <Label
+                                htmlFor={`${permission.key}-admin`}
+                                className={cn(
+                                  'font-medium cursor-pointer',
+                                  canManageRoles
+                                    ? 'text-foreground'
+                                    : 'text-muted-foreground',
+                                )}
+                              >
+                                Admin
+                              </Label>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
 
-                  <div className="border border-border rounded-sm overflow-hidden p-0 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
-                    <RoleHistoryTable
-                      name={name}
-                      label={getNameLabels(name).currentLabel}
-                      account={selectedAccount}
-                    />
+                  {isOwnerRole && canManageRoles && (
+                    <Alert variant="warning">
+                      <AlertDescription>
+                        This account is the owner of {name}. Removing or
+                        changing its roles can lock you out of managing the
+                        name.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      variant="default"
+                      disabled={!hasChanges || !isWalletConnected}
+                      onClick={handleSaveChanges}
+                    >
+                      Save
+                    </Button>
+                  </div>
+
+                  {/* History Section */}
+                  <div className="flex flex-col gap-4 mt-5">
+                    <div className="flex flex-wrap justify-between items-center gap-4">
+                      <h3 className="text-2xl font-medium leading-snug">
+                        History
+                      </h3>
+                    </div>
+
+                    <div className="border border-border rounded-sm overflow-hidden p-0 [&_th:first-child]:pl-4 [&_td:first-child]:pl-4 [&_th:last-child]:pr-4 [&_td:last-child]:pr-4">
+                      <RoleHistoryTable
+                        name={name}
+                        label={getNameLabels(name).currentLabel}
+                        account={selectedAccount}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="text-muted-foreground text-center py-12">
-                No role selected
-              </div>
-            )}
+              ) : (
+                <div className="text-muted-foreground text-center py-12">
+                  No role selected
+                </div>
+              )}
+            </div>
           </div>
 
           <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

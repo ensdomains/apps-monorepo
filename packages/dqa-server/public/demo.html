@@ -37,14 +37,14 @@
   <header data-component="TopNav">
     <div class="logo">◇ sample.eth</div>
     <nav>
-      <a href="#" data-component="NavLink">Names</a>
-      <a href="#" data-component="NavLink">Profile</a>
-      <a href="#" data-component="NavLink">Settings</a>
+      <a href="#names" data-component="NavLink">Names</a>
+      <a href="#plans" data-component="NavLink">Profile</a>
+      <a href="#about" data-component="NavLink">Settings</a>
     </nav>
   </header>
 
   <div class="wrap">
-    <section class="hero" data-component="Hero">
+    <section class="hero" data-component="Hero" id="names">
       <h1>Your identity, onchain.</h1>
       <p>Register a name and use it everywhere.</p>
       <div class="search" data-component="SearchBar">
@@ -53,7 +53,7 @@
       </div>
     </section>
 
-    <div class="grid">
+    <div class="grid" id="plans">
       <div class="card" data-component="PlanCard" data-testid="plan-basic">
         <span class="badge">Popular</span>
         <h3>1 year</h3>
@@ -76,12 +76,12 @@
     </div>
   </div>
 
-  <footer data-component="Footer">Sample app for the DQA overlay demo · not a real product</footer>
+  <footer data-component="Footer" id="about">Sample app for the DQA overlay demo · not a real product</footer>
 
   <!-- This single line is the entire integration. In your PR preview builds,
        inject the same tag (preview only) and designers can comment on the live page.
-       data-linear-issue maps every comment on this page onto that ticket — your
+       ?issue= maps every comment on this page onto that ticket — your
        linear/<ticket-id> branch convention can fill this in automatically. -->
-  <script src="/overlay.js" data-linear-issue="ENG-123"></script>
+  <script type="module" src="/overlay.js?issue=ENG-123"></script>
 </body>
 </html>

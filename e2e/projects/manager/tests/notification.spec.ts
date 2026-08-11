@@ -1,19 +1,23 @@
-import { test, expect } from '../../../fixtures/playwright.manager.fixture.js'
+import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
 import {
-  createRandomInbox,
   createEmailAddress,
+  createRandomInbox,
   expectMessageWithSubject,
-  getMessageById,
   findVerifyLink,
+  getMessageById,
   waitForMessage,
 } from '../../../helpers/mailinator.js'
 
 if (!process.env.MAILINATOR_API_KEY) {
-  throw new Error('MAILINATOR_API_KEY must be set in .env to run notification e2e tests')
+  throw new Error(
+    'MAILINATOR_API_KEY must be set in .env to run notification e2e tests',
+  )
 }
 
 if (!process.env.MAILINATOR_DOMAIN) {
-  throw new Error('MAILINATOR_DOMAIN must be set in .env to run notification e2e tests')
+  throw new Error(
+    'MAILINATOR_DOMAIN must be set in .env to run notification e2e tests',
+  )
 }
 
 test.describe('Notifications email flow', () => {
@@ -62,8 +66,12 @@ test.describe('Notifications email flow', () => {
 
     // Check if verification succeeded by looking for success indicators
     const successTitle = page.getByText(/Email Verified!/i)
-    const continueButton = page.getByRole('button', { name: /Continue to Settings/i })
-    const verifyButton = page.getByRole('button', { name: /Verify Email Address/i })
+    const continueButton = page.getByRole('button', {
+      name: /Continue to Settings/i,
+    })
+    const verifyButton = page.getByRole('button', {
+      name: /Verify Email Address/i,
+    })
 
     // If there's a verify button, click it (manual verification)
     try {
@@ -75,14 +83,24 @@ test.describe('Notifications email flow', () => {
 
     // Check if verification was successful
     const verificationSuccess = await Promise.race([
-      successTitle.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true).catch(() => false),
-      continueButton.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true).catch(() => false),
+      successTitle
+        .waitFor({ state: 'visible', timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false),
+      continueButton
+        .waitFor({ state: 'visible', timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false),
     ])
 
     expect(verificationSuccess).toBe(true)
 
     // Now verify welcome message has arrived
-    await expectMessageWithSubject(inbox, 'Welcome to ENS Notifications', 90_000)
+    await expectMessageWithSubject(
+      inbox,
+      'Welcome to ENS Notifications',
+      90_000,
+    )
 
     // Extra safety: ensure the welcome email appears after verification
     const welcomeMessage = await waitForMessage(
@@ -106,14 +124,18 @@ test.describe('Notifications email flow', () => {
     await menuButton.click()
 
     // Click the Remove item in the opened dropdown menu
-    const removeMenuItem = page.getByRole('menuitem', { name: /Remove/i }).first()
+    const removeMenuItem = page
+      .getByRole('menuitem', { name: /Remove/i })
+      .first()
     await removeMenuItem.waitFor({ state: 'visible', timeout: 10_000 })
     await removeMenuItem.click()
 
     // Confirm removal in the dialog
     // const removeDialog = page.getByText("Remove Email Contact Method?")
     // await removeDialog.waitFor({ state: 'visible', timeout: 10_000 })
-    const confirmRemoveButton = page.getByRole('button', { name: /Remove/i }).first()
+    const confirmRemoveButton = page
+      .getByRole('button', { name: /Remove/i })
+      .first()
     await confirmRemoveButton.click()
 
     // Verify the email has been removed

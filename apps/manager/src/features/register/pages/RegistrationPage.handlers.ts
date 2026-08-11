@@ -9,11 +9,14 @@ import type { Address, PublicClient } from 'viem'
 import type { ActorRefFrom } from 'xstate'
 import type { SmartAccountContextValue } from '@/lib/smart-account'
 import { durationYearsToSeconds } from '../components/Pricing/utils'
-import { SUPPORTED_TOKENS } from '../services/nameChainContractService'
 
 export interface StartRegistrationParams {
   name: string
   duration: number // years
+  /**
+   * Retained for the legacy picker's plumbing (reducer → useSessionGate), but
+   * no longer read: USDC is the only registrar-accepted payment token.
+   */
   selectedToken: Address
   tokenPrice: bigint
 }
@@ -45,7 +48,7 @@ export function handleStartRegistration(
   actor: ActorRefFrom<typeof registrationMachine>,
   options: HandleRegistrationOptions,
 ): void {
-  const { name, duration, selectedToken, tokenPrice } = params
+  const { name, duration, tokenPrice } = params
   const { publicClient } = options
 
   // Prefer an explicitly-provided signer (e.g. one just returned by
@@ -64,17 +67,14 @@ export function handleStartRegistration(
     return
   }
 
-  const token = selectedToken === SUPPORTED_TOKENS.DAI ? 'DAI' : 'USDC'
+  // USDC is the only registrar-accepted payment token; `selectedToken` is kept
+  // as an address purely for the legacy picker's plumbing.
+  const token = 'USDC' as const
   const durationInSeconds = durationYearsToSeconds(duration)
-
-  const enableSponsorship =
-    import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === undefined
-      ? true // Default to true for testnet
-      : import.meta.env.VITE_ENABLE_TX_SPONSORSHIP === 'true'
 
   // For HCA accounts:
   //   - Use the EOA address as the owner (ownerAddress is set)
-  //   - The smart account will be used for the transaction (sponsorship)
+  //   - The smart account will be used for the transaction
   //   - But the ENS name will be owned by the EOA
   // For Para embedded wallets, ownerAddress contains the EOA address from the Para account
   // For external wallets, ownerAddress contains the wagmi address (EOA)
@@ -88,7 +88,7 @@ export function handleStartRegistration(
 
   // EOA signer used to produce the gasless EIP-2612 permit signature for HCA
   // flows (the registrar pulls payment from the EOA owner, so the EOA must
-  // authorize the allowance). Carried into the sponsored bundle; the EOA sends
+  // authorize the allowance). Carried into the HCA bundle; the EOA sends
   // no tx. Pure-EOA flows don't need it (they use a plain on-chain `approve`).
   const approvalSigner: Signer | undefined = account.walletClient
     ? { type: 'eoa', walletClient: account.walletClient }
@@ -99,9 +99,9 @@ export function handleStartRegistration(
   // an `approvalSigner` there's no EOA wallet to produce the permit signature
   // (e.g. a Para embedded wallet mid-reconnect exposing no client). Fail fast
   // with an actionable message here instead of entering the flow, doing
-  // commitment/deployment work, and stalling at the `signingPermit` step where
-  // `signPermitActor` would reject the rhinestone signer fallback. Mirrors the
-  // v2 guard in registrationUi.machine.ts.
+  // commitment/deployment work, and stalling at the `signingFundingPermit` step
+  // where `signFundingPermitActor` would reject the rhinestone signer fallback.
+  // Mirrors the v2 guard in registrationUi.machine.ts.
   const isHcaRegistration =
     signer.type === 'rhinestone' &&
     ownerAddress.toLowerCase() !== account.accountAddress.toLowerCase()
@@ -128,7 +128,6 @@ export function handleStartRegistration(
     price: tokenPrice,
     hasSigner: !!signer,
     hasPublicClient: !!publicClient,
-    sponsored: enableSponsorship,
     ownerAddress,
     smartAccountAddress: account.accountAddress,
   })
@@ -146,6 +145,5 @@ export function handleStartRegistration(
     ownerAddress, // HCA-only: register the ENS name to the EOA
     resolverOwnerAddress, // Always the EOA — resolver EACL grantee
     publicClient,
-    sponsored: enableSponsorship,
   })
 }

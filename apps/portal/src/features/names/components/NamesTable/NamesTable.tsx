@@ -1,5 +1,4 @@
 import { flexRender, type Table as TableData } from '@tanstack/react-table'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import {
   Table,
   TableBody,
@@ -8,7 +7,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { cn } from '@/lib/utils'
 import { NameMobileCard } from '../NameMobileCard'
 import { columns, type NameRow } from './columns'
@@ -18,7 +16,6 @@ interface NamesTableProps {
 }
 
 export const NamesTable = ({ table }: NamesTableProps) => {
-  const [tableView] = useTableViewSettings()
   const rows = table.getRowModel().rows
 
   return (
@@ -71,16 +68,9 @@ export const NamesTable = ({ table }: NamesTableProps) => {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && 'selected'}
-                className={stripedRowClassName(tableView.strippedRows)}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    className={cn(
-                      'px-6',
-                      tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-                    )}
-                    key={cell.id}
-                  >
+                  <TableCell className={cn('px-6', 'h-10 py-0')} key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

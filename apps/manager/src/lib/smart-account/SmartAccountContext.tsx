@@ -1,8 +1,10 @@
 'use client'
 
-import { anvilSetupOwner } from '@ens-apps/dev-time-travel'
+import { anvilSetupOwner, isTimeTravelEnabled } from '@ens-apps/dev-time-travel'
 import {
+  buildHcaSessionEnablePayload,
   getValidSessionForAccount,
+  type HcaSessionEnablePayload,
   isRhinestoneSession,
   type RhinestoneStoredSession,
   removeSessionsByOwner,
@@ -25,8 +27,13 @@ import {
   useState,
 } from 'react'
 import { toast } from 'sonner'
-import { type Address, isAddressEqual, type WalletClient } from 'viem'
-import { useConnection, useWalletClient } from 'wagmi'
+import {
+  type Address,
+  isAddressEqual,
+  type PublicClient,
+  type WalletClient,
+} from 'viem'
+import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
 import type { EventFromLogic } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
@@ -68,6 +75,25 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
    * `signer`), or null on failure / the EOA-only path.
    */
   readonly enableSession: () => Promise<Signer | null>
+  /**
+   * The active persisted session record for the current HCA, if any. Carries
+   * the fields needed to rebuild the session-enable payload for registration.
+   */
+  readonly activeStoredSession: RhinestoneStoredSession | null
+  /**
+   * Resolve the `START_REGISTRATION` session-enable payload for the active
+   * session. Rebuilt from persisted state with NO wallet prompt and no chain
+   * read — it replays the single authorization signature captured at the
+   * session gate.
+   *
+   * Returned for ANY active session, including one already enabled on-chain:
+   * the registration machine, not this getter, decides whether to attach it
+   * (only alongside a funding permit, which the validator's policy requires).
+   * Returns `undefined` only when there is no active session.
+   */
+  readonly getSessionEnablePayload: () => Promise<
+    HcaSessionEnablePayload | undefined
+  >
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -146,6 +172,7 @@ function buildRhinestoneSigner(
  */
 function useWalletConnectionSync(
   wagmiWalletClient: WalletClient | undefined,
+  wagmiPublicClient: PublicClient | undefined,
   snapshotValue: string,
   send: (event: EventFromLogic<typeof smartAccountMachine>) => void,
 ) {
@@ -176,14 +203,15 @@ function useWalletConnectionSync(
       return
     }
 
-    if (!wagmiWalletClient) return
+    if (!wagmiWalletClient || !wagmiPublicClient) return
     send({
       type: 'WALLET_CONNECTED',
       walletSource: 'external-wallet',
       walletClient: wagmiWalletClient,
+      publicClient: wagmiPublicClient,
     })
     connectedKeyRef.current = nextKey
-  }, [wagmiWalletClient, snapshotValue, send])
+  }, [wagmiWalletClient, wagmiPublicClient, snapshotValue, send])
 }
 
 /**
@@ -208,9 +236,17 @@ function usePreviousOwnerSessionEviction(
   useEffect(() => {
     if (!enabled) return
     const previous = previousOwnerRef.current
+    // Do NOT treat a transient disconnect (eoaAddress → null) as an owner
+    // change. wagmi briefly reports `null` during reconnect / HMR / tab focus,
+    // and evicting on that wipes the stored session for the SAME owner, forcing
+    // a needless re-ENABLE on the next action (and re-deploy paths). Only react
+    // to a real switch to a DIFFERENT non-null owner. Keep the last known owner
+    // in the ref across null blips so the comparison is against the real prior
+    // owner, not the transient null.
+    if (!eoaAddress) return
     previousOwnerRef.current = eoaAddress
     if (!previous) return
-    if (eoaAddress && isAddressEqual(previous, eoaAddress)) return
+    if (isAddressEqual(previous, eoaAddress)) return
     onClearedRef.current(previous)
   }, [eoaAddress, enabled])
 }
@@ -222,6 +258,7 @@ export const SmartAccountContextProvider = ({
   const { t } = useLingui()
   const { isConnecting, isReconnecting } = useConnection()
   const { data: wagmiWalletClient } = useWalletClient()
+  const wagmiPublicClient = usePublicClient({ chainId: customSepolia.id })
 
   // True while the connector is still establishing/restoring a session, so
   // we don't report the account as "initialized" mid-reconnect.
@@ -260,6 +297,7 @@ export const SmartAccountContextProvider = ({
   const useEoa = isFeatureEnabled('USE_EOA')
   useWalletConnectionSync(
     useEoa ? undefined : (wagmiWalletClient as WalletClient | undefined),
+    useEoa ? undefined : (wagmiPublicClient as PublicClient | undefined),
     snapshot.value as string,
     send,
   )
@@ -300,7 +338,7 @@ export const SmartAccountContextProvider = ({
   })
 
   // Smart account is HCA-only: fund the EOA (which holds the ENS name and
-  // stablecoins the smart account spends from). ETH for gas is sponsored
+  // stablecoins the smart account spends from). Execution costs are paid
   // by Rhinestone, so the SCA itself doesn't need funding.
   const addressToFund = ownerAddress
 
@@ -318,15 +356,18 @@ export const SmartAccountContextProvider = ({
 
   // Dev-only: clears contract bytecode + mints USDC/DAI on the local Anvil fork
   // for the owner address. Runs whenever ownerAddress becomes available.
-  // Falls back silently if anvil_* methods are unavailable (real Sepolia in dev).
+  //
+  // Gated on `isTimeTravelEnabled()` (DEV + VITE_TIME_TRAVEL), which is the same
+  // flag that signals "a local Anvil fork is running". Without it — e.g. dev
+  // against real Sepolia — the `/rpc` proxy has no Anvil behind it, so these
+  // `anvil_setCode` / mint calls would spam `ECONNREFUSED 127.0.0.1:8545`.
   useEffect(() => {
-    if (!import.meta.env.DEV || !ownerAddress) return
+    if (!isTimeTravelEnabled() || !ownerAddress) return
     if (anvilSetupDoneRef.current.has(ownerAddress)) return
 
     anvilSetupDoneRef.current.add(ownerAddress)
     anvilSetupOwner(ownerAddress, customSepolia, {
       USDC: SUPPORTED_TOKENS.USDC,
-      DAI: SUPPORTED_TOKENS.DAI,
     }).catch(() => {
       anvilSetupDoneRef.current.delete(ownerAddress)
     })
@@ -399,6 +440,9 @@ export const SmartAccountContextProvider = ({
   }, [balances.stablecoinBalances])
 
   useEffect(() => {
+    // The faucet mints MockUSDC, which is also the payment token of the
+    // standalone-HCA route, so auto-fund runs on real Sepolia too.
+
     // NOTE: deliberately NOT gated on the smart-account machine's `isLoading`.
     // Funding tops up the EOA owner's stablecoins, which is independent of HCA
     // initialization. The machine can flap disconnected→initializing→ready
@@ -417,7 +461,7 @@ export const SmartAccountContextProvider = ({
 
     // Fund when the owner is low on stablecoins. The api-worker faucet mints
     // mock USDC/DAI as needed; gated on a low balance so this stays idempotent.
-    // (HCA gas is Warp-sponsored and the payment approval is a gasless permit,
+    // (HCA execution costs are paid in USDC and the payment approval is a gasless permit,
     // so the EOA owner never needs native ETH.)
     if (!needsStablecoins) return
 
@@ -516,13 +560,22 @@ export const SmartAccountContextProvider = ({
     const rhinestoneAccount =
       baseClient as unknown as RhinestoneSigner['account']
 
+    if (!wagmiPublicClient) {
+      setSessionError('No public client available for session authorization')
+      return null
+    }
+
     setIsEnablingSession(true)
     setSessionError(null)
+    // The session salt depends on the HCA's on-chain nonce (0 when undeployed).
+    const alreadyDeployed = await rhinestoneAccount.isDeployed(customSepolia)
     const result = await resolveSessionActor({
       ownerAddress: sessionOwnerAddress,
       accountAddress,
       chain: customSepolia,
       rhinestoneAccount,
+      publicClient: wagmiPublicClient as unknown as PublicClient,
+      alreadyDeployed,
     })
     setIsEnablingSession(false)
 
@@ -545,7 +598,11 @@ export const SmartAccountContextProvider = ({
       baseClient,
       accountAddress,
       rhinestoneApiKey,
-      sessionContext: buildSessionContext({ session: result.value.session }),
+      sessionContext: buildSessionContext({
+        session: result.value.session,
+        chain: customSepolia,
+        hca: accountAddress,
+      }),
       sessionOwnerAddress,
       machineOwner: snapshot.context.ownerAddress,
       eoaAddress,
@@ -556,16 +613,46 @@ export const SmartAccountContextProvider = ({
     sessionOwnerAddress,
     snapshot.context.ownerAddress,
     eoaAddress,
+    wagmiPublicClient,
   ])
 
-  // The session context (ephemeral owner key) to attach to the rhinestone
-  // signer, if a session is active.
+  // Resolve the START_REGISTRATION session-enable payload.
+  //
+  // Returns the payload for ANY active session — including one already enabled
+  // on-chain. It used to short-circuit to `undefined` once
+  // `experimental_isSessionEnabled` was true, which broke every registration
+  // after the first: dropping the proof forces the validator's steady-state
+  // path, where the funding `permit` is rejected with
+  // `ActionNotAllowed(USDC, permit)` (masked as `InvalidSignature()`).
+  //
+  // Re-presenting the proof is safe and costs no extra wallet prompt. The
+  // owner's session authorization is signed ONCE and stored; the proof is
+  // reusable (`_validateSessionEnableProof` checks only `validUntil` and the
+  // account's session nonce, which nothing increments outside revocation), and
+  // `enableSessionWithRefund` is idempotent (`_enableSessionFor` rewrites the
+  // same slot with identical values).
+  //
+  // The machine decides whether to ATTACH it: `submittingSetupBundle` sends it
+  // only alongside a funding permit, so a fully-funded HCA still gets the cheap
+  // commit-only batch.
+  const getSessionEnablePayload = useCallback(async (): Promise<
+    HcaSessionEnablePayload | undefined
+  > => {
+    if (!activeSession || !accountAddress) return undefined
+    return buildHcaSessionEnablePayload(activeSession)
+  }, [activeSession, accountAddress])
+
+  // The session context to attach to the rhinestone signer, if active.
   const sessionContext = useMemo(
     () =>
-      activeSession
-        ? buildSessionContext({ session: activeSession })
+      activeSession && accountAddress
+        ? buildSessionContext({
+            session: activeSession,
+            chain: customSepolia,
+            hca: accountAddress,
+          })
         : undefined,
-    [activeSession],
+    [activeSession, accountAddress],
   )
 
   const signer: Signer | null = useMemo(() => {
@@ -661,6 +748,8 @@ export const SmartAccountContextProvider = ({
             isEnablingSession: false,
             sessionError: null,
             enableSession,
+            activeStoredSession: null,
+            getSessionEnablePayload,
           }
         : {
             type: 'rhinestone',
@@ -692,6 +781,8 @@ export const SmartAccountContextProvider = ({
             isEnablingSession,
             sessionError,
             enableSession,
+            activeStoredSession: activeSession,
+            getSessionEnablePayload,
           },
     [
       useEoa,
@@ -719,6 +810,7 @@ export const SmartAccountContextProvider = ({
       isEnablingSession,
       sessionError,
       enableSession,
+      getSessionEnablePayload,
     ],
   )
 

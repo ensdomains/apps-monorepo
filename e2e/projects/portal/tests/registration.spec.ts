@@ -1,12 +1,10 @@
 import {
-  test,
-  expect,
   connectWithHeadlessWallet,
+  expect,
+  test,
 } from '../../../fixtures/playwright.portal.fixture.js'
-import {
-  authorizeTransaction,
-} from '../../../helpers/portal-auth.js'
 import { createConsoleMonitor } from '../../../helpers/console-monitor.js'
+import { authorizeTransaction } from '../../../helpers/portal-auth.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
 const DOMAIN_TO_REGISTER =
@@ -23,9 +21,7 @@ test.describe('Portal ENS name registration', () => {
     await connectWithHeadlessWallet(page, wallet)
 
     // ── 2. Navigate to registration page ───────────────────────────
-    await page.goto(
-      `${PORTAL_APP_URL}/register?name=${DOMAIN_TO_REGISTER}`,
-    )
+    await page.goto(`${PORTAL_APP_URL}/register?name=${DOMAIN_TO_REGISTER}`)
 
     // Wait for the registration form to load with the name visible
     await expect(page.getByText(DOMAIN_TO_REGISTER).first()).toBeVisible({
@@ -39,7 +35,9 @@ test.describe('Portal ENS name registration', () => {
 
     await expect(paymentSection).toBeVisible({ timeout: 10_000 })
 
-    const usdcOption = paymentSection.getByRole('button', { name: 'USDC' }).first()
+    const usdcOption = paymentSection
+      .getByRole('button', { name: 'USDC' })
+      .first()
     await usdcOption.waitFor({ state: 'visible', timeout: 10_000 })
     await usdcOption.click()
 
@@ -53,7 +51,6 @@ test.describe('Portal ENS name registration', () => {
     const transactionDialog = page.locator('[data-slot="dialog-content"]')
 
     await expect(transactionDialog).toBeVisible({ timeout: 30_000 })
-
 
     const monitor = createConsoleMonitor(page, {
       onStateChange: (state, allStates) => {
@@ -117,7 +114,7 @@ test.describe('Portal ENS name registration', () => {
         (await primaryButton.isVisible().catch(() => false)) &&
         (await primaryButton.isEnabled().catch(() => false))
       ) {
-        await primaryButton.click({ timeout: 2_000 }).catch(() => { })
+        await primaryButton.click({ timeout: 2_000 }).catch(() => {})
         await page.waitForTimeout(500)
         continue
       }
