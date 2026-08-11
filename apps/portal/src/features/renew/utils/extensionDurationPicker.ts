@@ -1,4 +1,5 @@
 import {
+  getDurationInSecondsFromYears,
   getStartOfToday,
   plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
@@ -36,23 +37,6 @@ export const getExtensionTargetDate = ({
   return getPlainDateFromTimestamp(duration)
 }
 
-/**
- * Sub-day remainder (in seconds) carried by a date-mode timestamp, i.e. how far
- * past midnight of its own target date it lands.
- *
- * The year presets store `baseDate + N × CONTRACT_SECONDS_PER_YEAR`, and a
- * contract year is 365.25 days — so those timestamps sit 6h × N past midnight.
- * Dropping that tail would price a "1 year" preset as 11 months 30 days, making
- * the per-year price row disagree with the total (e.g. $8.01/year vs $8.00).
- * Dates picked from the calendar land on midnight and return 0, so they keep
- * their exact calendar-day duration.
- */
-export const getExtensionTimeOfDaySeconds = (
-  timestampMs: number,
-  targetDate: Temporal.PlainDate,
-): number =>
-  Math.round((timestampMs - plainDateToDate(targetDate).getTime()) / 1000)
-
 export const getExtensionDisplayedYears = ({
   baseDate,
   duration,
@@ -76,6 +60,19 @@ export const getExtensionDisplayedYears = ({
     ),
   )
 
+/**
+ * Date-mode timestamp for `years` years past `baseDate`, using the same duration
+ * years mode would charge. Going through `add({ years })` instead drops the
+ * 6h/yr a contract year carries over a calendar one, pricing "1 year" as
+ * 11 months 30 days.
+ */
+export const getExtensionTimestampForYears = (
+  baseDate: Temporal.PlainDate,
+  years: number,
+): number =>
+  plainDateToDate(baseDate).getTime() +
+  getDurationInSecondsFromYears(years, baseDate) * 1000
+
 export const getExtensionDurationForToggledSpan = ({
   baseDate,
   displayedYears,
@@ -86,5 +83,5 @@ export const getExtensionDurationForToggledSpan = ({
   spanType: ExtensionSpanType
 }): number =>
   spanType === 'years'
-    ? plainDateToDate(baseDate.add({ years: displayedYears })).getTime()
+    ? getExtensionTimestampForYears(baseDate, displayedYears)
     : displayedYears

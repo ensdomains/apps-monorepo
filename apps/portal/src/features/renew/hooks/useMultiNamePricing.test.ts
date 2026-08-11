@@ -96,7 +96,6 @@ describe('useMultiNamePricing pure helpers', () => {
           spanType: 'date',
           duration: Number.NaN,
           baseDate: plainDate('2026-01-01'),
-          dateModeReferenceDate: plainDate('2026-06-15'),
         }),
       ).toThrow('Date mode duration must be a valid timestamp')
     })

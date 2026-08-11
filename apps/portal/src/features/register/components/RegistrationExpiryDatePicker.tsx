@@ -115,8 +115,8 @@ export const RegistrationExpiryDatePicker = ({
       </Popover>
       {name ? (
         <RegistrationDurationPresets
-          value={Math.round(
-            getYearsFromDuration(getDurationFromPickerDate(date, baseDate)),
+          value={getYearsFromDuration(
+            getDurationFromPickerDate(date, baseDate),
           )}
           onSelect={handlePresetSelect}
           name={name}

@@ -7,16 +7,14 @@ import {
   getMinExpiryDateForPicker,
   plainDateToDate,
 } from '@/features/register/utils/registrationDuration'
-import {
-  CONTRACT_SECONDS_PER_YEAR,
-  MAX_REGISTRATION_YEARS,
-} from '@/lib/constants/duration'
+import { MAX_REGISTRATION_YEARS } from '@/lib/constants/duration'
 import { cn } from '@/lib/utils'
 import {
   getExtensionBaseDate,
   getExtensionDisplayedYears,
   getExtensionDurationForToggledSpan,
   getExtensionTargetDate,
+  getExtensionTimestampForYears,
 } from '../utils/extensionDurationPicker'
 
 export type ExtensionSpanType = 'years' | 'date'
@@ -105,10 +103,7 @@ export const ExtensionDurationOrExpiryPicker = ({
               setDuration(plainDateToDate(date).getTime())
             }
             onYearsPresetSelect={(years) =>
-              setDuration(
-                plainDateToDate(baseDate).getTime() +
-                  years * CONTRACT_SECONDS_PER_YEAR * 1000,
-              )
+              setDuration(getExtensionTimestampForYears(baseDate, years))
             }
             minDate={getMinExpiryDateForPicker(baseDate)}
             maxDate={getMaxExpiryDateForPicker(baseDate)}

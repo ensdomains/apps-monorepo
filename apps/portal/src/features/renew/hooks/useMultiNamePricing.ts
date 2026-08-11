@@ -6,11 +6,12 @@ import {
 } from '@/features/register/hooks/useBaseRate'
 import { getRenewalPriceQueryOptions } from '@/features/register/hooks/useRenewalPrice'
 import {
-  getDurationFromPickerDate,
   getDurationInSecondsFromYears,
+  getMaxExpiryDateForPicker,
   getStartOfToday,
 } from '@/features/register/utils/registrationDuration'
 import { isPriceResult } from '@/features/register/utils/registrationPrice'
+import { MIN_REGISTRATION_DURATION } from '@/lib/constants/duration'
 import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
 import { dateToPlainDate } from '@/utils/temporal'
 import type { ExtensionSpanType } from '../components/ExtensionDurationOrExpiryPicker'
@@ -18,10 +19,6 @@ import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
-import {
-  getExtensionTargetDate,
-  getExtensionTimeOfDaySeconds,
-} from '../utils/extensionDurationPicker'
 import { getRenewerAddress } from '../utils/renewer'
 import type { SelectedName } from './useRenewalTransactions'
 
@@ -43,9 +40,9 @@ export type MultiNamePricingResult = {
 
 type RenewalDurationInput = {
   readonly spanType: ExtensionSpanType
+  /** Year count in `years` mode, target-expiry timestamp in `date` mode. */
   readonly duration: number
   readonly baseDate?: Temporal.PlainDate
-  readonly dateModeReferenceDate?: Temporal.PlainDate
 }
 
 export const getLatestRenewalExpiry = (
@@ -59,22 +56,28 @@ export const getLatestRenewalExpiry = (
 export const getRenewalDurationSeconds = ({
   spanType,
   duration,
-  baseDate,
-  dateModeReferenceDate,
+  baseDate = getStartOfToday(),
 }: RenewalDurationInput): number => {
   if (spanType === 'years') {
     return getDurationInSecondsFromYears(duration, baseDate)
   }
 
-  const targetDate = getExtensionTargetDate({
-    baseDate: dateModeReferenceDate ?? baseDate ?? getStartOfToday(),
-    duration,
-    spanType: 'date',
-  })
+  if (!Number.isFinite(duration)) {
+    throw new Error('Date mode duration must be a valid timestamp')
+  }
 
-  return (
-    getDurationFromPickerDate(targetDate, baseDate) +
-    getExtensionTimeOfDaySeconds(duration, targetDate)
+  const timeZone = Temporal.Now.timeZoneId()
+  const start = baseDate.toZonedDateTime(timeZone)
+  const maxEpochMs =
+    getMaxExpiryDateForPicker(baseDate).toZonedDateTime(
+      timeZone,
+    ).epochMilliseconds
+
+  return Math.max(
+    Math.round(
+      (Math.min(duration, maxEpochMs) - start.epochMilliseconds) / 1000,
+    ),
+    MIN_REGISTRATION_DURATION,
   )
 }
 
@@ -83,43 +86,20 @@ export function useMultiNamePricing(
   spanType: ExtensionSpanType,
   duration: number,
 ): MultiNamePricingResult {
-  const renewalInputs = useMemo(() => {
-    const today = getStartOfToday()
-
-    if (spanType === 'years') {
-      return selectedNames.map((selectedName) => {
-        const base = selectedName.expiryDate
-          ? dateToPlainDate(selectedName.expiryDate)
-          : today
-        return {
-          selectedName,
-          duration: getRenewalDurationSeconds({
-            spanType,
-            duration,
-            baseDate: base,
-          }),
-        }
-      })
-    }
-
-    const latestExpiry = getLatestRenewalExpiry(selectedNames)
-    const latestBaseDate = latestExpiry ? dateToPlainDate(latestExpiry) : today
-
-    return selectedNames.map((selectedName) => {
-      const base = selectedName.expiryDate
-        ? dateToPlainDate(selectedName.expiryDate)
-        : today
-      return {
+  const renewalInputs = useMemo(
+    () =>
+      selectedNames.map((selectedName) => ({
         selectedName,
         duration: getRenewalDurationSeconds({
           spanType,
           duration,
-          baseDate: base,
-          dateModeReferenceDate: latestBaseDate,
+          baseDate: selectedName.expiryDate
+            ? dateToPlainDate(selectedName.expiryDate)
+            : undefined,
         }),
-      }
-    })
-  }, [duration, selectedNames, spanType])
+      })),
+    [duration, selectedNames, spanType],
+  )
 
   const priceQueries = useQueries({
     queries: renewalInputs.map((renewal) =>

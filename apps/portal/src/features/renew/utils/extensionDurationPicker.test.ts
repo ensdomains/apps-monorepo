@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
 import { dateToPlainDate } from '@/utils/temporal'
 import {
   getExtensionBaseDate,
@@ -63,6 +64,12 @@ describe('extensionDurationPicker helpers', () => {
     })
 
     expect(dateToPlainDate(new Date(result)).toString()).toBe('2029-01-01')
+    // Same duration years mode would charge, so toggling modes doesn't reprice
+    // the extension as 2 years 11 months 30 days.
+    expect(result - new Date(2026, 0, 1).getTime()).toBe(
+      getDurationInSecondsFromYears(3, Temporal.PlainDate.from('2026-01-01')) *
+        1000,
+    )
   })
 
   it('converts date mode toggle value back to displayed years', () => {
