@@ -93,7 +93,16 @@ have. Do not spend an iteration on the GR batch before resolving it.
 - The 12 accounted-for addresses split into: 2 Anvil dev EOAs, 2 placeholder
   sentinels, 1 canonical cross-chain deployment (Multicall3), 4 pinned-V1-
   deployment contracts, 1 HCA account derived outside the e2e dependency graph,
-  1 ENSIP-25 identifier, and the disputed resolver above.
+  1 ENSIP-25 identifier, and the disputed resolver above. 13 occurrences across
+  8 files.
+- **Known limit of this gate.** It enforces *every literal is accounted for* and
+  *no address wears two names*. It does **not** catch a file re-declaring an
+  address another file already exports, when both use the same name — that is
+  legal under both checks. Biome's unused-import warning is what caught exactly
+  that here: the first version of the `mock-v1-subgraph.ts` deduplication
+  imported `V1_NAME_WRAPPER` but left the literal in place, so only the resolver
+  half landed. If a third check is ever wanted, it is "an allowlisted address
+  appears in a file that is not its declaring module".
 
 ### Parked
 
