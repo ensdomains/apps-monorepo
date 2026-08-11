@@ -10,7 +10,10 @@ import { RESOLVER_INTERFACE_IDS } from '@/lib/constants/resolverInterfaceIds'
 import { isRegistrable } from '@/utils/ens/tldHelpers'
 import type { ProtocolVersion } from '@/utils/types'
 import type { Suggestion } from '../utils/buildSearchSuggestions'
-import { buildSearchSuggestions } from '../utils/buildSearchSuggestions'
+import {
+  buildSearchSuggestions,
+  getSearchNotice,
+} from '../utils/buildSearchSuggestions'
 import {
   filterAndSortOwnedNames,
   mergeOwnedNames,
@@ -55,6 +58,8 @@ export type UseSearchResultsReturn = {
   allItems: SearchResultItem[]
   isTldsLoading: boolean
   hasAnySection: boolean
+  /** Set when the input cannot be registered, e.g. a label under 3 characters. */
+  readonly searchNotice: string | null
 }
 
 /**
@@ -221,6 +226,7 @@ export const useSearchResults = ({
   const hasSuggestions = suggestionsFiltered.length > 0
   const hasOwned = ownedNamesFiltered.length > 0
   const hasAnySection = hasSuggestions || hasOwned
+  const searchNotice = hasAnySection ? null : getSearchNotice(searchValue)
 
   const allItems = useMemo(
     () =>
@@ -240,5 +246,6 @@ export const useSearchResults = ({
     allItems,
     isTldsLoading,
     hasAnySection,
+    searchNotice,
   }
 }

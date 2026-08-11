@@ -90,6 +90,7 @@ export const HomeSearchInput = ({
   const {
     allItems,
     hasAnySection,
+    searchNotice,
     suggestions,
     ownerBySuggestionId,
     availableNames,
@@ -231,7 +232,7 @@ export const HomeSearchInput = ({
     <>
       <Popover
         modal={false}
-        open={menuOpen && hasAnySection}
+        open={menuOpen && (hasAnySection || !!searchNotice)}
         onOpenChange={(open) => !open && setMenuOpen(false)}
       >
         <PopoverTrigger asChild>
@@ -249,7 +250,7 @@ export const HomeSearchInput = ({
             <InputGroupInput
               id={listboxId}
               role="combobox"
-              aria-expanded={menuOpen && hasAnySection}
+              aria-expanded={menuOpen && (hasAnySection || !!searchNotice)}
               aria-controls={`${listboxId}-listbox`}
               aria-activedescendant={
                 activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined
@@ -278,6 +279,11 @@ export const HomeSearchInput = ({
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
+          {searchNotice && (
+            <div className="px-3 py-2 text-p text-message-warning-text">
+              {searchNotice}
+            </div>
+          )}
           {hasAnySection && (
             <div
               role="listbox"
