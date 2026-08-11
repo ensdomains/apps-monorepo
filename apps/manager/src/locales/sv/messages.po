@@ -864,6 +864,10 @@ msgstr ""
 msgid "Does not expire"
 msgstr ""
 
+#: src/components/NameFallbackCard.tsx
+msgid "doesn't exist"
+msgstr ""
+
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Domain transfer & expiry notifications"
 msgstr ""
@@ -1226,6 +1230,10 @@ msgstr ""
 msgid "Growing your corner of the decentralized web"
 msgstr ""
 
+#: src/components/NameFallbackCard.tsx
+msgid "hasn't been imported to ENS yet"
+msgstr ""
+
 #: src/features/dashboard/components/FaqSection.tsx
 msgid "How can I secure my ENS name?"
 msgstr "Hur kan jag säkra mitt ENS-namn?"
@@ -1277,6 +1285,10 @@ msgstr ""
 
 #: src/features/register/components/CheckAvailability/ValidationError.tsx
 msgid "Invalid character"
+msgstr ""
+
+#: src/components/NameFallbackCard.tsx
+msgid "is too short to register"
 msgstr ""
 
 #: src/features/wallet/components/EnableSessionModal.tsx
@@ -2164,6 +2176,10 @@ msgstr ""
 msgid "Retrying will attempt the renewal again from where it left off."
 msgstr ""
 
+#: src/components/NameFallbackCard.tsx
+msgid "Return to Dashboard"
+msgstr ""
+
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 #: src/features/migration/pages/MigrationPage.tsx
 msgid "Revoke temporary HCA access"
@@ -2859,6 +2875,10 @@ msgstr ""
 
 #: src/features/landing/IntegrationsSection.tsx
 msgid "Use your ENS name in wallets, apps, blockchains, and browsers you already know - no setup required."
+msgstr ""
+
+#: src/components/NameFallbackCard.tsx
+msgid "uses an unsupported TLD"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
