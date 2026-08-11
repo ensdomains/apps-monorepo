@@ -44,9 +44,6 @@ const FEATURE_FLAGS_INTERNAL = {
   TEMP_PREMIUM_NAME_STATS: {
     enabled: import.meta.env.VITE_FF_TEMP_PREMIUM_NAME_STATS === 'true',
   },
-  REGISTRATION_V2: {
-    enabled: true,
-  },
   /**
    * Force the transaction manager to use plain EOA signing only — bypasses
    * the Rhinestone smart-account flow entirely. Useful for environments

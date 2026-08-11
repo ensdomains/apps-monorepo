@@ -1,6 +1,6 @@
 import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { checkRealNameAvailability } from '@/features/register/services/nameChainContractService'
+import { checkRealNameAvailability } from '@/features/shared/service/nameChainContractService'
 import { normalizeDomainNameFromUrl } from '@/utils/domain'
 
 export const getRegistrationV2AvailabilityQueryOptions = (

@@ -1,7 +1,13 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
+import { TaggedError } from '@ens-apps/utils/neverthrow'
 import { sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
-import { NameAvailabilityError } from './machines/searchNameMachine'
+
+export class NameAvailabilityError extends TaggedError(
+  'NameAvailabilityError',
+)<{
+  cause: unknown
+}> {}
 
 export type ValidationError =
   | { type: 'INVALID_CHARACTER'; message: string }

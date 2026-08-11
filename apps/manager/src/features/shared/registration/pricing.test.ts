@@ -8,7 +8,7 @@ import {
   SECONDS_PER_DAY,
   SECONDS_PER_YEAR,
   sanitizePricingDuration,
-} from './utils'
+} from './pricing'
 
 describe('sanitizePricingDuration', () => {
   it('returns default duration for null/undefined/NaN', () => {

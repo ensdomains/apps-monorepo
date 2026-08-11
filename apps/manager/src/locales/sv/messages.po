@@ -38,11 +38,6 @@ msgstr ""
 msgid "{0, plural, one {# year} other {# years}}"
 msgstr ""
 
-#. placeholder {0}: Number(formattedDurationYears)
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
-msgid "{0, plural, one {# Year} other {# Years}}"
-msgstr ""
-
 #. placeholder {0}: steps.length
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{0, plural, one {Your wallet will show one request.} other {Your wallet will show # requests in this order.}}"
@@ -75,11 +70,6 @@ msgstr ""
 msgid "{0}% discount"
 msgstr ""
 
-#. placeholder {0}: option.discount
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx
-msgid "{0}% off"
-msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Approve # registration} other {Approve # registrations}}"
 msgstr ""
@@ -90,10 +80,6 @@ msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "{count, plural, one {Upgrade # name} other {Upgrade # names}}"
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx
-msgid "{duration, plural, one {# year} other {# years}}"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
@@ -163,15 +149,10 @@ msgstr ""
 msgid "4 character premium name"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "60-second wait prevents attacks"
-msgstr ""
-
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
 msgid "A marker for the move to a new era of ENS."
 msgstr ""
 
-#: src/features/register/pages/CheckDomainPage.tsx
 #: src/routes/index.tsx
 msgid "A simple, portable identity that you control"
 msgstr "En enkel, portabel identitet som du kontrollerar"
@@ -202,10 +183,6 @@ msgstr ""
 
 #: src/features/payment/components/index.tsx
 msgid "Add Backup Card"
-msgstr ""
-
-#: src/features/register/components/Autorenewal.tsx
-msgid "Add credit card"
 msgstr ""
 
 #: src/features/dashboard/components/NameRow.tsx
@@ -271,20 +248,8 @@ msgstr ""
 msgid "Allow the migration account to move your wrapped names."
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Almost complete"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Almost ready"
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx
+#: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "An error occurred"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "An error occurred during registration. Please try again."
 msgstr ""
 
 #: src/routes/notifications/channels/email/verify.tsx
@@ -293,10 +258,6 @@ msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "And more..."
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Approval allows registrar to charge"
 msgstr ""
 
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
@@ -339,10 +300,6 @@ msgstr ""
 msgid "Approve your migration account in your wallet"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Approving"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Approving payment token"
 msgstr ""
@@ -359,10 +316,6 @@ msgstr ""
 msgid "Auth address:"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Authorizing payment"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Authorizing payment and registering your name"
 msgstr ""
@@ -372,7 +325,6 @@ msgid "Autorenews on"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "available"
 msgstr ""
 
@@ -389,10 +341,6 @@ msgstr ""
 #: src/features/migration/pages/MigrationPage.tsx
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "Back"
-msgstr ""
-
-#: src/features/register/components/Autorenewal.tsx
-msgid "Back to dashboard"
 msgstr ""
 
 #: src/features/migration/pages/MigrationNftInfoPage.tsx
@@ -543,7 +491,6 @@ msgstr ""
 msgid "Choose Primary Name"
 msgstr "Välj primärt namn"
 
-#: src/features/register/pages/CheckDomainPage.tsx
 #: src/routes/index.tsx
 msgid "Claim your"
 msgstr ""
@@ -564,28 +511,8 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Close dialog"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Coming Soon"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Commit-reveal prevents front-running"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Commitment hides your registration intent"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Committed"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Committing"
 msgstr ""
 
 #: src/features/landing/FeaturesCarousel.tsx
@@ -610,25 +537,12 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Confirm Payment"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 msgid "Confirm purchase"
 msgstr ""
 
 #: src/features/bulk-renew/components/BulkRenewDialog.tsx
 msgid "Confirm renewal"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Confirming approval"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Confirming commitment"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -646,10 +560,6 @@ msgstr ""
 
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Connect a wallet to continue to notification settings and activity."
-msgstr ""
-
-#: src/features/register/components/Pricing/PricingPaymentSection.tsx
-msgid "Connect or sign in"
 msgstr ""
 
 #: src/features/profile/components/common/favoriteAction.helpers.ts
@@ -678,10 +588,6 @@ msgstr ""
 
 #: src/routes/wallet.tsx
 msgid "Connected via:"
-msgstr ""
-
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Connected wallet"
 msgstr ""
 
 #: src/routes/wallet.tsx
@@ -759,37 +665,13 @@ msgstr ""
 msgid "Create migration account"
 msgstr ""
 
-#: src/features/register/components/Autorenewal.tsx
-msgid "Create profile"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
-msgid "Create Profile"
-msgstr ""
-
 #: src/features/migration/components/WalletConfirmationStepsDialog.tsx
 msgid "Create the secure account that performs the name upgrade."
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Create unlimited subdomains for free"
 msgstr ""
 
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Created"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Credit Card Payment"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Credit card payments via MoonPay will be available soon. Please use crypto payment for now."
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx
-msgid "Custom duration in years"
 msgstr ""
 
 #: src/features/migration/components/value-props/migrationValueProps.ts
@@ -965,14 +847,6 @@ msgstr ""
 msgid "ENS Labs Updates"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "ENS names are stored on-chain as NFTs"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "ENS names can be up to 255 characters"
-msgstr ""
-
 #: src/features/dashboard/components/DashboardPills.tsx
 msgid "ENSv1 only"
 msgstr ""
@@ -988,10 +862,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PriceCooldownBanner/PriceCooldownExpandedContent.tsx
 msgid "Enter a price you'd be willing to pay. We'll calculate when the fee will reach that price."
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx
-msgid "Enter custom duration"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1019,7 +889,6 @@ msgstr ""
 #: src/features/dashboard/components/PrimaryNameCard.tsx
 #: src/features/profile/components/view/ProfileDetails.tsx
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Expires"
 msgstr "Går ut"
@@ -1027,10 +896,6 @@ msgstr "Går ut"
 #. placeholder {0}: paymentMethod.expires
 #: src/features/payment/components/index.tsx
 msgid "Expires {0}"
-msgstr ""
-
-#: src/features/register/components/Autorenewal.tsx
-msgid "expires {expiryDateString}"
 msgstr ""
 
 #: src/features/dashboard/components/DashboardPills.tsx
@@ -1046,7 +911,6 @@ msgid "Expires:"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx
 #: src/features/renew/workflow/pricing/components/PricingSummaryCard.tsx
 msgid "expiring on"
 msgstr ""
@@ -1139,17 +1003,12 @@ msgstr ""
 msgid "Fee at this moment"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Finalizing registration"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Finishing setup"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
 msgid "for"
 msgstr ""
 
@@ -1191,10 +1050,6 @@ msgstr ""
 
 #: src/features/migration/components/GameStep.tsx
 msgid "Getting ready..."
-msgstr ""
-
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Go back"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -1247,10 +1102,6 @@ msgstr "Hur visar jag mitt .eth-namn i stället för min adress?"
 msgid "How it works"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Human-readable addresses for wallets"
-msgstr ""
-
 #: src/features/renew/components/ThirdPartyRenewalDialog.tsx
 msgid "I Understand"
 msgstr ""
@@ -1277,14 +1128,6 @@ msgstr ""
 
 #: src/features/navigation/Header/notifications/NotificationsMenuItem.tsx
 msgid "Inbox"
-msgstr ""
-
-#: src/features/register/components/Pricing/PricingPaymentSection.tsx
-msgid "Insufficient funds. You don't have enough USDC in your wallet for this purchase."
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/ValidationError.tsx
-msgid "Invalid character"
 msgstr ""
 
 #: src/components/NameFallbackCard.tsx
@@ -1339,16 +1182,11 @@ msgstr ""
 msgid "Loading balances…"
 msgstr ""
 
-#: src/features/register/components/Pricing/Pricing.tsx
-msgid "Loading prices..."
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Loading pricing..."
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Loading your stablecoin balances..."
 msgstr ""
 
@@ -1374,14 +1212,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Make it yours"
-msgstr ""
-
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Make sure the message starts with \"ENS would like you to ...\""
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Makes crypto addresses human-readable"
 msgstr ""
 
 #: src/features/weave-registration/lib/weaveSteps.ts
@@ -1469,7 +1299,6 @@ msgid "Most popular"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Multi-year Discount ({discountPercentage}%)"
 msgstr ""
@@ -1495,26 +1324,13 @@ msgstr ""
 msgid "Name owner is not available yet. Try again in a moment."
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Name registering"
-msgstr ""
-
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Names"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Names are permanent, only expire if not renewed"
 msgstr ""
 
 #. placeholder {0}: formatUsd(priceUSD)
 #: src/features/register-v2/workflow/pricing/components/TokenListItem.tsx
 msgid "Need {0}"
-msgstr ""
-
-#. placeholder {0}: formatAmount(priceUSD)
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Need ${0}"
 msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
@@ -1547,10 +1363,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftCard.tsx
 msgid "NFT actions"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "No coins found"
 msgstr ""
 
 #: src/features/payment/components/index.tsx
@@ -1599,12 +1411,8 @@ msgstr ""
 msgid "No wallet connected yet"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/ValidationError.tsx
-msgid "Not a valid name format"
-msgstr ""
-
+#: src/features/landing/check-availability/CheckAvailability.tsx
 #: src/features/navigation/Header/search/SuggestionItem.tsx
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx
 msgid "Not supported"
 msgstr ""
 
@@ -1679,10 +1487,6 @@ msgstr ""
 msgid "or"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Over 2 million ENS names registered"
-msgstr ""
-
 #: src/features/dashboard/components/NamesTable.tsx
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
 msgid "Owned"
@@ -1701,10 +1505,6 @@ msgstr ""
 msgid "Pay with Apple"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Pay with credit card"
-msgstr ""
-
 #: src/features/payment/components/add.tsx
 msgid "Pay with Google"
 msgstr ""
@@ -1714,7 +1514,6 @@ msgid "Pay with PayPal"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Pay with stablecoins"
 msgstr ""
 
@@ -1760,17 +1559,12 @@ msgstr ""
 
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Please connect your wallet first"
 msgstr ""
 
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 #: src/features/profile/components/dialogs/edit-profile/useEditProfileDialogSave.ts
 msgid "Please finish connecting your wallet, then try again"
-msgstr ""
-
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Please sign a message to verify your ownership of the wallet. This will not cost any gas."
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
@@ -1790,7 +1584,6 @@ msgid "Preferences updated"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Preparing commitment"
 msgstr ""
 
@@ -1878,10 +1671,6 @@ msgstr ""
 msgid "Profile actions"
 msgstr ""
 
-#: src/features/register/components/Autorenewal.tsx
-msgid "Protect your name with autorenewal"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Reading commitment window"
 msgstr ""
@@ -1892,10 +1681,6 @@ msgstr ""
 
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Ready"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Receive crypto from any chain"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -1920,7 +1705,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
 msgid "Register name"
 msgstr ""
 
@@ -1938,13 +1722,10 @@ msgid "Registered"
 msgstr "Registrerad"
 
 #: src/features/register-v2/workflow/pricing/components/ConfirmPurchase.tsx
-#: src/features/register/components/RegistrationInProgress/CryptoPaymentConfirmationContent.tsx
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Registering"
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/PricingSummaryCard.tsx
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx
 msgid "Registering for"
 msgstr ""
 
@@ -1961,12 +1742,10 @@ msgid "Registration complete"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationCompletionBanner.tsx
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Registration Complete!"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 msgid "Registration Details"
 msgstr ""
 
@@ -1975,12 +1754,10 @@ msgid "Registration failed"
 msgstr ""
 
 #: src/features/register-v2/workflow/result/FailureStep.tsx
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Registration Failed"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 msgid "Registration Fee"
 msgstr ""
 
@@ -1989,16 +1766,7 @@ msgid "Registration in progress"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 msgid "Registration Period"
-msgstr ""
-
-#: src/features/register/components/Autorenewal.tsx
-msgid "Registration successful"
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
-msgid "Registration successful! You'll receive a confirmation shortly."
 msgstr ""
 
 #: src/features/profile/components/view/AgentRecordCard.tsx
@@ -2198,11 +1966,6 @@ msgstr ""
 msgid "Save <0/>"
 msgstr ""
 
-#. placeholder {0}: discountAmount.toLocaleString('en-US', { maximumFractionDigits: 0, })
-#: src/features/register/components/Pricing/PricingTotalPriceCard.tsx
-msgid "Save ${0}"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Save and Continue"
 msgstr ""
@@ -2228,10 +1991,6 @@ msgstr ""
 #: src/features/notifications/settings/preferences.tsx
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
 msgid "Saving..."
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Search coins"
 msgstr ""
 
 #: src/features/navigation/Header/search/SearchInput.tsx
@@ -2288,7 +2047,6 @@ msgstr ""
 msgid "Select all names"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 #: src/features/renew/workflow/pricing/components/TokenPickerDialog.tsx
 msgid "Select coin"
 msgstr ""
@@ -2296,10 +2054,6 @@ msgstr ""
 #: src/features/bulk-renew/components/PaymentMethodSection.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Select payment"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Select payment method"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/email.tsx
@@ -2326,16 +2080,8 @@ msgstr ""
 msgid "Set it as your primary name from the primary name card on your Dashboard."
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Set multiple records: ETH, BTC, email"
-msgstr ""
-
 #: src/features/dashboard/pages/DashboardPage.tsx
 msgid "Set primary name"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Set reverse record to show your name"
 msgstr ""
 
 #: src/features/profile/components/dialogs/ResolverSetupConfirmDialog.tsx
@@ -2431,10 +2177,6 @@ msgstr ""
 msgid "Sign in with your wallet to enable backend features, including notifications about your ENS domains, transfers, expiry reminders, and important updates."
 msgstr ""
 
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Sign Message"
-msgstr ""
-
 #: src/features/wallet/components/EnableSessionModal.tsx
 msgid "Sign once to enable gasless transactions for your ENS operations."
 msgstr ""
@@ -2450,10 +2192,6 @@ msgstr ""
 #: src/features/notifications/RequireBackendAuth.tsx
 #: src/features/wallet/components/BackendAuthModal.tsx
 msgid "Signing in..."
-msgstr ""
-
-#: src/features/register/components/Autorenewal.tsx
-msgid "Skip"
 msgstr ""
 
 #: src/features/wallet/components/BackendAuthModal.tsx
@@ -2510,7 +2248,6 @@ msgstr "Sortera efter"
 
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "Stables accepted"
 msgstr ""
 
@@ -2518,8 +2255,7 @@ msgstr ""
 msgid "Start a new profile for this name?"
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/CheckAvailability.stories.tsx
-#: src/features/register/components/CheckAvailability/CheckAvailability.tsx
+#: src/features/landing/check-availability/CheckAvailability.tsx
 msgid "Start typing to check if your perfect name is available"
 msgstr ""
 
@@ -2581,10 +2317,6 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Support"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Supports USDC payments"
 msgstr ""
 
 #: src/features/notifications/settings/contact-methods/telegram.tsx
@@ -2692,10 +2424,6 @@ msgstr ""
 msgid "This name expired and can still be renewed by its previous owner until <0>{formattedGraceEnd}</0>. If renewed, it stays with the previous owner. After grace ends, it enters temporary premium and anyone can register it."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/RegistrationPanel.tsx
-msgid "This name is already registered or not available for registration."
-msgstr ""
-
 #: src/features/grace/components/GracePeriodBanner.tsx
 msgid "This name is in grace period"
 msgstr ""
@@ -2744,24 +2472,11 @@ msgstr ""
 msgid "To finish connecting Telegram, you need to <0>start the ENS Notifications Bot</0> in Telegram."
 msgstr ""
 
-#: src/features/register/components/CheckAvailability/ValidationError.tsx
-msgid "Too short"
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx
-msgid "total"
-msgstr ""
-
 #: src/features/register-v2/workflow/pricing/components/PaymentCard.tsx
 msgid "Total"
 msgstr ""
 
-#: src/features/register/components/Pricing/PricingTotalPriceCard.tsx
-msgid "TOTAL"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/components/RegistrationDetails.tsx
-#: src/features/register/components/RegistrationInProgress/RegistrationDetails.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Total Paid"
 msgstr ""
@@ -2776,10 +2491,6 @@ msgstr ""
 
 #: src/features/navigation/Header/navigation/NavigationContent.tsx
 msgid "Trademark Guidelines"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Transfer your name to any wallet"
 msgstr ""
 
 #: src/features/bulk-renew/components/FailureStep.tsx
@@ -2797,10 +2508,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/durationPresets.ts
 msgid "Try it out"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
-msgid "Try searching for a different coin or chain"
 msgstr ""
 
 #: src/features/profile/components/view/AddressProfileNamesList.tsx
@@ -2901,10 +2608,6 @@ msgstr ""
 msgid "Verified"
 msgstr ""
 
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Verified!"
-msgstr ""
-
 #: src/features/notifications/settings/preferences.tsx
 msgid "Verify at least one contact method to save preferences"
 msgstr ""
@@ -2922,7 +2625,6 @@ msgid "Verify Email Address"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/NotificationSettings.tsx
-#: src/features/register/components/VerifyWalletModal.tsx
 msgid "Verify Wallet"
 msgstr ""
 
@@ -2964,10 +2666,6 @@ msgstr ""
 msgid "View profile"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Waiting for approval"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for approval confirmation"
 msgstr ""
@@ -3000,10 +2698,6 @@ msgstr ""
 msgid "Waiting for primary name confirmation"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Waiting for registration"
-msgstr ""
-
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for registration confirmation"
 msgstr ""
@@ -3018,14 +2712,6 @@ msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
 msgid "Waiting for resolver submission"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Waiting for signature"
-msgstr ""
-
-#: src/features/register/components/VerifyWalletModal.tsx
-msgid "Waiting for signature..."
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/lib/txStageMessages.ts
@@ -3050,14 +2736,6 @@ msgstr ""
 
 #: src/features/renew/workflow/renewing/RenewingStep.tsx
 msgid "Waiting for token approval"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Waiting for transaction"
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Waiting period"
 msgstr ""
 
 #: src/lib/smart-account/SmartAccountContext.tsx
@@ -3104,7 +2782,6 @@ msgstr ""
 msgid "We sent a verification code to your email address."
 msgstr ""
 
-#: src/features/register/pages/CheckDomainPage.tsx
 #: src/routes/index.tsx
 msgid "web3 username"
 msgstr ""
@@ -3138,17 +2815,8 @@ msgstr ""
 msgid "Why might I be ineligible?"
 msgstr ""
 
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Works across all EVM-compatible chains"
-msgstr ""
-
 #: src/features/notifications/RequireBackendAuth.tsx
 msgid "Wrong wallet connected"
-msgstr ""
-
-#: src/features/register/components/CheckAvailability/DurationSelector.tsx
-#: src/features/register/components/Pricing/PricingRegistrationSummaryCard.tsx
-msgid "years"
 msgstr ""
 
 #: src/features/dashboard/components/FaqSection.tsx
@@ -3196,7 +2864,6 @@ msgid "You may miss important notifications if you remove this contact method. A
 msgstr ""
 
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
-#: src/features/register/components/RegistrationInProgress/PaymentDrawer.tsx
 msgid "You need to connect a wallet to see your stablecoin balances"
 msgstr ""
 
@@ -3224,10 +2891,6 @@ msgstr ""
 msgid "You're among the first on ENSv2. This NFT marks the moment."
 msgstr ""
 
-#: src/features/register/components/Autorenewal.tsx
-msgid "Your {formattedDurationYears}-year registration expires on {expiryDateString}. Add a credit card to renew it automatically. You can pause or cancel anytime."
-msgstr ""
-
 #: src/features/migration/components/success/CommemorativeNftProfileSection.tsx
 msgid "Your card is ready to preview. Minting is optional and you pay the network gas."
 msgstr ""
@@ -3241,12 +2904,7 @@ msgid "Your email has been verified successfully!"
 msgstr ""
 
 #: src/features/register-v2/workflow/registering/components/RegistrationCompletionBanner.tsx
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
 msgid "Your ENS domain has been successfully registered and is now active."
-msgstr ""
-
-#: src/features/register/components/RegistrationInProgress/ProgressBar.tsx
-msgid "Your ENS domain is now active"
 msgstr ""
 
 #: src/features/dashboard/components/PrimaryNameCard.tsx

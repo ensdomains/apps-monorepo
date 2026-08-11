@@ -7,8 +7,8 @@ import { err, fromPromise, ok } from 'neverthrow'
 import { type Address, formatUnits, zeroAddress, zeroHash } from 'viem'
 import { getChainId } from 'viem/actions'
 import { publicClient, sepoliaWithEns } from '@/lib/wagmi'
-import { durationYearsToSeconds } from '../components/Pricing/utils'
-import { validateENSName } from '../utils'
+import { validateENSName } from '../registration/nameUtils'
+import { durationYearsToSeconds } from '../registration/pricing'
 
 export interface TokenPriceInfo {
   raw: bigint

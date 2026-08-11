@@ -93,7 +93,7 @@ vi.mock('../../profile/service/setPrimaryName', () => ({
   submitClearAddrReverse: vi.fn(() => 'tx-addr-reverse-clear'),
 }))
 
-vi.mock('@/features/register/components/Pricing/utils', () => ({
+vi.mock('@/features/shared/registration/pricing', () => ({
   MIN_REGISTER_DURATION_SECONDS: 2_419_200,
 }))
 

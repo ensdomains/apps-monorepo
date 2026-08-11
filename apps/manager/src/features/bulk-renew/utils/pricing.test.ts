@@ -1,8 +1,8 @@
 import { differenceInCalendarDays, startOfDay } from 'date-fns'
 import { secondsInDay } from 'date-fns/constants'
 import { describe, expect, it } from 'vitest'
-import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import { getDurationInSecondsFromYears } from '@/features/register-v2/utils/time'
+import { MIN_REGISTER_DURATION_SECONDS } from '@/features/shared/registration/pricing'
 import type { Selection } from '../types'
 import {
   durationForName,

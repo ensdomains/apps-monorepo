@@ -17,7 +17,6 @@ import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { parseName } from '@/features/register-v2/utils/name-parser'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 import { seo } from '@/utils/seo'
 
 // Classifies an ownerless name: .eth 2LDs with 3+ code points (the
@@ -88,22 +87,11 @@ export const Route = createFileRoute('/$name/')({
     const isPastGrace = isPastGracePeriod(expiryDate, true)
 
     if (isPastGrace) {
-      throw redirect(
-        isFeatureEnabled('REGISTRATION_V2')
-          ? {
-              params: { name },
-              to: '/register/$name',
-              replace: true,
-            }
-          : {
-              search: {
-                name,
-                duration: 1,
-              },
-              to: '/register',
-              replace: true,
-            },
-      )
+      throw redirect({
+        params: { name },
+        to: '/register/$name',
+        replace: true,
+      })
     }
 
     if (ownerData?.owner) {

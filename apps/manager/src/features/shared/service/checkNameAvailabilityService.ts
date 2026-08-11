@@ -5,7 +5,7 @@ import { skipToken } from '@tanstack/react-query'
 import {
   checkRealNameAvailability,
   getTokenPrices,
-} from '@/features/register/services/nameChainContractService'
+} from '@/features/shared/service/nameChainContractService'
 
 export class NameAvailabilityError extends TaggedError(
   'NameAvailabilityError',

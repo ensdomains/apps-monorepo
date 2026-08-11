@@ -13,6 +13,7 @@ import {
 } from '@/components/molecules/DomainResultCard'
 import { SearchField } from '@/components/molecules/SearchField'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useCheckAvailability } from '@/features/landing/check-availability/useCheckAvailability'
 import { useOpenFirstSearchResultHotkey } from '@/features/navigation/Header/search/useOpenFirstSearchResultHotkey'
 import { buildNameAvatarUrl } from '@/features/profile/service/profileAvatar'
 import {
@@ -21,11 +22,9 @@ import {
 } from '@/features/profile/service/profileExpiry'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
-import { useCheckAvailability } from '@/features/register/components/CheckAvailability/useCheckAvailability'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
-import { isFeatureEnabled } from '@/utils/feature-flags'
 
 const dropdownAnimation = {
   initial: { opacity: 0, y: -8, scale: 0.98 },
@@ -225,18 +224,8 @@ export const CheckAvailability = ({
                     {...dropdownAnimation}
                   >
                     <Link
-                      {...(isFeatureEnabled('REGISTRATION_V2')
-                        ? {
-                            params: { name: state.domainName },
-                            to: '/register/$name',
-                          }
-                        : {
-                            search: {
-                              name: state.domainName,
-                              duration: 1,
-                            },
-                            to: '/register',
-                          })}
+                      params={{ name: state.domainName }}
+                      to="/register/$name"
                     >
                       <DomainResultCard
                         clickable
