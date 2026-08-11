@@ -513,6 +513,23 @@ describe('getSearchNotice', () => {
     expect(getSearchNotice({ value: 'tt.florin', validTlds: tlds })).toBeNull()
   })
 
+  it('stays quiet for TLDs other than .eth, where the rule does not apply', () => {
+    expect(getSearchNotice({ value: 'tt.co', validTlds: tlds })).toBeNull()
+    expect(getSearchNotice({ value: 'tt.com', validTlds: tlds })).toBeNull()
+  })
+
+  it('still warns while the .eth suffix is being typed', () => {
+    expect(getSearchNotice({ value: 'tt.', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+    expect(getSearchNotice({ value: 'tt.e', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+    expect(getSearchNotice({ value: 'tt.et', validTlds: tlds })).toBe(
+      SHORT_LABEL_NOTICE,
+    )
+  })
+
   it('stays quiet for addresses and empty input', () => {
     expect(
       getSearchNotice({

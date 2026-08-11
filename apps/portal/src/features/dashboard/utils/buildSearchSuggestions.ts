@@ -27,13 +27,6 @@ type BuildSuggestionsOptions = {
   validTlds?: readonly string[]
 }
 
-/**
- * Pure function to build search suggestions from user input
- * Handles both Ethereum addresses and ENS names
- *
- * @param options - Configuration object
- * @returns Array of suggestions to display
- */
 export const SHORT_LABEL_NOTICE =
   'Names must be 3 characters or more to register.'
 
@@ -44,8 +37,8 @@ export const getSearchNotice = ({
   value,
   validTlds,
 }: {
-  value: string
-  validTlds?: readonly string[]
+  readonly value: string
+  readonly validTlds?: readonly string[]
 }): string | null => {
   const trimmed = value.trim()
   if (!trimmed || isAddress(trimmed, { strict: false })) return null
@@ -64,10 +57,20 @@ export const getSearchNotice = ({
   const isSubname = dotCount >= 2 || (dotCount === 1 && !isTldPrefix)
   if (isSubname) return null
 
+  // The minimum is a .eth registrar rule, so stay quiet for other TLDs.
+  if (!'eth'.startsWith(afterFirstDot)) return null
+
   const length = [...label].length
   return length > 0 && length < 3 ? SHORT_LABEL_NOTICE : null
 }
 
+/**
+ * Pure function to build search suggestions from user input
+ * Handles both Ethereum addresses and ENS names
+ *
+ * @param options - Configuration object
+ * @returns Array of suggestions to display
+ */
 export const buildSearchSuggestions = ({
   value,
   isMobile,

@@ -59,7 +59,7 @@ export type UseSearchResultsReturn = {
   isTldsLoading: boolean
   hasAnySection: boolean
   /** Set when the input cannot be registered, e.g. a label under 3 characters. */
-  searchNotice: string | null
+  readonly searchNotice: string | null
 }
 
 /**
