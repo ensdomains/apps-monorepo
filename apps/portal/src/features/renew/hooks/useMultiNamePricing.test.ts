@@ -90,6 +90,21 @@ describe('useMultiNamePricing pure helpers', () => {
       expect(result).toBe(CONTRACT_SECONDS_PER_YEAR)
     })
 
+    it('measures each name from its own expiry towards a shared target date', () => {
+      const target = new Date(2029, 0, 1).getTime()
+      const durations = [plainDate('2026-01-01'), plainDate('2027-01-01')].map(
+        (baseDate) =>
+          getRenewalDurationSeconds({
+            spanType: 'date',
+            duration: target,
+            baseDate,
+          }),
+      )
+
+      // Same target, so the earlier-expiring name buys exactly a year more.
+      expect(durations).toEqual([1096 * 86400, 731 * 86400])
+    })
+
     it('throws for invalid date mode duration', () => {
       expect(() =>
         getRenewalDurationSeconds({
