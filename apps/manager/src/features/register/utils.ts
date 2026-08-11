@@ -1,5 +1,8 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
-import { sepolia } from 'viem/chains'
+import {
+  getDestinationContracts,
+  getSourceContracts,
+} from '@ens-apps/smart-account'
+import { baseSepolia, sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { NameAvailabilityError } from './machines/searchNameMachine'
 
@@ -134,14 +137,28 @@ export const validateENSName = (name: string): ValidationError => {
 
 // Standalone-HCA payment tokens. The HCA validator only accepts the REAL
 // Circle Sepolia USDC (its PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN are both
-// this address), so the picker offers USDC only — no mock USDC/DAI/USDT.
+// this address). Base Sepolia USDC is offered as a cross-chain funding source
+// — the HCA bridges it to Sepolia USDC to pay the registrar. No mock
+// USDC/DAI/USDT.
 export const STABLECOINS = {
   USDC: {
     id: 'usdc',
-    name: 'USD Coin',
+    name: 'USDC',
     symbol: 'USDC',
+    fullName: 'USDC on Sepolia',
     decimals: 6,
+    chainId: sepolia.id,
     address: getDestinationContracts(sepolia.id).usdc,
+    icon: USDCIcon,
+  },
+  USDC_BASE: {
+    id: 'usdc-base',
+    name: 'USDC (Base)',
+    symbol: 'USDC',
+    fullName: 'USDC on Base',
+    decimals: 6,
+    chainId: baseSepolia.id,
+    address: getSourceContracts(baseSepolia.id).usdc,
     icon: USDCIcon,
   },
 } as const

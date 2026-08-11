@@ -1,4 +1,4 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import type { Meta, StoryObj } from '@storybook/tanstack-react'
 import { useState } from 'react'
 import type { StablecoinBalance } from '@/lib/smart-account'
@@ -28,6 +28,7 @@ const MOCK_BALANCES: StablecoinBalance[] = [
   {
     address: '0x0000000000000000000000000000000000000001',
     symbol: 'USDC',
+    chainId: 11155111,
     balance: '1000000000', // 1,000 USDC
     decimals: 6,
     formattedBalance: '1000.00',
@@ -35,6 +36,7 @@ const MOCK_BALANCES: StablecoinBalance[] = [
   {
     address: '0x0000000000000000000000000000000000000002',
     symbol: 'DAI',
+    chainId: 11155111,
     balance: '500000000000000000000', // 500 DAI
     decimals: 18,
     formattedBalance: '500.00',
@@ -45,6 +47,7 @@ const LOW_BALANCES: StablecoinBalance[] = [
   {
     address: '0x0000000000000000000000000000000000000001',
     symbol: 'USDC',
+    chainId: 11155111,
     balance: '10000000', // 10 USDC
     decimals: 6,
     formattedBalance: '10.00',
@@ -52,6 +55,7 @@ const LOW_BALANCES: StablecoinBalance[] = [
   {
     address: '0x0000000000000000000000000000000000000002',
     symbol: 'DAI',
+    chainId: 11155111,
     balance: '5000000000000000000', // 5 DAI
     decimals: 18,
     formattedBalance: '5.00',
@@ -72,7 +76,7 @@ interface TokenPickerDialogShellProps {
   isLoadingBalances?: boolean
   stablecoinBalances?: StablecoinBalance[]
   errorMessage?: string | null
-  initialSelectedToken?: SUPPORTED_TOKEN
+  initialSelectedToken?: TOKEN_SYMBOL
 }
 
 const TokenPickerDialogShell = ({
@@ -88,9 +92,9 @@ const TokenPickerDialogShell = ({
   initialSelectedToken,
 }: TokenPickerDialogShellProps) => {
   const [open, setOpen] = useState(defaultOpen)
-  const [selectedToken, setSelectedToken] = useState<
-    SUPPORTED_TOKEN | undefined
-  >(initialSelectedToken)
+  const [selectedToken, setSelectedToken] = useState<TOKEN_SYMBOL | undefined>(
+    initialSelectedToken,
+  )
 
   return (
     <PaymentDialogBase

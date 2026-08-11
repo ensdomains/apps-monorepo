@@ -23,7 +23,13 @@
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
-import { type Address, encodeAbiParameters, keccak256, stringToHex } from 'viem'
+import {
+  type Address,
+  encodeAbiParameters,
+  type Hex,
+  keccak256,
+  stringToHex,
+} from 'viem'
 import { baseSepolia, sepolia } from 'viem/chains'
 
 /**
@@ -112,6 +118,72 @@ export const SOURCE_CONTRACTS: Record<number, SourceContracts> = {
 export const SHARED_CONTRACTS: SharedContracts = {
   nexusFactory: '0x0000000000679A258c64d2F20F310e12B64b7375',
   permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
+}
+
+/**
+ * Encode the `HCAFundingSessionValidator.SessionConfig` tuple for the source
+ * Nexus's `experimental_sessions.initData`. Field order is EXACT and
+ * load-bearing — it must match the on-chain struct.
+ *
+ * Verified field-for-field against `contracts/src/hca/HCAFundingSessionValidator.sol`
+ * (`struct SessionConfig`) in contracts-v2 @ 97a5729, and against the reference
+ * `contracts/script/liveHcaRhinestoneRegistration.ts` encoder.
+ *
+ * NOTE: `arbiter` is NOT a field. The "HCA: New" handoff doc lists one, but it
+ * predates the deployed validator: the contract resolves the active Across
+ * adapter from the Rhinestone Router at claim time and only checks
+ * `claim.spender == activeArbiter`. Adding it here would shift every later
+ * field and produce a Nexus whose installed config never matches
+ * `sourcePermissionId`.
+ *
+ * `owner` is the connected WALLET (the EOA whose USDC is pulled), not the
+ * session key — the validator authorizes pulls *from* the owner.
+ */
+export function encodeFundingSessionConfig(params: {
+  readonly permissionId: Hex
+  readonly owner: Address
+  readonly validUntil: bigint
+  readonly sessionKey: Address
+  readonly sourceToken: Address
+  readonly destinationRecipient: Address
+  readonly destinationToken: Address
+  readonly destinationChainId: bigint
+  readonly maxSourceAmount: bigint
+  readonly maxDestinationAmount: bigint
+}): Hex {
+  return encodeAbiParameters(
+    [
+      {
+        type: 'tuple',
+        components: [
+          { name: 'permissionId', type: 'bytes32' },
+          { name: 'owner', type: 'address' },
+          { name: 'validUntil', type: 'uint48' },
+          { name: 'sessionKey', type: 'address' },
+          { name: 'sourceToken', type: 'address' },
+          { name: 'destinationRecipient', type: 'address' },
+          { name: 'destinationToken', type: 'address' },
+          { name: 'destinationChainId', type: 'uint64' },
+          { name: 'maxSourceAmount', type: 'uint96' },
+          { name: 'maxDestinationAmount', type: 'uint96' },
+        ],
+      },
+    ],
+    [
+      {
+        permissionId: params.permissionId,
+        owner: params.owner,
+        validUntil: Number(params.validUntil),
+        sessionKey: params.sessionKey,
+        sourceToken: params.sourceToken,
+        destinationRecipient: params.destinationRecipient,
+        destinationToken: params.destinationToken,
+        destinationChainId: params.destinationChainId,
+        maxSourceAmount: params.maxSourceAmount,
+        maxDestinationAmount: params.maxDestinationAmount,
+      },
+    ],
+  )
 }
 
 /**

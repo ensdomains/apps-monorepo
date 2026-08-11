@@ -57,6 +57,13 @@ export const TOKENS = {
     decimals: 18,
     symbol: 'DAI',
   },
+  // Base Sepolia USDC — cross-chain funding source. The HCA bridges it to
+  // Sepolia USDC to pay the registrar. Shown as a separate picker entry.
+  USDC_BASE: {
+    address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    decimals: 6,
+    symbol: 'USDC',
+  },
 } as const
 
 /** Any token the apps know how to price/display — includes portal's DAI. */

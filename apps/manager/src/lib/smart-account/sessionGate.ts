@@ -29,13 +29,27 @@ export function needsSessionBeforeRegistration(
 ): boolean {
   if (account.signer?.type !== 'rhinestone') return false
   if (!account.hasActiveSession) return true
+  const stored = account.activeStoredSession
+  if (!stored) return false
   // A session that is alive NOW but dies during the commitment cooldown would
   // strand a paid-for commitment with an unsignable reveal. Prompt for a fresh
   // one up front instead. `resolveSessionActor` applies the same headroom, so
   // the ENABLE actually mints a new session rather than handing back this one.
-  return account.activeStoredSession
-    ? !hasRegistrationHeadroom(account.activeStoredSession)
-    : false
+  if (!hasRegistrationHeadroom(stored)) return true
+  // A session with no source binding cannot fund from an L2, and the payment
+  // route is chosen AFTER this gate — so a user holding one would reach the
+  // token picker, choose the L2 option, and only then hit a dead end. Prompt to
+  // upgrade it while a prompt is still cheap.
+  //
+  // `sourceAuthorizationFailed` is what stops this looping: once the upgrade
+  // has been attempted and degraded, the replacement carries the flag, this
+  // returns false, and the user keeps a working same-chain session instead of
+  // being asked to sign on every check.
+  return (
+    stored.provider === 'rhinestone' &&
+    stored.sourceChainId === undefined &&
+    stored.sourceAuthorizationFailed !== true
+  )
 }
 
 /**

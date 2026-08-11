@@ -1,13 +1,13 @@
 import type { SmartAccountConfig } from '@ens-apps/transaction-manager'
 import { TaggedError } from '@ens-apps/utils/neverthrow'
-import type { RhinestoneAccount } from '@rhinestone/sdk'
+import type { RhinestoneAccount, RhinestoneSDK } from '@rhinestone/sdk'
 import type {
   AccountError,
   ExecutionError,
   OrchestratorError,
 } from '@rhinestone/sdk/errors'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
-import type { Address, PublicClient, WalletClient } from 'viem'
+import type { Account, Address, PublicClient, WalletClient } from 'viem'
 import {
   initializeRhinestoneAccount,
   type RhinestoneInitResult,
@@ -28,8 +28,12 @@ type AccountInitializationErrorCause = RhinestoneErrorCause | RoutingErrorCause
 export type AccountClient = RhinestoneAccount
 export interface AccountInitResult {
   readonly client: AccountClient
+  /** SDK instance, reused to derive the cross-chain funding Nexus. */
+  readonly sdk: RhinestoneSDK
   readonly address: Address
   readonly ownerAddress: Address
+  /** The connected wallet as a viem `Account` — the Nexus's ECDSA owner. */
+  readonly ownerAccount: Account
   readonly config: SmartAccountConfig
 }
 
@@ -58,8 +62,10 @@ function mapRhinestoneConfig(
 
   return {
     client: result.client,
+    sdk: result.sdk,
     address: result.address,
     ownerAddress,
+    ownerAccount: result.ownerAccount,
     config: smartConfig,
   }
 }

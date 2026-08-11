@@ -1,4 +1,4 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Plural, Trans, useLingui } from '@lingui/react/macro'
 import { format } from 'date-fns'
 import { AnimatePresence, motion } from 'motion/react'
@@ -47,7 +47,7 @@ export const BulkRenewDialog = ({
     kind: 'preset',
     years: 1,
   })
-  const [selectedToken, setSelectedToken] = useState<SUPPORTED_TOKEN>('USDC')
+  const [selectedToken, setSelectedToken] = useState<TOKEN_SYMBOL>('USDC')
 
   const [receipt, setReceipt] = useState<{
     readonly rows: readonly SummaryRow[]

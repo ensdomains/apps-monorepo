@@ -5,7 +5,7 @@ import {
   type Signer,
   waitForTransaction,
 } from '@ens-apps/transaction-manager'
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
 import { match } from 'ts-pattern'
 import {
@@ -27,7 +27,10 @@ import {
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
 import { MIN_REGISTER_DURATION_SECONDS } from '@/features/register/components/Pricing/utils'
 import type { SmartAccountContextValue } from '@/lib/smart-account/SmartAccountContext'
-import { publicClient as defaultPublicClient } from '@/lib/wagmi'
+import {
+  baseSepoliaPublicClient,
+  publicClient as defaultPublicClient,
+} from '@/lib/wagmi'
 import { getQueryClient } from '@/utils/router/root-context'
 import {
   hasStaleAddrReverse,
@@ -74,16 +77,18 @@ type PostRegistrationProgress = {
 type Context = {
   chainId: number
   duration: number
-  selectedToken: SUPPORTED_TOKEN | undefined
+  selectedToken: TOKEN_SYMBOL | undefined
   lastErrorMessage?: string
   confirmedData?: {
     label: string
     duration: bigint
     ownerAddress: Address
-    token: SUPPORTED_TOKEN
+    token: TOKEN_SYMBOL
     totalPrice: bigint
     basePriceNumber: number
     premiumPriceNumber: number
+    /** Cross-chain funding source chain (e.g. baseSepolia.id). */
+    sourceChainId?: number
   }
   postRegistrationSetup?: RegistrationPostRegistrationSetup
   postRegistrationData?: PostRegistrationData
@@ -108,12 +113,12 @@ type Events =
   | { type: 'pricing.step.previous' }
   | { type: 'pricing.dialog.dismiss' }
   | { type: 'pricing.duration.set'; duration: number }
-  | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
+  | { type: 'pricing.token.select'; token: TOKEN_SYMBOL | undefined }
   | {
       type: 'registration.start'
       label: string
       duration: bigint
-      token: SUPPORTED_TOKEN
+      token: TOKEN_SYMBOL
       totalPrice: bigint
       account: SmartAccountContextValue
       /**
@@ -125,6 +130,8 @@ type Events =
       basePriceNumber: number
       premiumPriceNumber: number
       postRegistrationSetup?: RegistrationPostRegistrationSetup
+      /** Cross-chain funding source chain (e.g. baseSepolia.id). */
+      sourceChainId?: number
     }
   | { type: 'registration.completed' }
   | { type: 'notifications.step.next' }
@@ -519,6 +526,7 @@ const startRegistrationAction = machineSetup.createAction(
         totalPrice: event.totalPrice,
         basePriceNumber: event.basePriceNumber,
         premiumPriceNumber: event.premiumPriceNumber,
+        sourceChainId: event.sourceChainId,
       },
       postRegistrationSetup: isHcaRegistration
         ? undefined
@@ -549,6 +557,25 @@ const startRegistrationAction = machineSetup.createAction(
         token: event.token,
         price: event.totalPrice,
         signer: event.account.signer,
+        sourceChainId: event.sourceChainId,
+        // L2-funded route: the permit's spender and the intent's sender are
+        // the funding Nexus, which the signer already carries — reading it
+        // from there keeps the two in lockstep. Base Sepolia is where the
+        // permit is signed and the residual allowance is read.
+        ...(event.sourceChainId !== undefined &&
+        event.account.signer.type === 'rhinestone' &&
+        event.account.signer.crossChain
+          ? {
+              nexusAddress: event.account.signer.crossChain.address,
+              // Cast: Base Sepolia's OP-stack block/transaction formatters
+              // make its client type incompatible with the generic
+              // `PublicClient` the event declares. Only `readContract` and
+              // `getEip712Domain` are used on it, neither of which touches a
+              // formatted block.
+              sourcePublicClient:
+                baseSepoliaPublicClient as unknown as PublicClient,
+            }
+          : {}),
         // Funding permit signer (wallet → HCA budget) on the HCA path.
         approvalSigner,
         accountAddress: event.account.accountAddress,

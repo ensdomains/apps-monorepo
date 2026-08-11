@@ -1,6 +1,23 @@
 import type { ChainSessionConfig, TokenRequest } from '@rhinestone/sdk'
 
 /**
+ * One source-chain asset the intent may draw on, with an exact cap.
+ *
+ * Maps to the SDK's `ExactInputConfig` (`{ chain, address, amount }`) — the
+ * only `sourceAssets` shape that carries an AMOUNT. The bare token-list forms
+ * (`SimpleTokenList` / `ChainTokenMap`) name the asset but leave the size to
+ * the planner, which is unusable here: `HCAFundingSessionValidator` requires
+ * the wallet→Nexus pull to equal the Permit2 claim exactly, so the budget cap
+ * has to be stated. We key by `chainId` rather than a viem `Chain` so a
+ * request stays a plain serializable value; the transport resolves the chain.
+ */
+export interface SourceAssetAmount {
+  readonly chainId: number
+  readonly address: Address
+  readonly amount: bigint
+}
+
+/**
  * There is deliberately NO sponsorship knob on this type.
  *
  * Gas sponsorship does not exist on the standalone-HCA deployment: every
@@ -106,6 +123,38 @@ export interface RhinestoneIntentParams {
   readonly auxiliaryFunds?: Readonly<
     Record<number, Readonly<Record<Address, bigint>>>
   >
+  /**
+   * Cross-chain funding source. When set, the intent pulls funds from this
+   * chain (e.g. Base Sepolia) instead of the destination chain (Sepolia). The
+   * transport passes `sourceChains`, `sourceCalls`, and `sourceAssets` to the
+   * SDK so the orchestrator can bridge source USDC to the destination.
+   */
+  readonly sourceChainId?: number
+  /**
+   * Calls to execute on the source chain before the claim (the SDK's
+   * "pre-claim ops") — the EIP-2612 `permit` + `transferFrom` pair that moves
+   * the wallet's source USDC into the funding Nexus. Keyed by source chain ID.
+   *
+   * `HCAFundingSessionValidator._validateFundingOperation` accepts ONLY these
+   * three selectors on `sourceToken`, at most one `permit` and one
+   * `approve(PERMIT2, …)`, and requires the summed `transferFrom` amount to
+   * equal the Permit2 claim exactly — which is why the transport re-quotes the
+   * pull amount before signing rather than pulling the whole budget cap.
+   */
+  readonly sourceCalls?: Record<number, Call[]>
+  /**
+   * The source-chain USDC this intent may draw on, as an upper bound. Combined
+   * with `tokenRequests` it is what makes the orchestrator create a source
+   * element at all; without one there is no source leg and `sourceCalls` are
+   * silently dropped.
+   */
+  readonly sourceAssets?: readonly SourceAssetAmount[]
+  /**
+   * Destination-side gas limit for the fill. Cross-chain fills carry the
+   * Across settlement overhead on top of the batch itself, so they need a
+   * higher bound than the same-chain leg limits.
+   */
+  readonly gasLimit?: bigint
 }
 
 /**

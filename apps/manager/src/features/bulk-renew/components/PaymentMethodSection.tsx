@@ -1,4 +1,4 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans } from '@lingui/react/macro'
 import type { ReactNode } from 'react'
 import { TokenListItem } from '@/features/register-v2/workflow/pricing/components/TokenListItem'
@@ -22,8 +22,8 @@ export const PaymentMethodSection = ({
   readonly isConnected: boolean
   readonly isLoadingBalances: boolean
   readonly stablecoinBalances: readonly StablecoinBalance[]
-  readonly selectedToken: SUPPORTED_TOKEN
-  readonly onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  readonly selectedToken: TOKEN_SYMBOL
+  readonly onSelectCoin: (coin: TOKEN_SYMBOL) => void
   readonly priceUSD: number
 }) => {
   const renderBody = (): ReactNode => {

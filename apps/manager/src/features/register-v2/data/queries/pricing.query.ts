@@ -1,6 +1,6 @@
 import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
-  type SUPPORTED_TOKEN,
+  type TOKEN_SYMBOL,
   TOKENS,
 } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
@@ -53,7 +53,7 @@ export class MissingTokenError extends TaggedError('MissingTokenError')<
 export const getRegisterPrice = ResultFn(async function* (
   label: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN | undefined,
+  token: TOKEN_SYMBOL | undefined,
 ) {
   if (!token) {
     return err(new MissingTokenError({}))
@@ -78,7 +78,7 @@ export const getRegisterPrice = ResultFn(async function* (
 export const getRegisterPriceQueryOptions = (
   name: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN | undefined,
+  token: TOKEN_SYMBOL | undefined,
 ) => {
   return resultQueryOptions({
     queryKey: $qk({
@@ -101,7 +101,7 @@ export class GetRenewPriceError extends TaggedError('GetRenewPriceError')<{
 export const getRenewPrice = ResultFn(async function* (
   label: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN | undefined,
+  token: TOKEN_SYMBOL | undefined,
 ) {
   if (!token) {
     return err(new MissingTokenError({}))
@@ -122,7 +122,7 @@ export const getRenewPrice = ResultFn(async function* (
 export const getRenewPriceQueryOptions = (
   label: string,
   durationInSeconds: number,
-  token: SUPPORTED_TOKEN | undefined,
+  token: TOKEN_SYMBOL | undefined,
 ) => {
   return resultQueryOptions({
     queryKey: $qk({

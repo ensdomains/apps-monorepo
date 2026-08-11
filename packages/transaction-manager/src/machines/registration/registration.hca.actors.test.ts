@@ -3,16 +3,21 @@
 import {
   computeResolverAddress,
   getDestinationContracts,
+  getSourceContracts,
+  type HcaBudgetBreakdown,
   primaryNameGas,
 } from '@ens-apps/smart-account'
 import type { Address, Hex, PublicClient } from 'viem'
 import { decodeFunctionData, isAddressEqual, parseAbi } from 'viem'
-import { sepolia } from 'viem/chains'
+import { baseSepolia, sepolia } from 'viem/chains'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EOASigner, Signer } from '../../types/signer.types'
 import type { RhinestoneTransactionRequest } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 import {
+  bridgeFeeAllowance,
+  crossChainCommitTarget,
+  crossChainSourceCap,
   estimateHcaBudgetActor,
   readUsdcSpend,
   signFundingPermitActor,
@@ -42,13 +47,25 @@ const C = getDestinationContracts(sepolia.id)
 
 const WALLET = '0x1111111111111111111111111111111111111111' as Address
 const HCA = '0xaaaa000000000000000000000000000000000001' as Address
+const NEXUS = '0xbbbb000000000000000000000000000000000002' as Address
 const SESSION_KEY = '0x9999999999999999999999999999999999999999' as Address
 const COMMITMENT = `0x${'cc'.repeat(32)}` as Hex
+
+const SOURCE_USDC = getSourceContracts(baseSepolia.id).usdc
 
 const erc20Abi = parseAbi([
   'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
   'function transferFrom(address from, address to, uint256 amount) returns (bool)',
 ])
+
+/** A quoted budget: cheap legs, a registration price that dwarfs both. */
+const budget = {
+  source: 'quote',
+  total: 22_000_000n,
+  commitCost: 900_000n,
+  registerCost: 1_100_000n,
+  registrationPrice: 20_000_000n,
+} as HcaBudgetBreakdown
 
 const permit: PermitSignature = {
   owner: WALLET,
@@ -198,6 +215,113 @@ describe('submitFundingAndCommitActor', () => {
     expect(result._unsafeUnwrap().commitment.commitment).toBe(COMMITMENT)
     // A fresh 32-byte secret per attempt.
     expect(result._unsafeUnwrap().commitment.secret).toMatch(/^0x[0-9a-f]{64}$/)
+  })
+
+  describe('cross-chain (L2-funded) commit', () => {
+    const crossChainInput = {
+      ...input,
+      permit: { ...permit, spender: NEXUS },
+      sessionEnable,
+      sourceChainId: baseSepolia.id,
+      nexusAddress: NEXUS,
+      budget,
+    }
+
+    it('moves permit+transferFrom to the source chain as pre-claim ops', async () => {
+      const result = await submitFundingAndCommitActor(crossChainInput)
+
+      expect(result.isOk()).toBe(true)
+      const params = submittedRequest().rhinestoneParams
+
+      // Destination calls carry only enableSession + commit — the wallet's
+      // USDC is on Base, so a Sepolia transferFrom would move nothing.
+      expect(params.calls.map((c) => c.to.toLowerCase())).toEqual([
+        C.hcaOwnerAndSessionValidator.toLowerCase(),
+        C.ethRegistrar.toLowerCase(),
+      ])
+
+      const sourceCalls = params.sourceCalls?.[baseSepolia.id]
+      expect(sourceCalls).toHaveLength(2)
+      expect(sourceCalls?.every((c) => isAddressEqual(c.to, SOURCE_USDC))).toBe(
+        true,
+      )
+      expect(
+        sourceCalls?.map(
+          (c) =>
+            decodeFunctionData({ abi: erc20Abi, data: c.data }).functionName,
+        ),
+      ).toEqual(['permit', 'transferFrom'])
+
+      // The pull targets the Nexus, not the HCA: the Nexus is the account
+      // that holds the funding session and signs the Permit2 claim.
+      const pull = decodeFunctionData({
+        abi: erc20Abi,
+        data: sourceCalls![1]!.data,
+      })
+      expect(isAddressEqual((pull.args as any)[0], WALLET)).toBe(true)
+      expect(isAddressEqual((pull.args as any)[1], NEXUS)).toBe(true)
+    })
+
+    it('declares the source budget and the destination delivery', async () => {
+      const result = await submitFundingAndCommitActor(crossChainInput)
+
+      expect(result.isOk()).toBe(true)
+      const params = submittedRequest().rhinestoneParams
+
+      expect(params.sourceChainId).toBe(baseSepolia.id)
+
+      // The commit pulls ONLY its own quoted cost — the registration price
+      // stays in the wallet until the reveal (deferred funding).
+      const destinationAmount = crossChainCommitTarget(budget)
+      expect(destinationAmount).toBeLessThan(budget.registrationPrice)
+      expect(params.tokenRequests).toEqual([
+        { address: C.usdc, amount: destinationAmount },
+      ])
+
+      // `sourceAssets` + `auxiliaryFunds` are what make the orchestrator build
+      // a source element at all; without them `sourceCalls` are dropped.
+      //
+      // The cap is delivery + fee, NOT a multiple of the delivery: the planner
+      // takes its fee out of the source and hands over the remainder, so a cap
+      // sized only from the delivery leaves nothing to pay the fee with.
+      const sourceCap = crossChainSourceCap(
+        destinationAmount,
+        budget.commitCost,
+      )
+      expect(sourceCap).toBeGreaterThan(
+        destinationAmount + bridgeFeeAllowance(budget.commitCost),
+      )
+      expect(params.sourceAssets).toEqual([
+        { chainId: baseSepolia.id, address: SOURCE_USDC, amount: sourceCap },
+      ])
+      expect(params.auxiliaryFunds).toEqual({
+        [baseSepolia.id]: { [SOURCE_USDC]: sourceCap },
+      })
+      // The inflow lands on Base, never on Sepolia.
+      expect(params.auxiliaryFunds?.[sepolia.id]).toBeUndefined()
+
+      // The pull is capped at the source budget; the transport re-quotes it
+      // down to whatever the route actually claims before signing.
+      const pull = decodeFunctionData({
+        abi: erc20Abi,
+        data: params.sourceCalls![baseSepolia.id]![1]!.data,
+      })
+      expect((pull.args as any)[2]).toBe(sourceCap)
+    })
+
+    it('refuses to build a source leg without the Nexus or the budget', async () => {
+      const noNexus = await submitFundingAndCommitActor({
+        ...crossChainInput,
+        nexusAddress: undefined,
+      })
+      expect(noNexus._unsafeUnwrapErr().message).toMatch(/nexusAddress=MISSING/)
+
+      const noBudget = await submitFundingAndCommitActor({
+        ...crossChainInput,
+        budget: undefined,
+      })
+      expect(noBudget._unsafeUnwrapErr().message).toMatch(/budget=MISSING/)
+    })
   })
 })
 

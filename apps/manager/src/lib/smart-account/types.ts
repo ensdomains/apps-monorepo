@@ -13,6 +13,8 @@ export type WalletSource = 'external-wallet' | null
 export interface StablecoinBalance {
   address: Address
   symbol: string
+  /** Chain ID this balance is on (e.g. sepolia.id or baseSepolia.id). */
+  chainId: number
   balance: string
   decimals: number
   formattedBalance: string

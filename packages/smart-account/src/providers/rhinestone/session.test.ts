@@ -1,10 +1,12 @@
 import type { RhinestoneAccount } from '@rhinestone/sdk'
+import { getPermissionId } from '@rhinestone/sdk/smart-sessions'
 import type { Account, Address, Chain, Hex } from 'viem'
 import { decodeFunctionData, parseAbi } from 'viem'
-import { sepolia } from 'viem/chains'
+import { baseSepolia, sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
 import {
   getDestinationContracts,
+  getSourceContracts,
   MAX_REFUND_AMOUNT,
   MAX_REFUND_EXCHANGE_RATE,
   MAX_REFUND_GAS_OVERHEAD,
@@ -14,6 +16,8 @@ import {
   computeDestinationSessionSalt,
   computeSourceSessionSalt,
   createDestinationSession,
+  createMultiChainSessions,
+  rebuildSourceSession,
 } from './session'
 
 const VALIDATOR = getDestinationContracts(
@@ -24,6 +28,8 @@ const HCA = '0xaaaa000000000000000000000000000000000001' as const
 const RESOLVER = '0x3333333333333333333333333333333333333333' as const
 const SESSION_KEY = '0x9999999999999999999999999999999999999999' as const
 const REFUND_TOKEN = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' as const
+const WALLET = '0x1111111111111111111111111111111111111111' as const
+const NEXUS = '0x2222222222222222222222222222222222222222' as const
 
 describe('computeDestinationSessionSalt', () => {
   it('is deterministic for the same inputs', () => {
@@ -197,5 +203,191 @@ describe('createDestinationSession', () => {
     })
     expect(result.isErr()).toBe(true)
     expect(result._unsafeUnwrapErr()._tag).toBe('SessionEnableError')
+  })
+})
+
+describe('rebuildSourceSession', () => {
+  const params = {
+    chain: baseSepolia as Chain,
+    hca: HCA as Address,
+    wallet: WALLET as Address,
+    nexusAddress: NEXUS as Address,
+    validUntil: 1_800_000_000n,
+    sessionPrivateKey: `0x${'1'.repeat(64)}` as Hex,
+    sourceToken: getSourceContracts(baseSepolia.id).usdc,
+    destinationToken: REFUND_TOKEN as Address,
+    destinationChainId: 11155111n,
+    maxSourceAmount: 100_000_000n,
+    maxDestinationAmount: 100_000_000n,
+  }
+
+  it('recomputes the same source salt from stored scalars', () => {
+    const result1 = rebuildSourceSession(params)
+    const result2 = rebuildSourceSession(params)
+    expect(result1.permissionId).toBe(result2.permissionId)
+    expect(result1.session.salt).toBe(result2.session.salt)
+  })
+
+  // The source claim is validated by HCAFundingSessionValidator installed on
+  // the Nexus, not by the HCA. Binding this session to the HCA (as it once
+  // did) presents a session the source validator has no config for.
+  it('binds the session to the Nexus, not the HCA', () => {
+    expect(rebuildSourceSession(params).session.account).toBe(NEXUS)
+  })
+
+  // The salt commits to the WALLET as the pull source. Deriving it from the
+  // session key instead yields a permission ID the Nexus was never configured
+  // with, so the rebuilt session can never match the installed SessionConfig.
+  it('derives the salt from the wallet, not the session key', () => {
+    const sessionKeyAsWallet = rebuildSourceSession({
+      ...params,
+      wallet: SESSION_KEY as Address,
+    })
+    expect(sessionKeyAsWallet.session.salt).not.toBe(
+      rebuildSourceSession(params).session.salt,
+    )
+  })
+
+  it('matches the salt computed directly from the same scalars', () => {
+    expect(rebuildSourceSession(params).session.salt).toBe(
+      computeSourceSessionSalt({
+        wallet: WALLET,
+        validUntil: params.validUntil,
+        sourceToken: params.sourceToken,
+        hca: params.hca,
+        destinationToken: params.destinationToken,
+        destinationChainId: params.destinationChainId,
+        maxSourceAmount: params.maxSourceAmount,
+        maxDestinationAmount: params.maxDestinationAmount,
+      }),
+    )
+  })
+})
+
+describe('createMultiChainSessions', () => {
+  function mockAccount() {
+    const experimental_getSessionDetails = vi.fn().mockResolvedValue({
+      nonces: [0n],
+      hashesAndChainIds: [
+        { chainId: 11155111n, sessionDigest: `0x${'5'.repeat(64)}` },
+        { chainId: 84532n, sessionDigest: `0x${'6'.repeat(64)}` },
+      ],
+      data: { message: { sessionsAndChainIds: [] } },
+    })
+    const experimental_signEnableSession = vi
+      .fn()
+      .mockResolvedValue(`0x${'ab'.repeat(65)}`)
+    return {
+      account: {
+        experimental_getSessionDetails,
+        experimental_signEnableSession,
+      } as unknown as RhinestoneAccount,
+      experimental_getSessionDetails,
+      experimental_signEnableSession,
+    }
+  }
+
+  const publicClient = {
+    readContract: vi.fn().mockResolvedValue([HCA, 0n]),
+  } as never
+
+  const sessionAccount = { address: SESSION_KEY } as unknown as Account
+
+  const sourceParams = {
+    chain: baseSepolia as Chain,
+    hca: HCA as Address,
+    wallet: WALLET as Address,
+    nexusAddress: NEXUS as Address,
+    sourceToken: getSourceContracts(baseSepolia.id).usdc,
+    destinationToken: REFUND_TOKEN as Address,
+    destinationChainId: 11155111n,
+    sessionAccount,
+    validUntil: 1_800_000_000n,
+    maxSourceAmount: 100_000_000n,
+    maxDestinationAmount: 100_000_000n,
+  }
+
+  it('signs ONE multi-chain authorization covering both sessions', async () => {
+    const { account, experimental_signEnableSession } = mockAccount()
+    const result = await createMultiChainSessions({
+      destination: {
+        rhinestoneAccount: account,
+        publicClient,
+        chain: sepolia as Chain,
+        hca: HCA,
+        resolver: RESOLVER,
+        sessionAccount,
+        validUntil: 1_800_000_000n,
+        alreadyDeployed: false,
+      },
+      source: sourceParams,
+    })
+    expect(result.isOk()).toBe(true)
+    expect(experimental_signEnableSession).toHaveBeenCalledTimes(1)
+    const value = result._unsafeUnwrap()
+    // Destination session is index 0, source session is index 1.
+    expect(value.destination.enableData.sessionToEnableIndex).toBe(0)
+    expect(value.source.enableData.sessionToEnableIndex).toBe(1)
+    // Both sessions share the same authorization signature.
+    expect(value.destination.enableData.userSignature).toBe(
+      value.source.enableData.userSignature,
+    )
+    // Sessions are on different chains.
+    expect(value.destination.session.chain?.id).toBe(sepolia.id)
+    expect(value.source.session.chain?.id).toBe(baseSepolia.id)
+    // The source session lives on the Nexus.
+    expect(value.source.session.account).toBe(NEXUS)
+  })
+
+  // The HCA nonce belongs to the destination validator's enable proof; the
+  // source validator has no such counter, and carrying one makes the source
+  // proof decode to a payload that was never signed.
+  it('carries the HCA nonce on the destination entry only', async () => {
+    const { account } = mockAccount()
+    const value = (
+      await createMultiChainSessions({
+        destination: {
+          rhinestoneAccount: account,
+          publicClient,
+          chain: sepolia as Chain,
+          hca: HCA,
+          resolver: RESOLVER,
+          sessionAccount,
+          validUntil: 1_800_000_000n,
+          alreadyDeployed: false,
+        },
+        source: sourceParams,
+      })
+    )._unsafeUnwrap()
+    expect(value.destination.enableData.hcaSessionNonce).toBe(0n)
+    expect(value.source.enableData.hcaSessionNonce).toBeUndefined()
+  })
+
+  // `createSourceNexus` bakes the account-less permission ID into the
+  // validator's SessionConfig, so the authorization must report the same ID.
+  it('reports the source permission ID derived without the account', async () => {
+    const { account } = mockAccount()
+    const value = (
+      await createMultiChainSessions({
+        destination: {
+          rhinestoneAccount: account,
+          publicClient,
+          chain: sepolia as Chain,
+          hca: HCA,
+          resolver: RESOLVER,
+          sessionAccount,
+          validUntil: 1_800_000_000n,
+          alreadyDeployed: false,
+        },
+        source: sourceParams,
+      })
+    )._unsafeUnwrap()
+    expect(value.source.permissionId).toBe(
+      getPermissionId({
+        chain: baseSepolia as Chain,
+        salt: value.source.session.salt,
+        owners: { type: 'ecdsa', accounts: [sessionAccount] },
+      }),
+    )
   })
 })

@@ -16,7 +16,7 @@ import { TransactionModal } from '@/features/transaction-manager/components/Tran
 import { useTransactionModal } from '@/features/transaction-manager/hooks/useTransactionModal'
 import { useConnectModal } from '@/features/wallet/ConnectModalProvider'
 import { usePreventUnload } from '@/hooks/usePreventUnload'
-import { SUPPORTED_TOKENS } from '@/lib/constants/tokens'
+import { getSupportedTokenAddress } from '@/lib/constants/tokens'
 import {
   validateNameLength,
   validateRegistrableEthName,
@@ -61,7 +61,11 @@ export const RegisterName = ({ name }: RegisterNameProps) => {
     ...getRegistrationPriceQueryOptions({
       name,
       duration,
-      token: selectedToken ? SUPPORTED_TOKENS[selectedToken] : undefined,
+      // Narrowed, not indexed: `selectedToken` is the shared `TOKEN_SYMBOL`,
+      // which includes tokens portal does not offer (see `tokens.ts`).
+      token: selectedToken
+        ? getSupportedTokenAddress(selectedToken)
+        : undefined,
     }),
     enabled: isSuccess && Boolean(name) && duration > 0,
   })

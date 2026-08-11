@@ -27,6 +27,7 @@ import {
   computeResolverAddress,
   estimateHcaBudget,
   getDestinationContracts,
+  getSourceContracts,
   HCA_LEG_GAS_LIMITS,
   type HcaBudgetBreakdown,
   type Call as HcaCall,
@@ -36,12 +37,13 @@ import {
   readRegisterPrice,
   registerLegGasLimit,
 } from '@ens-apps/smart-account'
-import type { Transaction } from '@rhinestone/sdk'
+import type { Session, Transaction } from '@rhinestone/sdk'
 import { errAsync, fromPromise, type ResultAsync } from 'neverthrow'
 import type { Address, Chain, Hash, Hex, PublicClient } from 'viem'
 import {
   bytesToHex,
   encodeFunctionData,
+  erc20Abi,
   isAddressEqual,
   keccak256,
   parseAbi,
@@ -56,6 +58,7 @@ import type {
   Call,
   RhinestoneTransactionRequest,
   SessionEnableData,
+  SourceAssetAmount,
 } from '../../types/transaction.types'
 import type { PermitSignature } from './registration.actors'
 
@@ -72,14 +75,17 @@ export interface HcaSessionEnableParams {
   readonly validUntil: bigint
 }
 
-const erc2612Abi = parseAbi([
-  'function nonces(address owner) view returns (uint256)',
-  'function name() view returns (string)',
-  'function version() view returns (string)',
-  'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
-  'function transferFrom(address from, address to, uint256 amount) returns (bool)',
-  'function balanceOf(address account) view returns (uint256)',
-])
+// viem's `erc20Abi` already covers name/balanceOf/allowance/transferFrom. Only
+// the ERC-2612 additions (`permit`, `nonces`) and the EIP-712 `version()`
+// getter — none of which are part of ERC-20 — are declared here.
+const erc2612Abi = [
+  ...erc20Abi,
+  ...parseAbi([
+    'function nonces(address owner) view returns (uint256)',
+    'function version() view returns (string)',
+    'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
+  ]),
+] as const
 
 const permissionedRegistryAbi = parseAbi([
   'struct State { uint8 status; uint64 expiry; address latestOwner; uint256 tokenId; uint256 resource; }',
@@ -93,6 +99,319 @@ const STATUS_REGISTERED = 2
 // Comfortably covers the commitment cooldown plus relayer latency. Permits are
 // single-use (nonce-bound), so a generous deadline is not a replay risk.
 const PERMIT_DEADLINE_SECONDS = 60 * 60
+
+/**
+ * NO explicit destination `gasLimit` is sent for cross-chain legs.
+ *
+ * `gasLimit` is a PRICE INPUT on this route, not a safety bound: the
+ * orchestrator bills the destination fill on the limit it is given, so the
+ * reference route's flat 1_200_000 cost ~12.5 USDC of "gas" for a batch that
+ * uses a fraction of it — more than the leg was delivering, which is exactly
+ * how this route earned `FEE_EXCEEDS_BALANCE`. Omitting it lets the
+ * orchestrator size the fill from the actual destination calls, which is both
+ * cheaper and self-correcting as the batch changes.
+ */
+
+/**
+ * USDC (6dp) the REVEAL leg is over-funded by.
+ *
+ * The two legs fail differently when the delivery is short, so only one of them
+ * needs padding:
+ *
+ *  - Commit: the planner rejects the route up front with
+ *    `FEE_EXCEEDS_BALANCE`, and the transport retries with the fee the
+ *    orchestrator just quoted. A tight floor costs one extra round-trip, not a
+ *    failure — so the commit gets NO headroom.
+ *  - Reveal: the delivery also has to pay the registrar. Underfund it and
+ *    `register` reverts ON-CHAIN, mid-batch, after the commitment has been paid
+ *    for. That is not a planning error, so the retry never sees it and cannot
+ *    rescue it. This headroom is the margin that keeps it from happening.
+ */
+const CROSS_CHAIN_REVEAL_HEADROOM_USDC = 1_000_000n
+
+/**
+ * How much room the source cap leaves above the destination floor, as a
+ * numerator/denominator pair, plus a flat bridging margin.
+ *
+ * This is the ceiling on what the transport may request — and therefore the
+ * number the user sees in the permit prompt — so it has to cover the gap
+ * between our floor and the orchestrator's real quote without being gratuitous.
+ *
+ * The margin is sized off measurement, not intuition: `originGas` on Base
+ * Sepolia is ~0.02 USDC, so 0.25 is already an order of magnitude of slack. An
+ * earlier flat 5-USDC-per-leg figure was pure invention and by itself doubled
+ * the permit ask.
+ */
+const SOURCE_BRIDGING_MARGIN_USDC = 250_000n
+
+/**
+ * The orchestrator's fee allowance, as a multiple of the leg's same-chain
+ * quote.
+ *
+ * The planner takes its fee OUT OF THE SOURCE and delivers what is left:
+ *
+ *     source = fee + delivered
+ *
+ * Measured Base Sepolia → Sepolia: a source of 8.89 USDC was billed a 4.35
+ * fee, leaving 4.54 deliverable, against a same-chain commit quote of 3.45 —
+ * so the fee runs ~1.26x the same-chain cost of the same batch. 1.75x is that
+ * with room, since `estimateHcaBudget` can only ever quote the same-chain
+ * shape (the cross-chain one needs a permit that does not exist until after
+ * the budget has sized it).
+ *
+ * Getting this relationship backwards is what produced both planning failures:
+ * inflating the DELIVERY to cover the fee (`FEE_EXCEEDS_BALANCE`), then
+ * leaving the SOURCE too thin to pay it (`INSUFFICIENT_BALANCE`).
+ */
+const FEE_ALLOWANCE_NUMERATOR = 7n
+const FEE_ALLOWANCE_DENOMINATOR = 4n
+
+/** Source-side fee headroom for a leg quoted at `legCost` same-chain. */
+export function bridgeFeeAllowance(legCost: bigint): bigint {
+  return (legCost * FEE_ALLOWANCE_NUMERATOR) / FEE_ALLOWANCE_DENOMINATOR
+}
+
+/**
+ * The source-chain budget cap needed to deliver `destinationAmount` on the
+ * destination chain.
+ *
+ * The transport re-quotes the pull DOWN to exactly what the route claims before
+ * signing, so a cap above the real cost is never actually pulled — it only
+ * bounds the permit allowance and the adaptive fee retry.
+ */
+export function crossChainSourceCap(
+  destinationAmount: bigint,
+  legCost: bigint,
+): bigint {
+  if (destinationAmount <= 0n) return 0n
+  // source = delivered + fee. Not a multiple of the delivery: the fee tracks
+  // the batch's execution cost, which has nothing to do with how much USDC the
+  // HCA needs on the far side.
+  return (
+    destinationAmount +
+    bridgeFeeAllowance(legCost) +
+    SOURCE_BRIDGING_MARGIN_USDC
+  )
+}
+
+/**
+ * USDC the commit leg must have DELIVERED to the HCA on the destination.
+ *
+ * This is what lands in the HCA, not what the route costs — the fee is charged
+ * separately against the source (see `bridgeFeeAllowance`). It only has to seed
+ * the HCA for `enableSessionWithRefund` to refund execution from, so the
+ * same-chain leg quote is the right scale. Inflating it to cover the fee was
+ * the bug: it raised the delivery the source had to fund AFTER the fee had
+ * already been taken out of that same source.
+ */
+export function crossChainCommitTarget(budget: HcaBudgetBreakdown): bigint {
+  return budget.commitCost
+}
+
+/**
+ * USDC the reveal leg must have delivered: the register cost plus the price.
+ *
+ * `livePrice` overrides the budget's snapshot when it is higher. The price is
+ * re-read immediately before the reveal and can have moved (premium decay runs
+ * continuously), and the batch's own `approve` + `register` pay it from the
+ * HCA — so a delivery sized on a stale, lower quote reverts the fill.
+ */
+export function crossChainRevealTarget(
+  budget: HcaBudgetBreakdown,
+  livePrice?: bigint,
+): bigint {
+  const price =
+    livePrice !== undefined && livePrice > budget.registrationPrice
+      ? livePrice
+      : budget.registrationPrice
+  // Delivered, not spent on fees: the registrar payment plus enough to refund
+  // the batch's own execution.
+  return budget.registerCost + price + CROSS_CHAIN_REVEAL_HEADROOM_USDC
+}
+
+/**
+ * The total the wallet authorizes on the source chain — the permit value.
+ *
+ * Signed ONCE, for both legs. The commit leg's `transferFrom` consumes part of
+ * the allowance and the reveal leg's consumes the rest, exactly as the
+ * reference route splits `CROSS_CHAIN_SOURCE_AMOUNT`.
+ */
+export function crossChainTotalSourceCap(budget: HcaBudgetBreakdown): bigint {
+  return (
+    crossChainSourceCap(crossChainCommitTarget(budget), budget.commitCost) +
+    crossChainSourceCap(crossChainRevealTarget(budget), budget.registerCost)
+  )
+}
+
+/**
+ * The source-chain pre-claim ops for a leg: the EIP-2612 permit (commit leg
+ * only — the allowance it sets covers both) followed by the wallet→Nexus pull.
+ *
+ * `HCAFundingSessionValidator._validateFundingOperation` accepts nothing else
+ * on `sourceToken`, and requires exactly one pull whose amount equals the
+ * Permit2 claim — the transport rewrites `pullCap` to the quoted claim before
+ * signing, so the amount here is only the upper bound.
+ */
+function buildSourceFundingCalls(params: {
+  sourceUsdc: Address
+  wallet: Address
+  nexus: Address
+  pullCap: bigint
+  permit?: PermitSignature
+}): Call[] {
+  const calls: Call[] = []
+  if (params.permit) {
+    calls.push({
+      to: params.sourceUsdc,
+      value: 0n,
+      data: encodeFunctionData({
+        abi: erc2612Abi,
+        functionName: 'permit',
+        args: [
+          params.permit.owner,
+          params.permit.spender,
+          params.permit.value,
+          params.permit.deadline,
+          params.permit.v,
+          params.permit.r,
+          params.permit.s,
+        ],
+      }),
+    })
+  }
+  calls.push({
+    to: params.sourceUsdc,
+    value: 0n,
+    data: encodeFunctionData({
+      abi: erc2612Abi,
+      functionName: 'transferFrom',
+      args: [params.wallet, params.nexus, params.pullCap],
+    }),
+  })
+  return calls
+}
+
+/** Read the wallet's remaining source-USDC allowance to the funding Nexus. */
+function readNexusAllowance(params: {
+  publicClient: PublicClient
+  sourceUsdc: Address
+  wallet: Address
+  nexus: Address
+}): Promise<bigint> {
+  return readContract(params.publicClient, {
+    address: params.sourceUsdc,
+    abi: erc2612Abi,
+    functionName: 'allowance',
+    args: [params.wallet, params.nexus],
+  })
+}
+
+/** Shared guard: a cross-chain leg is unbuildable without these. */
+function requireCrossChainInputs(
+  leg: 'commit' | 'reveal',
+  params: { nexusAddress?: Address; budget?: HcaBudgetBreakdown },
+): asserts params is { nexusAddress: Address; budget: HcaBudgetBreakdown } {
+  if (params.nexusAddress && params.budget) return
+  throw new Error(
+    `Cross-chain ${leg} needs the source Nexus address and the live budget ` +
+      'breakdown to size the wallet pull. Received: ' +
+      `nexusAddress=${params.nexusAddress ?? 'MISSING'}, ` +
+      `budget=${params.budget ? 'present' : 'MISSING'}`,
+  )
+}
+
+/**
+ * Commit leg: pull ONLY this leg's quoted cost.
+ *
+ * The registration price stays in the wallet until the reveal — the
+ * deferred-funding rule from the standalone-HCA spec — so a commit that never
+ * gets revealed strands only the commit's own cost.
+ *
+ * The permit rides along here (this is the leg that sets the allowance) and is
+ * signed for BOTH legs; the reveal pulls from the remainder with no second
+ * signature.
+ */
+function buildCommitCrossChainLeg(params: {
+  sourceChainId?: number
+  nexusAddress?: Address
+  budget?: HcaBudgetBreakdown
+  wallet: Address
+  permit?: PermitSignature
+}): CrossChainLegParams | undefined {
+  const { sourceChainId } = params
+  if (sourceChainId === undefined) return undefined
+  requireCrossChainInputs('commit', params)
+
+  const sourceUsdc = getSourceContracts(sourceChainId).usdc
+  const destinationAmount = crossChainCommitTarget(params.budget)
+  const sourceCap = crossChainSourceCap(
+    destinationAmount,
+    params.budget.commitCost,
+  )
+  return {
+    sourceChainId,
+    sourceUsdc,
+    sourceCap,
+    destinationAmount,
+    sourceCalls: buildSourceFundingCalls({
+      sourceUsdc,
+      wallet: params.wallet,
+      nexus: params.nexusAddress,
+      pullCap: sourceCap,
+      ...(params.permit ? { permit: params.permit } : {}),
+    }),
+  }
+}
+
+/**
+ * Reveal leg: pull whatever the commit left behind.
+ *
+ * The budget is the residual allowance, read on-chain rather than threaded
+ * through from the commit. The commit's pull was settled against the
+ * orchestrator's quote at signing time, so its exact size is only knowable
+ * after the fact — and reading it back here also survives a retried or resumed
+ * reveal, where no in-memory figure would.
+ */
+async function buildRevealCrossChainLeg(params: {
+  sourceChainId?: number
+  nexusAddress?: Address
+  budget?: HcaBudgetBreakdown
+  wallet: Address
+  livePrice: bigint
+  publicClient: PublicClient
+}): Promise<CrossChainLegParams | undefined> {
+  const { sourceChainId } = params
+  if (sourceChainId === undefined) return undefined
+  requireCrossChainInputs('reveal', params)
+
+  const sourceUsdc = getSourceContracts(sourceChainId).usdc
+  const sourceCap = await readNexusAllowance({
+    publicClient: params.publicClient,
+    sourceUsdc,
+    wallet: params.wallet,
+    nexus: params.nexusAddress,
+  })
+  if (sourceCap === 0n) {
+    throw new Error(
+      'The funding Nexus has no remaining allowance on the source chain. The ' +
+        'commit leg either consumed the whole permit or the permit expired; ' +
+        're-run the funding permit before revealing.',
+    )
+  }
+  return {
+    sourceChainId,
+    sourceUsdc,
+    sourceCap,
+    destinationAmount: crossChainRevealTarget(params.budget, params.livePrice),
+    // No permit: the commit leg's covers both legs.
+    sourceCalls: buildSourceFundingCalls({
+      sourceUsdc,
+      wallet: params.wallet,
+      nexus: params.nexusAddress,
+      pullCap: sourceCap,
+    }),
+  }
+}
 
 /** The standalone-HCA registrar for a chain (for the shared cooldown spine). */
 export function hcaRegistrarAddress(chainId: number): Address {
@@ -287,13 +606,18 @@ type SessionSigners = Extract<
 function sessionSigners(
   activeSession: RhinestoneSigner['session'],
 ): SessionSigners | undefined {
-  return activeSession
-    ? {
-        type: 'experimental_session',
-        session: activeSession.session,
-        verifyExecutions: true,
-      }
-    : undefined
+  if (!activeSession) return undefined
+  // Cross-chain: the signer already carries a PerChainSessionSignerSet with
+  // per-session enable-data — pass it through unchanged.
+  if ('sessions' in activeSession) {
+    return activeSession as SessionSigners
+  }
+  return {
+    type: 'experimental_session',
+    // Same-chain: the signer carries a single session — wrap it.
+    session: (activeSession as { session: Session }).session,
+    verifyExecutions: true,
+  }
 }
 
 /** Attach first-use `enableData`, but only to an existing session signer. */
@@ -496,6 +820,23 @@ const toCalls = (calls: readonly HcaCall[]): Call[] =>
 
 const cleanLabel = (name: string): string => name.replace(/\.eth$/, '')
 
+/**
+ * Everything the cross-chain (L2-funded) shape adds on top of the same-chain
+ * one. Present together or not at all.
+ */
+interface CrossChainLegParams {
+  /** Source chain the wallet's USDC is pulled from (e.g. Base Sepolia). */
+  sourceChainId: number
+  /** USDC on the source chain. */
+  sourceUsdc: Address
+  /** Pre-claim ops: the permit (commit leg only) plus the wallet→Nexus pull. */
+  sourceCalls: Call[]
+  /** Upper bound on the source pull; the transport re-quotes down from it. */
+  sourceCap: bigint
+  /** USDC the orchestrator must deliver to the HCA on the destination chain. */
+  destinationAmount: bigint
+}
+
 /** User-paid request shape shared by both legs. */
 function buildUserPaidRequest(params: {
   from: Address
@@ -509,8 +850,24 @@ function buildUserPaidRequest(params: {
    * needs telling.
    */
   incomingUsdc?: bigint
+  crossChain?: CrossChainLegParams
 }): RhinestoneTransactionRequest {
   const contracts = getDestinationContracts(params.chainId)
+  const { crossChain } = params
+
+  // Cross-chain declares its inflow on the SOURCE chain and token: the USDC
+  // arrives on Base during the intent's own pre-claim ops, so the planner
+  // cannot see it yet. Declaring it on the destination instead (as the
+  // same-chain leg does) tells the planner about liquidity on a chain where
+  // none of it exists.
+  const sourceAssets: SourceAssetAmount[] | undefined = crossChain && [
+    {
+      chainId: crossChain.sourceChainId,
+      address: crossChain.sourceUsdc,
+      amount: crossChain.sourceCap,
+    },
+  ]
+
   return {
     type: 'rhinestone-intent',
     from: params.from,
@@ -521,13 +878,31 @@ function buildUserPaidRequest(params: {
       ...(params.sessionEnableData
         ? { sessionEnableData: params.sessionEnableData }
         : {}),
-      ...(params.incomingUsdc !== undefined && params.incomingUsdc > 0n
+      ...(crossChain
         ? {
+            sourceChainId: crossChain.sourceChainId,
+            sourceCalls: { [crossChain.sourceChainId]: crossChain.sourceCalls },
+            sourceAssets,
+            // What must LAND on the destination. Without it the orchestrator
+            // has nothing to bridge for, builds no source element, and drops
+            // the pre-claim ops on the floor.
+            tokenRequests: [
+              { address: contracts.usdc, amount: crossChain.destinationAmount },
+            ],
             auxiliaryFunds: {
-              [params.chainId]: { [contracts.usdc]: params.incomingUsdc },
+              [crossChain.sourceChainId]: {
+                [crossChain.sourceUsdc]: crossChain.sourceCap,
+              },
             },
+            // Deliberately no `gasLimit` — see the note above the constants.
           }
-        : {}),
+        : params.incomingUsdc !== undefined && params.incomingUsdc > 0n
+          ? {
+              auxiliaryFunds: {
+                [params.chainId]: { [contracts.usdc]: params.incomingUsdc },
+              },
+            }
+          : {}),
     },
   }
 }
@@ -557,6 +932,13 @@ export function readHcaUsdcBalanceActor(input: {
  * Sign the HCA funding permit — the SECOND (and last) wallet prompt:
  * EIP-2612 permit with `owner = wallet`, `spender = HCA`, `value = budget`.
  *
+ * Cross-chain: the permit is signed on the SOURCE chain (`sourceChainId`, e.g.
+ * Base Sepolia) over the source USDC, with the funding NEXUS as spender. It is
+ * signed once, for both legs: the commit leg carries it as a pre-claim op and
+ * the allowance it leaves behind funds the reveal leg's pull. `validUntil`
+ * clamps the deadline — `HCAFundingSessionValidator` rejects any permit whose
+ * deadline outlives the session.
+ *
  * NOT a registrar allowance: the registrar is paid by the HCA itself inside
  * the reveal batch (`approve(price)` from the HCA's own balance).
  */
@@ -567,6 +949,18 @@ export function signFundingPermitActor(input: {
   approvalSigner: Signer
   publicClient: PublicClient
   chainId: number
+  /** Cross-chain: source chain ID (e.g. Base Sepolia). When set, the
+   * permit is signed on the source chain with `nexusAddress` as spender
+   * instead of on the destination chain with `hca` as spender. */
+  sourceChainId?: number
+  /** Cross-chain: Nexus address on the source chain. Required when
+   * `sourceChainId` is set. */
+  nexusAddress?: Address
+  /** Cross-chain: public client for the source chain. Required when
+   * `sourceChainId` is set. */
+  sourcePublicClient?: PublicClient
+  /** Cross-chain: the funding session's expiry; caps the permit deadline. */
+  sessionValidUntil?: bigint
 }): ResultAsync<PermitSignature, Error> {
   if (input.approvalSigner.type !== 'eoa') {
     return errAsync(
@@ -586,12 +980,39 @@ export function signFundingPermitActor(input: {
     )
   }
 
-  const contracts = getDestinationContracts(input.chainId)
+  // For cross-chain the permit is signed on the source chain, over the source
+  // token, with the Nexus as spender.
+  //
+  // Source and destination contracts live in SEPARATE chain-keyed tables:
+  // Sepolia has no source entry and Base Sepolia has no destination entry, so
+  // each branch must look its token up in its own table. Reading
+  // `getDestinationContracts(sourceChainId)` unconditionally — as this did —
+  // threw before the cross-chain branch could ever use its own value.
+  const sourceChainId = input.sourceChainId
+  const isCrossChain = sourceChainId !== undefined
+  const permitChainId = sourceChainId ?? input.chainId
+  const permitPublicClient = isCrossChain
+    ? (input.sourcePublicClient ?? input.publicClient)
+    : input.publicClient
+  const usdc = isCrossChain
+    ? getSourceContracts(sourceChainId).usdc
+    : getDestinationContracts(input.chainId).usdc
+
+  if (isCrossChain && !input.nexusAddress) {
+    return errAsync(
+      new Error(
+        'Cross-chain funding permit needs the source Nexus address as spender: ' +
+          'the HCA cannot claim on the source chain, so a permit made out to it ' +
+          'leaves the Nexus with no allowance to pull.',
+      ),
+    )
+  }
+  const spender = isCrossChain ? (input.nexusAddress as Address) : input.hca
 
   return fromPromise(
     (async () => {
-      const nonce = await readContract(input.publicClient, {
-        address: contracts.usdc,
+      const nonce = await readContract(permitPublicClient, {
+        address: usdc,
         abi: erc2612Abi,
         functionName: 'nonces',
         args: [input.wallet],
@@ -610,27 +1031,27 @@ export function signFundingPermitActor(input: {
         verifyingContract: Address
       }
       try {
-        const resolved = await getEip712Domain(input.publicClient, {
-          address: contracts.usdc,
+        const resolved = await getEip712Domain(permitPublicClient, {
+          address: usdc,
         })
         domain = {
           name: resolved.domain.name ?? '',
           version: resolved.domain.version ?? '1',
-          chainId: Number(resolved.domain.chainId ?? input.chainId),
+          chainId: Number(resolved.domain.chainId ?? permitChainId),
           verifyingContract:
-            (resolved.domain.verifyingContract as Address) ?? contracts.usdc,
+            (resolved.domain.verifyingContract as Address) ?? usdc,
         }
       } catch {
         const [name, version] = await Promise.all([
-          readContract(input.publicClient, {
-            address: contracts.usdc,
+          readContract(permitPublicClient, {
+            address: usdc,
             abi: erc2612Abi,
             functionName: 'name',
           }),
           // `version()` is optional on ERC-2612 tokens; default to "1" only
           // when the token doesn't expose it.
-          readContract(input.publicClient, {
-            address: contracts.usdc,
+          readContract(permitPublicClient, {
+            address: usdc,
             abi: erc2612Abi,
             functionName: 'version',
           }).catch(() => '1'),
@@ -638,14 +1059,23 @@ export function signFundingPermitActor(input: {
         domain = {
           name,
           version,
-          chainId: input.chainId,
-          verifyingContract: contracts.usdc,
+          chainId: permitChainId,
+          verifyingContract: usdc,
         }
       }
 
-      const deadline = BigInt(
+      // Clamp to the session's expiry. `_validateFundingOperation` rejects a
+      // permit whose deadline exceeds `SessionConfig.validUntil` (and one
+      // already in the past), so an unclamped hour would fail the whole
+      // funding batch whenever the session had less than an hour left.
+      const requested = BigInt(
         Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS,
       )
+      const deadline =
+        input.sessionValidUntil !== undefined &&
+        input.sessionValidUntil < requested
+          ? input.sessionValidUntil
+          : requested
 
       const signature = await signTypedData(walletClient, {
         account,
@@ -662,7 +1092,7 @@ export function signFundingPermitActor(input: {
         primaryType: 'Permit',
         message: {
           owner: input.wallet,
-          spender: input.hca,
+          spender,
           value: input.value,
           nonce,
           deadline,
@@ -673,7 +1103,7 @@ export function signFundingPermitActor(input: {
 
       return {
         owner: input.wallet,
-        spender: input.hca,
+        spender,
         value: input.value,
         deadline,
         v: Number(v ?? BigInt(yParity + 27)),
@@ -690,6 +1120,13 @@ export function signFundingPermitActor(input: {
  * and submit the commitment — ONE session-signed, user-paid request. Deploys
  * the HCA lazily when absent. Generates the secret + commitment here so the
  * reveal binds to the exact same inputs.
+ *
+ * Cross-chain: the permit + `transferFrom` pair moves to `sourceCalls` — they
+ * run on the SOURCE chain as the intent's pre-claim ops, moving the wallet's
+ * Base USDC into the funding Nexus, which then claims and bridges. The
+ * destination `calls` carry only `enableSession + commit`. This leg pulls just
+ * its own quoted cost; the registration price stays in the wallet until the
+ * reveal (the doc's deferred-funding rule).
  */
 export function submitFundingAndCommitActor(input: {
   name: string
@@ -701,6 +1138,16 @@ export function submitFundingAndCommitActor(input: {
   signer: Signer
   publicClient: PublicClient
   id?: string
+  /** Cross-chain funding source chain. When set, the permit + transferFrom
+   * pair is emitted as source-chain pre-claim ops instead of destination
+   * calls. */
+  sourceChainId?: number
+  /** Cross-chain: Nexus address on the source chain — the pull recipient and
+   * the intent's sender. Required when `sourceChainId` is set. */
+  nexusAddress?: Address
+  /** Cross-chain: the live budget breakdown, which sizes both legs. Required
+   * when `sourceChainId` is set. */
+  budget?: HcaBudgetBreakdown
 }): ResultAsync<
   { txId: string; resolverAddress: Address; commitment: CommitmentData },
   Error
@@ -736,7 +1183,13 @@ export function submitFundingAndCommitActor(input: {
       // falsy + gas refund -> 0x02), so an absent proof silently downgrades to
       // 0x02 and the validator then rejects `permit`. That is precisely the
       // failure this guard exists to prevent, and it walked straight past it.
-      if (input.permit && !input.sessionEnable?.enableData) {
+      //
+      // Cross-chain is exempt: there the permit is a SOURCE-chain pre-claim op
+      // policed by `HCAFundingSessionValidator`, never a destination call, so
+      // it never reaches the destination validator's registration policy and
+      // needs no proof to be tolerated.
+      const isCrossChain = input.sourceChainId !== undefined
+      if (input.permit && !isCrossChain && !input.sessionEnable?.enableData) {
         throw new Error(
           'HCA funding permit requires the session-enable proof in the same ' +
             'batch: the validator rejects USDC.permit outside the initial ' +
@@ -775,8 +1228,11 @@ export function submitFundingAndCommitActor(input: {
 
       const calls: Call[] = []
 
-      // Funding pair — only when the HCA balance did not cover the budget.
-      if (input.permit) {
+      // Funding pair — same-chain only. Cross-chain emits the identical pair
+      // as SOURCE-chain pre-claim ops instead (see `crossChainLeg` below):
+      // the wallet's USDC sits on Base, so a destination-chain
+      // `transferFrom` would move nothing.
+      if (input.permit && !isCrossChain) {
         calls.push({
           to: contracts.usdc,
           value: 0n,
@@ -831,16 +1287,32 @@ export function submitFundingAndCommitActor(input: {
         data: commitCall.data,
       })
 
+      const crossChainLeg = buildCommitCrossChainLeg({
+        sourceChainId: input.sourceChainId,
+        nexusAddress: input.nexusAddress,
+        budget: input.budget,
+        wallet: input.wallet,
+        permit: input.permit,
+      })
+
       const request = buildUserPaidRequest({
         from: input.hca,
         chainId,
         calls,
         sessionEnableData: input.sessionEnable?.enableData,
-        // Exactly the permit's value — the amount this batch pulls in, and
-        // nothing the HCA already holds. `signFundingPermitActor` is signed for
-        // `budget - balance`, so the permit value IS the inflow; declaring the
-        // whole budget would double-count the standing balance.
-        ...(input.permit ? { incomingUsdc: input.permit.value } : {}),
+        ...(crossChainLeg ? { crossChain: crossChainLeg } : {}),
+        // Exactly the permit's value — the amount this batch pulls in,
+        // and nothing the HCA already holds. `signFundingPermitActor` is
+        // signed for `budget - balance`, so the permit value IS the
+        // inflow; declaring the whole budget would double-count the
+        // standing balance.
+        //
+        // Cross-chain declares its inflow on the SOURCE chain instead
+        // (inside `buildUserPaidRequest`) — nothing lands on the
+        // destination until the fill.
+        ...(input.permit && !isCrossChain
+          ? { incomingUsdc: input.permit.value }
+          : {}),
       })
 
       const txId = transactionManager.startTransaction(
@@ -916,6 +1388,11 @@ export function verifyHcaRegistrationActor(input: {
  * Reveal leg: re-read the CURRENT price, then submit the exact-ordered reveal
  * batch session-signed (no wallet prompt, no enable data — the session was
  * enabled by the commit leg).
+ *
+ * Cross-chain: this is where the registration price is finally pulled. The
+ * commit leg's permit already set the wallet→Nexus allowance for BOTH legs, so
+ * the source calls here are a bare `transferFrom` — no second signature — and
+ * the budget is whatever the commit did not consume.
  */
 export function submitRevealBatchActor(input: {
   name: string
@@ -927,6 +1404,14 @@ export function submitRevealBatchActor(input: {
   publicClient: PublicClient
   primaryName?: string
   id?: string
+  /** Cross-chain funding source chain (e.g. Base Sepolia). */
+  sourceChainId?: number
+  /** Cross-chain: the funding Nexus — pull recipient and intent sender. */
+  nexusAddress?: Address
+  /** Cross-chain: public client for the source chain, to read the allowance. */
+  sourcePublicClient?: PublicClient
+  /** Cross-chain: the live budget breakdown, which sizes the delivery. */
+  budget?: HcaBudgetBreakdown
 }): ResultAsync<string, Error> {
   return fromPromise(
     (async () => {
@@ -964,10 +1449,20 @@ export function submitRevealBatchActor(input: {
         ...(input.primaryName ? { setPrimaryName: input.primaryName } : {}),
       })
 
+      const crossChainLeg = await buildRevealCrossChainLeg({
+        sourceChainId: input.sourceChainId,
+        nexusAddress: input.nexusAddress,
+        budget: input.budget,
+        wallet: input.wallet,
+        livePrice: price,
+        publicClient: input.sourcePublicClient ?? input.publicClient,
+      })
+
       const request = buildUserPaidRequest({
         from: input.hca,
         chainId,
         calls: toCalls(revealCalls),
+        ...(crossChainLeg ? { crossChain: crossChainLeg } : {}),
       })
 
       const txId = transactionManager.startTransaction(

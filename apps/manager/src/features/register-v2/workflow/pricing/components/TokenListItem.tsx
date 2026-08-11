@@ -1,4 +1,4 @@
-import type { SUPPORTED_TOKEN } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
+import type { TOKEN_SYMBOL } from '@ens-apps/transaction-manager/contracts/ens-sepolia'
 import { Trans, useLingui } from '@lingui/react/macro'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { STABLECOINS } from '@/features/register/utils'
@@ -15,13 +15,17 @@ export const TokenListItem = ({
   onSelectCoin,
 }: {
   stablecoin: StablecoinBalance
-  selectedCoin: SUPPORTED_TOKEN | undefined
+  selectedCoin: TOKEN_SYMBOL | undefined
   priceUSD: number
-  onSelectCoin: (coin: SUPPORTED_TOKEN) => void
+  onSelectCoin: (coin: TOKEN_SYMBOL) => void
 }) => {
   const { t } = useLingui()
   const isSelected = selectedCoin === stablecoin.symbol
-  const coinConfig = STABLECOINS[stablecoin.symbol as keyof typeof STABLECOINS]
+  // Look up the coin config by the balance's symbol. For cross-chain USDC
+  // (USDC_BASE), use the chainId to disambiguate from same-chain USDC.
+  const coinConfig = stablecoin.chainId
+    ? Object.values(STABLECOINS).find((c) => c.chainId === stablecoin.chainId)
+    : STABLECOINS[stablecoin.symbol as keyof typeof STABLECOINS]
   const IconComponent = coinConfig?.icon || USDCIcon
 
   const coinBalanceUSD = decimalBigintToNumber(
@@ -40,7 +44,7 @@ export const TokenListItem = ({
         hasInsufficientBalanceForCoin && 'cursor-not-allowed opacity-50',
       )}
       disabled={hasInsufficientBalanceForCoin}
-      onClick={() => onSelectCoin(stablecoin.symbol as SUPPORTED_TOKEN)}
+      onClick={() => onSelectCoin(stablecoin.symbol as TOKEN_SYMBOL)}
       type="button"
     >
       <div className="flex items-center gap-2">

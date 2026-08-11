@@ -83,10 +83,13 @@ export type {
   TransactionRunStatus,
 } from './types/audit.types'
 export type {
+  CrossChainFundingContext,
   EOASigner,
+  PerChainSessionSignerSet,
   RhinestoneSessionContext,
   RhinestoneSigner,
   Signer,
+  SingleSessionSignerSet,
   TransactionInfra,
 } from './types/signer.types'
 export type {
@@ -99,6 +102,7 @@ export type {
   PaymentOption,
   RhinestoneTransactionRequest,
   SmartAccountConfig,
+  SourceAssetAmount,
   TransactionFlowType,
   TransactionIntent,
   TransactionModalState,

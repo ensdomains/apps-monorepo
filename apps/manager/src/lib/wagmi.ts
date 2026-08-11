@@ -5,7 +5,7 @@ import {
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
-import { sepolia } from 'viem/chains'
+import { baseSepolia, sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
@@ -65,6 +65,34 @@ export const customSepolia = {
 
 export const sepoliaWithEns = extendChainWithEns(customSepolia)
 
+// Base Sepolia — the cross-chain funding source (Base USDC) for registration.
+// Used for USDC balance reads, the source-chain EIP-2612 permit, and as the
+// Rhinestone SDK's provider for the funding Nexus and the source claim.
+export const BASE_SEPOLIA_RPC_URL = 'https://base-sepolia.publicnode.com'
+
+export const baseSepoliaFallbackTransport = fallback(
+  [http(BASE_SEPOLIA_RPC_URL, { retryCount: 2 })],
+  { rank: false, retryCount: 2 },
+)
+
+// Base Sepolia is only used for cross-chain USDC balance reads — no ENS
+// extensions needed (extendChainWithEns only supports mainnet/sepolia).
+export const customBaseSepolia = {
+  ...baseSepolia,
+  rpcUrls: {
+    default: { http: [BASE_SEPOLIA_RPC_URL] },
+    public: { http: [BASE_SEPOLIA_RPC_URL] },
+  },
+}
+
+export const baseSepoliaPublicClient = createPublicClient({
+  chain: customBaseSepolia,
+  transport: baseSepoliaFallbackTransport,
+  batch: {
+    multicall: true,
+  },
+})
+
 export const publicClient = createPublicClient({
   chain: sepoliaWithEns,
   transport: sepoliaFallbackTransport,
@@ -77,9 +105,10 @@ export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns],
+  chains: [sepoliaWithEns, customBaseSepolia],
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
+    [customBaseSepolia.id]: baseSepoliaFallbackTransport,
   },
   // Injected wallets (MetaMask, Rabby, Frame, …) are discovered via EIP-6963
   // (multiInjectedProviderDiscovery above), so WalletConnect is the only
