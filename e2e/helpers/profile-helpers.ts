@@ -1,6 +1,7 @@
 import type { Web3ProviderBackend } from '@ensdomains/headless-web3-provider'
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+import { expectFlowSuccess } from './flow-completion.js'
 import {
   authorizeTransaction,
   clickThroughEnableSessions,
@@ -96,7 +97,9 @@ export async function renewFor28Days(page: Page): Promise<string> {
   await page.getByRole('button', { name: /renew name/i }).click()
   await page.getByRole('button', { name: /renew name/i }).click()
 
-  await expect(page.getByText('Renewal Complete!')).toBeVisible({
+  await expectFlowSuccess(page, {
+    success: page.getByText('Renewal Complete!'),
+    failureTitle: 'Renewal Failed',
     timeout: 90_000,
   })
   await expect(page.getByText(expectedExpiry)).toBeVisible({ timeout: 5_000 })
