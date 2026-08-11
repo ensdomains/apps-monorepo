@@ -53,7 +53,9 @@ export const ProfileAbout = ({
       <div className="grid w-full gap-8 lg:landscape:grid-cols-[minmax(0,346.5px)_228px] lg:landscape:gap-3">
         <div className="min-w-0">
           <h2 className="text-base text-ens-quartz-700 leading-normal">
-            {fullName || <Trans>About</Trans>}
+            <span className="block truncate">
+              {fullName || <Trans>About</Trans>}
+            </span>
           </h2>
           {records.base.description ? (
             <p className="mt-3 text-ens-quartz-500 text-sm leading-normal">
