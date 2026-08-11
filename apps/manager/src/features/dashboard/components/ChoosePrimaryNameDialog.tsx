@@ -191,7 +191,12 @@ const useUpdateEthAddressMutation = ({
   return useMutation({
     mutationFn: async () => {
       if (!selectedName || !account.ownerAddress) return
-      if (!account.signer || !account.accountAddress) return
+
+      // Writing a record on an existing resolver is an owner-EOA transaction,
+      // not an HCA intent — the resolver authorizes the owner wallet, and the
+      // session validator's action policy rejects the same call as an intent.
+      const { walletClient } = account
+      if (!walletClient?.account) return
 
       const walletAddress = account.ownerAddress as Address
 
@@ -223,8 +228,8 @@ const useUpdateEthAddressMutation = ({
           texts: [],
           coins: [{ coinType: 60, value: getAddress(walletAddress) }],
         },
-        signer: account.signer,
-        accountAddress: account.accountAddress,
+        signer: { type: 'eoa', walletClient },
+        accountAddress: walletClient.account.address,
         publicClient: publicClient as PublicClient,
         chainId,
         resolverAddress,

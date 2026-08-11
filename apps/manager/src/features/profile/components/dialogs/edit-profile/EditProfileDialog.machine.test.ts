@@ -1,9 +1,12 @@
 import type { RhinestoneSigner } from '@ens-apps/transaction-manager'
-import type { Address, PublicClient } from 'viem'
+import type { Address, PublicClient, WalletClient } from 'viem'
 import { describe, expect, it } from 'vitest'
 import { createActor } from 'xstate'
 import { defaultProfileRecords } from '@/features/profile/utils/transformRecords'
-import { editProfileDialogMachine } from './EditProfileDialog.machine'
+import {
+  editProfileDialogMachine,
+  type SaveDeps,
+} from './EditProfileDialog.machine'
 
 const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const ACCOUNT = '0x2222222222222222222222222222222222222222' as Address
@@ -14,6 +17,10 @@ const rhinestoneSigner: RhinestoneSigner = {
   account: {} as never,
   config: { accountAddress: ACCOUNT, rhinestoneApiKey: 'k' },
 }
+
+const walletClient = {
+  account: { address: OWNER },
+} as WalletClient
 
 describe('editProfileDialogMachine', () => {
   it('stays in idle editing when save prerequisites are missing', () => {
@@ -182,31 +189,27 @@ describe('editProfileDialogMachine', () => {
     expect(snapshot.context.pendingSave).toBeUndefined()
   })
 
-  it('queues an in-place update when the resolver is already writable', () => {
-    const records = {
-      ...defaultProfileRecords,
-      resolverAddress: RESOLVER,
-      addresses: [
-        {
-          coinType: 60,
-          value: '0x5555555555555555555555555555555555555555',
-        },
-      ],
-    }
+  const writableRecords = {
+    ...defaultProfileRecords,
+    resolverAddress: RESOLVER,
+    addresses: [
+      {
+        coinType: 60,
+        value: '0x5555555555555555555555555555555555555555',
+      },
+    ],
+  }
+
+  const startWritableUpdate = (deps: Partial<SaveDeps>) => {
     const actor = createActor(editProfileDialogMachine, {
-      input: { records },
+      input: { records: writableRecords },
     })
     actor.start()
-    actor.send({ type: 'OPEN', records })
-
-    const nextRecords = {
-      ...records,
-      addresses: [],
-    }
+    actor.send({ type: 'OPEN', records: writableRecords })
 
     actor.send({
       type: 'SAVE_REQUESTED',
-      values: nextRecords,
+      values: { ...writableRecords, addresses: [] },
       deps: {
         accountAddress: ACCOUNT,
         chainId: 11155111,
@@ -215,18 +218,38 @@ describe('editProfileDialogMachine', () => {
         owner: OWNER,
         ownerAddress: OWNER,
         publicClient: {} as PublicClient,
-        signer: rhinestoneSigner,
+        ...deps,
       },
     })
 
-    const snapshot = actor.getSnapshot()
+    return actor.getSnapshot()
+  }
+
+  it('queues an in-place update as an owner-EOA transaction, never an HCA intent', () => {
+    // The HCA signer is present (post-registration it always is) and must be
+    // ignored: the resolver authorizes the owner wallet, and the same write as
+    // a Rhinestone intent is rejected by the session validator's action policy.
+    const snapshot = startWritableUpdate({
+      signer: rhinestoneSigner,
+      walletClient,
+    })
+
     expect(snapshot.matches({ editing: 'saving' })).toBe(true)
     expect(snapshot.context.pendingSave).toMatchObject({
       kind: 'update',
       params: {
         resolverAddress: RESOLVER,
         name: 'owned.eth',
+        signer: { type: 'eoa', walletClient },
+        accountAddress: OWNER,
       },
     })
+  })
+
+  it('blocks an in-place update when no owner wallet is connected', () => {
+    const snapshot = startWritableUpdate({ signer: rhinestoneSigner })
+
+    expect(snapshot.matches({ editing: 'idle' })).toBe(true)
+    expect(snapshot.context.pendingSave).toBeUndefined()
   })
 })

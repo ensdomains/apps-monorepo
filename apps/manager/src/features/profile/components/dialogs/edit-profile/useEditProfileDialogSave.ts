@@ -390,6 +390,7 @@ export const useEditProfileDialogSave = ({
           publicClient: publicClient as PublicClient,
           retryCount: 0,
           signer: account.signer,
+          walletClient: account.walletClient,
         },
       })
 
@@ -403,7 +404,11 @@ export const useEditProfileDialogSave = ({
       toast.error(t`Cannot save profile`, {
         description: getSaveBlockedDescription({
           hasOwner: Boolean(owner),
-          hasAccount: Boolean(account.signer && account.accountAddress),
+          // Mirrors the machine's `missingAccount` guard: setup needs the HCA
+          // signer, an in-place write needs the connected owner wallet.
+          hasAccount: needsResolverSetup
+            ? Boolean(account.signer && account.accountAddress)
+            : Boolean(account.walletClient?.account),
           hasSetupSigner: !(
             needsResolverSetup &&
             (account.signer?.type !== 'rhinestone' || !ownerAddress)
@@ -415,6 +420,7 @@ export const useEditProfileDialogSave = ({
     [
       account.accountAddress,
       account.signer,
+      account.walletClient,
       chainId,
       dialogActor,
       isResolverAccessPending,
