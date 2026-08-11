@@ -24,6 +24,8 @@ const WALLET: Address = '0x0000000000000000000000000000000000000031'
 const MANAGER: Address = '0x0000000000000000000000000000000000000032'
 const NODE = `0x${'ab'.repeat(32)}` as Hex
 const RECORD_VALUE = '0x1234' as Hex
+const CONTENT_HASH = '0xe301' as Hex
+const ABI_VALUE = '0x5b5d' as Hex
 const RESOURCE = 123n
 const ROLES_ALL = (1n << 256n) - 1n
 // RegistryRolesLib uses nybble-packed roles: SET_RESOLVER is the seventh
@@ -173,6 +175,23 @@ const expectations = [
     coinType: 60n,
     value: RECORD_VALUE,
   },
+  {
+    id: 'profile:contenthash',
+    type: 'profile-contenthash',
+    name: 'leaf.mid.parent.eth',
+    node: NODE,
+    resolver: RESOLVER,
+    value: CONTENT_HASH,
+  },
+  {
+    id: 'profile:abi',
+    type: 'profile-abi',
+    name: 'leaf.mid.parent.eth',
+    node: NODE,
+    resolver: RESOLVER,
+    contentType: 1n,
+    value: ABI_VALUE,
+  },
 ] as const satisfies readonly AtomicMigrationVerificationExpectation[]
 
 type ReadRequest = {
@@ -214,6 +233,8 @@ describe('verifyAtomicMigrationBatch', () => {
         getWrappedNode: NODE,
         text: 'expected text',
         addr: RECORD_VALUE,
+        contenthash: CONTENT_HASH,
+        ABI: [1n, ABI_VALUE],
       }
       if (request.functionName in resultByFunction) {
         return resultByFunction[request.functionName]

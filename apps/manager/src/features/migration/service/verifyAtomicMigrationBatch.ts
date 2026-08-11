@@ -29,6 +29,8 @@ const permissionedResolverReadAbi = parseAbi([
   'function hasRootRoles(uint256 roleBitmap, address account) view returns (bool)',
   'function text(bytes32 node, string key) view returns (string)',
   'function addr(bytes32 node, uint256 coinType) view returns (bytes)',
+  'function contenthash(bytes32 node) view returns (bytes)',
+  'function ABI(bytes32 node, uint256 contentTypes) view returns (uint256, bytes)',
 ])
 
 const wrapperRegistryReadAbi = parseAbi([
@@ -371,6 +373,31 @@ const checkExpectation = async (
         ...block,
       })
       return value.toLowerCase() === expectation.value.toLowerCase()
+    }
+    case 'profile-contenthash': {
+      if (!(await hasContractCode(context, expectation.resolver))) return false
+      const value = await context.publicClient.readContract({
+        address: expectation.resolver,
+        abi: permissionedResolverReadAbi,
+        functionName: 'contenthash',
+        args: [expectation.node],
+        ...block,
+      })
+      return value.toLowerCase() === expectation.value.toLowerCase()
+    }
+    case 'profile-abi': {
+      if (!(await hasContractCode(context, expectation.resolver))) return false
+      const [contentType, value] = await context.publicClient.readContract({
+        address: expectation.resolver,
+        abi: permissionedResolverReadAbi,
+        functionName: 'ABI',
+        args: [expectation.node, expectation.contentType],
+        ...block,
+      })
+      return (
+        contentType === expectation.contentType &&
+        value.toLowerCase() === expectation.value.toLowerCase()
+      )
     }
   }
 }

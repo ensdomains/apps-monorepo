@@ -145,6 +145,8 @@ describe('buildAtomicMigrationBatches', () => {
     const profile: Profile = {
       texts: [{ key: 'email', value: 'parent@example.com' }],
       addresses: [{ coinType: 60n, value: PROFILE_ADDRESS }],
+      contentHash: '0xe301' as Hex,
+      abis: [{ contentType: 1n, value: '0x5b5d' as Hex }],
     }
 
     const plan = await buildPlan({
@@ -230,6 +232,8 @@ describe('buildAtomicMigrationBatches', () => {
       'manager-role',
       'profile-text',
       'profile-address',
+      'profile-contenthash',
+      'profile-abi',
       'name-owner',
       'name-resolver',
       'name-owner-roles',
@@ -338,7 +342,9 @@ describe('buildAtomicMigrationBatches', () => {
     const profileExpectations = batch.verificationExpectations.filter(
       (expectation) =>
         expectation.type === 'profile-text' ||
-        expectation.type === 'profile-address',
+        expectation.type === 'profile-address' ||
+        expectation.type === 'profile-contenthash' ||
+        expectation.type === 'profile-abi',
     )
     expect(profileExpectations).toEqual([
       expect.objectContaining({
@@ -352,6 +358,17 @@ describe('buildAtomicMigrationBatches', () => {
         node: parentNode,
         coinType: 60n,
         value: PROFILE_ADDRESS,
+      }),
+      expect.objectContaining({
+        type: 'profile-contenthash',
+        node: parentNode,
+        value: '0xe301',
+      }),
+      expect.objectContaining({
+        type: 'profile-abi',
+        node: parentNode,
+        contentType: 1n,
+        value: '0x5b5d',
       }),
     ])
   })

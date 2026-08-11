@@ -26,8 +26,10 @@ export class ProfileFetchError extends TaggedError('ProfileFetchError')<{
 }> {}
 
 export type Profile = {
-  texts: readonly { key: string; value: string }[]
-  addresses: readonly { coinType: bigint; value: Hex }[]
+  readonly texts: readonly { key: string; value: string }[]
+  readonly addresses: readonly { coinType: bigint; value: Hex }[]
+  readonly contentHash: Hex | null
+  readonly abis: readonly { contentType: bigint; value: Hex }[]
 }
 
 const executeMulticallChunks = async (
@@ -49,7 +51,7 @@ const executeMulticallChunks = async (
         contracts: [...chunk] as {
           address: Address
           abi: typeof PERMISSIONED_RESOLVER_ABI
-          functionName: 'text' | 'addr'
+          functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
           args: readonly unknown[]
         }[],
         allowFailure: true,

@@ -18,6 +18,8 @@ export const GAS_HEURISTIC: Record<MigrationTokenType, bigint> = {
 
 export const SETTEXT_GAS = 50_000n
 export const SETADDR_GAS = 35_000n
+export const SETCONTENTHASH_GAS = 50_000n
+export const SETABI_GAS = 70_000n
 export const MULTICALL_OVERHEAD = 60_000n
 
 export const GRANT_ROLES_GAS = 80_000n

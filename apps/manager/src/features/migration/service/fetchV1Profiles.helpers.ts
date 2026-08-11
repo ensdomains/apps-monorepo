@@ -11,6 +11,8 @@ export type ProfileKeyEntry = {
   readonly id: string
   readonly texts: readonly string[]
   readonly coinTypes: readonly number[]
+  readonly contentHash: string | null
+  readonly abiContentTypes: readonly bigint[]
 }
 
 export type ResolverCall =
@@ -20,11 +22,17 @@ export type ResolverCall =
       readonly kind: 'addr'
       readonly coinType: bigint
     }
+  | { readonly name: NameForFetch; readonly kind: 'contenthash' }
+  | {
+      readonly name: NameForFetch
+      readonly kind: 'abi'
+      readonly contentType: bigint
+    }
 
 export type MulticallContract = {
   readonly address: Address
   readonly abi: typeof PERMISSIONED_RESOLVER_ABI
-  readonly functionName: 'text' | 'addr'
+  readonly functionName: 'text' | 'addr' | 'contenthash' | 'ABI'
   readonly args: readonly unknown[]
 }
 
@@ -73,6 +81,24 @@ export const buildProfileMulticallPlan = (
         args: [name.nodeHex, coinType],
       })
     }
+    if (entry.contentHash && entry.contentHash !== '0x') {
+      calls.push({ name, kind: 'contenthash' })
+      contracts.push({
+        address: name.v1ResolverAddress,
+        abi: PERMISSIONED_RESOLVER_ABI,
+        functionName: 'contenthash',
+        args: [name.nodeHex],
+      })
+    }
+    for (const contentType of new Set(entry.abiContentTypes)) {
+      calls.push({ name, kind: 'abi', contentType })
+      contracts.push({
+        address: name.v1ResolverAddress,
+        abi: PERMISSIONED_RESOLVER_ABI,
+        functionName: 'ABI',
+        args: [name.nodeHex, contentType],
+      })
+    }
   }
   return { calls, contracts }
 }
@@ -82,7 +108,12 @@ export const initEmptyProfileBuckets = (
 ): Map<Hex, Profile> => {
   const out = new Map<Hex, Profile>()
   for (const [, name] of byNode) {
-    out.set(profileMapKey(name.nodeHex), { texts: [], addresses: [] })
+    out.set(profileMapKey(name.nodeHex), {
+      texts: [],
+      addresses: [],
+      contentHash: null,
+      abis: [],
+    })
   }
   return out
 }
@@ -99,21 +130,47 @@ export const mergeMulticallResultsIntoProfiles = (params: {
     if (res?.status !== 'success') continue
     const bucket = buckets.get(profileMapKey(call.name.nodeHex))
     if (!bucket) continue
-    if (call.kind === 'text') {
-      const value = res.result as string
-      if (value && value.length > 0) {
-        buckets.set(profileMapKey(call.name.nodeHex), {
-          ...bucket,
-          texts: [...bucket.texts, { key: call.key, value }],
-        })
+    const nodeKey = profileMapKey(call.name.nodeHex)
+    switch (call.kind) {
+      case 'text': {
+        const value = res.result as string
+        if (value) {
+          buckets.set(nodeKey, {
+            ...bucket,
+            texts: [...bucket.texts, { key: call.key, value }],
+          })
+        }
+        break
       }
-    } else {
-      const value = res.result as Hex
-      if (value && value !== '0x') {
-        buckets.set(profileMapKey(call.name.nodeHex), {
-          ...bucket,
-          addresses: [...bucket.addresses, { coinType: call.coinType, value }],
-        })
+      case 'addr': {
+        const value = res.result as Hex
+        if (value && value !== '0x') {
+          buckets.set(nodeKey, {
+            ...bucket,
+            addresses: [
+              ...bucket.addresses,
+              { coinType: call.coinType, value },
+            ],
+          })
+        }
+        break
+      }
+      case 'contenthash': {
+        const value = res.result as Hex
+        if (value && value !== '0x') {
+          buckets.set(nodeKey, { ...bucket, contentHash: value })
+        }
+        break
+      }
+      case 'abi': {
+        const [contentType, value] = res.result as readonly [bigint, Hex]
+        if (contentType !== 0n && value && value !== '0x') {
+          buckets.set(nodeKey, {
+            ...bucket,
+            abis: [...bucket.abis, { contentType, value }],
+          })
+        }
+        break
       }
     }
   }

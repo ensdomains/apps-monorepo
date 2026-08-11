@@ -247,7 +247,15 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
   it('is true when all profile keys are empty', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: ok([{ id: '0xabc', texts: [], coinTypes: [] }]),
+      profileKeys: ok([
+        {
+          id: '0xabc',
+          texts: [],
+          coinTypes: [],
+          contentHash: null,
+          abiContentTypes: [],
+        },
+      ]),
     })
     expect(result.skipFetchProfilesPhase).toBe(true)
   })
@@ -255,7 +263,33 @@ describe('computeMigrationPreflight — skipFetchProfilesPhase', () => {
   it('is false when any profile has at least one text or coin type', async () => {
     const result = await run({
       domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
-      profileKeys: ok([{ id: '0xabc', texts: ['email'], coinTypes: [] }]),
+      profileKeys: ok([
+        {
+          id: '0xabc',
+          texts: ['email'],
+          coinTypes: [],
+          contentHash: null,
+          abiContentTypes: [],
+        },
+      ]),
+    })
+    expect(result.skipFetchProfilesPhase).toBe(false)
+  })
+
+  it.each([
+    ['contenthash', { contentHash: '0xe301', abiContentTypes: [] }],
+    ['ABI', { contentHash: null, abiContentTypes: [1n] }],
+  ])('is false when the profile only has a %s record', async (_, records) => {
+    const result = await run({
+      domain: { resolverAddress: KNOWN_PUBLIC_RESOLVER },
+      profileKeys: ok([
+        {
+          id: '0xabc',
+          texts: [],
+          coinTypes: [],
+          ...records,
+        },
+      ]),
     })
     expect(result.skipFetchProfilesPhase).toBe(false)
   })

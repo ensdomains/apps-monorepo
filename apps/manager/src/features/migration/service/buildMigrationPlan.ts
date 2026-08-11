@@ -11,7 +11,9 @@ import {
   GRANT_ROLES_GAS,
   MULTICALL_OVERHEAD,
   PER_BATCH_OVERHEAD,
+  SETABI_GAS,
   SETADDR_GAS,
+  SETCONTENTHASH_GAS,
   SETTEXT_GAS,
   TARGET_GAS,
 } from './batchMigrate.constants'
@@ -41,7 +43,11 @@ import {
 } from './directMigrationRoutes'
 import { resolverFor } from './encodeMigration'
 import { fetchV1Profiles, type Profile, profileMapKey } from './fetchV1Profiles'
-import { getV1ProfileKeys, type V1Domain } from './v1SubgraphClient'
+import {
+  getV1ProfileKeys,
+  type V1Domain,
+  type V1ProfileKeys,
+} from './v1SubgraphClient'
 
 export type MigrationPlan = {
   readonly hcaAddress: Address
@@ -115,6 +121,8 @@ const previewAtomicBatchGas = (params: {
         gas += MULTICALL_OVERHEAD
         gas += BigInt(profile.texts.length) * SETTEXT_GAS
         gas += BigInt(profile.addresses.length) * SETADDR_GAS
+        if (profile.contentHash) gas += SETCONTENTHASH_GAS
+        gas += BigInt(profile.abis.length) * SETABI_GAS
         break
       }
       case 'migrate':
@@ -138,16 +146,20 @@ export class LockedResolverRecordSafetyError extends TaggedError(
     | 'records-not-replayable'
   readonly textRecordCount?: number
   readonly addressRecordCount?: number
+  readonly contentHashRecordCount?: number
+  readonly abiRecordCount?: number
   readonly cause?: unknown
 }> {}
 
-const lockedResolverReplacementsWithoutAtomicReplay = (
-  classified: readonly ClassifiedName[],
-): readonly {
+type LockedResolverReplacement = {
   readonly name: ClassifiedName
   readonly v1Resolver: Address
   readonly replacementResolver: Address
-}[] =>
+}
+
+const lockedResolverReplacementsWithoutAtomicReplay = (
+  classified: readonly ClassifiedName[],
+): readonly LockedResolverReplacement[] =>
   classified.flatMap((name) => {
     const isLockedCannotSetResolver =
       (name.tokenType === 'locked-2ld' || name.tokenType === 'locked-child') &&
@@ -180,14 +192,99 @@ const lockedResolverReplacementsWithoutAtomicReplay = (
     ]
   })
 
+const assertLockedResolverInventoryComplete = (
+  candidates: readonly LockedResolverReplacement[],
+  profileKeys: readonly V1ProfileKeys[],
+): void => {
+  const inventoryIds = new Set(profileKeys.map((keys) => keys.id.toLowerCase()))
+  for (const candidate of candidates) {
+    if (inventoryIds.has(candidate.name.domain.id.toLowerCase())) continue
+    throw new LockedResolverRecordSafetyError({
+      message: `The record inventory for "${candidate.name.domain.name}" is incomplete; migration is blocked to prevent record loss`,
+      ensName: candidate.name.domain.name,
+      v1Resolver: candidate.v1Resolver,
+      replacementResolver: candidate.replacementResolver,
+      reason: 'inventory-missing',
+    })
+  }
+}
+
+const fetchLockedResolverProfiles = async (params: {
+  readonly candidates: readonly LockedResolverReplacement[]
+  readonly profileKeys: readonly V1ProfileKeys[]
+  readonly publicClient: PublicClient
+}): Promise<ReadonlyMap<Hex, Profile>> => {
+  try {
+    return await fetchV1Profiles({
+      names: params.candidates.map(({ name, v1Resolver }) => ({
+        nodeHex: namehash(name.domain.name) as Hex,
+        v1ResolverAddress: v1Resolver,
+      })),
+      publicClient: params.publicClient,
+      profileKeys: params.profileKeys,
+    })
+  } catch (cause) {
+    const first = params.candidates[0]
+    if (!first) return new Map()
+    throw new LockedResolverRecordSafetyError({
+      message: `Unable to verify records for "${first.name.domain.name}"; migration is blocked to prevent record loss`,
+      ensName: first.name.domain.name,
+      v1Resolver: first.v1Resolver,
+      replacementResolver: first.replacementResolver,
+      reason: 'inventory-unavailable',
+      cause,
+    })
+  }
+}
+
+const assertLockedResolverProfilesEmpty = (
+  candidates: readonly LockedResolverReplacement[],
+  profiles: ReadonlyMap<Hex, Profile>,
+): void => {
+  for (const candidate of candidates) {
+    const profile = profiles.get(
+      profileMapKey(namehash(candidate.name.domain.name)),
+    )
+    if (!profile) {
+      throw new LockedResolverRecordSafetyError({
+        message: `The record inventory for "${candidate.name.domain.name}" is incomplete; migration is blocked to prevent record loss`,
+        ensName: candidate.name.domain.name,
+        v1Resolver: candidate.v1Resolver,
+        replacementResolver: candidate.replacementResolver,
+        reason: 'inventory-missing',
+      })
+    }
+    if (
+      profile.texts.length === 0 &&
+      profile.addresses.length === 0 &&
+      profile.contentHash === null &&
+      profile.abis.length === 0
+    ) {
+      continue
+    }
+    throw new LockedResolverRecordSafetyError({
+      message: `"${candidate.name.domain.name}" has records that cannot be replayed atomically during its locked resolver replacement`,
+      ensName: candidate.name.domain.name,
+      v1Resolver: candidate.v1Resolver,
+      replacementResolver: candidate.replacementResolver,
+      reason: 'records-not-replayable',
+      textRecordCount: profile.texts.length,
+      addressRecordCount: profile.addresses.length,
+      contentHashRecordCount: profile.contentHash ? 1 : 0,
+      abiRecordCount: profile.abis.length,
+    })
+  }
+}
+
 /**
  * The locked receiver can rotate an allowlisted public resolver even though
  * CANNOT_SET_RESOLVER is burned, but the current atomic plan cannot replay
  * records into the shared PublicResolverV2. Permit that rotation only after
- * proving the supported text/address inventory is empty.
+ * proving the supported record inventory is empty on-chain.
  */
 export const assertLockedResolverReplacementRecordSafety = async (
   classified: readonly ClassifiedName[],
+  publicClient: PublicClient,
 ): Promise<void> => {
   const candidates = lockedResolverReplacementsWithoutAtomicReplay(classified)
   if (candidates.length === 0) return
@@ -208,33 +305,13 @@ export const assertLockedResolverReplacementRecordSafety = async (
     })
   }
 
-  const inventories = new Map(
-    result.value.map((keys) => [keys.id.toLowerCase(), keys] as const),
-  )
-
-  for (const candidate of candidates) {
-    const inventory = inventories.get(candidate.name.domain.id.toLowerCase())
-    if (!inventory) {
-      throw new LockedResolverRecordSafetyError({
-        message: `The record inventory for "${candidate.name.domain.name}" is incomplete; migration is blocked to prevent record loss`,
-        ensName: candidate.name.domain.name,
-        v1Resolver: candidate.v1Resolver,
-        replacementResolver: candidate.replacementResolver,
-        reason: 'inventory-missing',
-      })
-    }
-    if (inventory.texts.length > 0 || inventory.coinTypes.length > 0) {
-      throw new LockedResolverRecordSafetyError({
-        message: `"${candidate.name.domain.name}" has records that cannot be replayed atomically during its locked resolver replacement`,
-        ensName: candidate.name.domain.name,
-        v1Resolver: candidate.v1Resolver,
-        replacementResolver: candidate.replacementResolver,
-        reason: 'records-not-replayable',
-        textRecordCount: inventory.texts.length,
-        addressRecordCount: inventory.coinTypes.length,
-      })
-    }
-  }
+  assertLockedResolverInventoryComplete(candidates, result.value)
+  const profiles = await fetchLockedResolverProfiles({
+    candidates,
+    profileKeys: result.value,
+    publicClient,
+  })
+  assertLockedResolverProfilesEmpty(candidates, profiles)
 }
 
 export const buildMigrationPlan = async (params: {
@@ -249,7 +326,7 @@ export const buildMigrationPlan = async (params: {
 
   const classifiedNamesResult = classifyNames([...domains], migrationOwner)
   const classified = classifiedNamesResult.classified
-  await assertLockedResolverReplacementRecordSafety(classified)
+  await assertLockedResolverReplacementRecordSafety(classified, publicClient)
   const directRoutes =
     preflight.directMigrationRoutes ??
     (await resolveDirectMigrationRoutes({ publicClient, classified }))

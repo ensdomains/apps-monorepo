@@ -1,7 +1,11 @@
 import {
+  publicResolverAbiSnippet,
+  publicResolverContenthashSnippet,
   publicResolverMultiAddrSnippet,
   publicResolverMulticallSnippet,
+  publicResolverSetAbiSnippet,
   publicResolverSetAddrSnippet,
+  publicResolverSetContenthashSnippet,
   publicResolverSetTextSnippet,
   publicResolverTextSnippet,
 } from '@ensdomains/ensjs-abi/v1/publicResolver'
@@ -56,8 +60,12 @@ export const PERMISSIONED_RESOLVER_ABI = [
   ...publicResolverMulticallSnippet,
   ...publicResolverSetTextSnippet,
   ...publicResolverSetAddrSnippet,
+  ...publicResolverSetContenthashSnippet,
+  ...publicResolverSetAbiSnippet,
   ...publicResolverTextSnippet,
   ...publicResolverMultiAddrSnippet,
+  ...publicResolverContenthashSnippet,
+  ...publicResolverAbiSnippet,
 ] as const
 
 export const MIGRATION_HELPER_ABI = migrationHelperMigrateSnippet

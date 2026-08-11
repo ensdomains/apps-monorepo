@@ -7,7 +7,7 @@ import {
   ProfileFetchError,
   profileMapKey,
 } from './fetchV1Profiles'
-import { getV1ProfileKeys } from './v1SubgraphClient'
+import { getV1ProfileKeys, type V1ProfileKeys } from './v1SubgraphClient'
 
 vi.mock('./v1SubgraphClient', () => ({ getV1ProfileKeys: vi.fn() }))
 
@@ -23,12 +23,18 @@ const clientWith = (multicallImpl: (opts: unknown) => unknown): PublicClient =>
   ({ multicall: vi.fn(multicallImpl) }) as unknown as PublicClient
 
 const mockKeys = (
-  rows: {
-    id: string
-    texts: readonly string[]
-    coinTypes: readonly number[]
-  }[],
-) => getV1ProfileKeysMock.mockReturnValueOnce(ok(rows) as never)
+  rows: (Omit<V1ProfileKeys, 'contentHash' | 'abiContentTypes'> &
+    Partial<Pick<V1ProfileKeys, 'contentHash' | 'abiContentTypes'>>)[],
+) =>
+  getV1ProfileKeysMock.mockReturnValueOnce(
+    ok(
+      rows.map((row) => ({
+        contentHash: null,
+        abiContentTypes: [],
+        ...row,
+      })),
+    ) as never,
+  )
 
 const run = (
   names: { nodeHex: Hex; v1ResolverAddress: Address }[],
@@ -93,6 +99,8 @@ describe('fetchV1Profiles', () => {
     expect(result.get(profileMapKey(NODE_A))).toEqual({
       texts: [],
       addresses: [],
+      contentHash: null,
+      abis: [],
     })
   })
 
@@ -142,7 +150,15 @@ describe('fetchV1Profiles', () => {
     const result = await fetchV1Profiles({
       names: [A],
       publicClient: clientWith(() => [okCall('a@b.c')]),
-      profileKeys: [{ id: NODE_A, texts: ['email'], coinTypes: [] }],
+      profileKeys: [
+        {
+          id: NODE_A,
+          texts: ['email'],
+          coinTypes: [],
+          contentHash: null,
+          abiContentTypes: [],
+        },
+      ],
     })
 
     expect(getV1ProfileKeysMock).not.toHaveBeenCalled()
@@ -161,6 +177,33 @@ describe('fetchV1Profiles', () => {
     assert(entry)
     expect(entry.texts).toEqual([])
     expect(entry.addresses).toEqual([])
+  })
+
+  it('populates contenthash and ABI bytes while dropping cleared ABI entries', async () => {
+    mockKeys([
+      {
+        id: NODE_A,
+        texts: [],
+        coinTypes: [],
+        contentHash: '0xe301',
+        abiContentTypes: [1n, 2n],
+      },
+    ])
+    const result = await run(
+      [A],
+      clientWith(() => [
+        okCall('0xe301' as Hex),
+        okCall([1n, '0x5b5d' as Hex]),
+        okCall([0n, '0x' as Hex]),
+      ]),
+    )
+
+    expect(result.get(profileMapKey(NODE_A))).toEqual({
+      texts: [],
+      addresses: [],
+      contentHash: '0xe301',
+      abis: [{ contentType: 1n, value: '0x5b5d' }],
+    })
   })
 
   it('fails closed when any multicall record read fails', async () => {

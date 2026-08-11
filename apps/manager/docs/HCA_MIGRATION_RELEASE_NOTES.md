@@ -72,8 +72,8 @@ confirmation.
   rejected or fails, the recovery action remains labelled
   `Revoke temporary HCA access`. Per-token approvals clear automatically when
   their transfers succeed.
-- Rare records that still need copying to PublicResolverV2 remain a separate
-  wallet transaction; they are not part of the HCA helper batch.
+- Text, address, contenthash, and ABI records are read from the V1 resolver,
+  replayed in the HCA batch, and verified on-chain before completion.
 - The rollout remains behind the existing migration feature flag.
 
 ## QA acceptance scenarios

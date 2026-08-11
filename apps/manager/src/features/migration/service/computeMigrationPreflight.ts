@@ -31,7 +31,10 @@ import type {
   V1Domain,
   V1ProfileKeys,
 } from '@/features/migration/service/v1SubgraphClient'
-import { getV1ProfileKeys } from '@/features/migration/service/v1SubgraphClient'
+import {
+  getV1ProfileKeys,
+  hasV1ProfileRecords,
+} from '@/features/migration/service/v1SubgraphClient'
 
 export type MigrationPreflight = {
   preExistingOwnedPermRes: Address | null
@@ -182,9 +185,7 @@ const computeProfilePreflight = async (
       ),
     })
   }
-  const anyKeys = profileKeys.some(
-    (keys) => keys.texts.length > 0 || keys.coinTypes.length > 0,
-  )
+  const anyKeys = profileKeys.some(hasV1ProfileRecords)
   return { skipFetchProfilesPhase: !anyKeys, profileKeys }
 }
 

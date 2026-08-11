@@ -201,6 +201,25 @@ type ProfileAddressExpectation = {
   readonly value: Hex
 }
 
+type ProfileContenthashExpectation = {
+  readonly id: string
+  readonly type: 'profile-contenthash'
+  readonly name: string
+  readonly node: Hex
+  readonly resolver: Address
+  readonly value: Hex
+}
+
+type ProfileAbiExpectation = {
+  readonly id: string
+  readonly type: 'profile-abi'
+  readonly name: string
+  readonly node: Hex
+  readonly resolver: Address
+  readonly contentType: bigint
+  readonly value: Hex
+}
+
 export type AtomicMigrationVerificationExpectation =
   | ResolverImplementationExpectation
   | ResolverRootRolesExpectation
@@ -213,6 +232,8 @@ export type AtomicMigrationVerificationExpectation =
   | ManagerRoleExpectation
   | ProfileTextExpectation
   | ProfileAddressExpectation
+  | ProfileContenthashExpectation
+  | ProfileAbiExpectation
 
 export type AtomicMigrationNameExecution = {
   readonly classified: ClassifiedName
@@ -421,7 +442,11 @@ const profileForName = (
   const profile = profiles.get(profileMapKey(node))
   if (!profile) return null
 
-  const hasRecords = profile.texts.length > 0 || profile.addresses.length > 0
+  const hasRecords =
+    profile.texts.length > 0 ||
+    profile.addresses.length > 0 ||
+    profile.contentHash !== null ||
+    profile.abis.length > 0
   return hasRecords ? { node, profile } : null
 }
 
@@ -631,6 +656,31 @@ const buildNameExecution = (params: {
         node: profileEntry.node,
         resolver,
         coinType: record.coinType,
+        value: record.value,
+      })),
+      ...(profileEntry.profile.contentHash
+        ? [
+            {
+              id: expectationId(name, 'profile-contenthash'),
+              type: 'profile-contenthash' as const,
+              name,
+              node: profileEntry.node,
+              resolver,
+              value: profileEntry.profile.contentHash,
+            },
+          ]
+        : []),
+      ...profileEntry.profile.abis.map((record, index) => ({
+        id: expectationId(
+          name,
+          'profile-abi',
+          `${index}:${record.contentType}`,
+        ),
+        type: 'profile-abi' as const,
+        name,
+        node: profileEntry.node,
+        resolver,
+        contentType: record.contentType,
         value: record.value,
       })),
     )
