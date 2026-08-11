@@ -151,14 +151,17 @@ describe('initializeRhinestoneAccount (standalone HCA)', () => {
     })
   })
 
-  it('throws when the Rhinestone API key is missing', async () => {
+  it('uses a credential-free placeholder in development', async () => {
     vi.stubEnv('VITE_RHINESTONE_API_KEY', '')
 
-    await expect(
-      initializeRhinestoneAccount({
-        walletClient: mockWalletClient,
-        publicClient: mockPublicClient,
-      }),
-    ).rejects.toThrow('Rhinestone API key not configured')
+    const result = await initializeRhinestoneAccount({
+      walletClient: mockWalletClient,
+      publicClient: mockPublicClient,
+    })
+
+    expect(result.config.rhinestoneApiKey).toBe('local-dev')
+    expect(vi.mocked(RhinestoneSDK).mock.calls.at(-1)?.[0]).toMatchObject({
+      auth: { mode: 'apiKey', apiKey: 'local-dev' },
+    })
   })
 })

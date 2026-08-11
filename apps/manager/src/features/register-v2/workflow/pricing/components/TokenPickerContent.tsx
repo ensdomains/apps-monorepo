@@ -23,6 +23,7 @@ import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries
 import { getRegisterPriceQueryOptions } from '../../../data/queries/pricing.query'
 import { getManagerRegistrationPostRegistrationSetup } from '../../../state/registrationAutoSetup'
 import { useRegistrationV2Context } from '../../../state/registrationUi.context'
+import { useAutoSelectOnlyToken } from '../hooks/useAutoSelectOnlyToken'
 import { getPremiumLabel } from '../lib/premiumLabel'
 import { PriceCooldownPill } from './PriceCooldownPill'
 import { TokenListItem } from './TokenListItem'
@@ -254,6 +255,13 @@ export const TokenPickerContentBase = ({
   const premiumLabel = getPremiumLabel(label.length)
 
   const hasBalances = (stablecoinBalances?.length || 0) > 0
+
+  useAutoSelectOnlyToken({
+    isLoadingBalances,
+    onSelectCoin,
+    selectedToken,
+    stablecoinBalances,
+  })
 
   const selectedCoinBalance = stablecoinBalances?.find(
     (coin) => coin.symbol === selectedToken,

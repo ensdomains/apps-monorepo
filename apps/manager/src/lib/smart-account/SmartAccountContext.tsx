@@ -34,7 +34,7 @@ import {
   type WalletClient,
 } from 'viem'
 import { useConnection, usePublicClient, useWalletClient } from 'wagmi'
-import type { EventFromLogic } from 'xstate'
+import { type EventFromLogic, waitFor } from 'xstate'
 import { customSepolia } from '@/lib/wagmi'
 import { backendClient } from '@/utils/backend-client'
 import { isFeatureEnabled } from '@/utils/feature-flags'
@@ -94,6 +94,12 @@ export interface SmartAccountContextValue extends RhinestoneAccountState {
   readonly getSessionEnablePayload: () => Promise<
     HcaSessionEnablePayload | undefined
   >
+  /**
+   * Re-initialize the in-memory smart-account client from the connected wallet.
+   * Migration calls this after a direct factory deployment so subsequent HCA
+   * reads and actions cannot retain the counterfactual/deployment snapshot.
+   */
+  readonly refreshAccount: () => Promise<void>
 }
 
 const SmartAccountContext = createContext<SmartAccountContextValue | null>(null)
@@ -178,6 +184,7 @@ function useWalletConnectionSync(
 ) {
   const connectedKeyRef = useRef<string | null>(null)
 
+  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: wallet connection transitions must remain ordered to prevent stale sessions during disconnect and account switches.
   useEffect(() => {
     const walletSource = detectWalletSource(wagmiWalletClient)
 
@@ -709,6 +716,22 @@ export const SmartAccountContextProvider = ({
     ? !!eoaAddress
     : !!snapshot.context.client && !!snapshot.context.accountAddress
 
+  const refreshAccount = useCallback(async (): Promise<void> => {
+    if (useEoa) return
+
+    send({ type: 'REFRESH' })
+    const refreshed = await waitFor(
+      actorRef,
+      (next) => next.matches('ready') || next.matches('error'),
+      { timeout: 30_000 },
+    )
+    if (refreshed.matches('error')) {
+      throw new Error(
+        refreshed.context.error ?? 'Failed to refresh the smart account',
+      )
+    }
+  }, [actorRef, send, useEoa])
+
   // Memoized so the provider only emits a new value when something it exposes
   // actually changes. Without this the object is rebuilt on every render — the
   // 30s balance polls, the funding mutation and the XState snapshot all churn
@@ -750,6 +773,7 @@ export const SmartAccountContextProvider = ({
             enableSession,
             activeStoredSession: null,
             getSessionEnablePayload,
+            refreshAccount,
           }
         : {
             type: 'rhinestone',
@@ -783,6 +807,7 @@ export const SmartAccountContextProvider = ({
             enableSession,
             activeStoredSession: activeSession,
             getSessionEnablePayload,
+            refreshAccount,
           },
     [
       useEoa,
@@ -811,6 +836,7 @@ export const SmartAccountContextProvider = ({
       sessionError,
       enableSession,
       getSessionEnablePayload,
+      refreshAccount,
     ],
   )
 

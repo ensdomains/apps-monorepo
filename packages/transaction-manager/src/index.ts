@@ -32,6 +32,7 @@ export {
 export {
   type WaitForTransactionResult,
   waitForTransaction,
+  waitForTransactionHash,
 } from './helpers/waitForTransaction'
 export {
   encodeDeployDedicatedResolverCall,

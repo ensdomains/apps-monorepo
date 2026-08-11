@@ -1,4 +1,5 @@
 import { match, P } from 'ts-pattern'
+import type { MigrationApprovalId } from '@/features/migration/service/migrationApprovals'
 import type { MigrationStepDescriptor } from '@/features/migration/service/migrationService'
 
 export const VISIBLE_PLANKS = 6
@@ -19,13 +20,17 @@ export const computeBridgeLayout = (params: {
 }): BridgeLayout => {
   const { totalSteps, completedSteps, trackWidth } = params
   const visiblePlanks = params.visiblePlanks ?? VISIBLE_PLANKS
+  const activeStep = Math.min(
+    Math.max(completedSteps, 0),
+    Math.max(totalSteps - 1, 0),
+  )
   const needsScroll = totalSteps > visiblePlanks
   const plankWidth =
     trackWidth > 0 ? trackWidth / Math.min(totalSteps, visiblePlanks) : 0
   const totalBridgeWidth = plankWidth * totalSteps
 
   if (!needsScroll || trackWidth === 0) {
-    const frensX = ((completedSteps + 0.5) / totalSteps) * trackWidth
+    const frensX = ((activeStep + 0.5) / totalSteps) * trackWidth
     return {
       plankWidth,
       frensX,
@@ -39,17 +44,17 @@ export const computeBridgeLayout = (params: {
   const scrollStart = midPlank
   const scrollEnd = totalSteps - (visiblePlanks - midPlank)
 
-  if (completedSteps < scrollStart) {
+  if (activeStep < scrollStart) {
     return {
       plankWidth,
-      frensX: (completedSteps + 0.5) * plankWidth,
+      frensX: (activeStep + 0.5) * plankWidth,
       scrollOffset: 0,
       totalBridgeWidth,
       needsScroll,
     }
   }
-  if (completedSteps >= scrollEnd) {
-    const stepsFromEnd = totalSteps - completedSteps
+  if (activeStep >= scrollEnd) {
+    const stepsFromEnd = totalSteps - activeStep
     return {
       plankWidth,
       frensX: trackWidth - (stepsFromEnd - 0.5) * plankWidth,
@@ -61,7 +66,7 @@ export const computeBridgeLayout = (params: {
   return {
     plankWidth,
     frensX: (midPlank + 0.5) * plankWidth,
-    scrollOffset: (completedSteps - scrollStart) * plankWidth,
+    scrollOffset: (activeStep - scrollStart) * plankWidth,
     totalBridgeWidth,
     needsScroll,
   }
@@ -70,21 +75,15 @@ export const computeBridgeLayout = (params: {
 export type StepDescription =
   | { readonly kind: 'progress'; readonly text: string }
   | { readonly kind: 'preparing' }
-  | { readonly kind: 'approve-base-registrar' }
-  | { readonly kind: 'approve-name-wrapper' }
-  | { readonly kind: 'ensure-resolver' }
+  | { readonly kind: 'deploy-hca' }
+  | { readonly kind: 'approval'; readonly approvalId: MigrationApprovalId }
   | {
-      readonly kind: 'migrate-batch'
+      readonly kind: 'atomic-batch'
       readonly index: number
       readonly total: number
       readonly count: number
     }
-  | { readonly kind: 'grant-role'; readonly label: string }
-  | {
-      readonly kind: 'profile-replay-batch'
-      readonly index: number
-      readonly total: number
-    }
+  | { readonly kind: 'cleanup' }
 
 export const describeNextStep = (params: {
   readonly progressDescription?: string
@@ -97,33 +96,22 @@ export const describeNextStep = (params: {
         ({ kind: 'progress' as const, text: progressDescription }) as const,
     )
     .with({ descriptor: P.nullish }, () => ({ kind: 'preparing' as const }))
-    .with({ descriptor: { type: 'approve-base-registrar' } }, () => ({
-      kind: 'approve-base-registrar' as const,
+    .with({ descriptor: { type: 'deploy-hca' } }, () => ({
+      kind: 'deploy-hca' as const,
     }))
-    .with({ descriptor: { type: 'approve-name-wrapper' } }, () => ({
-      kind: 'approve-name-wrapper' as const,
+    .with({ descriptor: { type: 'approval' } }, ({ descriptor }) => ({
+      kind: 'approval' as const,
+      approvalId: descriptor.approvalId,
     }))
-    .with({ descriptor: { type: 'ensure-resolver' } }, () => ({
-      kind: 'ensure-resolver' as const,
-    }))
-    .with({ descriptor: { type: 'migrate-batch' } }, ({ descriptor }) => ({
-      kind: 'migrate-batch' as const,
+    .with({ descriptor: { type: 'atomic-batch' } }, ({ descriptor }) => ({
+      kind: 'atomic-batch' as const,
       index: descriptor.index,
       total: descriptor.total,
       count: descriptor.count,
     }))
-    .with({ descriptor: { type: 'grant-role' } }, ({ descriptor }) => ({
-      kind: 'grant-role' as const,
-      label: descriptor.label,
+    .with({ descriptor: { type: 'cleanup' } }, () => ({
+      kind: 'cleanup' as const,
     }))
-    .with(
-      { descriptor: { type: 'profile-replay-batch' } },
-      ({ descriptor }) => ({
-        kind: 'profile-replay-batch' as const,
-        index: descriptor.index,
-        total: descriptor.total,
-      }),
-    )
     .exhaustive()
 
 export type GiantMode = 'collapsed' | 'excited' | 'idle'

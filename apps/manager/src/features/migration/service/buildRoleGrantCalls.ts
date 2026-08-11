@@ -5,7 +5,8 @@ import { ETH_REGISTRY_V2_ABI } from '../contracts/abis'
 import { V2_CONTRACTS } from '../contracts/addresses'
 import type { ClassifiedName } from './classifyNames'
 
-const ROLE_SET_RESOLVER = 1n << 12n
+// RegistryRolesLib uses nybble-packed roles in the remediated V2 deployment.
+const ROLE_SET_RESOLVER = 1n << 24n
 
 export const buildRoleGrantCall = (name: ClassifiedName): Call => {
   if (!name.managerAddress) {

@@ -37,9 +37,9 @@ const EXPECTED_ROLES_ALL =
   0x1111111111111111111111111111111111111111111111111111111111111111n
 
 describe('computeResolverAddress', () => {
-  it('is deterministic per HCA', () => {
+  it('uses the pinned proxy logic to derive the exact CREATE2 address', () => {
     expect(computeResolverAddress({ chainId: sepolia.id, hca: HCA })).toBe(
-      computeResolverAddress({ chainId: sepolia.id, hca: HCA }),
+      '0xcd8d0FAeecC39fbB036c708b697FE4C20c7D41Fd',
     )
   })
 })

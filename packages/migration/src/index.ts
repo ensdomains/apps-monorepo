@@ -1,4 +1,5 @@
 export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from './contracts/abis'
+export { isKnownPublicResolver } from './contracts/knownResolvers'
 export {
   type ClassifiedName,
   type ClassifyNamesResult,

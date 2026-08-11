@@ -26,8 +26,12 @@ export {
   SessionRestoreError,
 } from './errors'
 export {
+  type BuildHcaDeploymentCallParams,
+  type BuildHcaOwnerExecutionCallParams,
   buildCommitCall,
   buildEnableSessionWithRefundCall,
+  buildHcaDeploymentCall,
+  buildHcaOwnerExecutionCall,
   buildHcaSessionEnablePayload,
   buildRevealBatch,
   buildStandaloneAccountConfig,
@@ -39,6 +43,7 @@ export {
   computeResolverAddress,
   computeResolverSalt,
   computeSourceSessionSalt,
+  computeStandaloneHcaAddress,
   createDestinationSession,
   DEFAULT_SESSION_VALIDITY_SECONDS,
   DESTINATION_CONTRACTS,
@@ -50,6 +55,7 @@ export {
   ethReverseName,
   getAllSessions,
   getDestinationContracts,
+  getHcaDirectExecutionReadiness,
   getSession,
   getSessionByOwner,
   getSkippedStatus,
@@ -62,6 +68,8 @@ export {
   HCA_PRIMARY_NAME_WORD_GAS,
   type HcaBudgetBreakdown,
   type HcaBudgetParams,
+  HcaDeploymentCallValidationError,
+  type HcaDirectExecutionReadiness,
   type HcaLeg,
   type HcaSessionEnablePayload,
   hasRegistrationHeadroom,
@@ -76,8 +84,10 @@ export {
   type ResolverRecord,
   type RevealBatchParams,
   type RhinestoneInitConfig,
+  type RhinestoneInitError,
   type RhinestoneInitResult,
   type RhinestoneStoredSession,
+  ROLES_ALL,
   readCommitment,
   readCommitmentAges,
   readRegisterPrice,
@@ -97,5 +107,11 @@ export {
   serializeChainDigests,
   setSkippedStatus,
   USER_SALT,
+  type VerifyStandaloneHcaParams,
+  verifyStandaloneHca,
 } from './providers/rhinestone'
 export type { BaseStoredSession } from './types'
+export {
+  type ComputeVerifiableProxyAddressParams,
+  computeVerifiableProxyAddress,
+} from './verifiable-factory'

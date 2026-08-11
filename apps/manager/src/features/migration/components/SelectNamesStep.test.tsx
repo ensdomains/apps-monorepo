@@ -52,7 +52,7 @@ import { SelectNamesStep } from './SelectNamesStep'
 
 const readyGasEstimate: MigrationGasEstimateState = {
   status: 'ready',
-  plan: {} as MigrationPlan,
+  plan: { stepDescriptors: [] } as unknown as MigrationPlan,
   formattedEth: '0.001',
   gasUnits: 1n,
   feeWei: 1n,
