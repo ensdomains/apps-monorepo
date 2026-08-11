@@ -63,13 +63,31 @@ describe('useMultiNamePricing pure helpers', () => {
     it('converts date mode using the provided target timestamp and base date', () => {
       const result = getRenewalDurationSeconds({
         spanType: 'date',
-        duration: new Date('2026-03-01T00:00:00.000Z').getTime(),
+        // Local midnight — the picker builds date-mode timestamps with
+        // `plainDateToDate`, which is local, not UTC.
+        duration: new Date(2026, 2, 1).getTime(),
         baseDate: plainDate('2026-01-01'),
       })
 
       // Jan 1 → Mar 1 2026 = 59 calendar days × 86400s (no +86399 offset —
       // calendar-day arithmetic is exact, see getDurationFromPickerDate).
       expect(result).toBe(59 * 86400)
+    })
+
+    it('keeps the exact contract year for date mode year presets', () => {
+      const baseDate = plainDate('2026-09-08')
+      const presetTimestamp =
+        new Date(2026, 8, 8).getTime() + CONTRACT_SECONDS_PER_YEAR * 1000
+
+      const result = getRenewalDurationSeconds({
+        spanType: 'date',
+        duration: presetTimestamp,
+        baseDate,
+      })
+
+      // Not 365 × 86400 — the preset's 6h tail is preserved so the per-year
+      // price row and the total agree.
+      expect(result).toBe(CONTRACT_SECONDS_PER_YEAR)
     })
 
     it('throws for invalid date mode duration', () => {

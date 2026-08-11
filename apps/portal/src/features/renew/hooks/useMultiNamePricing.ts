@@ -18,7 +18,10 @@ import {
   computeNamePricingDisplay,
   type NamePricingDisplay,
 } from '../utils/computeNamePricingDisplay'
-import { getExtensionTargetDate } from '../utils/extensionDurationPicker'
+import {
+  getExtensionTargetDate,
+  getExtensionTimeOfDaySeconds,
+} from '../utils/extensionDurationPicker'
 import { getRenewerAddress } from '../utils/renewer'
 import type { SelectedName } from './useRenewalTransactions'
 
@@ -69,7 +72,10 @@ export const getRenewalDurationSeconds = ({
     spanType: 'date',
   })
 
-  return getDurationFromPickerDate(targetDate, baseDate)
+  return (
+    getDurationFromPickerDate(targetDate, baseDate) +
+    getExtensionTimeOfDaySeconds(duration, targetDate)
+  )
 }
 
 export function useMultiNamePricing(

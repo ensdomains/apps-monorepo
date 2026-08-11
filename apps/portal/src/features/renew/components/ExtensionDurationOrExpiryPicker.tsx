@@ -112,6 +112,7 @@ export const ExtensionDurationOrExpiryPicker = ({
             }
             minDate={getMinExpiryDateForPicker(baseDate)}
             maxDate={getMaxExpiryDateForPicker(baseDate)}
+            baseDate={baseDate}
             name={name}
           />
         )}
