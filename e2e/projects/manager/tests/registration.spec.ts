@@ -1,5 +1,6 @@
 // e2e/projects/manager/tests/registration.spec.ts
 import { expect, test } from '../../../fixtures/playwright.manager.fixture.js'
+import { expectFlowSuccess } from '../../../helpers/flow-completion.js'
 import {
   authorizeHeadlessConnection,
   authorizeTransactionsWhile,
@@ -80,7 +81,9 @@ test.describe('ENS name registration', () => {
       wallet,
       () => registrationComplete,
     )
-    await expect(successBanner).toContainText('Registration Complete', {
+    await expectFlowSuccess(page, {
+      success: successBanner.filter({ hasText: 'Registration Complete' }),
+      failureTitle: 'Registration Failed',
       timeout: 180_000,
     })
     registrationComplete = true
