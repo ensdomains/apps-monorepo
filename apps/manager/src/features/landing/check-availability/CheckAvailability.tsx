@@ -23,7 +23,6 @@ import {
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { useDebounce } from '@/hooks/useDebounce'
-import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { truncateToMaxBytes } from '@/utils/domain'
 
 const dropdownAnimation = {
@@ -96,18 +95,8 @@ export const CheckAvailability = ({
     enabled: !!profileName,
   })
 
-  const showResults = displayState.type !== 'idle' && !error
-
-  const blurBackdropEnabled = useFeatureFlag('SEARCH_RESULTS_BLUR_BACKDROP')
-
   return (
     <div className="relative flex flex-col gap-2">
-      {showResults && blurBackdropEnabled && (
-        <div
-          aria-hidden
-          className="fixed inset-x-0 top-[360px] bottom-0 z-10 bg-[#FCFBFB]/40 backdrop-blur-[2px] md:top-[380px]"
-        />
-      )}
       <div className="relative z-20">
         <SearchField
           className="w-full"

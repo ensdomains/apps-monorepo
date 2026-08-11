@@ -17,24 +17,8 @@ type FeatureFlagConfig = {
 }
 
 const FEATURE_FLAGS_INTERNAL = {
-  DISCOUNTS_APPLIED: {
-    enabled: import.meta.env.VITE_FF_DISCOUNTS_APPLIED === 'true',
-  },
-  SKIP_NOTIFICATION_SETTINGS: {
-    enabled: false,
-  },
-  SEARCH_RESULTS_BLUR_BACKDROP: {
-    enabled: import.meta.env.VITE_FF_SEARCH_RESULTS_BLUR_BACKDROP === 'true',
-  },
-  USE_WARP_INFRA: {
-    enabled: import.meta.env.VITE_FF_USE_WARP_INFRA === 'true',
-    allowedUsers: [...BASE_USER_LISTS.TEAM],
-  },
   LANGUAGE_SELECTOR: {
     enabled: import.meta.env.VITE_FF_LANGUAGE_SELECTOR === 'true',
-  },
-  MIGRATION: {
-    enabled: import.meta.env.VITE_FF_MIGRATION === 'true',
   },
   /** Bulk name selection UI on the address profile names list (actions TBD). */
   PROFILE_ADDRESS_NAMES_SELECTION: {
