@@ -10,8 +10,12 @@ import {
   stringToBytes,
 } from 'viem'
 
+// `PermissionedResolver.initialize` takes a third `setters` argument — a
+// multicall batch of setter calls run at init time. We pass an empty array:
+// the proxy is deployed with no initial records, exactly as before.
+// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
 const permissionedResolverInitAbi = parseAbi([
-  'function initialize(address owner, uint256 bitmap)',
+  'function initialize(address owner, uint256 bitmap, bytes[] setters)',
 ])
 
 const permissionedResolverRoleBitmap = BigInt(
@@ -36,7 +40,7 @@ export const getResolverInitCalldata = (ownerAddress: Address): Hex => {
   return encodeFunctionData({
     abi: permissionedResolverInitAbi,
     functionName: 'initialize',
-    args: [ownerAddress, permissionedResolverRoleBitmap],
+    args: [ownerAddress, permissionedResolverRoleBitmap, []],
   })
 }
 

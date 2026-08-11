@@ -5,7 +5,7 @@ import { Trans, useLingui } from '@lingui/react/macro'
 import { CreditCardIcon, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useConnection } from 'wagmi'
-import { DAI, USDCIcon, USDTIcon } from '@/components/atoms/StableCoinsIcons'
+import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -246,9 +246,7 @@ export const CryptoPaymentDrawer = ({
               </p>
               {/* Stablecoin icons */}
               <div className="flex items-center gap-1">
-                <USDTIcon className="h-7 w-7" />
                 <USDCIcon className="h-7 w-7" />
-                <DAI className="h-7 w-7" />
               </div>
             </div>
           </div>

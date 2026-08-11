@@ -128,7 +128,6 @@ export function DqaToolbar({
             </span>
           </button>
         )}
-
       </div>
 
       <div style={rightStyle}>

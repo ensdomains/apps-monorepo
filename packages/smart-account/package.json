@@ -1,7 +1,7 @@
 {
   "name": "@ens-apps/smart-account",
   "version": "0.1.0",
-  "description": "Smart-account helpers for ENS applications (Rhinestone-based HCA + smart sessions)",
+  "description": "Smart-account helpers for ENS applications (standalone Rhinestone HCA + scoped sessions)",
   "type": "module",
   "private": true,
   "exports": {
@@ -10,11 +10,13 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
   },
   "dependencies": {
-    "@ens-apps/transaction-manager": "workspace:*",
     "@ens-apps/utils": "workspace:*",
+    "@ensdomains/ensjs": "catalog:",
     "@ensdomains/ensjs-abi": "catalog:",
     "@rhinestone/sdk": "catalog:",
     "neverthrow": "^8.1.1",

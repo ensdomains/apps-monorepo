@@ -61,12 +61,16 @@ jobs:
 
       - name: Build changed apps
         if: steps.changed.outputs.has_apps == 'true'
+        env:
+          VITE_RHINESTONE_API_KEY: ${{ vars.VITE_RHINESTONE_API_KEY }}
         run: |
           echo "🏗️ Building changed apps and dependents..."
           pnpm --filter="...[${{ steps.base.outputs.ref }}]" --if-present build
 
       - name: Build all apps (fallback)
         if: steps.changed.outputs.has_apps == 'false'
+        env:
+          VITE_RHINESTONE_API_KEY: ${{ vars.VITE_RHINESTONE_API_KEY }}
         run: |
           echo "🏗️ No apps changed, building all apps..."
           pnpm --filter=portal --filter=manager --if-present build

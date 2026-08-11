@@ -6,7 +6,7 @@ import {
   format,
   startOfDay,
 } from 'date-fns'
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { MSymbol } from '@/components/ui/material-symbol'
 import {
@@ -26,7 +26,7 @@ const getDurationFromSelectedDate = (date: Date, referenceDate: Date) =>
       86_400,
   )
 
-export const DurationCustomRow = ({
+export const DurationCustomRow = memo(function DurationCustomRow({
   selectedDuration,
   onDurationSet,
   isSelected,
@@ -39,7 +39,7 @@ export const DurationCustomRow = ({
   type: 'register' | 'renew'
   /** Registration: defaults to start of today. Renewal: pass current on-chain expiry (same as PricingSummaryCard). */
   referenceDate?: Date
-}) => {
+}) {
   const [isDatePopoverOpen, setIsDatePopoverOpen] = useState(false)
   const [defaultReferenceDate] = useState(() => {
     const value = new Date()
@@ -120,4 +120,4 @@ export const DurationCustomRow = ({
       </PopoverContent>
     </Popover>
   )
-}
+})

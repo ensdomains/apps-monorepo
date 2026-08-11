@@ -76,7 +76,12 @@ export async function startSyncEthAddressRecordTransaction(
           chainId,
           rhinestoneParams: {
             calls: [{ to: resolverAddress, data, value: 0n }],
-            sponsored: true,
+            // User-paid in USDC out of the HCA's own balance — this deployment
+            // has no gas sponsorship. NOTE: no funding leg here. The HCA route
+            // no longer reaches this (the reveal batch writes the addr record
+            // itself), but if it ever does, route the calls through
+            // `planHcaIntentFunding` first.
+            feeAsset: 'USDC',
           },
         }
 

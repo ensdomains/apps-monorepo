@@ -15,15 +15,27 @@
  * signature). The EOA-only path (no rhinestone signer) never needs a session.
  */
 
+import { hasRegistrationHeadroom } from '@ens-apps/smart-account'
 import { type Address, isAddressEqual } from 'viem'
 import type { SmartAccountContextValue } from './SmartAccountContext'
 
 export function needsSessionBeforeRegistration(
   account: Readonly<
-    Pick<SmartAccountContextValue, 'signer' | 'hasActiveSession'>
+    Pick<
+      SmartAccountContextValue,
+      'signer' | 'hasActiveSession' | 'activeStoredSession'
+    >
   >,
 ): boolean {
-  return account.signer?.type === 'rhinestone' && !account.hasActiveSession
+  if (account.signer?.type !== 'rhinestone') return false
+  if (!account.hasActiveSession) return true
+  // A session that is alive NOW but dies during the commitment cooldown would
+  // strand a paid-for commitment with an unsignable reveal. Prompt for a fresh
+  // one up front instead. `resolveSessionActor` applies the same headroom, so
+  // the ENABLE actually mints a new session rather than handing back this one.
+  return account.activeStoredSession
+    ? !hasRegistrationHeadroom(account.activeStoredSession)
+    : false
 }
 
 /**

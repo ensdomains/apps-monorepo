@@ -20,6 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { EXPLORER_URL } from '@/constants'
 import { NON_EXPIRING_DATE_LABEL } from '@/features/dashboard/utils'
 import { GracePeriodBadge } from '@/features/grace/components/GracePeriodBadge'
 import {
@@ -64,7 +65,7 @@ interface NameRowProps {
   readonly onToggleSelect?: () => void
 }
 
-const explorerUrl = (label: string) => `https://explorer.ens.dev/${label}`
+const explorerUrl = (label: string) => `${EXPLORER_URL}/${label}`
 
 const namePillVariants = cva(
   'inline-flex max-w-full items-center gap-2 rounded-sm px-1.5 py-1.75',

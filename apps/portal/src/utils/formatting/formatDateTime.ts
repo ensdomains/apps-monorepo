@@ -78,3 +78,36 @@ export const formatDottedDateTimeLocal = (
   const pad = (value: number) => String(value).padStart(2, '0')
   return `${zoned.year}.${pad(zoned.month)}.${pad(zoned.day)} at ${pad(zoned.hour)}:${pad(zoned.minute)}`
 }
+
+/**
+ * Formats a date as a short, single-line date + local time.
+ * Format: "MMM D, YYYY h:mmam/pm" (e.g. "Sep 26, 2024 8:08am").
+ *
+ * Time is rendered in the viewer's local zone, and the weekday and zone
+ * suffix are dropped, so the result fits on one line in a 190px column.
+ */
+export const formatDateTimeLocal = (date: Date): string => {
+  const day = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+
+  const time = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+    .format(date)
+    // Intl gives "8:08 AM"; the design calls for "8:08am".
+    .replace(
+      /\s*([AP])M$/i,
+      (_, meridiem: string) => `${meridiem.toLowerCase()}m`,
+    )
+
+  return `${day} ${time}`
+}
+
+/** Same as `formatDateTimeLocal`, from a Unix timestamp in seconds. */
+export const formatUnixDateTimeLocal = (timestamp: number | bigint): string =>
+  formatDateTimeLocal(new Date(Number(timestamp) * 1000))

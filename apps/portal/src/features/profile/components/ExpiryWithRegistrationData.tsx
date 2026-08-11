@@ -106,13 +106,21 @@ const V2ExpiryWithRegistrationData = ({ name }: { name: string }) => {
     getV2RegistrationDataQueryOptions({ name }),
   )
 
-  const { data: earliestEvents } = useQuery(
-    getV2NameHistoryQueryOptions({ name, first: 10, orderDirection: 'asc' }),
+  // Ask the indexer for the registration event directly rather than scanning a
+  // window of recent history for it. `orderDirection` is applied in SQL before
+  // `first` truncates, so `asc` + `first: 1` is genuinely the earliest
+  // NameRegistered — a fixed window would miss it on any name with more
+  // history than the window.
+  const { data: registrationEvents } = useQuery(
+    getV2NameHistoryQueryOptions({
+      name,
+      first: 1,
+      orderDirection: 'asc',
+      eventTypes: ['NameRegistered'],
+    }),
   )
 
-  const registrationTxHash = earliestEvents?.find(
-    (event) => event.type === 'NameRegistered',
-  )?.transactionHash
+  const registrationTxHash = registrationEvents?.[0]?.transactionHash
   const registrationTxUrl = useBlockExplorerTxUrl(registrationTxHash)
 
   if (error)

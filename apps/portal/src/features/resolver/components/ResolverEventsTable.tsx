@@ -14,7 +14,6 @@ import type { Address, Hash } from 'viem'
 import { BlockExplorerTxLink } from '@/components/BlockExplorerTxLink'
 import { AddressDisplay } from '@/components/table/EventsDataTable/AddressDisplay'
 import { SortButton } from '@/components/table/SortButton'
-import { stripedRowClassName } from '@/components/table/stripedRowClassName'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -24,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTableViewSettings } from '@/features/profile/hooks/useTableViewSettings'
 import { useTransactionSenders } from '@/features/profile/hooks/useTransactionSenders'
 import { EventDetailSheet } from '@/features/resolver/components/EventDetailSheet'
 import type { ResolverEvent } from '@/features/resolver/hooks/useResolverOverview'
@@ -156,7 +154,6 @@ export const ResolverEventsTable = ({
   const [selectedEvent, setSelectedEvent] = useState<ResolverEventRow | null>(
     null,
   )
-  const [tableView] = useTableViewSettings()
 
   const txHashes = events
     .map((e) => e.transactionHash)
@@ -294,19 +291,13 @@ export const ResolverEventsTable = ({
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => {
-              const cellClassName = cn(
-                'px-6',
-                tableView.compact ? 'h-8 py-1' : 'h-10 py-2',
-              )
+              const cellClassName = cn('px-6', 'h-10 py-1')
               const totalColumns = row.getVisibleCells().length
               const trailingColSpan = totalColumns - 4
 
               return (
                 <Fragment key={row.id}>
-                  <TableRow
-                    key={row.id}
-                    className={stripedRowClassName(tableView.strippedRows)}
-                  >
+                  <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className={cellClassName}>
                         {flexRender(

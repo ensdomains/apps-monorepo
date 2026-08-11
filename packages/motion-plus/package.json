@@ -50,5 +50,8 @@
         "react-dom": {
             "optional": true
         }
+    },
+    "scripts": {
+        "lint": "biome check --no-errors-on-unmatched"
     }
 }

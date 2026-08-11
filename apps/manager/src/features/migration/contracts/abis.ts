@@ -10,10 +10,7 @@ import {
   permissionedRegistryGetResolverSnippet,
   permissionedRegistryGetSubregistrySnippet,
 } from '@ensdomains/ensjs-abi/v2/permissionedRegistry'
-import {
-  subregistryInitializeSnippet,
-  verifiableFactoryDeployProxySnippet,
-} from '@ensdomains/ensjs-abi/v2/verifiableFactory'
+import { verifiableFactoryDeployProxySnippet } from '@ensdomains/ensjs-abi/v2/verifiableFactory'
 import { parseAbi } from 'viem'
 
 export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '@ens-apps/migration'
@@ -22,6 +19,18 @@ export { BASE_REGISTRAR_ABI, NAME_WRAPPER_ABI } from '@ens-apps/migration'
 // to @ensdomains/ensjs-abi/v2/permissionedRegistry and drop this local snippet.
 const ethRegistryGetStatusSnippet = parseAbi([
   'function getStatus(uint256 anyId) view returns (uint8)',
+])
+
+// TODO(ensjs): `subregistryInitializeSnippet` in
+// @ensdomains/ensjs-abi/v2/verifiableFactory still declares the 2-arg
+// `initialize(address, uint256)`. The deployed PermissionedResolver takes a
+// third `setters` argument (a multicall batch run at init time), so encoding
+// the old form yields selector 0xcd6dc687 — which the implementation no longer
+// exposes, making the initializer delegatecall revert with empty data.
+// Drop this once ensjs-abi carries the 3-arg form.
+// See contracts-v2 `src/resolver/PermissionedResolver.sol`.
+const subregistryInitializeSnippet = parseAbi([
+  'function initialize(address admin, uint256 roleBitmap, bytes[] setters)',
 ])
 
 export const ETH_REGISTRY_V2_ABI = [

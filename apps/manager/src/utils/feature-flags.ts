@@ -137,7 +137,7 @@ export function getTransactionInfra(
   _identifier?: UserIdentifier,
 ): TransactionInfra {
   // Rhinestone HCA operations always route through the Warp orchestrator
-  // (intent-based, relayer-sponsored). Warp is the only supported infra.
+  // (intent-based, user-paid). Warp is the only supported infra.
   return 'warp'
 }
 

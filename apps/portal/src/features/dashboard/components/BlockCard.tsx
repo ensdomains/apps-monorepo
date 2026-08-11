@@ -135,14 +135,14 @@ const DataBlockCardBase = forwardRef<
     ref={ref}
     {...props}
     className={cn(
-      'group flex items-center gap-3 p-4 rounded-lg bg-background border border-secondary hover:bg-sidebar transition-colors',
+      'group flex h-20 max-w-[300px] items-center gap-3 p-4 rounded-lg bg-background border border-secondary hover:bg-sidebar transition-colors',
       className,
     )}
   >
     <div className="flex-1 flex items-center justify-between min-w-0 gap-2">
       <div className="flex items-center gap-2 text-muted-foreground min-w-0">
         <Icon className="size-4 shrink-0" />
-        <span className="text-sm truncate">{label}</span>
+        <span className="text-ui truncate">{label}</span>
       </div>
       <span className="text-xl font-medium text-foreground shrink-0">
         {value}
@@ -164,9 +164,9 @@ export const DataBlockCardError = ({
   icon: React.ComponentType<SVGProps<SVGSVGElement> & { className?: string }>
   message: string
 }) => (
-  <div className="flex items-center gap-2 p-4 rounded-lg bg-background border border-secondary text-muted-foreground">
+  <div className="flex h-20 max-w-[300px] items-center gap-2 p-4 rounded-lg bg-background border border-secondary text-muted-foreground">
     <Icon className="size-4 shrink-0" />
-    <span className="text-sm">{message}</span>
+    <span className="text-ui">{message}</span>
   </div>
 )
 

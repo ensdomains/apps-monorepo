@@ -18,7 +18,8 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check"
   },
   "dependencies": {
     "@ens-apps/utils": "workspace:*",

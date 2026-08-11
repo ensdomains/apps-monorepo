@@ -140,10 +140,39 @@ PAYMENT_TOKENS = [
     ("0x302edecc2b8d1f3f4625b8a825a42f9adc102e65", "MockUSDC"),
     ("0xa01e0eb02d0e92f1302e677d7ce7955b35c390d4", "MockDAI"),
 ]
-# _paymentRatios mapping is at storage slot 5 in StandardRentPriceOracle
-# (sequential slots 3 and 4 are dynamic arrays whose elements live at
-# keccak256(slot) + i — also baked by bake_oracle below)
-PAYMENT_RATIOS_SLOT = 5
+
+# ── Standalone-HCA deployment (canonical Sepolia set, deployed 2026-07-30) ──
+# A SEPARATE Sepolia deployment from the ENS_CONTRACTS above (different
+# registrar/registry/resolver/USDC). The manager's standalone-HCA flow targets
+# this set; kept in sync with `@ens-apps/smart-account`'s manifest.ts (which
+# resolves most of these via ensjs) and cross-checked against contracts-v2
+# `contracts/docs/addresses/sepolia.md` @ 97a5729. The shared Rhinestone
+# modules (Intent Executor, etc.) are already baked by
+# bake_rhinestone_infrastructure() and are reused as-is.
+SH_STANDALONE_HCA_FACTORY       = "0x900ff7cf617ef9d802178b4ef480491e3a782672"
+SH_STANDALONE_HCA_IMPL          = "0xaa761541620fc1a42bb701a26a9f107a9df1e904"
+SH_HCA_OWNER_SESSION_VALIDATOR  = "0x5f249fca8bb4949105651146858c347e8bfb0f7e"
+SH_VERIFIABLE_FACTORY           = "0x10dc6333cdfe1fcef624c6e0a8221b91804cd7ef"
+# Not a standalone artifact — VerifiableFactory creates it in its constructor
+# and exposes it as the `proxyLogic` immutable; must stay paired with the factory.
+SH_VERIFIABLE_PROXY_LOGIC       = "0xa136bee4e37b44586242e516a39893efd54315e9"
+SH_PERMISSIONED_RESOLVER_IMPL   = "0x9eae5c2730a7dd16bdd1dee6421a1b91e3b0365e"
+SH_ETH_REGISTRAR                = "0xa88553f454b77203b0d036a05c894d555eaaa2cc"
+SH_ETH_REGISTRY                 = "0xbdc85dd5b15d7ecb354cd7cb6f2c50b4f2c4f0e2"
+SH_DEFAULT_REVERSE_HCA_ADAPTER  = "0x7a84e241f862d73960d73c26d68c3c8f89f0b18f"
+SH_USDC                         = "0x768F42455A2D082E23ceeF7d51e5787C82d67a39"
+
+# ── StandardRentPriceOracle storage layouts (differ per deployment) ────────
+# ENS-V2 mock-set oracle: _baseRatePerCp@3, _discountPoints@4, _paymentRatios@5.
+# Canonical 2026-07-30 oracle: EnhancedAccessControl now reserves a 256-slot
+# __gap ahead of the oracle's own variables, pushing them to 258/259/260
+# (verified with `forge inspect StandardRentPriceOracle storage-layout` at
+# contracts-v2 @ 97a5729). The arrays' elements live at keccak256(slot) + i
+# and are baked by bake_dynamic_array below.
+V2_ORACLE_ARRAY_SLOTS = (3, 4)
+V2_PAYMENT_RATIOS_SLOT = 5
+SH_ORACLE_ARRAY_SLOTS = (258, 259)
+SH_PAYMENT_RATIOS_SLOT = 260
 
 ZERO32 = "0x" + "0" * 64
 
@@ -254,12 +283,15 @@ def bake_with_storage(addr: str, label: str, extra_slots: list[str] | None = Non
 
 
 def bake_dynamic_array(addr: str, base_slot: int) -> int:
-    """Bake all elements of a Solidity dynamic array stored at base_slot."""
+    """Bake a Solidity dynamic array at base_slot: its length slot + all elements."""
     slot_hex = "0x" + hex(base_slot)[2:].zfill(64)
     length_val = get_storage(addr, slot_hex)
     length = int(length_val, 16)
     if length == 0 or length > 256:
         return 0
+    # The length slot itself — in the canonical oracle layout it sits at
+    # slot 258/259, beyond the 0-127 sequential scan, so nothing else copies it.
+    set_storage(addr, slot_hex, length_val)
     base_hash = int(keccak256(slot_hex), 16)
     copied = 0
     for i in range(length):
@@ -268,32 +300,50 @@ def bake_dynamic_array(addr: str, base_slot: int) -> int:
     return copied
 
 
-def bake_oracle(addr: str):
-    """Bake price oracle: sequential slots + dynamic array elements + payment ratios."""
-    extra = [
-        mapping_slot(token, PAYMENT_RATIOS_SLOT)
-        for token, _ in PAYMENT_TOKENS
-    ]
+def bake_oracle(
+    addr: str,
+    payment_tokens: list[tuple[str, str]] | None = None,
+    ratios_slot: int = V2_PAYMENT_RATIOS_SLOT,
+    array_slots: tuple[int, int] = V2_ORACLE_ARRAY_SLOTS,
+):
+    """Bake price oracle: sequential slots + dynamic array elements + payment ratios.
+
+    `payment_tokens` are the tokens whose `_paymentRatios[token]` (a
+    hash-addressed mapping slot NOT reachable by the sequential scan) must be
+    copied so pricing survives anvil_dumpState. Defaults to the ENS-V2
+    MockUSDC/DAI set; the standalone oracle passes Circle USDC.
+
+    `ratios_slot`/`array_slots` select the deployment's storage layout — see
+    the *_ORACLE_ARRAY_SLOTS / *_PAYMENT_RATIOS_SLOT comments.
+    """
+    tokens = payment_tokens if payment_tokens is not None else PAYMENT_TOKENS
+    extra = [mapping_slot(token, ratios_slot) for token, _ in tokens]
     bake_with_storage(addr, f"Price Oracle ({addr})", extra_slots=extra)
-    # Sequential slots 3 and 4 hold dynamic arrays (base rates, duration coefficients).
-    # scan_sequential_slots copies the length but not the keccak-addressed elements.
-    arr3 = bake_dynamic_array(addr, 3)
-    arr4 = bake_dynamic_array(addr, 4)
-    if arr3 or arr4:
-        print(f"       + dynamic arrays: slot3={arr3} elems, slot4={arr4} elems")
+    # The two dynamic arrays (base rates, discount points) — their elements,
+    # and in the canonical layout their length slots too, are keccak/high slots
+    # the sequential scan cannot reach.
+    counts = {slot: bake_dynamic_array(addr, slot) for slot in array_slots}
+    if any(counts.values()):
+        summary = ", ".join(f"slot{s}={n} elems" for s, n in counts.items())
+        print(f"       + dynamic arrays: {summary}")
 
 
-def get_oracle_address() -> Optional[str]:
-    """Call rentPriceOracle() on ETH Registrar — it's an immutable, not in storage."""
+def cast_call_address(addr: str, sig: str) -> Optional[str]:
+    """`cast call addr 'sig()(address)'` → address, or None if zero/failed."""
     env = {**os.environ, "FOUNDRY_DISABLE_NIGHTLY_WARNING": "1"}
     result = subprocess.run(
-        ["cast", "call", ETH_REGISTRAR, "rentPriceOracle()(address)", "--rpc-url", RPC_URL],
+        ["cast", "call", addr, f"{sig}()(address)", "--rpc-url", RPC_URL],
         capture_output=True, text=True, env=env,
     )
-    addr = result.stdout.strip()
-    if addr and addr != "0x0000000000000000000000000000000000000000":
-        return addr
+    out = result.stdout.strip()
+    if out and out != "0x0000000000000000000000000000000000000000":
+        return out
     return None
+
+
+def get_oracle_address(registrar: str = ETH_REGISTRAR) -> Optional[str]:
+    """Read `rentPriceOracle()` on a registrar (public state var / getter)."""
+    return cast_call_address(registrar, "rentPriceOracle")
 
 
 def bake_ens_contracts():
@@ -354,6 +404,66 @@ def bake_ens_contracts():
     bake_code_only(USER_REGISTRY_IMPL, "UserRegistry Impl")
 
 
+def bake_standalone_hca():
+    """Bake the standalone-HCA deployment (manager's HCA registration flow).
+
+    The canonical 2026-07-30 Sepolia deployment, distinct from
+    bake_ens_contracts(): its own registrar, registry (PermissionedRegistry —
+    same `_roles@slot2` layout), resolver impl, factories, session validator,
+    reverse adapter, and Circle USDC. The shared Rhinestone modules (Intent
+    Executor, etc.) are baked separately and reused.
+    """
+    # ETH Registrar — code + storage; discover + bake its price oracle.
+    bake_with_storage(SH_ETH_REGISTRAR, "Standalone ETH Registrar")
+    sh_oracle = get_oracle_address(SH_ETH_REGISTRAR)
+    if sh_oracle:
+        # The standalone oracle prices in Circle USDC, so its ratio slot (not the
+        # MockUSDC/DAI ones) must be baked — at the canonical layout's slots.
+        bake_oracle(
+            sh_oracle,
+            payment_tokens=[(SH_USDC, "MockUSDC")],
+            ratios_slot=SH_PAYMENT_RATIOS_SLOT,
+            array_slots=SH_ORACLE_ARRAY_SLOTS,
+        )
+    else:
+        print("  ⚠  could not determine standalone oracle from rentPriceOracle()")
+
+    # ETH Registry (PermissionedRegistry) — nested _roles@slot2 (see the note in
+    # bake_ens_contracts): the registrar must hold ROLE_REGISTRAR at ROOT_RESOURCE.
+    role_slots = [
+        nested_mapping_slot(outer_key=hex(0), inner_key=SH_ETH_REGISTRAR, base_slot=2),
+        mapping_slot(hex(0), 3),  # _roleCount at the root resource
+    ]
+    bake_with_storage(SH_ETH_REGISTRY, "Standalone ETH Registry", extra_slots=role_slots)
+
+    # Reverse adapter — code + storage (trustedHCAImplementations mapping etc.).
+    bake_with_storage(SH_DEFAULT_REVERSE_HCA_ADAPTER, "DefaultReverseRegistrarAdapter")
+
+    # Session validator — code + storage; then bake the intent executor +
+    # gas-refund paymaster it points at (public immutables), discovered on-chain.
+    bake_with_storage(SH_HCA_OWNER_SESSION_VALIDATOR, "HCAOwnerAndSessionValidator")
+    intent_executor = cast_call_address(SH_HCA_OWNER_SESSION_VALIDATOR, "INTENT_EXECUTOR")
+    if intent_executor:
+        bake_code_only(intent_executor, "HCA Intent Executor (validator immutable)")
+    gas_refund_paymaster = cast_call_address(
+        SH_HCA_OWNER_SESSION_VALIDATOR, "GAS_REFUND_PAYMASTER"
+    )
+    if gas_refund_paymaster:
+        bake_code_only(gas_refund_paymaster, "HCA Gas Refund Paymaster (validator immutable)")
+
+    # Factories + impls — code only (logic; per-account storage lives in proxies).
+    bake_code_only(SH_STANDALONE_HCA_FACTORY,     "StandaloneHCAFactory")
+    bake_code_only(SH_STANDALONE_HCA_IMPL,        "StandaloneHCAImplementation")
+    bake_code_only(SH_VERIFIABLE_FACTORY,         "Standalone VerifiableFactory")
+    bake_code_only(SH_VERIFIABLE_PROXY_LOGIC,     "Standalone VerifiableFactory proxy logic")
+    bake_code_only(SH_PERMISSIONED_RESOLVER_IMPL, "Standalone PermissionedResolver impl")
+
+    # MockUSDC — payment token for the standalone route. Code +
+    # sequential storage; balances/allowances are minted per-account at
+    # fund-time (see fund scripts), so no mapping slots to copy here.
+    bake_with_storage(SH_USDC, "MockUSDC (standalone)")
+
+
 def bake_rhinestone_infrastructure():
     """Bake Safe/Rhinestone infrastructure needed for smart account execution."""
     # Core Safe contracts — code only (logic contracts, storage lives in each proxy)
@@ -393,6 +503,9 @@ for addr, label in ERC4337_CONTRACTS:
 
 print("\nENS contracts (code + storage):")
 bake_ens_contracts()
+
+print("\nStandalone-HCA deployment (code + storage):")
+bake_standalone_hca()
 
 print("\nSafe / Rhinestone infrastructure:")
 bake_rhinestone_infrastructure()

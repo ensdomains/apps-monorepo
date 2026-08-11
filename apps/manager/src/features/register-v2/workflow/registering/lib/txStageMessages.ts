@@ -85,7 +85,7 @@ export const getRegistrationStageMessages = (
       stageLabel: msg`Checking token allowance`,
       stageDescription: msg`Checking whether a payment approval is needed`,
     }))
-    .with({ stage: 'signingPermit' }, () => ({
+    .with({ stage: 'signingFundingPermit' }, () => ({
       stageLabel: msg`Approve payment`,
       stageDescription: msg`Sign the gasless payment approval in your wallet`,
     }))

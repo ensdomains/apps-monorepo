@@ -17,8 +17,8 @@
  */
 import {
   type Address,
-  type Hash,
   encodeFunctionData,
+  type Hash,
   keccak256,
   namehash,
   parseAbi,
@@ -52,12 +52,10 @@ export const V1_ENS_REGISTRY =
 // V2 Contract addresses — used by reserveInV2()
 // ---------------------------------------------------------------------------
 // ETH Registry (PermissionedRegistry for .eth)
-const V2_ETH_REGISTRY =
-  '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
+const V2_ETH_REGISTRY = '0x796fff2e907449be8d5921bcc215b1b76d89d080' as Address
 // ETH Registrar — has ROLE_REGISTRAR on V2_ETH_REGISTRY (baked by bake-contracts.py)
 // We impersonate it to create RESERVED entries for dynamically-created test names.
-const V2_ETH_REGISTRAR =
-  '0x68586418353b771cf2425ed14a07512aa880c532' as Address
+const V2_ETH_REGISTRAR = '0x68586418353b771cf2425ed14a07512aa880c532' as Address
 
 // ---------------------------------------------------------------------------
 // ABIs — struct-based V1 controller
@@ -122,9 +120,8 @@ const ANVIL_FUNDER = privateKeyToAccount(
   '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
 )
 
-const PARA_EOA_KEY =
-  (process.env.ANVIL_PARA_PRIVATE_KEY ??
-    '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
+const PARA_EOA_KEY = (process.env.ANVIL_PARA_PRIVATE_KEY ??
+  '0x4d1cf5e322e2a7dbfc9e3eccde100ed93167879de7449d18872911ed3a957a81') as `0x${string}`
 const PARA_EOA = privateKeyToAccount(PARA_EOA_KEY)
 
 // ---------------------------------------------------------------------------
@@ -187,7 +184,10 @@ export type V1NameConfig = {
  *
  * Silently succeeds if the slot is already RESERVED (idempotent guard).
  */
-export async function reserveInV2(label: string, v1Expiry: bigint): Promise<void> {
+export async function reserveInV2(
+  label: string,
+  v1Expiry: bigint,
+): Promise<void> {
   console.log(`[reserveInV2] reserving ${label}.eth in V2 (expiry=${v1Expiry})`)
 
   await testClient.impersonateAccount({ address: V2_ETH_REGISTRAR })
@@ -200,11 +200,11 @@ export async function reserveInV2(label: string, v1Expiry: bigint): Promise<void
         functionName: 'register',
         args: [
           label,
-          zeroAddress,   // owner = 0 → creates RESERVED (not REGISTERED)
-          zeroAddress,   // no subregistry yet
-          V1_PUBLIC_RESOLVER,  // fallback resolver for resolution during unmigrated state
-          0n,            // roleBitmap must be 0 when owner is zero
-          v1Expiry,      // sync V1 expiry into V2
+          zeroAddress, // owner = 0 → creates RESERVED (not REGISTERED)
+          zeroAddress, // no subregistry yet
+          V1_PUBLIC_RESOLVER, // fallback resolver for resolution during unmigrated state
+          0n, // roleBitmap must be 0 when owner is zero
+          v1Expiry, // sync V1 expiry into V2
         ],
       }),
     })
@@ -314,7 +314,9 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
         abi: V1_CONTROLLER_ABI,
         functionName: 'minCommitmentAge',
       })
-    } catch { /* default 0 */ }
+    } catch {
+      /* default 0 */
+    }
 
     if (minAge > 0n) {
       await testClient.increaseTime({ seconds: Number(minAge) + 1 })
@@ -358,7 +360,13 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     // ── 6. Wrap if requested ────────────────────────────────────────
     const nameType = config.type ?? 'unwrapped'
     if (nameType === 'wrapped' || nameType === 'locked') {
-      await wrapName(uniqueLabel, ownerAddress, ownerAccount, nameType, config.fuses)
+      await wrapName(
+        uniqueLabel,
+        ownerAddress,
+        ownerAccount,
+        nameType,
+        config.fuses,
+      )
     }
 
     // ── 7. Set V1 records if provided ──────────────────────────────
@@ -381,7 +389,9 @@ export function createMakeV1Name(deps: MakeV1NameDependencies = {}) {
     }
 
     const ethName = `${uniqueLabel}.eth`
-    console.log(`[makeV1Name] ✅ ${ethName} (type: ${nameType}, owner: ${ownerAddress})`)
+    console.log(
+      `[makeV1Name] ✅ ${ethName} (type: ${nameType}, owner: ${ownerAddress})`,
+    )
     return ethName
   }
 }
@@ -420,10 +430,12 @@ async function wrapName(
   // For wrapped: use additionalFuses directly (CANNOT_UNWRAP is NOT forced).
   const ownerFuses =
     nameType === 'locked'
-      ? (FUSES.CANNOT_UNWRAP | (additionalFuses ?? 0))
+      ? FUSES.CANNOT_UNWRAP | (additionalFuses ?? 0)
       : (additionalFuses ?? 0)
 
-  console.log(`[makeV1Name] wrapping ${label}.eth (fuses=0x${ownerFuses.toString(16)}, type=${nameType})`)
+  console.log(
+    `[makeV1Name] wrapping ${label}.eth (fuses=0x${ownerFuses.toString(16)}, type=${nameType})`,
+  )
 
   const wrapTx = await walletClient.sendTransaction({
     account: ownerAccount,

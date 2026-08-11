@@ -1,5 +1,10 @@
 {
-  "include": ["src/**/*.ts", "src/**/*.tsx", "env.d.ts", "../dev-dqa-overlay/env.d.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "env.d.ts",
+    "../dev-dqa-overlay/env.d.ts"
+  ],
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
