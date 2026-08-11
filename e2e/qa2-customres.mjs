@@ -6,9 +6,19 @@
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { namehash, parseAbi } from 'viem'
 import {
-  BASE, RPC, WALLET, client, launch, openMigrationPanel, seedName,
-  clearActiveNames, gotoMigrationAll, readSummary, runMigration,
-  readAppContracts, nonceOf,
+  BASE,
+  clearActiveNames,
+  client,
+  gotoMigrationAll,
+  launch,
+  nonceOf,
+  openMigrationPanel,
+  RPC,
+  readAppContracts,
+  readSummary,
+  runMigration,
+  seedName,
+  WALLET,
 } from './qa2-lib.mjs'
 
 const CUSTOM_RESOLVER = '0xC0FFEe0000000000000000000000000000000001'
@@ -26,7 +36,14 @@ const registryAbi = parseAbi([
 
 const readRecords = async (resolver, node) => {
   const call = (fn, args) =>
-    client.readContract({ address: resolver, abi: resolverReadAbi, functionName: fn, args }).catch((e) => `ERR:${String(e).slice(0, 60)}`)
+    client
+      .readContract({
+        address: resolver,
+        abi: resolverReadAbi,
+        functionName: fn,
+        args,
+      })
+      .catch((e) => `ERR:${String(e).slice(0, 60)}`)
   return {
     description: await call('text', [node, 'description']),
     ethAddr: await call('addr', [node, 60n]),
@@ -54,9 +71,14 @@ const runPreset = async (page, drawer, preset, out) => {
   // The dev panel writes V1_PUBLIC_RESOLVER into the V2 reservation slot of
   // every seeded name, so record the pre-migration value: without it, a
   // post-migration read of that same address proves nothing.
-  const v2ResolverBefore = await client.readContract({
-    address: contracts.ethRegistry, abi: registryAbi, functionName: 'getResolver', args: [label],
-  }).catch((e) => `ERR:${String(e).slice(0, 60)}`)
+  const v2ResolverBefore = await client
+    .readContract({
+      address: contracts.ethRegistry,
+      abi: registryAbi,
+      functionName: 'getResolver',
+      args: [label],
+    })
+    .catch((e) => `ERR:${String(e).slice(0, 60)}`)
   out.v2ResolverBeforeMigration = v2ResolverBefore
 
   const nonceBefore = await nonceOf()
@@ -70,23 +92,35 @@ const runPreset = async (page, drawer, preset, out) => {
   out.nonceDelta = (await nonceOf()) - nonceBefore
 
   // 2. what resolver did the V2 registry end up with?
-  out.v2ResolverAfterMigration = await client.readContract({
-    address: contracts.ethRegistry, abi: registryAbi, functionName: 'getResolver', args: [label],
-  }).catch((e) => `ERR:${String(e).slice(0, 80)}`)
+  out.v2ResolverAfterMigration = await client
+    .readContract({
+      address: contracts.ethRegistry,
+      abi: registryAbi,
+      functionName: 'getResolver',
+      args: [label],
+    })
+    .catch((e) => `ERR:${String(e).slice(0, 80)}`)
   // V2 resources are the canonical (version-masked) label id, not the namehash.
   const resource = labelToCanonicalId(label)
   out.v2Resource = String(resource)
-  {
-    out.v2Owner = await client.readContract({
-      address: contracts.ethRegistry, abi: registryAbi, functionName: 'getOwner',
+  out.v2Owner = await client
+    .readContract({
+      address: contracts.ethRegistry,
+      abi: registryAbi,
+      functionName: 'getOwner',
       args: [resource],
-    }).catch((e) => `ERR:${String(e).slice(0, 80)}`)
-  }
+    })
+    .catch((e) => `ERR:${String(e).slice(0, 80)}`)
 
   // 3. do the records still resolve through whatever resolver V2 points at?
-  out.resolverChangedByMigration = out.v2ResolverBeforeMigration !== out.v2ResolverAfterMigration
+  out.resolverChangedByMigration =
+    out.v2ResolverBeforeMigration !== out.v2ResolverAfterMigration
   const after = out.v2ResolverAfterMigration
-  if (typeof after === 'string' && after.startsWith('0x') && after.length === 42) {
+  if (
+    typeof after === 'string' &&
+    after.startsWith('0x') &&
+    after.length === 42
+  ) {
     out.recordsViaV2Resolver = await readRecords(after, node)
   }
   return out
@@ -117,4 +151,6 @@ try {
   await browser.close()
 }
 const out = results
-console.log(JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? String(v) : v), 2))
+console.log(
+  JSON.stringify(out, (_k, v) => (typeof v === 'bigint' ? String(v) : v), 2),
+)

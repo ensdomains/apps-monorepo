@@ -20,9 +20,27 @@ export const V1_BASE_REGISTRAR = '0x57f1887a8BF19b14fC0dF6Fd9B2acc9Af147eA85'
 export const V1_NAME_WRAPPER = '0x0635513f179D50A207757E05759CbD106d7dFcE8'
 
 const approvalAbi = [
-  { name: 'isApprovedForAll', type: 'function', stateMutability: 'view', inputs: [{ type: 'address' }, { type: 'address' }], outputs: [{ type: 'bool' }] },
-  { name: 'setApprovalForAll', type: 'function', stateMutability: 'nonpayable', inputs: [{ type: 'address' }, { type: 'bool' }], outputs: [] },
-  { name: 'getApproved', type: 'function', stateMutability: 'view', inputs: [{ type: 'uint256' }], outputs: [{ type: 'address' }] },
+  {
+    name: 'isApprovedForAll',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ type: 'address' }, { type: 'address' }],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    name: 'setApprovalForAll',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ type: 'address' }, { type: 'bool' }],
+    outputs: [],
+  },
+  {
+    name: 'getApproved',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ type: 'uint256' }],
+    outputs: [{ type: 'address' }],
+  },
 ]
 
 export const client = createPublicClient({ transport: http(RPC) })
@@ -48,7 +66,9 @@ export async function rpc(method, params = []) {
 /** Pull the live contract set + HCA address out of the app's own module. */
 export async function readAppContracts(page) {
   return page.evaluate(async (owner) => {
-    const m = await import('/@fs/Users/sg/ens/apps-monorepo/packages/smart-account/src/index.ts')
+    const m = await import(
+      '/@fs/Users/sg/ens/apps-monorepo/packages/smart-account/src/index.ts'
+    )
     return {
       contracts: m.getDestinationContracts(11155111),
       hca: m.computeStandaloneHcaAddress({ chainId: 11155111, owner }),
@@ -60,9 +80,26 @@ export async function readAppContracts(page) {
 export async function readChainState({ contracts, hca }) {
   const [code, baseReg, wrapper, ethReg, nonce] = await Promise.all([
     client.getCode({ address: hca }),
-    client.readContract({ address: V1_BASE_REGISTRAR, abi: approvalAbi, functionName: 'isApprovedForAll', args: [WALLET, contracts.migrationHelper] }),
-    client.readContract({ address: V1_NAME_WRAPPER, abi: approvalAbi, functionName: 'isApprovedForAll', args: [WALLET, contracts.migrationHelper] }),
-    client.readContract({ address: contracts.ethRegistry, abi: approvalAbi, functionName: 'isApprovedForAll', args: [WALLET, hca] }).catch(() => null),
+    client.readContract({
+      address: V1_BASE_REGISTRAR,
+      abi: approvalAbi,
+      functionName: 'isApprovedForAll',
+      args: [WALLET, contracts.migrationHelper],
+    }),
+    client.readContract({
+      address: V1_NAME_WRAPPER,
+      abi: approvalAbi,
+      functionName: 'isApprovedForAll',
+      args: [WALLET, contracts.migrationHelper],
+    }),
+    client
+      .readContract({
+        address: contracts.ethRegistry,
+        abi: approvalAbi,
+        functionName: 'isApprovedForAll',
+        args: [WALLET, hca],
+      })
+      .catch(() => null),
     client.getTransactionCount({ address: WALLET }),
   ])
   return {
@@ -79,20 +116,36 @@ export async function readChainState({ contracts, hca }) {
  *   N = D + A_base + A_wrap + A_reg + B + C
  * See pr-1017-test-plan-v2.md for the derivation.
  */
-export function predict({ state, unwrapped = 0, wrapped = 0, tokensAlreadyApproved = 0, requiresManagerRestoration = false, batches = 1 }) {
+export function predict({
+  state,
+  unwrapped = 0,
+  wrapped = 0,
+  tokensAlreadyApproved = 0,
+  requiresManagerRestoration = false,
+  batches = 1,
+}) {
   const rows = []
   if (!state.hcaDeployed) rows.push('deploy-hca')
 
   const missingTokens = Math.max(0, unwrapped - tokensAlreadyApproved)
-  if (unwrapped > 0 && !state.baseRegistrarApproved && (unwrapped === 0 || missingTokens > 0)) {
-    rows.push(missingTokens === 1 ? 'approve-token' : `approve-registrations(${unwrapped})`)
+  if (
+    unwrapped > 0 &&
+    !state.baseRegistrarApproved &&
+    (unwrapped === 0 || missingTokens > 0)
+  ) {
+    rows.push(
+      missingTokens === 1
+        ? 'approve-token'
+        : `approve-registrations(${unwrapped})`,
+    )
   }
   if (wrapped > 0 && !state.nameWrapperApproved) rows.push('approve-wrapped')
 
   const needsReg = requiresManagerRestoration && !state.ethRegistryApproved
   if (needsReg) rows.push('approve-manager-restoration')
 
-  for (let i = 0; i < batches; i++) rows.push(batches > 1 ? `upgrade-batch-${i + 1}/${batches}` : 'upgrade')
+  for (let i = 0; i < batches; i++)
+    rows.push(batches > 1 ? `upgrade-batch-${i + 1}/${batches}` : 'upgrade')
   if (needsReg) rows.push('cleanup-revoke')
 
   return { n: rows.length, rows }
@@ -104,10 +157,12 @@ export function classifyRow(text) {
   // so the per-token "Approve <name>" row is not mistaken for something else.
   const t = text.replace(/^\s*\d+\.\s*/, '').toLowerCase()
   if (t.includes('create migration account')) return 'deploy-hca'
-  if (/approve \d+ registration/.test(t)) return `approve-registrations(${/approve (\d+) registration/.exec(t)[1]})`
+  if (/approve \d+ registration/.test(t))
+    return `approve-registrations(${/approve (\d+) registration/.exec(t)[1]})`
   if (t.includes('approve registration')) return 'approve-registrations(?)'
   if (t.includes('approve wrapped names')) return 'approve-wrapped'
-  if (t.includes('approve manager restoration')) return 'approve-manager-restoration'
+  if (t.includes('approve manager restoration'))
+    return 'approve-manager-restoration'
   if (t.includes('revoke temporary hca access')) return 'cleanup-revoke'
   if (/upgrade batch (\d+) of (\d+)/.test(t)) {
     const m = /upgrade batch (\d+) of (\d+)/.exec(t)
@@ -120,11 +175,17 @@ export function classifyRow(text) {
 
 export async function launch({ headless = true } = {}) {
   const browser = await chromium.launch({ headless })
-  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } })
+  const ctx = await browser.newContext({
+    viewport: { width: 1600, height: 1000 },
+  })
   const page = await ctx.newPage()
   const logs = []
-  page.on('console', (m) => { if (m.type() === 'error') logs.push(`[err] ${m.text().slice(0, 300)}`) })
-  page.on('pageerror', (e) => logs.push(`[pageerror] ${String(e).slice(0, 300)}`))
+  page.on('console', (m) => {
+    if (m.type() === 'error') logs.push(`[err] ${m.text().slice(0, 300)}`)
+  })
+  page.on('pageerror', (e) =>
+    logs.push(`[pageerror] ${String(e).slice(0, 300)}`),
+  )
   return { browser, ctx, page, logs }
 }
 
@@ -142,7 +203,9 @@ export async function openMigrationPanel(page, { attempts = 4 } = {}) {
   for (let i = 0; i < attempts; i++) {
     try {
       await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' })
-      await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {})
+      await page
+        .waitForLoadState('networkidle', { timeout: 20000 })
+        .catch(() => {})
       await page.waitForTimeout(2500)
       await page.keyboard.press('Escape').catch(() => {})
 
@@ -153,7 +216,10 @@ export async function openMigrationPanel(page, { attempts = 4 } = {}) {
       }
       await drawer.waitFor({ state: 'visible', timeout: 20000 })
 
-      const tab = drawer.locator('button').filter({ hasText: 'Migration' }).first()
+      const tab = drawer
+        .locator('button')
+        .filter({ hasText: 'Migration' })
+        .first()
       await tab.waitFor({ state: 'visible', timeout: 20000 })
       await tab.click()
       // The panel is ready once the Migrate All control is rendered.
@@ -172,7 +238,10 @@ export async function openMigrationPanel(page, { attempts = 4 } = {}) {
 export const connectAndOpenDevtools = (page) => openMigrationPanel(page)
 
 export async function activeCount(drawer) {
-  const t = await drawer.getByRole('button', { name: /Migrate All \(\d+\)/ }).textContent().catch(() => null)
+  const t = await drawer
+    .getByRole('button', { name: /Migrate All \(\d+\)/ })
+    .textContent()
+    .catch(() => null)
   return t ? Number(/\((\d+)\)/.exec(t)?.[1] ?? 0) : 0
 }
 
@@ -182,10 +251,18 @@ export async function seedName(page, drawer, preset, timeoutMs = 150000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     await page.waitForTimeout(2000)
-    const err = await drawer.locator('text=/Failed to/').first().textContent().catch(() => null)
+    const err = await drawer
+      .locator('text=/Failed to/')
+      .first()
+      .textContent()
+      .catch(() => null)
     if (err) throw new Error(`seed "${preset}" failed: ${err}`)
     if ((await activeCount(drawer)) > before) {
-      const names = await drawer.locator('select').first().locator('option').allTextContents()
+      const names = await drawer
+        .locator('select')
+        .first()
+        .locator('option')
+        .allTextContents()
       return names.at(-1)
     }
   }
@@ -198,7 +275,10 @@ export async function clearActiveNames(page, drawer) {
     if ((await activeCount(drawer)) === 0) return
     const btn = drawer.locator('button[title="Remove selected"]')
     if (!(await btn.count())) return
-    await btn.first().click().catch(() => {})
+    await btn
+      .first()
+      .click()
+      .catch(() => {})
     await page.waitForTimeout(400)
   }
 }
@@ -216,7 +296,10 @@ export async function dismissVerifyModalAnywhere(page) {
     for (const label of [/Skip Anyway/i, /Skip for now/i]) {
       const b = page.locator('button').filter({ hasText: label })
       if (await b.count()) {
-        await b.first().click().catch(() => {})
+        await b
+          .first()
+          .click()
+          .catch(() => {})
         clicked = true
         await page.waitForTimeout(1200)
         break
@@ -229,13 +312,18 @@ export async function dismissVerifyModalAnywhere(page) {
 
 export async function dismissVerifyModal(page) {
   for (let i = 0; i < 8; i++) {
-    const visible = await page.getByRole('button', { name: /upgrade \d+ names?/i }).count()
+    const visible = await page
+      .getByRole('button', { name: /upgrade \d+ names?/i })
+      .count()
     if (visible > 0) return true
     let clicked = false
     for (const label of [/Skip Anyway/i, /Skip for now/i]) {
       const b = page.locator('button').filter({ hasText: label })
       if (await b.count()) {
-        await b.first().click().catch(() => {})
+        await b
+          .first()
+          .click()
+          .catch(() => {})
         clicked = true
         await page.waitForTimeout(1200)
         break
@@ -260,24 +348,34 @@ export async function readSummary(page) {
   return {
     body,
     fee: /Estimated network fee: ~([\d.]+) ETH/.exec(body)?.[1] ?? null,
-    confirmations: Number(/Expected: (\d+) wallet confirmation/.exec(body)?.[1] ?? NaN),
+    confirmations: Number(
+      /Expected: (\d+) wallet confirmation/.exec(body)?.[1] ?? NaN,
+    ),
     oneConfirmation: /Expected: one wallet confirmation/i.test(body),
     upgradeLabel: /upgrade \d+ names?/i.exec(body)?.[0] ?? null,
-    batchNote: /split into (\d+) gas-safe atomic batches/.exec(body)?.[1] ?? null,
+    batchNote:
+      /split into (\d+) gas-safe atomic batches/.exec(body)?.[1] ?? null,
     noEligible: /No eligible names found/i.test(body),
   }
 }
 
 export async function readStepsDialog(page) {
-  const trigger = page.getByRole('button', { name: /wallet confirmations?$/ }).first()
+  const trigger = page
+    .getByRole('button', { name: /wallet confirmations?$/ })
+    .first()
   if (!(await trigger.count())) return { steps: [], kinds: [], desc: null }
   await trigger.click()
   await page.waitForTimeout(1500)
   const dialog = page.getByRole('dialog')
   const items = await dialog.locator('li').all()
   const steps = []
-  for (const li of items) steps.push((await li.innerText()).replace(/\s+/g, ' ').trim())
-  const desc = await dialog.locator('p').first().innerText().catch(() => '')
+  for (const li of items)
+    steps.push((await li.innerText()).replace(/\s+/g, ' ').trim())
+  const desc = await dialog
+    .locator('p')
+    .first()
+    .innerText()
+    .catch(() => '')
   await page.keyboard.press('Escape')
   await page.waitForTimeout(700)
   return { steps, kinds: steps.map(classifyRow), desc }
@@ -285,15 +383,27 @@ export async function readStepsDialog(page) {
 
 /** Click the CTA and wait for terminal success or failure copy. */
 export async function runMigration(page, timeoutMs = 300000) {
-  await page.getByRole('button', { name: /upgrade \d+ names?/i }).first().click()
+  await page
+    .getByRole('button', { name: /upgrade \d+ names?/i })
+    .first()
+    .click()
   const deadline = Date.now() + timeoutMs
   let last = ''
   while (Date.now() < deadline) {
     await page.waitForTimeout(3000)
-    const body = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ')
+    const body = (
+      await page
+        .locator('body')
+        .innerText()
+        .catch(() => '')
+    ).replace(/\s+/g, ' ')
     last = body
-    if (/has been upgraded|have been upgraded|upgraded!/i.test(body)) return { ok: true, body }
-    if (/Gas estimate unavailable|Something went wrong|failed/i.test(body) && !/Estimating/i.test(body)) {
+    if (/has been upgraded|have been upgraded|upgraded!/i.test(body))
+      return { ok: true, body }
+    if (
+      /Gas estimate unavailable|Something went wrong|failed/i.test(body) &&
+      !/Estimating/i.test(body)
+    ) {
       return { ok: false, body }
     }
   }

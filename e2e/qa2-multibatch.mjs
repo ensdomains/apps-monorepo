@@ -33,8 +33,10 @@ try {
 
   const before = await H.readChainState(app)
   console.log('state before:', {
-    hca: before.hcaDeployed, base: before.baseRegistrarApproved,
-    wrap: before.nameWrapperApproved, reg: before.ethRegistryApproved,
+    hca: before.hcaDeployed,
+    base: before.baseRegistrarApproved,
+    wrap: before.nameWrapperApproved,
+    reg: before.ethRegistryApproved,
   })
 
   await H.gotoMigrationAll(page, drawer, 25000)
@@ -51,41 +53,69 @@ try {
   console.log('\nrendered    :', summary.confirmations, `fee=${summary.fee}`)
   console.log('batch note  :', summary.batchNote, '(footer)')
   console.log('batch rows  :', nBatches, batchRows)
-  dialog.steps.forEach((s, i) => console.log(`   ${i + 1}. ${s.slice(0, 84)}`))
+  dialog.steps.forEach((s, i) => {
+    console.log(`   ${i + 1}. ${s.slice(0, 84)}`)
+  })
 
   const expected = H.predict({
     state: before,
     unwrapped: active,
     batches: nBatches || 1,
   })
-  console.log('\n=== O1 (batch count taken from the render; the rest predicted) ===')
+  console.log(
+    '\n=== O1 (batch count taken from the render; the rest predicted) ===',
+  )
   console.log('predicted N :', expected.n, expected.rows)
   console.log('rendered  N :', summary.confirmations)
   console.log('count match :', summary.confirmations === expected.n)
-  console.log('rows match  :', JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows))
-  console.log('multi-batch :', nBatches > 1 ? `YES (${nBatches})` : `NO (${nBatches}) — need more names`)
-  console.log('footer note agrees with rows:', String(summary.batchNote ?? '') === String(nBatches > 1 ? nBatches : ''))
+  console.log(
+    'rows match  :',
+    JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows),
+  )
+  console.log(
+    'multi-batch :',
+    nBatches > 1 ? `YES (${nBatches})` : `NO (${nBatches}) — need more names`,
+  )
+  console.log(
+    'footer note agrees with rows:',
+    String(summary.batchNote ?? '') === String(nBatches > 1 ? nBatches : ''),
+  )
 
   if (nBatches > 1) {
     const nb = await H.nonceOf()
     const r = await H.runMigration(page, 900000)
     const na = await H.nonceOf()
-    console.log('\nmigration   :', r.ok ? 'SUCCESS' : 'FAIL', r.timedOut ? '(timeout)' : '')
+    console.log(
+      '\nmigration   :',
+      r.ok ? 'SUCCESS' : 'FAIL',
+      r.timedOut ? '(timeout)' : '',
+    )
     if (!r.ok) console.log('body tail:', r.body.slice(-900))
-    console.log(`O2 nonce    : ${nb} -> ${na} = ${na - nb} (predicted ${expected.n})`)
+    console.log(
+      `O2 nonce    : ${nb} -> ${na} = ${na - nb} (predicted ${expected.n})`,
+    )
     const after = await H.readChainState(app)
     console.log('state after :', {
-      hca: after.hcaDeployed, base: after.baseRegistrarApproved,
-      wrap: after.nameWrapperApproved, reg: after.ethRegistryApproved,
+      hca: after.hcaDeployed,
+      base: after.baseRegistrarApproved,
+      wrap: after.nameWrapperApproved,
+      reg: after.ethRegistryApproved,
     })
   } else {
-    console.log('\nSkipping the run: only one batch, so this does not exercise G1.')
+    console.log(
+      '\nSkipping the run: only one batch, so this does not exercise G1.',
+    )
   }
 
-  if (logs.length) console.log(`\nconsole errors (${logs.length}):\n` + logs.slice(0, 6).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}):\n` + logs.slice(0, 6).join('\n'),
+    )
 } catch (e) {
   console.error('FAILED:', e.message)
-  await page.screenshot({ path: '/tmp/qa2-multibatch-fail.png' }).catch(() => {})
+  await page
+    .screenshot({ path: '/tmp/qa2-multibatch-fail.png' })
+    .catch(() => {})
   process.exitCode = 1
 } finally {
   await browser.close()

@@ -11,7 +11,13 @@ import { encodeFunctionData } from 'viem'
 import * as H from './qa2-lib.mjs'
 
 const setApprovalAbi = [
-  { name: 'setApprovalForAll', type: 'function', stateMutability: 'nonpayable', inputs: [{ type: 'address' }, { type: 'bool' }], outputs: [] },
+  {
+    name: 'setApprovalForAll',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ type: 'address' }, { type: 'bool' }],
+    outputs: [],
+  },
 ]
 
 const mode = process.argv[2] === 'M2' ? 'M2' : 'M1'
@@ -26,8 +32,14 @@ try {
     // approval AND its cleanup should both disappear from the plan.
     console.log('M2 setup: granting ETHRegistry -> HCA before the run')
     await H.rpc('anvil_impersonateAccount', [H.WALLET])
-    const data = encodeFunctionData({ abi: setApprovalAbi, functionName: 'setApprovalForAll', args: [app.hca, true] })
-    const hash = await H.rpc('eth_sendTransaction', [{ from: H.WALLET, to: app.contracts.ethRegistry, data }])
+    const data = encodeFunctionData({
+      abi: setApprovalAbi,
+      functionName: 'setApprovalForAll',
+      args: [app.hca, true],
+    })
+    const hash = await H.rpc('eth_sendTransaction', [
+      { from: H.WALLET, to: app.contracts.ethRegistry, data },
+    ])
     await H.client.waitForTransactionReceipt({ hash })
     await H.rpc('anvil_stopImpersonatingAccount', [H.WALLET])
   }
@@ -38,8 +50,10 @@ try {
 
   const before = await H.readChainState(app)
   console.log('state before:', {
-    hca: before.hcaDeployed, base: before.baseRegistrarApproved,
-    wrap: before.nameWrapperApproved, reg: before.ethRegistryApproved,
+    hca: before.hcaDeployed,
+    base: before.baseRegistrarApproved,
+    wrap: before.nameWrapperApproved,
+    reg: before.ethRegistryApproved,
   })
 
   const expected = H.predict({
@@ -53,34 +67,61 @@ try {
   const summary = await H.readSummary(page)
   const dialog = await H.readStepsDialog(page)
   console.log('\nrendered    :', summary.confirmations, `fee=${summary.fee}`)
-  dialog.steps.forEach((s, i) => console.log(`   ${i + 1}. ${s.slice(0, 88)}`))
+  dialog.steps.forEach((s, i) => {
+    console.log(`   ${i + 1}. ${s.slice(0, 88)}`)
+  })
   console.log('rendered rows:', dialog.kinds)
 
   console.log('\n=== O1 ===')
-  console.log('count match :', summary.confirmations === expected.n, `(${summary.confirmations} vs ${expected.n})`)
-  console.log('rows match  :', JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows))
+  console.log(
+    'count match :',
+    summary.confirmations === expected.n,
+    `(${summary.confirmations} vs ${expected.n})`,
+  )
+  console.log(
+    'rows match  :',
+    JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows),
+  )
   const hasApprove = dialog.kinds.includes('approve-manager-restoration')
   const hasRevoke = dialog.kinds.includes('cleanup-revoke')
   console.log('has "Approve manager restoration":', hasApprove)
   console.log('has "Revoke temporary HCA access":', hasRevoke)
-  console.log('=> manager restoration costs', (hasApprove ? 1 : 0) + (hasRevoke ? 1 : 0), 'confirmations (PR body claims 1)')
+  console.log(
+    '=> manager restoration costs',
+    (hasApprove ? 1 : 0) + (hasRevoke ? 1 : 0),
+    'confirmations (PR body claims 1)',
+  )
 
   const nonceBefore = await H.nonceOf()
   const result = await H.runMigration(page)
   const nonceAfter = await H.nonceOf()
-  console.log('\nmigration   :', result.ok ? 'SUCCESS' : 'FAIL', result.timedOut ? '(timeout)' : '')
+  console.log(
+    '\nmigration   :',
+    result.ok ? 'SUCCESS' : 'FAIL',
+    result.timedOut ? '(timeout)' : '',
+  )
   if (!result.ok) console.log('body tail:', result.body.slice(-800))
-  console.log(`O2 nonce    : ${nonceBefore} -> ${nonceAfter} = ${nonceAfter - nonceBefore} (predicted ${expected.n})`)
+  console.log(
+    `O2 nonce    : ${nonceBefore} -> ${nonceAfter} = ${nonceAfter - nonceBefore} (predicted ${expected.n})`,
+  )
 
   const after = await H.readChainState(app)
   console.log('\nstate after :', {
-    hca: after.hcaDeployed, base: after.baseRegistrarApproved,
-    wrap: after.nameWrapperApproved, reg: after.ethRegistryApproved,
+    hca: after.hcaDeployed,
+    base: after.baseRegistrarApproved,
+    wrap: after.nameWrapperApproved,
+    reg: after.ethRegistryApproved,
   })
-  console.log('post-condition — ETHRegistry approval revoked:', before.ethRegistryApproved || hasApprove ? after.ethRegistryApproved === false : 'n/a',
-    `(after=${after.ethRegistryApproved})`)
+  console.log(
+    'post-condition — ETHRegistry approval revoked:',
+    before.ethRegistryApproved || hasApprove
+      ? after.ethRegistryApproved === false
+      : 'n/a',
+    `(after=${after.ethRegistryApproved})`,
+  )
 
-  if (logs.length) console.log('\nconsole errors:\n' + logs.slice(0, 6).join('\n'))
+  if (logs.length)
+    console.log('\nconsole errors:\n' + logs.slice(0, 6).join('\n'))
 } catch (e) {
   console.error('\nFAILED:', e.message)
   await page.screenshot({ path: `/tmp/qa2-${mode}-fail.png` }).catch(() => {})

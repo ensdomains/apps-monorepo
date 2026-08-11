@@ -16,8 +16,13 @@ try {
   await H.gotoMigrationAll(page, drawer)
   let s = await H.readSummary(page)
   const pressed = await page.locator('button[aria-pressed="true"]').count()
-  console.log('\nbefore: label=%s fee=%s confirmations=%s aria-pressed=true count=%d',
-    s.upgradeLabel, s.fee, s.confirmations, pressed)
+  console.log(
+    '\nbefore: label=%s fee=%s confirmations=%s aria-pressed=true count=%d',
+    s.upgradeLabel,
+    s.fee,
+    s.confirmations,
+    pressed,
+  )
 
   // 1) deselect a single row -> count and fee must both track down
   const rows = page.locator('button[aria-pressed="true"]')
@@ -25,10 +30,16 @@ try {
     await rows.first().click()
     await page.waitForTimeout(6000)
     s = await H.readSummary(page)
-    console.log('after 1 deselect: label=%s fee=%s confirmations=%s',
-      s.upgradeLabel, s.fee, s.confirmations)
-    console.log('  partial-selection warning shown:',
-      /Upgrade all names to receive NFT/i.test(s.body))
+    console.log(
+      'after 1 deselect: label=%s fee=%s confirmations=%s',
+      s.upgradeLabel,
+      s.fee,
+      s.confirmations,
+    )
+    console.log(
+      '  partial-selection warning shown:',
+      /Upgrade all names to receive NFT/i.test(s.body),
+    )
   }
 
   // 2) deselect all -> CTA disabled, fee line gone
@@ -58,12 +69,15 @@ try {
   console.log('  fee line gone    :', s.fee === null, `(fee=${s.fee})`)
   console.log('  confirmations gone:', Number.isNaN(s.confirmations))
   console.log('  rows still pressed:', stillPressed)
-  console.log('\nE5 verdict:',
+  console.log(
+    '\nE5 verdict:',
     /upgrade 0 names/i.test(s.upgradeLabel ?? '') && disabled && s.fee === null
       ? 'PASS'
-      : 'FAIL')
+      : 'FAIL',
+  )
 
-  if (logs.length) console.log('\nconsole errors:\n' + logs.slice(0, 5).join('\n'))
+  if (logs.length)
+    console.log('\nconsole errors:\n' + logs.slice(0, 5).join('\n'))
 } catch (e) {
   console.error('FAILED:', e.message)
   await page.screenshot({ path: '/tmp/qa2-e5-fail.png' }).catch(() => {})

@@ -14,7 +14,8 @@ const RPC = 'http://127.0.0.1:8545'
 const V1_REGISTRY = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e'
 const RESOLVERS = {
   'recognised (record presets)': '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD',
-  'unrecognised (custom-res preset)': '0x179A862703a4adfb29896552DF9e307980D19285',
+  'unrecognised (custom-res preset)':
+    '0x179A862703a4adfb29896552DF9e307980D19285',
   'older panel resolver': '0xE99638b40E4Fff0129D56f03b55b6bbC4BBE49b5',
 }
 const TEXT_KEYS = ['description', 'com.twitter']
@@ -61,12 +62,13 @@ console.log(`${name}\n  namehash: ${node}\n`)
 
 // Which resolver does the V1 registry point at?
 const resRaw = await call(V1_REGISTRY, `0x0178b8bf${node.slice(2)}`)
-const v1Resolver =
-  resRaw && resRaw !== '0x' ? `0x${resRaw.slice(26)}` : null
+const v1Resolver = resRaw && resRaw !== '0x' ? `0x${resRaw.slice(26)}` : null
 const known = Object.entries(RESOLVERS).find(
   ([, a]) => a.toLowerCase() === (v1Resolver ?? '').toLowerCase(),
 )
-console.log(`V1 registry resolver: ${v1Resolver ?? '(none set)'}${known ? `  <- ${known[0]}` : v1Resolver ? '  <- unknown to this script' : ''}`)
+console.log(
+  `V1 registry resolver: ${v1Resolver ?? '(none set)'}${known ? `  <- ${known[0]}` : v1Resolver ? '  <- unknown to this script' : ''}`,
+)
 
 if (!v1Resolver || /^0x0+$/.test(v1Resolver)) {
   console.log('\nNo V1 resolver -> this name genuinely has no records.')

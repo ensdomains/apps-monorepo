@@ -31,17 +31,26 @@ try {
 
   const dialog = await H.readStepsDialog(page)
   console.log('dialog rows:', dialog.kinds)
-  dialog.steps.forEach((s, i) => console.log(`  ${i + 1}. ${s.slice(0, 90)}`))
+  dialog.steps.forEach((s, i) => {
+    console.log(`  ${i + 1}. ${s.slice(0, 90)}`)
+  })
 
   console.log('\n=== O1 verdict ===')
   console.log('predicted N   :', expected.n)
   console.log('rendered N    :', summary.confirmations)
-  console.log('rows match    :', JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows))
+  console.log(
+    'rows match    :',
+    JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows),
+  )
   console.log('  predicted rows:', expected.rows)
   console.log('  rendered  rows:', dialog.kinds)
 
   const result = await H.runMigration(page)
-  console.log('\nmigration ok  :', result.ok, result.timedOut ? '(TIMED OUT)' : '')
+  console.log(
+    '\nmigration ok  :',
+    result.ok,
+    result.timedOut ? '(TIMED OUT)' : '',
+  )
   if (!result.ok) console.log('body tail:', result.body.slice(-700))
 
   const after = await H.readChainState(app)
@@ -50,12 +59,20 @@ try {
   console.log('\n=== O2 verdict (nonce delta === confirmations) ===')
   console.log('nonce before  :', before.nonce)
   console.log('nonce after   :', after.nonce)
-  console.log('delta         :', after.nonce - before.nonce, 'vs predicted', expected.n)
+  console.log(
+    'delta         :',
+    after.nonce - before.nonce,
+    'vs predicted',
+    expected.n,
+  )
 
-  if (logs.length) console.log('\nconsole errors:\n' + logs.slice(0, 12).join('\n'))
+  if (logs.length)
+    console.log('\nconsole errors:\n' + logs.slice(0, 12).join('\n'))
 } catch (e) {
   console.error('\nFAILED:', e.message)
-  await page.screenshot({ path: '/tmp/qa2-a1-fail.png', fullPage: false }).catch(() => {})
+  await page
+    .screenshot({ path: '/tmp/qa2-a1-fail.png', fullPage: false })
+    .catch(() => {})
   console.error('screenshot: /tmp/qa2-a1-fail.png')
   if (logs.length) console.error('console:\n' + logs.slice(0, 12).join('\n'))
   process.exitCode = 1

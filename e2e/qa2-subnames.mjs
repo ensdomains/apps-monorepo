@@ -11,7 +11,13 @@ import { namehash } from 'viem/ens'
 import * as H from './qa2-lib.mjs'
 
 const ownerOf1155 = [
-  { name: 'ownerOf', type: 'function', stateMutability: 'view', inputs: [{ type: 'uint256' }], outputs: [{ type: 'address' }] },
+  {
+    name: 'ownerOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ type: 'uint256' }],
+    outputs: [{ type: 'address' }],
+  },
 ]
 
 const { browser, page, logs } = await H.launch({ headless: true })
@@ -34,15 +40,25 @@ try {
     })
     .catch((e) => `ERR ${String(e).slice(0, 60)}`)
   console.log('child on-chain owner (NameWrapper):', childOwner)
-  console.log('  == wallet?', String(childOwner).toLowerCase() === H.WALLET.toLowerCase())
+  console.log(
+    '  == wallet?',
+    String(childOwner).toLowerCase() === H.WALLET.toLowerCase(),
+  )
 
   await H.gotoMigrationAll(page, drawer)
   const summary = await H.readSummary(page)
   const body = summary.body
 
   // What names does the selection step actually list?
-  const listed = [...new Set([...body.matchAll(/([a-z0-9-]+\.)?dev\d{3,5}\.eth/gi)].map((m) => m[0]))]
-  console.log('\nnames listed on /migration:', listed.length ? listed.join(', ') : '(none matched)')
+  const listed = [
+    ...new Set(
+      [...body.matchAll(/([a-z0-9-]+\.)?dev\d{3,5}\.eth/gi)].map((m) => m[0]),
+    ),
+  ]
+  console.log(
+    '\nnames listed on /migration:',
+    listed.length ? listed.join(', ') : '(none matched)',
+  )
   console.log('CTA                        :', summary.upgradeLabel)
   console.log('child listed?              :', body.includes(`sub-${parent}`))
   console.log('parent listed?             :', body.includes(parent))
@@ -52,14 +68,23 @@ try {
 
   console.log('\n=== conclusion ===')
   if (!body.includes(`sub-${parent}`)) {
-    console.log('The emancipated CHILD is NOT offered for migration — only the parent 2LD.')
-    console.log('=> subname migration, descendant WrapperRegistry routing and parent-first')
-    console.log('   hierarchy ordering are ALL untested; the tooling cannot reach them.')
+    console.log(
+      'The emancipated CHILD is NOT offered for migration — only the parent 2LD.',
+    )
+    console.log(
+      '=> subname migration, descendant WrapperRegistry routing and parent-first',
+    )
+    console.log(
+      '   hierarchy ordering are ALL untested; the tooling cannot reach them.',
+    )
   } else {
     console.log('Child IS offered — hierarchy scenarios are reachable.')
   }
 
-  if (logs.length) console.log(`\nconsole errors (${logs.length}):\n` + logs.slice(0, 3).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}):\n` + logs.slice(0, 3).join('\n'),
+    )
 } catch (e) {
   console.error('FAILED:', e.message)
   process.exitCode = 1

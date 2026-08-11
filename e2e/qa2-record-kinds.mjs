@@ -15,8 +15,20 @@ const preset = process.argv[2] ?? 'Records'
 const V1_RESOLVER = '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD'
 
 const registryAbi = [
-  { name: 'getResolver', type: 'function', stateMutability: 'view', inputs: [{ name: 'label', type: 'string' }], outputs: [{ type: 'address' }] },
-  { name: 'getSubregistry', type: 'function', stateMutability: 'view', inputs: [{ name: 'label', type: 'string' }], outputs: [{ type: 'address' }] },
+  {
+    name: 'getResolver',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'label', type: 'string' }],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    name: 'getSubregistry',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'label', type: 'string' }],
+    outputs: [{ type: 'address' }],
+  },
 ]
 
 const { browser, page, logs } = await H.launch({ headless: true })
@@ -59,12 +71,19 @@ try {
     if (!res.ok) throw new Error('migration failed; coverage inconclusive')
 
     const v2Resolver = await H.client
-      .readContract({ address: app.contracts.ethRegistry, abi: registryAbi, functionName: 'getResolver', args: [label] })
+      .readContract({
+        address: app.contracts.ethRegistry,
+        abi: registryAbi,
+        functionName: 'getResolver',
+        args: [label],
+      })
       .catch((e) => `ERR ${String(e).slice(0, 60)}`)
     console.log('V2 resolver:', v2Resolver)
 
     const after = await probe(namehash(parentName), v2Resolver, true)
-    console.log(`\n${'='.repeat(64)}\nRECORD-KIND COVERAGE — ${parentName}\n${'='.repeat(64)}`)
+    console.log(
+      `\n${'='.repeat(64)}\nRECORD-KIND COVERAGE — ${parentName}\n${'='.repeat(64)}`,
+    )
     console.log('| kind | in Profile? | on V1 | on V2 | outcome |')
     console.log('|------|-------------|-------|-------|---------|')
     let surprises = 0
@@ -75,15 +94,21 @@ try {
       const outcome = carried ? 'CARRIED' : 'LOST'
       const flag = carried === expected ? '' : '  <-- UNEXPECTED'
       if (carried !== expected) surprises++
-      console.log(`| ${b.kind.padEnd(16)} | ${String(expected).padEnd(11)} | yes | ${carried ? 'yes' : 'no '} | ${outcome}${flag} |`)
+      console.log(
+        `| ${b.kind.padEnd(16)} | ${String(expected).padEnd(11)} | yes | ${carried ? 'yes' : 'no '} | ${outcome}${flag} |`,
+      )
     }
     console.log(
       surprises === 0
         ? '\nAll kinds behaved as the Profile type predicts: texts + coin addresses carried, everything else lost.'
         : `\n${surprises} kind(s) did NOT match the prediction — see UNEXPECTED above.`,
     )
-    const lost = before.filter((b) => !after.find((x) => x.kind === b.kind)?.present).map((b) => b.kind)
-    console.log(`\nData lost by migration: ${lost.length ? lost.join(', ') : 'none'}`)
+    const lost = before
+      .filter((b) => !after.find((x) => x.kind === b.kind)?.present)
+      .map((b) => b.kind)
+    console.log(
+      `\nData lost by migration: ${lost.length ? lost.join(', ') : 'none'}`,
+    )
   }
   if (logs.length) console.log(`\nconsole errors: ${logs.length}`)
 } catch (e) {

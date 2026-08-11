@@ -28,8 +28,10 @@ try {
 
   const before = await H.readChainState(app)
   console.log('state before:', {
-    hca: before.hcaDeployed, base: before.baseRegistrarApproved,
-    wrap: before.nameWrapperApproved, reg: before.ethRegistryApproved,
+    hca: before.hcaDeployed,
+    base: before.baseRegistrarApproved,
+    wrap: before.nameWrapperApproved,
+    reg: before.ethRegistryApproved,
   })
 
   await H.gotoMigrationAll(page, drawer, 40000)
@@ -46,29 +48,55 @@ try {
   console.log('\nrendered N  :', summary.confirmations, `fee=${summary.fee}`)
   console.log('footer note :', summary.batchNote)
   console.log('batch rows  :', nBatches, batchRows.slice(0, 8))
-  dialog.steps.slice(0, 10).forEach((s, i) => console.log(`   ${i + 1}. ${s.slice(0, 80)}`))
+  dialog.steps.slice(0, 10).forEach((s, i) => {
+    console.log(`   ${i + 1}. ${s.slice(0, 80)}`)
+  })
 
-  const expected = H.predict({ state: before, unwrapped: have, batches: nBatches || 1 })
+  const expected = H.predict({
+    state: before,
+    unwrapped: have,
+    batches: nBatches || 1,
+  })
   console.log('\n=== O1 ===')
   console.log('predicted N :', expected.n, expected.rows.slice(0, 8))
   console.log('count match :', summary.confirmations === expected.n)
-  console.log('rows match  :', JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows))
-  console.log('multi-batch :', nBatches > 1 ? `YES (${nBatches})` : `NO (${nBatches})`)
-  console.log('footer n === batch-row n:', String(summary.batchNote ?? '') === String(nBatches > 1 ? nBatches : ''))
+  console.log(
+    'rows match  :',
+    JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows),
+  )
+  console.log(
+    'multi-batch :',
+    nBatches > 1 ? `YES (${nBatches})` : `NO (${nBatches})`,
+  )
+  console.log(
+    'footer n === batch-row n:',
+    String(summary.batchNote ?? '') === String(nBatches > 1 ? nBatches : ''),
+  )
 
   if (nBatches > 1) {
     const nb = await H.nonceOf()
     const r = await H.runMigration(page, 1500000)
     const na = await H.nonceOf()
-    console.log('\nmigration   :', r.ok ? 'SUCCESS' : 'FAIL', r.timedOut ? '(timeout)' : '')
+    console.log(
+      '\nmigration   :',
+      r.ok ? 'SUCCESS' : 'FAIL',
+      r.timedOut ? '(timeout)' : '',
+    )
     if (!r.ok) console.log('body tail:', r.body.slice(-1000))
-    console.log(`O2 nonce    : ${nb} -> ${na} = ${na - nb} (predicted ${expected.n})`)
+    console.log(
+      `O2 nonce    : ${nb} -> ${na} = ${na - nb} (predicted ${expected.n})`,
+    )
     console.log('O2 match    :', na - nb === expected.n)
   } else {
-    console.log(`\nStill one batch at ${have} names — fee ${summary.fee} ETH. Not exercising G1.`)
+    console.log(
+      `\nStill one batch at ${have} names — fee ${summary.fee} ETH. Not exercising G1.`,
+    )
   }
 
-  if (logs.length) console.log(`\nconsole errors (${logs.length}):\n` + logs.slice(0, 5).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}):\n` + logs.slice(0, 5).join('\n'),
+    )
 } catch (e) {
   console.error('FAILED:', e.message)
   await page.screenshot({ path: '/tmp/qa2-g1-fail.png' }).catch(() => {})

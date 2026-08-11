@@ -13,8 +13,7 @@ const V1_RECORD_RESOLVER = '0x8FADE66B79cC9f707aB26799354482EB93a5B7dD'
 const EXPECTED_CH =
   '0xe3010170122029f2d17be6139079dc48696d1f582a8530eb9805b561eda517e22a892c7e3f1f'
 
-const contenthashCalldata = (node) =>
-  `0xbc1c58d1${node.slice(2)}` // contenthash(bytes32)
+const contenthashCalldata = (node) => `0xbc1c58d1${node.slice(2)}` // contenthash(bytes32)
 
 const readContenthash = async (resolver, node) => {
   const raw = await H.rpc('eth_call', [
@@ -55,7 +54,9 @@ try {
   console.log('V1 resolver contenthash:', v1Ch)
   console.log('matches fixture        :', v1Ch === EXPECTED_CH)
   if (v1Ch !== EXPECTED_CH) {
-    console.log('Fixture did not land — aborting, this would not be a valid test.')
+    console.log(
+      'Fixture did not land — aborting, this would not be a valid test.',
+    )
     process.exitCode = 1
   } else {
     await H.gotoMigrationAll(page, drawer)
@@ -93,7 +94,10 @@ try {
     await H.dismissVerifyModalAnywhere(page)
     await page.waitForTimeout(10000)
     const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-    console.log('\nprofile shows description :', body.includes('QA migration fixture'))
+    console.log(
+      '\nprofile shows description :',
+      body.includes('QA migration fixture'),
+    )
     console.log('profile shows eth address :', body.includes('0x7099'))
   }
   if (logs.length) console.log(`\nconsole errors: ${logs.length}`)

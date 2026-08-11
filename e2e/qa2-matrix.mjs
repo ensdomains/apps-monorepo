@@ -8,14 +8,55 @@
 import * as H from './qa2-lib.mjs'
 
 const SCENARIOS = [
-  { id: 'A1', presets: ['Unwrapped'], unwrapped: 1, note: 'fresh HCA, no approvals' },
-  { id: 'A2', presets: ['Unwrapped'], unwrapped: 1, note: 'per-token consumed by A1 -> must ask again' },
-  { id: 'A3', presets: ['Unwrapped', 'Unwrapped'], unwrapped: 2, note: '2 missing tokens -> operator form' },
-  { id: 'A4', presets: ['Unwrapped'], unwrapped: 1, note: 'operator approval persists -> no approval row' },
-  { id: 'A5', presets: ['Wrapped'], wrapped: 1, note: 'NameWrapper operator absent' },
-  { id: 'A6', presets: ['Locked'], wrapped: 1, note: 'NameWrapper operator persists' },
-  { id: 'A7', presets: ['Wrapped', 'Unwrapped'], unwrapped: 1, wrapped: 1, note: 'both operators persist' },
-  { id: 'A8', presets: ['Emancipated'], wrapped: 1, note: 'locked child with PCC' },
+  {
+    id: 'A1',
+    presets: ['Unwrapped'],
+    unwrapped: 1,
+    note: 'fresh HCA, no approvals',
+  },
+  {
+    id: 'A2',
+    presets: ['Unwrapped'],
+    unwrapped: 1,
+    note: 'per-token consumed by A1 -> must ask again',
+  },
+  {
+    id: 'A3',
+    presets: ['Unwrapped', 'Unwrapped'],
+    unwrapped: 2,
+    note: '2 missing tokens -> operator form',
+  },
+  {
+    id: 'A4',
+    presets: ['Unwrapped'],
+    unwrapped: 1,
+    note: 'operator approval persists -> no approval row',
+  },
+  {
+    id: 'A5',
+    presets: ['Wrapped'],
+    wrapped: 1,
+    note: 'NameWrapper operator absent',
+  },
+  {
+    id: 'A6',
+    presets: ['Locked'],
+    wrapped: 1,
+    note: 'NameWrapper operator persists',
+  },
+  {
+    id: 'A7',
+    presets: ['Wrapped', 'Unwrapped'],
+    unwrapped: 1,
+    wrapped: 1,
+    note: 'both operators persist',
+  },
+  {
+    id: 'A8',
+    presets: ['Emancipated'],
+    wrapped: 1,
+    note: 'locked child with PCC',
+  },
 ]
 
 const results = []
@@ -28,7 +69,9 @@ try {
   console.log('MigrationHelper:', app.contracts.migrationHelper)
 
   for (const sc of SCENARIOS) {
-    console.log(`\n${'='.repeat(72)}\n${sc.id} — ${sc.presets.join(' + ')} — ${sc.note}\n${'='.repeat(72)}`)
+    console.log(
+      `\n${'='.repeat(72)}\n${sc.id} — ${sc.presets.join(' + ')} — ${sc.note}\n${'='.repeat(72)}`,
+    )
     const row = { id: sc.id, note: sc.note }
     try {
       const d = await H.openMigrationPanel(page)
@@ -41,8 +84,10 @@ try {
       // State read AFTER seeding so the O1 inputs and the O2 baseline agree.
       const before = await H.readChainState(app)
       console.log('state before:', {
-        hca: before.hcaDeployed, base: before.baseRegistrarApproved,
-        wrap: before.nameWrapperApproved, reg: before.ethRegistryApproved,
+        hca: before.hcaDeployed,
+        base: before.baseRegistrarApproved,
+        wrap: before.nameWrapperApproved,
+        reg: before.ethRegistryApproved,
       })
 
       const expected = H.predict({
@@ -61,11 +106,19 @@ try {
       row.renderedRows = dialog.kinds
       row.fee = summary.fee
       row.batchNote = summary.batchNote
-      console.log('rendered    :', summary.confirmations, dialog.kinds, `fee=${summary.fee}`)
-      dialog.steps.forEach((s, i) => console.log(`   ${i + 1}. ${s.slice(0, 84)}`))
+      console.log(
+        'rendered    :',
+        summary.confirmations,
+        dialog.kinds,
+        `fee=${summary.fee}`,
+      )
+      dialog.steps.forEach((s, i) => {
+        console.log(`   ${i + 1}. ${s.slice(0, 84)}`)
+      })
 
       row.countMatch = summary.confirmations === expected.n
-      row.rowsMatch = JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows)
+      row.rowsMatch =
+        JSON.stringify(dialog.kinds) === JSON.stringify(expected.rows)
 
       const nonceBefore = await H.nonceOf()
       const result = await H.runMigration(page)
@@ -73,23 +126,31 @@ try {
       row.ok = result.ok
       row.nonceDelta = nonceAfter - nonceBefore
       row.o2Match = row.nonceDelta === expected.n
-      console.log(`migration   : ${result.ok ? 'SUCCESS' : 'FAIL'}${result.timedOut ? ' (timeout)' : ''}`)
+      console.log(
+        `migration   : ${result.ok ? 'SUCCESS' : 'FAIL'}${result.timedOut ? ' (timeout)' : ''}`,
+      )
       if (!result.ok) {
         row.failTail = result.body.slice(-500)
         console.log('body tail   :', row.failTail)
       }
-      console.log(`O2 nonce    : ${nonceBefore} -> ${nonceAfter} = ${row.nonceDelta} (predicted ${expected.n})`)
+      console.log(
+        `O2 nonce    : ${nonceBefore} -> ${nonceAfter} = ${row.nonceDelta} (predicted ${expected.n})`,
+      )
 
       const after = await H.readChainState(app)
       row.after = {
-        hca: after.hcaDeployed, base: after.baseRegistrarApproved,
-        wrap: after.nameWrapperApproved, reg: after.ethRegistryApproved,
+        hca: after.hcaDeployed,
+        base: after.baseRegistrarApproved,
+        wrap: after.nameWrapperApproved,
+        reg: after.ethRegistryApproved,
       }
       console.log('state after :', row.after)
     } catch (e) {
       row.error = e.message
       console.log('ERROR:', e.message)
-      await page.screenshot({ path: `/tmp/qa2-${sc.id}-fail.png` }).catch(() => {})
+      await page
+        .screenshot({ path: `/tmp/qa2-${sc.id}-fail.png` })
+        .catch(() => {})
     }
     results.push(row)
   }
@@ -104,10 +165,16 @@ try {
   }
   for (const r of results) {
     if (!r.rowsMatch && !r.error) {
-      console.log(`\n${r.id} row diff:\n  predicted ${JSON.stringify(r.predictedRows)}\n  rendered  ${JSON.stringify(r.renderedRows)}`)
+      console.log(
+        `\n${r.id} row diff:\n  predicted ${JSON.stringify(r.predictedRows)}\n  rendered  ${JSON.stringify(r.renderedRows)}`,
+      )
     }
   }
-  if (logs.length) console.log(`\nconsole errors (${logs.length}), first 5:\n` + logs.slice(0, 5).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}), first 5:\n` +
+        logs.slice(0, 5).join('\n'),
+    )
 } finally {
   await browser.close()
 }
