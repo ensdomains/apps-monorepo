@@ -78,7 +78,11 @@ try {
     const nb = await H.nonceOf()
     const r = await H.runMigration(page)
     const na = await H.nonceOf()
-    console.log('E2 migration:', r.ok ? 'SUCCESS' : 'FAIL', `nonceDelta=${na - nb}`)
+    console.log(
+      'E2 migration:',
+      r.ok ? 'SUCCESS' : 'FAIL',
+      `nonceDelta=${na - nb}`,
+    )
     out.at(-1).migrated = r.ok
   } else {
     // Was it dropped silently, or does the page explain why?
@@ -116,13 +120,17 @@ try {
     upgradeLabel: s.upgradeLabel,
     ctaDisabled: disabledNow,
     feeGone: s.fee === null,
-    verdict: deselected === 0 ? 'NO-CHECKBOXES' : disabledNow ? 'PASS' : 'CHECK',
+    verdict:
+      deselected === 0 ? 'NO-CHECKBOXES' : disabledNow ? 'PASS' : 'CHECK',
   })
   console.log('E5:', JSON.stringify(out.at(-1), null, 1))
 
   console.log('\n=== EDGE SUMMARY ===')
   for (const r of out) console.log(`${r.id}: ${r.verdict} — ${r.case}`)
-  if (logs.length) console.log(`\nconsole errors (${logs.length}):\n` + logs.slice(0, 6).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}):\n` + logs.slice(0, 6).join('\n'),
+    )
 } catch (e) {
   console.error('FAILED:', e.message)
   await page.screenshot({ path: '/tmp/qa2-edge-fail.png' }).catch(() => {})

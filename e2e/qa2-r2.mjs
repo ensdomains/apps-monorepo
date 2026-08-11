@@ -23,7 +23,12 @@ try {
 
   const dialog = page.locator('div[role="dialog"]')
   console.log('dialog open        :', (await dialog.count()) > 0)
-  const dtext = (await dialog.first().innerText().catch(() => '')).replace(/\s+/g, ' ')
+  const dtext = (
+    await dialog
+      .first()
+      .innerText()
+      .catch(() => '')
+  ).replace(/\s+/g, ' ')
   console.log('dialog head        :', dtext.slice(0, 220))
 
   // Use the free-text Description textarea. A generic "first input" pick lands
@@ -39,32 +44,62 @@ try {
   }
 
   const buttons = await dialog.locator('button').allTextContents()
-  console.log('dialog buttons     :', buttons.map((b) => b.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' | '))
+  console.log(
+    'dialog buttons     :',
+    buttons
+      .map((b) => b.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .join(' | '),
+  )
 
-  const save = dialog.locator('button').filter({ hasText: /save|confirm|update/i })
+  const save = dialog
+    .locator('button')
+    .filter({ hasText: /save|confirm|update/i })
   if (!(await save.count())) {
     console.log('\nNo save control found — cannot exercise the resolver path.')
   } else {
-    const disabled = await save.first().isDisabled().catch(() => null)
+    const disabled = await save
+      .first()
+      .isDisabled()
+      .catch(() => null)
     console.log('save disabled      :', disabled)
-    await save.first().click().catch(() => {})
+    await save
+      .first()
+      .click()
+      .catch(() => {})
     await page.waitForTimeout(30000)
     const after = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-    const moduleErr = /Cannot find module|is not a function|undefined is not a function|ensureOwnedPermRes/i.test(after)
-    const crashed = /Something went wrong|Unexpected Application Error/i.test(after)
+    const moduleErr =
+      /Cannot find module|is not a function|undefined is not a function|ensureOwnedPermRes/i.test(
+        after,
+      )
+    const crashed = /Something went wrong|Unexpected Application Error/i.test(
+      after,
+    )
     const resolverPrompt = /resolver|permission|set up/i.test(after)
     console.log('\n=== R2 result ===')
     console.log('module/runtime error:', moduleErr)
     console.log('app crashed        :', crashed)
     console.log('resolver-setup copy:', resolverPrompt)
-    console.log('verdict            :', !moduleErr && !crashed ? 'PASS' : 'FAIL')
+    console.log(
+      'verdict            :',
+      !moduleErr && !crashed ? 'PASS' : 'FAIL',
+    )
     console.log('body tail          :', after.slice(-420))
   }
 
-  const relevant = logs.filter((l) => /permRes|resolver|module|not a function|VERIFIABLE|DEPLOY_BLOCK/i.test(l))
-  console.log(`\nconsole errors: ${logs.length} total, ${relevant.length} resolver-related`)
-  relevant.slice(0, 6).forEach((l) => console.log('  ', l))
-  logs.slice(0, 4).forEach((l) => console.log('  any:', l))
+  const relevant = logs.filter((l) =>
+    /permRes|resolver|module|not a function|VERIFIABLE|DEPLOY_BLOCK/i.test(l),
+  )
+  console.log(
+    `\nconsole errors: ${logs.length} total, ${relevant.length} resolver-related`,
+  )
+  relevant.slice(0, 6).forEach((l) => {
+    console.log('  ', l)
+  })
+  logs.slice(0, 4).forEach((l) => {
+    console.log('  any:', l)
+  })
 } catch (e) {
   console.error('FAILED:', e.message)
   await page.screenshot({ path: '/tmp/qa2-r2-fail.png' }).catch(() => {})

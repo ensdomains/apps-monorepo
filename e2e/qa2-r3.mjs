@@ -21,12 +21,21 @@ try {
   const expected = H.predict({ state: before, unwrapped: 1 })
   await H.gotoMigrationAll(page, drawer)
   const summary = await H.readSummary(page)
-  console.log('predicted N:', expected.n, '| rendered N:', summary.confirmations)
+  console.log(
+    'predicted N:',
+    expected.n,
+    '| rendered N:',
+    summary.confirmations,
+  )
 
   const nb = await H.nonceOf()
   const r = await H.runMigration(page)
   const na = await H.nonceOf()
-  console.log('migration  :', r.ok ? 'SUCCESS' : 'FAIL', `nonceDelta=${na - nb} (predicted ${expected.n})`)
+  console.log(
+    'migration  :',
+    r.ok ? 'SUCCESS' : 'FAIL',
+    `nonceDelta=${na - nb} (predicted ${expected.n})`,
+  )
   if (!r.ok) throw new Error('migration did not succeed; R3 inconclusive')
 
   // Give the indexer time to catch the block up at the head.
@@ -46,10 +55,14 @@ try {
       console.log('  ', ctx)
       break
     }
-    if (i === 8) console.log('\nR3 FAIL/UNVERIFIED — name never appeared on the dashboard')
+    if (i === 8)
+      console.log('\nR3 FAIL/UNVERIFIED — name never appeared on the dashboard')
   }
 
-  if (logs.length) console.log(`\nconsole errors (${logs.length}):\n` + logs.slice(0, 4).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}):\n` + logs.slice(0, 4).join('\n'),
+    )
 } catch (e) {
   console.error('FAILED:', e.message)
   await page.screenshot({ path: '/tmp/qa2-r3-fail.png' }).catch(() => {})

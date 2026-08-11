@@ -16,8 +16,20 @@ const EXPECTED =
   '0xe3010170122029f2d17be6139079dc48696d1f582a8530eb9805b561eda517e22a892c7e3f1f'
 
 const registryAbi = [
-  { name: 'getResolver', type: 'function', stateMutability: 'view', inputs: [{ name: 'label', type: 'string' }], outputs: [{ type: 'address' }] },
-  { name: 'getSubregistry', type: 'function', stateMutability: 'view', inputs: [{ name: 'label', type: 'string' }], outputs: [{ type: 'address' }] },
+  {
+    name: 'getResolver',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'label', type: 'string' }],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    name: 'getSubregistry',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'label', type: 'string' }],
+    outputs: [{ type: 'address' }],
+  },
 ]
 
 const decodeBytes = (raw) => {
@@ -47,7 +59,9 @@ try {
 
   console.log('\n--- BEFORE (V1 resolver) ---')
   for (const n of [parentName, childName]) {
-    console.log(`  ${n}: ${(await readCh(V1_RESOLVER, namehash(n))) === EXPECTED ? 'contenthash present' : 'MISSING'}`)
+    console.log(
+      `  ${n}: ${(await readCh(V1_RESOLVER, namehash(n))) === EXPECTED ? 'contenthash present' : 'MISSING'}`,
+    )
   }
 
   await H.gotoMigrationAll(page, drawer, 20000)
@@ -57,28 +71,55 @@ try {
 
   const read = (address, fn, arg) =>
     H.client
-      .readContract({ address, abi: registryAbi, functionName: fn, args: [arg] })
+      .readContract({
+        address,
+        abi: registryAbi,
+        functionName: fn,
+        args: [arg],
+      })
       .catch((e) => `ERR ${String(e).slice(0, 70)}`)
 
   console.log('\n--- AFTER (V2) ---')
-  const parentResolver = await read(app.contracts.ethRegistry, 'getResolver', label)
+  const parentResolver = await read(
+    app.contracts.ethRegistry,
+    'getResolver',
+    label,
+  )
   console.log('parent V2 resolver   :', parentResolver)
   if (typeof parentResolver === 'string' && parentResolver.startsWith('0x')) {
     const ch = await readCh(parentResolver, namehash(parentName))
-    console.log(`parent contenthash   : ${ch ?? 'null'}  -> ${ch === EXPECTED ? 'CARRIED' : 'LOST'}`)
+    console.log(
+      `parent contenthash   : ${ch ?? 'null'}  -> ${ch === EXPECTED ? 'CARRIED' : 'LOST'}`,
+    )
   }
 
-  const wrapperRegistry = await read(app.contracts.ethRegistry, 'getSubregistry', label)
-  console.log('\nparent subregistry   :', wrapperRegistry, '(WrapperRegistry for descendants)')
-  if (typeof wrapperRegistry === 'string' && wrapperRegistry.startsWith('0x') && !/^0x0+$/.test(wrapperRegistry)) {
+  const wrapperRegistry = await read(
+    app.contracts.ethRegistry,
+    'getSubregistry',
+    label,
+  )
+  console.log(
+    '\nparent subregistry   :',
+    wrapperRegistry,
+    '(WrapperRegistry for descendants)',
+  )
+  if (
+    typeof wrapperRegistry === 'string' &&
+    wrapperRegistry.startsWith('0x') &&
+    !/^0x0+$/.test(wrapperRegistry)
+  ) {
     const childResolver = await read(wrapperRegistry, 'getResolver', childLabel)
     console.log('child V2 resolver    :', childResolver)
     if (typeof childResolver === 'string' && childResolver.startsWith('0x')) {
       const ch = await readCh(childResolver, namehash(childName))
-      console.log(`child contenthash    : ${ch ?? 'null'}  -> ${ch === EXPECTED ? 'CARRIED' : 'LOST'}`)
+      console.log(
+        `child contenthash    : ${ch ?? 'null'}  -> ${ch === EXPECTED ? 'CARRIED' : 'LOST'}`,
+      )
     }
   } else {
-    console.log('  no WrapperRegistry resolved — descendant routing did not create one?')
+    console.log(
+      '  no WrapperRegistry resolved — descendant routing did not create one?',
+    )
   }
 
   // Sanity: the text record should have survived on both, so "LOST" is specific.
@@ -87,7 +128,10 @@ try {
   await H.dismissVerifyModalAnywhere(page)
   await page.waitForTimeout(10000)
   const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ')
-  console.log('\nchild profile shows description:', body.includes('QA migration fixture'))
+  console.log(
+    '\nchild profile shows description:',
+    body.includes('QA migration fixture'),
+  )
 
   if (logs.length) console.log(`\nconsole errors: ${logs.length}`)
 } catch (e) {

@@ -15,8 +15,7 @@ const EXPECTED =
 const TEXT_KEY = 'description'
 const TEXT_VAL = 'QA migration fixture'
 
-const call = async (to, data) =>
-  H.rpc('eth_call', [{ to, data }, 'latest'])
+const call = async (to, data) => H.rpc('eth_call', [{ to, data }, 'latest'])
 
 const decodeBytes = (raw) => {
   if (!raw || raw === '0x') return null
@@ -60,7 +59,10 @@ try {
     const label = (seeded ?? '').split(' ')[0].replace('.eth', '')
     const targets = [{ what: 'parent (2LD)', name: `${label}.eth` }]
     if (preset === 'Subname+Rec')
-      targets.push({ what: 'child (subname)', name: `sub-${label}.${label}.eth` })
+      targets.push({
+        what: 'child (subname)',
+        name: `sub-${label}.${label}.eth`,
+      })
 
     console.log('seeded:', seeded)
     for (const t of targets) {
@@ -68,8 +70,12 @@ try {
       const ch = decodeBytes(await call(RESOLVER, chData(node)))
       const tx = decodeStr(await call(RESOLVER, textData(node)))
       console.log(`\n  ${t.what} — ${t.name}`)
-      console.log(`    text "${TEXT_KEY}" : ${JSON.stringify(tx)} ${tx === TEXT_VAL ? 'OK' : 'MISSING'}`)
-      console.log(`    contenthash       : ${ch ? `${ch.slice(0, 26)}…` : 'null'} ${ch === EXPECTED ? 'OK' : 'MISSING'}`)
+      console.log(
+        `    text "${TEXT_KEY}" : ${JSON.stringify(tx)} ${tx === TEXT_VAL ? 'OK' : 'MISSING'}`,
+      )
+      console.log(
+        `    contenthash       : ${ch ? `${ch.slice(0, 26)}…` : 'null'} ${ch === EXPECTED ? 'OK' : 'MISSING'}`,
+      )
     }
   }
   if (logs.length) console.log(`\nconsole errors: ${logs.length}`)

@@ -67,16 +67,26 @@ try {
 
   const txs = []
   for (let b = blockBefore; b <= blockAfter; b++) {
-    const blk = await H.rpc('eth_getBlockByNumber', [`0x${b.toString(16)}`, true])
+    const blk = await H.rpc('eth_getBlockByNumber', [
+      `0x${b.toString(16)}`,
+      true,
+    ])
     for (const tx of blk?.transactions ?? []) {
       if ((tx.from ?? '').toLowerCase() !== H.WALLET.toLowerCase()) continue
       const sel = (tx.input ?? '').slice(0, 10)
-      txs.push({ nonce: Number.parseInt(tx.nonce, 16), block: b, to: tx.to, sel, name: SEL[sel] ?? sel })
+      txs.push({
+        nonce: Number.parseInt(tx.nonce, 16),
+        block: b,
+        to: tx.to,
+        sel,
+        name: SEL[sel] ?? sel,
+      })
     }
   }
   txs.sort((a, b) => a.nonce - b.nonce)
   console.log('\nwallet transactions in the run window:')
-  for (const t of txs) console.log(`  nonce ${t.nonce} block ${t.block} to ${t.to}  ${t.name}`)
+  for (const t of txs)
+    console.log(`  nonce ${t.nonce} block ${t.block} to ${t.to}  ${t.name}`)
 
   console.log('\nHCA bytecode by block:')
   let firstCodeBlock = null
@@ -90,17 +100,24 @@ try {
   if (firstCodeBlock === null) console.log('  never became non-empty (!)')
   else {
     const inBlock = txs.filter((t) => t.block === firstCodeBlock)
-    console.log(`  wallet tx(s) in that block: ${inBlock.map((t) => `${t.name}@${t.nonce}`).join(', ') || 'none'}`)
+    console.log(
+      `  wallet tx(s) in that block: ${inBlock.map((t) => `${t.name}@${t.nonce}`).join(', ') || 'none'}`,
+    )
   }
 
   console.log('\n=== verdict ===')
   console.log(`rendered confirmations : ${summary.confirmations}`)
   console.log(`actual wallet txs      : ${txs.length}`)
-  console.log(txs.length === summary.confirmations
-    ? 'O2 holds for D=1 — deployment IS its own transaction'
-    : `O2 does NOT hold literally for D=1 — ${summary.confirmations} rows vs ${txs.length} txs`)
+  console.log(
+    txs.length === summary.confirmations
+      ? 'O2 holds for D=1 — deployment IS its own transaction'
+      : `O2 does NOT hold literally for D=1 — ${summary.confirmations} rows vs ${txs.length} txs`,
+  )
 
-  if (logs.length) console.log(`\nconsole errors (${logs.length}):\n` + logs.slice(0, 4).join('\n'))
+  if (logs.length)
+    console.log(
+      `\nconsole errors (${logs.length}):\n` + logs.slice(0, 4).join('\n'),
+    )
 } catch (e) {
   console.error('FAILED:', e.message)
   process.exitCode = 1

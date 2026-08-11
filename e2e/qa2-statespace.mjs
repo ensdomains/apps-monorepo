@@ -107,7 +107,10 @@ try {
       console.log('injected   :', out.injected.join(', '))
       console.log('classified :', JSON.stringify(out.classified))
       console.log('ineligible :', JSON.stringify(out.ineligible))
-      console.log('DROPPED    :', dropped.length ? dropped.join(', ') : '(none)')
+      console.log(
+        'DROPPED    :',
+        dropped.length ? dropped.join(', ') : '(none)',
+      )
 
       const tokenOk =
         JSON.stringify([...row.classified].sort()) ===
@@ -118,19 +121,26 @@ try {
       const childDropOk =
         c.expect.childDropped === undefined
           ? true
-          : dropped.some((n) => n.startsWith('sub-')) ===
-            c.expect.childDropped
+          : dropped.some((n) => n.startsWith('sub-')) === c.expect.childDropped
       const stratOk = c.expect.strategy
         ? row.strategies.includes(c.expect.strategy)
         : true
 
       row.pass = tokenOk && reasonOk && childDropOk && stratOk
-      console.log(`\nexpected classified: ${JSON.stringify(c.expect.classified)}  -> ${tokenOk ? 'OK' : 'MISMATCH'}`)
-      console.log(`expected ineligible: ${JSON.stringify(c.expect.ineligible)}  -> ${reasonOk ? 'OK' : 'MISMATCH'}`)
+      console.log(
+        `\nexpected classified: ${JSON.stringify(c.expect.classified)}  -> ${tokenOk ? 'OK' : 'MISMATCH'}`,
+      )
+      console.log(
+        `expected ineligible: ${JSON.stringify(c.expect.ineligible)}  -> ${reasonOk ? 'OK' : 'MISMATCH'}`,
+      )
       if (c.expect.childDropped !== undefined)
-        console.log(`expected child silently dropped: ${c.expect.childDropped} -> ${childDropOk ? 'OK' : 'MISMATCH'}`)
+        console.log(
+          `expected child silently dropped: ${c.expect.childDropped} -> ${childDropOk ? 'OK' : 'MISMATCH'}`,
+        )
       if (c.expect.strategy)
-        console.log(`expected strategy ${c.expect.strategy} -> ${stratOk ? 'OK' : 'MISMATCH'} (${row.strategies.join(',')})`)
+        console.log(
+          `expected strategy ${c.expect.strategy} -> ${stratOk ? 'OK' : 'MISMATCH'} (${row.strategies.join(',')})`,
+        )
       console.log(`VERDICT: ${row.pass ? 'PASS' : 'FAIL'}`)
 
       // What the UI offers, for the record.
@@ -138,7 +148,9 @@ try {
       const s = await H.readSummary(page)
       row.cta = s.upgradeLabel
       row.noEligible = s.noEligible
-      console.log(`UI: cta=${s.cta ?? s.upgradeLabel} noEligible=${s.noEligible}`)
+      console.log(
+        `UI: cta=${s.cta ?? s.upgradeLabel} noEligible=${s.noEligible}`,
+      )
     } catch (e) {
       row.error = e.message
       console.log('ERROR:', e.message)
@@ -147,8 +159,12 @@ try {
   }
 
   console.log(`\n\n${'#'.repeat(72)}\nSUMMARY\n${'#'.repeat(72)}`)
-  console.log('| id | preset | classified | ineligible | dropped | cta | verdict |')
-  console.log('|----|--------|-----------|-----------|---------|-----|---------|')
+  console.log(
+    '| id | preset | classified | ineligible | dropped | cta | verdict |',
+  )
+  console.log(
+    '|----|--------|-----------|-----------|---------|-----|---------|',
+  )
   for (const r of results) {
     console.log(
       `| ${r.id} | ${r.preset} | ${JSON.stringify(r.classified ?? [])} | ${JSON.stringify(r.ineligible ?? [])} | ${(r.dropped ?? []).length} | ${r.cta ?? '-'} | ${r.error ? 'ERR' : r.pass ? 'PASS' : 'FAIL'} |`,
