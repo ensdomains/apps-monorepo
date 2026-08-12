@@ -4,7 +4,13 @@ import { createQueryKey } from '@ens-apps/utils/tanstack-query/queryKey'
 import { type ClientError, gql } from 'graphql-request'
 import { fromPromise, ok } from 'neverthrow'
 import type { Address, Hex } from 'viem'
+import { namehash, normalize } from 'viem/ens'
+import { getBlockTimestamps } from '@/features/profile/hooks/useBlockTimestamps'
 import { graphqlIndexerClient } from '@/lib/indexer'
+import { safeGetClient } from '@/lib/wagmi/helpers'
+import { truncateToTransactions } from '../truncateToTransactions'
+import { adaptV1Events } from '../v1/adaptV1Events'
+import { fetchV1NameHistory } from '../v1/fetchV1NameHistory'
 
 /**
  * Widened per-name history query for the timeline.
@@ -13,6 +19,11 @@ import { graphqlIndexerClient } from '@/lib/indexer'
  * this selects the emitting `contractAddress`, the raw `data` blob, and every typed
  * `as*` decoder the indexer exposes — everything the summarize engine needs to build
  * human-readable action labels and decoded-param detail views.
+ *
+ * Events are read from BOTH protocols and merged: the v2 indexer has no `domains`
+ * row at all for a name that never migrated, so a v1-only name would otherwise
+ * render an empty timeline. v1 events are normalized to this same shape by
+ * `v1/adaptV1Events.ts`.
  *
  * TODO(indexer): add `from` (tx sender) to `Event` so the "by {actor}" / "initiated by"
  * lines are first-class instead of RPC-backfilled (see useTransactionSenders).
@@ -26,10 +37,19 @@ class GetNameHistoryTimelineError extends TaggedError(
   cause: ClientError
 }> {}
 
+/**
+ * On-chain integer params. The v2 indexer sends these as JSON numbers, but v1
+ * values are adapted from subgraph strings and must not round-trip through
+ * `Number` — a uint64 expiry or uint256 coin type exceeds
+ * `Number.MAX_SAFE_INTEGER`. Nothing does arithmetic on them; they are
+ * stringified for the decoded-param table, which handles either.
+ */
+type OnChainInt = number | bigint | null
+
 export type TimelineDecoded = {
   readonly asAddressChanged?: {
     address?: string | null
-    coinType?: number | null
+    coinType?: OnChainInt
     resolver?: string | null
     namehash?: string | null
   } | null
@@ -57,7 +77,7 @@ export type TimelineDecoded = {
     tokenId?: string | null
     sender?: string | null
     canonicalId?: string | null
-    expiry?: number | null
+    expiry?: OnChainInt
   } | null
   readonly asNameRegistered?: {
     name?: string | null
@@ -67,11 +87,11 @@ export type TimelineDecoded = {
     baseCost?: string | null
     premium?: string | null
     referrer?: string | null
-    expires?: number | null
+    expires?: OnChainInt
   } | null
   readonly asNameRenewed?: {
     id?: string | null
-    expires?: number | null
+    expires?: OnChainInt
   } | null
   readonly asResolverUpdated?: {
     resolver?: string | null
@@ -85,18 +105,18 @@ export type TimelineDecoded = {
   readonly asNameWrapped?: {
     node?: string | null
     owner?: string | null
-    fuses?: number | null
-    expiry?: number | null
+    fuses?: OnChainInt
+    expiry?: OnChainInt
   } | null
   readonly asNameUnwrapped?: {
     node?: string | null
     owner?: string | null
   } | null
-  readonly asFusesSet?: { node?: string | null; fuses?: number | null } | null
+  readonly asFusesSet?: { node?: string | null; fuses?: OnChainInt } | null
   readonly asExpiryUpdated?: {
     node?: string | null
     tokenId?: string | null
-    expiry?: number | null
+    expiry?: OnChainInt
   } | null
 }
 
@@ -123,6 +143,8 @@ type GetNameHistoryTimelineParameters = {
 }
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
+
+export const V1_PROTOCOL = 'v1'
 
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
 
@@ -169,15 +191,69 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   first = HISTORY_TIMELINE_PAGE_SIZE,
   orderDirection = 'desc',
 }: GetNameHistoryTimelineParameters) {
-  const { domains } = yield* fromPromise(
-    graphqlIndexerClient.request<{ domains: DomainWithEvents[] }>(
-      HISTORY_TIMELINE_QUERY,
-      { name: name.toLowerCase(), first, orderDirection },
-    ),
+  const client = yield* safeGetClient()
+  const normalizedName = (() => {
+    try {
+      return normalize(name)
+    } catch {
+      return name.toLowerCase()
+    }
+  })()
+  const node = namehash(normalizedName)
+
+  // Each source returns `[]` for a name the other owns, so an empty result is
+  // normal and only a genuine failure rejects — same all-or-nothing behaviour
+  // the page had before the timeline.
+  const [v2Events, v1Raw] = yield* fromPromise(
+    Promise.all([
+      graphqlIndexerClient
+        .request<{ domains: DomainWithEvents[] }>(HISTORY_TIMELINE_QUERY, {
+          name: normalizedName,
+          first,
+          orderDirection,
+        })
+        .then(({ domains }) => domains[0]?.events ?? []),
+      fetchV1NameHistory({
+        subgraphUrl: client.chain.subgraphs.ens.url,
+        namehash: node,
+        first,
+        orderDirection,
+      }),
+    ]),
     (e) => new GetNameHistoryTimelineError({ cause: e as ClientError }),
   )
 
-  return ok(domains[0]?.events ?? [])
+  // v1 events carry no timestamp; the timeline sorts and dates on one.
+  const blockTimestamps = yield* getBlockTimestamps({
+    blocks: v1Raw.map((event) => BigInt(event.blockNumber)),
+  })
+
+  const v1Events = adaptV1Events({
+    events: v1Raw,
+    blockTimestamps,
+    name: normalizedName,
+    namehash: node,
+    // Static chain constants, not lookups — the v1 subgraph records no
+    // emitting address, so the contract badge is reconstructed from these.
+    contracts: {
+      registry: client.chain.contracts.ensRegistry.address,
+      nameWrapper: client.chain.contracts.ensNameWrapper.address,
+      baseRegistrar:
+        client.chain.contracts.ensBaseRegistrarImplementation.address,
+    },
+  })
+
+  // `first` bounds each source's query independently — one v2 collection plus
+  // one v1 collection per registry / registrar / resolver-the-name-ever-used —
+  // so the merge can hold several times it. Truncation happens on
+  // transaction boundaries because `summarizeEvents` groups by transaction: a
+  // half-included transaction would be summarized from a subset of its events.
+  return ok(
+    truncateToTransactions(
+      [...v2Events, ...v1Events].sort((a, b) => b.timestamp - a.timestamp),
+      first,
+    ),
+  )
 })
 
 const getNameHistoryTimelineQueryKey = createQueryKey<

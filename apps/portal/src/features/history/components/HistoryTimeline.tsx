@@ -122,7 +122,7 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
         <div className="relative [--detail-indent:48px] [--rail-x:12px] [--tier2-indent:30px] sm:[--detail-indent:224px] sm:[--rail-x:151px] sm:[--tier2-indent:182px]">
           {events && events.length >= HISTORY_TIMELINE_PAGE_SIZE && (
             <p className="mb-3 text-muted-foreground text-sm">
-              Showing the most recent {HISTORY_TIMELINE_PAGE_SIZE} events.
+              Showing the most recent {events.length} events.
             </p>
           )}
           <span
