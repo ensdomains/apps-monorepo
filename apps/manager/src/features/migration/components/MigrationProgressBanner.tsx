@@ -4,8 +4,10 @@ import { GrainOverlay } from '@/features/migration/components/GrainOverlay'
 import { useEligibleV1Names } from '@/features/migration/hooks/useEligibleV1Names'
 import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNamesCount'
 import { useSmartAccountContext } from '@/lib/smart-account'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 export const MigrationProgressBanner = () => {
+  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
   const navigate = useNavigate()
   const { isConnected } = useSmartAccountContext()
   const { eligible: eligibleV1Names, isPending: isV1Pending } =
@@ -53,10 +55,14 @@ export const MigrationProgressBanner = () => {
               <Trans>You're almost there!</Trans>
             </h2>
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
-              <Trans>
-                Complete upgrade and receive a collectible marking your place in
-                ENS history.
-              </Trans>
+              {nftCopyEnabled ? (
+                <Trans>
+                  Complete upgrade and receive a collectible marking your place
+                  in ENS history.
+                </Trans>
+              ) : (
+                <Trans>Complete upgrade to unlock your new ENS profile.</Trans>
+              )}
             </p>
           </div>
           <button
