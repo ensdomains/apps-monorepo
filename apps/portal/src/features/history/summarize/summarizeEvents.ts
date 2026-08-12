@@ -40,6 +40,10 @@ const TYPE_RANK: Record<string, number> = {
  * transaction that both registers a name and seeds its records is one "Register
  * name", not "Set 5 records". Deliberately above `ResolverUpdated` (60) — "set
  * the resolver and write records" is still best headlined by the records.
+ *
+ * This is protocol-agnostic on purpose: v2 registrations that seed records in
+ * the same transaction headline as "Register name" too, which is the label
+ * those rows should have had all along.
  */
 const STRUCTURAL_RANK = 70
 
@@ -102,15 +106,22 @@ const describeGroup = (
   group: readonly TimelineIndexerEvent[],
   byRank: readonly TimelineIndexerEvent[],
 ): Pick<Action, 'icon' | 'label' | 'slots'> => {
-  if (rankOf(byRank[0]) < STRUCTURAL_RANK) {
+  const built = byRank.flatMap((primary) => {
+    const descriptor = DESCRIPTORS[primary.type]
+    const result = descriptor?.build(primary)
+    return result
+      ? [{ primary, ...result, icon: result.icon ?? descriptor.icon }]
+      : []
+  })
+
+  if (!built[0] || rankOf(built[0].primary) < STRUCTURAL_RANK) {
     const fromRecipe = multiRecordRecipe(group)
     if (fromRecipe) return fromRecipe
   }
 
-  for (const primary of byRank) {
-    const descriptor = DESCRIPTORS[primary.type]
-    const built = descriptor?.build(primary)
-    if (built) return { ...built, icon: built.icon ?? descriptor.icon }
+  if (built[0]) {
+    const { primary: _primary, ...action } = built[0]
+    return action
   }
 
   return {
