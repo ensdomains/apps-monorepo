@@ -54,7 +54,7 @@ export const ActionSummaryRow = ({
       isOpen={isOpen}
       onToggle={onToggle}
       disclosure={
-        <div className="flex flex-col gap-y-3">
+        <div className="flex flex-col gap-y-2 pt-2">
           <TransactionHeaderRow event={action.events[0]} />
           {action.events.map((event) => (
             <EventRow key={event.id} event={event} />

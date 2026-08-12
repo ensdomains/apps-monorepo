@@ -105,6 +105,14 @@ const FIELD_TYPES: Record<string, Record<string, string>> = {
   VersionChanged: { node: 'bytes32', resolver: 'address', version: 'uint64' },
   ContenthashChanged: { node: 'bytes32', resolver: 'address', hash: 'bytes' },
   NameChanged: { node: 'bytes32', resolver: 'address', name: 'string' },
+  SubregistryUpdated: {
+    name: 'string',
+    canonicalId: 'uint256',
+    tokenId: 'uint256',
+    subregistry: 'address',
+    registry: 'address',
+    sender: 'address',
+  },
 }
 
 const PAYLOAD_KEY_BY_TYPE: Record<string, keyof TimelineDecoded> = {

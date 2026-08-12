@@ -144,9 +144,61 @@ type GetNameHistoryTimelineParameters = {
 
 type DomainWithEvents = { events: TimelineIndexerEvent[] }
 
+type HistoryTimelineResponse = {
+  domains: DomainWithEvents[]
+}
+
+type SubnameRegistrationResponse = {
+  domains: DomainWithEvents[]
+}
+
 export const V1_PROTOCOL = 'v1'
 
 export const HISTORY_TIMELINE_PAGE_SIZE = 100
+
+const SUBDOMAIN_HISTORY_PAGE_SIZE = 100
+
+const HISTORY_EVENT_SELECTION = `
+  id
+  type
+  name
+  namehash
+  protocol
+  transactionHash
+  blockNumber
+  timestamp
+  contractAddress
+  key
+  value
+  data
+  asAddressChanged { address coinType resolver namehash }
+  asTextChanged { key value resolver namehash }
+  asTransfer { from to id operator value }
+  asRegistryTransfer { node owner }
+  asLabelRegistered { name owner registry tokenId sender canonicalId expiry }
+  asNameRegistered { name label owner cost baseCost premium referrer expires }
+  asNameRenewed { id expires }
+  asResolverUpdated { resolver sender tokenId }
+  asReverseClaimed { address node }
+  asNameWrapped { node owner fuses expiry }
+  asNameUnwrapped { node owner }
+  asFusesSet { node fuses }
+  asExpiryUpdated { node tokenId expiry }
+`
+
+const SUBNAME_REGISTRATION_SELECTION = `
+  id
+  type
+  name
+  namehash
+  protocol
+  transactionHash
+  blockNumber
+  timestamp
+  contractAddress
+  data
+  asLabelRegistered { name owner registry tokenId sender canonicalId expiry }
+`
 
 const HISTORY_TIMELINE_QUERY = gql`
   query getNameHistoryTimeline(
@@ -156,31 +208,28 @@ const HISTORY_TIMELINE_QUERY = gql`
   ) {
     domains(where: { name: $name }, first: 1) {
       events(first: $first, orderBy: timestamp, orderDirection: $orderDirection) {
-        id
-        type
-        name
-        namehash
-        protocol
-        transactionHash
-        blockNumber
-        timestamp
-        contractAddress
-        key
-        value
-        data
-        asAddressChanged { address coinType resolver namehash }
-        asTextChanged { key value resolver namehash }
-        asTransfer { from to id operator value }
-        asRegistryTransfer { node owner }
-        asLabelRegistered { name owner registry tokenId sender canonicalId expiry }
-        asNameRegistered { name label owner cost baseCost premium referrer expires }
-        asNameRenewed { id expires }
-        asResolverUpdated { resolver sender tokenId }
-        asReverseClaimed { address node }
-        asNameWrapped { node owner fuses expiry }
-        asNameUnwrapped { node owner }
-        asFusesSet { node fuses }
-        asExpiryUpdated { node tokenId expiry }
+        ${HISTORY_EVENT_SELECTION}
+      }
+    }
+  }
+`
+
+const SUBNAME_REGISTRATION_QUERY = gql`
+  query getSubnameRegistrations(
+    $subnameSuffix: String!
+    $subdomainFirst: Int
+  ) {
+    domains(
+      where: { name_ends_with: $subnameSuffix }
+      first: $subdomainFirst
+    ) {
+      events(
+        first: 1
+        orderBy: timestamp
+        orderDirection: asc
+        where: { type_in: ["LabelRegistered", "NewOwner"] }
+      ) {
+        ${SUBNAME_REGISTRATION_SELECTION}
       }
     }
   }
@@ -206,13 +255,33 @@ const getNameHistoryTimeline = ResultFn(async function* ({
   // the page had before the timeline.
   const [v2Events, v1Raw] = yield* fromPromise(
     Promise.all([
-      graphqlIndexerClient
-        .request<{ domains: DomainWithEvents[] }>(HISTORY_TIMELINE_QUERY, {
-          name: normalizedName,
-          first,
-          orderDirection,
-        })
-        .then(({ domains }) => domains[0]?.events ?? []),
+      Promise.all([
+        graphqlIndexerClient.request<HistoryTimelineResponse>(
+          HISTORY_TIMELINE_QUERY,
+          {
+            name: normalizedName,
+            first,
+            orderDirection,
+          },
+        ),
+        graphqlIndexerClient.request<SubnameRegistrationResponse>(
+          SUBNAME_REGISTRATION_QUERY,
+          {
+            subnameSuffix: `.${normalizedName}`,
+            subdomainFirst: SUBDOMAIN_HISTORY_PAGE_SIZE,
+          },
+        ),
+      ]).then(([parentResult, subnameResult]) => {
+        const parentEvents = parentResult.domains[0]?.events ?? []
+        const childRegistrations = subnameResult.domains.flatMap(
+          (domain) => domain.events,
+        )
+        const seen = new Set(parentEvents.map((event) => event.id))
+        return [
+          ...parentEvents,
+          ...childRegistrations.filter((event) => !seen.has(event.id)),
+        ]
+      }),
       fetchV1NameHistory({
         subgraphUrl: client.chain.subgraphs.ens.url,
         namehash: node,
