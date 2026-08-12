@@ -5,7 +5,7 @@ import {
 import { extendChainWithEns } from '@ensdomains/ensjs/chain'
 import { createIsomorphicFn } from '@tanstack/react-start'
 import { createPublicClient, fallback, http } from 'viem'
-import { sepolia } from 'viem/chains'
+import { mainnet, sepolia } from 'viem/chains'
 import { createConfig } from 'wagmi'
 import { walletConnect } from 'wagmi/connectors'
 import { isMockWalletEnabled, mockConnector } from '@/lib/mockWallet.mock'
@@ -73,13 +73,29 @@ export const publicClient = createPublicClient({
   },
 })
 
+// The chains the app actually operates on. Kept separate from `chains` below,
+// which is deliberately wider — see the note there. Connect-time chain
+// targeting must use THIS list, never `wagmiConfig.chains`, or a wallet sitting
+// on mainnet would be left there instead of being switched to Sepolia.
+export const APP_CHAINS = [sepoliaWithEns] as const
+
 export const wagmiConfig = createConfig({
   syncConnectedChain: false,
   ssr: true,
   multiInjectedProviderDiscovery: true,
-  chains: [sepoliaWithEns],
+  // Sepolia is the only chain the app uses; mainnet is here solely to keep
+  // WalletConnect sessions settleable. wagmi derives the connector's
+  // `optionalChains` from this list, so a Sepolia-only entry produces a
+  // proposal offering exactly `eip155:11155111`. A wallet without Sepolia
+  // enabled — Rainbow's default — can then grant nothing, reports
+  // "network: none", and the handshake dies with WalletConnect error 1005
+  // ("Invalid session settle request."). Offering mainnet guarantees a
+  // grantable network; the connect flow still targets Sepolia via APP_CHAINS.
+  chains: [sepoliaWithEns, mainnet],
   transports: {
     [sepoliaWithEns.id]: sepoliaFallbackTransport,
+    // Present for WalletConnect session compatibility only; never read from.
+    [mainnet.id]: http(),
   },
   // Injected wallets (MetaMask, Rabby, Frame, …) are discovered via EIP-6963
   // (multiInjectedProviderDiscovery above), so WalletConnect is the only
