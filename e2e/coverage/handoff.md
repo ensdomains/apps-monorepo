@@ -5,6 +5,52 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 11 — 2026-08-12 · all-must-pass semantics · **BLOCKED on infra**
+
+**Batch:** make a scenario PASS only when *every* covering test passes, then tag
+the multi-case rows that semantic unblocks.
+
+**Landed and verified:** the reconciler change. `A16` now correctly reads
+`1/2 covering test(s) did not pass: "registers a name after connecting from the
+pricing page" (failed)` — a partial regression the old "best outcome wins" rule
+had been hiding.
+
+**Landed but NOT verified:** `F10` (six recipient forms) and `F13` (non-owner
+and disconnected visitor), tagged across their per-case tests. Honest to tag
+only because of the semantic above; before it, six per-case tags would have made
+F10 green on one input.
+
+**Ratchet held at 42**, not the 44 static now reports. The verification run died
+on `ECONNREFUSED 127.0.0.1:8545` — ten tests "failed" in 25 seconds against no
+chain. Rule 7 forbids claiming a run I did not observe.
+
+### BLOCKER — the e2e infra stack is gone
+
+Every `infra-*` container is **removed**, not stopped — `docker ps -a` shows no
+`infra-anvil-1` at all. This happened outside the loop. Nothing that touches the
+chain can run until it is back.
+
+`pnpm e2e:infra:up` restores it, but it creates a **fresh fork**, discarding the
+accumulated chain state — including the ~29-day clock drift, which is arguably
+a bonus. That is the repo owner's call, so it was not done here.
+
+**First thing after infra returns:**
+
+```
+pnpm exec playwright test --config=projects/portal/playwright.config.ts   --project=portal-e2e --grep "@scenario:F1[0123]" --reporter=json --workers=1
+pnpm e2e:coverage --results <file>          # then raise the ratchet to 44
+```
+
+### R1 is verifiably 0, and deliberately not lowered
+
+Both `A16` and `B2` fail, so R1's true value is 0 against a baseline of 2.
+Not lowered: `A16`'s failing test is a *registration* test, so it shares the HCA
+session root cause diagnosed in iteration 9 and already escalated. Baking a
+demotion into the ratchet for a known, external, in-flight cause would be wrong.
+It should recover on its own once the smart-account fix lands.
+
+---
+
 ## Iteration 10 — 2026-08-12 · first real scenario batch
 
 **Batch:** R0 · audit the ten untagged `transfer.spec.ts` tests against F9–F13.
