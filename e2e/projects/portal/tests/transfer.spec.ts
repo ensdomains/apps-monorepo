@@ -13,6 +13,7 @@ import {
   createWalletClient,
   type Hash,
   http,
+  namehash,
   parseAbi,
   zeroAddress,
 } from 'viem'
@@ -400,12 +401,9 @@ test.describe('Portal name transfer', () => {
     await expect(transferButton).toBeDisabled()
   })
 
-  test('lets the new owner edit records after a transfer', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('lets the new owner edit records after a transfer', {
+    tag: ['@scenario:F11'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(180_000)
 
     await connectWithHeadlessWallet(page, wallet)
@@ -469,6 +467,31 @@ test.describe('Portal name transfer', () => {
     await expect(page).toHaveURL(new RegExp(`/${name}/records$`), {
       timeout: 30_000,
     })
+    // Chain read-back, not the rendered value: F11's oracle is that the new
+    // owner can *write*, and a rendered string only proves the form echoed it.
+    // Added by the §6 B4 audit — same fault class as F1's ownership check.
+    //
+    // Read `text()` straight off the resolver the registry reports, rather than
+    // through ensjs's `getTextRecord`: that helper resolves via the Universal
+    // Resolver and throws for the freshly deployed resolver this test creates.
+    // Verified by hand against a name from an earlier run — the direct read
+    // returns the value while the helper throws, so the record does land and
+    // the helper was the wrong instrument. Going direct is also the higher
+    // oracle: it depends on nothing but the two contracts under assertion.
+    const [resolverForRecords] = await readResolverAndSubregistry(
+      name.replace(/\.eth$/, ''),
+    )
+    const written = await publicClient.readContract({
+      address: resolverForRecords,
+      abi: parseAbi(['function text(bytes32,string) view returns (string)']),
+      functionName: 'text',
+      args: [namehash(name), 'description'],
+    })
+    expect(
+      written,
+      'the record the new owner saved is not readable from the resolver on chain — the transfer left them unable to actually write',
+    ).toBe('Edited by the new owner')
+
     await expect(page.getByText('Edited by the new owner')).toBeVisible({
       timeout: 15_000,
     })
@@ -611,12 +634,9 @@ test.describe('Portal name transfer', () => {
     })
   })
 
-  test('repoints the ETH address at the recipient when the resolver is kept', async ({
-    portalPage: page,
-    wallet,
-    accounts,
-    makeName,
-  }) => {
+  test('repoints the ETH address at the recipient when the resolver is kept', {
+    tag: ['@scenario:F12'],
+  }, async ({ portalPage: page, wallet, accounts, makeName }) => {
     test.setTimeout(240_000)
 
     await connectWithHeadlessWallet(page, wallet)
