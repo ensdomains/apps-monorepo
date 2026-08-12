@@ -24,8 +24,10 @@ export const ExpandableDetailRow = ({
       <div className="flex items-center gap-2 py-2">
         <span
           className={cn(
-            'relative z-10 inline-flex size-6 shrink-0 items-center justify-center rounded-md text-neutral-5 ring-[3px] ring-neutral-0',
-            isOpen ? 'bg-neutral-2' : 'bg-neutral-1',
+            'relative z-10 inline-flex size-6 shrink-0 items-center justify-center rounded-md text-neutral-5 ring-[3px] ring-neutral-0 group-hover/row:ring-neutral-1',
+            isOpen
+              ? 'bg-neutral-2'
+              : 'bg-neutral-1 group-hover/row:bg-neutral-2',
           )}
         >
           <ChevronDown

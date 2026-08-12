@@ -26,7 +26,7 @@ export const ActionSummaryRow = ({
   const Glyph = ACTION_ICONS[action.icon]
 
   const iconBadge = (
-    <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1.5 text-muted-foreground ring-[3px] ring-neutral-0">
+    <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1.5 text-muted-foreground ring-[3px] ring-neutral-0 group-hover/row:bg-neutral-2 group-hover/row:ring-neutral-1">
       <Glyph className="size-4 text-neutral-5" strokeWidth={2.5} aria-hidden />
     </span>
   )
