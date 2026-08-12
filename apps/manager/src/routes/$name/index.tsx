@@ -16,6 +16,7 @@ import { profileOwnerQuery } from '@/features/profile/service/profileOwner'
 import { profileRecordsQuery } from '@/features/profile/service/profileRecords'
 import { profileRegistrationQuery } from '@/features/profile/service/profileRegistration'
 import { profileReverseNameQuery } from '@/features/profile/service/profileReverseName'
+import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 import { seo } from '@/utils/seo'
 
@@ -35,7 +36,9 @@ export const Route = createFileRoute('/$name/')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
     const [profileRecords, ownerData] = await Promise.all([
       queryClient.ensureQueryData(profileRecordsQuery(name)),
-      queryClient.ensureQueryData(profileOwnerQuery(name)),
+      // Fetch, not ensure: `ensureQueryData` serves invalidated data, so a name
+      // cached as ownerless pre-registration would redirect its owner away.
+      queryClient.fetchQuery(profileOwnerQuery(name)),
     ])
 
     const parsed = parseName(name)
@@ -61,11 +64,21 @@ export const Route = createFileRoute('/$name/')({
       const missing = classifyMissingName(parsed)
 
       if (missing === 'registrable') {
-        throw redirect({
-          params: { name },
-          to: '/register/$name',
-          replace: true,
-        })
+        // `/register/$name` redirects back here when the name isn't free, so
+        // hand off only once the registrar agrees.
+        const availability = await queryClient.fetchQuery(
+          getRegistrationV2AvailabilityQueryOptions(name),
+        )
+
+        if (availability.isAvailable) {
+          throw redirect({
+            params: { name },
+            to: '/register/$name',
+            replace: true,
+          })
+        }
+
+        return { fallback: 'not-found' as const, description: undefined }
       }
 
       return { fallback: missing, description: undefined }
