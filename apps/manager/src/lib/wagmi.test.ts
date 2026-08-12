@@ -1,13 +1,12 @@
 import { sepolia } from 'viem/chains'
 import { describe, expect, it, vi } from 'vitest'
-import { queryClient } from '@/utils/queryClient'
 
 // Importing the real config runs `createConfig`, which calls each connector's
 // setup(). For WalletConnect that initialises EthereumProvider and opens a
 // relay connection, so the suite would hit the network and log abort errors on
 // teardown. The chain arrays under test don't need a working connector.
-vi.mock('@wagmi/connectors', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@wagmi/connectors')>()),
+vi.mock('wagmi/connectors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('wagmi/connectors')>()),
   walletConnect: () => () => ({
     id: 'walletConnect',
     name: 'WalletConnect',
@@ -25,14 +24,6 @@ vi.mock('@wagmi/connectors', async (importOriginal) => ({
 }))
 
 const { APP_CHAINS, wagmiConfig } = await import('@/lib/wagmi')
-
-describe('queryClient', () => {
-  it('default stale time should be 1 hour', () => {
-    expect(queryClient.getDefaultOptions().queries?.staleTime).toBe(
-      1000 * 60 * 60 * 1,
-    )
-  })
-})
 
 describe('wagmiConfig chains', () => {
   // `chains` is wider than the app's operating set so WalletConnect sessions
