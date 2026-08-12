@@ -3,25 +3,17 @@ import {
   type ErrorComponentProps,
   redirect,
 } from '@tanstack/react-router'
-import { match, P } from 'ts-pattern'
 import { isPastGracePeriod } from '@/features/grace/utils/gracePeriod'
 import {
   profileExpiryDateFromSeconds,
   profileExpiryQuery,
 } from '@/features/profile/service/profileExpiry'
 import {
-  RenewalUiProvider,
-  useRenewalUiContext,
-} from '@/features/renew/state/renewalUi.context'
-import { useRenewalStep } from '@/features/renew/state/renewalUi.selectors'
-import {
   canRenewV2Name,
   parseRenewableName,
 } from '@/features/renew/utils/renewableName'
-import { RenewPricingStep } from '@/features/renew/workflow/pricing/PricingStep'
-import { RenewingStep } from '@/features/renew/workflow/renewing/RenewingStep'
-import { RenewFailureStep } from '@/features/renew/workflow/result/FailureStep'
-import { RenewSuccessStep } from '@/features/renew/workflow/result/SuccessStep'
+import { RenewalRouteError } from '@/features/renew/workflow/components/RenewalRouteError'
+import { RenewalPage } from '@/features/renew/workflow/RenewalPage'
 
 export const Route = createFileRoute('/renew/$name')({
   loader: async ({ params: { name }, context: { queryClient } }) => {
@@ -35,10 +27,18 @@ export const Route = createFileRoute('/renew/$name')({
       profileExpiryQuery(name),
     )
 
+    if (expiryData?.protocol === 'v1') {
+      throw redirect({
+        params: { name },
+        to: '/renew-v1/$name',
+        replace: true,
+      })
+    }
+
     const expiryDate = profileExpiryDateFromSeconds(expiryData?.expiry)
 
     if (expiryData?.protocol !== 'v2') {
-      throw new Error('This name cannot be renewed')
+      throw new Error('This name is not available for renewal.')
     }
 
     if (isPastGracePeriod(expiryDate, true)) {
@@ -50,11 +50,11 @@ export const Route = createFileRoute('/renew/$name')({
     }
 
     if (!canRenewV2Name(name, expiryDate)) {
-      throw new Error('This name cannot be renewed')
+      throw new Error('This name is not available for renewal.')
     }
 
-    if (!expiryData?.expiry) {
-      throw new Error('Name expiry could not be loaded')
+    if (!expiryData.expiry) {
+      throw new Error('Name expiry could not be loaded.')
     }
 
     return {
@@ -68,47 +68,12 @@ export const Route = createFileRoute('/renew/$name')({
 
 function RouteComponent() {
   const { label, currentExpiry } = Route.useLoaderData()
-
   return (
-    <RenewalUiProvider currentExpiry={currentExpiry} label={label}>
-      <PageContent />
-    </RenewalUiProvider>
+    <RenewalPage currentExpiry={currentExpiry} label={label} protocol="v2" />
   )
 }
 
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
-  return (
-    <div className="mx-auto max-w-md space-y-4">
-      <div className="flex items-center justify-center py-8">
-        <div className="text-red-600">
-          Error loading renewal: {error.message}
-        </div>
-      </div>
-      <button onClick={reset} type="button">
-        Try again
-      </button>
-    </div>
-  )
-}
-
-function PageContent() {
-  const { uiActor } = useRenewalUiContext()
-  const step = useRenewalStep(uiActor)
-
-  return match(step)
-    .with('pricing', () => <RenewPricingStep />)
-    .with(
-      P.union(
-        'checkingAllowance',
-        'submittingTokenApproval',
-        'waitingForTokenApproval',
-        'submittingRenewal',
-        'submittingPlainRenewal',
-        'waitingForRenewal',
-      ),
-      () => <RenewingStep />,
-    )
-    .with('success', () => <RenewSuccessStep />)
-    .with('failure', () => <RenewFailureStep />)
-    .exhaustive()
+  const { name } = Route.useParams()
+  return <RenewalRouteError error={error} name={name} reset={reset} />
 }

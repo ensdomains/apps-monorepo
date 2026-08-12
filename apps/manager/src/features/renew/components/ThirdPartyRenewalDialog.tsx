@@ -10,9 +10,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { MSymbol } from '@/components/ui/material-symbol'
+import {
+  getRenewalRoute,
+  type RenewalProtocol,
+} from '@/features/renew/utils/renewalProtocol'
 
 type ThirdPartyRenewalDialogProps = {
   readonly name: string
+  readonly protocol: RenewalProtocol
   readonly trigger: ReactNode
 }
 
@@ -21,6 +26,7 @@ const modalButtonClassName =
 
 export const ThirdPartyRenewalDialog = ({
   name,
+  protocol,
   trigger,
 }: ThirdPartyRenewalDialogProps) => {
   const { t } = useLingui()
@@ -76,7 +82,7 @@ export const ThirdPartyRenewalDialog = ({
           <LinkButton
             className={modalButtonClassName}
             params={{ name }}
-            to="/renew/$name"
+            to={getRenewalRoute(protocol)}
           >
             <Trans>I Understand</Trans>
           </LinkButton>

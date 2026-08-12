@@ -398,6 +398,7 @@ msgstr "Back to Dashboard"
 msgid "Back to Home"
 msgstr "Back to Home"
 
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
 #: src/features/renew/workflow/renewing/components/RenewalDetails.tsx
 msgid "Back to profile"
 msgstr "Back to profile"
@@ -969,6 +970,7 @@ msgid "ENS names can be up to 255 characters"
 msgstr "ENS names can be up to 255 characters"
 
 #: src/features/dashboard/components/DashboardPills.tsx
+#: src/features/renew/workflow/pricing/PricingStep.tsx
 msgid "ENSv1 only"
 msgstr "ENSv1 only"
 
@@ -2679,6 +2681,10 @@ msgstr "This migration account belongs to a different wallet."
 msgid "This name can’t be edited"
 msgstr "This name can’t be edited"
 
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
+msgid "This name can’t be renewed here"
+msgstr "This name can’t be renewed here"
+
 #: src/features/dashboard/components/ChoosePrimaryNameDialog.tsx
 msgid "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
 msgstr "This name doesn’t have a wallet address yet. If you continue, we’ll set it to your current wallet and make this name your primary."
@@ -2779,6 +2785,7 @@ msgstr "Transfer your name to any wallet"
 
 #: src/features/bulk-renew/components/FailureStep.tsx
 #: src/features/migration/components/MigrationSuccessDialog.tsx
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
 msgid "Try again"
 msgstr "Try again"
 
@@ -3094,6 +3101,10 @@ msgstr "We couldn't confirm that {domainName} is still available. Please try aga
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "We couldn't confirm that {label}.eth is still available. Please try again."
 msgstr "We couldn't confirm that {label}.eth is still available. Please try again."
+
+#: src/features/renew/workflow/components/RenewalRouteError.tsx
+msgid "We couldn’t confirm that this name is renewable."
+msgstr "We couldn’t confirm that this name is renewable."
 
 #: src/features/notifications/settings/email-verify-step.tsx
 msgid "We sent a verification code to your email address."

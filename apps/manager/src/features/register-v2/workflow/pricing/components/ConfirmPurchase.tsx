@@ -134,6 +134,13 @@ export const ConfirmPurchase = () => {
       onNext={() => availabilityMutation.mutate()}
       pricingData={pricingQuery.data?.totalPriceNumber}
       selectedToken={selectedToken}
+      supportingMessage={
+        <Trans>
+          If your connected wallet has fewer than two names and no primary name
+          yet, ENS may set this name as your primary name and link it to your
+          connected wallet automatically.
+        </Trans>
+      }
       title={<Trans>Registering</Trans>}
     />
   )
@@ -148,6 +155,7 @@ export const ConfirmPurchaseBase = ({
   nextMessage,
   canNext,
   title,
+  supportingMessage,
 }: {
   label: string
   pricingData: number | undefined
@@ -157,6 +165,7 @@ export const ConfirmPurchaseBase = ({
   nextMessage: ReactNode
   canNext: boolean
   title: ReactNode
+  supportingMessage?: ReactNode
 }) => {
   const { t } = useLingui()
 
@@ -214,13 +223,11 @@ export const ConfirmPurchaseBase = ({
           </Alert>
         )}
 
-        <p className="text-center text-ens-gray-three text-sm">
-          <Trans>
-            If your connected wallet has fewer than two names and no primary
-            name yet, ENS may set this name as your primary name and link it to
-            your connected wallet automatically.
-          </Trans>
-        </p>
+        {supportingMessage ? (
+          <p className="text-center text-ens-gray-three text-sm">
+            {supportingMessage}
+          </p>
+        ) : null}
       </div>
 
       <Button

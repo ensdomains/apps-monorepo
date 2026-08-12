@@ -7,6 +7,7 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 export const ENS_SEPOLIA_CONTRACTS = {
   // --- V1 (sourced from ensjs) ---
   ETHRegistrarController: ensjsSepolia.ensEthRegistrarController.address,
+  ETHRenewerV1: ensjsSepolia.ensEthRenewerV1.address,
   PublicResolver: ensjsSepolia.ensPublicResolver.address,
   ReverseRegistrar: ensjsSepolia.ensReverseRegistrar.address,
   LegacyRegistry: ensjsSepolia.ensLegacyRegistry.address,
