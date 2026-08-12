@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro'
-import { formatPricingUsd } from './AnimatedPrice'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 
 /**
  * The headline figure at the foot of the payment screen — what actually leaves
@@ -33,7 +33,7 @@ export const PaymentTotalRow = ({
           </span>
         )}
         <span className="text-ens-quartz-900 text-xl tabular-nums">
-          {formatPricingUsd(total ?? 0)}
+          {formatUsd(total ?? 0)}
         </span>
       </p>
       <span className="text-ens-quartz-350 text-lg leading-ens-none tracking-[-0.36px]">

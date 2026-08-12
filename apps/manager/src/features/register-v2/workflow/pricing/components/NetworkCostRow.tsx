@@ -5,8 +5,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { formatUsd } from '@/utils/formatting/formatUsdCeil'
 import { tw } from '@/utils/tailwind'
-import { formatPricingUsd } from './AnimatedPrice'
 
 /**
  * The execution cost of the two on-chain legs (commit + register), which the
@@ -41,7 +41,7 @@ export const NetworkCostRow = ({
         </span>
         <span className="flex items-center gap-2">
           <span className="tabular-nums">
-            {networkFee === undefined ? '—' : formatPricingUsd(networkFee)}
+            {networkFee === undefined ? '—' : formatUsd(networkFee)}
           </span>
           <Tooltip>
             <TooltipTrigger
