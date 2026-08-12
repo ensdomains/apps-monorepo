@@ -36,9 +36,19 @@ describe('ProfileEditAction', () => {
     expect(editButton()).not.toBeNull()
   })
 
-  it('hides editing on an unmigrated v1 name, whose records cannot be written', () => {
+  it('hides editing on an unmigrated v1 .eth name, whose records cannot be written', () => {
     renderAction({ protocol: 'v1' })
     expect(editButton()).toBeNull()
+  })
+
+  it('keeps editing for an imported DNS name, which the v1 registry also serves', () => {
+    renderAction({ name: 'example.com', protocol: 'v1' })
+    expect(editButton()).not.toBeNull()
+  })
+
+  it('keeps editing for an unmigrated .eth subname', () => {
+    renderAction({ name: 'sub.stitch.eth', protocol: 'v2' })
+    expect(editButton()).not.toBeNull()
   })
 
   it('hides editing for non-owners', () => {
