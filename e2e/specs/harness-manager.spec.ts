@@ -22,11 +22,8 @@
  *
  * - `test.fail()` — the assertion is correct and currently fails, deliberately.
  *   The test still *runs*, so it cannot rot.
- * - `test.skip()`  — blocked-env, with an owner and a date. The manager's
- *   connect flow is unavailable in this environment, which blocks the whole
- *   `manager-e2e` project and not just this file. See the comment at the site.
- *
- * Neither is a weakened assertion; both keep the original oracle intact.
+ * `test.fail()` is not a weakened assertion — it keeps the original oracle and
+ * records only that its current outcome is failure.
  */
 
 import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
@@ -129,36 +126,44 @@ test.describe('Harness integrity — manager', () => {
     ).not.toBe(zeroAddress)
   })
 
-  // `test.skip` in its *static* form, not `test.skip(true, …)` inside the body:
-  // `connectedPage` is a fixture, and fixtures resolve before the body runs, so
-  // an in-body skip is reached only after the connect helper has already
-  // thrown. The reason lives in the comment below because the static form takes
-  // no message argument.
-  test.skip('makeV2Name: rule 6 — the manager renders the name it made', async ({
+  test('makeV2Name: rule 6 — the manager renders the name it made', async ({
     connectedPage: page,
     makeV2Name,
+    accounts,
   }) => {
-    // blocked-env — owner: sugh01, expires 2026-08-19.
+    // Un-skipped 2026-08-12. This was blocked-env: `connectWithHeadlessWallet`
+    // waited for a Connect button the manager did not render, because
+    // `apps/manager/.env` had lost its local-dev values. Restored by the repo
+    // owner; the blockage is gone and the assertion is live again.
+    // Owned by `other` (user2) — deliberately NOT the connected wallet.
     //
-    // Not a fault in this test or in makeV2Name. `connectWithHeadlessWallet`
-    // (helpers/manager-auth.ts:92) waits for a Connect button that the manager
-    // does not render with `VITE_FF_USE_EOA=false` in `apps/manager/.env` —
-    // Para-embedded has no wagmi client for the headless provider to attach to.
-    //
-    // Verified 2026-08-12 that this blocks the *whole* manager project, not
-    // just this spec: `profile.spec.ts:113 "shows validation errors for invalid
-    // records"` fails at the identical line under `--no-deps`. So every
-    // manager-side rule-6 check is blocked until the env is settled, and that
-    // decision is the owner's — flipping the flag restarts their dev server and
-    // changes which wallet path the app runs.
-    //
-    // Skipped rather than deleted so the assertion survives the blockage, and
-    // rather than left red so the gate can still protect everything else.
-    const name = await makeV2Name({ label: 'harness-v2-visible' })
+    // If the name were owned by the connected account, finding its address on
+    // the page would prove nothing: the header renders the connected wallet
+    // regardless of what the app knows about the name. Using a third-party
+    // owner makes the address something the app can only have learned by
+    // reading this name's owner off the chain.
+    const name = await makeV2Name({
+      label: 'harness-v2-visible',
+      owner: 'other',
+    })
+    const ownerAddress = accounts.getAddress('user2')
     await page.goto(`${MANAGER_APP_URL}/${name}`)
+
+    // The manager truncates with three ASCII periods (`0xf39F...2266`), not a
+    // U+2026 ellipsis like the portal. Matching either, and the full address,
+    // so this asserts what the app knows rather than how it currently formats.
+    const head = ownerAddress.slice(0, 6)
+    const tail = ownerAddress.slice(-4)
     await expect(
-      page.getByText(name, { exact: true }).first(),
-      `${name} is registered on chain but the manager's profile page does not render it`,
+      page
+        .getByText(
+          new RegExp(
+            `${head}(\\.\\.\\.|…|${ownerAddress.slice(6, -4)})${tail}`,
+            'i',
+          ),
+        )
+        .first(),
+      `the manager does not show ${head}...${tail} — user2, who owns ${name} — anywhere on its profile page. Either makeV2Name wrote somewhere the app does not read, or the app is not pointed at this chain.`,
     ).toBeVisible({ timeout: 30_000 })
   })
 
