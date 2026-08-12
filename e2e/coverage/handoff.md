@@ -5,6 +5,99 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 12 — 2026-08-12 · iteration 11 closed out, and a wrong diagnosis corrected
+
+**Batch:** finish what iteration 11 could not verify (F10–F13), then re-test the
+registration-dependent failures now that the anvil pin has landed on `main`.
+
+**Result:** PASS 6 (F10, F11, F12, F13 verified · A16, B2 recovered) · DEFECT 0 ·
+EXEMPT 0 · PRODUCT-GAP 0.
+**Ratchet: R0 8 → 10, total 42 → 44.** Two consecutive green runs (21/21 in 2.3m,
+then 21/21 in 1.5m), plus a merged three-run report (34 expected, 0 unexpected)
+reconciled with `--update`.
+
+**In flight: nothing.**
+
+### Iteration 9's registration diagnosis was wrong, and this is the correction
+
+Iteration 9 attributed A16's failure to an HCA/session problem, evidenced by the
+mockestrator logging an `IntentExecutor` call reverting *"for an unknown reason"*
+with `commitmentAt()` returning `0n`, and escalated it as external. That was a
+**symptom**, not the cause.
+
+The real cause (diagnosed separately, now merged as #1056): the e2e stack tracked
+`ghcr.io/foundry-rs/foundry:latest`, an unpinned nightly, and a newer anvil
+silently drops some of the transactions the mockestrator uses to fill an intent —
+it sends one `eth_sendTransaction` per call, returns only the last hash, and still
+records the intent `COMPLETED`. A batch whose earlier calls vanished is exactly
+how a later call reverts for no discernible reason.
+
+Measured after the pin:
+
+| test | iteration 9 | now |
+|---|---|---|
+| A16 · registers a name after connecting from the pricing page | **fail, 188s** | **pass, 69s** |
+| B2 · extend unowned name by 28 days | **fail, 103s** | **pass, 13s** |
+
+So R1's "verifiably 0" from iteration 11 was an environment artefact after all,
+and iteration 11 was right not to lower the ratchet for it. Iteration 9's
+duration-as-hang-detector heuristic held up perfectly: both were burning
+timeouts, and both now finish well inside the passing band.
+
+**Lesson worth keeping:** a revert with no reason, from a component you do not
+control, is a reason to suspect the *environment* before the component. Two
+sessions spent on a smart-account theory that a pinned dependency would have
+ruled out in minutes.
+
+### The harness gate earned its keep, and caught a fault in itself
+
+The first F10–F13 run **aborted at the gate**, so the ten tests never ran — they
+appear as `0s PASS` in the JSON but are `skipped` in the stats. Nothing was
+verified and the ratchet correctly stayed at 42. Read the `stats`, not the
+per-spec status: `expected`/`unexpected` is the honest signal.
+
+The failing check was `makeName`'s rule-6 assertion, and it was **my instrument,
+not the app**:
+
+- `features/profile/components/Owner.tsx` calls `useEnsName(owner)` and renders
+  the owner's **primary name** when it has one, falling back to
+  `truncateAddress` only when it does not.
+- The page showed `rh-e2e-msprkerf.eth`. On the fork, account 0's reverse record
+  *is* that name, and it forward-resolves back to account 0 — both read directly.
+- The assertion hardcoded `0xf39F…2266`, so it was state-dependent, and it broke
+  the first time an earlier run set a primary name on the shared test account —
+  which A19's post-registration auto-setup does as a matter of course.
+
+Now it derives the expected label from chain the way the app does, and when a
+primary name is in play it asserts that name forward-resolves to the owner, so a
+stale reverse record cannot let the test pass on the wrong label. Universal
+resolver comes from `ensL1Contracts` (rule 7), not a literal.
+`e2e/scripts/probe-reverse.mts` is the probe that settled it.
+
+**Generalise this:** any assertion on a rendered *identity* is state-dependent
+when the app has more than one way to render it. Address vs primary name is the
+obvious pair here; expiry-vs-relative-date and label-vs-full-name are the same
+shape and are worth auditing before they bite.
+
+### Still blocked, unchanged
+
+`makeV1Name`'s rule-6 check remains `test.fail()` — a genuine expected failure,
+not a skip. The fixture still registers into a V1 deployment the migration UI
+never queries, so **all 59 `G*` migration rows stay at zero**. That unblock
+outranks tier order (skill §2) and is the natural next batch.
+
+**Parked:** nothing new.
+**Skipped-blocked:** `G*` (59 rows) — `makeV1Name` deployment mismatch;
+`A11` — tagged but no config runs it (`migration.spec.ts` is in the manager
+project's `testIgnore`), which the reconciler reports and does not count.
+
+**Next:** the `makeV1Name` unblock. Point it at the registrar ensjs resolves
+(`ensBaseRegistrarImplementation`), decode the `register` revert iteration
+notes recorded against the ensjs controller, and flip the `test.fail()` — which
+goes red on success, by design, exactly when a human should look.
+
+---
+
 ## Iteration 11 — 2026-08-12 · all-must-pass semantics · **BLOCKED on infra**
 
 **Batch:** make a scenario PASS only when *every* covering test passes, then tag

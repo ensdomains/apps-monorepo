@@ -29,6 +29,7 @@
  *   are required; the incident above passes the first half.
  */
 
+import { ensL1Contracts, supportedL1Chains } from '@ensdomains/ensjs/chain'
 import { labelToCanonicalId } from '@ensdomains/ensjs/utils/v2'
 import { parseAbi } from 'viem'
 import { revertTo, takeSnapshot } from '../fixtures/chain-snapshot.js'
@@ -49,6 +50,18 @@ import { publicClient, testClient } from '../helpers/anvil-client.js'
 import { ETH_REGISTRY, readNameRoles } from '../helpers/role-assertions.js'
 
 const PORTAL_APP_URL = process.env.PORTAL_APP_URL ?? 'http://localhost:3001'
+
+/**
+ * Resolved from ensjs — the same config the apps read — per goal rule 7 (no
+ * contract address literals under `e2e/`). Needed explicitly because the local
+ * fork's chain object is a Sepolia override and does not carry it.
+ */
+const UNIVERSAL_RESOLVER = (
+  ensL1Contracts[supportedL1Chains.sepolia] as Record<
+    string,
+    { address: `0x${string}` }
+  >
+).ensUniversalResolver.address
 
 const REGISTRY_ABI = parseAbi([
   'function getSubregistry(string label) view returns (address)',
@@ -151,10 +164,40 @@ test.describe('Harness integrity', () => {
     // run — every fixture name was invisible to the app and this test was green.
     //
     // Assert something the app can only know by reading the chain: the owner.
-    const truncatedOwner = `${ownerAddress.slice(0, 6)}…${ownerAddress.slice(-4)}`
+    //
+    // The owner has *two* display forms. `features/profile/components/Owner.tsx`
+    // calls `useEnsName(owner)` and renders the owner's primary name when it has
+    // one, falling back to `truncateAddress` only when it does not. Hardcoding
+    // the truncated form made this check state-dependent, and it broke the first
+    // time an earlier run set a primary name on the shared test account — which
+    // A19's post-registration auto-setup does as a matter of course. Measured on
+    // the fork: account 0's reverse record was `rh-e2e-msprkerf.eth`, and that
+    // name forward-resolves back to account 0, so the app was right and this
+    // assertion was wrong.
+    //
+    // Derive the expected label from the chain the way the app does, and when a
+    // primary name is in play, prove it really belongs to this owner — otherwise
+    // a stale reverse record would let the test pass on the wrong label.
+    const reverseName = await publicClient.getEnsName({
+      address: ownerAddress,
+      universalResolverAddress: UNIVERSAL_RESOLVER,
+    })
+    if (reverseName) {
+      const forward = await publicClient.getEnsAddress({
+        name: reverseName,
+        universalResolverAddress: UNIVERSAL_RESOLVER,
+      })
+      expect(
+        forward?.toLowerCase(),
+        `${ownerAddress} reverse-resolves to ${reverseName}, but that name forward-resolves to ${forward} — the reverse record is stale, so the label the portal renders cannot be trusted to identify the owner`,
+      ).toBe(ownerAddress.toLowerCase())
+    }
+    const expectedOwnerLabel =
+      reverseName ?? `${ownerAddress.slice(0, 6)}…${ownerAddress.slice(-4)}`
+
     await expect(
-      page.getByText(truncatedOwner).first(),
-      `the portal does not show ${truncatedOwner} as the owner of ${name}. The name is registered on the local fork, so either the fixture wrote somewhere the app does not read, or the app is not pointed at this chain.`,
+      page.getByText(expectedOwnerLabel).first(),
+      `the portal does not show ${expectedOwnerLabel} as the owner of ${name}. The name is registered on the local fork to ${ownerAddress}, so either the fixture wrote somewhere the app does not read, or the app is not pointed at this chain.`,
     ).toBeVisible({ timeout: 30_000 })
   })
 
