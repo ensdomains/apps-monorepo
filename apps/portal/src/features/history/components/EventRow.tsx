@@ -13,12 +13,12 @@ import { DecodedParams } from './EventDetail'
 import { ExpandableDetailRow } from './ExpandableDetailRow'
 
 const Mono = ({ children }: { children: React.ReactNode }) => (
-  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-sm">
+  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-foreground text-p">
     {children}
   </code>
 )
 
-const muted = 'text-muted-foreground text-sm'
+const muted = 'text-muted-foreground text-p'
 
 const RESOLVER_EVENT_TYPES = new Set([
   'AbiChanged',

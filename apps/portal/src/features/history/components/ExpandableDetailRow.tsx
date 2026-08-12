@@ -17,16 +17,20 @@ export const ExpandableDetailRow = ({
   return (
     <TimelineRow
       isOpen={isOpen}
-      hoverHighlight={false}
       onToggle={() => setIsOpen((open) => !open)}
-      className="ml-(--tier2-indent) pl-2"
-      disclosure={<div className="py-1 pl-(--detail-indent)">{disclosure}</div>}
+      className="ml-(--tier2-indent) pl-3"
+      disclosure={<div className="pl-(--detail-indent)">{disclosure}</div>}
     >
-      <div className="flex items-start gap-2 py-2 pr-3">
-        <span className="inline-flex shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1 text-neutral-5">
+      <div className="flex items-center gap-2 py-2">
+        <span
+          className={cn(
+            'relative z-10 inline-flex size-6 shrink-0 items-center justify-center rounded-md text-neutral-5 ring-[3px] ring-neutral-0',
+            isOpen ? 'bg-neutral-2' : 'bg-neutral-1',
+          )}
+        >
           <ChevronDown
             className={cn(
-              'size-4.5 stroke-[1.25] transition-transform duration-150',
+              'size-4 stroke-[1.25] transition-transform duration-150',
               isOpen && 'rotate-180 text-neutral-7',
             )}
             aria-hidden

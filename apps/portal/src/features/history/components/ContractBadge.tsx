@@ -11,11 +11,13 @@ export const ContractBadge = ({
   isRegistry,
   label: fallbackLabel,
   full = false,
+  format = 'inline',
 }: {
   readonly address: Address
   readonly isRegistry?: boolean
   readonly label?: string
   readonly full?: boolean
+  readonly format?: 'inline' | 'truncate' | 'wrap'
 }) => {
   const explorerUrl = useBlockExplorerAddressUrl(address)
   const known = getContractLabel(address)
@@ -29,6 +31,7 @@ export const ContractBadge = ({
       label={label}
       isRegistry={known === 'permissioned registry' || (!!isRegistry && !known)}
       etherscanHref={explorerUrl}
+      format={format}
       compact
     >
       {full ? <FullOnDesktop value={address} /> : truncateAddress(address)}

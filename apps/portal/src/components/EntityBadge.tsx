@@ -69,13 +69,17 @@ const pillBase =
 const formatConstraintClass: Record<string, string> = {
   inline: '',
   truncate: 'max-w-full min-w-0',
-  wrap: '',
+  wrap: 'max-w-full min-w-0',
 }
 const formatPillClass: Record<string, string> = {
   inline: '',
   truncate: 'max-w-full min-w-0',
-  wrap: 'h-auto min-h-5 whitespace-normal',
+  wrap: 'h-auto min-h-5 max-w-full whitespace-normal',
 }
+
+/** Wrap + label: stack on mobile only; side-by-side from sm up. */
+const labeledWrapPillClass =
+  'max-sm:flex-col max-sm:items-start max-sm:gap-0.5 max-sm:w-fit'
 
 const pillType = (variant: EntityVariant) =>
   variant === 'name' ? 'text-entity-name' : 'text-entity-base'
@@ -93,7 +97,8 @@ const chipClass = cn(
   'hover:border-neutral-5 hover:text-neutral-8',
   // Active: same border+text as hover, fill steps up to neutral-1
   'active:bg-neutral-1 active:border-neutral-5 active:text-neutral-8',
-  'text-[11px] font-normal no-underline',
+  // Reset inherited mono/tracking from timeline parents (e.g. MetaRow, table cells)
+  'font-sans text-[11px] font-normal tracking-normal no-underline',
 )
 
 const CopyChip = ({
@@ -175,7 +180,9 @@ interface EntityBadgeProps {
   /**
    * Figma entity format. "inline" (default) sizes to its content; "truncate"
    * ellipsizes inside the fill when the container constrains it (tables);
-   * "wrap" breaks long values across lines inside the fill (overlays).
+   * "wrap" breaks long values across lines inside the fill. With a `label`,
+   * wrap also stacks the label above the value on mobile only (`max-sm`),
+   * keeping them side-by-side from `sm` up.
    */
   readonly format?: 'inline' | 'truncate' | 'wrap'
   /**
@@ -204,8 +211,16 @@ export const EntityBadge = ({
   format = 'inline',
   compact = false,
 }: EntityBadgeProps) => {
+  const stacksLabel = !!label && format === 'wrap'
+
   const labelContent = label ? (
-    <span className="bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px] mr-1">
+    <span
+      className={cn(
+        'bg-background text-center text-entity-label leading-none px-1 py-0.5 rounded-[2px]',
+        // Side-by-side uses margin; wrap stacks on mobile and uses gap there.
+        stacksLabel ? 'max-sm:mr-0 sm:mr-1' : 'mr-1',
+      )}
+    >
       {label}
     </span>
   ) : null
@@ -260,6 +275,7 @@ export const EntityBadge = ({
           pillClass(variant, className),
           'h-6 rounded',
           formatPillClass[format],
+          stacksLabel && labeledWrapPillClass,
           type === 'content' && 'bg-transparent dark:bg-transparent',
         )}
       >
@@ -275,6 +291,9 @@ export const EntityBadge = ({
   const primaryWrapperClass = cn(
     'inline-flex items-center gap-2 px-2 rounded cursor-pointer text-left no-underline',
     formatConstraintClass[format],
+    // Keep the hit area hugging the stacked pill — otherwise wrap+label
+    // stretches to the grid cell and leaves empty fill on the right.
+    stacksLabel && 'w-fit max-w-full',
     // `py-2.5` reserves room for the hover chips (which sit above the pill). `compact`
     // drops it for dense rows — the chips still overflow, they just aren't reserved for.
     compact ? 'py-0' : 'py-2.5',
@@ -373,6 +392,7 @@ export const EntityBadge = ({
       className={cn(
         'relative inline-flex items-center',
         formatConstraintClass[format],
+        stacksLabel && 'w-fit max-w-full',
       )}
     >
       <span
@@ -412,6 +432,7 @@ export const EntityBadge = ({
           // Keep px-1 around the avatar so the fill visibly wraps it
           // and add gap-1 so avatar doesn't touch the text
           resolvedAvatar && 'h-6 gap-1.5',
+          stacksLabel && labeledWrapPillClass,
           className,
         )}
       >
@@ -426,7 +447,8 @@ export const EntityBadge = ({
     <div
       className={cn(
         'relative group/entity inline-flex -ml-2',
-        format === 'truncate' && 'max-w-full',
+        (format === 'truncate' || format === 'wrap') && 'max-w-full min-w-0',
+        stacksLabel && 'w-fit',
         // `-ml-2` compensates the inner wrapper's `px-2` so the pill text
         // sits flush with the container's left edge.
       )}

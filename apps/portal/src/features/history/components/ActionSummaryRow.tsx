@@ -26,13 +26,13 @@ export const ActionSummaryRow = ({
   const Glyph = ACTION_ICONS[action.icon]
 
   const iconBadge = (
-    <span className="relative z-10 p-1.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 text-muted-foreground">
+    <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-md bg-neutral-1 p-1.5 text-muted-foreground ring-[3px] ring-neutral-0">
       <Glyph className="size-4 text-neutral-5" strokeWidth={2.5} aria-hidden />
     </span>
   )
   const labelAndChips = (
     <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
-      <span className="text-neutral-7 text-sm">{action.label}</span>
+      <span className="text-neutral-7 text-p">{action.label}</span>
       <ActionSlots slots={action.slots} />
     </div>
   )
@@ -54,7 +54,7 @@ export const ActionSummaryRow = ({
       isOpen={isOpen}
       onToggle={onToggle}
       disclosure={
-        <div className="flex flex-col gap-y-3 pt-2 sm:pt-4">
+        <div className="flex flex-col gap-y-3">
           <TransactionHeaderRow event={action.events[0]} />
           {action.events.map((event) => (
             <EventRow key={event.id} event={event} />
@@ -62,7 +62,7 @@ export const ActionSummaryRow = ({
         </div>
       }
     >
-      <div className="flex gap-2 py-2 pr-2 sm:hidden">
+      <div className="flex gap-2 py-2 sm:hidden">
         {iconBadge}
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-1">
           <div className="flex items-center gap-2">
@@ -75,7 +75,7 @@ export const ActionSummaryRow = ({
         </div>
       </div>
 
-      <div className="hidden grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 pr-3 sm:grid">
+      <div className="hidden min-w-0 grid-cols-[180px_minmax(0,1fr)_auto] items-center gap-x-3 py-2.5 sm:grid">
         <div className="flex items-center gap-5">
           <span className="w-30 shrink-0 text-right font-mono text-[13px] text-muted-foreground">
             {desktopDateLabel}

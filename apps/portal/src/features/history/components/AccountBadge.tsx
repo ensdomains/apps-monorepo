@@ -57,7 +57,7 @@ export const AccountBadge = ({
 
   if (!resolved) {
     return (
-      <span className="text-muted-foreground text-sm">
+      <span className="text-muted-foreground text-p">
         {needsTx && enabled && isPending ? '…' : '—'}
       </span>
     )
