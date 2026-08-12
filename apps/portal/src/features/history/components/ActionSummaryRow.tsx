@@ -16,6 +16,8 @@ interface ActionSummaryRowProps {
   readonly showDate?: boolean
   readonly isOpen: boolean
   readonly onToggle: () => void
+  readonly connectRailAbove?: boolean
+  readonly connectRailBelow?: boolean
 }
 
 export const ActionSummaryRow = ({
@@ -23,6 +25,8 @@ export const ActionSummaryRow = ({
   showDate = true,
   isOpen,
   onToggle,
+  connectRailAbove = false,
+  connectRailBelow = false,
 }: ActionSummaryRowProps) => {
   const eventCount = action.events.length
   const dateLabel = formatTimelineDate(action.timestamp)
@@ -62,6 +66,8 @@ export const ActionSummaryRow = ({
     <TimelineRow
       isOpen={isOpen}
       onToggle={onToggle}
+      connectRailAbove={connectRailAbove}
+      connectRailBelow={connectRailBelow}
       disclosure={
         <div className="flex flex-col gap-y-2 pt-2">
           <TransactionHeaderRow event={action.events[0]} />

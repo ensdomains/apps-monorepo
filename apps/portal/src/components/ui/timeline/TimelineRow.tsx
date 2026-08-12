@@ -9,12 +9,24 @@ type TimelineRowProps = {
   readonly className?: string
   readonly children: ReactNode
   readonly disclosure?: ReactNode
+  readonly connectRailAbove?: boolean
+  readonly connectRailBelow?: boolean
 }
 
 /** Skip toggle when the click landed on a nested link/button/chip action. */
 const isInteractiveTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   target.closest('a,button,[data-stop-toggle]') !== null
+
+const Rail = ({ className }: { readonly className?: string }) => (
+  <span
+    aria-hidden
+    className={cn(
+      'pointer-events-none absolute left-(--rail-x) w-0.5 bg-neutral-2',
+      className,
+    )}
+  />
+)
 
 export const TimelineRow = ({
   isOpen = false,
@@ -23,6 +35,8 @@ export const TimelineRow = ({
   className,
   children,
   disclosure,
+  connectRailAbove = false,
+  connectRailBelow = false,
 }: TimelineRowProps) => {
   const hasDisclosure = disclosure != null
 
@@ -39,25 +53,34 @@ export const TimelineRow = ({
   }
 
   return (
-    <div className="flex flex-col">
-      {/* biome-ignore lint/a11y/useSemanticElements: cannot use <button> — row contains nested links/chips. */}
+    <div className="relative flex flex-col">
       <div
-        role="button"
-        tabIndex={0}
-        aria-expanded={hasDisclosure ? isOpen : undefined}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        className={cn(
-          'group/row cursor-pointer select-none rounded-md transition-none pr-3',
-          hoverHighlight && 'hover:bg-neutral-1',
-          className,
-        )}
+        className={cn('relative', connectRailBelow && !hasDisclosure && 'pb-2')}
       >
-        {children}
+        {connectRailAbove && <Rail className="top-0 h-1/2" />}
+        {connectRailBelow && <Rail className="top-1/2 bottom-0" />}
+        {/* biome-ignore lint/a11y/useSemanticElements: cannot use <button> — row contains nested links/chips. */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-expanded={hasDisclosure ? isOpen : undefined}
+          onClick={handleClick}
+          onKeyDown={handleKeyDown}
+          className={cn(
+            'group/row cursor-pointer select-none rounded-md transition-none pr-3',
+            hoverHighlight && 'hover:bg-neutral-1',
+            className,
+          )}
+        >
+          {children}
+        </div>
       </div>
 
       {hasDisclosure && (
-        <TimelineDisclosure isOpen={isOpen}>{disclosure}</TimelineDisclosure>
+        <div className={cn('relative', connectRailBelow && 'pb-2')}>
+          {connectRailBelow && <Rail className="inset-y-0" />}
+          <TimelineDisclosure isOpen={isOpen}>{disclosure}</TimelineDisclosure>
+        </div>
       )}
     </div>
   )

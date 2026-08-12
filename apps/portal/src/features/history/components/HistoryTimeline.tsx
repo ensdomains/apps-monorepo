@@ -125,17 +125,15 @@ export const HistoryTimeline = ({ name }: HistoryTimelineProps) => {
               Showing the most recent {events.length} events.
             </p>
           )}
-          <div className="relative flex flex-col gap-y-2">
-            <span
-              aria-hidden
-              className="pointer-events-none absolute top-5.5 bottom-5.5 left-(--rail-x) w-0.5 bg-neutral-2"
-            />
+          <div className="relative flex flex-col">
             {filteredActions.map((action, index) => (
               <ActionSummaryRow
                 key={action.txHash}
                 action={action}
                 isOpen={openIds.has(action.txHash)}
                 onToggle={() => toggleAction(action.txHash)}
+                connectRailAbove={index > 0}
+                connectRailBelow={index < filteredActions.length - 1}
                 showDate={
                   index === 0 ||
                   formatTimelineDate(filteredActions[index - 1].timestamp) !==
