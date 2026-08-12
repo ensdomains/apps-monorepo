@@ -6,6 +6,7 @@ import {
   isInGracePeriod,
 } from '@/features/grace/utils/gracePeriod'
 import type { V1Domain } from '@/features/migration/service/v1SubgraphClient'
+import type { RenewalProtocol } from '@/features/renew/utils/renewalProtocol'
 import {
   formatDashboardDate,
   getDaysUntil,
@@ -54,6 +55,8 @@ const RENEW_CTA_THRESHOLD_DAYS = 7
 
 const getIsMigrationEligible = (item: MergedItem): boolean =>
   item.kind === 'v1' && item.classified.isMigrationEligible === true
+
+const protocolFor = (isV1: boolean): RenewalProtocol => (isV1 ? 'v1' : 'v2')
 
 const getMergedExpiryDate = (expirySeconds: number | null): Date | null =>
   expirySeconds === 0 ? null : toDateFromSeconds(expirySeconds)
@@ -200,8 +203,7 @@ export const mergedRowMetadata = (
   const label = item.sortName
   const expiryDate = getMergedExpiryDate(item.sortExpiry)
   const isV1 = item.kind === 'v1'
-  const isV2 = !isV1
-  const protocol = isV2 ? 'v2' : 'v1'
+  const protocol = protocolFor(isV1)
   const isInGrace = isInGracePeriod(expiryDate, protocol, now)
   const graceEndDate =
     expiryDate && isInGrace ? getGraceEndDate(expiryDate, protocol) : null
@@ -212,9 +214,9 @@ export const mergedRowMetadata = (
     expiryDate && isInGrace ? getDaysSinceExpiry(expiryDate, now) : null
   const expiringSoon = isExpiringSoon(expiryDate, 30, daysUntilExpiry)
   const expiryCta =
-    isV2 && isInGrace
+    protocol === 'v2' && isInGrace
       ? 'renew'
-      : isV2 && expiringSoon && daysUntilExpiry !== null
+      : protocol === 'v2' && expiringSoon && daysUntilExpiry !== null
         ? daysUntilExpiry <= RENEW_CTA_THRESHOLD_DAYS
           ? 'renew'
           : 'remindMe'
