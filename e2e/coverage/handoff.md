@@ -5,6 +5,84 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 13 — 2026-08-12 · the `makeV1Name` blocker is diagnosed, and it was never what the comment said
+
+**Batch:** unblock `makeV1Name`, which holds all 59 `G*` migration rows at zero.
+
+**Result:** PASS 0 · DEFECT 0 · EXEMPT 0 · PRODUCT-GAP 0. **Ratchet unchanged at
+44** — no scenario became terminal, deliberately. This iteration bought a root
+cause and a proven recipe, not coverage.
+
+**In flight: nothing.** `makeV1Name` still points at the old deployment on
+purpose; the comment at the top of it is now correct instead of misleading.
+
+### Root cause
+
+The standing note in `makeV1Name.ts` said switching deployments "is not
+address-only" and the flow needed adapting for "fee, commitment age or parameter
+semantics". **That was a guess and it was wrong.** Measured, with the probes now
+committed under `e2e/scripts/probe-v1-*.mts`:
+
+| check | fixture ctrl `0xF42dF26c…` | ensjs ctrl `0xfb3cE5D0…` |
+|---|---|---|
+| bytecode size | 9739 | 9739 |
+| `register` selector | `0xef9c8805` | `0xef9c8805` |
+| min/maxCommitmentAge | 60 / 86400 | 60 / 86400 |
+| `rentPrice(x, 1y)` | 3125000000003490 | 3125000000003490 |
+| `register` simulation | **OK** | **reverts, no data** |
+
+Same code, twice deployed, same prices, same ages. The revert carried **no
+reason string and no custom-error selector** — the signature of a bare
+`require(...)` with no message, which is precisely
+`BaseRegistrarImplementation.onlyController`. And indeed
+`base.controllers(ensjsController)` was `false`.
+
+`addController` on the base registrar (impersonating `base.owner()`, which is
+`ensEthRenewerV1` `0x4ad56feb…`) flips it to `true`, and **`register` on the
+ensjs controller then simulates OK**. Proven end to end.
+
+### What still has to happen — the full recipe
+
+Unwrapped names are unblocked by grant (1). Wrapped and locked names — i.e. most
+of the matrix (GW2–GW12, all of GS) — additionally need (2):
+
+1. `base.addController(ensjsController)` — **proven**
+2. `base.addController(nameWrapper)` — **not yet done.** `false` on the canonical
+   pair, `true` on the pair the fixture uses. `wrapETH2LD` needs it because the
+   wrapper calls back into the registrar.
+
+Do **not** chase `wrapper.controllers(controller)`: it is `false` on *both*
+pairs, including the working one, so it is not a requirement. The fixture wraps
+by calling `wrapETH2LD` as the owner after an unwrapped registration, not by
+registering through the controller with the wrapper as owner.
+
+Also worth knowing: the two pairs sit on **different ENS registries** — the
+canonical wrapper's `ens()` is `0x00000000000C2E07…` (which is what the apps and
+the Panoptes manifest read), the fixture wrapper's is `0x7e89b563…`. Anything
+that reads the registry directly must move with the switch.
+
+### ⚠️ Fork state was mutated, and it is not reproducible
+
+The probe **granted `base.addController(ensjsController)` on the live fork**.
+That persists for every later test on this stack, and a fresh
+`pnpm e2e:infra:up` will **not** have it. So:
+
+- do not conclude from a green run on *this* stack that the fixture works
+- the grant has to become a real, reproducible step — either inside `makeV1Name`
+  (impersonate + grant, idempotent, verified by read-back per rule 5) or an
+  infra setup script — before any `G*` row may be claimed. CI has to get it too.
+
+### Next batch
+
+Implement the recipe: grants (1) and (2) as an idempotent fixture/infra step,
+repoint `V1_ETH_REGISTRAR_CONTROLLER` / `V1_BASE_REGISTRAR` / `V1_NAME_WRAPPER`
+/ `V1_ENS_REGISTRY` at the ensjs-resolved addresses, then verify each V1 name
+type end to end (`unwrapped`, `wrapped`, `locked`) against
+`harness-manager.spec.ts`. When its rule-6 `test.fail()` goes **red**, that is
+success: the annotation must come off in the same change, and 59 `G*` rows open.
+
+---
+
 ## Iteration 12 — 2026-08-12 · iteration 11 closed out, and a wrong diagnosis corrected
 
 **Batch:** finish what iteration 11 could not verify (F10–F13), then re-test the

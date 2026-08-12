@@ -49,12 +49,30 @@ const ensjsSepolia = ensL1Contracts[supportedL1Chains.sepolia]
 // therefore invisible to the app under test, which is the root reason §5.G is
 // untestable.
 //
-// Switching them is not address-only despite the two controllers sharing an
-// ABI (verified: identical commitment hashes). `register` reverts on the ensjs
-// controller, so the registration flow needs adapting — fee, commitment age or
-// parameter semantics. Tracked in e2e/docs/e2e-defects.md; left pointing at
-// the old deployment until that work is done, because a half-rewired fixture
-// is worse than a consistently wrong one.
+// Switching them IS essentially address-only — the earlier note here guessed
+// "fee, commitment age or parameter semantics" and that was wrong. Measured
+// (e2e/scripts/probe-v1-*.mts, iteration 13):
+//
+//   - the two controllers are the same code twice deployed: identical bytecode
+//     size (9739), the same `register` selector (0xef9c8805), identical
+//     minCommitmentAge (60) / maxCommitmentAge (86400) and identical rentPrice
+//   - `register` on the ensjs controller reverted with **no data at all** — no
+//     reason string, no custom-error selector. That is the signature of a bare
+//     `require(...)` with no message, and `BaseRegistrarImplementation`'s
+//     `onlyController` is exactly that
+//   - `base.controllers(ensjsController)` was `false`. Granting it via
+//     `addController` (impersonating `base.owner()`) makes `register` simulate
+//     OK on the ensjs controller
+//
+// Remaining gap for wrapped/locked names: `base.controllers(nameWrapper)` is
+// `false` on the canonical pair and `true` on the pair this fixture uses, which
+// is what `wrapETH2LD` needs since the wrapper calls back into the registrar.
+// Note `wrapper.controllers(controller)` is false on BOTH pairs, so it is not a
+// requirement. Full recipe and status in e2e/coverage/handoff.md (iteration 13).
+//
+// Still pointing at the old deployment until that grant is implemented as a
+// reproducible fixture/infra step rather than a probe side effect — a
+// half-rewired fixture is worse than a consistently wrong one.
 const V1_ETH_REGISTRAR_CONTROLLER =
   '0xF42dF26c1b222bee5a6B78cBB8bbfaa0Ba07786a' as const
 export const V1_BASE_REGISTRAR =
