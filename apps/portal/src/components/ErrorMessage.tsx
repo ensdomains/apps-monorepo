@@ -1,6 +1,7 @@
 import { Frown } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { MessageCard } from '@/components/ui/message-card'
+import { cn } from '@/lib/utils'
 
 interface ErrorMessageProps {
   title?: string
@@ -18,7 +19,10 @@ export function ErrorMessage({
 }: ErrorMessageProps) {
   if (compact) {
     return (
-      <Alert variant="destructive" className={className}>
+      <Alert
+        variant="destructive"
+        className={cn('items-center [&>svg]:translate-y-0', className)}
+      >
         <Frown strokeWidth={1.5} />
         <AlertDescription>
           {description || 'Error fetching data. Please refresh the page.'}
