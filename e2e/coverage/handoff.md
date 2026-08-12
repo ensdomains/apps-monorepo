@@ -5,7 +5,67 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
-## Iteration 7 — 2026-08-12 · **LOOP STOPPED — escalating**
+## Iteration 7a — 2026-08-12 · **CORRECTION to iteration 7**
+
+Iteration 7's diagnosis below was **wrong**, and its numbers are void. Keeping
+the section because the method was right and the correction is the lesson.
+
+**What was actually wrong:** `apps/portal/.env` had been reduced to its
+committed baseline, and the local-dev values — including
+`VITE_SEPOLIA_RPC_URL_SERVER=http://127.0.0.1:8545` and
+`VITE_INDEXER_GRAPHQL_URL` — survived only in an untracked
+`apps/portal/.env.bak-loop`. **The portal was compiled against public Sepolia.**
+It could not see a single name any fixture created on the local fork. The
+manager had the same gap in `apps/manager/.env`.
+
+Corrected by the repo owner on 2026-08-12: both `.env` files restored, both dev
+servers restarted. Verified — both now serve `http://127.0.0.1:8545`.
+
+**Three things this invalidates:**
+
+1. *"The portal's connected/write UI does not mount"* — no. The app was on the
+   wrong chain. Owner-gated forms never rendered because, to the app, the name
+   did not exist.
+2. *"17 passed"* — inflated. The 7 passing **portal** tests were all negative
+   assertions (*shows no role holders*, *does not offer transfer*, *refuses…*),
+   which are trivially true when the app cannot see the name. **A confident
+   negative is exactly what an app on the wrong chain produces.** That is INV4,
+   occurring inside the measurement intended to expose it. Genuinely verified
+   was the 10 harness tests and approximately zero portal scenarios.
+3. *The ratchet ruling* — no longer needs a human. The 23 rows were never
+   evidence of stale tests; they were evidence of a broken environment.
+
+**How it got past B0, and the fix.** B0 checked that Anvil was forked, that the
+Panoptes manifest matched `ensL1Contracts[sepolia]`, and that both apps returned
+HTTP 200. It never checked *which chain the apps were pointed at*. "The app is
+serving" is not "the app is on the right chain" — the same distinction B0 makes
+carefully for the indexer, not made for the apps.
+
+Two harness changes close it:
+
+- **`the apps under test are pointed at this fork, not a public RPC`** — new.
+  Reads each dev server's own transformed `wagmi` module and requires
+  `127.0.0.1:8545`, so it reflects what the running app was built with rather
+  than what a file on disk currently says. Fails with a diagnosis, not a
+  symptom.
+- **`makeName`'s rule-6 oracle was tautological and is fixed.** It asserted
+  `getByText(name)` on `/$name` — which passes even when the app cannot resolve
+  the name, because the profile header echoes the route param. It now asserts
+  the **owner address**, which the app can only know by reading the chain. This
+  is §11's tautological-oracle trap, in the suite built to catch that class; it
+  was green throughout the bad run. Post-fix it takes 9.3s instead of 4.2s,
+  because it is now doing real work.
+
+Harness: **11 passed** against the corrected environment. Full portal re-run in
+flight; see iteration 8 for the real numbers.
+
+**Standing lesson:** a harness gate is only worth what its weakest oracle is.
+One tautological assertion in it made the entire suite unable to detect that
+both apps were talking to the wrong chain.
+
+---
+
+## Iteration 7 — 2026-08-12 · ~~LOOP STOPPED — escalating~~ **(diagnosis void — see 7a)**
 
 **Batch:** reprice the ledger against a real run. Full portal suite,
 `--reporter=json`, fed to `pnpm e2e:coverage --results`.

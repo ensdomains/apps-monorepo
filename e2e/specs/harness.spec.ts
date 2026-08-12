@@ -126,10 +126,11 @@ test.describe('Harness integrity', () => {
       `makeName returned ${name} but the .eth registry does not report it registered — every spec that builds on this fixture is asserting against a name that does not exist`,
     ).toBe(REGISTERED)
 
+    const ownerAddress = accounts.getAddress('user')
     expect(
       (await owner(ETH_REGISTRY, label)).toLowerCase(),
       'makeName registered the name to an address other than the one it was asked for',
-    ).toBe(accounts.getAddress('user').toLowerCase())
+    ).toBe(ownerAddress.toLowerCase())
 
     // An expiry in the past would make the name render as expired everywhere
     // downstream, which reads as an app bug rather than a fixture bug.
@@ -143,12 +144,17 @@ test.describe('Harness integrity', () => {
     await connectWithHeadlessWallet(page, wallet)
     await page.goto(`${PORTAL_APP_URL}/${name}`)
 
-    // Structure, not prose: the profile header renders the name itself. If the
-    // portal cannot resolve it, this is where the makeV1Name class of failure
-    // surfaces — chain state present, app blind to it.
+    // The name itself is NOT a valid oracle here: `/$name` echoes the route
+    // param, so `getByText(name)` passes even when the app cannot resolve the
+    // name at all. That is a tautological oracle (§11) and it is exactly how
+    // this suite missed the portal running against public Sepolia for a whole
+    // run — every fixture name was invisible to the app and this test was green.
+    //
+    // Assert something the app can only know by reading the chain: the owner.
+    const truncatedOwner = `${ownerAddress.slice(0, 6)}…${ownerAddress.slice(-4)}`
     await expect(
-      page.getByText(name, { exact: true }).first(),
-      `${name} is registered on chain but the portal's name page does not render it — the fixture is writing somewhere the app does not read`,
+      page.getByText(truncatedOwner).first(),
+      `the portal does not show ${truncatedOwner} as the owner of ${name}. The name is registered on the local fork, so either the fixture wrote somewhere the app does not read, or the app is not pointed at this chain.`,
     ).toBeVisible({ timeout: 30_000 })
   })
 
@@ -431,6 +437,41 @@ test.describe('Harness integrity', () => {
     // And it must accept the real thing, or it is just a thing that always
     // throws — which would be its own kind of useless.
     await assertQueryFields('events', ['first'])
+  })
+
+  // ── the apps' own wiring (goal §6 B0) ──────────────────────────────────
+
+  test('the apps under test are pointed at this fork, not a public RPC', async () => {
+    // B0's missing half, added 2026-08-12 after it cost a two-hour suite run
+    // and a confidently wrong diagnosis.
+    //
+    // Both apps returned HTTP 200 and both were "up". The portal was compiled
+    // against a public Sepolia endpoint, because `apps/portal/.env` had been
+    // reduced to its committed baseline and the local-dev values lived only in
+    // an untracked `.env.bak-loop`. Every fixture name was therefore invisible
+    // to the app: 41 tests failed, and the 7 that "passed" were all negative
+    // assertions passing for the wrong reason — a confident negative is exactly
+    // what an app looking at the wrong chain produces (INV4).
+    //
+    // "The app is serving" is not "the app is on the right chain". This asserts
+    // the second thing. Read from the dev server's own transformed module, so
+    // it reflects what the running app was actually built with, not what a file
+    // on disk currently says.
+    for (const [appName, baseUrl] of [
+      ['portal', PORTAL_APP_URL],
+      ['manager', process.env.MANAGER_APP_URL ?? 'http://localhost:3000'],
+    ] as const) {
+      const res = await fetch(`${baseUrl}/src/lib/wagmi.ts`)
+      expect(
+        res.ok,
+        `could not read ${appName}'s wagmi module from ${baseUrl} — is the dev server running?`,
+      ).toBe(true)
+      const source = await res.text()
+      expect(
+        source,
+        `${appName} is not configured with the local Anvil RPC. It is serving, but against a different chain, so every fixture this suite creates is invisible to it and every "not found" it reports is a false negative. Check ${appName === 'portal' ? 'apps/portal' : 'apps/manager'}/.env{,.local} and restart the dev server.`,
+      ).toContain('127.0.0.1:8545')
+    }
   })
 
   // ── the chain itself ───────────────────────────────────────────────────
