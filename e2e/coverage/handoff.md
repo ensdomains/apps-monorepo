@@ -5,6 +5,83 @@ The file `/e2e-goal` reads first. One section per iteration, newest at the top.
 
 ---
 
+## Iteration 9 — 2026-08-12 · manager repriced, and registration diagnosed
+
+**Manager suite verified.** 18 tests: 12 passed, 5 failed, 1 skipped, ~40 min.
+With both suites' results: **terminal 39/300**, and the ratchet fires on
+**R1 2 → 1** — a real demotion this time, not an environment artefact.
+
+Manager-side failures:
+
+| Test | Duration | Tag |
+|---|---|---|
+| sets the newly registered name as primary | 249s | — |
+| registers a name via Rhinestone HCA | 249s | — |
+| registers a name after connecting from the pricing page | 188s | A16 |
+| extend unowned name by 28 days | 103s | **B2** |
+| agent-registration record card | 29s | — |
+
+`A16` survives because it is tagged on two tests and one passes — the
+reconciler's documented "best outcome wins". Worth knowing: **a scenario tagged
+on several tests goes green on any one of them**, so a partial regression is
+invisible at the tier level. `B2` had only one test and correctly demotes.
+
+### Duration is a hang detector, and it is free
+
+The distribution is bimodal with a clean gap: **everything passing ≤26s,
+everything failing ≥29s**, with the top three at 188–249s. Those three are all
+registration-dependent and were each burning a full timeout waiting on a
+registration that never completes — **11.4 minutes of the 40-minute run spent
+waiting for one upstream failure.**
+
+Any test whose duration approaches its configured timeout is waiting for
+something that never arrived, which looks nothing like doing a lot of work.
+Cheap check, and it is what turned "five unrelated failures" into "one cause and
+its three victims".
+
+### Registration (HCA) — diagnosed, not fixed
+
+Reproduces in isolation, so it is not cross-test interference.
+
+**Ruled out**, each with evidence:
+
+- *Stale selector* — my first guess. `locator('p.text-ens-peridot-text-dark')`
+  looks brittle, but the banner is absent because there is no success.
+- *Orchestrator down* — mockestrator's 503 on `GET /` is just its unmapped-route
+  reply (`{"error":"Not implemented!"}`). Docker: up, healthy.
+- *Chain stalled* — automine on, blocks advancing, zero pending transactions.
+- *Funding* — HCA holds 10 ETH and 10 000 USDC; executor EOA holds 1e9 ETH.
+- *Address drift* — commit and read both use
+  `ENS_SEPOLIA_CONTRACTS.ETHRegistrar` = `ensjsSepolia.ensEthRegistrar.address`.
+
+**The actual mechanism:**
+
+1. `tx-reg-commit` cycles `submitting → retrying` three times, then `error`.
+2. The mockestrator logs, at the same moment, an `IntentExecutor` call
+   reverting — `to: 0x8a525dc484f893ca64fef507746ebd5036eec256`, value 0,
+   selector `0x8b10923e`, `execution reverted` / *"Execution reverted for an
+   unknown reason"*. The intent payload carries the `commit` call
+   (`0xf14fcbc8`).
+3. Downstream, `registration.actors.ts:744` polls `commitmentAt()` five times
+   with 3s backoff, gets `0n` each time, and throws the message the UI shows:
+   *"Commitment timestamp not recorded after multiple attempts."*
+
+So the UI message is a **symptom two layers below its cause**. Nothing is wrong
+with the commitment polling; the intent that would have written the commitment
+reverted inside the executor.
+
+**Next step is `packages/smart-account/DEBUGGING_INTENTS.md`**, which is
+normative here and whose first instruction is exactly the situation: the outer
+error is a wrapper, get the inner revert first, by replaying the intent with
+`cast call --trace` plus state overrides. That is smart-account work, not test
+work.
+
+Not filed in `e2e-defects.md`: `registration-rhinestone.spec.ts` is untagged, so
+a defect row naming `A2` would trip the reconciler's `defect-unproven` failure.
+Recorded here instead, same as the `0x640294a2` finding.
+
+---
+
 ## Iteration 8 — 2026-08-12 · the real numbers
 
 Portal suite re-run against the corrected environment.

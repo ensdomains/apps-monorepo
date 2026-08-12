@@ -4,7 +4,7 @@
 
 Terminal: **40 / 300** scenarios (PASS 38 · DEFECT 2 · EXEMPT 0)
 
-Evidence mode: **run results** — scenarios covered by the supplied report are judged on whether they actually passed; the rest keep their static evidence.
+Evidence mode: **static** — PASS means a committed, non-skipped test exists and a project config runs it. Re-run with `--results <playwright.json>` to verify against a real run.
 
 ## Risk tiers
 
@@ -100,12 +100,12 @@ Committed tests that no project config executes. Not counted as terminal.
 | ID | § | Scenario | Status | Evidence |
 |---|---|---|---|---|
 | F1 | 5.F | Transfer each migrated V1 type: unwrapped, unlocked, locked | DEFECT | E2E-001 S1 · 2 test(s) |
-| F2 | 5.F | Transfer with CANNOT_TRANSFER burnt in V1 | PASS | 1 passing in portal |
-| F3 | 5.F | Transfer of a subname | PASS | 1 passing in portal |
-| F4 | 5.F | Transfer while the name is expired | PASS | 1 passing in portal |
+| F2 | 5.F | Transfer with CANNOT_TRANSFER burnt in V1 | PASS | 1 test(s) in portal |
+| F3 | 5.F | Transfer of a subname | PASS | 1 test(s) in portal |
+| F4 | 5.F | Transfer while the name is expired | PASS | 1 test(s) in portal |
 | F5 | 5.F | Transfer to an invalid receiver contract | DEFECT | E2E-002 S1 · 1 test(s) |
 | F6 | 5.F | Batch transfer (multiple names) | not-started | — |
-| F7 | 5.F | Transfer then role check | PASS | 1 passing in portal |
+| F7 | 5.F | Transfer then role check | PASS | 1 test(s) in portal |
 | F8 | 5.F | Manager/owner split — "sync manager" equivalent | not-started | — |
 | F9 | F | Each detach-toggle combination (2³ minus the impossible) | not-started | — |
 | F10 | F | Recipient as ENS name, address, name-with-whitespace, self, zero address, unresolvable | not-started | — |
@@ -242,29 +242,29 @@ Committed tests that no project config executes. Not counted as terminal.
 
 | ID | § | Scenario | Status | Evidence |
 |---|---|---|---|---|
-| C1 | 5.C | Roles table lists every holder of every role | PASS | 1 passing in portal |
-| C2 | 5.C | Grant a single role to a second wallet | PASS | 1 passing in portal |
-| C3 | 5.C | Grant several roles in one transaction | PASS | 1 passing in portal |
-| C4 | 5.C | Revoke a role | PASS | 1 passing in portal |
-| C5 | 5.C | Grant/revoke without the corresponding _ADMIN role | PASS | 1 passing in portal |
+| C1 | 5.C | Roles table lists every holder of every role | PASS | 1 test(s) in portal |
+| C2 | 5.C | Grant a single role to a second wallet | PASS | 1 test(s) in portal |
+| C3 | 5.C | Grant several roles in one transaction | PASS | 1 test(s) in portal |
+| C4 | 5.C | Revoke a role | PASS | 1 test(s) in portal |
+| C5 | 5.C | Grant/revoke without the corresponding _ADMIN role | PASS | 1 test(s) in portal |
 | C6 | 5.C | Owner with admin vs root performing the same grant | not-started | — |
-| C7 | 5.C | Roles while the name is expired | PASS | 1 passing in portal |
-| C8 | 5.C | Roles while the name is reserved | PASS | 1 passing in portal |
-| C9 | 5.C | setApprovalForAll operator gains the blended role set | PASS | 1 passing in portal |
+| C7 | 5.C | Roles while the name is expired | PASS | 1 test(s) in portal |
+| C8 | 5.C | Roles while the name is reserved | PASS | 1 test(s) in portal |
+| C9 | 5.C | setApprovalForAll operator gains the blended role set | PASS | 1 test(s) in portal |
 | C10 | 5.C | Max-assignee boundary | not-started | — |
-| C11 | 5.C | Role history table | PASS | 1 passing in portal |
-| C12 | 5.C | Roles survive a transfer / are reset by it | PASS | 1 passing in portal |
+| C11 | 5.C | Role history table | PASS | 1 test(s) in portal |
+| C12 | 5.C | Roles survive a transfer / are reset by it | PASS | 1 test(s) in portal |
 | C13 | 5.C | Registry-level roles vs name-level roles are independent | not-started | — |
 | C14 | 5.C | Resolver-level roles per profile key | not-started | — |
 | C15 | C | Role admin chain: A grants admin to B, B grants the role to C, A revokes B | not-started | — |
 | C16 | C | Self-revoke of the last admin | not-started | — |
 | C17 | C | Role change while a transaction for that role is in flight | not-started | — |
-| D1 | 5.D | Deploy a subregistry for a name that has none | PASS | 1 passing in portal |
-| D2 | 5.D | Create a subname (3LD) | PASS | 1 passing in portal |
-| D3 | 5.D | Create a 4LD under a 3LD that owns its own registry | PASS | 1 passing in portal |
-| D4 | 5.D | Create a subname without ROLE_REGISTRAR | PASS | 1 passing in portal |
-| D5 | 5.D | Delete a subname | PASS | 1 passing in portal |
-| D6 | 5.D | Delete without ROLE_UNREGISTER | PASS | 1 passing in portal |
+| D1 | 5.D | Deploy a subregistry for a name that has none | PASS | 1 test(s) in portal |
+| D2 | 5.D | Create a subname (3LD) | PASS | 1 test(s) in portal |
+| D3 | 5.D | Create a 4LD under a 3LD that owns its own registry | PASS | 1 test(s) in portal |
+| D4 | 5.D | Create a subname without ROLE_REGISTRAR | PASS | 1 test(s) in portal |
+| D5 | 5.D | Delete a subname | PASS | 1 test(s) in portal |
+| D6 | 5.D | Delete without ROLE_UNREGISTER | PASS | 1 test(s) in portal |
 | D7 | 5.D | Subname expiry cannot exceed the parent's | not-started | — |
 | D8 | 5.D | Parent expires → children behaviour | not-started | — |
 | D9 | 5.D | setSubregistry / detach registry | not-started | — |
@@ -277,17 +277,17 @@ Committed tests that no project config executes. Not counted as terminal.
 | D16 | D | 20+ subnames | not-started | — |
 | D17 | D | Duplicate subname label | not-started | — |
 | D18 | D | Subname on a migrated locked parent (WrapperRegistry) | not-started | — |
-| E1 | 5.E | Set/update/delete text records (multiple keys in one save) | PASS | 2 passing in portal |
-| E2 | 5.E | Set addresses for multiple coin types incl. non-EVM | PASS | 1 passing in portal |
-| E3 | 5.E | Invalid address input: too short / too long / wrong checksum | PASS | 1 passing in portal |
-| E4 | 5.E | Contenthash, pubkey, ABI, interface | PASS | 1 passing in portal |
-| E5 | 5.E | Record edits without the per-key role | PASS | 1 passing in portal |
-| E6 | 5.E | Change resolver | PASS | 1 passing in portal |
-| E7 | 5.E | Change resolver blocked when ROLE_SET_RESOLVER absent | PASS | 1 passing in portal |
-| E8 | 5.E | Detach resolver (set to zero) | PASS | 1 passing in portal |
+| E1 | 5.E | Set/update/delete text records (multiple keys in one save) | PASS | 2 test(s) in portal |
+| E2 | 5.E | Set addresses for multiple coin types incl. non-EVM | PASS | 1 test(s) in portal |
+| E3 | 5.E | Invalid address input: too short / too long / wrong checksum | PASS | 1 test(s) in portal |
+| E4 | 5.E | Contenthash, pubkey, ABI, interface | PASS | 1 test(s) in portal |
+| E5 | 5.E | Record edits without the per-key role | PASS | 1 test(s) in portal |
+| E6 | 5.E | Change resolver | PASS | 1 test(s) in portal |
+| E7 | 5.E | Change resolver blocked when ROLE_SET_RESOLVER absent | PASS | 1 test(s) in portal |
+| E8 | 5.E | Detach resolver (set to zero) | PASS | 1 test(s) in portal |
 | E9 | 5.E | Resolver aliases — none, root, exact, subdomain, recursive | not-started | — |
-| E10 | 5.E | Alias creation without ROLE_SET_ALIAS | PASS | 1 passing in portal |
-| E11 | 5.E | Resolver nodes list + node detail sheet | PASS | 1 passing in portal |
+| E10 | 5.E | Alias creation without ROLE_SET_ALIAS | PASS | 1 test(s) in portal |
+| E11 | 5.E | Resolver nodes list + node detail sheet | PASS | 1 test(s) in portal |
 | E12 | 5.E | Multicall record save — partial failure | not-started | — |
 | E13 | 5.E | Wildcard / ENSV1Resolver fallback for an unmigrated name | not-started | — |
 | E14 | 5.E | Resolver upgrade | not-started | — |
