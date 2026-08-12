@@ -1,4 +1,3 @@
-import { getDestinationContracts } from '@ens-apps/smart-account'
 import {
   type SUPPORTED_TOKEN,
   TOKENS,
@@ -10,7 +9,6 @@ import { useSelector } from '@xstate/react'
 import { type ReactNode, useState } from 'react'
 import { match, P } from 'ts-pattern'
 import { isAddressEqual } from 'viem'
-import { sepolia } from 'viem/chains'
 import { USDCIcon } from '@/components/atoms/StableCoinsIcons'
 import { DomainAttributePill } from '@/components/molecules/DomainResultCard/DomainAttributePill'
 import { Button } from '@/components/ui/button'
@@ -19,6 +17,7 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { ownedNamesCountQueryOptions } from '@/features/shared/service/ownedNamesCount'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { useSmartAccountContext } from '@/lib/smart-account/SmartAccountContext'
+import { HCA_PAYMENT_TOKEN } from '@/lib/smart-account/useSmartAccountBalances'
 import { cn } from '@/lib/utils'
 import { decimalBigintToNumber } from '@/utils/formatting/decimalBigintToNumber'
 import { getRegistrationV2AvailabilityQueryOptions } from '../../../data/queries/availability.query'
@@ -111,12 +110,15 @@ export const TokenPickerContent = () => {
     uiActor.send({ type: 'pricing.token.select', token: coin })
   }
 
-  // The wallet's Circle-USDC balance. This is the EOA owner's balance (see
+  // The wallet's USDC balance. This is the EOA owner's balance (see
   // `useSmartAccountBalances`), which is the account the funding permit debits.
+  //
+  // Matched on {@link HCA_PAYMENT_TOKEN} — the manifest funding token, and the
+  // same constant the balance list is built from, so the two cannot drift into
+  // a lookup that never matches and reads as "no balance".
   const usdcBalanceRaw = (() => {
-    const usdc = getDestinationContracts(sepolia.id).usdc
     const entry = account.stablecoinBalances.find((balance) =>
-      isAddressEqual(balance.address, usdc),
+      isAddressEqual(balance.address, HCA_PAYMENT_TOKEN),
     )
     return entry ? BigInt(entry.balance) : null
   })()
@@ -409,9 +411,14 @@ export const TokenPickerContentBase = ({
     (coin) => coin.symbol === selectedToken,
   )
 
+  // Tested for presence, never truthiness: a debit of 0 is a legitimate state,
+  // not a missing quote. An HCA already holding the whole budget — an aborted
+  // registration that funded the commit but never revealed — owes the wallet
+  // nothing, and a falsy 0 would block exactly the retry that should sail
+  // through.
   const hasSufficientBalanceForSelectedCoin =
-    selectedCoinBalance &&
-    requiredAmount &&
+    selectedCoinBalance !== undefined &&
+    requiredAmount !== undefined &&
     decimalBigintToNumber(
       BigInt(selectedCoinBalance.balance),
       selectedCoinBalance.decimals,
@@ -422,7 +429,7 @@ export const TokenPickerContentBase = ({
     !!selectedToken &&
     !pricingLoading &&
     hasBalances &&
-    !!hasSufficientBalanceForSelectedCoin
+    hasSufficientBalanceForSelectedCoin
 
   return (
     <div className="flex h-full flex-1 flex-col gap-6 px-4 pt-2 pb-6">
