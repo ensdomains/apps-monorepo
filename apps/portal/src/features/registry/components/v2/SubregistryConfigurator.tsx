@@ -36,6 +36,46 @@ const implAddress = getChainContractAddress({
 
 type RegistryOption = 'deploy' | 'use-existing'
 
+export const getCustomRegistryAddressError = (value: string): string | null =>
+  match(value)
+    .when(
+      (v) => v === '' || isAddress(v),
+      () => null,
+    )
+    .when(
+      (v) => isAddress(v, { strict: false }),
+      () => "That address's checksum doesn't match. Check it for a typo.",
+    )
+    .otherwise(() => 'Enter a valid contract address.')
+
+const CustomRegistryAddressField = ({
+  value,
+  onChange,
+}: {
+  readonly value: string
+  readonly onChange: (value: string) => void
+}) => {
+  const [touched, setTouched] = useState(false)
+  const error = touched ? getCustomRegistryAddressError(value) : null
+
+  return (
+    <div>
+      <Input
+        id="contract-address"
+        placeholder="Paste contract address"
+        value={value}
+        aria-invalid={error !== null}
+        className="w-full p-3 h-9 bg-background border border-border rounded-md"
+        onChange={(e) => onChange(e.target.value.trim())}
+        onBlur={() => setTouched(true)}
+      />
+      {error ? (
+        <p className="text-sm mt-1.5 text-destructive">{error}</p>
+      ) : null}
+    </div>
+  )
+}
+
 type SubregistryConfiguratorProps = {
   name: string
   onCancel: () => void
@@ -215,12 +255,9 @@ export const SubregistryConfigurator = ({
           </div>
         </RadioGroup>
         {useCustomRegistry ? (
-          <Input
-            id="contract-address"
-            placeholder="Paste contract address"
+          <CustomRegistryAddressField
             value={contractAddress}
-            className="w-full p-3 h-9 bg-background border border-border rounded-md"
-            onChange={(e) => setContractAddress(e.target.value)}
+            onChange={setContractAddress}
           />
         ) : null}
         <div className="grid grid-cols-3 gap-2">
