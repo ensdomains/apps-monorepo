@@ -1,5 +1,6 @@
 import type { MessageDescriptor } from '@lingui/core'
 import { msg } from '@lingui/core/macro'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import customProfiles from './assets/custom-profiles.webp'
 import everythingOnePlace from './assets/everything-one-place.webp'
 import favoritesAnimation from './assets/favorites.webm'
@@ -15,7 +16,7 @@ export type MigrationValuePropSlide = {
   readonly media: MigrationValuePropMedia
 }
 
-export const MIGRATION_VALUE_PROP_SLIDES: readonly MigrationValuePropSlide[] = [
+const ALL_SLIDES: readonly MigrationValuePropSlide[] = [
   {
     id: 'profiles',
     label: msg`Custom profiles`,
@@ -64,3 +65,8 @@ export const MIGRATION_VALUE_PROP_SLIDES: readonly MigrationValuePropSlide[] = [
     },
   },
 ] as const
+
+export const MIGRATION_VALUE_PROP_SLIDES: readonly MigrationValuePropSlide[] =
+  ALL_SLIDES.filter(
+    (slide) => slide.id !== 'nft' || isFeatureEnabled('COMMEMORATIVE_NFT_COPY'),
+  )
