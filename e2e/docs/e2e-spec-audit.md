@@ -60,41 +60,26 @@ simply never confirmed on chain that the recipient ends up owning the token.
 before any page assertion. Additive — every existing assertion is untouched, per
 rule 1. The helper is shared, so the untagged transfer tests gained it too.
 
-**⚠ The fix is UNVERIFIED.** All three F1 variants fail before reaching it — see
-below. Rule 7 forbids claiming a run that was not observed, so F1 is recorded as
-`STRENGTHENED` on inspection, **not** as verified green.
+**VERIFIED 2026-08-12.** All three F1 variants pass against the corrected
+environment, with the new chain assertion in the path. (They failed on the first
+attempt, but for an environmental reason — the portal was compiled against public
+Sepolia and could not see the fixture's names. See `coverage/handoff.md` 7a.)
 
-### The R0 terminal rows do not currently pass
+### On the "R0 does not pass" claim made here earlier
 
-Running F1 produced three failures, all `TimeoutError` on `locator.click` /
-`locator.fill` at the Transfer link and the recipient field — i.e. long before
-the assertion added above. (The error *type* is what rules the new assertion
-out: it is an `expect().toBe()`, which fails as an assertion error, never as a
-locator timeout.) Iteration 3 separately verified the same locator family
-failing at `transfer.spec.ts:687` under `--no-deps`, with no harness project
-running, so this is **pre-existing and not caused by the audit**.
+It was wrong, and it is worth preserving why. I observed three F1 failures, and
+concluded the ledger's static PASSes were hollow. The failures were real; the
+inference was not. The tests were fine — the app was on the wrong chain.
 
-The consequence is bigger than F1:
+Re-run: **58 passed, 1 failed, 3 skipped**. The one failure is F5's regression
+test for open S1 E2E-002, which is supposed to be red. `pnpm e2e:coverage
+--results` reports 40/300 and exits 0, so every static PASS is now a verified
+PASS.
 
-> The reconciler's default evidence mode is **static** — `PASS` means "a
-> committed, non-skipped test exists and a project config runs it", *not* "it
-> passed". It says so in its own report header.
-
-So the ledger's six R0 terminal rows are static-evidence claims for tests that,
-run today, fail. That is not a reconciler bug — it is the documented meaning of
-static mode, and precisely the gap `--results` exists to close. But it means
-**the terminal count of 40 overstates what currently passes**, and nobody should
-read R0 6/83 as six working transfer scenarios.
-
-Not triaged further here: whether the portal transfer UI regressed, whether the
-locators drifted, or whether it is environmental. That is a batch of its own and
-it belongs to R0 proper, not to B4. Recorded rather than chased so the next
-iteration starts from the fact instead of rediscovering it.
-
-**Recommended next step for whoever picks this up:** run the portal suite with
-`--reporter=json` and feed it to `pnpm e2e:coverage --results <file>`. That
-converts every static PASS into a run-verified one and will show exactly how
-much of the 40 is real. Do that *before* trusting any tier number.
+The generalisable mistake: I treated "the test failed" as evidence about the
+*test*, without first establishing that the environment under it was sound.
+Run-verification is only as good as the environment it ran in, which is why the
+harness now asserts the apps' RPC wiring before anything else.
 
 ### Methodology note — do not repeat this mistake
 
