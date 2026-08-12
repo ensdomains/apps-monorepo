@@ -2,6 +2,7 @@ import { Plural, Trans } from '@lingui/react/macro'
 import { CircleAlert } from 'lucide-react'
 import { match } from 'ts-pattern'
 import type { MigrationGasEstimateState } from '@/features/migration/hooks/useMigrationGasEstimate'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 import { WalletConfirmationStepsDialog } from './WalletConfirmationStepsDialog'
 
 type GasEstimateMessageProps = {
@@ -105,6 +106,7 @@ export const SelectNamesStepFooter = ({
   totalSelected,
   visibleCount,
 }: SelectNamesStepFooterProps) => {
+  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
   const atomicBatchCount =
     gasEstimate.status === 'ready'
       ? (gasEstimate.plan.atomicBatches?.length ?? 0)
@@ -141,12 +143,14 @@ export const SelectNamesStepFooter = ({
             totalSelected={totalSelected}
           />
         </button>
-        {totalSelected > 0 && totalSelected < visibleCount && (
-          <p className="flex items-center gap-1 text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.14px]">
-            <CircleAlert className="size-4 shrink-0" strokeWidth={1.8} />
-            <Trans>Upgrade all names to receive NFT</Trans>
-          </p>
-        )}
+        {nftCopyEnabled &&
+          totalSelected > 0 &&
+          totalSelected < visibleCount && (
+            <p className="flex items-center gap-1 text-ens-garnet-500 text-sm leading-[1.2] tracking-[0.14px]">
+              <CircleAlert className="size-4 shrink-0" strokeWidth={1.8} />
+              <Trans>Upgrade all names to receive NFT</Trans>
+            </p>
+          )}
       </div>
     </div>
   )

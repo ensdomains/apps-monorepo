@@ -10,6 +10,7 @@ import { useMigratedNamesCount } from '@/features/migration/hooks/useMigratedNam
 import { POSTHOG_FEATURE_FLAGS } from '@/lib/posthog/feature-flags'
 import { useSmartAccountContext } from '@/lib/smart-account'
 import { cn } from '@/lib/utils'
+import { isFeatureEnabled } from '@/utils/feature-flags'
 
 type UpgradeBannerProps = {
   readonly className?: string
@@ -20,6 +21,7 @@ export const UpgradeBanner = ({
   className,
   profileName,
 }: UpgradeBannerProps) => {
+  const nftCopyEnabled = isFeatureEnabled('COMMEMORATIVE_NFT_COPY')
   const navigate = useNavigate()
   const migrationEnabled = useFeatureFlagEnabled(
     POSTHOG_FEATURE_FLAGS.MIGRATION,
@@ -70,14 +72,22 @@ export const UpgradeBanner = ({
           <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
             <p className="text-base text-ens-garnet-500 leading-[1.2] tracking-[0.16px]">
               {isProfileBanner ? (
-                <Trans>
-                  Upgrade your name to edit your new ENS profile and claim your
-                  personalized NFT.
-                </Trans>
-              ) : (
+                nftCopyEnabled ? (
+                  <Trans>
+                    Upgrade your name to edit your new ENS profile and claim
+                    your personalized NFT.
+                  </Trans>
+                ) : (
+                  <Trans>Upgrade your name to edit your new ENS profile.</Trans>
+                )
+              ) : nftCopyEnabled ? (
                 <Trans>
                   Upgrade your name(s) to unlock your new ENS profile and claim
                   your personalized NFT.
+                </Trans>
+              ) : (
+                <Trans>
+                  Upgrade your name(s) to unlock your new ENS profile.
                 </Trans>
               )}
             </p>
