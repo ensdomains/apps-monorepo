@@ -63,7 +63,7 @@ const Slot = ({ slot }: { slot: ActionSlot }) =>
     ))
     .with({ kind: 'text' }, ({ value }) => (
       <code className="rounded bg-neutral-1 px-1.5 py-0.5 font-mono text-p text-neutral-7">
-        {value}
+        {truncateAddress(value, 20, 12)}
       </code>
     ))
     .with({ kind: 'glyph' }, ({ value }) => (
