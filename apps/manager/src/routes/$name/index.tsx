@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query'
 import {
   createFileRoute,
   type ErrorComponentProps,
@@ -19,6 +20,19 @@ import { profileReverseNameQuery } from '@/features/profile/service/profileRever
 import { getRegistrationV2AvailabilityQueryOptions } from '@/features/register-v2/data/queries/availability.query'
 import { parseName } from '@/features/register-v2/utils/name-parser'
 import { seo } from '@/utils/seo'
+
+// `/register/$name` redirects straight back here when the registrar says the
+// name isn't free, so every hand off to it is gated on this.
+const isFreeToRegister = async (
+  queryClient: QueryClient,
+  name: string,
+): Promise<boolean> => {
+  const availability = await queryClient
+    .fetchQuery(getRegistrationV2AvailabilityQueryOptions(name))
+    .catch(() => undefined)
+
+  return availability?.isAvailable === true
+}
 
 // Classifies an ownerless name: .eth 2LDs with 3+ code points (the
 // registrar counts code points, not UTF-16 units) can be registered,
@@ -64,13 +78,7 @@ export const Route = createFileRoute('/$name/')({
       const missing = classifyMissingName(parsed)
 
       if (missing === 'registrable') {
-        // `/register/$name` redirects back here when the name isn't free, so
-        // hand off only once the registrar agrees.
-        const availability = await queryClient.fetchQuery(
-          getRegistrationV2AvailabilityQueryOptions(name),
-        )
-
-        if (availability.isAvailable) {
+        if (await isFreeToRegister(queryClient, name)) {
           throw redirect({
             params: { name },
             to: '/register/$name',
@@ -97,9 +105,14 @@ export const Route = createFileRoute('/$name/')({
       expiryData?.expiry == null
         ? null
         : new Date(Number(expiryData.expiry) * 1000)
-    const isPastGrace = isPastGracePeriod(expiryDate, true)
+    // v1 names get a 90 day grace, v2 a 28 day one, so judging a v1 name as v2
+    // declares it past grace up to 62 days early.
+    const isPastGrace = isPastGracePeriod(
+      expiryDate,
+      ownerData.protocol === 'v2',
+    )
 
-    if (isPastGrace) {
+    if (isPastGrace && (await isFreeToRegister(queryClient, name))) {
       throw redirect({
         params: { name },
         to: '/register/$name',
