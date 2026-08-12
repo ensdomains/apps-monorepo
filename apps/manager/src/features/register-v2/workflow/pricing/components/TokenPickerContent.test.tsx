@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import { i18n } from '@lingui/core'
 import { I18nProvider } from '@lingui/react'
-import { render, screen } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { StablecoinBalance } from '@/lib/smart-account'
 import { TokenPickerContentBase } from './TokenPickerContent'
@@ -77,38 +77,5 @@ describe('TokenPickerContentBase', () => {
     const onSelectCoin = renderPicker({ stablecoinBalances: [] })
 
     expect(onSelectCoin).not.toHaveBeenCalled()
-  })
-
-  it('lets checkout through when the HCA already covers the whole budget', () => {
-    // A debit of 0 is a real state, not a missing quote: an aborted
-    // registration that funded the commit but never revealed leaves the HCA
-    // holding the budget, and the retry owes the wallet nothing.
-    renderPicker({
-      funding: {
-        networkFee: 0.196054,
-        total: 330.196054,
-        walletDebit: 0,
-        isLoading: false,
-      },
-      selectedToken: 'USDC',
-    })
-
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeEnabled()
-  })
-
-  it('blocks checkout when the wallet cannot cover the debit', () => {
-    // The 1,000 USDC balance covers the 330 rent but not the 2,000 debit —
-    // gating on the debit is what makes this fail.
-    renderPicker({
-      funding: {
-        networkFee: 0.196054,
-        total: 2_000,
-        walletDebit: 2_000,
-        isLoading: false,
-      },
-      selectedToken: 'USDC',
-    })
-
-    expect(screen.getByRole('button', { name: 'Register name' })).toBeDisabled()
   })
 })

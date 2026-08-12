@@ -11,32 +11,16 @@ import { publicClient } from '@/lib/wagmi'
 import type { EthBalance, StablecoinBalance } from './types'
 
 /**
- * The token the standalone-HCA route is paid in — the manifest's funding token,
- * which is what the funding permit actually debits.
- *
- * Exported so the affordability gates can match balances against the SAME
- * address this list is built from. They must not resolve the token
- * independently: a lookup keyed on a different USDC would silently find nothing
- * and read as "no balance" rather than failing loudly. Since #1037 the manifest
- * token and `SUPPORTED_TOKENS.USDC` are both ensjs MockUSDC, but that equality
- * is a deployment fact, not a guarantee — share the constant instead of
- * relying on it.
- */
-export const HCA_PAYMENT_TOKEN: Address = getDestinationContracts(
-  sepolia.id,
-).usdc
-
-/**
  * The stablecoins to read balances for, keyed by symbol → address.
  *
- * Standalone-HCA path: the only supported payment token is the manifest funding
- * token (the HCA validator's PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN). The old
- * mock-token faucet set (`/wallet/tokens` → MockUSDC/MockDAI) is not used —
- * registrations pay in that one token, so it is the only balance the picker and
- * low-balance checks care about.
+ * Standalone-HCA path: the only supported payment token is the REAL Circle
+ * Sepolia USDC (the HCA validator's PAYMENT_TOKEN / SECONDARY_PAYMENT_TOKEN).
+ * The old mock-token faucet set (`/wallet/tokens` → MockUSDC/MockDAI) is not
+ * used — registrations pay in Circle USDC, so that's the only balance the
+ * picker and low-balance checks care about.
  */
 const HCA_BALANCE_TOKENS: Record<string, Address> = {
-  USDC: HCA_PAYMENT_TOKEN,
+  USDC: getDestinationContracts(sepolia.id).usdc,
 }
 
 interface UseSmartAccountBalancesParams {
