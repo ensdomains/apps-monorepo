@@ -113,7 +113,24 @@ from what the file actually imports.
 
 ---
 
-## R2 · audited by measurement — 2026-08-12
+## ⚠ The R2 measurement below is VOID — 2026-08-12
+
+The run it is based on was taken while **the portal was compiled against public
+Sepolia**, not the local fork (`apps/portal/.env` had lost its local-dev values
+to an untracked `.env.bak-loop`). Every fixture name was invisible to the app,
+so the failures say nothing about the specs and the passes say less: all seven
+survivors were negative assertions, true only because the app could not see the
+name.
+
+Corrected and re-run; see `coverage/handoff.md` iteration 7a and 8. The table
+below is kept only so the void numbers cannot be mistaken for current ones.
+
+**The method still stands, and so does its lesson — with one addition:** run the
+suite before auditing it, *and verify the app under test is on the right chain
+before believing the run*. A green negative assertion is the cheapest thing in
+the world to produce by accident.
+
+## R2 · ~~audited by measurement~~ **(VOID)** — 2026-08-12
 
 The four portal files below were going to be read one by one. A full suite run
 with `--results` answered the question faster and with better evidence: a test
