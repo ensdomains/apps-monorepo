@@ -61,12 +61,20 @@ export function computeNamePricingDisplay(
     roundedYears >= 2 ? `${roundedYears}+ yr discount price` : undefined
 
   const actualPrice = Number(formatUnits(price.base, price.decimals))
-  const effectivePerYear = getEffectivePricePerYearUsd({
-    priceBase: price.base,
-    priceDecimals: price.decimals,
-    durationSeconds: duration,
-    baseRate,
-  })
+  // Quote the rate over the whole years the summary says you are buying, not
+  // fractional contract years. A term crossing a leap day is 366 days = 1.002
+  // contract years, so dividing by that prints a per-year figure a cent under
+  // the total it sits next to. Falls back to the rate estimate while the price
+  // is still loading.
+  const effectivePerYear =
+    roundedYears >= 1 && actualPrice > 0
+      ? actualPrice / roundedYears
+      : getEffectivePricePerYearUsd({
+          priceBase: price.base,
+          priceDecimals: price.decimals,
+          durationSeconds: duration,
+          baseRate,
+        })
 
   const undiscountedBase =
     baseRate > 0n

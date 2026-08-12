@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getDurationInSecondsFromYears } from '@/features/register/utils/registrationDuration'
 import { CONTRACT_SECONDS_PER_YEAR } from '@/lib/constants/duration'
 import { computeNamePricingDisplay } from './computeNamePricingDisplay'
 
@@ -112,6 +113,35 @@ describe('computeNamePricingDisplay', () => {
       )
       expect(result.priceValue).toBe('$5.00/year')
       expect(result.priceValue).not.toContain('×')
+    })
+
+    it('quotes a 1-year term at the same figure as its total', () => {
+      // Aug 2027 -> Aug 2028 crosses Feb 29, so the term is 366 days = 1.002
+      // contract years. Dividing by that printed a per-year rate a cent under
+      // the total sitting right next to it.
+      const expiryDate = new Date(2027, 7, 12)
+      const duration = getDurationInSecondsFromYears(
+        1,
+        Temporal.PlainDate.from('2027-08-12'),
+      )
+      const rate = 254000000n
+      const base = (rate * BigInt(duration)) / 1000000n
+
+      const result = computeNamePricingDisplay(
+        selectedName('hello.eth', expiryDate),
+        {
+          base,
+          premium: 0n,
+          total: base,
+          decimals: USDC_DECIMALS,
+          hasPremium: false,
+        },
+        duration,
+        rate,
+      )
+
+      expect(result.registrationPeriod).toBe('1 year')
+      expect(result.priceValue).toBe(`${result.total}/year`)
     })
 
     it('shows actual base for 1-year durations', () => {
