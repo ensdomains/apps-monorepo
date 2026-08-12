@@ -36,7 +36,12 @@ export const DurationSelector = () => {
 
   const presetPricingQueries = useQueries({
     queries: presetDurations.map(({ duration }) =>
-      getRenewPriceQueryOptions(label, duration, TOKENS.USDC.symbol, protocol),
+      getRenewPriceQueryOptions(
+        label,
+        BigInt(duration),
+        TOKENS.USDC.symbol,
+        protocol,
+      ),
     ),
     combine: (results) =>
       results.map((result, idx): PresetPricingQuery => {
@@ -56,7 +61,7 @@ export const DurationSelector = () => {
   })
 
   const selectedPresetIdx = presetDurations.findIndex(
-    ({ duration }) => selectedDuration === duration,
+    ({ duration }) => selectedDuration === BigInt(duration),
   )
 
   return (
@@ -76,7 +81,7 @@ export const DurationSelector = () => {
             onSelect={() =>
               uiActor.send({
                 type: 'pricing.duration.set',
-                duration: data.duration,
+                duration: BigInt(data.duration),
               })
             }
             price={query.data}
@@ -87,10 +92,13 @@ export const DurationSelector = () => {
       <DurationCustomRow
         isSelected={selectedPresetIdx === -1}
         onDurationSet={(duration) =>
-          uiActor.send({ type: 'pricing.duration.set', duration })
+          uiActor.send({
+            type: 'pricing.duration.set',
+            duration: BigInt(duration),
+          })
         }
         referenceDate={referenceDate}
-        selectedDuration={selectedDuration}
+        selectedDuration={Number(selectedDuration)}
         type="renew"
       />
     </div>

@@ -65,7 +65,7 @@ export const ConfirmPurchase = () => {
           label,
           signer: renewalSigner,
           ownerAddress,
-          duration: BigInt(Math.ceil(duration)),
+          duration,
           token: selectedToken,
           priceRaw: pricingQuery.data.rawPrice,
           priceNumber: pricingQuery.data.basePriceNumber,

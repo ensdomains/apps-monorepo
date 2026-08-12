@@ -51,7 +51,7 @@ export const PaymentCard = () => {
   const { discountAmount } = calculateDiscount(
     pricingQuery.data ?? 0,
     baseRate,
-    BigInt(duration),
+    duration,
   )
 
   const openTokenPicker = () => uiActor.send({ type: 'pricing.step.next' })

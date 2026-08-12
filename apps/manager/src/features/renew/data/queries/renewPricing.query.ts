@@ -25,7 +25,7 @@ export { MissingTokenError }
 
 export const getRenewPrice = ResultFn(async function* (
   label: string,
-  durationInSeconds: number,
+  durationInSeconds: bigint,
   token: SUPPORTED_TOKEN | undefined,
   protocol: RenewalProtocol,
 ) {
@@ -37,7 +37,7 @@ export const getRenewPrice = ResultFn(async function* (
     ensGetRenewPrice(publicClient, {
       renewerAddress: getRenewerAddress(protocol),
       label,
-      duration: BigInt(Math.ceil(durationInSeconds)),
+      duration: durationInSeconds,
       paymentToken: TOKENS[token].address,
     }),
     (cause) =>
@@ -51,7 +51,7 @@ export const getRenewPrice = ResultFn(async function* (
 
 export const getRenewPriceQueryOptions = (
   label: string,
-  durationInSeconds: number,
+  durationInSeconds: bigint,
   token: SUPPORTED_TOKEN | undefined,
   protocol: RenewalProtocol,
 ) => {
@@ -61,7 +61,7 @@ export const getRenewPriceQueryOptions = (
     queryKey: $qk({
       $action: 'get-renew-price',
       label,
-      durationInSeconds,
+      durationInSeconds: durationInSeconds.toString(),
       token,
       protocol,
       renewerAddress,

@@ -60,7 +60,7 @@ export const renewalUiMachine = setup({
       currentExpiry: bigint
       protocol: RenewalProtocol
       renewerAddress: Address
-      duration: number
+      duration: bigint
       selectedToken: SUPPORTED_TOKEN | undefined
       lastErrorMessage?: string
       submissionData?: SubmissionData
@@ -75,7 +75,7 @@ export const renewalUiMachine = setup({
       | { type: 'pricing.step.next' }
       | { type: 'pricing.step.previous' }
       | { type: 'pricing.dialog.dismiss' }
-      | { type: 'pricing.duration.set'; duration: number }
+      | { type: 'pricing.duration.set'; duration: bigint }
       | { type: 'pricing.token.select'; token: SUPPORTED_TOKEN | undefined }
       | {
           type: 'renewal.start'
@@ -187,9 +187,11 @@ export const renewalUiMachine = setup({
     currentExpiry: input.currentExpiry,
     protocol: input.protocol,
     renewerAddress: getRenewerAddress(input.protocol),
-    duration: getDurationInSecondsFromYears(
-      1,
-      new Date(Number(input.currentExpiry) * 1000),
+    duration: BigInt(
+      getDurationInSecondsFromYears(
+        1,
+        new Date(Number(input.currentExpiry) * 1000),
+      ),
     ),
     selectedToken: undefined,
     lastErrorMessage: undefined,
