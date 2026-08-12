@@ -1612,16 +1612,24 @@ msgstr ""
 msgid "Not a valid name format"
 msgstr ""
 
-#. placeholder {0}: funding.walletDebit.toFixed(2)
-#. placeholder {1}: funding.registration.toFixed(2)
-#. placeholder {2}: funding.networkFee.toFixed(2)
-#. placeholder {3}: (funding.walletBalance ?? 0).toFixed(2)
+#. placeholder {0}: f.total.toFixed(2)
+#. placeholder {1}: f.hcaCredit.toFixed(2)
+#. placeholder {2}: f.walletDebit.toFixed(2)
+#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
+#: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
+msgid "Not enough USDC. This registration costs {0} USDC and your account already holds {1}, so you need {2} more — but your wallet holds {3} USDC."
+msgstr ""
+
+#. placeholder {0}: f.walletDebit.toFixed(2)
+#. placeholder {1}: f.registration.toFixed(2)
+#. placeholder {2}: f.networkFee.toFixed(2)
+#. placeholder {3}: (f.walletBalance ?? 0).toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Not enough USDC. This registration needs {0} USDC — a {1} registration plus a {2} network cost — but your wallet holds {3} USDC."
 msgstr ""
 
-#. placeholder {0}: mutationError.required.toFixed(2)
-#. placeholder {1}: mutationError.available.toFixed(2)
+#. placeholder {0}: e.required.toFixed(2)
+#. placeholder {1}: e.available.toFixed(2)
 #: src/features/register-v2/workflow/pricing/components/TokenPickerContent.tsx
 msgid "Not enough USDC. This registration needs {0} USDC but your wallet holds {1} USDC."
 msgstr ""

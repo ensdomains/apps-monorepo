@@ -5,8 +5,10 @@ import {
   type HcaSessionEnableParams,
   readHcaUsdcBalanceActor,
 } from '@ens-apps/transaction-manager/machines/registration/registration.hca.actors'
+import { ResultFn, TaggedError } from '@ens-apps/utils/neverthrow'
+import { resultQueryOptions } from '@ens-apps/utils/tanstack-query/neverthrow'
 import { $qk } from '@ens-apps/utils/tanstack-query/queryKey'
-import { queryOptions } from '@tanstack/react-query'
+import { fromPromise, ok } from 'neverthrow'
 import type { Address } from 'viem'
 import { sepolia } from 'viem/chains'
 import { publicClient } from '@/lib/wagmi'
@@ -26,7 +28,9 @@ import { publicClient } from '@/lib/wagmi'
  *
  * This runs the SAME estimator the registration machine runs in
  * `computingHcaBudget`, so the number shown at checkout is the number the
- * machine will size the permit from.
+ * machine will size the permit from. Every input that moves the quote must
+ * therefore be threaded through — see `primaryName` on
+ * {@link HcaBudgetQueryParams}.
  */
 
 /**
@@ -52,12 +56,38 @@ export type HcaBudgetQuote = HcaBudgetBreakdown & {
   readonly hcaBalance: bigint
 }
 
+/** The estimator refused to quote — "no budget", never "the budget is cheap". */
+export class EstimateHcaBudgetError extends TaggedError(
+  'EstimateHcaBudgetError',
+)<{
+  readonly cause: unknown
+}> {}
+
+/** The session-enable payload could not be resolved, so the commit leg is unquotable. */
+export class HcaSessionEnableError extends TaggedError(
+  'HcaSessionEnableError',
+)<{
+  readonly cause: unknown
+}> {}
+
 export interface HcaBudgetQueryParams {
   readonly label: string
   readonly durationInSeconds: number
   /** The HCA address — only used to key the cache per account. */
   readonly hca: Address | null
   readonly signer: Signer | null
+  /**
+   * The primary name the reveal batch will set, or `undefined` when the user
+   * opted out. MUST match what `registrationUi.machine.ts` derives for
+   * `START_REGISTRATION` (`${label}.eth` on the HCA path when the toggle is
+   * on), because the opt-in widens the register leg's gas limit and the rail
+   * prices the intent purely on `destinationGasUnits`.
+   *
+   * Omitting it here quotes a budget SMALLER than the one the machine sizes the
+   * permit from, so a wallet holding the quoted amount clears checkout and then
+   * fails the permit preflight — the exact failure this quote exists to catch.
+   */
+  readonly primaryName: string | undefined
   /**
    * Resolves the session-enable payload. The commit leg's cost depends on
    * whether the batch carries `enableSessionWithRefund`, so the quote must be
@@ -68,58 +98,59 @@ export interface HcaBudgetQueryParams {
   >
 }
 
-export const getHcaBudgetQueryOptions = ({
-  label,
-  durationInSeconds,
-  hca,
-  signer,
-  getSessionEnablePayload,
-}: HcaBudgetQueryParams) =>
-  queryOptions({
+const getHcaBudget = ResultFn(async function* (params: HcaBudgetQueryParams) {
+  const sessionEnable = yield* fromPromise(
+    params.getSessionEnablePayload(),
+    (cause) => new HcaSessionEnableError({ cause }),
+  )
+
+  // The estimator refuses to return a fallback-sourced budget (it would over-
+  // or under-fund), so an error here means "no quote", not "cheap".
+  const budget = yield* estimateHcaBudgetActor({
+    name: params.label,
+    duration: BigInt(Math.ceil(params.durationInSeconds)),
+    publicClient,
+    chainId: sepolia.id,
+    ...(params.signer ? { signer: params.signer } : {}),
+    ...(sessionEnable ? { sessionEnable } : {}),
+    ...(params.primaryName ? { primaryName: params.primaryName } : {}),
+  }).mapErr((cause) => new EstimateHcaBudgetError({ cause }))
+
+  // Read the standing balance the same way the machine does — including
+  // `unwrapOr(0n)`. A failed read must fall back to "the HCA holds nothing",
+  // i.e. gate on the whole budget: erring the other way would wave through a
+  // wallet that then fails the commit simulation.
+  const hcaBalance = params.hca
+    ? await readHcaUsdcBalanceActor({
+        hca: params.hca,
+        publicClient,
+        chainId: sepolia.id,
+      }).unwrapOr(0n)
+    : 0n
+
+  return ok({ ...budget, hcaBalance } satisfies HcaBudgetQuote)
+})
+
+export const getHcaBudgetQueryOptions = (params: HcaBudgetQueryParams) =>
+  resultQueryOptions({
     queryKey: $qk({
       $scope: 'registration',
       $action: 'hca-budget',
-      label,
-      durationInSeconds,
-      hca,
+      label: params.label,
+      durationInSeconds: params.durationInSeconds,
+      hca: params.hca,
+      // Keyed, not just passed: toggling the primary-name switch changes the
+      // quote, so it has to refetch rather than serve the other variant.
+      primaryName: params.primaryName ?? null,
     }),
-    queryFn: async (): Promise<HcaBudgetQuote> => {
-      const sessionEnable = await getSessionEnablePayload()
-
-      const result = await estimateHcaBudgetActor({
-        name: label,
-        duration: BigInt(Math.ceil(durationInSeconds)),
-        publicClient,
-        chainId: sepolia.id,
-        ...(signer ? { signer } : {}),
-        ...(sessionEnable ? { sessionEnable } : {}),
-      })
-
-      // The estimator refuses to return a fallback-sourced budget (it would
-      // over- or under-fund), so an error here means "no quote", not "cheap".
-      if (result.isErr()) throw result.error
-
-      // Read the standing balance the same way the machine does — including
-      // `unwrapOr(0n)`. A failed read must fall back to "the HCA holds
-      // nothing", i.e. gate on the whole budget: erring the other way would
-      // wave through a wallet that then fails the commit simulation.
-      const hcaBalance = hca
-        ? await readHcaUsdcBalanceActor({
-            hca,
-            publicClient,
-            chainId: sepolia.id,
-          }).unwrapOr(0n)
-        : 0n
-
-      return { ...result.value, hcaBalance }
-    },
+    queryFn: () => getHcaBudget(params),
     // Only the HCA route has a funding budget; a pure-EOA signer pays the
     // registrar directly and the estimator has nothing to quote against.
     enabled:
-      Boolean(hca) &&
-      signer?.type === 'rhinestone' &&
-      label.length > 0 &&
-      durationInSeconds > 0,
+      Boolean(params.hca) &&
+      params.signer?.type === 'rhinestone' &&
+      params.label.length > 0 &&
+      params.durationInSeconds > 0,
     staleTime: HCA_BUDGET_STALE_TIME_MS,
     // A flaky orchestrator must not strand the user on the confirm screen:
     // callers treat "no budget" as "show the price alone and let the machine

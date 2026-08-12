@@ -91,6 +91,51 @@ describe('computeRegistrationFunding', () => {
     expect(funding?.isUnderfunded).toBe(true)
   })
 
+  it('credits the HCA balance so the debit and credit reconstruct the total', () => {
+    // The error copy itemises the debit against the credit, so the two have to
+    // add up to the total exactly — quoting a debit next to a breakdown that
+    // sums to something else prints two figures for the same quantity.
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 100_000n,
+      hcaBalanceRaw: 20_000_000n,
+      decimals: USDC,
+    })
+
+    expect(funding?.hcaCredit).toBe(20)
+    expect((funding?.walletDebit ?? 0) + (funding?.hcaCredit ?? 0)).toBeCloseTo(
+      funding?.total ?? 0,
+      6,
+    )
+  })
+
+  it('credits only what the budget needs when the HCA holds more', () => {
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 0n,
+      hcaBalanceRaw: 500_000_000n,
+      decimals: USDC,
+    })
+
+    // Not the full 500 the HCA holds — the credit is capped at the budget so
+    // it still reconstructs the total alongside a zero debit.
+    expect(funding?.hcaCredit).toBe(20.196054)
+    expect(funding?.walletDebit).toBe(0)
+  })
+
+  it('credits nothing when the HCA is empty', () => {
+    const funding = computeRegistrationFunding({
+      budget: PRODUCTION_FAILURE,
+      walletBalanceRaw: 50_000_000n,
+      decimals: USDC,
+    })
+
+    // The common case: the itemised `registration + networkFee` breakdown is
+    // only correct copy when there is no credit to account for.
+    expect(funding?.hcaCredit).toBe(0)
+    expect(funding?.walletDebit).toBe(funding?.total)
+  })
+
   it('asks nothing of the wallet when the HCA already covers the budget', () => {
     const funding = computeRegistrationFunding({
       budget: PRODUCTION_FAILURE,

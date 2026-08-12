@@ -78,6 +78,7 @@ export const TokenPickerContent = () => {
   const account = useSmartAccountContext()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const domainName = `${label}.eth`
   const [duration, selectedToken] = useSelector(
     uiActor,
     (state) => [state.context.duration, state.context.selectedToken] as const,
@@ -123,25 +124,6 @@ export const TokenPickerContent = () => {
     return entry ? BigInt(entry.balance) : null
   })()
 
-  const budgetQueryOptions = getHcaBudgetQueryOptions({
-    label,
-    durationInSeconds: duration,
-    hca: account.accountAddress,
-    signer: account.signer,
-    getSessionEnablePayload: account.getSessionEnablePayload,
-  })
-  const budgetQuery = useQuery(budgetQueryOptions)
-
-  // Absent until the quote lands, and permanently absent if it fails — in which
-  // case the screen falls back to showing the rent alone rather than blocking
-  // on a flaky quote.
-  const funding = computeRegistrationFunding({
-    budget: budgetQuery.data,
-    walletBalanceRaw: usdcBalanceRaw,
-    ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
-    decimals: USDC_DECIMALS,
-  })
-
   // Eligibility lookups run in the background (best-effort): they only seed the
   // default state of the primary-name toggle, so a slow/failed indexer never
   // blocks starting the registration.
@@ -162,6 +144,33 @@ export const TokenPickerContent = () => {
   })
   const [setPrimaryChoice, setSetPrimaryChoice] = useState<boolean | null>(null)
   const setAsPrimary = setPrimaryChoice ?? defaultSetAsPrimary
+
+  // Quoted AFTER the toggle resolves, because the opt-in is priced in: it adds
+  // a call to the reveal leg and widens that leg's gas limit, and the rail
+  // prices the intent purely on gas units. Mirrors what
+  // `registrationUi.machine.ts` hands the machine for `START_REGISTRATION`, so
+  // the figure on this screen is the one the permit is sized from. Quoting
+  // without it under-funds and the permit preflight then rejects a wallet this
+  // screen just told the user was sufficient.
+  const budgetQueryOptions = getHcaBudgetQueryOptions({
+    label,
+    durationInSeconds: duration,
+    hca: account.accountAddress,
+    signer: account.signer,
+    primaryName: setAsPrimary ? domainName : undefined,
+    getSessionEnablePayload: account.getSessionEnablePayload,
+  })
+  const budgetQuery = useQuery(budgetQueryOptions)
+
+  // Absent until the quote lands, and permanently absent if it fails — in which
+  // case the screen falls back to showing the rent alone rather than blocking
+  // on a flaky quote.
+  const funding = computeRegistrationFunding({
+    budget: budgetQuery.data,
+    walletBalanceRaw: usdcBalanceRaw,
+    ...(budgetQuery.data ? { hcaBalanceRaw: budgetQuery.data.hcaBalance } : {}),
+    decimals: USDC_DECIMALS,
+  })
 
   // An explicit toggle choice always wins. Otherwise resolve the eligibility
   // lookups (already in flight for the toggle default — fetchQuery dedupes)
@@ -271,21 +280,42 @@ export const TokenPickerContent = () => {
   const { stablecoinBalances, isLoadingBalances, isConnected } =
     useSmartAccountContext()
 
-  const domainName = `${label}.eth`
-
   // Prefer the funding shortfall over the generic availability copy: it is the
   // more specific failure and the only one the user can act on directly.
-  const mutationError = availabilityMutation.error
-  const errorMessage = funding?.isUnderfunded
-    ? // The debit, not the budget — with a part-funded HCA the wallet owes less
-      // than the registration costs, and quoting the budget would name a figure
-      // the user does not actually have to hold.
-      t`Not enough USDC. This registration needs ${funding.walletDebit.toFixed(2)} USDC — a ${funding.registration.toFixed(2)} registration plus a ${funding.networkFee.toFixed(2)} network cost — but your wallet holds ${(funding.walletBalance ?? 0).toFixed(2)} USDC.`
-    : mutationError instanceof InsufficientFundingError
-      ? t`Not enough USDC. This registration needs ${mutationError.required.toFixed(2)} USDC but your wallet holds ${mutationError.available.toFixed(2)} USDC.`
-      : availabilityMutation.isError
-        ? t`We couldn't confirm that ${domainName} is still available. Please try again.`
-        : null
+  //
+  // The headline figure is always the DEBIT — with a part-funded HCA the wallet
+  // owes less than the registration costs, and quoting the budget would name a
+  // figure the user does not have to hold. The itemisation has to follow suit:
+  // `registration + networkFee` sums to the TOTAL, so spelling it out next to a
+  // credited debit prints two different numbers for the same quantity. Only the
+  // uncredited case itemises; the credited one names the credit instead, which
+  // is what reconciles the two.
+  const errorMessage = match({
+    funding,
+    mutationError: availabilityMutation.error,
+    isAvailabilityError: availabilityMutation.isError,
+  })
+    .with(
+      { funding: { isUnderfunded: true, hcaCredit: P.number.gt(0) } },
+      ({ funding: f }) =>
+        t`Not enough USDC. This registration costs ${f.total.toFixed(2)} USDC and your account already holds ${f.hcaCredit.toFixed(2)}, so you need ${f.walletDebit.toFixed(2)} more — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+    )
+    .with(
+      { funding: { isUnderfunded: true } },
+      ({ funding: f }) =>
+        t`Not enough USDC. This registration needs ${f.walletDebit.toFixed(2)} USDC — a ${f.registration.toFixed(2)} registration plus a ${f.networkFee.toFixed(2)} network cost — but your wallet holds ${(f.walletBalance ?? 0).toFixed(2)} USDC.`,
+    )
+    .with(
+      { mutationError: P.instanceOf(InsufficientFundingError) },
+      ({ mutationError: e }) =>
+        t`Not enough USDC. This registration needs ${e.required.toFixed(2)} USDC but your wallet holds ${e.available.toFixed(2)} USDC.`,
+    )
+    .with(
+      { isAvailabilityError: true },
+      () =>
+        t`We couldn't confirm that ${domainName} is still available. Please try again.`,
+    )
+    .otherwise(() => null)
 
   return (
     <TokenPickerContentBase

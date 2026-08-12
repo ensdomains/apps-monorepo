@@ -30,6 +30,13 @@ export interface RegistrationFunding {
    * the shortfall. Equals `total` in the common case of an empty HCA.
    */
   readonly walletDebit: number
+  /**
+   * What the HCA's standing balance covers: `total - walletDebit`, so
+   * `walletDebit + hcaCredit === total` always holds. Zero in the common case
+   * of an empty HCA. Exists so user-facing copy can reconcile the debit with
+   * the itemised total instead of quoting figures that do not add up.
+   */
+  readonly hcaCredit: number
   /** The wallet's balance, or `null` when it could not be read. */
   readonly walletBalance: number | null
   /**
@@ -70,6 +77,11 @@ export function computeRegistrationFunding(params: {
   const walletDebitRaw =
     budget.total > hcaBalanceRaw ? budget.total - hcaBalanceRaw : 0n
 
+  // Derived as `total - walletDebit` in RAW units so the two always reconstruct
+  // the total exactly. Equals `min(total, hcaBalance)`: an HCA holding more than
+  // the budget credits only what the budget actually needs.
+  const hcaCreditRaw = budget.total - walletDebitRaw
+
   // Clamp: a quote that priced the legs at nothing would otherwise render a
   // negative fee line if the price component ever exceeded the total.
   const feeRaw =
@@ -82,6 +94,7 @@ export function computeRegistrationFunding(params: {
     networkFee: decimalBigintToNumber(feeRaw, decimals),
     total: decimalBigintToNumber(budget.total, decimals),
     walletDebit: decimalBigintToNumber(walletDebitRaw, decimals),
+    hcaCredit: decimalBigintToNumber(hcaCreditRaw, decimals),
     walletBalance:
       walletBalanceRaw === null
         ? null
